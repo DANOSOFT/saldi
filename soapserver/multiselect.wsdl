@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+	xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" 
+	xmlns:tns="urn:Multiselect" 
+	xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" 
+	xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" 
+	xmlns="http://schemas.xmlsoap.org/wsdl/" 
+	targetNamespace="urn:Multiselect">
+	<message name="MultiselectRequest">
+		<part name="regnskab" type="xsd:string"/>
+	</message>
+	<message name="MultiselectResponse">
+		<part name="return" type="xsd:string"/>
+	</message>
+	<portType name="MultiselectPortType">
+		<operation name="Multiselect">
+			<input message="tns:MultiselectRequest"/>
+			<output message="tns:MultiselectResponse"/>
+		</operation>
+	</portType>
+	<binding name="MultiselectBinding" type="tns:MultiselectPortType">
+		<soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<operation name="Multiselect">
+			<input>
+				<soap:body use="encoded" namespace="urn:Multiselect" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output>
+				<soap:body use="encoded" namespace="urn:Multiselect" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+	</binding>
+	<service name="Multiselect">
+		<port name="MultiselectPort" binding="tns:MultiselectBinding">
+			<soap:address location="%SERVERURL%/multiselect.php"/>
+		</port>
+	</service>
+</definitions>

@@ -1,0 +1,41 @@
+Sprog.
+
+Med Saldi ver. 2.0.2 indføres tabellen tekster som i første omgang indeholter tekstbeskrivelser til jobkortet. På længere sigt skal denne tabel indeholde alle tekster som bruges i SALDI, og således bane vejen for at SALDI kan udgives på flere sprog.
+
+Tabellen indeholder:
+ID - 				Fortløbende id nummer som tildeles automatisk
+tekst				Tekststreng.
+tekst_id -	ID nummer på teksten
+sprog_id - 	ID nummer på det sprog teksten er skrevet i - Hentes fra tabellen grupper (art: SPROG).
+
+For tekster som skal "outputtes" til skærm søges efter tekst_id og sprog_id således at den valgte tekst vises på dent ønskede sprog. 
+
+********************************
+
+Jobkort - beskrivelse.
+
+Jobkortet anvendes til beskrivelse af kommende, igangværende og afsluttede arbejdsopgaver 
+
+Jobkortet er designet så det er muligt at tilrette udseende, tekster, felter og tabeller.
+
+Tilretning af jobkortet foretages under indstillinger -> diverse -> jobkort.
+
+Informationer om jobkortets opbygning ligger i tabellen jobkort_style som indeholder følgende:
+
+ID - 				Fortløbende id nummer som tildeles automatisk
+Pos_nr			Informationerne bruges i den rækkefølge, som pos.nummeret indikerer.  
+tekst-id		ID nummer på teksten som hentes fra tabellen: tekster.
+CSS_style.	CSS info til teksten.
+
+Når jobkortet hentes, slås op i tabellen jobkort_style med sortering efter pos_nr.
+
+Jobkortets design kan ændres gennem indstillinger -> diverse.
+
+
+
+
+
+
+
+Her er mulighed for at skrive tekster og indsætte css information.
+
