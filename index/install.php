@@ -1,5 +1,5 @@
 <?php
-// ------------------index/install.php-------3.0.0----2010-05-17------
+// ------------------index/install.php-------3.3.1----2013-06-28------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -155,7 +155,7 @@ if (isset($_POST['opret'])){
 
 	db_modify("CREATE TABLE brugere(id serial NOT NULL, brugernavn text, kode text, status boolean, regnskabsaar integer, rettigheder text, PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("INSERT INTO brugere (brugernavn, kode, rettigheder) values ('$adm_navn' ,'$adm_password', '11111111111111111111')",__FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE regnskab (id serial NOT NULL,	regnskab text, dbhost text, dbuser text, db text, version text, sidst text, brugerantal numeric, posteringer numeric, posteret numeric, lukket text,administrator text,lukkes date, betalt_til date,logintekst text, PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE regnskab (id serial NOT NULL,	regnskab text, dbhost text, dbuser text, db text, version text, sidst text, brugerantal numeric, posteringer numeric, posteret numeric, lukket text,administrator text,lukkes date, betalt_til date,logintekst text,email text, PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version) values ('$db_navn' ,'$host', '$db_bruger', '$db_navn', '$version')",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE online (session_id text, brugernavn text, db text, dbuser text, rettigheder text, regnskabsaar integer, logtime text, revisor boolean)",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE kundedata (id serial NOT NULL, firmanavn text, addr1 text, addr2 text, postnr varchar(10), bynavn text, kontakt text, email text, cvrnr text, regnskab text, regnskab_id integer,brugernavn text, kodeord text, kontrol_id text, aktiv int, logtime text,slettet varchar(2),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);

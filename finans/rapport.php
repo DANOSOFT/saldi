@@ -1,6 +1,6 @@
 <?php
 
-// -------------finans/rapport.php-------lap 3.2.9------2012-09-27-------
+// -------------finans/rapport.php-------lap 3.2.9------2013-02-10-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,10 +19,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 20120927 Hvis budgettal indsat og konto lukket blev konto alligevel vist under budget
+// 20130210 Break ændret til break 1
 
 $title="Finansrapport";
 @session_start();
@@ -553,12 +554,12 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 
 	while (!checkdate($startmaaned,$startdato,$startaar)) {
 		$startdato=$startdato-1;
-		if ($startdato<28) break;
+		if ($startdato<28) break 1;
 	}
 	
 	while (!checkdate($slutmaaned,$slutdato,$slutaar)) {
 		$slutdato=$slutdato-1;
-		if ($slutdato<28) break;
+		if ($slutdato<28) break 1;
 	}
 
 	$regnstart = $startaar. "-" . $startmaaned . "-" . $startdato;
@@ -632,9 +633,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		}
 	}	
 	$x=0;
-	$query="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
-#	echo "$query<br>";
-	$q= db_select("$query",__FILE__ . " linje " . __LINE__);
+	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
+#	echo "$qtxt<br>";
+	$q= db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 		$x++;
 		$kontonr[$x]=$row['kontonr']*1;
@@ -646,9 +647,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	$kontoantal=$x;
 	$ktonr=array();
 	$x=0;
-	$query = "select kontonr,projekt from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id";
-#	echo "$query<br>";
-	$q = db_select($query,__FILE__ . " linje " . __LINE__);
+	$qtxt = "select kontonr,projekt from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id";
+#	echo "$qtxt<br>";
+	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 #echo "$row[projekt]<br>";
 		$x++;
@@ -672,9 +673,24 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			while ($row = db_fetch_array($query)){
 			 	$kontosum= $kontosum+afrund($row['debet'],2)-afrund($row['kredit'],2);
 			}
+			$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
+			while ($row = db_fetch_array($query)){
+			 	$kontosum= $kontosum+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			}
 			$tmp=dkdecimal($kontosum);
 			if (!$dim) print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>$tmp </td></tr>";
 			$print=1;
+			$sim=0;
+			$query = db_select("select * from simulering where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
+			while ($row = db_fetch_array($query)){
+				$sim_transdate[$sim]=$row['transdate'];
+				$sim_bilag[$sim]=$row['bilag'];
+				$sim_kontonr[$sim]=$row['kontonr'];
+				$sim_beskrivelse[$sim]=$row['beskrivelse'];
+				$sim_debet[$sim]=$row['debet'];
+				$sim_kredit[$sim]=$row['kredit'];
+				$sim++;
+			}	
 			$query = db_select("select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)){
 				($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
@@ -686,6 +702,21 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 				$kontosum=$kontosum+afrund($row['debet'],2)-afrund($row['kredit'],2);
 				$tmp=dkdecimal($kontosum);
 				print "<td align=right>$tmp </td></tr>";
+				if (in_array($kontonr[$x],$sim_kontonr)) {
+					for ($sim=0;$sim<count($sim_kontonr);$sim++) {
+#					echo "$sim_kontonr[$sim]<br>";
+						if ($kontonr[$x]==$sim_kontonr[$sim] && $row['transdate'] == $sim_transdate[$sim]) {
+							print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($sim_transdate[$sim])." </td><td>$sim_bilag[$sim] </td><td>$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret) </td>";
+							$tmp=dkdecimal($sim_debet[$sim]);
+							print "<td align=right>$tmp </td>";
+							$tmp=dkdecimal($sim_kredit[$sim]);
+							print "<td align=right>$tmp </td>";
+							$kontosum=$kontosum+afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
+							$tmp=dkdecimal($kontosum);
+							print "<td align=right>$tmp </td></tr>";
+						}
+					}
+				}
 			}
 		}
 	}
@@ -755,12 +786,12 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 
 	while (!checkdate($startmaaned,$startdato,$startaar)) {
 		$startdato=$startdato-1;
-		if ($startdato<28) break;
+		if ($startdato<28) break 1;
 	}
 	
 	while (!checkdate($slutmaaned,$slutdato,$slutaar)) {
 		$slutdato=$slutdato-1;
-		if ($slutdato<28) break;
+		if ($slutdato<28) break 1;
 	}
 
 	$regnstart = $startaar. "-" . $startmaaned . "-" . $startdato;
@@ -849,9 +880,9 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		}
 	}	
 	$x=0;
-	$query="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
-#	echo "$query<br>";
-	$q= db_select("$query",__FILE__ . " linje " . __LINE__);
+	$qtxt="select * from kontoplan where regnskabsaar='$regnaar' and kontonr>='$konto_fra' and kontonr<='$konto_til' order by kontonr";
+#	echo "$qtxt<br>";
+	$q= db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 		if (trim($row['moms'])) {
 			$x++;
@@ -865,15 +896,16 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	$kontoantal=$x;
 	$ktonr=array();
 	$x=0;
-	$query = "select kontonr,projekt from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id";
-#	echo "$query<br>";
-	$q = db_select($query,__FILE__ . " linje " . __LINE__);
+	$qtxt = "select kontonr,projekt from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id";
+#cho "$qtxt<br>";
+	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 #echo "$row[projekt]<br>";
 		$x++;
 		$ktonr[$x]=$row['kontonr'];
 	}
 	$kontosum=0;
+
 	$founddate=false;
 	print "<tr><td colspan=6><hr></td></tr>";
 	print "<tr><td width=10%>  Dato</td><td width=10%>  Bilag </td><td width=50%>  Tekst </td><td width=10% align=right>  Bel&oslash;b </td><td width=10% align=right>  Moms </td><td width=10% align=right>  Incl. moms </td></tr>";
@@ -887,11 +919,26 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 			$kontosum=$primo[$x];
 			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)){
-			 	$kontosum= $kontosum+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			 	$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
+			}
+			$query = db_select("select debet, kredit from simulering where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
+			while ($row = db_fetch_array($query)){
+			 	$kontosum+=afrund($row['debet'],2)-afrund($row['kredit'],2);
 			}
 #			$tmp=dkdecimal($kontosum);
 #			if (!$dim) print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td>  Primosaldo </td><td></td><td></td><td align=right>$tmp </td></tr>";
 			$print=1;
+			$sim=0;
+			$q = db_select("select * from simulering where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)){
+				$sim_transdate[$sim]=$r['transdate'];
+				$sim_bilag[$sim]=$r['bilag'];
+				$sim_kontonr[$sim]=$r['kontonr'];
+				$sim_beskrivelse[$sim]=$r['beskrivelse'];
+				$sim_xmoms[$sim]=$r['debet']-$r['kredit'];
+				$sim_moms[$sim]=$r['moms'];
+				$sim++;
+			}	
 			$q = db_select("select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim order by transdate,bilag,id",__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)){
 				($linjebg!=$bgcolor5)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
@@ -907,14 +954,29 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 						$tmp=round(abs($xmoms-$amount*100/$momssats[$i]),2);
 #					echo "$r2[kontonr] == $momskonto[$i] && $tmp<0.1<br>";
 							if ($r2['kontonr'] == $momskonto[$i] && $tmp<0.1) {
-								$moms=$amount; 
-							}
+							  $moms=$amount; 
+							  }
 						}
 					}
 				}
 				print "<td align=right>".dkdecimal($moms)."</td>";
 				$mmoms=$xmoms+$moms;
 				print "<td align=right>".dkdecimal($mmoms)."</td></tr>";
+			}
+			if (in_array($kontonr[$x],$sim_kontonr)) {
+				for ($sim=0;$sim<count($sim_kontonr);$sim++) {
+#				echo "$sim_kontonr[$sim]<br>";
+					if ($kontonr[$x]==$sim_kontonr[$sim] && $row['transdate'] == $sim_transdate[$sim]) {
+						print "<tr bgcolor=\"$linjebg\"><td>  ".dkdato($sim_transdate[$sim])." </td><td>$sim_bilag[$sim] </td><td>$sim_kontonr[$sim] : $sim_beskrivelse[$sim] (simuleret) </td>";
+						$tmp=dkdecimal($sim_debet[$sim]);
+						print "<td align=right>$tmp </td>";
+						$tmp=dkdecimal($sim_kredit[$sim]);
+						print "<td align=right>$tmp </td>";
+						$kontosum=$kontosum+afrund($sim_debet[$sim],2)-afrund($sim_kredit[$sim],2);
+						$tmp=dkdecimal($kontosum);
+						print "<td align=right>$tmp </td></tr>";
+					}
+				}
 			}
 		}
 	}
@@ -999,12 +1061,12 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 
 	while (!checkdate($startmaaned,$startdato,$startaar)) {
 		$startdato=$startdato-1;
-		if ($startdato<28) break;
+		if ($startdato<28) break 1;
 	}
 
 	while (!checkdate($slutmaaned,$slutdato,$slutaar)) {
 		$slutdato=$slutdato-1;
-		if ($slutdato<28) break;
+		if ($slutdato<28) break 1;
 	}
 #cho "1008 $projekt_fra $prj_navn_fra - $projekt_til $prj_navn_til<br>"; 
 
@@ -1112,6 +1174,12 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		if(db_fetch_array(db_select("select * from transaktioner where transdate>='$regnaarstart' and transdate<='$regnslut' and kontonr='$ktonr[$x]' $dim",__FILE__ . " linje " . __LINE__))) {
 			$vis_kto[$x]=1;
 		}
+		if ($r=db_fetch_array(db_select("select * from simulering where transdate>='$regnaarstart' and transdate<='$regnslut' $dim and kontonr=$ktonr[$x]",__FILE__ . " linje " . __LINE__))) {
+			$vis_kto[$x]=1;
+		}
+		if(db_fetch_array(db_select("select * from simulering where transdate>='$regnaarstart' and transdate<='$regnslut' and kontonr='$ktonr[$x]' $dim",__FILE__ . " linje " . __LINE__))) {
+			$vis_kto[$x]=1;
+		}
 		if ($kontotype[$x]=='R') $vis_kto[$x]=1;
 	}
 	if ($rapportart=='budget') {
@@ -1132,6 +1200,15 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		$query = db_select("select * from transaktioner where transdate>='$regnaarstart' and transdate<='$regnslut' and kontonr='$ktonr[$x]' $dim",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if ($row['transdate']>=$regnstart) $kto_periode[$x]=$kto_periode[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			if ($rapportart!='budget') {
+				$kto_aar[$x]=$kto_aar[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			}
+		}
+		$query = db_select("select * from simulering where transdate>='$regnaarstart' and transdate<='$regnslut' and kontonr='$ktonr[$x]' $dim",__FILE__ . " linje " . __LINE__);
+		while ($row = db_fetch_array($query)) {
+			echo "$kto_periode[$x] --> ";
+			if ($row['transdate']>=$regnstart) $kto_periode[$x]=$kto_periode[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
+			echo "$kto_periode[$x]<br>";
 			if ($rapportart!='budget') {
 				$kto_aar[$x]=$kto_aar[$x]+afrund($row['debet'],2)-afrund($row['kredit'],2);
 			}
@@ -1303,12 +1380,12 @@ function regnskab0($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		
 	while (!checkdate($startmaaned,$startdato,$startaar)) {
 		$startdato=$startdato-1;
-		if ($startdato<28) break;
+		if ($startdato<28) break 1;
 	}
 	
 	while (!checkdate($slutmaaned,$slutdato,$slutaar)) {
 		$slutdato=$slutdato-1;
-		if ($slutdato<28) break;
+		if ($slutdato<28) break 1;
 	}
 	
 	$regnstart = $aar_fra. "-" . $startmaaned . "-" . $startdato;
@@ -1560,12 +1637,12 @@ function momsangivelse ($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 
 	while (!checkdate($startmaaned,$startdato,$startaar)){
 		$startdato=$startdato-1;
-		if ($startdato<28) break;
+		if ($startdato<28) break 1;
 	}
 
 	while (!checkdate($slutmaaned,$slutdato,$slutaar))	{
 		$slutdato=$slutdato-1;
-		if ($slutdato<28) break;
+		if ($slutdato<28) break 1;
 	}
 	if (strlen($startdato)<2) $startdato="0".$startdato;
 

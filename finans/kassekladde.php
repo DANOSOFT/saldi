@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// // ------------finans/kassekladde.php------lap 3.3.0---2013.02.21------
+// // ------------finans/kassekladde.php------lap 3.3.0---2013.04.04------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,13 +19,14 @@ ob_start(); //Starter output buffering
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2012 DANOSOFT ApS
+// Copyright (c) 2003-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.08.09 søg 20120809 V. openpostopslag viser både kreditorer og debitorer hvis de har samme kontonr - rettet 
 // 2012.08.06 søg 20120806
 // 2012.11.10 søg 20121110
 // 2013.02.21 søg 20130221
+// 2013.04.04 addslashes erstattet af db_escape_string
 
 ?>
 <script>
@@ -100,8 +101,9 @@ $udskriv=if_isset($_GET['udskriv']);
 if ($tjek=if_isset($_GET['tjek'])) {
 	$tidspkt=microtime() ;
 	list ($a,$b)=explode(" ",$tidspkt);
-	$query = db_select("select tidspkt, hvem from kladdeliste where bogfort = '-' and id = $tjek",__FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query) && isset($row['tidspkt'])) {
+	$query = db_select("select bogfort,tidspkt,hvem from kladdeliste where (bogfort = '-' or bogfort = 'S') and id = $tjek",__FILE__ . " linje " . __LINE__);
+	$row = db_fetch_array($query); 
+	if (isset($row['tidspkt'])) {
 		list ($a,$c)=explode(" ",$row['tidspkt']);
 		if (($b-$c<3600)&&($row['hvem']!=$brugernavn)){
 			print "<body onLoad=\"javascript:alert('Kladden er i brug af $row[hvem]')\">";
@@ -111,8 +113,10 @@ if ($tjek=if_isset($_GET['tjek'])) {
 		else {
 			$a--;
 			$tidspkt=$a." ".$b; #der fratraekkes 1. sec af hensyn til refreshtjek;
-			db_modify("update kladdeliste set hvem = '$brugernavn', tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);
+			db_modify("update kladdeliste set bogfort = '-',bogfort_af = '',hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);
 		}
+	} elseif ($row['bogfort']=='S') {
+		db_modify("update kladdeliste set bogfort = '-',bogfort_af = '',hvem = '$brugernavn',tidspkt='$tidspkt'  where id = '$tjek'",__FILE__ . " linje " . __LINE__);
 	}
 	if (db_fetch_array(db_select("select id from tmpkassekl where kladde_id='$tjek'",__FILE__ . " linje " . __LINE__))) $fejl=1;
 	else $fejl=0;
@@ -221,8 +225,8 @@ if ($_POST) {
 	$ny_dato =if_isset($_POST['ny_dato']);
 	$kontrolkonto=trim(if_isset($_POST['kontrolkonto']));
 	$bilagsnr=if_isset($_POST['bilagsnr']);
-	$kladdenote = addslashes(trim(if_isset($_POST['kladdenote'])));
-	$ny_kladdenote = addslashes(trim(if_isset($_POST['ny_kladdenote'])));
+	$kladdenote = db_escape_string(trim(if_isset($_POST['kladdenote'])));
+	$ny_kladdenote = db_escape_string(trim(if_isset($_POST['ny_kladdenote'])));
 	$antal_ny=if_isset($_POST['antal_ny']);
 	$antal_ex=if_isset($_POST['antal_ex']);
 	$fokus=if_isset($_POST['fokus']);
@@ -231,6 +235,7 @@ if ($_POST) {
 	$gl_transdate=if_isset($_POST['transdate']);
 
 	if ($kladde_id) db_modify("delete from tmpkassekl where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
+	if ($kladde_id) db_modify("delete from simulering where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
 	db_modify("update grupper set box2='$kontrolkonto' where ART='KASKL' and kode='1' and kodenr='$bruger_id'",__FILE__ . " linje " . __LINE__);
 	for ($x=1;$x<=$antal_ny;$x++) {
 		$dato[$x]=NULL;$beskrivelse[$x]=NULL;$d_type[$x]=NULL;$debet[$x]=NULL;$k_type[$x]=NULL;$kredit[$x]=NULL;$faktura[$x]=NULL;
@@ -242,7 +247,7 @@ if ($_POST) {
 		$y="dato".$x;
 		$dato[$x]=trim(if_isset($_POST[$y]));
 		$y="besk".$x;
-		$beskrivelse[$x]=addslashes(trim(if_isset($_POST[$y])));
+		$beskrivelse[$x]=db_escape_string(trim(if_isset($_POST[$y])));
 		while (strpos($beskrivelse[$x],"  ")) $beskrivelse[$x]=str_replace("  "," ",$beskrivelse[$x]);
 		$y="d_ty".$x;
 		$d_type[$x]=substr(strtoupper(if_isset($_POST[$y])),0,1);
@@ -253,7 +258,7 @@ if ($_POST) {
 		$y="kred".$x;
 		$kredit[$x]=trim(if_isset($_POST[$y]));
 		$y="fakt".$x;
-		$faktura[$x]=addslashes(trim(if_isset($_POST[$y])));
+		$faktura[$x]=db_escape_string(trim(if_isset($_POST[$y])));
 		$y="belo".$x;
 		$belob[$x]=if_isset($_POST[$y]);
 		$y="dkka".$x;
@@ -543,7 +548,7 @@ if ($_POST) {
 			$tidspkt=microtime();
 		}
 		if ($kladde_id) {
-			$bilag[$x]=addslashes($bilag[$x]);$dato[$x]=addslashes($dato[$x]);$beskrivelse[$x]=addslashes($beskrivelse[$x]);$d_type[$x]=addslashes($d_type[$x]);$debet[$x]=addslashes($debet[$x]);$k_type[$x]=addslashes($k_type[$x]);$kredit[$x]=addslashes($kredit[$x]);$faktura[$x]=addslashes($faktura[$x]);$belob[$x]=addslashes($belob[$x]);$momsfri[$x]=addslashes($momsfri[$x]);$afd[$x]=addslashes($afd[$x]);$projekt[$x]=addslashes($projekt[$x]);$ansat[$x]=addslashes($ansat[$x]);$valuta[$x]=addslashes($valuta[$x]);$forfaldsdato[$x]=addslashes($forfaldsdato[$x]);
+			$bilag[$x]=db_escape_string($bilag[$x]);$dato[$x]=db_escape_string($dato[$x]);$beskrivelse[$x]=db_escape_string($beskrivelse[$x]);$d_type[$x]=db_escape_string($d_type[$x]);$debet[$x]=db_escape_string($debet[$x]);$k_type[$x]=db_escape_string($k_type[$x]);$kredit[$x]=db_escape_string($kredit[$x]);$faktura[$x]=db_escape_string($faktura[$x]);$belob[$x]=db_escape_string($belob[$x]);$momsfri[$x]=db_escape_string($momsfri[$x]);$afd[$x]=db_escape_string($afd[$x]);$projekt[$x]=db_escape_string($projekt[$x]);$ansat[$x]=db_escape_string($ansat[$x]);$valuta[$x]=db_escape_string($valuta[$x]);$forfaldsdato[$x]=db_escape_string($forfaldsdato[$x]);
 			db_modify("insert into tmpkassekl (lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) values ('$x', '$id[$x]', '$bilag[$x]', '$dato[$x]', '$beskrivelse[$x]', '$d_type[$x]', '$debet[$x]', '$k_type[$x]', '$kredit[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', '$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')",__FILE__ . " linje " . __LINE__);
 		}
 		if ($fejl) $submit="Gem";
@@ -557,8 +562,7 @@ if ($_POST) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id",__FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt==$row['tidspkt']) { #Refreshtjek"
 			print "<BODY onLoad=\"javascript:alert('Brug af refresh konstateret - handling ignoreret')\">";
-		}
-		else {
+		} else {
 			db_modify("update kladdeliste set kladdenote = '$ny_kladdenote', hvem = '$brugernavn', tidspkt='$tidspkt' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
 			$kladdenote = $ny_kladdenote;
 			if (!$kontonr) {
@@ -1861,10 +1865,17 @@ function kontroller($id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit
 	if (!$aarstart) {
 		$query = db_select("select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
-			$year=trim($row['box2']);
-			$aarstart=trim($year).trim($row['box1']);
-			$year=trim($row['box4']);
-			$aarslut=trim($year).trim($row['box3']);
+			$md1=trim($row['box1']);
+			$year1=trim($row['box2']);
+			$md2=trim($row['box3']);
+			$year2=trim($row['box4']);
+			if (strlen($md1)<2 || strlen($md2)<2) {
+				if (strlen($md1)<2) $md1='0'.$md1;
+				if (strlen($md2)<2) $md2='0'.$md2;
+				db_modify("update grupper set box1='$md1',box3='$md2' where art='RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__);
+			}
+			$aarstart=$year1.$md1;
+			$aarslut=$year2.$md2;
 	 	}
 	}
 #	(!$bilag) {$bilag=$prebilag;} PHR 02.10.06
@@ -2116,7 +2127,7 @@ function opdater($kladde_id)
 			$k_type=trim($r['k_type']);
 			$afd=$r['afd']*1;
 			$ansat=strtolower($r['ansat']);
-			$faktura=addslashes($r['faktura']);
+			$faktura=db_escape_string($r['faktura']);
 			if ($egen_kto_id && $ansat) {
 			$r2=db_fetch_array(db_select("select id from ansatte where lower(initialer) = '$ansat' and konto_id = '$egen_kto_id'",__FILE__ . " linje " . __LINE__));
 				$ansat_id=$r2['id']*1;
@@ -2130,7 +2141,7 @@ function opdater($kladde_id)
 				$valutakode=$r2['kodenr']*1;
 			} else $valutakode=0; #Valutakode 0 er altid DKK
 			$betal_id=$r['betal_id'];
-			$beskrivelse=addslashes($r['beskrivelse']);
+			$beskrivelse=db_escape_string($r['beskrivelse']);
 			if ($amount < 0) {# Hvis beloebet er negativt, byttes om paa debet og kredit.
 				$tmp=$kredit;$kredit=$debet;	$debet=$tmp;
 				$tmp=$k_type;$k_type=$d_type;$d_type=$tmp;
@@ -2143,7 +2154,7 @@ function opdater($kladde_id)
 				if ($forfaldsdate) db_modify("update kassekladde set forfaldsdate='$forfaldsdate', betal_id='$betal_id' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 			else db_modify("update kassekladde set forfaldsdate=NULL, betal_id='' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 			} elseif (($r['transdate'] || $transdate)&&(($r['beskrivelse'])||($debet)||($kredit)||($r['faktura']))) {
-				$beskrivelse=addslashes($r['beskrivelse']);
+				$beskrivelse=db_escape_string($r['beskrivelse']);
 				if ($forfaldsdate) db_modify("insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id) values ('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', '$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id','$forfaldsdate','$betal_id')",__FILE__ . " linje " . __LINE__);
 				else db_modify("insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id) values ('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', '$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id')",__FILE__ . " linje " . __LINE__);
 			}
@@ -2191,8 +2202,8 @@ function kopier_til_ny($kladde_id,$bilagsnr,$ny_dato)
 			$query = db_select("select * from kassekladde where kladde_id=$kladde_id order by bilag",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
 #				if (!isset($b_diff) && $row['bilag']) $b_diff=$bilagsnr-$row['bilag'];
-				$beskrivelse=addslashes($row['beskrivelse']);
-				$faktura=addslashes($row['faktura']);				if ($bilagsnr != "=" && $row['bilag'] && $row['bilag']!=$gl_bilag) {
+				$beskrivelse=db_escape_string($row['beskrivelse']);
+				$faktura=db_escape_string($row['faktura']);				if ($bilagsnr != "=" && $row['bilag'] && $row['bilag']!=$gl_bilag) {
 					if (!$bilag) $bilag=$bilagsnr;
 					else $bilag++;
 					$gl_bilag = $row['bilag'];
@@ -2357,7 +2368,7 @@ function valutaopslag($amount, $valuta, $transdate)
 ##########################################################################################################
 function find_kontonr($kontonr,$art) {
 	$x=0;
-	$tmp=addslashes(strtolower($kontonr));
+	$tmp=db_escape_string(strtolower($kontonr));
 	$q=db_select("select kontonr from adresser where art = '$art' and lower(firmanavn) like '%$tmp%' and lukket != 'on'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;

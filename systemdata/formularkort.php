@@ -212,7 +212,7 @@ print "</tbody></table></td></tr>";
 if ($nyt_sprog) sprog($nyt_sprog,$skabelon,$handling);
 print "<tr><td align=center width=100%><table align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 
-$formular=array("","Tilbud","Ordrebekr&aelig;ftelse","F&oslash;lgeseddel","Faktura","Kreditnota","Rykker_1","Rykker_2","Rykker_3","Plukliste","","Kontokort");
+$formular=array("","Tilbud","Ordrebekr&aelig;ftelse","F&oslash;lgeseddel","Faktura","Kreditnota","Rykker_1","Rykker_2","Rykker_3","Plukliste","","Kontokort","Forslag","Rekvisition","Lev.afregning");
 
 print "<tr><td colspan=10 align=center><table><tbody>";
 print "<form name=formularvalg action=$_SERVER[PHP_SELF] method=\"post\">";
@@ -229,6 +229,9 @@ print "<option value=\"6\">Rykker_1</option>";
 print "<option value=\"7\">Rykker_2</option>";
 print "<option value=\"8\">Rykker_3</option>";
 print "<option value=\"11\">Kontokort</option>";
+print "<option value=\"12\">Indkøbsforslag</option>";
+print "<option value=\"13\">Rekvisition</option>";
+print "<option value=\"14\">Købsfaktura</option>";
 # print "<option value=\"10\">Pos</option>";
 print "</SELECT></td>";
 print "<td>  Art</td>";
@@ -441,7 +444,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<option>egen_bank_konto</option>";
 	print "<option>egen_email</option>";
 	print "<option>egen_web</option>";
-	if ($form_nr<6  || $form_nr==10) {
+	if ($form_nr<6  || $form_nr==10 || $form_nr>=12) {
 		print "<option>ansat_initialer</option>";
 		print "<option>ansat_navn</option>";
 		print "<option>ansat_addr1</option>";
@@ -473,7 +476,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option value=\"ordre_kontakt\">ordre_kontakt</option>";
 		print "<option value=\"ordre_cvrnr\">ordre_cvrnr</option>";
 	}
-	if ($form_nr<6 || $form_nr==10) {
+	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
 		print "<option>ordre_ordredate</option>";
 		print "<option>ordre_levdate</option>";
 		print "<option>ordre_notes</option>";
@@ -491,7 +494,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option>ordre_institution</option>";
 		print "<option>ordre_lev_kontakt</option>";
 	}	
-	if ($form_nr==4) {
+	if ($form_nr==4 || $form_nr==13) {
 		print "<option>ordre_fakturanr</option>";
 		print "<option>ordre_fakturadate</option>";
 	}	
@@ -501,7 +504,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<option>formular_transportsum</option>";
 	print "<option>formular_betalingsid(9,5)</option>";
 	print "<option>formular_kontosaldo</option>";
-	if ($form_nr<6 || $form_nr==10) {
+	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
 		print "<option>formular_moms</option>";
 		print "<option>formular_momsgrundlag</option>";
 	}

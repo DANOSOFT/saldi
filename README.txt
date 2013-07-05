@@ -1,12 +1,9 @@
 SALDI Read Me file
-==================
+========================
 
-Saldi is a free software accounting system in Danish released under 
-GNU General Public License. 
+SALDI is a free software accounting system in Danish. No English 
+documentation.
 
-No further documentation in English documentation.
+SALDI is released under the GNU General Public License version 2.
 
-If you understand Danish then please read the file LAESMIG.txt or 
-visit the website at http://saldi.dk/
-
-The SALDI team at DANOSOFT ApS  
+If you understand Danish then please read the file LAESMIG.txt.  

@@ -1,5 +1,5 @@
 <?php
-// -------------kreditor/ordre.php----------lap 3.2.9-----2012-08-14----
+// -------------kreditor/ordre.php----------lap 3.2.9-----2013-06-24----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.08.14 søg 20120814
+// 2013.06.18 Tilføjet udskrivning af indkøbsforslag, rekvisition & lev-faktura
+// 2013.06.24 Rettet bug - Blank side ved kreditering...
 
 @session_start();
 $s_id=session_id();
@@ -161,7 +163,8 @@ if ($_GET['vare_id']) {
 		}
 	}
 }
-	if ($_POST) {
+#cho "status ".$_POST['status']."<br>";
+	if (($_POST['status'] || $_POST['status']=='0') && ($_POST['status']<3 || strstr($_POST['submit'],"Kred"))) {
 		$fokus=$_POST['fokus'];
 		$submit = $_POST['submit'];
 		$id = $_POST['id'];
@@ -709,11 +712,20 @@ if ($_GET['vare_id']) {
 					db_modify("insert into ordrelinjer (ordre_id,posnr,beskrivelse,enhed) values ('$id','$x','$beskrivelse[$x]','$enhed[$x]')",__FILE__ . " linje " . __LINE__);
 				}
 			}
-		}
+		} 
 		$vis=1;
 	transaktion("commit");
 	}
-
+	if (isset($_POST['udskriv']) && $_POST['udskriv']=='Udskriv') {
+		$id=if_isset($_POST['id']);
+		$status=if_isset($_POST['status']);
+		$ps_fil="formularprint.php";
+		if ($status<=1) $formular=12;
+		if ($status==2) $formular=13;
+		if ($status>2) $formular=14;
+		$udskriv_til='PDF';
+	  print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$formular&udskriv_til=$udskriv_til\">\n";
+	}
 ##########################OPSLAG################################
 
 	if (strstr($submit,'Opslag')) {
@@ -1036,11 +1048,12 @@ function ordreside($id) {
 		if ($art!='KK') {
 			print "<td align=center><span title=\"Kopi&eacute;r til ny ordre med samme indhold\"><input type=\"submit\" value=\"Kopi&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\"></span></td>";
 			print "<td align=center><span title=\"Opretter en kreditnota med samme indhold. Kan redigeres inden endelig kreditering\"><input type=\"submit\" value=\"Kredit&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\"></span></td>";
+			print "<td align=center><span title=\"Udskriver ordre til PDF\"><input type=\"submit\" value=\"Udskriv\" name=\"udskriv\" onclick=\"javascript:docChange = false;\"></span></td>";
 		}
 	}
 	else { // Aabne ordrer herunder **************************************************
 		print "<table cellpadding=\"1\" cellspacing=\"5\" border=\"1\" valign = \"top\" width = 100><tbody>";
-		$ordre_id=$row[id];
+		$ordre_id=$row['id'];
 
 		print "<tr><td width=33%><table cellpadding=0 cellspacing=0 border=0 width=100>";
 		print "<tr><td witdh=200>Kontonr.</td><td colspan=2>";
@@ -1392,6 +1405,7 @@ function ordreside($id) {
 		}
 		elseif ($status > 1 && $bogfor==1){print "<td align=center><input type=submit accesskey=\"b\" value=\"Bogf&oslash;r\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>";}
 		if (!$posnr[1] && $id) {print "<td align=center><input type=submit value=\"&nbsp;&nbsp;Slet&nbsp;&nbsp;\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>";}
+		elseif ($id && $art=='KO') print "<td align=center><span title=\"Udskriver ordre til PDF\"><input type=\"submit\" value=\"Udskriv\" name=\"udskriv\" onclick=\"javascript:docChange = false;\"></span></td>";
 		print "<td align=center><span title=\"Klik her for at udskrive ordrelinjer til en tabulatorsepareret fil, som kan importeres i et regneark\"><input type=submit value=\"&nbsp;&nbsp;CSV&nbsp;&nbsp;\" name=\"submit\" onClick=\"javascript:ordre2csv=window.open('ordre2csv.php?id=$ordre_id','ordre2csv','scrollbars=1,resizable=1')\"></span></td>";
 		if ($konto_id) $r=db_fetch_array(db_select("select kreditmax from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__));
 		if ($kreditmax=$r['kreditmax']*1) {

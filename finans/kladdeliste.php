@@ -91,7 +91,7 @@ $tjek=0;
 		print "<td align = center>$row[bogfort]<br></td>";
 		print "<td></td></tr>";
 	}
-	print "<tr><td colspan=6><hr></td></tr>";
+#	print "<tr><td colspan=6><hr></td></tr>";
 	$query = db_select("select * from kladdeliste where bogfort = '!' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$kladde="kladde".$row[id];
@@ -105,16 +105,46 @@ $tjek=0;
 		else {print "<td><span title= 'Kladde er l&aring;st af $row[hvem]'>$row[id]</span></td>";}
 #		print "<tr>";
 #		print "<td> $row[id]<br></td>";
-		$kladdedato=dkdato($row[kladdedate]);
+		$kladdedato=dkdato($row['kladdedate']);
 		print "<td>$kladdedato<br></td>";
-		print "<td>".htmlentities(stripslashes($row[oprettet_af]),ENT_QUOTES,$charset)."<br></td>";
-		print "<td>".htmlentities(stripslashes($row[kladdenote]),ENT_QUOTES,$charset)."<br></td>";
+		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
+		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td align = center>$row[bogfort]<br></td>";
 		print "</tr>";
 	}
-	if ($row){print "<tr><td colspan=6><hr></td></tr>";}
-	$query = db_select("select * from kladdeliste where bogfort = 'V' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from kladdeliste where bogfort = 'S' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	$hr=$tjek;
 	while ($row = db_fetch_array($query)){
+		if ($hr==$tjek) {
+			print "<tr><td colspan=\"2\" align=\"center\"><b>Simulerede kladder</b></td><td colspan=\"4\"><hr></td></tr>";
+		}
+		$tjek++;
+		$kladde="kladde".$row['id'];
+		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
+		else {$linjebg=$bgcolor5; $color='#000000';}
+		print "<tr bgcolor=\"$linjebg\">";
+		if ($popup) print "<td  onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kladde=window.open('kassekladde.php?kladde_id=$row[id]&tjek=$row[id]&returside=kladdeliste.php','$kladde','".$jsvars."');$kladde.focus();\"><span style=\"text-decoration: underline;\">$row[id]</a></span></td>";
+		else print "<td><a href=kassekladde.php?kladde_id=$row[id]&tjek=$row[id]&returside=kladdeliste.php>$row[id]</a><br></td>";
+		$kladdedato=dkdato($row['kladdedate']);
+		print "<td>$kladdedato<br></td>";
+		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
+		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
+## Da der ikke blev sat bogfringsdato foer ver. 0.23 skal det saettes hak ved kladder bogfrt fr denne version...
+		if ($row['bogforingsdate']){
+			$bogforingsdato=dkdato($row['bogforingsdate']);
+			print "<td align = center>$bogforingsdato<br></td>";
+		}
+		else {print "<td align = center>$row[bogfort]<br></td>";}
+		print "<td>$row[bogfort_af]<br></td>";
+
+		print "</tr>";
+	}
+	$query = db_select("select * from kladdeliste where bogfort = 'V' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	$hr=$tjek;
+	while ($row = db_fetch_array($query)){
+		if ($hr==$tjek) {
+			print "<tr><td colspan=\"2\" align=\"center\"><b>Bogførte kladder</b></td><td colspan=\"4\"><hr></td></tr>";
+		}
 		$tjek++;
 		$kladde="kladde".$row['id'];
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}

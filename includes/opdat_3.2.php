@@ -335,6 +335,52 @@ function opdat_3_2($under_nr, $lap_nr){
 		include("../includes/connect.php");
 		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 	}
+	$nextver='3.3.0';
+	include("../includes/connect.php");
+	$r=db_fetch_array(db_select("select * from regnskab where id=1",__FILE__ . " linje " . __LINE__));
+	$tmp=$r['version'];
+	if ($tmp<$nextver) {
+		db_modify("UPDATE regnskab set version = '$nextver' where id = 1",__FILE__ . " linje " . __LINE__);
+	}
+	include("../includes/online.php");
+	db_modify("CREATE TABLE opgaver (id serial NOT NULL,assign_id integer,assign_to text,nr numeric(15,0),beskrivelse text,omfang text,ref text,status text,tidspkt text,hvem text,oprettet_af text,kunde_ref text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE simulering (id serial NOT NULL,kontonr int4,bilag numeric(15,0),transdate date,beskrivelse text,debet numeric(15,3),kredit numeric(15,3),faktura text,kladde_id int4,projekt text,ansat numeric(15,0),logdate date,logtime time,afd int4,ordre_id int4,valuta text,valutakurs numeric(15,3),moms numeric(15,3),adresser_id int4,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE tjekskema (id serial NOT NULL,tjekliste_id integer,datotid text,opg_art text,sjak text,sag_id integer,hvem text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen add column afregnet text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen add column afregnet_af text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen add column korsel text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen add column korsel text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen add column opg_id integer",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen add column opg_nr integer",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen add column afvist_pga text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column op_25 numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column ned_25 numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column op_40 numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column ned_40 numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column op_60 numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column ned_60 numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column op_30m numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table loen_enheder add column ned_30m numeric(15,3)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table bilag add column bilag_fase text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table noter add column notat_fase text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table noter add column kategori text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table noter add column nr numeric(15,0)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table ordrer add column sag_id integer",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table ordrer add column tilbudnr numeric(15,0)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table ordrer add column datotid text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table ordrer add column nr numeric(15,0)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table ordrer add column returside text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table ordrer add column sagsnr numeric(15,0)",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table transaktioner add column adresser_id integer",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table tjekpunkter add column status integer",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table tjekpunkter add column status_tekst text",__FILE__ . " linje " . __LINE__);
+	db_modify("alter table tjekpunkter add column tjekskema_id integer",__FILE__ . " linje " . __LINE__);
+
+	db_modify("update transaktioner set moms=moms*-1 where kredit > 0 and moms > 0",__FILE__ . " linje " . __LINE__);
+	
+	db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+	include("../includes/connect.php");
+	db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 }
 
 ?>

@@ -1,6 +1,6 @@
 <?php
 
-// --------------index/login.php----------lap 3.2.1----- 2011-05-31------
+// --------------index/login.php----------lap 3.3.1----- 2013-07-05------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -15,7 +15,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 if (!function_exists('tjek4opdat')) {
@@ -63,14 +63,18 @@ if (!function_exists('tjek4opdat')) {
 					opdat_3_0($b, $c);
 					$b=1;$c=0;
 				}
-				if ($b==1||($a<3&&$b==2&&$c==0)) {
+				if ($b==1) {
 					include("../includes/opdat_3.1.php");
 					opdat_3_1($b,$c);
 					$b=2;$c=0;
 				}
-				if ($b==2||($b==3&&$c==0)) {
+				if ($b==2) {
 					include("../includes/opdat_3.2.php");
 					opdat_3_2($b,$c);
+				}
+				if ($b==3) {
+					include("../includes/opdat_3.3.php");
+					opdat_3_3($b,$c);
 				}
 			}
 		}

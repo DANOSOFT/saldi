@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// ---------------------includes/formfunk.php ------patch 3.2.9----2013-05-08--------------
+// ---------------------includes/formfunk.php ------patch 3.2.9----2013-06-18--------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -32,6 +32,8 @@ ob_start(); //Starter output buffering
 // 2013.03.19 Tilføjet udskrivning af kontokort
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
 // 2013.05.08 Tilføjet kontrol af status og fakturanr inden udskrivning af faktura / kn. for at undgå udskrift af fakt. ved bogf. fejl 20130508
+// 2013.06.18 Tilføjet udskrivning af indkøbsforslag, rekvisition & lev-faktura
+// 2013.06.19 Rettet udskriv_til til udskriv_alle_til i funktion formularprint for at undgå udskrivning til email v. masseudskrivning til pdf
 
 
 function skriv($str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font,$formular) {
@@ -537,7 +539,7 @@ function modulus_10($id) {
 #		print "<BODY onLoad=\"JavaScript:alert('betalingsid = $betalingsid');\">";
 	return ($betalingsid);
 }
-function formularprint($id,$formular,$lev_nr,$charset,$udskriv_til) {
+function formularprint($id,$formular,$lev_nr,$charset,$udskriv_alle_til) {
 include("../includes/std_func.php");
 include("../includes/var2str.php");
 
@@ -633,13 +635,19 @@ system("rm -r $mappe");
 $mappe="../temp/$db/".abs($bruger_id)."_".date("his");
 mkdir("$mappe", 0775);
 if ($ordre_antal>1) {
+	$printfilnavn='udskrift';
 	if ($formular<=1) $printfilnavn="tilbud";
 	if ($formular==2) $printfilnavn="ordrebek";
 	if ($formular==3) $printfilnavn="flg_seddel";
 	if ($formular==4) $printfilnavn="faktura";
 	if ($formular==9) $printfilnavn="plukliste";
+	if ($formular==12) $printfilnavn="forslag";
+	if ($formular==13) $printfilnavn="rekvisition";
+	if ($formular==14) $printfilnavn="lev_fakt";
 	$fp1=fopen("$mappe/$printfilnavn","w");
 }
+
+#cho "f: $formular pfnavn $printfilnavn Ant $ordre_antal<br>";
 for ($q=0; $q<$ordre_antal; $q++) {
 	$fp=$fp1;
 	if (isset($form[$q])) $formular=$form[$q];
@@ -647,7 +655,7 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	$enhed=array(); $rabat=array(); $momssats=array(); $pris=array(); $l_sum=array(); $linjesum=array();
 	$sum='';$transportsum=0;
  	if ($preview) {
-#echo "p $preview<br>";
+##cho "p $preview<br>";
 #exit;
 		$ref='Egen ref';
 		$ordrenr='Ordrenummer';
@@ -658,9 +666,11 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	} else {
 		$query = db_select("select status,email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,sprog,udskriv_til from ordrer where id = '$ordre_id[$q]'",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
+		$art=$row['art'];
 		$ref=$row['ref'];
 		$ordrenr=$row['ordrenr'];
-		$udskriv_til=$row['udskriv_til'];
+		if (!$udskriv_alle_til) $udskriv_til=$row['udskriv_til'];
+		else $udskriv_til=$udskriv_alle_til;
 		$fakturanr=$row['fakturanr'];
 		$mail_fakt=$row['mail_fakt'];
 		$email[0]=$row['email'];
@@ -736,9 +746,10 @@ for ($q=0; $q<$ordre_antal; $q++) {
 		}
 		fclose($logofil);
 	}
+#cho "select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'<br>";
 	$query = db_select("select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
-		if ($row['beskrivelse']=='generelt') {
+	if ($row['beskrivelse']=='generelt') {
 			$antal_ordrelinjer=$row['xa'];
 			$ya=$row['ya'];
 			$linjeafstand=$row['xb'];
@@ -770,6 +781,9 @@ for ($q=0; $q<$ordre_antal; $q++) {
 		if ($formular==4) $pfnavn="fakt".$fakturanr;
 		if ($formular==5) $pfnavn="kn".$fakturanr;
 		if ($formular==9) $pfnavn="plukliste".$ordrenr;
+		if ($formular==12) $printfilnavn="forslag".$ordrenr;
+		if ($formular==13) $printfilnavn="rekvisition.$ordrenr";
+		if ($formular==14) $printfilnavn="lev_fakt.$ordrenr";
 		$email[$mailantal]=$email[0];
 		$mailsprog[$mailantal]=$formularsprog;
 		$form_nr[$mailantal]=$formular;
@@ -786,6 +800,9 @@ for ($q=0; $q<$ordre_antal; $q++) {
 			if ($formular==4) $printfilnavn="fakt".$fakturanr;
 			if ($formular==5) $printfilnavn="kn".$fakturanr;
 			if ($formular==9) $printfilnavn="plukliste".$ordrenr;
+			if ($formular==12) $printfilnavn="forslag".$ordrenr;
+			if ($formular==13) $printfilnavn="rekvisition.$ordrenr";
+			if ($formular==14) $printfilnavn="lev_fakt.$ordrenr";
 			$pfnavn=$mappe."/".$printfilnavn;
 			$fp=fopen("$pfnavn","w");
 		}
@@ -811,11 +828,10 @@ for ($q=0; $q<$ordre_antal; $q++) {
 				$beskrivelse[$x]=utf8_decode('Eksempel på en linjetekst');
 			}
 		} else {	
-			$query = db_select("select * from ordrelinjer where ordre_id = $ordre_id[$q] order by posnr",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select * from ordrelinjer where ordre_id = $ordre_id[$q] order by posnr",__FILE__ . " linje " . __LINE__);
 			while($row = db_fetch_array($query)){
-				if ($row['posnr']>0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'],$posnr) || ($formular!=3))){
+			if ($row['posnr']>0 && (!$row['samlevare'] || !is_numeric($row['samlevare'])) && (!in_array($row['posnr'],$posnr) || ($formular!=3))){
 					$x++;
-#cho "Antal $antal[$x]<br>";
 					$posnr[$x]=trim($row['posnr']);
 					$varenr[$x]=trim($row['varenr']);
 					$projekt[$x]=($row['projekt']);
@@ -831,6 +847,7 @@ for ($q=0; $q<$ordre_antal; $q++) {
 						$vare_id[$x]=$row['vare_id'];
 						$linje_id[$x]=$row['id'];
 						$antal[$x]=$row['antal']*1;
+#cho "Antal $antal[$x]<br>";
 						$leveres[$x]=$row['leveres']*1;
 #cho "$beskrivelse[$x] $leveres[$x]<br>"; 
 						$dkantal[$x]=str_replace(".",",",$antal[$x]);
@@ -1061,6 +1078,7 @@ function formulartekst($id,$formular,$formularsprog){
 		if($row = db_fetch_array($query)) {$rabat="y";}
 	}
 	
+#cho "select * from formularer where formular = '$formular' and art = '1' and beskrivelse != 'LOGO' and lower(sprog)='$formularsprog'<br>";
 	$query = db_select("select * from formularer where formular = '$formular' and art = '1' and beskrivelse != 'LOGO' and lower(sprog)='$formularsprog'",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$xa=$row['xa']*2.86;
