@@ -1,5 +1,5 @@
 <?php
-// --------------------finans/bogfor.php------ lap 3.2.9 -- 2013-02-10 --
+// --------------------finans/bogfor.php------ lap 3.2.9 -- 2013-08-02 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,6 +25,7 @@
 // 20130224 - Ny saldo for kreditorer og debitorer vises nu i aktuelle regnskabsaar.
 // 20130404 - addslashes erstattet af db_escape_string.  
 // 20130404 - Blokerer nu for postering hvis max. antal overskredet.
+// 20130802 - Tilføjet simulering - i betatest - knap ikke synlig.
 
 @session_start();
 $s_id=session_id();
@@ -64,7 +65,7 @@ $regnslut=$rsaar."-".$rsmd."-".$rsdd;
 
 if ($kladde_id) {	
 	$row =db_fetch_array(db_select("select bogfort from kladdeliste where id = $kladde_id",__FILE__ . " linje " . __LINE__));
-	if ($row['bogfort']!='-') {
+	if ($row['bogfort']=='V') {
 		print "<BODY onLoad=\"javascript:alert('Kladden er allerede bogf&oslash;rt - kladden lukkes')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 		exit;
@@ -130,16 +131,18 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 		bogfor($kladde_id, $kladdenote,'on');
 #		db_modify("delete from tmpkassekl where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__);
 		transaktion(commit);
-		if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+		if ($popup) {
+			print "<BODY onLoad=\"javascript=opener.location.reload();\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
+		}
 	}
-echo "funktion $funktion<br>";
 	if ($funktion=='bogfor' || $funktion=='simuler') {
 		if ($bogfor || $simuler) print "<meta http-equiv=\"refresh\" content=\"0;URL=kladdeliste.php\">";
 		else print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 	}
 } elseif ($_POST['luk']) {
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-#	print "<meta http-equiv=\"refresh\" content=\"0;URL=kladdeliste.php\">";
+	if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
+	else print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 }
 $x=0;
 $debetsum=0;
@@ -533,7 +536,9 @@ else {
 			} 
 		}
 		print "<tr><td colspan=6><br></td></tr><tr><td colspan=6 align=center><input type=submit $onclick accesskey=\"b\" value=\"Bogf&oslash;r\" name=\"bogfor\"></td></tr>";
-	} else print "<tr><td colspan=6><br></td></tr><tr><td colspan=6 align=center><!--<input type=submit $onclick accesskey=\"b\" value=\"Simuleret bogføring\" name=\"simuler\">--><input type=submit accesskey=\"l\" value=\"&nbsp;&nbsp;Luk&nbsp;&nbsp;\" name=\"luk\"></td></tr>";
+	} else {
+		print "<tr><td colspan=6><br></td></tr><tr><td colspan=6 align=center><!--<input type=submit $onclick accesskey=\"b\" value=\"Simuleret bogføring\" name=\"simuler\">--><input type=submit accesskey=\"l\" value=\"&nbsp;&nbsp;Luk&nbsp;&nbsp;\" name=\"luk\"></td></tr>";
+	}
 	print "</form>";
 }
 print "</td></tr></tbody></table>";
@@ -550,6 +555,14 @@ function bogfor($kladde_id,$kladdenote,$simuler)
 	$transtjek=0;
 
 	($simuler)?$tabel='simulering':$tabel='transaktioner';
+	
+	$r=db_fetch_array(db_select("select max(id) as id from transaktioner where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__));
+	if ($r['id']) {
+		print "<BODY onLoad=\"javascript:alert('Kladden er allerede bogført!')\">";
+		return("Kladden er allerede bogført");
+		exit;
+	}
+	
 	
 	$d_momsart=array(); $k_momsart=array();
 	db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);

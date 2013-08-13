@@ -1183,8 +1183,8 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mail
 	} else $mail->SMTPAuth = false;
 #	if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) $mail->Sender = 'mailer@saldi.dk';
 	if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-		if (strpos($_SERVER['SERVER_NAME'],'ssl')) $mail->From = 'sslmailer.'.$db.'@saldi.dk';
-		elseif (strpos($_SERVER['SERVER_NAME'],'ssl2')) $mail->From = 'ssl2mailer.'.$db.'@saldi.dk';
+		if ($_SERVER['SERVER_NAME']=='ssl.saldi.dk') $mail->From = $db.'@ssl.saldi.dk'; #20130731
+		elseif ($_SERVER['SERVER_NAME']=='ssl2.saldi.dk') $mail->From = $db.'@ssl2.saldi.dk'; #20130731
 		else $mail->From = 'mailer.'.$db.'@saldi.dk';
 		$mail->FromName = $afsendernavn;
 	} else {

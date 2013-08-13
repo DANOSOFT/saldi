@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// // ------------finans/kassekladde.php------lap 3.3.0---2013.04.04------
+// // ------------finans/kassekladde.php------lap 3.3.1---2013.07.31------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,6 +27,7 @@ ob_start(); //Starter output buffering
 // 2012.11.10 søg 20121110
 // 2013.02.21 søg 20130221
 // 2013.04.04 addslashes erstattet af db_escape_string
+// 2013.07.31 db_escape_string fjernet 2 steder da den bruges senere på samme streng og fordoblede "'" ved hver gem.
 
 ?>
 <script>
@@ -234,8 +235,11 @@ if ($_POST) {
 	$id=if_isset($_POST['id']);
 	$gl_transdate=if_isset($_POST['transdate']);
 
-	if ($kladde_id) db_modify("delete from tmpkassekl where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
-	if ($kladde_id) db_modify("delete from simulering where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
+	if ($kladde_id) {
+		db_modify("delete from tmpkassekl where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
+		db_modify("delete from simulering where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
+		db_modify("update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'",__FILE__ . " linje " . __LINE__);
+	}
 	db_modify("update grupper set box2='$kontrolkonto' where ART='KASKL' and kode='1' and kodenr='$bruger_id'",__FILE__ . " linje " . __LINE__);
 	for ($x=1;$x<=$antal_ny;$x++) {
 		$dato[$x]=NULL;$beskrivelse[$x]=NULL;$d_type[$x]=NULL;$debet[$x]=NULL;$k_type[$x]=NULL;$kredit[$x]=NULL;$faktura[$x]=NULL;
@@ -247,8 +251,9 @@ if ($_POST) {
 		$y="dato".$x;
 		$dato[$x]=trim(if_isset($_POST[$y]));
 		$y="besk".$x;
-		$beskrivelse[$x]=db_escape_string(trim(if_isset($_POST[$y])));
+		$beskrivelse[$x]=trim(if_isset($_POST[$y])); #20130731
 		while (strpos($beskrivelse[$x],"  ")) $beskrivelse[$x]=str_replace("  "," ",$beskrivelse[$x]);
+#		while (strpos($beskrivelse[$x],"''")) $beskrivelse[$x]=str_replace("''","'",$beskrivelse[$x]); #20130731
 		$y="d_ty".$x;
 		$d_type[$x]=substr(strtoupper(if_isset($_POST[$y])),0,1);
 		$y="debe".$x;
@@ -258,7 +263,7 @@ if ($_POST) {
 		$y="kred".$x;
 		$kredit[$x]=trim(if_isset($_POST[$y]));
 		$y="fakt".$x;
-		$faktura[$x]=db_escape_string(trim(if_isset($_POST[$y])));
+		$faktura[$x]=trim(if_isset($_POST[$y])); #20130731
 		$y="belo".$x;
 		$belob[$x]=if_isset($_POST[$y]);
 		$y="dkka".$x;
@@ -621,9 +626,12 @@ if ($_POST) {
 				if (strstr($fokus,"valu")) {valuta_opslag ($fokus,$opslag_id,$opslag_id);}
 		 	}
 			if (strstr($submit,"Simul")) {
-				?>
-				<body onload="simuler()">
-				<?php
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/bogfor.php?kladde_id=$kladde_id&funktion=simuler\">";
+/*
+#				?>
+#				<body onload="simuler()">
+#				<?php
+*/
 			}
 			if (strstr($submit,"Bogf"))	{
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/bogfor.php?kladde_id=$kladde_id&funktion=bogfor\">";
@@ -809,14 +817,17 @@ if ($kladde_id) {
 				$forfaldsdato[$x]=dkdato($row['forfaldsdate']);
 			}
 		}
-		$beskrivelse[$x]=htmlentities(stripslashes($row['beskrivelse']),ENT_QUOTES,$charset);
+#		$beskrivelse[$x]=htmlentities($row['beskrivelse'],ENT_QUOTES,$charset);
+		$beskrivelse[$x]=$row['beskrivelse'];
+		while (strpos($beskrivelse[$x],"''")) $beskrivelse[$x]=str_replace("''","'",$beskrivelse[$x]); #20130731
+		$beskrivelse[$x]=htmlentities($beskrivelse[$x],ENT_QUOTES,$charset);
 		$dokument[$x]=$row['dokument']; # ligger allerede med htmlentities i tabellen;
 		$d_type[$x]=trim($row['d_type']);
 		$debet[$x]=$row['debet'];
 		$k_type[$x]=$row['k_type'];
 		if ($k_type[$x]=="K" || $d_type[$x]=="D") $vis_forfald=1;
 		$kredit[$x]=$row['kredit'];
-		$faktura[$x]=htmlentities(stripslashes($row['faktura']),ENT_QUOTES,$charset);
+		$faktura[$x]=htmlentities($row['faktura'],ENT_QUOTES,$charset);
 		$amount[$x]=$row['amount'];
 		if ($fejl) {
 			$belob[$x]=$amount[$x];

@@ -1,5 +1,5 @@
 <?php
-// ------ includes/opdat_3.3.php-------lap 3.3.1 ------2013-07-05---------------
+// ------ includes/opdat_3.3.php-------lap 3.3.1 ------2013-08-02---------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -50,5 +50,61 @@ function opdat_3_3($under_nr, $lap_nr){
 		include("../includes/connect.php");
 		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 	}
-}
+	$nextver='3.3.2';
+	if ($lap_nr<"2"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		include("../includes/online.php");
+		$x=0;
+		$k_id=array();
+		$q=db_select("select id from kladdeliste where bogfort='V' and bogforingsdate > '2013-06-01'",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			$k_id[$x]=$r['id'];
+#cho "$x :: $k_id[$x]<br>";				
+			$x++;
+		}
+		$x=0;
+		$dbbf=0;
+		while ($k_id[$x]) {
+			$message=NULL;
+			$logtime=NULL;
+			$logdate=NULL;
+#cho "select logdate,logtime from transaktioner where kladde_id='$k_id[$x]'<br>";
+			$q=db_select("select logdate,logtime from transaktioner where kladde_id='$k_id[$x]'",__FILE__ . " linje " . __LINE__);
+			while($r=db_fetch_array($q)) {
+				if (!$logdate) {
+					$logdate=$r['logdate'];
+					$logtime=$r['logtime'];
+				} elseif ($logdate!=$r['logdate'] || $logtime!=$r['logtime']) {
+				#cho "$x :: Logdate	$logdate, logtime $logtime <--> $r[logdate] $r[logtime]<br>";				
+					if (!$message) {
+						$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | Dobbelt bogføring af kladde $k_id[$x]";
+						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
+						mail('phr@danosoft.dk', 'Dobbelt bogføring', $message, $headers);
+					}
+					print "<BODY onLoad=\"javascript:alert('Der er konstateret dobbelt bogføring af kassekladde nr $k_id[$x]! \\\nKontakt venligst Danosoft på telefon 4690 2208')\">";
+					$dbbf=1;
+				}
+			}
+			$x++;
+		}
+		if ($dbbf==0) {
+			transaktion('begin');
+			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+			transaktion('commit');
+			include("../includes/connect.php");
+		} else {
+			include("../includes/connect.php");
+			return;
+		}
+		# db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+}	
+
+
 ?>

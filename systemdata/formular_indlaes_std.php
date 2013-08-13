@@ -25,26 +25,25 @@
 // ----------------------------------------------------------------------
 // 20130510, parameter 2 til formularimport
 
+$css="../css/standard.css";
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/db_query.php");
 include("../includes/formularimport.php");
 
-if ($_POST) {
-	if ($_POST['overskriv']) {
-		db_modify("delete from formularer");
-		formularimport("../importfiler/formular.txt,''");
-		db_modify("update formularer set sprog = 'Dansk'");
-		print "<div style=\"text-align: center;\">$font<small>Overskrivning med standardformularer succesfuld - vinduet lukkes</small></font><br></div>";
-		print "<meta http-equiv=\"refresh\" content=\"3;URL=../includes/luk.php\">";
-		exit;
-	}
-	else {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-		exit;
-	}
+if ($_POST['overskriv']) {
+	db_modify("delete from formularer");
+	formularimport("../importfiler/formular.txt",'');
+	db_modify("update formularer set sprog = 'Dansk'");
+	print "<div style=\"text-align: center;\">$font<small>Overskrivning med standardformularer succesfuld - vinduet lukkes</small></font><br></div>";
+	print "<meta http-equiv=\"refresh\" content=\"3;URL=../includes/luk.php\">";
+	exit;
 }
-else {
+elseif($_POST['afbryd'])  {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
+	exit;
+} else {
 	print "<form name=formularimport action=$_SERVER[PHP_SELF] method=\"post\">";
 	print "<div style=\"text-align: center;\">$font<small>Dette vil overskrive alle eksisterende formularer med standardops&aelig;tningen<br>";
 	print "<div style=\"text-align: center;\">$font og slette formularer p&aring; andre sprog end dansk.<br>";
