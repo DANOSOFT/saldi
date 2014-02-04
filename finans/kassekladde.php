@@ -40,9 +40,9 @@ function defokuser(that, fgcolor, bgcolor){
 that.style.color = fgcolor;
 that.style.backgroundColor = bgcolor;
 }
-f</script>
+</script>
 <!-- 
-unction goodbye(e) {
+function goodbye(e) {
 	if(!e) e = window.event;
 	//e.cancelBubble is supported by IE - this will kill the bubbling process.
 	e.cancelBubble = true;
