@@ -1,21 +1,27 @@
 <?php
-// --------------------------kreditor/ordreliste.php---lap 3.1.3------2011-02-09------
+// --------------------------kreditor/ordreliste.php---lap 3.4.0------2014-03-19------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 2014.03.19 addslashes erstattet med db_escape_string
+
 ob_start();
 @session_start();
 $s_id=session_id();
@@ -52,13 +58,16 @@ $nysort = if_isset($_GET['nysort']);
 $kontoid= if_isset($_GET['kontoid']);
 
 $tidspkt=date("U");
- 
+
+$r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__));
+
 if($_GET['returside']){
  	$returside= $_GET['returside'];
 	if ($r=db_fetch_array(db_select("select id from grupper where art = 'OLV' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__))) {
 		db_modify("update grupper set box2='$returside' where id='$r[id]'",__FILE__ . " linje " . __LINE__);
 	} else db_modify("insert into grupper (beskrivelse,kode,kodenr,art,box2) values ('Ordrelistevisning','$brugernavn','$bruger_id','OLV','$returside')",__FILE__ . " linje " . __LINE__);
 } else {
+$r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__));
 	$r=db_fetch_array(db_select("select box2 from grupper where art = 'OLV' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__)); 
 	$returside=$r['box2'];
 }
@@ -69,18 +78,18 @@ if (!$returside) {
  
 #if (isset($_POST)) {
 if ($submit=if_isset($_POST['submit'])) {
-	$ordrenumre = stripslashes(if_isset($_POST['ordrenumre']));
-	$modtagelsesnumre = stripslashes(if_isset($_POST['modtagelsesnumre']));
-	$kontonumre = stripslashes(if_isset($_POST['kontonumre']));
-	$fakturanumre = stripslashes(if_isset($_POST['fakturanumre']));
-	$ordredatoer = stripslashes(if_isset($_POST['ordredatoer']));
-	$lev_datoer = stripslashes(if_isset($_POST['lev_datoer']));
-	$fakturadatoer = stripslashes(if_isset($_POST['fakturadatoer']));
-	$genfaktdatoer = stripslashes(if_isset($_POST['genfaktdatoer']));
-	$summer = stripslashes(if_isset($_POST['summer']));
-	$firma = stripslashes(if_isset($_POST['firma']));
-	$ref[0] = stripslashes(if_isset($_POST['ref']));
-	$projekt[0] = stripslashes(if_isset($_POST['projekt']));
+	$ordrenumre = if_isset($_POST['ordrenumre']);
+	$modtagelsesnumre = if_isset($_POST['modtagelsesnumre']);
+	$kontonumre = if_isset($_POST['kontonumre']);
+	$fakturanumre = if_isset($_POST['fakturanumre']);
+	$ordredatoer = if_isset($_POST['ordredatoer']);
+	$lev_datoer = if_isset($_POST['lev_datoer']);
+	$fakturadatoer = if_isset($_POST['fakturadatoer']);
+	$genfaktdatoer = if_isset($_POST['genfaktdatoer']);
+	$summer = if_isset($_POST['summer']);
+	$firma = if_isset($_POST['firma']);
+	$ref[0] = if_isset($_POST['ref']);
+	$projekt[0] = if_isset($_POST['projekt']);
 	$valg=if_isset($_POST['valg']);
 	$sort = if_isset($_POST['sort']);
 	$nysort = if_isset($_POST['nysort']);
@@ -92,9 +101,9 @@ if ($submit=if_isset($_POST['submit'])) {
 if (($firma)&&($firmanavn_ant>0)) {
 	for ($x=1; $x<=$firmanavn_ant; $x++) {
 		$tmp="firmanavn$x";
-		if ($firma==$_POST[$tmp]) {
+		if ($firma==$_POST['$tmp']) {
 			$tmp="konto_id$x";
-			$kontoid=$_POST[$tmp];
+			$kontoid=$_POST['$tmp'];
 		}
 	}
 }
@@ -235,7 +244,7 @@ $x=0;
 if (!$konto_id) {$konto_id=array();}
 if (($kontoid)&&(!$firma)){
 	$row = db_fetch_array(db_select("select firmanavn from adresser where id = $kontoid",__FILE__ . " linje " . __LINE__));
-	$firma=stripslashes($row['firmanavn']);
+	$firma=$row['firmanavn'];
 }
 $query = db_select("select konto_id from ordrer where (art = 'KK' or art = 'KO') and $status order by firmanavn",__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
@@ -243,7 +252,7 @@ while ($row = db_fetch_array($query)) {
 		 $x++;
 		 $konto_id[$x]=$row['konto_id'];
 		 $r2 = db_fetch_array(db_select("select firmanavn from adresser where id = $konto_id[$x]",__FILE__ . " linje " . __LINE__));
-		 $firmanavn[$x]=stripslashes($r2['firmanavn']);
+		 $firmanavn[$x]=$r2['firmanavn'];
 		 if (strlen($firmanavn[$x])>35){$firmanavn[$x]=substr($firmanavn[$x],0,30)."...";}
 		 print "<input type=hidden name=firmanavn$x value='$firmanavn[$x]'>";
 		 print "<input type=hidden name=konto_id$x value=$konto_id[$x]>";
@@ -372,8 +381,8 @@ if ($valg=="forslag") {
 #		print "<td>$levdato<br></td>";
 #		print"<td></td>";
 		print "<td>$row[kontonr]<br></td>";
-		print "<td>".stripslashes($row['firmanavn'])."<br></td>";
-		print "<td>".stripslashes($row['lev_navn'])."<br></td>";
+		print "<td>".$row['firmanavn']."<br></td>";
+		print "<td>".$row['lev_navn']."<br></td>";
 		print "<td>$row[ref]<br></td>";
 		if ($vis_projekt) print "<td>$row[projekt]<br></td>";
 		if ($valutakurs && $valutakurs!=100) {
@@ -474,8 +483,8 @@ if ($valg=="forslag") {
 		$levdato=dkdato($row['levdate']);
 		print "<td>$levdato<br></td>";
 		print "<td>$row[kontonr]<br></td>";
-		print "<td>".stripslashes($row['firmanavn'])."<br></td>";
-		print "<td>".stripslashes($row['lev_navn'])."<br></td>";
+		print "<td>".$row['firmanavn']."<br></td>";
+		print "<td>".$row['lev_navn']."<br></td>";
 		print "<td>$row[ref]<br></td>";
 		if ($vis_projekt) print "<td>$row[projekt]<br></td>";
 		if ($valutakurs && $valutakurs!=100) {
@@ -525,8 +534,8 @@ if ($valg=="forslag") {
 		$faktdato=dkdato($row['fakturadate']);
 		print "<td>$faktdato<br></td>";
 		print "<td>$row[kontonr]<br></td>";
-		print "<td>".stripslashes($row['firmanavn'])."<br></td>";
-		print "<td>".stripslashes($row['lev_navn'])."<br></td>";
+		print "<td>".$row['firmanavn']."<br></td>";
+		print "<td>".$row['lev_navn']."<br></td>";
 		print "<td>$row[ref]<br></td>";
 		if ($vis_projekt) {
 			print "<td>$row[projekt]<br></td>";

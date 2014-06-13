@@ -17,7 +17,7 @@
 // GNU General Public Licensen for flere detaljer.
 // 
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
 // Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
@@ -277,10 +277,16 @@ if (!function_exists('db_num_fields')) {
 }
 
 if (!function_exists('transaktion')) {
-	function transaktion($handling){
+	function transaktion($qtext){
+		global $brugernavn;
 		global $db_type;
-		if ($db_type=="mysql") mysql_query($handling);
-		else pg_query($handling);
+		global $db;
+
+		$fp=fopen("../temp/$db/.ht_modify.log","a");
+		fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n");
+		fwrite($fp,$qtext.";\n");
+			if ($db_type=="mysql") mysql_query($qtext);
+		else pg_query($qtext);
 	}
 }
 

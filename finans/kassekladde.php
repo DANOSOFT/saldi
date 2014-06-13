@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// // ------------finans/kassekladde.php------lap 3.3.1---2013.07.31------
+// // ------------finans/kassekladde.php------lap 3.3.4---2013.12.16------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -28,42 +28,9 @@ ob_start(); //Starter output buffering
 // 2013.02.21 søg 20130221
 // 2013.04.04 addslashes erstattet af db_escape_string
 // 2013.07.31 db_escape_string fjernet 2 steder da den bruges senere på samme streng og fordoblede "'" ved hver gem.
+// 2013.11.01 Fravalg for tjek af forskellige datoer.Søg: $forskellige_datoer
+// 3013.12.16	Flyttet javascript og ned til de øvrige scripts og fjernet fejltastet "f"
 
-?>
-<script>
-function fokuser(that, fgcolor, bgcolor){
-that.style.color = fgcolor;
-that.style.backgroundColor = bgcolor;
-document.forms[0].fokus.value=that.name; 
-}
-function defokuser(that, fgcolor, bgcolor){
-that.style.color = fgcolor;
-that.style.backgroundColor = bgcolor;
-}
-f</script>
-<!-- 
-unction goodbye(e) {
-	if(!e) e = window.event;
-	//e.cancelBubble is supported by IE - this will kill the bubbling process.
-	e.cancelBubble = true;
-	e.returnValue = 'You sure you want to leave?'; //This is displayed on the dialog
-
-	//e.stopPropagation works in Firefox.
-	if (e.stopPropagation) {
-		e.stopPropagation();
-		e.preventDefault();
-	}
-}
-
-
-window.onbeforeunload=goodbye; -->
-<!--
-<form name=form>
-<Input type=text name=text onfocus="change(this,'#FFFFFF','#EFEFEF');" onblur="change(this,'#EFEFEF','#FFFFFF');">
-<P><textarea name=area rows=5 cols=15 onfocus="change(this,'#FFFFFF','#CCCCCC');" onblur="change(this,'#CCCCCC','#FFFFFF');"> Hello World </textarea>
-</form> 
--->
-<?php
 @session_start();
 $s_id=session_id();
 $title="kassekladde";
@@ -97,27 +64,35 @@ include("../includes/forfaldsdag.php");
 print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"../javascript/confirmclose.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 print "<script language=\"javascript\" TYPE=\"text/javascript\" SRC=\"../javascript/up_down.js\"></script>";
+print "<script>
+	function fokuser(that, fgcolor, bgcolor){
+		that.style.color = fgcolor;
+		that.style.backgroundColor = bgcolor;
+		document.forms[0].fokus.value=that.name; 
+	}
+		function defokuser(that, fgcolor, bgcolor){
+		that.style.color = fgcolor;
+		that.style.backgroundColor = bgcolor;
+	}
+</script>";
 
 $udskriv=if_isset($_GET['udskriv']);
 if ($tjek=if_isset($_GET['tjek'])) {
 	$tidspkt=microtime() ;
 	list ($a,$b)=explode(" ",$tidspkt);
 	$query = db_select("select bogfort,tidspkt,hvem from kladdeliste where (bogfort = '-' or bogfort = 'S') and id = $tjek",__FILE__ . " linje " . __LINE__);
-	$row = db_fetch_array($query); 
+	$row = db_fetch_array($query);
 	if (isset($row['tidspkt'])) {
 		list ($a,$c)=explode(" ",$row['tidspkt']);
 		if (($b-$c<3600)&&($row['hvem']!=$brugernavn)){
 			print "<body onLoad=\"javascript:alert('Kladden er i brug af $row[hvem]')\">";
 			if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 			else print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/kladdeliste.php\">";
-		}
-		else {
+		} else {
 			$a--;
 			$tidspkt=$a." ".$b; #der fratraekkes 1. sec af hensyn til refreshtjek;
-			db_modify("update kladdeliste set bogfort = '-',bogfort_af = '',hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);
+			db_modify("update kladdeliste set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'",__FILE__ . " linje " . __LINE__);
 		}
-	} elseif ($row['bogfort']=='S') {
-		db_modify("update kladdeliste set bogfort = '-',bogfort_af = '',hvem = '$brugernavn',tidspkt='$tidspkt'  where id = '$tjek'",__FILE__ . " linje " . __LINE__);
 	}
 	if (db_fetch_array(db_select("select id from tmpkassekl where kladde_id='$tjek'",__FILE__ . " linje " . __LINE__))) $fejl=1;
 	else $fejl=0;
@@ -236,18 +211,35 @@ if ($_POST) {
 	$gl_transdate=if_isset($_POST['transdate']);
 
 	if ($kladde_id) {
+		if ($r=db_fetch_array(db_select("select id from kladdeliste where bogfort='S' and id='$kladde_id'",__FILE__ . " linje " . __LINE__))) {
+			 $alerttekst="Annullerer simulering for denne kladde";
+			 print "<BODY onLoad=\"javascript:alert('$alerttekst')\">";
+		}
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
 		db_modify("delete from simulering where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
 		db_modify("update kladdeliste set bogfort = '-', bogforingsdate = NULL, bogfort_af = '' where id = '$kladde_id' and bogfort = 'S'",__FILE__ . " linje " . __LINE__);
 	}
 	db_modify("update grupper set box2='$kontrolkonto' where ART='KASKL' and kode='1' and kodenr='$bruger_id'",__FILE__ . " linje " . __LINE__);
+	(db_fetch_array(db_select("select * from grupper where ART = 'FTP' and box1 !='' and box2 !='' and box3 !=''",__FILE__ . " linje " . __LINE__)))?$vis_bilag=1:$vis_bilag=0;
+	(db_fetch_array(db_select("select * from grupper where ART = 'AFD'",__FILE__ . " linje " . __LINE__)))?$vis_afd=1:$vis_afd=0;
+	(db_fetch_array(db_select("select * from grupper where ART = 'PRJ'",__FILE__ . " linje " . __LINE__)))?$vis_projekt=1:$vis_projekt=0;
+	(db_fetch_array(db_select("select * from grupper where ART = 'VK'",__FILE__ . " linje " . __LINE__)))?$vis_valuta=1:$vis_valuta=0;
+	$r=db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
+	($r['box4'])?$forskellige_datoer=1:$forskellige_datoer=0;
+	($r['box10'])?$vis_bet_id=1:$vis_bet_id=0;
 	for ($x=1;$x<=$antal_ny;$x++) {
 		$dato[$x]=NULL;$beskrivelse[$x]=NULL;$d_type[$x]=NULL;$debet[$x]=NULL;$k_type[$x]=NULL;$kredit[$x]=NULL;$faktura[$x]=NULL;
 		$belob[$x]=NULL;$momsfri[$x]=NULL;$afd[$x]=NULL;$projekt[$x]=NULL;$ansat[$x]=NULL;$valuta[$x]=NULL;$forfaldsdato[$x]=NULL;$betal_id[$x]=NULL;
 
 		$y="bila".$x;
 		$bilag[$x]=trim(if_isset($_POST[$y]));
-		if (!$bilag[$x]) $bilag[$x]="0";  # PHR 02.09.06
+#echo "1 bilag $bilag[$x]<br>";		
+#		if ($id[$x] && $bilag[$x]=='') {
+#			$bilag[$x]="-";  
+#echo "2 bilag $bilag[$x]<br>";		
+#			} else
+			if (!$bilag[$x]) $bilag[$x]='0'; # PHR 02.09.06
+#echo "3 bilag $bilag[$x]<br>";		
 		$y="dato".$x;
 		$dato[$x]=trim(if_isset($_POST[$y]));
 		$y="besk".$x;
@@ -269,11 +261,11 @@ if ($_POST) {
 		$y="dkka".$x;
 		$dkkamount[$x]=if_isset($_POST[$y]);
 		$y="afd_".$x;
-		$afd[$x]=if_isset($_POST[$y]);
+		$afd[$x]=trim(if_isset($_POST[$y]));
 		$y="proj".$x;
-		$projekt[$x]=if_isset($_POST[$y]);
+		$projekt[$x]=trim(if_isset($_POST[$y]));
 		$y="meda".$x;
-		$ansat[$x]=if_isset($_POST[$y]);
+		$ansat[$x]=trim(if_isset($_POST[$y]));
 		$y="valu".$x;
 		$valuta[$x]=strtoupper(if_isset($_POST[$y]));
 		$y="forf".$x;
@@ -282,6 +274,8 @@ if ($_POST) {
 		$betal_id[$x]=trim(if_isset($_POST[$y]));
 		$y="moms".$x;
 		$momsfri[$x]=if_isset($_POST[$y]);
+		if ($bilag[$x]==$bilag[$x-1] && $dato[$x]==$dato[$x-1] && $beskrivelse[$x]==$beskrivelse[$x-1] && !$debet[$x] && !$kredit[$x]) $bilag[$x]='-';
+		elseif (!$bilag[$x] && !$dato[$x] && !$beskrivelse[$x] && !$debet[$x] && !$kredit[$x]) $bilag[$x]='-';
 		if ($bilag[$x]=="=") $bilag[$x] = $bilag[$x-1];
 		if ($bilag[$x]=="+") $bilag[$x] = $bilag[$x-1]+1;
 		if (substr($bilag[$x],0,1)=="+") $bilag[$x] = $bilag[$x-1]+1;
@@ -524,17 +518,10 @@ if ($_POST) {
 				#$kredit[$x]=$kredit[$x]*1;
 			}
 		}
-		if ($bilag[$x] && $bilag[$x]!='-' && $bilag[$x]==$bilag[$x-1] && $dato[$x]!=$dato[$x-1] && $bilagssum[$x-1]) {
-#		$a=substr(usdate($dato[$x]),0,7);
-#			$b= substr(usdate($dato[$x-1]),0,7);
-
-#			if (substr(usdate($dato[$x]),0,7) != substr(usdate($dato[$x-1]),0,7) && $bilagssum[$x-1]) {
-#echo "$a $b<br>";
+		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x]!='-' && $bilag[$x]==$bilag[$x-1] && $dato[$x]!=$dato[$x-1] && $bilagssum[$x-1]) {
 				print "<BODY onLoad=\"javascript:alert('Forskellige datoer i bilag $bilag[$x]')\">";
-#			}
 		}
 		if ((strpos($bilag[$x],'+'))&&($kladde_id)) {
-#echo "$kladde_id,$bilag[$x],$dato[$x],$beskrivelse[$x],$d_type[$x],$debet[$x]*1,$k_type[$x],$kredit[$x]*1,$faktura[$x],$belob[$x],$afd[$x]*1,$ansat[$x],$projekt[$x],$valuta[$x],$forfaldsdato[$x],$betal_id[$x]*1,$momsfri[$x]<br>";
 			indsaet_linjer($kladde_id,$bilag[$x],$dato[$x],$beskrivelse[$x],$d_type[$x],$debet[$x]*1,$k_type[$x],$kredit[$x]*1,$faktura[$x],$belob[$x],$afd[$x]*1,$ansat[$x],$projekt[$x],$valuta[$x],$forfaldsdato[$x],$betal_id[$x]*1,$momsfri[$x]);
 		}
 		if (($bilag[$x])&&($bilag[$x]!="-")&&($bilag[$x]!="->")&&($bilag[$x]!="<-")&&(!strpos($bilag[$x],'+'))&&(!is_numeric($bilag[$x]))) {
@@ -653,7 +640,12 @@ if ($_POST) {
 			}
 		}
 	}
-}# endif ($_POST)
+} else {# endif ($_POST)
+	(db_fetch_array(db_select("select * from grupper where ART = 'FTP' and box1 !='' and box2 !='' and box3 !=''",__FILE__ . " linje " . __LINE__)))?$vis_bilag=1:$vis_bilag=0;
+	(db_fetch_array(db_select("select * from grupper where ART = 'AFD'",__FILE__ . " linje " . __LINE__)))?$vis_afd=1:$vis_afd=0;
+	(db_fetch_array(db_select("select * from grupper where ART = 'PRJ'",__FILE__ . " linje " . __LINE__)))?$vis_projekt=1:$vis_projekt=0;
+	(db_fetch_array(db_select("select * from grupper where ART = 'VK'",__FILE__ . " linje " . __LINE__)))?$vis_valuta=1:$vis_valuta=0;
+}
 if ($r=db_fetch_array(db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))) {
 	$egen_kto_id = $r['id'];
 	$z=0;
@@ -665,11 +657,6 @@ if ($r=db_fetch_array(db_select("select id from adresser where art = 'S'",__FILE
 		$ansat_init[$z]=$r['initialer'];
 	} 
 }
-if (db_fetch_array(db_select("select * from grupper where ART = 'FTP' and box1 !='' and box2 !='' and box3 !=''",__FILE__ . " linje " . __LINE__))) $vis_bilag=1;
-if (db_fetch_array(db_select("select * from grupper where ART = 'AFD'",__FILE__ . " linje " . __LINE__))) $vis_afd=1;
-if (db_fetch_array(db_select("select * from grupper where ART = 'PRJ'",__FILE__ . " linje " . __LINE__))) $vis_projekt=1;
-if (db_fetch_array(db_select("select * from grupper where ART = 'VK'",__FILE__ . " linje " . __LINE__))) $vis_valuta=1;
-if (db_fetch_array(db_select("select id from grupper where ART = 'DIV' and box10 ='on' ",__FILE__ . " linje " . __LINE__))) $vis_bet_id=1;
 if (!$fejl && $kladde_id) {
 	opdater($kladde_id);
 	db_modify ("delete from tmpkassekl where kladde_id=$kladde_id",__FILE__ . " linje " . __LINE__);
@@ -735,13 +722,15 @@ if (!$udskriv) {
 	print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
 	print "<tr>";
 	print "<td></td>";
+	if ($bogfort!="S") {
 	print "<td width=\"890px\"><b> <span title= 'Her kan skrives en bem&aelig;rkning til kladden'>Bem&aelig;rkning:$nbsp</b>";
 	print "<input class=\"inputbox\" type=\"text\" style=\"width:800px\" name=ny_kladdenote value=\"$kladdenote\" onchange=\"javascript:docChange = true;\"></td>";	
+	}
 	if ($bogfort=="-") {
 		if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
 		if ($kontrolkonto == "-") $kontrolkonto = "";
 		print "<td width=\"80px\"><span title= 'Angiv kontonummer til kontrol af kontobev&aelig;gelser'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:80px\" name=kontrolkonto value=\"$kontrolkonto\" onchange=\"javascript:docChange = true;\"></td>";
-	} else {
+	} elseif ($bogfort!="S") {
 		print "<td width=\"80px\" align=\"center\"><span title=\"Klik her for at opdatere\"><input type=submit style=\"width: 5em\" accesskey=\"o\" value=\"Opdater\" name=\"submit\" onclick=\"javascript:docChange = false;\"></span></td>";
 	}
 	print "<td width=\"10%\" align=\"right\"><a href=\"../finans/kassekladde.php?kladde_id=$kladde_id&udskriv=1\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td>";
@@ -931,7 +920,7 @@ if (($bogfort && $bogfort!='-') || $udskriv) {
 		}
 		if (strstr($momsfri[$y],"on")) {print "<td align=center> V</td>";}
 		else {print "<td> <br></td>";}
-		if (!$udskriv) print "<td title=\"Tilbagef&oslash;r postering\"><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]'><img alt=\"undo\" src=\"../ikoner/undo.png\" style=\"border: 0px solid ; width: 18px; height: 17px;\"></a></td>";
+		if (!$udskriv && $bogfort!='S') print "<td title=\"Tilbagef&oslash;r postering\"><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]'><img alt=\"undo\" src=\"../ikoner/undo.png\" style=\"border: 0px solid ; width: 18px; height: 17px;\"></a></td>";
 		print "</tr>\n";
 	}
 	print "<tr><td><br></td></tr>";
@@ -1179,6 +1168,9 @@ if (($bogfort && $bogfort!='-') || $udskriv) {
 		print "</form>";
 #		print "</tbody></table></td></tr>\n";
 #		print "</tbody></table>";
+	} elseif ($bogfort=='S'){
+		print "<tr><td colspan=9 align=center><input type=submit accesskey=\"a\" value=\"Annuller simulering\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+		print "</form>";
 	} else {
 		print "<td align=center><span title=\"Klik her for at gemme\"><input type=submit style=\"width: 5em\" accesskey=\"g\" value=\"Gem\" name=\"submit\" onclick=\"javascript:docChange = false;\"></span></td>";
 		print "<td align=center><span title=\"Opslag - din mark&oslash;rs placering angiver hvilken tabel, opslag foretages i\"><input type=submit style=\"width: 5em\" accesskey=\"o\" value=\"Opslag\" name=\"submit\" onclick=\"javascript:docChange = false;\"></span></td>";

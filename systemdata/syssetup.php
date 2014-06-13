@@ -1,5 +1,5 @@
 <?php
-// -----------------systemdata/syssetup.php----lap 3.2.8---2012-02-20----
+// -----------------systemdata/syssetup.php----lap 3.3.6---2013-12-27----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20132127 Indsat kontrol for at kodenr er numerisk på momskoder.
+
 @session_start();
 $s_id=session_id();
 
@@ -32,10 +34,24 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-include("top.php");
-	
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
-
+if ($menu=='T') {
+#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">\n";
+	print "<div class=\"headerbtnLft\"></div>\n";
+#	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
+#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";       
+	print "</div><!-- end of header -->";
+	print "<div id=\"leftmenuholder\">";
+	include_once 'left_menu.php';
+	print "</div><!-- end of leftmenuholder -->\n";
+	print "<div class=\"maincontent\">\n";
+	print "<table border=\"1\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\"><tbody>";
+}	else {
+	include("top.php");
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
+}
 $valg=if_isset($_GET['valg']);
 
 if ($_POST){ 
@@ -92,7 +108,7 @@ if ($_POST){
 			$s_kode[$artantal]=$kode[$x];
 		}
 		################################
-		$beskrivelse[$x]=addslashes(trim($beskrivelse[$x]));
+		$beskrivelse[$x]=db_escape_string(trim($beskrivelse[$x]));
 		$kodenr[$x]=trim($kodenr[$x]);
 		$box1[$x]=trim($box1[$x]);
 		$box2[$x]=trim($box2[$x]);
@@ -384,6 +400,7 @@ print "</tbody></table></td>";
 print "<input type = \"hidden\" name=antal value=$y><input type = \"hidden\" name=valg value=$valg>";
 print "<tr><td colspan = 3 align = center><input type=submit accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\"></td></tr>\n";
 print "</form>";
+print "</div>";
 
 ##########################################################################################################################
 function udskriv($a,$x,$y,$art,$id,$k,$kodenr,$beskrivelse,$box1,$b1,$box2,$b2,$box3,$b3,$box4,$b4,$box5,$b5,$box6,$b6,$box7,$b7,$box8,$b8,$box9,$b9,$box10,$b10,$box11="-",$b11=2,$box12="-",$b12=2,$box13="-",$b13=2,$box14="-",$b14=2) {
@@ -600,6 +617,10 @@ function tjek ($id,$beskrivelse,$kodenr,$kode,$art,$box1,$box2,$box3,$box4,$box5
 			else {$fejl=kontotjek($box4);}
 			if ($box5) {$fejl=kontotjek($box5);}
 			if ($box6) {$fejl=kontotjek($box6);}
+		}
+		if ($art=='KM' || $art=='SM' || $art=='EM' || $art=='YM') { # 20132127
+			print "<BODY onLoad=\"javascript:alert('Nr skal være numerisk!')\">";
+			if (!is_numeric($kodenr)) return ('1'); 
 		}
 		if (($art=='DS')||($art=='KS')||($art=='KM')||($art=='SM')) {$fejl=kontotjek($box1);}
 		if (($art=='DG')||($art=='KG')) {$fejl=momsktotjek($art,$box1);}

@@ -1,5 +1,5 @@
 <?php
-// -------includes/oioublfunk.php-----patch 3.2.9-----2012-08-24--------
+// -------includes/oioublfunk.php-----patch 3.3.9-----2014-02-06--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+//
+// 20140206 Afrundingsfejl,saldi_390 ordre id 16090 differ 1 øre på linjesum. 
+//	Afrunding af pris flyttet ned efter beregning af linjesum. Søg 20140206
+
 
 $oioxmlubl="OIOUBL";
 
@@ -236,40 +240,6 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	$l_retur.="</cac:Contact>\n";
 	$l_retur.="</cac:Party>\n";
 	$l_retur.="</cac:AccountingCustomerParty>\n";
-/*
-	$l_retur.="<cac:SellerSupplierParty>\n";
-	$l_retur.="<cac:Party>\n";
-	$l_retur.="<cbc:EndpointID schemeID=\"DK:CVR\">DK".$eget_cvrnr."</cbc:EndpointID>\n";
-	$l_retur.="<cac:PartyIdentification>\n";
-	$l_retur.="<cbc:ID schemeID=\"DK:CVR\">DK".$egen_cvrnr."</cbc:ID>\n";
-	$l_retur.="</cac:PartyIdentification>\n";
-	$l_retur.="<cac:PartyName>\n";
-	$l_retur.="<cbc:Name>".$egen_firmanavn."</cbc:Name>\n";
-	$l_retur.="</cac:PartyName>\n";
-	$l_retur.="<cac:PostalAddress>\n";
-	$l_retur.="<cbc:AddressFormatCode listAgencyID=\"320\" listID=\"urn:oioubl:codelist:addressformatcode-1.1\">StructuredDK</cbc:AddressFormatCode>\n";
-	$l_retur.="<cbc:StreetName>".oioubl_vej($egen_addr_1, "vejnavn")."</cbc:StreetName>\n";
-	$l_retur.="<cbc:BuildingNumber>".oioubl_vej($egen_addr_1, "husnummer")."</cbc:BuildingNumber>\n";
-	$l_retur.="<cbc:CityName>".$egen_bynavn."</cbc:CityName>\n";
-	$l_retur.="<cbc:PostalZone>".$egen_postnr."</cbc:PostalZone>\n";
-	$l_retur.="<cac:Country>\n";
-	$l_retur.="<cbc:IdentificationCode>DK</cbc:IdentificationCode>\n";
-	$l_retur.="</cac:Country>\n";
-	$l_retur.="</cac:PostalAddress>\n";
-	$l_retur.="<cac:PartyTaxScheme>\n";
-	$l_retur.="<cbc:CompanyID schemeID=\"DK:SE\">DK".$egen_cvrnr."</cbc:CompanyID>\n";
-	$l_retur.="<cac:TaxScheme>\n";
-	$l_retur.="<cbc:ID schemeAgencyID=\"320\" schemeID=\"urn:oioubl:id:taxschemeid-1.1\">63</cbc:ID>\n";
-	$l_retur.="<cbc:Name>Moms</cbc:Name>\n";
-	$l_retur.="</cac:TaxScheme>\n";
-	$l_retur.="</cac:PartyTaxScheme>\n";
-	$l_retur.="<cac:PartyLegalEntity>\n";
-	$l_retur.="<cbc:RegistrationName>".$firmanavn."</cbc:RegistrationName>\n";
-	$l_retur.="<cbc:CompanyID schemeID=\"DK:CVR\">DK".$cvrnr."</cbc:CompanyID>\n";
-	$l_retur.="</cac:PartyLegalEntity>\n";
-	$l_retur.="</cac:Party>\n";
-	$l_retur.="</cac:SellerSupplierParty>\n";
-*/
 	if ($l_doctype == "Invoice") {
 		$l_retur.="<cac:Delivery>\n";
 		$l_retur.="<cbc:ActualDeliveryDate>".$r_faktura['ordredate']."</cbc:ActualDeliveryDate>\n";
@@ -338,8 +308,9 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 		if (!$momsfri && !$varemomssats) $varemomssats=$l_momssats;
 		if ($varemomssats > $l_momssats) $varemomssats=$l_momssats;
 		if (!$varenr) $varenr='0'; #phr 20080803
-		$pris=afrund($pris-($r_linje['rabat']*$pris)/100,2);
+		$pris=$pris-($r_linje['rabat']*$pris)/100; #20140206 + næste 2 linjer
 		$linjepris=afrund($r_linje['antal']*$pris,2);
+		$pris=afrund($pris,2); 
 		$linjemoms=afrund($linjepris/100*$varemomssats,2);
 
 		if ($l_ptype=="PCM") {

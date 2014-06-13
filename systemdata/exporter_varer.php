@@ -1,5 +1,5 @@
 <?php
-// ---------/systemdata/exporter_varer.php---lap 2.0.9--2013-04-12------------------------
+// ---------/systemdata/exporter_varer.php---lap 3.4.1--2014-05-26------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20130412 Rettet i formatet
+// 20140516 Sat " om alle tekster.
+// 20140526 .'"'. manglede efter enhed i overskrift
 
 @session_start();
 $s_id=session_id();
@@ -37,7 +39,7 @@ $filnavn="../temp/varer.csv";
 
 $fp=fopen($filnavn,"w");
 
-$overskrift="varenr".chr(9)."stregkode".chr(9)."beskrivelse".chr(9)."kostpris".chr(9)."salgspris".chr(9)."vejl_pris".chr(9)."notes".chr(9)."enhed".chr(9)."gruppe".chr(9)."min_lager".chr(9)."max_lager".chr(9)."lokation";
+$overskrift='"'."varenr".'"'.chr(9).'"'."stregkode".'"'.chr(9).'"'."beskrivelse".'"'.chr(9).'"'."kostpris".'"'.chr(9).'"'."salgspris".'"'.chr(9).'"'."vejl_pris".'"'.chr(9).'"'."notes".'"'.chr(9).'"'."enhed".'"'.chr(9).'"'."gruppe".'"'.chr(9).'"'."min_lager".'"'.chr(9).'"'."max_lager".'"'.chr(9).'"'."lokation".'"';
 if ($charset=="UTF-8") $overskrift=utf8_decode($overskrift);
 
 if (fwrite($fp, "$overskrift\r\n")) {
@@ -45,14 +47,14 @@ if (fwrite($fp, "$overskrift\r\n")) {
 	while ($r=db_fetch_array($q)) {
 		$varenr=$r['varenr'];
 		$beskrivelse=$r['beskrivelse'];
-		$stregkode=$r['variant_stregkode'];
+		$stregkode=$r['stregkode'];
 		$kostpris=dkdecimal($r['kostpris'])*1;
 		$salgspris=dkdecimal($r['salgspris'])*1;
 		$retail_price=dkdecimal($r['retail_price'])*1;
 		$min_lager=dkdecimal($r['min_lager'])*1;
 		$max_lager=dkdecimal($r['max_lager'])*1;
 
-		$linje=$varenr.chr(9).$stregkode.chr(9).$beskrivelse.chr(9).$kostpris.chr(9).$salgspris.chr(9).$retail_price.chr(9).$r['notes'].chr(9).$r['enhed'].chr(9).$r['gruppe'].chr(9).$min_lager.chr(9).$max_lager.chr(9).$r['location'];
+		$linje='"'.$varenr.'"'.chr(9).'"'.$stregkode.'"'.chr(9).'"'.$beskrivelse.'"'.chr(9).$kostpris.chr(9).$salgspris.chr(9).$retail_price.chr(9).'"'.$r['notes'].'"'.chr(9).'"'.$r['enhed'].'"'.chr(9).$r['gruppe'].chr(9).$min_lager.chr(9).$max_lager.chr(9).'"'.$r['location'].'"';
 		$linje=str_replace("\n","",$linje);
 		if ($charset=="UTF-8") $linje=utf8_decode($linje);
 		fwrite($fp, $linje."\r\n");

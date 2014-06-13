@@ -1,5 +1,5 @@
 <?php
-// ---------/systemdata/exporter_variantvarer.php---lap 2.0.9--2013-04-12------------------------
+// ---------/systemdata/exporter_variantvarer.php---lap 3.4.1--2014-05-26------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20130412 Rettet i formatet
+// 20140516 Grundet timeout ved mange varer eksporteres nu max 1000 hvorefter rutinen genstarter der hvor den er nået til. Søg $start,$slut & $z; 
+// 20140516 Indsat dkdecimal ved udskrivning af kost',salgs', og vejl.pris. 
+// 20140526 Rettet $varianter_id til $varianttypre_id 
 
 @session_start();
 $s_id=session_id();
@@ -34,7 +37,8 @@ include("../includes/std_func.php");
 $returside="../diverse.php";
 
 $filnavn="../temp/variantvarer.csv";
-
+(isset($_GET['start']))?$start=$_GET['start']:$start=1;
+$slut=$start+999;
 $x=0;
 
 $r=db_fetch_array(db_select("SELECT relfilenode FROM pg_class WHERE relname = 'variant_varer'",__FILE__ . " linje " . __LINE__)) ;
@@ -52,7 +56,7 @@ if ($r['attisdropped']!='f' || !$r['attname']) {
 	db_modify("alter TABLE variant_varer ADD variant_vejlpris numeric(15,3)",__FILE__ . " linje " . __LINE__);
 }
 
-$q=db_select("select * from varianter");
+$q=db_select("select * from varianter",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$varianter_id[$x]=$r['id'];
 	$varianter_beskrivelse[$x]=$r['beskrivelse'];
@@ -61,14 +65,16 @@ while ($r=db_fetch_array($q)) {
 }
 
 $x=0;
-$q=db_select("select * from variant_typer");
+$q=db_select("select * from variant_typer",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$varianttyper_id[$x]=$r['id'];
 	$varianttyper_beskrivelse[$x]=$r['beskrivelse'];
 	$varianttyper_shop_id[$x]=$r['shop_id'];
+#echo "$varianttyper_id[$x] $varianttyper_beskrivelse[$x]<br>";
 	$x++;
 }
-$fp=fopen($filnavn,"w");
+if ($start==1) $fp=fopen($filnavn,"w");
+else $fp=fopen($filnavn,"a");
 $overskrift="varenr".chr(9)."beskrivelse".chr(9)."stregkode".chr(9)."kostpris".chr(9)."salgspris".chr(9)."vejl.pris";
 for ($x=0;$x<count($varianter_id);$x++) {
 	$overskrift.=chr(9).$varianter_beskrivelse[$x];
@@ -76,28 +82,44 @@ for ($x=0;$x<count($varianter_id);$x++) {
 if ($charset=="UTF-8") $overskrift=utf8_decode($overskrift);
 
 if (fwrite($fp, "$overskrift\r\n")) {
-	$q=db_select("select varer.varenr,varer.beskrivelse,variant_varer.variant_stregkode,variant_varer.variant_type,variant_varer.variant_salgspris,variant_varer.variant_kostpris,variant_varer.variant_vejlpris from varer,variant_varer where varer.id=variant_varer.vare_id order by varer.varenr,variant_varer.variant_stregkode");
+	$z=0;
+	$q=db_select("select varer.id,varer.varenr,varer.beskrivelse,variant_varer.variant_stregkode,variant_varer.variant_type,variant_varer.variant_salgspris,variant_varer.variant_kostpris,variant_varer.variant_vejlpris from varer,variant_varer where varer.id=variant_varer.vare_id order by varer.varenr,variant_varer.variant_stregkode",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
-		$varenr=$r['varenr'];
-		$beskrivelse=$r['beskrivelse'];
-		$variant_stregkode=$r['variant_stregkode'];
-		$variant_type=explode(chr(9),$r['variant_type']);
-		$variant_lager=$r['lager'];
-		$linje=$varenr.chr(9).$beskrivelse.chr(9).$variant_stregkode.chr(9).$r['variant_kostpris'].chr(9).$r['variant_salgspris'].chr(9).$r['variant_vejlpris'];
-		for ($x=0;$x<count($varianter_id);$x++) {
+		$z++;
+		if ($z>=$start && $z<=$slut) {
+			$vare_id=$r['id'];
+			$varenr=$r['varenr'];
+			$beskrivelse=$r['beskrivelse'];
+			$variant_stregkode=$r['variant_stregkode'];
+			$variant_type=explode(chr(9),$r['variant_type']);
+
+#			$variant_lager=$r['lager'];
+			$linje='"'.$varenr.'"'.chr(9).'"'.$beskrivelse.'"'.chr(9).'"'.$variant_stregkode.'"'.chr(9).dkdecimal($r['variant_kostpris']).chr(9).dkdecimal($r['variant_salgspris']).chr(9).dkdecimal($r['variant_vejlpris']);
+			for ($x=0;$x<count($varianter_id);$x++) {
 #			$linje.=chr(9)."$varianter_beskrivelse[$x]";
-			$tmp=NULL;
-			for ($y=0;$y<count($varianttyper_id);$y++) {
-				if ($varianttyper_id[$y]==$variant_type[$x]) $tmp=$varianttyper_beskrivelse[$y];
+				$tmp=NULL;
+				for ($y=0;$y<count($varianttyper_id);$y++) {#20140526
+					if (isset($varianttyper_id[$y]) && isset($variant_type[$x]) && $varianttyper_id[$y]==$variant_type[$x]) $tmp=$varianttyper_beskrivelse[$y];
+				}
+				$linje.=chr(9).'"'."$tmp".'"';
 			}
-			$linje.=chr(9)."$tmp";
+			$linje=str_replace("\n","",$linje);
+			if ($charset=="UTF-8") $linje=utf8_decode($linje);
+			fwrite($fp, $linje."\r\n");
+		} elseif ($z>$slut) {
+			break(1);
 		}
-		$linje=str_replace("\n","",$linje);
-		if ($charset=="UTF-8") $linje=utf8_decode($linje);
-		fwrite($fp, $linje."\r\n");
-	} 
+	}
 } 
 fclose($fp);
+if ($z>$slut) {
+	print "Udlæser variantvarer ";
+	for ($x=1000;$x<=$start;$x+=1000) print " *";
+	print "<br>";
+	print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=exporter_variantvarer.php?start=$z\">";
+	exit;
+}			
+
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";

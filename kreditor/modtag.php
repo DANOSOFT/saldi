@@ -1,7 +1,7 @@
 <?php
 	@session_start();
 	$s_id=session_id();
-// -------kreditor/modtag.php-------patch 3.2.9-------2012.04.11-----
+// -------kreditor/modtag.php-------patch 3.3.3-------2013.10.10-----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,8 +20,11 @@
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 // 
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
+//
+// 2013.08.30 Fejl v. "interne shops" (Rotary) de der blev forsøgt kald til ikke eksisterende url.Søn 20130830
+// 2013.10.01 Opdat_beholdning blev ikke åbnet v. webshop.
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -80,8 +83,6 @@ if (($ym<$aarstart)||($ym>$aarslut)) {
 	 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 	exit;
 }
-$r=db_fetch_array(db_select("select box2 from grupper where art = 'DIV' and kodenr = '5' ",__FILE__ . " linje " . __LINE__));
-$shopurl=trim($r['box2']);
 
 if ($fejl==0) {
 	transaktion("begin");
@@ -182,7 +183,10 @@ if ($fejl==0) {
 			}
 			db_modify("update ordrelinjer set leveres=0 where id = $linje_id[$x]",__FILE__ . " linje " . __LINE__);
 
-			if ($shopurl) {
+			$r=db_fetch_array(db_select("select box2 from grupper where art = 'DIV' and kodenr = '5' ",__FILE__ . " linje " . __LINE__));
+			$shopurl=trim($r['box2']);
+
+			if (strlen($shopurl)>1) { #20131001
 				$r=db_fetch_array(db_select("select beholdning,publiceret from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
 				if ($r['publiceret']) {
 					$shop_beholdning=$r['beholdning'];
@@ -191,7 +195,6 @@ if ($fejl==0) {
 					$r=db_fetch_array($q=db_select("select shop_id from shop_varer where saldi_id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
 					$shop_id=$r['shop_id'];
 					$url=$shopurl."/opdat_beholdning.php?vare_id=$vare_id[$x]&shop_id=$shop_id&beholdning=$shop_beholdning";
-#				print "<BODY onLoad=\"javascript:alert('Beholdning: $beholdning')\">";
 					print "<body onload=\"javascript:window.open('$url','opdat:beholdning');\">";
 				}
 			}

@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// --------------index/login.php----------lap 3.2.9------2012-06-15------
+// --------------index/login.php----------lap 3.3.8------2014-01-06------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,8 +19,11 @@ ob_start(); //Starter output buffering
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 2013.09.19 Tjekkede ikke om der var opdateringer ved login i "hovedregnskab" Søg 20130919
+// 2014.01.06	Tilføjet opslag i tmp_kode. Søg tmp_kode
+
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -44,10 +47,10 @@ $unixtime=date("U");
 
 if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	if (isset($_POST)){
-		$regnskab = addslashes(trim($_POST['regnskab']));
-		$brugernavn = addslashes(trim($_POST['login']));
-		$password = addslashes(trim($_POST['password'])); // password i formatet uppercase( md5( timestamp + uppercase( md5(original_password) ) ) )
-		$timestamp = trim($_POST['timestamp']);
+		$regnskab = db_escape_string(trim($_POST['regnskab']));
+		$brugernavn = db_escape_string(trim($_POST['login']));
+		$password = db_escape_string(trim($_POST['password'])); // password i formatet uppercase( md5( timestamp + uppercase( md5(original_password) ) ) )
+		(isset($_POST['timestamp']))?$timestamp = trim($_POST['timestamp']):$timestamp=NULL;
 		if (isset($_POST['fortsaet'])) $fortsaet = $_POST['fortsaet'];
 		if (isset($_POST['afbryd'])) $afbryd = $_POST['afbryd'];
 	}	else {
@@ -111,8 +114,8 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 #		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
 #	}
 	$q = db_select("select * from online where brugernavn = '$brugernavn' and db = '$db' and session_id != '$s_id'",__FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)){
-		$last_time=$row['logtime'];
+	if ($r = db_fetch_array($q)){
+		$last_time=$r['logtime'];
 		if (!$fortsaet && $unixtime - $last_time < 3600) {
 			online($regnskab, $brugernavn, $password, $timestamp, $s_id);
 			exit;
@@ -145,6 +148,7 @@ if (($regnskab)&&($regnskab!=$sqdb)) {
 	}
 #	if (!$dbver) {
 		include("../includes/online.php");
+		db_modify("update grupper set box3 = 'on' where art='USET'",__FILE__ . " linje " . __LINE__); #fjernes når topmenu fungerer.
 		$query = db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			if (!$dbver || $dbver>$row['box1']) $dbver=$row['box1'];
@@ -159,12 +163,28 @@ if (($regnskab)&&($regnskab!=$sqdb)) {
 	if ($dbver<$version) tjek4opdat($dbver,$version);
 }
 include("../includes/online.php");
-if (isset ($brug_timestamp)) $query = db_select("select * from brugere where brugernavn='$brugernavn' and (upper(md5('$timestamp' || upper(kode)))=upper('$password'))",__FILE__ . " linje " . __LINE__);
-else {
-	$password=md5($password);
-	$query = db_select("select * from brugere where brugernavn='$brugernavn' and kode= '$password'",__FILE__ . " linje " . __LINE__);
+$bruger_id=NULL;
+if (isset ($brug_timestamp)) {
+	$row=db_fetch_array(db_select("select * from brugere where brugernavn='$brugernavn' and (upper(md5('$timestamp' || upper(kode)))=upper('$password'))",__FILE__ . " linje " . __LINE__));
+	$bruger_id=$row['id'];
+} else {
+	$tmp=md5($password);
+	$row = db_fetch_array(db_select("select * from brugere where brugernavn='$brugernavn' and kode= '$tmp'",__FILE__ . " linje " . __LINE__));
+	$bruger_id=$row['id'];
+	if (!$bruger_id) {
+		$row=db_fetch_array(db_select("select * from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
+		if ($row['tmp_kode']) {
+			list($tidspkt,$tmp_kode)=explode("|",$row['tmp_kode']);
+			if (date("U")<=$tidspkt) {
+				if ($tmp_kode==$password) {
+					$bruger_id=$row['id'];
+				} 
+			} elseif ($tmp_kode==$password) print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
+		}
+	}
 }
-if ($row = db_fetch_array($query)) {
+#cho "BID $bruger_id";
+if ($bruger_id) {
 	$db_skriv_id=NULL;
 	if ($db_type=='mysql') {
 		if (!mysql_select_db("$sqdb")) die( "Unable to connect to MySQL");
@@ -199,6 +219,7 @@ if(!isset($afbryd)){
 	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n");
 	fclose($fp);
 	if ($regnskab==$sqdb) {
+		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";
 		exit;
 	} else {
@@ -243,6 +264,9 @@ function online($regnskab, $brugernavn, $password, $timestamp, $s_id) {
 }
 
 function login ($regnskab,$brugernavn) {
+
+	print "<meta http-equiv=\"refresh\" content=\"0;url=index.php\">\n";
+	exit;
 	global $charset;
 	global $version;
 

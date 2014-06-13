@@ -1,1 +1,4 @@
-<?php $version = "3.3.2"; ?>
+<?php 
+	$version = "3.4.1"; 
+	$copyright= "2003-2014";
+?>

@@ -1,5 +1,5 @@
 <?php
-// ------------- debitor/debitorkort.php ------ lap 3.2.9 ----2012-10-24-----------
+// ------------- debitor/debitorkort.php ------ lap 3.4.1 ----2014-05-07-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2012 DANOSOFT ApS
+// Copyright (c) 2003-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.10.23, ID slettes fra pbs_kunder hvis pbs ikke afmærket, søg 20121023
 // 2012.10.24, Annulleret ændringer fra 2012.10.23 !!
+// 2013.10.04, Indsat ENT_COMPAT,$charset); Søg 20131004
+// 2014.05.07, Indsat db_escabe_string #20140507
 
 @session_start();
 $s_id=session_id();
@@ -58,7 +60,7 @@ if ($delete_category=if_isset($_GET['delete_category'])) {
 	for ($x=0;$x<$cat_antal;$x++) {
 		if ($cat_id[$x]!=$delete_category) {
 			($box1)?$box1.=chr(9).$cat_id[$x]:$box1=$cat_id[$x];
-			($box2)?$box2.=chr(9).addslashes($cat_beskrivelse[$x]):$box2=addslashes($cat_beskrivelse[$x]);
+			($box2)?$box2.=chr(9).db_escape_string($cat_beskrivelse[$x]):$box2=db_escape_string($cat_beskrivelse[$x]);
 		}
 	}
 	$delete_category=0;
@@ -67,24 +69,24 @@ if ($delete_category=if_isset($_GET['delete_category'])) {
 $rename_category=if_isset($_GET['rename_category']);
 
 if ($_POST){
- 	$submit=addslashes(trim($_POST['submit']));
+ 	$submit=db_escape_string(trim($_POST['submit']));
  	$id=$_POST['id'];
  	if ($submit!="Slet") {
 		$notes=$_POST['notes'];
-		$firmanavn=addslashes(trim($_POST['firmanavn']));
-		$addr1=addslashes(trim($_POST['addr1']));
-		$addr2=addslashes(trim($_POST['addr2']));
-		$postnr=addslashes(trim($_POST['postnr']));
-		$bynavn=addslashes(trim($_POST['bynavn']));
-		$land=addslashes(trim($_POST['land']));
-		$kontakt=addslashes(trim($_POST['kontakt']));
-		$tlf=addslashes(trim($_POST['tlf']));
-		$email=addslashes(trim($_POST['email']));
-		$mailfakt=addslashes(trim($_POST['mailfakt']));
-		$cvrnr=addslashes(trim($_POST['cvrnr']));
-		$kontonr=addslashes(trim($_POST['kontonr']));
-		$felt_1 = addslashes(trim($_POST['felt_1']));
-		$notes=addslashes(trim($_POST['notes']));
+		$firmanavn=db_escape_string(trim($_POST['firmanavn']));
+		$addr1=db_escape_string(trim($_POST['addr1']));
+		$addr2=db_escape_string(trim($_POST['addr2']));
+		$postnr=db_escape_string(trim($_POST['postnr']));
+		$bynavn=db_escape_string(trim($_POST['bynavn']));
+		$land=db_escape_string(trim($_POST['land']));
+		$kontakt=db_escape_string(trim($_POST['kontakt']));
+		$tlf=db_escape_string(trim($_POST['tlf']));
+		$email=db_escape_string(trim($_POST['email']));
+		$mailfakt=db_escape_string(trim($_POST['mailfakt']));
+		$cvrnr=db_escape_string(trim($_POST['cvrnr']));
+		$kontonr=db_escape_string(trim($_POST['kontonr']));
+		$felt_1 = db_escape_string(trim($_POST['felt_1']));
+		$notes=db_escape_string(trim($_POST['notes']));
 /*
 		if ( !$id && !$firmanavn && !$kontonr && $notes ) {
 			$noteslinjer = explode("\n", $notes);
@@ -103,35 +105,35 @@ if ($_POST){
 			$notes = "";
 		}
 */
-		$ny_kontonr=addslashes(trim($_POST['ny_kontonr']));
-		$gl_kontotype=addslashes(trim($_POST['gl_kontotype']));
-		$kontotype=addslashes(trim($_POST['kontotype']));
-		$fornavn=addslashes(trim($_POST['fornavn']));
-		$efternavn=addslashes(trim($_POST['efternavn']));
-		$fax=addslashes(trim($_POST['fax']));
-		$web=addslashes(trim($_POST['web']));
-		$betalingsbet=addslashes(trim($_POST['betalingsbet']));
-		$ean=addslashes(trim($_POST['ean']));
-		$institution=addslashes(trim($_POST['institution']));
+		$ny_kontonr=db_escape_string(trim($_POST['ny_kontonr']));
+		$gl_kontotype=db_escape_string(trim($_POST['gl_kontotype']));
+		$kontotype=db_escape_string(trim($_POST['kontotype']));
+		$fornavn=db_escape_string(trim($_POST['fornavn']));
+		$efternavn=db_escape_string(trim($_POST['efternavn']));
+		$fax=db_escape_string(trim($_POST['fax']));
+		$web=db_escape_string(trim($_POST['web']));
+		$betalingsbet=db_escape_string(trim($_POST['betalingsbet']));
+		$ean=db_escape_string(trim($_POST['ean']));
+		$institution=db_escape_string(trim($_POST['institution']));
 		$betalingsdage=$_POST['betalingsdage']*1;
 		$kreditmax=usdecimal($_POST['kreditmax']);
-		$felt_2 = addslashes(trim($_POST['felt_2']));
-		$felt_3 = addslashes(trim($_POST['felt_3']));
-		$felt_4 = addslashes(trim($_POST['felt_4']));
-		$felt_5 = addslashes(trim($_POST['felt_5']));
-		$lev_firmanavn=addslashes(trim($_POST['lev_firmanavn']));
-		$lev_fornavn=addslashes(trim($_POST['lev_fornavn']));
-		$lev_efternavn=addslashes(trim($_POST['lev_efternavn']));
-		$lev_addr1=addslashes(trim($_POST['lev_addr1']));
-		$lev_addr2=addslashes(trim($_POST['lev_addr2']));
-		$lev_postnr=addslashes(trim($_POST['lev_postnr']));
-		$lev_bynavn=addslashes(trim($_POST['lev_bynavn']));
-		$lev_land=addslashes(trim($_POST['lev_land']));
-		$lev_kontakt=addslashes(trim($_POST['lev_kontakt']));
-		$lev_tlf=addslashes(trim($_POST['lev_tlf']));
-		$lev_email=addslashes(trim($_POST['lev_email']));
-		$vis_lev_addr=addslashes(trim($_POST['vis_lev_addr']));
-		$lukket=addslashes(trim($_POST['lukket']));
+		$felt_2 = db_escape_string(trim($_POST['felt_2']));
+		$felt_3 = db_escape_string(trim($_POST['felt_3']));
+		$felt_4 = db_escape_string(trim($_POST['felt_4']));
+		$felt_5 = db_escape_string(trim($_POST['felt_5']));
+		$lev_firmanavn=db_escape_string(trim($_POST['lev_firmanavn']));
+		$lev_fornavn=db_escape_string(trim($_POST['lev_fornavn']));
+		$lev_efternavn=db_escape_string(trim($_POST['lev_efternavn']));
+		$lev_addr1=db_escape_string(trim($_POST['lev_addr1']));
+		$lev_addr2=db_escape_string(trim($_POST['lev_addr2']));
+		$lev_postnr=db_escape_string(trim($_POST['lev_postnr']));
+		$lev_bynavn=db_escape_string(trim($_POST['lev_bynavn']));
+		$lev_land=db_escape_string(trim($_POST['lev_land']));
+		$lev_kontakt=db_escape_string(trim($_POST['lev_kontakt']));
+		$lev_tlf=db_escape_string(trim($_POST['lev_tlf']));
+		$lev_email=db_escape_string(trim($_POST['lev_email']));
+		$vis_lev_addr=db_escape_string(trim($_POST['vis_lev_addr']));
+		$lukket=db_escape_string(trim($_POST['lukket']));
 		list ($gruppe) = explode (':', $_POST['gruppe']);
 		
 		$rabatgruppe=$_POST['rabatgruppe']*1;
@@ -154,8 +156,8 @@ if ($_POST){
 		$ny_kategori=$_POST['ny_kategori'];
 		$rename_category=if_isset($_POST['rename_category']);
 
-		$status=addslashes(trim($_POST['status']));
-		$ny_status=addslashes(trim($_POST['ny_status']));
+		$status=db_escape_string(trim($_POST['status']));
+		$ny_status=db_escape_string(trim($_POST['ny_status']));
 		$status_id=$_POST['status_id'];
 		$status_beskrivelse=$_POST['status_beskrivelse'];
 		$status_antal=count($status_id);
@@ -180,22 +182,22 @@ if ($_POST){
 			if (findtekst(255,$sprog_id)=='Regnskab' && $felt_1>1 && is_numeric($felt_1)) {
 				include("../includes/connect.php");
 				if ($r=db_fetch_array($q=db_select("select * from regnskab where id='$felt_1'",__FILE__ . " linje " . __LINE__))) {
-					$regnskab=addslashes($r['regnskab']);
+					$regnskab=db_escape_string($r['regnskab']);
 					if ($r=db_fetch_array($q=db_select("select * from kundedata where regnskab='$regnskab' or regnskab_id='$felt_1'",__FILE__ . " linje " . __LINE__))) {
-						$ny_kontonr=addslashes($r['tlf']);
-						$firmanavn=addslashes($r['firmanavn']);
-						$felt=addslashes($r['regnskab']);
-						$addr1=addslashes($r['addr1']);
-						$addr2=addslashes($r['addr2']);
-						$postnr=addslashes($r['postnr']);
-						$land=addslashes($r['land']);
-						$land=addslashes($r['land']);	
-						$kontakt=addslashes($r['kontakt']);
-						$tlf=addslashes($r['tlf']);
-						$email=addslashes($r['email']);
-						$cvrnr=addslashes($r['cvrnr']);
-						$kontonr=addslashes($r['kontonr']);
-						$notes=addslashes($r['notes']);
+						$ny_kontonr=db_escape_string($r['tlf']);
+						$firmanavn=db_escape_string($r['firmanavn']);
+						$felt=db_escape_string($r['regnskab']);
+						$addr1=db_escape_string($r['addr1']);
+						$addr2=db_escape_string($r['addr2']);
+						$postnr=db_escape_string($r['postnr']);
+						$land=db_escape_string($r['land']);
+						$land=db_escape_string($r['land']);	
+						$kontakt=db_escape_string($r['kontakt']);
+						$tlf=db_escape_string($r['tlf']);
+						$email=db_escape_string($r['email']);
+						$cvrnr=db_escape_string($r['cvrnr']);
+						$kontonr=db_escape_string($r['kontonr']);
+						$notes=db_escape_string($r['notes']);
 						$mailfakt='on';
 						$gruppe=4;
 					}
@@ -227,7 +229,7 @@ if ($_POST){
 				for ($x=0;$x<$cat_antal;$x++) {
 					if ($cat_id[$x]==$rename_category) $cat_beskrivelse[$x]=$ny_kategori;
 					($box1)?$box1.=chr(9).$cat_id[$x]:$box1=$cat_id[$x];
-					($box2)?$box2.=chr(9).addslashes($cat_beskrivelse[$x]):$box2=addslashes($cat_beskrivelse[$x]);
+					($box2)?$box2.=chr(9).db_escape_string($cat_beskrivelse[$x]):$box2=db_escape_string($cat_beskrivelse[$x]);
 				}
 				$rename_category=0;
 				db_modify("update grupper set box1='$box1',box2='$box2' where art = 'DebInfo'",__FILE__ . " linje " . __LINE__);  
@@ -408,7 +410,7 @@ if ($id > 0){
 	$lev_land=htmlentities(trim($r['lev_land']),ENT_COMPAT,$charset);
 	$lev_tlf=trim($r['lev_tlf']);
 	$lev_email=trim($r['lev_email']);
-	$lev_kontakt=htmlentities(trim($r['lev_kontakt']));
+	$lev_kontakt=htmlentities(trim($r['lev_kontakt']),ENT_COMPAT,$charset);#20131004
 	$tlf=trim($r['tlf']);
 	$fax=trim($r['fax']);
 	$email=trim($r['email']);
@@ -480,8 +482,8 @@ if ($r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FI
 if ($kontotype=="privat") {
 	if (!$fornavn && !$efternavn && $firmanavn) {
 		list($fornavn,$efternavn)=explode(",",split_navn($firmanavn));
-		list($lev_fornavn,$lev_efternavn)=explode(",",split_navn($lev_firmanavn));
-		db_modify("update adresser set fornavn='$fornavn',efternavn='$efternavn' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				list($lev_fornavn,$lev_efternavn)=explode(",",split_navn($lev_firmanavn));
+		db_modify("update adresser set fornavn='".db_escape_string($fornavn)."',efternavn='".db_escape_string($efternavn)."' where id = '$id'",__FILE__ . " linje " . __LINE__);#20140507
 	}
 } 
 ######################## OUTPUT ######################

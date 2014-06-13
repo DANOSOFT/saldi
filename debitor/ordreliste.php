@@ -16,7 +16,7 @@
 // GNU General Public Licensen for flere detaljer.
 // 
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
 // Copyright (c) 2004-2012 DANOSOFT ApS
 // ----------------------------------------------------------------------
@@ -47,8 +47,19 @@ function MasseFakt(tekst)
 $css="../css/standard.css";
 $modulnr=5;
 $title="Ordreliste - Debitorer";
-$dk_dg=NULL; $vis_projekt=NULL;
-$firmanavn=NULL; $firmanavn_ant=NULL; $hurtigfakt=NULL; $konto_id=NULL; $linjebg=NULL; $checked=NULL; $totalkost=NULL; $understreg=NULL;
+$dk_dg=NULL; 
+$checked=NULL;
+$fakturadatoer=NULL;$fakturanumre=NULL;$firma=NULL;$firmanavn=NULL;$firmanavn_ant=NULL; 
+$genfakt=NULL;$genfaktdatoer=NULL;
+$hreftext=NULL;$hurtigfakt=NULL; 
+$konto_id=NULL;$kontonumre=NULL; 
+$lev_datoer=NULL;$linjebg=NULL; 
+$ordredatoer=NULL;$ordrenumre=NULL;
+$ref=NULL;
+$summer=NULL;
+$totalkost=NULL;$tr_title=NULL; 
+$understreg=NULL;
+$vis_projekt=NULL;$vis_ret_next=NULL;
 $find=array();
 
 include("../includes/connect.php");
@@ -58,10 +69,8 @@ include("../includes/udvaelg.php");
 	
 #print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Ordreliste - Kunder</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 
-
+$id = if_isset($_GET['id']);
 $konto_id = if_isset($_GET['konto_id']);
-
-$id = $_GET['id'];
 $returside=if_isset($_GET['returside']);
 $valg= strtolower(if_isset($_GET['valg']));
 $sort = if_isset($_GET['sort']);
@@ -72,6 +81,8 @@ $start = if_isset($_GET['start']);
 
 if (!$returside && $konto_id && !$popup) $returside="debitorkort.php?id=$konto_id";
 
+$r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__));
+
 if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'",__FILE__ . " linje " . __LINE__))) $hurtigfakt='on';
 if ($valg=="tilbud" && $hurtigfakt) $valg="ordrer"; 
 if (!$valg) $valg="ordrer";
@@ -81,6 +92,8 @@ if (!in_array($valg,$tjek)) $valg='ordrer';
 $sort=str_replace("ordrer.","",$sort);
 if ($sort && $nysort==$sort) $sort=$sort." desc";
 elseif ($nysort) $sort=$nysort;
+
+$r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__));
 
 if ($r=db_fetch_array(db_select("select id from adresser where art = 'S' and pbs_nr > '0'",__FILE__ . " linje " . __LINE__))) {
  $pbs=1;
@@ -105,6 +118,8 @@ if (!$r=db_fetch_array(db_select("select id from grupper where art = 'OLV' and k
 		$box4="50,100,100,100,100,150,100,100";
 		$box6="Ordrenr.,Ordredato,Fakt.nr.,Fakt.dato,Genfakt.,Kontonr.,Firmanavn,S&aelig;lger,Fakturasum";
 	}
+$r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__));
+#cho "max_id=$r2[id]<br>";	
 	db_modify("insert into grupper (beskrivelse,kode,kodenr,art,box2,box3,box4,box5,box6,box7) values ('Ordrelistevisning','$valg','$bruger_id','OLV','$returside','$box3','$box4','$box5','$box6','100')",__FILE__ . " linje " . __LINE__);
 } else {
 	$r=db_fetch_array(db_select("select box2,box7,box8,box9 from grupper where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__)); 
@@ -474,7 +489,7 @@ while ($row=db_fetch_array($query)) {
 				}
 			}
 		}
-		if (($tidspkt-($row[tidspkt])>3600)||($row[hvem]==$brugernavn)) {
+		if (($tidspkt-($row['tidspkt'])>3600)||($row['hvem']==$brugernavn || $row['hvem']=='')) {
 			if ($popup) {
 				$javascript="onClick=\"javascript:$ordre=window.open('ordre.php?tjek=$row[id]&id=$row[id]&returside=ordreliste.php','$ordre','scrollbars=1,resizable=1');$ordre.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" ";
 				$understreg='<span style="text-decoration: underline;">';

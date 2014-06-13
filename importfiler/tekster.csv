@@ -102,9 +102,9 @@
 102	<b>LAGER</b>
 103	Her foretager du opsætning af regnskabet.
 104	<b>SYSTEMDATA</b>
-105	Kassekladde
+105	Kassekladder
 106	Klik her når du skal oprette salgsordrer eller fakturaer til kunder.
-107	Ordre
+107	Ordrer
 108	Klik her når du skal oprette indkøbsordrer eller modtage varer til videresalg.
 109	Klik her når du skal oprette varer eller generere indkøbsforslag.
 110	Varer
@@ -208,8 +208,8 @@
 208	Anvend popup-vinduer
 209	Her skriver du de parametrer, som passer bedst til din browsers popup-funktioner
 210	Popup-indstillinger
-211
-212
+211	Intern bilagsopbevaring (mod betaling).
+212	Afmærk her hvis du vil ancende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 
 213
 214
 215	Emne og tekst til brug ved udsendelse som e-mail
@@ -381,7 +381,7 @@
 381	Kreditmax
 382	Bank reg.
 383	Bank konto
-384	PBS/nr.
+384	PBS-nr.
 385	PBS
 386	Kundeansvarlig
 387	Lukket
@@ -422,7 +422,7 @@
 422	Magenta (lyselilla)
 423	Cyan (lysebl&aring;)
 424	Intet
-425	Afm&aelig;rk her for at benytte VVS prislisten fra $beskrivelse
+425	Afm&aelig;rk her for at benytte VVS-prislisten fra $beskrivelse
 426	Klik her for at s&aelig;tte individuelle rabatter og varegrupper for de enkelte prisgrupper
 427	Prislister
 428	Rabat
@@ -431,18 +431,18 @@
 431	Skriv den generelle rabat for varer fra $beskrivelse
 432	V&aelig;lg den generelle varegruppe til varer fra $beskrivelse
 433	Ingen leverand&oslash;r med kontonummer $kontonr
-434	Her kan skrives en alternativ SMTP server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk.
-435	Alternativ SMTP server
+434	Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk.
+435	Alternativ SMTP-server
 436	Skift
 437	Skriv en dato i formatet ddmmåå, f.eks 311210 for at se bevægelser inden danne dato<br>eller skriv et datointerval f.eks. 010110:311210.<br>Kontosaldi anvender kun slutdatoen.
 438	Dato
-439	Skriv et kundenummer eller en interval adskilt af kolon. Listen vil blive sorteret efter kundenummer<br>Der kan også skrives et kontonavn,<br>f.eks<br>Skrives DANOSOFT aps vises kun bevægelser for DANOSOFT aps<br>DANO* vil vise bevægelser for alle hvor navnet starter med DANO<br>*aps vil vise alle hvor navnet slutter på aps<br>*SOFT* viser alle hvor navnet indeholder soft 
+439	Skriv et kundenummer eller et interval adskilt af kolon. Listen vil blive sorteret efter kundenummer<br>Der kan også skrives et kontonavn,<br>f.eks<br>Skrives DANOSOFT aps vises kun bevægelser for DANOSOFT aps<br>DANO* vil vise bevægelser for alle hvor navnet starter med DANO<br>*aps vil vise alle hvor navnet slutter på aps<br>*SOFT* viser alle hvor navnet indeholder soft 
 440	Konto
 441	Åbne poster
 442	Kontosaldo
 443	Kontokort
-444	Viser en aldersfordelt liste over forfaldne / ubetalte udeståender på valgte konti pr. den angivne dato
-445	Viser en liste over saldi på valgte konti pr den angivne dato 
+444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato
+445	Viser en liste over saldi på valgte konti pr. den angivne dato 
 446	Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.
 447	Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.
 448	Top 100
@@ -455,7 +455,7 @@
 455	Kassespor
 456	Afmærk her for at for at udskrive bon automatisk. Hvis der ikke er afmærket, skal bon udskrives manuelt efter hver handel.
 457	Udskriv bon automatisk.
-458	Afmærk her for at vise knappen [Kontant på beløb]. Kan bruges ved kassesalg hvor der ikke skal beregnes returbeløb
+458	Afmærk her for at vise knappen [Kontant på beløb]. Kan bruges ved kassesalg hvor der ikke skal beregnes returbeløb.
 459	Vis knap [Kontant på beløb]
 460	Afmærk her for at vise knappen [Kontoopslag]. Bruges ved kassesalg til kontokunder
 461	Vis knap [Kontoopslag]
@@ -485,7 +485,7 @@
 485	Varianter for varer, f.eks Farve eller Størrelse.
 486	Værdi for variant , f.eks Rød eller Small.
 487	Afmærk her hvis varen indeholder denne type varianter.
-488	Kopi af tilbud gemt kl $time, se vedhæftning.
+488	Kopi af tilbud gemt kl. $time, se vedhæftning.
 489	Kopi af ordrebekræftelse gemt kl $time, se vedhæftning.
 490	Kopi gemt til historik
 491	Klik på teksten for at indsætte den i ordren.
@@ -495,15 +495,15 @@
 495	Ny status
 496	Vælg "Ny Status" for at tilføje en ny status
 497	Navn på ny status.
-498	Kopi af faktura gemt kl $time, se vedhæftning.
-499	Kopi af kreditnota gemt kl $time, se vedhæftning.
+498	Kopi af faktura gemt kl. $time, se vedhæftning.
+499	Kopi af kreditnota gemt kl. $time, se vedhæftning.
 500	Ordrenr
-501	Opdater feltet herunder med information fra ordren?
+501	Opdatér feltet herunder med information fra ordren?
 502	Kontakt
 503	Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.
 504	Webshop URL
-505	Klik her for at eksportere valgte transaktioner til CSV fil for import i andet program, f.eks. regneark.
-506	Fejl v. upload til FTP - Dokument ikke gemt!
+505	Klik her for at eksportere valgte transaktioner til CSV-fil for import i andet program, f.eks. regneark.
+506	Fejl ved overførsel til FTP - Dokument ikke gemt!
 507	Klik her for at oprette nyt regnskabsår.
 508	Opret nyt regnskabsaar
 509	Kontospecifikation alle valgte konti i valgt periode
@@ -524,11 +524,11 @@
 524	Klassisk udseende
 525	Hvis dette felt afmærkes vil hverken fremkomme menu i toppen eller siden og hele siden kan anvendes som arbejdsområde.
 526	Integration med ebConnect
-527	Afmærk her hvis du har en ftp konto hos ebConnect og ønsker at kunne sende OIOUBL fakturaer direkte til modtager.
-528	FTP server
-529	FTP brugernavn
-530	FTP adgangskode
-531	Betalingslister til bank, hvor betalings ID og dato er angivet v. bogføring
+527	Afmærk her hvis du har en ftp-konto hos ebConnect og ønsker at kunne sende OIOUBL-fakturaer direkte til modtager.
+528	- FTP-server hos ebConnect
+529	- FTP-brugernavn hos ebConnect
+530	- FTP-adgangskode hos ebConnect
+531	Betalingslister til bank, hvor betalingsID og dato er angivet ved bogføring
 532	Betalingslister
 600	Finans
 601	Kassekladde
@@ -547,34 +547,34 @@
 614	Sikkerhedskopi
 615	Ved at afmærke her for du op til 14 ekstra felter på ansattes stamkort, for egne ansattes.
 616	Tilføj ekstra felter på ansatte
-617	-
-618	-
-619	-
-620	-
-621	-
-622	-
-623	-
-624	-
-625	-
-626	-
-627	-
-628	-
-629	-
-630	-
-631	-
-632	-
-633	-
-634	-
-635	-
-636	-
-637	-
-638	-
-639	-
-640	-
-641	-
-642	-
-643	-
-644	-
+617	Kontonummer for kontantsalg.
+618	Angiv hvilken konto betalingen skal konteres på ved kontantsalg. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.
+619	Kontonummer for salg på kreditkort.
+620	Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.
+621	Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay
+622	Merchant nr:
+623	Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay
+624	Md5-secret
+625	Vælg her om du vil anvende Saldi's interne shop eller en ekstern via API.  
+626	Webshop valg
+627	Ingen webshop
+628	Intern webshop
+629	Ekstern webshop
+630	Kassebeholdning, morgen
+631	Skriv her hvor meget kassebeholdningen er ved dagens start. Hvis tallet er nul, tælles den aktuelle beholdning.
+632	Assistance til kasseoptælling
+633	Afmærk her, hvis kasseoptællingen skal assisteres med formular til antal af mønter & sedler.
+634	Printer IP
+635	Skriv ipnummeret til printserveren, hvis bonprinteren ikke tilsluttet kasseapparatet direkte.
+636	Terminal IP
+637	Skriv ipnummeret til kortterminalen, hvis der anvendes integreret kortterminal.
+638	Tillad forskellige datoer på samme bilagsnummer i kassekladde.
+639	Afmærk her for at undtrykke advarsel i kassekladden, hvis der anvendes samme bilagsnummer til flere bilag med forskellige datoer. (F.eks, hvis et kontoudtog fra bank bogføres som ét bilag).
+640	Betalingskort
+641	Afmærk her, hvis kortet er et betalingskort som bruges med betalingsterminal (Kun til anvendelse med integreret betalingsterminal).
+642	Andre kort
+643	Udfyldes dette felt, vises kun 1 betalingskort på kasseskærmen og der bogføres automatisk på det kortnavn som terminalen returnerer. Hvis kortet ikke er oprettet herover, bogføres på denne konto.  
+644	Advar ved for lav lagerbeholdning
 645	Medarbejdernr.
 646	Navn
 647	Initialer
@@ -601,4 +601,19 @@
 668	Betalingsbet.
 669	Ny kontakt
 670	Trainee
-
+671	Bilag
+672	Skriv navn til vedhæftet bilag, når der sendes pr. mail.
+673	Skriv her hvor mange borde der skal registreres
+674	Antal borde
+675	Beskrivelse af bordene.
+676	Bordnavn
+677	-
+678	-
+679	-
+680	Afmærkes dette felt vil der komme en advarsel, hvis der indsættes varer, som ikke kan leveres, på en kundeordre.
+681	Anvend procentfakturering
+682	Afmærkes her, kommer et ekstra felt på kundeordrer til procentfakturering af vareværdien. Bruges f.eks ved udlejning af materiel.
+683	Procenttillæg
+684	Skrives en værdi her, vil den fremkomme et redigerbart felt på ordresiden med den angivne værdi. Procenttillægget er et tillæg til den samlede fakturasum før momsberegning. 
+685	Varenr. for procenttillæg
+686	Angiv her hvilken konto i kontoplanen procenttillægget skal konteres på.

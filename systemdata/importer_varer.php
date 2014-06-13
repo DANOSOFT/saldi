@@ -1,5 +1,5 @@
 <?php
-// ------systemdata/importer_varer.php---lap 3.1.3--2013-04-17--------
+// ------systemdata/importer_varer.php---lap 3.3.9--2014-01-02--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // tilføjet vejl.pris til import.
+// 2014.02.01 Gjort søgning på eksisterende varenuller case uafhængig 20140201
 
 @session_start();
 $s_id=session_id();
@@ -156,7 +157,7 @@ for ($y=0; $y<=$feltantal; $y++) {
 	if ($feltnavn[$y]=='varenr')$varenr=1;
 	if ($feltnavn[$y]=='beskrivelse')$beskrivelse=1;
 }		
-if (($filnavn)&&($splitter)&&($varenr==1)&&($beskrivelse==1)) print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Import&eacute;r\" /></td></tr>";
+if ($filnavn && $splitter && $varenr==1) print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Import&eacute;r\" /></td></tr>";
 print "<tr><td colspan=$cols><hr></td></tr>\n";
 if ((!$splitter)||($splitter=='Semikolon')) {$splitter=';';}
 elseif ($splitter=='Komma') {$splitter=',';}
@@ -392,7 +393,7 @@ if ($fp) {
 			}
 			$vare_a=$vare_a.",lukket";
 			$vare_b=$vare_b.",''";
-			if ($varenr && $r=db_fetch_array(db_select("select id from varer where varenr='$varenr'",__FILE__ . " linje " . __LINE__))) {
+			if ($varenr && $r=db_fetch_array(db_select("select id from varer where varenr='$varenr' or lower(varenr)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__))) { #20140201
 				$vare_id=$r['id'];
 				$upd_antal++;
 				db_modify("update varer set $upd where id='$vare_id'",__FILE__ . " linje " . __LINE__);

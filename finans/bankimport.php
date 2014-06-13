@@ -1,5 +1,5 @@
 <?php
-// ----------finans/bankimport.php------------patch 3.3.0------2012.11.10-----------
+// ----------finans/bankimport.php------------patch 3.3.9------2014.02.03-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,16 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2003-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.10 Indsat mulighed for valutavalg ved import - søg: valuta
+// 2013.09.11 Fejl i 1. kald til "vis_data" "$vend" mangler.
+// 2013.11.19	Genkendelse af posteringer fra Quickpay. Søg 20131109
+// 2014.01.15 Genkendelse af FI indbetalinger fra Danske Bank. Søg Danske Bank
+// 2014.01.17 Genkendelse af FI indbetalinger fra Sparekasserne. Søg Sparekasserne
+// 2014.01.27 Genkendelse af FI indbetalinger fra Nordea. Søg Nordea
+// 2014.02.03 Genkendelse af danske månedforkortelser i datoer. Søg 20140203
 
 @session_start();
 $s_id=session_id();
@@ -34,6 +40,8 @@ include("../includes/settings.php");
 include("../includes/std_func.php");
 
 print "<div align=\"center\">";
+
+$vend=NULL;
 
 if(($_GET)||($_POST)) {
 
@@ -106,7 +114,7 @@ if(($_GET)||($_POST)) {
 				db_modify ("insert into grupper (beskrivelse,art,kode,kodenr) values ('Bankimport','KASKL','3','$bruger_id')",__FILE__ . " linje " . __LINE__);
 			}
 			if (!$feltantal) $feltantal=1;	
-			vis_data($kladde_id,$filnavn,'',$feltnavn,$feltantal,$kontonr,$bilag,$valutakode);
+			vis_data($kladde_id,$filnavn,'',$feltnavn,$feltantal,$kontonr,$bilag,$vend,$valutakode);
 		}	else {
 			echo "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
 		}
@@ -326,7 +334,21 @@ if ($fp) {
 			for ($y=0; $y<=$feltantal; $y++) {
 				$felt[$y]=trim($felt[$y]);
 				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
-				if ($feltnavn[$y]=='dato') $felt[$y]=str_replace(".","-",$felt[$y]);
+				if ($feltnavn[$y]=='dato') { # 20140203
+					$felt[$y]=str_replace("-jan-","-01-",$felt[$y]);
+					$felt[$y]=str_replace("-feb-","-02-",$felt[$y]);
+					$felt[$y]=str_replace("-mar-","-03-",$felt[$y]);
+					$felt[$y]=str_replace("-apr-","-04-",$felt[$y]);
+					$felt[$y]=str_replace("-maj-","-05-",$felt[$y]);
+					$felt[$y]=str_replace("-jun-","-06-",$felt[$y]);
+					$felt[$y]=str_replace("-jul-","-07-",$felt[$y]);
+					$felt[$y]=str_replace("-aug-","-08-",$felt[$y]);
+					$felt[$y]=str_replace("-sep-","-09-",$felt[$y]);
+					$felt[$y]=str_replace("-okt-","-10-",$felt[$y]);
+					$felt[$y]=str_replace("-nov-","-11-",$felt[$y]);
+					$felt[$y]=str_replace("-dec-","-12-",$felt[$y]);
+					$felt[$y]=str_replace(".","-",$felt[$y]);
+				}
 				if ($feltnavn[$y]=='belob') {
 					if (nummertjek($felt[$y])=='US') {
 						if ($felt[$y]==0) $skriv_linje=0;
@@ -413,7 +435,21 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kont
 				for ($y=0; $y<=$feltantal; $y++) {
 					$felt[$y]=trim($felt[$y]);
 					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
-					if ($feltnavn[$y]=='dato') $felt[$y]=str_replace(".","-",$felt[$y]);
+					if ($feltnavn[$y]=='dato') { # 20140203
+						$felt[$y]=str_replace("-jan-","-01-",$felt[$y]);
+						$felt[$y]=str_replace("-feb-","-02-",$felt[$y]);
+						$felt[$y]=str_replace("-mar-","-03-",$felt[$y]);
+						$felt[$y]=str_replace("-apr-","-04-",$felt[$y]);
+						$felt[$y]=str_replace("-maj-","-05-",$felt[$y]);
+						$felt[$y]=str_replace("-jun-","-06-",$felt[$y]);
+						$felt[$y]=str_replace("-jul-","-07-",$felt[$y]);
+						$felt[$y]=str_replace("-aug-","-08-",$felt[$y]);
+						$felt[$y]=str_replace("-sep-","-09-",$felt[$y]);
+						$felt[$y]=str_replace("-okt-","-10-",$felt[$y]);
+						$felt[$y]=str_replace("-nov-","-11-",$felt[$y]);
+						$felt[$y]=str_replace("-dec-","-12-",$felt[$y]);
+						$felt[$y]=str_replace(".","-",$felt[$y]);
+					}
 					if ($feltnavn[$y]=='belob') {
 						if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
 						elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;		
@@ -425,13 +461,37 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kont
 					$bilag=$bilag*1;
 					if ($feltnavn[$y]=='belob') $amount=usdecimal($felt[$y]);
 					elseif ($feltnavn[$y]=="dato") $transdate=usdate($felt[$y]);
-					elseif ($feltnavn[$y]=="beskrivelse") $beskrivelse=addslashes($felt[$y]);
+					elseif ($feltnavn[$y]=="beskrivelse") $beskrivelse=db_escape_string($felt[$y]);
 				}
 				if ($amount>0) {
-					if (strlen($beskrivelse)==22 && substr($beskrivelse,0,3)=='IK ' && is_numeric(substr($beskrivelse,3,19))) {
+					if (strlen($beskrivelse)==22 && substr($beskrivelse,0,3)=='IK ' && is_numeric(substr($beskrivelse,3,19))) { # ?
 						$kredit=substr($beskrivelse,3,13)*1;
 						$faktura=substr($beskrivelse,16,5)*1;
 						$k_type='D';
+					} elseif (strlen($beskrivelse)==20 && substr($beskrivelse,-4)=='IK71' && is_numeric(substr($beskrivelse,0,14))) { # Sparekasserne
+						$kredit=substr($beskrivelse,0,8)*1;
+						$faktura=substr($beskrivelse,8,6)*1;
+						$k_type='D';
+					} elseif (strlen($beskrivelse)==32 && substr($beskrivelse,7,10)=='Indbet.ID=' && is_numeric(substr($beskrivelse,17,15))) { # Danske Bank
+						$kredit=substr($beskrivelse,17,9)*1;
+						$faktura=substr($beskrivelse,26,5)*1;
+						$k_type='D';
+					} elseif (strlen($beskrivelse)==35 && substr($beskrivelse,0,21)=='Indbetalingskort, nr.' && is_numeric(substr($beskrivelse,22,14))) { # Nordea
+						$kredit=substr($beskrivelse,22,7)*1;
+						$faktura=substr($beskrivelse,29,5)*1;
+						$k_type='D';
+					} elseif (substr($beskrivelse,0,6)=='DKSSL ') { #20131119
+						list($a,$b,$c)=explode(" ",$beskrivelse);
+						$ordrenr=substr($c,7)*1;
+						if ($ordrenr) {
+							$r=db_fetch_array(db_select("select fakturanr,kontonr from ordrer where ordrenr = '$ordrenr' and sum = '$amount'",__FILE__ . " linje " . __LINE__));
+							$faktura=$r['fakturanr'];
+							$kredit=$r['kontonr']*1;
+							$k_type='D';
+						} else {
+							$faktura='';
+							$kredit='0';
+						}
 					} else {
 						$kredit='0';
 						$faktura='';

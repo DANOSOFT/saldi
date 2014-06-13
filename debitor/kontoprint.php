@@ -327,7 +327,7 @@ if ($mailantal>0) {
 			system ("mv ../temp/$db/$pfliste[$x].pdf $mappe/$pfliste[$x].pdf");
 		}
 		print "--> \n";
-		$svar=send_mails("$mappe/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);
+		$svar=send_mails(0,"$mappe/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);
 	}
 } #else print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$printfilnavn\">";
 #xit;

@@ -1,5 +1,5 @@
 <?php
-// ------ includes/opdat_3.3.php-------lap 3.3.1 ------2013-08-02---------------
+// ------ includes/opdat_3.3.php-------lap 3.3.9 ------2014-01-07---------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,9 +16,9 @@
 // GNU General Public Licensen for flere detaljer.
 // 
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 Danosoft ApS
+// Copyright (c) 2004-2014 Danosoft ApS
 // ----------------------------------------------------------------------
 function opdat_3_3($under_nr, $lap_nr){
 	global $version;
@@ -98,12 +98,190 @@ function opdat_3_3($under_nr, $lap_nr){
 			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
 			transaktion('commit');
 			include("../includes/connect.php");
+			db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 		} else {
 			include("../includes/connect.php");
 			return;
 		}
-		# db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 	}
+	$nextver='3.3.3';
+	if ($lap_nr<"3"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		include("../includes/online.php");
+		transaktion('begin');
+		db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+		transaktion('commit');
+		include("../includes/connect.php");
+		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+	$nextver='3.3.4';
+	if ($lap_nr<"4"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		if ($db!=$sqdb){
+			include("../includes/online.php");
+			transaktion('begin');
+			$i = 0;
+			$feltnavne=array();
+			$q = db_select("select * from transaktioner",__FILE__ . " linje " . __LINE__);
+			while ($i < db_num_fields($q)) { 
+				$feltnavne[$i] = db_field_name($q,$i); 
+				$i++; 
+			}
+			if (!in_array('kasse_nr',$feltnavne)) {
+				db_modify("ALTER TABLE transaktioner ADD kasse_nr numeric(15,0) default '0'",__FILE__ . " linje " . __LINE__);
+			}
+			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+			transaktion('commit');
+			include("../includes/connect.php");
+		}
+		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+	$nextver='3.3.5';
+	if ($lap_nr<"5"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		if ($db!=$sqdb){
+			include("../includes/online.php");
+			$x=0;
+			$y=0;
+			$sum[$y]=0;
+			$q = db_select("select * from transaktioner where bilag > 0 order by bilag",__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) {
+				$x++;
+				$bilag[$x]=$r['bilag'];
+				if ($x && $bilag[$x] != $bilag[$x-1]) {
+					if (abs($sum[$y])>=1) {
+					$y++; 
+						$sum[$y]=0;
+					}
+				}
+				if ($r['debet']>0) $sum[$y]+=$r['amount'];
+				if ($r['kredit']>0) $sum[$y]-=$r['amount'];
+			}
+			if (count($sum)>1) {
+				$message="Ubalance i regnskab $db";
+				$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
+				mail('phr@danosoft.dk', $message, $message, $headers);
+			}		
+			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+			include("../includes/connect.php");
+		}
+		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+	$nextver='3.3.6';
+	if ($lap_nr<"6"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		if ($db!=$sqdb){
+			include("../includes/online.php");
+			transaktion('begin');
+			db_modify("ALTER TABLE regulering ADD variant_id integer default '0'",__FILE__ . " linje " . __LINE__);
+			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+			transaktion('commit');
+			include("../includes/connect.php");
+		}
+		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+	$nextver='3.3.7';
+	if ($lap_nr<"7"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			db_modify("CREATE TABLE diverse (id serial NOT NULL,beskrivelse text,nr numeric(15,0),box1 text,box2 text,box3 text,box4 text,box5 text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		if ($db!=$sqdb){
+			include("../includes/online.php");
+			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+			include("../includes/connect.php");
+		}
+		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+	$nextver='3.3.8';
+	if ($lap_nr<"8"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		if ($db!=$sqdb){
+			include("../includes/online.php");
+			db_modify("ALTER TABLE brugere ADD tmp_kode text",__FILE__ . " linje " . __LINE__);
+			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+			include("../includes/connect.php");
+		}
+		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+	$nextver='3.3.9';
+	if ($lap_nr<"9"){
+		include("../includes/connect.php");
+		$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+		$tmp=$r['version'];
+		if ($tmp<$nextver) {
+			echo "opdaterer hovedregnskab til ver $nextver<br />";
+			db_modify("UPDATE regnskab set version = '$nextver' where id = '1'",__FILE__ . " linje " . __LINE__);
+		}
+		if ($db!=$sqdb){
+			include("../includes/online.php");
+			db_modify("ALTER TABLE ordrer ADD dokument text",__FILE__ . " linje " . __LINE__);
+			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+			include("../includes/connect.php");
+		}
+		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
+	}
+	$nextver='3.4.0';
+	include("../includes/connect.php");
+	$r=db_fetch_array(db_select("select * from regnskab where id=1",__FILE__ . " linje " . __LINE__));
+	$tmp=$r['version'];
+	if ($tmp<$nextver) {
+		echo "opdaterer hovedregnskab til ver $nextver<br />";
+		db_modify("UPDATE regnskab set version = '$nextver' where id = 1",__FILE__ . " linje " . __LINE__);
+	}
+	if ($db!=$sqdb){
+		include("../includes/online.php");
+		db_modify("ALTER TABLE ordrer ALTER COLUMN tilbudnr SET DATA TYPE text",__FILE__ . " linje " . __LINE__);
+		db_modify("ALTER TABLE ordrer ADD procenttillag numeric(15,3) default '0'",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table ordrer add column mail_bilag varchar(2)",__FILE__ . " linje " . __LINE__);
+		db_modify("ALTER TABLE ordrelinjer ADD procent numeric(15,3) default '100'",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table ordretekster add column sort numeric(15,0)",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table tjekskema add column man_trans text",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table tjekskema add column stillads_til text",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table tjekskema add column opg_navn text",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table tjekskema add column opg_beskrivelse text",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table tjekskema add column sjakid text",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table noter add column sagsnr text",__FILE__ . " linje " . __LINE__);
+		db_modify("alter table loen add column sag_ref text",__FILE__ . " linje " . __LINE__);
+	
+		db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
+		include("../includes/connect.php");
+	}
+	db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 }	
 
 

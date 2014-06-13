@@ -1,6 +1,6 @@
 <?php
 
-// ------------lager/lageroptalling.php------------patch 3.2.9------2013.01.09---
+// ------------lager/lageroptalling.php------------patch 3.3.7------2014.01.03---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,11 +19,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 20120913 Der kan nu optaelles til 0
 // 20130109 Hele optællingen kan nu slettes - søg 20130109
+// 20131119 Tilføjet variantvarer i importfunktion. Søg variant_id
+// 20140103	db_escape_string indsat - Søg db_escape_string
+// 20140103	Hvis der er 2 forskellige vnr som er ens med små bogstaver (Løsdel != løsdel) blev kun løsdel fundet. Søg 20140103
 
 @session_start();
 $s_id=session_id();
@@ -55,6 +58,7 @@ if ($bogfor) {
 	$godkend_regdif=if_isset($_GET['godkend_regdif']);
 } else $bogfor=0;
 $vis_ej_optalt=if_isset($_GET['vis_ej_optalt']);
+$vis_ej_exist=if_isset($_GET['vis_ej_exist']);
 
 if ($slet && $vare_id && $varenr) {
 	db_modify("delete from regulering where vare_id='$vare_id' and bogfort='0'",__FILE__ . " linje " . __LINE__);
@@ -64,7 +68,7 @@ if ($slet && $vare_id && $varenr) {
 	db_modify("delete from regulering where bogfort='0'",__FILE__ . " linje " . __LINE__);
 } else {
 	$vare_id=if_isset($_POST['vare_id']);
-	if (!$varenr) $varenr=strtolower(if_isset($_POST['varenr']));
+	if (!$varenr) $varenr=if_isset(db_escape_string($_POST['varenr']));
 	$optalt=if_isset($_POST['optalt']);
 	$beholdning=if_isset($_POST['beholdning']);
 	$tidspkt=if_isset($_POST['tidspkt']);
@@ -76,14 +80,16 @@ print "<td width=10% $top_bund><a href=$returside accesskey=L>Luk</a></td>\n";
 print "<td width=80% $top_bund>$title</td>\n";
 print "<td width=10% $top_bund>";
 ($importer)? print "<a href=optalling.php>Afbryd</a>":print "<a href=optalling.php?importer=1>Importer</a>";
-print"</a><br></td>\n";
+print "</a><br></td>\n";
 print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
-print "<tr><td><br></td></tr>\n";
+if ($vis_ej_exist) $vis_ej_exist="<a href=\"../temp/$db/optael_ej_exist.txt\" target=\"blank\">Ikke oprettede varer</a>";
+print "<tr><td>$vis_ej_exist<br></td></tr>\n";
 
 if ($importer) {
 	importer();
 	exit;
 }
+
 if ($vare_id && ($optalt || $optalt=='0')) {
 #	if ($optalt) { # remmet 20120913 saa det er muligt at optaelle til 0.
 		$optalt=usdecimal($optalt);
@@ -99,10 +105,15 @@ print "<form name=\"optalling\" action=\"optalling.php?gentael=$gentael\" method
 if ($varenr=trim($varenr)) {
 	$fokus="optalt";
 	print "<tr><td>Varenr</td><td>Beskrivelse</td><td align=\"right\">Beholdning</td><td align=\"right\">Ny beholdning</td></tr>\n";
-	$r=db_fetch_array(db_select("select * from varer where lower(varenr)='$varenr' or lower(stregkode)='$varenr'",__FILE__ . " linje " . __LINE__));
+	if (!$r=db_fetch_array(db_select("select * from varer where varenr='$varenr' or stregkode='$varenr'",__FILE__ . " linje " . __LINE__))) {
+		$r=db_fetch_array(db_select("select * from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__));
+	}
 	print "<tr><td></td></tr>\n";
-#echo "$r[id]<br>";
-	print "<tr><td>$r[varenr]</td><td>$r[beskrivelse]</td><td align=\"right\">$r[beholdning]</td><td align=\"right\"><input style=\"width:75px;text-align:right;\" type=\"text\" name=\"optalt\"></td></tr>\n";
+		
+	$tmp=dkdecimal($r['beholdning']*1); #20140103
+	while(substr($tmp,-1)=='0') $tmp=substr($tmp,0,strlen($tmp)-1);
+	if(substr($tmp,-1)==',') $tmp=substr($tmp,0,strlen($tmp)-1);
+	print "<tr><td>$r[varenr]</td><td>$r[beskrivelse]</td><td align=\"right\">$tmp</td><td align=\"right\"><input style=\"width:75px;text-align:right;\" type=\"text\" name=\"optalt\"></td></tr>\n";
 	print "<tr><td><input type=\"hidden\" name=\"varenr\" value='$r[varenr]'></td></tr>\n";
 	print "<tr><td><input type=\"hidden\" name=\"vare_id\" value='$r[id]'></td></tr>\n";
 	print "<tr><td><input type=\"hidden\" name=\"beholdning\" value='$r[beholdning]'></td>\n";
@@ -147,26 +158,32 @@ function vis_optalling($vnr,$gentael) {
 	$lagervalue=0;
 
 	$x=0;
-	if ($vnr) $q=db_select("select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt from regulering,varer where (lower(varer.varenr)='$vnr' or lower(varer.stregkode)='$vnr') and varer.id=regulering.vare_id and regulering.bogfort = '0'order by regulering.tidspkt",__FILE__ . " linje " . __LINE__);
-	else $q=db_select("select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt from regulering,varer where varer.id=regulering.vare_id and regulering.bogfort = '0' order by varer.varenr,regulering.tidspkt",__FILE__ . " linje " . __LINE__);
+	if ($vnr) $q=db_select("select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt from regulering,varer where varer.varenr='$vnr' and varer.id=regulering.vare_id and regulering.bogfort = '0'order by regulering.tidspkt",__FILE__ . " linje " . __LINE__);
+	else $q=db_select("select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id from regulering,varer where varer.id=regulering.vare_id and regulering.bogfort = '0' order by varer.varenr,regulering.tidspkt",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
 		if ($r['varenr']!=$varenr[$x]) {
 			$y=0;
 			$beholddiff[$x]=0;
 			$x++;
 			$vare_id[$x]=$r['id'];	
-			$varenr[$x]=$r['varenr'];	
+			$varenr[$x]=$r['varenr'];
 			$kostpris[$x]=$r['kostpris'];
 			$beskrivelse[$x]=$r['beskrivelse'];
 			$optalt[$x][$y]=$r['optalt'];
 			$beholdning[$x][$y]=$r['beholdning']*1;
 			$tidspkt[$x][$y]=$r['tidspkt'];
+			$variant_id[$x][$y]=$r['variant_id'];
 		}	else {
 			$y++;
 			$optalt[$x][$y]=$r['optalt'];
 			$beholdning[$x][$y]=$r['beholdning']*1;
 			$tidspkt[$x][$y]=$r['tidspkt'];
 			$beholddiff[$x]+=$beholdning[$x][$y]-$beholdning[$x][$y-1];
+			$variant_id[$x][$y]=$r['variant_id'];
+		}
+		if ($variant_id[$x][$y]) {
+			$r2=db_fetch_array(db_select("select variant_stregkode from variant_varer where id = '".$variant_id[$x][$y]."'",__FILE__ . " linje " . __LINE__));
+			$variant_stregkode[$x][$y]=$r2['variant_stregkode'];
 		}
 #		if (!$tidspkt[$x][$y]) {
 #			$tidspkt[$x][$y]='201012262000';
@@ -174,9 +191,18 @@ function vis_optalling($vnr,$gentael) {
 #		}
 	}	
 	$antal=$x;
+	
+	$x=0;
+	$q=db_select("select id,variant_stregkode from variant_varer order by id",__FILE__ . " linje " . __LINE__);
+	while($r=db_fetch_array($q)) {
+		$var_id[$x]=$r['id'];
+		$var_streg[$x]=$r['variant_stregkode'];
+		$x++;
+	}
+
 	for ($x=1;$x<=$antal;$x++) {
 		$baggrund=$bgcolor2;
-		print "<tr bgcolor=\"$baggrund\"><td>Varenr</td><td>Beskrivelse</td><td align=\"center\">Optalt&nbsp;dato</td><td align=\"right\">Beholdning</td><td align=\"right\">Optalt&nbsp;ant.</td><td align=\"right\">Kostpris</td><td align=\"right\">Lagerv&aelig;rdi</td><td align=\"right\">Lagerv&aelig;rdi&nbsp;sum</td><tr>\n";
+		print "<tr bgcolor=\"$baggrund\"><td>Varenr/Stregkode</td><td>Beskrivelse</td><td align=\"center\">Optalt&nbsp;dato</td><td align=\"right\">Beholdning</td><td align=\"right\">Optalt&nbsp;ant.</td><td align=\"right\">Kostpris</td><td align=\"right\">Lagerv&aelig;rdi</td><td align=\"right\">Lagerv&aelig;rdi&nbsp;sum</td><tr>\n";
 		($baggrund==$bgcolor)? $baggrund=$bgcolor2:$baggrund=$bgcolor;
 		$y=0;
 		$sum=0;
@@ -189,10 +215,11 @@ function vis_optalling($vnr,$gentael) {
 				$minut=substr($tidspkt[$x][$y],10,2);
 				$sum+=$optalt[$x][$y];
 				if ($y==0) {
-					print "<tr bgcolor=\"$baggrund\"><td><b>$varenr[$x]</b></td><td><b>$beskrivelse[$x]</b></td><td align=\"center\">$dag.$md.$aar&nbsp;$time:$minut</td><td align=\"right\">".dkdecimal($beholdning[$x][$y])."</td><td align=\"right\">".dkdecimal($optalt[$x][$y])."</td><td colspan=\"4\" align=\"right\" title=\"Klik her for at slette denne vare fra opt&aelig;llingen.\"><a style=\"text-decoration:none\" href=\"optalling.php?vare_id=$vare_id[$x]&varenr=$varenr[$x]&slet=y&gentael=$gentael\" onclick=\"return confirm('Vil du slette denne vare fra liste og opt&aelig;lle den igen?')\"><font color=\"#ff0000\"><b>X</b></font></a></td><tr>\n";
+					if ($variant_stregkode[$x][$y]) print "<tr bgcolor=\"$baggrund\"><td><b>$varenr[$x]</b></td><td><b>$beskrivelse[$x]</b></td><td align=\"center\"><br></td><td align=\"right\"><br></td><td align=\"right\"><br></td><td colspan=\"4\"><br></td><tr>\n";
+					else print "<tr bgcolor=\"$baggrund\"><td><b>$varenr[$x]</b></td><td><b>$beskrivelse[$x]</b></td><td align=\"center\">$dag.$md.$aar&nbsp;$time:$minut</td><td align=\"right\">".dkdecimal($beholdning[$x][$y])."</td><td align=\"right\">".dkdecimal($optalt[$x][$y])."</td><td colspan=\"4\" align=\"right\" title=\"Klik her for at slette denne vare fra opt&aelig;llingen.\"><a style=\"text-decoration:none\" href=\"optalling.php?vare_id=$vare_id[$x]&varenr=$varenr[$x]&slet=y&gentael=$gentael\" onclick=\"return confirm('Vil du slette denne vare fra liste og opt&aelig;lle den igen?')\"><font color=\"#ff0000\"><b>X</b></font></a></td><tr>\n";
 				} else {
-					print "<tr bgcolor=\"$baggrund\"><td><br></td><td><br></td><td align=\"center\">$dag.$md.$aar&nbsp;$time:$minut</td><td align=\"right\">".dkdecimal($beholdning[$x][$y])."</td><td align=\"right\">".dkdecimal($optalt[$x][$y])."</td><tr>\n";
-				} 
+					print "<tr bgcolor=\"$baggrund\"><td>".$variant_stregkode[$x][$y]."</td><td><br></td><td align=\"center\">$dag.$md.$aar&nbsp;$time:$minut</td><td align=\"right\">".dkdecimal($beholdning[$x][$y])."</td><td align=\"right\">".dkdecimal($optalt[$x][$y])."</td><tr>\n";
+				}
 				$y++;
 			}
 			$kostsum=$kostpris[$x]*$sum;
@@ -325,13 +352,6 @@ function bogfor($nulstil_ej_optalt,$dato,$bogfor,$godkend_regdif) {
 				$reg_diff[$id]=1;
 			}
 		}
-#		if ($reg_diff[$id]) {
-#			echo "$id | $r[beholdning] == $ny_beholdning[$id]<br>"; 
-#			if ($r['beholdning'] == $ny_beholdning[$id]) {
-#				$reg_diff[$id]=0;
-#				$y--;
-#			}
-#		}
 		$reguleres[$id]=$ny_beholdning[$id]-$gl_beholdning[$id];
 # echo "$id Reguleres $reguleres[$id]<br>";
 	}
@@ -379,7 +399,7 @@ function bogfor($nulstil_ej_optalt,$dato,$bogfor,$godkend_regdif) {
 							$regulering+=$kostdiff;
 						}
 						if ($bogfor>1) {
-							db_modify("update regulering set bogfort = '1' where bogfort = '0' and vare_id = '$id'",__FILE__ . " linje " . __LINE__);
+							db_modify("update regulering set bogfort = '1' where bogfort = '0' and vare_id = '$id' and variant_id='0'",__FILE__ . " linje " . __LINE__);
 #							} else {
 #							echo "<tr><td colspan=6>update regulering set bogfort = '1' where bogfort = '0' and vare_id = '$id'</td></tr>";
 						}
@@ -446,7 +466,7 @@ function bogfor($nulstil_ej_optalt,$dato,$bogfor,$godkend_regdif) {
 #				echo "<tr><td colspan=6>insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
 #						values
 #					($lagerregulering[$x], '0', '$transdate', '$logdate', '$logtime', 'Lageroptælling ($brugernavn)', '$regulering', '', '0', '0', '0', '0', '1', '100', '0')</td></tr>";
-#				echo "<tr><td colspan=6>insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
+// #				echo "<tr><td colspan=6>inesert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, faktura, kladde_id,afd, ansat, projekt, valuta, valutakurs, ordre_id)
 #						values
 #					($lagertraek[$x], '0', '$transdate', '$logdate', '$logtime', 'Lageroptælling ($brugernavn)', '$regulering', '', '0', '0', '0', '0', '1', '100', '0')</td></tr>";
 			} else {
@@ -460,6 +480,49 @@ function bogfor($nulstil_ej_optalt,$dato,$bogfor,$godkend_regdif) {
 			}
 		}
 	}
+
+	
+	$x=0;
+	$reg_variant_id=array();
+	$reg_diff=array();
+	$reguleres=array();
+#cho "select * from regulering where bogfort='0' order by variant_id,id<br>";
+	$q=db_select("select * from regulering where bogfort='0' and variant_id > '0' order by variant_id,id",__FILE__ . " linje " . __LINE__);
+	while($r=db_fetch_array($q)) {
+		if (!in_array($r['variant_id'],$reg_variant_id)) {
+			$x++;
+			$reg_variant_id[$x]=$r['variant_id'];
+			$id=$reg_variant_id[$x];
+#cho "$id -> ";
+			$reg_diff[$id]=0;
+			$gl_beholdning[$id]=$r['beholdning'];
+			$ny_beholdning[$id]=$r['optalt'];
+		} else {
+			$ny_beholdning[$id]+=$r['optalt'];
+			if ($godkend_regdif) {
+				$gl_beholdning[$id]=$r['beholdning'];
+			} elseif ($r['beholdning']!=$gl_beholdning[$id]) {
+				$y++;
+				$reg_diff[$id]=1;
+			}
+		}
+		$reguleres[$id]=$ny_beholdning[$id]-$gl_beholdning[$id];
+# echo "$id Reguleres $reguleres[$id] $ny_beholdning[$id] $gl_beholdning[$id]<br>";
+	}
+	$reg_antal=$x;
+	
+	for ($x=1;$x<=$reg_antal;$x++){
+		$id=$reg_variant_id[$x];
+#echo "$id | $reguleres[$id] reg_diff[$id] $reg_diff[$id]<br>";
+		if ($reguleres[$id]) {
+#echo "update variant_varer set variant_beholdning = '$ny_beholdning[$id]' where id = $reg_variant_id[$x]<br>";
+			if ($bogfor>1) {
+				db_modify("update variant_varer set variant_beholdning = '$ny_beholdning[$id]' where id = $reg_variant_id[$x]",__FILE__ . " linje " . __LINE__);
+				db_modify("update regulering set bogfort = '1' where bogfort = '0' and variant_id = '$id'",__FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+	
 	transaktion('commit');
 
 	if ($bogfor==1) print "<tr><td colspan=\"6\">Klik <a href=optalling.php?bogfor=2&nulstil_ej_optalt=$nulstil_ej_optalt&dato=$dato&godkend_regdif=$godkend_regdif>her</a> for endelig lagerregulering og bogføring pr. $dato</td></tr>";
@@ -560,33 +623,48 @@ function importer(){
 			}
 			$fp=fopen("$filnavn","r");
 			if ($fp) {
+				$fp2=fopen("../temp/$db/optael_ej_exist.txt","w");
 				while ($linje=trim(fgets($fp))) {
 				list($varenr,$antal)=explode($splitter,$linje);
 					if (substr($varenr,0,1)=='"' && substr($varenr,-1,1)=='"') $varenr=substr($varenr,1,strlen($varenr)-2);
-					$varenr=strtolower($varenr);
+#					$varenr=strtolower($varenr);
 					if (substr($antal,0,1)=='"' && substr($antal,-1,1)=='"') $antal=substr($antal,1,strlen($antal)-2);
 					if (strpos($antal,",")) $antal=usdecimal($antal);
 					if (is_numeric($antal)) {
-						if ($r=db_fetch_array(db_select("select id from varer where lower(varenr)='$varenr' or lower(stregkode)='$varenr'",__FILE__ . " linje " . __LINE__))) {
-							$vare_id=$r['id']*1;
+						$vare_id=NULL;
+						if ($r=db_fetch_array(db_select("select id from varer where varenr='$varenr'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
+						elseif ($r=db_fetch_array(db_select("select id from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
+						if ($vare_id) {
 							$beholdning=0;
 							$r=db_fetch_array(db_select("select sum(antal) as antal from batch_kob where vare_id='$vare_id' and kobsdate<='$transdate'",__FILE__ . " linje " . __LINE__));
 							$beholdning+=$r['antal'];
 							$r=db_fetch_array(db_select("select sum(antal) as antal from batch_salg where vare_id='$vare_id' and salgsdate<='$transdate'",__FILE__ . " linje " . __LINE__));
 							$beholdning-=$r['antal'];
-							echo "$varenr,$beholdning,$antal<br>";
-						db_modify("insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt) values ($vare_id,$antal,'$beholdning','0','$tidspkt')",__FILE__ . " linje " . __LINE__);
+#							echo "*";
+							db_modify("insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id) values ('$vare_id','$antal','$beholdning','0','$tidspkt','0')",__FILE__ . " linje " . __LINE__);
+							$indsat++;
+						} elseif ($r=db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='$varenr'",__FILE__ . " linje " . __LINE__))) {
+							$variant_id=$r['id']*1;
+							$vare_id=$r['vare_id']*1;
+							$beholdning=0;
+							$r=db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='D_' or ordrer.art='PO')",__FILE__ . " linje " . __LINE__));
+							$beholdning+=$r['antal'];
+							$r=db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal from ordrelinjer,ordrer where ordrelinjer.ordre_id=ordrer.id and ordrelinjer.variant_id='$variant_id' and ordrer.levdate<='$transdate' and (ordrer.art='KO' or ordrer.art='KK')",__FILE__ . " linje " . __LINE__));
+							$beholdning-=$r['antal'];
+							db_modify("insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id) values ('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id')",__FILE__ . " linje " . __LINE__);
 							$indsat++;
 						} else {
 							$ej_indsat++;
-							echo "$varenr eksisiterer ikke<br>";
+							fwrite($fp2,"$varenr\n");
+#							echo "*";
 						}
 					}
 				}
+				fclose($fp2);
 				fclose($fp);
 			}
 			print "<BODY onLoad=\"javascript:alert('$indsat varenumre importeret i liste, $ej_indsat varenumre ikke fundet i vareliste')\">\n";
-			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php\">";
+			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1\">";
 		}
 	} else {
 		$dato=date("d-m-Y");

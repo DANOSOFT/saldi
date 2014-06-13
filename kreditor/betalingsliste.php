@@ -1,5 +1,5 @@
 <?php
-// ---------kreditor/betalingsliste.php----------Patch 2.0.4-------2009.02.11------------
+// ---------kreditor/betalingsliste.php-----------------------Patch 3.4.1---2014.05.30---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,6 +16,8 @@
 //
 // Copyright (c) 2004-2009 DANOSOFT ApS
 // -----------------------------------------------------------------------------------
+// 
+// 2014.05.30 Rettet tegnsætfejl ved visning af Bemærkninger med danske tegn. (ca)
 
 @session_start();
 $s_id=session_id();
@@ -105,8 +107,8 @@ print "</tr>\n";
 #		print "<td> $row[id]<br></td>";
 		$listedato=dkdato($row[listedate]);
 		print "<td>$listedato<br></td>";
-		print "<td>".htmlentities(stripslashes($row[oprettet_af]))."<br></td>";
-		print "<td>".htmlentities(stripslashes($row[listenote]))."<br></td>";
+                print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
+                print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td align = center>$row[bogfort]<br></td>";
 		print "</tr>";
 	}
@@ -121,8 +123,8 @@ print "</tr>\n";
 #		print "<td><a href=kasseliste.php?liste_id=$row[id]&returside=betalingsliste.php>$row[id]</a><br></td>";
 		$listedato=dkdato($row['listedate']);
 		print "<td>$listedato<br></td>";
-		print "<td>".htmlentities(stripslashes($row['oprettet_af']))."<br></td>";
-		print "<td>".htmlentities(stripslashes($row['listenote']))."<br></td>";
+                print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
+                print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 ## Da der ikke blev sat bogfringsdato foer ver. 0.23 skal det saettes hak ved lister bogfrt fr denne version...
 		if ($row['bogforingsdate']){
 			$bogforingsdato=dkdato($row['bogforingsdate']);

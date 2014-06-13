@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// -------------------kreditor/bogfor.php-------lap 3.2.9----2012-06-12--
+// -------------------kreditor/bogfor.php-------lap 3.4.1----2014-06-11--
 /// LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,8 +20,11 @@ $s_id=session_id();
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
-// ----------------------------------------------------------------------
+// Copyright (c) 2004-2014 DANOSOFT ApS
+// -------------------------------------------------------------------254---
+//
+// #20131108 Fejl v. fifo og varetilgang på varekøb.Søg #20131108
+// #20140611 Indsat if($batch_id) da kostpriser i ordrelinjer ellers bliver ændret på alt som ikke har batch_kob_id v. negativt køb af vare som aldrig har været handlet.
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -146,10 +149,11 @@ if (!$row['levdate']){
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 					exit;
 				}
+				if (!$box1 && $box3) $box1=$box3; #20131108 
 				if ($box11 && cvrnr_omr(cvrnr_land($cvrnr)) == "EU") $bf_kto=$box11; 
 				elseif ($box13 && cvrnr_omr(cvrnr_land($cvrnr)) == "UD") $bf_kto=$box13;
 				else $bf_kto=$box3;
-#echo "cvr $cvrnr box11 $box11 box13 $box13 bf_kto $bf_kto<br>";
+#cho "cvr $cvrnr box11 $box11 box13 $box13 bf_kto $bf_kto<br>";
 				if ($box8!='on'){
 #echo "update ordrelinjer set bogf_konto='$bf_kto' where id='$linje_id[$x]'<br>";
 					db_modify("update ordrelinjer set bogf_konto='$bf_kto' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
@@ -172,23 +176,24 @@ if (!$row['levdate']){
 #cho "C select id,vare_id,ordre_id,antal,kostpris from ordrelinjer where id='$r2[linje_id]'<br>";
 								$r3=db_fetch_array(db_select("select id,vare_id,ordre_id,antal,kostpris from ordrelinjer where id='$r2[linje_id]'",__FILE__ . " linje " . __LINE__));
 								if ($r3['antal']) {
-									$kostpris=$r3['kostpris']; 
+									$kostpris=$r3['kostpris'];#/$r3['antal']; 
+									$r3=db_fetch_array(db_select("select valutakurs from ordrer where id='$r3[ordre_id]'",__FILE__ . " linje " . __LINE__));
+									if ($r3['valutakurs'] && $r3['valutakurs']!=100) $dk_kostpris=$kostpris*$r3['valutakurs']/100;
+									else $dk_kostpris=$kostpris;
 								} else $kostpris=0;
 								if ($box1) {
-									$diff=$dkpris[$x]-$kostpris*1;
-#cho "Diff $diff<br>";
+									$diff=afrund($dkpris[$x]-$dk_kostpris,2);
 									if ($diff) {
 										$batch_antal=$row['antal']*1;
 										$batch_rest=$row['rest']*1;
 										$tmp=$batch_antal-$batch_rest;
-#cho "D insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt) values ('-1', '$tmp', '$diff', 0, $id, $box3,'$projekt[$x]')<br>";
  										db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt) values ('-1', '$tmp', '$diff', 0, $id, $box3,'$projekt[$x]')",__FILE__ . " linje " . __LINE__);
 										$diff=$diff*-1;
-#cho "E insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto, projekt) values ('-1', '$tmp', '$diff', 0, $id, $box2,'$projekt[$x]')<br>";
 										db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', '$tmp', '$diff', 0, $id, $box2,'$projekt[$x]')",__FILE__ . " linje " . __LINE__);
 									}
 								}
 							}
+#xit;
 #cho "F update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where linje_id=$linje_id[$x]<br>";
 							db_modify("update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 #cho "G select id from batch_kob where linje_id=$linje_id[$x]<br>";
@@ -205,31 +210,27 @@ if (!$row['levdate']){
 								}
 							}
 						}
-#exit;
 						if ($fifo) {
 #cho "select id from batch_kob where vare_id=$vare_id[$x] and fakturadate>'$levdate'<br>";
 							if (!db_fetch_array(db_select("select id from batch_kob where vare_id=$vare_id[$x] and fakturadate>'$levdate'",__FILE__ . " linje " . __LINE__))){
-#cho "update varer set kostpris='$dkpris[$x]' where id='$vare_id[$x]'<br>";
 								db_modify("update varer set kostpris='$dkpris[$x]' where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
-#cho "update vare_lev set kostpris='$dkpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'<br>";
 								db_modify("update vare_lev set kostpris='$dkpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'",__FILE__ . " linje " . __LINE__);
 							}
 							# Finder hvor mange som er leveret til kunder men ikke faktureret:	
-							$r2=db_fetch_array(db_select("select sum(antal) as antal from batch_salg where vare_id=$vare_id[$x] and fakturadate is NULL",__FILE__ . " linje " . __LINE__));
-							$lev_ej_fakt[$x]=$r2['antal'];
-#cho "lev_ej_fakt $lev_ej_fakt[$x]<br>";
-							if ($antal[$x]>($beholdning[$x]+$lev_ej_fakt[$x])) {
-								$diff=($gl_kostpris[$x]-$dkpris[$x])*($antal[$x]-($beholdning[$x]+$lev_ej_fakt[$x]));
-								if ($diff) {
-#cho "C insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', '1', '$diff', 0, $id, $box1,'$projekt[$x]')<br>";
-									db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', '1', '$diff', 0, $id, $box1,'$projekt[$x]')",__FILE__ . " linje " . __LINE__);
-									$diff=$diff*-1;
-#cho "D insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', '1', '$diff', 0, $id, $box3,'$projekt[$x]')<br>";
-									db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', '1', '$diff', 0, $id, $box3,'$projekt[$x]')",__FILE__ . " linje " . __LINE__);
-								}
-							}	
+							if (!$box9) { # Skal ikke gøres hvis batchkontrol er slået til
+								$r2=db_fetch_array(db_select("select sum(antal) as antal from batch_salg where vare_id=$vare_id[$x] and fakturadate is NULL",__FILE__ . " linje " . __LINE__));
+								$lev_ej_fakt[$x]=$r2['antal'];
+								if ($antal[$x]>($beholdning[$x]+$lev_ej_fakt[$x])) {
+									$diff=($gl_kostpris[$x]-$dkpris[$x])*($antal[$x]-($beholdning[$x]+$lev_ej_fakt[$x]));
+									if ($diff) {
+										db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', '1', '$diff', 0, $id, $box1,'$projekt[$x]')",__FILE__ . " linje " . __LINE__);
+										$diff=$diff*-1;
+										db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', '1', '$diff', 0, $id, $box3,'$projekt[$x]')",__FILE__ . " linje " . __LINE__);
+									}
+								}		
+							}
 						}
-#exit;
+					#xit;
 					} else {
 						$kred_linje_id[$x]=$kred_linje_id[$x]*1; # patch 2.0.2a
 						$query = db_select("select * from batch_kob where linje_id=$kred_linje_id[$x]",__FILE__ . " linje " . __LINE__);
@@ -248,11 +249,13 @@ if (!$row['levdate']){
 						$batch_id=$batch_id*1;
 						$query = db_select("select * from batch_kob where vare_id=$vare_id[$x] and linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 						while ($row = db_fetch_array($query)) {
-							db_modify("update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where id=$row[id]",__FILE__ . " linje " . __LINE__);
+						db_modify("update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where id=$row[id]",__FILE__ . " linje " . __LINE__);
+						if ($batch_id) { #20140611
 							$q2 = db_select("select linje_id from batch_salg where batch_kob_id=$batch_id",__FILE__ . " linje " . __LINE__);
-							while ($r2 = db_fetch_array($q2)) {
-								db_modify("update ordrelinjer set kostpris = '$dkpris[$x]' where id=$r2[linje_id]",__FILE__ . " linje " . __LINE__);
-							}
+								while ($r2 = db_fetch_array($q2)) {
+									db_modify("update ordrelinjer set kostpris = '$dkpris[$x]' where id=$r2[linje_id]",__FILE__ . " linje " . __LINE__);
+								}
+							} # endif ($batch_id)
 						}
 					} # endif & else ($antal[$x]>0)
 				}
@@ -262,7 +265,7 @@ if (!$row['levdate']){
 		$modtagelse=1;
 		$query = db_select("select modtagelse from ordrer order by modtagelse",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {	
-			if ($row[modtagelse] >=$modtagelse) {$modtagelse = $row[modtagelse]+1;}
+			if ($row['modtagelse'] >=$modtagelse) {$modtagelse = $row['modtagelse']+1;}
 		}
 		$row = db_fetch_array($query = db_select("select box2 from grupper where art = 'RB'",__FILE__ . " linje " . __LINE__));
 		if ($modtagelse==1) $modtagelse = $row['box2']*1;
@@ -271,7 +274,7 @@ if (!$row['levdate']){
 		db_modify("update ordrer set status=3, fakturadate='$levdate', modtagelse = '$modtagelse', valuta = '$valuta', valutakurs = '$valutakurs' where id=$id",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q = db_select("select box5 from grupper where art='DIV' and kodenr='3'",__FILE__ . " linje " . __LINE__));
 		if ($r['box5']=='on') bogfor($id);
-#exit;
+#xit;
 		transaktion("commit");
 	}
 }
@@ -286,6 +289,11 @@ function bogfor($id) {
 	
 	$d_kontrol=0; 
 	$k_kontrol=0;
+	
+	$linjesum=0;
+	$fakturasum=0;
+	$momssum=0;
+	
 	$logdate=date("Y-m-d");
 	$logtime=date("H:i");
 	$q = db_select("select box1, box2, box4, box5 from grupper where art='RB'",__FILE__ . " linje " . __LINE__);
@@ -351,9 +359,10 @@ function bogfor($id) {
 		if ($sum>0) {$kredit=$sum; $debet='0';}
 		else {$kredit='0'; $debet=$sum*-1;}
 		if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
-		$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 		$debet=afrund($debet,2);
 		$kredit=afrund($kredit,2);
+		$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
+		$fakturasum+=$debet-$kredit;	
 		if ($modtbill) $bilag=$modtagelse*1;
 		else $bilag='0';
 		if ($sum) {
@@ -375,8 +384,11 @@ function bogfor($id) {
 			for ($p=1;$p<=$projektantal;$p++) {	
 				$y=0;
 				$bogf_konto = array();
-				if ($t==1) $q = db_select("select * from ordrelinjer where ordre_id=$id and posnr>=0 and projekt='$projekt[$p]'",__FILE__ . " linje " . __LINE__);
-				else $q = db_select("select * from ordrelinjer where ordre_id=$id and posnr<0 and projekt='$projekt[$p]'",__FILE__ . " linje " . __LINE__);
+				if ($t==1) {
+					$q = db_select("select * from ordrelinjer where ordre_id=$id and posnr>=0 and projekt='$projekt[$p]'",__FILE__ . " linje " . __LINE__);
+				} else {
+					$q = db_select("select * from ordrelinjer where ordre_id=$id and posnr<0 and projekt='$projekt[$p]'",__FILE__ . " linje " . __LINE__);
+				}
 				while ($r = db_fetch_array($q)) {
 					if ($valutakurs) $maxdif=$maxdif+2; #Og yderligere 2 pr ordrelinje.
 					if (!in_array($r['bogf_konto'],$bogf_konto)) {
@@ -402,9 +414,10 @@ function bogfor($id) {
 						else {$debet=0; $kredit=$pris[$y]*-1;}	
 						$tmp1=$kredit*$valutakurs/100;$tmp2=$debet*$valutakurs/100;					
 						if ($t==1 && $valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
-						$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 						$debet=afrund($debet,2);
 						$kredit=afrund($kredit,2);
+						$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
+						$linjesum+=$debet-$kredit;
 						if ($pris[$y]) db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$bogf_konto[$y]','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[$p]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
 					}
 				}
@@ -424,6 +437,7 @@ function bogfor($id) {
 			if ($moms > 0) {$kredit=$moms; $debet='0';}
 			else {$kredit='0'; $debet=$moms*-1;} 
 			if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
+			$momssum+=$debet-$kredit;
 			$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 			if ($moms) {
 				db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$emomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[$p]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
@@ -438,6 +452,7 @@ function bogfor($id) {
 			if ($moms > 0) {$kredit=$moms; $debet='0';}
 			else {$kredit='0'; $debet=$moms*-1;} 
 			if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
+			$momssum+=$debet-$kredit;
 			$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 			if ($moms) {
 				db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$emomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[$p]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
@@ -452,6 +467,7 @@ function bogfor($id) {
 		if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKK.		
 		$kredit=afrund($kredit,3);$debet=afrund($debet,3);
 		$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
+		$momssum+=$debet-$kredit;
 		$moms=afrund($moms,2);
 		
 		if ($moms) {
@@ -470,12 +486,15 @@ function bogfor($id) {
 			$debet=afrund($debet,2);
 			$kredit=afrund($kredit,2);
 			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$difkto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
+
 		} else {
 			print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverensstemmelse i posteringssummen, kontakt DANOSOFT p&aring; telefon 4690 2208')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 			exit;
 		}
 	} 
+#print "<BODY onLoad=\"javascript:alert('xxxxxxxxxxxxxxxxxxxx')\">";
+#xit;
 #	genberegn($regnaar);
 }
 

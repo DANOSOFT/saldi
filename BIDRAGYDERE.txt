@@ -14,6 +14,9 @@ Koordinator og udvikler:
 Andre bidrag
 ^^^^^^^^^^^^
 
+Niels Rune Brandt alias nielsrune fra forum.saldi.dk 
+  - Inspirerende kode til overskrifter i regnskab og budget i 3.0.2
+
 Magnus Lund alias Goblin fra forum.saldi.dk
   - Test- og fejlfinding af beta 2.0
 
@@ -46,6 +49,6 @@ Niels Svennekjær <oss SNABELA justLinux.dk>
   - Dual-understøttelse af databaseserverne MySQL og PostgreSQL
 
 =====================================================================
-Senest ændret 2007-10-01 af Peter Rude <phr@saldi.dk>
+Senest ændret 2010-05-26 af Claus Agerskov <ca@saldi.dk>
 
-© SALDI - http://www.saldi.dk/
+© 2003-2010 DANOSOFT ApS http://danosoft.dk          http://saldi.dk/

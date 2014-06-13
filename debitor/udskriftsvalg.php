@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// ----------debitor/udskriftsvalg.php----------------lap 3.1.9----2013-01-17-------------
+// ----------debitor/udskriftsvalg.php----------------lap 3.1.9----2014-01-12-------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -24,7 +24,8 @@ $s_id=session_id();
 // Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 
-// 17.01.2013 Oprydning i forb. med fejlsøgning i ret_genfakt.php
+// 2013.01.17 Oprydning i forb. med fejlsøgning i ret_genfakt.php
+// 2014.01.12 Fremover vises plukliste og følgeseddel kun for lagervarer.
 
 $title="Udskriftsvalg";
 $css="../css/standard.css";
@@ -38,13 +39,13 @@ $id=if_isset($_GET['id']);
 $valg=if_isset($_GET['valg']);
 $formular=if_isset($_GET['formular']);
 
+#cho "P $popup<br>";
 
 if ($valg=="tilbage") {
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 	else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php??tjek=$id&id=$id\">";
 	exit;
 }
-
 
 if ($valg) {
 	$query = db_select("select box1, box2 from grupper where art='PV'",__FILE__ . " linje " . __LINE__);

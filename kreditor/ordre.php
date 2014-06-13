@@ -1,5 +1,5 @@
 <?php
-// -------------kreditor/ordre.php----------lap 3.2.9-----2013-06-24----
+// -------------kreditor/ordre.php----------lap 3.4.0-----2014.03.19----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,14 +16,17 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.08.14 søg 20120814
 // 2013.06.18 Tilføjet udskrivning af indkøbsforslag, rekvisition & lev-faktura
 // 2013.06.24 Rettet bug - Blank side ved kreditering...
+// 2013.08.16 Rettet bug - Blank side ved kopiering... 20130816
+// 2013.09.19 Alle forekomster af round ændret til afrund
+// 2014.03.19 addslashes erstattet med db_escape_string
 
 @session_start();
 $s_id=session_id();
@@ -98,7 +101,7 @@ if (!$id && $konto_id=$_GET['konto_id']) $id = indset_konto($id, $konto_id);
 if (($kontakt=$_GET['kontakt'])&&($id)) db_modify("update ordrer set kontakt='$kontakt' where id=$id",__FILE__ . " linje " . __LINE__);
 
 if ($_GET['vare_id']) {
-	$vare_id=addslashes($_GET['vare_id']);
+	$vare_id=db_escape_string($_GET['vare_id']);
 	$linjenr=substr($fokus,4);
 	if ($id) {
 		$query = db_select("select konto_id, kontonr, status from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
@@ -117,10 +120,10 @@ if ($_GET['vare_id']) {
 
 	$query = db_select("select * from varer where id = '$vare_id'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		$varenr=addslashes($row['varenr']);
-		$serienr=addslashes($row['serienr']);
-		$samlevare=addslashes($row['samlevare']);
-		if (!$beskrivelse) $beskrivelse=addslashes($row['beskrivelse']);
+		$varenr=db_escape_string($row['varenr']);
+		$serienr=db_escape_string($row['serienr']);
+		$samlevare=db_escape_string($row['samlevare']);
+		if (!$beskrivelse) $beskrivelse=db_escape_string($row['beskrivelse']);
 		if (!$enhed) $enhed=$row['enhed'];
 		if (!$pris) $pris=$row['kostpris'];
 		if (!$rabat) $rabat=$row['rabat'];
@@ -150,7 +153,7 @@ if ($_GET['vare_id']) {
 	}
 
 	if ($linjenr==0) {
-		if ($serienr) $antal=round($antal);
+		if ($serienr) $antal=afrund($antal,0);
 		if ($vare_id) {
 			if ($r1 = db_fetch_array(db_select("select gruppe from varer where id = '$vare_id'",__FILE__ . " linje " . __LINE__))) {
 				if ($r2 = db_fetch_array(db_select("select box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]'",__FILE__ . " linje " . __LINE__))) {$momsfri = $r2['box7'];}
@@ -164,8 +167,8 @@ if ($_GET['vare_id']) {
 	}
 }
 #cho "status ".$_POST['status']."<br>";
-	if (($_POST['status'] || $_POST['status']=='0') && ($_POST['status']<3 || strstr($_POST['submit'],"Kred"))) {
-		$fokus=$_POST['fokus'];
+	if (($_POST['status'] || $_POST['status']=='0') && ($_POST['status']<3 || strstr($_POST['submit'],"Kred") || strstr($_POST['submit'],"Kopi"))) { #20130816
+ 		$fokus=$_POST['fokus'];
 		$submit = $_POST['submit'];
 		$id = $_POST['id'];
 		$ordrenr = $_POST['ordrenr'];
@@ -173,23 +176,23 @@ if ($_GET['vare_id']) {
 		$art = $_POST['art'];
 		$konto_id = trim($_POST['konto_id']);
 		$kontonr = trim($_POST['kontonr']);
-		$firmanavn = addslashes(trim($_POST['firmanavn']));
-		$addr1 = addslashes(trim($_POST['addr1']));
-		$addr2 = addslashes(trim($_POST['addr2']));
+		$firmanavn = db_escape_string(trim($_POST['firmanavn']));
+		$addr1 = db_escape_string(trim($_POST['addr1']));
+		$addr2 = db_escape_string(trim($_POST['addr2']));
 		$postnr = trim($_POST['postnr']);
 		$bynavn = trim($_POST['bynavn']);
 		if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
-		else $bynavn = addslashes($bynavn);
-		$land = addslashes(trim($_POST['land']));
-		$kontakt = addslashes(trim($_POST['kontakt']));
-		$lev_navn = addslashes(trim($_POST['lev_navn']));
-		$lev_addr1 = addslashes(trim($_POST['lev_addr1']));
-		$lev_addr2 = addslashes(trim($_POST['lev_addr2']));
+		else $bynavn = db_escape_string($bynavn);
+		$land = db_escape_string(trim($_POST['land']));
+		$kontakt = db_escape_string(trim($_POST['kontakt']));
+		$lev_navn = db_escape_string(trim($_POST['lev_navn']));
+		$lev_addr1 = db_escape_string(trim($_POST['lev_addr1']));
+		$lev_addr2 = db_escape_string(trim($_POST['lev_addr2']));
 		$lev_postnr = $_POST['lev_postnr'];
 		$lev_bynavn = trim($_POST['lev_bynavn']);
 		if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
-		else $lev_bynavn = addslashes($lev_bynavn);
-		$lev_kontakt = addslashes(trim($_POST['lev_kontakt']));
+		else $lev_bynavn = db_escape_string($lev_bynavn);
+		$lev_kontakt = db_escape_string(trim($_POST['lev_kontakt']));
 		$ordredate = usdate($_POST['ordredato']);
 		$levdate = usdate(trim($_POST['levdato']));
 		$cvrnr = trim($_POST['cvrnr']);
@@ -208,7 +211,7 @@ if ($_GET['vare_id']) {
 		$godkend = $_POST['godkend'];
 		$kreditnota = $_POST['kreditnota'];
 		$ref = trim($_POST['ref']);
-		$fakturanr = addslashes(trim($_POST['fakturanr']));
+		$fakturanr = db_escape_string(trim($_POST['fakturanr']));
 		$momssats = $_POST['momssats']*1;
 		$lev_varenr = $_POST['lev_varenr'];
 		$momsfri = $_POST['momsfri'];
@@ -259,7 +262,7 @@ if ($_GET['vare_id']) {
 			$posnr_ny[$x]=trim($_POST[$y]);
 			if ($posnr_ny[$x]!="-" && $posnr_ny[$x]!="->" && $posnr_ny[$x]!="<-" && !strpos($posnr_ny[$x],'+')) $posnr_ny[$x]=afrund((100*str_replace(",",".",$posnr_ny[$x])),0);
 			$y="vare".$x;
-			$varenr[$x]=addslashes(trim($_POST[$y]));
+			$varenr[$x]=db_escape_string(trim($_POST[$y]));
 			$y="anta".$x;
 			$antal[$x]=$_POST[$y];
 			if ($antal[$x]){
@@ -273,7 +276,7 @@ if ($_GET['vare_id']) {
 				if ($art=='KK') {$leveres[$x]=$leveres[$x]*-1;}
 			}
 			$y="beskrivelse".$x;
-			$beskrivelse[$x]=addslashes(trim($_POST[$y]));
+			$beskrivelse[$x]=db_escape_string(trim($_POST[$y]));
 			$y="pris".$x;
 			if (($x!=0)||($_POST[$y])||($_POST[$y]=='0')) {$pris[$x]=usdecimal($_POST[$y]);}
 			$y="raba".$x;
@@ -330,17 +333,17 @@ if ($_GET['vare_id']) {
 			$query = db_select("select * from adresser where kontonr = '$kontonr' and art = 'K'",__FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) {
 				$konto_id=$row[id];
-				$firmanavn=addslashes($row['firmanavn']);
-				$addr1=addslashes($row['addr1']);
-				$addr2=addslashes($row['addr2']);
+				$firmanavn=db_escape_string($row['firmanavn']);
+				$addr1=db_escape_string($row['addr1']);
+				$addr2=db_escape_string($row['addr2']);
 				$postnr=$row['postnr'];
-				$bynavn=addslashes($row['bynavn']);
-				$land=addslashes($row['land']);
-			 	$kontakt=addslashes($row['kontakt']);
+				$bynavn=db_escape_string($row['bynavn']);
+				$land=db_escape_string($row['land']);
+			 	$kontakt=db_escape_string($row['kontakt']);
 				$betalingsdage=$row['betalingsdage'];
 				$betalingsbet=$row['betalingsbet'];
 				$cvrnr=$row['cvrnr'];
-				$notes=addslashes($row['notes']);
+				$notes=db_escape_string($row['notes']);
 				$gruppe=$row['gruppe'];
 			}
 			if ($gruppe) {
@@ -563,12 +566,12 @@ if ($_GET['vare_id']) {
 					if (!$leveres[$x]){$leveres[$x]=0;}
 					$sum=$sum+($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];
 					if ((!strpos($posnr_ny[$x], '+'))&&($id)) {
-						$posnr_ny[$x]=round($posnr_ny[$x],0);
+						$posnr_ny[$x]=afrund($posnr_ny[$x],0);
 						if ($posnr_ny[$x]>=1) {db_modify("update ordrelinjer set posnr='$posnr_ny[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);}
 						else print "<BODY onLoad=\"javascript:alert('Hint! Du skal s&aelig;tte et - (minus) som pos nr for at slette en varelinje')\">";
 					}
 					if (($status<2)||(($antal[$x]>0)&&($status==2)&&($antal[$x]>=$tidl_lev[$x]))||(($antal[$x]<0)&&($status==2)&&($antal[$x]<=$tidl_lev[$x]))) {
-						if ($serienr[$x]){$antal[$x]=round($antal[$x]);}
+						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if (! $tidl_lev[$x]) $tidl_lev[$x]=0;
 						db_modify("update ordrelinjer set beskrivelse='$beskrivelse[$x]', antal='$antal[$x]', leveres='$leveres[$x]', leveret='$tidl_lev[$x]', pris='$pris[$x]', rabat='$rabat[$x]', projekt='$projekt[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
 					} 
@@ -590,11 +593,11 @@ if ($_GET['vare_id']) {
 					if ($r0 = db_fetch_array(db_select("$string",__FILE__ . " linje " . __LINE__))) {
 #						$variant_type[0]=$r0['variant'];
 						$vare_id[0]=$r0['id'];
-						$varenr[0]=addslashes($r0['varenr']);
+						$varenr[0]=db_escape_string($r0['varenr']);
 						$serienr[0]=trim($r0['serienr']);
 						$samlevare[0]=trim($r0['samlevare']);
-						if (!$beskrivelse[0]) $beskrivelse[0]=addslashes($r0['beskrivelse']);
-						if (!$enhed[0])$enhed[0]=addslashes($r0['enhed']);
+						if (!$beskrivelse[0]) $beskrivelse[0]=db_escape_string($r0['beskrivelse']);
+						if (!$enhed[0])$enhed[0]=db_escape_string($r0['enhed']);
 						if (!$rabat[0]) $rabat[0]=$r0['rabat'];
 						if (!$antal[0]) $antal[0]=1;
 						if (!$rabat[0]) $rabat[0]=0;
@@ -606,7 +609,7 @@ if ($_GET['vare_id']) {
 							}
 							if ($r1=db_fetch_array(db_select("select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'",__FILE__ . " linje " . __LINE__))) {
 								if (!$pris[0]) $pris[0]=$r1['kostpris'];
-								$lev_varenr[0]=addslashes($r1['lev_varenr']);
+								$lev_varenr[0]=db_escape_string($r1['lev_varenr']);
 							}
 						}
 						if (!$pris[0]) $pris[0]=$r0['kostpris'];
@@ -619,7 +622,7 @@ if ($_GET['vare_id']) {
 								print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredate')\">";
 							}
 						}
-						if ($serienr[0]) $antal[0]=round($antal[0]);
+						if ($serienr[0]) $antal[0]=afrund($antal[0],0);
 						if ($r1=db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[0]'",__FILE__ . " linje " . __LINE__))) {
 							if ($r2=db_fetch_array(db_select("select box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]'",__FILE__ . " linje " . __LINE__))) {$momsfri[0] = $r2['box7'];}
 						}
@@ -678,7 +681,7 @@ if ($_GET['vare_id']) {
 					if ($antal[$x]!=$tidl_lev[$x]) {
 						$diff[$x]=$antal[$x]-$tidl_lev[$x];
 						$antal[$x]=$tidl_lev[$x];
-						if ($serienr[$x]){$antal[$x]=round($antal[$x]);}
+						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						if ($r1 =	db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__))) {
 							if ($r2 = db_fetch_array(db_select("select box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]'",__FILE__ . " linje " . __LINE__))) {$momsfri[$x] = $r2['box7'];}
 						}
@@ -984,7 +987,7 @@ function ordreside($id) {
 				$totalrest=$totalrest+$rest[$x];
 
 				$ialt=($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];
-				$ialt=round($ialt+0.0001,2);
+				$ialt=afrund($ialt,2);
 				$sum=$sum+$ialt;
 				 if ($momsfri[$x]!='on') $momssum+=$ialt;
 #				$ialt=dkdecimal($ialt);
@@ -1238,7 +1241,7 @@ function ordreside($id) {
 		for ($x=1; $x<=$linjeantal; $x++)	{
 			if ($varenr[$x]) {
 				$ialt=($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];
-				$ialt=round($ialt+0.0001,2);
+				$ialt=afrund($ialt,2);
 				$sum=$sum+$ialt;
 				if ($momsfri[$x]!='on') {$momssum=$momssum+$ialt;}
 #				$ialt=dkdecimal($ialt);
@@ -1331,18 +1334,13 @@ function ordreside($id) {
 					if (abs($antal[$x])!=abs($tidl_lev[$x])) {
 						if (abs($antal[$x])!=abs($dklev[$x])) {
 #							print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=4 name=leve$x value='$dklev[$x]' onchange=\"javascript:docChange = true;\"></td>";
-
-                                                        print "<td title=\"Mangler fortsat at ".$modtag_returner."e resten.\"><input class=\"inputbox\" type=\"text\" style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev[$x]\" onchange=\"javascript:docChange = true;\"></td>\n";
-                                                } else {
-                                                        print "<td title=\"Intet ".$modtag_returner."et endnu.\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev[$x]\" onchange=\"javascript:docChange = true;\"></td>\n";
-                                                }
-                                        } else {
-                                                print "<td title=\"Alt ".$modtag_returner."et.\"><input class=\"inputbox\" type=\"text\" readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev[$x]\" onchange=\"javascript:docChange = true;\"></td>\n";
-                                        }
-#                                                print "<td title=\"Tidligere ".$modtag_returner."et $dk_tidl_lev[$x] p&aring; denne ordrelinje.\">($dk_tidl_lev[$x])</td>\n"n
-#                                                if ($batchvare[$x]) print "<td align=\"center\" onClick=\"batch($linje_id[$x])\" title=\"V&aelig;lg fra k&oslash;bsordre\"><img alt=\"Serienummer\" src=\"../ikoner/serienr.png\"></td>\n";
-#                                                $levdiff=1;
-#                                                print "<td title=\"Tidligere ".$modtag_returner."et $dk_tidl_lev[$x] p&aring; denne ordre.\">($dk_tidl_lev[$x])</td>\n";
+							print "<td title=\"Mangler fortsat at ".$modtag_returner."e resten.\"><input class=\"inputbox\" type=\"text\" style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev[$x]\" onchange=\"javascript:docChange = true;\"></td>\n";
+						} else {
+							print "<td title=\"Intet ".$modtag_returner."et endnu.\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev[$x]\" onchange=\"javascript:docChange = true;\"></td>\n";
+						}
+					} else {
+						print "<td title=\"Alt ".$modtag_returner."et.\"><input class=\"inputbox\" type=\"text\" readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev[$x]\" onchange=\"javascript:docChange = true;\"></td>\n";
+					}
 					print "<td>($tidl_lev[$x])</td>";
 				}
 			}
@@ -1378,7 +1376,7 @@ function ordreside($id) {
 		$moms=$momssum/100*$momssats;
 		if ($art=='KK') $moms=$moms-0.0001; #Ellers runder den op istedet for ned?
 		else $moms=$moms+0.0001; #Ellers runder den ned istedet for op?
-		$moms=round($moms,3);
+		$moms=afrund($moms,3);
 		if ($id) {db_modify("update ordrer set sum='$sum', moms='$moms' where id='$id'",__FILE__ . " linje " . __LINE__);}
 		if ($art=='KK') {
 			$sum=$sum*-1;
@@ -1628,7 +1626,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find) {
 	while ($row = db_fetch_array($query)) {
 		$vare_id=$row['id'];
 		if (($konto_id && !in_array($vare_id,$skjul_vare_id)) || in_array($vare_id,$vis_vare_id)) {
-			$varenr=addslashes(trim($row['varenr']));
+			$varenr=db_escape_string(trim($row['varenr']));
 			$vist=0;
 			$x=0;
 
@@ -1735,16 +1733,16 @@ function indset_konto($id, $konto_id) {
 	if ($row = db_fetch_array($query))
 	{
 		$kontonr=trim($row['kontonr']);
-		$firmanavn=addslashes(trim($row['firmanavn']));
-		$addr1=addslashes(trim($row['addr1']));
-		$addr2=addslashes(trim($row['addr2']));
+		$firmanavn=db_escape_string(trim($row['firmanavn']));
+		$addr1=db_escape_string(trim($row['addr1']));
+		$addr2=db_escape_string(trim($row['addr2']));
 		$postnr=trim($row['postnr']);
-		$bynavn=addslashes(trim($row['bynavn']));
-		$land=addslashes(trim($row['land']));
+		$bynavn=db_escape_string(trim($row['bynavn']));
+		$land=db_escape_string(trim($row['land']));
 		$betalingsdage=$row['betalingsdage'];
 		$betalingsbet=trim($row['betalingsbet']);
 		$cvrnr=trim($row['cvrnr']);
-		$notes=addslashes(trim($row['notes']));
+		$notes=db_escape_string(trim($row['notes']));
 		$gruppe=trim($row['gruppe']);
 	}
 	if ($gruppe) {

@@ -40,8 +40,8 @@ if (!isset($sprog_id)) $sprog_id="1";
 
 $convert="$exec_path/convert";
 $pdf2ps="$exec_path/pdf2ps";
-
-if (phpversion()>="5") date_default_timezone_set('Europe/Copenhagen');
+if (!$timezone) $timezone='Europe/Copenhagen';
+if (phpversion()>="5") date_default_timezone_set($timezone);
 
 if (!isset($header)) $header=NULL;
 if (!isset($bg)) $bg=NULL;

@@ -1,5 +1,5 @@
 <?php
-// ----------kreditor/kreditorkort.php-(modul nr. 8)--------lap 3.2.9----2013.02.24------------
+// ----------kreditor/kreditorkort.php---(modul nr. 8)----------------lap 3.4.1---2014.05.27---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,11 +16,15 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
-// 20130224 Tilføjet kontofusion
+// 2013.02.24 Tilføjet kontofusion
+// 2014.03.19 addslashes erstattet med db_escape_string
+// 2014.05.27 Tilføjet bet.type SDC 3 - overførsel med kort advisering (ca)
+// 2014.05.27 Tilføjet bet.type SDCK020 - FI-kort 71 (SDC) (ca)
+
 
 @session_start();
 $s_id=session_id();
@@ -54,14 +58,14 @@ if ($_POST) {
 	$id=$_POST['id'];
 	if ($submit!="Slet") {
 		$kontonr=$_POST['kontonr'];
-		$ny_kontonr=addslashes(trim($_POST['ny_kontonr']));
-		$firmanavn=addslashes(trim($_POST['firmanavn']));
-		$addr1=addslashes(trim($_POST['addr1']));
-		$addr2=addslashes(trim($_POST['addr2']));
+		$ny_kontonr=db_escape_string(trim($_POST['ny_kontonr']));
+		$firmanavn=db_escape_string(trim($_POST['firmanavn']));
+		$addr1=db_escape_string(trim($_POST['addr1']));
+		$addr2=db_escape_string(trim($_POST['addr2']));
 		$postnr=trim($_POST['postnr']);
-		$bynavn=addslashes(trim($_POST['bynavn']));
-		$land=addslashes(trim($_POST['land']));
-		$kontakt=addslashes(trim(isset($_POST['kontakt'])? $_POST['kontakt']:NULL));
+		$bynavn=db_escape_string(trim($_POST['bynavn']));
+		$land=db_escape_string(trim($_POST['land']));
+		$kontakt=db_escape_string(trim(isset($_POST['kontakt'])? $_POST['kontakt']:NULL));
 		$tlf=trim($_POST['tlf']);
 		$fax=trim($_POST['fax']);
 		$email=trim($_POST['email']);
@@ -77,19 +81,19 @@ if ($_POST) {
 		$swift=trim($_POST['swift']);
 		$kreditmax=usdecimal($_POST['kreditmax']);
 		list ($gruppe) = explode (':', $_POST['gruppe']);
-		$notes=addslashes(trim($_POST['notes']));
+		$notes=db_escape_string(trim($_POST['notes']));
 		$ordre_id=$_POST['ordre_id'];
 		$returside=$_POST['returside'];
 		$fokus=$_POST['fokus'];
 		$posnr=isset($_POST['posnr'])? $_POST['posnr']:NULL;
 		$ans_id=isset($_POST['ans_id'])? $_POST['ans_id']:NULL;
 		$ans_ant=isset($_POST['ans_ant'])? $_POST['ans_ant']:NULL;	
-		$felt_1 = addslashes(trim($_POST['felt_1']));
-		$felt_2 = addslashes(trim($_POST['felt_2']));
-		$felt_3 = addslashes(trim($_POST['felt_3']));
-		$felt_4 = addslashes(trim($_POST['felt_4']));
-		$felt_5 = addslashes(trim($_POST['felt_5']));
-		$lukket=addslashes(trim($_POST['lukket']));
+		$felt_1 = db_escape_string(trim($_POST['felt_1']));
+		$felt_2 = db_escape_string(trim($_POST['felt_2']));
+		$felt_3 = db_escape_string(trim($_POST['felt_3']));
+		$felt_4 = db_escape_string(trim($_POST['felt_4']));
+		$felt_5 = db_escape_string(trim($_POST['felt_5']));
+		$lukket=db_escape_string(trim($_POST['lukket']));
 
 		
 		if (substr($ny_kontonr,0,1)=="=") {
@@ -324,6 +328,8 @@ if ($erh=='ERH356') print "<option>ERH356 = Bankoverf. med normal advisering</op
 if ($erh=='ERH357') print "<option>ERH357 = FI kort 73</option>\n";
 if ($erh=='ERH358') print "<option>ERH358 = FI kort 75</option>\n";
 if ($erh=='ERH400') print "<option>ERH400 = Udenlandsk overf&oslash;rsel</option>\n";
+if ($erh=='SDC3') print "<option>SDC3 = Bankoverf. med kort advisering</option>\n";
+if ($erh=='SDCK020') print "<option>SDCK020 = FI-kort 71 (SDC)</option>\n";
 if ($erh!='ERH351') print "<option>ERH351 = FI kort 71</option>\n";
 if ($erh!='ERH352') print "<option>ERH352 = FI kort 04 & 15</option>\n";
 if ($erh!='ERH354') print "<option>ERH354 = FI kort 01 & 41</option>\n";
@@ -332,6 +338,8 @@ if ($erh!='ERH356') print "<option>ERH356 = Bankoverf. med normal advisering</op
 if ($erh!='ERH357') print "<option>ERH357 = FI kort 73</option>\n";
 if ($erh!='ERH358') print "<option>ERH358 = FI kort 75</option>\n";
 if ($erh!='ERH400') print "<option>ERH400 = Udenlandsk overf&oslash;rsel</option>\n";
+if ($erh!='SDC3') print "<option>SDC3 = Bankoverf. med kort advisering</option>\n";
+if ($erh!='SDCK020') print "<option>SDCK020 = FI-kort 71 (SDC)</option>\n";
 print "</SELECT></td></tr>\n";
 print "</tbody></table></td><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # tabel 1.2.1 ->
 print "\n";

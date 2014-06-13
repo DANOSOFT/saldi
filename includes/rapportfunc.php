@@ -1,5 +1,5 @@
 <?php
-// --------includes/openpost.php ----- lap 3.2.9 ---- 2013.05.05 ---------------------------
+// --------includes/openpost.php ----- lap 3.4.1 ---- 2014.05.05 ---------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,12 +18,15 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
 // 2013.02.10 Div. fejl i forb. med udling af ørediff + break ændret til break 1
 // 2013.05.05	Div tilretninger i forb. med omskrivning af udlign_openpost.php 
+// 2014.05.03 Indsat valutakurs=100 ved DKK.(PHR Danosoft) Søg 20140503
+// 2014.05.05 Fjerner udligning hvis udligningssum er skæv.(PHR Danosoft) Søg 20140505
+// 2014.05.05 Indsat $valutakode*=1; (PHR Danosoft) Søg $valutakode*=1 & 20140505
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 #cho "A $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart<br>";
@@ -119,7 +122,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		$rapportart=$r['box6'];
 	} 
 
-	print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
+	print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody><!--Tabel 1 start-->\n";
 	if ($menu=='T') {
 		$leftbutton="<a title=\"Klik her for at komme til startsiden\" href=\"../debitor/rapport.php\" accesskey=\"L\">LUK</a>";
 		$rightbutton=NULL;
@@ -129,30 +132,30 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	} elseif ($menu=='S') {
 		include("../includes/sidemenu.php");
 	} else {
-		print "<tr><td width=100% height=\"8\">";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+		print "<tr><td width=100% height=\"8\">\n";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; # tabel 1.2
 #	print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php?rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til\">Luk</a></td>";
-		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">Luk</a></td>";
-		print "<td width=\"80%\" $top_bund>Rapport - $rapportart</td>";
-		print "<td width=\"10%\" $top_bund>";
+		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">Luk</a></td>\n";
+		print "<td width=\"80%\" $top_bund>Rapport - $rapportart</td>\n";
+		print "<td width=\"10%\" $top_bund>\n";
 	}
 #	if ($menu=='T') print "<fieldset style=\"border:0px; border-top:1px solid black\"><legend>Test</legend></fieldset>";
-		print "<select class=\"inputbox\" name=\"aabenpostmode\" onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\">";
-		if ($kun_debet=='on') print "<option>Kun konti i debet</option>";
-		elseif ($kun_kredit=='on') print "<option>Kun konti i kredit</option>";
-		elseif ($skjul_aabenpost=='on') print "<option>Skjul &aring;bne poster</option>";
-		else print "<option>Vis &aring;bne poster</option>";
-		if ($skjul_aabenpost=='on' || $kun_debet=='on' || $kun_kredit=='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off\">Vis &aring;bne poster</option>";
-		if ($kun_debet!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off&kun_debet=on\">Kun konti i debet</option>";
-		if ($kun_kredit!='on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off&kun_kredit=on\">Kun konti i kredit</option>";
-		if ($skjul_aabenpost!='on' && $kontoart=='D') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">Skjul &aring;bne poster</option>";
-		print "</select>";
-		if (!$menu) print "<td></tr>\n";
+		print "<select class=\"inputbox\" name=\"aabenpostmode\" onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\">\n";
+		if ($kun_debet=='on') print "<option>Kun konti i debet</option>\n";
+		elseif ($kun_kredit=='on') print "<option>Kun konti i kredit</option>\n";
+		elseif ($skjul_aabenpost=='on') print "<option>Skjul &aring;bne poster</option>\n";
+		else print "<option>Vis &aring;bne poster</option>\n";
+		if ($skjul_aabenpost=='on' || $kun_debet=='on' || $kun_kredit=='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off\">Vis &aring;bne poster</option>\n";
+		if ($kun_debet!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off&kun_debet=on\">Kun konti i debet</option>\n";
+		if ($kun_kredit!='on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off&kun_kredit=on\">Kun konti i kredit</option>\n";
+		if ($skjul_aabenpost!='on' && $kontoart=='D') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">Skjul &aring;bne poster</option>\n";
+		print "</select>\n";
+		if ($menu) print "<td></tr>\n";
 		else print "</div>\n";
 #	} 
 #	if ($skjul_aabenpost=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=off>Vis</a><td></tr>\n";
 #	else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on>Skjul</a><td></tr>\n";	
-	if (!$menu) print "</tbody></table></td></tr>\n\n"; #B slut
+	if ($menu!='T') print "</tbody></table></td></tr><!--Tabel 1.2 slut-->\n\n"; # <- Tabel 1.2
 #cho "XX $dato_fra,$dato_til,$konto_fra,$konto_til,$kontoart<br>";
 	if ($skjul_aabenpost!='on') vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit);
 
@@ -180,7 +183,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
  		while ($taeller <3) {  
 			$sum=array();
 			$taeller++;
-			print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"3\" border=\"0\"><tbody>\n";
+			print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"3\" border=\"0\"><tbody><!--Tabel 1.3 start-->\n"; # Tabel 1.3 ->
 			if ($taeller==1) {
 				print "<tr><td width=10% align=center $top_bund><br></td><td width=80% align=center $top_bund>&Aring;bne&nbsp;rykkere</td><td width=10% align=center $top_bund>\n";
 				if ($skjul_aaben_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aaben_rykker=off>Skjul</a><td></tr>\n";
@@ -194,10 +197,10 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 				if ($skjul_afsluttet_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_afsluttet_rykker=off>Skjul</a><td></tr>\n";
 				else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_afsluttet_rykker=on>Vis</a><td></tr>\n";	
 			}
-			print "</tbody></table></td></tr>\n";
+			print "</tbody></table></td></tr><!--Tabel 1.3 slut-->\n";
 			if (($taeller==1 && $skjul_aaben_rykker=='on')||($taeller==2 && $skjul_bogfort_rykker=='on')||($taeller==3 && $skjul_afsluttet_rykker=='on')) {
 			print "<tr><td width=100%>";
-			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #B
+			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><!--Tabel 1.4 start-->"; #B
 			print "<tr><td>L&oslash;benr.</td><td>Firmanavn</td><td colspan=2 align=center>Dato</td><td align=center>Rykkernr</td><td colspan=3 align=right>Bel&oslash;b</td></tr>\n";	
 			print "<tr><td colspan=9><hr></td></tr>\n";
 			if ($taeller==1) {$formnavn='rykker1'; $status= "< 3";}
@@ -384,9 +387,14 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 #		else $q=db_select("select * from openpost where konto_id=$id[$x] and udlignet!='1' order by faktnr,amount $tmp",__FILE__ . " linje " . __LINE__);
 
 		while ($r=db_fetch_array($q)) {
-      if ($r['valutakurs'] && $r['valuta']!='-') $kontrol+=afrund($r['amount']*$r['valutakurs']/100,2); #2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390) 
-			else $kontrol+=afrund($r['amount'],2);
-#if ($konto_id[$x]=='19') #cho "$r[transdate] Kontrol $kontrol+=afrund($r[amount]*$r[valutakurs]/100,2)<br>";
+#if ($konto_id[$x]=='3553') echo "Kontrol 1 $kontrol<br>";
+      if ($r['valutakurs']*1 && $r['valuta']!='-') {
+				$kontrol+=afrund($r['amount']*$r['valutakurs']/100,2); #2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390) 
+#if ($konto_id[$x]=='3553') echo "$r[transdate] Kontrol $kontrol | afrund($r[amount]*$r[valutakurs]/100,2)<br>";
+			} else {
+				$kontrol+=afrund($r['amount'],2);
+#if ($konto_id[$x]=='3553') echo "$r[transdate] Kontrol $kontrol | afrund($r[amount],2)<br>";
+			}
 			if ($r['udlignet']!=1 || ($r['transdate'] <= $todate && $r['udlign_date'] && $r['udlign_date'] > $todate)) {
 				if ($r['faktnr'] && !in_array($r['faktnr'],$faktnr)) {
 					$f++;
@@ -453,7 +461,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		if ($kun_debet && $y<=0) {$udlignet=1;$y=0;$kontrol=0;}  
 		elseif ($kun_kredit && $y>=0) {$udlignet=1;$y=0;$kontrol=0;}  
 		$kontrol=afrund($kontrol,2);
-#if ($konto_id[$x]=='19') #cho "Kontrol $kontrol<br>";
+#if ($konto_id[$x]=='3553') echo "Kontrol $kontrol<br>";
 		($y>0) ? $y=afrund($y,2) : $y=afrund($y,2);
 		if ($y>0.01||$udlignet=="0"||$kontrol)	{	
 			if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
@@ -1005,11 +1013,33 @@ $luk= "<a accesskey=L href=\"$returside\">";
 	$kontoantal=$x;
 	$x=0;
 	# finder alle konti med bevaegelser i den anfoerte periode eller aabne poster fra foer perioden
+	if ($kontoantal==1) { #20140505 - Fjerner udligning hvis udligningssum er skæv.
+		$y=0;
+		$qtxt="select distinct(udlign_id) from openpost where udlignet = '1' and udlign_id>'0' and konto_id='$konto_id[1]'";
+		$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$udlign_id[$y]=$r['udlign_id']*1;
+			$y++;
+		}
+		for ($y=0;$y<count($udlign_id);$y++){
+			$sum=0;
+			$qtxt="select amount,valutakurs from openpost where udlign_id = '$udlign_id[$y]' and konto_id='$konto_id[1]'";
+			$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) {
+				if ($r['valutakurs']) $sum+=afrund($r['amount']*$r['valutakurs']/100,2);
+				else $sum+=afrund($r['amount'],2);
+				}
+			if (afrund($sum,2)*1) {
+				db_modify("update openpost set udlignet='0', udlign_id='0' where udlign_id = '$udlign_id[$y]' and konto_id='$konto_id[1]'");
+			}
+		}
+	}
+	
 	for ($y=1;$y<=$kontoantal;$y++) {
 #		if ($fromdate && $todate) $query = db_select("select amount from openpost where transdate>='$fromdate' and transdate<='$todate' and konto_id='$konto_id[$y]'",__FILE__ . " linje " . __LINE__);
 		if ($todate) $tekst="select amount from openpost where transdate<='$todate' and konto_id='$konto_id[$y]'";
 		else $tekst="select amount from openpost where konto_id='$konto_id[$y]'";
-# #cho $tekst;
+#cho $tekst;
 		$query = db_select("$tekst",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if (!in_array($konto_id[$y],$kto_id)) {
@@ -1034,6 +1064,7 @@ $luk= "<a accesskey=L href=\"$returside\">";
 			$r2 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'",__FILE__ . " linje " . __LINE__));
 			$valutakode=$r2['kodenr'];
 		}
+		$valutakode*=1;#20140505 
 #		print "<tr><td colspan=8><hr></td></tr>\n";
 		print "<tr><td colspan=9><hr></td></tr>\n";
 		print "<tr><td><br></td></tr>\n";
@@ -1077,7 +1108,10 @@ $luk= "<a accesskey=L href=\"$returside\">";
 			$valutakurs[$y]=$r2['valutakurs']*1;
 			$oppvaluta[$y]=$r2['valuta'];
 			$faktnr[$y]=$r2['faktnr'];
-			if (!$oppvaluta[$y]) $oppvaluta[$y]='DKK';
+			if (!$oppvaluta[$y]) {
+				$oppvaluta[$y]='DKK';
+				$valutakurs[$y]=100; #20140503
+			}
 			#cho "$dkkamount[$y]=afrund($amount[$y]*$valutakurs[$y]/100,2)<br>";
 #cho "$amount[$y] $oppvaluta[$y] DKK $dkkamount[$y]<br>";
 			$forfaldsdag[$y]=$r2['forfaldsdate'];
@@ -1189,7 +1223,7 @@ $luk= "<a accesskey=L href=\"$returside\">";
 						$pre_openpost=1;
 					} else print "<td>$ffdag<br></td><td style=\"color:$baggrund;text-align:right\">0</td><td valign=\"top\" align=right>$tmp<br></td>";
 				}
-				$kontosum+=$amount[$y];
+				$kontosum+=afrund($amount[$y],2);
 				$dkksum+=$dkkamount[$y];
 				$dkksum=afrund($dkksum,2);
 #cho "$dkksum | $dkkamount[$y]<br>";

@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// ---------debitor/genfakturer.php-----patch 3.2.9--2012.04.17------
+// ---------debitor/genfakturer.php-----patch 3.4.0--2014.03.17------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,8 +21,10 @@ $s_id=session_id();
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// Erstattet addslashes med db_escape_string
+// 2014.03.17 Tilføjet procent til "insert into ordrelinjer... 
 
 $id=$_GET['id'];
 $css="../css/standard.css";
@@ -145,27 +147,28 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$slet_gfdato) {
 	transaktion('begin');
 	if ($r=db_fetch_array(db_select("select * from ordrer where id = $id",__FILE__ . " linje " . __LINE__))){
 		$pbs=$r['pbs'];
-		$firmanavn=addslashes($r['firmanavn']);
-		$addr1=addslashes($r['addr1']);
-		$addr2=addslashes($r['addr2']);
-		$bynavn=addslashes($r['bynavn']);
-		$land=addslashes($r['land']);
-		$cvrnr=addslashes($r['cvrnr']);
-		$ean=addslashes($r['ean']);
-		$sprog=addslashes($r['sprog']);
-		$valuta=addslashes($r['valuta']);
-		$projekt=addslashes($r['projekt']);
-		$institution=addslashes($r['institution']);
-		$notes=addslashes($r['notes']);
-		$ref=addslashes($r['ref']);
-		$kontakt=addslashes($r['kontakt']);
-		$kundeordnr=addslashes($r['kundeordnr']);
-		$lev_navn=addslashes($r['lev_navn']);
-		$lev_addr1=addslashes($r['lev_addr1']);
-		$lev_addr2=addslashes($r['lev_addr2']);
-		$lev_bynavn=addslashes($r['lev_bynavn']);
-		$email=addslashes($r['email']);
-		$udskriv_til=addslashes($r['udskriv_til']);
+		$firmanavn=db_escape_string($r['firmanavn']);
+		$addr1=db_escape_string($r['addr1']);
+		$addr2=db_escape_string($r['addr2']);
+		$bynavn=db_escape_string($r['bynavn']);
+		$land=db_escape_string($r['land']);
+		$cvrnr=db_escape_string($r['cvrnr']);
+		$ean=db_escape_string($r['ean']);
+		$sprog=db_escape_string($r['sprog']);
+		$valuta=db_escape_string($r['valuta']);
+		$projekt=db_escape_string($r['projekt']);
+		$institution=db_escape_string($r['institution']);
+		$notes=db_escape_string($r['notes']);
+		$ref=db_escape_string($r['ref']);
+		$kontakt=db_escape_string($r['kontakt']);
+		$kundeordnr=db_escape_string($r['kundeordnr']);
+		$lev_navn=db_escape_string($r['lev_navn']);
+		$lev_addr1=db_escape_string($r['lev_addr1']);
+		$lev_addr2=db_escape_string($r['lev_addr2']);
+		$lev_bynavn=db_escape_string($r['lev_bynavn']);
+		$email=db_escape_string($r['email']);
+		$udskriv_til=db_escape_string($r['udskriv_til']);
+		$procenttillag=db_escape_string($r['procenttillag']);
 		if ($r['nextfakt']) $tmp=$r['nextfakt'];
 		else $tmp=date("Y-m-d");			
 		$nextfakt=find_nextfakt($r['fakturadate'],$tmp);
@@ -176,8 +179,8 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$slet_gfdato) {
 			$r2=db_fetch_array(db_select("select MAX(ordrenr) as ordrenr from ordrer where art='DO' or art='DK'",__FILE__ . " linje " . __LINE__));
 			$ordrenr=$r2['ordrenr']+1;
 		}
-		db_modify("insert into ordrer (ordrenr, konto_id, kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,notes,art,ordredate,momssats,moms,ref,valuta,sprog,kontakt,kundeordnr,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,levdate,fakturadate,nextfakt,sum,status,projekt,email,mail_fakt,pbs,udskriv_til) values 
-				('$ordrenr','$r[konto_id]','$r[kontonr]','$firmanavn','$addr1','$addr2','$r[postnr]','$bynavn','$land','$r[betalingsdage]','$r[betalingsbet]','$cvrnr','$ean','$institution','$notes','$r[art]','$r[ordredate]','$r[momssats]','$r[moms]','$ref','$valuta','$sprog','$kontakt','$kundeordnr','$lev_navn','$lev_addr1','$lev_addr2','$r[lev_postnr]','$lev_bynavn','$fakturadate','$fakturadate','$nextfakt','$r[sum]','2','$projekt','$email','$r[mail_fakt]','$pbs','$udskriv_til')",__FILE__ . " linje " . __LINE__);
+		db_modify("insert into ordrer (ordrenr, konto_id, kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,notes,art,ordredate,momssats,moms,ref,valuta,sprog,kontakt,kundeordnr,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,levdate,fakturadate,nextfakt,sum,status,projekt,email,mail_fakt,pbs,udskriv_til,procenttillag) values 
+				('$ordrenr','$r[konto_id]','$r[kontonr]','$firmanavn','$addr1','$addr2','$r[postnr]','$bynavn','$land','$r[betalingsdage]','$r[betalingsbet]','$cvrnr','$ean','$institution','$notes','$r[art]','$r[ordredate]','$r[momssats]','$r[moms]','$ref','$valuta','$sprog','$kontakt','$kundeordnr','$lev_navn','$lev_addr1','$lev_addr2','$r[lev_postnr]','$lev_bynavn','$fakturadate','$fakturadate','$nextfakt','$r[sum]','2','$projekt','$email','$r[mail_fakt]','$pbs','$udskriv_til','$procenttillag')",__FILE__ . " linje " . __LINE__);
 		$r2=db_fetch_array(db_select("select id from ordrer where ordrenr='$ordrenr' and nextfakt='$nextfakt' and (art='DO' or art='DK') order by id desc",__FILE__ . " linje " . __LINE__));
 		$ny_id=$r2['id'];
 		$sum=0;
@@ -199,9 +202,9 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$slet_gfdato) {
 					$kostpris=$r2['kostpris']*1;
 					$sum=$sum+$r['antal']*$pris-($r['antal']*$pris*$r['rabat']/100);
 				}
-				db_modify("insert into ordrelinjer (ordre_id, posnr, varenr, vare_id, beskrivelse, enhed, antal, pris, rabat, lev_varenr, momsfri, samlevare, kostpris, leveres, projekt) values ('$ny_id','$r[posnr]','".addslashes($r['varenr'])."','$r[vare_id]','".addslashes($r['beskrivelse'])."','$r[enhed]','$r[antal]','$pris','$r[rabat]','".addslashes($r['lev_varenr]'])."','$momsfri','$r[samlevare]','$kostpris','$r[antal]','".addslashes($projekt)."')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into ordrelinjer (ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,rabat,procent,lev_varenr,momsfri,samlevare,kostpris,leveres,projekt) values ('$ny_id','$r[posnr]','".db_escape_string($r['varenr'])."','$r[vare_id]','".db_escape_string($r['beskrivelse'])."','$r[enhed]','$r[antal]','$pris','$r[rabat]','$r[procent]','".db_escape_string($r['lev_varenr]'])."','$momsfri','$r[samlevare]','$kostpris','$r[antal]','".db_escape_string($projekt)."')",__FILE__ . " linje " . __LINE__);
 			}	else {
-				db_modify("insert into ordrelinjer (ordre_id, posnr, beskrivelse) values ('$ny_id','$r[posnr]','".addslashes($r['beskrivelse'])."')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into ordrelinjer (ordre_id, posnr, beskrivelse) values ('$ny_id','$r[posnr]','".db_escape_string($r['beskrivelse'])."')",__FILE__ . " linje " . __LINE__);
 			}
 		}	
 		if ($opdat_pris) db_modify("update ordrer set sum=$sum where id='$ny_id'",__FILE__ . " linje " . __LINE__);	

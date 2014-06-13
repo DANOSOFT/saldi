@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/addordreline.php -----ver 3.2.3---- 2011.10.11 ----------
+// #----------------- soapserver/addordreline.php -----ver 3.4.1---- 2014.04.26 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 2014.03.15 Indsat ,"100" (procent) før ,'DO' i opret_ordrelinje grundet ændring af funktion
+// 2014.04.26 - Indsat "" foran $varenr i kald til opret_ordrelinje grundet ændring i funktionen (PHR - Danosoft) Søg 20140426 
+
+
 ini_set("soap.wsdl_cache_enabled", "1");
 
 function addorderline($string) {
@@ -36,7 +40,7 @@ function addorderline($string) {
 	$addorderline=str_replace(chr(10),"",$addorderline);
 	$addorderline=str_replace(chr(13),"",$addorderline);
 	list($ordre_id,$varenr,$beskrivelse,$antal,$salgspris,$momssats,$posnr)=explode(chr(9),$addorderline);
-	$svar=opret_ordrelinje($ordre_id,$varenr,$antal,$beskrivelse,$salgspris,"0","DO","0",$posnr,0,"on","","","");
+	$svar=opret_ordrelinje($ordre_id,"",$varenr,$antal,$beskrivelse,$salgspris,"0","100","DO","0",$posnr,0,"on","","","");
 	if (is_numeric($svar)) return('0'.chr(9).$svar);
 	else return('1'.chr(9).$svar);
 }

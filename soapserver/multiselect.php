@@ -20,7 +20,7 @@
 //
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
-ini_set("soap.wsdl_cache_enabled", "1");
+ini_set("soap.wsdl_cache_enabled", "0");
 
 function multiselect($string) {
 	list($s_id,$multiselect)=explode(chr(9),$string);
@@ -31,6 +31,7 @@ function multiselect($string) {
 
 	$linje=NULL;
 	$filnavn="../temp/$db/$bruger_id.csv";
+	if(!file_exists("../temp/$db")) mkdir("../temp/$db");
 	$fp=fopen($filnavn,"w");
 	$multiselect="select ".$multiselect;
 
@@ -52,10 +53,12 @@ function multiselect($string) {
 		$linje=NULL;
 		$arraysize=count($r);
 		for ($x=0;$x<$arraysize;$x++) {
-			$r[$x]=str_replace(chr(9),"<TAB>",$r[$x]);
-			$r[$x]=str_replace(chr(10),"<LF>",$r[$x]);
-			$r[$x]=str_replace(chr(13),"<CR>",$r[$x]);
-			($linje)?$linje.=chr(9).$r[$x]:$linje=$r[$x]; 
+			if (isset($r[$x])) {
+				$r[$x]=str_replace(chr(9),"<TAB>",$r[$x]);
+				$r[$x]=str_replace(chr(10),"<LF>",$r[$x]);
+				$r[$x]=str_replace(chr(13),"<CR>",$r[$x]);
+				($linje)?$linje.=chr(9).$r[$x]:$linje=$r[$x]; 
+			}
 		}
 		if ($fp) {
 			fwrite ($fp, "$linje\n");

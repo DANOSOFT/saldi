@@ -1,5 +1,5 @@
 <?php
-// ---------kreditor/betalinger.php----------Patch 3.2.9---------2013.05.22----------
+// ---------kreditor/betalinger.php---------------------Patch 3.4.1-----2014.05.30---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // -----------------------------------------------------------------------------------
 //
 // 2013.05.22 '' omkring '1' (openpost.udlignet != '1') i søgning, linje 119
+// 2014.05.27 Tilføjelse af betalingstype SDC 3 - overførsel med kort advisering (ca)
+// 2014.05.30 Tilføjelse af betalingstype SDC K020 - FI-kort 71 (ca)
+// 2014.05.30 Tilføjelse af betalingstype SDC K037 - Udenlandsk overførel MT100 (ca)
+// 2014.05.31 Rettet to forskellige fejl vedr. betalingstyperne SDC 3 og SDC 020 (ca)
 
 @session_start();
 $s_id=session_id();
@@ -80,7 +84,7 @@ if ($_POST['slet_ugyldige'] || $_POST['gem']|| $_POST['udskriv']) {
 
 if (!$liste_id) $liste_id=0;
 $linjebg=$bgcolor;
-$erh_title= "ERH351 = FI kort 71\nERH352 = FI kort 04 & 15\nERH354 = FI kort 01 & 41\nERH355 = Bankoverf. med normal advisering\nERH356 = Bankoverf. med straks advisering\nERH357 = FI kort 73\nERH358 = FI kort 75\nERH400 = Udenlandsk overf&oslash;rsel\n";
+$erh_title= "ERH351 = FI-kort 71\nERH352 = FI-kort 04 & 15\nERH354 = FI-kort 01 & 41\nERH355 = Bankoverf. med normal advisering\nERH356 = Bankoverf. med straks advisering\nERH357 = FI-kort 73\nERH358 = FI-kort 75\nERH400 = Udenlandsk overf&oslash;rsel\nSDC3 = Bankoverf. med kort advisering (SDC)\nSDCK020 = FI-kort 71 (SDC)\nSDCK037 = Udenlandsk overf&oslash;rsel (SDC)";
 
 
 ?>
@@ -145,9 +149,9 @@ if ($find) {
 			}
 			$modt_konto=$r['modt_reg'].$tmp;
 			if ($r['erh']) $erh=$r['erh'];
-			elseif ($r['modt_fi']) $erh="ERH351";
+			elseif ($r['modt_fi']) $erh="ERH351"; # Skal give SDCK020, hvis betalingslister sendes til SDC-bank i stedet for BEC (ERH)
 			else $erh="ERH356";
-			if ($erh=="ERH351" || $erh=="ERH357" || $erh=="ERH358") {
+			if ($erh=="ERH351" || $erh=="ERH357" || $erh=="ERH358" || $erh=="SDCK020") {
 				$modt_konto = $r['modt_fi']; 
 				$kort_ref=$r['betal_id'];
 			} elseif ($r['faktnr']) $kort_ref="Fakt: ".$r['faktnr'];
@@ -162,9 +166,9 @@ if ($find) {
 					$betal_id=substr($r['betal_id'],1);
 					list($tmp,$tmp2)=explode("<",$betal_id);
 					if($tmp=='04'||$tmp=='15') $erh='ERH352';
-					elseif($tmp=='71') $erh='ERH351';
-					elseif($tmp=='73') $erh='ERH357';
-					elseif($tmp=='75') $erh='ERH358';
+					elseif($tmp=='71') $erh='ERH351'; # Skal give SDCK020, hvis betalingslister sendes til SDC-bank i stedet for BEC (ERH)
+					elseif($tmp=='73') $erh='ERH357'; # Skal give SDCK073, hvis betalingslister sendes til SDC-bank i stedet for BEC (ERH)
+					elseif($tmp=='75') $erh='ERH358'; # Skal give SDCK075, hvis betalingslister sendes til SDC-bank i stedet for BEC (ERH)
 					$tmp2=(str_replace("+",";",$tmp2));#split fungerer ikke med "+" som skilletegn?
 					list($kort_ref,$modt_konto)=explode(";",$tmp2);
 					$kort_ref=trim($kort_ref);
@@ -191,8 +195,28 @@ if ($udskriv) {
 	$q=db_select("select * from betalinger where liste_id=$liste_id order by betalingsdato",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$kort_ref = $r['kort_ref'];
-		if ($r['bet_type']=="ERH351") $kort_ref="71".$kort_ref;
-		$linje="\"$r[bet_type]\",\"$r[fra_kto]\",\"$r[egen_ref]\",\"$r[til_kto]\",,\"00\",\"0\",\"$r[modt_navn]\",\"$r[belob]\",\"$r[betalingsdato]\",\"$kort_ref\",,,,,,,,,\"N\"\r\n";
+		if (substr($r['bet_type'], 0, 3)=="ERH") {
+			if ($r['bet_type']=="ERH351") $kort_ref="71".$kort_ref;
+			$linje="\"$r[bet_type]\",\"$r[fra_kto]\",\"$r[egen_ref]\",\"$r[til_kto]\",,\"00\",\"0\",\"$r[modt_navn]\",\"$r[belob]\",\"$r[betalingsdato]\",\"$kort_ref\",,,,,,,,,\"N\"\r\n";
+                } elseif ($r['bet_type']=="SDCK020") { # SDC betalingstype K020 - FI-kort 71 
+                        $bet_type=substr($r['bet_type'], 3);
+                        $linje=$bet_type.$r['fra_kto'].$r['betalingsdato'];
+                        $linje.=sprintf("%015.2f", str_replace(",", ".", str_replace(".", "", $r['belob'])))."N";
+                        $linje.=sprintf("%-20s", substr(iconv("UTF-8", "Windows-1252//IGNORE", $r['egen_ref']),0,20));
+                        $linje.=substr($r['til_kto'],0,8)."71";
+                        $linje.=sprintf("%015s", substr($kort_ref,0,15)); 
+                        $linlaengde=strlen($linje); # Linjelængden skal være på 87 tegn ifølge specifikationen - kan testes for senere
+                        echo "\n<!-- SDCK020 linjelængde er ".strlen($linje)." (skal være 87) -->\n"; # Linjelængden skal være på 87 tegn ifølge specifikationen - kan testes for senere
+                        $linje.="\r\n";
+		} elseif ($r['bet_type']=="SDC3") { # SDC betalingstype 3 - bankovf. med kort advisering
+			$linje="3".$r['fra_kto'].substr($r['betalingsdato'],0,4).substr($r['betalingsdato'],-2);
+			$linje.=sprintf("%015.2f", str_replace(",", ".", str_replace(".", "", $r['belob'])))."N";
+			$linje.=sprintf("%-20s", substr(iconv("UTF-8", "Windows-1252//IGNORE", $r['egen_ref']),0,20));
+			$linje.=substr($r['til_kto'], 0, 4).sprintf("%010s", substr($r['til_kto'], 4))."    ";
+			$linje.=sprintf("%-20s", substr(iconv("UTF-8", "Windows-1252//IGNORE", $kort_ref),0,20));
+			$linlaengde=strlen($linje); # Linjelængden skal være på 95 tegn ifølge specifikationen - kan testes for senere
+			$linje.="\r\n";
+		}
 		fwrite($fp,$linje);
 	}	
 	fclose($fp);
@@ -277,12 +301,15 @@ $q=db_select("select * from betalinger where liste_id=$liste_id order by betalin
 				if ($erh[$x]) print "<option>$erh[$x]</option>\n";
 				if ($erh[$x]!='ERH351') print "<option>ERH351</option>\n";
 				if ($erh[$x]!='ERH352') print "<option>ERH352</option>\n";
-				if ($erh[$x]!='ERH354') print "<o\"\"ption>ERH354</option>\n";
+				if ($erh[$x]!='ERH354') print "<option>ERH354</option>\n";
 				if ($erh[$x]!='ERH355') print "<option>ERH355</option>\n";
 				if ($erh[$x]!='ERH356') print "<option>ERH356</option>\n";
 				if ($erh[$x]!='ERH357') print "<option>ERH357</option>\n";
 				if ($erh[$x]!='ERH358') print "<option>ERH358</option>\n";
 				if ($erh[$x]!='ERH400') print "<option>ERH400</option>\n";
+				if ($erh[$x]!='SDC3') print "<option>SDC3</option>\n";
+				if ($erh[$x]!='SDCK020') print "<option>SDCK020</option>\n";
+#				if ($erh[$x]!='SDCK037') print "<option>SDCK037</option>\n";
 				print "<option>Slet</option>\n";
 				print "</SELECT></span></td>\n";
 				print "
@@ -332,14 +359,18 @@ function betalingskontrol($erh,$fra_kto,$egen_ref,$til_kto,$kort_ref,$modt_navn,
 {
 	$k1[$x]=NULL;$k2[$x]=NULL;$k3[$x]=NULL;$k4[$x]=NULL;$k5[$x]=NULL;$k6[$x]=NULL;$k7[$x]=NULL;$k8[$x]=NULL;
 	if (!$fra_kto || !is_numeric($fra_kto)||strlen($fra_kto)!=14) $k1[$x] = "Egen konto ikke gyldig";
-		if ($erh=='ERH351'||erh=='ERH352'||$erh=='ERH358') {
-			if (!$til_kto || !is_numeric($til_kto)||strlen($til_kto)!=8) $k3[$x] = "Modtager konto ikke gyldig";
-			if(!$kort_ref || !is_numeric($kort_ref)) $k4[$x] = "Ugyldig betalingsidentifikation (modt. ref)";
-		else{
-			if ($erh=='ERH351') $len=15; #strlen af ERH351 skal vaere 15
-			else $len=16;
+	if ($erh=='ERH351'||$erh=='ERH352'||$erh=='ERH358'||$erh=='SDCK020') {
+		if (!$til_kto || !is_numeric($til_kto)||strlen($til_kto)!=8) $k3[$x] = "Modtager konto ikke gyldig - skal være på 8 cifre";
+		if (!$kort_ref || !is_numeric($kort_ref)) {
+			$k4[$x] = "Ugyldig betalingsidentifikation (modt. ref - må kun bestå af cifre)";
+		} else {
+			if ($erh=='ERH351'||$erh='SDCK020') {
+				$len=15; #strlen af ERH351 og SDCK020 skal vaere 15
+			} else { 
+				$len=16;
+			}
 			for($x=strlen($kort_ref);$x<$len;$x++) $kort_ref='0'.$kort_ref;
-			for ($x=$len-1;$x>=0;$x--){ #Beregning af kontrolciffer.
+			for ($x=$len-1;$x>=0;$x--) { #Beregning af kontrolciffer.
 				$y=substr($kort_ref,$x,1)*2;
 				$x--;
 				$y=substr($kort_ref,$x,1)*1;
@@ -347,10 +378,10 @@ function betalingskontrol($erh,$fra_kto,$egen_ref,$til_kto,$kort_ref,$modt_navn,
 			while ($y>9) { #Reduktion af kontrolciffer
 				$y=substr($y,0,1)+$y=substr($y,1,1);	
 			}
-			if (substr($kort_ref,-1) != $y) $kommentar = "Ugyldig betalingsidentifikation (modt. ref)";
+			if (substr($kort_ref,-1) != $y) $kommentar = "Ugyldig betalingsidentifikation (modt. ref - kontrolciffer passer ikke)";
 		}
-	} elseif ($erh=='ERH355'||$erh=='ERH356') {
-		if (!$til_kto || !is_numeric($til_kto)||strlen($til_kto)!=14) $k3[$x] = "Modtager konto ikke gyldig";
+	} elseif ($erh=='ERH355'||$erh=='ERH356'||$erh='SDC3') {
+		if (!$til_kto || !is_numeric($til_kto)||strlen($til_kto)!=14) $k3[$x] = "Modtager konto ikke gyldig - skal være på 14 cifre (regnr. på 4 og kontonr på 10)";
 		if(!$kort_ref) $k4[$x] = "Modt ref skal udfyldes";
 	}
 	if (usdecimal($belob)<0.01) $k4[$x]="Bel&oslash;b skal være st&oslash;rre end 0";

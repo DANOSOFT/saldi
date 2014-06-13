@@ -213,8 +213,7 @@ if ($id > 0) {
 	if ($x==0) aar_1($id, 1, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben);
 	else aar_x($id, $x, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben);
 }
-function aar_1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben)
-{
+function aar_1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben) {
 	$laast=NULL; 
 	
 	$row = db_fetch_array(db_select("select MAX(kodenr) as kodenr from grupper where art = 'RA'",__FILE__ . " linje " . __LINE__));
@@ -316,9 +315,11 @@ function aar_1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	exit;
 }
 
-function aar_x($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben)
-{
+function aar_x($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben) {
 	global $overfor_til;
+	
+	$r=db_fetch_array(db_select("select max(kodenr) as max_aar from grupper where art = 'RA'",__FILE__ . " linje " . __LINE__));
+	$max_aar=$r['max_aar'];
 	
 	$tmp=$kodenr-1;
 	$query = db_select("select * from grupper where art = 'RA' and kodenr = '$tmp'",__FILE__ . " linje " . __LINE__);
@@ -432,7 +433,9 @@ function aar_x($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	if ($debetsum-$kreditsum!=0) {print "<BODY onLoad=\"javascript:alert('Konti er ikke i balance')\">";}
 #	print "<tr><td colspan = 3> Overfr �ningsbalance</td><td align=center><input type=checkbox name=primotal checked></td></tr>\n";
 	print "<input type=hidden name=kontoantal value=$y>";
-	print "<tr><td colspan = 5 align = center><input type=submit accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+	print "<tr><td colspan = 5 align = center><input type=submit accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
+	if ($regnaar==$max_aar) print "<input type=submit value=\"Slet\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
+	print "</td></tr>\n";
 	print "</form>";
 	exit;
 }

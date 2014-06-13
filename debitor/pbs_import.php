@@ -64,8 +64,10 @@ if(($_GET)||($_POST)) {
 			$BS001=0;$BS012=0;
 			$fp=fopen("$filnavn","r");
 			if ($fp) {
+				$linjenr=0;
 				print  "<tr><td width=100% align=center>";
 				while ($linje=fgets($fp)) {
+					$linjenr++;
 					if ($lev_pbs=='L') {
 						if (substr($linje,0,3)=='510') {
 							$x++;
@@ -90,6 +92,10 @@ if(($_GET)||($_POST)) {
 							} else print  "Kundenr: $kundenr[$x] eksisterer ikke<br>";
 						} 					
 					} else {
+						if ($linjenr==1 && substr($linje,16,4)!='0603') {
+							print "<BODY onLoad=\"javascript:alert('Filen indeholder ingen aftaleoplysninger!')\">";
+							print "<meta http-equiv=\"refresh\" content=\"0;URL=pbs_import.php\">";
+						} else {
 						if (substr($linje,0,5)=='BS002') {
 							if (!$BS002) $BS002=1;
 							else $BS002=0;
@@ -104,13 +110,24 @@ if(($_GET)||($_POST)) {
 									$x++;
 									$kundenr[$x]=substr($linje,25,15)*1;
 									$pbsnr[$x]=substr($linje,40,9);
-									print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] - Stamkort opdateret<br>";
-									db_modify("update adresser set pbs='on',pbs_nr='$pbsnr[$x]' where kontonr = '$kundenr[$x]' and art = 'D'",__FILE__ . " linje " . __LINE__);
-									if ($udskriv_til) db_modify("update ordrer set pbs='FI',udskriv_til='$udskriv_til' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
+									$tilfra[$x]=substr($linje,13,4); 
+									if ($tilfra[$x]=='0231') {	
+										print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Tilmeldt - Stamkort opdateret<br>";
+										db_modify("update adresser set pbs='on',pbs_nr='$pbsnr[$x]' where kontonr = '$kundenr[$x]' and art = 'D'",__FILE__ . " linje " . __LINE__);
+										if ($udskriv_til) db_modify("update ordrer set pbs='FI',udskriv_til='$udskriv_til' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
+									} if ($tilfra[$x]=='0232' || $tilfra[$x]=='0233' || $tilfra[$x]=='0234') {
+										if ($tilfra[$x]=='0232') print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Afmeldt af debitors pengeinstitut - Stamkort opdateret<br>";
+										if ($tilfra[$x]=='0233') print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Afmeldt af kreditor pengeinstitut - Stamkort opdateret<br>";
+										if ($tilfra[$x]=='0234') print  "Kundenr: $kundenr[$x] | pbs_nr $pbsnr[$x] -Afmeldt af PBS - Stamkort opdateret<br>";
+										db_modify("update adresser set pbs='',pbs_nr='' where kontonr = '$kundenr[$x]' and art = 'D'",__FILE__ . " linje " . __LINE__);
+										db_modify("update ordrer set pbs='',udskriv_til='email' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
+									}
+									
 								}
 							}
 						}
-					} 
+					}
+					}
 				}
 				print  "</td></tr>";
 			}
@@ -308,7 +325,7 @@ if ($fp) {
 			$x++;
 			$skriv_linje=1;
 			$felt=array();
-			$felt = split($splitter, $linje);
+			$felt = explode($splitter, $linje);
 			for ($y=0; $y<=$feltantal; $y++) {
 				$felt[$y]=trim($felt[$y]);
 				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
@@ -371,7 +388,7 @@ function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $bila
 				$x++;
 				$skriv_linje=1;
 				$felt=array();
-				$felt = split($splitter, $linje);
+				$felt = explode($splitter, $linje);
 				for ($y=0; $y<=$feltantal; $y++) {
 					$felt[$y]=trim($felt[$y]);
 					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);

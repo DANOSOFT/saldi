@@ -1,13 +1,17 @@
 <?php
 @session_start();
 $s_id=session_id();
-// ------------debitor/pbs_liste.php------- patch 3.0.2 ---2010.05.31------
+// ------------debitor/pbs_liste.php------- patch 3.4.1 ---2014.04.22------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
@@ -16,8 +20,10 @@ $s_id=session_id();
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+//
+// 2014.04.22 Max ID øges med en hvis alle eksisterende er afsendt. # 20140422
 
 $modulnr=5;
 $title="PBS Liste";
@@ -30,8 +36,11 @@ include("../includes/std_func.php");
 print "<table width=100%><tbody>";
 print "<tr><td>Id</td><td>Liste dato</td></tr>";
 print "<tr><td colspan=3><hr></td></tr>";
-$r=db_fetch_array(db_select("select max(id) as id from pbs_liste order by id desc",__FILE__ . " linje " . __LINE__));
+$r=db_fetch_array(db_select("select max(id) as id from pbs_liste",__FILE__ . " linje " . __LINE__));
 $max_id=$r['id']*1;
+$r=db_fetch_array(db_select("select afsendt from pbs_liste where id='$max_id'",__FILE__ . " linje " . __LINE__)); #20140422
+if ($r['afsendt']) $max_id++;
+
 $kan_afsluttes=0;
 #echo "A $kan_afsluttes<br>";
 if ($r=db_fetch_array(db_select("select * from adresser where pbs_nr='' and pbs = 'on' order by id",__FILE__ . " linje " . __LINE__))) {

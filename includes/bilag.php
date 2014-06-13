@@ -1,5 +1,5 @@
 <?php
-// ----------finans/importer.php------------patch 3.2.5-----2011.12.28-----------
+// ----------finans/importer.php------------patch 3.3.9-----2014.01.12-----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 2014.01.12 Tilføjet ordre som kilde.
+// 2014.01.22 Rettet if til elseif dat man ellers kommer tilbage til historik ved opslag fra kassekladde. Søg 2014.01.22
 
 @session_start();
 $s_id=session_id();
@@ -55,6 +57,7 @@ if(($_GET)||($_POST)) {
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 	if ($kilde=="kassekladde") $tmp="../finans/kassekladde.php?kladde_id=$kilde_id&fokus=$fokus";
+	elseif ($kilde=="ordrer") $tmp="../debitor/ordre.php?id=$kilde_id&fokus=$fokus"; #20140122
 	else $tmp="../debitor/historikkort.php?id=$kilde_id";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$tmp accesskey=L>Luk</a></td>";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">$title $bilag</td>";
@@ -65,7 +68,12 @@ if(($_GET)||($_POST)) {
 	if ($filnavn) {
 		vis_bilag($kilde_id,$kilde,$bilag_id,$fokus,$filnavn);
 	} elseif ($filnavn=basename($_FILES['uploadedfile']['name'])) {
-		$filnavn=htmlentities($filnavn,ENT_COMPAT,$charset);
+		$filtype=strtolower(substr($filnavn,-4));
+		if ($kilde=='ordrer' && $filtype!='.pdf'){
+			print "<BODY onLoad=\"javascript:alert('Der tillades kun bilag af typen PDF')\">";
+			upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus);
+		}
+	#		$filnavn=htmlentities($filnavn,ENT_COMPAT,$charset);
 		$tmp="../temp/".$db."/".$filnavn;
 		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'],"$tmp")) {
 			upload_til_ftp($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn);
@@ -112,9 +120,9 @@ function upload_til_ftp($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn){
 		$box1=$r['box1'];
 		$box2=$r['box2'];
 		$box3=$r['box3'];
-		if ($kilde=="kassekladde") {
+		if ($kilde=="kassekladde" || $kilde=="ordrer") {
 			$mappe=$r['box4'];
-			$undermappe="kladde_$kilde_id";
+			($kilde=="kassekladde")?$undermappe="kladde_$kilde_id":$undermappe="ordrer";
 			$ftpfilnavn="bilag_".$bilag_id;
 		} else {
 			$mappe=$r['box5'];
@@ -141,13 +149,14 @@ function upload_til_ftp($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn){
 		$langt_filnavn="../temp/$db/".$ftpfilnavn;
 		if (file_exists($langt_filnavn)) {
 			$filnavn=addslashes($filnavn);
-			db_modify("update $kilde set dokument='$filnavn' where id='$bilag_id'",__FILE__ . " linje " . __LINE__);
+			db_modify("update $kilde set dokument='".db_escape_string($filnavn)."' where id='$bilag_id'",__FILE__ . " linje " . __LINE__);
 			print "<BODY onLoad=\"javascript:alert('$filnavn er indl&aelig;st')\">";
 		} else {
 			print "<BODY onLoad=\"javascript:alert('indl&aelig;sning af $filnavn fejlet')\">";
 		}
 	} print "<BODY onLoad=\"javascript:alert('indl&aelig;sning af $filnavn fejlet')\">";
 	if ($kilde=="kassekladde") $tmp="../finans/kassekladde.php?kladde_id=$kilde_id&fokus=$fokus";
+	elseif ($kilde=="ordrer") $tmp="../debitor/ordre.php?id=$kilde_id&fokus=$fokus";
 	else $tmp="../debitor/historikkort.php?id=$kilde_id";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">";
 }
@@ -166,9 +175,9 @@ function vis_bilag($kilde_id,$kilde,$bilag_id,$fokus,$filnavn){
 	$box1=$r['box1'];
 	$box2=$r['box2'];
 	$box3=$r['box3'];
-	if ($kilde=="kassekladde") {
+	if ($kilde=="kassekladde" || $kilde=="ordrer") {
 		$mappe=$r['box4'];
-		$undermappe="kladde_$kilde_id";
+		($kilde=="kassekladde")?$undermappe="kladde_$kilde_id":$undermappe="ordrer";
 		$ftpfilnavn="bilag_".$bilag_id;
 	} else {
 		$mappe=$r['box5'];

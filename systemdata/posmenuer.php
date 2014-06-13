@@ -1,11 +1,15 @@
 <?php
-// -------------------- systemdata/posmenuer.php ------ patch 3.0.6--2010-10-22--------
+// -------------------- systemdata/posmenuer.php ------ patch 3.3.4--2013-10-17--------
 // LICENS..
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
@@ -14,8 +18,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 2013-10-17 Ku max ha' 10 menuer.
 
 @session_start();
 $s_id=session_id();
@@ -59,14 +64,14 @@ if ($menuvalg || ($id && $beskrivelse)) {
 	if ($menuvalg=='ny') {
 		$id=0;
 		$x=0;
+		$kodenr=array();
 		$q=db_select("select kodenr from grupper where art='POSBUT' order by kodenr",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			if (!$id) {
-				$x++;
-				if ($x!=$r['kodenr']) {
-					$id=$x;
-				}
-			}
+			$kodenr[$x]=$r['kodenr'];
+			$x++;
+		}
+		for ($x=0;$x<count($kodenr);$x++) {
+		if ($x && !in_array($x,$kodenr))$id=$x;
 		}
 		if (!$id) $id=$x+1;
 		if ($id && $beskrivelse) {

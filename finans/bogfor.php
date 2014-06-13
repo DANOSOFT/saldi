@@ -1,9 +1,8 @@
 <?php
-// --------------------finans/bogfor.php------ lap 3.2.9 -- 2013-08-02 --
+// --------------------finans/bogfor.php------ lap 3.4.1 -- 2014-04-28	 --
 // LICENS
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
+// Dette program er fri software. Du kan gendistribuere det og / eller 
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg.
 // Fra og med version 3.2.2 dog under iagttagelse af følgende:
@@ -18,7 +17,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20121122 - Åbne poster udlignes ikke mere automatisk hvis forskelligt projektnummer. Søg 20121122
 // 20130210 - Break ændret til break 1
@@ -26,6 +25,12 @@
 // 20130404 - addslashes erstattet af db_escape_string.  
 // 20130404 - Blokerer nu for postering hvis max. antal overskredet.
 // 20130802 - Tilføjet simulering - i betatest - knap ikke synlig.
+// 20130814 - Lukker istedet for returnering til kladde v. luk af simulering.
+// 20131028 - Fejl v. manglende diffkonto til valuta. tilføjet !. Søg 20131028.
+// 20131115	-	Fejlbogføring ved modsvarende differencer i forslellige bilag. Søg 20131115 
+// 20131117	-	Tilføjet !$debet[$i]||!$kredit[$i]. Kunne ikke bogføre 1 linjers posteringer. Søg 20131117
+// 20140228 -	Det er nu atter muligt at bogføre selvom de enlekte bilag ikke stemmer, hvis summen gør # 20140228  
+// 20140428 -	Afrundingsfejl ved eu moms (PHR Danosoft jf http://forum.saldi.dk/viewtopic.php?f=5&t=1130)# Søg 20140428  
 
 @session_start();
 $s_id=session_id();
@@ -48,8 +53,9 @@ $funktion=if_isset($_GET['funktion']);
 $kladde_id=if_isset($_GET['kladde_id']);
 if (($_POST) && ($_POST['kladde_id'])) $kladde_id = $_POST['kladde_id'];
 
-if ($popup) $returside="../includes/luk.php";
-else $returside="kladdeliste.php";
+#if ($popup) $returside="../includes/luk.php";
+#else $returside="kassekladde.php?kladde_id=$kladde_id";
+$returside="kassekladde.php?kladde_id=$kladde_id";
 
 $r =db_fetch_array(db_select("select * from grupper where kodenr = '$regnaar' and art = 'RA'",__FILE__ . " linje " . __LINE__));
 $regnstart=$r['box2']."-".$r['box1']."-01";
@@ -76,7 +82,7 @@ if ($funktion=='bogfor') {
 	$href="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>";
 } elseif ($funktion=='simuler') {
 	$overskrift="Simuleret bogf&oslash;ring, kladde $kladde_id";
-	$href="<a href=../includes/luk.php accesskey=L>";
+	$href="<a href=$returside accesskey=L>";
 } else $href="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>";
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
@@ -141,8 +147,9 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 		else print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 	}
 } elseif ($_POST['luk']) {
-	if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-	else print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
+	#	if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
+	#	else print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 }
 $x=0;
 $debetsum=0;
@@ -173,7 +180,8 @@ if ($kladde_id) {
 			if ($row['valuta'] && $row['amount'] && ($row['debet']||$row['kredit']))  {
 				$valutaposter++;
 				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=valutaopslag($amount[$posteringer],$row['valuta'],$row['transdate']);
-#cho "VS1 $valutadiff<br>";		
+#cho "V $valutaposter eur $amount[$posteringer] dkk  $dkkamount[$posteringer]<br>";
+				#cho "VS1 $valutadiff<br>";		
 #				if ($row['debet']) $valutadiff=$valutadiff+$dkkamount[$posteringer];
 #				if ($row['kredit']) $valutadiff=$valutadiff-$dkkamount[$posteringer];
 #				$valutadiff=round($valutadiff+0.0001,3);
@@ -193,6 +201,7 @@ if ($kladde_id) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 	exit;
 }
+#cho "$debetsum || $kreditsum<br>";
 
 $x=0;
 $debitor=array();
@@ -231,6 +240,7 @@ for ($y=1;$y<=$posteringer;$y++) {
 			$kreditor[$x]=$kredit[$y];
 			$kreditoramount[$x]=0;
 		}
+#cho "$kreditor[$x] $kreditoramount[$x]<br>";
 	}
 }
 $kreditorantal=$x;
@@ -361,6 +371,7 @@ for ($y=0; $y<$kontoantal; $y++) {
 		$fejltext = "OBS:Kontonr: $kontoliste[$y] FINDES IKKE !!";
 	}
 }
+#cho "$debetsum || $kreditsum<br>";
 #valutadiff=round($valutadiff+0.0001,3);
 $diff=afrund($debetsum-$kreditsum,3);
 #cho "Diff $diff<br>";
@@ -405,31 +416,52 @@ $b=dkdecimal($d_sum);
 $c=dkdecimal($k_sum);
 #cho "VD $valutadiff<br>";
 #cho "($diff==abs($valutadiff))<br>";
-
 print "<tr><td><br></td><td>$font Kontrolsum</td><td align=right><br></td><td align=right>$font $b</td><td align=right>$font $c</td><td align=right><br></td></tr>";
 
-if (abs($diff)>=0.01)  {
+# 20131115 ->
+$x=0;
+$diffbilag=array();
+for ($y=1;$y<=$posteringer;$y++) {
+	if ($bilag[$y-1] && $bilag[$y]!=$bilag[$y-1]) {
+			if (afrund($b_sum[$x],2)) $diffbilag[$y-1]=afrund($b_sum[$x],2);
+			$x++;
+	}
+		if ($debet[$y]>0)$b_sum[$x]+=$dkkamount[$y];
+		if ($kredit[$y]>0)$b_sum[$x]-=$dkkamount[$y];
+}
+if (afrund($b_sum[$x],2)) $diffbilag[$y-1]=afrund($b_sum[$x],2);;
+# <- 20131115
+$fejl=0; #20140228
+if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
 	print "<tr><td colspan=6><br>";
 	print "<table width=100% border=1><tbody>"; 
 	print "<tr><td align=center colspan=2>Der er differencer p&aring; f&oslash;lgende bilag</td></tr>";
 	print "<tr><td align=center>Bilag</td><td align=center>Difference</td></tr>";
+	$tmp=NULL;
 	for ($x=1; $x<=$posteringer; $x++) {
 		$y=$bilag[$x];
 		if ($tjeksum[$y]!=0) {
 			 print "<tr><td align=right>$y</td><td align=right>".dkdecimal($tjeksum[$y])."</td></tr>";
+			 $tmp=$y;
 			 $tjeksum[$y]=0;
+		} elseif (isset($diffbilag[$x]) && $diffbilag[$x] && $tmp!=$y) { #20131115
+			 print "<tr><td align=right>$y</td><td align=right>".dkdecimal($diffbilag[$x]). "</td></tr>";
 		}
 	}
 	print "</tbody></table></td></tr>";
-
+	if (abs($diff)>=0.01) $fejl=1;
 } elseif ($b!=$c) {
 #cho "$b!=$c<br>";
 	$message=$db." | Uoverensstemmelse i posteringssum | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
 	$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 	mail('fejl@saldi.dk', 'SALDI Fejl', $message, $headers);
 	print "<BODY onLoad=\"javascript:alert('Uoverensstemmelse i posteringssum - Kontakt venligst SALDI teamet p&aring; telefon 4690 2208')\">";
-} elseif ($fejltext) print "<tr><td colspan=6><br></td></tr><tr><td align=center colspan=6>$fejltext</td></tr>";
-else {
+	$fejl=1; #20140228
+} elseif ($fejltext) {
+	print "<tr><td colspan=6><br></td></tr><tr><td align=center colspan=6>$fejltext</td></tr>";
+	$fejl=1; #20140228
+}
+if (!$fejl) { #20140228
 	$query = db_select("select * from kladdeliste where id = $kladde_id and bogfort = 'V'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		print "Kladden er bogf&oslash;rt!";
@@ -537,7 +569,7 @@ else {
 		}
 		print "<tr><td colspan=6><br></td></tr><tr><td colspan=6 align=center><input type=submit $onclick accesskey=\"b\" value=\"Bogf&oslash;r\" name=\"bogfor\"></td></tr>";
 	} else {
-		print "<tr><td colspan=6><br></td></tr><tr><td colspan=6 align=center><!--<input type=submit $onclick accesskey=\"b\" value=\"Simuleret bogføring\" name=\"simuler\">--><input type=submit accesskey=\"l\" value=\"&nbsp;&nbsp;Luk&nbsp;&nbsp;\" name=\"luk\"></td></tr>";
+		print "<tr><td colspan=6><br></td></tr><tr><td colspan=6 align=center><input type=submit $onclick accesskey=\"b\" value=\"Simuleret bogføring\" name=\"simuler\"><input type=submit accesskey=\"l\" value=\"&nbsp;&nbsp;Luk&nbsp;&nbsp;\" name=\"luk\"></td></tr>";
 	}
 	print "</form>";
 }
@@ -773,11 +805,24 @@ function bogfor($kladde_id,$kladdenote,$simuler)
 		}
 
 		$kontoliste=array();
+		# 20131115 ->
+		$kontokredit[$y]=array(); 
+		$kontodebet[$y]=array();  
 		for ($i=1;$i<=$b_antal;$i++) {
-#		$valutasum[$i]=round($valutasum[$i]+0.0001,3);
-#		if (abs($valutadiff[$i])>=0.01&&$v_diffkonto[$i]>0) {
+		if ($bilag[$i]!=$bilag[$i-1] && $bilag[$i]!=$bilag[$i+1] && (!$debet[$i]||!$kredit[$i]) && $valuta[$i] != $valuta[$i-1]) { # 20131117 -- 20140228 tilføjet: && $valuta[$i] != $valuta[$i-1] 
+#cho "$valuta[$i] != ".$valuta[$i-1]."<br>";
+		#cho $bilag[$i]."!=".$bilag[$i-1]." && ".$bilag[$i]."!=".$bilag[$i+1]."|".$debet[$i]."||".!$kredit[$i]."<br>";
+			print "<BODY onLoad=\"javascript:alert('Manglende modpostering i bilag $bilag[$i]!')\">";
+			exit;
+		}
+		# <- 20131115
+		$valutasum[$i]=round($valutasum[$i]+0.0001,3);
+		if (abs($valutadiff[$i])>=0.01) {
+#			echo "Der er valutadiff";
+		}	else #echo "Der er ikke valutadiff $valuta[$i]";
 			$b_sum[$i]=afrund($b_sum[$i],2);
 			if (!in_array($b_diffkonto[$i],$kontoliste)) { 
+#cho "$bilag[$i] B sum $b_sum[$i]<br>";	
 				$y++;
 				$kontoliste[$y]=$b_diffkonto[$i];
 				$kontokredit[$y]=0;
@@ -792,31 +837,39 @@ function bogfor($kladde_id,$kladdenote,$simuler)
 				$kontodebet[$y]=$kontodebet[$y]-$b_sum[$i];
 				$tjeksum=$tjeksum-$b_sum[$i];
 			}
+#cho "Y $y D $kontodebet[$y] K $kontokredit[$y]<br>";
 			if (($kontokredit[$y] || $kontodebet[$y]) && $b_diffkonto[$i]) {
-			$query = db_select("select * from kontoplan where kontonr='$b_diffkonto[$i]' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
+				$qtxt="select * from kontoplan where kontonr='$b_diffkonto[$i]' and regnskabsaar='$regnaar'<br>";
+#cho "$qtxt<br>"; 
+				$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {
-				$saldo=$row['saldo'];
-				$a=dkdecimal($saldo);
-				$b=dkdecimal($kontodebet[$y]);
-				$c=dkdecimal($kontokredit[$y]);
-				$d=dkdecimal($saldo+$kontodebet[$y]-$kontokredit[$y]);
-				$beskrivelse=db_escape_string($row['beskrivelse']);
-#cho "E insert into $tabel (kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)values('$b_diffkonto[$i]','$b_bilag[$i]','$b_transdate[$i]','$logdate','$logtime','$beskrivelse','$kontodebet[$y]','$kontokredit[$y]','$v_faktura[$i]','$kladde_id','$b_afd[$i]','$b_ansat[$i]','$b_projekt[$i]','$b_valuta[$i]','$b_kurs[$i]','$b_ordre_id[$i]','0')<br>";
-				db_modify("insert into $tabel (kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)values('$b_diffkonto[$i]','$b_bilag[$i]','$b_transdate[$i]','$logdate','$logtime','$beskrivelse','$kontodebet[$y]','$kontokredit[$y]','$v_faktura[$i]','$kladde_id','$b_afd[$i]','$b_ansat[$i]','$b_projekt[$i]','$b_valuta[$i]','$b_kurs[$i]','$b_ordre_id[$i]','0')",__FILE__ . " linje " . __LINE__);
-			} else {
-				print "<BODY onLoad=\"javascript:alert('Konto $b_diffkonto[$i] til valutadifferncer eksisterer ikke!')\">";
-				exit;
-			} 
-		} elseif (($kontokredit[$y] || $kontodebet[$y]) && $b_diffkonto[$i]) {
-			print "<BODY onLoad=\"javascript:alert('Manglende konto til valutadifferncer! (bilag: $b_bilag[$i])')\">";
+					$saldo=$row['saldo'];
+					$a=dkdecimal($saldo);
+					$b=dkdecimal($kontodebet[$y]);
+					$c=dkdecimal($kontokredit[$y]);
+					$d=dkdecimal($saldo+$kontodebet[$y]-$kontokredit[$y]);
+					$beskrivelse=db_escape_string($row['beskrivelse']);
+					$qtxt="insert into $tabel (kontonr,bilag,transdate,logdate,logtime,beskrivelse,debet,kredit,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)values('$b_diffkonto[$i]','$b_bilag[$i]','$b_transdate[$i]','$logdate','$logtime','$beskrivelse','$kontodebet[$y]','$kontokredit[$y]','$v_faktura[$i]','$kladde_id','$b_afd[$i]','$b_ansat[$i]','$b_projekt[$i]','$b_valuta[$i]','$b_kurs[$i]','$b_ordre_id[$i]','0')";
+#cho "$qtxt";						
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				} else {
+					print "<BODY onLoad=\"javascript:alert('Konto $b_diffkonto[$i] til valutadifferncer eksisterer ikke!')\">";
+					exit;
+				} 
+			} elseif (($kontokredit[$y] || $kontodebet[$y]) && !$b_diffkonto[$i] && $valuta[$i])  { #20131028 -- 20140228 tilføjet: && $valuta[$i
+			print "<BODY onLoad=\"javascript:alert('Manglende konto til valutadiffencer! (bilag: $b_bilag[$i])')\">";
 			exit;
 		} 
 	}
 	if (abs($tjeksum)<=0.01) { # && $transtjek==$transantal){
 		$dato=date("Y-m-d");
 		if ($simuler) {
-			db_modify("update kladdeliste set bogfort = 'S', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
+			$qtxt="update kladdeliste set bogfort = 'S', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
+#cho "$qtxt<br>";			
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else {
+			$qtxt="update kladdeliste set bogfort = 'V', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
+#cho "$qtxt<br>";			
 			db_modify("update kladdeliste set bogfort = 'V', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
 			for ($x=1; $x<=$transtjek; $x++) {
 				$query = db_select("select saldo from kontoplan where id='$kasklid[$x]'",__FILE__ . " linje " . __LINE__);
@@ -827,10 +880,12 @@ function bogfor($kladde_id,$kladdenote,$simuler)
 				db_modify("update kontoplan set saldo = $transamount[$x] where id = '$kasklid[$x]'",__FILE__ . " linje " . __LINE__);
 			}
 		}
+#xit;
 	} else {
 		print "<tr><td align=center>$font Der er konstateret en afvigelse!\nKladde ikke bogf&oslash;rt\nKontakt venligst Saldi's udviklerteam!</td></tr>";
 		exit;
 	}
+#xit;	
 } #endfunc bogfor
 ######################################################################################################################################
 function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$bilag_id,$valutakode,$valutakurs,$forfaldsdate,$betal_id,$projekt){
@@ -937,19 +992,21 @@ function momsberegning($konto,$amount,$momsart,$kontrol) {
 	$amount=afrund($amount,2); 
 	$nettoamount=afrund($nettoamount,2); 
 	$moms=afrund($moms,2);
-	$tmp=afrund($amount-($nettoamount+$moms),2);
-# Nedenstaaende tilfojet 20090902 jvf saldi_2_20090902-1446.sdat
-	if ($tmp>0) $moms=$moms+0.01; 
-	elseif ($tmp<0) $moms=$moms-0.01;
-	$tmp=afrund($amount-($nettoamount+$moms),2);
-	if ($a!="E" && $a!="Y" && abs($tmp)>=0.01) {
-		$message=$db." | Afvigelse ved momsberegning | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
-		$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
-		mail('fejl@saldi.dk', 'SALDI Bogforingsfejl', $message, $headers);
-		print "<BODY onLoad=\"javascript:alert('Afvigelse ved momsberegning! Kontakt venligst Saldi teamet p&aring; telefon 4690 2208')\">";
-		exit;
+	if ($a!='E' && $a!='Y') { #20140428
+		$tmp=afrund($amount-($nettoamount+$moms),2);
+		# Nedenstaaende tilfojet 20090902 jvf saldi_2_20090902-1446.sdat
+		if ($tmp>0) $moms=$moms+0.01; 
+		elseif ($tmp<0) $moms=$moms-0.01;
+		$tmp=afrund($amount-($nettoamount+$moms),2);
+		if (abs($tmp)>=0.01) { # 20140428 "fjernet $a!='E' && $a!='Y' &&" 
+			$message=$db." | Afvigelse ved momsberegning | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
+			$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
+			mail('fejl@saldi.dk', 'SALDI Bogforingsfejl', $message, $headers);
+			print "<BODY onLoad=\"javascript:alert('Afvigelse ved momsberegning! Kontakt venligst Saldi teamet p&aring; telefon 4690 2208')\">";
+			exit;
+		}	
 	}
-#	$svar=array($amount,0,$momskto,$modkto);
+// #	$svar=array($amount,0,$momskto,$modkto);
 	$svar=array($nettoamount,$moms,$momskto,$modkto);
 	return $svar;
 }

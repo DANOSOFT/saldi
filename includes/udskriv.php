@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// -------includes/udskriv.php----lap 3.2.9----2013.03.20-------------------
+// -------includes/udskriv.php----lap 3.3.6----2013.12.02-------------------
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
@@ -23,7 +23,8 @@ $s_id=session_id();
 // Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
-
+// 2013.12.02	Efter udskrivning af kreditorordre, åbnes ordre som debitorordre. Tilføjer $art. Søg $art.
+// 2013.12.10	Efter udskrivning, åbnes ordren 2. gang v. popup. Tilføjet "|| $popup", søg 20131210
 
 $css="../css/standard.css";		
 		
@@ -38,18 +39,20 @@ $valg=if_isset($_GET['valg']);
 $logoart=if_isset($_GET['logoart']);
 $id=if_isset($_GET['id']);
 $udskriv_til=if_isset($_GET['udskriv_til']);
+$art=if_isset($_GET['art']);
 
 if ($udskriv_til=='historik') {
 	historik($id,$ps_fil);
 	$valg="tilbage";
 }
-
 if ($valg=="tilbage") {
-  if ($popup || !$id) {
+  if (!$id || $popup) { # 20131210
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
   	exit;
 	} else {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id\">";
+		if (substr($art,0,1)=='K')	{
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../kreditor/ordre.php?id=$id\">";
+		} else print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordre.php?id=$id\">";
   	exit;
 	}
 }
@@ -75,7 +78,7 @@ if ($valg) {
 			}
 			print "--> \n";
 			print "<table width=100% height=100%><tbody>";
-  		print "<td width=\"10%\" height=\"1%\" $top_bund><a href=udskriv.php?valg=tilbage&id=$id accesskey=L>Luk</a></td>";
+  		print "<td width=\"10%\" height=\"1%\" $top_bund><a href=udskriv.php?valg=tilbage&id=$id&art=$art accesskey=L>Luk</a></td>";
 # 			else print "<td width=\"10%\" height=\"1%\" $top_bund><a href='#' accesskey=L onClick=\"history.go(-2)\">Luk</a></td>";
 			print "<td width=\"80%\" $top_bund align=\"center\" title=\"Klik her for at &aring;bne filen i nyt vindue, h&oslash;jreklik her for at gemme.\"><a href=../temp/$ps_fil.pdf target=blank>Vis udskrift</a></td>";
   		print "<td width=\"10%\" $top_bund align = \"right\"title=\"Klik her for at &aring;bne filen i tiff format\"><a href=\"../temp/$ps_fil.tiff\">TIFF-version</a></td>";
@@ -89,7 +92,7 @@ if ($valg) {
 	}
   if ($valg=="printer") {
     system ("$r[box1] ../temp/$ps_fil");
-    system ("rm ../../temp/$ps_fil");
+#    system ("rm ../../temp/$ps_fil");
     print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
     exit;
   }

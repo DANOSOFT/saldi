@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// ------debitor/mail_kontoudtog.php-------lap 3.2.9------2013-04-10--------
+// ------debitor/mail_kontoudtog.php-------lap 3.3.9------2014-01-28--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,12 +20,12 @@ $s_id=session_id();
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2012.09.06 break ændret til break 1
 // 2012.10.04 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
 // 2013.10.04 Tilføjet AddReplyTo. Søg AddReplyTo
-
+// 2014.01.28 Ændret from til korrekt afsendermail. Søg 20140128 
 
 $modulnr=12;
 $css="../css/standard.css";
@@ -355,9 +355,10 @@ function send_mails($kontoantal, $konto_id, $email, $fra, $til) {
 			$mail->SMTPAuth = false;     // turn on SMTP authentication
 
 			if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121029
-				if (strpos($_SERVER['SERVER_NAME'],'ssl')) $mail->From = 'sslmailer.'.$db.'@saldi.dk';
-				elseif (strpos($_SERVER['SERVER_NAME'],'ssl2')) $mail->From = 'ssl2mailer.'.$db.'@saldi.dk';
-				else $mail->From = 'mailer.'.$db.'@saldi.dk';
+				if ($_SERVER['SERVER_NAME']=='ssl.saldi.dk') $mail->From = $db.'@ssl.saldi.dk'; #20140128
+				elseif ($_SERVER['SERVER_NAME']=='ssl2.saldi.dk') $mail->From = $db.'@ssl2.saldi.dk'; #20140128
+				elseif ($_SERVER['SERVER_NAME']=='ssl3.saldi.dk') $mail->From = $db.'@ssl3.saldi.dk'; #20140128
+				else $mail->From = 'kanikkebesvares@saldi.dk'; #20140128
 				$mail->FromName = $afsendernavn;
 			} else {
 				$mail->From = $afsendermail;

@@ -6,6 +6,10 @@
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
@@ -14,7 +18,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
@@ -175,7 +179,7 @@ if (isset($_POST['opret'])){
 		print "<p>Dit SALDI-system er nu oprettet. Og det f&oslash;rste, du skal g&oslash;re, er at oprette et regnskab.</p>\n\n";
 		print "<p>Dette g&oslash;res ved at loggge ind med <b>$db_navn</b> som regnskab, <b>$adm_navn</b> \n";
 		print "som brugernavn og den valgte adgangskode</p>\n\n";
-		print "<p>Tegn en hotline-aftale for kun kr. 51,- + moms om m&aring;neden, s&aring; kan du ringe eller sende en e-mail \n";
+		print "<p>Tegn en hotline-aftale for kun, s&aring; kan du ringe eller sende en e-mail \n";
 		print "og f&aring; hurtigt svar p&aring; sp&oslash;rgsm&aring;l om brugen af SALDI<!-- samt sikret dig adgang til automatiske opdateringer -->.</p>\n\n";
 		print "<p>Se mere p&aring; <a href=\"http://saldi.dk/hotline\" target=\"_blank\">http://saldi.dk/hotline</a></p>\n\n";
 		print "<p>&nbsp;</p>\n\n";

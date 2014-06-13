@@ -1,5 +1,5 @@
 <?php
-// ----------debitor/ret_genfakt.php----------lap 3.2.9-----2013-01-17-------
+// ----------debitor/ret_genfakt.php----------lap 3.4.0-----2014-04-26-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,14 +16,19 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 16.08.2012 søg 20120816 - Udskriv_til i rødt hvis stamkort siger pbs og dette ikke er valgt.
 // 12.12.2012.søg 20121212 - Kontrolfejl v. pbs fakturering i 12. måned.
 // 17.01.2013 søg 20130117 - Fejl vi udskrivning til flere forskellige medier - f.eks alle til mail selvom 9 af 10 er til pbs.
+// 16.09.2013 Søg 20130916 - Rettet opret_ordrelinjer så pris er NULL i stedet fot 0,00 hvis pris ikke sat.
+// 01.10.2013 Søg 20131001 - Tilføjet opdatering af ordresum og moms ved "gem". 
+// 15.03.2014 Søg procent - Tilføjet procent alle steder hvor der er 'rabat' i forbindelse med indførelse af procentfakturering
+// 22.04.2014 Fejl v opdatering $r[procenttillag] rettet til $procenttillag[$y] Søg 20140422
+// 2014.04.26 - Indsat '' foran varenr[$x] i kald til opret_ordrelinje grundet ændring i funktionen (PHR - Danosoft) Søg 20140426 
 
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
@@ -63,6 +68,16 @@ $year=trim($r['box2']);
 $aarstart=str_replace(" ","",$year.$r['box1']);
 $year=trim($r['box4']);
 $aarslut=str_replace(" ","",$year.$r['box3']);
+
+$r=db_fetch_array(db_SELECT("select box12,box13 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
+$procentfakt=$r['box12'];
+list($default_procenttillag,$procentvare)=explode(chr(9),$r['box13']);
+if ($procentvare) {
+	$r=db_fetch_array(db_select("select beskrivelse from varer where varenr = '$procentvare'",__FILE__ . " linje " . __LINE__));
+	$tillag=$sum*$procenttillag/100;
+	$procentbeskr=var2str($r['beskrivelse'],$id);
+#	$procentbeskr=str_replace('$procenttillæg;',$procenttillag,$procentbeskr);
+}
 
 print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
 print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
@@ -109,6 +124,7 @@ if ($_GET['ordreliste']) {
 		$beskrivelse[$x]=$_POST['beskrivelse_'.$x];
 		$dkpris[$x]=$_POST['dkpris_'.$x];
 		$dkrabat[$x]=$_POST['dkrabat_'.$x];
+		$dkprocent[$x]=$_POST['dkprocent_'.$x];
 		$kdo[$x]=$_POST['kdo_'.$x];
 	}
 
@@ -126,7 +142,7 @@ if ($_GET['ordreliste']) {
 			$firmanavn[$x]=$_POST['firmanavn_'.$x];
 			$fakturadato[$x]=$_POST['fakturadato_'.$x];
 			$sync_stamdata[$x]=if_isset($_POST['sync_stamdata_'.$x]);
-			if ($sync_stamdata[$x]) echo "synkroniserer stamdata<br>";
+#			if ($sync_stamdata[$x]) echo "synkroniserer stamdata<br>";
 			if (substr($fakturadato[$x],-2)=="*=") {
 				$r=db_fetch_array(db_select("select fakturadate from ordrer where id = '$ordreliste[$x]' and status<'3'",__FILE__ . " linje " . __LINE__));
 				$gl_dato=dkdato($r['fakturadate']);
@@ -146,8 +162,10 @@ if ($_GET['ordreliste']) {
 			}
 			$udskriv_til[$x]=$_POST['udskriv_til_'.$x];
 			$email[$x]=$_POST['email_'.$x];
+			$sync_email[$x]=if_isset($_POST['sync_email_'.$x]);
 			$betalingsbet[$x]=$_POST['betalingsbet_'.$x];
 			$betalingsdage[$x]=$_POST['betalingsdage_'.$x]*1;
+			$procenttillag[$x]=usdecimal($_POST['procenttillag_'.$x]);
 			if (substr($betalingsdage[$x],-2)=="*=") {
 				$r=db_fetch_array(db_select("select betalingsbet,betalingsdage from ordrer where id = '$ordreliste[$x]' and status<'3'",__FILE__ . " linje " . __LINE__));
 				$gl_betalingsbet=$r['betalingsbet'];
@@ -166,7 +184,7 @@ if ($_GET['ordreliste']) {
 			$nextfakt=usdate($genfakt[$x]);
 			($udskriv_til[$x]=='email')?$mail_fakt='on':$mail_fakt='';
 			($udskriv_til[$x]=='PBS_BS' || $udskriv_til[$x]=='PBS_FI')?$pbs='on':$pbs='';
-			db_modify("update ordrer set firmanavn='$firmanavn[$x]',fakturadate='$fakturadate',nextfakt='$nextfakt',email='$email[$x]',udskriv_til='$udskriv_til[$x]',mail_fakt='$mail_fakt',projekt='$projekt[$x]',betalingsbet='$betalingsbet[$x]',betalingsdage='$betalingsdage[$x]' where id='$ordreliste[$x]'",__FILE__ . " linje " . __LINE__);
+			db_modify("update ordrer set firmanavn='$firmanavn[$x]',fakturadate='$fakturadate',nextfakt='$nextfakt',email='$email[$x]',udskriv_til='$udskriv_til[$x]',mail_fakt='$mail_fakt',projekt='$projekt[$x]',betalingsbet='$betalingsbet[$x]',betalingsdage='$betalingsdage[$x]',procenttillag='$procenttillag[$x]' where id='$ordreliste[$x]'",__FILE__ . " linje " . __LINE__);
 			if ($nextfakt<=$fakturadate) $fejltekst="Genfaktureringsdato skal v&aelig;re efter fakturadato ($firmanavn[$x])";
 			if (!$fejltekst && strstr($udskriv_til[$x],'PBS')) {
 				$betalingsdate=forfaldsdag($fakturadate, $betalingsbet[$x], $betalingsdage[$x]);
@@ -185,7 +203,6 @@ if ($_GET['ordreliste']) {
 		}
 	}
 	if ($fejltekst) print "<BODY onLoad=\"javascript:alert('$fejltekst')\">\n";
-
 	for ($x=1 ; $x<=$linjeantal ; $x++) {
 		if ($posnr[$x]=='-') {
 			if ($linje_id[$x]) db_modify("delete from ordrelinjer where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
@@ -194,24 +211,43 @@ if ($_GET['ordreliste']) {
 			$posnr[$x]=$posnr[$x]*1;
 			if ($dkantal[$x]=='') $dkantal[$x]=1; 
 			$antal=usdecimal($dkantal[$x]);
-			$pris=usdecimal($dkpris[$x]);
+			(strlen($dkpris[$x]))?$pris=usdecimal($dkpris[$x]):$pris=NULL; #20130916
 			$rabat=usdecimal($dkrabat[$x]);
+			$procent=usdecimal($dkprocent[$x]);
 			$beskrivelse[$x]=trim(db_escape_string($beskrivelse[$x]));
 			if (!$projekt[$x]) $projekt[$x]='';
 # if ($linje_id[$x]) echo "update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'<br>";
-			if ($linje_id[$x]) db_modify("update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-			elseif ($varenr[$x]) {
-				opret_ordrelinje($ordre_id[$x],$varenr[$x],$antal,$beskrivelse[$x],$pris,$rabat[$x],$art,$momsfri,$posnr[$x],$linje_id[$x],$incl_moms,$kdo[$x]);
+			if ($linje_id[$x]) {
+				$pris*=1;
+				db_modify("update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',procent='$procent',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+			} elseif ($varenr[$x]) {
+				opret_ordrelinje($ordre_id[$x],'',$varenr[$x],$antal,$beskrivelse[$x],$pris,$rabat,$procent,$art,$momsfri,$posnr[$x],$linje_id[$x],$incl_moms,$kdo[$x]); #20140426
 #				indset_varenr($varenr[$x],$posnr[$x],$antal,$beskrivelse[$x],$pris,$rabat,$ordre_id[$x]);
 			} elseif ($beskrivelse[$x])  {
-				db_modify("insert into ordrelinjer (posnr,antal,beskrivelse,pris,rabat,ordre_id,kdo) values ('$posnr[$x]','0','$beskrivelse[$x]','0','0','$ordre_id[$x]','$kdo[$x]')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into ordrelinjer (posnr,antal,beskrivelse,pris,rabat,ordre_id,kdo,procent) values ('$posnr[$x]','0','$beskrivelse[$x]','0','0','$ordre_id[$x]','$kdo[$x]','100')",__FILE__ . " linje " . __LINE__);
 			} else $ordre_id[$x]=NULL;
-			
 		}   
 	}
+	
 	for ($x=0 ; $x<=$ordreantal ; $x++) {
 		if ($ordreliste[$x]) {
 			if (!in_array($ordreliste[$x],$ordre_id)) $ordreliste[$x]=0;
+			else { # 20131001 ->
+				$r=db_fetch_array(db_select("select momssats from ordrer where id = '$ordreliste[$x]'",__FILE__ . " linje " . __LINE__));
+				$momssats=$r['momssats'];
+				$bl_moms=0;
+				$momssum=0;
+				$ordresum=0;
+				$q=db_select("select antal,pris,rabat,momsfri from ordrelinjer where ordre_id = '$ordreliste[$x]' and vare_id>'0'",__FILE__ . " linje " . __LINE__);
+				while($r=db_fetch_array($q)){
+					$linjesum=afrund($r['antal']*($r['pris']-($r['pris']*$r['rabat']/100)),2);
+					$ordresum+=$linjesum;
+					if ($momssats && !$r['momsfri']) $momssum+=afrund($linjesum*$momssats/100,2);
+					elseif ($momssats && $r['momsfri']) $bl_moms=1;
+				}
+				if($momssats && !$bl_moms) $momssum=$ordresum*$momssats/100;
+				db_modify("update ordrer set sum='$ordresum',moms='$momssum' where id='$ordreliste[$x]' and status < '3'",__FILE__ . " linje " . __LINE__);
+			}
 		}
 	}
 	if ($submit=='Fakturer' && !$fejltekst) {
@@ -222,18 +258,20 @@ if ($_GET['ordreliste']) {
 				($udskriv_til[$x]=='email')?$mail_fakt='on':$mail_fakt='';  #20130117
 				($udskriv_til[$x]=='PBS_BS' || $udskriv_til[$x]=='PBS_FI')?$pbs='on':$pbs='';  #20130117
 				$y++;
+				transaktion('begin');
 				levering($ordreliste[$x],'on','on');
 				$svar=bogfor($ordreliste[$x],'on','on');
 				if ($svar=='OK') {
-				if ($pbs) {
+					if ($pbs) {
 						pbsfakt($ordreliste[$x]);
 						$y--;  #20130117
-				}	elseif ($udskriv) $udskriv.=",$ordreliste[$x]";
-					else $udskriv="$ordreliste[$x]";
+					}	elseif ($udskriv) $udskriv.=",$ordreliste[$x]";
+						else $udskriv="$ordreliste[$x]";
+					transaktion('commit');
 				} elseif ($ordreantal) {
 					if (strpos($svar,'invoicedate prior to')) $tekst="Genfaktureringsdato før fakturadato";
-					else $tekst="Der er konstateret en ubalance i posteringssummen,\\nkontakt venligst Danosoft på tlf. +45 46902208";
-					print "<BODY onLoad=\"javascript:alert('$tekst')\">\n";
+					else $tekst="Der er konstateret en ubalance i posteringssummen\\nfor ordre $ordreliste[$x]\\nkontakt venligst Danosoft på tlf. +45 46902208";
+					print "<BODY onLoad=\"javascript:alert('$svar')\">\n";
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 					exit;
 				}
@@ -270,6 +308,7 @@ for ($x=0;$x<$ordreantal;$x++) {
 		$udskriv_til[$y]=$r['udskriv_til'];
 		$email[$y]=$r['email'];
 		$projekt[$y]=$r['projekt'];
+		$procenttillag[$y]=$r['procenttillag']*1;
 		if (!$email[$y] && $udskriv_til[$y]=='email') $udskriv_til[$y]='PDF';
 		$r=db_fetch_array(db_select("select pbs_nr,pbs from adresser where id = '$konto_id[$y]'",__FILE__ . " linje " . __LINE__));
 		$pbs[$y]=$r['pbs'];
@@ -285,13 +324,17 @@ for ($x=0;$x<$ordreantal;$x++) {
 		$stam_pbs[$y]=stripslashes(htmlentities(trim($r['pbs']),ENT_COMPAT,$charset));
 		$stam_pbs_nr[$y]=stripslashes(htmlentities(trim($r['pbs_nr']),ENT_COMPAT,$charset));
 		$stam_notes[$y]=stripslashes(htmlentities(trim($r['notes']),ENT_COMPAT,$charset));
-		if ($sync_stamdata[$y]) {
-			db_modify("update ordrer set firmanavn='".db_escape_string($r[firmanavn])."',addr1='".db_escape_string($r['addr1'])."',addr2='".db_escape_string($r['addr2'])."',postnr='".db_escape_string($r['postnr'])."',bynavn='".db_escape_string($r['bynavn'])."' where id='$id[$y]'",__FILE__ . " linje " . __LINE__);
+		if ($sync_stamdata[$y]) { #20140422
+			db_modify("update ordrer set firmanavn='".db_escape_string($r[firmanavn])."',addr1='".db_escape_string($r['addr1'])."',addr2='".db_escape_string($r['addr2'])."',postnr='".db_escape_string($r['postnr'])."',bynavn='".db_escape_string($r['bynavn'])."',procenttillag='$procenttillag[$y]' where id='$id[$y]'",__FILE__ . " linje " . __LINE__);
 			$firmanavn[$y]=$stam_firmanavn[$y];
 			$addr1[$y]=$stam_addr1[$y];
 			$addr2[$y]=$stam_addr2[$y];
 			$postnr[$y]=$stam_postnr[$y];
 			$bynavn[$y]=$stam_bynavn[$y];
+		}
+		if ($sync_email[$y]) {
+			db_modify("update ordrer set email='".db_escape_string($r['email'])."' where id='$id[$y]'",__FILE__ . " linje " . __LINE__);
+			$email[$y]=$stam_email[$y];
 		}
 	}
 } $ordreantal=$y;
@@ -321,21 +364,23 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	print "<td align=\"center\">Betalingsbet.</td>";
 	print "<td align=\"center\">Email</td>";
 	print "<td align=\"center\">udskriv_til</td>";
+	if ($procentvare) print "<td align=\"center\">%tillæg</td>";
 	print "</tr><tr>";
 	print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"text-align:left;width:100px\" value=\"$kontonr[$x]\"></td>";
 
 	if ($spantekst1 != $spantekst2) {
-		$style="text-align:left;width:300px;color:#ff0000";
+		$color="#FF0000";
 		$spantekst="Kundeinfo på ordre er forskellig fra kundeinfo i stamdata<br><b>Ordre:</b><br>$spantekst1<br><b>Stamkort</b><br>$spantekst2<br>Afm&aelig;rk feltet til h&oslash;jre for at synkronisere ordre med stamkort<br>";
 	} else { 
-		$style="text-align:left;width:300px;color:#000000";
+		$color="#000000";
 		$spantekst=$spantekst1;
 	}
+	$style="text-align:left;width:300px;color:$color";
 	$spantekst=db_escape_string($spantekst);
-	print "<td style=\"height:18px\"><span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\">
-	<input class=\"inputbox\" $onfocus type=\"text\" style=\"$style\" name=\"firmanavn_$x\" value=\"$firmanavn[$x]\"></span>";
+	print "<td style=\"height:18px;\"><span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\">
+	<input style=\"$style\" class=\"inputbox\" onfocus=\"fokuser(this,'$color','#EFEFEF');\" onblur=\"defokuser(this,'$color','#FFFFFF');\" type=\"text\" name=\"firmanavn_$x\" value=\"$firmanavn[$x]\"></span>";
 	if ($spantekst1 != $spantekst2) {
-		print "<input  class=\"inputbox\" type=\"checkbox\" name=\"sync_stamdata_$x\">";
+		print "<input class=\"inputbox\" type=\"checkbox\" name=\"sync_stamdata_$x\">";
 	}
 	print "</td>";
 	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:center;width:90px\" name=\"fakturadato_$x\" value=\"$fakturadato[$x]\"></td>";
@@ -344,20 +389,21 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 
 	if (!$betalingsbet) $betalingsbet="Netto";
 	print "<option>$betalingsbet[$x]</option>\n";
-	if ($betalingsbet[$x]!='Forud') 	{print "<option>Forud</option>\n";}
-	if ($betalingsbet[$x]!='Kontant')	{print "<option>Kontant</option>\n";}
-	if ($betalingsbet[$x]!='Efterkrav')	{print "<option>Efterkrav</option>\n";}
-	if ($betalingsbet[$x]!='Netto'){print "<option>Netto</option>\n";}
-	if ($betalingsbet[$x]!='Lb. md.'){print "<option>Lb. md.</option>\n";}
-	if (($betalingsbet[$x]=='Kontant')||($betalingsbet[$x]=='Efterkrav')||($betalingsbet[$x]=='Forud')) {$betalingsdage[$x]='';}
-	elseif (!$betalingsdage[$x]) {$betalingsdage[$x]='Nul';}
+	if ($betalingsbet[$x]!='Forud') 	print "<option>Forud</option>\n";
+	if ($betalingsbet[$x]!='Kontant')	print "<option>Kontant</option>\n";
+	if ($betalingsbet[$x]!='Efterkrav')	print "<option>Efterkrav</option>\n";
+	if ($betalingsbet[$x]!='Netto') print "<option>Netto</option>\n";
+	if ($betalingsbet[$x]!='Lb. md.') print "<option>Lb. md.</option>\n";
+	if (($betalingsbet[$x]=='Kontant')||($betalingsbet[$x]=='Efterkrav')||($betalingsbet[$x]=='Forud')) $betalingsdage[$x]='';
+	elseif (!$betalingsdage[$x]) $betalingsdage[$x]='Nul';
 	if ($betalingsdage[$x])	{
-		if ($betalingsdage[$x]=='Nul') {$betalingsdage[$x]=0;}
+		if ($betalingsdage[$x]=='Nul') $betalingsdage[$x]=0;
 		print "</SELECT>+<input class=\"inputbox\" $onfocus type=\"text\" size=\"1\" style=\"text-align:right\" name=\"betalingsdage_$x\" value=\"$betalingsdage[$x]\"></td>\n";
 	}
 	if ($email[$x] != $stam_email[$x]) {
-		$spantekst="Email på ordre er forskellig fra email i stamdata ($stam_email[$x])<br>";
-		print "<td><span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\"><input class=\"inputbox\" $onfocus type=\"text\" style=\" text-align:center;width:90px;color:#ff0000\" name=\"email_$x\" value=\"$email[$x]\"></span></td>";
+		$spantekst="Email på ordre er forskellig fra email i stamdata ($stam_email[$x])<br>Afmærk feltet til højre for at synkronisere med email fra stamdata";
+		print "<td><span onmouseover=\"return overlib('$spantekst', WIDTH=800);\" onmouseout=\"return nd();\" style=\"color:#ff0000;\"><input class=\"inputbox\" $onfocus type=\"text\" style=\" text-align:center;width:90px;color:#ff0000\" name=\"email_$x\" value=\"$email[$x]\"></span>";
+		print "<input class=\"inputbox\" type=\"checkbox\" name=\"sync_email_$x\"></td>";
 	} else {
 		print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:center;width:90px\" name=\"email_$x\" value=\"$email[$x]\"></td>";
 	}
@@ -381,6 +427,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	}
 	if ($udskriv_til[$x]!="oioxml" && strlen($ean)==13) print "<option title=\"Kun ved fakturering/kreditering.\">oioxml</option>\n";
 	print "</select</span></td>";
+	if ($procentvare) print "<td align=\"center\"><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:center;width:50px\" name=\"procenttillag_$x\" value=\"".dkdecimal($procenttillag[$x])."\"></td>";
 	if ($stam_notes[$x]) {
 		$tmp=str_replace("\n","<br>",$stam_notes[$x]);
 		$tmp=str_replace("\r","",$tmp);
@@ -390,16 +437,18 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	print "</tbody></table></td></tr>";
 	print "<tr><td><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 	print "<tr>";
-	print "<td align=\"center\">Pos<td>";
-	print "<td align=\"center\">Varenr<td>";
-	print "<td align=\"center\">Antal<td>";
-	print "<td align=\"center\">Beskrivelse<td>";
-	print "<td align=\"center\">Pris<td>";
-	print "<td align=\"center\">Rabat<td>";
-	print "<td align=\"center\">I alt<td>";
-	print "<td align=\"center\" title=\"Kun denne ordre! Hvis dette felt er afm&aelig;rket medtages linjen ikke ved n&aelig;ste genfakturering\">kdo<td>";
+	print "<td align=\"center\">Pos</td>";
+	print "<td align=\"center\">Varenr</td>";
+	print "<td align=\"center\">Antal</td>";
+	print "<td align=\"center\">Beskrivelse</td>";
+	print "<td align=\"center\">Pris</td>";
+	print "<td align=\"center\">Rabat</td>";
+	if ($procentfakt) print "<td align=\"center\">Procent</td>";
+	print "<td align=\"center\">I alt</td>";
+	print "<td align=\"center\" title=\"Kun denne ordre! Hvis dette felt er afm&aelig;rket medtages linjen ikke ved n&aelig;ste genfakturering\">kdo</td>";
 	print "</tr><tr>";
 	$posnr=0;
+	$ordresum=0;	
 	$q=db_select("select * from ordrelinjer where ordre_id = '$id[$x]' order by posnr",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)){
 		$y++;
@@ -410,52 +459,75 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 		$beskrivelse[$y]=stripslashes(htmlentities(trim($r['beskrivelse']),ENT_COMPAT,$charset));
 		$dkpris[$y]=dkdecimal($r['pris']);
 		$dkrabat[$y]=dkdecimal($r['rabat']);
+		$dkprocent[$y]=dkdecimal($r['procent']);
 		$projekt[$y]=$r['projekt'];
 		if ($r['kdo']) $kdo[$y]='checked';
 		else $kdo[$y]='';
 
-		$linjesum=dkdecimal($r['pris']*$r['antal']-($r['pris']*$r['antal']*$r['rabat']/100))	;
+		$linjesum=$r['pris']*$r['antal']-($r['pris']*$r['antal']*$r['rabat']/100);
+		if ($procentfakt)$linjesum*=$r['procent']/100;
+		$ordresum+=$linjesum;
+		$linjesum=dkdecimal($linjesum);
 		print "<input type=\"hidden\" name=\"linje_id[$y]\" value=\"$linje_id[$y]\">";
 		print "<input type=\"hidden\" name=\"ordre_id[$y]\" value=\"$id[$x]\">";
 		print "<input type=\"hidden\" name=\"projekt[$y]\" value=\"$projekt[$y]\">";
 		print "<tr>";
-		print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:30px\" name=\"posnr_$y\" value=\"$posnr\"><td>";
+		print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:30px\" name=\"posnr_$y\" value=\"$posnr\"></td>";
 		if ($varenr[$y]) {
-			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:80px\" name=\"varenr_$y\" value=\"$varenr[$y]\"><td>";
-			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkantal_$y\" value=\"$dkantal[$y]\"><td>";
+			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:80px\" name=\"varenr_$y\" value=\"$varenr[$y]\"></td>";
+			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkantal_$y\" value=\"$dkantal[$y]\"></td>";
 		} else {
-			print "<td><input class=\"inputbox\" $onfocus readonly=\"readonly\" style=\"width:80px\"><td>";
-			print "<td><input class=\"inputbox\" $onfocus readonly=\"readonly\" style=\"width:50px\"><td>";
+			print "<td><input class=\"inputbox\" $onfocus readonly=\"readonly\" style=\"width:80px\"></td>";
+			print "<td><input class=\"inputbox\" $onfocus readonly=\"readonly\" style=\"width:50px\"></td>";
 		}
 		$title=var2str($beskrivelse[$y],$id[$x]);
-		print "<td title=\"$title\"><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:600px\" name=\"beskrivelse_$y\" value='$beskrivelse[$y]'><td>";
+		print "<td title=\"$title\"><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:600px\" name=\"beskrivelse_$y\" value='$beskrivelse[$y]'></td>";
 		if ($varenr[$y]) {
-			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:80px\" name=\"dkpris_$y\" value=\"$dkpris[$y]\"><td>";
-			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkrabat_$y\" value=\"$dkrabat[$y]\"><td>";
-			print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"text-align:right;width:80px\" value=\"$linjesum\"><td>";
+			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:80px\" name=\"dkpris_$y\" value=\"$dkpris[$y]\"></td>";
+			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkrabat_$y\" value=\"$dkrabat[$y]\"></td>";
+			if ($procentfakt) print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkprocent_$y\" value=\"$dkprocent[$y]\"></td><td>";
+			else print "<td><input type=\"hidden\" name=\"dkprocent_$y\" value=\"100\">";
+			print "<input class=\"inputbox\" readonly=\"readonly\" style=\"text-align:right;width:80px\" value=\"$linjesum\"></td>";
 		} else {
-			print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"width:80px\"><td>";
-			print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"width:50px\"><td>";
-			print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"width:80px\"><td>";
+			print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"width:80px\"></td>";
+			print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"width:50px\"></td>";
+			print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"width:80px\"></td>";
 		}
  		print "<td title=\"Hvis dette felt er afm&aelig;rket medtages linjen ikke ved n&aelig;ste genfakturering\" align = \"center\">
-			<input class=\"inputbox\" type=\"checkbox\" $onfocus name=\"kdo_$y\" $kdo[$y]><td>";
+			<input class=\"inputbox\" type=\"checkbox\" $onfocus name=\"kdo_$y\" $kdo[$y]></td>";
 		print "</tr>";
 	}
 	$y++;
 	$posnr++;
 	print "<input type=\"hidden\" name=\"ordre_id[$y]\" value=\"$id[$x]\">";
 	print "<tr>";
-	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:30px\" name=\"posnr_$y\" value=\"$posnr\"><td>";
-	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:80px\" name=\"varenr_$y\"><td>";
-	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkantal_$y\"><td>";
-	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:600px\" name=\"beskrivelse_$y\"><td>";
-	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:80px\" name=\"dkpris_$y\"><td>";
-	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkrabat_$y\"><td>";
-	print "<td><input class=\"inputbox\" readonly=\"readonly\" style=\"text-align:right;width:80px\"><td>";
+	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:30px\" name=\"posnr_$y\" value=\"$posnr\"></td>";
+	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:80px\" name=\"varenr_$y\"></td>";
+	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkantal_$y\"></td>";
+	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:600px\" name=\"beskrivelse_$y\"></td>";
+	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:80px\" name=\"dkpris_$y\"></td>";
+	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkrabat_$y\"></td>";
+	if ($procentfakt) print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkprocent_$y\" value=\"100\"></td><td>";
+	else print "<td><input type=\"hidden\" name=\"dkprocent_$y\" value=\"100\">";
+	print "<input class=\"inputbox\" readonly=\"readonly\" style=\"text-align:right;width:80px\"></td>";
 	print "<td title=\"Hvis dette felt er afm&aelig;rket medtages linjen ikke ved n&aelig;ste genfakturering\" align = \"center\">
-		<input class=\"inputbox\" $onfocus type=\"checkbox\" name=\"kdo_$y\" checked><td>";
+		<input class=\"inputbox\" $onfocus type=\"checkbox\" name=\"kdo_$y\" checked></td>";
 	print "</tr>";
+	if ($procenttillag[$x]) {
+		$tillag=$ordresum*$procenttillag[$x]/100;
+#echo htmlentities($procentbeskr)." -> $procenttillag[$x]<br>";
+		$pctbesk=str_replace('$procenttillæg;',dkdecimal($procenttillag[$x]),$procentbeskr);
+		print "<tr>";
+		print "<td></td>";
+		print "<td>$procentvare</td>";
+		print "<td></td>";
+		print "<td>$pctbesk</td>";
+		print "<td colspan=\"2\"></td>";
+		if ($procentfakt) print "<td></td>";
+		print "<td align=\"right\">".dkdecimal($tillag)."</td>";
+		print "<td</td>";
+		print "</tr>";
+	}
 	print "</tbody></table></td></tr>";
 }
 print "<input type=\"hidden\" name=\"fokus\" id=\"fokus\">";

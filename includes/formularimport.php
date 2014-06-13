@@ -2,7 +2,7 @@
 #	@session_start();
 #	$s_id=session_id();
 
-// ----------/systemdata/formularimport.php-----lap 3.2.9------2013.05.10---------------------------------
+// ----------/systemdata/formularimport.php-----lap 3.3.2------2013.08.19---------------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -24,16 +24,16 @@
 // Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20130510, Tilføjet $formularnr.
+// 20130819, Tilføjet sporingsdata. Søg 20130819.
 
-function formularimport($filnavn,$formularnr) 
-{
+function formularimport($filnavn,$formularnr) {
 	global $db_encode;
 	
-	$fp=fopen($filnavn,"r");
+$fp=fopen($filnavn,"r");
 	if ($fp) {
 		if ($formularnr) $qtxt="delete from formularer where formular='$formularnr'";
 		else $qtxt="delete from formularer";
-		db_modify("$qtxt");
+		db_modify("$qtxt",__FILE__ . " linje " . __LINE__); # 20130819
 		while (!feof($fp)) {
 			$linje=fgets($fp);
 			$linje=str_replace("\n","",$linje);

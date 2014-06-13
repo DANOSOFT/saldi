@@ -1,11 +1,18 @@
 <?php
-// ----------debitor/kassespor.php-------------lap 3.1.8-----2011-05-11-----
+// ----------debitor/kassespor.php-------------lap 3.3.3-----2013-08-13-----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+// Dette program er udgivet med haab om at det vil vaere til gavn,
+// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
+// GNU General Public Licensen for flere detaljer.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
@@ -14,7 +21,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 ob_start();
 @session_start();
@@ -53,7 +60,7 @@ $start = if_isset($_GET['start']);
 	$afdelinger=if_isset($_POST['afdelinger']);
 #	$sort = if_isset($_POST['sort']);
 #	$nysort = if_isset($_POST['nysort']);
-	$idnumre = if_isset($_POST['idnumre']);
+	$idnumre = trim(if_isset($_POST['idnumre']));
 	$kontonumre = if_isset($_POST['kontonumre']);
 	$fakturanumre = if_isset(trim($_POST['fakturanumre']));
 	$sum = if_isset($_POST['sum']);
@@ -67,9 +74,15 @@ $start = if_isset($_GET['start']);
 
 	$cookievalue="$fakturadatoer;$logtime;$afdelinger;$sort;$nysort;$idnumre;$fakturanumre;$sum;$betalinger;$betalinger2;$modtagelser;$modtagelser2;$kasser;$ref;$linjeantal";
 	setcookie("saldi_kassespor", $cookievalue);
+	
 } else {
+
 	list ($fakturadatoer,$logtime,$afdelinger,$sort,$nysort,$idnumre,$fakturanumre,$sum,$betalinger,$betalinger2,$modtagelser,$modtagelser2,$kasser,$ref,$linjeantal) = explode(";", $_COOKIE['saldi_kassespor']);
 	$beskrivelse=str_replace("semikolon",";",$beskrivelse);
+
+	if (isset($_GET['sort'])) $sort = $_GET['sort'];
+	if (isset($_GET['nysort'])) $nysort = $_GET['nysort'];
+
 }
 ob_end_flush();  //Sender det "bufferede" output afsted...
 
@@ -77,7 +90,6 @@ if (!$fakturadatoer&&!$logtime&&!$afdelinger&&!$sort&&!$nysort&&!$idnumre&&!$fak
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__));
 	$fakturadatoer="01".$r['box1'].substr($r['box2'],-2).":31".$r['box3'].substr($r['box4'],-2);
 }
-
 if ($logtid) {
 	list ($h,$m)=explode(":",$logtid);
 	$h=$h*1;
@@ -93,7 +105,6 @@ $modulnr=2;
 if (!$sort) {$sort = "id desc";}
 elseif ($nysort==$sort){$sort=$sort." desc";}
 elseif ($nysort) {$sort=$nysort;}
-
 $x=0;
 $q=db_select("select distinct(lower(felt_1)) as felt_1 from ordrer where art = 'PO' and felt_1 != '' order by felt_1",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
@@ -139,14 +150,14 @@ print "<td style=\"text-align:center;width:60px\"><b><a href='kassespor.php?nyso
 print "<td style=\"text-align:center;width:110px\"><b><a href='kassespor.php?nysort=fakturadate&sort=$sort&valg=$valg$hreftext'>Bondato</a></b></td>";
 print "<td style=\"text-align:center;width:50px\"><b>Tidspkt.</a></b></td>";
 #print "<td align=center><b><a href='kassespor.php?nysort=kontonr&sort=$sort&valg=$valg$hreftext'>Konto</b></td>";
-print "<td style=\"text-align:center;width:110px\"><b><a href='kassespor.php?nysort=faktura&sort=$sort&valg=$valg$hreftext'>Bonnr</a></b></td>";
-print "<td style=\"text-align:center;width:50px\"><b><a href='kassespor.php?nysort=kasse&sort=$sort&valg=$valg$hreftext'>Kasse</a></b></td>";
+print "<td style=\"text-align:center;width:110px\"><b><a href='kassespor.php?nysort=fakturanr&sort=$sort&valg=$valg$hreftext'>Bonnr</a></b></td>";
+print "<td style=\"text-align:center;width:50px\"><b><a href='kassespor.php?nysort=felt_5&sort=$sort&valg=$valg$hreftext'>Kasse</a></b></td>";
 print "<td style=\"text-align:center;width:50px\"><b><a href='kassespor.php?nysort=ref&sort=$sort&valg=$valg$hreftext'>Ref.</a></b></td>";
-print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=belob&sort=$sort&valg=$valg$hreftext'>Beløb</a></b></td>";
-print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=betaling&sort=$sort&valg=$valg$hreftext'>Betaling 1</a></b></td>";
-print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=modtaget&sort=$sort&valg=$valg$hreftext'>Modtaget</a></b></td>";
-print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=betaling2&sort=$sort&valg=$valg$hreftext'>Betaling 2</a></b></td>";
-print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=modtaget2&sort=$sort&valg=$valg$hreftext'>Modtaget 2</a></b></td>";
+print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=sum&sort=$sort&valg=$valg$hreftext'>Beløb</a></b></td>";
+print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_1&sort=$sort&valg=$valg$hreftext'>Betaling 1</a></b></td>";
+print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_2&sort=$sort&valg=$valg$hreftext'>Modtaget</a></b></td>";
+print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_3&sort=$sort&valg=$valg$hreftext'>Betaling 2</a></b></td>";
+print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_4&sort=$sort&valg=$valg$hreftext'>Modtaget 2</a></b></td>";
 print "<td style=\"text-align:center;width:100px\"><b>Retur</a></b></td>";
 print "</tr>\n";
 
@@ -159,7 +170,8 @@ print "<input type=hidden name=start value=\"$start\">";
 print "<tr>";
 print "<td align=center><span title= 'Angiv et id-nummer eller angiv to adskilt af kolon (f.eks 345:350)'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:60px;height:20px;font-size:12px\" name=\"idnumre\" value=\"$idnumre\"></td>";
 print "<td align=center><span title= 'Angiv en bondato eller angiv to adskilt af kolon (f.eks 010605:300605)'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:110px;height:20px;font-size:12px\" name=\"fakturadatoer\" value=\"$fakturadatoer\"></td>";
-print "<td align=center><span title= 'Angiv et tidspunkt  (f.eks 17:35)'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;height:20px;font-size:12px\" name=\"logtid\" value=\"$logtid\"></td>";
+#print "<td align=center><span title= 'Angiv et tidspunkt  (f.eks 17:35)'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;height:20px;font-size:12px\" name=\"logtid\" value=\"$logtid\"></td>";
+print "<td></td>";
 print "<td align=center><span title= 'Angiv et bonnummer eller angiv to adskilt af kolon (f.eks 345:350)'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:110px;height:20px;font-size:12px\" name=\"fakturanumre\" value=\"$fakturanumre\"></td>";
 print "<td align=center><span title= 'Angiv et kasse nr. eller angiv to adskilt af kolon (f.eks 3:4)'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;height:20px;font-size:12px\" name=\"kasser\" value=\"$kasser\"></td>";
 print "<td align=center><span title= 'Angiv brugernavn p&aring; ekspedient'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;height:20px;font-size:12px\" name=\"ref\" value=\"$ref\"></td>";
@@ -205,7 +217,7 @@ function udskriv($fakturadatoer,$logtime,$afdelinger,$sort,$nysort,$idnumre,$fak
 	if ($modtagelser) $udvaelg=$udvaelg.udvaelg($modtagelser, 'ordrer.felt_2', 'TEXT');
 	if ($modtagelser2) $udvaelg=$udvaelg.udvaelg($modtagelser2, 'ordrer.felt_4', 'TEXT');
 	if ($belob) $udvaelg=$udvaelg.udvaelg($belob, 'ordrer.sum', 'BELOB');
-	if ($modtagelser) $udvaelg=$udvaelg.udvaelg($modtagelser, 'ordrer.felt_5', 'TEXT');
+#	if ($modtagelser) $udvaelg=$udvaelg.udvaelg($modtagelser, 'ordrer.felt_5', 'TEXT');
 	if ($kasser) $udvaelg=$udvaelg.udvaelg($kasser, 'ordrer.felt_5','NR');
 	if ($ref) $udvaelg=$udvaelg.udvaelg($ref, 'ordrer.ref', '');
 
@@ -264,7 +276,7 @@ function udskriv($fakturadatoer,$logtime,$afdelinger,$sort,$nysort,$idnumre,$fak
 				print "<td align=right>".dkdecimal($r['felt_2'],2)."<br></td>";
 				if ($r['felt_1']=='Konto') print "<td><br></td><td><br></td>";
 				else {
-					print "<td align=right>$r[felt_3]<br></td>";
+					print "<td align=right>".dkdecimal($r['felt_3'],2)."<br></td>";
 					if ($r['felt_3']) print "<td align=right>".dkdecimal($r['felt_4'],2)."<br></td>";
 					else print "<td><br></td>";
 					$retur=(($r['felt_2']+$r['felt_4'])-($r['sum']+$r['moms']));

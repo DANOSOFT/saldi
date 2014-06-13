@@ -1,5 +1,5 @@
 <?php
-// -----------index/index.php-----------lap 3.2.9------2013-01-26---
+// -----------index/index.php-----------lap 3.4.1------2014-04-28---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20140106	Tilføjet link til glemt kode
+// 20140428 Flyttet timestamp 3 linjer op (før </form>) (Forumbruger nielsrune) Søg 20140428    
+
 $regnskab=''; $navn=''; $kode=''; 
 $css="../css/standard.css";
 
@@ -61,9 +64,9 @@ else $vejledning="http://saldi.dk/dok/komigang.html";
 
 PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 <html>\n
-<head><title>$title</title>";
+<head><title>Saldi login</title>";
 if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">";
-print "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\"></head>\n";
+print "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n<meta http-equiv=\"content-language\" content=\"da\">\n</head>\n";
 print "<body><table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";# Tabel 1 ->
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; #Tabel 1.1 ->
@@ -72,12 +75,12 @@ print "<td style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;;ba
 print "<td style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;;background:url(../img/grey1.gif)\" width=\"45%\" align = \"right\">&nbsp;</td></tr>\n";
 print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"middle\">\n"; # <- tabel 1.1 slut
 print "<table width=\"350\" align=\"center\" border=\"5\" cellspacing=\"5\" cellpadding=\"5\"><tbody>"; # tabel 1.2 ->
-print "<tr><td><FORM name=\"login\" METHOD=\"POST\" ACTION=\"login.php\" onSubmit=\"return handleLogin(this);\"><table width=\"100%\" align=center border=\"0\" cellspacing=\"0\" cellpadding=\"1\"><tbody>"; # tabel 1.2.1 ->
+print "<tr><td><FORM name=\"login\" METHOD=\"POST\" ACTION=\"login.php\" onSubmit=\"return handleLogin(this);\"><table width=\"100%\" align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; # tabel 1.2.1 ->
 if (isset($mastername)&&$mastername) $tmp="<big><big><big><b>$mastername</b></big></big></big>";   
 elseif (strpos($_SERVER['PHP_SELF'],"beta")) $tmp="<big><big><big><b>!!! BETA !!!</b></big></big></big>";
 else $tmp="<big><big><big><b>SALDI</b></big></big></big>";
 print "<tr><td colspan=\"2\">";
-print "<table width=\"100%\"><tbody><tr><td width=\"10%\">"; # tabel 1.2.1.1 ->
+print "<table width=\"100%\" border=\"0\"><tbody><tr><td width=\"10%\">"; # tabel 1.2.1.1 ->
 print "";
 if (file_exists("../img/logo.png")) print "<img style=\"border:0px solid;width:50px;heigth:50px\" alt=\"\" src=\"../img/logo.png\">";
 print "</td><td width=\"80%\" align=\"center\">$tmp</td><td width=\"10%\" align=\"right\">";
@@ -110,11 +113,15 @@ print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"pwtj
 if (isset($mastername) && strtolower($mastername)=='rotary') {
 	print "<tr><td colspan=\"2\" align=center>".findtekst(325,$sprog_id)."</td></tr>\n";
 }
-print "</tbody></table><INPUT TYPE=\"HIDDEN\" name=\"timestamp\" value=\"".date("U")."\"></FORM></td></tr>\n"; # <- tabel 1.2.1
+print "<input type=\"hidden\" name=\"timestamp\" value=\"".date("U")."\">"; #20140428
+print "</tbody></table></FORM></td></tr>\n"; # <- tabel 1.2.1
+print "<tr><td colspan=\"2\" align=\"center\">
+		<a href=\"glemt_kode.php\">Glemt adgangskode</a>
+		</td></tr>\n";
 print	"</tbody></table></td></tr>\n"; # <- tabel 1.2
 print "<tr><td align=\"center\" valign=\"bottom\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.3 ->
-print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2013&nbsp;DANOSOFT&nbsp;ApS</td>";
+print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2014&nbsp;DANOSOFT&nbsp;ApS</td>";
 print "<td width=\"60%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"center\">Et <a href=\"http://www.saldi.dk\" target=\"blank\">SALDI</a> regnskab</td>";
 print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\"><br></td>";
 print "</tr></tbody></table>"; # <- tabel 1.3

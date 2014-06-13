@@ -98,6 +98,7 @@
 7750	Leje af driftsmidler	D	K1	0
 7800	Diverse inkl. moms	D	K1	0
 7900	Diverse ekskl. moms	D		0
+7940	Øredifferencer	D		0
 7950	Reg. kassedifferencer	D		0
 7960	Valutadifferencer	D		0
 8000	ADMINISTRATION I ALT	Z		6100

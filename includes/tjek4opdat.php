@@ -1,12 +1,16 @@
 <?php
 
-// --------------index/login.php----------lap 3.3.1----- 2013-07-05------
+// --------------index/login.php----------lap 3.4.1----- 2014-05-02------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
 // som er udgivet af The Free Software Foundation; enten i version 2
 // af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
 //
 // Dette program er udgivet med haab om at det vil vaere til gavn,
 // men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
@@ -15,8 +19,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 2013.09.06 Indsat $b=3;$c=0;  Søg 20130906  
+// 2014.05.02 Indsat $b==4{ osv. PHR Danosoft Søg 20140502
 
 if (!function_exists('tjek4opdat')) {
 	function tjek4opdat($dbver,$version) {
@@ -71,10 +77,17 @@ if (!function_exists('tjek4opdat')) {
 				if ($b==2) {
 					include("../includes/opdat_3.2.php");
 					opdat_3_2($b,$c);
+					$b=3;$c=0; #20130906
 				}
 				if ($b==3) {
 					include("../includes/opdat_3.3.php");
 					opdat_3_3($b,$c);
+					$b=4;$c=0;
+				}
+				if ($b==4) { #20140502
+					include("../includes/opdat_3.4.php");
+					opdat_3_4($b,$c);
+					$b=5;$c=0;
 				}
 			}
 		}

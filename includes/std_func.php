@@ -1,5 +1,5 @@
 <?php
-// -----------includes/std_func.php-------lap 3.2.9----2013-02-10-----
+// -----------includes/std_func.php-------lap 3.4.1----2014-05-05-----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,13 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 //
 // 2013.02.10 Break ændret til break 1
-
+// Tastefejl rettet.
+// 2014.05.01 Funktion findtekst - teksten ignoreres nu hvis tekst="-"
+// 2014.05.05 Funktion findtekst insdat db_escape_string. (PHR - Danosoft) Søg 20140505
 
 if (!function_exists('nr_cast')) {
 	function nr_cast($tekst)
@@ -211,10 +213,12 @@ if (!function_exists('findtekst')) {
 		}
 		if ($ny_tekst) {
 			if ($db_encode!="UTF8") $ny_tekst=utf8_decode($ny_tekst);
-			db_modify("insert into tekster(sprog_id,tekst_id,tekst) values ('$sprog_id','$tekst_id','$ny_tekst')",__FILE__ . " linje " . __LINE__);
+			$tmp=db_escape_string($ny_tekst); #20140505
+			db_modify("insert into tekster(sprog_id,tekst_id,tekst) values ('$sprog_id','$tekst_id','$tmp')",__FILE__ . " linje " . __LINE__);
 			$tekst=$ny_tekst;
 		} 
 		if (!$tekst) $tekst="Tekst nr: $tekst_id";
+		elseif ($tekst=="-") $tekst='';
 		return ($tekst);
 	}
 }

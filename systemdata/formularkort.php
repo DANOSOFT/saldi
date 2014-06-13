@@ -1,5 +1,5 @@
 <?php
-// -------systemdata/formularkort-------lap 3.2.9-----2013.03.21-------
+// -------systemdata/formularkort-------lap 3.2.9-----2014.01.24-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2013.02.12 Tilføjet linjemoms og varemomssats, søg linjemoms eller varemomssats 
-// 2013.02.21 Tilføjet kontokort (formular 11) 
+// 2013.02.21 Tilføjet kontokort (formular 11)
+// 2013.08.15 Tilføjet Indkøbsforslag, Rekvisision & Købsfaktura (formular 12,13,14)
+// 2014.01.24 #1 Tilføjet *1 for at sikre at værdi er numerisk Søg 20140124
+// 2014.01.24 #2 Sat if ($id2) foran for at spare en unødig 0 transaktion 20140124
+
 
 @session_start();
 $s_id=session_id();
@@ -212,7 +216,7 @@ print "</tbody></table></td></tr>";
 if ($nyt_sprog) sprog($nyt_sprog,$skabelon,$handling);
 print "<tr><td align=center width=100%><table align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 
-$formular=array("","Tilbud","Ordrebekr&aelig;ftelse","F&oslash;lgeseddel","Faktura","Kreditnota","Rykker_1","Rykker_2","Rykker_3","Plukliste","","Kontokort","Forslag","Rekvisition","Lev.afregning");
+$formular=array("","Tilbud","Ordrebekr&aelig;ftelse","F&oslash;lgeseddel","Faktura","Kreditnota","Rykker_1","Rykker_2","Rykker_3","Plukliste","","Kontokort","Indk&oslash;bsforslag","Rekvisition","K&oslash;bsfaktura");
 
 print "<tr><td colspan=10 align=center><table><tbody>";
 print "<form name=formularvalg action=$_SERVER[PHP_SELF] method=\"post\">";
@@ -362,7 +366,7 @@ $tmp = addslashes($formularsprog);
 			$id1=$r['id'];
 		} elseif ($r['xa']==2) {
 			$mailtext=str_replace("<br>","\n",$r['beskrivelse']);
-			$id2=$r['id'];
+			$id2=$r['id']*1; #20140124
 		}
 		print "<input type=hidden name='id[$x]' value='$r[id]'>";
 		print "<input type=hidden name='xa[$x]' value='$x'>";
@@ -370,7 +374,7 @@ $tmp = addslashes($formularsprog);
 		print "<input type=hidden name='art' value='$art'>";
 		print "<input type=hidden name='sprog' value='$formularsprog'>";
 	}
-	db_modify("delete from formularer where formular = '$form_nr' and art = '$art_nr' and sprog='$formularsprog' and id!='$id1' and id != '$id2'",__FILE__ . " linje " . __LINE__);
+	if ($id2) db_modify("delete from formularer where formular = '$form_nr' and art = '$art_nr' and sprog='$formularsprog' and id!='$id1' and id != '$id2'",__FILE__ . " linje " . __LINE__); #20140124
 	print "<tr><td title=\"".findtekst(217,$sprog_id)."\">".findtekst(216,$sprog_id)."&nbsp;</td><td title=\"".findtekst(217,$sprog_id)."\"><input class=\"inputbox\" type=\"text\" size=\"40\" name=\"beskrivelse[1]\" value = \"$subjekt\"></td></tr>\n";
 	print "<tr><td title=\"".findtekst(219,$sprog_id)."\" valign=\"top\">".findtekst(218,$sprog_id)."&nbsp;</td><td colspan=4  title=\"".findtekst(219,$sprog_id)."\"><textarea name=\"beskrivelse[2]\" rows=\"5\" cols=\"100\" onchange=\"javascript:docChange = true;\">$mailtext</textarea></td></tr>\n";
 }
@@ -562,6 +566,9 @@ function ordrelinjer($form_nr,$art_nr,$formularsprog){
 	print "<td align=center>Y</td>";
 	print "<td align=center>Linafs.</td></tr>";
 	#		print "<td align=center>Understr.</td></tr>";
+	$r = db_fetch_array(db_select("select box12 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
+	$procentfakt=$r['box12'];
+	
 	$row=db_fetch_array(db_select("select * from formularer where formular = $form_nr and art = $art_nr and beskrivelse = 'generelt' and sprog='$formularsprog' order by xa",__FILE__ . " linje " . __LINE__));
 	if (!$row['id']) {
 		db_modify ("insert into formularer (formular, art, beskrivelse, xa, ya, xb,sprog) values ($form_nr, $art_nr, 'generelt', 34, 185, 4,'$formularsprog')",__FILE__ . " linje " . __LINE__);
@@ -579,17 +586,19 @@ function ordrelinjer($form_nr,$art_nr,$formularsprog){
 	print "<td align=center>Just.</td><td align=center>Font</td><td align=center> Fed</td>";
 	print "<td align=center> Kursiv</td><td align=center> Tekstl&aelig;ngde</td></tr>";
 
-$x=0;
+	$x=0;
 	print "<tr>";
 	print "<td><SELECT class=\"inputbox\" NAME=beskrivelse[$x]>";
-	if ($form_nr<6 || $form_nr==9) {
+	if ($form_nr<6 || $form_nr==9 || ($form_nr>=12 && $form_nr<=14)) {
 		print "<option>posnr</option>";
 		print "<option>varenr</option>";
+		print "<option>lev_varenr</option>";
 		print "<option>antal</option>";
 		print "<option>enhed</option>";
 		print "<option>beskrivelse</option>";
 		print "<option>pris</option>";
 		print "<option>rabat</option>";
+		if ($procentfakt) print "<option>procent</option>";
 		print "<option value=\"linjemoms\">moms</option>";
 		print "<option value=\"varemomssats\">momssats</option>";
 		print "<option>linjesum</option>";

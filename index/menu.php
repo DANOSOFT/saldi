@@ -1,5 +1,5 @@
 	<?php
-// --index/menu.php------------------------------lap-3.2.0---2013-01-26--
+// --index/menu.php------------------------------lap-3.4.0---2014-01-26--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -16,10 +16,12 @@
 // GNU General Public Licensen for flere detaljer.
 //
 // En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2013 DANOSOFT aps
+// Copyright (c) 2004-2014 DANOSOFT aps
 // ----------------------------------------------------------------------
+// 2013 ændret til 2014
+
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
 $title="Menu";
@@ -304,7 +306,7 @@ print "</tr>\n";
 print	"</tbody></table>\n";
 print	"</td></tr>\n";
 print	"<tr><td align=\"center\" valign=\"bottom\">\n";
-print "<div class=top_bund><small>SALDI&nbsp;version&nbsp;$version&nbsp;-&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2013&nbsp;DANOSOFT&nbsp;aps</small></div></td></tr>\n";
+print "<div class=top_bund><small>SALDI&nbsp;version&nbsp;$version&nbsp;-&nbsp;Copyright&nbsp;&copy;&nbsp;$copyright&nbsp;DANOSOFT&nbsp;aps</small></div></td></tr>\n";
 print	"</tbody></table>\n";
 print	"</center></body></html>\n";
 $query = db_select("select * from grupper where art = 'RA'",__FILE__ . " linje " . __LINE__);

@@ -142,6 +142,9 @@ if ($id > 0){
 		$r=db_fetch_array(db_select("select id from kontoplan where kontonr > '$kontonr' order by kontonr",__FILE__ . " linje " . __LINE__));
 		$naeste=$r['id']*1;	
 	}
+	$r=db_fetch_array(db_select("select id from kontoplan where kontotype = 'R' and regnskabsaar = '$regnaar'",__FILE__ . " linje " . __LINE__));
+	$resultatkonto=$r['id']*1;
+
 	if (!$kontonr) {
 		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php\">";
 		exit;
@@ -207,6 +210,7 @@ if ($kontotype) print "<option>$kontotype</option>\n";
 if ($saldo) {
 	if ($kontotype!='Drift') print "<option>Drift</option>\n";
 	if ($kontotype!='Status') print "<option>Status</option>\n";
+	if (!$resultatkonto && $kontotype!='Resultat') print "<option>Resultat</option>\n";
 } else {
 	if ($kontotype!='Overskrift') print "<option>Overskrift</option>\n";
 	if ($kontotype!='Drift') print "<option>Drift</option>\n";

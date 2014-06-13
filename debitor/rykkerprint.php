@@ -1,5 +1,5 @@
 <?php #topkode_start
-// ----------------debitor/rykkerprint-----lap 3.2.9---2012.08.15-------
+// ----------------debitor/rykkerprint-----lap 3.3.9---2014.01.14-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.08.15 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
-
+// 20130114 Tilføjet 0 som 1. parameter i "send mails"
 
 @session_start();
 $s_id=session_id();
@@ -303,7 +303,7 @@ if ($mailantal>0) {
 			system ("mv ../temp/$db/$pfliste[$x].pdf $mappe/$pfliste[$x].pdf");
 		}
 		print "--> \n";
-		$svar=send_mails("$mappe/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);
+		$svar=send_mails(0,"$mappe/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);
 	}
 } #else print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$printfilnavn\">";
 if ($nomailantal>0) {

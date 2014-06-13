@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// ------------includes/udlign_openpost.php-------patch 3.2.9----2013-05-29--------
+// ------------includes/udlign_openpost.php-------patch 3.4.1----2014-05-27--------
 // LICENS>
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,7 +20,7 @@ $s_id=session_id();
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af ørediff Søg 20121106
@@ -29,6 +29,11 @@ $s_id=session_id();
 // 2013.05.05 Større omskrivning til at imødegå div. valutafejl.
 // 2013.05.25 Fejl v. manglende forfaldsdate. Søg 20130525
 // 2013.05.29 Fejl v. manglende omregningskurs. Søg 20130529
+// 2013.11.29 Tilføjet && $valuta[$x]!='DKK'. Søg 20131129
+// 2014.05.03 Indsat valutakurs=100 ved DKK.(PHR Danosoft) Søg 20140503
+// 2014.05.05 Fjernet fejmelding og exit og sat bogføringsdato til dd. (PHR Danosoft) Søg 20140505
+// 2014.05.05 Flyttet $dkkamount[$x]=$amount[$x]*$valutakurs[$x]/100; ned under if ($valuta[$x]=='DKK') $valutakurs[$x]=100; (PHR Danosoft) Søg 20140505
+// 2014.05.27 indsat afrund forskellige steder for at undgå differ på 1 øre.(PHR Danosoft) Søg 20140527
 
 $modulnr=12;
 $kontonr=array();$post_id=array();
@@ -59,20 +64,16 @@ if (isset($_POST['submit'])) {
 	$diffkto=$_POST['diffkto'];
 	$diffdato=if_isset($_POST['diffdato']);
 	($diffdato)?$diffdate=usdate($diffdato):$diffdate=NULL;
-#cho "diffdato ".$_POST['diffdato']."<br>";	
 	$diffbilag=$_POST['diffbilag'];
 	$faktnr=$_POST['faktnr'];
 	$amount=$_POST['amount'];
-#cho "anount0 $amount[0]<br>";	
 	$basisvaluta=$_POST['basisvaluta'];
 	$omregningskurs=$_POST['omregningskurs'];
 	$belob=if_isset($_POST['belob']);
 	if ($belob) $ny_amount = usdecimal($belob);
 	else $ny_amount = 0;
-	
 	$faktnr[0]=trim($faktnr[0]);
 	db_modify("update openpost set faktnr='$faktnr[0]' where id = '$post_id[0]'",__FILE__ . " linje " . __LINE__	);
-	
 	if ($submit=='udlign') {
 		for($x=1;$x<=count($kontrol);$x++) {
 			if ($udlign[$x] && !$kontrol[$x]) $submit="opdater";
@@ -80,29 +81,19 @@ if (isset($_POST['submit'])) {
 		}
 	}
 	if (afrund($ny_amount,2) != afrund($amount[0],2)) {
-	#cho "Ny $ny_amount != $amount[0]<br>";
 		$alerttekst="";
 		if (($amount[0]>0 && $amount[0]-$ny_amount>0) || ($amount[0]<0 && $amount[0]-$ny_amount<0)) {
-				if (trim($faktnr[0])) {
-				#cho "$ny_amount=$ny_amount/$omregningskurs[0]<br>";
-					if ($basisvaluta=!$valuta[0] && $omregningskurs[0]) { #20130529 indsat && $omregningskurs[0]
-#cho "$amount[0]=afrund($amount[0]/$omregningskurs[0],2)<br>";
-						$ny_amount=afrund($ny_amount/$omregningskurs[0],2);
-						$amount[0]=afrund($amount[0]/$omregningskurs[0],2);
-					}
-	#cho "Ny $ny_amount != $amount[0]<br>";
-	$tmp=$amount[0]-$ny_amount;
-
-			#cho "select * from openpost where id='$post_id[0]'<br>";
+			if (trim($faktnr[0])) {
+				if ($basisvaluta=!$valuta[0] && $omregningskurs[0]) { #20130529 indsat && $omregningskurs[0]
+					$ny_amount=afrund($ny_amount/$omregningskurs[0],2);
+					$amount[0]=afrund($amount[0]/$omregningskurs[0],2);
+				}
+				$tmp=$amount[0]-$ny_amount;
 				if ($r=db_fetch_array(db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__))) { 
 					if ($r['forfaldsdate']) $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id,forfaldsdate) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]','$r[forfaldsdate]')";
 					else $qtxt="insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,valuta,valutakurs,bilag_id) values ('$r[konto_id]','$r[konto_nr]','','$tmp','$r[refnr]','$r[beskrivelse]','0','$r[transdate]','$r[kladde_id]','0','$r[valuta]','$r[valutakurs]','$r[bilag_id]')"; #20130525
-#cho "qtxt $qtxt<br>";
 					db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-		#			$r=db_select(db_fetch_array("select konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,udlign_id,udlign_date,valuta,valutakurs,bilag_id,forfaldsdate from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__);
 					db_modify ("update openpost set amount='$ny_amount' where id = '$post_id[0]'",__FILE__ . " linje " . __LINE__);
-#					$r=db_fetch_array(db_select("select max(id) as id from openpost where faktnr='$faktnr[0]' and amount='$amount[0]'",__FILE__ . " linje " . __LINE__));
-#					db_modify ("update openpost set faktnr='',amount='$tmp' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 				} else $alerttekst="Fakturanummer ikke gyldigt, postering ikke opsplittet";
 			}	else $alerttekst="For at opsplitte en betaling skal posteringen tilknyttes et gyldigt fakturanummer";
 		}	else $alerttekst="Bel&oslash;b m&aring; ikke &oslash;ges";
@@ -118,28 +109,25 @@ if (isset($_POST['submit'])) {
 	$returside=$_GET['returside'];
 }
 
-
-#cho "select * from openpost where id='$post_id[0]'<br>";
 $query = db_select("select * from openpost where id='$post_id[0]'",__FILE__ . " linje " . __LINE__); #$post_id[0] er den post som skal udlignes.
 if ($row = db_fetch_array($query)) {
 	$konto_id[0]=$row['konto_id']*1;
 	$refnr[0]=$row['refnr'];
-	$amount[0]=$row['amount'];
+	$amount[0]=afrund($row['amount'],2); #20140527
 	$sum=$sum;
-#cho "amount0  $amount[0]<br>";
-	#cho "Sum $sum<br>";	
-#	$diff=$sum;
 	$transdate[0]=$row['transdate'];
 	$udligndate=$transdate[0];
 	$faktnr[0]=$row['faktnr'];
 	$kontonr[0]=$row['konto_nr'];
 	$beskrivelse[0]=$row['beskrivelse'];
 	$valuta[0]=$row['valuta'];
-	if (!$valuta[0])$valuta[0]='DKK';
 	$valutakurs[0]=$row['valutakurs']*1;
+	if (!$valuta[0]) {
+		$valuta[0]='DKK';
+		$valutakurs[0]=100; #20140503
+	}
 	if (!$valutakurs[0]) $valutakurs[0]=100;
-	$dkkamount[0]=afrund($amount[0]*$valutakurs[0]/100,2);  
-#	#cho "DKK 0 $dkkamount[0]<br>";
+	$dkkamount[0]=afrund($amount[0]*$valutakurs[0]/100,2); #20140527
 	$dkksum=$dkkamount[0];
 	$dkkdiff=$dkksum;
 	if ($valuta[0]!='DKK') {
@@ -148,40 +136,27 @@ if ($row = db_fetch_array($query)) {
 	$udlign[0]='on';
 	print "<input type = hidden name=konto_id[0] value=$konto_id[0]>";
 } else print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapport=kontokort.php\">";
-#cho "select * from adresser where id=$konto_id[0]<br>";
 $konto_id[0]*=1;
 $r = db_fetch_array(db_select("select * from adresser where id=$konto_id[0]",__FILE__ . " linje " . __LINE__)); #Finder kontoinfo
 $betalingsbet=trim($r['betalingsbet']);
 $betalingsdage=$r['betalingsdage'];
 $art=substr($r['art'],0,1)."G";
-#cho "select box3 from grupper where art='$art' and kodenr='$r[gruppe]'<br>";
 $r2 = db_fetch_array(db_select("select box3 from grupper where art='$art' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__)); # Finder valuta for konto.
 $basisvaluta=trim($r2['box3']);
-#cho "select box2 from grupper where art ='VK' and box1='$basisvaluta'<br>";
 $r2=db_fetch_array(db_select("select box2 from grupper where art ='VK' and box1='$basisvaluta'",__FILE__ . " linje " . __LINE__)); # Finder valutakurs for konto. 
 $basiskurs=str_replace(",",".",$r2['box2']); #Valutaen kan være i dansk talformat (BUG).
 if ($basisvaluta=='DKK') $basiskurs=100; 
-#cho "BV $basisvaluta BK $basiskurs<br>";
-#cho "Am $amount[0] V $valuta[0] VK $valutakurs[0]<br>";
-#cho "($basisvaluta != $valuta[0])<br>";
 if ($basisvaluta != $valuta[0]) {
 	if ($valuta[0]=='DKK') {
-#cho "select kodenr from grupper where box1 = '$valuta[0]' and art='VK'<br>";
 		$r2 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
-#cho "select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate<br>";
 		$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate",__FILE__ . " linje " . __LINE__));
-#cho "$amount[0] => ";
 			$omregningskurs[0]=100/$r3['kurs'];
-			$amount[0]=afrund($amount[0]*$omregningskurs[0],2);
-#cho "x $amount[0]<br>";
+			$amount[0]=afrund($amount[0]*$omregningskurs[0],2); #20140527
 			$sum=$amount[0];
 	} elseif ($valuta[0] != $basisvaluta && $basisvaluta!='DKK') {
-#cho "select kodenr from grupper where box1 = '$basisvaluta' and art='VK'<br>";
 		$r2=db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
-#cho "select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate desc<br>";
 		$r2=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate desc",__FILE__ . " linje " . __LINE__));
 		$dagskurs=$r2['kurs']*1;
-#cho "$dagskurs<br>";
 		$beskrivelse[0].=" $valuta[0] ".dkdecimal($amount[0])." Kurs $valutakurs[0]";
 		$amount[0]*=$valutakurs[0]/$dagskurs;
 		$dkkamount[0]=$amount[0]*$valutakurs[0]/100;
@@ -189,68 +164,22 @@ if ($basisvaluta != $valuta[0]) {
 		$amount[0]=$dkkamount[0];
 		$sum=$amount[0];
 	} else {
-#		$amount[0]=$dkkamount[0];
 		$sum=$amount[0];
 	}
 }
 $sum=$amount[0];
 $diff=$sum;
-
-#cho "amount[0] $amount[0] <br>";
-
-#cho "diff $diff<br>";
-
-#cho "Linje 170: $dkksum V:$valuta[0] K:$valutakurs[0] sum $sum<br>";
 $titlesum=$sum;
-
-#if (!$basisvaluta || $basisvaluta=='DKK') { #Kontoen er i DKK
-#	$basisvaluta='DKK';
-#	$basiskurs='100';
-#	$dkkamount[0]=$amount[0];
-#} 
-#else { #Kontoen er i anden valuta og valutakoden findes??? (Hvorfor det? den har vi jo)
-#	$r2 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
-#	$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate",__FILE__ . " linje " . __LINE__));
-#	$basiskurs=$r3['kurs'];
-#	
-#	#cho "Basikurs $basiskurs Kode $valutakode[0]<br>";
-#}
-
-##cho "$valuta[0]!='DKK'<br>";
-#if ($valuta[0]!='DKK') { # Kursen for transaktionen findes.
-##cho "select box2 from grupper where art ='VK' and box1='$valuta[0]'<br>";
-#	$r2=db_fetch_array(db_select("select kodenr from grupper where art ='VK' and box1='$valuta[0]'",__FILE__ . " linje " . __LINE__)); # Finder valutakoden for valutaen. 
-#	$valutakode[0]=$r2['kodenr'];
-##cho "select kurs from valuta where gruppe ='$valutakode[0]' and valdate <= '$transdate[0]' order by valdate desc<br>";
-#	$r2=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode[0]' and valdate <= '$transdate[0]' order by valdate desc",__FILE__ . " linje " . __LINE__)); # Finder valutakursen.
-#	$valutakurs[0]=$r2['kurs'];
-#	#cho "Transaktionskurs $transdate[0] Kurs $valutakurs[0]<br>";
-#} 
-#cho "A $amount[0]<br>"; 
-#		$dkkamount[0]=afrund($amount[0]*$valutakurs[0]/100,2);  
-##cho "$post_id[0] DKK $dkkamount[0] USD $amount[0]<br>";
-
-		#cho "B $amount[0]<br>"; 
-#} 
-# if ($valuta[0]!=$basisvaluta && $basisvaluta!="DKK") $amount[0]=afrund($amount[0]*$valutakurs[0]/100,2);
-
-# if ($basisvaluta!='DKK') $$dkksum=afrund($amount[0]*$valutakurs[0]/100,2);
-
-#cho "$diff | $dkkdiff<br>";
 
 $konto_id[0]*=1;
 $udlign_date="$transdate[0]";
 $x=0;
 
-#cho "select * from openpost where id!='$post_id[0]' and konto_id='$konto_id[0]' and udlignet != '1' order by transdate<br>";
 $query = db_select("select * from openpost where id!='$post_id[0]' and konto_id='$konto_id[0]' and udlignet != '1' order by transdate",__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)){
-#cho "A dkkdiff $dkkdiff<br>";
 	$x++;
 	$post_id[$x]=$row['id'];
-#cho $post_id[$x]."<br>";	
 	$refnr[$x]=$row['refnr'];
-#	$amount[$x]=afrund($row['amount'],2);
 	$amount[$x]=$row['amount'];
 	$transdate[$x]=$row['transdate'];
 	$faktnr[$x]=$row['faktnr'];
@@ -258,120 +187,47 @@ while ($row = db_fetch_array($query)){
 	$beskrivelse[$x]=$row['beskrivelse'];
 	$valuta[$x]=$row['valuta'];
 	$valutakurs[$x]=$row['valutakurs']*1;
-#cho "227: $valutakurs[$x]<br>";
-	$dkkamount[$x]=$amount[$x]*$valutakurs[$x]/100;
-	$dkksum+=$dkkamount[$x];
 	if (!$valuta[$x]) $valuta[$x]='DKK';
 	if ($valuta[$x]=='DKK') $valutakurs[$x]=100;
-#cho "231: $valutakurs[$x]<br>";
-#	if (!$valutakurs[$x] && $valuta[$x]) $valutakurs[$x]=100;
-	if ($valuta[$x]!='DKK' && ($valutakurs[$x]==100 || !$valutakurs[$x])) {
-#cho "select kodenr from grupper where box1 = '$valuta[$x]' and art='VK'<br>";
+	$dkkamount[$x]=afrund($amount[$x]*$valutakurs[$x]/100,2); #20140505
+	$dkksum+=$dkkamount[$x];
+	if ($valuta[$x]!='-' && $valuta[$x]!='DKK' && ($valutakurs[$x]==100 || !$valutakurs[$x])) {
 		$r2 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta[$x]' and art='VK'",__FILE__ . " linje " . __LINE__));
-#cho "select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[$x]' order by valdate<br>";
 		$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[$x]' order by valdate",__FILE__ . " linje " . __LINE__));
-#cho "$valutakurs[$x]=100/$r3[kurs]<br>";
 		$valutakurs[$x]=$r3['kurs'];
 		$dkkamount[$x]=$amount[$x]*100/$r3['kurs'];
-		#cho "237: $valutakurs[$x]<br>";
 	}
 	$beskrivelse[$x].=" (DKK ".dkdecimal($dkkamount[$x]).")"; 
-#cho "A $basisvaluta != 'DKK' && $basisvaluta != $valuta[$x]<br>";
 	if ($valuta[$x]!='DKK' && $basisvaluta == 'DKK') {
 		$beskrivelse[$x].=" ($valuta[$x] ".dkdecimal($amount[$x])." kurs: ".dkdecimal($valutakurs[$x]).")"; 
 		$amount[$x]=$dkkamount[$x];
-#cho "249 -- $beskrivelse[$x]<br>";
 		} elseif ($basisvaluta != 'DKK' && $basisvaluta != $valuta[$x]) {
-#cho 	"$basisvaluta	<==> $valuta[$x]<br>";
-#cho "select kodenr from grupper where box1 = '$basisvaluta' and art='VK'<br>";
 		$r2=db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
-#cho "select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[$x]' order by valdate desc<br>";
 		$r2=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[$x]' order by valdate desc",__FILE__ . " linje " . __LINE__));
-
-		
 		$dagskurs=$r2['kurs']*1;
-#cho "$dagskurs<br>";
-		$beskrivelse[$x].=" $valuta[$x] ".dkdecimal($amount[$x])." kurs: ".dkdecimal($valutakurs[$x]).")";
+#		$beskrivelse[$x].=" $valuta[$x] ".dkdecimal($amount[$x])." kurs: ".dkdecimal($valutakurs[$x]).")";
 		$amount[$x]*=$valutakurs[$x]/$dagskurs;
 		$dkkamount[$x]=$amount[$x]*$dagskurs/100;
-#cho "DKK $dkkamount[$x]<br>";
-		
-		
-		
-		
-		#cho "kurs $r3[kurs]<br>";
-#	$beskrivelse[$x].=" ($valuta[$x] $amount[$x] kurs: $valutakurs[$x])";
-#	$omregningskurs[$x]=100/$r3['kurs'];
-		# $amount[$x]=$amount[$x]*$omregningskurs[$x];
-
 	} elseif ($basisvaluta == 'DKK' && $basisvaluta == 'DKK') {
-#cho "$amount[$x]=$dkkamount[$x]<br>";
-		$amount[$x]=$dkkamount[$x];
-#cho "$amount[$x]=$dkkamount[$x]<br>";
-	} elseif ($valuta[$x] != $basisvaluta) {
-#cho "select kodenr from grupper where box1 = '$basisvaluta' and art='VK'<br>";
+			$amount[$x]=$dkkamount[$x];
+		} elseif ($valuta[$x] != $basisvaluta) {
 		$r2=db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
-#cho "select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[$x]' order by valdate desc<br>";
 		$r2=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[$x]' order by valdate desc",__FILE__ . " linje " . __LINE__));
 		$dagskurs=$r2['kurs']*1;
 		$beskrivelse[$x].=" $valuta[$x] ".dkdecimal($amount[$x])." kurs: ".dkdecimal($valutakurs[$x]).")";
-#cho "zzzzz $amount[$x]*=$valutakurs[$x]/$dagskurs<br>";
 		$amount[$x]*=$valutakurs[$x]/$dagskurs;
 		$dkkamount[$x]=$amount[$x]*$valutakurs[$x]/100;
-#cho "DKK $dkkamount[$x]<br>";
 	}
+	$amount[$x]=afrund($amount[$x],2); #20140527
+	$dkkamount[$x]=afrund($dkkamount[$x],2); #20140527
 	$sum+=$amount[$x];
-#cho "DkkDiff - $dkkdiff  | $dkkamount[$x] Diff($valuta[$x]) $diff | $amount[$x]<br>";		
-#cho afrund($dkksum,2) ." - $valutakurs[$x] $valuta[$x] sum $sum<br>";
-	#################################
-#cho "$post_id[$x] $beskrivelse[$x] $valuta[$x] $amount[$x] DKK $dkkamount[$x]<br>";
-/*
-#cho "V=$basisvaluta K=$basiskurs<br>";	
-	if ($valutakurs[$x] != 100 && $valuta[$x]) { # Gammel post uden kurs
-		if (!$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode[0]' and valdate <= '$transdate[$x]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
-			$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode[0]' order by valdate",__FILE__ . " linje " . __LINE__));
-		}
-		if ($basiskurs=$r3['kurs']) { #Kurs paa transaktionsdagen 
-			$amount[$x]=$amount[$x]*100/$basiskurs;
-			if ($valutakurs[$x]==100) {
-			} else { #postering foert i anden fremmed valuta end kreditors
-				$amount[$x]=$amount[$x]*$valutakurs[$x]/100;
-			}
-		} else $basiskurs=100;
-#cho "Basiskurs $basiskurs<br>";
-#cho "179 V=$basisvaluta K=$basiskurs<br>";	
-	} elseif ($valuta[$x]!='DKK' && $basisvaluta=='DKK' && $valutakurs[$x]!=100) { #postering foert i anden valuta end kreditors som er DKK 
-		$amount[$x]=$amount[$x]*$valutakurs[$x]/100;
-		$basiskurs=100;
-#cho "182 V=$basisvaluta K=$basiskurs<br>";	
-	} else {
-	$basiskurs=100;
-#cho "186 Basiskurs=$basiskurs<br>";	
-}
-*/
-
-if (isset($udlign[$x]) && $udlign[$x]=='on') {
-###############################
-#cho "A $diff | $dkkdiff<br>";
-#		$diff+=$amount[$x];
-#		$kontroldiff+=$amount[$x];
-		#cho "B $diff | $dkkdiff<br>";
-#cho "DKKdiff $dkkdiff<br>";
-#	$dkkdiff+=$amount[$x]*$valutakurs[$x]/($basiskurs*1); # 20130223 $basiskurs*100 rettet til $basiskurs*1
-#cho "$diff | $dkkdiff<br>";
-# $sum+=$amount[$x];
-		#cho "Diff $diff<br>";
-#cho "Dkkdiff $dkkdiff $dkkamount[$x]<br>";
+	if (isset($udlign[$x]) && $udlign[$x]=='on') {
 		if ($transdate[$x]>$udlign_date) $udlign_date=$transdate[$x];
 		$diff+=$amount[$x];
 		$dkkdiff+=$dkkamount[$x];
-#cho "B dkkdiff $dkkdiff -- $dkkamount[$x]<br>";
 	}
 }
 $postantal=$x;
-#cho "ID's ".count($post_id)."<br>";
-
-#cho "$postantal<br>";
 $r = db_fetch_array(db_select("select * from grupper where art = 'OreDif'",__FILE__ . " linje " . __LINE__));
 $maxdiff=$r['box1']*1;
 $diffkto=$r['box2']*1;
@@ -389,7 +245,6 @@ print " </tr></tbody></table></td></tr>";
 		
 print "<tr><td><br></td></tr>";
 ########################### UDLIGN ##########################
-#cho "260 dkkdiff $dkkdiff<br>";
 if (isset($submit) && $submit=='udlign') {
 	if ($diffdato) $udlign_date=usdate($diffdato); 
 	transaktion(begin);
@@ -409,27 +264,22 @@ if (isset($submit) && $submit=='udlign') {
 		$year=trim($year);
 		$ym=$year.$month;
 
-		if (($ym<$aarstart || $ym>$aarslut))	{
-#cho 	"$udlign_date .. $ym<$aarstart || $ym>$aarslut<br>";	
-			print "<BODY onLoad=\"javascript:alert('Udligningsdato udenfor regnskabs&aring;r')\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;../includes/udlign_openpost.php?post_id=$post_id[0]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=$retur\">";
-			exit;
-		}
+		if (($ym<$aarstart || $ym>$aarslut))	{ #20140505
+#			print "<BODY onLoad=\"javascript:alert('Udligningsdato udenfor regnskabs&aring;r')\">";
+#			print "<meta http-equiv=\"refresh\" content=\"0;../includes/udlign_openpost.php?post_id=$post_id[0]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=$retur\">";
+#			exit;
+			$udlign_date=date("Y-m-d");
+	}
 	// <- 20121106
 		
 		if ($basisvaluta!='DKK') {
 			$r=db_fetch_array(db_select("select box3 from grupper where art='VK' and box1='$basisvaluta'",__FILE__ . " linje " . __LINE__));
 			$diffkto=$r['box3']; 
-		
-#		$dkkdiff=$diff*$basiskurs/100;
-#cho "XX $dkkdiff=$diff*$basiskurs/100<br>";
 		}	
-#cho "$diff | $dkkdiff<br>";
 		if (!$dkkdiff)$dkkdiff=$diff;	
-#	$dkkdiff=afrund($dkkdiff,2);
-#		$transdate=date("Y-m-d");
 		$logdate=date("Y-m-d");
 		$logtime=date("H:i");
+		$dkkdiff=afrund($dkkdiff,2);
 		$diff=afrund($diff,2);
 		$r=db_fetch_array(db_select("select art, kontonr, gruppe, art from adresser where id = '$konto_id[0]'",__FILE__ . " linje " . __LINE__));
 		$kontoart==$r['art'];
@@ -445,85 +295,54 @@ if (isset($submit) && $submit=='udlign') {
 			$tekst=findtekst(177,$sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 		}
-#cho "382 $bogf_besk<br>";
 		($kontoart=='D')?$bogf_besk="Debitor: $kontonr[0]":$bogf_besk="Kreditor: $kontonr[0]";
-#cho "383 $bogf_besk<br>";
-			// 		$bogf_besk.=" $kontonr[0] ".findtekst(176,$sprog_id);
-#		$diff=afrund($diff,2)*1;
-#		$dkkdiff=afrund($dkkdiff,2)*1;
 		if ($dkkdiff!=$diff) {
-#cho "388 $bogf_besk<br>";
 			$bogf_besk.=" Udligning af valutadiff, ($valuta[$x] ".dkdecimal($diff).", DKK ".dkdecimal($dkkdiff).")";
-#cho "390 $bogf_besk<br>";
 		}
-		
-		
-		if (abs($dkkdiff)>$maxdiff) {
-#cho "Diff $dkkdiff $maxdiff<br>";
+		if (abs($dkkdiff)>$maxdiff && $valuta[$x]!='DKK') { #20131129
 		$message=$db." | udlign_openpost | ".$brugernavn." ".date("Y-m-d H:i:s")." | Diff: $diff DKKdiff: $dkkdiff Maxdiff $maxdiff";
 			$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 			mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
-			print "<BODY onLoad=\"javascript:alert('Der er sket en fejl, udligning ikke udført')\">";
+			print "<BODY onLoad=\"javascript:alert('Diferencen overstiger det maksimalt tilladte')\">"; #20131129
 			exit;
 		}
-#cho "403 $bogf_besk Diff $diff Dkkdiff $dkkdiff<br>";
 		if ($dkkdiff >= 0.01) {
-#cho "A insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$diffkto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')<br>"; 
 			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$diffkto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-#cho "B insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')<br>";
  			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-#			$tmp=$diff*1;
-#cho "diff $diff<br>";
-if ($diff) {
-#cho "Tmp1 $tmp<br>";
+			if ($diff) {
 				$vkurs=abs($dkkdiff/$diff*100);
 				$tmp=$dkkdiff/$vkurs*100;
 				if ($diff>0) $tmp*=-1;
 				else $vkurs*=-1;
-#cho "Tmp2 $tmp<br>";
-#cho "C vkurs $vkurs <br>";
-#cho "a insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')<br>";
-			db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
-			('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
+				('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
 			}	else {
 				$vkurs=$dkkdiff/0.001*100;
 				$tmp=$dkkdiff/$vkurs*100;
 				if ($diff<=0)$tmp*=-1;
-#cho "C vkurs $vkurs <br>";
-#cho "D insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')<br>";
 				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
 				('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
 			}
 		} elseif ($dkkdiff <= -0.01) {
 			$dkkdiff=$dkkdiff*-1;
-#cho "E insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values($diffkto, '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')<br>";
 			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, kredit, kladde_id,afd, ansat, projekt)values($diffkto, '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
-#cho "F insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')<br>";
 			db_modify("insert into transaktioner (kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)values('$samlekonto', '0', '$udlign_date', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')",__FILE__ . " linje " . __LINE__);
 			if ($diff) {
-			#cho "diff $diff";
 				$tmp=$diff*-1;
-#cho "G insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$basiskurs','$udlign_id','$udlign_date')<br>";
 				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$basiskurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
 			} else {
 				$vkurs=$dkkdiff/0.001*100;
 				$tmp=$dkkdiff/$vkurs*-100;
-			
-#cho "H vkurs $vkurs <br>";
-				
-#cho "I insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')<br>";
 				db_modify("insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values 
 				('$konto_id[0]', '$kontonr[0]', '$tmp', '$bogf_besk', '1', '$udlign_date', '0', '0','$basisvaluta','$vkurs','$udlign_id','$udlign_date')",__FILE__ . " linje " . __LINE__);
-				
 			}
 		}
 	}
 	for ($x=0; $x<=$postantal; $x++) {
-if ($udlign[$x]=='on') #cho "UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$udlign_date' where id = $post_id[$x]<br>";
-		if ($udlign[$x]=='on') db_modify("UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$udlign_date' where id = $post_id[$x]",__FILE__ . " linje " . __LINE__);
+		if ($udlign[$x]=='on') {
+			db_modify("UPDATE openpost set udlignet='1', udlign_id='$udlign_id', udlign_date='$udlign_date' where id = $post_id[$x]",__FILE__ . " linje " . __LINE__);
+		}
 	}
-#	}
-#xit;
 	transaktion(commit);
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$retur?rapportart=Kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&submit=ok\">";
 }
@@ -546,25 +365,19 @@ $spantekst="Hvis der skrives et andet bel&oslash;b i dette felt, kan posteringen
 print "<td>$beskrivelse[0]</td><td align=right  title='$spantekst'><span style='color: rgb(0, 0, 0);'>";
 if (($art=='DG' && $amount[0] < 0) || ($art=='KG' && $amount[0] > 0))	print "<input  class=\"inputbox\" type = \"text\" style=\"text-align:right;width:90px;\" name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
 else print dkdecimal($amount[0])."<input type=hidden name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
-#cho "antal opster ".count($post_id)."<br>";
-#cho "Sum $sum<br>";
 if ($diff!=0) print "<tr><td colspan=6><hr></td></tr>";
-#cho "$sum ID's ".count($post_id)."<br>";
 if ($diff!=0) {
 	for ($x=1; $x<count($post_id); $x++) {
-	#cho "T $titlesum<br>";
 	$titlesum+=$amount[$x];
-	#cho "ZZ";
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[$x])."</td>
-			<td>a $refnr[$x]</td>
+			<td>$refnr[$x]</td>
 			<td>$faktnr[$x]</td>
 			<td>$beskrivelse[$x]</td>
 			<td align=right><span style=\"color: rgb(0, 0, 0);\" title=\"sum: ".dkdecimal($titlesum)."\">".dkdecimal($amount[$x])."</td>";
 		if (isset($udlign[$x]) && $udlign[$x]=='on') {
 			$udlign[$x]="checked";
-#cho "$transdate[$x]>$udligndate<br>";
 			if($transdate[$x]>$udligndate) $udligndate=$transdate[$x]; 
 		}	else $udlign[$x]=NULL;
 		print "<td align=center><input type=\"checkbox\" name=\"udlign[$x]\" $udlign[$x]></td></tr>";
@@ -573,9 +386,7 @@ if ($diff!=0) {
 } else {
 	for ($x=1; $x<count($post_id); $x++) {
 		if ($udlign[$x]=='on') {
-#cho "$transdate[$x]>$udligndate<br>";
 			if($transdate[$x]>$udligndate) $udligndate=$transdate[$x]; 
-#cho "$transdate[$x]>$udligndate<br>";
 			if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 			elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
 			print "<tr bgcolor=\"$linjebg\"><td>".dkdato($transdate[$x])."</td>
@@ -587,7 +398,6 @@ if ($diff!=0) {
 		}
 	}
 }
-#cho "$diffdate $udligndate<br>";
 if (!$diffdate) $diffdate=$udligndate;
 $diffdato=dkdato($diffdate);
 $diffbilag*=1;
