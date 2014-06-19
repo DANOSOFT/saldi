@@ -1,5 +1,5 @@
 <?php
-//----------------- debitor/ordrefunc.php -----ver 4.0.1---- 2014.04.26 ----------
+//----------------- debitor/ordrefunc.php -----ver 3.4.1---- 2014.06.13 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -56,7 +56,10 @@
 // 2014.04.25 Fejl hvis sagssystem ikke er oprettet.(PHR - Danosoft) søg 20140425
 // 2014.04.26 Tilføjet vare_id i opret_ordrelinje da kreditering eller kopiering af ordrer ikke fungerer hvis varenummer er ændret.(PHR - Danosoft) søg 20140426
 // 2014.05.02 Udkommeneret header da denne også bliver sat i online.php. PHR	- Danosoft søg 20140502
-// 2104.05.08	Diverse ændringer i funktion vareopslag i forbindelse med bordnr i pos_ordrer. PHR	- Danosoft Søn "bordnr" i "vareopslag". 
+// 2104.05.08	Diverse ændringer i funktion vareopslag i forbindelse med bordnr i pos_ordrer. PHR	- Danosoft Søg "bordnr" i "vareopslag". 
+// 2014.06.13	Div småting relateret til pos_ordrer - bl. a. momsdiff ved salg til kr. 27,12 og betaling med Dankort +100. 20140613
+// 2014.06.16 $kontonr ændret til $konto_id da alle kasser blev ført på samme konto. (PHR	- Danosoft) Søg 20140616
+
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 echo "<!--function levering start-->";
@@ -645,10 +648,10 @@ function batch ($linje_id)
 	$leveres=0;
 	$query = db_select("select * from ordrelinjer where id = '$linje_id'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		$antal=$row['antal'];
-		$leveres=$row['leveres'];
+		$antal=$row['antal']*1;
+		$leveres=$row['leveres']*1;
 		$posnr=$row['posnr'];
-		$vare_id=$row['vare_id'];
+		$vare_id=$row['vare_id']*1;
 		$varenr=$row['varenr'];
 		$serienr=$row['serienr'];
 		$query = db_select("select status, art, konto_id, ref from ordrer where id = '$row[ordre_id]'",__FILE__ . " linje " . __LINE__);
@@ -764,7 +767,8 @@ echo "<!--function bogfor start-->";
 	global $db;
 	global $brugernavn;
 	global $momssats;
-
+	global $retur;
+	
 #	$fp=fopen("../temp/ordrefunc.log","a");
 #	$linje="select * from ordrer where id = $id";
 #	fwrite($fp,$linje."\n");
@@ -995,10 +999,16 @@ echo "<!--function bogfor start-->";
 					
 				}
 			}
+			if (afrund($sum+$moms,2)+$retur!=$betalt) { #20140613
+				$returdiff=afrund($sum+$moms,2)+$retur-$betalt;
+				if (afrund($returdiff,2)==0.01) $moms=$moms-0.01;
+				elseif (afrund($returdiff,2)==-0.01) $moms=$moms+0.01;
+				db_modify("update ordrer set sum = '$sum',moms='$moms' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				}
 			$a=afrund($sum+$moms,2); #20131111 + næste 3 linjer rettet grundet php fejl??
 			$b=afrund($betalt+$betalt2,2); 
 			if ($konto_id==0 && $a!=$b) {
-				$retur=$a-$b;
+#				$retur=$a-$b; Hentes fra global.
 				$tmp2=afrund($retur,2);
 				$tmp1=pos_afrund($retur,$difkto);
 #cho "B $afrunding $tmp2-$tmp1<br>";
@@ -1014,15 +1024,14 @@ echo "<!--function bogfor start-->";
 				}
 			}
 #cho "DK $difkto && DI $diff && AF $afrunding Moms $moms<br>";		
+			$diff=afrund($diff,2); #20140613
 			if ($difkto && $diff) {
 					$linje_posnr[$x]+=0.1;
-# echo "POI insert into ordrelinjer (posnr,antal,pris,rabat,procent,ordre_id,bogf_konto,beskrivelse,projekt) values ('0','1', '$diff', 0,100, '$id', '$difkto','Afrunding','$projekt')<br>";
+						
+					# echo "POI insert into ordrelinjer (posnr,antal,pris,rabat,procent,ordre_id,bogf_konto,beskrivelse,projekt) values ('0','1', '$diff', 0,100, '$id', '$difkto','Afrunding','$projekt')<br>";
 						db_modify("insert into ordrelinjer (posnr,antal,pris,rabat,procent,ordre_id,bogf_konto,beskrivelse,projekt) values ('0','1', '$diff', 0,100, '$id', '$difkto','Afrunding','$projekt')",__FILE__ . " linje " . __LINE__);
-#cho "POI update ordrer set sum = '$sum',moms='$moms' where id = '$id'<br>";
 						db_modify("update ordrer set sum = '$sum',moms='$moms' where id = '$id'",__FILE__ . " linje " . __LINE__);
 					}
-
-#xit;
 				}
 #cho "A select * from ordrer where id='$id'<br>";
 	$q = db_select("select * from ordrer where id='$id'",__FILE__ . " linje " . __LINE__);
@@ -1603,7 +1612,8 @@ include("../includes/genberegn.php");
 			$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1'",__FILE__ . " linje " . __LINE__));
 			$tmparray=explode(chr(9),$r['box7']);
 			$momskode=$tmparray[$kasse-1];
-		}
+			if ($moms && !$momskode) return("Fejl i momskode for kasse $kasse!");
+			}
 
 		if ($betalingsbet=="Kontant" || $betalingsbet=="Kreditkort" && $art!='PO') { #20130820
 			$tmp=NULL;
@@ -1679,7 +1689,7 @@ include("../includes/genberegn.php");
 			$r=db_fetch_array(db_select("select box6 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 			$div_kort_kto=trim($r['box6']);
 			$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1'",__FILE__ . " linje " . __LINE__));
-			if (!$kontonr) {
+			if (!$konto_id) { #20140616
 				$tmparray=explode(chr(9),$r['box2']);
 				$kontonr=$tmparray[$kasse-1];
 			} #else
@@ -1792,7 +1802,7 @@ include("../includes/genberegn.php");
 				}
 				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
-					if ($valutakurs) $maxdif=$maxdif+2; #Og yderligere 2 pr ordrelinje.
+					if ($valutakurs && $valutakurs!=100) $maxdif=$maxdif+2; #Og yderligere 2 pr ordrelinje.
 					if (!in_array($r['bogf_konto'],$bogf_konto)) {
 						$y++;
 						$bogf_konto[$y]=$r['bogf_konto'];
@@ -1909,7 +1919,6 @@ include("../includes/genberegn.php");
 		db_modify("delete from ordrelinjer where $tmp and posnr < 0",__FILE__ . " linje " . __LINE__);
 	$d_kontrol=afrund($d_kontrol,2);
 	$k_kontrol=afrund($k_kontrol,2);
-
 	if ($diff=afrund($d_kontrol-$k_kontrol,2)) {
 		$debet=0; $kredit=0;
 		if ($diff<0) $debet=$diff*-1;
@@ -1948,7 +1957,8 @@ include("../includes/genberegn.php");
 				return ('Manglende kontonummer til &oslash;redifferencer - Se indstillinger -> diverse -> &oslash;rediff');
 				}
 		} else {
-			$svar="Der er konstateret en uoverensstemmelse i posteringssummen, ordre $ordrenr, d=$d_kontrol, k=$k_kontrol kontakt DANOSOFT p&aring; telefon 4690 2208";
+			$svar="Der er konstateret en uoverensstemmelse i posteringssummen, ID $ordre_id ordre $ordrenr, d=$d_kontrol, k=$k_kontrol kontakt DANOSOFT p&aring; telefon 4690 2208";
+			if ($art=='PO') echo "$svar<br>"; 
 			$message=$db." | Uoverensstemmelse i posteringssum: ordre_id=$id, d=$d_kontrol, k=$k_kontrol | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
 			$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 			mail('fejl@saldi.dk', 'SALDI Fejl', $message, $headers);
@@ -2443,8 +2453,6 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find) {
 	global $bgcolor5;
 	global $bordnr;
 	
-	echo "B $bordnr<br>";
-
 	$lager=NULL;$linjebg=NULL;
 
 	if ($id && !$art) {

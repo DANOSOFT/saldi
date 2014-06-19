@@ -21,15 +21,25 @@
 // Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
+include("../includes/std_func.php");
+
 $beskrivelse=$_GET['beskrivelse'];
 $stregkode=$_GET['stregkode'];
 $src=$_GET['src'];
 $pris=$_GET['pris'];
+$enhed=$_GET['enhed'];
+$indhold=$_GET['indhold'];
+
+
 print "<center>\n";
 print "<table  border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td></td></tr>\n";
 print "<tr><td align=\"center\"><font face=\"verdana\" size=\"2\">$beskrivelse</font></td></tr>\n";
-print "<tr><td align=\"center\"><font face=\"verdana\" size=\"2\">Pris: $pris</font></td></tr>\n";
+print "<tr><td align=\"center\"><font face=\"verdana\" size=\"2\">Pris: ".dkdecimal($pris);
+if ($enhed && $indhold) {
+	print " (".dkdecimal($pris/$indhold)."/$enhed)";
+}
+print "</font></td></tr>\n";
 print "<tr><td align=\"center\"><img style=\"border:0px solid;width:250px;height:30px;overflow:hidden;\" alt=\"\" src=\"$src\"></td></tr>\n";
 print "<tr><td align=\"center\"><font face=\"verdana\" size=\"2\">$stregkode</font></td></tr>\n";
 print "</tbody></table>\n";

@@ -48,7 +48,6 @@ function opdat_3_4($under_nr, $lap_nr){
 		include("../includes/connect.php");
 		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 	}
-/*	
 	$nextver='3.4.2';
 	if ($lap_nr<"2"){
 		include("../includes/connect.php");
@@ -61,13 +60,23 @@ function opdat_3_4($under_nr, $lap_nr){
 		include("../includes/online.php");
 		if ($db!=$sqdb){
 			transaktion('begin');
-			db_modify("ALTER TABLE ansatte ADD gruppe numeric(15,0)",__FILE__ . " linje " . __LINE__);
+			$q = db_select("select * from ansatte",__FILE__ . " linje " . __LINE__);
+			while ($i < db_num_fields($q)) { 
+				$feltnavne[$i] = db_field_name($q,$i); 
+				$i++; 
+			}
+			if (!in_array('gruppe',$feltnavne)) db_modify("ALTER TABLE ansatte ADD gruppe numeric(15,0)",__FILE__ . " linje " . __LINE__);
+			$q = db_select("select * from varer",__FILE__ . " linje " . __LINE__);
+			while ($i < db_num_fields($q)) { 
+				$feltnavne[$i] = db_field_name($q,$i); 
+				$i++;
+			}
+			if (!in_array('indhold',$feltnavne)) db_modify("ALTER TABLE varer ADD indhold numeric(15,3)",__FILE__ . " linje " . __LINE__);
 			db_modify("UPDATE grupper set box1 = '$nextver' where art = 'VE'",__FILE__ . " linje " . __LINE__);
 			transaktion('commit');
 		}	
 		include("../includes/connect.php");
 		db_modify("UPDATE regnskab set version = '$nextver' where db = '$db'",__FILE__ . " linje " . __LINE__);
 	}
-*/
 }	
 ?>

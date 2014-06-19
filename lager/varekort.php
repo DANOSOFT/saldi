@@ -1,7 +1,7 @@
 <?php 
 ob_start(); //Starter output buffering
 
-// ----------/lager/varekort.php---------lap 3.4.1---2014-06-03-----
+// ----------/lager/varekort.php---------lap 3.4.2---2014-06-17-----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -25,6 +25,8 @@ ob_start(); //Starter output buffering
 // 2013.02.10 Break ændret til break 1
 // 2013.10.07	Kontrol for cirkulær reference indsat. Søg 20131007
 // 2014.06.03 Indsat visning af stregkode. Søg 20140603
+// 2014.06.17 ekstra felt "indhold" til angivelse af vægt / rumfang mm. samt automatisk beregning af kg/liter/ pris mm. Søg indhold
+
 
 @session_start();
 $s_id=session_id();
@@ -97,6 +99,7 @@ if ($_POST){
 	$gl_kostpris=$_POST['gl_kostpris'];
 	$kostpris[0]=usdecimal($kostpris[0]);
 	$kostpris2=$_POST['kostpris2'];
+	$indhold=usdecimal($_POST['indhold']);
 	$provisionsfri=trim($_POST['provisionsfri']);
 	$publiceret=$_POST['publiceret'];
 	$publ_pre=$_POST['publ_pre'];
@@ -415,7 +418,15 @@ if ($_POST){
 					$stregkode='';
 				}
 			}
-				db_modify("update varer set beskrivelse = '".db_escape_string($beskrivelse[0])."',stregkode = '$stregkode',enhed='$enhed',enhed2='$enhed2',forhold='$forhold',salgspris = '$salgspris',
+			if ($indhold!=round($indhold,0)) { # 
+				$tmp=$indhold;
+				db_modify("update varer set indhold='$tmp' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				$r=db_fetch_array(db_select("select indhold from varer where id='$id'",__FILE__ . " linje " . __LINE__));
+				if ($r['indhold']!=$indhold){
+					db_modify("ALTER TABLE varer ALTER COLUMN indhold TYPE numeric(15,3)",__FILE__ . " linje " . __LINE__);
+				}
+			}
+			db_modify("update varer set beskrivelse = '".db_escape_string($beskrivelse[0])."',stregkode = '$stregkode',enhed='$enhed',enhed2='$enhed2',indhold='$indhold',forhold='$forhold',salgspris = '$salgspris',
 				kostpris = '$kostpris[0]',provisionsfri = '$provisionsfri',gruppe = '$gruppe',prisgruppe = '$prisgruppe',tilbudgruppe = '$tilbudgruppe',rabatgruppe = '$rabatgruppe',serienr = '$serienr',lukket = '$lukket',notes = '$notes',
 				samlevare='$samlevare',min_lager='$min_lager',max_lager='$max_lager',trademark='$trademark',retail_price='$retail_price',
 				special_price='$special_price',tier_price='$tier_price',special_from_date='$special_from_date',special_to_date='$special_to_date',
@@ -541,6 +552,7 @@ if ($id > 0) {
 	$beskrivelse[0]=htmlentities($row['beskrivelse'],ENT_COMPAT,$charset);
 	$enhed=htmlentities($row['enhed'],ENT_COMPAT,$charset);
 	$enhed2=htmlentities($row['enhed2'],ENT_COMPAT,$charset);
+	$indhold=$row['indhold'];
 	$forhold=$row['forhold'];
 	$salgspris=$row['salgspris'];
 	$kostpris[0]=$row['kostpris'];
@@ -744,7 +756,7 @@ if (!$varenr) {
 		$rm="../temp/$db/".abs($bruger_id)."_????.png";
 		system ($exec_path."/rm $rm\n".$exec_path."/barcode -n -E -e $e -g 200x40 -b $tmp -o $eps\n".$exec_path."/convert $eps $png\n".$exec_path."/rm $eps\n");
 		print "<td align=\"center\"><table width=\"100%\"><tbody>";
-		if ($labelprint) print "<tr><td align=\"right\"><a href=\"../lager/labelprint.php?beskrivelse=".urlencode($beskrivelse[0])."&stregkode=".urlencode($tmp)."&src=$png&pris=".dkdecimal($salgspris)."\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td></tr>";
+		if ($labelprint) print "<tr><td align=\"right\"><a href=\"../lager/labelprint.php?beskrivelse=".urlencode($beskrivelse[0])."&stregkode=".urlencode($tmp)."&src=$png&pris=$salgspris&enhed=$enhed&indhold=$indhold\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td></tr>";
 #		print "<tr><td align=\"center\">$beskrivelse[0]</td></tr>";
 		print "<tr><td align=\"center\"><img style=\"border:0px solid;\" alt=\"\" src=\"$png\"></td></tr>";
 		print "</tbody></table>";
@@ -853,7 +865,10 @@ if (!$varenr) {
 		if (($enhed)&&($enhed2)) print "<tr><td> $enhed2/$enhed</td><td width=100><input class=\"inputbox\" type=text style=text-align:right size=8 name=forhold value=\"$x\" onchange=\"javascript:docChange = true;\"></td></tr>";
 	}
 #print "<td width=100><input class=\"inputbox\" type=text size=2 name=enhed value='$enhed'>&nbsp; Alternativ enhed&nbsp;<input class=\"inputbox\" type=text size=2 name=enhed2 value='$enhed2'></td></tr>";
-
+	if ($enhed) {
+		print "<tr><td height=20%>Indhold  ($enhed)</td><td><input class=\"inputbox\" type=text style=text-align:right size=8 name=indhold value=\"".dkdecimal($indhold)."\" onchange=\"javascript:docChange = true;\"></td></tr>";
+		print "<tr><td height=20%>Pris pr $enhed</td><td><input class=\"inputbox\" type=text readonly=readonly style=text-align:right size=8 value=\"".dkdecimal($salgspris/$indhold)."\" onchange=\"javascript:docChange = true;\"></td></tr>";
+	}
 	print "</tbody></table></td>";# <- Enhedstabel 
 	print "<td valign=top><table border=0 width=100%><tbody>"; # Gruppe tabel ->
 	print "<tr><td><b>Grupper</b></td></tr>";

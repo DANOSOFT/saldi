@@ -26,6 +26,7 @@
 // 2013.12.13	Tilføjet "intern" bilagsopbevaring (box6 under ftp)
 // 2014.01.29	Tilføjet valg til automatisk genkendelse af betalingskort (kun ved integreret betalingsterminal) Søg 20140129
 // 2014.05.08	Tilføjet valg til bordhåndtering under pos_valg Søg 20140508
+// 2014.06.16 Tilføjet mellemkonto til pos kasser. Søg mellemkonto.
 
 function kontoindstillinger($regnskab,$skiftnavn)
 {
@@ -532,7 +533,7 @@ function div_valg() {
 	print "<tr><td title=\"".findtekst(185,$sprog_id)."\">".findtekst(184,$sprog_id)."</td><td title=\"".findtekst(185,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=box10 $betalingsliste></td></tr>";
 	print "<tr><td title=\"".findtekst(193,$sprog_id)."\">".findtekst(167,$sprog_id)."</td><td title=\"".findtekst(193,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=box6 $docubizz></td></tr>";
 	print "<tr><td title=\"".findtekst(194,$sprog_id)."\">".findtekst(168,$sprog_id)."</td><td title=\"".findtekst(194,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=box7 $jobkort></td></tr>";
-	print "<tr><td title=\"".findtekst(639,$sprog_id)."\">".findtekst(638,$sprog_id)."</td><td title=\"".findtekst(639,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=box4 $forskellige_datoer></td></tr>";#20131101
+	print "<tr><td title=\"".findtekst(709,$sprog_id)."\">".findtekst(708,$sprog_id)."</td><td title=\"".findtekst(709,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=box4 $forskellige_datoer></td></tr>";#20131101
 	print "<tr><td title=\"".findtekst(527,$sprog_id)."\">".findtekst(526,$sprog_id)."</td><td title=\"".findtekst(527,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=box8 $ebconnect></td></tr>";
 	if ($box8) {
 		list($oiourl,$oiobruger,$oiokode)=explode(chr(9),$box8);
@@ -591,13 +592,13 @@ function ordre_valg()
 	print "<tr><td title=\"".findtekst(191,$sprog_id)."\">".findtekst(166,$sprog_id)."</td><td><INPUT title=\"".findtekst(191,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"box5\" $straks_bogf></td></tr>";
 	print "<tr><td title=\"".findtekst(313,$sprog_id)."\">".findtekst(314,$sprog_id)."</td><td><INPUT title=\"".findtekst(313,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"box6\" $fifo></td></tr>";
 	print "<tr><td title=\"".findtekst(192,$sprog_id)."\">".findtekst(183,$sprog_id)."</td><td><INPUT title=\"".findtekst(192,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"box9\" $negativt_lager></td></tr>";
-	print "<tr><td title=\"".findtekst(680,$sprog_id)."\">".findtekst(644,$sprog_id)."</td><td><INPUT title=\"".findtekst(680,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"box11\" $advar_lav_beh></td></tr>";
+	print "<tr><td title=\"".findtekst(680,$sprog_id)."\">".findtekst(714,$sprog_id)."</td><td><INPUT title=\"".findtekst(680,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"box11\" $advar_lav_beh></td></tr>";
 	print "<tr><td title=\"".findtekst(682,$sprog_id)."\">".findtekst(681,$sprog_id)."</td><td><INPUT title=\"".findtekst(682,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"box12\" $procentfakt></td></tr>";
 	print "<tr><td title=\"".findtekst(684,$sprog_id)."\">".findtekst(683,$sprog_id)."</td><td><INPUT title=\"".findtekst(684,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"text\" style=\"width:35px;text-align:right;\" name=\"procenttillag\" value=\"$procenttillag\">%</td></tr>";
 	print "<tr><td title=\"".findtekst(686,$sprog_id)."\">".findtekst(685,$sprog_id)."</td><td><INPUT title=\"".findtekst(686,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"text\" style=\"width:70px;text-align:right;\" name=\"procentvare\" value=\"$procentvare\"></td></tr>";
 	print "<tr><td title=\"".findtekst(288,$sprog_id)."\">".findtekst(287,$sprog_id)."</td><td><INPUT title=\"".findtekst(288,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"text\" style=\"width:70px;text-align:right;\" name=\"box2\" value=\"$rabatvarenr\"></td></tr>";
-	print "<tr><td title=\"".findtekst(618,$sprog_id)."\">".findtekst(617,$sprog_id)."</td><td><INPUT title=\"".findtekst(618,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"text\" style=\"width:70px;text-align:right;\" name=\"box7\" value=\"$kontantkonto\"></td></tr>";
-	print "<tr><td title=\"".findtekst(620,$sprog_id)."\">".findtekst(619,$sprog_id)."</td><td><INPUT title=\"".findtekst(620,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"text\" style=\"width:70px;text-align:right;\" name=\"box10\" value=\"$kortkonto\"></td></tr>";
+	print "<tr><td title=\"".findtekst(688,$sprog_id)."\">".findtekst(687,$sprog_id)."</td><td><INPUT title=\"".findtekst(688,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"text\" style=\"width:70px;text-align:right;\" name=\"box7\" value=\"$kontantkonto\"></td></tr>";
+	print "<tr><td title=\"".findtekst(690,$sprog_id)."\">".findtekst(689,$sprog_id)."</td><td><INPUT title=\"".findtekst(690,$sprog_id)."\" CLASS=\"inputbox\" TYPE=\"text\" style=\"width:70px;text-align:right;\" name=\"box10\" value=\"$kortkonto\"></td></tr>";
 	
 
 	print "<tr><td><br></td></tr>";
@@ -640,18 +641,18 @@ function vare_valg() {
 	print "</select></td></tr>";
 	if ($box2=='!') $box3='1'; 
 	print "<tr><td><br></td></tr>";
-	print "<tr><td title=\"".findtekst(625,$sprog_id)."\"><!--tekst 626-->".findtekst(625,$sprog_id)."<!--tekst 626--></td><td colspan=\"3\" title=\"".findtekst(625,$sprog_id)."\"><select style=\"text-align:left;width:300px;\" name=\"box3\">";
-	if (!$box3) print "<option value='0'>".findtekst(627,$sprog_id)."<!--tekst 627--></option>";
-	if ($box3=='1') print "<option value='1'>".findtekst(628,$sprog_id)."<!--tekst 628--></option>";
-	if ($box3=='2') print "<option value='2'>".findtekst(629,$sprog_id)."<!--tekst 629--></option>";
-	if ($box3) print "<option value='0'>".findtekst(627,$sprog_id)."<!--tekst 627--></option>";
-	if ($box3!='1') print "<option value='1'>".findtekst(628,$sprog_id)."<!--tekst 628--></option>";
-	if ($box3!='2') print "<option value='2'>".findtekst(629,$sprog_id)."<!--tekst 629--></option>";
+	print "<tr><td title=\"".findtekst(695,$sprog_id)."\"><!--tekst 626-->".findtekst(695,$sprog_id)."<!--tekst 626--></td><td colspan=\"3\" title=\"".findtekst(695,$sprog_id)."\"><select style=\"text-align:left;width:300px;\" name=\"box3\">";
+	if (!$box3) print "<option value='0'>".findtekst(697,$sprog_id)."<!--tekst 697--></option>";
+	if ($box3=='1') print "<option value='1'>".findtekst(698,$sprog_id)."<!--tekst 698--></option>";
+	if ($box3=='2') print "<option value='2'>".findtekst(699,$sprog_id)."<!--tekst 629--></option>";
+	if ($box3) print "<option value='0'>".findtekst(697,$sprog_id)."<!--tekst 697--></option>";
+	if ($box3!='1') print "<option value='1'>".findtekst(698,$sprog_id)."<!--tekst 698--></option>";
+	if ($box3!='2') print "<option value='2'>".findtekst(699,$sprog_id)."<!--tekst 629--></option>";
 	print "</select></td></tr>";
 	if ($box3=='2') print "<tr><td title=\"".findtekst(503,$sprog_id)."\"><!--tekst 503-->".findtekst(504,$sprog_id)."<!--tekst 504--></td><td colspan=\"3\" title=\"".findtekst(503,$sprog_id)."\"><!--tekst 503--><input type=\"text\" style=\"text-align:left;width:300px;\" name=\"box2\" value = \"$box2\"</td></tr>";
 	if ($box3=='1') {
-		print "<tr><td title=\"".findtekst(621,$sprog_id)."\"><!--tekst 621-->".findtekst(622,$sprog_id)."<!--tekst 622--></td><td colspan=\"3\" title=\"".findtekst(621,$sprog_id)."\"><!--tekst 621--><input type=\"text\" style=\"text-align:left;width:300px;\" name=\"box4\" value = \"$box4\"</td></tr>";
-		print "<tr><td title=\"".findtekst(623,$sprog_id)."\"><!--tekst 623-->".findtekst(624,$sprog_id)."<!--tekst 624--></td><td colspan=\"3\" title=\"".findtekst(623,$sprog_id)."\"><!--tekst 623--><input type=\"text\" style=\"text-align:left;width:300px;\" name=\"box5\" value = \"$box5\"</td></tr>";
+		print "<tr><td title=\"".findtekst(691,$sprog_id)."\"><!--tekst 621-->".findtekst(692,$sprog_id)."<!--tekst 622--></td><td colspan=\"3\" title=\"".findtekst(691,$sprog_id)."\"><!--tekst 621--><input type=\"text\" style=\"text-align:left;width:300px;\" name=\"box4\" value = \"$box4\"</td></tr>";
+		print "<tr><td title=\"".findtekst(693,$sprog_id)."\"><!--tekst 623-->".findtekst(694,$sprog_id)."<!--tekst 624--></td><td colspan=\"3\" title=\"".findtekst(693,$sprog_id)."\"><!--tekst 623--><input type=\"text\" style=\"text-align:left;width:300px;\" name=\"box5\" value = \"$box5\"</td></tr>";
 	}
 	print "<tr><td>";
 	print "<br></td></tr>";
@@ -1278,6 +1279,7 @@ function pos_valg () {
 	$betalingskort=explode(chr(9),$r['box5']); #20131210
 	$div_kort_kto=$r['box6']; #20140129
 	if ($r['box7']) $bord=explode(chr(9),$r['box7']); #20140506
+	$mellemkonti=explode(chr(9),$r['box8']);
 		
 	$q = db_select("select * from grupper where art = 'POSBUT'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $posbuttons++;
@@ -1321,8 +1323,9 @@ function pos_valg () {
 		if ($afd_antal) print "<td title=\"".findtekst(273,$sprog_id)."\">".findtekst(274,$sprog_id)."</td>";
 		if ($moms_antal) print "<td title=\"".findtekst(285,$sprog_id)."\">".findtekst(286,$sprog_id)."</td>";
 		print "<td title=\"".findtekst(275,$sprog_id)."\">".findtekst(276,$sprog_id)."</td>";
-		print "<td title=\"".findtekst(635,$sprog_id)."\"><!--Tekst 635-->".findtekst(634,$sprog_id)."<!--Tekst 634--></td>";
-		print "<td title=\"".findtekst(637,$sprog_id)."\"><!--Tekst 637-->".findtekst(636,$sprog_id)."<!--Tekst 636--></td></tr>";
+		print "<td title=\"".findtekst(716,$sprog_id)."\">".findtekst(715,$sprog_id)."</td>";
+		print "<td title=\"".findtekst(705,$sprog_id)."\"><!--Tekst 705-->".findtekst(704,$sprog_id)."<!--Tekst 704--></td>";
+		print "<td title=\"".findtekst(707,$sprog_id)."\"><!--Tekst 707-->".findtekst(706,$sprog_id)."<!--Tekst 706--></td></tr>";
 		for($x=0;$x<$kasseantal;$x++) {
 			print "<tr bgcolor=$bgcolor5>";
 			$tmp=$x+1;
@@ -1350,6 +1353,7 @@ function pos_valg () {
 -				print "</SELECT></td>";;
 			}
 			print "<td><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right;width:50px;\" name=\"kassekonti[$x]\" value=\"$kassekonti[$x]\"></td>";
+			print "<td><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right;width:50px;\" name=\"mellemkonti[$x]\" value=\"$mellemkonti[$x]\"></td>";
 			if (!$printer_ip[$x])$printer_ip[$x]='localhost';
 			print "<td><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right;width:100px;\" name=\"printer_ip[$x]\" value=\"$printer_ip[$x]\"></td>";
 			print "<td align=\"center\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right;width:100px;\" name=\"terminal_ip[$x]\" value=\"$terminal_ip[$x]\"></td></tr>";
@@ -1360,7 +1364,7 @@ function pos_valg () {
 	if ($kortantal) {
 		print "<tr><td></td><td title=\"".findtekst(281,$sprog_id)."\">".findtekst(283,$sprog_id)."</td>";
 		print "<td title=\"".findtekst(282,$sprog_id)."\">".findtekst(284,$sprog_id)."</td>";
-		print "<td title=\"".findtekst(641,$sprog_id)."\">".findtekst(640,$sprog_id)."</td></tr>";
+		print "<td title=\"".findtekst(711,$sprog_id)."\">".findtekst(710,$sprog_id)."</td></tr>";
 		print "<tr><td colspan=\"6\"></td></tr>";
 		for($x=0;$x<$kortantal;$x++) {
 			($betalingskort[$x])?$betalingskort[$x]='checked':$betalingskort[$x]=NULL; # 20131210
@@ -1369,7 +1373,7 @@ function pos_valg () {
 			print "<td>$tmp</td>";
 			print "<td title=\"".findtekst(281,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:left\" size=\"15\" name=\"korttyper[$x]\" value=\"$korttyper[$x]\"></td>";
 			print "<td title=\"".findtekst(282,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right\" size=\"3\" name=\"kortkonti[$x]\" value=\"$kortkonti[$x]\"></td>";
-			print "<td title=\"".findtekst(641,$sprog_id)."\" align=\"center\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" style=\"text-align:right\" name=\"betalingskort[$x]\" $betalingskort[$x]></td></tr>"; #20131210
+			print "<td title=\"".findtekst(711,$sprog_id)."\" align=\"center\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" style=\"text-align:right\" name=\"betalingskort[$x]\" $betalingskort[$x]></td></tr>"; #20131210
 		}
 		$bet_term=NULL;
 		for ($x=0;$x<count($terminal_ip);$x++) {
@@ -1379,9 +1383,9 @@ function pos_valg () {
 			$tmp++;
 			print "<tr bgcolor=$bgcolor5>";
 			print "<td>$tmp</td>";
-			print "<td title=\"".findtekst(643,$sprog_id)."\">".findtekst(642,$sprog_id)."</td>";
-			print "<td title=\"".findtekst(643,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right\" size=\"3\" name=\"div_kort_kto\" value=\"$div_kort_kto\"></td>";
-			print "<td title=\"".findtekst(643,$sprog_id)."\" align=\"center\"><INPUT DISABLED=\"disabled\" CLASS=\"inputbox\" TYPE=\"checkbox\" style=\"text-align:right\" checked></td></tr>";
+			print "<td title=\"".findtekst(713,$sprog_id)."\">".findtekst(712,$sprog_id)."</td>";
+			print "<td title=\"".findtekst(713,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right\" size=\"3\" name=\"div_kort_kto\" value=\"$div_kort_kto\"></td>";
+			print "<td title=\"".findtekst(713,$sprog_id)."\" align=\"center\"><INPUT DISABLED=\"disabled\" CLASS=\"inputbox\" TYPE=\"checkbox\" style=\"text-align:right\" checked></td></tr>";
 		}
 	}
 	print "<tr><td colspan=\"6\"><hr></td></tr>";
@@ -1406,8 +1410,8 @@ function pos_valg () {
 	print "<tr><td title=\"".findtekst(460,$sprog_id)."\">".findtekst(461,$sprog_id)."</td><td title=\"".findtekst(460,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"vis_kontoopslag\" $vis_kontoopslag></td></tr>";
 	print "<tr><td title=\"".findtekst(464,$sprog_id)."\">".findtekst(465,$sprog_id)."</td><td title=\"".findtekst(464,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"vis_indbetaling\" $vis_indbetaling></td></tr>";
 	print "<tr><td title=\"".findtekst(462,$sprog_id)."\">".findtekst(463,$sprog_id)."</td><td title=\"".findtekst(462,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right;width:25px\" name=\"timeout\" value=\"$timeout\"></td></tr>";
-	print "<tr><td title=\"".findtekst(631,$sprog_id)."\">".findtekst(630,$sprog_id)."</td><td title=\"".findtekst(631,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right;width:100px\" name=\"kasseprimo\" value=\"$kasseprimo\"></td></tr>";
-	print "<tr><td title=\"".findtekst(633,$sprog_id)."\">".findtekst(632,$sprog_id)."</td><td title=\"".findtekst(633,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"optalassist\" $optalassist></td></tr>";
+	print "<tr><td title=\"".findtekst(701,$sprog_id)."\">".findtekst(700,$sprog_id)."</td><td title=\"".findtekst(701,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"text\" style=\"text-align:right;width:100px\" name=\"kasseprimo\" value=\"$kasseprimo\"></td></tr>";
+	print "<tr><td title=\"".findtekst(703,$sprog_id)."\">".findtekst(702,$sprog_id)."</td><td title=\"".findtekst(703,$sprog_id)."\"><INPUT CLASS=\"inputbox\" TYPE=\"checkbox\" name=\"optalassist\" $optalassist></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\"></td>";

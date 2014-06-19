@@ -27,6 +27,8 @@
 // 20131119 Tilføjet variantvarer i importfunktion. Søg variant_id
 // 20140103	db_escape_string indsat - Søg db_escape_string
 // 20140103	Hvis der er 2 forskellige vnr som er ens med små bogstaver (Løsdel != løsdel) blev kun løsdel fundet. Søg 20140103
+// 20140615 Ændret if ($lagertraek[$x]) til if ($lagerregulering[$x]) da varer sin ikke blev bogført på lager ikke blev reguleret {# 20140615
+
 
 @session_start();
 $s_id=session_id();
@@ -389,8 +391,8 @@ function bogfor($nulstil_ej_optalt,$dato,$bogfor,$godkend_regdif) {
 				$gl_beholdning[$id]=$r['beholdning'];
 				$gl_kostsum=$r['beholdning']*$kostpris;
 				$bgcolor="#ffffff";
-				if ($lagertraek[$x]) {
-					if (in_array($id,$reg_vare_id)) {
+				if ($lagerregulering[$x]) { # 20140615
+					if (in_array($id,$reg_vare_id)) { 
 						if ($reguleres[$id]) {
 							$bgcolor="#00ff00";
 							$ny_kostsum=$gl_kostsum+$reguleres[$id]*$r['kostpris'];
