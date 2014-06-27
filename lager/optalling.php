@@ -1,6 +1,6 @@
 <?php
 
-// ------------lager/lageroptalling.php------------patch 3.3.7------2014.01.03---
+// ------------lager/lageroptalling.php---------------patch 3.4.2--2014.01.03--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -20,14 +20,15 @@
 // http://www.fundanemt.com/gpl_da.html
 //
 // Copyright (c) 2004-2014 DANOSOFT ApS
-// ----------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
 // 20120913 Der kan nu optaelles til 0
 // 20130109 Hele optællingen kan nu slettes - søg 20130109
 // 20131119 Tilføjet variantvarer i importfunktion. Søg variant_id
 // 20140103	db_escape_string indsat - Søg db_escape_string
 // 20140103	Hvis der er 2 forskellige vnr som er ens med små bogstaver (Løsdel != løsdel) blev kun løsdel fundet. Søg 20140103
-// 20140615 Ændret if ($lagertraek[$x]) til if ($lagerregulering[$x]) da varer sin ikke blev bogført på lager ikke blev reguleret {# 20140615
+// 20140615 Ændret if ($lagertraek[$x]) til if ($lagerregulering[$x]) da varer som ikke blev bogført på lager ikke blev reguleret {# 20140615
+// 20140626 Rettet datofunktion så datoen sættes til sidste dato i aktivt regnskabsår, hvis aktivt regsnkabsår er før dags dato. 
 
 
 @session_start();
@@ -55,7 +56,7 @@ $gentael=if_isset($_GET['gentael']);
 if ($bogfor) {
 	$nulstil_ej_optalt=if_isset($_GET['nulstil_ej_optalt']);
 	if ($_POST['nulstil_ej_optalt']) $nulstil_ej_optalt=if_isset($_POST['nulstil_ej_optalt']);
-	$dato=if_isset($_GET['dato']);
+	$dato=if_isset($_GET['dato']); 
 	if ($_POST['dato']) $dato=if_isset($_POST['dato']);
 	$godkend_regdif=if_isset($_GET['godkend_regdif']);
 } else $bogfor=0;
@@ -74,7 +75,20 @@ if ($slet && $vare_id && $varenr) {
 	$optalt=if_isset($_POST['optalt']);
 	$beholdning=if_isset($_POST['beholdning']);
 	$tidspkt=if_isset($_POST['tidspkt']);
+	$dato=if_isset($_POST['dato']);
 }
+if (!$dato) { # 20140625
+	$q = db_select("select * from grupper where art = 'RA' and kodenr='$regnaar'",__FILE__ . " linje " . __LINE__);
+	if ($r = db_fetch_array($q)) {
+		$regnslut=$r['box4']."-".$r['box3']."-31";
+		if(date("d-m-Y")>$regnslut) $dato=dkdato($regnslut);
+		else $dato=date("d-m-Y");
+	}
+}
+if ($dato) { # 20140625
+	$tidspkt=str_replace("-","",usdate($dato))."235959";
+}
+$date=usdate($dato); # 20140625
 $vnr=$varenr;
 print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
 print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
@@ -106,22 +120,31 @@ print "<tr><td align=\"center\" width=\"100%\"><table name=\"tabel_1.2\" width=\
 print "<form name=\"optalling\" action=\"optalling.php?gentael=$gentael\" method=\"post\">\n";
 if ($varenr=trim($varenr)) {
 	$fokus="optalt";
-	print "<tr><td>Varenr</td><td>Beskrivelse</td><td align=\"right\">Beholdning</td><td align=\"right\">Ny beholdning</td></tr>\n";
+	print "<tr><td>Varenr</td><td>Beskrivelse</td><td align=\"center\">Beholdning ($dato)</td><td align=\"right\">Ny beholdning</td></tr>\n";
 	if (!$r=db_fetch_array(db_select("select * from varer where varenr='$varenr' or stregkode='$varenr'",__FILE__ . " linje " . __LINE__))) {
 		$r=db_fetch_array(db_select("select * from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__));
 	}
+	# 20140625 ->
+	$beholdning=0; 
+	$r2=db_fetch_array($q2=db_select("select sum(antal) as antal from batch_salg where vare_id='$r[id]' and salgsdate <= '$date'",__FILE__ . " linje " . __LINE__));
+	$beholdning-=$r2['antal'];
+	$r2=db_fetch_array($q2=db_select("select sum(antal) as antal from batch_kob where vare_id='$r[id]' and kobsdate <= '$date'",__FILE__ . " linje " . __LINE__));
+	$beholdning+=$r2['antal'];
+	# <-20140625
 	print "<tr><td></td></tr>\n";
 		
-	$tmp=dkdecimal($r['beholdning']*1); #20140103
+	$tmp=dkdecimal($beholdning*1); #20140103
 	while(substr($tmp,-1)=='0') $tmp=substr($tmp,0,strlen($tmp)-1);
 	if(substr($tmp,-1)==',') $tmp=substr($tmp,0,strlen($tmp)-1);
 	print "<tr><td>$r[varenr]</td><td>$r[beskrivelse]</td><td align=\"right\">$tmp</td><td align=\"right\"><input style=\"width:75px;text-align:right;\" type=\"text\" name=\"optalt\"></td></tr>\n";
 	print "<tr><td><input type=\"hidden\" name=\"varenr\" value='$r[varenr]'></td></tr>\n";
 	print "<tr><td><input type=\"hidden\" name=\"vare_id\" value='$r[id]'></td></tr>\n";
-	print "<tr><td><input type=\"hidden\" name=\"beholdning\" value='$r[beholdning]'></td>\n";
+	print "<tr><td><input type=\"hidden\" name=\"beholdning\" value='$beholdning'></td>\n";
 } else {
 	$fokus="varenr";
-	print "<tr><td>Varenummer / Stregkode</td><td align=\"right\"><input style=\"width:300px;text-align:left;\" type=\"text\" name=\"varenr\"></td>\n";
+	print "<tr>
+	<!--<td>Dato</td><td align=\"right\"><input style=\"width:100px;text-align:left;\" type=\"text\" name=\"dato\" value=\"".dkdato($date)."\"></td>-->
+	<td>Varenummer / Stregkode</td><td align=\"right\"><input style=\"width:300px;text-align:left;\" type=\"text\" name=\"varenr\"></td>\n";
 }
 print "<input type=\"hidden\" name=\"tidspkt\" value=\"".date('YmdHis')."\">";
 
@@ -137,7 +160,7 @@ elseif($vis_ej_optalt) $optalt=vis_ej_optalt();
 else $optalt=vis_optalling($vnr,0);
 
 if ($optalt>=1) {
-	$dato=date('d-m-Y');
+	if (!$dato) $dato=date('d-m-Y'); # 20140625
 	print "<form name=\"optalling\" action=\"optalling.php?bogfor=1\" method=\"post\">\n";
 	print "<td colspan=\"7\">Dato for opt&aelig;lling</td><td><input type=\"text\" name=\"dato\" value=\"$dato\"></td></tr>\n";
 	print "<td colspan=\"7\">Sæt beholdning til 0 for alle ikke optalte varer</td><td><input type=\"checkbox\" name=\"nulstil_ej_optalt\"></td></tr>\n";
@@ -270,6 +293,9 @@ function vis_optalling($vnr,$gentael) {
 function vis_ej_optalt() {
 	global $bgcolor;
 	global $bgcolor2;
+	global $dato; # 20140625
+	
+	$date=usdate($dato); # 20140625
 
 	$optalt=array();
 	$x=0;
@@ -284,18 +310,27 @@ function vis_ej_optalt() {
 		if ($gruppe) $gruppe.=" or gruppe = '".$r['kodenr']."'";
 		else $gruppe="gruppe = '".$r['kodenr']."'";
 	}
+	if ($gruppe) { #20140625
+		print "<tr bgcolor=\"$baggrund\"><td colspan=\"7\" align=\"center\"><b><big>----- Ikke optalte varer -----</b></big></td><tr>\n";
+		print "<tr bgcolor=\"$baggrund\"><td>Varenr</td><td>Beskrivelse</td><td align=\"right\">Beholdning</td><td align=\"right\">Kostpris</td><td align=\"right\">Lagerv&aelig;rdi</td><td align=\"right\">Lagerv&aelig;rdi&nbsp;sum</td><tr>\n";
 
-	print "<tr bgcolor=\"$baggrund\"><td colspan=\"7\" align=\"center\"><b><big>----- Ikke optalte varer -----</b></big></td><tr>\n";
-	print "<tr bgcolor=\"$baggrund\"><td>Varenr</td><td>Beskrivelse</td><td align=\"right\">Beholdning</td><td align=\"right\">Kostpris</td><td align=\"right\">Lagerv&aelig;rdi</td><td align=\"right\">Lagerv&aelig;rdi&nbsp;sum</td><tr>\n";
-
-	$q=db_select("select * from varer where ($gruppe) and lukket != 'on' order by varenr",__FILE__ . " linje " . __LINE__);
-	while($r=db_fetch_array($q)) {
-		if (!in_array($r['id'],$optalt)) {
-			$kostsum=$r['beholdning']*$r['kostpris'];
-			$lagervalue+=$kostsum;
-			($baggrund==$bgcolor)? $baggrund=$bgcolor2:$baggrund=$bgcolor;
-			print "<tr bgcolor=\"$baggrund\"><td title=\"Klik her for at opt&aelig;lle denne vare.\"><b><a href=\"optalling.php?varenr=$r[varenr]\">$r[varenr]</a></b></td><td><b>$r[beskrivelse]</b></td><td align=\"right\"><b>".dkdecimal($r['beholdning'])."</b></td><td align=\"right\"><b>".dkdecimal($r['kostpris'])."</b></td><td align=\"right\"><b>".dkdecimal($kostsum)."</b></td><td align=\"right\"><b>".dkdecimal($lagervalue)."</b></td><tr>\n";
+		$q=db_select("select * from varer where ($gruppe) and lukket != 'on' order by varenr",__FILE__ . " linje " . __LINE__);
+		while($r=db_fetch_array($q)) {
+			$beholdning=0;
+			$r2=db_fetch_array($q2=db_select("select sum(antal) as antal from batch_salg where vare_id='$r[id]' and salgsdate <= '$date'",__FILE__ . " linje " . __LINE__));
+			$beholdning-=$r2['antal'];
+			$r2=db_fetch_array($q2=db_select("select sum(antal) as antal from batch_kob where vare_id='$r[id]' and kobsdate <= '$date'",__FILE__ . " linje " . __LINE__));
+			$beholdning+=$r2['antal'];
+			if (!in_array($r['id'],$optalt)) {
+				$kostsum=$beholdning*$r['kostpris'];
+				$lagervalue+=$kostsum;
+				($baggrund==$bgcolor)? $baggrund=$bgcolor2:$baggrund=$bgcolor;
+				print "<tr bgcolor=\"$baggrund\"><td title=\"Klik her for at opt&aelig;lle denne vare.\"><b><a href=\"optalling.php?varenr=$r[varenr]\">$r[varenr]</a></b></td><td><b>$r[beskrivelse]</b></td><td align=\"right\"><b>".dkdecimal($beholdning)."</b></td><td align=\"right\"><b>".dkdecimal($r['kostpris'])."</b></td><td align=\"right\"><b>".dkdecimal($kostsum)."</b></td><td align=\"right\"><b>".dkdecimal($lagervalue)."</b></td><tr>\n";
+			}
 		}
+	} else { #20140625
+		print "<BODY onLoad=\"javascript:alert('Ingen lagerførte varer.')\">\n";
+		return(0);
 	}
 	$x=count($optalt);
 	return($x);
@@ -669,7 +704,7 @@ function importer(){
 			print "<meta http-equiv=\"refresh\" content=\"1;URL=optalling.php?vis_ej_exist=1\">";
 		}
 	} else {
-		$dato=date("d-m-Y");
+		if (!$dato) $dato=date("d-m-Y");
 		print "<form enctype=\"multipart/form-data\" action=\"optalling.php?importer=1\" method=\"POST\">";
 		print "<tr><td width=100% align=center><table width=\"500px\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 		print "<tr><td width=100% align=center colspan=\"2\"><b><big>Import af lageropt&aelig;lling</big></b><br><hr></td></tr>";

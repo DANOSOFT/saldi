@@ -1,6 +1,6 @@
 <?php
 
-// ------------lager/varespor.php------------patch 3.0.5------2010.09.15---
+// ------------lager/varespor.php---------------------patch 3.4.2--2014.06.26--
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -15,9 +15,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
-// ----------------------------------------------------------------------
-
+// Copyright (c) 2004-2014 DANOSOFT ApS
+// ----------------------------------------------------------------------------
+//
+// 20140626 Tilføjet lagerregulering og ændret variabelnavn for dækningsbidrag.
 
 @session_start();
 $s_id=session_id();
@@ -119,7 +120,7 @@ while ($r = db_fetch_array($q)) {
 	$kobssum=$kobssum+$kobspris;
 	$tmp=dkdecimal($kobspris);
 	print "<td align=right>$tmp</td>";
-	$db=$kobspris-$kobspris;
+	$dbd=$kobspris-$kobspris;
 	$antal=$antal+$antal;
 }
 }
@@ -153,15 +154,19 @@ while ($row = db_fetch_array($query)) {
 		$r1 = db_fetch_array($q1); 
 	} else $r1=NULL;
 	print "<tr><td>".dkdato($row['fakturadate'])."</td>
-		<td align=right>".dkdecimal($row[antal])."</td>
-		<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:d_ordre=window.open('../debitor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','d_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>
+		<td align=right>".dkdecimal($row['antal'])."</td>";
+	if ($row['ordre_id'])	{
+		print "<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:d_ordre=window.open('../debitor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','d_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>
 		<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:d_ordre=window.open('../debitor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','d_ordre','$jsvars')\"><u>$r1[ordrenr]</u></td>";
+	} else {
+		print "<td align=\"right\">Lagerregulering</td><td></td>";
+	}
 	$salgsantal=$salgsantal+$row['antal'];
 	$salgspris=$row['pris']*$row['antal'];	 
 	$salgssum=$salgssum+$salgspris;
 	$tmp=dkdecimal($salgspris);
 	print "<td align=right>$tmp</td>";
-	$db=$salgspris-$kobspris;
+	$dbd=$salgspris-$kobspris;
 	$antal=$antal+$row['antal'];
 }
 $tmp=dkdecimal($salgssum);
@@ -205,7 +210,7 @@ while ($r = db_fetch_array($q)) {
 	$salgssum=$salgssum+$salgspris;
 	$tmp=dkdecimal($salgspris);
 	print "<td align=right>$tmp</td>";
-	$db=$salgspris-$kobspris;
+	$dbd=$salgspris-$kobspris;
 	$antal=$antal+$antal;
 }
 }

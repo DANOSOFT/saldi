@@ -1,5 +1,5 @@
 <?php
-// -----------------systemdata/syssetup.php----lap 3.3.6---2013-12-27----
+// -----------------systemdata/syssetup.php----lap 3.4.2---2014-06-21----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,9 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2013 DANOSOFT ApS
+// // Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 20132127 Indsat kontrol for at kodenr er numerisk på momskoder.
+// 20140621 Ændret kontrol for at kodenr er numerisk på momskoder til at acceptere "-".
 
 @session_start();
 $s_id=session_id();
@@ -193,7 +194,7 @@ if ($_POST){
 					} else db_modify("insert into valuta(gruppe,valdate,kurs) values ('$kodenr[$x]','$box3[$x]','$box2[$x]')",__FILE__ . " linje " . __LINE__); 
 				} 			
 			} elseif (($id[$x]>0)&&($kodenr[$x]=="-")&&($art[$x]!='PV')) {
-				if ($art[$x]=='VPG') {
+			if ($art[$x]=='VPG') {
 					if ($box1[$x]) db_modify("update varer set kostpris = $box1[$x] WHERE prisgruppe = '$kodenr[$x]'",__FILE__ . " linje " . __LINE__);
 					if ($box2[$x]) db_modify("update varer set salgspris = $box2[$x] WHERE prisgruppe = '$kodenr[$x]'",__FILE__ . " linje " . __LINE__);
 					if ($box3[$x]) db_modify("update varer set retail_price = $box3[$x] WHERE prisgruppe = '$kodenr[$x]'",__FILE__ . " linje " . __LINE__);
@@ -619,8 +620,10 @@ function tjek ($id,$beskrivelse,$kodenr,$kode,$art,$box1,$box2,$box3,$box4,$box5
 			if ($box6) {$fejl=kontotjek($box6);}
 		}
 		if ($art=='KM' || $art=='SM' || $art=='EM' || $art=='YM') { # 20132127
-			print "<BODY onLoad=\"javascript:alert('Nr skal være numerisk!')\">";
-			if (!is_numeric($kodenr)) return ('1'); 
+			if (!is_numeric($kodenr) && $kodenr!='-') { #20140621
+				print "<BODY onLoad=\"javascript:alert('Nr skal være numerisk! ($kodenr)')\">";
+				return ('1');
+			}
 		}
 		if (($art=='DS')||($art=='KS')||($art=='KM')||($art=='SM')) {$fejl=kontotjek($box1);}
 		if (($art=='DG')||($art=='KG')) {$fejl=momsktotjek($art,$box1);}

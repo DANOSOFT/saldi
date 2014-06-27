@@ -1,6 +1,6 @@
 <?php
 ob_start(); //Starter output buffering
-// // ------------finans/kassekladde.php------lap 3.3.4---2013.12.16------
+// // ------------finans/kassekladde.php------lap 3.3.4---2014.06.24------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,7 +19,7 @@ ob_start(); //Starter output buffering
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2003-2013 DANOSOFT ApS
+// Copyright (c) 2003-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.08.09 søg 20120809 V. openpostopslag viser både kreditorer og debitorer hvis de har samme kontonr - rettet 
@@ -29,8 +29,9 @@ ob_start(); //Starter output buffering
 // 2013.04.04 addslashes erstattet af db_escape_string
 // 2013.07.31 db_escape_string fjernet 2 steder da den bruges senere på samme streng og fordoblede "'" ved hver gem.
 // 2013.11.01 Fravalg for tjek af forskellige datoer.Søg: $forskellige_datoer
-// 3013.12.16	Flyttet javascript og ned til de øvrige scripts og fjernet fejltastet "f"
-
+// 2013.12.16	Flyttet javascript og ned til de øvrige scripts og fjernet fejltastet "f"
+// 2014.06.24 Flyttet opslag efter im betalings_id skal vises over $_POST så den også er med når kladden åbnes. Søg 20140624
+// 2014.06.24 Indsat $gl_transdate[$x] Søg 20140624
 @session_start();
 $s_id=session_id();
 $title="kassekladde";
@@ -129,6 +130,10 @@ function bogfor() {
 </script>
 <div align="center">
 <?php
+$r=db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__)); #20140624
+($r['box4'])?$forskellige_datoer=1:$forskellige_datoer=0;
+($r['box10'])?$vis_bet_id=1:$vis_bet_id=0;
+
 if($_GET) {
 	$returside=if_isset($_GET['returside']);
 	if (!$returside){$returside="../finans/kladdeliste.php";}
@@ -224,9 +229,6 @@ if ($_POST) {
 	(db_fetch_array(db_select("select * from grupper where ART = 'AFD'",__FILE__ . " linje " . __LINE__)))?$vis_afd=1:$vis_afd=0;
 	(db_fetch_array(db_select("select * from grupper where ART = 'PRJ'",__FILE__ . " linje " . __LINE__)))?$vis_projekt=1:$vis_projekt=0;
 	(db_fetch_array(db_select("select * from grupper where ART = 'VK'",__FILE__ . " linje " . __LINE__)))?$vis_valuta=1:$vis_valuta=0;
-	$r=db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
-	($r['box4'])?$forskellige_datoer=1:$forskellige_datoer=0;
-	($r['box10'])?$vis_bet_id=1:$vis_bet_id=0;
 	for ($x=1;$x<=$antal_ny;$x++) {
 		$dato[$x]=NULL;$beskrivelse[$x]=NULL;$d_type[$x]=NULL;$debet[$x]=NULL;$k_type[$x]=NULL;$kredit[$x]=NULL;$faktura[$x]=NULL;
 		$belob[$x]=NULL;$momsfri[$x]=NULL;$afd[$x]=NULL;$projekt[$x]=NULL;$ansat[$x]=NULL;$valuta[$x]=NULL;$forfaldsdato[$x]=NULL;$betal_id[$x]=NULL;
@@ -869,7 +871,7 @@ if ($kladde_id) {
 
 			$tmpffdato=forfaldsdag($transdate[$x],$row2['betalingsbet'],$row2['betalingsdage']);
 		}
-		if ((($d_type[$x]=='D'&& $debet[$x])||($k_type[$x]=='K'&& $kredit[$x])) && !$fejl && (!$forfaldsdato[$x] || $gl_transdate[$x] != $transdate[$x])) {
+		if ((($d_type[$x]=='D'&& $debet[$x])||($k_type[$x]=='K'&& $kredit[$x])) && !$fejl && $gl_transdate[$x] && (!$forfaldsdato[$x] || $gl_transdate[$x] != $transdate[$x])) { #20140624
 			$forfaldsdato[$x]=$tmpffdato;
 		}
 		$betal_id[$x]=$row['betal_id'];
@@ -976,36 +978,36 @@ if (($bogfort && $bogfort!='-') || $udskriv) {
 			if ($dokument[$y]) print "<td title=\"klik her for at &aring;bne bilaget: $dokument[$y]\"><a href=\"../includes/bilag.php?kilde=kassekladde&filnavn=$dokument[$y]&bilag_id=$id[$y]&bilag=$bilag[$y]&kilde_id=$kladde_id&fokus=bila$y\"><img style=\"border: 0px solid\" src=\"../ikoner/paper.png\"></a></td>";
 			else print "<td title=\"klik her for at vedh&aelig;fte et bilag\"><a href=\"../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$y]&bilag=$bilag[$y]&ny=ja&kilde_id=$kladde_id&fokus=bila$y\"><img  style=\"border: 0px solid\" src=\"../ikoner/clip.png\"></a></td>";
 		}
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=bila$y $de_fok value =\"$bilag[$y]\"\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=10 name=dato$y $de_fok value =\"$dato[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=25 name=besk$y $de_fok value =\"$beskrivelse[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=1 name=d_ty$y $de_fok value =\"$d_type[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=bila$y $de_fok value =\"$bilag[$y]\"\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=dato$y $de_fok value =\"$dato[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:300px;\" name=besk$y $de_fok value =\"$beskrivelse[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:25px;\" name=d_ty$y $de_fok value =\"$d_type[$y]\" onchange=\"javascript:docChange = true;\"></td>";
 		if (($k_type[$y]=='D' || $k_type[$y]=='K') && $kredit[$y] && !$debet[$y]) {
 			$libtxt=sidste_5($kredit[$y],$k_type[$y],'D');
 			print "<td>
 			<span onclick=\"return overlib('".$libtxt."', WIDTH=800);\" onmouseout=\"return nd();\">
-			<input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=debe$y $de_fok value =\"$debet[$y]\" onchange=\"javascript:docChange = true;\">
+			<input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=debe$y $de_fok value =\"$debet[$y]\" onchange=\"javascript:docChange = true;\">
 			</span></td>";
-		} else print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=debe$y $de_fok value =\"$debet[$y]\" title=\"$debettext[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=1 name=k_ty$y $de_fok value =\"$k_type[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		} else print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=debe$y $de_fok value =\"$debet[$y]\" title=\"$debettext[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:25px;\" name=k_ty$y $de_fok value =\"$k_type[$y]\" onchange=\"javascript:docChange = true;\"></td>";
 		if (($d_type[$y]=='D' || $d_type[$y]=='K') && $debet[$y] && !$kredit[$y]) {
 			$libtxt=sidste_5($debet[$y],$d_type[$y],'K');
 			print "<td>
 			<span onclick=\"return overlib('".$libtxt."', WIDTH=800);\" onmouseout=\"return nd();\">
-			<input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=kred$y $de_fok value =\"$kredit[$y]\" onchange=\"javascript:docChange = true;\">
+			<input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=kred$y $de_fok value =\"$kredit[$y]\" onchange=\"javascript:docChange = true;\">
 			</span></td>";
-		} else print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=kred$y $de_fok value =\"$kredit[$y]\" title= \"$kredittext[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=fakt$y $de_fok value =\"$faktura[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		} else print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=kred$y $de_fok value =\"$kredit[$y]\" title= \"$kredittext[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=fakt$y $de_fok value =\"$faktura[$y]\" onchange=\"javascript:docChange = true;\"></td>";
 		if ($valuta[$y]=='DKK') $title="";
 		else $title="DKK: ".dkdecimal($dkkamount[$y]);
-		print "<td title=\"$title\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=belo$y $de_fok value =\"$belob[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_afd) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=afd_$y $de_fok value =\"$afd[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_ansat) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=meda$y $de_fok value =\"$ansat[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_projekt) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=proj$y $de_fok value =\"$projekt[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_valuta) print "<td><input class=\"inputbox\" type=\"text\" size=4 name=valu$y $de_fok value =\"$valuta[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td title=\"$title\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=belo$y $de_fok value =\"$belob[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_afd) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=afd_$y $de_fok value =\"$afd[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_ansat) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=meda$y $de_fok value =\"$ansat[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_projekt) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=proj$y $de_fok value =\"$projekt[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_valuta) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:40px;\" name=valu$y $de_fok value =\"$valuta[$y]\" onchange=\"javascript:docChange = true;\"></td>";
 		if ($k_type[$y]=='K' || $d_type[$y]=='D') {
-			print "<td><input class=\"inputbox\" type=\"text\" size=10 name=forf$y $de_fok value =\"$forfaldsdato[$y]\" onchange=\"javascript:docChange = true;\"></td>";
-			if ($vis_bet_id) print "<td><input class=\"inputbox\" type=\"text\" size=10 name=b_id$y $de_fok value =\"$betal_id[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+			print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=forf$y $de_fok value =\"$forfaldsdato[$y]\" onchange=\"javascript:docChange = true;\"></td>";
+			if ($vis_bet_id) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=b_id$y $de_fok value =\"$betal_id[$y]\" onchange=\"javascript:docChange = true;\"></td>";
 		} elseif ($vis_forfald) {
 			print "<td><input class=\"inputbox\" readonly=readonly size=10><br></td>";
 			if ($vis_bet_id) print "<td><input class=\"inputbox\" readonly=readonly size=10><br></td>";
@@ -1084,23 +1086,26 @@ if (($bogfort && $bogfort!='-') || $udskriv) {
 		if (!isset($k_type[$x]))$k_type[$x]=NULL;	if (!isset($afd[$x]))$afd[$x]=NULL;									if (!isset($momsfri[$x]))$momsfri[$x]=NULL;
 		if (!isset($projekt[$x]))$projekt[$x]=NULL;if (!isset($valuta[$x]))$valuta[$x]=NULL;					if (!isset($ansat[$x]))$ansat[$x]=NULL;
 		print "<tr>";
-		if ($vis_bilag && !$fejl) print "<td><br></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=bila$x $de_fok value =\"$bilag[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=10 name=\"dato$x\" $de_fok value =\"$dato[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=25 name=besk$x $de_fok value =\"$beskrivelse[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=1 name=\"d_ty$x\" $de_fok value =\"$d_type[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=debe$x $de_fok value =\"$debet[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=1 name=k_ty$x $de_fok value =\"$k_type[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=kred$x $de_fok value=\"$kredit[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=fakt$x $de_fok value=\"$faktura[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=belo$x $de_fok value=\"$belob\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_afd) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=afd_$x $de_fok value=\"$afd[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_ansat) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=meda$x $de_fok value =\"$ansat[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_projekt) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=proj$x $de_fok value =\"$projekt[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_valuta) print "<td><input class=\"inputbox\" type=\"text\" size=4 name=valu$x $de_fok value =\"$valuta[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_bilag && !$fejl) { #20140425
+			if ($dokument[$y]) print "<td title=\"klik her for at &aring;bne bilaget: $dokument[$y]\"><a href=\"../includes/bilag.php?kilde=kassekladde&filnavn=$dokument[$y]&bilag_id=$id[$y]&bilag=$bilag[$y]&kilde_id=$kladde_id&fokus=bila$y\"><img style=\"border: 0px solid\" src=\"../ikoner/paper.png\"></a></td>";
+			else print "<td title=\"klik her for at vedh&aelig;fte et bilag\"><a href=\"../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$y]&bilag=$bilag[$y]&ny=ja&kilde_id=$kladde_id&fokus=bila$y\"><img  style=\"border: 0px solid\" src=\"../ikoner/clip.png\"></a></td>";
+		}
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=bila$x $de_fok value =\"$bilag[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=\"dato$x\" $de_fok value =\"$dato[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:300px;\" name=besk$x $de_fok value =\"$beskrivelse[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:25px;\" name=\"d_ty$x\" $de_fok value =\"$d_type[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=debe$x $de_fok value =\"$debet[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:25px;\" name=k_ty$x $de_fok value =\"$k_type[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=kred$x $de_fok value=\"$kredit[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=fakt$x $de_fok value=\"$faktura[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=belo$x $de_fok value=\"$belob\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_afd) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=afd_$x $de_fok value=\"$afd[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_ansat) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=meda$x $de_fok value =\"$ansat[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_projekt) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=proj$x $de_fok value =\"$projekt[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_valuta) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:40px;\" name=valu$x $de_fok value =\"$valuta[$x]\" onchange=\"javascript:docChange = true;\"></td>";
 		if ($k_type[$y]=='K' || $d_type[$y]=='D') {
-		print "<td><input class=\"inputbox\" type=\"text\" size=10 name=forf$x $de_fok value =\"$forfaldsdato[$x]\" onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=10 name=b_id$x $de_fok value =\"$betal_id[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=forf$x $de_fok value =\"$forfaldsdato[$x]\" onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=b_id$x $de_fok value =\"$betal_id[$x]\" onchange=\"javascript:docChange = true;\"></td>";
 		} elseif ($vis_forfald) {
 			print "<td><input  class=\"inputbox\" readonly=readonly size=10><br></td>";
 			if ($vis_bet_id) print "<td><input  class=\"inputbox\" readonly=readonly size=10><br></td>";
@@ -1119,21 +1124,21 @@ if (($bogfort && $bogfort!='-') || $udskriv) {
 	for ($z=$x;$z<=$y;$z++) {
 		print "<tr>";
 		if ($vis_bilag && !$fejl) print "<td><br></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=bila$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=10 name=dato$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=25 name=besk$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=1 name=d_ty$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=debe$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" size=1 name=k_ty$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=kred$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=fakt$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=10 name=belo$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_afd) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=afd_$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_ansat) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=meda$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_projekt) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right\" size=5 name=proj$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-		if ($vis_valuta) print "<td><input class=\"inputbox\" type=\"text\" size=4 name=valu$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-#		print "<td><input class=\"inputbox\" type=\"text\" size=10 name=forf$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
-#		print "<td><input class=\"inputbox\" type=\"text\" size=10 name=b_id$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=bila$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=dato$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:300px;\" name=besk$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:25px;\" name=d_ty$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=debe$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:25px;\" name=k_ty$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=kred$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=fakt$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:75px;\" name=belo$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_afd) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=afd_$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_ansat) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=meda$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_projekt) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px;\" name=proj$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+		if ($vis_valuta) print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:40px;\" name=valu$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+#		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=forf$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
+#		print "<td><input class=\"inputbox\" type=\"text\" style=\"text-align:left;width:75px;\" name=b_id$z $de_fok onchange=\"javascript:docChange = true;\"></td>";
 		if ($vis_forfald) {
 			print "<td><input  class=\"inputbox\" readonly=readonly size=10><br></td>";
 			if ($vis_bet_id) print "<td><input  class=\"inputbox\" readonly=readonly size=10><br></td>";
@@ -2234,7 +2239,7 @@ function kopier_til_ny($kladde_id,$bilagsnr,$ny_dato)
 		if ($sort!='transdate,bilag') $sort='bilag,transdate';
 
 		print "<form name=\"Form1\" action=kassekladde.php?sort=$sort; method=post>";
-		print "<span style=center title=\"Bilagsnummer for 1. bilag. De &oslash;vrige beregnes automatisk. S&aelig;ttes et lighedstegn anvendes orginalt bilagsnummer\">Skriv 1. bilagsnr <input type=\"text\" size=4 name=bilagsnr value=$bilagsnr><br><br><br></span>";
+		print "<span style=center title=\"Bilagsnummer for 1. bilag. De &oslash;vrige beregnes automatisk. S&aelig;ttes et lighedstegn anvendes orginalt bilagsnummer\">Skriv 1. bilagsnr <input type=\"text\" style=\"text-align:left;width:40px;\" name=bilagsnr value=$bilagsnr><br><br><br></span>";
 		print "<span style=center title=\"S&aelig;ttes et lighedstegn, anvendes orginal bilagsdato\">Skriv dato for alle bilag <input type=\"text\" size=8 name=ny_dato value=$dato><br><br><br></span>";
 		print "<input type=hidden name=kladde_id value=$kladde_id>";
 		print "<input type=submit accesskey=\"k\" value=\"Kopi&eacute;r til ny\" name=\"submit\" onclick=\"javascript:docChange = false;\">&nbsp;<input type=button value=fortryd onClick=\"location.href='../includes/luk.php'\"><br></span>\n";
