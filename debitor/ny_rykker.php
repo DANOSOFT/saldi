@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// -----------------------debitor/ny_rykker.php-----lap 3.2.9--2012.11.05-------
+// -----------------------debitor/ny_rykker.php-----lap 3.4.2--2014.06.28-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,10 +21,12 @@ $s_id=session_id();
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
 // 2012.11.05 - Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
+// 2014.06.28 - Valuta og valutakurs indsættes nu ved oprettesle af ny rykker. Søg 20140628 
+
 
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
@@ -151,27 +153,27 @@ for ($i=0; $i<=$konto_antal; $i++) {
 			$r_ordrenr++;
 			$r_fakturanr=$r_ordrenr."-1";
 			$r=db_fetch_array(db_select("select * from adresser where id ='$konto_id[$i]'",__FILE__ . " linje " . __LINE__));
-			$kontonr=addslashes($r['kontonr']);
-			$firmanavn=addslashes($r['firmanavn']);
-			$addr1=addslashes($r['addr1']);
-			$addr2=addslashes($r['addr2']);
-			$postnr=addslashes($r['postnr']);
-			$bynavn=addslashes($r['bynavn']);
-			$land=addslashes($r['land']);
-			$notes=addslashes($r['notes']);
-			$ref=addslashes($r['kontoansvarlig']);
-			$kontakt=addslashes($r['kontakt']);
-			$email=addslashes($r['email']);
+			$kontonr=db_escape_string($r['kontonr']);
+			$firmanavn=db_escape_string($r['firmanavn']);
+			$addr1=db_escape_string($r['addr1']);
+			$addr2=db_escape_string($r['addr2']);
+			$postnr=db_escape_string($r['postnr']);
+			$bynavn=db_escape_string($r['bynavn']);
+			$land=db_escape_string($r['land']);
+			$notes=db_escape_string($r['notes']);
+			$ref=db_escape_string($r['kontoansvarlig']);
+			$kontakt=db_escape_string($r['kontakt']);
+			$email=db_escape_string($r['email']);
 			if ($ffdage2) {
 				$betalingsdage=$ffdage2;
 				$betalingsbet='Netto'	;
 			} else {	 
-				$betalingsdage=addslashes($r['betalingsdage']);
-				$betalingsbet=addslashes($r['betalingsbet']);
+				$betalingsdage=db_escape_string($r['betalingsdage']);
+				$betalingsbet=db_escape_string($r['betalingsbet']);
 			} 
-			$cvrnr=addslashes($r['cvrnr']);
-			$ean=addslashes($r['ean']);
-			$institution=addslashes($r['institution']);
+			$cvrnr=db_escape_string($r['cvrnr']);
+			$ean=db_escape_string($r['ean']);
+			$institution=db_escape_string($r['institution']);
 			$r2 = db_fetch_array(db_select("select box1, box3, box4, box6 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 			$valuta=$r2['box3'];
 			$sprog=$r2['box4'];
@@ -209,8 +211,11 @@ for ($i=0; $i<=$konto_antal; $i++) {
 			}
 			$ryk_antal=$x;
 			if ($ryk_antal) {	
-				db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ref, status, valuta,fakturanr,email,betalt,kontakt) 
-					values ('$r_ordrenr', '$konto_id[$i]', '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$betalingsdage', '$betalingsbet', '$cvrnr', '$ean', '$institution', '$notes', 'R1', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', '$tidspkt', '$ref', '2', '$valuta','$r_fakturanr','$email','-','$kontakt')",__FILE__ . " linje " . __LINE__);
+echo "insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ref, status, valuta,valutakurs,fakturanr,email,betalt,kontakt) 
+					values ('$r_ordrenr', '$konto_id[$i]', '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$betalingsdage', '$betalingsbet', '$cvrnr', '$ean', '$institution', '$notes', 'R1', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', '$tidspkt', '$ref', '2', '$valuta', '$valutakurs','$r_fakturanr','$email','-','$kontakt')<nr>";
+#xit;	
+					db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ref, status,valuta, valutakurs,fakturanr,email,betalt,kontakt) 
+					values ('$r_ordrenr', '$konto_id[$i]', '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$betalingsdage', '$betalingsbet', '$cvrnr', '$ean', '$institution', '$notes', 'R1', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', '$tidspkt', '$ref', '2', '$valuta', '$valutakurs','$r_fakturanr','$email','-','$kontakt')",__FILE__ . " linje " . __LINE__);
 				$r= db_fetch_array(db_select("select id from ordrer where ordrenr ='$r_ordrenr' and art = 'R1'",__FILE__ . " linje " . __LINE__));
 				$rykker_id[$i]=$r['id'];
 				$id=$konto_id[$i];
@@ -238,7 +243,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 					if ($renteamount[$x]) {
 						$q3 = db_select ("select * from varer where id IN (select yb from formularer where beskrivelse='GEBYR' and formular='6')",__FILE__ . " linje " . __LINE__);
 						if ($r3 = db_fetch_array($q3)) {
-							$beskrivelse=addslashes($r3['beskrivelse']);				
+							$beskrivelse=db_escape_string($r3['beskrivelse']);				
 							$dd=date("Y-m-d");
 							$pos++;
 							db_modify("insert into ordrelinjer (posnr,ordre_id,vare_id,varenr,serienr,beskrivelse,antal,pris) values ($pos,'$rykker_id[$i]','$r3[id]','$r3[varenr]', '$dd', '$beskrivelse','1','$renteamount[$x]')",__FILE__ . " linje " . __LINE__);
@@ -262,6 +267,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 			$r = db_fetch_array(db_select("select * from ordrer where id = '$rykker_id[$i]'",__FILE__ . " linje " . __LINE__));
 			$rykkernr=substr($r['art'],-1);
 			$rentesum=$r['sum'];
+			$valutakurs=$r['valutakurs'];
 			
 			$fakturadate=$r['fakturadate'];
 			$rykkernr++;
@@ -269,8 +275,11 @@ for ($i=0; $i<=$konto_antal; $i++) {
 				$art="R".$rykkernr;
 				$r1=db_fetch_array(db_select("select * from adresser where id ='$r[konto_id]'",__FILE__ . " linje " . __LINE__));
 				$r_fakturanr=$r['ordrenr']."-".$rykkernr;
-				db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ref, status, fakturanr,email,betalt,kontakt,mail_fakt) 
-					values ('$r[ordrenr]', '$r[konto_id]', '$r1[kontonr]', '$r1[firmanavn]', '$r1[addr1]', '$r1[addr2]', '$r1[postnr]', '$r1[bynavn]', '$r1[land]', '$ffdage3', 'Netto', '$r1[cvrnr]', '$r1[ean]', '$r1[institution]', '$r1[notes]', '$art', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', '$tidspkt', '$r[ref]', '2','$r_fakturanr','$r[email]','-','$r[kontakt]','$r[mail_fakt]')",__FILE__ . " linje " . __LINE__);
+echo "insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ref, status,valuta,valutakurs,fakturanr,email,betalt,kontakt,mail_fakt) 
+					values ('$r[ordrenr]', '$r[konto_id]', '$r1[kontonr]', '$r1[firmanavn]', '$r1[addr1]', '$r1[addr2]', '$r1[postnr]', '$r1[bynavn]', '$r1[land]', '$ffdage3', 'Netto', '$r1[cvrnr]', '$r1[ean]', '$r1[institution]', '$r1[notes]', '$art', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', '$tidspkt', '$r[ref]', '2','$r[valuta]', '$r[valutakurs]','$r_fakturanr','$r[email]','-','$r[kontakt]','$r[mail_fakt]')";
+#xit;
+					db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ref,status,valuta,valutakurs,fakturanr,email,betalt,kontakt,mail_fakt) 
+					values ('$r[ordrenr]', '$r[konto_id]', '$r1[kontonr]', '$r1[firmanavn]', '$r1[addr1]', '$r1[addr2]', '$r1[postnr]', '$r1[bynavn]', '$r1[land]', '$ffdage3', 'Netto', '$r1[cvrnr]', '$r1[ean]', '$r1[institution]', '$r1[notes]', '$art', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', '$tidspkt', '$r[ref]', '2','$r[valuta]', '$r[valutakurs]','$r_fakturanr','$r[email]','-','$r[kontakt]','$r[mail_fakt]')",__FILE__ . " linje " . __LINE__);
 				$r= db_fetch_array(db_select("select id from ordrer where ordrenr ='$r[ordrenr]' and art = '$art' and fakturanr = '$r_fakturanr' and betalt != 'on'",__FILE__ . " linje " . __LINE__)); #Henter ordrelinjer fra basisrykker.
 				$ny_rykker_id[$i]=$r['id'];
 				$pos=0;
@@ -305,7 +314,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 				if ($renteamount[$x]) {
 					$q3 = db_select ("select * from varer where id IN (select yb from formularer where beskrivelse='GEBYR' and formular='$formular')",__FILE__ . " linje " . __LINE__);
 					if ($r3 = db_fetch_array($q3)) {
-						$beskrivelse=addslashes($r3['beskrivelse']);				
+						$beskrivelse=db_escape_string($r3['beskrivelse']);				
 						$dd=date("Y-m-d");
 						$pos++;
 						db_modify("insert into ordrelinjer (posnr,ordre_id,vare_id,varenr,serienr,beskrivelse,antal,pris) values ($pos,'$ny_rykker_id[$i]','$r3[id]','$r3[varenr]', '$dd', '$beskrivelse','1','$renteamount[$x]')",__FILE__ . " linje " . __LINE__);
@@ -317,7 +326,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 					$gebyr=$r2['salgspris'];
 					$sum=$sum+$gebyr;
 					if ($valutakurs) {
-						$gebyr=$gebyr*100/$valutakurs;
+						$gebyr=$gebyr*100/$valutakurs;r>
 						$sum=$sum*100/$valutakurs;
 					}	
 					db_modify("insert into ordrelinjer (ordre_id, varenr, vare_id, beskrivelse, antal, pris, serienr) values ('$ny_rykker_id[$i]', '$r2[varenr]', '$r2[id]', '$r2[beskrivelse]', '1', '$gebyr' , '$rykkerdate')",__FILE__ . " linje " . __LINE__);

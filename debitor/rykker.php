@@ -1,5 +1,5 @@
 <?php
-// -----------debitor/rykker.php---------lap 3.2.9-------2012-06-15--------
+// -----------debitor/rykker.php---------lap 3.4.2-------2014-06-28--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,10 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20140628 - Diverse rettelser da rykkergebyr altid vistes i DKK Søg 20140628
+
 
 @session_start();
 $s_id=session_id();
@@ -41,15 +43,40 @@ else if ($_POST) {
 	$submit=trim(if_isset($_POST['submit']));
 	if (strstr($submit, "Opdat")) $submit="Opdater";
 	$linje_id=if_isset($_POST['linje_id']);
-	$kontakt=addslashes(trim($_POST['kontakt']));
-	$email=addslashes(trim($_POST['email']));
-	$valuta=$_POST['valuta'];
+	$kontakt=db_escape_string(trim($_POST['kontakt']));
+	$email=db_escape_string(trim($_POST['email']));
+	$valuta=trim($_POST['valuta']);
+	$ny_valuta=trim($_POST['ny_valuta']); #21040628
 	if (strpos($email,"@") && strpos($email,".") && strlen($email)>5) $mail_fakt = $_POST['mail_fakt'];
 	elseif($_POST['mail_fakt'])	{
 		$mail_fakt='';
 		print "<BODY onLoad=\"javascript:alert('e-mail ikke gyldig')\">";
 	}
-	db_modify("update ordrer set valuta ='$valuta',email ='$email',mail_fakt='$mail_fakt',kontakt='$kontakt' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
+	if ($ny_valuta != $valuta) { #21040628 ->
+	if ($valuta=='DKK') $valutakurs=100;
+			$r=db_fetch_array(db_select("select valutakurs,fakturadate from ordrer where id = '$rykker_id'",__FILE__ . " linje " . __LINE__));
+			$valutakurs=$r['valutakurs'];
+			if ($valuta=='DKK') $valutakurs=100;
+		if (!$valutakurs) {
+			if ($r2=db_fetch_array(db_select("select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r[fakturadate]' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
+				$valutakurs=$r2['kurs'];
+			} else {
+				print "<BODY onLoad=\"javascript:alert('Ups - ingen valutakurs i $valuta d. $r[fakturadate]')\">";	
+				break 3;
+			}
+		}
+		if ($ny_valuta=='DKK') $ny_valutakurs=100; 
+		else {
+			if ($r2=db_fetch_array(db_select("select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$ny_valuta' and valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r[fakturadate]' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
+				$ny_valutakurs=$r2['kurs'];
+			} else {
+				print "<BODY onLoad=\"javascript:alert('Ups - ingen valutakurs i $valuta d. $r[fakturadate]')\">";	
+				break 3;
+			}
+		}
+		db_modify("update ordrelinjer set pris =pris*$valutakurs/$ny_valutakurs where varenr != '' and varenr is not NULL and ordre_id='$rykker_id'",__FILE__ . " linje " . __LINE__);
+		db_modify("update ordrer set valuta ='$ny_valuta',valutakurs ='$ny_valutakurs',email ='$email',mail_fakt='$mail_fakt',kontakt='$kontakt' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
+	}
 
 	if ($submit=="Send" && $mail_fakt) {
 		#	print "<BODY onLoad=\"return confirm('Dokumentet sendes pr. mail til $email')\">";
@@ -72,11 +99,11 @@ else if ($_POST) {
 	} elseif ($submit=="Opdater") {
 		$beskrivelse=$_POST['beskrivelse'];
 		$dkpris=$_POST['dkpris'];
-		$ny_beskrivelse=addslashes(trim($_POST['ny_beskrivelse']));
+		$ny_beskrivelse=db_escape_string(trim($_POST['ny_beskrivelse']));
 		if ($ny_beskrivelse) db_modify("insert into ordrelinjer(ordre_id, beskrivelse) values ($rykker_id, '$ny_beskrivelse')",__FILE__ . " linje " . __LINE__);
 		else {
 			for ($x=1; $x<=$linjeantal; $x++) {
-				$beskrivelse[$x]=addslashes($beskrivelse[$x]);
+				$beskrivelse[$x]=db_escape_string($beskrivelse[$x]);
 #			$pris[$x]=usdecimal($dkpris[$x]); 2009.02.05 - Pris fjernet fra update da den elles bogfoerer hele beloebet.
 				db_modify("update ordrelinjer set beskrivelse = '$beskrivelse[$x]' where id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 			}	
@@ -129,7 +156,6 @@ if ($rykker_id) {
 	$rykkernr=substr($row['art'],-1);
 	if ($row['valuta']) $valuta=$row['valuta'];
 	else $valuta='DKK';
-	
 	if (!$status){$status=0;}
 	$kontonr=$row['kontonr'];
 } else {
@@ -149,6 +175,7 @@ while ($r=db_fetch_array($q)){
 print "<form name=rykker action=rykker.php method=post>";
 print "<input type=hidden name=rykker_id value=$rykker_id>";
 print "<input type=hidden name=rykkernr value=$rykkernr>";
+print "<input type=hidden name=valuta value=$valuta>"; #21040628
 
 $ordre_id=if_isset($id);
 print "<tr><td width=50%><table cellpadding=0 cellspacing=0 border=0 width=100%>";
@@ -171,7 +198,7 @@ print "<tr><td><b>Betaling</td><td>$betalingsbet&nbsp;+&nbsp;$betalingsdage</td>
 print "<tr><td><b>Vor ref.</td><td>$ref</td></tr>\n";
 if ($mail_fakt=='on') $mail_fakt='checked';
 print "<tr><td><b>Send pr. mail</td><td><input type=checkbox name=mail_fakt $mail_fakt></td></tr>\n";
-print "<tr><td><b>Valuta</b></td><td><select class=\"inputbox\" name=valuta>";
+print "<tr><td><b>Valuta</b></td><td><select class=\"inputbox\" name=ny_valuta>";
 for ($x=0;$x<count($valutakode);$x++) {
 	if ($valuta==$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
 }
@@ -266,7 +293,7 @@ print "</td></tr><tr><td align=center colspan=3><table cellpadding=0 cellspacing
 	}
 
 	if ($status<3) {
-		db_modify("update ordrer set sum=$sum where id=$rykker_id",__FILE__ . " linje " . __LINE__);
+		db_modify("update ordrer set sum='$sum' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
 		print "<td align=center><input type=submit value=\"Slet valgte\" name=\"submit\"></td>";
 	}
 	print "</form>";

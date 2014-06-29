@@ -1,5 +1,5 @@
 <?php #topkode_start
-// ----------------debitor/rykkerprint-----lap 3.3.9---2014.01.14-------
+// ----------------debitor/rykkerprint-----lap 3.4.2---2014.06.28-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,8 +21,9 @@
 // Copyright (c) 2004-2014 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
-// 2012.08.15 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
+// 20120815 søg 20120815 V. Logoplacering blev ikke fundet v. opslag. 
 // 20130114 Tilføjet 0 som 1. parameter i "send mails"
+// 20140628 Indsat afrund for korrekt sum. Søg 20140628
 
 @session_start();
 $s_id=session_id();
@@ -181,11 +182,8 @@ for ($q=0; $q<$konto_antal; $q++) {
 		elseif ($art=='R3') $formular=8;
 		$form_nr[$mailantal]=$formular;
 		if (!$formularsprog) $formularsprog="dansk";
-#echo "select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$deb_valuta' and valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$rykkerdate' order by valuta.valdate desc<br>";
 		if ($r2=db_fetch_array(db_select("select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$deb_valuta' and valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$rykkerdate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
 			$deb_valutakurs=$r2['kurs'];
-
-#echo "DVK $deb_valutakurs<br>";
 
 		} 
 		$x=0;
@@ -196,7 +194,6 @@ for ($q=0; $q<$konto_antal; $q++) {
 		$forfalden=0;
 		$dkkforfalden=0;
 		$amount=0;
-# 	$q1 = db_select("select ordrelinjer.varenr as forfaldsdato, ordrelinjer.beskrivelse as beskrivelse, openpost.faktnr as faktnr, openpost.amount as amount from ordrelinjer, openpost where ordrelinjer konto_id = '$rykker_id[$q]' and openpost.id=ordrelinjer.vare_id",__FILE__ . " linje " . __LINE__);		
 		$q1 = db_select("select serienr as forfaldsdato, beskrivelse, pris as amount, enhed as openpost_id from ordrelinjer where ordre_id = '$rykker_id[$q]' order by serienr,varenr desc",__FILE__ . " linje " . __LINE__);
 		while ($r1 = db_fetch_array($q1)) {
 			if ($r1['openpost_id']) {
@@ -207,51 +204,20 @@ for ($q=0; $q<$konto_antal; $q++) {
 					$valuta=$r2['valuta'];
 					$valutakurs=$r2['valutakurs']*1;
 					$dkkamount=$r2['amount']*100/$valutakurs;
-#echo "amount $r2[amount]<br>";
-#echo "A $rykkerdate $deb_valuta $deb_valutakurs $valutakurs $r2[amount] $dkkamount $amount<br>"; 
 					if ($deb_valuta!="DKK" && $deb_valuta!=$valuta) $amount=$dkkamount*100/$deb_valutakurs;
 					elseif ($deb_valuta==$valuta) $amount=$r2['amount'];
 					else $amount=$dkkamount;
-#echo "B >$deb_valuta==$valuta<  $dkkamount $amount<br>"; 
-
-/*
-					if ($deb_valuta=='DKK' && $valuta!='DKK') {#$r1['amount']=$r2['amount']*$r2['valutakurs']/100;
-						$amount=$r2['amount'];
-						$dkkamount=$amount*$valutakurs/100; 
-echo "amount $amount  dkk $dkkamount<br>";
-					} elseif ($deb_valuta!='DKK' && $valuta=='DKK') {
-#echo "select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$deb_valuta' and valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r2[transdate]' order by valuta.valdate desc<br>"; 
-#						if ($r3=db_fetch_array(db_select("select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$deb_valuta' and valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r2[transdate]' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
-							$dkkamount=$r2['amount'];
-							$amount=$dkkamount*100/$deb_valutakurs;
-#						} else print "<BODY onLoad=\"javascript:alert('Ingen valutakurs for faktura $r2[faktnr]')\">";	
-					} elseif ($deb_valuta!='DKK' && $valuta!='DKK' && $valuta!=$deb_valuta) {
-						$dkkamount=$r2['amount']*$valutakurs/100;
-			 			$amount=$dkkamount*100/$valutakurs;
-					}	else {
-						$dkkamount=$r2['amount'];
-						$amount=$r2['amount'];
-					}
-*/
 				}
 			} else {
 				$dkkamount=$r1['amount']*100/$valutakurs;
 				$amount=$r1['amount'];
 			}
 
-#echo "Y $dkkamount $amount<br>"; 
 			if ($deb_valuta=='DKK') $amount=$dkkamount;
-#echo "Z $dkkamount $amount<br>"; 
-#echo "$amount => <br>";
-# echo "FF $forfalden amount $amount<br>";
-			$forfalden+=$amount;
-			$dkkforfalden+=$dkkamount;
+
+			$forfalden+=afrund($amount,2); #20140628
+			$dkkforfalden+=afrund($dkkamount,2); #20140628
 			$belob=dkdecimal($amount);
-# exit;
-# echo "FF $forfalden amount $amount<br>";
-#if ($deb_valuta=='DKK') $belob="DKK $belob";
-# echo "Forfalden $forfalden<br>";
-#exit;
 		for ($z=1; $z<=$var_antal; $z++) {
  				if ($variabel[$z]=="dato") {
  					$z_dato=$z;
@@ -269,10 +235,6 @@ echo "amount $amount  dkk $dkkamount<br>";
 					$z_belob=$z;
 					skriv($str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", $belob, "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular");
 				}
-#				if (strstr($variabel[$z],"bel") && $dkkamount) {
-#					$z_belob=$z;
-#					skriv($str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", dkdecimal($dkkamount), "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular");
-#				}
 			}	
 			$y=$y-4;
 		}
@@ -284,8 +246,6 @@ echo "amount $amount  dkk $dkkamount<br>";
 	}
 }
 fclose($fp);
-
-#if ($mailantal>0) include("mail_faktura.php");
 if ($mailantal>0) {
 	ini_set("include_path", ".:../phpmailer");
 	require("class.phpmailer.php");
@@ -305,7 +265,7 @@ if ($mailantal>0) {
 		print "--> \n";
 		$svar=send_mails(0,"$mappe/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);
 	}
-} #else print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$printfilnavn\">";
+} 
 if ($nomailantal>0) {
  	print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$printfilnavn&udskriv_til=PDF\">";
 	exit;

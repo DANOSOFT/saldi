@@ -1,5 +1,5 @@
 <?php
-// ---------------------includes/formfunk.php ------patch 3.4.0----2014-04-23--------------
+// ---------------------includes/formfunk.php ------patch 3.4.0----2014-06-28--------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -40,6 +40,9 @@
 // 2014.04.14 Ændret tegnsæt fra Latin1 til Latin9 så blandt andet Eurotegnet € er understøttet.
 //            PostScript-skabelonen faktinit.ps er også ændret til understøttelse af Latin9 (Claus Agerskov).
 // #2104.04.23 Indsat $id*=1 for at undgå fejlmelding ved udskrivning at bl.a. rykker.
+// 2014.05.05 Indsat $posnr,$varenr,$dkantal,$enhed,$dkpris,$dkprocent,$serienr,$varemomssats så der kan anvendes variabler på ordrelinjer. Søg 20140505
+// 2014.05.14 Ændret ovenstående så der erstattes både med og uden semikolon i enden af variablen. Søg 20140514
+// 2014.06.28	Gebyr blev altid vist i dkk uanset valuta. Søg 20140628 
 
 if (!function_exists('skriv')) {
 function skriv($str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font,$formular) {
@@ -311,6 +314,7 @@ echo "<!--function find_form_tekst start-->";
 	global $valutakurs;
 
 	$dk_transportsum=dkdecimal($transportsum);
+	if (!$deb_valutakurs) $deb_valutakurs=100; #20140628
 
 	$id*=1;
 	$pre_xa="";
@@ -406,8 +410,8 @@ echo "<!--function find_form_tekst start-->";
 				}
 				elseif ($tabel=="forfalden" || $tabel=="rykker") {# $tabel=="rykker" indsat 14.04.08
 					$r2 = db_fetch_array(db_select ("select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='$formular')",__FILE__ . " linje " . __LINE__));
-					$gebyr=$r2['salgspris']*1;	
-#cho "select * from varer where id IN (select yb from formularer where beskrivelse='GEBYR' and formular='$formular')<br>";
+					$gebyr=$r2['salgspris']*1;
+					if ($deb_valutakurs!='100') $gebyr*=100/$deb_valutakurs; #20140628
 					$r2 = db_fetch_array(db_select ("select yb from formularer where beskrivelse='GEBYR' and formular='$formular'",__FILE__ . " linje " . __LINE__));
 					$rentevare=$r2['yb']*1;	
 
@@ -430,7 +434,7 @@ echo "<!--function find_form_tekst start-->";
 							else $amount=$dkkamount;
 						}
 						if ($deb_valuta=='DKK') $amount=$dkkamount;
-						$forfalden+=$amount;
+						$forfalden+=afrund($amount,2); #20140628
 					}
 
 					$sum=dkdecimal($forfalden);
@@ -932,9 +936,9 @@ for ($q=0; $q<$ordre_antal; $q++) {
 						$lev_varenr[$x]=utf8_iso8859($lev_varenr[$x]);
 						$beskrivelse[$x]=utf8_iso8859($beskrivelse[$x]);
 					}
-					if (strpos($beskrivelse[$x],"\$ultimo")||strpos($beskrivelse[$x],"\$maaned")||strpos($beskrivelse[$x],"\$aar")){
-						$beskrivelse[$x]=var2str($beskrivelse[$x],$ordre_id[$q]);
-					}
+#					if (strpos($beskrivelse[$x],"\$ultimo")||strpos($beskrivelse[$x],"\$maaned")||strpos($beskrivelse[$x],"\$aar")){
+#						$beskrivelse[$x]=var2str($beskrivelse[$x],$ordre_id[$q]);
+#					}
 					if ($varenr[$x]){
 						$vare_id[$x]=$row['vare_id'];
 						$linje_id[$x]=$row['id'];
@@ -991,7 +995,6 @@ for ($q=0; $q<$ordre_antal; $q++) {
 						$procent[$x]=dkdecimal($procent[$x]);
 						$linjesum[$x]=dkdecimal($linjesum[$x]);
 						$linjemoms[$x]=dkdecimal($linjemoms[$x]);
-						
 						if ($momsfri[$x]!='on') {
 							$moms+=afrund($l_sum[$x]*$varemomssats[$x]/100,3); #Decimaltal aendret til 3 2010.12.17 grundet momsdiff (0,01 kr) i ordre id 371 i saldi_297
 							$momssum+=afrund($linjesum[$x],2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
@@ -1012,6 +1015,7 @@ for ($q=0; $q<$ordre_antal; $q++) {
 						$dkantal[$x]=NULL;
 						$varemomssats[$x]=NULL;
 					}
+					$beskrivelse[$x]=var2str($beskrivelse[$x],$ordre_id[$q],$posnr[$x],$varenr[$x],$dkantal[$x],$enhed[$x],$pris[$x],$procent[$x],$serienr[$x],$varemomssats[$x],$rabat[$x]);
 #					if ($rabatart[$x]=="amount") $sum+=afrund(($row['pris']-$row['rabat'])*$antal[$x],2); 
 #					else $sum+=afrund($row['pris']*$antal[$x]-($row['pris']*$antal[$x]*$row['rabat']/100),2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
 #               $sum=$sum+afrund($row['pris']*$antal[$x]-($row['pris']*$antal[$x]*$row[rabat]/100),2);
@@ -1101,14 +1105,21 @@ for ($q=0; $q<$ordre_antal; $q++) {
 		$y=$ya;
 		$y_tjek=$y;
 		$Opkt=$y-($antal_ordrelinjer*$linjeafstand);
-		for ($x=1;$x<=$linjeantal; $x++) {
+		for ($x=1;$x<=$linjeantal; $x++) { 
+			$beskrivelse[$x]=str_replace('$procenttillæg;',dkdecimal($procenttillag),$beskrivelse[$x]);
+			$beskrivelse[$x]=str_replace('$procenttillæg',dkdecimal($procenttillag),$beskrivelse[$x]);
 			$beskrivelse[$x]=str_replace('$antal;',$dkantal[$x],$beskrivelse[$x]);
 			$beskrivelse[$x]=str_replace('$pris;',$pris[$x],$beskrivelse[$x]);
 			$beskrivelse[$x]=str_replace('$linjesum;',$linjesum[$x],$beskrivelse[$x]);
 			$beskrivelse[$x]=str_replace('$varenr;',$varenr[$x],$beskrivelse[$x]);
 			$beskrivelse[$x]=str_replace('$rabat;',$rabat[$x],$beskrivelse[$x]);
 			$beskrivelse[$x]=str_replace('$procent;',$procent[$x],$beskrivelse[$x]);
-			$beskrivelse[$x]=str_replace('$procenttillæg;',dkdecimal($procenttillag),$beskrivelse[$x]);
+			$beskrivelse[$x]=str_replace('$antal',$dkantal[$x],$beskrivelse[$x]);
+			$beskrivelse[$x]=str_replace('$pris',$pris[$x],$beskrivelse[$x]);
+			$beskrivelse[$x]=str_replace('$linjesum',$linjesum[$x],$beskrivelse[$x]);
+			$beskrivelse[$x]=str_replace('$varenr',$varenr[$x],$beskrivelse[$x]);
+			$beskrivelse[$x]=str_replace('$rabat',$rabat[$x],$beskrivelse[$x]);
+			$beskrivelse[$x]=str_replace('$procent',$procent[$x],$beskrivelse[$x]);
 		
 			$transportsum=$transportsum+$l_sum[$x-1];
 			if ($kommentarprint=='on'||$formular!=3||$varenr[$x]) {	#Fordi tekst uden varenr ikke skal med paa foelgesedlen med mindre det er angivet i "formularprint";

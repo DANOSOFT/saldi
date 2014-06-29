@@ -1,5 +1,5 @@
 <?php
-// --------includes/openpost.php ----- lap 3.4.1 ---- 2014.05.05 ---------------------------
+// --------includes/openpost.php ----- lap 3.4.1 ---- 2014.06.28 ---------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,6 +27,7 @@
 // 2014.05.03 Indsat valutakurs=100 ved DKK.(PHR Danosoft) Søg 20140503
 // 2014.05.05 Fjerner udligning hvis udligningssum er skæv.(PHR Danosoft) Søg 20140505
 // 2014.05.05 Indsat $valutakode*=1; (PHR Danosoft) Søg $valutakode*=1 & 20140505
+// 2014.06.28	Indsat valutakurs v. oprettelse af openpost i funktion bogfor_nu Søg 20140628
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 #cho "A $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart<br>";
@@ -690,8 +691,10 @@ function bogfor_nu($id)
 		$modtagelse=$r['modtagelse'];
 		$transdate=($r['fakturadate']);
 		$fakturanr=$r['fakturanr'];
+		$fakturadate=$r['fakturadate'];
 		$ordrenr=$r['ordrenr'];
 		$valutakurs=$r['valutakurs'];
+		$valuta=$r['valuta'];
 		$projekt=$r['projekt']*1;
 		$refnr;
 		if ($r['moms']) {$moms=$r['moms'];}
@@ -708,10 +711,19 @@ function bogfor_nu($id)
 		if (substr($kontoart,1,1)=='K') $beskrivelse ="Kreditnota - ".$fakturanr;
 		else $beskrivelse ="Faktura - ".$fakturanr;
 */		
-		$beskrivelse="Gebyr mm. fra tidligere rykker";	
-		if ($valutakurs) $sum=$sum*$valutakurs/100; # Omregning til DKR.
+		if (!$valutakurs && $valuta != 'DKK') { #20140628
+				if ($r2=db_fetch_array(db_select("select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$fakturadate' order by valuta.valdate desc",__FILE__ . " linje " . __LINE__))) {
+				$valutakurs=$r2['kurs'];
+			} else {
+				print "<BODY onLoad=\"javascript:alert('Ups - ingen valutakurs i $valuta d. $fakturadate')\">";	
+				return("Ups - ingen valutakurs i $valuta d. $fakturadate");
+			}
+		}
 
-		if ($sum) db_modify("insert into openpost (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id) values ('$konto_id', '$kontonr', '$fakturanr', '$id','$sum', '$beskrivelse', '0', '$transdate', '0')",__FILE__ . " linje " . __LINE__);
+		if ($valutakurs && $valutakurs!=100) $sum=$sum*$valutakurs/100; # Omregning til DKK.
+		$beskrivelse="Gebyr mm. fra tidligere rykker";	
+
+		if ($sum) db_modify("insert into openpost (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id,valuta,valutakurs) values ('$konto_id', '$kontonr', '$fakturanr', '$id','$sum', '$beskrivelse', '0', '$transdate', '0','DKK','100')",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
 		$r = db_fetch_array(db_select("select box2 from grupper where art = 'DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['box2']; # Kontonr ændres fra at være leverandørkontonr til finanskontonr
