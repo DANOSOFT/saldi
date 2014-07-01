@@ -21,7 +21,7 @@
 
 function dkdato($dato)
 {
-  list ($year, $month, $day) = split ('-', $dato);
+  list ($year, $month, $day) = explode('-', $dato);
   $year=substr($year,-2,2);
   $dato = $day . "-" . $month . "-" . $year;
   return $dato;
@@ -37,7 +37,7 @@ function usdate($date)
     $g3=substr($date,4,2);
     $date=$g1."-".$g2."-".$g3;
   }
-  list ($day, $month, $year) = split ('-', $date);
+  list ($day, $month, $year) = explode('-', $date);
 if ($year < 80) {$year = "20".$year;}
 elseif ($year < 100) {$year = "19".$year;}
   $date = $year . "-" . $month . "-" . $day;

@@ -64,7 +64,7 @@ if (!$r['levdate']){
 		 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 		 exit;
 	}
-	list ($year, $month, $day) = split ('-', $r['levdate']);
+	list ($year, $month, $day) = explode('-', $r['levdate']);
 	$year=trim($year);
 	$ym=$year.$month;
 	if (!$webservice && ($ym<$aarstart||$ym>$aarslut)) {
@@ -571,7 +571,7 @@ function bogfor($id,$webservice) {
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 # 	exit;
 	}
-	list ($year, $month, $day) = split ('-', $fakturadate);
+	list ($year, $month, $day) = explode('-', $fakturadate);
 	$year=trim($year);
 	$ym=$year.$month;
 

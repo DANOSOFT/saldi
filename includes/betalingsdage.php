@@ -21,8 +21,8 @@ include("../includes/dkdato.php");
 	
 if (!function_exists('betalingsdage')) { 
 	function betalingsdage($fakturadate,$forfaldsdate) {
-		list($faktaar, $faktmd, $faktdag) = split("-", $fakturadate);
-		list($forfaldsaar, $forfaldsmd, $forfaldsdag) = split("-", $forfaldsdate);
+		list($faktaar, $faktmd, $faktdag) = explode("-", $fakturadate);
+		list($forfaldsaar, $forfaldsmd, $forfaldsdag) = explode("-", $forfaldsdate);
 		$diffaar=$forfaldsaar-$faktaar;
 		$diffmd=$forfaldsmd-$faktmd;
 		$diffdag=$forfaldsdag-$faktdag;

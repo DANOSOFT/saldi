@@ -443,7 +443,7 @@ echo str_replace("\n","<br>",$kommando)."<br>";
 ######################################################################################
 	} elseif ($sektion=='kontoplan_io') {
 		if (strstr($_POST['submit'])=="Eksport") {
-			list($tmp)=split(":",$_POST['regnskabsaar']);
+			list($tmp)=explode(":",$_POST['regnskabsaar']);
 			print "<BODY onLoad=\"javascript:exporter_kontoplan=window.open('exporter_kontoplan.php?aar=$tmp','lager','scrollbars=yes,resizable=yes,dependent=yes');exporter_kontoplan.focus();\">";
 		}
 		elseif (strstr($_POST['submit'])=="Import") {

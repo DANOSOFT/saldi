@@ -87,7 +87,7 @@ if ($fp=fopen("$filnavn","r")) {
 		$extra=NULL;
 		if ($db_encode=="UTF8") $linje=utf8_encode($line);
 		else $linje=$line;
-		list($felt1,$tmp,$tmp,$tmp,$fd)=split(chr(9), $linje);
+		list($felt1,$tmp,$tmp,$tmp,$fd)=explode(chr(9), $linje);
 		$ym="20".substr($fd,0,4);
 		if (($felt1=='"H"' && ($ym<$aarstart || $ym>$aarslut)) || ($felt1=='"K"' && $fejllinje==1)) {
 			if (!$fejldato) $fp2=fopen("../temp/$db/DocuBizz2Erp.csv","w");
@@ -95,7 +95,7 @@ if ($fp=fopen("$filnavn","r")) {
 			$fejllinje=1;
 			$fejldato++;
 		} elseif ($felt1=='"H"') {
-			list($felt1,$k_kontonr,$bilag,$faktnr,$faktdate,$betaldate,$transdate,$belob,$moms,$art,$valuta,$betal_id,$beskrivelse,$tmp,$tmp)=split(chr(9), $linje);
+			list($felt1,$k_kontonr,$bilag,$faktnr,$faktdate,$betaldate,$transdate,$belob,$moms,$art,$valuta,$betal_id,$beskrivelse,$tmp,$tmp)=explode(chr(9), $linje);
 #echo "$faktdate";			
 			$fejllinje=0;
 			$k_kontonr=str_replace("\"","",$k_kontonr);
@@ -114,7 +114,7 @@ if ($fp=fopen("$filnavn","r")) {
 			$valutakode=$r['kodenr']*1;
 			db_modify("insert into kassekladde(bilag,transdate,beskrivelse,k_type,faktura,amount,kladde_id,kredit,valuta,forfaldsdate,betal_id) values ('$bilag','$faktdate','$beskrivelse','K','$faktnr','$amount','$kladde_id','$k_kontonr','$valutakode','$forfaldsdate','$betal_id')",__FILE__ . " linje " . __LINE__);	
 		} elseif ($felt1=='"K"') {
-			list($felt1,$kontonr,$projekt,$ansat,$beskrivelse,$belob,$moms)=split(chr(9), $linje);
+			list($felt1,$kontonr,$projekt,$ansat,$beskrivelse,$belob,$moms)=explode(chr(9), $linje);
 			$kontonr=str_replace("\"","",$kontonr);
 			$projekt=str_replace("\"","",$projekt);
 			$beskrivelse=str_replace("\"","",$beskrivelse);

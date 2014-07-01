@@ -1183,7 +1183,7 @@ function opdat_0($version, $dbver){
 		 $fp=fopen("../importfiler/formular.txt","r");
 		 if ($fp) {
 			while (!feof($fp)) {
-				list($formular, $art, $beskrivelse, $xa, $ya, $xb, $yb, $justering, $str, $color, $font, $fed, $kursiv, $side) = split(chr(9), fgets($fp));
+				list($formular, $art, $beskrivelse, $xa, $ya, $xb, $yb, $justering, $str, $color, $font, $fed, $kursiv, $side) = explode(chr(9), fgets($fp));
 				if ($xa>0) {
 					$justering=trim($justering); $form=trim($font); $fed=trim($fed); $kursiv=trim($kursiv); $side=trim($side); 
 					$xa= $xa*1; $ya= $ya*1; $xb= $xb*1; $yb=$yb*1; $str=$str*1; $color=$color*1;

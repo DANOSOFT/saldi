@@ -382,7 +382,7 @@ function flytordre($kladde_id, $ordre_id) {
 	$x=0;
 	$query = db_select("select * from ordrer where status=3 and id='$ordre_id' order by fakturadate",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		list ($year, $month, $day) = split ('-', $row['fakturadate']);
+		list ($year, $month, $day) = explode('-', $row['fakturadate']);
 		$ym=$year.$month;
 		if (($ym>=$aarstart)&&($ym<=$aarslut)) {
 			$id=$row['id'];

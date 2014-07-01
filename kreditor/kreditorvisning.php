@@ -70,7 +70,7 @@ $vis_VG=array();
 $vis_K=array();
 print "<form name=kreditorvisning action=kreditorvisning.php?sort=$sort method=post>";
 if ($r = db_fetch_array(db_select("select * from grupper where art = 'KV' and box1 = '$brugernavn'"))) {
-	$vis_K=split(",",$r['box2']);
+	$vis_K=explode(",",$r['box2']);
 } else {
 	db_modify("insert into grupper(beskrivelse, art, box1)values('kreditorvisning', 'KV', '$brugernavn')");
 	$vis_K[0]='on';
