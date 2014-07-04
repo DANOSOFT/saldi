@@ -53,7 +53,7 @@ if ($_POST) {
 	$cprnr=addslashes(trim($_POST['cprnr']));
 	$notes=addslashes(trim($_POST['notes']));
 	$lukket=trim($_POST['lukket']);
-	list($afd,$x)=split(":",$_POST['afd']);
+	list($afd,$x)=explode(":",$_POST['afd']);
 	$afd=$afd*1;
 	$returside=$_POST['returside'];
 	$fokus=$_POST['fokus'];

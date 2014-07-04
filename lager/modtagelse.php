@@ -51,7 +51,7 @@ if ($_POST){
  
 	if (strlen($antal_ny)>10) {
 		if (strstr($antal_ny," ")) {
-			list($tmp1,$tmp2)=split(" ",$antal_ny);
+			list($tmp1,$tmp2)=explode(" ",$antal_ny);
 			if (strlen($tmp1)>10) $varenr=$tmp1;
 			else $varenr=$tmp2;
 		} else { 

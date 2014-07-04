@@ -206,7 +206,7 @@ if ($fp) {
 	while (!feof($fp)) {
 		$x++;
 		$linje=trim(fgets($fp));
-		list($postnr[$x],$bynavn[$x])=split(chr(9),$linje);
+		list($postnr[$x],$bynavn[$x])=explode(chr(9),$linje);
 	}
 } 
 fclose($fp);
@@ -274,7 +274,7 @@ if ($fp) {
 #					print "<BODY onLoad=\"javascript:alert('R&oslash;de linjer indeholder fejl (kontonummer ikke numerisk) og bliver ikke importeret')\">";
 #					print "<BODY onLoad=\"javascript:alert('Kontonrnummer skal v&aelig;re numerisk')\">";
 				} elseif ($feltnavn[$y]=='kontonr') $kontonr=$felt[$y];
-				if ($feltnavn[$y]=="postnr") list($felt[$y],$bynavn[$y]) = split(" ",$felt[$y],2);
+				if ($feltnavn[$y]=="postnr") list($felt[$y],$bynavn[$y]) = explode(" ",$felt[$y],2);
 				if ($feltnavn[$y]=='kontoansvarlig'&&$felt[$y]&&$kontonr){
 					$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr'",__FILE__ . " linje " . __LINE__));
 					$konto_id=$r['id']*1;

@@ -47,9 +47,9 @@ if ($_POST['submit'])
 	$maaned_fra=$_POST['maaned_fra'];
 	$maaned_til=$_POST['maaned_til'];
 	$md=$_POST['md'];
-	list ($konto_fra, $firmanavn) = split(":", $_POST['konto_fra']);
-	list ($konto_til, $firmanavn) = split(":", $_POST['konto_til']);
-	list ($regnaar, $firmanavn)= split("-", $_POST['regnaar']);
+	list ($konto_fra, $firmanavn) = explode(":", $_POST['konto_fra']);
+	list ($konto_til, $firmanavn) = explode(":", $_POST['konto_til']);
+	list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);
 	
 	$konto_fra = trim($konto_fra);
 	$konto_til = trim($konto_til);
@@ -207,8 +207,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $konto_fra, $konto_til)
 
 	$regnaar=$regnaar*1; #fordi den er i tekstformat og skal vaere numerisk
 
-	list ($x, $maaned_fra) = split(" ", $maaned_fra);
-	list ($x, $maaned_til) = split(" ", $maaned_til);
+	list ($x, $maaned_fra) = explode(" ", $maaned_fra);
+	list ($x, $maaned_til) = explode(" ", $maaned_til);
 
 	$maaned_fra=trim($maaned_fra);
 	$maaned_til=trim($maaned_til);
@@ -351,8 +351,8 @@ function openpost($regnaar, $maaned_fra, $maaned_til, $konto_fra, $konto_til)
 
 #echo "$regnaar, $maaned_fra, $maaned_til, $konto_fra, $konto_til";
 
-	list ($x, $maaned_fra) = split(" ", $maaned_fra);
-	list ($x, $maaned_til) = split(" ", $maaned_til);
+	list ($x, $maaned_fra) = explode(" ", $maaned_fra);
+	list ($x, $maaned_til) = explode(" ", $maaned_til);
 	
 	$maaned_fra=trim($maaned_fra);
 	$maaned_til=trim($maaned_til);

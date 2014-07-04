@@ -86,7 +86,7 @@ global $font;
 
 function vis_data($filnavn, $leverandor, $varegrp, $rabat) {
 global $font;
-list($kontonr, $tmp)=split(" : ", $leverandor);
+list($kontonr, $tmp)=explode(" : ", $leverandor);
 if (!$feltnavn) $feltnavn=array();
 
 $fp=fopen("../temp/".$filnavn,"r");
@@ -176,10 +176,10 @@ print "</td></tr>";
 function flyt_data($filnavn,$leverandor,$varegrp, $rabat)
 {
 global $font;
-list($kontonr, $tmp)=split(" : ", $leverandor);
+list($kontonr, $tmp)=explode(" : ", $leverandor);
 $kontonr=trim($kontonr);
-list($lev_kontonr, $tmp)=split(":",$leverandor);
-list($gruppe, $tmp)=split(":",$varegrp);
+list($lev_kontonr, $tmp)=explode(":",$leverandor);
+list($gruppe, $tmp)=explode(":",$varegrp);
 $gruppe=trim($gruppe);
 $r = db_fetch_array(db_select("select id from adresser where kontonr = $lev_kontonr"));
 $lev_id=$r[id];

@@ -31,7 +31,7 @@ if (!function_exists('usdate')) {
 		$date=str_replace (" ","-",$date);
 		$date=str_replace ("/","-",$date);
 				
-		if (strpos($date,"-")) list ($day, $month, $year) = split ('-', $date);
+		if (strpos($date,"-")) list ($day, $month, $year) = explode('-', $date);
 		if ($year) $year=$year*1;
 		if ($month) $month=$month*1;
 		if ($day) $day=$day*1;
@@ -79,7 +79,7 @@ if (!function_exists('usdate')) {
 		
 		
 
-		list ($day, $month, $year) = split ('-', $date);
+		list ($day, $month, $year) = explode('-', $date);
 
 		
 		$year=$year*1;

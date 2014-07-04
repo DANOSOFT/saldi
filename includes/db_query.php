@@ -34,7 +34,7 @@ if (!function_exists('db_connect')) {
 		
 		if ($db_type=='mysql') {
 			if (function_exists('mysql_connect')) {
-				if ($l_host && !$l_bruger && !$l_password) list($l_host,$l_bruger,$l_password)=split(",",$l_host); 
+				if ($l_host && !$l_bruger && !$l_password) list($l_host,$l_bruger,$l_password)=explode(",",$l_host); 
 				$connection = mysql_connect ("$l_host","$l_bruger","$l_password");
 				if ($db_encode=='UTF8') mysql_query("SET NAMES 'utf8'");
 				else mysql_query("SET NAMES 'latin9'");

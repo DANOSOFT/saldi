@@ -487,14 +487,14 @@ function oioxml_betalingsdato($l_dato="", $l_betingelse="", $l_dage=0) {
 	$l_retur = $l_dato;
 
 	if (strtolower($l_betingelse)=="netto") {
-		list ($l_aar, $l_md, $l_dag) = split("-", $l_dato);
+		list ($l_aar, $l_md, $l_dag) = explode("-", $l_dato);
 		$l_tidsstempel=mktime(12, 00, 00, $l_md, $l_dag, $l_aar); # Saettes til 12:00 for at forhindre sommertidsproblemer
 		if ($l_dage > 0) $l_tidsstempel=$l_tidsstempel+(24*60*60*$l_dage);
 	} 
 
 # Skal gennemtestes om den regner det rigtigt
 	if (strtolower($l_betingelse)=="lb. md.") {
-		list ($l_aar, $l_md, $l_dag) = split("-", $l_dato);
+		list ($l_aar, $l_md, $l_dag) = explode("-", $l_dato);
 		$l_md++;
 
 		if ($l_md==13) {

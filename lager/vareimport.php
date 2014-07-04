@@ -86,7 +86,7 @@ global $font;
 
 function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $leverandor,$varegrp, $rabat){
 global $font;
-list($kontonr, $tmp)=split(" : ", $leverandor);
+list($kontonr, $tmp)=explode(" : ", $leverandor);
 if (!$feltnavn) $feltnavn=array();
 
 $fp=fopen("../temp/".$filnavn,"r");
@@ -201,7 +201,7 @@ if ($fp) {
 			$felt[1]=str_replace(chr(146),"Æ",$felt[1]);
 			$felt[1]=str_replace(chr(157),"Ø",$felt[1]);
 			$felt[1]=str_replace(chr(143),"Å",$felt[1]);
-		} else $felt = split($splitter, $linje);
+		} else $felt = explode($splitter, $linje);
 		for ($y=0; $y<$feltantal; $y++) {
 
 
@@ -234,10 +234,10 @@ print "</td></tr>";
 function flyt_data($filnavn, $splitter, $feltnavn, $feltantal, $leverandor,$varegrp, $rabat)
 {
 global $font;
-list($kontonr, $tmp)=split(" : ", $leverandor);
+list($kontonr, $tmp)=explode(" : ", $leverandor);
 if (!$feltnavn) $feltnavn=array();
-list($lev_id, $tmp)=split(":",$leverandor);
-list($gruppe, $tmp)=split(":",$varegrp);
+list($lev_id, $tmp)=explode(":",$leverandor);
+list($gruppe, $tmp)=explode(":",$varegrp);
 
 $x=0;
 $q = db_select("select varenr from varer");
@@ -275,7 +275,7 @@ if ($fp) {
 			$felt[1]=str_replace(chr(146),"Æ",$felt[1]);
 			$felt[1]=str_replace(chr(157),"Ø",$felt[1]);
 			$felt[1]=str_replace(chr(143),"Å",$felt[1]);
-		} else $felt = split($splitter, $linje);
+		} else $felt = explode($splitter, $linje);
 		for ($y=0; $y<$feltantal; $y++) 	if ($feltnavn[$y] == 'Varegrp.' && !in_array($felt[$y], $feltnavn)) $linjefarve[$x]='red';
 		for ($y=0; $y<$feltantal; $y++) {
 			if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
