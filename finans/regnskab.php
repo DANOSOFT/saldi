@@ -196,7 +196,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 	print "<tr bgcolor=$linjebg>";
 	if ($kontotype[$x]=='H') {
 		print "<td><b> $kontonr[$x]<br></b></td>";
-		print "<td colspan=15><b>$beskrivelse[$x]<br></b></td>";
+		print "<td colspan=\"".($maanedantal+3)."\"><b>$beskrivelse[$x]<br></b></td>";
 	}
 	else	{
 #		if ($kontotype[$x]!='Z') {$link="<a href=kontospec.php?kontonr=$kontonr[$x]&month=";}

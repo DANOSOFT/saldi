@@ -193,7 +193,7 @@ print " <tr><td valign=\"top\"> ";
 print "<table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"1\" valign = \"top\"> ";
 print "<tbody>";
 print "<form name=udfyld action=budget.php?regnaar=$regnaar&returside=$returside method=post>";
-print "<tr><td><br></td><td colspan=15>Udfyld med sidste &aring;rs tal ";
+print "<tr><td><br></td><td colspan=\"".($maanedantal+2)."\">Udfyld med sidste &aring;rs tal ";
 print "<select class=\"inputbox\" NAME=\"plusminus\">";
 if ($plusminus) print "<option value=\"$plusminus\">$plusminus</option>";
 if ($plusminus != "+") print "<option value=\"+\">+</option>";
@@ -223,7 +223,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 	print "<tr bgcolor=$linjebg>";
 	if ($kontotype[$x]=='H') {
 		print "<td><b>$kontonr[$x]<br></b></td>";
-		print "<td colspan=15><b>$beskrivelse[$x]<br></b></td>";
+		print "<td colspan=\"".($maanedantal+2)."\"><b>$beskrivelse[$x]<br></b></td>";
 	} elseif ($kontotype[$x]!='Z') {
 #		if ($kontotype[$x]!='Z') {$link="<a href=kontospec.php?kontonr=$kontonr[$x]&month=";}
 #		else {$link='';}
