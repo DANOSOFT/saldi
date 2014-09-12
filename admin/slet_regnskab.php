@@ -107,7 +107,7 @@ if ($_POST['regnskabsantal']) {
 						db_modify("delete from regnskab where id = $id[$x]",__FILE__ . " linje " . __LINE__);
 						db_modify("DROP DATABASE $db_navn[$x]",__FILE__ . " linje " . __LINE__);
 						$slettet_regnskab=$regnskab[$x];
-					} else "print Backupfejl - $regnskab[$x] ikke slettet";
+					} else print "Backupfejl - $regnskab[$x] ikke slettet";
 				}
 			}	
 		}

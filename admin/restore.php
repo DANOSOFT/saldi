@@ -245,7 +245,7 @@ if ($restore=='OK') {
 		system("mysql -u $squser --password=$sqpass $db < $filnavn2");
 	} else { 
 		db_modify("CREATE DATABASE $db with encoding = '$db_encode'",__FILE__ . " linje " . __LINE__);
-		system("export PGPASSWORD=$sqpass\npsql -U $squser $db < $filnavn2");
+		system("export PGPASSWORD=$sqpass\npsql -h $sqhost -U $squser $db < $filnavn2");
 	}
 	db_close($connection);
 	print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
