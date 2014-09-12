@@ -39,6 +39,7 @@ $css="../css/standard.css";
 		
 include("../includes/connect.php");
 include("../includes/std_func.php");
+require("../includes/pbkdf2.php");
 
 $modulnr=101;
 # echo "rev $revisorregnskab<br>";
@@ -88,8 +89,8 @@ if ($_POST){
 	$std_kto_plan=$_POST['std_kto_plan'];
 
 	if ((($revisorregnskab && $passwd) || !$revisorregnskab)  && $passwd!=$passwd2 ) {
-		print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
-		forside($regnskab,$brugernavn);
+		$e = "Adgangskoder er ikke ens";  // print "<BODY onLoad=\"javascript:alert('Adgangskoder er ikke ens')\">";
+		forside($regnskab,$brugernavn,$e);
 		exit;
 	}
 /*
@@ -106,14 +107,21 @@ if ($_POST){
 */
 	$x=0;
 #	$tmp=db_escape_string($regnskab);
+
+	// Hvis PHP extension mcrypt og/eller hash ikke er indlæst, kan PBKDF2-algoritmen ikke køres.
+	if (!extension_loaded('mcrypt') || !extension_loaded('hash')) {
+		$e = "PHP extension mcrypt og/eller hash er ikke indl&aelig;st. Pr&oslash;v at installere pakken php5-mcrypt.";
+		forside($regnskab,$brugernavn,$e);
+		exit;
+	}
 	$query = db_select("select * from regnskab where regnskab='$regnskab'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab findes allerede')\">";
-		forside($regnskab,$brugernavn);
+		$e = "Regnskab $regnskab findes allerede";  // print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab findes allerede')\">";
+		forside($regnskab,$brugernavn,$e);
 		exit;
 	} elseif ((!$revisorregnskab && (!$brugernavn||!$passwd)) || (!$regnskab))  {
-		print "<BODY onLoad=\"javascript:alert('Alle felter SKAL udfyldes')\">";
-		forside($regnskab,$brugernavn);
+		$e = "Alle felter skal udfyldes";  // print "<BODY onLoad=\"javascript:alert('Alle felter SKAL udfyldes')\">";
+		forside($regnskab,$brugernavn,$e);
 		exit();
 	} else {
 		transaktion(begin);
@@ -148,21 +156,21 @@ if ($_POST){
 	if (!isset($regnskab)) $regnskab='';
 	if (!isset($brugernavn)) $brugernavn='';
 	forside($regnskab,$brugernavn);
-print "</tbody></table";
+print "</tbody></table>";
 }
 
-function forside($regnskab,$brugernavn) 
+function forside($regnskab,$brugernavn,$e=NULL)
 {
 	global $charset;
 
-	print "<form name=debitorkort action=opret.php method=post>";
-	print "<tr><td> Navn p&aring; regnskab</td><td><br></td><td><input type=text size=25 name=regnskab value='$regnskab'></td></tr>";
-	print "<tr><td> Administrators navn</td><td><br></td><td><input type=text size=25 name=brugernavn value='$brugernavn'></td></tr>";
-	print "<tr><td> Administrators adgangskode</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
-	print "<tr><td> Gentag adgangskode</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
-	print "<tr><td> Opret standardkontoplan</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";
-	print "<tr><td><br></td></tr><tr><td><br></td></tr><tr><td><br></td></tr>";
-	print "<tr><td colspan=3 align = center><input type=submit accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\"></td></tr>";
+	print "<form name=\"debitorkort\" action=\"opret.php\" method=\"post\">";
+	print "<tr><td> Navn p&aring; regnskab</td><td><br></td><td><input type=\"text\" size=\"25\" name=\"regnskab\" value=\"$regnskab\"></td></tr>";
+	print "<tr><td> Administrators navn</td><td><br></td><td><input type=\"text\" size=\"25\" name=\"brugernavn\" value=\"$brugernavn\"></td></tr>";
+	print "<tr><td> Administrators adgangskode</td><td><br></td><td><input type=\"password\" size=\"25\" name=\"passwd\"></td></tr>";
+	print "<tr><td> Gentag adgangskode</td><td><br></td><td><input type=\"password\" size=\"25\" name=\"passwd2\"></td></tr>";
+	print "<tr><td> Opret standardkontoplan</td><td><br></td><td><input type=\"checkbox\" name=\"std_kto_plan\" checked></td></tr>";
+	print "<tr><td><br></td></tr><tr><td colspan=\"3\" align=\"center\"><br><i>$e</i></td></tr><tr><td><br></td></tr>";
+	print "<tr><td colspan=\"3\" align=\"center\"><input type=\"submit\" accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\"></td></tr>";
 	print "</form>";
 }
 
@@ -282,7 +290,10 @@ function opret ($sqhost,$squser ,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan)
 	db_modify("CREATE INDEX transaktioner_id_idx ON transaktioner (id)",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE INDEX ordrelinjer_vareid_idx ON ordrelinjer (vare_id)",__FILE__ . " linje " . __LINE__);
 	
-	$pw=md5($passwd);
+	//$pw=md5($passwd);
+
+	// Genererer ny unik salt og hash
+	$pw = \PBKDF2\create_hash($passwd);
 	db_modify("INSERT INTO brugere (brugernavn,kode,rettigheder,regnskabsaar) values ('$brugernavn' ,'$pw','11111111111111111111',1)",__FILE__ . " linje " . __LINE__);
 	db_modify("insert into grupper (beskrivelse,art,box1) values ('Version','VE','$version')",__FILE__ . " linje " . __LINE__);
 	db_modify("insert into grupper (beskrivelse,kodenr,art,box4,box5) values ('Div_valg','2','DIV','','')",__FILE__ . " linje " . __LINE__);

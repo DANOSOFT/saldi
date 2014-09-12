@@ -31,6 +31,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("top.php");
+require("../includes/pbkdf2.php");
 
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>"; #A
 
@@ -88,7 +89,9 @@ if ($_POST) {
 			$kode=NULL;
 			$ret_id=$id;
 	}
-	if (($kode) && (!strstr($kode,'**********'))) $kode=md5($kode);
+
+	// Hvis password er indtastet genereres ny unik salt og hash
+	if (($kode) && (!strstr($kode,'**********'))) $kode = \PBKDF2\create_hash($kode); // $kode=md5($kode);
 	elseif($kode)	{
 		$query = db_select("select * from brugere where id = '$id'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query))

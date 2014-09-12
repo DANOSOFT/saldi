@@ -26,6 +26,9 @@
 $regnskab=''; $navn=''; $kode=''; 
 $css="../css/standard.css";
 
+$loginfejl=NULL;
+if (isset($_GET['e'])) $loginfejl = $_GET['e'];
+
 if (!file_exists("../includes/connect.php")) {
 	print "<meta http-equiv=\"refresh\" content=\"0;url=install.php\">\n";
 	print "</head><body>\n\n";
@@ -41,8 +44,19 @@ include("../includes/std_func.php");
 if (isset ($_GET['navn'])) $navn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
 if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
 if (isset ($_GET['tlf'])) $kode = stripslashes($_GET['tlf']);
-		
-if (isset($brug_timestamp)) {
+
+// Timestamp systemet bør anses for deprecated og fremadrettet fjernes fra koden.
+// Systemet blev ikke brugt konsekvent ved alle login-punkter i koden,
+// og systemet beskyttede reelt ikke adgangskoderne fra af blive opsnappen ved
+// et MITM-angreb eller en manipulation af koden på klientsiden.
+//
+// Sikkerhedsforanstaltninger bør i stedet udgøres ved:
+// 1. Koder opbevares kun salt og hash, se implementeringen af PBKDF2
+// 2. Koder overføres mellem klient og server i klartekst og der bør derfor benyttes HTTPS
+//
+// For nuværende udkommenteres systemet i fornøden grad.
+//
+/*if (isset($brug_timestamp)) {
  	?>
 	<script language="javascript" type="text/javascript" src="../javascript/md5.js"></script>
 
@@ -56,16 +70,16 @@ if (isset($brug_timestamp)) {
 		}
 	</script>
 	<?php
-}
+} */
 if ($db_encode=="UTF8") $charset="UTF-8";
 else $charset="ISO-8859-1";
 if (file_exists("../doc/vejledning.pdf")) $vejledning="../doc/vejledning.pdf";
 else $vejledning="http://saldi.dk/dok/komigang.html";
 
-PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
+print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 <html>\n
 <head><title>Saldi login</title>";
-if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">";
+if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">";
 print "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n<meta http-equiv=\"content-language\" content=\"da\">\n</head>\n";
 print "<body><table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";# Tabel 1 ->
 print "<tr><td align=\"center\" valign=\"top\">";
@@ -75,7 +89,7 @@ print "<td style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;;ba
 print "<td style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;;background:url(../img/grey1.gif)\" width=\"45%\" align = \"right\">&nbsp;</td></tr>\n";
 print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"middle\">\n"; # <- tabel 1.1 slut
 print "<table width=\"350\" align=\"center\" border=\"5\" cellspacing=\"5\" cellpadding=\"5\"><tbody>"; # tabel 1.2 ->
-print "<tr><td><FORM name=\"login\" METHOD=\"POST\" ACTION=\"login.php\" onSubmit=\"return handleLogin(this);\"><table width=\"100%\" align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; # tabel 1.2.1 ->
+print "<tr><td><form name=\"login\" method=\"post\" action=\"login.php\"><table width=\"100%\" align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; # tabel 1.2.1 ->
 if (isset($mastername)&&$mastername) $tmp="<big><big><big><b>$mastername</b></big></big></big>";   
 elseif (strpos($_SERVER['PHP_SELF'],"beta")) $tmp="<big><big><big><b>!!! BETA !!!</b></big></big></big>";
 else $tmp="<big><big><big><b>SALDI</b></big></big></big>";
@@ -108,7 +122,7 @@ if ($login=="dropdown") {
 print "</tr><tr><td>".findtekst(323,$sprog_id)."</td><td><INPUT class=\"inputbox\" style=\"width:160px\" TYPE=\"TEXT\" NAME=\"login\" value=\"$navn\"></td></tr>\n";
 print "<tr><td>".findtekst(324,$sprog_id)."</td>";
 print	"<td><INPUT class=\"inputbox\" style=\"width:160px\" TYPE=\"password\" NAME=\"password\" value=\"$kode\"></td></tr>\n";
-print "<tr><td colspan=\"2\" align=\"center\"><br></td></tr>\n";
+print "<tr><td colspan=\"2\" align=\"center\"><br><i>".base64_decode($loginfejl)."</i></td></tr>\n";
 print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"pwtjek\" value=\"Login\"></td></tr>\n";
 if (isset($mastername) && strtolower($mastername)=='rotary') {
 	print "<tr><td colspan=\"2\" align=center>".findtekst(325,$sprog_id)."</td></tr>\n";
@@ -128,11 +142,11 @@ print "</tr></tbody></table>"; # <- tabel 1.3
 print "</td></tr>\n";
 print "</tbody></table>"; # <- tabel 1
 if (!isset($_COOKIE['saldi_std'])) {
-	print "<script language=\"javascript\" type=\"text/javascript\">";
+	print "<script type=\"text/javascript\">";
 	print "document.login.regnskab.focus();";
 	print "</script>";
 } else {
-	print "<script language=\"javascript\" type=\"text/javascript\">";
+	print "<script type=\"text/javascript\">";
 	print "document.login.login.focus();";
 	print "</script>";
 }

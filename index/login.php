@@ -33,6 +33,7 @@ $fortsaet=NULL;
 include("../includes/connect.php");
 include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
+require("../includes/pbkdf2.php");
 
 if ($db_encode=="UTF8") $charset="UTF-8";
 else $charset="ISO-8859-1";
@@ -49,7 +50,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	if (isset($_POST)){
 		$regnskab = db_escape_string(trim($_POST['regnskab']));
 		$brugernavn = db_escape_string(trim($_POST['login']));
-		$password = db_escape_string(trim($_POST['password'])); // password i formatet uppercase( md5( timestamp + uppercase( md5(original_password) ) ) )
+		$password = db_escape_string(trim($_POST['password'])); // Hvis ikke skiftet til PBKDF2: password i formatet uppercase( md5( timestamp + uppercase( md5(original_password) ) ) )
 		(isset($_POST['timestamp']))?$timestamp = trim($_POST['timestamp']):$timestamp=NULL;
 		if (isset($_POST['fortsaet'])) $fortsaet = $_POST['fortsaet'];
 		if (isset($_POST['afbryd'])) $afbryd = $_POST['afbryd'];
@@ -76,7 +77,8 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		}
 		if ($lukket) {
 			if (!$mastername) $mastername='DANOSOFT';
-			print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab er lukket!\\nKontakt $mastername for gen&aring;bning')\">";
+			//print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab er lukket!\\nKontakt $mastername for gen&aring;bning')\">";
+			$e = "Regnskab $regnskab er lukket!<br>Kontakt $mastername for gen&aring;bning";
 			login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 #			print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 			exit;
@@ -91,7 +93,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		$tmp=date("U");
 		if ($masterversion > "1.1.3") db_modify("update regnskab set sidst='$tmp' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
 	}	else {
-		if ($regnskab) print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab findes ikke')\">";
+		if ($regnskab) $e = "Regnskab $regnskab findes ikke"; // print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab findes ikke')\">";
 		login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";		exit;
 	}
@@ -99,6 +101,15 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 	exit;
 }
+
+// Hvis PHP extension mcrypt og/eller hash ikke er indlæst, kan PBKDF2-algoritmen ikke køres.
+if (!extension_loaded('mcrypt') || !extension_loaded('hash')) {
+	$e = "PHP extension mcrypt og/eller hash er ikke indl&aelig;st. Pr&oslash;v at installere pakken php5-mcrypt.";
+        login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
+        exit;
+}
+
+
 if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($regnskab=='demo')&&($brugernavn=='admin')))) {
 	$udlob=date("U")-36000;
 	$x=0;
@@ -162,14 +173,38 @@ if (($regnskab)&&($regnskab!=$sqdb)) {
 	}
 	if ($dbver<$version) tjek4opdat($dbver,$version);
 }
+
+// Timestamp systemet bør anses for deprecated og fremadrettet fjernes fra koden.
+// Systemet blev ikke brugt konsekvent ved alle login-punkter i koden,
+// og systemet beskyttede reelt ikke adgangskoderne fra af blive opsnappen ved
+// et MITM-angreb eller en manipulation af koden på klientsiden.
+//
+// Sikkerhedsforanstaltninger bør i stedet udgøres ved:
+// 1. Koder opbevares kun salt og hash, se implementeringen af PBKDF2
+// 2. Koder overføres mellem klient og server i klartekst og der bør derfor benyttes HTTPS
+//
+// For nuværende udkommenteres systemet i fornøden grad.
+//
+
 include("../includes/online.php");
 $bruger_id=NULL;
-if (isset ($brug_timestamp)) {
+/* if (isset ($brug_timestamp)) { // pbkdf2 er ikke implementeret for brug_timestamp pt. og bliver det nok heller ikke --nrb
 	$row=db_fetch_array(db_select("select * from brugere where brugernavn='$brugernavn' and (upper(md5('$timestamp' || upper(kode)))=upper('$password'))",__FILE__ . " linje " . __LINE__));
 	$bruger_id=$row['id'];
-} else {
-	$tmp=md5($password);
-	$row = db_fetch_array(db_select("select * from brugere where brugernavn='$brugernavn' and kode= '$tmp'",__FILE__ . " linje " . __LINE__));
+} else { */
+	// $tmp=md5($password);
+	$row = db_fetch_array(db_select("select * from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
+
+	// check om password stadig er gemt som md5-hash.
+	if((strlen($row['kode']) == 32 && ctype_xdigit($row['kode'])) && ($row['kode'] == md5($password))){
+		// Viderestil til skift_kode.php
+		print "<meta http-equiv=\"refresh\" content=\"0;url=skift_kode.php\">";
+		exit;
+	}
+	// slut
+
+	// Hvis hash af salt og indtastet kode er lig gemt hash i databasen, har brugeren indtastet korrekt password og skal logges ind.
+	if(\PBKDF2\validate_password($password, $row['kode'])) $saldibruger_valideret = true;
 	$bruger_id=$row['id'];
 	if (!$bruger_id) {
 		$row=db_fetch_array(db_select("select * from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
@@ -179,12 +214,13 @@ if (isset ($brug_timestamp)) {
 				if ($tmp_kode==$password) {
 					$bruger_id=$row['id'];
 				} 
-			} elseif ($tmp_kode==$password) print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
+			} elseif ($tmp_kode==$password) $e = "Regnskab $regnskab findes ikke"; //print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
 		}
 	}
-}
+// }
 #cho "BID $bruger_id";
-if ($bruger_id) {
+//if ($bruger_id) {
+if($saldibruger_valideret){
 	$db_skriv_id=NULL;
 	if ($db_type=='mysql') {
 		if (!mysql_select_db("$sqdb")) die( "Unable to connect to MySQL");
@@ -206,7 +242,8 @@ if ($bruger_id) {
 			$diff=$post_antal-$post_max;
 			if ($sqdb=="gratis" && $post_antal>$post_max) {
 				$txt="Dit maksikale posteringsantal ($post_max) er overskredet.\\nDer er i alt foretaget $post_antal posteringer inden for de sidste 12 m&aring;neder.\\nDu kan bestille et professionelt regnskab p&aring; http://saldi.dk med hotline og automatisk \\nsikkerhedskopiering p&aring; hurtigere systemer, og let flytte hele dit regnskab dertil.\\nEller du kan kontakte DANOSOFT p&aring; tlf 4690 2208 og h&oslash;re om mulighederne for ekstra gratis posteringer.\\n";
-				print "<BODY onLoad=\"javascript:alert('$txt')\">";
+				// print "<BODY onLoad=\"javascript:alert('$txt')\">";
+				$e = "$txt";
 			}
 #		}
 	}
@@ -235,7 +272,8 @@ if(!isset($afbryd)){
 } else {
 	include("../includes/connect.php");
 	db_modify("delete from online where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
-	print "<BODY onLoad=\"javascript:alert('Fejl i brugernavn eller adgangskode')\">";
+	//print "<BODY onLoad=\"javascript:alert('Fejl i brugernavn eller adgangskode')\">";
+	$e = "Fejl i brugernavn eller adgangskode";
 	login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 	exit;
@@ -265,7 +303,8 @@ function online($regnskab, $brugernavn, $password, $timestamp, $s_id) {
 
 function login ($regnskab,$brugernavn) {
 
-	print "<meta http-equiv=\"refresh\" content=\"0;url=index.php\">\n";
+	global $e;
+	print "<meta http-equiv=\"refresh\" content=\"0;url=index.php?e=".base64_encode($e)."\">\n";
 	exit;
 	global $charset;
 	global $version;

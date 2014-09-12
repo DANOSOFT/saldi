@@ -66,7 +66,7 @@ print"<td  height=\"35\" align=\"center\"><b><big>Administrationsmenu</big></b><
 print"</tr><tr>";
 if ($admin || $oprette) print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/opret.php\"><big>".findtekst(339,$sprog_id)."</big></td>";
 else print "<td $td $stor_knap_bg><span style=\"color:#999;\"><big>".findtekst(339,$sprog_id)."</big></td>\n";
-if ($revisorregnskab) {
+if ($adgang_til) {
 #	print"</tr><tr>";
 #	print"<td $td $stor_knap_bg><a onfocus=\"this.style.color='$bgcolor2'\" onblur=\"this.style.color='#000066'\" href=\"../admin/stdkontoplan.php\"><br></td>";
 	print"</tr><tr>";
