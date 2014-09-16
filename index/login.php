@@ -37,12 +37,12 @@ require("../includes/pbkdf2.php");
 
 if ($db_encode=="UTF8") $charset="UTF-8";
 else $charset="ISO-8859-1";
-PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
+/* print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 <html>\n
 <head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n";
 if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\" />";
 print "</head>";
-
+*/
 
 $unixtime=date("U");
 
@@ -78,34 +78,36 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		if ($lukket) {
 			if (!$mastername) $mastername='DANOSOFT';
 			//print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab er lukket!\\nKontakt $mastername for gen&aring;bning')\">";
-			$e = "Regnskab $regnskab er lukket!<br>Kontakt $mastername for gen&aring;bning";
-			login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
-#			print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
+			header("Location: index.php?e=".base64_encode("Regnskab $regnskab er lukket! Kontakt $mastername for genåbning"));
 			exit;
+			// login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 		}
 #		if (isset($fortsaet)) {
 #			 db_modify("delete from online where db='$db' and brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__);
 #		}
 		if (isset($afbryd)) {
-			login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
-#			print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
+			header("Location: index.php");
+			//login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 		}
 		$tmp=date("U");
 		if ($masterversion > "1.1.3") db_modify("update regnskab set sidst='$tmp' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
 	}	else {
-		if ($regnskab) $e = "Regnskab $regnskab findes ikke"; // print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab findes ikke')\">";
-		login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
+		if ($regnskab) {
+			header("Location: index.php?e=".base64_encode("Regnskab $regnskab findes ikke"));
+			exit;
+		} // login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";		exit;
 	}
 } else {
-	login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
+	// login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
+	header("Location: index.php");
 	exit;
 }
 
 // Hvis PHP extension mcrypt og/eller hash ikke er indlæst, kan PBKDF2-algoritmen ikke køres.
 if (!extension_loaded('mcrypt') || !extension_loaded('hash')) {
-	$e = "PHP extension mcrypt og/eller hash er ikke indl&aelig;st. Pr&oslash;v at installere pakken php5-mcrypt.";
-        login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
+        header("Location: index.php?e=".base64_encode("PHP extension mcrypt og/eller hash er ikke indlæst. Prøv at installere pakken php5-mcrypt."));
+        // login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
         exit;
 }
 
@@ -185,7 +187,7 @@ if (($regnskab)&&($regnskab!=$sqdb)) {
 //
 // For nuværende udkommenteres systemet i fornøden grad.
 //
-
+$header="nix"; $bg="nix";
 include("../includes/online.php");
 $bruger_id=NULL;
 /* if (isset ($brug_timestamp)) { // pbkdf2 er ikke implementeret for brug_timestamp pt. og bliver det nok heller ikke --nrb
@@ -198,7 +200,7 @@ $bruger_id=NULL;
 	// check om password stadig er gemt som md5-hash.
 	if((strlen($row['kode']) == 32 && ctype_xdigit($row['kode'])) && ($row['kode'] == md5($password))){
 		// Viderestil til skift_kode.php
-		print "<meta http-equiv=\"refresh\" content=\"0;url=skift_kode.php\">";
+		header("Location: skift_kode.php");
 		exit;
 	}
 	// slut
@@ -214,7 +216,10 @@ $bruger_id=NULL;
 				if ($tmp_kode==$password) {
 					$bruger_id=$row['id'];
 				} 
-			} elseif ($tmp_kode==$password) $e = "Regnskab $regnskab findes ikke"; //print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
+			} elseif ($tmp_kode==$password) {
+				header("Location: index.php?e=".base64_encode("Midlertidig adgangskode udløbet")); //print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
+        			exit;
+			}
 		}
 	}
 // }
@@ -242,8 +247,7 @@ if($saldibruger_valideret){
 			$diff=$post_antal-$post_max;
 			if ($sqdb=="gratis" && $post_antal>$post_max) {
 				$txt="Dit maksikale posteringsantal ($post_max) er overskredet.\\nDer er i alt foretaget $post_antal posteringer inden for de sidste 12 m&aring;neder.\\nDu kan bestille et professionelt regnskab p&aring; http://saldi.dk med hotline og automatisk \\nsikkerhedskopiering p&aring; hurtigere systemer, og let flytte hele dit regnskab dertil.\\nEller du kan kontakte DANOSOFT p&aring; tlf 4690 2208 og h&oslash;re om mulighederne for ekstra gratis posteringer.\\n";
-				// print "<BODY onLoad=\"javascript:alert('$txt')\">";
-				$e = "$txt";
+				echo "<script>alert('$txt')</script>";
 			}
 #		}
 	}
@@ -257,7 +261,8 @@ if(!isset($afbryd)){
 	fclose($fp);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";
+		header("Location: admin_menu.php");
+		// print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";
 		exit;
 	} else {
 		if ($fortsaet) {
@@ -268,13 +273,15 @@ if(!isset($afbryd)){
 		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
 #		transtjek();
 		}
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=menu.php\">";
+		header("Location: menu.php");
+		//print "<meta http-equiv=\"refresh\" content=\"0;URL=menu.php\">";
 } else {
 	include("../includes/connect.php");
 	db_modify("delete from online where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
 	//print "<BODY onLoad=\"javascript:alert('Fejl i brugernavn eller adgangskode')\">";
-	$e = "Fejl i brugernavn eller adgangskode";
-	login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
+	header("Location: index.php?e=".base64_encode("Fejl i brugernavn eller adgangskode"));
+	exit;
+	// login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 	exit;
 }
@@ -300,111 +307,4 @@ function online($regnskab, $brugernavn, $password, $timestamp, $s_id) {
 	print "</tr>";
 	print "</FORM>";
 }
-
-function login ($regnskab,$brugernavn) {
-
-	global $e;
-	print "<meta http-equiv=\"refresh\" content=\"0;url=index.php?e=".base64_encode($e)."\">\n";
-	exit;
-	global $charset;
-	global $version;
-
-	include("../includes/std_func.php");
-
-	if (isset ($_GET['navn'])) $navn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
-	if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
-	if (isset ($_GET['tlf'])) $kode = stripslashes($_GET['tlf']);
-		
-	if (isset($brug_timestamp)) {
-		?>
-		<script language="javascript" type="text/javascript" src="../javascript/md5.js"></script>
-
-		<script language="javascript" type="text/javascript">
-			function handleLogin (loginForm) {
-				var inputTimestamp = loginForm.timestamp.value;
-				var inputPassword = loginForm.password.value;
-
-				loginForm.password.value = hex_md5(inputTimestamp+hex_md5(inputPassword));
-				return true;
-			}
-		</script>
-		<?php
-	}
-#	if ($db_encode=="UTF8") $charset="UTF-8";
-#	else $charset="ISO-8859-1";
-	if (file_exists("../doc/vejledning.pdf")) $vejledning="../doc/vejledning.pdf";
-	else $vejledning="http://saldi.dk/dok/komigang.html";
-
-	PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
-	<html>\n
-	<head><title>$title</title>";
-	if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">";
-	print "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\"></head>\n";
-	print "<body><table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";# Tabel 1 ->
-	print "<tr><td align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; #Tabel 1.1 ->
-	print "<tr><td  style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" width=\"45%\"> Ver $version</td>";
-	print "<td style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;;background:url(../img/grey1.gif)\" width=\"10%\" align = \"center\"> <a href=\"$vejledning\" target=\"_blank\">Vejledning</a></td>\n";
-	print "<td style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;;background:url(../img/grey1.gif)\" width=\"45%\" align = \"right\">&nbsp;</td></tr>\n";
-	print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"middle\">\n"; # <- tabel 1.1 slut
-	print "<table width=\"350\" align=\"center\" border=\"5\" cellspacing=\"5\" cellpadding=\"5\"><tbody>"; # tabel 1.2 ->
-	print "<tr><td><FORM name=\"login\" METHOD=\"POST\" ACTION=\"login.php\" onSubmit=\"return handleLogin(this);\"><table width=\"100%\" align=center border=\"0\" cellspacing=\"0\" cellpadding=\"1\"><tbody>"; # tabel 1.2.1 ->
-	if (isset($mastername)&&$mastername) $tmp="<big><big><big><b>$mastername</b></big></big></big>";   
-	elseif (strpos($_SERVER['PHP_SELF'],"beta")) $tmp="<big><big><big><b>!!! BETA !!!</b></big></big></big>";
-	else $tmp="<big><big><big><b>SALDI</b></big></big></big>";
-	print "<tr><td colspan=\"2\">";
-	print "<table width=\"100%\"><tbody><tr><td width=\"10%\">"; # tabel 1.2.1.1 ->
-	print "";
-	if (file_exists("../img/logo.png")) print "<img style=\"border:0px solid;width:50px;heigth:50px\" alt=\"\" src=\"../img/logo.png\">";
-	print "</td><td width=\"80%\" align=\"center\">$tmp</td><td width=\"10%\" align=\"right\">";
-	if (file_exists("../img/logo.png")) print "<img style=\"border:0px solid;width:50px;heigth:50px\" alt=\"\" src=\"../img/logo.png\"></td></tr>\n";
-	print "</tbody></table></td></tr>"; # <- tabel 1.2.1.1
-	print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-	print "<tr><td>".findtekst(322,$sprog_id)."</td>";
-	print "<td width=\"2%\">";
-	if ($login=="dropdown") {
-		print "<select name=regnskab>";
-		$query = db_select("select regnskab from regnskab order by regnskab asc",__FILE__ . " linje " . __LINE__);
-		if (db_num_rows($query)==0)	{
-			print "<option>Ingen regnskaber oprettet</option>";
-			} else {
-				while ($row = db_fetch_array($query))
-				print "<option>".$row['regnskab']."</option>";
-				print "</select>";
-		}
-	} elseif (($login=="cookie")&&(!$navn)){
-		if (isset($_COOKIE['saldi_std'])) {
-			$regnskab=stripslashes($_COOKIE['saldi_std']);
-		}
-		print "<input class=\"inputbox\" style=\"width:160px\" type=\"TEXT\" NAME=\"regnskab\" value=\"$regnskab\">";
-	} else print"<input class=\"inputbox\" style=\"width:160px\" type=\"TEXT\" NAME=\"regnskab\" value=\"$regnskab\">";
-	print "</tr><tr><td>".findtekst(323,$sprog_id)."</td><td><INPUT class=\"inputbox\" style=\"width:160px\" TYPE=\"TEXT\" NAME=\"login\" value=\"$navn\"></td></tr>\n";
-	print "<tr><td>".findtekst(324,$sprog_id)."</td>";
-	print	"<td><INPUT class=\"inputbox\" style=\"width:160px\" TYPE=\"password\" NAME=\"password\" value=\"$kode\"></td></tr>\n";
-	print "<tr><td colspan=\"2\" align=\"center\"><br></td></tr>\n";
-	print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"pwtjek\" value=\"Login\"></td></tr>\n";
-	if (isset($mastername) && strtolower($mastername)=='rotary') {
-		print "<tr><td colspan=\"2\" align=center>".findtekst(325,$sprog_id)."</td></tr>\n";
-	}
-	print "</tbody></table><INPUT TYPE=\"HIDDEN\" name=\"timestamp\" value=\"".date("U")."\"></FORM></td></tr>\n"; # <- tabel 1.2.1
-	print	"</tbody></table></td></tr>\n"; # <- tabel 1.2
-	print "<tr><td align=\"center\" valign=\"bottom\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.3 ->
-	print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2012&nbsp;DANOSOFT&nbsp;ApS</td>";
-	print "<td width=\"60%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"center\">Et <a href=\"http://www.saldi.dk\" target=\"blank\">SALDI</a> regnskab</td>";
-	print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\"><br></td>";
-	print "</tr></tbody></table>"; # <- tabel 1.3
-	print "</td></tr>\n";
-	print "</tbody></table>"; # <- tabel 1
-	if (!isset($_COOKIE['saldi_std'])) {
-		print "<script language=\"javascript\" type=\"text/javascript\">";
-		print "document.login.regnskab.focus();";
-		print "</script>";
-	} else {
-		print "<script language=\"javascript\" type=\"text/javascript\">";
-		print "document.login.login.focus();";
-		print "</script>";
-	}
-}
-
 ?>

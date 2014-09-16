@@ -27,7 +27,8 @@ $regnskab=''; $navn=''; $kode='';
 $css="../css/standard.css";
 
 $loginfejl=NULL;
-if (isset($_GET['e'])) $loginfejl = $_GET['e'];
+if (isset($_GET['e'])) $e = base64_decode($_GET['e']); // pt. kan jeg ikke få decoded get[e] før filter_input()
+$loginfejl = filter_var($e, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
 if (!file_exists("../includes/connect.php")) {
 	print "<meta http-equiv=\"refresh\" content=\"0;url=install.php\">\n";
@@ -122,7 +123,7 @@ if ($login=="dropdown") {
 print "</tr><tr><td>".findtekst(323,$sprog_id)."</td><td><INPUT class=\"inputbox\" style=\"width:160px\" TYPE=\"TEXT\" NAME=\"login\" value=\"$navn\"></td></tr>\n";
 print "<tr><td>".findtekst(324,$sprog_id)."</td>";
 print	"<td><INPUT class=\"inputbox\" style=\"width:160px\" TYPE=\"password\" NAME=\"password\" value=\"$kode\"></td></tr>\n";
-print "<tr><td colspan=\"2\" align=\"center\"><br><i>".base64_decode($loginfejl)."</i></td></tr>\n";
+print "<tr><td colspan=\"2\" align=\"center\"><br><i>".$loginfejl."</i></td></tr>\n";
 print "<tr><td colspan=\"2\" align=\"center\"><input type=\"submit\" name=\"pwtjek\" value=\"Login\"></td></tr>\n";
 if (isset($mastername) && strtolower($mastername)=='rotary') {
 	print "<tr><td colspan=\"2\" align=center>".findtekst(325,$sprog_id)."</td></tr>\n";
