@@ -78,7 +78,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		if ($lukket) {
 			if (!$mastername) $mastername='DANOSOFT';
 			//print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab er lukket!\\nKontakt $mastername for gen&aring;bning')\">";
-			header("Location: index.php?e=".base64_encode("Regnskab $regnskab er lukket! Kontakt $mastername for genåbning"));
+			header("Location: index.php?e=".base64url_encode("Regnskab $regnskab er lukket! Kontakt $mastername for genåbning"));
 			exit;
 			// login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 		}
@@ -93,7 +93,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		if ($masterversion > "1.1.3") db_modify("update regnskab set sidst='$tmp' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
 	}	else {
 		if ($regnskab) {
-			header("Location: index.php?e=".base64_encode("Regnskab $regnskab findes ikke"));
+			header("Location: index.php?e=".base64url_encode("Regnskab $regnskab findes ikke"));
 			exit;
 		} // login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";		exit;
@@ -106,7 +106,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 
 // Hvis PHP extension mcrypt og/eller hash ikke er indlæst, kan PBKDF2-algoritmen ikke køres.
 if (!extension_loaded('mcrypt') || !extension_loaded('hash')) {
-        header("Location: index.php?e=".base64_encode("PHP extension mcrypt og/eller hash er ikke indlæst. Prøv at installere pakken php5-mcrypt."));
+        header("Location: index.php?e=".base64url_encode("PHP extension mcrypt og/eller hash er ikke indlæst. Prøv at installere pakken php5-mcrypt."));
         // login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
         exit;
 }
@@ -217,7 +217,7 @@ $bruger_id=NULL;
 					$bruger_id=$row['id'];
 				} 
 			} elseif ($tmp_kode==$password) {
-				header("Location: index.php?e=".base64_encode("Midlertidig adgangskode udløbet")); //print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
+				header("Location: index.php?e=".base64url_encode("Midlertidig adgangskode udløbet")); //print "<BODY onLoad=\"javascript:alert('Midlertidig adgangskode udløbet')\">";
         			exit;
 			}
 		}
@@ -279,7 +279,7 @@ if(!isset($afbryd)){
 	include("../includes/connect.php");
 	db_modify("delete from online where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
 	//print "<BODY onLoad=\"javascript:alert('Fejl i brugernavn eller adgangskode')\">";
-	header("Location: index.php?e=".base64_encode("Fejl i brugernavn eller adgangskode"));
+	header("Location: index.php?e=".base64url_encode("Fejl i brugernavn eller adgangskode"));
 	exit;
 	// login (htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset));
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
@@ -307,4 +307,9 @@ function online($regnskab, $brugernavn, $password, $timestamp, $s_id) {
 	print "</tr>";
 	print "</FORM>";
 }
+
+// http://dk2.php.net/manual/en/function.base64-encode.php#103849
+function base64url_encode($data) {
+  return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+} 
 ?>

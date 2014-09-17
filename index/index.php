@@ -26,9 +26,13 @@
 $regnskab=''; $navn=''; $kode=''; 
 $css="../css/standard.css";
 
+// filter_input() ser ikke ud til at kunne decode base64 inden filtreringen.
 $loginfejl=NULL;
-if (isset($_GET['e'])) $e = base64_decode($_GET['e']); // pt. kan jeg ikke få decoded get[e] før filter_input()
-$loginfejl = filter_var($e, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+if(isset($_GET['e'])){
+	// http://dk2.php.net/manual/en/function.base64-encode.php#103849
+	$e = base64_decode(str_pad(strtr($_GET['e'], '-_', '+/'), strlen($_GET['e']) % 4, '=', STR_PAD_RIGHT));
+	$loginfejl = filter_var($e, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+}
 
 if (!file_exists("../includes/connect.php")) {
 	print "<meta http-equiv=\"refresh\" content=\"0;url=install.php\">\n";
