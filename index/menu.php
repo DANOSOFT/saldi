@@ -27,7 +27,14 @@ $s_id=session_id();
 $title="Menu";
 $css="../css/standard.css";
 
-
+// filter_input() ser ikke ud til at kunne decode base64 inden filtreringen.
+$loginfejl=NULL;
+if(isset($_GET['e'])){
+        // http://dk2.php.net/manual/en/function.base64-encode.php#103849
+        $e = base64_decode(str_pad(strtr($_GET['e'], '-_', '+/'), strlen($_GET['e']) % 4, '=', STR_PAD_RIGHT));
+        $loginfejl = filter_var($e, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+	echo "<script type=\"text/javascript\">alert('".$loginfejl."')</script>";
+}
 
 $produktion=0; # Menukolonnen PRODUKTION udeladt indtil test er gennemfoert
 $popup=NULL;

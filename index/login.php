@@ -134,7 +134,8 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 			exit;
 		} elseif (!$fortsaet) {
 			$tmp=date("d-m-y", $last_time)." kl. ".date("H:i", $last_time);
-			print "<BODY onLoad=\"javascript:alert('Velkommen $brugernavn. Du har ikke logget korrekt af da du sidst var online d. $tmp')\">";
+			$info = "?e=".base64url_encode("Velkommen $brugernavn. Du har ikke logget korrekt af da du sidst var online d. $tmp");
+			// print "<BODY onLoad=\"javascript:alert('Velkommen $brugernavn. Du har ikke logget korrekt af da du sidst var online d. $tmp')\">";
 			db_modify("delete from online where brugernavn = '$brugernavn' and db = '$db' and session_id != '$s_id'",__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -247,7 +248,8 @@ if($saldibruger_valideret){
 			$diff=$post_antal-$post_max;
 			if ($sqdb=="gratis" && $post_antal>$post_max) {
 				$txt="Dit maksikale posteringsantal ($post_max) er overskredet.\\nDer er i alt foretaget $post_antal posteringer inden for de sidste 12 m&aring;neder.\\nDu kan bestille et professionelt regnskab p&aring; http://saldi.dk med hotline og automatisk \\nsikkerhedskopiering p&aring; hurtigere systemer, og let flytte hele dit regnskab dertil.\\nEller du kan kontakte DANOSOFT p&aring; tlf 4690 2208 og h&oslash;re om mulighederne for ekstra gratis posteringer.\\n";
-				echo "<script>alert('$txt')</script>";
+				$info = "?e=".base64url_encode("$txt");
+				// echo "<script>alert('$txt')</script>";
 			}
 #		}
 	}
@@ -273,7 +275,7 @@ if(!isset($afbryd)){
 		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
 #		transtjek();
 		}
-		header("Location: menu.php");
+		header("Location: menu.php$info");
 		//print "<meta http-equiv=\"refresh\" content=\"0;URL=menu.php\">";
 } else {
 	include("../includes/connect.php");
@@ -289,23 +291,28 @@ if(!isset($afbryd)){
 function online($regnskab, $brugernavn, $password, $timestamp, $s_id) {
 	global $charset;
 
-	print "<FORM METHOD=POST NAME=\"online\" ACTION=\"login.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
+	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
+	print "<html>\n";
+	print "<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n";
+	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\" />";
+	print "</head>";
+	print "<form method=\"post\" name=\"online\" action=\"login.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 	print "<table width=50% align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td colspan=\"2\" align=\"center\" valign=\"center\"> <big><b>Brugeren <i>$brugernavn</i> er allerede logget ind.</b></big></td></tr>";
 	print "<tr><td colspan=\"2\" align=\"center\"> <big><b>Vil du forts&aelig;tte?</b></big></td></tr>";
 
 	print "<tr>";
-	print "<INPUT TYPE=hidden NAME=regnskab VALUE='$regnskab'>";
-	print "<INPUT TYPE=hidden NAME=login VALUE='$brugernavn'>";
-	print "<INPUT TYPE=hidden NAME=password VALUE='$password'>";
-	print "<INPUT TYPE=hidden NAME=timestamp VALUE='$timestamp'>";
+	print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">";
+	print "<input type=\"hidden\" name=\"login\" value=\"$brugernavn\">";
+	print "<input type=\"hidden\" name=\"password\" value=\"$password\">";
+	print "<input type=\"hidden\" name=\"timestamp\" value=\"$timestamp\">";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<td align=center><INPUT TYPE=submit name=afbryd VALUE=Afbryd></td>";
-	print "<td align=center><INPUT TYPE=submit name=fortsaet VALUE=Forts&aelig;t></td>";
+	print "<td align=\"center\"><input type=\"submit\" name=\"afbryd\" value=\"Afbryd\"></td>";
+	print "<td align=\"center\"><input type=\"submit\" name=\"fortsaet\" value=\"Forts&aelig;t\"></td>";
 	print "</tr>";
-	print "</FORM>";
+	print "</form></body></html>";
 }
 
 // http://dk2.php.net/manual/en/function.base64-encode.php#103849
