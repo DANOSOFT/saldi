@@ -275,7 +275,7 @@ if(!isset($afbryd)){
 		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
 #		transtjek();
 		}
-		header("Location: menu.php$info");
+		header("Location: menu.php$info"); // $info fra linje 137 og 251
 		//print "<meta http-equiv=\"refresh\" content=\"0;URL=menu.php\">";
 } else {
 	include("../includes/connect.php");
