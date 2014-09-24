@@ -47,15 +47,15 @@ if ($title!="kreditorexport" && $ip!="128.30.52."){
 	} elseif ($title!='menu') {
 		if ($webservice) return ('Session expired');
 		else {
-			print "<BODY onLoad=\"JavaScript:alert('Din session er udl&oslash;bet - du skal logge ind igen');window.close();\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
+			header("Location: index.php?e=".base64url_encode("Din session er udløbet - du skal logge ind igen")); // print "<BODY onLoad=\"JavaScript:alert('Din session er udl&oslash;bet - du skal logge ind igen');window.close();\">";
+			// print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
 			exit;
 		}
 	} else {
 		if ($webservice) return ('Session expired');
 		else {
-			print "<BODY onLoad=\"JavaScript:alert('Din session er udl&oslash;bet - du skal logge ind igen');\">";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
+			header("Location: index.php?e=".base64url_encode("Din session er udløbet - du skal logge ind igen")); // print "<BODY onLoad=\"JavaScript:alert('Din session er udl&oslash;bet - du skal logge ind igen');\">";
+			// print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
 			exit;
 		}		
 	}
@@ -69,8 +69,9 @@ elseif($db=='bizsys_25') $labelprint=1;
 
 # echo "$modulnr && $modulnr<100 && $db==$sqdb<br>";
 if ($modulnr && $modulnr<100 && $db==$sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	print "<BODY onLoad=\"JavaScript:alert('Du har logget ud - vinduet lukkes');\">";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
+	print "<script type=\"text/javascript\">alert('Du har logget ud - vinduet lukkes');<script>";
+	header("Location: ../includes/luk.php");
+	// print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 	exit;
 }
 $query = db_select("select * from regnskab where db = '$db'",__FILE__ . " linje " . __LINE__);
@@ -131,7 +132,7 @@ if ($db!=$sqdb) {
 	}
 #	echo "$rettigheder -> $modulnr -> ".substr($rettigheder,$modulnr,1)."<br>";
 	if (($rettigheder)&&($modulnr)&&(substr($rettigheder,$modulnr,1)!='1')) { 
-			print "<BODY onLoad=\"JavaScript:alert('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');window.close();\">";
+			print "<script type=\"text/javascript\">alert('Du har ikke nogen rettigheder her - din aktivitet er blevet logget');window.close();<script>";
 		exit;
 	}
 }
@@ -139,18 +140,17 @@ if ($db!=$sqdb) {
 if ($header!='nix') {
 	if ($db_encode=="UTF8") $charset="UTF-8";
 	else $charset="ISO-8859-1";
-	PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
+	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	<html>\n
 	<head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
 	if($meta_returside) print "$meta_returside"; #20140502
-	if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
-	else print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/saldimenu.css\"/>\n";
+	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 	print "<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>\n"; #20140502
 	print "<script type=\"text/javascript\" src=\"../javascript/jquery.autosize.js\"></script>\n"; #20140502
-	print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n"; 
-	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n"; #20140502
+	print "<script type=\"text/javascript\" src=\"../javascript/overlib.js\"></script>\n"; 
+	print "<script type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n"; #20140502
 	#print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/main.css\"/>\n";
 	print "
 	<script type=\"text/javascript\">

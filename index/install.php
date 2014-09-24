@@ -36,6 +36,7 @@ $noskriv=NULL;
 include("../includes/db_query.php");
 include("../includes/settings.php");
 include("../includes/version.php");
+require("../includes/pbkdf2.php");
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
@@ -45,10 +46,14 @@ print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"center\">\n";
 
 if (isset($_POST['opret'])){
 	$felt_mangler=false;	
-	$pw_diff=false;	
+	$pw_diff=false;
+	$ext_loaded=false;
 	$db_encode=$_POST['db_encode'];
 	$db_type=strtolower($_POST['db_type']);
 	$db_navn=trim($_POST['db_navn']);
+	if (extension_loaded('mcrypt') && extension_loaded('hash')) {
+		$ext_loaded=true;
+	}
 	if ( strlen($db_navn)==0 ) {
 		$felt_mangler=true;
 		$db_navn="<i>Feltet er tomt!</i>";
@@ -89,7 +94,8 @@ if (isset($_POST['opret'])){
 			$verify_adm_pw = "<i>Adgangskoder forskellige. Skal v&aelig;re ens.</i>";
 		}
 	}
-	$adm_password=md5(trim($_POST['adm_password']));
+	//$adm_password=md5(trim($_POST['adm_password']));
+	$adm_password = \PBKDF2\create_hash(trim($_POST['adm_password'])); // Genererer ny unik salt og hash
 
 	$tmp.="<table>\n";
 	$tmp.="<tr><td colspan=\"2\" align=\"center\"><big><b>Oplysninger til SALDI-installering</b></big></td></tr>\n";	
@@ -104,7 +110,8 @@ if (isset($_POST['opret'])){
 	$tmp.="<tr><td colspan=\"2\"><hr \></td></tr>\n\n";
 	if ( $felt_mangler ) $tmp.="<tr><td colspan=\"2\"><b><i>Et eller flere felter mangler at blive udfyldt ovenfor.</i></b></td></tr>\n";
 	if ( $pw_diff )  $tmp.="<tr><td colspan=\"2\"><b><i>Adgangskode og verifikationskoden for SALDI-administrator er forskellig.</i></b></td></tr>\n";
-	if ( $felt_mangler || $pw_diff ) {
+	if ( !$ext_loaded ) $tmp.="<tr><td colspan=\"2\"><b><i>PHP extension mcrypt og/eller hash er ikke indl&aelig;st. Pr&oslash;v at installere pakken php5-mcrypt.</i></b></td></tr>\n";
+	if ( $felt_mangler || $pw_diff || !$ext_loaded ) {
 		$tmp.="<tr><td colspan=\"2\"><b><i>G&aring; tilbage til forrige side og ret fejlene</i></b><br />Brug eventuelt browserens tilbage-knap for at g&aring; tilbage.</p>\n\n";
 		$tmp.="</body></html>\n";
 		print $tmp;

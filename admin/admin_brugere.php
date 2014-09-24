@@ -28,6 +28,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+require("../includes/pbkdf2.php");
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\" height=\"25\">";
@@ -64,7 +65,9 @@ if ($_POST) {
 			$kode=NULL;
 			$ret_id=$id;
 	}
-	if (($kode) && (!strstr($kode,'**********'))) $kode=md5($kode);
+
+	// Hvis password er indtastet genereres ny unik salt og hash
+	if (($kode) && (!strstr($kode,'**********'))) $kode = \PBKDF2\create_hash($kode); // $kode=md5($kode);
 	elseif($kode)	{
 		$query = db_select("select * from brugere where id = '$id'");
 		if ($row = db_fetch_array($query))

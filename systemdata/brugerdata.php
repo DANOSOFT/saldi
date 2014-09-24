@@ -28,6 +28,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
+require("../includes/pbkdf2.php");
 
 $aktiver=if_isset($_GET['aktiver']);
 $popop=if_isset($_GET['popop']);
@@ -45,16 +46,21 @@ if ($aktiver) {
 
 if ($_POST) {
 	$popup=$_POST['popup'];
-	$glkode=md5(trim($_POST['glkode']));
-	$nykode1=md5(trim($_POST['nykode1']));
-	$nykode2=md5(trim($_POST['nykode2']));
+	$glkode=trim($_POST['glkode']);  //md5(trim($_POST['glkode']));
+	$nykode1=trim($_POST['nykode1']);  //md5(trim($_POST['nykode1']));
+	$nykode2=trim($_POST['nykode2']);  //md5(trim($_POST['nykode2']));
 	
 	db_modify("update grupper set box2='$popup' where art = 'USET' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
 	
 	if ($glkode!=$nykode1) {
 		if ($nykode1==$nykode2 && $glkode && $nykode1) {
 			$r=db_fetch_array(db_select("select kode from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
-			if ($r['kode']==$glkode) {
+			//if ($r['kode']==$glkode) {
+
+			// Check, om hidtidig kode er indtastet korrekt
+			if(\PBKDF2\validate_password($glkode, $r['kode'])) {
+				// Genererer ny unik salt og hash
+				$nykode1 = \PBKDF2\create_hash($nykode1);
 				db_modify("update brugere set kode='$nykode1' where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__);
 				print "<tr><td align=center> Adgangskode &aelig;ndret!</td></tr>";
 			} elseif ($r['kode']) print "<tr><td align=center> Der er tastet forkert v&aelig;rdi i \"Gl. adgangskode\"</td></tr>";
