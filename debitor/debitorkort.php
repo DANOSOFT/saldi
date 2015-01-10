@@ -634,9 +634,9 @@ if ($drg=$x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af F8 for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. efterfulgt af F8 for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>".findtekst(378,$sprog_id)."<!--tekst 378--></td><td><input class=\"inputbox\" type=text size=10 name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype=='erhverv') {
@@ -865,4 +865,50 @@ function split_navn($firmanavn) {
 }
 
 ?>
+<script type="text/javascript">
+function cvrapi(param, country, type)
+{
+	jQuery.ajax
+	({
+		type: "GET",
+		dataType: "jsonp",
+		url: "//cvrapi.dk/api?"+type+"="+param+"&country="+country,
+		success: function (b)
+		{
+			if(b.hasOwnProperty("vat")) $("[name=cvrnr]").val(b.vat);
+			if(b.hasOwnProperty("name")) $("[name=firmanavn]").val(b.name);
+			if(b.hasOwnProperty("address")){
+				if(b.hasOwnProperty("addressco") && b.addressco != null){
+					$("[name=addr1]").val("c/o " + b.addressco);
+					$("[name=addr2]").val(b.address);
+				} else {
+					$("[name=addr1]").val(b.address);
+					$("[name=addr2]").val(null);
+				}
+			}
+			if(b.hasOwnProperty("zipcode")) $("[name=postnr]").val(b.zipcode);
+			if(b.hasOwnProperty("city")) $("[name=bynavn]").val(b.city);
+			if(b.hasOwnProperty("phone")) $("[name=tlf]").val(b.phone);
+			if(b.hasOwnProperty("email")) $("[name=email]").val(b.email);
+			if(b.hasOwnProperty("fax")) $("[name=fax]").val(b.fax);
+		}
+	});
+}
+$(document).keyup(function(e){
+var cvrnr = $("[name=cvrnr]").val();
+var tlfnr = $("[name=tlf]").val();
+
+// Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
+if(e.key == 'F2'){
+	if($("[name=ny_kontonr]").is(':focus')) $("[name=cvrnr]").select();
+	else $("[name=ny_kontonr]").select();
+}
+
+// Tryk på F8 henter data via cvrapi.dk når rubrikken CVR-nr. eller telefonnr. er aktiv
+if(e.key == 'F8'){
+	if(cvrnr.length == 8 && $("[name=cvrnr]").is(':focus')) cvrapi(cvrnr, 'dk', 'vat');
+	if(tlfnr.length == 8 && $("[name=tlf]").is(':focus')) cvrapi(tlfnr, 'dk', 'phone');
+}
+});
+</script>
 </body></html>
