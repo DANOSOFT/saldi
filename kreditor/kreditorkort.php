@@ -279,9 +279,9 @@ print "</SELECT></td></tr>\n";
 print "</tbody></table></td>";#  <- tabel 1.2.1 
 print "<td  valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # tabel 1.2.2 ->
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td width=\"25%\"> CVR-nr.</td><td width=\"75%\"><input class=\"inputbox\" type=text size=\"10\" name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af F8 for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
+print "<tr bgcolor=$bg><td width=\"25%\"> CVR-nr.</td><td width=\"75%\"><input class=\"inputbox\" type=text size=\"10\" name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af Enter for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td> Telefon</td><td><input class=\"inputbox\" type=text size=\"10\" name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. efterfulgt af F8 for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
+print "<tr bgcolor=$bg><td> Telefon</td><td><input class=\"inputbox\" type=text size=\"10\" name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. efterfulgt af Enter for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td> Telefax</td><td><input class=\"inputbox\" type=text size=\"10\" name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;

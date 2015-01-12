@@ -634,9 +634,9 @@ if ($drg=$x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af F8 for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af Enter for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. efterfulgt af F8 for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. efterfulgt af Enter for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>".findtekst(378,$sprog_id)."<!--tekst 378--></td><td><input class=\"inputbox\" type=text size=10 name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype=='erhverv') {
