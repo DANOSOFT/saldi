@@ -422,20 +422,27 @@ function cvrapi(param, country, type)
 		}
 	});
 }
-$(document).keyup(function(e){
+$(document).keydown(function(e){
 var cvrnr = $("[name=cvrnr]").val();
 var tlfnr = $("[name=tlf]").val();
 
 // Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
-if(e.key == 'F2'){
-	if($("[name=ny_kontonr]").is(':focus')) $("[name=cvrnr]").select();
-	else $("[name=ny_kontonr]").select();
+if(e.which == '113'){   // F2
+        e.preventDefault();
+        if($("[name=ny_kontonr]").is(':focus')) $("[name=cvrnr]").select();
+        else $("[name=ny_kontonr]").select();
 }
 
-// Tryk på F8 henter data via cvrapi.dk når rubrikken CVR-nr. eller telefonnr. er aktiv
-if(e.key == 'F8'){
-	if(cvrnr.length == 8 && $("[name=cvrnr]").is(':focus')) cvrapi(cvrnr, 'dk', 'vat');
-	if(tlfnr.length == 8 && $("[name=tlf]").is(':focus')) cvrapi(tlfnr, 'dk', 'phone');
+// Tryk på <enter> henter data via cvrapi.dk når rubrikken CVR-nr. eller telefonnr. er aktiv
+if(e.which == '13'){    // 13 = enter (bedre understøttelse end F8 m.f.)
+        if(cvrnr.length == 8 && $("[name=cvrnr]").is(':focus')){
+                e.preventDefault();
+                cvrapi(cvrnr, 'dk', 'vat');
+        }
+        if(tlfnr.length == 8 && $("[name=tlf]").is(':focus')){
+                e.preventDefault();
+                cvrapi(tlfnr, 'dk', 'phone');
+        }
 }
 });
 </script>
