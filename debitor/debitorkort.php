@@ -547,7 +547,7 @@ print "</select></td>\n";
 print "<td align=right>".findtekst(355,$sprog_id)."<!--tekst 355--><input class=\"inputbox\" type=\"checkbox\" name=\"vis_lev_addr\" $vis_lev_addr></td></tr>\n";
 print "<tr><td valign=top height=250px><table border=0 width=100%><tbody>"; # TABEL 1.2.1 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>".findtekst(357,$sprog_id)."<!--tekst 357--></td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(357,$sprog_id)."<!--tekst 357--></td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 if ($kontotype=='privat') {
 	print "<input type=\"hidden\" name=\"firmanavn\" value=\"$firmanavn\">\n";
 	($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
@@ -634,9 +634,9 @@ if ($drg=$x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type=text size=10 name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>".findtekst(378,$sprog_id)."<!--tekst 378--></td><td><input class=\"inputbox\" type=text size=10 name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype=='erhverv') {
@@ -865,4 +865,69 @@ function split_navn($firmanavn) {
 }
 
 ?>
+<script type="text/javascript">
+$(document).keydown(function(e){
+	// Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
+	if(e.which == '113'){	// F2
+		e.preventDefault();
+		if($("[name=ny_kontonr]").is(':focus')) $("[name=cvrnr]").select();
+		else $("[name=ny_kontonr]").select();
+	}
+});
+
+function cvrapi(param, country, type){
+	jQuery.ajax
+	({
+		type: "GET",
+		dataType: "jsonp",
+		url: "//cvrapi.dk/api?"+type+"="+param+"&country="+country,
+		success: function (b)
+		{
+			if(b.hasOwnProperty("vat")) $("[name=cvrnr]").val(b.vat);
+			if(b.hasOwnProperty("name")) $("[name=firmanavn]").val(b.name);
+			if(b.hasOwnProperty("address")){
+				if(b.hasOwnProperty("addressco") && b.addressco != null){
+					$("[name=addr1]").val("c/o " + b.addressco);
+					$("[name=addr2]").val(b.address);
+				} else {
+					$("[name=addr1]").val(b.address);
+					$("[name=addr2]").val(null);
+				}
+			}
+			if(b.hasOwnProperty("zipcode")) $("[name=postnr]").val(b.zipcode);
+			if(b.hasOwnProperty("city")) $("[name=bynavn]").val(b.city);
+			if(b.hasOwnProperty("phone")) $("[name=tlf]").val(b.phone);
+			if(b.hasOwnProperty("email")) $("[name=email]").val(b.email);
+			if(b.hasOwnProperty("fax")) $("[name=fax]").val(b.fax);
+		}
+	});
+}
+
+var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
+
+$("[name=ny_kontonr]").keyup(function(e){
+        var ny_kontonr = $("[name=ny_kontonr]").val();
+        if(pattern.test(ny_kontonr)){
+		ny_kontonr = $("[name=ny_kontonr]").val().substr(1,8);
+		$("[name=ny_kontonr]").val(ny_kontonr);
+                cvrapi(ny_kontonr, 'dk', 'vat');
+        }
+});
+
+$("[name=cvrnr]").keyup(function(e){
+	var cvrnr = $("[name=cvrnr]").val();
+	if(pattern.test(cvrnr)){
+		cvrnr = cvrnr.substr(1,8);
+		cvrapi(cvrnr, 'dk', 'vat');
+	}
+});
+
+$("[name=tlf]").keyup(function(e){
+        var tlfnr = $("[name=tlf]").val();
+        if(pattern.test(tlfnr)){
+                tlfnr = tlfnr.substr(1,8);
+                cvrapi(tlfnr, 'dk', 'phone');
+        }
+});
+</script>
 </body></html>
