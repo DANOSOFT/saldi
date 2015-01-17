@@ -232,7 +232,7 @@ print "<input type=hidden name=returside value='$returside'>\n";
 print "<input type=hidden name=fokus value='$fokus'>\n";
 print "<tr bgcolor=$bg><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # tabel 1.2.1 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>Leverand&oslash;rnr</td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>Leverand&oslash;rnr</td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>Navn</td><td><input class=\"inputbox\" type=text size=25 name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
@@ -279,9 +279,9 @@ print "</SELECT></td></tr>\n";
 print "</tbody></table></td>";#  <- tabel 1.2.1 
 print "<td  valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # tabel 1.2.2 ->
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td width=\"25%\"> CVR-nr.</td><td width=\"75%\"><input class=\"inputbox\" type=text size=\"10\" name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. efterfulgt af Enter for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
+print "<tr bgcolor=$bg><td width=\"25%\"> CVR-nr.</td><td width=\"75%\"><input class=\"inputbox\" type=text size=\"10\" name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td> Telefon</td><td><input class=\"inputbox\" type=text size=\"10\" name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. efterfulgt af Enter for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\"></td></tr>\n";
+print "<tr bgcolor=$bg><td> Telefon</td><td><input class=\"inputbox\" type=text size=\"10\" name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td> Telefax</td><td><input class=\"inputbox\" type=text size=\"10\" name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
@@ -394,8 +394,16 @@ print	"</td></tr>";
 print	"</tbody></table>";#tabel 1 slut
 ?>
 <script type="text/javascript">
-function cvrapi(param, country, type)
-{
+$(document).keydown(function(e){
+	// Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
+	if(e.which == '113'){	// F2
+		e.preventDefault();
+		if($("[name=ny_kontonr]").is(':focus')) $("[name=cvrnr]").select();
+		else $("[name=ny_kontonr]").select();
+	}
+});
+
+function cvrapi(param, country, type){
 	jQuery.ajax
 	({
 		type: "GET",
@@ -422,28 +430,32 @@ function cvrapi(param, country, type)
 		}
 	});
 }
-$(document).keydown(function(e){
-var cvrnr = $("[name=cvrnr]").val();
-var tlfnr = $("[name=tlf]").val();
 
-// Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
-if(e.which == '113'){   // F2
-        e.preventDefault();
-        if($("[name=ny_kontonr]").is(':focus')) $("[name=cvrnr]").select();
-        else $("[name=ny_kontonr]").select();
-}
+var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
 
-// Tryk på <enter> henter data via cvrapi.dk når rubrikken CVR-nr. eller telefonnr. er aktiv
-if(e.which == '13'){    // 13 = enter (bedre understøttelse end F8 m.f.)
-        if(cvrnr.length == 8 && $("[name=cvrnr]").is(':focus')){
-                e.preventDefault();
-                cvrapi(cvrnr, 'dk', 'vat');
+$("[name=ny_kontonr]").keyup(function(e){
+        var ny_kontonr = $("[name=ny_kontonr]").val();
+        if(pattern.test(ny_kontonr)){
+		ny_kontonr = $("[name=ny_kontonr]").val().substr(1,8);
+		$("[name=ny_kontonr]").val(ny_kontonr);
+                cvrapi(ny_kontonr, 'dk', 'vat');
         }
-        if(tlfnr.length == 8 && $("[name=tlf]").is(':focus')){
-                e.preventDefault();
+});
+
+$("[name=cvrnr]").keyup(function(e){
+	var cvrnr = $("[name=cvrnr]").val();
+	if(pattern.test(cvrnr)){
+		cvrnr = cvrnr.substr(1,8);
+		cvrapi(cvrnr, 'dk', 'vat');
+	}
+});
+
+$("[name=tlf]").keyup(function(e){
+        var tlfnr = $("[name=tlf]").val();
+        if(pattern.test(tlfnr)){
+                tlfnr = tlfnr.substr(1,8);
                 cvrapi(tlfnr, 'dk', 'phone');
         }
-}
 });
 </script>
 <?

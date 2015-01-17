@@ -124,8 +124,8 @@ if(db_fetch_array(db_select("select id from ansatte where konto_id = '$id' and l
 }
 print "<tr><td>Bank</td><td><input class=\"inputbox\" type=\"text\" size=\"25\" name=\"bank_navn\" value=\"$bank_navn\"></td></tr>";
 print "</tbody></table></td><td><table border=\"1\"><tbody>";
-print "<tr><td>CVR-nr.</td><td><input class=\"inputbox\" type=\"text\" size=\"10\" name=\"cvrnr\" value=\"$cvrnr\"></td></tr>";
-print "<tr><td>Telefon</td><td><input class=\"inputbox\" type=\"text\" size=\"10\" name=\"tlf\" value=\"$tlf\"></td></tr>";
+print "<tr><td>CVR-nr.</td><td><input class=\"inputbox\" type=\"text\" size=\"10\" name=\"cvrnr\" value=\"$cvrnr\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
+print "<tr><td>Telefon</td><td><input class=\"inputbox\" type=\"text\" size=\"10\" name=\"tlf\" value=\"$tlf\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
 print "<tr><td>Telefax</td><td><input class=\"inputbox\" type=\"text\" size=\"10\" name=\"fax\" value=\"$fax\"></td></tr>";
 print "<tr><td>PBS Kreditornr.</td><td><input class=\"inputbox\" type=\"text\" size=\"10\" name=\"pbs_nr\" value=\"$pbs_nr\">";
 if ($pbs_nr) {
@@ -182,4 +182,51 @@ print "<tr><td colspan=2 align=center><input type=\"submit\" accesskey=\"g\" val
 </table>
 </td></tr>
 </tbody></table>
+<script type="text/javascript">
+function cvrapi(param, country, type){
+	jQuery.ajax
+	({
+		type: "GET",
+		dataType: "jsonp",
+		url: "//cvrapi.dk/api?"+type+"="+param+"&country="+country,
+		success: function (b)
+		{
+			if(b.hasOwnProperty("vat")) $("[name=cvrnr]").val(b.vat);
+			if(b.hasOwnProperty("name")) $("[name=firmanavn]").val(b.name);
+			if(b.hasOwnProperty("address")){
+				if(b.hasOwnProperty("addressco") && b.addressco != null){
+					$("[name=addr1]").val("c/o " + b.addressco);
+					$("[name=addr2]").val(b.address);
+				} else {
+					$("[name=addr1]").val(b.address);
+					$("[name=addr2]").val(null);
+				}
+			}
+			if(b.hasOwnProperty("zipcode")) $("[name=postnr]").val(b.zipcode);
+			if(b.hasOwnProperty("city")) $("[name=bynavn]").val(b.city);
+			if(b.hasOwnProperty("phone")) $("[name=tlf]").val(b.phone);
+			if(b.hasOwnProperty("email")) $("[name=email]").val(b.email);
+			if(b.hasOwnProperty("fax")) $("[name=fax]").val(b.fax);
+		}
+	});
+}
+
+var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
+
+$("[name=cvrnr]").keyup(function(e){
+	var cvrnr = $("[name=cvrnr]").val();
+	if(pattern.test(cvrnr)){
+		cvrnr = cvrnr.substr(1,8);
+		cvrapi(cvrnr, 'dk', 'vat');
+	}
+});
+
+$("[name=tlf]").keyup(function(e){
+        var tlfnr = $("[name=tlf]").val();
+        if(pattern.test(tlfnr)){
+                tlfnr = tlfnr.substr(1,8);
+                cvrapi(tlfnr, 'dk', 'phone');
+        }
+});
+</script>
 </body></html>
