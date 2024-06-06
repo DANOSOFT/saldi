@@ -1,0 +1,1141 @@
+/* 
+
+  Name: Greyscale Light Top Menu
+  Author: MSC
+
+*/
+
+/* Insert font family Viga */
+@font-face {
+  font-family: 'Viga';
+  src: url(../../fonts/topmenu/viga-regular-webfont.woff2) format('woff2'),
+       url(../../fonts/topmenu/viga-regular-webfont.woff) format('woff'),
+       url(../../fonts/topmenu/Viga-Regular.ttf) format('tff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Insert font family Montserrat */
+@font-face {
+  font-family: 'Montserrat';
+  src: url(../../fonts/topmenu/montserrat-medium-webfont.woff2) format('woff2'),
+       url(../../fonts/topmenu/montserrat-medium-webfont.woff) format('woff'),
+       url(../../fonts/topmenu/Montserrat-Medium.ttf) format('tff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Background color and default text color */
+body {
+    background-color: #ddd;
+}
+
+/* Slide down menu container */
+.container {
+    width: 100%;
+    max-width: 1600px;
+}
+
+/* Slide down menu header */
+.header {
+    padding: 8px 0 10px 0;
+    background: #ddd;
+    position: relative;
+    display: none;
+    z-index: 2000;
+    min-width: 1050px;
+}
+
+/* Header, navigation and Menu styling */
+.header .navigation .menu span {
+    display: block;
+    margin-top: 14px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #000;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Header, navigation, menu and menu-list styling*/
+.header .navigation .menu .menu-list ul {
+    list-style: none;
+    padding-left: 0px;
+}
+
+/* Header, navigation, menu and menu-list styling*/
+.header .navigation .menu .menu-list ul li {
+    background: white;
+    border: 0px solid #222222;
+    border-top: 0;
+}
+
+/* Header, navigation, menu and menu-list styling*/
+.header .navigation .menu .menu-list ul li a {
+    font-size: 15px;
+}
+
+/* The end for each navgivation category */
+.menu-end {
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  background: white;
+  font-size: 3px;
+}
+
+/* Header, navigation and menu styling */
+.header .navigation .menu span {
+    display: block;
+    margin-top: 14px;
+    font-size: 16px;
+    color: #fff;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+    font-weight: bolder;
+}
+
+/* Header and navigation styling */
+.header .navigation .sform span {
+    display: block;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed #ccc;
+    font-size: 15px;
+    color: #555;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Header, navigation input styling */
+.header .navigation .sform .form .form-group input {
+    margin-bottom: 10px;
+}
+
+/* Slide down menu button */
+.menu-btn {
+    position: absolute;
+    right: 5%;
+    z-index: 1500;
+}
+
+/* Slide down menu button link */
+.menu-btn a, .menu-btn a:link, .menu-btn a:visited, .menu-btn a:active {
+    display: inline-block;
+    width: 90px;
+    height: 35px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    line-height: 35px;
+    text-align: center;
+    font-size: 14px;
+    color: #fff;
+    background: #919191;
+    text-decoration: none !important;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Logo header */
+.head {
+    background: #666;
+    border-top: 3px solid #919191;
+    border-bottom: 1px solid #666;
+    padding: 8px 0;
+    width: 100%;
+    position: absolute;
+    z-index: 1000;
+    min-width: 1050px;
+}
+
+/* Head and logo postion */
+.head .logo {
+    margin-top: 7px;
+    margin-left: 5%;
+    margin-right: 5%;
+}
+
+/* Logo img size */
+.head .logo img {
+    width: 50px;
+    height: 50px;
+}
+
+/* Logo Color Link */
+.head .logo a {
+    color: #3A3A3A;
+}
+
+/* Logo Color Link */
+.head .logo a, a:link, a:visited, a:active {
+  text-decoration: none !important;
+  background-size: 0px;
+}
+
+/* Slide down menu headers */
+
+/* Kunder header */
+.headKund {
+    background: #000;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Leverandører header */
+.headLev {
+    background: #4A4A4A;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Finans header */
+.headFina {
+    background: #646464;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+    margin-top: 2px;
+}
+
+/* Lager header */
+.headLag {
+    background: #7E7E7E;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Systemdata header */
+.headSys {
+    background: #979797;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Bruger header */
+.headBrug {
+    background: #B1B1B1;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    height: 40px;
+}
+
+/* Slide down menu list */
+.menu-list ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  background-color: #eaeaea;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Slide down menu list link */
+.menu-list li a {
+  display: block;
+  color: #000;
+  padding: 14px 20px;
+  text-decoration: none;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  /* ...and now for the proper property */
+  transition:.5s;
+}
+
+/* Slide down menu list link on hover */
+.menu-list li a:hover {
+  background-color: #efefef;
+  color: #444444;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  background-size: 100% 3px;
+}
+
+/* Container for logo and firm name */
+.logo-container {
+  display: flex;
+  flex-direction: row;
+  width: auto;
+}
+
+/* Styling of firm name */
+.logo-name {
+  margin-top:2px;
+  font-size: 35px;
+  font-family: 'Viga', Tahoma, sans-serif;
+  text-transform: uppercase;
+  color: #c2c2c2;
+  margin-left:10px;
+}
+
+/* Styling of financial accounting name */
+.regnskab-name {
+  margin-top:11px;
+  font-size: 25px;
+  font-family: 'Viga', Tahoma, sans-serif;
+  text-transform: uppercase;
+  color: white;
+  margin-left:10px;
+}
+
+.logolink {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Flex container */
+.flex-container
+{
+  display: flex;
+  justify-content: center;
+  min-width: 1050px;
+}
+
+/* Content */
+.content
+{
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  font-size: 17px;
+  margin-top: 120px;
+  margin-left: 5%;
+  margin-right: 5%;
+  margin-bottom: 30px;
+  width: 100%;
+  color: black;
+}
+
+/* Content, without sidebar */
+.content-noside {
+  padding: 10px;
+  width: 100%;
+  background-color: white;
+  color: black;
+}
+
+/* Scrolling bar */
+/* The emerging W3C standard
+ that is currently Firefox-only */
+ * {
+  scrollbar-width: auto;
+  scrollbar-color: #919191 #ddd;
+}
+/* Works on Chrome/Edge/Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #ddd;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #919191;
+  border-radius: 0px;
+}
+
+/* Link styling */
+a, a:link, a:visited, a:active {
+  color: #919191;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 2px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 2px;
+  transition: 0.5s;
+}
+
+/* Link styling on hover */
+a:hover {
+  color: #c2c2c2;
+  text-decoration: none;
+  background-size: 100% 2px;
+}
+
+/* Input styling */
+input {
+  color: black;
+  background-color: #d6d6d6;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  outline: none;
+}
+
+/* Input focus styling */
+input:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Select styling */
+select {
+  color: black;
+  background-color: #d6d6d6;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  outline: none;
+}
+
+/* Select focus styling */
+select:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Input focus styling for button */
+input[type=button]:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Input focus styling for reset button */
+input[type=reset]:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Input focus styling for submit button */
+input[type=submit]:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Textarea styling */
+textarea {
+  color: black;
+  background-color: #d6d6d6;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 0px solid #000000;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  outline: none;
+  scrollbar-width: auto;
+  scrollbar-color: #919191 #d6d6d6;
+  resize: none;
+}
+
+/* Scrolling bar for textarea */
+
+/* Works on Chrome/Edge/Safari */
+textarea::-webkit-scrollbar {
+  width: 10px;
+}
+textarea::-webkit-scrollbar-track {
+  background: #d6d6d6;
+}
+textarea::-webkit-scrollbar-thumb {
+  background-color: #919191;
+  border-radius: 0px;
+}
+
+/* Textarea focus styling */
+textarea:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+  scrollbar-color: #1965d1 #efefef;
+}
+
+textarea:focus::-webkit-scrollbar-track {
+  background: #efefef;
+}
+
+/* Label styling */
+label {
+  font-weight: 400;
+}
+
+/* Title for category Kunder */
+.titleKund {
+  background-color: #000;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Leverandører */
+.titleLev {
+  background-color: #4A4A4A;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Finans */
+.titleFina {
+  background-color: #646464;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Lager */
+.titleLag {
+  background-color: #7E7E7E;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Systemdata */
+.titleSys {
+  background-color: #979797;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Bruger */
+.titleBrug {
+  background-color: #B1B1B1;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Sub-title for kunder no radius */
+
+.sub-title-kund {
+  background-color: #191919;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Sub-title for kunder */
+
+.sub-title-kund-radius {
+  background-color: #191919;
+  padding: 10px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+.sub-title-kund-left {
+  background-color: #191919;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-left-radius: 5px;
+}
+
+.sub-title-kund-right {
+  background-color: #191919;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-right-radius: 5px;
+}
+
+/* Sub-title link */
+
+.sub-title-link-kund a, .sub-title-link-kund a:link, .sub-title-link-kund a:visited, .sub-title-link-kund a:active {
+  color: white;
+  background-color: #191919 !important;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+  padding: 2px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 550 !important;
+}
+
+/* Sub-title link on hover */
+
+.sub-title-link-kund a:hover {
+  background-color: #191919 !important;
+  color: #6b6b6b;
+  text-decoration: none;
+  background-size: 0% 0px;
+  font-weight: 550 !important;
+}
+
+/* Separating line for tables top */
+
+.border-hr-top {
+  border-top: 3px solid white;
+  height: 3px;
+}
+
+/* Separating line for tables bottom */
+
+.border-hr-bottom {
+  border-bottom: 3px solid white;
+  height: 3px;
+}
+
+/* Content, when using sidebar */
+.side-content {
+  padding: 10px;
+  width: 90%;
+  background-color: white;
+  color: black;
+}
+
+/* Container, when using sidebar */
+.sidebar-container
+{
+  display: flex;
+  flex-direction: row;
+}
+
+/* Sidebar, when using sidebar */
+.sidebar {
+  width: 20%;
+  background-color: white;
+  min-width: 200px;
+}
+
+/* Sidebar menu list */
+.sidebar-menu ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  background-color: white;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Sidebar menu link */
+.sidebar-menu li a {
+  display: block;
+  color: black;
+  padding: 10px 10px;
+  text-decoration: none;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  transition:.5s;
+}
+
+/* Sidebar menu link hover */
+.sidebar-menu li a:hover {
+  background-color: #efefef;
+  color: #444444;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  background-size: 100% 3px;
+}
+
+/* Dropdown button */
+.dropbtn {
+  transition-duration: 0.4s;
+  outline: 0px solid orange;
+  background-color: white;
+  border: none;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  transition:.5s;
+  padding: 14px 20px;
+  text-align: left;
+  color: black;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  font-size: 14px;
+  width: 233px;
+}
+
+/* Dropdown button on hover and focus */
+.dropbtn:hover, .dropbtn:focus {
+  padding: 14px 20px;
+  color: #444444;
+  background-color: #efefef;
+  outline: 0px solid orange;
+}
+
+/* Dropdown */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown content */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  overflow: auto;
+  z-index: 3000;
+}
+
+/* Dropdown content link */
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+/* dropdown content link on hover */
+.dropdown a:hover {
+  background-color: #ddd;
+}
+
+/* Dropdown show */
+.show {display: block;}
+
+/* Theme switcher button */
+.theme-switcher-btn {
+  transition-duration: 0.4s;
+  outline: 0px solid orange;
+  background-color: white;
+  border: none;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  transition:.5s;
+  padding: 14px 20px;
+  text-align: center;
+  color: black;
+}
+
+/* Theme switcher button on hover */
+.theme-switcher-btn:hover {
+  padding: 14px 20px;
+  outline: 0px solid orange;
+  background-color: #efefef;
+  border: none;
+  color: #444444;
+}
+
+/* Back to top link */
+#back2Top {
+  width: 40px;
+  line-height: 40px;
+  overflow: hidden;
+  z-index: 999;
+  display: none;
+  cursor: pointer;
+  position: fixed;
+  bottom: 20px;
+  right: 5px;
+  background-color: none;
+  color: #777;
+  text-align: center;
+  font-size: 30px;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+}
+
+/* Back to top link on hover */
+#back2Top:hover {
+  background-color: none;
+  color: #555;
+}
+
+/* Footer styling */
+.footer {
+  width: 100%;
+  text-align: center;
+  padding: 30px 0px 0px 0px;
+  font-size: 16px;
+  color: black;
+  font-family: 'Montserrat';
+}
+
+.currentThemeIMG {
+  width: 100px;
+  height: 13px;
+  pointer-events: none;
+  background-image: url('../../img/topmenu/theme/lightgrey.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  border: 0px solid #000;
+}
+
+.themeIMG {
+  pointer-events: none;
+  text-align: center;
+}
+
+table {
+  color: black;
+}
+
+.imgNoTextDeco a, .imgNoTextDeco a:link, .imgNoTextDeco a:visited, .imgNoTextDeco a:active {
+  color: grey;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+}
+
+.imgNoTextDeco a:hover {
+  color: black;
+  text-decoration: none;
+  background-size: 0% 0px;
+}
+
+
+/* Checkmark styling for Ordrevisning */
+
+/* The container */
+.checkContainerVisning {
+  display: inline;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-size: 22px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Hide the browser's default checkbox */
+.checkContainerVisning input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmarkVisning {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 20px;
+  width: 20px;
+  background-color: #d6d6d6;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  -webkit-transition: 0.5s;
+}
+
+/* On mouse-over */
+.checkContainerVisning:hover input ~ .checkmarkVisning {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* When the checkbox is checked */
+.checkContainerVisning input:checked ~ .checkmarkVisning {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmarkVisning:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.checkContainerVisning input:checked ~ .checkmarkVisning:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.checkContainerVisning .checkmarkVisning:after {
+  left: 6px;
+  top: 3px;
+  width: 6px;
+  height: 10px;
+  border: solid black;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+/* Checkmark styling for Ordreliste */
+
+/* The container */
+.checkContainerOrdreliste {
+  display: inline;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 15px;
+  cursor: pointer;
+  font-size: 22px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  right : -45%
+}
+
+/* Hide the browser's default checkbox */
+.checkContainerOrdreliste input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmarkOrdreliste {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 17px;
+  width: 17px;
+  background-color: #d6d6d6;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  -webkit-transition: 0.5s;
+}
+
+/* On mouse-over */
+.checkContainerOrdreliste :hover input ~ .checkmarkOrdreliste {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* When the checkbox is checked */
+.checkContainerOrdreliste input:checked ~ .checkmarkOrdreliste {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmarkOrdreliste:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.checkContainerOrdreliste input:checked ~ .checkmarkOrdreliste:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.checkContainerOrdreliste .checkmarkOrdreliste:after {
+  left: 5px;
+  top: 2px;
+  width: 6px;
+  height: 9px;
+  border: solid black;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+.CellWithComment{
+  position:relative;
+}
+
+.CellComment{
+  display:none;
+  position:absolute; 
+  z-index:100;
+  border:1px;
+  background-color:#efefef;
+  border-style:solid;
+  border-width:1px;
+  border-color:#d6d6d6;
+  padding:3px;
+  color:black; 
+  top:50px; 
+  left:20px;
+  min-width: 100px;
+  max-width: 500px;
+  font-size: 16px;
+}
+
+.CellWithComment:hover span.CellComment{
+  display:block;
+}
+
+/* Red OBS */
+.obs {
+  color: #ed5757;
+}
+
+.dataTable table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+}
+
+.dataTable th {
+	border-bottom: 3px solid #d6d6d6;
+  background-color: #e8e8e8;
+  border-radius: 5px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+  padding: 15px;
+}
+
+.dataTable td {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+  padding: 10px;
+}
+
+.dataTable tfoot {
+  border-top: 3px solid #d6d6d6;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+}
+
+.dataTableNTH table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+}
+
+.dataTableNTH th {
+	border-bottom: 3px solid #d6d6d6;
+  background-color: #e8e8e8;
+  border-radius: 5px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+  padding: 15px;
+}
+
+.dataTableNTH td {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+  padding: 10px;
+}
+
+.dataTableNTH tbody tr:nth-child(even) {
+  background-color: rgb(83, 83, 83);
+}
+
+.dataTableNTH tfoot {
+  border-top: 3px solid #d6d6d6;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+}
+
+.dataTablediv {
+  background-color: #e8e8e8;
+  border-radius: 5px;
+}
+
+/* Table border left */
+.table-border-left {
+  border-left: 3px solid #d6d6d6;
+}
+
+/* Table border right */
+.table-border-right {
+  border-left: 3px solid #d6d6d6;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}

@@ -1,0 +1,96 @@
+/* Style til autocomplete */
+.ac_results {
+	padding: 0px 0px 0px 0px;
+        margin: 1px 0px 0px 1px;
+	border: 1px solid #ccc;
+        -moz-border-radius:5px;
+        -webkit-border-radius:5px;
+        border-radius:5px;
+	background-color: white;
+        #-webkit-box-shadow: 0 6px 4px -4px #ccc;
+        #-moz-box-shadow: 0 6px 4px -4px #ccc;
+	#box-shadow: 0px 6px 4px -4px #ccc;
+	overflow: hidden;
+	z-index: 99999;
+}
+
+.ac_results ul {
+	width: 100%;     
+	list-style-position: outside;
+	list-style: none;
+	padding: 0px 0px 0px 0px;
+	margin: 0;
+  white-space: nowrap;     
+}
+
+.ac_results li {
+	margin: 0px 0px 0px 0px;
+	padding: 5px 5px;
+	cursor: default;
+	#display: block;
+	/* 
+	if width will be 100% horizontal scrollbar will apear 
+	when scroll mode will be used
+	*/
+	/*width: 100%;*/
+	font: normal 12px Arial, Helvetica, sans-serif;
+        color: #444;
+	/* 
+	it is very important, if line-height not setted or setted 
+	in relative units scroll will be broken in firefox
+	*/
+	line-height: 16px;
+	overflow: hidden;
+}
+
+.ac_loading {
+	background: white url('../../img/indicator.gif') right center no-repeat;
+}
+
+.ac_odd {
+	background-color: #F2F2F2;
+}
+
+.ac_over {
+	background-color: #d6e5f2;
+	#color: white;
+}
+
+/* Style til clearbutton og input field */
+/*.divclearable {
+  
+        background:#fff;       
+        #padding: 3px 5px 3px 3px;    
+	#border: 1px solid #ccc;
+        
+        #-moz-border-radius:10px;
+        #-webkit-border-radius:10px;
+        #border-radius:10px;
+    
+	display: -moz-inline-stack;
+	display: inline-block;
+	zoom:1;
+	*display:inline;	
+	vertical-align:middle;
+        
+}*/
+/*
+a.clearlink {
+	background: url("../../img/close-button.png") no-repeat scroll 0px 0 transparent;
+	#background-position: center center;
+        margin-left: -12px;
+	cursor: pointer;     
+	display: -moz-inline-stack;
+	display: inline-block;
+        #vertical-align:middle;
+	zoom:1;
+	*display:inline;	
+	height: 12px;
+	width: 12px;
+	z-index: 2000;
+	border: none;
+}*/
+/*a.clearlink:hover {
+	background: url("../../img/close-button.png") no-repeat scroll -12px 0 transparent;
+	#background-position: center center;
+}*/

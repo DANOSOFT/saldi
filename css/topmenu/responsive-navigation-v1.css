@@ -1,0 +1,641 @@
+/* 
+
+  Name: Responsive Dropdown Top Navigation
+  Author: MSC
+
+*/
+
+@media only screen and (min-width: 1px) and (max-width: 1023px) {
+
+  .flex-container
+{
+  min-width: 900px;
+}
+
+  .content {
+    margin-top: 70px;
+  }
+
+  .menuBar {
+    height: 40px;
+  }
+
+  /* Navbar with dropdown menu */
+  .navbar {
+    min-width: 1010px;
+    margin-top: -5px;
+  }
+
+  .dropdownMenu ul {
+    padding: 15px 16px;
+  }
+
+  .dropdownMenu li a {
+    padding: 18px 16px;
+    width: 120px;
+  }
+
+  .dropDown li a, .dropDown li a:link, .dropDown li a:visited, .dropDown li a:active, .dropDownbtn, .dropDownbtn a, .dropDownbtn a:link, .dropDownbtn a:visited, .dropDownbtn a:active {
+    font-size: 13px;
+  }
+
+  .dropdownContent-Fin, .dropdownContent-Kun, .dropdownContent-Lev, .dropdownContent-Lag, .dropdownContent-Sys, .dropdownContent-Bru {
+    min-width: 120px;
+    font-size: 11px;
+  }
+
+  .dropdownContent-Fin a:hover, .dropdownContent-Kun a:hover, .dropdownContent-Lev a:hover, .dropdownContent-Lag a:hover, .dropdownContent-Sys a:hover, .dropdownContent-Bru a:hover {
+    padding: 18px 16px 18px 25px;
+  }
+
+  /* Logo img size */
+  .logobar .logo img {
+    width: 25px;
+    height: 25px;
+  }
+
+  .logo {
+    width: 100px;
+  }
+
+  .logoimg {
+    margin-top: -2px;
+  }
+
+  .logo-link a, .logo-link a:link, .logo-link a:active, .logo-link a:visited, .logo-link a:hover {
+    width: 99px;
+    height: 33px;
+    padding-top: 5px;
+    padding-left: 9px;
+    margin-top: 2px;
+  }
+
+  /* Styling of firm name */
+  .logo-name {
+    font-size: 17px;
+    margin-left:8px;
+    margin-top: 0px;
+  }
+
+  .dataTable table {
+    font-size: 8px;
+  }
+
+  .dataTable th {
+    font-size: 8px;
+    padding: 1px;
+  }
+  
+  .dataTable td {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+  .dataTable tfoot {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+  .dataTableNTH table {
+    font-size: 8px;
+  }
+
+  .dataTableNTH th {
+    font-size: 8px;
+    padding: 1px;
+  }
+  
+  .dataTableNTH td {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+  .dataTableNTH tfoot {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+  .dataTableSys table {
+    font-size: 8px;
+  }
+  
+  .dataTableSys td {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+  .dataTableBooking table {
+    font-size: 8px;
+  }
+  
+  .dataTableBooking td {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+  .dataTableForm table {
+    font-size: 8px;
+  }
+  
+  .dataTableForm td {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+  .dataTableSmall table {
+    font-size: 8px;
+  }
+
+  .dataTableSmall td {
+    font-size: 8px;
+    padding: 1px;
+  }
+
+}
+
+@media only screen and (min-width: 1024px) and (max-width: 1114px) {
+
+  .content {
+    margin-top: 70px;
+  }
+
+  .menuBar {
+    height: 40px;
+  }
+
+  /* Navbar with dropdown menu */
+  .navbar {
+    min-width: 1024px;
+    margin-top: -1px;
+  }
+
+  .dropdownMenu ul {
+    padding: 18px 16px;
+  }
+
+  .dropdownMenu li a {
+    padding: 18px 16px;
+    width: 120px;
+  }
+
+  .dropDown li a, .dropDown li a:link, .dropDown li a:visited, .dropDown li a:active, .dropDownbtn, .dropDownbtn a, .dropDownbtn a:link, .dropDownbtn a:visited, .dropDownbtn a:active {
+    font-size: 13px;
+  }
+
+  .dropdownContent-Fin, .dropdownContent-Kun, .dropdownContent-Lev, .dropdownContent-Lag, .dropdownContent-Sys, .dropdownContent-Bru {
+    min-width: 120px;
+    font-size: 11px;
+  }
+
+  .dropdownContent-Fin a:hover, .dropdownContent-Kun a:hover, .dropdownContent-Lev a:hover, .dropdownContent-Lag a:hover, .dropdownContent-Sys a:hover, .dropdownContent-Bru a:hover {
+    padding: 18px 16px 18px 25px;
+  }
+
+  .logo-link a, .logo-link a:link, .logo-link a:active, .logo-link a:visited, .logo-link a:hover {
+    width: 103px;
+    height: 34px;
+    padding-top: 5px;
+    padding-left: 9px;
+    margin-top: 4px;
+  }
+
+  .logobar {
+    top: 10px;
+    left: 35px;
+  }
+
+  /* Logo img size */
+  .logobar .logo img {
+    width: 25px;
+    height: 25px;
+  }
+
+  .logo {
+    width: 100px;
+  }
+
+  .logoimg {
+    margin-top: -2px;
+  }
+
+  /* Styling of firm name */
+  .logo-name {
+    font-size: 18px;
+    margin-left:8px;
+    margin-top: 0px;
+  }
+
+  .dataTable table {
+    font-size: 9px;
+  }
+
+  .dataTable td {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTable th {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTable tfoot {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTableNTH table {
+    font-size: 9px;
+  }
+
+  .dataTableNTH th {
+    font-size: 9px;
+    padding: 1px;
+  }
+  
+  .dataTableNTH td {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTableNTH tfoot {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTableSys table {
+    font-size: 9px;
+  }
+  
+  .dataTableSys td {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTableBooking table {
+    font-size: 9px;
+  }
+  
+  .dataTableBooking td {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTableForm table {
+    font-size: 9px;
+  }
+  
+  .dataTableForm td {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+  .dataTableSmall table {
+    font-size: 9px;
+  }
+
+  .dataTableSmall td {
+    font-size: 9px;
+    padding: 1px;
+  }
+
+
+}
+
+@media only screen and (min-width: 1115px) and (max-width: 1279px) {
+
+  .content {
+    margin-top: 70px;
+  }
+
+  .menuBar {
+    height: 40px;
+  }
+
+  /* Navbar with dropdown menu */
+  .navbar {
+    min-width: 1024px;
+    margin-top: -1px;
+  }
+
+  .dropdownMenu ul {
+    padding: 18px 16px;
+  }
+
+  .dropdownMenu li a {
+    padding: 18px 16px;
+    width: 125px;
+  }
+
+  .dropDown li a, .dropDown li a:link, .dropDown li a:visited, .dropDown li a:active, .dropDownbtn, .dropDownbtn a, .dropDownbtn a:link, .dropDownbtn a:visited, .dropDownbtn a:active {
+    font-size: 13px;
+  }
+
+  .dropdownContent-Fin, .dropdownContent-Kun, .dropdownContent-Lev, .dropdownContent-Lag, .dropdownContent-Sys, .dropdownContent-Bru {
+    min-width: 125px;
+    font-size: 11px;
+  }
+
+  .dropdownContent-Fin a:hover, .dropdownContent-Kun a:hover, .dropdownContent-Lev a:hover, .dropdownContent-Lag a:hover, .dropdownContent-Sys a:hover, .dropdownContent-Bru a:hover {
+    padding: 18px 16px 18px 25px;
+  }
+
+  .logo-link a, .logo-link a:link, .logo-link a:active, .logo-link a:visited, .logo-link a:hover {
+    width: 103px;
+    height: 34px;
+    padding-top: 5px;
+    padding-left: 9px;
+    margin-top: 4px;
+  }
+
+  .logobar {
+    top: 10px;
+    left: 35px;
+  }
+
+  /* Logo img size */
+  .logobar .logo img {
+    width: 25px;
+    height: 25px;
+  }
+
+  .logo {
+    width: 100px;
+  }
+
+  .logoimg {
+    margin-top: -2px;
+  }
+
+  /* Styling of firm name */
+  .logo-name {
+    font-size: 18px;
+    margin-left:8px;
+    margin-top: 0px;
+  }
+
+  .dataTable table {
+    font-size: 10px;
+  }
+
+  .dataTable td {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .dataTable tH {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .dataTable tfoot {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .dataTableNTH table {
+    font-size: 10px;
+  }
+
+  .dataTableNTH tH {
+    font-size: 10px;
+    padding: 2px;
+  }
+  
+  .dataTableNTH td {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .dataTableNTH tfoot {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+
+  .dataTableSys table {
+    font-size: 10px;
+  }
+  
+  .dataTableSys td {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .dataTableBooking table {
+    font-size: 10px;
+  }
+  
+  .dataTableBooking td {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .dataTableForm table {
+    font-size: 10px;
+  }
+  
+  .dataTableForm td {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+  .dataTableSmall table {
+    font-size: 10px;
+  }
+
+  .dataTableSmall td {
+    font-size: 10px;
+    padding: 2px;
+  }
+
+}
+
+@media only screen and (min-width: 1280px) and (max-width: 1360px) {
+
+  .content {
+    margin-top: 70px;
+  }
+
+  .menuBar {
+    height: 40px;
+  }
+
+  /* Navbar with dropdown menu */
+  .navbar {
+    min-width: 1280px;
+    margin-top: -1px;
+  }
+
+  .dataTable table {
+    font-size: 12px;
+  }
+
+  .dataTable td {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTable th {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTable tfoot {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTableNTH table {
+    font-size: 12px;
+  }
+
+  .dataTableNTH th {
+    font-size: 12px;
+    padding: 2px;
+  }
+  
+  .dataTableNTH td {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTableNTH tfoot {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTableSys table {
+    font-size: 12px;
+  }
+  
+  .dataTableSys td {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTableBooking table {
+    font-size: 12px;
+  }
+  
+  .dataTableBooking td {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTableForm table {
+    font-size: 12px;
+  }
+  
+  .dataTableForm td {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+  .dataTableSmall table {
+    font-size: 12px;
+  }
+
+  .dataTableSmall td {
+    font-size: 12px;
+    padding: 2px;
+  }
+
+
+}
+
+@media only screen and (min-width: 1497px) and (max-width: 1570px) {
+
+}
+
+@media only screen and (min-width: 1361px) and (max-width: 1570px) {
+
+  .content {
+    margin-top: 70px;
+  }
+
+  .menuBar {
+    height: 40px;
+  }
+
+  /* Navbar with dropdown menu */
+  .navbar {
+    min-width: 1280px;
+    margin-top: -1px;
+  }
+
+  .dataTable table {
+    font-size: 12px;
+  }
+
+  .dataTable td {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .dataTable th {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .dataTable tfoot {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .dataTableNTH table {
+    font-size: 12px;
+  }
+
+  .dataTableNTH th {
+    font-size: 12px;
+    padding: 4px;
+  }
+  
+  .dataTableNTH td {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .dataTableNTH tfoot {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .dataTableSys table {
+    font-size: 12px;
+  }
+  
+  .dataTableSys td {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .dataTableBooking table {
+    font-size: 10px;
+  }
+  
+  .dataTableBooking td {
+    font-size: 10px;
+    padding: 3px;
+  }
+
+  .dataTableForm table {
+    font-size: 12px;
+  }
+  
+  .dataTableForm td {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .dataTableSmall table {
+    font-size: 12px;
+  }
+
+  .dataTableSmall td {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+}

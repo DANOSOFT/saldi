@@ -1,0 +1,45 @@
+.calendar{
+    width: 50%;
+    margin: 4rem auto;
+}
+
+.table{
+    margin-top: 4rem;
+}
+
+th, td{
+    text-align: center;
+}
+
+a{
+    text-decoration: none;
+}
+
+.form-group{
+    margin-bottom: 1rem;
+}
+
+.form{
+    margin-top: 5rem;
+}
+
+.width-10{
+    width: 12%;
+}
+
+.width-80{
+    width: 80%;
+    margin: 4rem auto;
+}
+
+.arrow{
+    filter: invert(100%) sepia(100%) saturate(0%) hue-rotate(200deg) brightness(103%) contrast(103%);
+}
+
+.month a{
+    color: #fff;
+}
+
+.bg-darker{
+    background-color: #343a40;
+}

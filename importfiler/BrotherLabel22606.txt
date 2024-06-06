@@ -1,0 +1,40 @@
+$cols=1;
+$rows=1;
+$txtlen=58;
+<top>
+<style>
+#main {
+width: 100%;
+overflow:hidden;
+margin-top: 0mm;
+margin-bottom: 0mm;
+margin-right: 0mm;
+margin-left: 2mm;}
+
+p {
+transform: rotate(0deg);
+width: 50mm;
+display: inline-block;
+height: 19mm;
+padding-bottom:0px;
+margin: auto;}
+
+img {
+margin-left: -8px;
+width: 52mm;
+height: 5mm;}
+
+</style>	
+<div id="main">
+</top>
+
+<p>
+$varenr / $varemrk<br>
+$beskrivelse<br>
+Pris $pris<br>
+<img src='$img'><br>
+</p>
+
+<bottom>
+</div>
+</bottom>;

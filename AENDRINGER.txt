@@ -1,0 +1,1184 @@
+Ændringer foretaget i SALDI 
+=============================================================================
+
+Her listes ændringer i kildekoden til SALDI
+
+==============================================================================
+rettelser 2011.02.09  - 2017-02-08 (ikke komplet)
+==============================================================================
+api/rest_api.php
+2017.02.08 Oprettet
+
+debitor/debitorkort.php
+2013.10.04 Indsat ENT_COMPAT,$charset);
+2014.05.07 Indsat db_escabe_string
+2015.01.23 Indhente virksomhedsdata fra CVR via CVRapi - tak Niels Rune https://github.com/nielsrune
+2016.04.12 PHR Indsat link til labelprint
+
+debitor/ordreliste.php
+2012.10.04 Fjernet email fra $selectfelter og indsat søgerutine til emails
+2012.10.17 Tilføjet link til oioubl import for automatisk ordreoprettelse
+2014.11.06 Ændret søgning på firmanavn så kun det relevante firmanavn kommer med ved søgning
+2014.11.07 tilføjet <center>
+2015.03.08 Tilføjet "and art like 'D%' and status < '3'" da den fjernede tidspkt på afsluttede ordrer.
+2016.09.01	Tilføjet array tekstfelter til søgning med wildcard
+2016.12.17	PHR Tilføjet vis_lagerstatus. Søg vis_lagerstatus: 
+2017.02.07	PHR Tilføjet mulighed for at slette ordrer direkte fra liste.
+
+includes/db_query.php
+2012.12.22 Tilføjet db_escape_string
+2013.02.10 Break ændret til break 1
+2015.10.05 Funktion injecttjek tjekker om der sker forsøg på at lave sql injektion
+2017.01.24 split erstattet af explode
+
+includes/ordrefunc.php
+2013.04.08 Samlevarer blev ikke nedskrevet ved salg - || salmevare=='on' fjernet fra if
+2013.04.11 fejl ved genfakturering hvis ordredato > fakturadato
+2013.04.11 fejl v fakturering hvis slutmaaned er et cifret
+2013.05.06 Fjernet transaktionskontrol fra leveringsfunktion og rettet lidt omkring fejlhåndtering ved bogføring.
+2013.08.13 Kald til beholdningsopdatering ved "intern webshop" undertrykt
+2013,08.20 Kontering på kassekonto og kreditkortkonto nu mulig v. kontantsalg
+2013.08.23 Fejl v. indbetaling på konto via POS ordre, hvis betaling med kreditkort og penge retur fra kasse.
+2013.08.24 Indsat ($art!='PO' || $antal) i betingelser for opdatering af ordrelinje
+2013.08.24 Tilføjet kasse_nr & $kasse i alle "insert into transaktioner" som vedrører POS ordrer.
+2013.09.03 Ved insdættelse af vare fra shop med pris kr. 0 sættes pris fra vareliste. Er rettet.
+2013.09.16 Diverse ændringer i forhold til pos_ordrer.
+2013.09.17 != ændret til ==
+2013.10.01 Opdat beholdning blev ikke kaldt v. webshop.
+2013.10.15 Tilføjet kontrol af status v. tilføjelse af ordrelinjer
+2013.11.05 Vender ikke tilbage til pos_ordre ved fejl.
+2013.11.11. Fejl i php på decimaltal, afrunding tilføjet inden diff beregning.
+2013.11.29 Alle undervarer blev indsat ved kopiering af ordre med samlevare.
+2013.12.02 Sat afrunding på antal & leveret da det har været et tilfælde hvor levering ikke kunne ske.
+2014.01.15 Tilføjet && !$kontonr - Ellers bliver openpost ikke ført og der bogføres på kunden kontonummer i transaktioner og ikke på samlekontoen.
+2014.01.17 Rettet $kobs_valutakurs til $valutakurs da kursen ikke blev beregnet inden returnering af kostpris. Se også i ordrer.php.
+2014.01.29 Indsat automatisk genkendelse af registrerede betalingskort, (Kun med integreret betalingsterminal).
+2014.01.31 Indsat popup ved som advarer ved indsættelse af vare som ikke kan leveres..
+2014.03.06 Oprettet funktion opret_ordre til sagstyring (PK - Herlev stilladser).
+2014.03.06 Rettet funktion sidehoved, så sagsmenu virker (PK - Herlev stilladser).
+2014.03.06 Tilrettet funktion tekstopslag til sagstyring (PK - Herlev stilladser).
+2014.04.24 Diverse tilretninger i forbindelse med procentfakturering (PHR - Danosoft).
+2014.04.24 $art må ikke sættes her - bliver tom hvis der ikke er tilknyttet kunde (Pos kontantordre) (PHR - Danosoft).
+2014.04.25 Fejl hvis sagssystem ikke er oprettet.(PHR - Danosoft).
+2014.04.26 Tilføjet vare_id i opret_ordrelinje da kreditering eller kopiering af ordrer ikke fungerer hvis varenummer er ændret.(PHR - Danosoft).
+2014.05.02 Udkommeneret header da denne også bliver sat i online.php. PHR - Danosoft søg.
+2104.05.08 Diverse ændringer i funktion vareopslag i forbindelse med bordnr i pos_ordrer. PHR - Danosoft Søg "bordnr" i "vareopslag". 
+2014.06.13 Div småting relateret til pos_ordrer - bl. a. momsdiff ved salg til kr. 27,12 og betaling med Dankort +100.
+2014.06.16 $kontonr ændret til $konto_id da alle kasser blev ført på samme konto. (PHR - Danosoft).
+2014.06.28 Indsat bogføring af øredifferencer ved pos_ordrer for at undgå produktionsstop. (PHR - Danosoft).
+2014.07.30 PK - Oprettet en ny funktion 'opret_ordre_kopi' som kopiere original ordre + ordrelinjer til ny sag..
+2014.08.21 PHR - tilføjet $tmp=$antal*-1 til erstatning for '-$antal' i "insert".
+2014.08.21 PK - Har ændret $kontakt ved oprettelse af ordre. Hvis $sag_id, er $kontakt fra sagen ellers er $kontakt fra kunde..
+2014.10.23 PHR - En række ændringer i levering og linjeopdat. Netagivt salg bliver nu fårt som negativ i batch_salg og ikke som før i batch_køb.
+           Samtidig findes den oprindelige linje i batch_køb og rest opskrives. (Hvis batch håndtering er aktiv) Eller opskrives rest på sidste 
+           linje med samme varenummer.
+2014.11.05 PHR Indsat kontrol for om $id er sat ved kreditering af pos ordre..
+2014.11.14 PHR Bordnr blev ikke sat ved kreditering af pos og var dermed ikke synlig. 
+2014.11.18 PHR Fejl ved korrektion, hvis ingen borde. 
+2014.11.21 Fejl i funktion find_kostpris, hvis antal på linje = 0.
+2015.01.11 Søgning på varetekst i optimeret til brug med piletaster. Funktion vareopslag.
+2015.01.12 Debitorkort kan nu også åbnes fra kontoopslag under pos_ordrer.
+2015.01.19 Funktion find_kostpris. Søger nu kostpris fra batch køb selvom ej fifo. Finder seneste køb før fakturadato. 
+2015.01.20 Funktion find_kostpris. Kostpris tages fra varekort hvis ej lagerført vare. Søg $lagerfort
+2015.01.23 Oprettet funktion saet_afrund til adrunding af sætpriser. Søg saet_afrund
+2015.01.31 Fjernet funktion saet_afrund igen. Ideen var alligevel ikke god.
+2015.01.31 Oprettet funktion opret_saet til indsættelse af samlevarer som sæt i ordrer & pos_ordrer. Søg opret_saet
+2015.02.14 Diverse ændringer i forbindelse med tilføjelse af lagerfelt på ordrelinjer. 
+2015.02.15 Hvis der skrives en del af en varebeskrivelse i en debitorordre i varenr feltet søges på varetekst ved opslag,
+           hvis teksten ikke findes som varenr.  
+2015.02.18 Rettelse af ovenstående. Forsøger vareopslag ved indsættelse at ordrelinjer fra shop via soap.
+2015.01.31 Oprettet funktion gendan_saet til gendannelse af rabatter på saet. Søg gendan_saet
+2015.02.27 Ændret afrundingfra 2 til 3 grundet ørediffer f sætpriser ig titalpriser.
+2015.05.06 Det skal ikke føres åbenpost ved betalingsbet Forud på pos_ordrer eller hvis id ikke er numerisk.
+2015.03.12 Meget underlige sætpriser ved indsættelse af sæt uden antal fra ordre.php.
+2015.03.31 Funtion vareopslag. Priser vises nu incl moms, hvis opslag kommer fra POS eller incl moms er 'on' 
+2015.05.05 Diverse tilretninger til POS så betaling kan fordeles på flere kort. Søg.
+2015.05.18 Fejl v. kortfordeling hvis betaling både med kort og kontakt blev kontant ført på kort = fejl i morgenbeholdning.
+2015.05.21 Fejl v. kontosalg pga ovenstående, så den brugen kun hvis det ikke er kontosalg.
+2015.05.22 Fejl v. fakturering hvis ingen momskonto - indsat fejlhåndtering.
+2015.06.27 Tilføjet tilfravalg på POS ordrer i opret_ordrelinje. Søg tilfravalg 
+2015.07.24 Function pos_afrund. Hvis difkto ikke er sat slåes den op.
+2015.08.10 Ordredate blev altid sat til fakturadate v hurtigfakt da variabel ikke blev sat.
+2015.08.12 Ændret 'if($ore>100)' til 'if(strlen($ore)>2)' da 080 øre blev til 80 øre istedet for 8 øre.  
+2015.08.20 Mulighed for tidsbestemte tilbud (Happy hour). Søg special_from_time.
+2015.08.29 Funktion opret_saet. Tilføjet $incl_moms
+2015.08.29 Funktion gendan_saet. Tilføjet opslag efter rabat vare_id.
+2015.12.10 Funktion find_kostpris. Brugte altid kostpris fra varekort hvis der ikke er kobs_ordre_id of batch_salg. 
+2015.12.23 Funktion pbsfakt. rettet echo ".. til print "<tr><td>.. osv.
+2016.01.27 PK - Mobil fra ansatte hentes fra kontakt.
+2016.01.28 PHR - Tilføjet funktion stamkunder, som viser kontoopslag som knapper.
+2016.01.29 PHR - Tilføjet funktion kontoudtog, som udskriver kontoudtog fra POS.
+2016.02.01 PK - Ved kopi af ordre hentes mobil fra sag kontakt, ellers hentes mobil fra kundekontakt.
+2016.02.08 PHR - Tilrettet "stamkunder" med større knapper, sideskift og saldo/kreditmax på knap. Søg stamkunder
+2016.02.17 PHR - Fejl ved kreditering, fokus vare0, funktion kontoopslag.
+2016.08.04 PHR - $antal blev ikke sat.
+2016.08.10 PHR - m_rabat fungerer nu hvis varepris = 0 og pris er ændret.
+2016.08.15 PHR - Ved korrektion af ordrer med 'm_rabat' skal linjen med m_rabatten ikke med.
+2016.08.24 PHR - Mængderabatter gav fejl i lagerrapport da rabatvaren blev blev talt som varesalg.
+2016.09.05 PHR - $mrabat ganges med en ellers er den 0.000 og if($mrabat) blive sand.
+2016.09.09 PHR - Tilbudspris fungerer ikke hvis tidspunkt > sluttidspkt.
+2016.09.28 PHR - Ordrer blev omdannet til KB kvis der ikke var varer på ordren.
+2016.10.1 0PHR - Først fundne openpost på indbetalt beløb udligned aut. ved indbetaling i kasse.
+2016.10.11 PHR - Finder lager og opdaterer lagerstatus.
+2016.10.22 PHR - tilretning iht flere afd pr lager.
+2016.10.27 PHR - Ved korrektion af bon med mængderabat gik der fejl i beløbene da den ikke kan finde ud af hvilken linjer der er rabatlinjen. 
+                 i stedet sættes mrabat til 0 og rabatlinjen kopieres med. Det ser ud til at virke - function krediter_pos. 
+2016.11.10 PHR - I vareopslag kan nu søges på flere ord adskilt af '+'.
+2016.11.24 PHR - opret_ordrelinjer. Tilbudspris 'special_price' blev aldrig fundet.. 
+2016.12.11 PHR - Tilføjer is_numric($id) da der eller kommer fejl når $id består af flere ordre.
+2017.01.03 PHR - Tilføjet ekstra tjek for dubletter på fakturanr.
+2017.02.07 PHR - Tilføjet if (!$momsfri) i funktion opret_orderlinje så det ikke sættes moms på momsfri varer fra API.
+
+includes/rapportfunc
+2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
+2013.02.10 Div. fejl i forb. med udling af ørediff + break ændret til break 1
+2013.05.05	Div tilretninger i forb. med omskrivning af udlign_openpost.php 
+2014.05.03 Indsat valutakurs=100 ved DKK.(PHR Danosoft) Søg 20140503
+2014.05.05 Fjerner udligning hvis udligningssum er skæv.(PHR Danosoft) Søg 20140505
+2014.05.05 Indsat $valutakode*=1; (PHR Danosoft) Søg $valutakode*=1 & 20140505
+2014.06.28	Indsat valutakurs v. oprettelse af openpost i funktion bogfor_nu Søg 20140628
+2014.07.16 Ændret bredden af knapperne, så der var plads til "Betalingslister". ca
+2015.10.19	Fjernet ";" fra tekst da den gav falsk SQL injektion fejl
+2015.10.26	indsat mulighed for at ophæve udligning. søg "uudlign"
+2015.11.04	Betalingslister v debitor
+2016.02.26	Rettet så link til ret_valutadiff.php kun vises for posteringer i aktivt regnskabsår. Søg område ver ret_valutadiff.php 
+2016.04.13	Tilføjet link til at rette dkksum til 0 pr dd hvis dd er i aktivt regnskabsår og valutasum er 0.
+2016.04.14 Sorterer nu på ID for reg og faktnr, der giver mere mening #20160414
+2016.05.03 Ved visning af kontokort fra flere konti blev dkkamount forkert #20160503
+
+
+includes/posmenufunc
+2015.08.20 Mulig for pris på varegenveje.
+2015.10.23	Diverse nye ændringer
+2015.11.29	Tilføjet knap Konant på beløb & Betalingskort på beløb.
+2016.01.28 Tilføjet systemknap Stamkunder. Se funktion stamkunder i ordrefunc.php
+2016.01.31 Tilføjet systemknap Kontoudtog & Udskriv sidste. 
+2016.04.18 Alle 'på beløb' disables når der ikke er varer.
+2016.09.27 Det skal være muligt at betale med kort/kontant osv når der er kontonr og kunde ikke har kredit
+2016.10.06 !$sum rettet til (!$sum && $a!='Kontant') da det skal være muligt at afslutte en 0 bon
+2017.02.07	Tilføjet knap sæt
+
+
+lager/labelprint.php
+2014.06.17 Tilføjet pris pr. enhed på etiketter, hvis de er der. PHR - Danosoft.
+2014.09.01 Tilføjet opsætning til Cognitive printer - Anvendes hvis det ikke er beskrivelse.
+2015.09.02 Indsat kontrol for uønsket sql kald.
+2016.05.05 PHR $salgspris mm blev ikke sat hvis $incl_moms ikke var sat.
+2017.01.17 PHR Tilføjet $notes.
+
+lager/rapport.php
+2013.02.10 Break ændret til break 1
+2013.03.18 $modulnr ændret fra 12  til 15
+2013.08.27 Større omskrivning for bedre datovalg og detaljeringsgrad 
+2014.11.05 Større omskrivning
+2015.01.19 Kostpriser på varelinjer er forkert i ordrer < 010115 med anden valuta en DKK.  
+	Derfor findes kostpriser med ordrefunc funktionen find_kostpris. 
+2015.09.03 Lagerregulering kom ikke med ved tilgang. Tilføjet $bk_id & $bs_id samt ændret ordre_id til hhv. $k_ordre_id/$s_ordre_id & antal til hhv. $k_antal/$s_antal. 
+2015.11.05 lagerreguleringer blev trukket fra i til-/afgang. Skal lægges til.
+2015.11.06 Ikke lagerførte samlevarer (sæt) medtages nu ikke da disse er repræsenteret af de varer som indgår i sættet.  
+2015.12.10 Kostpriser blev altid trukket fra varekort - se også find_kostpriser i ordrefunc.php.
+2016.02.01 # Flyttet db *-1 under sammentælling da sammentælling af db blev forkert ved negativt salg.
+2016.04.18 Tilføjet selection på afdeling.
+2016.04.18 Negatativ regulering blev vist uden fortegn.
+2016.08.04 Datofejl v visning af detaljeret regulering da $fakturadate blev nullet ved inden søgning efter både køb & salg
+2016.08.24	$x erstattes af $f da $x blev brugt i 'for løkken'
+2016.08.26 tilføjet $r[antal]*0 i "if" linje for at udelukke rabatter.
+2017.01.14 Order by .... id rettet til Order by .... batch_salg.id da .id er 'ambiguous'
+
+lager/varekort.php
+2013.02.10 Break ændret til break 1
+2013.10.07	Kontrol for cirkulær reference indsat.
+2014.06.03 Indsat visning af stregkode.
+2014.06.17 ekstra felt "indhold" til angivelse af vægt / rumfang mm. samt automatisk beregning af kg/liter/ pris mm.
+2104.09.09	Fejltekst fra "barcode" hvis stregkode ikke kan genereres bliver nu undertrykt.
+2015.02.10 Beholdninger og lokationer vises nu fra hvert lager.
+2015.05.21 Shopurl tilrettet til "nyt api". Søg shopurl
+2015.10.28 understøtter ny også tbarcode
+2016.01.19 PHR Tilføjet varefoto og regulering af varebeholdning ved gruppeændring fra ikke lagerført til lagerført og vice versa
+2016.01.30 PHR Tilføjet "tilbudsdage" så man kan vælge hvilke ugedage et tilbud skal være aktivt.
+2016.03.08 PHR Tilføjet "link til slet shop id som fjerner binding til shop vare og fjernet mulighed for publicering.
+2016.06.06 PHR	Opdat shop_vare erstattet af opdat behold...
+2016.10.06 PHR hvis prisen er 0.001 vises prisen med 3 decimaler. Hvis brugt i pos indsættes varen til 0 kr uden at der hoppes til pris.
+2017.01.06 PHR Mrabat trak moms fra på procentrabat. Ændret "%" til "percent"
+
+systemdata/posmenuer.php
+2013.10.17 Ku max ha' 10 menuer.
+2014.11.11 Tilføjet knapdesign på menu 0: Tastatur og tilføjet radius på knapper.
+2015.01.07 Menu blev slettet når side blev åbnet #20150107
+2015.09.25 Kolonner og rækker kan nu flyttes. Søg flyt_col & flyt_row
+2015.10.23	Tilføjet knap Enter+Menu. Efter knaptekst skrives +x, hvor x er den menu der skal kaldes.
+2015.11.29	Tilføjet knap Konant på beløb & Betalingskort på beløb.
+2016.01.28 Tilføjet systemknap Stamkunder. Se funktion stamkunder i ordrefunc.php
+2016.01.31 Tilføjet systemknap Kontoudtog & Udskriv sidste. 
+2016.02.18 Kontrol for strenglængde for butcolor. Søg 20160218  
+2016.03.07 Man kunne ikke lave tastaturknapper med '-'Søg 20160307
+2017.02.07	Tilføjet knap sæt
+
+systemdata/sys_div_func.php
+2013.11.01 Tilføjet fravalg af tjek for forskellige datoer på samme bilag i kasseklasse.
+2013.12.10	Tilføjet valg om kort er betalingskort som aktiver betalingsterminal.
+2013.12.13	Tilføjet "intern" bilagsopbevaring (box6 under ftp)
+2014.01.29	Tilføjet valg til automatisk genkendelse af betalingskort (kun ved integreret betalingsterminal)
+2014.05.08	Tilføjet valg til bordhåndtering under pos_valg 
+2014.06.16 Tilføjet mellemkonto til pos kasser. Søg mellemkonto.
+2014.07.01	FTP ændret til bilag og intern bilagsopbevaring flyttet til owncloud
+2015.01.05 I sqlquery_io er separator ændret fra <tab> til ; tekster utf8 decodes og der sættes " om.
+2015.04.11 Tilføjet labelprint under vare_valg.
+20150417 CA  Topmenudesign tilføjet for Prisliste
+20150522 CA  Oprydning i HTML-kode især input
+20150529 CA  Håndtering af forskellige typer prislister
+20150608 PHR Tilføjet link til ../api/hent_varer.php 
+20150612 CA  Slette prislister
+20150625 CA  Tilpasning til topmenu
+20150814 CA  Link til opsætning af prisliste
+20150907 PHR Sætpriser tilføjet under ordre_valg, Søg $saetvareid
+20151002	PHR	Fjernet mulighed for at trække en brugerliste.
+20151005	PHR	Labelprint fungerer kun hvis variablen labelprint er sat. (Midlertidig løsning)
+20151006 PHR Labelprint ændret fra php til html.
+20160116 PHR Ændret 'bilag' så inputfelter kun vises ved 'egen ftp' 
+20160226 CA  Tilføjet valg af leverandører under prislister
+20160412 PHR Opdelt vare_valg i vare_valg, labels & shop_valg
+20160601	PHR SMTP kan nu anvendes med brugernavn, adgangskode og kryptering.
+20161118	PHR	Tilføjet default bord som option for kasse i funktion pos_valg.
+20161125 PHR Indført html som formulargenerator som alternativ til postscript i funktion div_.
+20170123 PHR Tilføjet API_valg
+
+
+==============================================================================
+Nyt i 3.1.3 - 2011-02-09
+==============================================================================
+
+I rabatgrupper kan vælges mellem % eller stk/antal.
+
+Mulighed for på ordrelisten at fremhævet ordrer med mangler med farvenuance. 
+Sættes under Systemdata - Indstillinger - Diverse - Personlige valg.
+Når en nuance er valgt, så vises ordre, hvor blot fakturering eller bogføring 
+mangler, men en svagere tekstfarve. Alt dette kan give et bedre overblik ved 
+mange ordre.
+
+Hvis ordre har manglende levering/modtagelse/returnering fremhæves feltet med 
+gult. Det er de samme ordre, som fremhæves på ordrelisten. 
+
+
+
+==============================================================================
+Nyt i 3.1.2 - 2011-01-31
+==============================================================================
+
+Listeanvisning under Finans - Rapport til indberetning til SKAT både som 
+kommasepareret fil og data til udfyldelse af papirblanket.
+
+Import af kassekladder med bilagsnumre.
+
+Kopiere enkelt felt til mange felter i samme kolonne med => og <=
+
+Indlæsning af egne skabeloner/formularer ved oprettelse af regnskab. Filen 
+skal hedde egen_formular.txt og ligge i kataloget importfiler. Udseendet kan 
+ses af filen formular.txt, som er standardskabelonerne/-formularerne.
+
+Flytte ordrelinjer til en anden placering ved brug af decimaltal med maksimalt
+tre decimaler. Ændr Pos 3 og 4 til 1,2 og 1,3, så de kommer mellem Pos 1 og 2.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.1.1 - 2011-01-02
+==============================================================================
+
+Genfakturering nu med alle de nye ordrer til genfakturering i en lang liste.
+
+Lageroptælling med stregkodescanner eller indtastning af varenummer.
+
+Indlæsning af egen kontoplan ved oprettelse af regnskab. Filen skal hedde 
+egen_kontoplan.txt og ligge i kataloget importfiler. Udseendet kan ses af 
+filen kontoplan.txt, som er standardkontoplanen.
+
+Indlæsning af egne grupper ved oprettelse af regnskab. Filen skal hedde
+egne_grupper.txt og ligge i kataloget importfiler. Udseendet kan ses af
+filen grupper.txt, som er de grupper, der oprettes som standard.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.8 - 2010-11-25
+==============================================================================
+
+Forbedret hentning af data til kassekladden.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.7 - 2010-10-13
+==============================================================================
+
+Varemenuer i kasseterminalen.
+
+Selvvalgt baggrundsfarve.
+
+Forbedret design eksempelvis menu til venstre under Systemindstillinger.
+
+Import af prisfil fra Solar.
+
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.6 - 2010-10-05
+==============================================================================
+
+Mulighed for at projektnumre kan indholde bogstaver.
+
+Forbedret FIFO-håndtering af lager.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.5 - 2010-07-15
+==============================================================================
+
+Håndtering af lager efter FIFO-princippet (først ind - først ud).
+
+Mulighed for at slette et sprog under formularer.
+
+Mulighed for at afslutte handel ved sum på 0,00 eksempelvis brug af gavekort.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.4 - 2010-07-03
+==============================================================================
+
+Diverse mindre rettelser.
+
+
+==============================================================================
+Nyt i 3.0.3 - 2010-06-01
+==============================================================================
+
+Angivelse af varebeholdning under varekort.
+
+
+==============================================================================
+Nyt i 3.0.2 - 2010-05-31
+==============================================================================
+
+Vejledningstekst på overskriften Valgbar ved tilpasning af debitorliste.
+Overskrifter på regnskab og budget med måned og år: Jan'10 i stedet for MD_1.
+Indtast timer og minutter som antal på en debitorordre. 5:15 bliver til 5,25.
+Beskrivelse og telefonnumre m.v. på kontakter under historik.
+Antal posteringer for det seneste år vises under Finansrapporter.
+
+==============================================================================
+Nyt i 3.0.1 - 2010-05-21
+==============================================================================
+
+Udsende kontoudtog via mail med oplysning om afsendervirksomhed og betaling
+Ændringsfilerne nu opdelt ved SALDI 3.0.0 og tidligere
+Mulighed for indtastning af vareantal ved oprettelse af ordrelinje
+Rettelse af valutafejl ved kreditering af leverandørordre
+ 
+==============================================================================
+Nyt i 3.0.0 - 2010-05-17
+==============================================================================
+
+Se seneste 5 modposteringer i kassekladden ved klik på modpostfeltet
+Kommentarfeltet for en kassekladde kan ændres efter den er bogført
+Budgethåndtering under Regnskab angivis i % i forhold til året før
+Ny rapport under finans, som viser Resultat/budget
+Kassterminalløsningen SALDI-kassen (http://saldi.dk/saldikasse)
+Debitorliste nu med valgfrie felter, som kan filtreres og sorteres
+Jobliste fra Debitorkort ved valg af jobkort
+Bynavn ved opslag på postnummer alle steder, hvor postnumre kan angives
+Nyt kategorifelt på debitorkort, så debitor kan tilknyttes flere kategorier
+Rabatmatrix så kundegrupper kan have individuelle rabatter for varegrupper
+Momstrukturen er ændret så moms på varegrupper styres efter kontoplanen
+Opdele ordre i en fortsat ordre og en restordre
+
+==============================================================================
+
+
+Ændringer foretaget i Saldi siden version 1.9.0 (2.0 beta 1)
+=============================================================================
+
+Her listes ændringer i kildekoden til Saldi, som er foretaget siden skiftet
+til den nye hovedversionsnummer 2.0 startende med 2.0 beta 1 også kaldet 
+1.9.0 fra 2008-03-14. Tidligere ændringer ses i filen GAMLE_AENDRINGER.txt.
+
+==============================================================================
+Nyt i 2.0.6 - 2009-04-04
+==============================================================================
+
+index/install.php
+	Manglende overførsel af variabel $db_encode til oprettelsesfunktion
+debitor/ordre.php
+debitor/ordreliste.php
+debitor/debitorkort.php
+debitor/openpost.php
+kreditor/ordre.php
+kreditor/kreditorkort.php
+lager/lagerstatus.php
+	Diverse typecast indført for kompatibilitet med postgresql 8.3
+	eller ordinære tekstrettelser (æ til &aelig; osv)
+lager/varekort.php
+	Manglende mulighed for skift af varegruppe.
+
+==============================================================================
+Nyt i 2.0.5 - 2009-03-12
+==============================================================================
+
+        Mange filer er blevet opdateret så der er understøttelse af tegnsættet 
+        UTF-8, som er standard i de fleste nyere Linux-distributioner.
+
+==============================================================================
+Nyt i 2.0.4 - 2009-02-11
+==============================================================================
+
+	index/menu.php
+		Enh / mat flyttet til indsttillinger og erstattet af varemod-
+                tagelse
+	finans/kassekladde.php
+		Mulighed for at sortere på dato
+		Forbedring af 'aut. tilføjelse af linjer'
+	finans/bogfor.php
+		Aut. postering på diffkonto v. valutadiff.	
+	debitor/ordreliste.php
+		Sortering af fakturanumre nu numerisk
+		Massefakturering - fakturer alle ordrer som kan leveres.
+	debitor/ordre.php
+		Pile, så der kan blades i søgeudvalg
+	debitor/debitor.php
+		Sortering af debitornumre nu numerisk
+	debitor/debitorkort.php
+		Tilføjet genveje i bund
+	debitor/ansatte.php
+		Fejl - side ikke fundet - v sletning af kontaktperson
+	debitor/rapport.php
+		Div. forbedringer af rykkerprocedurer
+		Mulighed for udligning med øredifference 
+                (Indstillinger->diverse)
+	kreditor/ordre.php
+		Søgetekst kan indtastes på ordrelinje inden opslag
+	kreditor/rapport.php
+		Betalingslister skal nu aktiveres under indstillinger/diverse
+	lager/varer.php
+		Optimeret genbestillingsrutine og forbedret fejlhåndtering	
+	lager/varemodtagelse.php
+		Automatiseret varemodtagelse med stregkodescanner udfra 
+                bekræftede indkøbsordrer
+	systemdata/diverse.php
+		Mulighed for at vise priser inkl. moms på kundeordrer og 
+                fakturaer
+		Mulighed for valg af massefakturering.
+	
+
+==============================================================================
+Nyt i 2.0.3 - 2008-11-21
+==============================================================================
+
+	Generelt er der lavet en række små forbedringer over hele linjen
+		bl.a. advarsel før lukning på de fleste formular sider og 
+                titlefelter, som giver hints på en række tekster/links	
+	
+	finans/kassekladde.php
+		Tilføjet knap for ompostering på bogførte kladder
+		Tilføjet knap for import fra DocuBizz (kræver at DocuBizz er
+		aktiveret under indstillinger -> diverse)
+		Tilføjelse af CSS
+	debitor/ordreliste
+		Ikke udlignede fakturaer vises nu med rødt i beløbsfeltet.
+		
+
+==============================================================================
+Nyt i 2.0.2e - 2008-11-05
+=============================================================================
+
+	finans/kassekladde.php
+		Tilføjet knap for ompostering på bogførte kladder
+		Tilføjet knap for import fra DocuBizz
+		Tilføjelse af CSS
+	finans/docubizzimport.php
+		Rutine til import fra DocuBizz til Kassekladde
+	systemdata/diverse.php
+		Tilføjet mulighed for at ændre navn på regnskab
+		Tilføjet link til DocuBizz
+		Tilføjet link til debitor im- og eksport
+	systemdata/importer_debitor.php	
+		Rutine til import af kunder fra csv
+	systemdata/exporter_debitor.php	
+		Rutine til export af kunder til csv
+	debitor/rapport.php
+		Tilføjet link til Top100
+	debitor/top100.php
+		Rapport som viser omsætning på de 100 største kunder fordelt 
+                på omsætning
+		
+==============================================================================
+Nyt i 2.0.2d - 2008-10-09
+==============================================================================
+
+	finans/rapport.php
+		Fejl i momsrapport ved regnskabsår over 12 mdr.
+	finans/kladdeliste.php
+		Tilføjelse af CSS og hjælpetekster 
+	kreditor/ordre.php
+		Anførselstegn i varenummer - løst
+
+
+==============================================================================
+Nyt i 2.0.2c - 2008-09-15
+==============================================================================
+
+	debitor/ansatte.php
+		Tilføjet addslashes på $_POST, hvor aktuelt.
+	finans/rapport.php
+		Konto udelades fra kontokort hvis ingen posteringer - også 
+                hvis der er åbningstal
+		
+		
+==============================================================================
+Nyt i 2.0.2b - 2008-09-15
+==============================================================================
+
+	kreditor/borfor.php
+		Fejl hvis batch_kob_id er udefineret. (linje 157/177)
+
+==============================================================================
+Nyt i 2.0.2a - 2008-09-11
+==============================================================================
+
+	includes/udlign_openpost.php
+		Udligning mulig med diff. rettet.
+	systemdata/kontokort.php
+		Sletning af konto skal nu bekræftes, og næste konto åbnes 
+                efter sletning.
+	kreditor/bogfor.php
+		Fejl v. returnering af vare, som ikke tidligere har været 
+                handlet.
+	index/login.php
+		Regnskab & brugernavn sendes nu med retur til loginbillede 
+                ved fejllogin.
+	index/index.php
+		Regnskab & brugernavn kan nu parses med $_GET
+	finans/kontrolspor.php
+		Manglende tabelangivelse ved søgning på kontonr.
+	systemdata/formularkort.php	
+		Tilføjet ordre_projekt på variabelliste.
+	debitor/ordre.php	
+		Rettet - Projekt overføres ikke ved kreditering / kopiering.
+	systemdata/top.php 
+		Tilføjet undtagelse for css
+	systemdata/regnskabskort.php
+		Forkert visning af ny primo hvod der er oprettet nye konti i 
+                nyt regnskabsår.
+	finans/raooprt.php
+		Rettet - Primotal medregnes i momsrapport, hvis der ikke er 
+                posteringer i perioden.	
+	debitor/ordre.php
+		Forkert db beregning på ydelser m. kostpris (linje 909)	
+	debitor/rapport.php & kreditor/rapport.php
+		Forvirrende rækkefølge hvis kontonummer er blevet rettet på 
+                debitor/kreditor
+		
+		
+==============================================================================
+Nyt i 2.0.2 - 2008-07-01
+==============================================================================
+
+	debitor/jobkort.php
+		Arbejdskort til beskrivelse af igangværende sager på den 
+                enkelte kunde.
+	debitor/jobliste.php
+		Liste over arbejdskort.
+	debitor/ordre.php
+		Slåfejl i kommando til valutaopslag.
+	systemdata/diverse.php
+		Tilføjet sprog - fungerer  kun i jobkort
+	systemdata/tekster.php 
+		Nyt modul til redigering af faste tekster - fungerer kun i 
+                jobkort.
+	
+
+==============================================================================
+Nyt i 2.0.1d - 2008-07-01
+==============================================================================
+
+	debitor/formularprint.php
+		Afrundingsfejl
+	kreditor/ordre.php
+		Rettet så der ikke kontrolleres for batch når hurtigfakt er 
+                aktiv. 
+
+	
+==============================================================================
+Nyt i 2.0.1c - 2008-06-30
+==============================================================================
+
+	debitor/bogfor.php
+		Afrundingsfejl kan i specielle tilfælde forhindre bogføring
+	debitor/formularprint.php
+		Afrundingsfejl  
+	
+
+==============================================================================
+Nyt i 2.0.1b - 2008-06-30
+==============================================================================
+
+	finans/raport.php
+		Sidste måned i regnskabsåret kan ikke vælges. jf. 
+                http://forum.saldi.dk/viewtopic.php?t=405 
+	
+
+==============================================================================
+Nyt i 2.0.1a - 2008-06-18
+==============================================================================
+
+webservice - experiemental version.
+
+kreditor/kreditorkort.php
+	Ændret rækkefølge af parametre v. NY kontakt. jf. 
+        http://trac.lue.dk/saldi/ticket/240
+lager/varer.php
+	Fjernet debugtekst jf. http://trac.lue.dk/saldi/ticket/240
+kreditor/rapport.php
+	Fejl i valutaberegning når grundvaluta er DKK og der udlignes en 
+        faktura i !DKK med DKK
+debitor/rapport.php
+	Fejl i valutaberegning når grundvaluta er DKK og der udlignes en 
+        faktura i !DKK med DKK
+includes/udlign_openpost.php
+	Manglende valutaberegning v. blandet valuta.
+finans/kassekladde.php
+	Kosmetik - Lauout v. for lille skærmbrede. jf. 
+        http://trac.lue.dk/saldi/ticket/212
+	Valuta mm, forsvinder efter finans/kreditor & debitor opslag.	
+	
+
+==============================================================================
+Nyt i 2.0.1 - 2008-06-09
+==============================================================================
+
+index.php, AENDRINGER.txt og include/version.php
+	Opdateret version til 2.0.1 og udgivelsesdato til 2008-06-09
+
+
+==============================================================================
+Nyt i 2.0.0m - 2008-06-04
+=============================================================================
+
+kreditor/ordre.php
+	Rettet forkert henvisning til oprindelig ordre v. kreditering
+kreditor/bogfor.php
+	tilføjet manglende beregning af eu moms for udenlandske kreditorer
+finans/hentordrer.php
+	Tilføjet manglende visning af eu moms på oversigt 
+finans/kontrolspor.php
+	kosmetik 
+
+=============================================================================
+Nyt i 2.0.0l - 2008-05-31
+=============================================================================
+
+		includes/std_func.php & includes/usdate.php
+			forbedret funktionen usdate for bedre håndtering af afvigende datoformater
+		includes/openpost.php
+			fjernet noget debugtekst som kom med på output.
+
+=============================================================================
+Nyt i 2.0.0k - 2008-05-28
+=============================================================================
+
+systemdata/stamdata.php
+	Tilføjet addslashes til div variabler mm.
+systemdata/ansatte.php
+	Tilføjet addslashes til div variabler mm.
+systemdata/brugere.php
+	Kosmetik så den er pænere i Opera.
+debitor/bogfor.php & kreditor/bogfor.php
+	Tilføjet genberegning af kontosaldo efter bogføring
+
+=============================================================================
+Nyt i 2.0.0j - 2008-05-27
+=============================================================================
+
+kreditor/ordre.php 
+	jf: http://forum.saldi.dk/viewtopic.php?t=381 & http://forum.saldi.dk/viewtopic.php?t=382
+	Valutakurs sættes nu hvergang der gemmes	
+debitor/ordreliste.php
+	Genberegning skal køre 2 x for at være korrekt.
+debitor/ordre.php 
+	jf http://forum.saldi.dk/viewtopic.php?t=380
+debitor/bogfor.php 
+	kosmetiske ændringer
+	
+=============================================================================
+Nyt i 2.0.0i - 2008-05-26
+=============================================================================
+
+Jf: http://forum.saldi.dk/viewtopic.php?t=379
+finans/bogfor.php
+	Valutafejl v. openposthåndtering 
+finans/kassekladde.php
+	Rettet fejlhåndtering v. ugyldig valuta
+kreditor/rapport.php
+	Rettet tekst 	'Omregnet til ??? fra DKK'
+
+=============================================================================
+Nyt i 2.0.0h - 2008-05-19
+=============================================================================
+
+admin/opret.php
+	Initialisering af feltet lukket v. oprettelse af std. kontoplan
+systemdata/regnskabskort.php
+	Rettet et par kosmetiske fejl.
+
+=============================================================================
+Nyt i 2.0.0h - 2008-05-20
+=============================================================================
+
+debitor/ordre.php
+	Kosmetisk ændring
+kreditor/ordre.php
+	Kosmetisk ændring
+
+=============================================================================
+Nyt i 2.0.0g - 2008-05-14
+=============================================================================
+
+includes/udlign_openpost.php
+	Rettet sammetællingsfejl i rykkeroversigt.
+
+=============================================================================
+Nyt i 2.0.0f - 2008-05-05
+=============================================================================
+
+includes/autoudlign.php
+	Rettet så der ikke udlignes efter den valgte periode
+includes/udlign_openpost.php
+	Rettet tildeling af udlign_id
+includes/stdfunc.php
+	Ændret usdate til større tolerance overfor afvigende indtastninger.
+includes/usdate.php
+	Ændret funktion til større tolerance overfor afvigende indtastninger.
+kreditor/bogfor.php & debitor/bogfor.php
+	anvender fakturanummer som bilagsnummer , hvis aktiveret v. regnskabsaar - rettet til 0;
+finans/kontrolspor.php
+	fejl v. sortering på id.
+systemdata/formularkort.php
+	Variabelvalg forkert til rykker 2 & 3
+finans/kassekladde.php
+	Mange rettelser for større brugervenlighed.
+	
+=============================================================================
+Nyt i 2.0.0e - 2008-05-02
+=============================================================================
+
+systemdata/formularkort.php
+	Tilføjelser af linjer ikke mulig
+finans/kladdeliste.php
+	rettet modulnr fra 3 til 2.
+
+=============================================================================
+Nyt i 2.0.0d - 2008-05-01
+=============================================================================
+
+debitor/bogfor.php
+	ved bogføring lægges moms på momsfri varer - rettet
+kreditor/bogfor.php
+	ved bogføring lægges moms på momsfri varer - rettet
+
+=============================================================================
+Nyt i 2.0.0c - 2008-04-30
+=============================================================================
+
+debitor/ny_rykker.php
+	diverse fejl rettet.
+includes/openpost.php
+	fejl i håndtering af rykkergebyr v. bogføring af rykker.
+systemdata/formularkort.php
+	Ændring af rykkergebyr ikke muligt.
+includes/openpost.pgp
+	Rykker kan ikke bogføres hvis der ikke er gebyr.
+debitor/bogfor.php
+	fejl i kontrolfunktion for regnskabsaar
+finans/kassekladde.php
+	fjernet unødvendige knapper (f.eks.hent ordre vises kun hvis der er noget at hente)
+	data i tmpkaskl bevares hvis der er fejl i kladde, så denne kan lukkes selvom de er fejl.
+
+=============================================================================
+Nyt i 2.0.0b - 2008-04-28
+=============================================================================
+
+finans/kassekladde.php
+	Udvidet kontrol for regnskabsaar til 4 cifre. 2008 istedet for 08
+	Tilføjet kontrol for at der anvendes samme dato inden på samme bilagsnr.
+finans/hentordre.php
+	Fjernet nogle forstyrrende "debug bogstaver" fra outputtet.
+finans/kontrolspor.php
+	Tilføjet kontrolsum i bunden af siden.
+utils/bilagstjek.php
+	Gennemløber alle transaktioner for datoafvigelser i bilagsnumre. 
+	(Skal kaldes direkte når man er logget ind.)	
+
+=============================================================================
+Nyt i 2.0.0a - 2008-04-26
+=============================================================================
+
+admin/opret.php
+	Fejl i autooprettelse af regnskaber fra form. (Kun aktuel på hostet regnskab)
+
+
+	=============================================================================
+Nyt i 2.0.0 - 2008-04-25
+=============================================================================
+
+Slettet filen index.html, da index.php helt overtager dens funktion.
+
+index.php
+	Rettet til 2.0.0.
+index/index.php
+	Tekst rettet til Saldi 2.0
+index/menu.php
+	Tekst rettet til Saldi 2.0
+includes/openpost.php
+	Rettet håndtering af fra & til måned grundet 0 stilling af disse v. autoudlign 
+includes/opdat_1.1.php
+	Rettet fejl v. opdatering af hovedregnskab fra 1.1.4
+includes/version.php
+	Rettet til version 2.0.0.
+systemdata/brugere.php
+	Slåfejl- Rettet iht http://forum.saldi.dk/viewtopic.php?t=361
+importfiler/kontoplan.txt
+	Rettet iht http://trac.lue.dk/saldi/ticket/239
+lager/varer.php
+	Rettet javascript link til lagerflyt.php
+lager/lagerflyt.php
+	Sætter nu vareliste i fokus ved lukning.
+lager/enheder.php
+	Rettet iht http://trac.lue.dk/saldi/ticket/236
+BIDRAGYDERE.txt
+	Rettet "Saldi" til "SALDI".
+OPHAVSRET.txt
+	Rettet stavefejl
+	
+Nyheder i versionsserien 2.0
+=============================================================================
+Fakturering i flere sprog. Nye sprog oprettes under Indstillinger -> 
+Formularer.
+
+Fakturering og bogføring i fremmed valuta. Nye valutaer oprettes under 
+Indstillinger -> Valuta.
+
+Mulighed for delfakturering.
+
+Straksbogføring af fakturaer, købsordrer og rykkere. Option under 
+Indstillinger -> diverse.
+
+Hurtigfakturering - dvs i stedet for at skulle gennem proceduren med tilbud - 
+ordre - levering - fakturering kan man nu nøjes med ordre -> fakturering. 
+Opsætning under Indstillinger -> diverse.
+
+Kontering på projekter. Mulighed for at angive projektnummer i kassekladde og 
+på ordrer. Projekter oprettes under Indstillinger -> Projekt.
+
+Kontering på medarbejderniveau.
+
+Simpelt CRM-system til kundeopfølgning. Findes under Debitorkonti -> Historik.
+
+Simpelt abonnementssystem. På ordrekortet er der mulighed for at skrive en 
+dato i feltet "Genfakt". På fakturaoversigten kan man så sortere på eller søge
+efter genfaktureringsdatoer. Når en faktura så "kopieres til ny" sættes 
+automatisk en ny genfaktureringsdato, med samme tidsinterval som til den 
+forrige.
+
+Automatiseret genbestilling af varer som vil komme under minimumsgrænsen. 
+Findes under "Varer".
+
+Inddeling af vareliste efter varegruppe eller leverandør.
+
+Rykkere i 3 niveauer.
+
+=============================================================================
+Nyt i 1.9.4b - 2008-04-22
+=============================================================================
+
+finans/rapport.php
+	Rettet syntaksfejl (linje 400)
+
+=============================================================================
+Nyt i 1.9.4a - 2008-04-19
+=============================================================================
+
+importfiler/kontoplan.txt
+	Rettet stavefejl.
+
+=============================================================================
+Nyt i 1.9.4 - 2008-04-16
+=============================================================================
+
+Rettet stavefejl, sproglige fejl samt andre mindre rettelser i mange filer.
+
+index/menu.php
+	Rettet version til SALDI 2.0 RC1
+debitor/historik.php
+	Fjernet sorteringslink på init, da den genererer en fejl
+debitor/debitorkort.php
+	Refresh af 'opener' v. lukning.
+	Rettet fejl og fejlbesked ved oprettelse af konti: 
+		http://trac.lue.dk/saldi/ticket/221
+kreditor/kreditorkort.php
+	Refresh af 'opener' v. lukning.
+	Rettet fejl og fejlbesked ved oprettelse af konti: 
+		http://trac.lue.dk/saldi/ticket/221
+produktion/rapport.php
+	Rettet "Rapport art" til "Rapporttype".
+kreditor/rapport.php
+	Rettet "Rapport art" til "Rapporttype" og manglende mellemrum mellem 
+	postnr og bynavn.
+finans/rapport.php
+	Rettet "Rapport art" til "Rapporttype".
+debitor/rapport.php
+	Rettet så faktura listes på kontokort under Debitorrapporter: 
+		http://trac.lue.dk/saldi/ticket/220
+	Rettet "Rapport art" til "Rapporttype" og manglende mellemrum mellem
+        postnr og bynavn.
+index/index.php
+	Rettet uft8 ø til &oslash;
+debitor/ordre.php
+	Rettet fejl i opslag på kontaktpersoner & fjernet debug "AA" fra 
+	beløbsfelt.
+	Rettet "Kontnr." til "Kontonr" samt andre smårettelser.
+	Udskrivknappen disables hvis kommandoen ps2pdf ikke findes:
+		http://trac.lue.dk/saldi/ticket/220
+debitor/ordreliste.php
+	Udskrivknappen disables hvis kommandoen ps2pdf ikke findes:
+		http://trac.lue.dk/saldi/ticket/220
+debitor/rykker.php
+	Udskrivknappen disables hvis kommandoen ps2pdf ikke findes:
+		http://trac.lue.dk/saldi/ticket/220
+includes/openpost.php
+	Udskrivknappen disables hvis kommandoen ps2pdf ikke findes:
+		http://trac.lue.dk/saldi/ticket/220
+kreditor/betalinger.php
+	Udskrivknappen disables hvis kommandoen ps2pdf ikke findes:
+		http://trac.lue.dk/saldi/ticket/220
+debitor/ansatte.php
+	Tilføjet initiering af feltet "lukket" i tabellen ansatte
+kreditor/ansatte.php
+	Tilføjet initiering af feltet "lukket" i tabellen ansatte
+kreditor/ordre.php
+	Rettet "Kontnr." til "Kontonr" samt andre smårettelser.
+produktion/ordre.php
+	Rettet "Kontnr." til "Kontonr".
+	
+=============================================================================
+Nyt i 1.9.3 - 2008-04-15
+=============================================================================
+index/index.php
+	Rettet versionsnavn til 2.0 RC1 og navnet Første frigivelseskandidat.
+index/menu.php
+	Rettet versionsnavn til 2.0 RC1.
+debitor/historikkort.php
+	Rettet "Sidste kontakt" til "Seneste kontakt" samt overskriften til 
+	"Historik for debitor".
+	Tilføjet hvem man har haft kontakt med og sat den lodrette justering 
+	til top for notatet.
+debitor/historik.php
+	Rettet så der sorteres på "initialer" og ikke "kontaktes", når man 
+	klikker på "Init.".
+index.php
+	Genindført opdateringskontrol.
+
+=============================================================================
+Nyt i 1.9.2c
+=============================================================================
+finans/kassekladde.php
+	rettet iht: http://trac.lue.dk/saldi/ticket/185
+includes/formfunk.php
+	manglende rykkergebyr i udskrift - rettet
+kreditor/rapport.php
+	manglende bilagstekst i kontokort.
+kreditor/betalinger.php
+	færdiggjort
+debitor/ordreliste.php
+	rettet iht: http://trac.lue.dk/saldi/ticket/213
+index/menu.php & index/index.php
+	tekst rettet til RC 1.
+
+=============================================================================
+Nyt i 1.9.2b
+=============================================================================
+lager/varespor.php
+ rettet iht. http://trac.lue.dk/saldi/ticket/186
+debitor/rykker.php, debitor/ny_rykker.php, debitor/rykkerprint.php, & includes/openpost.php 
+	rettet iht. http://trac.lue.dk/saldi/ticket/174
+debitor/ordre.php, kreditor/ordre.php
+	rettet iht:http://trac.lue.dk/saldi/ticket/194
+finans/rapport.php
+	rettet iht:http://trac.lue.dk/saldi/ticket/196
+systemdata/valutakort.php & systemdata/valuta.php
+debitor/ordreliste.php, debitor/ordre.php
+systemdata/syssetup.php
+	rettet iht:http://trac.lue.dk/saldi/ticket/200
+kreditor/kreditorkort.php
+	Tabelopbygning rettet (visuelt)
+systemdata/regnskabskort.php
+	Fejl i default variabler
+systemdata/importer_kontoplan.php 
+	Manglende mulighed for import af felter med erhvervelsesmoms
+admin/opret.php 
+	Fejl i oprettelse af kontoplan (manglende erhvervelsesmoms)
+finans/kassekladde.php
+	Manglende fejlmeddelse v. fejlindtastning i debet/kredit felt til debitor/kreditor posteringer
+finans/bogfor.php
+	rettet jf.http://trac.lue.dk/saldi/ticket/214 
+
+Nyt i 1.9.2a
+=============================================================================
+debitor/ordre.php
+	rettet mulig fejl v. angivelse af kontonummer på ny debitorordre, hvis der eksisterer kreditor m. samme nr.
+systemdata/regnskabskort.php
+	talfelter højrestillet.
+	rettet iht: http://trac.lue.dk/saldi/ticket/210
+importfiler/kontoplan.txt
+	rettet iht: http://trac.lue.dk/saldi/ticket/215
+includes/udskriv.php
+	rettet iht: http://trac.lue.dk/saldi/ticket/184
+finans/kassekladde.php
+	rettet iht: http://trac.lue.dk/saldi/ticket/197
+	rettet iht: http://trac.lue.dk/saldi/ticket/192
+	rettet iht: http://trac.lue.dk/saldi/ticket/198
+	rettet - Valuta slettes i alle felter hvid der angives ikke eksisterende valuta
+finans/hentordrer.php
+	rettet iht:http://trac.lue.dk/saldi/ticket/172 
+includes/opdat_1.9.php
+	tilføjet manglende oprettelse af felt: ordre_id i tabellen "kassekladde"	
+kreditor/ordre.php
+	tilføjet "opener.location.reload()" v. lukning.
+finans/bogfor.php, debitor/bogfor.php, debitor/ordre.php, kreditor/bogfor.php & kreditor/ordre.php
+	rettet iht: http://trac.lue.dk/saldi/ticket/198
+	
+=============================================================================
+Nyt i 1.9.2
+=============================================================================
+index/login.php
+	Opdateringskontrol tilrettet til at tage højde for 1.9.x versioner
+includes/opdat_1.9.php
+	Ny opdatringsrutine målrettet beta 2.0.	
+admin/opret.php
+	tilføjet oprettelse af tabellen betalingsliste.
+	tilføjet oprettelse af tabellen betalinger.
+	tilføjet felterne bank_fi, swift & erh i tabellen adresser.
+=============================================================================
+Nyt i 1.9.1e
+=============================================================================
+kreditor/bogfor.php
+	Rettet - Kreditorer bogføres i debitor samlekonto jf: http://trac.lue.dk/saldi/ticket/193
+kreditor/ordreliste.php
+	Diverse 'Use of undefined constant' rettet.
+debitor/bogfor.php
+	Rettet - Afrundingsdiff/bogføringsfejl jf: http://trac.lue.dk/saldi/ticket/193
+systemdata/valutakort.php
+	tilføjet felt til kontonummer for valuta- og afrundingsdifferencer.
+systemdata/brugerdata.php
+	rettet så den kalder sig selv ved ændring af aktivt regnskabsaar. - 
+        http://trac.lue.dk/saldi/ticket/211
+includes/online.php
+	rettet så rettighedskontrol fungerer.igen - 
+        http://trac.lue.dk/saldi/ticket/211
+systemdata/kontokort.php
+	rettet så der nu kan anvendes moms på statuskonti.
+/kreditor/rapport.php, includes/openpost.php & finans/rapport.php
+	Oprydning og prædefinition af variabler
+admin/opret.php
+	Fjernet ; fra 'CREATE SEQUENCE....' da ; blev tolket som forsøg på 
+        SQL injektion.
+
+=============================================================================
+Nyt i 1.9.1d
+=============================================================================
+
+debitor/fakturadato.php
+	Manglende accept af 6 cifret datoformat.jf 
+finans/bogfor.php
+	Momsfejl vil momssats med decimal 
+        jf: http://forum.saldi.dk/viewtopic.php?t=318
+systemdata/formularimport.php
+	Viste kun blank skærm jf: http://forum.saldi.dk/viewtopic.php?t=312 
+systemdata/kontokort.php
+	Rettet så der nu kan anvendes moms på statuskonti 
+/kreditor/rapport.php, includes/openpost.php & finans/rapport.php
+	Oprydning og prædefinition af variabler
+admin/backup.php
+	Ændret navngivning af backupfiler til at indeholder timer & min 
+        jf: http://forum.saldi.dk/viewtopic.php?t=322
+
+=============================================================================
+Nyt i 1.9.1c
+=============================================================================
+/includes/db_query.php:
+	Indført kontrol til sikring mod SQL-injections 
+        jf: http://forum.saldi.dk/viewtopic.php?t=316
+
+2008-03-25 Peter Rude
+=============================================================================
+Nyt i 1.9.1b
+=============================================================================
+/finans/hentordrer.php:
+	Rettet fejlagtig momstilskrivning 
+        jf:.http://forum.saldi.dk/viewtopic.php?t=306
+/lager/rapport.php:
+	Rettet forkert DG beregning jf: http://forum.saldi.dk/viewtopic.php?t=308
+
+2008-03-25 Peter Rude
+=============================================================================
+Nyt i 1.9.1a
+=============================================================================
+/admin/opret.php:
+	tilføjet oprettelse af tabellen valuta.
+
+2008-03-24 Peter Rude
+=============================================================================
+Nyt i 1.9.1 (1.1.6a-1.1.6c)
+=============================================================================
+/admin/slet_regnskab.php
+	Rettet Fejl i infotekst om slettede regnskaber.
+
+/admin/opret.php:
+	Tilføjet oprettelse af ansat (varchar), valuta (varchar) & valutakurs 
+	(varchar) i tabellen tmpkassekl.
+
+	Tilføjet oprettelse af tabellen historik.
+
+	Rettet fejl ved oprettelse af debitor- og kreditorgrupper (bevirker at 
+	formularer vises uden tekst).
+
+	Sætter sprog til dansk for alt i formularer.
+
+/includes/opdat_1.1.php:
+	Tilføjet oprettelse af valutakurs (varchar) i tabellen tmpkassekl.
+
+	Tilføjet oprettelse af kontaktet (date) og kontaktes (date) i 
+	tabellen historik.
+
+/debitor/historikkort:
+	Rettet fejl - hvis ingen ansatte i indstillinger/stamdata.
+
+/index/install.php:
+	Rettet fejl - install exit'er både hvis connect.php eksisterer og 
+	hvis den ikke gør.
+
+2008-03-17 Peter Rude og Claus Agerskov
+
+
+
+
+Senest ændret 2017-02-07 af Peter Rude <phr@saldi.dk>  http://saldi.dk/
+Oprettet af Claus gerskov <ca@saldi.dk>  http://saldi.dk/
+
+© 2003-2017 saldi.dk aps                                   

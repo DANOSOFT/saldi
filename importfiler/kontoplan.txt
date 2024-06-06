@@ -1,0 +1,482 @@
+1000	RESULTATOPGØRELSE	H		0	0	100
+1001	Nettoomsætning	H		0	0	100
+1010	Salg af varer og ydelser 	D	S1	0	0	100
+1050	Salg af varer udland, EU	D		0	0	100
+1100	Salg af varer udland, ikke-EU	D		0	0	100
+1150	Salg af ydelser udland, EU	D		0	0	100
+1200	Salg af ydelser udland, ikke-EU	D		0	0	100
+1300	Regulering igangværende arbejder	D		0	0	100
+1350	Værdireguleringer af investeringsejendomme	D		0	0	100
+1390	Nettoomsætning	Z		1010	0	100
+1400	Ændring i lagre af færdigvarer og varer under fremstilling	H		0	0	100
+1410	Varelagerregulering på lagre af færdigvarer og varer under fremstilling	D		0	0	100
+1430	Nedskrivning på lagre af færdigvarer og varer under fremstilling	D		0	0	100
+1460	Øvrige ændringer på lagre af færdigvarer og varer under fremstilling	D		0	0	100
+1490	Ændring i lagre af færdigvarer og varer under fremstilling	Z		1410	0	100
+1500	Andre driftsindtægter	H		0	0	100
+1510	Gevinst ved salg af immaterielle anlægsaktiver	D		0	0	100
+1530	Gevinst ved salg af materielle anlægsaktiver	D		0	0	100
+1540	Gevinst ved salg af finansielle anlægsaktiver	D		0	0	100
+1550	Øvrige andre driftsindtægter	D		0	0	100
+1590	Andre driftsindtægter	Z		1510	0	100
+1600	Omkostninger til råvarer, hjælpematerialer og ydelser	H		0	0	100
+1610	Varekøb	D	K1	0	0	100
+1630	Varekøb udland, EU	D	E1	0	0	100
+1650	Varekøb udland, ikke-EU	D	E1	0	0	100
+1660	Ydelseskøb	D	K1	0	0	100
+1710	Ydelseskøb udland, EU	D	Y1	0	0	100
+1740	Ydelseskøb, udland, ikke-EU	D	Y1	0	0	100
+1770	Varelagerregulering på lagre af råvarer og hjælpematerialer	D		0	0	100
+1800	Nedskrivning på varelager	D		0	0	100
+1810	Omkostninger til råvarer og hjælpematerialer	Z		1610	0	100
+1820	Andre eksterne omkostninger	H	K1	0	0	100
+1821	Salgsomkostninger	H	K1	0	0	100
+1830	Fragtomkostninger	D	K1	0	0	100
+1850	Annoncering og reklame	D	K1	0	0	100
+1870	Udstillinger og dekoration	D	K1	0	0	100
+1890	Restaurationsbesøg	D		0	0	100
+1910	Repræsentationsomkostninger, skattemæssigt begrænset fradrag	D		0	0	100
+1930	Repræsentationsomkostninger, fuld fradragsret skattemæssigt	D		0	0	100
+1950	Andre salgsomkostninger	D	K1	0	0	100
+1970	Aviser og blade	D		0	0	100
+1990	Gaver og blomster	D		0	0	100
+2010	Salgsomkostninger	Z	K1	1830	0	100
+2020	Lokaleomkostninger	H		0	0	100
+2030	Husleje, ekskl. el, vand og varme	D	K1	0	0	100
+2050	El	D	K1	0	0	100
+2060	Elafgift	D		0	0	100
+2070	Vand	D	K1	0	0	100
+2080	Varme	D	K1	0	0	100
+2090	Vandafgift	D		0	0	100
+2100	Olie- og flaskegasafgift	D		0	0	100
+2110	Kulafgift	D		0	0	100
+2120	Naturgas- og bygasafgift	D		0	0	100
+2130	Co2-afgift	D		0	0	100
+2140	Øvrige afgifter	D		0	0	100
+2150	Rengøring og renovation (affaldshåndtering)	D	K1	0	0	100
+2160	Reparation og vedligeholdelse	D	K1	0	0	100
+2170	Reparation og vedligeholdelse, ejendom skattemæssigt afskrivningsberettiget, bygning 1	D	K1	0	0	100
+2180	Forsikringer	D		0	0	100
+2190	Ejendomsskatter	D		0	0	100
+2200	Andre lokaleomkostninger	D	K1	0	0	100
+2210	Lokaleomkostninger	Z		2030	0	100
+2220	Administrationsomkostninger	H		0	0	100
+2230	Småanskaffelser under skattemæssig grænse for småaktiver	D	K1	0	0	100
+2240	Småanskaffelser over skattemæssig grænse for småaktiver	D	K1	0	0	100
+2250	Underleverandører	D	K1	0	0	100
+2260	Forsknings- og udviklingsomkostninger	D	K1	0	0	100
+2270	Øvrige produktionsomkostninger	D	K1	0	0	100
+2280	Konstaterede tab på tilgodehavender fra salg og tjenesteydelser	D	K1	0	0	100
+2290	Regulering af nedskrivning på tilgodehavender fra salg og tjenesteydelser	D	K1	0	0	100
+2300	Regulering af tilgodehavender fra tilknyttede virksomheder og associerede virksomheder	D	K1	0	0	100
+2310	It-udstyr mv.	D	K1	0	0	100
+2330	Skattefri rejse- og befordringsgodtgørelse 	D		0	0	100
+2350	Kantineudgifter	D	K1	0	0	100
+2370	Kontingenter	D		0	0	100
+2380	Faglitteratur	D	K1	0	0	100
+2390	Porto og gebyrer	D		0	0	100
+2410	Telefon og internet mv. (kun virksomhed)	D	K1	0	0	100
+2420	Telefon og internet mv. (delvist privat)	D		0	0	100
+2450	Kontorartikler	D	K1	0	0	100
+2460	Leje og operationelle leasingydelser (ekskl. husleje)	D	K1	0	0	100
+2470	Rejseudgifter	D	K1	0	0	100
+2480	Vikarassistance	D	K1	0	0	100
+2510	Konsulentydelser	D	K1	0	0	100
+2520	Kursusudgifter	D	K1	0	0	100
+2530	Leasingomkostninger, personbiler	D		0	0	100
+2540	Driftsomkostninger, personbiler	D		0	0	100
+2560	Driftsomkostninger, varebiler	D	K1	0	0	100
+2620	Parkeringsudgifter	D	K1	0	0	100
+2630	Biludgifter efter statens takster	D		0	0	100
+2640	Fri bil	D		0	0	100
+2650	Arbejdsskadeforsikring	D		0	0	100
+2660	Offentlige gebyrer og bøder (ej fradragsberettiget skattemæssigt)	D		0	0	100
+2670	Revision og regnskabsmæssig assistance	D	K1	0	0	100
+2680	Advokatmæssig assistance	D	K1	0	0	100
+2690	Øvrige rådgivningshonorarer	D	K1	0	0	100
+2700	Ej skattemæssigt fradragsberettigede rådgivningshonorarer	D		0	0	100
+2710	Administrationsvederlag/management fee	D	K1	0	0	100
+2720	Øreafrunding/kassedifferencer	D		0	0	100
+2810	Andre eksterne omkostninger	D	K1	0	0	100
+2830	Administrationsomkostninger	Z		2230	0	100
+2831	Andre eksterne omkostninger	Z		1830	0	100
+2840	Bruttofortjeneste/Bruttotab	Z		1010	0	100
+2841	Personaleomkostninger	H		0	0	100
+2850	Lønninger	D		0	0	100
+2860	Feriepengeforpligtelse	D		0	0	100
+2870	Jubilæumsgratiale og fratrædelsesgodtgørelse 	D		0	0	100
+2880	Bestyrelseshonorar	D		0	0	100
+2890	AM Bidragspligtig A-Indkomst	D		0	0	100
+2900	AM Bidragsfri A-Indkomst	D		0	0	100
+2910	Pensioner	D		0	0	100
+2920	Vederlag til afløsning af pensionstilsagn 	D		0	0	100
+2930	Omkostninger til social sikring	D		0	0	100
+2940	AER/ AUB	D		0	0	100
+2950	ATP	D		0	0	100
+2960	Andre personaleomkostninger	D		0	0	100
+2965	Personalegoder 	D		0	0	100
+2968	Lønrefusioner	D		0	0	100
+2970	Udbetalte skattefrie godtgørelser i form af kørepenge og diæter	D		0	0	100
+2980	Lønsumsafgift	D		0	0	100
+2990	Personaleomkostninger	Z		2850	0	100
+2991	Af- og nedskrivninger af materielle og immaterielle anlægsaktiver 	H		0	0	100
+3000	Af- og nedskrivninger af erhvervede immaterielle anlægsaktiver	D		0	0	100
+3010	Af- og nedskrivninger af goodwill	D		0	0	100
+3020	Af- og nedskrivninger af grunde og bygninger	D		0	0	100
+3030	Af- og nedskrivninger af produktionsanlæg og maskiner	D		0	0	100
+3040	Af- og nedskrivninger af indretning af lejede lokaler	D		0	0	100
+3050	Af- og nedskrivninger af andre anlæg, driftsmateriel og inventar	D		0	0	100
+3060	Af- og nedskrivninger af software	D		0	0	100
+3070	Af- og nedskrivninger af finansielt leasede grunde og bygninger	D		0	0	100
+3080	Af- og nedskrivninger af finansielt leasede produktionsanlæg og maskiner	D		0	0	100
+3090	Af- og nedskrivninger af finansielt leasede andre anlæg, driftsmateriel og inventar	D		0	0	100
+3100	Af- og nedskrivninger af materielle og immaterielle anlægsaktiver 	Z		3000	0	100
+3120	Nedskrivninger af omsætningsaktiver, som overstiger normale nedskrivninger	H		0	0	100
+3130	Nedskrivninger af omsætningsaktiver, som overstiger normale nedskrivninger	D		0	0	100
+3140	Nedskrivninger af omsætningsaktiver, som overstiger normale nedskrivninger	Z		3130	0	100
+3150	Andre driftsomkostninger	H		0	0	100
+3160	Tab ved salg af immaterielle anlægsaktiver	D		0	0	100
+3170	Tab ved salg af materielle anlægsaktiver	D		0	0	100
+3180	Øvrige andre driftsomkostninger	D		0	0	100
+3190	Andre driftsomkostninger	Z		3160	0	100
+3191	Indtægter af kapitalandele	H		0	0	100
+3192	Indtægter af kapitalandele i tilknyttede virksomheder	H		0	0	100
+3200	Indtægter af kapitalandele i tilknyttede virksomheder	D		0	0	100
+3210	Indtægter af kapitalandele i tilknyttede virksomheder	Z		3200	0	100
+3220	Indtægter af kapitalandele i kapitalinteresser	H		0	0	100
+3230	Indtægter af kapitalandele i kapitalinteresser	D		0	0	100
+3240	Indtægter af kapitalandele i kapitalinteresser	Z		3230	0	100
+3250	Indtægter af kapitalandele	Z		3200	0	100
+3370	Indtægter af andre kapitalandele, værdipapirer og tilgodehavender, der er anlægsaktiver	H		0	0	100
+3380	Udbytte fra unoterede porteføljeaktier (bruttoudbytte)	D		0	0	100
+3400	Øvrige indtægter af andre kapitalandele, værdipapirer og tilgodehavender, der er anlægsaktiver	D		0	0	100
+3410	Indtægter af andre kapitalandele, værdipapirer og tilgodehavender, der er anlægsaktiver	Z		3380	0	100
+3411	Andre finansielle indtægter fra tilknyttede virksomheder 	H		0	0	100
+3440	Andre finansielle indtægter fra tilknyttede virksomheder	D		0	0	100
+3450	Andre finansielle indtægter fra tilknyttede virksomheder 	Z		3440	0	100
+3451	Andre finansielle indtægter	H		0	0	100
+3470	Renter fra banker	D		0	0	100
+3490	Renter vedr. tilgodehavende fra salg af varer og tjenesteydelser	D		0	0	100
+3510	Rentetillæg mv. fra det offentlige (ej skattepligtig)	D		0	0	100
+3530	Øvrige finansielle indtægter	D		0	0	100
+3540	Andre finansielle indtægter	Z		3470	0	100
+3541	Nedskrivning af finansielle aktiver	H		0	0	100
+3560	Nedskrivning af finansielle aktiver	D		0	0	100
+3570	Nedskrivning af finansielle aktiver	Z		3560	0	0	100
+3571	Finansielle omkostninger, der hidrører fra tilknyttede virksomheder	H		0	0	100
+3590	Finansielle omkostninger, der hidrører fra tilknyttede virksomheder	D		0	0	100
+3600	Finansielle omkostninger, der hidrører fra tilknyttede virksomheder	Z		3590	0	100
+3601	Øvrige finansielle omkostninger	H		0	0	100
+3610	Valutakursreguleringer	D		0	0	100
+3620	Valutakursreguleringer, udenlandske dattervirksomheder	D		0	0	100
+3630	Kurstab på likvider, bankgæld og prioritetsgæld	D		0	0	100
+3640	Renter på finansiel leasinggæld 	D		0	0	100
+3650	Renter vedr. leverandører af varer og tjenesteydelser	D		0	0	100
+3670	Renter til banker og realkreditinstitutter	D		0	0	100
+3675	Renter til det offentlige (ej fradragsberettiget skattemæssigt)	D		0	0	100
+3680	Værdireguleringer af investeringsejendomme	D		0	0	100
+3690	Andre finansielle omkostninger	D		0	0	100
+3700	Øvrige finansielle omkostninger	Z		3610	0	100
+3701	Resultat før skat	Z		1010	0	100
+3702	Skat af årets resultat	H		0	0	100
+3740	Aktuel skat	D		0	0	100
+3760	Ændring af udskudt skat	D		0	0	100
+3780	Regulering vedrørende tidligere år	D		0	0	100
+3790	Skat af årets resultat	Z		3740	0	100
+3791	Andre skatter	H		0	0	100
+3810	Andre skatter	D		0	0	100
+3820	Andre skatter	Z		3810	0	100
+4999	Årets resultat	Z		1010	0	100
+5000	BALANCE	H		0	0	100
+5001	AKTIVER	H		0	0	100
+5002	Anlægsaktiver	H		0	0	100
+5003	Immaterielle anlægsaktiver	H		0	0	100
+5004	Goodwill	H		0	0	100
+5010	Goodwill, bogført værdi primo	S		0	0	100
+5020	Goodwill, årets tilgange	S		0	0	100
+5030	Goodwill, årets afgange	S		0	0	100
+5040	Goodwill, øvrige værdireguleringer	S		0	0	100
+5050	Goodwill, årets af- og nedskrivninger	S		0	0	100
+5060	Goodwill, tilbageførte af- og nedskrivninger	S		0	0	100
+5070	Goodwill, ultimo	Z		5010	0	100
+5071	Erhvervede immaterielle anlægsaktiver	H		0	0	100
+5080	Erhvervede immaterielle anlægsaktiver, bogført værdi primo	S		0	0	100
+5090	Erhvervede immaterielle anlægsaktiver, årets tilgange	S		0	0	100
+5100	Erhvervede immaterielle anlægsaktiver, årets afgange	S		0	0	100
+5110	Erhvervede immaterielle anlægsaktiver, øvrige værdireguleringer	S		0	0	100
+5120	Erhvervede immaterielle anlægsaktiver, årets af- og nedskrivninger	S		0	0	100
+5130	Erhvervede immaterielle anlægsaktiver, tilbageførte af- og nedskrivninger	S		0	0	100
+5140	Erhvervede immaterielle anlægsaktiver, ultimo	Z		5080	0	100
+5141	Immaterielle anlægsaktiver	Z		5010	0	100
+5142	Materielle anlægsaktiver	H		0	0	100
+5150	Investeringsejendomme	H		0	0	100
+5160	Investeringsejendomme, bogført værdi primo	S		0	0	100
+5170	Investeringsejendomme, årets tilgange 	S		0	0	100
+5180	Investeringsejendomme, årets afgange 	S		0	0	100
+5190	Investeringsejendomme, årets forbedringer	S		0	0	100
+5200	Investeringsejendomme, øvrige værdireguleringer	S		0	0	100
+5210	Investeringsejendomme, årets af- og nedskrivninger	S		0	0	100
+5220	Investeringsejendomme, tilbageførte af- og nedskrivninger	S		0	0	100
+5230	Investeringsejendomme, ultimo	Z		5160	0	100
+5231	Investeringsejendomme under opførelse	H		0	0	100
+5240	Investeringsejendomme under opførelse, bogført værdi primo	S		0	0	100
+5250	Investeringsejendomme under opførelse, årets tilgange 	S		0	0	100
+5260	Investeringsejendomme under opførelse, årets afgange 	S		0	0	100
+5270	Investeringsejendomme under opførelse, årets forbedringer	S		0	0	100
+5280	Investeringsejendomme under opførelse, øvrige værdireguleringer	S		0	0	100
+5290	Investeringsejendomme under opførelse, årets nedskrivninger	S		0	0	100
+5300	Investeringsejendomme under opførelse, tilbageførte nedskrivninger	S		0	0	100
+5310	Investeringsejendomme under opførelse, ultimo	Z		5240	0	100
+5311	Grunde og bygninger	H		0	0	100
+5320	Grunde og bygninger, bogført værdi primo	S		0	0	100
+5330	Grunde og bygninger, årets tilgange 	S		0	0	100
+5340	Grunde og bygninger, årets afgange 	S		0	0	100
+5350	Grunde og bygninger, årets forbedringer	S		0	0	100
+5370	Grunde og bygninger, øvrige værdireguleringer	S		0	0	100
+5390	Grunde og bygninger, årets af- og nedskrivninger	S		0	0	100
+5400	Grunde og bygninger, tilbageførte af- og nedskrivninger	S		0	0	100
+5410	Grunde og bygninger, ultimo	Z		5320	0	100
+5411	Produktionsanlæg og maskiner	H		0	0	100
+5420	Produktionsanlæg og maskiner, bogført værdi primo	S		0	0	100
+5430	Produktionsanlæg og maskiner, årets tilgange	S		0	0	100
+5440	Produktionsanlæg og maskiner, årets afgange	S		0	0	100
+5450	Produktionsanlæg og maskiner, øvrige værdireguleringer	S		0	0	100
+5470	Produktionsanlæg og maskiner, årets af- og nedskrivninger	S		0	0	100
+5480	Produktionsanlæg og maskiner, tilbageførte af- og nedskrivninger	S		0	0	100
+5490	Produktionsanlæg og maskiner, ultimo	Z		5420	0	100
+5491	Indretning af lejede lokaler	H		0	0	100
+5500	Indretning af lejede lokaler, bogført værdi primo	S		0	0	100
+5510	Indretning af lejede lokaler, årets tilgange	S		0	0	100
+5520	Indretning af lejede lokaler, årets afgange	S		0	0	100
+5530	Indretning af lejede lokaler, øvrige værdireguleringer	S		0	0	100
+5540	Indretning af lejede lokaler, årets af- og nedskrivninger	S		0	0	100
+5550	Indretning af lejede lokaler, tilbageførte af- og nedskrivninger	S		0	0	100
+5560	Indretning af lejede lokaler, ultimo	Z		5500	0	100
+5561	Andre anlæg, driftsmateriel og inventar	H		0	0	100
+5570	Andre anlæg, driftsmateriel og inventar, bogført værdi primo	S		0	0	100
+5580	Andre anlæg, driftsmateriel og inventar, årets tilgange	S		0	0	100
+5590	Andre anlæg, driftsmateriel og inventar, årets afgange	S		0	0	100
+5600	Andre anlæg, driftsmateriel og inventar, øvrige værdireguleringer	S		0	0	100
+5610	Andre anlæg, driftsmateriel og inventar, årets af- og nedskrivninger	S		0	0	100
+5620	Andre anlæg, driftsmateriel og inventar, tilbageførte af- og nedskrivninger	S		0	0	100
+5630	Andre anlæg, driftsmateriel og inventar, ultimo	Z		5570	0	100
+5631	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver	H		0	0	100
+5640	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver, bogført værdi primo	S		0	0	100
+5650	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver, årets tilgange	S		0	0	100
+5660	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver, årets afgange	S		0	0	100
+5670	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver, øvrige værdireguleringer	S		0	0	100
+5680	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver, årets nedskrivninger	S		0	0	100
+5690	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver, tilbageførte nedskrivninger	S		0	0	100
+5700	Materielle anlægsaktiver under udførelse og forudbetalinger for materielle anlægsaktiver, ultimo	Z		5640	0	100
+5701	Finansielt leasede aktiver	H		0	0	100
+5710	Finansielt leasede aktiver, bogført værdi primo	S		0	0	100
+5720	Finansielt leasede aktiver, årets tilgange	S		0	0	100
+5730	Finansielt leasede aktiver, årets afgange	S		0	0	100
+5740	Finansielt leasede aktiver, øvrige værdireguleringer	S		0	0	100
+5750	Finansielt leasede aktiver, årets af- og nedskrivninger	S		0	0	100
+5760	Finansielt leasede aktiver, tilbageførte af- og nedskrivninger	S		0	0	100
+5770	Finansielt leasede aktiver, ultimo	Z		5710	0	100
+5771	Materielle anlægsaktiver	Z		5160	0	100
+5772	Finansielle anlægsaktiver	H		0	0	100
+5773	Kapitalandele i tilknyttede virksomheder	H		0	0	100
+5800	Kapitalandele i tilknyttede virksomheder, bogført værdi primo	S		0	0	100
+5810	Kapitalandele i tilknyttede virksomheder, årets tilgange	S		0	0	100
+5820	Kapitalandele i tilknyttede virksomheder, årets afgange	S		0	0	100
+5830	Kapitalandele i tilknyttede virksomheder, øvrige værdireguleringer	S		0	0	100
+5840	Kapitalandele i tilknyttede virksomheder, årets nedskrivninger	S		0	0	100
+5850	Kapitalandele i tilknyttede virksomheder, tilbageførte nedskrivninger	S		0	0	100
+5860	Kapitalandele i tilknyttede virksomheder, ultimo	Z		5800	0	100
+5861	Langfristede tilgodehavender hos tilknyttede virksomheder	H		0	0	100
+5870	Langfristede tilgodehavender hos tilknyttede virksomheder	S		0	0	100
+5880	Nedskrivning på langfristede tilgodehavender hos tilknyttede virksomheder	S		0	0	100
+5890	Langfristede tilgodehavender hos tilknyttede virksomheder	Z		5870	0	100
+5891	Kapitalandele i kapitalinteresser	H		0	0	100
+5900	Kapitalandele i kapitalinteresser, bogført værdi primo	S		0	0	100
+5910	Kapitalandele i kapitalinteresser, årets tilgange	S		0	0	100
+5920	Kapitalandele i kapitalinteresser, årets afgange	S		0	0	100
+5930	Kapitalandele i kapitalinteresser, øvrige værdireguleringer	S		0	0	100
+5940	Kapitalandele i kapitalinteresser, årets nedskrivninger	S		0	0	100
+5950	Kapitalandele i kapitalinteresser, bogført værdi primo, tilbageførte nedskrivninger	S		0	0	100
+5960	Kapitalandele i kapitalinteresser, ultimo	Z		5900	0	100
+5961	Langfristede tilgodehavender hos kapitalinteresser	H		0	0	100
+5970	Langfristede tilgodehavender hos kapitalinteresser	S		0	0	100
+5980	Nedskrivning på langfristede tilgodehavender hos kapitalinteresser	S		0	0	100
+5990	Langfristede tilgodehavender hos kapitalinteresser	Z		5970	0	100
+5991	Andre værdipapirer og kapitalandele	H		0	0	100
+6000	Andre værdipapirer og kapitalandele	S		0	0	100
+6010	Andre værdipapirer og kapitalandele	Z		6000	0	100
+6011	Andre (langfristede) tilgodehavender	H		0	0	100
+6020	Udskudte skatteaktiver	S		0	0	100
+6030	Øvrige (langfristede) tilgodehavender	S		0	0	100
+6040	Deposita	S		0	0	100
+6050	Andre (langfristede) tilgodehavender	Z		6020	0	100
+6051	Tilgodehavender hos virksomhedsdeltagere og ledelse	H		0	0	100
+6060	Tilgodehavender hos virksomhedsdeltagere og ledelse	S		0	0	100
+6070	Tilgodehavender hos virksomhedsdeltagere og ledelse	Z		6060	0	100
+6071	Finansielle anlægsaktiver	Z		5800	0	100
+6072	Anlægsaktiver i alt	Z		5010	0	100
+6073	Omsætningsaktiver	H		0	0	100
+6074	Varebeholdninger	H		0	0	100
+6075	Råvarer og hjælpematerialer	H		0	0	100
+6080	Råvarer og hjælpematerialer	S		0	0	100
+6090	Nedskrivning på råvarer og hjælpematerialer	S		0	0	100
+6100	Råvarer og hjælpematerialer	Z		6080	0	100
+6101	Varer under fremstilling	H		0	0	100
+6110	Varer under fremstilling	S		0	0	100
+6120	Nedskrivning på varer under fremstilling	S		0	0	100
+6130	Varer under fremstilling	Z		6110	0	100
+6131	Fremstillede varer og handelsvarer	H		0	0	100
+6140	Fremstillede varer og handelsvarer	S		0	0	100
+6150	Nedskrivning på fremstillede varer og handelsvarer	S		0	0	100
+6160	Fremstillede varer og handelsvarer	Z		6131	0	100
+6161	Forudbetalinger for varer	H		0	0	100
+6170	Forudbetalinger for varer	S		0	0	100
+6180	Forudbetalinger for varer	Z		6170	0	100
+6181	Varebeholdninger	Z		6080	0	100
+6182	Tilgodehavender	H		0	0	100
+6183	Tilgodehavender fra salg og tjenesteydelser	H		0	0	100
+6190	Tilgodehavender fra salg og tjenesteydelser	S		0	0	100
+6200	Akkumulerede nedskrivninger til tab på tilgodehavender fra salg og tjenesteydelser	S		0	0	100
+6210	Tilgodehavender fra salg og tjenesteydelser	Z		6190	0	100
+6211	Kortfristede tilgodehavender hos tilknyttede virksomheder	H		0	0	100
+6220	Kortfristede tilgodehavender hos tilknyttede virksomheder	S		0	0	100
+6230	Akkumulerede nedskrivninger til tab på tilgodehavender fra tilknyttede virksomheder	S		0	0	100
+6240	Kortfristede tilgodehavender hos kapitalinteresser	S		0	0	100
+6250	Akkumulerede nedskrivninger til tab på tilgodehavender fra kapitalinteresser	S		0	0	100
+6260	Kortfristede tilgodehavender hos tilknyttede virksomheder	Z		6220	0	100
+6261	Igangværende arbejder for fremmed regning	H		0	0	100
+6270	Igangværende arbejder for fremmed regning	S		0	0	100
+6280	Igangværende arbejder for fremmed regning	Z		6270	0	100
+6281	Andre tilgodehavender (kortfristede)	H		0	0	100
+6290	Udskudte skatteaktiver	S		0	0	100
+6300	Tilgodehavende selskabsskat (kortfristet)	S		0	0	100
+6310	Tilgodehavende kildeskat	S		0	0	100
+6320	Tilgodehavende moms (kortfristet)	S		0	0	100
+6330	Øvrige tilgodehavender (kortfristede)	S		0	0	100
+6340	Andre tilgodehavender (kortfristede)	Z		6290	0	100
+6341	Krav på indbetaling af virksomhedskapital og overkurs	H		0	0	100
+6350	Krav på indbetaling af virksomhedskapital og overkurs	S		0	0	100
+6360	Krav på indbetaling af virksomhedskapital og overkurs	Z		6350	0	100
+6361	Kortfristede tilgodehavender hos virksomhedsdeltagere og ledelse	H		0	0	100
+6370	Kortfristede tilgodehavender hos virksomhedsdeltagere og ledelse	S		0	0	100
+6380	Kortfristede tilgodehavender hos virksomhedsdeltagere og ledelse	Z		6370	0	100
+6381	Periodeafgrænsningsposter	H		0	0	100
+6390	Periodeafgrænsningsposter, der kan opretholdes skattemæssigt	S		0	0	100
+6400	Periodeafgrænsningsposter, der ikke kan opretholdes skattemæssigt	S		0	0	100
+6410	Periodeafgrænsningsposter	Z		6390	0	100
+6411	Tilgodehavender	Z		6190	0	100
+6412	Værdipapirer og kapitalandele	H		0	0	100
+6413	Kapitalandele i tilknyttede virksomheder	H		0	0	100
+6420	Kapitalandele i tilknyttede virksomheder	S		0	0	100
+6430	Kapitalandele i tilknyttede virksomheder	Z		6420	0	100
+6431	Andre værdipapirer og kapitalandele	H		0	0	100
+6450	Andre værdipapirer og kapitalandele	S		0	0	100
+6460	Andre værdipapirer og kapitalandele	Z		6450	0	100
+6461	Værdipapirer og kapitalandele	Z		6420	0	100
+6462	Likvide beholdninger	H		0	0	100
+6470	Likvide beholdninger	S		0	0	100
+6480	Bankkonto	S		0	0	100
+6490	Likvide beholdninger	Z		6470	0	100
+6491	Omsætningsaktiver i alt	Z		6080	0	100
+6499	AKTIVER I ALT	Z		5010	0	100
+6500	PASSIVER	H		0	0	100
+6501	Egenkapital	H		0	0	100
+6502	Virksomhedskapital	H		0	0	100
+6510	Registreret kapital mv.	S		0	0	100
+6520	Indbetalt registreret kapital mv.	S		0	0	100
+6530	Virksomhedskapital	Z		6510	0	100
+6531	Overkurs ved emission	H		0	0	100
+6540	Overkurs ved emission	S		0	0	100
+6550	Overkurs ved emission	Z		6540	0	100
+6551	Reserve for opskrivninger	H		0	0	100
+6560	Reserve for opskrivninger	S		0	0	100
+6570	Reserve for opskrivninger	Z		6560	0	100
+6571	Reserve for nettoopskrivning efter den indre værdis metode	H		0	0	100
+6580	Reserve for nettoopskrivning efter den indre værdis metode	S		0	0	100
+6590	Reserve for nettoopskrivning efter den indre værdis metode	Z		6580	0	100
+6591	Andre reserver	H		0	0	100
+6810	Reserve for udlån og sikkerhedsstillelse	S		0	0	100
+6830	Reserve for ikke indbetalt virksomhedskapital og overkurs	S		0	0	100
+6870	Øvrige lovpligtige reserver	S		0	0	100
+6890	Vedtægtsmæssige reserver	S		0	0	100
+6910	Øvrige reserver	S		0	0	100
+6930	Andre reserver	Z		6810	0	100
+6931	Overført resultat	H		0	0	100
+6940	Overført resultat	S		0	0	100
+6950	Overført resultat	Z		6940	0	100
+6951	Foreslået udbytte indregnet under egenkapitalen	H		0	0	100
+6960	Foreslået udbytte indregnet under egenkapitalen	S		0	0	100
+6970	Foreslået udbytte indregnet under egenkapitalen	Z		6960	0	100
+6971	Egenkapital i alt	Z		6510	0	100
+6972	Hensatte forpligtelser	H		0	0	100
+6973	Hensættelse til udskudt skat	H		0	0	100
+7010	Hensættelser til udskudt skat	S		0	0	100
+7020	Hensættelser til pensioner og lignende forpligtelser	S		0	0	100
+7030	Hensættelse til udskudt skat	Z		7010	0	100
+7031	Andre hensatte forpligtelser	H		0	0	100
+7040	Andre hensatte forpligtelser	S		0	0	100
+7050	Andre hensatte forpligtelser	Z		7040	0	100
+7051	Hensatte forpligtelser	Z		7010	0	100
+7052	Langfristet gæld	H		0	0	100
+7053	Gæld til kreditinstitutter - langfristet gæld	H		0	0	100
+7110	Gæld til kreditinstitutter - langfristet gæld	S		0	0	100
+7120	Gæld til banker - langfristet gæld	S		0	0	100
+7130	Gæld til kreditinstitutter	Z		7110	0	100
+7131	Gæld til tilknyttede virksomheder - langfristet gæld	H		0	0	100
+7160	Gæld til tilknyttede virksomheder - langfristet gæld	S		0	0	100
+7170	Gæld til kapitalinteresser - langfristet gæld	S		0	0	100
+7180	Gæld til tilknyttede virksomheder - langfristet gæld	Z		7160	0	100
+7181	Anden gæld, herunder skyldige skatter og skyldige bidrag til social sikring	H		0	0	100
+7190	Anden gæld - langfristet	S		0	0	100
+7210	Gæld til selskabsdeltagere og ledelse - langfristet gæld	S		0	0	100
+7230	Deposita - langfristet gæld	S		0	0	100
+7240	Leasingforpligtelse - langfristet gæld	S		0	0	100
+7250	Selskabsskat - langfristet gæld	S		0	0	100
+7260	Anden gæld, herunder skyldige skatter og skyldige bidrag til social sikring	Z		7190	0	100
+7261	Langfristet gæld	Z		7110	0	100
+7262	Kortfristet gæld	H		0	0	100
+7263	Gæld til kreditinstitutter - kortfristet gæld	H		0	0	100
+7310	Gæld til kreditinstitutter - kortfristet gæld	S		0	0	100
+7330	Gæld til banker - kortfristet gæld	S		0	0	100
+7350	Kreditinstitutter i øvrigt	S		0	0	100
+7360	Gæld til kreditinstitutter - kortfristet gæld	Z		7310	0	100
+7361	Modtagne forudbetalinger fra kunder	H		0	0	100
+7410	Modtagne forudbetalinger fra kunder	S		0	0	100
+7420	Modtagne forudbetalinger fra kunder	Z		7410	0	100
+7421	Leverandører af varer og tjenesteydelser	H		0	0	100
+7440	Leverandører af varer og tjenesteydelser	S		0	0	100
+7450	Leverandører af varer og tjenesteydelser	Z		7440	0	100
+7451	Gæld til tilknyttede virksomheder - kortfristet gæld	H		0	0	100
+7510	Gæld til tilknyttede virksomheder - kortfristet gæld	S		0	0	100
+7520	Gæld til kapitalinteresser - kortfristet gæld	S		0	0	100
+7530	Gæld til tilknyttede virksomheder - kortfristet gæld	Z		7510	0	100
+7531	Anden gæld, herunder skyldige skatter og skyldige bidrag til social sikring	H		0	0	100
+7590	Gæld til selskabsdeltagere og ledelse - kortfristet gæld	S		0	0	100
+7610	Deposita - kortfristet gæld	S		0	0	100
+7630	Leasingforpligtelse - kortfristet	S		0	0	100
+7680	Salgsmoms	S		0	0	100
+7700	Moms af varekøb udland, EU og ikke-EU	S		0	0	100
+7720	Moms af ydelseskøb udland, EU og ikke-EU	S		0	0	100
+7740	Købsmoms	S		0	0	100
+7760	Olie- og flaskegasafgift	S		0	0	100
+7780	Elafgift	S		0	0	100
+7800	Naturgas- og bygasafgift	S		0	0	100
+7810	Kulafgift	S		0	0	100
+7820	Vandafgift	S		0	0	100
+7830	Co2-afgift	S		0	0	100
+7840	Skyldig moms	S		0	0	100
+7860	Skyldig løn og gager	S		0	0	100
+7880	Skyldig bonus og tantieme	S		0	0	100
+7900	Skyldige feriepenge	S		0	0	100
+7920	Skyldig A-skat	S		0	0	100
+7940	Skyldigt AM-bidrag	S		0	0	100
+7960	Skyldigt ATP-bidrag	S		0	0	100
+7980	Skyldigt AMP-bidrag	S		0	0	100
+8000	Anden skyldig pension	S		0	0	100
+8040	Øvrig anden gæld	S		0	0	100
+8050	Anden gæld (kortfristet gæld)	Z		7590	0	100
+8051	Periodeafgrænsningsposter	H		0	0	100
+8070	Periodeafgrænsningsposter	S		0	0	100
+8080	Periodeafgrænsningsposter	Z		8070	0	100
+9950	Kortfristet gæld	Z		7310	0	100
+9999	PASSIVER I ALT 	Z		6510	0	100

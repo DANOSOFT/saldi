@@ -1,0 +1,1113 @@
+/* 
+    Document   : style
+    Created on : 19-09-2012, 14:43:09
+    Author     : per kringelbach & Malene Stahl Corneliussen
+    Description:
+        Purpose of the stylesheet follows.
+*/
+  
+/* Insert font family Montserrat */
+@font-face {
+  font-family: 'Montserrat';
+  src: url(../fonts/topmenu/montserrat-medium-webfont.woff2) format('woff2'),
+       url(../fonts/topmenu/montserrat-medium-webfont.woff) format('woff'),
+       url(../fonts/topmenu/Montserrat-Medium.ttf) format('tff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+*
+{
+    margin: 0px;
+    padding: 0px;
+}
+
+html 
+{
+    height: 100%;
+}
+
+body
+{
+    height: 100%;
+}
+
+a, img
+{
+    outline: none;
+}
+
+.right{float: right;}
+.left{float: left;}
+.bold{font-weight: bold;}
+.redText{color: red;}
+
+/*---------------------------------------------------*/
+/*             her starter header                    */
+
+#header
+{
+    width: 100%;
+    text-align: center;
+		overflow: hidden;
+    background-color: #1792A2;
+    color: white;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    padding: 10px;
+    min-width: 900px;
+    display: flex;
+    flex-direction: row;
+}
+
+#header2
+{
+    width: 980px;
+    margin: 0 auto;
+    height: 50px;
+    padding-bottom: 7px;
+    text-align: center;
+		overflow: hidden;
+}
+
+#headerLittleWindow {
+    width: 500px;
+}
+
+.headerTxt
+{
+    font-size: 20px;
+    text-align: center;
+    font-family: 'Exo', Tahoma, sans-serif;
+    text-transform: uppercase;
+    flex-grow: 10;
+    margin: 5px;
+    font-weight: 1000;
+}
+.headerbtnRght
+{
+    flex-grow: 0;
+    text-align: right;
+    margin: 8px 10px 0px 0px;
+}
+
+.headerbtnLft
+{
+    flex-grow: 0;
+    text-align: left;
+    margin: 8px 0px 0px 10px;
+}
+
+/*-----------------------------------------------*/
+/*              Pop-up Little Window             */
+
+#headerSmallWindow
+{
+    min-width: 500px;
+    height: 30px;
+    padding-bottom: 7px;
+    padding-top: 10px;
+    text-align: center;
+        overflow: hidden;
+}
+
+.headerLittleTxt
+{
+    margin: 20px 12px 0px 0px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #5d5d5d;
+    background-color: #ffffff;
+    text-align: center;
+}
+.headerLittlebtnRght
+{
+    float: right;
+    margin: 15px 12px 0px 0px;
+    width: 100px;
+    height: 25px;
+}
+.headerLittlebtnLft
+{
+    float: left;
+    margin: 15px 12px 0px 0px;
+    width: 100px;
+    height: 25px;
+}
+
+.littleWindowTxt {
+    padding-top: 200px;
+}
+
+a.littleWindowLink:link, a.littleWindowLink:visited {
+    text-decoration: none;
+    padding: 10px;
+    background: #EEEDF0;
+    color: #000;
+    border: 1px solid #E1DAF0;
+}
+
+a.littleWindowLink:hover, a.littleWindowLink:active {
+    text-decoration: none;
+    color: #383838;
+}
+
+/*-----------------------------------------------------*/
+/* her er style til hovedindhold der fylder hele siden */
+.maincontentLargeHolder
+{
+    padding:0px 5px 5px;   
+    margin: auto;
+    display: flex;
+    justify-content: center;
+}
+
+.maincontentLarge
+{
+    width: 100%;  
+    float: left;  
+    margin-bottom: 10px;
+
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    box-sizing: border-box;
+    
+}
+
+.maincontentLarge hr
+{
+    border: 0 none;
+    color: lightgray;
+    background-color: lightgray;
+    height: 1px;
+    margin: 9px 0px;
+}
+
+.contentLarge
+{
+    padding: 5px 12px;  
+    overflow: hidden;
+}
+
+.contentLarge hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 4px 0px;
+}
+
+.rightContent
+{
+		margin-left: 156px;
+}
+/*-------------------------------------*/
+/*      her er style til tables        */
+
+ /*
+table {
+	font-family: Montserrat, Arial, sans-serif;
+	font-size: 10pt;
+    background-color: #000;
+ }
+
+
+.dataTable 
+{
+    width: 90%;
+    table-layout: fixed;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+		font-family: Arial, Helvetica, sans-serif;
+		font-size: 10pt;
+}
+
+.dataTable thead th
+{
+    padding: 5px 0;
+    text-indent: 20px;
+    background-color: lightgray;
+    white-space:nowrap;
+}
+
+.dataTable thead th.header { 
+    background-image: url(../img/bg.gif);     
+    cursor: pointer;   
+    background-repeat: no-repeat; 
+    background-position: center right; 
+    padding-right: 20px; 
+    border-right: 1px solid #fff;      
+} 
+
+.dataTable thead th.header:last-child {
+    border-right: none;
+}
+
+.dataTable thead th.headerSortUp { 
+    background-image: url(../img/asc.gif); 
+    color:#0085cf;
+    text-decoration: underline;
+} 
+
+.dataTable thead th.headerSortDown { 
+    background-image: url(../img/desc.gif); 
+    color:#0085cf;
+    text-decoration: underline;
+} 
+
+.dataTable thead th a
+{
+    color: #333;
+    font-weight: bold;
+    text-decoration: underline; 
+    outline:none;
+}
+
+.dataTable thead th a:hover
+{
+    color:#0085cf;
+}
+
+.dataTable thead td
+{
+    padding: 5px 7px;
+    background-color: #f2f2f2;
+}
+
+.dataTableFirst td:first-child 
+{
+    -moz-border-top-left-radius: 5px;
+    -webkit-border-top-left-radius:5px;
+    border-top-left-radius:5px;
+}
+
+.dataTableFirst td:last-child 
+{
+    -moz-border-top-right-radius: 5px;
+    -webkit-border-top-right-radius:5px;
+    border-top-right-radius:5px;
+}
+
+.dataTableHeadBorder tr th
+{
+    border-right: 1px solid #fff;
+}
+
+.dataTableHeadBorder tr th:last-child
+{
+    border-right: none;
+}
+
+.dataTableNoSort tr th
+{
+    padding-right: -20px;
+    text-indent: 0px;
+    padding: 5px 7px;
+}
+
+.dataTable tbody tr td
+{
+    padding: 5px 7px;
+    white-space:nowrap;
+}
+
+.dataTableBody tr td
+{
+    padding: 5px 7px;
+    white-space:nowrap;
+}
+
+.dataTableBody tr td a
+{
+    display: block;
+    outline: none;
+    color: #444;
+    padding: 5px 7px;
+    margin: -5px -7px;
+    white-space:nowrap;
+}
+
+.dataTableBody tr td a:hover
+{
+    color: black;
+    background-color: #6FD1F7; 
+    
+}
+
+.dataTableBody tr td a:active
+{
+    color: black;
+    background-color: #00adee;
+}
+.dataTableBody tr:hover td
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+.dataTableBody tr:hover a
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.dataTableLink tr td a, .dataTableLink tr th a
+{
+    outline: none;
+    color: #444;
+    text-decoration: underline;
+}
+.dataTableLink tr td a:hover, .dataTableLink tr th a:hover
+{
+    color: black;
+}
+.dataTableLink tr td a:active, .dataTableLink tr th a:active
+{
+    color:#0085cf;
+}
+
+.dataTableSolidBorder tr td
+{
+    border-right: 1px solid lightgray;
+}
+
+.dataTableSolidBorder tr td:last-child
+{
+    border-right: none;
+}
+
+.dataTableTopBorder tr:first-child td
+{
+    border-top: 1px solid #F2F2F2;
+}
+
+.dataTableTopBorderGray tr:first-child td
+{
+    border-top: 1px solid lightgray;
+}
+
+.dataTableTopBorderBlack tr:first-child td
+{
+    border-top: 1px solid #444; 
+}
+.dataTableBorderBlack td
+{
+    border-top: 1px solid #444;
+}
+.borderGray{border-top:1px solid lightgray;}
+
+
+.dataTableZebra tr:nth-child(even)
+{
+    background:#F2F2F2;
+}
+
+
+.dataTableZebraBorder tr:nth-child(even) 
+{
+    background:#F2F2F2;  
+}
+
+.dataTableZebraBorder tr:nth-child(even) td
+{
+    border-right: 1px solid #fff;
+}
+
+.dataTableZebraBorder tr:nth-child(even) td:nth-last-child(-n+2)
+{
+    border-right: none;
+}
+
+.dataTableZebraBorder tr:nth-child(odd) td
+{
+    border-right: 1px solid #F2F2F2;
+}
+
+.dataTableZebraBorder tr:nth-child(odd) td:nth-last-child(-n+2)
+{
+    border-right: none;
+}
+
+.dataTableZebraBorderAll tr:nth-child(even) 
+{
+    background:#F2F2F2;  
+}
+
+.dataTableZebraBorderAll tr:nth-child(even) td
+{
+    border-right: 1px solid #fff;
+}
+
+.dataTableZebraBorderAll tr:nth-child(even) td:last-child
+{
+    border-right: none;
+}
+
+.dataTableZebraBorderAll tr:nth-child(odd) td
+{
+    border-right: 1px solid #F2F2F2;
+}
+
+.dataTableZebraBorderAll tr:nth-child(odd) td:last-child
+{
+    border-right: none;
+}
+
+.alignRight
+{
+    text-align: right;
+}
+.alignRightTwoLeft
+{
+    text-align: right;
+}
+.alignRightTwoLeft tr td:nth-child(-n+2)
+{
+    text-align: left;
+}
+
+.dataTable2
+{
+    width: 980px;
+    margin: 0 auto;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+    margin-top: 10px;
+}
+
+.dataTable2 thead th
+{
+    padding: 5px 0;
+    background-color: lightgray;
+}
+
+.dataTable2 tbody tr td
+{
+    padding: 5px 7px;            
+}
+
+.dataTable2 tbody tr ul
+{
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dataTable2 tbody tr ul li
+{
+    padding: 5px 7px;
+    margin: 0px -7px;
+}
+
+.dataTable2 tbody tr ul li:nth-child(even)
+{
+    background:#F2F2F2; 
+}
+
+.dataTable3
+{
+    width: 100%;
+    min-width: 980px;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+}
+.dataTable3 thead th
+{
+    padding: 5px 0;
+    background-color: lightgray;
+}
+.dataTable3 thead tr td
+{
+    padding: 5px 7px;            
+}
+.dataTable3 tbody tr td
+{
+    padding: 0px 7px;            
+}
+*/
+
+/* animation og glow på inputfelterne */
+input[type=text], input[type=checkbox], textarea, select {
+-webkit-transition: all 0.30s ease-in-out;
+-moz-transition: all 0.30s ease-in-out;
+-ms-transition: all 0.30s ease-in-out;
+-o-transition: all 0.30s ease-in-out;
+outline: none;
+background-color: #fff;
+border: 1px solid #DDDDDD;
+}
+
+input[type=text]:focus, input[type=checkbox]:focus, textarea:focus, select:focus {
+-moz-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+-webkit-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+
+border: 1px solid rgba(81, 203, 238, 1);
+}
+
+input[type="checkbox"]{/* rykker alle checkbox 2px ned */
+    margin-top: 2px;
+}
+.rightText{
+    float: right;
+    width: 198px; 
+}
+.rightTextLarge{
+    float: right;
+    width: 525px;
+}
+.rightTextXLarge{
+    float: right;
+    width: 800px;
+}
+.rightTextarea{
+    float: right; 
+    width: 538px;
+}
+.text {
+    width: 194px;
+}
+
+.textSmall{
+    float: left;
+    width: 50px;
+}
+
+.textXSmall{
+    width: 25px;
+}
+.textMedium{
+    float: left;
+    width: 136px;
+}
+
+.textMediumLarge{
+    float: left;
+    width: 170px;
+}
+.textLarge{
+    float: left;
+    width: 519px;
+}
+.textXLarge{
+    float: left;
+    width: 807px;
+}
+.textSpace{
+    margin-left: 6px;
+}
+.textSpaceLarge{
+    margin-left: 12px;
+}
+.clear{   
+    clear:both;   
+}
+.placeholder {color: #aaa;}
+.dataTable hr, .dataTable2 hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 0px -8px;
+}
+.dataTable3 hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 7px -8px;
+}
+/* style til input-field */
+.textinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    padding: 3px 0;  
+    font-size: 12px;
+}
+
+.textinputBefore
+{
+    width:100%;
+    color: #444;
+    text-indent: 3px;
+    padding: 3px 0;  
+    font-family: 'Montserrat', Tahoma, sans-serif;
+    font-size: 14px;
+}
+
+.selectinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    line-height: 15px;
+    padding: 2px 0;
+    font-size: 12px;
+}
+noindex:-o-prefocus, .selectinput {/* opera hack */
+    padding: 3px 0;
+}
+
+.textinputSimple
+{
+    width: 100%;
+    border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+    display: block;
+    margin: -2px -2px -2px -3px;
+    padding: 2px 2px 2px 3px;
+}
+.textinputSmall
+{
+    width: 50px;
+    border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+    padding: 1px 0;
+}
+.selectinputSmall
+{
+    width: 40px;
+    border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+}
+noindex:-o-prefocus, .selectinputSmall {/* opera hack */
+    padding: 1px 0;
+}
+/*-------------------------------------*/
+/* her er style til knapperne på siden */
+
+.button {
+    display: inline-block;
+    zoom: 1; /* zoom and *display = ie7 hack for display:inline-block */
+    vertical-align: baseline;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 5px;
+}
+
+.button:hover {
+    text-decoration: none;
+}
+
+.button:active {
+    position: relative;
+    top: 1px; 
+}
+
+.medium {
+    font-size: 13px;
+    padding: 6px 10px;
+}
+.small {
+    font-size: 13px;
+    padding: 6px 10px 6px;
+}
+.smallRound {
+    font-size: 11px;
+    padding: 3px 4px 3px;
+    -webkit-border-radius: 50%; 
+    -moz-border-radius: 50%;
+    border-radius: 50%;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner*/
+}
+
+.widebtn {
+    width:100%;
+}
+
+/* blue */
+.blue, .blue:link, .blue:visited {
+    color: #fff;
+    border: solid 1px #18689b;
+    background: rgb(28,124,185);
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+}
+
+.blue:hover {
+    color: #fff;
+    border: solid 1px #155e8d;
+    background: rgb(24,104,155);
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+.blue:active {
+    color: #fff;
+    border: solid 1px #155e8d;
+    background: rgb(24,104,155);
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+/* gray */
+.gray, .gray:link, .gray:visited {
+    color: white;
+    border: solid 1px #666;
+    background: #6e6e6e;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+}
+
+.gray:hover {
+    color: white;
+    border: solid 1px #555;
+    background: #5d5d5d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+.gray:active {
+    color: white;
+    border: solid 1px #555;
+    background: #5d5d5d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+/* white */
+.white, .white:link, .white:visited {
+    color: black;
+    border: solid 1px #d5d5d5;
+    background: #fff;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+}
+
+.white:hover {
+    color: black;
+    background: #ddd;
+    border: solid 1px #c4c4c4;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+.white:active {
+    color: black;
+    background: #ddd;
+    border: solid 1px #c4c4c4;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+/* orange */
+.orange, .orange:link, .orange:visited {
+    color: white;
+    border: solid 1px #da7c0c;
+    background: #f78d1d;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+}
+
+.orange:hover {
+    color: white;
+    background: #f47c20;
+    border: solid 1px #d6630b;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+.orange:active {
+    color: white;
+    background: #f47c20;
+    border: solid 1px #d6630b;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+/* red */
+.red, .red:link, .red:visited {
+    color: white;
+    border: solid 1px #c9191f;
+    background: #d81b21;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+}
+.red:hover {
+    color: white;
+    border: solid 1px #ab151a;
+    background: #ba171c;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+.red:active {
+    color: white;
+    border: solid 1px #ab151a;
+    background: #ba171c;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+/* rosy */
+.rosy, .rosy:link, .rosy:visited {
+    color: white;
+    border: solid 1px #d74a5a;
+    background: #da5867;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+}
+
+.rosy:hover {
+    color: white;
+    border: solid 1px #d12e41;
+    background: #d43c4e;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+.rosy:active {
+    color: white;
+    border: solid 1px #d12e41;
+    background: #d43c4e;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+/* green */
+.green, .green:link, .green:visited {
+    color: #fff;
+    border: solid 1px #69962d;
+    background: #72A331;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+}
+.green:hover {
+    color: #fff;
+    border: solid 1px #608929;
+    background: #69962d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+.green:active {
+    color: #fff;
+    border: solid 1px #608929;
+    background: #69962d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+}
+
+@-moz-document url-prefix(http://) { /* fjerner den padding som firefox har sat på button */
+    button::-moz-focus-inner, input[type="button"]::-moz-focus-inner, input[type="submit"]::-moz-focus-inner, input[type="reset"]::-moz-focus-inner {
+        padding: 0px !important;
+    border: 0px none !important;
+}
+}
+
+.checkmark{
+    display:block;
+    width: 16px;
+    height: 16px;
+    float: left;
+    background-repeat: no-repeat;
+    background-image: url('../img/check_mark.png');
+}
+.checkmark:hover{
+    background-image: url('../img/check_mark_hover.png');
+}
+.checkmark:active{
+    background-image: url('../img/check_mark_active.png');
+}
+.xmark{
+    display:block;
+    width: 16px;
+    height: 16px;
+    float: left;
+    background-repeat: no-repeat;
+    background-image: url('../img/x_mark.png');
+}
+.xmark:hover{
+    background-image: url('../img/x_mark_hover.png');
+}
+.xmark:active{
+    background-image: url('../img/x_mark_active.png');
+}
+/*---------------------------------------------------*/
+/*                 footer                            */
+#footer
+{
+    text-align: center;
+    width:100%;
+    height:30px;
+    line-height: 30px;
+    vertical-align: middle;
+    overflow:hidden;
+}
+div.vindue  {
+    flex-wrap: wrap;
+    display: flex;
+    justify-content: center;
+    align-content: top;
+    position:relative;
+	top: 0px;
+	left: 0px;
+	height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: auto;
+}
+
+/*Normal links styling*/
+
+a:link, a:visited {
+    color: #304c93;
+    text-decoration: underline;
+}
+
+a:hover, a:active {
+    color: #74707c;
+    text-decoration: none;
+}
+
+/* Style til tables */
+
+/* Overskrift */
+.tableHeader {
+    font-size: 11pt;
+    font-weight: bold;
+    background: lightgrey;
+    color: black;
+}
+
+/* Under overskrift */
+.tableText {
+    font-size: 10pt;
+    font-weight: bold;
+}
+
+/*Underunder ovskrift*/
+.tableTexting {
+    font-size: 10pt;
+}
+
+/*Underunder ovskrift*/
+.tableTexting2 {
+    font-size: 10pt;
+}
+
+hr.hrtd {
+    border: 0px solid #fff;
+    background: #000000;
+    width: 99%;
+}
+
+td.tdhr {
+    text-align: center;
+}
+
+.importerAdresser {
+    width: 1000px;
+    overflow-x: auto;
+    white-space: nowrap;
+}

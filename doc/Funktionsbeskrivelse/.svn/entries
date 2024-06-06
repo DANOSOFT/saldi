@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="1"
+   name=""
+   committed-date="2006-03-14T14:26:35.837127Z"
+   url="http://lue.dk/svn/saldi/trunk/doc/Funktionsbeskrivelse"
+   last-author="bl"
+   kind="dir"
+   uuid="1132dd7b-f30e-0410-8cb5-98fd4e5af904"
+   repos="http://lue.dk/svn/saldi"
+   revision="124"/>
+<entry
+   committed-rev="1"
+   name="varemodtagelse.txt"
+   text-time="2006-10-03T10:40:36.000000Z"
+   committed-date="2006-03-14T14:26:35.837127Z"
+   checksum="206f2fddb3ac3308cc0f1e73afa0cf51"
+   last-author="bl"
+   kind="file"
+   prop-time="2006-10-03T10:40:36.000000Z"/>
+<entry
+   committed-rev="1"
+   name="kreditering.txt"
+   text-time="2006-10-03T10:40:36.000000Z"
+   committed-date="2006-03-14T14:26:35.837127Z"
+   checksum="47e1d602338e50aa07f8ca30879e5a39"
+   last-author="bl"
+   kind="file"
+   prop-time="2006-10-03T10:40:36.000000Z"/>
+<entry
+   committed-rev="1"
+   name="afdelinger_lagre.txt"
+   text-time="2006-10-03T10:40:36.000000Z"
+   committed-date="2006-03-14T14:26:35.837127Z"
+   checksum="d573853085c1bb806b92d755312e014e"
+   last-author="bl"
+   kind="file"
+   prop-time="2006-10-03T10:40:36.000000Z"/>
+</wc-entries>

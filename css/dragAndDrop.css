@@ -1,0 +1,14 @@
+/*
+
+*
+
+*/
+
+#dropZone {
+    width: 8px;
+    height: 3px;
+    border: 1px dashed #ccc;
+    text-align: center;
+    padding: 5px;
+    margin: 5px;
+}

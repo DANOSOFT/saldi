@@ -1,0 +1,1648 @@
+/* 
+    Document   : style
+    Created on : 15-03-2013, 14:15:00
+    Author     : per kringelbach
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+*
+{
+    margin: 0px;
+    padding: 0px;
+}
+
+html 
+{
+    height: 100%;
+		overflow-y: scroll;
+}
+
+body
+{
+    font: normal 12px Arial, Helvetica, sans-serif;
+    color: #444;
+    height: 100%;
+}
+
+p
+{
+    font-size: 12px;
+    line-height: 18px;   
+}
+
+h1
+{
+    
+}
+
+h4
+{
+    font-size: 14px;
+    font-weight: bold;
+}
+
+img
+{
+    border: none;
+}
+#wrapper
+{
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+}
+
+#wrapper2
+{
+    margin: auto;
+    width: 980px;
+    height: 100%;
+    background-color: white;
+}
+
+.right{float: right;}
+.left{float: left;}
+.bold{font-weight: bold;}
+.redText{color: red;}
+/* her starter menuen */
+#menubarholder
+{
+    padding: 18px 0px 18px 0px; 
+		#background-color:lightcoral;
+}
+
+#menubar
+{
+    width: 978px; margin: auto;
+    height: 34px;
+    color: #e9e9e9;
+    border: solid 1px #555;
+    background: #6e6e6e;
+    background: -webkit-gradient(linear, left top, left bottom, from(#888), to(#575757));
+    background: -moz-linear-gradient(top,  #888,  #575757);
+    background: -ms-linear-gradient(top,  #888,  #575757);
+		background: -o-linear-gradient(top,  #888,  #575757);
+		background: linear-gradient(top,  #888,  #575757);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#888888', endColorstr='#575757');
+    
+    -moz-border-radius:4px;
+    -webkit-border-radius:4px;
+    border-radius:4px;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+    
+    -moz-box-shadow: 0px 3px 3px #cecece;
+    -webkit-box-shadow: 0px 3px 3px #cecece;
+    box-shadow: 0 3px 4px #8b8b8b;
+}
+
+.navbar
+{
+    width: 978px; /* skal ændres til 978px, hvis original søgebar bruges. Ny søgebar 778px */
+    display: table;
+    float: left;
+    table-layout: fixed;
+    text-align: center;
+    text-decoration: none;
+    height: 34px;
+    
+}
+
+ul.navbar {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: table;
+	
+}
+
+ul.navbar li {
+    display: table-cell;
+    margin: 0;
+    padding: 0;
+    border-right: 1px solid #5d5d5d;
+}
+
+ul.navbar li:last-child
+{
+    border-right: none;
+}
+
+ul.navbar li a {
+    
+    display: block;  
+    #height: 34px;
+    vertical-align: middle;
+    color: #d7d7d7;
+    vertical-align: baseline;
+    #margin: 0 2px;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font: 16px/100% Arial, Helvetica, sans-serif;
+    #padding: .55em 2em .55em;
+    padding: 9px;
+    text-shadow: 0 1px 1px rgba(0,0,0,.3);
+}
+
+ul.navbar li a:hover
+{
+    background: #616161;
+    background: -webkit-gradient(linear, left top, left bottom, from(#757575), to(#4b4b4b));
+    background: -moz-linear-gradient(top,  #757575,  #4b4b4b);
+    background: -ms-linear-gradient(top,  #757575,  #4b4b4b);
+		background: -o-linear-gradient(top,  #757575,  #4b4b4b);
+		background: linear-gradient(top,  #757575,  #4b4b4b);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#757575', endColorstr='#4b4b4b');
+}
+
+ul.navbar li:first-child a:hover, ul.navbar li:first-child a:active
+{
+    -moz-border-top-left-radius:4px;
+    -webkit-border-top-left-radius:4px;
+    border-top-left-radius:4px;
+		 border-top-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+    -moz-border-bottom-left-radius:4px;
+    -webkit-border-bottom-left-radius:4px;
+    border-bottom-left-radius:4px;
+		border-bottom-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+}
+
+ul.navbar li a:active
+{
+    color: #afafaf;
+    background: -webkit-gradient(linear, left top, left bottom, from(#575757), to(#888));
+    background: -moz-linear-gradient(top,  #575757,  #888);
+    background: -ms-linear-gradient(top,  #575757,  #888);
+		background: -o-linear-gradient(top,  #575757,  #888);
+		background: linear-gradient(top,  #575757,  #888);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#575757', endColorstr='#888888');
+}
+
+#menuActive 
+{
+    color: #afafaf;
+    background: -webkit-gradient(linear, left top, left bottom, from(#575757), to(#888));
+    background: -moz-linear-gradient(top,  #575757,  #888);
+    background: -ms-linear-gradient(top,  #575757,  #888);
+		background: -o-linear-gradient(top,  #575757,  #888);
+		background: linear-gradient(top,  #575757,  #888);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#575757', endColorstr='#888888');
+}
+
+ul.navbar li:first-child #menuActive 
+{
+		-moz-border-top-left-radius:4px;
+    -webkit-border-top-left-radius:4px;
+    border-top-left-radius:4px;
+		border-top-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+    -moz-border-bottom-left-radius:4px;
+    -webkit-border-bottom-left-radius:4px;
+    border-bottom-left-radius:4px;
+		border-bottom-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+}
+
+/* her starter header */
+#headerHolder
+{
+	  padding:0px 5px 0px;
+}
+#header
+{
+    width: 100%;
+    height: 45px;
+    padding-bottom: 7px;
+		
+    border-bottom: 1px solid lightgray;
+    #background-color: lightcoral;
+}
+
+.headerRght
+{
+    float: right;
+}
+
+.headerLft
+{
+		float: left;
+}
+
+.headerbtn
+{
+    float: right;
+    margin:5px 12px 0px 0px;
+}
+
+.headerMM
+{
+		float: left;
+    margin:5px 0px 0px 12px;
+}
+/* her starter style til breadcrumb */
+
+#breadcrumbbar
+{
+    #width: 100%; #padding:0px 5px 0px;
+    #height: 30px;
+    #border-top: 1px solid lightgray;
+}
+
+#breadcrumb {
+    font: 10px Arial, Helvetica, sans-serif;
+    background-repeat:repeat-x;
+    height:30px;
+    line-height:30px;
+    color:#888;
+    #border-top: 1px solid lightgray;
+    #border-bottom: 1px solid lightgray;
+    width:100%;
+    overflow:hidden;
+    margin:0px;
+    padding:0px;
+}
+
+#breadcrumb li {
+    list-style-type:none;
+    padding-left:10px;
+    display:inline-block;
+    float:left;
+}
+
+#breadcrumb a {
+    display:inline-block;
+    background-image:url('../img/separator.png'); 
+    background-repeat:no-repeat; 
+    background-position:right;
+    padding-right: 15px;
+    text-decoration: none;
+    color:#333333;
+    outline:none;
+}
+
+.home {
+    border:none;
+    margin: 7px 0px;
+}
+.help {
+    background-image: none;
+}
+#breadcrumb a:hover {
+    color:#0085cf;
+}
+
+/* her slutter breadcrumb */
+/*-----------------------------------------------------*/
+/* her er style til hovedindhold der fylder hele siden */
+.maincontentLargeHolder
+{
+    padding:0px 5px 5px;
+}
+
+.maincontentLarge
+{
+    width: 100%;  
+    float: left;  
+    #margin-top: 31px;
+    margin-bottom: 10px;
+
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    box-sizing: border-box;
+    
+}
+
+.maincontentLarge hr
+{
+    border: 0 none;
+    color: lightgray;
+    background-color: lightgray;
+    height: 1px;
+    margin: 9px 0px;
+}
+
+.contentLarge
+{
+    padding: 5px 12px;  
+    overflow: hidden;
+    #background-color: #da7c0c;
+}
+
+.contentLarge hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 4px 0px;
+}
+
+.rightContent
+{
+		margin-left: 156px;
+}
+
+.ganttcontent
+{
+		padding: 5px;
+}
+
+/*-------------------------------------------------*/
+/*      her er style til planlaeg beregning        */
+
+.skemacontent
+{
+		padding: 5px;
+		overflow: hidden;
+}
+.skemadato
+{
+		display: none;
+}
+
+.skematable 
+{
+	 width: 100%;
+	 border-collapse: collapse;
+}
+
+.skematable th
+{
+		border: 1px solid #D0D0D0;
+		padding: 5px;
+}
+.skematable td
+{
+		border: 1px solid #D0D0D0;
+		padding: 5px;
+}
+
+/*-------------------------------------*/
+/*      her er style til tables        */
+
+table {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+ }
+
+.dataTable 
+{
+    width: 100%;
+		float: left;
+    #min-width: 980px;
+    #table-layout: fixed; /* skal være på for at text-overflow: ellipsis virker*/
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+		font-family: Arial, Helvetica, sans-serif;
+		font-size: 10pt;
+		margin-bottom: 10px;
+}
+
+.dataTable thead th
+{
+    padding: 5px 0;
+    text-indent: 20px;
+    background-color: lightgray;
+    
+    #overflow: hidden;
+    #white-space:nowrap;
+    #text-overflow: ellipsis;
+    #-o-text-overflow: ellipsis;
+    #-webkit-text-overflow: ellipsis;
+}
+
+.dataTable thead th.header { 
+    background-image: url(../img/bg.gif);     
+    cursor: pointer;   
+    background-repeat: no-repeat; 
+    background-position: center right; 
+    padding-right: 20px; 
+    border-right: 1px solid #fff;      
+} 
+
+.dataTable thead th.header:last-child {
+    #background-image: none;
+    #cursor: default;
+    border-right: none;
+}
+
+.dataTable thead th.headerSortUp { 
+    background-image: url(../img/asc.gif); 
+    #background-color: #3399FF;
+    color:#0085cf;
+    text-decoration: underline;
+} 
+
+.dataTable thead th.headerSortDown { 
+    background-image: url(../img/desc.gif); 
+    #background-color: #3399FF;
+    color:#0085cf;
+    text-decoration: underline;
+} 
+
+.dataTable thead th a
+{
+    color: #333;
+    font-weight: bold;
+    text-decoration: underline; 
+    outline:none;
+}
+
+.dataTable thead th a:hover
+{
+    color:#0085cf;
+}
+
+.dataTable thead td
+{
+    padding: 5px 7px;
+    background-color: #f2f2f2;
+}
+
+.dataTableFirst td:first-child 
+{
+    -moz-border-top-left-radius: 5px;
+    -webkit-border-top-left-radius:5px;
+    border-top-left-radius:5px;
+}
+
+.dataTableFirst td:last-child 
+{
+    -moz-border-top-right-radius: 5px;
+    -webkit-border-top-right-radius:5px;
+    border-top-right-radius:5px;
+}
+
+.dataTableHeadBorder tr th
+{
+    border-right: 1px solid #fff;
+}
+
+.dataTableHeadBorder tr th:last-child
+{
+    border-right: none;
+}
+
+.dataTableHead
+{
+		background-color: lightgray;
+}
+
+.dataTableNoSort tr th
+{
+    padding-right: -20px;
+    text-indent: 0px;
+    padding: 5px 7px;
+}
+
+/*
+.dataTable tbody tr:nth-child(even) 
+{
+    background:#F2F2F2;  
+}
+
+.dataTable tbody tr:nth-child(even) td
+{
+    border-right: 1px solid #fff;
+}
+
+.dataTable tbody tr:nth-child(even) td:nth-last-child(-n+2)
+{
+    border-right: none;
+}
+
+.dataTable tbody tr:nth-child(odd) td
+{
+    border-right: 1px solid #F2F2F2;
+}
+
+.dataTable tbody tr:nth-child(odd) td:nth-last-child(-n+2)
+{
+    border-right: none;
+}
+*/
+
+.dataTable tbody tr td
+{
+    padding: 5px 7px;
+    
+    #overflow: hidden;
+    #white-space:nowrap;
+    #text-overflow: ellipsis;
+    #-o-text-overflow: ellipsis;
+    #-webkit-text-overflow: ellipsis;
+}
+/*
+.dataTable tbody tr td a
+{
+    display: block;
+    outline: none;
+    color: #444;
+    padding: 5px 7px;
+    margin: -5px -7px;
+    
+    #overflow: hidden;
+    white-space:nowrap;
+    #text-overflow: ellipsis;
+    #-o-text-overflow: ellipsis;
+    #-webkit-text-overflow: ellipsis;
+}
+
+.dataTable tbody tr td a:hover
+{
+    color: black;
+    background-color: #6FD1F7; 
+    
+}
+
+.dataTable tbody tr td a:active
+{
+    color: black;
+    background-color: #00adee;
+}
+.dataTable tbody tr:hover 
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+.dataTable tbody tr:hover a
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+*/
+.dataTableBody tr td
+{
+    padding: 5px 7px;
+    
+    #overflow: hidden;
+    #white-space:nowrap;
+    #text-overflow: ellipsis;
+    #-o-text-overflow: ellipsis;
+    #-webkit-text-overflow: ellipsis;
+}
+
+.dataTableBody tr td a
+{
+    display: block;
+    outline: none;
+    color: #444;
+    padding: 5px 7px;
+    margin: -5px -7px;
+    
+    #overflow: hidden;
+    #white-space:nowrap;
+    #text-overflow: ellipsis;
+    #-o-text-overflow: ellipsis;
+    #-webkit-text-overflow: ellipsis;
+}
+
+.dataTableBody tr td a:hover
+{
+    color: black;
+    background-color: #6FD1F7; 
+    
+}
+
+.dataTableBody tr td a:active
+{
+    color: black;
+    background-color: #00adee;
+}
+.dataTableBody tr:hover td
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+.dataTableBody tr:hover a
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.dataTableLink tr td a, .dataTableLink tr th a
+{
+    outline: none;
+    color: #444;
+    text-decoration: underline;
+}
+.dataTableLink tr td a:hover, .dataTableLink tr th a:hover
+{
+    color: black;
+}
+.dataTableLink tr td a:active, .dataTableLink tr th a:active
+{
+    color:#0085cf;
+}
+/* forskellige border til table */
+.dataTableSolidBorder tr td
+{
+    border-right: 1px solid lightgray;
+}
+
+.dataTableSolidBorder tr td:last-child
+{
+    border-right: none;
+}
+
+.dataTableTopBorder tr:first-child td /* skal sættes på en tbody */
+{
+    border-top: 1px solid #F2F2F2;
+}
+
+.dataTableTopBorderGray tr:first-child td /* skal sættes på en tbody */
+{
+    border-top: 1px solid lightgray;
+}
+.dataTableBottomBorderGray tr:first-child td /* skal sættes på en tbody */
+{
+    border-bottom: 1px solid lightgray;
+}
+.dataTableTopBorderBlack tr:first-child td /* skal sættes på en tbody */
+{
+    border-top: 1px solid #444; 
+}
+.dataTableBorderBlack td
+{
+    border-top: 1px solid #444;
+}
+.borderGray{border-top:1px solid lightgray;}
+
+/* zebra baggrund */
+.dataTableZebra tr:nth-child(even)
+{
+    background:#F2F2F2;
+}
+
+/* zebra baggrund med border */
+.dataTableZebraBorder tr:nth-child(even) 
+{
+    background:#F2F2F2;  
+}
+
+.dataTableZebraBorder tr:nth-child(even) td
+{
+    border-right: 1px solid #fff;
+}
+
+.dataTableZebraBorder tr:nth-child(even) td:nth-last-child(-n+2)
+{
+    border-right: none;
+}
+
+.dataTableZebraBorder tr:nth-child(odd) td
+{
+    border-right: 1px solid #F2F2F2;
+}
+
+.dataTableZebraBorder tr:nth-child(odd) td:nth-last-child(-n+2)
+{
+    border-right: none;
+}
+/*
+.dataTableZebraBorder tr td a
+{
+    display: block;
+    outline: none;
+    color: #444;
+    padding: 5px 7px;
+    margin: -5px -7px;
+    white-space:nowrap; 
+}
+
+.dataTableZebraBorder tr td a:hover
+{
+    color: black;
+    background-color: #6FD1F7; 
+    
+}
+
+.dataTableZebraBorder tr td a:active
+{
+    color: black;
+    background-color: #00adee;
+}
+*/
+.dataTableZebraBorderAll tr:nth-child(even) 
+{
+    background:#F2F2F2;  
+}
+
+.dataTableZebraBorderAll tr:nth-child(even) td
+{
+    border-right: 1px solid #fff;
+}
+
+.dataTableZebraBorderAll tr:nth-child(even) td:last-child
+{
+    border-right: none;
+}
+
+.dataTableZebraBorderAll tr:nth-child(odd) td
+{
+    border-right: 1px solid #F2F2F2;
+}
+
+.dataTableZebraBorderAll tr:nth-child(odd) td:last-child
+{
+    border-right: none;
+}
+.highlight {
+    background-color: #ccc !important;
+}
+.dragHandle {
+	#background-image: url(../img/updown2.gif);
+	#background-repeat: no-repeat;
+	#background-position: center center;
+	#cursor: move;
+}
+.showDragHandle {
+	background-image: url(../img/updown2.gif);
+	background-repeat: no-repeat;
+	background-position: center center;
+	cursor: move;
+}
+
+.alignRight
+{
+    text-align: right;
+}
+.alignRightTwoLeft
+{
+    text-align: right;
+}
+.alignRightTwoLeft tr td:nth-child(-n+2)
+{
+    text-align: left;
+}
+
+
+/* her styles til table med fixed bredde */
+
+.dataTable2
+{
+    width: 980px;
+    margin: 0 auto;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+}
+
+.dataTable2 thead th
+{
+    padding: 5px 0;
+    #text-indent: 20px;
+    background-color: lightgray;
+}
+
+.dataTable2 tbody tr td
+{
+    padding: 5px 7px;            
+}
+
+.dataTable2 tbody tr ul
+{
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dataTable2 tbody tr ul li
+{
+    padding: 5px 7px;
+    margin: 0px -7px;
+    
+}
+
+.dataTable2 tbody tr ul li a
+{
+   
+}
+.dataTable2 tbody tr ul li:nth-child(even)
+{
+    background:#F2F2F2; 
+}
+
+/* her er styles til visning af kontokort */
+.dataTable3
+{
+    width: 100%;
+    min-width: 980px;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+}
+.dataTable3 thead th
+{
+    padding: 5px 0;
+    background-color: lightgray;
+}
+.dataTable3 thead tr td
+{
+    padding: 5px 7px;            
+}
+.dataTable3 tbody tr td
+{
+    padding: 0px 7px;            
+}
+
+/* Style til kontrolskemaer */  
+.kontrolskema
+{
+	width:595px;
+	border-collapse:collapse;
+	text-align:left;
+}
+.kontrolskema td
+{
+	border:1px solid black;
+}
+.kontrolskema_liste
+{
+	border: 3px solid lightgray; 
+	#border: 3px solid rgb(180, 180, 255); 
+	padding: 0pt 0pt 1px;
+	text-align:left;
+}
+noindex:-o-prefocus, .kontrolskema, .kontrolskema_liste {/* opera hack */
+    text-align:left;
+}
+.kontrolskemaText
+{
+	height:14px;
+	min-width:279px;
+	width:100%;
+}
+.ordreText
+{
+	height:15px;
+	line-height: 1.2em;
+	padding-left: 3px;
+	#min-width:279px;
+	width:100%;
+	resize: none;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+}
+.kontrolskema_tegning
+{
+	height:75px;
+	#min-width:279px;
+	width:100%;
+	font: bold 12px Arial, Helvetica, sans-serif;
+  color: #cd3300 !important;
+}
+.kontrolskema_font
+{
+	font: normal 12px Arial, Helvetica, sans-serif;
+  color: #444;
+}
+.kontrol_status
+{
+		background: transparent;
+		width: 70px;
+		padding: 8px;
+		margin:-5px -7px;
+		font-size: 12px;
+		#text-align: center;
+		#display: block;
+		line-height: 1em;
+		border: 0;
+		border-radius: 0;
+		min-height: 30px;
+		height: 100%;
+		#box-sizing: padding-box;
+		appearance: none;
+		-o-appearance: none;
+		-ms-appearance: none;
+		-moz-appearance: none !important;/* 'none' virker ikke til mozilla. En workaround nedenunder */
+		-khtml-appearance: none;
+		-webkit-appearance: none;
+}
+@-moz-document url-prefix() { /* Firefox only */
+	.kontrol_status {
+		text-indent: 0.01px; /* flytter texten lidt til højre */
+		text-overflow: ''; /* (tom string) ændre alt som er udenfor elementet*/
+		font-size: 10px; /* font-size ændres så tekst ikke bliver klippet */
+	}
+}
+.kontrol_status::-ms-expand /* fjerner pilen i selectbox IE10 */
+{
+	display:none;
+}
+.textAreaSager
+{
+		#width: 100%;
+    #border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+		line-height: 1.2em;
+    #display: block;
+		resize: none;
+    margin: -2px -2px -2px -3px;
+    padding: 2px 2px 2px 3px;
+}
+.selectTextColor input[type=checkbox] + label {
+			color: #444;
+			#font-style: italic;
+		} 
+.selectTextColor input[type=checkbox]:checked + label {
+			color: #cd3300 !important;
+			#font-style: normal;
+		}
+		
+#printableFooter{display:none;}
+/*.arbejdsseddelFooter{margin:0 auto;width:595px;}
+	.arbejdsseddelFooter tr td{padding: 5px 7px;}*/
+.printIcon { 
+	margin: 7px 0px;
+	width: 16px;
+	height: 16px;
+	border: none;
+}
+/* style til table email kontrolskema */
+.tableMail {margin:10px 0 10px 0;}
+.tableMail tbody tr td {padding:0px;text-align:left;}
+.tableMailHead {background-color:lightgray;}
+.tableMailBorder {border-top: 1px solid lightgray; padding:4px 0 0 0;}
+.tableMailZebra tr:nth-child(even) td {background:#F2F2F2;}
+
+/* animation og glow på inputfelterne */
+.glow input[type=text], input[type=checkbox], textarea, select {
+-webkit-transition: all 0.30s ease-in-out;
+-moz-transition: all 0.30s ease-in-out;
+-ms-transition: all 0.30s ease-in-out;
+-o-transition: all 0.30s ease-in-out;
+outline: none;
+background-color: #fff;
+border: 1px solid #DDDDDD;
+}
+
+.glow input[type=text]:focus, input[type=checkbox]:focus, textarea:focus, select:focus {
+-moz-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+-webkit-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+
+border: 1px solid rgba(81, 203, 238, 1);
+#border: 1px solid #51CBEE;
+}
+
+select:focus, input[type=checkbox]:focus {
+    #outline: none;
+    
+}
+/*
+@-moz-document url-prefix(){
+	.noglow input[type=text], input[type=checkbox], textarea, select{
+		-webkit-box-shadow: none;
+		-moz-box-shadow: none;
+		box-shadow: none;
+		border-top:1px solid #7E7E7E !important;
+		border-bottom:1px solid #AEAEAE !important;
+		border-left:1px solid #7E7E7E !important;
+		border-right:1px solid #AEAEAE !important;
+		border-radius:3px !important;
+		#font-size:12px;
+	}
+}
+*/
+/*
+.noglow input[type=text], input[type=checkbox], textarea, select
+{
+	-webkit-box-shadow: none;
+	-moz-box-shadow: none;
+	box-shadow: none;
+	border: 1px solid lightgray;
+}
+*/
+input[type="checkbox"]{/* rykker alle checkbox 2px ned */
+    margin-top: 2px;
+}
+.rightText{
+    float: right;
+    width: 198px; 
+}
+.rightTextLarge{
+    float: right;
+    width: 525px;
+}
+.rightTextXLarge{
+    float: right;
+    width: 800px;
+}
+.rightTextarea{
+    float: right; 
+    width: 538px;
+}
+.text{
+    #float: right;
+    width: 194px;
+}
+
+.textSmall{
+    float: left;
+    width: 50px;
+}
+
+.textXSmall{
+    width: 25px;
+}
+.textMedium{
+    float: left;
+    width: 136px;
+}
+
+.textMediumLarge{
+    float: left;
+    width: 170px;
+}
+.textLarge{
+    float: left;
+    width: 519px;
+}
+.textXLarge{
+    float: left;
+    width: 807px;
+}
+.textSpace{
+    margin-left: 6px;
+}
+.textSpaceLarge{
+    margin-left: 12px;
+}
+.clear{   
+    clear:both;   
+}
+.placeholder {color: #aaa;}
+.dataTable hr, .dataTable2 hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 0px -8px;
+}
+.dataTable3 hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 7px -8px;
+}
+/* style til input-field */
+.textinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    padding: 3px 0;  
+    font-size: 12px;
+}
+.selectinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    line-height: 15px;
+    padding: 2px 0;
+    font-size: 12px;
+}
+noindex:-o-prefocus, .selectinput {/* opera hack */
+    padding: 3px 0;
+}
+
+.textinputSimple
+{
+    width: 100%;
+    border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+		line-height: 1em;
+    display: block;
+    margin: -2px -2px -2px -3px;
+    padding: 2px 2px 2px 3px;
+}
+.textinputSmall
+{
+    width: 50px;
+    border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+    padding: 1px 0;
+}
+.selectinputSmall
+{
+    width: 40px;
+    border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+}
+noindex:-o-prefocus, .selectinputSmall {/* opera hack */
+    padding: 1px 0;
+}
+
+.inputbox:disabled {
+		background-color: #ddd !important;
+		color: #222 !important;
+		/* så Safari vil vise textcolor når form er disabled */
+		-webkit-text-fill-color: #222; 
+		-webkit-opacity: 1;
+}
+select[disabled='disabled']::-ms-value {/* IE10 hack */
+    color: #222;
+}
+/*-------------------------------------*/
+/* her er style til knapperne på siden */
+
+.button {
+    display: inline-block;
+    zoom: 1; /* zoom and *display = ie7 hack for display:inline-block */
+    *display: inline;
+    vertical-align: baseline;
+    #margin-top:5px;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font: 14px/100% Arial, Helvetica, sans-serif;
+    padding: .5em 2em .55em;
+    text-shadow: 0 1px 1px rgba(0,0,0,.3);
+    -webkit-border-radius: .5em; 
+    -moz-border-radius: .5em;
+    border-radius: .5em;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    -moz-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+
+.button:hover {
+    text-decoration: none;
+}
+
+.button:active {
+    position: relative;
+    top: 1px; 
+}
+
+.medium {
+    font-size: 12px;
+    padding: .4em 1.5em .42em;
+}
+.small {
+    font-size: 11px;
+    padding: .2em 1em .275em;
+}
+.smallRound {
+    font-size: 11px;
+    padding: 3px 4px 3px;
+    -webkit-border-radius: 50%; 
+    -moz-border-radius: 50%;
+    border-radius: 50%;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner*/
+}
+
+.widebtn {
+    width:100%;
+}
+
+.italic {
+	  font-style:italic;
+}
+.bold {
+		font-weight:bold;
+}
+/* blue */
+.blue {
+    color: #d9eef7;
+    border: solid 1px #0076a3;
+    background: #0095cd;
+    background: -webkit-gradient(linear, left top, left bottom, from(#00adee), to(#0078a5));
+    background: -moz-linear-gradient(top,  #00adee,  #0078a5);
+    background: -ms-linear-gradient(top,  #00adee,  #0078a5);
+		background: -o-linear-gradient(top,  #00adee,  #0078a5);
+		background: linear-gradient(top,  #00adee,  #0078a5);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#00adee', endColorstr='#0078a5');
+}
+.blue:hover {
+    background: #007ead;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0095cc), to(#00678e));
+    background: -moz-linear-gradient(top,  #0095cc,  #00678e);
+    background: -ms-linear-gradient(top,  #0095cc,  #00678e);
+		background: -o-linear-gradient(top,  #0095cc,  #00678e);
+		background: linear-gradient(top,  #0095cc,  #00678e);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0095cc', endColorstr='#00678e');
+}
+.blue:active {
+    color: #80bed6;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0078a5), to(#00adee));
+    background: -moz-linear-gradient(top,  #0078a5,  #00adee);
+    background: -ms-linear-gradient(top,  #0078a5,  #00adee);
+		background: -o-linear-gradient(top,  #0078a5,  #00adee);
+		background: linear-gradient(top,  #0078a5,  #00adee);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0078a5', endColorstr='#00adee');
+}
+
+/* gray */
+.gray {
+    color: #e9e9e9;
+    border: solid 1px #555;
+    background: #6e6e6e;
+    background: -webkit-gradient(linear, left top, left bottom, from(#888), to(#575757));
+    background: -moz-linear-gradient(top,  #888,  #575757);
+    background: -ms-linear-gradient(top,  #888,  #575757);
+		background: -o-linear-gradient(top,  #888,  #575757);
+		background: linear-gradient(top,  #888,  #575757);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#888888', endColorstr='#575757');
+}
+.gray:hover {
+    background: #616161;
+    background: -webkit-gradient(linear, left top, left bottom, from(#757575), to(#4b4b4b));
+    background: -moz-linear-gradient(top,  #757575,  #4b4b4b);
+    background: -ms-linear-gradient(top,  #757575,  #4b4b4b);
+		background: -o-linear-gradient(top,  #757575,  #4b4b4b);
+		background: linear-gradient(top,  #757575,  #4b4b4b);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#757575', endColorstr='#4b4b4b');
+}
+.gray:active {
+    color: #afafaf;
+    background: -webkit-gradient(linear, left top, left bottom, from(#575757), to(#888));
+    background: -moz-linear-gradient(top,  #575757,  #888);
+    background: -ms-linear-gradient(top,  #575757,  #888);
+		background: -o-linear-gradient(top,  #575757,  #888);
+		background: linear-gradient(top,  #575757,  #888);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#575757', endColorstr='#888888');
+}
+
+/* white */
+.white {
+    color: #606060;
+    border: solid 1px #b7b7b7;
+    background: #fff;
+    background: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#ededed));
+    background: -moz-linear-gradient(top,  #fff,  #ededed);
+		background: -ms-linear-gradient(top,  #fff,  #ededed);
+		background: -o-linear-gradient(top,  #fff,  #ededed);
+		background: linear-gradient(top,  #fff,  #ededed);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#ededed');
+}
+.white:hover {
+    background: #ededed;
+    background: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#dcdcdc));
+    background: -moz-linear-gradient(top,  #fff,  #dcdcdc);
+		background: -ms-linear-gradient(top,  #fff,  #dcdcdc);
+		background: -o-linear-gradient(top,  #fff,  #dcdcdc);
+		background: linear-gradient(top,  #fff,  #dcdcdc);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#dcdcdc');
+}
+.white:active {
+    color: #999;
+    background: -webkit-gradient(linear, left top, left bottom, from(#ededed), to(#fff));
+    background: -moz-linear-gradient(top,  #ededed,  #fff);
+		background: -ms-linear-gradient(top,  #ededed,  #fff);
+		background: -o-linear-gradient(top,  #ededed,  #fff);
+		background: linear-gradient(top,  #ededed,  #fff);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ededed', endColorstr='#ffffff');
+}
+
+/* orange */
+.orange {
+    color: #fef4e9;
+    border: solid 1px #da7c0c;
+    background: #f78d1d;
+    background: -webkit-gradient(linear, left top, left bottom, from(#faa51a), to(#f47a20));
+    background: -moz-linear-gradient(top,  #faa51a,  #f47a20);
+		background: -ms-linear-gradient(top,  #faa51a,  #f47a20);
+		background: -o-linear-gradient(top,  #faa51a,  #f47a20);
+		background: linear-gradient(top,  #faa51a,  #f47a20);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#faa51a', endColorstr='#f47a20');
+}
+.orange:hover {
+    background: #f47c20;
+    background: -webkit-gradient(linear, left top, left bottom, from(#f88e11), to(#f06015));
+    background: -moz-linear-gradient(top,  #f88e11,  #f06015);
+		background: -ms-linear-gradient(top,  #f88e11,  #f06015);
+		background: -o-linear-gradient(top,  #f88e11,  #f06015);
+		background: linear-gradient(top,  #f88e11,  #f06015);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#f88e11', endColorstr='#f06015');
+}
+.orange:active {
+    color: #fcd3a5;
+    background: -webkit-gradient(linear, left top, left bottom, from(#f47a20), to(#faa51a));
+    background: -moz-linear-gradient(top,  #f47a20,  #faa51a);
+		background: -ms-linear-gradient(top,  #f47a20,  #faa51a);
+		background: -o-linear-gradient(top,  #f47a20,  #faa51a);
+		background: linear-gradient(top,  #f47a20,  #faa51a);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#f47a20', endColorstr='#faa51a');
+}
+
+/* red */
+.red {
+    color: #faddde;
+    border: solid 1px #980c10;
+    background: #d81b21;
+    background: -webkit-gradient(linear, left top, left bottom, from(#ed1c24), to(#aa1317));
+    background: -moz-linear-gradient(top,  #ed1c24,  #aa1317);
+		background: -ms-linear-gradient(top,  #ed1c24,  #aa1317);
+		background: -o-linear-gradient(top,  #ed1c24,  #aa1317);
+		background: linear-gradient(top,  #ed1c24,  #aa1317);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ed1c24', endColorstr='#aa1317');
+}
+.red:hover {
+    background: #b61318;
+    background: -webkit-gradient(linear, left top, left bottom, from(#c9151b), to(#a11115));
+    background: -moz-linear-gradient(top,  #c9151b,  #a11115);
+		background: -ms-linear-gradient(top,  #c9151b,  #a11115);
+		background: -o-linear-gradient(top,  #c9151b,  #a11115);
+		background: linear-gradient(top,  #c9151b,  #a11115);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#c9151b', endColorstr='#a11115');
+}
+.red:active {
+    color: #de898c;
+    background: -webkit-gradient(linear, left top, left bottom, from(#aa1317), to(#ed1c24));
+    background: -moz-linear-gradient(top,  #aa1317,  #ed1c24);
+		background: -ms-linear-gradient(top,  #aa1317,  #ed1c24);
+		background: -o-linear-gradient(top,  #aa1317,  #ed1c24);
+		background: linear-gradient(top,  #aa1317,  #ed1c24);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#aa1317', endColorstr='#ed1c24');
+}
+
+/* rosy */
+.rosy {
+    color: #fae7e9;
+    border: solid 1px #b73948;
+    background: #da5867;
+    background: -webkit-gradient(linear, left top, left bottom, from(#f16c7c), to(#bf404f));
+    background: -moz-linear-gradient(top,  #f16c7c,  #bf404f);
+		background: -ms-linear-gradient(top,  #f16c7c,  #bf404f);
+		background: -o-linear-gradient(top,  #f16c7c,  #bf404f);
+		background: linear-gradient(top,  #f16c7c,  #bf404f);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#f16c7c', endColorstr='#bf404f');
+}
+.rosy:hover {
+    background: #ba4b58;
+    background: -webkit-gradient(linear, left top, left bottom, from(#cf5d6a), to(#a53845));
+    background: -moz-linear-gradient(top,  #cf5d6a,  #a53845);
+		background: -ms-linear-gradient(top,  #cf5d6a,  #a53845);
+		background: -o-linear-gradient(top,  #cf5d6a,  #a53845);
+		background: linear-gradient(top,  #cf5d6a,  #a53845);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#cf5d6a', endColorstr='#a53845');
+}
+.rosy:active {
+    color: #dca4ab;
+    background: -webkit-gradient(linear, left top, left bottom, from(#bf404f), to(#f16c7c));
+    background: -moz-linear-gradient(top,  #bf404f,  #f16c7c);
+		background: -ms-linear-gradient(top,  #bf404f,  #f16c7c);
+		background: -o-linear-gradient(top,  #bf404f,  #f16c7c);
+		background: linear-gradient(top,  #bf404f,  #f16c7c);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#bf404f', endColorstr='#f16c7c');
+}
+
+/* green */
+.green {
+    color: #e8f0de;
+    border: solid 1px #538312;
+    background: #64991e;
+    background: -webkit-gradient(linear, left top, left bottom, from(#7db72f), to(#4e7d0e));
+    background: -moz-linear-gradient(top,  #7db72f,  #4e7d0e);
+    background: -ms-linear-gradient(top,  #7db72f,  #4e7d0e);
+		background: -o-linear-gradient(top,  #7db72f,  #4e7d0e);
+		background: linear-gradient(top,  #7db72f,  #4e7d0e);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#7db72f', endColorstr='#4e7d0e');
+}
+.green:hover {
+    background: #538018;
+    background: -webkit-gradient(linear, left top, left bottom, from(#6b9d28), to(#436b0c));
+    background: -moz-linear-gradient(top,  #6b9d28,  #436b0c);
+    background: -ms-linear-gradient(top,  #6b9d28,  #436b0c);
+		background: -o-linear-gradient(top,  #6b9d28,  #436b0c);
+		background: linear-gradient(top,  #6b9d28,  #436b0c);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#6b9d28', endColorstr='#436b0c');
+}
+.green:active {
+    color: #a9c08c;
+    background: -webkit-gradient(linear, left top, left bottom, from(#4e7d0e), to(#7db72f));
+    background: -moz-linear-gradient(top,  #4e7d0e,  #7db72f);
+    background: -ms-linear-gradient(top,  #4e7d0e,  #7db72f);
+		background: -o-linear-gradient(top,  #4e7d0e,  #7db72f);
+		background: linear-gradient(top,  #4e7d0e,  #7db72f);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#4e7d0e', endColorstr='#7db72f');
+}
+
+@-moz-document url-prefix(http://) { /* fjerner den padding som firefox har sat på button */
+    button::-moz-focus-inner, input[type="button"]::-moz-focus-inner, input[type="submit"]::-moz-focus-inner, input[type="reset"]::-moz-focus-inner {
+        padding: 0px !important;
+    border: 0px none !important;
+}
+}
+@-moz-document url-prefix(http://) { /* retter padding til ved a href */
+	.mozMedium {
+		padding: .44em 1.54em .49em !important;
+	}
+}
+.checkmark{
+    display:block;
+    width: 16px;
+    height: 16px;
+    float: left;
+    background-repeat: no-repeat;
+    background-image: url('../img/cross_mark.png');
+}
+.checkmark:hover{
+    background-image: url('../img/cross_mark_hover.png');
+}
+.checkmark:active{
+    background-image: url('../img/cross_mark_active.png');
+}
+.xmark{
+    display:block;
+    width: 16px;
+    height: 16px;
+    float: left;
+    background-repeat: no-repeat;
+    background-image: url('../img/x_mark.png');
+}
+.xmark:hover{
+    background-image: url('../img/x_mark_hover.png');
+}
+.xmark:active{
+    background-image: url('../img/x_mark_active.png');
+}
+
+/*-------------------------------------------------------------*/
+/*           Toggle switch til medarbejder-håndbog             */
+
+.onoffswitch {
+    position: relative; width: 45px; margin: 7px 15px 0 0;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+}
+
+.onoffswitch-checkbox {
+    display: none;
+}
+
+.onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border: 1px solid #999999; border-radius: 14px;
+}
+
+.onoffswitch-inner {
+    display: block; width: 200%; margin-left: -100%;
+    -moz-transition: margin 0.3s ease-in 0s; -webkit-transition: margin 0.3s ease-in 0s;
+    -o-transition: margin 0.3s ease-in 0s; transition: margin 0.3s ease-in 0s;
+}
+
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    display: block; float: left; width: 50%; height: 14px; padding: 0; line-height: 14px;
+    font-size: 10px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+    -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+}
+
+.onoffswitch-inner:before {
+    content: "ON";
+    padding-left: 8px;
+    background-color: #2FCCFF; color: #FFFFFF;
+}
+
+.onoffswitch-inner:after {
+    content: "OFF";
+    padding-right: 6px;
+    background-color: #EEEEEE; color: #999999;
+    text-align: right;
+}
+
+.onoffswitch-switch {
+    display: block; width: 14px; margin: 0px;
+    background: #FFFFFF;
+    border: 1px solid #999999; border-radius: 14px;
+    position: absolute; top: 0; bottom: 0; right: 29px;
+    -moz-transition: all 0.3s ease-in 0s; -webkit-transition: all 0.3s ease-in 0s;
+    -o-transition: all 0.3s ease-in 0s; transition: all 0.3s ease-in 0s; 
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px; 
+}
+
+/*-------------------------------------------------------*/
+/*           her er style til vandret søgebar            */
+.contentsoeg
+{
+    #margin: 10px 0px;
+		margin:10px 0 0 0;
+}
+
+.contentsoeg table
+{
+    margin: 5px 12px 0px;
+    /*border:1px solid #ccc;*/
+    /*border-collapse:collapse;*/ /* Virker ikke med 'border-radius', undtaget IE9?? */
+    border-spacing:0px; /* Bruges i stedet for 'border-collapse:colapse' */
+}
+
+.contentsoeg table th 
+{
+    padding: 5px 0; 
+}
+
+.contentsoeg table td 
+{
+    padding: 5px 7px; 
+}
+
+
+.contentsoeg table tr:first-child th:first-child /* Her vælges øverste venstre hjørne */
+{  
+	border-top-left-radius: 5px;
+	border-left:1px solid #ccc;
+	border-top:1px solid #ccc;
+}
+.contentsoeg table tr:first-child th:last-child /* Øverste højre hjørne */
+{
+	border-top-right-radius: 5px;
+	border-right:1px solid #ccc;
+	border-top:1px solid #ccc;
+}
+.contentsoeg table tr:last-child td:first-child /* Nederste venstre hjørne */
+{
+	border-bottom-left-radius: 5px;
+	border-left:1px solid #ccc;
+	border-bottom:1px solid #ccc;
+}
+.contentsoeg table tr:last-child td:last-child /* Nederste højre hjørne */
+{
+	border-bottom-right-radius: 5px;
+	border-right:1px solid #ccc;
+	border-bottom:1px solid #ccc;
+}
+.contentsoeg table td:first-child
+{
+		border-left: 1px solid #ccc;
+}
+.contentsoeg table td:last-child
+{
+		border-right: 1px solid #ccc;
+}
+.contentsoeg table tr th /* Øverste border*/
+{
+    border-top:1px solid #ccc;
+}
+.contentsoeg table tr:last-child td /* Nederste border */
+{
+    border-bottom:1px solid #ccc;
+}
+
+.contentsoeg th
+{
+    background-color:#ccc;
+}
+
+.dataTableNone tbody tr td {padding: 0px !important;}
+.tableBilagSagerHead {background-color:lightgray;}
+.tableBilagSagerBorder {border-top: 1px solid lightgray; padding:4px 0 0 0;}
+.tableBilagSagerZebra tr:nth-child(even) td {background:#F2F2F2;}
+
+.tableBilag {width:595px;border-collapse:collapse;}
+.tableBilagZebra tr:nth-child(even) td {background:#F2F2F2;}
+.tableBilagBorderTop {border-top: 1px solid lightgray;}
+.tableBilagBorderBottom {border-bottom: 1px solid lightgray;}
+
+/*---------------------------------------------------*/
+/*                 footer                            */
+#footer
+{
+    text-align: center;
+    width:100%;
+    height:30px;
+    line-height: 30px;
+    vertical-align: middle;
+    overflow:hidden;
+}
+div.vindue  {
+	position:relative;
+	top: 0px;
+	left: 0px;
+	height: 100%;
+	width: 100%;
+	overflow: auto;
+}

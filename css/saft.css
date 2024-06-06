@@ -1,0 +1,196 @@
+/* body {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+}
+table {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+} */
+form { margin-bottom: 0; } /* reset user agent */
+
+table.saftHeader,
+table.saftTable1,
+table.saftTable2,
+table.saftTable3 {
+    border-collapse: collapse;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 10px;
+}
+
+table.saftHeader td {
+    /* border: 1px solid black; */
+    padding: 0px 10px;
+}
+
+table.saftHeader tr:last-child td {
+    border-bottom: 2px solid #9a9a9a;
+    padding-bottom: 10px;
+}
+
+table.saftTable1 th, 
+table.saftTable2 th,
+table.saftTable3 th
+{
+    /* border: 1px solid black; */
+    padding: 5px 10px;
+}
+
+table.saftTable1 td, 
+table.saftTable2 td,
+table.saftTable3 td
+{
+    /* border: 1px solid black; */
+    padding: 5px 10px;
+}
+
+table.saftTable2 tr { 
+    border-bottom: 1px solid #9a9a9a;
+}
+
+table.saftTable2 tr td:last-child {
+    text-align: right;
+}
+
+table.saftTable1 td,
+table.saftTable2 td {
+    width: 25%;
+}
+
+.saftTitle {
+    width: 70%;
+    font-size: x-large;
+    font-weight: lighter;
+}
+
+.saftFirmName {
+    font-size: larger;
+    font-weight: bold;
+}
+
+#xmlFile {
+    display: none;
+    border: 1px solid #9a9a9a;
+    border-radius: 0.3em;
+}
+
+#xmlFile pre {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+}
+
+#standardKontoplan {
+    display: none;
+    border: 1px solid #9a9a9a;
+    border-radius: 0.3em;
+}
+
+table.kalender {
+    border-collapse: collapse;
+    /* width: 50%; */
+    /* text-align: center; */
+    margin-bottom: 10px;
+}
+
+table.kalender th {
+    border-top: 1px solid #2b2b2b;
+    border-bottom: 1px solid #2b2b2b;
+    padding: 5px 10px;
+    /* text-align: center; */
+}
+
+table.kalender td {
+    /* border: 1px solid black; */
+    padding: 5px 10px;
+    border-bottom: 1px solid #b2b2b2;
+}
+
+table.importxml, table.showxml {
+    width: 100%;
+}
+
+table.showxml tr:nth-child(even) {
+    background-color: #e0e0f0;
+}
+
+table.importxml tr td:first-child {
+    width: 20%;
+    white-space: nowrap;
+}
+
+table.importxml tr td {
+    padding-left: 10px;
+    /* border: 1px solid black; */
+}
+
+table.importxml tr td h3 {
+    padding-top: 5px;
+    /* border: 1px solid black; */
+}
+table.importxml tr td p {
+    padding: 15px 0;
+    /* border: 1px solid black; */
+}
+
+.mark {
+    background-color: #bebebe;
+    border-radius: 5px;
+    padding:1px 5px;
+}
+
+.rbButtonSpace {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 0px 10px;
+}
+
+/* Popup container */
+.popup {
+    display: inline-block;
+    position: fixed;
+    top: 25%;
+    left: 50%;
+}
+
+/* The actual popup */
+.popup .popuptext {
+    visibility: hidden;
+    display: inline-block;
+    white-space: nowrap;
+    background-color: #555;
+    color: #fff;
+    border-radius: 6px;
+    padding: 8px 8px;
+    z-index: 1;
+    position: relative;
+    left: -50%;
+}
+
+/* Toggle this class - hide and show the popup */
+.popup .show {
+    visibility: visible;
+    -webkit-animation: fadeIn 1s;
+    animation: fadeIn 1s;
+}
+
+/* Add animation (fade in the popup) */
+@-webkit-keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

@@ -1,0 +1,16 @@
+Bidragsydere til Saldi
+=====================================================================
+Saldi ejes af konsulentvirksomheden ITz ApS (http://www.itz.dk/).
+
+Hovedudvikler:
+  Peter Rude <peter@saldi.dk>
+    ITz ApS (http://www.itz.dk/)
+
+Koordinator og udvikler:
+  Claus Agerskov <ca@saldi.dk>
+    AgerCon v/Claus Agerskov (http://www.agercon.dk/)  
+
+=====================================================================
+Senest ændret 2006-01-19 af Claus Agerskov <ca@saldi.dk>
+
+© Saldi - http://www.saldi.dk/

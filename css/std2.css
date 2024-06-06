@@ -1,0 +1,121 @@
+body {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+}
+table {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 10pt;
+ }
+
+div.top_bund  {
+	background:url('../img/knap_bg.gif');
+	background-repeat:repeat;
+	border: 1px solid rgb(180, 180, 255);
+	height: 18px;
+	width: 100%;
+	margin-bottom: 0px;
+}
+div.luk {
+	position:relative;
+	top: 0px;
+	right: 1px;
+	font-size: 13px;
+	background:url('../img/luk.png');
+	background-repeat:no-repeat;
+	background-position:right;
+	height: 20px;
+	margin-bottom: 0px;
+}
+div.vindue  {
+	position:relative;
+	top: 0px;
+	left: 0px;
+	height: 100%;
+	width: 100%;
+	overflow: auto;
+}
+.inputbox {
+	margin-bottom: 1px;
+	padding: 1px 1px;
+	height: 20px;
+	border: 1px solid #DDDDDD;
+	background: #FFFFFF;
+}
+a.myButton {
+border:1px solid #ffffff;
+text-decoration:none;
+position:static;
+}
+ a.myButton:active {
+position:relative;
+top:+2px;
+left:+2px;
+}
+
+.italic {
+	  font-style:italic;
+}
+.bold {
+		font-weight:bold;
+}
+
+.CellWithComment{
+	position:relative;
+  }
+  
+ .CellComment{
+	display:none;
+	position:absolute; 
+	z-index:100;
+	border:1px;
+	background-color:#EEEEFF;
+	border-style:solid;
+	border-width:1px;
+	border-color:#AAAAFF;
+	padding:3px;
+	color:black; 
+	top:20px; 
+	left:20px;
+	width:auto;
+	min-width: 100px;
+	max-width: 500px;
+	text-align: left;
+ }
+  
+  .CellWithComment:hover span.CellComment{
+	display:block;
+ }
+
+ .expandable {
+  overflow: hidden;
+
+  transition: all .5s ease-in-out;
+  line-height: 0;
+  padding: 0 1em;
+  color: transparent;
+  height: 0;
+}
+ 
+.expandable:target {
+  line-height: 1.5;
+  padding-top: 1em;
+  padding-bottom: 1em;
+  color: black;
+  height: 50px;
+}
+ 
+.textareaBeholder {
+	margin-bottom: 5px;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+th {
+	text-align: left;
+}

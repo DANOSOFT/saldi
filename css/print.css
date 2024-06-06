@@ -1,0 +1,189 @@
+/* 
+    Document   : style
+    Created on : 19-06-2013, 10:15:00
+    Author     : per kringelbach
+    Description:
+        Style til print af html
+*/
+/*Size : 8.27in and 11.69 inches*/
+
+@media print {
+	
+	/*------------------------------------------------*/
+	/*                 style til all                  */
+	/*------------------------------------------------*/
+	
+	.page-break	{ display: block; page-break-before: always; }
+	.printDisplayNone{display:none;}
+	.printDisplayBlock{display:block;}
+	
+	/*::-webkit-input-placeholder { /* WebKit browsers */
+	/*		color: transparent;
+	}*/
+	/*:-moz-placeholder { /* Mozilla Firefox 4 to 18 */
+	/*		color: transparent;
+	}
+	::-moz-placeholder { /* Mozilla Firefox 19+ */
+	/*		color: transparent;
+	}
+	/*:-ms-input-placeholder { /* Internet Explorer 10+ */
+	/*		color: transparent;
+	}
+*/
+	
+	/*-------------------------------------------------*/
+	/* style til print af kontrolskema & arbejdsseddel */
+	/*-------------------------------------------------*/
+
+	.printHeadLineSkema {text-align:center;margin-bottom:10px;font-size:20px;}
+	#printableArea {width:100%;
+	/*
+	#size:8.27in 11.69in; 
+	#margin:.5in .5in .5in .5in; 
+	#mso-header-margin:.5in; 
+	#mso-footer-margin:.5in; 
+	#mso-paper-source:0;
+	*/
+	}
+	.textAreaSager{border:none;background:transparent;}
+	/*.kontrolskema{margin:0 auto;#width:100%;-webkit-print-color-adjust:exact;text-indent:4px;}*//* original */
+	/*.printtxt{text-indent:4px;}*//* original */
+	.kontrolskema{margin:0 auto;#width:100%;-webkit-print-color-adjust:exact;}
+	.printtxt{padding: 5px 7px;}
+	.printtxtbox{text-indent:4px;}
+	.printdate{white-space: nowrap;padding-right:2px;}
+	.printBorderNone{font-size: 12px;line-height: 18px;}
+	.printKontrolskematxt tr td{padding: 5px 7px;}
+	input[type="text"]{border:none;background:transparent;}
+	noindex:-o-prefocus, .kontrol_status {/* appearance virker ikke på opera, derfor fjernes style på select-box  */
+		display:none;
+	}
+	#printableFooter{display:block;}
+	.arbejdsseddelFooter{margin:0 auto;width:595px;}
+	.arbejdsseddelFooter tr td{padding: 5px 7px;}
+	
+	/*-------------------------------------------------*/
+	/*        style til print af lønafregning          */
+	/*-------------------------------------------------*/
+	
+	.loenafregning {-webkit-print-color-adjust:exact;font-size:11px;}
+	.printHeadline{#float:left;margin-bottom:10px;}
+	.printSelect{
+		font: normal 11px Arial, Helvetica, sans-serif;
+		border:none;
+		appearance: none;
+		-o-appearance: none;
+		-ms-appearance: none;
+		-moz-appearance: none !important;/* 'none' virker ikke til mozilla. En workaround nedenunder */
+		-khtml-appearance: none;
+		-webkit-appearance: none;
+	}
+	@-moz-document url-prefix() { /* Firefox only */
+		.printSelect {
+			text-indent: 0.01px; /* flytter texten lidt til højre */
+			text-overflow: ''; /* (tom string) ændre alt som er udenfor elementet*/
+			font-size: 10px; /* font-size ændres så tekst ikke bliver klippet */
+		}
+	}
+	.printSelect::-ms-expand /* fjerner pilen i selectbox IE10 */
+	{
+		display:none;
+	}
+	.printSelect::-ms-value /* laver textcolor om til sort IE10 */
+	{
+		color: #000;
+	}
+	.printHr{ border: 0 none;color: #444;background-color: #444;height: 1px;}
+	
+	/*--------------------------------------------------------------*/
+	/*        style til print af akkordliste sammentælling          */
+	/*--------------------------------------------------------------*/
+	
+	.printHeadLineAkkordliste{text-align:center;#margin-bottom:5px;font-size:20px;}
+	.printOpgAkkordliste{text-align:center;}
+	.printAkkordliste{margin:0 auto;#width:100%;-webkit-print-color-adjust:exact;}
+	
+	/*--------------------------------------------------------------*/
+	/*            style til print af lønindtastning                 */
+	/*--------------------------------------------------------------*/
+	
+	.loenindtastning {-webkit-print-color-adjust:exact;font-size:12px;}
+	.printSelect2{
+		font: normal 12px Arial, Helvetica, sans-serif;-webkit-print-color-adjust:exact;
+		background-color: #d3d3d3 !important;
+		border:none;
+		#color: #444;
+		appearance: none;
+		-o-appearance: none;
+		-ms-appearance: none;
+		-moz-appearance: none !important;/* 'none' virker ikke til mozilla. En workaround nedenunder */
+		-khtml-appearance: none;
+		-webkit-appearance: none;
+	}
+	@-moz-document url-prefix() { /* Firefox only */
+		.printSelect2 {
+			text-indent: 0.01px; /* flytter texten lidt til højre */
+			text-overflow: ''; /* (tom string) ændre alt som er udenfor elementet*/
+			font-size: 11px; /* font-size ændres så tekst ikke bliver klippet */
+		}
+	}
+	.printSelect2::-ms-expand /* fjerner pilen i selectbox IE10 */
+	{
+		display:none;
+	}
+	.printSelect2::-ms-value /* laver textcolor om til sort IE10 */
+	{
+		color: #000;
+	}
+	.printBorderRight {border-right: 1px solid #d3d3d3;padding-right: 1px;}
+	.printTextArea {-webkit-print-color-adjust:exact;border:none;background:transparent;resize: none;color: #000;background-color: #d3d3d3 !important;}
+	.printBg {-webkit-print-color-adjust:exact;text-indent: 4px;height: 17px;line-height: 1.2em;background-color: #d3d3d3 !important;}
+	
+	/*--------------------------------------------------------------*/
+	/*         style til print af planlægning beregning             */
+	/*--------------------------------------------------------------*/
+	
+	.skematable {-webkit-print-color-adjust:exact;}
+	.skematable th,td {font-size:12px;}
+	.printLink {text-decoration: none;color:#444;}
+	.skemadato {display:block;font-size:12px;color:#444;#font-weight:bold;margin:0 0 9px 6px;#float: right;}
+	
+	/*--------------------------------------------------------------*/
+	/*         style til print af sags information                  */
+	/*--------------------------------------------------------------*/
+	
+	.printSagInfo {-webkit-print-color-adjust:exact;}
+	.printHeadlineSagInfo {text-align:center;font-size:20px;}
+	.printSagsnrBox {width: 100% !important;margin-right:0px !important;float: none !important;}
+	.printSagsnr {display:block;float: right;}
+	.printSagsnrTxt {font-size:20px;padding-left: 10px;}
+	.printSagInfoTextArea {-webkit-print-color-adjust:exact;border:none;background:transparent;resize: none;color: #000;background-color: #d3d3d3 !important;font: normal 12px Arial, Helvetica, sans-serif;}
+	.printSagInfoText {border:none;background:transparent;font: normal 12px Arial, Helvetica, sans-serif !important;}
+	.printSagInfoIndent {text-indent: 3px !important;}
+	.printSagInfoBg {-webkit-print-color-adjust:exact;background-color: #d3d3d3 !important;}
+	.printSelect3{
+		font: normal 12px Arial, Helvetica, sans-serif;
+		border:none;
+		appearance: none;
+		-o-appearance: none;
+		-ms-appearance: none;
+		-moz-appearance: none !important;/* 'none' virker ikke til mozilla. En workaround nedenunder */
+		-khtml-appearance: none;
+		-webkit-appearance: none;
+	}
+	@-moz-document url-prefix() { /* Firefox only */
+		.printSelect {
+			text-indent: 0.01px; /* flytter texten lidt til højre */
+			text-overflow: ''; /* (tom string) ændre alt som er udenfor elementet*/
+			font-size: 11px; /* font-size ændres så tekst ikke bliver klippet */
+		}
+	}
+	.printSelect3::-ms-expand /* fjerner pilen i selectbox IE10 */
+	{
+		display:none;
+	}
+	.printSelect3::-ms-value /* laver textcolor om til sort IE10 */
+	{
+		color: #000;
+	}
+}

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="105"
+   name=""
+   committed-date="2006-06-26T14:04:58.038001Z"
+   url="http://lue.dk/svn/saldi/trunk/phpmailer/phpdoc"
+   last-author="ca"
+   kind="dir"
+   uuid="1132dd7b-f30e-0410-8cb5-98fd4e5af904"
+   repos="http://lue.dk/svn/saldi"
+   revision="124"/>
+<entry
+   name="media"
+   kind="dir"/>
+<entry
+   committed-rev="105"
+   name="errors.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="87e4a50939a70292995198ff2d98bab3"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:25.000000Z"/>
+<entry
+   name="PHPMailer"
+   kind="dir"/>
+<entry
+   committed-rev="105"
+   name="packages.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="729e5a65e8467cda2b1c8e1ed16dc0cf"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:27.000000Z"/>
+<entry
+   committed-rev="105"
+   name="elementindex.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="8152927c0a7a86acfbdcec95235716c7"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:27.000000Z"/>
+<entry
+   committed-rev="105"
+   name="elementindex_PHPMailer.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="fb4a6e2e83db36be308dff440d72f47c"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:27.000000Z"/>
+<entry
+   committed-rev="105"
+   name="li_PHPMailer.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="a590a2cc3cbf419b34c5c1c9aa808781"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:27.000000Z"/>
+<entry
+   committed-rev="105"
+   name="index.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="679ed4050cdfe55b7e17cb39ffd167ec"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:27.000000Z"/>
+<entry
+   committed-rev="105"
+   name="blank.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="0ba50e9b56a6c09f6871bb6e67e1ed44"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:27.000000Z"/>
+<entry
+   committed-rev="105"
+   name="classtrees_PHPMailer.html"
+   text-time="2006-10-03T10:40:27.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="af643fd802d65b6afcefafbc96b4103c"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:27.000000Z"/>
+</wc-entries>

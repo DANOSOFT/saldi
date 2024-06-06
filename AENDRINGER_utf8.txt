@@ -1,0 +1,167 @@
+Ændringer foretaget i SALDI fra og med 3.0.0 
+=============================================================================
+
+Her listes ændringer i kildekoden til SALDI, som er foretaget siden skiftet
+til den nye hovedversionsnummer 3.0 startende med 3.0.0. Tidligere ændringer 
+ses i filerne GAMLE_AENDRINGER_lat1.txt og GAMLE_AENDRINGER_utf8.txt i 
+henholdsvis tegnsættene ISO 8859-1 (Latin 1) og UTF-8.
+
+==============================================================================
+Nyt i 3.1.3 - 2011-02-09
+==============================================================================
+
+I rabatgrupper kan vælges mellem % eller stk/antal.
+
+Mulighed for på ordrelisten at fremhævet ordrer med mangler med farvenuance. 
+Sættes under Systemdata - Indstillinger - Diverse - Personlige valg.
+Når en nuance er valgt, så vises ordre, hvor blot fakturering eller bogføring 
+mangler, men en svagere tekstfarve. Alt dette kan give et bedre overblik ved 
+mange ordre.
+
+Hvis ordre har manglende levering/modtagelse/returnering fremhæves feltet med 
+gult. Det er de samme ordre, som fremhæves på ordrelisten. 
+
+
+
+==============================================================================
+Nyt i 3.1.2 - 2011-01-31
+==============================================================================
+
+Listeanvisning under Finans - Rapport til indberetning til SKAT både som 
+kommasepareret fil og data til udfyldelse af papirblanket.
+
+Import af kassekladder med bilagsnumre.
+
+Kopiere enkelt felt til mange felter i samme kolonne med => og <=
+
+Indlæsning af egne skabeloner/formularer ved oprettelse af regnskab. Filen 
+skal hedde egen_formular.txt og ligge i kataloget importfiler. Udseendet kan 
+ses af filen formular.txt, som er standardskabelonerne/-formularerne.
+
+Flytte ordrelinjer til en anden placering ved brug af decimaltal med maksimalt
+tre decimaler. Ændr Pos 3 og 4 til 1,2 og 1,3, så de kommer mellem Pos 1 og 2.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.1.1 - 2011-01-02
+==============================================================================
+
+Genfakturering nu med alle de nye ordrer til genfakturering i en lang liste.
+
+Lageroptælling med stregkodescanner eller indtastning af varenummer.
+
+Indlæsning af egen kontoplan ved oprettelse af regnskab. Filen skal hedde 
+egen_kontoplan.txt og ligge i kataloget importfiler. Udseendet kan ses af 
+filen kontoplan.txt, som er standardkontoplanen.
+
+Indlæsning af egne grupper ved oprettelse af regnskab. Filen skal hedde
+egne_grupper.txt og ligge i kataloget importfiler. Udseendet kan ses af
+filen grupper.txt, som er de grupper, der oprettes som standard.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.8 - 2010-11-25
+==============================================================================
+
+Forbedret hentning af data til kassekladden.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.7 - 2010-10-13
+==============================================================================
+
+Varemenuer i kasseterminalen.
+
+Selvvalgt baggrundsfarve.
+
+Forbedret design eksempelvis menu til venstre under Systemindstillinger.
+
+Import af prisfil fra Solar.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.6 - 2010-10-05
+==============================================================================
+
+Mulighed for at projektnumre kan indholde bogstaver.
+
+Forbedret FIFO-håndtering af lager.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.5 - 2010-07-15
+==============================================================================
+
+Håndtering af lager efter FIFO-princippet (først ind - først ud).
+
+Mulighed for at slette et sprog under formularer.
+
+Mulighed for at afslutte handel ved sum på 0,00 eksempelvis brug af gavekort.
+
+Diverse mindre forbedringer og rettelser.
+
+
+==============================================================================
+Nyt i 3.0.4 - 2010-07-03
+==============================================================================
+
+Diverse mindre rettelser.
+
+
+==============================================================================
+Nyt i 3.0.3 - 2010-06-01
+==============================================================================
+
+Angivelse af varebeholdning under varekort.
+
+
+==============================================================================
+Nyt i 3.0.2 - 2010-05-31
+==============================================================================
+
+Vejledningstekst på overskriften Valgbar ved tilpasning af debitorliste.
+Overskrifter på regnskab og budget med måned og år: Jan'10 i stedet for MD_1.
+Indtast timer og minutter som antal på en debitorordre. 5:15 bliver til 5,25.
+Beskrivelse og telefonnumre m.v. på kontakter under historik.
+Antal posteringer for det seneste år vises under Finansrapporter.
+
+==============================================================================
+Nyt i 3.0.1 - 2010-05-21
+==============================================================================
+
+Udsende kontoudtog via mail med oplysning om afsendervirksomhed og betaling
+Ændringsfilerne nu opdelt ved SALDI 3.0.0 og tidligere
+Mulighed for indtastning af vareantal ved oprettelse af ordrelinje
+Rettelse af valutafejl ved kreditering af leverandørordre
+ 
+==============================================================================
+Nyt i 3.0.0 - 2010-05-17
+==============================================================================
+
+Se seneste 5 modposteringer i kassekladden ved klik på modpostfeltet
+Kommentarfeltet for en kassekladde kan ændres efter den er bogført
+Budgethåndtering under Regnskab angivis i % i forhold til året før
+Ny rapport under finans, som viser Resultat/budget
+Kassterminalløsningen SALDI-kassen (http://saldi.dk/saldikasse)
+Debitorliste nu med valgfrie felter, som kan filtreres og sorteres
+Jobliste fra Debitorkort ved valg af jobkort
+Bynavn ved opslag på postnummer alle steder, hvor postnumre kan angives
+Nyt kategorifelt på debitorkort, så debitor kan tilknyttes flere kategorier
+Rabatmatrix så kundegrupper kan have individuelle rabatter for varegrupper
+Momstrukturen er ændret så moms på varegrupper styres efter kontoplanen
+Opdele ordre i en fortsat ordre og en restordre
+
+==============================================================================
+Senest ændret 2011-02-09 af Claus Agerskov <ca@saldi.dk>      http://saldi.dk/
+
+© 2003-2011 DANOSOFT ApS                                   http://danosoft.dk/

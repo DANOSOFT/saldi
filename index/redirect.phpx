@@ -1,0 +1,4 @@
+<?php
+if ($_POST['regnskab']=='pos') $action="https://ssl4.saldi.dk/pos/index/login.php";
+else $action='login.php';
+?> 

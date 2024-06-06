@@ -1,0 +1,25 @@
+Rental består af 3 tabeller.
+
+I settings gruppen rental registreres navn (overskrift) for de grupper at varer den udlejes
+
+var_grp    - 'rental'
+var_name   - 'rental_x' vor x er id hærende til navnet
+var_value  - navn på overskrift, fx: Reol
+
+rental holder de underpunkter som indgår i samme overskrift. Fx. reol.
+rt_item_id - overordnet id (fra var_name) i settings
+rt_name    - navn på underenhed . Fx reol 1, reol 2 osv. 
+
+rentalitems holder de vare som indgår i samme booking. fx. reol 1 uge og reol 2 uger.
+
+rt_item_id - Item_id (fra var_name) settings & rental (retal_item_id) som beskriver den overordnede enhed. fx reol.
+item_id    - vare id fra varetabel.
+unit       - Kan være i:minutter, h:timer, d:dage, u:uger, 
+qty        - antal units.
+
+rentalperiod - De periode der er booket / udlejet
+
+rt_id     - Item_id (fra var_name) settings & rental (rental_item_id) som beskriver den overordnede enhed. fx reol. bør rettet til rt_item_id
+rt_cust_id- Id på kunde som har booket den pågældende periode.
+rt_from   - booking start (unixtid)
+rt_to     - booking slut (unixtid)

@@ -1,0 +1,132 @@
+body {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 25pt;
+}
+
+table {
+	width: 90%;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 25pt;
+ }
+
+input {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 25pt;
+ }
+
+select {
+	width:110px;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 25pt;
+}
+
+.flex-container {
+	display: flex;
+	justify-content: center;
+}
+
+.container {
+	width: 910px;
+	margin: 10px;
+	margin-bottom: 50px;
+}
+
+.kundeNavn {
+	font-weight: bold;
+	text-align: center;
+}
+
+.center {
+	text-align: center;
+	margin-bottom: 10px;
+}
+
+.table {
+	width:900px;
+	valign: top;
+}
+
+.inputLabel {
+	width:75%;
+	height:60px;
+	margin-right: 10px;
+	margin-bottom: 10px;
+}
+
+.tdLabel {
+	width:100%;
+}
+
+.inputPris {
+	width:15%;
+	height:60px
+}
+
+.footer { 
+	position: fixed;     
+	text-align: center;    
+	bottom: 0px; 
+	width: 910px;
+	z-index: 100;
+	background-color: #EEEEF0;
+}
+
+.inputs {
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+.inputSubmit {
+	width: 19%;
+	text-align: center;
+	margin-right: 5px;
+	height: 60px;
+}
+
+input[type='checkbox'] {
+	/* remove browser chrome */
+	-webkit-appearance: none;
+	   -moz-appearance: none;
+			appearance: none;
+	outline: none;
+	/*add styling */
+	position: relative;
+	width: 13px;
+	height: 13px;
+	border: 1px solid darkgrey;
+	overflow: hidden;
+	border-radius: 3px;
+	cursor: pointer;
+	margin-left: 20px;
+	margin-right: 15px;
+  }
+  
+  input[type='checkbox']::before {
+	content: '';
+	color: #000;
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	bottom: 4px;
+	left: 4px;
+	background-color:#000000;
+	border-radius: 2px;
+	-webkit-transform: scale(0);
+			transform: scale(0);
+	-webkit-transition: -webkit-transform 0.25s ease-in-out;
+	transition: -webkit-transform 0.25s ease-in-out;
+	transition: transform 0.25s ease-in-out;
+	transition: transform 0.25s ease-in-out, -webkit-transform 0.25s ease-in-out;
+	/* base64 encoded to make things easier to show 
+		normally you would use an image or a font
+	*/
+  }
+  
+  input[type='checkbox']:checked::before {
+	-webkit-transform: scale(3);
+			transform: scale(3);
+  }
+
+  .checkMobile {
+	  width: 20px;
+  }

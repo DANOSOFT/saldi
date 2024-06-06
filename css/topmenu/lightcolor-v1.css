@@ -1,0 +1,2218 @@
+/* 
+
+  Name: Colorful Light Top Menu
+  Version: 1.0
+  Author: MSC
+
+*/
+
+/* Insert font family Montserrat */
+@font-face {
+  font-family: 'Montserrat';
+  src: url(../../fonts/topmenu/montserrat-medium-webfont.woff2) format('woff2'),
+       url(../../fonts/topmenu/montserrat-medium-webfont.woff) format('woff'),
+       url(../../fonts/topmenu/Montserrat-Medium.ttf) format('tff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Background color and default text color */
+body {
+    background-color: #ddd;
+    font-family: 'Montserrat', Tahoma, sans-serif;
+    font-size: 14px;
+}
+
+/* Slide down menu container */
+.container {
+    width: 100%;
+    max-width: 1600px;
+}
+
+.menuBar {
+  height: 40px;
+}
+
+/* Navbar with dropdown menu */
+.navbar {
+  border-radius: 0%;
+  background: #114691;
+  position: fixed;
+  z-index: 1000;
+  min-width: 1235px;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  justify-content: center;
+  margin-top: -1px;
+  height: 56px;
+}
+
+.dropdownMenu ul {
+  list-style-type: none;
+  padding: 0;
+  top: 0;
+  left: 0;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  width: 100%;
+  display: block;
+  padding: 17px 16px;
+  text-decoration: none;
+}
+
+.dropdownMenu li a {
+  display: block;
+  padding: 17px 16px;
+  text-decoration: none;
+  width: 160px;
+  color: white;
+}
+  
+.dropDown li a, .dropDown li a:link, .dropDown li a:visited, .dropDown li a:active, .dropDownbtn, .dropDownbtn a, .dropDownbtn a:link, .dropDownbtn a:visited, .dropDownbtn a:active {
+  text-align: left;
+  text-align: center;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  font-size: 15px;
+  -o-transition:color .2s ease-out, background .4s ease-in, background .4s ease-out;
+  -ms-transition:color .2s ease-out, background .4s ease-in, background .4s ease-out;
+  -moz-transition:color .2s ease-out, background .4s ease-in, background .4s ease-out;
+  -webkit-transition:color .2s ease-out, background .4s ease-in, background .4s ease-out;
+  transition:color .2s ease-out, background .4s ease-in, background .4s ease-out;
+  color: white;
+  text-decoration: none;
+}
+
+.dropdownMenu li a:hover {
+  background-color: #0d3773;
+  text-decoration: none;
+  color: white;
+}
+
+.dropdownContent-Fin, .dropdownContent-Kun, .dropdownContent-Lev, .dropdownContent-Lag, .dropdownContent-Sys, .dropdownContent-Bru {
+  display: none;
+  background-color: #f9f9f9;
+  z-index: 3000;
+  position: absolute;
+  box-shadow: 0px 4px 8px 0px rgba(0,0,0,0.1);
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  font-size: 13px;
+}
+
+.dropdownContent-Fin a, .dropdownContent-Fin a:link, .dropdownContent-Fin a:visited, .dropdownContent-Fin a:active, .dropdownContent-Kun a, .dropdownContent-Kun a:link, .dropdownContent-Kun a:visited, .dropdownContent-Kun a:active, .dropdownContent-Lev a, .dropdownContent-Lev a:link, .dropdownContent-Lev a:visited, .dropdownContent-Lev a:active, .dropdownContent-Lag a, .dropdownContent-Lag a:link, .dropdownContent-Lag a:visited, .dropdownContent-Lag a:active, .dropdownContent-Sys a, .dropdownContent-Sys a:link, .dropdownContent-Sys a:visited, .dropdownContent-Sys a:active, .dropdownContent-Bru a, .dropdownContent-Bru a:link, .dropdownContent-Bru a:visited, .dropdownContent-Bru a:active {
+  text-decoration: none;
+  display: block;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+  color: black;
+}
+
+.dropdownContent-Fin a:hover, .dropdownContent-Kun a:hover, .dropdownContent-Lev a:hover, .dropdownContent-Lag a:hover, .dropdownContent-Sys a:hover, .dropdownContent-Bru a:hover {
+  background-color: #333;
+  color: white;
+  padding: 17px 16px 17px 25px;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+}
+
+.dropDown:hover .dropdownContent-Fin, .dropDown:hover .dropdownContent-Kun, .dropDown:hover .dropdownContent-Lev, .dropDown:hover .dropdownContent-Lag, .dropDown:hover .dropdownContent-Sys, .dropDown:hover .dropdownContent-Bru {
+  display: block;
+}
+
+li.dropDown {
+  display: inline-block;
+}
+
+.logobar {
+  z-index: 2000;
+  position: fixed;
+  top: 7px;
+  left: 35px;
+  display: block;
+} 
+
+.logo-link a, .logo-link a:link, .logo-link a:active, .logo-link a:visited {
+  display: block;
+  z-index: 2000;
+  background-color:#316dc2;
+  position: fixed;
+  width: 103px;
+  height: 34px;
+  top: 7px;
+  left: 30px;
+  border-radius: 20px;
+  padding-top: 8px;
+  padding-left: 9px;
+  margin-top: 3px;
+  text-decoration: none;
+  border: 1px solid #2b60ab;
+}
+
+.logo-link a:hover {
+  display: block;
+  z-index: 2000;
+  background-color: #2b60ab;
+  position: fixed;
+  width: 103px;
+  height: 34px;
+  top: 7px;
+  left: 30px;
+  border-radius: 20px;
+  padding-top: 8px;
+  padding-left: 9px;
+  text-decoration: none;
+  border: 1px solid #265699;
+}
+
+/* Logo img size */
+.logo img {
+  width: 25px;
+  height: 25px;
+  text-decoration: none;
+}
+
+.logo {
+  width: 100px;
+}
+
+.logoimg {
+  margin-top: -5px;
+}
+
+/* Container for logo and firm name */
+.logo-container {
+  display: flex;
+  flex-direction: row;
+  text-decoration: none;
+}
+
+/* Styling of firm name */
+.logo-name {
+  font-size: 18px;
+  font-family: 'Exo', Tahoma, sans-serif;
+  text-transform: uppercase;
+  color: #79b2ff;
+  margin-left:8px;
+  text-decoration: none;
+  margin-top: -3px;
+}
+
+.logolink, .logolink a, .logolink a:link, .logolink a:visited, .logolink:active, .logolink a:hover {
+  display: flex;
+  flex-direction: row;
+  width: auto;
+  text-decoration: none!important;
+}
+
+/* Flex container */
+.flex-container
+{
+  display: flex;
+  justify-content: center;
+  min-width: 1050px;
+}
+
+/* Content */
+.content
+{
+  font-family: 'Montserrat', Arial, sans-serif;
+  font-size: 14px;
+  margin-top: 70px;
+  margin-left: 1%;
+  margin-right: 1%;
+  margin-bottom: 30px;
+  width: 100%;
+  color: black;
+  min-width: 900px;
+}
+
+/* Content, without sidebar */
+.content-noside {
+  padding: 15px;
+  width: 100%;
+  background-color: white;
+  color: black;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  min-width: 900px;
+}
+
+/* Link styling */
+a, a:link, a:visited, a:active {
+  color: #1792A2;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* Link styling on hover */
+a:hover {
+  color: #0c4f58;
+  text-decoration: underline;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+}
+
+/* Link styling for links in header */
+.headLink a, .headLink a:link, .headLink a:visited, .headLink a:active {
+  color: white;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* Link styling on hover for links in header*/
+.headLink a:hover {
+  color: #0c4f58;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+}
+
+/* Input styling */
+input {
+  color: black;
+  background-color: #c5c5c5;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+}
+
+/* Input focus styling */
+input:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+  border-color: #d6d6d6;
+  box-shadow: 0px 1px 1px #d6d6d6 inset, 0 0 8px #d6d6d6;
+  outline: 0 none;
+}
+
+/* Select styling */
+select {
+  color: black;
+  background-color: #c5c5c5;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+}
+
+/* Select focus styling */
+select:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+  border-color: #d6d6d6;
+  box-shadow: 0px 1px 1px #d6d6d6 inset, 0 0 8px #d6d6d6;
+  outline: 0 none;
+}
+
+/* Input styling */
+input[type=text] {
+  color: black;
+  background-color: #c5c5c5;
+  padding: 6px 10px;
+  margin: 2px 0;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+}
+
+/* Input focus styling */
+input[type=text]:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 2px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+  border-color: #d6d6d6;
+  box-shadow: 0px 1px 1px #d6d6d6 inset, 0 0 8px #d6d6d6;
+  outline: 0 none;
+}
+
+/* Input styling for button */
+input[type=button] {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Input styling for button on hover */
+input[type=button]:hover {
+  color: black;
+  background-color: #dedede;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Input focus styling for button */
+input[type=button]:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* blue button button */
+input[type=button].blue{
+  color: #fff;
+  border: solid 1px #18689b;
+  background: rgb(28,124,185);
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* blue button button on hover */
+input[type=button]:hover.blue{
+  color: #fff;
+  border: solid 1px #155e8d;
+  background: rgb(24,104,155);
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* blue button button on focus */
+input[type=button]:focus.blue{
+  color: #fff;
+  border: solid 1px #155e8d;
+  background: rgb(24,104,155);
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* gray button button */
+input[type=button].gray {
+  color: white;
+  border: solid 1px #666;
+  background: #6e6e6e;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* gray button button on hover */
+input[type=button]:hover.gray {
+  color: white;
+  border: solid 1px #555;
+  background: #5d5d5d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* gray button button on focus */
+input[type=button]:focus.gray {
+  color: white;
+  border: solid 1px #555;
+  background: #5d5d5d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* white button button */
+input[type=button].white {
+  color: black;
+  border: solid 1px #d5d5d5;
+  background: #fff;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* white button button on hover */
+input[type=button]:hover.white {
+  color: black;
+  background: #ddd;
+  border: solid 1px #c4c4c4;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* white button button on focus */
+input[type=button]:focus.white {
+  color: black;
+  background: #ddd;
+  border: solid 1px #c4c4c4;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* orange button button */
+input[type=button].orange {
+  color: white;
+  border: solid 1px #da7c0c;
+  background: #f78d1d;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* orange button button on hover */
+input[type=button]:hover.orange {
+  color: white;
+  background: #f47c20;
+  border: solid 1px #d6630b;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* orange button button on focus */
+input[type=button]:focus.orange {
+  color: white;
+  background: #f47c20;
+  border: solid 1px #d6630b;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* Red button button */
+input[type=button].red{
+  color: white;
+  border: solid 1px #c9191f;
+  background: #d81b21;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* Red button button on hover */
+input[type=button]:hover.red{
+  color: white;
+  border: solid 1px #ab151a;
+  background: #ba171c;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* Red button button on focus */
+input[type=button]:focus.red{
+  color: white;
+  border: solid 1px #ab151a;
+  background: #ba171c;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* rosy button button */
+input[type=button].rosy {
+  color: white;
+  border: solid 1px #d74a5a;
+  background: #da5867;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* rosy button button on hover */
+input[type=button]:hover.rosy {
+  color: white;
+  border: solid 1px #d12e41;
+  background: #d43c4e;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* rosy button button on focus */
+input[type=button]:focus.rosy {
+  color: white;
+  border: solid 1px #d12e41;
+  background: #d43c4e;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* green button button */
+input[type=button].green {
+  color: #fff;
+  border: solid 1px #69962d;
+  background: #72A331;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* green button button on hover */
+input[type=button]:hover.green {
+  color: #fff;
+  border: solid 1px #608929;
+  background: #69962d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* green button button on focus */
+input[type=button]:focus.green {
+  color: #fff;
+  border: solid 1px #608929;
+  background: #69962d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* Input styling for button */
+input[type=checkbox] {
+  color: black;
+  background-color: #efefef;
+}
+
+
+/* Input styling for button on hover */
+input[type=checkbox]:hover {
+  color: black;
+  background-color: #dedede;
+}
+
+/* Input focus styling for button */
+input[type=checkbox]:focus {
+  color: black;
+  background-color: #efefef;
+}
+
+/* Reset button */
+input[type=reset] {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Reset button on hover */
+input[type=reset]:hover {
+  color: black;
+  background-color: #dedede;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Reset button on focus */
+input[type=reset]:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* blue reset button */
+input[type=reset].blue{
+  color: #fff;
+  border: solid 1px #18689b;
+  background: rgb(28,124,185);
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* blue reset button on hover */
+input[type=reset]:hover.blue{
+  color: #fff;
+  border: solid 1px #155e8d;
+  background: rgb(24,104,155);
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* blue reset button on focus */
+input[type=reset]:focus.blue{
+  color: #fff;
+  border: solid 1px #155e8d;
+  background: rgb(24,104,155);
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* gray reset button */
+input[type=reset].gray {
+  color: white;
+  border: solid 1px #666;
+  background: #6e6e6e;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* gray reset button on hover */
+input[type=reset]:hover.gray {
+  color: white;
+  border: solid 1px #555;
+  background: #5d5d5d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* gray reset button on focus */
+input[type=reset]:focus.gray {
+  color: white;
+  border: solid 1px #555;
+  background: #5d5d5d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* white reset button */
+input[type=reset].white {
+  color: black;
+  border: solid 1px #d5d5d5;
+  background: #fff;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* white reset button on hover */
+input[type=reset]:hover.white {
+  color: black;
+  background: #ddd;
+  border: solid 1px #c4c4c4;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* white reset button on focus */
+input[type=reset]:focus.white {
+  color: black;
+  background: #ddd;
+  border: solid 1px #c4c4c4;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* orange reset button */
+input[type=reset].orange {
+  color: white;
+  border: solid 1px #da7c0c;
+  background: #f78d1d;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* orange reset button on hover */
+input[type=reset]:hover.orange {
+  color: white;
+  background: #f47c20;
+  border: solid 1px #d6630b;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* orange reset button on focus */
+input[type=reset]:focus.orange {
+  color: white;
+  background: #f47c20;
+  border: solid 1px #d6630b;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* Red reset button */
+input[type=reset].red{
+  color: white;
+  border: solid 1px #c9191f;
+  background: #d81b21;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* Red reset button on hover */
+input[type=reset]:hover.red{
+  color: white;
+  border: solid 1px #ab151a;
+  background: #ba171c;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* Red reset button on focus */
+input[type=reset]:focus.red{
+  color: white;
+  border: solid 1px #ab151a;
+  background: #ba171c;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* rosy reset button */
+input[type=reset].rosy {
+  color: white;
+  border: solid 1px #d74a5a;
+  background: #da5867;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* rosy reset button on hover */
+input[type=reset]:hover.rosy {
+  color: white;
+  border: solid 1px #d12e41;
+  background: #d43c4e;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* rosy reset button on focus */
+input[type=reset]:focus.rosy {
+  color: white;
+  border: solid 1px #d12e41;
+  background: #d43c4e;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* green reset button */
+input[type=reset].green {
+  color: #fff;
+  border: solid 1px #69962d;
+  background: #72A331;
+  text-decoration: none;
+  transition:.3s;
+  -o-transition:.3s;
+  -ms-transition:.3s;
+  -moz-transition:.3s;
+  -webkit-transition:.3s;
+}
+
+/* green reset button on hover */
+input[type=reset]:hover.green {
+  color: #fff;
+  border: solid 1px #608929;
+  background: #69962d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* green reset button on focus */
+input[type=reset]:focus.green {
+  color: #fff;
+  border: solid 1px #608929;
+  background: #69962d;
+  text-decoration: none;
+  transition:.4s;
+  -o-transition:.4s;
+  -ms-transition:.4s;
+  -moz-transition:.4s;
+  -webkit-transition:.4s;
+  cursor: pointer;
+}
+
+/* Submit button */
+input[type=submit] {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Submit button on hover */
+input[type=submit]:hover {
+  color: black;
+  background-color: #dedede;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* Submit button on focus */
+input[type=submit]:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+}
+
+/* blue submit button */
+input[type=submit].blue{
+    color: #fff;
+    border: solid 1px #18689b;
+    background: rgb(28,124,185);
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+  }
+  
+  /* blue submit button on hover */
+  input[type=submit]:hover.blue{
+    color: #fff;
+    border: solid 1px #155e8d;
+    background: rgb(24,104,155);
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* blue submit button on focus */
+  input[type=submit]:focus.blue{
+    color: #fff;
+    border: solid 1px #155e8d;
+    background: rgb(24,104,155);
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* gray submit button */
+  input[type=submit].gray {
+    color: white;
+    border: solid 1px #666;
+    background: #6e6e6e;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+  }
+  
+  /* gray submit button on hover */
+  input[type=submit]:hover.gray {
+    color: white;
+    border: solid 1px #555;
+    background: #5d5d5d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* gray submit button on focus */
+  input[type=submit]:focus.gray {
+    color: white;
+    border: solid 1px #555;
+    background: #5d5d5d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* white submit button */
+  input[type=submit].white {
+    color: black;
+    border: solid 1px #d5d5d5;
+    background: #fff;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+  }
+  
+  /* white submit button on hover */
+  input[type=submit]:hover.white {
+    color: black;
+    background: #ddd;
+    border: solid 1px #c4c4c4;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* white submit button on focus */
+  input[type=submit]:focus.white {
+    color: black;
+    background: #ddd;
+    border: solid 1px #c4c4c4;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* orange submit button */
+  input[type=submit].orange {
+    color: white;
+    border: solid 1px #da7c0c;
+    background: #f78d1d;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+  }
+  
+  /* orange submit button on hover */
+  input[type=submit]:hover.orange {
+    color: white;
+    background: #f47c20;
+    border: solid 1px #d6630b;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* orange submit button on focus */
+  input[type=submit]:focus.orange {
+    color: white;
+    background: #f47c20;
+    border: solid 1px #d6630b;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* Red submit button */
+  input[type=submit].red{
+    color: white;
+    border: solid 1px #c9191f;
+    background: #d81b21;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+  }
+  
+  /* Red submit button on hover */
+  input[type=submit]:hover.red{
+    color: white;
+    border: solid 1px #ab151a;
+    background: #ba171c;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* Red submit button on focus */
+  input[type=submit]:focus.red{
+    color: white;
+    border: solid 1px #ab151a;
+    background: #ba171c;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* rosy submit button */
+  input[type=submit].rosy {
+    color: white;
+    border: solid 1px #d74a5a;
+    background: #da5867;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+  }
+  
+  /* rosy submit button on hover */
+  input[type=submit]:hover.rosy {
+    color: white;
+    border: solid 1px #d12e41;
+    background: #d43c4e;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* rosy submit button on focus */
+  input[type=submit]:focus.rosy {
+    color: white;
+    border: solid 1px #d12e41;
+    background: #d43c4e;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* green submit button */
+  input[type=submit].green {
+    color: #fff;
+    border: solid 1px #69962d;
+    background: #72A331;
+    text-decoration: none;
+    transition:.3s;
+    -o-transition:.3s;
+    -ms-transition:.3s;
+    -moz-transition:.3s;
+    -webkit-transition:.3s;
+  }
+  
+  /* green submit button on hover */
+  input[type=submit]:hover.green {
+    color: #fff;
+    border: solid 1px #608929;
+    background: #69962d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+  
+  /* green submit button on focus */
+  input[type=submit]:focus.green {
+    color: #fff;
+    border: solid 1px #608929;
+    background: #69962d;
+    text-decoration: none;
+    transition:.4s;
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    cursor: pointer;
+  }
+
+/* Textarea styling */
+textarea {
+  color: black;
+  background-color: #c5c5c5;
+  padding: 6px 10px;
+  margin: 2px 0;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  scrollbar-width: auto;
+  scrollbar-color: #2b60ab transparent;
+  resize: none;
+  cursor: auto;
+}
+
+/* Scrolling bar */
+/* The emerging W3C standard
+ that is currently Firefox-only */
+ * {
+  scrollbar-width: auto;
+  scrollbar-color: #2b60ab #ddd;
+}
+/* Works on Chrome/Edge/Safari */
+*::-webkit-scrollbar {
+  width: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #ddd;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #2b60ab;
+  border-radius: 0px;
+}
+
+/* Buttons */
+::-webkit-scrollbar-button:single-button {
+  background-color: #2b60ab;
+  display: block;
+  background-size: 10px;
+  background-repeat: no-repeat;
+}
+
+/* Up */
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+  height: 12px;
+  width: 16px;
+  background-position-y: 4px;
+  background-position-x: 2px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%23FFFFFF'><polygon points='50,00 0,50 100,50'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='50,00 0,50 100,50'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement:active {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='50,00 0,50 100,50'/></svg>");
+}
+
+/* Down*/
+::-webkit-scrollbar-button:single-button:vertical:increment {
+  height: 12px;
+  width: 16px;
+  background-position-y: 4px;
+  background-position-x: 2px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%23FFFFFF'><polygon points='0,0 100,0 50,50'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment:hover {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='0,0 100,0 50,50'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment:active {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='0,0 100,0 50,50'/></svg>");
+}
+
+/* Left */
+::-webkit-scrollbar-button:single-button:horizontal:decrement {
+  height: 12px;
+  width: 16px;
+  background-position-y: 4px;
+  background-position-x: 4px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%23FFFFFF'><polygon points='80 13, 15 50, 80 89'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:decrement:hover {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='80 13, 15 50, 80 89'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:decrement:active {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='80 13, 15 50, 80 89'/></svg>");
+}
+
+/* Right */
+::-webkit-scrollbar-button:single-button:horizontal:increment {
+  height: 12px;
+  width: 16px;
+  background-position-y: 4px;
+  background-position-x: 4px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%23FFFFFF'><polygon points='24 18, 85 50, 24 83'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:increment:hover {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='24 18, 85 50, 24 83'/></svg>");
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:increment:active {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='120' fill='%2379b2ff'><polygon points='24 18, 85 50, 24 83'/></svg>");
+}
+
+/* Scrolling bar for textarea */
+
+/* Works on Chrome/Edge/Safari */
+textarea::-webkit-scrollbar {
+  width: 10px;
+}
+textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+textarea::-webkit-scrollbar-thumb {
+  background-color: #2b60ab;
+  border-radius: 0px;
+}
+textarea:focus::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Textarea focus styling */
+textarea:focus {
+  color: black;
+  background-color: #efefef;
+  padding: 6px 10px;
+  margin: 2px 0;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 5px;
+  border-color: #d6d6d6;
+  box-shadow: 0px 1px 1px #d6d6d6 inset, 0 0 8px #d6d6d6;
+  outline: 0 none;
+  scrollbar-color: #2b60ab transparent;
+  cursor: auto;
+}
+
+/* Label styling */
+label {
+  font-weight: 400;
+}
+
+/* Title for category Kunder */
+.titleKund {
+  background-color: #1792A2;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Leverandører */
+.titleLev {
+  background-color: #277BC6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Finans */
+.titleFina {
+  background-color: #272CC6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Lager */
+.titleLag {
+  background-color: #7127C6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Systemdata */
+.titleSys {
+  background-color: #C127C6;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Title for category Bruger */
+.titleBrug {
+  background-color: #C6277B;
+  padding: 5px;
+  text-align: center;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 550;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+/* Sub-title for kunder no radius */
+
+.sub-title-kund {
+  background-color: #37b6bf;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Sub-title for kunder */
+
+.sub-title-kund-radius {
+  background-color: #37b6bf;
+  padding: 10px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+.sub-title-kund-left {
+  background-color: #37b6bf;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-left-radius: 5px;
+}
+
+.sub-title-kund-right {
+  background-color: #37b6bf;
+  padding: 2px;
+  text-align: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  border-top-right-radius: 5px;
+}
+
+/* Sub-title link for kunder */
+
+.sub-title-link-kund a, .sub-title-link-kund a:link, .sub-title-link-kund a:visited, .sub-title-link-kund a:active {
+  color: white;
+  background-color: #37b6bf !important;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+  padding: 2px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 550 !important;
+}
+
+/* Sub-title for kunder, link on hover */
+
+.sub-title-link-kund a:hover {
+  background-color: #199fb1 !important;
+  color: #0c4f58;
+  text-decoration: none;
+  background-size: 0% 0px;
+  font-weight: 550 !important;
+}
+
+/* Separating line for tables top */
+
+.border-hr-top {
+  border-top: 3px solid white;
+  height: 3px;
+}
+
+/* Separating line for tables bottom */
+
+.border-hr-bottom {
+  border-bottom: 3px solid white;
+  height: 3px;
+}
+
+/* Content, when using sidebar */
+.side-content {
+  padding: 10px;
+  width: 90%;
+  background-color: white;
+}
+
+/* Container, when using sidebar */
+.sidebar-container
+{
+  display: flex;
+  flex-direction: row;
+}
+
+/* Sidebar, when using sidebar */
+.sidebar {
+  width: 20%;
+  background-color: white;
+  min-width: 200px;
+}
+
+/* Sidebar menu list */
+.sidebar-menu ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  background-color: white;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+}
+
+/* Sidebar menu link */
+.sidebar-menu li a {
+  display: block;
+  color: black;
+  padding: 10px 10px;
+  text-decoration: none;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  -o-transition:.5s;
+  -ms-transition:.5s;
+  -moz-transition:.5s;
+  -webkit-transition:.5s;
+  transition:.5s;
+}
+
+/* Sidebar menu link hover */
+.sidebar-menu li a:hover {
+  background-color: #efefef;
+  color: #444444;
+  font-family: 'Montserrat', Tahoma, sans-serif;
+  background-size: 100% 3px;
+}
+
+/* Back to top link */
+#back2Top {
+  width: 40px;
+  line-height: 40px;
+  overflow: hidden;
+  z-index: 999;
+  display: none;
+  cursor: pointer;
+  position: fixed;
+  bottom: 20px;
+  right: 5px;
+  background-color: none;
+  color: #777;
+  text-align: center;
+  font-size: 30px;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+}
+
+/* Back to top link on hover */
+#back2Top:hover {
+  background-color: none;
+  color: #555;
+}
+
+/* Footer styling */
+.footer {
+  width: 100%;
+  text-align: center;
+  font-size: 16px;
+  color: black;
+  font-family: 'Montserrat';
+}
+
+.currentThemeIMG {
+  width: 100px;
+  height: 13px;
+  pointer-events: none;
+  background-image: url('../../img/topmenu/theme/lightcolor.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  border: 0px solid #000;
+}
+
+.themeIMG {
+  pointer-events: none;
+  text-align: center;
+}
+
+
+.imgNoTextDeco a, .imgNoTextDeco a:link, .imgNoTextDeco a:visited, .imgNoTextDeco a:active {
+  color: grey;
+  text-decoration: none;
+  -o-transition:color .2s ease-out, background 1s ease-in;
+  -ms-transition:color .2s ease-out, background 1s ease-in;
+  -moz-transition:color .2s ease-out, background 1s ease-in;
+  -webkit-transition:color .2s ease-out, background 1s ease-in;
+  transition:color .2s ease-out, background 1s ease-in;
+  padding-bottom: 0px;
+  background: linear-gradient(0deg, currentcolor, currentcolor) bottom center no-repeat;
+  background-size: 0px 0px;
+  transition: 0.5s;
+}
+
+.imgNoTextDeco a:hover {
+  color: black;
+  text-decoration: none;
+  background-size: 0% 0px;
+}
+
+/* Checkmark styling for Ordrevisning */
+
+/* The container */
+.checkContainerVisning {
+  display: inline;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-size: 22px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Hide the browser's default checkbox */
+.checkContainerVisning input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmarkVisning {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 20px;
+  width: 20px;
+  background-color: #c5c5c5;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  -webkit-transition: 0.5s;
+}
+
+/* On mouse-over */
+.checkContainerVisning:hover input ~ .checkmarkVisning {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* When the checkbox is checked */
+.checkContainerVisning input:checked ~ .checkmarkVisning {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* When the checkbox is disabled */
+.checkContainerVisning input:disabled ~ .checkmarkVisning {
+  background-color: #fff;
+  border: 1px solid #d6d6d6;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmarkVisning:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.checkContainerVisning input:checked ~ .checkmarkVisning:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.checkContainerVisning .checkmarkVisning:after {
+  left: 6px;
+  top: 3px;
+  width: 6px;
+  height: 10px;
+  border: solid black;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+/* Checkmark styling for Ordreliste */
+
+/* The container */
+.checkContainerOrdreliste {
+  display: inline;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 15px;
+  cursor: pointer;
+  font-size: 22px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  right : -45%
+}
+
+/* Hide the browser's default checkbox */
+.checkContainerOrdreliste input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmarkOrdreliste {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 17px;
+  width: 17px;
+  background-color: #c5c5c5;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  -webkit-transition: 0.5s;
+}
+
+/* On mouse-over */
+.checkContainerOrdreliste:hover input ~ .checkmarkOrdreliste {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* When the checkbox is checked */
+.checkContainerOrdreliste input:checked ~ .checkmarkOrdreliste {
+  background-color: #efefef;
+  border: 1px solid #d6d6d6;
+}
+
+/* When the checkbox is disabled */
+.checkContainerOrdreliste input:disabled ~ .checkmarkOrdreliste {
+  background-color: #fff;
+  border: 1px solid #d6d6d6;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmarkOrdreliste:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.checkContainerOrdreliste input:checked ~ .checkmarkOrdreliste:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.checkContainerOrdreliste .checkmarkOrdreliste:after {
+  left: 5px;
+  top: 2px;
+  width: 6px;
+  height: 9px;
+  border: solid black;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+.CellWithComment{
+  position:relative;
+}
+
+.CellComment{
+  display:none;
+  position:absolute; 
+  z-index:100;
+  border:1px;
+  background-color:#efefef;
+  border-style:solid;
+  border-width:1px;
+  border-color:#d6d6d6;
+  padding:3px;
+  color:black; 
+  top:40px; 
+  left:20px;
+  min-width: 100px;
+  max-width: 500px;
+  font-size: 14px;
+}
+
+.CellWithComment:hover span.CellComment{
+  display:block;
+}
+
+/* Red OBS */
+.obs {
+  color: #ed5757;
+}
+
+.divSys {
+  min-height: 430px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.tableBorder {
+  border: 1px solid #C5C5C5;
+}
+
+.tablePadding td {
+  padding: 2px;
+}
+
+.dataTablediv {
+  background-color: #e8e8e8;
+  border-radius: 5px;
+}
+
+.dataTable table {
+  table-layout:fixed;
+  border-collapse: collapse;
+  width: 900px;
+  font-family: 'Montserrat', sans-serif;
+  word-break : break-all;
+  font-size: 12px;
+}
+
+.dataTable th {
+	border-bottom: 3px solid #d6d6d6;
+  background-color: #e8e8e8;
+  border-radius: 5px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  color: black;
+  padding: 15px;
+}
+
+.dataTable td {
+  font-family: 'Montserrat', sans-serif;
+  color: black;
+  padding: 6px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100px;
+  min-width: 50px;
+  font-size: 12px;
+}
+
+.dataTable tfoot {
+  border-top: 3px solid #d6d6d6;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+}
+
+.dataTableNTH table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+}
+
+.dataTableNTH th {
+	border-bottom: 3px solid #d6d6d6;
+  background-color: #e8e8e8;
+  border-radius: 5px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: black;
+  padding: 15px;
+}
+
+.dataTableNTH td {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: black;
+  padding: 10px;
+}
+
+.dataTableNTH tbody tr:nth-child(even) {
+  background-color: #eee;
+}
+
+.dataTableNTH tfoot {
+  border-top: 3px solid #d6d6d6;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  color: black;
+}
+
+.dataTableSys table {
+  border-collapse: collapse;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  align-self: center;
+}
+
+.dataTableSys td {
+  font-family: 'Montserrat', sans-serif;
+  color: black;
+  padding: 5px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-size: 14px;
+}
+
+
+.dataTableSmall table {
+  border-collapse: collapse;
+  width: 900px;
+  font-family: 'Montserrat', sans-serif;
+  word-break : break-all;
+  font-size: 14px;
+}
+
+.dataTableSmall td {
+  font-family: 'Montserrat', sans-serif;
+  color: black;
+  padding: 5px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-size: 14px;
+  margin: 10px;
+}
+
+.dataTableBooking table {
+  border-collapse: collapse;
+  width: 900px;
+  font-family: 'Montserrat', sans-serif;
+  word-break : break-all;
+  font-size: 13px;
+}
+
+.dataTableBooking td {
+  font-family: 'Montserrat', sans-serif;
+  color: black;
+  padding: 5px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-size: 13px;
+  border: 1px solid white;
+}
+
+.dataTableForm table {
+  border-collapse:separate; 
+  border-spacing:4px;
+}
+
+.dataTableForm td {
+  padding: 4px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+hr {
+  height: 1px;
+  background-color: #b3b3b3;
+  border: none;
+  color: #b3b3b3;
+}
+
+.imgFade {
+  opacity: 1;
+  transition: opacity .2s ease-in-out;
+  -moz-transition: opacity .2s ease-in-out;
+  -webkit-transition: opacity .2s ease-in-out;
+}
+
+.imgFade:hover {
+  opacity: 0.6;
+  transition: opacity .2s ease-in-out;
+  -moz-transition: opacity .2s ease-in-out;
+  -webkit-transition: opacity .2s ease-in-out;
+}
+
+.textwrapper
+{
+  margin:5px 0;
+  padding:3px;
+}
+
+.expandable {
+  overflow: hidden;
+
+  transition: all .5s ease-in-out;
+  line-height: 0;
+  padding: 0 1em;
+  color: transparent;
+  height: 0;
+}
+ 
+.expandable:target {
+  line-height: 1.5;
+  padding-top: 1em;
+  padding-bottom: 1em;
+  height: 100px;
+}
+ 
+.textareaBeholder {
+	margin-bottom: 5px;
+}
+
+.expandableSearch {
+  overflow: hidden;
+
+  transition: all .5s ease-in-out;
+  height: 0;
+ }
+ 
+ .expandableSearch:target {
+  height: 400px;
+}
+
+.no-outline {
+  outline: none;
+}
+
+.no-outline:focus {
+  outline: none;
+}
+
+.hover_varer tr:hover {
+  text-decoration: underline;
+}
+
+.divScroll {
+  overflow-x: auto;
+  max-width: 1500px;
+}

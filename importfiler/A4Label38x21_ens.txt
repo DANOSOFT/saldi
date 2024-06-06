@@ -1,0 +1,39 @@
+<style>
+
+#main {
+width: 100%;
+margin: 20px 20px 0px 20px;
+padding-top: 28px;
+overflow:hidden;}
+
+p {
+width: 20%;
+display: inline-block;
+height: 21.4mm;
+padding-bottom:0px;
+margin: 0px;}
+
+img {
+width: 80%;
+height: 2.13em;}
+
+</style>	
+
+<div id="main">
+<div id="labels"></div>
+</div>
+
+
+<script>
+
+var label = ['$varenr','$varemrk',"Pris:_______", "<img src='$img'"];
+var text = "";
+var i;
+for (i = 0; i < label.length; i++) {
+    text += label[i]+ "<br>";
+}
+document.getElementById("labels").innerHTML =  ("<p>" + text + "</p>").repeat(65);
+</script>
+
+
+

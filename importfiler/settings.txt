@@ -1,0 +1,16 @@
+textcolor,000077,Farve på tekster
+textcolor2,#009900,
+textcolor3,#6666aa,Svagere tekst til det som er mindre vigtigt
+bgcolor,#eeeef0,alm baggrund
+bgcolor2,#BEBCCE,top & bundlinjer
+bgcolor3,#cccccc,
+bgcolor4,#d0d0f0,
+bgcolor5,#e0e0f0,
+bgnuance1,+01+01-55,Aendring af nuancen til gult ved skiftende linjer
+font,<font face='Arial, Helvetica, sans-serif'>,
+top_bund,style="border: 1px solid rgb(180, 180, 255);padding:0pt 0pt 1px;background:url(../img/knap_bg.gif);" align="center",
+stor_knap_bg,style="border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/stor_knap_bg.gif);" align="center",
+knap_ind,style="border: 1px solid rgb(220, 220, 255);padding: 0pt 0pt 1px;background:url(../img/knap_ind.gif);" align="center",
+stor_knap_ind,style="border: 1px solid rgb(2, 180, 255);padding: 0pt 0pt 1px;background:url(../img/stor_knap_ind.gif);" align="center",
+?>
+	

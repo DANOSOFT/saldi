@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="105"
+   name=""
+   committed-date="2006-06-26T14:04:58.038001Z"
+   url="http://lue.dk/svn/saldi/trunk/phpmailer/docs"
+   last-author="ca"
+   kind="dir"
+   uuid="1132dd7b-f30e-0410-8cb5-98fd4e5af904"
+   repos="http://lue.dk/svn/saldi"
+   revision="124"/>
+<entry
+   committed-rev="105"
+   name="timeoutfix.diff"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="9deb296cbd21346d0a454117b384f339"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:25.000000Z"/>
+<entry
+   committed-rev="105"
+   name="extending.html"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="2c0f8020751558fdbba27a789cd614e3"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:25.000000Z"/>
+<entry
+   committed-rev="105"
+   name="faq.html"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="e9ce97a80ca1d2253d9bbb56752f7113"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:25.000000Z"/>
+</wc-entries>

@@ -1,0 +1,61 @@
+/* Style til pagination */
+.ellipse{
+	float: left;
+}
+/*
+.container{
+	width: 260px;
+	float: left;
+	margin: 50px 10px 10px;
+	padding: 20px;
+	background-color: white;
+}
+*/
+.page_navigation , .alt_page_navigation{
+	#padding-bottom: 30px; 
+	#background-color: #F2F2F2;
+	height: 25px;
+	padding:4px 10px;
+}
+
+.page_navigation a, .alt_page_navigation a{
+	padding:3px 5px;
+	margin:2px;
+	color:#333333;
+	text-decoration:none;
+	float: left;
+	#font-family: Tahoma;
+	font-size: 12px;
+	background-color:#D3D3D3;
+	-moz-border-radius:4px;
+  -webkit-border-radius:4px;
+  border-radius:4px;
+}
+.active_page{
+	background-color:white !important;
+	color:#333333 !important;
+}	
+
+.info_text{
+	float: right;
+	padding: 10px 12px 0 0;
+}
+
+.abort_small_list{
+	display:none;
+}
+/*
+.paging_content li:nth-child(even){
+	background:#F2F2F2; 
+}
+*/
+
+/*
+.content, .alt_content{
+	color: black;
+}
+
+.content li, .alt_content li, .content > p{
+	padding: 5px
+}
+*/

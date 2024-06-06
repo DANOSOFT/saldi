@@ -1,0 +1,116 @@
+.contentB, .contentA, .contentC{
+		padding:10px;
+		#width:320px
+	}
+	.left{
+		width:90px;
+		float:left;
+		padding:5px 0px 0px 7px;
+	}
+        .leftSmall{
+                width:60px;
+		float:left;
+		padding:5px 0px 0px 7px;
+        }
+        .leftMedium{
+                width:75px;
+		float:left;
+		padding:5px 0px 0px 7px;
+        }
+	.right{
+		width:242px;
+		float:left;
+		padding:5px;
+	}
+        .rightSmall{
+                width:100px;
+		float:left;
+		padding:5px;
+        }
+        .rightMedium{
+                width:130px;
+		float:left;
+		padding:5px;
+        }
+.rightLarge{
+		width:276px;
+		float:left;
+		padding:5px;
+}
+.rightXLarge{
+		width:324px;
+		float:left;
+		padding:5px;
+}
+.rightSmallX{
+		width:55px;
+		float:left;
+		padding:5px;
+}
+	.clear{
+		float:none;
+		clear:both;
+		height:0px;
+	}
+	.row{
+		background-color:transparent;
+		display:block;
+		min-height:30px;
+	}
+        
+	.text{
+		width:230px;             
+	}
+	.textSmall{
+					width:50px;
+	}
+	.textXSmall{
+					width: 25px;
+	}
+	.textMedium{
+					width:95px;
+	}
+	.textMediumX{
+					width:125px;
+	}
+	.textMediumLarge{
+					width: 170px;         
+	}
+	.textMediumLargeX{
+					width: 210px;         
+	}
+	.textLong{
+					width: 272px;
+	}
+	.textXLong{
+					width: 320px;
+	}
+	.textSpace{
+					margin-left: 6px;
+	}
+
+        .ruler{
+		width:400px; border-bottom:dashed 1px #dcdcdc;
+	}
+	tr:focus{
+		background-color:#fcfcf0;
+	}
+	
+	.over{
+		background-color:#d6e5f2;
+	}
+	.out{
+		background-color:transparent;
+	}
+	.placeholder {color:#aaa;}
+	
+	@-moz-document url-prefix(){
+		input[type="text"], textarea{
+			border-top:1px solid #7E7E7E;
+			border-bottom:1px solid #AEAEAE;
+			border-left:1px solid #7E7E7E;
+			border-right:1px solid #AEAEAE;
+			border-radius:3px;
+			#font-size:12px;
+		}
+	}

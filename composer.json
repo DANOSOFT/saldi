@@ -1,0 +1,6 @@
+{
+    "require": {
+        "phpmailer/phpmailer": "^5.2",
+        "quickpay/quickpay-php-client": "2.0.*"
+    }
+}

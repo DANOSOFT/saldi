@@ -1,0 +1,96 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Fixed sidenav, full height */
+.sidenav {
+  height: 100vh;
+  background-color: #1f9eed;
+  overflow-x: hidden;
+  padding-top: 0px;
+}
+
+.sidenav .logo {
+  display: flex;
+  justify-content: center; /* Horizontally center the logo */
+  padding: 45px;
+  transform: translateX(-8px);
+}
+
+.sidenav .logo-img {
+  width: 125px;
+  height: auto;
+}
+
+/* Style the sidenav links and the dropdown button */
+.sidenav a, .dropdown-btn {
+  padding: 6px 8px 6px 16px; /* top, right, bottom, left */
+  text-decoration: none;
+  font-size: 15px;
+  color: #fff;
+  display: block;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  border-radius: 0.4rem;
+}
+
+/* On mouse-over */
+.sidenav a:hover, .dropdown-btn:hover {
+  color: #f1f1f1;
+}
+
+/* Main content */
+.main-content {
+  margin-left:  0px; /* Same as the width of the sidenav */
+  font-size: 20px; /* Increased text to enable scrolling */
+  padding: 0px 10px;
+}
+
+/* Add an active class to the active dropdown button */
+.active {
+  background-color: #4f7bff;
+  color: white;
+}
+
+.content{
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Dropdown container (hidden by default). Optional: add a lighter background color and some left padding to change the design of the dropdown content */
+.dropdown-container {
+  display: none;
+  background-color: #82c3ff;
+  padding-left: 8px;
+  border-radius: 0.4rem;
+}
+
+.content-iframe{
+  border: none;
+  height: 100%;
+  width: 100%;
+}
+
+/* Optional: Style the caret down icon */
+/*.bxs-down-arrow {
+  float: right;
+  padding-right: 8px;
+}*/
+
+/* Some media queries for responsiveness */
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
+
+canvas {
+  width:100% !important;
+  height:400px !important;
+}

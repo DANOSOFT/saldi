@@ -1,0 +1,247 @@
+* {
+  padding: 0;
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+}
+
+body {
+  background-color: #f2f0f0;
+}
+
+button {
+  background-color: #aaa;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  box-shadow: rgba(0, 0, 0, .1) 0 2px 4px 0;
+  box-sizing: border-box;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 400;
+  outline: none;
+  outline: 0;
+  padding: 8px 20px;
+  text-align: center;
+  transition: transform 150ms, box-shadow 150ms;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+button:hover {
+  box-shadow: rgba(0, 0, 0, .15) 0 3px 9px 0;
+  transform: translateY(-1px);
+}
+
+.success-button {
+  background-color: #13aa52;
+  border: 1px solid #13aa52;
+}
+
+.failure-button {
+  background-color: #bb1313;
+  border: 1px solid #bb1313;
+}
+
+
+/* TABLE STYLES */
+
+#base {
+  width: 100vw;
+  height: 100vh;
+}
+
+.table {
+  position: absolute;
+  background-color: #868dfb;
+}
+
+.table-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+  font-size: 40px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.table-tooltip {
+  min-width: 120px;
+  background-color: #222;
+  color: #fff;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+  position: absolute;
+  /*z-index: 1;*/
+
+  top: calc(100% + 5px);
+  left: 50%;
+  /* Use half of the width (120/2 = 60), to center the tooltip */
+  margin-left: -60px;
+  pointer-events: none;
+}
+
+/* CONTEXT MENU */
+.context-menu {
+  position: absolute;
+  overflow: hidden;
+  background: #fff;
+  z-index: 5;
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+  border-radius: 6px;
+}
+
+.context-menu ul {
+  padding: 0px;
+  margin: 0px;
+  min-width: 200px;
+  list-style: none;
+}
+
+.context-menu ul li {
+  padding-bottom: 7px;
+  padding-top: 7px;
+  padding-left: 10px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #222;
+}
+
+.context-menu ul li:hover {
+  background: #eee;
+}
+
+/* Modal */
+ /* The Modal (background) */
+.modal {
+  position: fixed; /* Stay in place */
+  display: none;
+  z-index: 1; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content/Box */
+.modal-content {
+  background-color: #fefefe;
+  padding: 20px;
+  border-radius: 7px;
+
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+  position: absolute;
+  z-index: 50;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.modal-header {
+  padding-bottom: 15px;
+}
+
+.modal-body {
+  display: flex;
+}
+
+.modal-body #modal-preview {
+  min-width: 200px;
+}
+
+.modal-body #modal-preview .table {
+  position: relative;
+  display: inline-block;
+  left: 50%;
+  transform: translate(-50%, 0);
+  margin-left: 10px;
+  margin-bottom: 25px;
+}
+
+.modal-body #modal-main div {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.modal-body #modal-main div span {
+  width: 78px;
+  display: block;
+}
+
+/* The Close Button */
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* TASKBAR STYLES */
+#taskbar {
+  position: fixed;
+  bottom: 10px;
+  right:10px;
+}
+
+/* FIGURE */
+.figure, .rect {
+  background-color: #000;
+  position: absolute;
+}
+
+/* APPBAR */
+#appbar {
+  width: 100%;
+  height: 50px;
+
+  display: flex;
+  justify-content: space-between;
+  position: fixed;
+  z-index: 90000;
+
+}
+
+#appbar div {
+  flex: 1;
+  background-color: #1F2A40;
+  color: #fff;
+  font-size: 40;
+  text-align: center;
+  border-right: 2px solid black;
+  cursor: pointer;
+}
+
+#appbar div:last-child {
+  border: none;
+}
+
+.selected {
+  background-color: #141b2d !important;
+}
+
+.resizer-both {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+  z-index: 10;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}

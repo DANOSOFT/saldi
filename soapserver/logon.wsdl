@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+	xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" 
+	xmlns:tns="urn:Logon" 
+	xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" 
+	xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" 
+	xmlns="http://schemas.xmlsoap.org/wsdl/" 
+	targetNamespace="urn:Logon">
+	<message name="LogonRequest">
+		<part name="regnskab" type="xsd:string"/>
+	</message>
+	<message name="LogonResponse">
+		<part name="return" type="xsd:string"/>
+	</message>
+	<portType name="LogonPortType">
+		<operation name="Logon">
+			<input message="tns:LogonRequest"/>
+			<output message="tns:LogonResponse"/>
+		</operation>
+	</portType>
+	<binding name="LogonBinding" type="tns:LogonPortType">
+		<soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<operation name="Logon">
+			<input>
+				<soap:body use="encoded" namespace="urn:Logon" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output>
+				<soap:body use="encoded" namespace="urn:Logon" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+	</binding>
+	<service name="Logon">
+		<port name="LogonPort" binding="tns:LogonBinding">
+			<soap:address location="%SERVERURL%/logon.php"/>
+		</port>
+	</service>
+</definitions>
