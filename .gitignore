@@ -1,5 +1,17 @@
 bilag/*
-temp/*
+*temp/*
+bordplaner/temp/*
 logolib/*
 nedlagte regnskaber/*
+nedlagte_regnskaber/*
 certs/*
+opret/*
+*/opret/*
+includes/connect.php
+
+phpmailer/*
+*/phpmailer/*
+
+
+bordplaner/bordplan_*
+debitor/pos_print/*_*.php

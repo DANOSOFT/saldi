@@ -255,19 +255,19 @@ function regionNumber($cipcode, $NameOfCountry)
         $NordjyllandRange3 = range(9000, 9990);
 
         switch (true) {
-            case(in_array($cipcode, $HovedstadenRange1) || in_array($cipcode, $HovedstadenRange2) || in_array($cipcode, $HovedstadenRange3) || in_array($cipcode, $HovedstadenRange4) || in_array($cipcode, $HovedstadenRange5)):
+            case (in_array($cipcode, $HovedstadenRange1) || in_array($cipcode, $HovedstadenRange2) || in_array($cipcode, $HovedstadenRange3) || in_array($cipcode, $HovedstadenRange4) || in_array($cipcode, $HovedstadenRange5)):
                 $region = 'DK-84';
                 break;
-            case(in_array($cipcode, $SjaellandRange1) || in_array($cipcode, $SjaellandRange2) || in_array($cipcode, $SjaellandRange3) || in_array($cipcode, $SjaellandRange4)):
+            case (in_array($cipcode, $SjaellandRange1) || in_array($cipcode, $SjaellandRange2) || in_array($cipcode, $SjaellandRange3) || in_array($cipcode, $SjaellandRange4)):
                 $region = 'DK-85';
                 break;
-            case(in_array($cipcode, $SyddanmarkRange1) || in_array($cipcode, $SyddanmarkRange2) || in_array($cipcode, $SyddanmarkRange3) || in_array($cipcode, $SyddanmarkRange4)):
+            case (in_array($cipcode, $SyddanmarkRange1) || in_array($cipcode, $SyddanmarkRange2) || in_array($cipcode, $SyddanmarkRange3) || in_array($cipcode, $SyddanmarkRange4)):
                 $region = 'DK-83';
                 break;
-            case(in_array($cipcode, $MidtjyllandRange1) || in_array($cipcode, $MidtjyllandRange2) || in_array($cipcode, $MidtjyllandRange3) || in_array($cipcode, $MidtjyllandRange4) || in_array($cipcode, $MidtjyllandRange5) || in_array($cipcode, $MidtjyllandRange6)):
+            case (in_array($cipcode, $MidtjyllandRange1) || in_array($cipcode, $MidtjyllandRange2) || in_array($cipcode, $MidtjyllandRange3) || in_array($cipcode, $MidtjyllandRange4) || in_array($cipcode, $MidtjyllandRange5) || in_array($cipcode, $MidtjyllandRange6)):
                 $region = 'DK-82';
                 break;
-            case(in_array($cipcode, $NordjyllandRange1) || in_array($cipcode, $NordjyllandRange2) || in_array($cipcode, $NordjyllandRange3)):
+            case (in_array($cipcode, $NordjyllandRange1) || in_array($cipcode, $NordjyllandRange2) || in_array($cipcode, $NordjyllandRange3)):
                 $region = 'DK-81';
                 break;
             default:
@@ -449,6 +449,9 @@ if (strlen($endFiscalMonth) == 1)
     $endFiscalMonth = "0" . $endFiscalMonth;
 
 $lastDayOfMonth = date_create_from_format('!m', $endFiscalMonth)->format('t');
+
+// $periodDateFrom = 'Fra 01. ' . monthName($startMonth) . ' ' . $startYear;
+// $periodDateTo = 'Til ' . $lastDayOfMonth . '. ' . monthName($endMonth) . ' ' . $endYear;
 
 $fiscalYear = ($startFiscalYear != $endFiscalYear) ? $startFiscalYear . '-' . $endFiscalYear : $startFiscalYear;
 $startDate = $startFiscalYear . '-' . $startFiscalMonth . '-01';
@@ -843,7 +846,7 @@ $otherCorrAmnt = array('0.00');
 $signature_from_previous = 0;
 if (db_fetch_array(db_select("SELECT id FROM ansatte", __FILE__ . " linje " . __LINE__)) != null) {
     $x = 0;
-    $query = db_select("SELECT DISTINCT ON (ordrer.id) ordrer.id AS nr, ordrer.id AS trans_id, saf_t_codes.eng_name AS trans_type, ordrer.sum + ordrer.moms AS trans_amnt_in, ordrer.sum AS trans_amnt_ex,
+    $query = db_select("SELECT ordrer.id AS nr, ordrer.id AS trans_id, saf_t_codes.eng_name AS trans_type, ordrer.sum + ordrer.moms AS trans_amnt_in, ordrer.sum AS trans_amnt_ex,
     CASE WHEN sum < 0 THEN 'D' ELSE 'C' END AS vat_amount_tp, ansatte.nummer AS nummer, ansatte.id AS ansatte_id, ordrer.fakturadate AS trans_date, ordrer.tidspkt AS trans_time
     FROM ordrer
     INNER JOIN ansatte ON ansatte.navn = ordrer.ref
@@ -875,8 +878,8 @@ if (db_fetch_array(db_select("SELECT id FROM ansatte", __FILE__ . " linje " . __
     $cashtransaction_count = $x;
 } else {
     $x = 0;
-    $query = db_select("SELECT DISTINCT ON (ordrer.id) ordrer.id AS nr, ordrer.id AS trans_id, saf_t_codes.eng_name AS trans_type, ordrer.sum + ordrer.moms AS trans_amnt_in, ordrer.sum AS trans_amnt_ex,
-    CASE WHEN sum < 0 THEN 'D' ELSE 'C' END AS vat_amount_tp, brugere.id AS emp_id, ordrer.fakturadate AS trans_date, ordrer.tidspkt AS trans_time
+    $query = db_select("SELECT ordrer.id AS nr, ordrer.id AS trans_id, saf_t_codes.eng_name AS trans_type, ordrer.sum + ordrer.moms AS trans_amnt_in, ordrer.sum AS trans_amnt_ex,
+    CASE WHEN sum < 0 THEN 'D' ELSE 'C' END AS vat_amount_tp, brugere.id AS empID, ordrer.fakturadate AS trans_date, ordrer.tidspkt AS trans_time
     FROM ordrer
     INNER JOIN brugere ON brugere.brugernavn = ordrer.hvem
     INNER JOIN pos_events ON pos_events.order_id = ordrer.id
@@ -891,7 +894,7 @@ if (db_fetch_array(db_select("SELECT id FROM ansatte", __FILE__ . " linje " . __
         $transAmntIn[$x] = number_format(round(abs($r['trans_amnt_in']), 2), 2, '.', '');
         $transAmntEx[$x] = number_format(round(abs($r['trans_amnt_ex']), 2), 2, '.', '');
         $cashtransaction_amntTp[$x] = $r['vat_amount_tp'];
-        $cashtransaction_empID[$x] = $r['emp_id'];
+        $cashtransaction_empID[$x] = $r['empID'];
         $transDate[$x] = $r['trans_date'];
         $transTime[$x] = $r['trans_time'] . ':00';
         $certificateData[$x] = $public_key;
@@ -904,7 +907,6 @@ if (db_fetch_array(db_select("SELECT id FROM ansatte", __FILE__ . " linje " . __
     }
     $cashtransaction_count = $x;
 }
-
 /**
  * Hashing and signing of cash register data
  */
@@ -976,6 +978,7 @@ while ($r = db_fetch_array($query)) {
     $vat_vatAmnt[$x] = number_format(round(abs($r['vat_amnt']), 2), 2, '.', '');
     $vat_vatAmntTp[$x] = $r['amnt_tp'];
     $vatBasAmnt[$x] = number_format(round(abs($r['line_amnt_ex']), 2), 2, '.', '');
+
 }
 $ctLine_count = $x;
 
@@ -996,7 +999,7 @@ $vatBasAmntString = serialize($vatBasAmnt);
 // PAYMENT
 if (db_fetch_array(db_select("SELECT id FROM ansatte", __FILE__ . " linje " . __LINE__)) != null) {
     $x = 0;
-    $query = db_select("SELECT DISTINCT ON (ordrer.id) ordrer.id AS id, saf_t_codes.eng_name AS payment_type, ordrer.sum + ordrer.moms AS paid_amnt,
+    $query = db_select("SELECT saf_t_codes.eng_name AS payment_type, ordrer.sum + ordrer.moms AS paid_amnt,
     ansatte.nummer AS nummer, ansatte.id AS ansatte_id, ordrer.valuta AS curcode
     FROM ordrer
     INNER JOIN ansatte ON ansatte.navn = ordrer.ref
@@ -1016,8 +1019,8 @@ if (db_fetch_array(db_select("SELECT id FROM ansatte", __FILE__ . " linje " . __
     $payment_count = $x;
 } else {
     $x = 0;
-    $query = db_select("SELECT DISTINCT ON (ordrer.id) ordrer.id AS id, saf_t_codes.eng_name AS payment_type, ordrer.sum + ordrer.moms AS paid_amnt,
-    brugere.id AS emp_id, ordrer.valuta AS curcode
+    $query = db_select("SELECT saf_t_codes.eng_name AS payment_type, ordrer.sum + ordrer.moms AS paid_amnt,
+    brugere.id AS empID, ordrer.valuta AS curcode
     FROM ordrer
     INNER JOIN brugere ON brugere.brugernavn = ordrer.hvem
     INNER JOIN pos_events ON pos_events.order_id = ordrer.id
@@ -1028,7 +1031,7 @@ if (db_fetch_array(db_select("SELECT id FROM ansatte", __FILE__ . " linje " . __
         $x++;
         $payment_paymentType[$x] = $r['payment_type'];
         $paidAmnt[$x] = number_format(round($r['paid_amnt'], 2), 2, '.', '');
-        $payment_empID[$x] = $r['emp_id'];
+        $payment_empID[$x] = $r['empID'];
         $payment_curCode[$x] = $r['curcode'];
     }
     $payment_count = $x;
@@ -1121,6 +1124,7 @@ if ($menu == 'T') {
     print "</tbody></table>";
     print "</td></tr>";
 }
+
 
 /**
  * Popup message

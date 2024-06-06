@@ -87,7 +87,7 @@
 // 20211123 PHR added paperflowId & paperflowBearer
 // 20220413 PHR Renamed pos_valg til posOptions and moved function to diverse/posOptions.php
 // 20231228 PBLM Added mobilePay (diverse valg)
-// 2024-05-13 PBLM Added nemhandel (diverse valg)
+
 	include("sys_div_func_includes/chooseProvision.php");
 
 ini_set('display_errors','0');
@@ -1211,66 +1211,219 @@ function div_valg() {
   }
 </script>
 ";
- // MobilePay
- function createGUID() {
-    if (function_exists('com_create_guid') === true)
-    {
-        return trim(com_create_guid(), '{}');
-    }
-    
-    return sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
+
+
+# #########################################################
+#
+# Mobilepay
+#
+# #########################################################
+
+print "<tr bgcolor='#e0e0f0'>\n<td title='MobilePay'>Mobilepay Opsætning</td>\n";
+print "<td title='MobilePay'>\n";
+print "</td></tr>\n";
+
+$q=db_select("select var_value from settings where var_name = 'client_id' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
+$client_id = db_fetch_array($q)[0];
+$q=db_select("select var_value from settings where var_name = 'client_secret' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
+$client_secret = db_fetch_array($q)[0];
+$q=db_select("select var_value from settings where var_name = 'subscriptionKey' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
+$subscription = db_fetch_array($q)[0];
+$q=db_select("select var_value from settings where var_name = 'MSN' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
+$MSN = db_fetch_array($q)[0];
+
+print "<tr>\n<td title='MobilePay'>Mobilepay Client ID</td>\n";
+print "<td title='MobilePay'>\n";
+print "<input name='mobilepay_client_id' class='inputbox' type='text' style='width:150px;' value='$client_id'>\n";
+print "</td></tr>\n";
+
+print "<tr>\n<td title='MobilePay'>Mobilepay Client Secret</td>\n";
+print "<td title='MobilePay'>\n";
+print "<input name='mobilepay_client_secret' class='inputbox' type='text' style='width:150px;' value='$client_secret'>\n";
+print "</td></tr>\n";
+
+print "<tr>\n<td title='MobilePay'>Mobilepay subscription key</td>\n";
+print "<td title='MobilePay'>\n";
+print "<input name='mobilepay_subscription' class='inputbox' type='text' style='width:150px;' value='$subscription'>\n";
+print "</td></tr>\n";
+
+print "<tr>\n<td title='MobilePay'>Mobilepay merchant serial number</td>\n";
+print "<td title='MobilePay'>\n";
+print "<input name='mobilepay_msn' class='inputbox' type='text' style='width:150px;' value='$MSN'>\n";
+print "</td></tr>\n";
+
+# If the system has been setup to run mobilepay intergrated, show extra options
+if ($client_id) {
+        $q=db_select("select var_value from settings where var_name = 'webhook_secret' AND var_grp = 'mobilepay'",__FILE__ . " linje " . __LINE__);
+        $webhook = db_fetch_array($q)[0];
+        if (!$webhook) {
+                print "<tr>\n<td title='MobilePay'>Forbind webhook</td>\n";
+                print "<td title='MobilePay'>\n";
+                print "<button onclick=\"window.location.href='sys_div_func_includes/setup_mobilepay_webhook.php';\" class='inputbox' type='button' style='width:150px;'>Forbind</button>\n";
+                print "</td></tr>\n";
+        }
+
+        print "<tr bgcolor='#e0e0f0'>\n<td title='MobilePay'>Registerede QR koder</td>\n";
+        print "<td title='MobilePay'>\n";
+        print "</td></tr>\n";
+
+        $query = db_select("SELECT * FROM grupper WHERE art = 'POS' AND kodenr = 1 AND fiscal_year = $regnaar",__FILE__ . " linje " . __LINE__);
+        $posnum = db_fetch_array($query)["box1"];
+        for($i = 1; $i <= $posnum; $i++){
+                $query = db_select("SELECT var_value FROM settings WHERE var_name = 'qrkodeuri' AND pos_id = $i AND var_grp='mobilepay'",__FILE__ . " linje " . __LINE__);
+                if(db_num_rows($query) > 0) {
+                        $mobilepay = db_fetch_array($query)[0];
+                } else {
+                        # #########################################################
+                        # 
+                        # Get auth token
+                        # 
+                        # #########################################################
+                        $url = 'https://api.vipps.no/accesstoken/get';
+
+                        $headers = array(
+                            'Content-Type: application/json',
+                            "Client_id: $client_id",
+                            "Client_secret: $client_secret",
+                            "Ocp-Apim-Subscription-Key: $subscription",
+                            "Merchant-Serial-Number: $MSN",
+                            'Vipps-System-Name: acme',
+                            'Vipps-System-Version: 3.1.2',
+                            'Vipps-System-Plugin-Name: acme-webshop',
+                            'Vipps-System-Plugin-Version: 4.5.6',
+                            'Content-Length: 0'
+                        );
+
+                        $ch = curl_init($url);
+
+                        curl_setopt($ch, CURLOPT_POST, 1);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+                        $response = curl_exec($ch);
+
+                        if ($response === false) {
+                            // Handle curl error
+                            $error = curl_error($ch);
+                            echo "Curl error: " . $error;
+                        } else {
+                            // Process response
+                            $response = json_decode($response, true);
+                            $accessToken = $response["access_token"];
+                        }
+
+                        curl_close($ch);
+
+                        # #########################################################
+                        # 
+                        # Create webhook
+                        # 
+                        # #########################################################
+                        $url = "https://api.vipps.no/qr/v1/merchant-callback/kasse$i";
+
+
+                        $headers = array(
+                            "Authorization: Bearer $accessToken",
+                            "Client_id: $client_id",
+                            "Client_secret: $client_secret",
+                            "Ocp-Apim-Subscription-Key: $subscription",
+                            "Merchant-Serial-Number: $MSN",
+                            'Content-Type: application/json',
+                            'Vipps-System-Name: acme',
+                            'Vipps-System-Version: 3.1.2',
+                            'Vipps-System-Plugin-Name: acme-webshop',
+                            'Vipps-System-Plugin-Version: 4.5.6',
+                        );
+
+                        $data = json_encode(array(
+                            'locationDescription' => "Kasse $i",
+                            'Qrimageformat' => 'SVG'
+                        ));
+
+                        $ch = curl_init($url);
+
+                        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+                        $response = curl_exec($ch);
+                        $status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+                        if ($response === false) {
+                            // Handle curl error
+                            $error = curl_error($ch);
+                            echo "Curl error: " . $error;
+                        } else {
+                            // Process response
+                            echo "Response: " . $response . "\n";
+
+                            echo "Status Code: " . $status_code . "\n";
+                            $url = "https://api.vipps.no/qr/v1/merchant-callback/kasse$i";
+
+                                $headers = array(
+                                    'Content-Type: application/json',
+                                    "Authorization: Bearer $accessToken",
+                                    "Client_id: $client_id",
+                                    "Client_secret: $client_secret",
+                                    "Ocp-Apim-Subscription-Key: $subscription",
+                                    "Merchant-Serial-Number: $MSN",
+                                    'Accept: text/targetUrl',
+                                    'Vipps-System-Name: acme',
+                                    'Vipps-System-Version: 3.1.2',
+                                    'Vipps-System-Plugin-Name: acme-webshop',
+                                    'Vipps-System-Plugin-Version: 4.5.6',
+                                );
+
+                                $ch = curl_init($url);
+
+                                curl_setopt($ch, CURLOPT_HTTPGET, true);
+                                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+                                $response = curl_exec($ch);
+                                $status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+                                if ($response === false) {
+                                        // Handle curl error
+                                        $error = curl_error($ch);
+                                        echo "Curl error: " . $error;
+                                } else {
+                                        // Process response
+                                        echo "Response: " . $response . "\n";
+                                        echo "Status Code: " . $status_code . "\n";
+                                        $data = json_decode($response, true);
+                                        $mobilepay = $data["qrImageUrl"];
+
+
+                                        $qtxt="insert into settings (var_name, var_grp, var_value, var_description, pos_id) values ('qrkodeuri', 'mobilepay', '$mobilepay', 'A QR code URI to access the QR image on vipps server', $i)";
+                                        db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+                                }
+
+                                curl_close($ch);
+                        }
+
+                        curl_close($ch);
+                }
+
+                print "<tr>\n<td title='MobilePay'>MobilePay QR for kasse #$i</td>\n";
+                print "<td title='MobilePay'>\n";
+                print "<a style='width:150px;' href='$mobilepay' target='_blank'>Se QR kode</a>\n";
+                print "</td></tr>\n";
+        }
 }
 
-$query = db_select("SELECT * FROM grupper WHERE art = 'POS' AND kodenr = 1 AND fiscal_year = $regnaar",__FILE__ . " linje " . __LINE__);
-$antalKasser = db_fetch_array($query)["box1"];
-echo "<tr><td>OBS: du skal skrive samme storeId ved de forskellige kasser med mindre de er i en anden butik.</td></tr>";
-for($i = 1; $i <= $antalKasser; $i++){
-	$query = db_select("SELECT * FROM settings WHERE var_name = 'storeId' AND pos_id = $i",__FILE__ . " linje " . __LINE__);
-	if(db_num_rows($query) > 0) {
-		$mobilepay = db_fetch_array($query)["var_value"];
-	} else {
-		$mobilepay = "";
-	}
 
-	print "<tr>\n<td title='MobilePay'>MobilePay storeId kasse #$i</td>\n";
-	print "<td title='MobilePay'>\n";
-	print "<input name='mobilepay[]' class='inputbox' type='text' style='width:150px;' value='$mobilepay'>\n";
-	print "</td></tr>\n";  
+# #########################################################
+#
+# Mobilepay END
+#
+# #########################################################
 
-	$query = db_select("SELECT * FROM settings WHERE var_name='beaconId' and pos_id = $i",__FILE__ . " linje " . __LINE__);
-	if(db_num_rows($query) == 0){
-		$beaconId = createGUID();
-		db_modify("INSERT INTO settings (var_name, var_value) VALUES ('beaconId', '$beaconId')",__FILE__ . " linje " . __LINE__);
-	} else {
-		$beaconId = db_fetch_array($query)["var_value"];
-	}
+                                                                                                             
 
-	print "<tr>\n<td title='MobilePay'>MobilePay QR kode kasse #$i</td>\n";
-	print "<td title='MobilePay'>\n";
-	print "<div id='qrcode$i'></div>";
-	print "</td></tr>\n";
 
-	?>
-	<script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
-	<script>
-		var qrcode = new QRCode(document.getElementById("qrcode<?php echo $i ?>"), {
-			text: "mobilepaypos://pos?id=<?php echo $beaconId ?>&source=qr",
-			width: 128,
-			height: 128,
-			colorDark : "#000000",
-			colorLight : "#ffffff",
-			correctLevel : QRCode.CorrectLevel.H
-		})
-	</script>
-	<?php
-}
-	// Nemhandel
-	$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
-	if(db_num_rows($query) <= 0) {
-		echo "<tr><td><label>Opret i nemhandel (for at modtage/afsende electronisk fakture)</label></td>\n<td><input type='checkbox' name='nemhandel'></td></tr>\n";
-	} else {
-		echo "<tr><td>Du er oprettet i nemhandel</td></tr>\n";
-	}
+
 
   # API key for copayone
   $qtxt = "SELECT var_value FROM settings WHERE var_name='copayone_auth'";
@@ -1435,8 +1588,6 @@ function ordre_valg() {
 		$r=db_fetch_array(db_select("select varenr from varer where id = '$saetvareid'",__FILE__ . " linje " . __LINE__));
 		$saetvarenr=$r['varenr'];
 	}
-
-	
 
 	print "<form name=diverse action=diverse.php?sektion=ordre_valg method=post>";
 	print "<tr><td colspan='6'><hr></td></tr>";

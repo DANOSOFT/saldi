@@ -53,6 +53,12 @@ function vis_pos_linjer($id,$momssats,$status,$pris_ny,$show) {
 	$samlet_rabatpct=0;
 	$saetpris=0;
 
+	if ($id) {
+		$qtxt = "select status from ordrer where id = '$id'";
+		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$status = $r['status'];
+	}
+	
 	if (isset($_POST['betvaluta'])) $betvaluta=$_POST['betvaluta'];
 	else $betvaluta='DKK';
 

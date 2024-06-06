@@ -288,7 +288,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 			$kortsummer.=chr(9).$kortsum[$x];
 		} else {
 			$kortnavne=$kortnavn[0];
-			$kortkonti=$kortkonti[0];
+			$kortkonti=$kortkonto[0];
 			$kortsummer=$kortsum[0];
 		}
 	}

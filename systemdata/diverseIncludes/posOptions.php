@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posOptions.php --- ver 4.1.0 -- 2023-12-30 ---
+// --- systemdata/diverseIncludes/posOptions.php --- ver 4.1.0 -- 2024-01-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 Saldi.DK ApS
+// Copyright (c) 2003-2024 Saldi.DK ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
 // 20131230 PHR addad fiscal year to groups.
@@ -65,7 +65,7 @@ function posOptions () {
 		$qtxt.= "box8,box9,box10,box11,box12,box13,box14,fiscal_year) ";
 		$qtxt.= "values ('Pos valg','','2','POS','0','','','','','','','','','','','','','','$regnaar')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt = "select * from grupper where art = 'POS' and kodenr = '2'";
+		$qtxt = "select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$id2=$r['id'];
 	}
@@ -83,14 +83,14 @@ function posOptions () {
 	($r['box12'])?$vis_saet='checked':$vis_saet='';
 	$bordvalg=explode(chr(9),$r['box13']);
 	($r['box14'])?$udtag0='checked':$udtag0=NULL;
-	if ($r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3'",__FILE__ . " linje " . __LINE__))) {
+	if ($r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__))) {
 		$id3=$r['id'];
 	} else {
 		$qtxt = "insert into grupper(beskrivelse,kode,kodenr,art,box1,box2,box3,box4,box5,box6,box7";
 		$qtxt.= ",box8,box9,box10,box11,box12,box13,box14,fiscal_year)";
 		$qtxt.= "values ('Pos valg','','3','POS','0','10','','','','','','','','','','','','','$regnaar')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$id3=$r['id'];
 	}
 	($r['box1'])?$brugervalg='checked':$brugervalg=NULL;
@@ -172,7 +172,8 @@ function posOptions () {
 		}
 		$afd_antal=$x;
 		$x=0;
-		$q = db_select("select * from grupper where art = 'SM' order by kodenr",__FILE__ . " linje " . __LINE__);
+		$qtxt = "select * from grupper where art = 'SM' and fiscal_year = '$regnaar' order by kodenr";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$x++;
 			$moms_nr[$x]=$r['kodenr'];
@@ -278,8 +279,8 @@ function posOptions () {
       } else if ($posTermOption == "Flatpay") {
         print "<option value='Ip baseret'>Ip baseret</option>
 					<option selected='selected' value='Flatpay'>Flatpay</option>";
-      } else if (str_starts_with($posTermOption, "Vibrant")) {
-				print "<option value='Ip baseret'>Ip baseret</option>
+      } else if (substr($posTermOption, 0, 8) == "Vibrant:") {
+				print "<option value='$posTermOption'>$posTermOption</option>
 				<option value='Flatpay'>Flatpay</option>";
         # Handeled below
       } else {
@@ -295,7 +296,7 @@ function posOptions () {
 
       while ($r = db_fetch_array($q)) {
         if (!$r['pos_id'] || $r['pos_id'] == $x+1 || $r['pos_id'] == -1) {
-          if ($r['pos_id'] == $x+1 && str_starts_with($posTermOption, "Vibrant")) {
+          if ($r['pos_id'] == $x+1 && "Vibrant:" == substr($posTermOption, 0, 8)) {
             $selected = "selected='selected'";
           } else {
             $selected = "";

@@ -2327,13 +2327,11 @@ function ordreside($id,$regnskab) {
 #cho "procentfakt $procentfakt $default_procenttillag<br>";
 	
 	######### pile ########## tilfoejet 20080210
-		if (!$hurtogfakt && $status==0) $tmp="tilbud";
+		if ($status==0) $tmp="tilbud";
 		elseif($status>=3) $tmp="faktura";
 		else $tmp="ordrer";
-		$qtxt = "select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'";
-#cho "$qtxt<br>";
-	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#cho "b $r[box1]<br>";
+
+		$r=db_fetch_array(db_select("select box1 from grupper where art = 'OLV' and kodenr = '$bruger_id' and  kode='$tmp'",__FILE__ . " linje " . __LINE__));
 		$ordreliste=explode(",",if_isset($r['box1']));
 		$x=0; $next_id=0;
 		while(isset($ordreliste[$x])) {
@@ -2345,7 +2343,7 @@ function ordreside($id,$regnskab) {
 			}
 			$x++;
 		}
-		######### elip ##########
+######### elip ##########
 $kundeordre = findtekst(1092,$sprog_id);
 	if ($art=='DK') {
 		 
@@ -2606,7 +2604,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 				if ($dokument) print "<td title=\"".findtekst(1454, $sprog_id).": $dokument\"><a href=\"../includes/bilag.php?kilde=ordrer&filnavn=$dokument&bilag_id=$id&bilag=$dokument&kilde_id=$id\"><img style=\"border: 0px solid\" alt=\"clip_m_papir\" src=\"../ikoner/paper.png\"></a></td>";
 				else print "<td title=\"".findtekst(1455, $sprog_id)."\"><a href=\"../includes/bilag.php?kilde=ordrer&bilag_id=$id&bilag=$dokument&ny=ja&kilde_id=$id\"><img  style=\"border: 0px solid\" alt=\"clip\" src=\"../ikoner/clip.png\"></a></td>";
 			}
-			print "</tr><tr><td valign=\"top\" title='\"$text_title\"'>".findtekst(585, $sprog_id)."</td><td title='\"$std_txt_title\"'>";
+			print "</tr><tr><td valign=\"top\">".findtekst(585, $sprog_id)."</td><td title=\"$std_txt_title\">";
 			if ($mail_text) {
 				print "<textarea style=\"width:1000px;\" rows=\"2\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_text\" ";
 				print "onchange=\"javascript:docChange = true;\">$mail_text</textarea>\n";
@@ -3047,6 +3045,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 ##### pile ########	tilfoejet 20080210
 		$alerttekst=findtekst(154,$sprog_id);
 		$spantekst=findtekst(198,$sprog_id);
+		
 		if ($menu=='T') {
 			$widthTable = 'width=100%';
 			$styleTable = "class='dataTableForm'";
@@ -3690,7 +3689,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 				if ($dokument) print "<td title=\"".findtekst(1454, $sprog_id).": $dokument\"><a href=\"../includes/bilag.php?kilde=ordrer&filnavn=$dokument&bilag_id=$id&bilag=$dokument&kilde_id=$id\"><img style=\"border: 0px solid\" alt=\"clip_m_papir\" src=\"../ikoner/paper.png\"></a></td>";
 				else print "<td title=\"".findtekst(1455, $sprog_id)."\"><a href=\"../includes/bilag.php?kilde=ordrer&bilag_id=$id&bilag=$dokument&ny=ja&kilde_id=$id\"><img  style=\"border: 0px solid\" alt=\"clip\" src=\"../ikoner/clip.png\"></a></td>";
 			}
-			print "</tr><tr><td valign=\"top\"  title=\"$text_title\">".findtekst(585, $sprog_id)."</td><td title=\"$std_txt_title\">";
+			print "</tr><tr><td valign=\"top\"  title='\"$text_title\"'>".findtekst(585, $sprog_id)."</td><td title='\"$std_txt_title\"'>";
 			if ($mail_text) print "<textarea style=\"width:1000px;\" rows=\"2\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_text\" onchange=\"javascript:docChange = true;\">$mail_text</textarea>\n";
 			else print "<input class=\"inputbox\" type=\"text\" style=\"width:1000px;\" onfocus=\"document.forms[0].fokus.value=this.name;\"name=\"mail_text\" placeholder=\"$std_txt\" value=\"$mail_text\" onchange=\"javascript:docChange = true;\">";
 			print "</td></tr></tbody></table></td></tr>\n"; # <- Tabel 4.4	
