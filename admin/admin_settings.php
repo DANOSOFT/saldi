@@ -26,7 +26,6 @@
 // 20190411 PHR Added alertText
 // 20210917 LOE Translated some texts
 // 20210921 Added this block of code to set language
-// 20240522 MMK Newssnippet
 
 @session_start();
 $s_id=session_id();

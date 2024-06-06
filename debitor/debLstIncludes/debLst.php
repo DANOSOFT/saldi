@@ -55,7 +55,6 @@ for($i=0;$i<$dgcount;$i++) {
 	$catcount=count($cat_liste);
 	if (!$catcount) {
 		$catcount=1; 
-		$cat_liste[0] = '';
 	}
 	for($i3=0;$i3<$catcount;$i3++) {
 		if ($cat_liste[$i3] || $cat_liste[$i3] == 0) {
@@ -64,18 +63,21 @@ for($i=0;$i<$dgcount;$i++) {
 					if (!$start && !$lnr) {
 						$tmp=$start+$linjeantal;
 					}
-					print "<tr><td colspan=\"$colspan\"><hr></td></tr><tr>";
+					# print "<tr><td colspan=\"$colspan\"><hr></td></tr><tr>";
 					if (isset($i2) && isset($dg_navn[$i2]) && $dg_navn[$i2]) $tmp="<td colspan=\"2\"><b>$dg_navn[$i2]</b></td>";
 					else $tmp=""; 
-					print "<tr><td></td>$tmp<td colspan=\"2\"><b>$cat_beskrivelse[$i4]</b></td></tr>\n";
-					print "<tr><td colspan=\"$colspan\"><hr></td>";
+					if ($cat_beskrivelse[$i4]) {
+						print "<tr><td colspan=\"$colspan\"><hr></td></tr>";
+						print "<tr><td></td>$tmp<td colspan=\"2\"><b>$cat_beskrivelse[$i4]</b></td></tr>\n";
+					}
+					# print "<tr><td colspan=\"$colspan\"><hr></td>";
 					$udv2=$udv1." and (kategori = '$cat_id[$i4]' or kategori LIKE '$cat_id[$i4]".chr(9)."%' ";
 					$udv2.="or kategori LIKE '%".chr(9)."$cat_id[$i4]' or kategori LIKE '%".chr(9)."$cat_id[$i4]".chr(9)."%')";	#20160218
 					break 1;
 				} 
 			}	
 		}
-		if (!count($cat_liste) || $cat_liste[0] == '') $udv2 = NULL;
+		if (!count($cat_liste)) $udv2 = NULL;
 		$i=0;
 		if (!$udv2) $udv2=$udv1;	
 		if (!$udv2) $udv2=$udvaelg;	

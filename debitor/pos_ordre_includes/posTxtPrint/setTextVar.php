@@ -74,9 +74,9 @@
 	while(strlen($dkkmoms)<9){
 		$dkkmoms=" ".$dkkmoms;
 	}
+	$q = db_select("select var_value from settings where var_name='deactivateBonprint'", __FILE__ . " linje " . __LINE__);
+	$disabledPrinter = db_fetch_array($q)['var_value'];
 
-	$query = db_select("select var_value from settings where var_name='deactivateBonprint'", __FILE__ . " linje " . __LINE__);
-	$disabledPrinter = db_fetch_array($query)['var_value'];
 	if(isset($doNotPrint) && $doNotPrint == "copied") {
 		printWarningMessage($doNotPrint);
 		return true;

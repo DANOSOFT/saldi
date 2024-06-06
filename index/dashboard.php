@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- index/dashboard.php --- lap 4.1.0 --- 2024.05.22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,7 +26,7 @@
 @session_start();
 $s_id = session_id();
 
-$css = "../css/dashboard.css";
+$css = "../css/dashboard.css?v=2";
 echo "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
@@ -44,6 +44,8 @@ $online_people = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__
 $timestamp = (int) date("U") - (1*60*60*1000);
 $qtxt = "SELECT count(brugernavn) FROM online WHERE db='$db' AND logtime > '$timestamp'";
 $online_people_amount = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
+
+$newssnippet = get_settings_value("nyhed", "dashboard", "");
 
 include ("../includes/online.php");
 include ("../includes/stdFunc/dkDecimal.php");
@@ -84,32 +86,6 @@ if (!check_permissions(array(3,4))) {
 
 
 print '<script src="../javascript/chart.js"></script>';
-
-function update_settings_value($var_name, $var_grp, $var_value, $var_description) {
-	# Expect a posted ID
-	$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
-	# If the row already exsists
-	if ($r) {
-		$qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	# If the row needs to be created in the database
-	} else {
-		$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ('$var_name', '$var_grp', '$var_value', '$var_description')";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	}
-}
-
-function get_settings_value($var_name, $var_grp, $default) {
-	$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($r) {
-		return $r[0];
-	} else {
-		return $default;
-	}
-}
 
 function generateArray() {
     $result = array();
@@ -156,6 +132,7 @@ $customergraph = get_settings_value("customergraph", "dashboard_toggles", "off")
 
 $closed_newssnippet = get_settings_value("closed_news_snippet", "dashboard", "");
 $hide_dash = get_settings_value("hide_dash", "dashboard", "0", $user=$bruger_id);
+
 
 /* 
 # Omsætning i et tidsrum
@@ -432,10 +409,9 @@ $name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
 print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em; height: 100vh' class='content'>";
 
-
 # Newsbar
 if ($closed_newssnippet != $newssnippet && $newssnippet != '') {
-        print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
+	print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
 }
 
 # Titlebar
@@ -599,7 +575,7 @@ print "
 <div style='display: none' id='settingpopup'>
   <div style='top: 0; position: absolute; height: 100vh; width: 100vw; background-color: #00000030'>
   </div>
-  <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em'>
+  <div style='width: 700px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em'>
     <h3>Opsæt din oversigt</h3>
 
 <form method='post'>
@@ -611,10 +587,12 @@ print "
     <tr>
       <td>Konto min</td>
       <td><input type='text' name='kontomin' value='$kontomin' /></td>
+      <td>Er du i tvilv om dine kontotal?</td>
     </tr>
     <tr>
       <td>Konto maks</td>
       <td><input type='text' name='kontomaks' value='$kontomaks' /></td>
+      <td> Se vores guide <a href='https://site.saldi.dk/saldi-manualer/omsaetningstal' target='_blank'>her</a></td>
     </tr>
     <tr>
       <th>Nøgletal</th>
@@ -681,3 +659,4 @@ print " /></td>
 
 
 ?>
+

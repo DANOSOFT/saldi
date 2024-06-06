@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php -----patch 4.0.8 ----2024-01-18------------
+// --- includes/documents.php -----patch 4.1.0 ----2024-04-13------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,6 +19,7 @@
 // Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //20230622 - LOE  Updated file path and some related modifications.
+//20240412 - PHR Various modifications
 
 @session_start();
 $s_id=session_id();
@@ -177,5 +178,4 @@ print "</td></tr>";
 // ---------- Main table start ---------
 print "</tbody></table>";
 print "</body></html>";
-
 ?>
