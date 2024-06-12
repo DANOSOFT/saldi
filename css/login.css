@@ -12,7 +12,7 @@
     padding: 0px;
 }
 
-html
+html 
 {
     height: 100%;
 }
@@ -23,99 +23,57 @@ body
     font: normal 11px Arial, Helvetica, sans-serif;
     color: #444;
     letter-spacing: -0.04em;
-    overflow: hidden;
-}
-
-iframe
-{
-    border: none;
-    position: absolute;
-    width: 55%;
-    height: 100vh;
-    z-index: 1;
 }
 
 #wrapper
 {
-    margin: 0;
+    margin: auto;
     width: 100%;
     height: 100%;
     background-color: white;
+    #margin-bottom: -30px;
 }
 
 .loginHolder
 {
-    text-align: right;
-    width: 100%;
-    height: 100%;
+    text-align: center;
+    width:100%;
+    position: absolute;
     top: 25%;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    margin-bottom: 10px;
 }
 
 .loginBox
 {
-    z-index: 2;
+    width:350px;
     text-align: left;
     font-size: 15px;
-    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+    margin:10px;
+    border: 1px solid lightgray;
+    border-radius: 10px;
+    box-shadow: 3px 3px 5px #888888;
+    display:inline-block;
     background-color: white;
-    padding: 10px;
-    border-radius: .5em;
-    -webkit-border-radius: .5em;
-    -moz-border-radius: .5em;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
 }
 
-.loginForm img
-{
-    cursor: pointer;
-}
-
-.loginBox h2
-{
-    font-weight: normal;
-}
-
-#languageId
-{
-    padding: 5px 10px;
-    background: #fff;
-    border: lightgray 1px solid;
-    border-radius: .5em;
-    -webkit-border-radius: .5em;
-    -moz-border-radius: .5em;
-}
 .loginBox label
 {
     display: block;
     font-size: 15px;
     color: #444;
-    margin-bottom: 8px;
+    margin-bottom: 3px;
 }
 
 .loginForm
 {
-    min-width: 420px;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-}
-
-form[name="login1"] div:last-child {
-    margin-top: 20px;
+    margin:22px;
 }
 
 .loginAction label
 {
     font-size: 12px;
     color: #777;
-    border-bottom: 1px solid lightGrey;
+    border-bottom: 1px solid lightGrey;		
     padding: 0 0 5px;
     margin: 0 0 7px;
 }
@@ -125,7 +83,7 @@ form[name="login1"] div:last-child {
     vertical-align: middle;
 }
 
-input[type="checkbox"]
+input[type="checkbox"] 
 {
     margin: 3px 3px 3px 4px;
 }
@@ -156,45 +114,97 @@ a.forgotpass:hover
     background:#fff url('../img/textinputbg.gif') repeat-x;
     color: black;
     #text-indent: 7px;
-    padding: 9px 14px;
+    padding: 7px 7px;  
     font-size: 15px;
-    margin-bottom: 12px;
-    overflow:visible;
-    border-radius: .5em;
-    -webkit-border-radius: .5em;
-    -moz-border-radius: .5em;
-}
-
-.loginAction {
-    display: flex;
-    justify-content: space-between;
-    gap: 2em;
+    margin-bottom: 10px;
+		overflow:visible;
 }
 
 .button {
     display: inline-block;
     zoom: 1; /* zoom and *display = ie7 hack for display:inline-block */
-    flex: 1;
-    background-color: #4f37f5;
-    color: #fff;
+    *display: inline;
+    vertical-align: baseline;
+    margin-top:10px;
     outline: none;
-    font: 15px/100% Arial, Helvetica, sans-serif;
     cursor: pointer;
-
+    text-align: center;
+    text-decoration: none;
+    font: 16px/100% Arial, Helvetica, sans-serif;
+    padding: .5em 2em .55em;
+    text-shadow: 0 1px 1px rgba(0,0,0,.3);
+    -webkit-border-radius: .5em; 
+    -moz-border-radius: .5em;
+    border-radius: .5em;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner*/
     -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.2);
     -moz-box-shadow: 0 1px 2px rgba(0,0,0,.2);
     box-shadow: 0 1px 2px rgba(0,0,0,.2);
-
-    border: solid 1px #0076a3;
-    border-radius: .5em;
-    -webkit-border-radius: .5em;
-    -moz-border-radius: .5em;
 }
+
+.button:hover {
+    text-decoration: none;
+}
+
+.button:active {
+    position: relative;
+    top: 1px;
+}
+
+.blue {
+    color: #d9eef7;
+    border: solid 1px #0076a3;
+    background: #0095cd;
+    background: -webkit-gradient(linear, left top, left bottom, from(#00adee), to(#0078a5));
+    background: -moz-linear-gradient(top,  #00adee,  #0078a5);
+    background: -ms-linear-gradient(top,  #00adee,  #0078a5);
+		background: -o-linear-gradient(top,  #00adee,  #0078a5);
+		background: linear-gradient(top,  #00adee,  #0078a5);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#00adee', endColorstr='#0078a5');
+}
+.blue:hover {
+    background: #007ead;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0095cc), to(#00678e));
+    background: -moz-linear-gradient(top,  #0095cc,  #00678e);
+    background: -ms-linear-gradient(top,  #0095cc,  #00678e);
+		background: -o-linear-gradient(top,  #0095cc,  #00678e);
+		background: linear-gradient(top,  #0095cc,  #00678e);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0095cc', endColorstr='#00678e');
+}
+.blue:active {
+    color: #80bed6;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0078a5), to(#00adee));
+    background: -moz-linear-gradient(top,  #0078a5,  #00adee);
+    background: -ms-linear-gradient(top,  #0078a5,  #00adee);
+		background: -o-linear-gradient(top,  #0078a5,  #00adee);
+		background: linear-gradient(top,  #0078a5,  #00adee);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0078a5', endColorstr='#00adee');
+}
+
+.clearfix
+{
+    clear:both;
+    height:0;
+    font-size:1px;
+    line-height:1px;
+    width:100%;
+    overflow:hidden;
+}
+
+.flleft
+{
+    float: left;
+}
+
+.flright
+{
+    float: right;
+}
+
 #footer
 {
-    font-size: 11px;
-    position:fixed;
-    bottom:0px;
+		position:fixed;
+		bottom:0px;
     text-align: center;
     width:100%;
     height:30px;
@@ -202,14 +212,3 @@ a.forgotpass:hover
     vertical-align: middle;
     overflow:hidden;
 }
-
-#fa-row {
-        display: flex;
-        gap: 2em;
-}
-
-#fa-row input {
-        width: 3em;
-}
-
-

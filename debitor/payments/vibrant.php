@@ -68,7 +68,6 @@ $APIKEY = db_fetch_array($q)[0];
 $q=db_select("SELECT var_value FROM settings WHERE pos_id=$kasse AND var_grp='vibrant_terms'",__FILE__ . " linje " . __LINE__);
 $terminal_id = db_fetch_array($q)["var_value"];
 
-if (file_exists("../../temp/$db/receipt_$kasse.txt")) unlink("../../temp/$db/receipt_$kasse.txt");
 $printfile = 'https://'.$_SERVER['SERVER_NAME'];
 $printfile.= str_replace('debitor/payments/vibrant.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
 
@@ -201,7 +200,7 @@ print "
         );
         var charge_json = await charge.json();
 
-        await fetch(
+        fetch(
           'save_receipt.php',
           {
             method: 'POST',
@@ -221,11 +220,12 @@ print "
         cardScheme = charge_json['paymentMethodDetails']['cardPresent']['brand']
 
         paused = true;
+
         var elm = document.getElementById('status');
         elm.style.backgroundColor = '#51e87d';
         elm.innerText = 'Success';
 
-        countdown(1);
+        countdown(5);
 
         document.getElementById('continue-success').style.display = 'block';
         document.getElementById('continue').style.display = 'none';

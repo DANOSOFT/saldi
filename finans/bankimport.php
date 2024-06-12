@@ -1,4 +1,4 @@
-<?php
+// <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -143,7 +143,6 @@ if(($_GET)||($_POST)) {
 		}
 	}
 	if (basename($_FILES['uploadedfile']['name'])) {
-//echo __line__." ".basename($_FILES['uploadedfile']['name'])."<br>";
 		$filnavn="../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv";
 		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
 		

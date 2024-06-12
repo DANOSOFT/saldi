@@ -70,18 +70,21 @@
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
 	global $afd_navn,$afslut;
-	global $barcode,$beskrivelse_old,$betalingsbet,$betvaluta,$bordnr,$brugernavn;
+	global $barcode,$betalingsbet,$betvaluta,$bordnr,$brugernavn;
 	global $db,$difkto;
-	global $credit_type; #20210813
 	global $fokus;
+	global $voucherNumber;
 	global $ifs;
 	global $kontonr,$kundedisplay;
 	global $lagerantal,$lagernavn,$lagernr;
 	global $moms;
-	global $pris,$regnaar;
-	global $sprog_id,$status,$sum;
+	global $pris;
+	global $status,$sum;
 	global $tilfravalgNy,$tracelog;
-	global $varenr_ny,$vatrate,$vis_saet,$voucherNumber;
+	global $varenr_ny,$vatrate,$vis_saet;
+	global $beskrivelse_old;
+	global $credit_type; #20210813 
+  global $sprog_id;    #20210820
 
   $barcodeNew = NULL;
   
@@ -128,7 +131,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			}
 		} else $ref=$brugernavn;
 		if ($bordnr || $bordnr=='0') { #20150415
-			$r = db_fetch_array(db_select("select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2'",__FILE__ . " linje " . __LINE__)); 
 			($r['box7'])?$bord=explode(chr(9),$r['box7']):$bord=NULL;
 			($bord)?$bordnavn=$bord[$bordnr]:$bordnavn='';
 		}
@@ -179,16 +182,12 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$vare_id=$r['vare_id'];
 			$variant_type=$r['variant_type'];
 			$variant_id=$r['id'];
-#			$qtxt = "select beskrivelse from varer where id = '$vare_id'";
-#			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-#				$beskrivelse[0] = $r['beskrivelse']." ".$variant_type;
-#			}
 		} else {
 			$variant_id=0;
 			$variant_type='';
 		}
 		# 20140704 ->
-		$prisIkode=$lotPris=0;
+		$prisIkode=0;
 		if (!$vare_id && is_numeric($varenr_ny) && strlen($varenr_ny)=='13') {
 			$tmp=substr($varenr_ny,0,7)."XXXXXX";
 
@@ -200,13 +199,6 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$qtxt="select * from varer where stregkode = '$tmp'";
 			if ($r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__))) {
 				$prisIkode=1;
-			}
-			if (!$prisIkode && substr($varenr_ny,0,4) == 2141) {
-				$lotPris = substr($varenr_ny,6,6)/100;
-				$lotKode = substr($varenr_ny,4,2);
-				if ($lotKode == '95') $lotPris *= -1;
-				elseif ($lotKode == '96') $lotPris *= -1;
-				$varenr_ny = 'LOT'.substr($varenr_ny,0,6);
 			}
 		}
 		if (strlen($varenr_ny)==12 && ctype_xdigit(substr($varenr_ny,-6)) && is_numeric(substr($varenr_ny,0,6))) {
@@ -284,7 +276,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$beskrivelse[0] = $r['beskrivelse'];
 			if ($varenr_ny != if_isset($_POST['antal_ny'], 0)){ #Then a new item is NOT scannet into the quantity field
 				if ($myDe) $beskrivelse[0] = $myDe; # Then the barcode is scanned from a mysale label
-				elseif (isset($_POST['beskrivelse_old']) && $_POST['beskrivelse_old']) { # Then it is a correction af an existing orderline
+				elseif (isset($_POST['beskrivelse_old'])) { # Then it is a correction af an existing orderline
 					$beskrivelse[0] = $_POST['beskrivelse_old']; # Test scan from mysale and contineous scan if you change this.
 					$myPr = $_POST['pris_old'];
 				}
@@ -302,8 +294,6 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 				if ($r2['momsfri']) $kostpris[0]=$pris[0]*$kostpris[0];
 				else $kostpris[0]=$pris[0]*100/(100+$momssats)*$kostpris[0];
 				$varenr_ny=$vnr;
-			} elseif($lotPris) {
-				$pris[0]   = $lotPris;
 			} elseif ($myPr) $pris[0]=$myPr;
 			else $pris[0]=find_pris($r['varenr'])*1;
 			if ($pris[0]) {
@@ -509,7 +499,7 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 		}
 	} elseif ($status >= 3) {
 		$r=db_fetch_array($q = db_select("select * from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
-		print "<tr><td>Saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal((float)$r['felt_3'],2)."</td></tr>\n";
+		print "<tr><td>Saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($r[felt_3],2)."</td></tr>\n";
 		$indbetaling=($r['felt_4']-$r['felt_3'])*-1;
 		print "<tr><td colspan=\"3\">Indbetaling - (Det beløb der skal indsættes på kontoen!)</td><td rowspan=\"2\" colspan=\"1\" align=\"right\">".dkdecimal($indbetaling,2)."</td></tr>\n";
 		print "<tr><td colspan=\"3\">Indbetaling - (Det beløb der skal indsættes på kontoen!)</td>";
@@ -524,7 +514,7 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 #	print "<tr><td colspan=\"6\" align=\"right\"><input  STYLE=\"width: 100%;height: 0.01em;\" type=submit name=\"OK\" value=\"\"></td></tr>\n";
 	if ($kontonr && $status<3 && ($betalingsbet!='Kontant' || $saldo)) { #20161001
 		print "<tr><td>Gl. saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($saldo,2)."</td></tr>\n";
-		$ny_saldo=(float)$saldo+(float)$sum;
+		$ny_saldo=$saldo+$sum;
 		print "<tr><td>Ny saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2);
 		if ($pris[0]) print "<br>(".dkdecimal($ny_saldo+$pris[0],2).")";
 		print "</td></tr>\n";

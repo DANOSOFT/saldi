@@ -1,5 +1,5 @@
 <?php
-// --- includes/oioublfunk.php --- patch 4.0.8 --- 2023-06-13 ---
+// --- includes/oioublfunk.php --- patch 4.0.6 --- 2023-06-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,8 +32,7 @@
 // 20220926 - PHR taxcategoryid-1.1 changed from 'StandardRated' to '$taxcategoryid as invoice without tax
 //                was rejected
 // 20220929 - PHR corrected division by zero if no tax 
-// 20230612 _ PHR $creditnote 'antal' was set to -1 if 0. Now it is set to 1.
-// 20230613 _ PHR if negative total amount for invoice it was reversed. Now it is not.
+// 20230612 _ PHR if $creditnote 'antal' was set to 1 if 0. Now it is set to 1.
 
 $oioxmlubl="OIOUBL";
 
@@ -111,14 +110,10 @@ function oioubldoc_faktura ($l_ordreid="", $l_doktype="faktura", $l_testdoc="") 
 	if (!$kundeordnr) $kundeordnr='0'; # phr 20090803
 	while (strlen($cvrnr)<8) $cvrnr="0".$cvrnr;
 	if (is_numeric($cvrnr)) $cvrnr = 'DK'.$cvrnr;
-	if ($l_ptype=="PCM") {
-		$l_momsbeloeb=afrund(abs($r_faktura['moms']),2);
-		$l_sumbeloeb=afrund(abs($r_faktura['sum']),2);
-	} else {
-		$l_momsbeloeb=afrund($r_faktura['moms'],2);
-		$l_sumbeloeb=afrund($r_faktura['sum'],2);
-	}
+
+	$l_momsbeloeb=afrund(abs($r_faktura['moms']),2);
 	$l_momssats=$r_faktura['momssats']*1;
+	$l_sumbeloeb=afrund(abs($r_faktura['sum']),2);
 	($l_momssats)?$l_momspligtigt=(100*$l_momsbeloeb)/$l_momssats:$l_momspligtigt = 0; #20220929
 	$l_momsfrit=$l_sumbeloeb-$l_momspligtigt;
 	if ($l_momsfrit<0.02) { #20150618

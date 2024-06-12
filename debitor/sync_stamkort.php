@@ -36,7 +36,7 @@ $konto_id=if_isset($_GET['konto_id']);
 $retning=if_isset($_GET['retning']);
 
 if ($ordre_id && $konto_id) {
-	if ($retning=='ned') $qtxt = "select * from ordrer where id='$ordre_id'";
+	if ($retning=='op') $qtxt = "select * from ordrer where id='$ordre_id'";
 	else $qtxt = "select * from adresser where id='$konto_id'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$firmanavn=db_escape_string($r['firmanavn']);
@@ -51,7 +51,7 @@ if ($ordre_id && $konto_id) {
 	$email=db_escape_string($r['email']);
 	$ean=db_escape_string($r['ean']);
 	$institution=db_escape_string($r['institution']);
-	if ($retning=='ned') {
+	if ($retning=='op') {
 		$qtxt = "update adresser set ";
 		$qtxt.= "firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',land='$land',";
 		$qtxt.= "cvrnr='$cvrnr',betalingsbet='$betalingsbet',betalingsdage='$betalingsdage',email='$email',ean='$ean',";

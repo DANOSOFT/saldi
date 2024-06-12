@@ -69,17 +69,13 @@ function vareopslag ($sort, $fokus, $id, $vis_kost, $ref, $find, $retur) {
 	if ($find) $query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	else $query = db_select("select * from varer where lukket != '1' order by $sort",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
-		if (!$r['gruppe']) {
-			echo "";#
-			#echo "Varenr $row[varenr] er ikke tilknyttet en varegruppe<br>";
-		} else {
-			$qtxt = "select box8 from grupper where art='VG' and kodenr='$row[gruppe]' and fiscal_year = '$regnaar'";
-			$row2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if (($row2['box8']=='on')||($row['samlevare']=='on')){
-				if (($row['beholdning']!='0')and(!$row['beholdning'])){db_modify("update varer set beholdning='0' where id=$row[id]",__FILE__ . " linje " . __LINE__);}
-			}
-			elseif ($row['beholdning']){db_modify("update varer set beholdning='0' where id=$row[id]",__FILE__ . " linje " . __LINE__);}
+		$qtxt = "select box8 from grupper where art='VG' and kodenr='$row[gruppe]' and fiscal_year = '$regnaar'";
+		$row2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if (($row2['box8']=='on')||($row['samlevare']=='on')){
+			if (($row['beholdning']!='0')and(!$row['beholdning'])){db_modify("update varer set beholdning='0' where id=$row[id]",__FILE__ . " linje " . __LINE__);}
 		}
+		elseif ($row['beholdning']){db_modify("update varer set beholdning='0' where id=$row[id]",__FILE__ . " linje " . __LINE__);}
+
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
 		print "<tr bgcolor=\"$linjebg\">";

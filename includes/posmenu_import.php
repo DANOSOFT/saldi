@@ -76,10 +76,7 @@ if ($fp) {
 				$beskrivelse=addslashes($beskrivelse);
 				$art=trim($art); $box1=trim($box1); $box6=trim($box6); $box7=trim($box7); $box8=trim($box8); $box9=trim($box); $box12=trim($box12);
 				$xa= $xa*1; $ya= $ya*1; $xb= $xb*1; $yb=$yb*1; $str=$str*1; $color=$color*1;
-				if ($beskrivelse != 'beskrivelse') {
-					$box1 = db_escape_string($box1);
-					db_modify("insert into grupper (beskrivelse,art,kode,kodenr,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12)values('$beskrivelse','$art','$kode','$kodenr','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')",__FILE__ . " linje " . __LINE__);
-				}
+				db_modify("insert into grupper (beskrivelse,art,kode,kodenr,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12)values('$beskrivelse','$art','$kode','$kodenr','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')",__FILE__ . " linje " . __LINE__); 
 			}
 		}
 	}

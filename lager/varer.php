@@ -81,7 +81,7 @@ $title="Varer";
 $modulnr=9;
 $css="../css/std.css";
 
-$beskrivelse = $fokus = $linjeantal = $slut = $start = $udvalg = $vis_lev = $vis_lev_felt = NULL;
+$beskrivelse=$linjeantal=$slut=$start=$udvalg=$vis_lev=$vis_lev_felt=NULL;
 #$linjeantal=100;
 
 include("../includes/connect.php");
@@ -725,14 +725,10 @@ for ($v=0;$v<count($varenr);$v++) {
 					$r2=db_fetch_array(db_select("select sum(beholdning) as lagersum from lagerstatus where vare_id = $id[$v]",__FILE__ . " linje " . __LINE__));
 					$diff=$beholdning[$v]-$r2['lagersum'];
 					for ($x=1;$x<=$lagerantal; $x++) {
-						$qtxt = "select id, lager,lok1,beholdning from lagerstatus where vare_id = '$id[$v]' and lager = '$x'";
-						if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-							$y = (float)$r2['beholdning'];
-							$lok=trim(utf8_decode($r2['lok1']));
-						} else {
-							$y=0;
-							$lok='';
-						}
+						$qtxt="select id, lager,lok1,beholdning from lagerstatus where vare_id = $id[$v] and lager = $x";
+						$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+						$y=$r2['beholdning'];
+						$lok=trim(utf8_decode($r2['lok1']));
 						if ($csv) fwrite($csvfil,"\"".dkdecimal($y,2)."\";\"$lok\";");
 						else {
 							print "<td align=center>";

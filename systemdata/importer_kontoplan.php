@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_kontoplan.php --- lap 4.1.0 --- 2024-05-13 ---
+// --- systemdata/importer_kontoplan.php --- lap 4.0.6 --- 2022-04-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2024 Saldi.dk ApS
+// Copyright (c) 2003 - 2022 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20181112 Håndtering af tegnsæt og MAC linjeskift.
 // 20181204 Valg gemmes i cookie
 // 20210713 LOE - Translated some texts
 // 20220404	PHR function vis_data & overfoer_data: Inserted trim($felt[$y],'"');	
-// 20240513 PHR Kontotype & Moms now converts from e-conomics format
 
 @session_start();
 $s_id=session_id();
@@ -249,21 +248,6 @@ if ($fp) {
 			for ($y=0; $y<=$feltantal; $y++) {
 				$felt[$y]=trim($felt[$y]);
 				$felt[$y]=trim($felt[$y],'"');
-					if ($felt[$y] == 'Overskrift') $felt[$y] = 'H';
-					elseif ($felt[$y] == 'Overskrift Start') $felt[$y] = 'H';
-					elseif ($felt[$y] == 'Drift') $felt[$y] = 'D';
-					elseif ($felt[$y] == 'Sumfra') $felt[$y] = 'Z';
-					elseif ($felt[$y] == 'Suminterval') $felt[$y] = 'Z';
-					elseif ($felt[$y] == 'Balance') $felt[$y] = 'S';
-					elseif ($felt[$y] == 'U25') $felt[$y] = 'K1';
-					elseif ($felt[$y] == 'I25') $felt[$y] = 'S1';
-					elseif ($felt[$y] == 'UEUV') $felt[$y] = 'S2';
-					elseif ($felt[$y] == 'UY0') $felt[$y] = 'S2';
-					elseif ($felt[$y] == 'IV25') $felt[$y] = 'E1';
-					elseif ($felt[$y] == 'IY25') $felt[$y] = 'Y1';
-					elseif ($felt[$y] == 'OBPK') $felt[$y] = '';
-					elseif ($felt[$y] == 'REP') $felt[$y] = 'K2';
-
 				# if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
 				if ($feltnavn[$y]=='Kontonr' && ($felt[$y]!=(int)$felt[$y] || in_array($felt[$y],$kontonumre))) {
 					if (!$alert) alert('Røde linjer indeholder fejl i kontonummer og bliver ikke importeret');
@@ -422,26 +406,12 @@ if ($fp) {
 					$felt[$y]=addslashes($felt[$y]);
 				}
 				if ($feltnavn[$y]=='kontotype') {
-					if ($felt[$y] == 'Overskrift') $felt[$y] = 'H';
-					elseif ($felt[$y] == 'Overskrift Start') $felt[$y] = 'H';
-					elseif ($felt[$y] == 'Drift') $felt[$y] = 'D';
-					elseif ($felt[$y] == 'Sumfra') $felt[$y] = 'Z';
-					elseif ($felt[$y] == 'Suminterval') $felt[$y] = 'Z';
-					elseif ($felt[$y] == 'Balance') $felt[$y] = 'S';
 					if ((strlen($felt[$y])>1)||(!in_array($felt[$y],$kontotyper))) {
 					$skriv_linje=2;
 					} else if ($felt[$y]=='Z') $sumkonto=1;
 					else $sumkonto=0;
 				}	
 				if ($feltnavn[$y]=='moms') {
-					if ($felt[$y] == 'U25') $felt[$y] = 'K1';
-					elseif ($felt[$y] == 'I25') $felt[$y] = 'S1';
-					elseif ($felt[$y] == 'UEUV') $felt[$y] = 'S2';
-					elseif ($felt[$y] == 'UY0') $felt[$y] = 'S2';
-					elseif ($felt[$y] == 'IV25') $felt[$y] = 'E1';
-					elseif ($felt[$y] == 'IY25') $felt[$y] = 'Y1';
-					elseif ($felt[$y] == 'OBPK') $felt[$y] = '';
-					elseif ($felt[$y] == 'REP') $felt[$y] = 'K2';
 					$a=substr($felt[$y],0,1);
 					$b=substr($felt[$y],1);
 					if (($felt[$y])&&((!in_array($a,$momstyper))||($b != (int)$b))) {
@@ -449,11 +419,16 @@ if ($fp) {
 					}				
 				}
 				if (($feltnavn[$y]=='fra_kto')&&($sumkonto))  {
-#					if (!$felt[$y]) $felt[$y]='0';
-					$felt[$y] = (int)$felt[$y];
-#					if ($felt[$y] != (int)$felt[$y]) {
-#						$skriv_linje=2;
-#					}
+					if (!$felt[$y]) $felt[$y]='0';
+					if ($felt[$y] != (int)$felt[$y]) {
+						$skriv_linje=2;
+					}
+				}
+				if (($feltnavn[$y]=='fra_kto')&&($sumkonto))  {
+					if (!$felt[$y]) $felt[$y]='0';
+					if ($felt[$y] != (int)$felt[$y]) {
+						$skriv_linje=2;
+					}
 				} elseif ($feltnavn[$y]=='fra_kto') $felt[$y]='0';
 				if ($feltnavn[$y]=='map_to') $felt[$y] = (int)$felt[$y];
 				if ($feltnavn[$y]=='primo')  {

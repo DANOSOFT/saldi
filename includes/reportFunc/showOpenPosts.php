@@ -245,46 +245,26 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$forfalden_plus30=afrund($forfalden_plus30,2);
 			$forfalden_plus8=afrund($forfalden_plus8,2);
 
-			if (abs($forfalden_plus90) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus90,2);
+			if (($kontoart=='D' && $forfalden_plus90 > 0) || ($kontoart=='K' && $forfalden_plus90 < 0)) $color="rgb(255, 0, 0)";
+			else $color="rgb(0, 0, 0)";
+			$tmp=dkdecimal($forfalden_plus90,2);
 			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden_plus60) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus60,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden_plus30) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus30,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden_plus8) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden_plus8,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
-			if (abs($forfalden) > 0) {
-				$color="rgb(255, 0, 0)";
-				$tmp=dkdecimal($forfalden,2);
-				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			} else {
-				$color="rgb(0, 0, 0)";
-				print "<td align=right></td>";
-			}
+			if (($kontoart=='D' && $forfalden_plus60 > 0) || ($kontoart=='K' && $forfalden_plus60 < 0)) $color="rgb(255, 0, 0)";
+			else $color="rgb(0, 0, 0)";
+			$tmp=dkdecimal($forfalden_plus60,2);
+			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			if (($kontoart=='D' && $forfalden_plus30 > 0) || ($kontoart=='K' && $forfalden_plus30 < 0)) $color="rgb(255, 0, 0)";
+			else $color="rgb(0, 0, 0)";
+			$tmp=dkdecimal($forfalden_plus30,2);
+			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			if (($kontoart=='D' && $forfalden_plus8 > 0) || ($kontoart=='K' && $forfalden_plus8 < 0)) $color="rgb(255, 0, 0)";
+			else $color="rgb(0, 0, 0)";
+			$tmp=dkdecimal($forfalden_plus8,2);
+			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			if (($kontoart=='D' && $forfalden > 0) || ($kontoart=='K' && $forfalden < 0)) $color="rgb(255, 0, 0)";
+			else $color="rgb(0, 0, 0)";
+			$tmp=dkdecimal($forfalden,2);
+			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
 			if (afrund($kontrol,2)!=afrund($y,2)) {
 				ret_openpost($konto_id[$x]);
 				$tmp=dkdecimal($kontrol,2);

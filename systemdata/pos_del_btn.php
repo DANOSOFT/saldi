@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/pos_del_knap.php ---------- lap 3.9.9----2023.03.15-------
+// ------------- systemdata/pos_ryk_knap.php ---------- lap 3.9.9----2023.03.15-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

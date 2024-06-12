@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- systemdata/syssetupIncludes/saveData.php ---patch 4.1.0 ----2024-06-04 ---
+//--- systemdata/syssetupIncludes/saveData.php ---patch 4.1.0 ----2024-04-07 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,6 @@
 //
 // Copyright (c) 2003-2024 Saldi.dk ApS
 // -----------------------------------------------------------
-// 20240604 PHR PHP8
 
 if ($_POST){
 	$id=if_isset($_POST['id']);
@@ -47,6 +46,7 @@ if ($_POST){
 	$box13=if_isset($_POST['box13']);
 	$box14=if_isset($_POST['box14']);
 	$antal=if_isset($_POST['antal']);
+#cho "Antal $antal<br>";
 	$valg=if_isset($_POST['valg']);
 
 	$s_art=array();
@@ -79,7 +79,7 @@ if ($_POST){
 			$id[$y]=(float)$id[$x];
 			$kodenr[$y] = $kodenr[$x];
 			if ($kodenr[$y] != '-') $kodenr[$y] = (int)$kodenr[$y];
-			$kode[$y] = $kode[$x]; #20160118
+			$kode[$y]=$kode[$x]; #20160118
 			$beskrivelse[$y]=db_escape_string(trim($beskrivelse[$x]));
 			$art[$y]=trim($art[$x]);
 			$box1[$y]=trim($box1[$x]);
@@ -228,7 +228,8 @@ if ($_POST){
 						print "<big><b>$alerttxt</b></big>";
 						$nopdat=1;
 					}
-				}	elseif ($art[$x]=='RA') {
+				}
+				elseif ($art[$x]=='RA'){
 					include_once('syssetupIncludes/functionNewYear');
 					nytaar($beskrivelse[$x],$kodenr[$x],$kode[$x],$art[$x],$box1[$x],$box2[$x],$box3[$x],$box4[$x],$box5[$x],$box6[$x]);
 				} elseif ($art[$x]!='PV') {
@@ -283,24 +284,13 @@ if ($_POST){
 					}
 					db_modify("delete FROM lagerstatus WHERE lager = '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
 					db_modify("update batch_kob set lager = 0 WHERE lager =  '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
-					db_modify("delete FROM grupper WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
-					$qtxt = "SELECT kodenr FROM grupper WHERE art='LG' and kodenr > '$r1[kodenr]' order by kodenr";
-					$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+					db_modify("delete FROM grupper WHERE id = '$id[$x]'");
+					$q1=db_select("SELECT kodenr FROM grupper WHERE art='LG' and kodenr > '$r1[kodenr]' order by kodenr",__FILE__ . " linje " . __LINE__);
 					while ($r1=db_fetch_array($q1)) {
-						$qtxt = "update lagerstatus set lager = $r1[kodenr]-1 WHERE lager = '$r1[kodenr]'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "update batch_kob set lager = $r1[kodenr]-1 WHERE lager =  '$r1[kodenr]'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						db_modify("update lagerstatus set lager = $r1[kodenr]-1 WHERE lager = '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
+						db_modify("update batch_kob set lager = $r1[kodenr]-1 WHERE lager =  '$r1[kodenr]'",__FILE__ . " linje " . __LINE__);
 					}
-					$qtxt = "SELECT kodenr FROM grupper WHERE art='LG'";
-					if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					} else {
-#						db_modify("delete FROM lagerstatus",__FILE__ . " linje " . __LINE__);
-						$qtxt = "update lagerstatus set lager = 0";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$qtxt = "update batch_kob set lager = 0";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					}
+					if (!db_fetch_array(db_select("SELECT kodenr FROM grupper WHERE art='LG'"))) db_modify("delete FROM lagerstatus",__FILE__ . " linje " . __LINE__);
 				} elseif ($art[$x]=='SM'||$art[$x]=='KM'||$art[$x]=='YM'||$art[$x]=='EM') {
 					$qtxt = "SELECT kodenr FROM grupper WHERE id=$id[$x]<br>";
 					$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

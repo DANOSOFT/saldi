@@ -1,0 +1,89 @@
+* {
+  padding: 0;
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+}
+
+body {
+  background-color: #f2f0f0;
+}
+
+button {
+  background-color: #aaa;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  box-shadow: rgba(0, 0, 0, .1) 0 2px 4px 0;
+  box-sizing: border-box;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 400;
+  outline: none;
+  outline: 0;
+  padding: 8px 20px;
+  text-align: center;
+  transition: transform 150ms, box-shadow 150ms;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+button:hover {
+  box-shadow: rgba(0, 0, 0, .15) 0 3px 9px 0;
+  transform: translateY(-1px);
+}
+
+.success-button {
+  background-color: #13aa52;
+  border: 1px solid #13aa52;
+}
+
+.failure-button {
+  background-color: #bb1313;
+  border: 1px solid #bb1313;
+}
+
+
+/* TABLE STYLES */
+
+#base {
+  width: 100vw;
+  height: 100vh;
+}
+
+.table {
+  position: absolute;
+  /*background-color: #868dfb;*/
+}
+
+.table-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+  font-size: 40px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.table-tooltip {
+  width: 120px;
+  background-color: #222;
+  color: #fff;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+  position: absolute;
+  /*z-index: 1;*/
+
+  top: calc(100% + 5px);
+  left: 50%;
+  /* Use half of the width (120/2 = 60), to center the tooltip */
+  margin-left: -60px;
+  pointer-events: none;
+}
+
+/* RECT */
+.rect {
+  position: absolute;
+}

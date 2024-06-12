@@ -65,7 +65,7 @@ function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$bes
 		$kredit  = $r['kredit'];
 		$belob   = dkdecimal($r['amount'],2);
 	} else $alignThis = array();
-print "<center>";
+
 #	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	$lnktxt = "&funktion=openpost&x=$x&fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&";
@@ -237,7 +237,6 @@ print "<center>";
 			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$kredit&faktura=$invoiceNo[$x]";
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
 			$lnktxt.= "&lobenr=$lobenr&find=$find";
-			$lnktxt=htmlentities($lnktxt);
 			$tmp="<a href='$lnktxt'>";
 			$newAmount=dkdecimal($openAamount[$x],2);
 		} else {
@@ -247,7 +246,6 @@ print "<center>";
 			$lnktxt.= "&d_type=$d_type&debet=$debet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=$invoiceNo[$x]";
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
 			$lnktxt.= "&lobenr=$lobenr&find=$find";
-			$lnktxt=htmlentities($lnktxt);
 			$tmp="<a href='$lnktxt'>";
 			$newAmount=dkdecimal($openAamount[$x],2);
 			$oppSum+= $openAamount[$x];

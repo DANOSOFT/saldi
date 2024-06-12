@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/koekkenprint.php - lap 4.1.0 --- 2025-05-21 ---
+// --- debitor/koekkenprint.php - lap 4.0.6 --- 2022-05-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2008-2024 saldi.dk aps
+// Copyright (c) 2008-2022 saldi.dk aps
 // -----------------------------------------------------------------------
 // 20140903 - Rettet diverse pga antal blev stillet tilbage efter 3. klik
 // 20140904 - Indsat 3x linjeafstand på udskrift.
@@ -31,8 +31,7 @@
 // 20170619 - PHR udskriftsdel lagt i funktion så der kan laves kundetilpasninger. 20170619
 // 20210915 - PHR Replaced convert with iconv and defined some undefined variables. 
 // 20220302 - PHR Added $next as k2 was not printed if $1 was empty
-// 20220421 -	PHR	Added varenr and grouping after 1 letter in varenr
-// 20240521	- PHR	fiscal_year
+// 20220421 -	PHR	Avver varenr and grouping after 1 letter in varenr
 
 @session_start();
 $s_id=session_id();
@@ -96,6 +95,7 @@ while ($r=db_fetch_array ($q)) {
 	if (substr($r['box1'],0,1)=='K' && strlen($r['box1'])=='2') {
 		$cat_id[$x]=$r['id'];
 		$cat[$x]=$r['box1'];
+#cho "$cat_id[$x] $cat[$x]<br>"; 
 		$x++;
 	}
 }
@@ -182,11 +182,8 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 					}
 				} else $kp[0]=$koekkenprinter;
 			} 
-			if ($db == 'develop_27' || $db == 'pos_98') koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori,$varenr);
-			else {
-				echo "Sender til køkken<br>";
-				koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori);
-			}
+			if ($db == 'develop_22' || $db == 'pos_41') koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori,$varenr);
+			else koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori);
 		} else print "<BODY onLoad=\"javascript:alert('Der er ikke noget på bestillingslisten til køkken for $bordnavn')\">\n";
 		(count($kp)>1)?$next=1:$next=NULL;
 		$pfnavn="../temp/".$db."/".abs($bruger_id).".0";
@@ -209,36 +206,30 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 		$hvem=$r['hvem'];
 	}
 	$kasse=stripslashes($_COOKIE['saldi_pos']);
-	$r = db_fetch_array(db_select("select box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select box7,box10 from grupper where art = 'POS' and kodenr='2'",__FILE__ . " linje " . __LINE__)); 
 	($r['box10'])?$koekkenprintere=explode(chr(9),$r['box10']):$koekkenprintere=NULL;
 	$koekkenprinter=$koekkenprintere[$kasse-1];
 	if (($bordnr || $bordnr=='0') && !$bordnavn) {
-		($r['box7'])?$bord=explode(chr(9),$r['box7']):$bord=NULL;
-		$bordnavn=$bord[$bordnr];
+		($r['box7'])?$bord=explode(chr(9),$r['box7']):$bord=array();
+		$bordnavn=if_isset($bord[$bordnr], NULL);
 	}
 	$x=0;
-	if ($db == 'develop_27' || $db == 'pos_98') {
-		for ($i=0;$i<4;$i++) {
+	if ($db == 'develop_22' || $db == 'pos_41') {
+		for ($i=0;$i<3;$i++) {
 			$qtxt = "select ordrelinjer.id,ordrelinjer.antal,ordrelinjer.leveres,ordrelinjer.leveret,ordrelinjer.beskrivelse,";
 			$qtxt.= "ordrelinjer.tilfravalg,varer.notes,varer.kategori,ordrelinjer.varenr from ordrelinjer,varer ";
 			$qtxt.= "where ordrelinjer.ordre_id='$id' and ordrelinjer.vare_id=varer.id ";
-			if ($i==0) $qtxt.= "and upper(ordrelinjer.varenr) like 'AF%' ";
-			if ($i==1) $qtxt.= "and upper(ordrelinjer.varenr) like 'AH%' ";
-			if ($i==2) $qtxt.= "and upper(ordrelinjer.varenr) like 'AD%' ";
-			if ($i==3) {
-				$qtxt.= "and upper(ordrelinjer.varenr) not like 'AF%' ";
-				$qtxt.= "and upper(ordrelinjer.varenr) not like 'AH%' ";
-				$qtxt.= "and upper(ordrelinjer.varenr) not like 'AD%' ";
-			}
+			if ($i==0) $qtxt.= "and upper(ordrelinjer.varenr) like 'F%' ";
+			if ($i==1) $qtxt.= "and upper(ordrelinjer.varenr) like 'H%' ";
+			if ($i==2) $qtxt.= "and upper(ordrelinjer.varenr) like 'D%' ";
 			$qtxt.= "order by ordrelinjer.posnr desc";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array ($q)) {
 				$linje_id[$x]=$r['id'];
-				($r['antal'])?$antal[$x]=$r['antal']*1:$antal[$x]=0;
+				$antal[$x]=$r['antal']*1;
 				$varenr[$x]=$r['varenr'];
-#cho "$i,$varenr[$x]<br>";
-				($r['leveres'])?$leveres[$x]=$r['leveres']*1:$leveres[$x]=0;
-				($r['leveret'])?$leveret[$x]=$r['leveret']*1:$leveret[$x]=0;
+				$leveres[$x]=$r['leveres']*1;
+				$leveret[$x]=$r['leveret']*1;
 				$beskrivelse[$x]=$r['beskrivelse'];
 				$tilfravalg[$x]=$r['tilfravalg'];
 				$notes[$x]=$r['notes'];
@@ -251,7 +242,7 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 				$x++;
 			}
 		}
-	} elseif($id) {
+	} else {
 		$qtxt = "select ordrelinjer.id,ordrelinjer.antal,ordrelinjer.leveres,ordrelinjer.leveret,ordrelinjer.beskrivelse,";
 		$qtxt.= "ordrelinjer.tilfravalg,varer.notes,varer.kategori,ordrelinjer.varenr from ordrelinjer,varer ";
 		$qtxt.= "where ordrelinjer.ordre_id='$id' and ordrelinjer.vare_id=varer.id  order by ordrelinjer.posnr desc";
@@ -262,7 +253,6 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 			$varenr[$x]=$r['varenr'];
 			$leveres[$x]=$r['leveres']*1;
 			$leveret[$x]=$r['leveret']*1;
-#cho "L $leveret[$x]<br>";			
 			$beskrivelse[$x]=$r['beskrivelse'];
 			$tilfravalg[$x]=$r['tilfravalg'];
 			$notes[$x]=$r['notes'];

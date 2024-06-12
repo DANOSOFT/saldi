@@ -26,7 +26,6 @@ print "<tr><td width='100%' height='100%' align='center' valign='middle'>";
 #if (file_exists($showDoc)) echo "den er der skam<br>";
 #else echo "Kan ikke finde den<br>";
 $fileInfo = pathinfo($showDoc);
-#cho "$globalId >$showDoc<";
 if (strtolower(substr($showDoc,-3,3))=='pdf') {
 	print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='$showDoc'></iframe>";
 } else if($fileInfo["extension"] == "xml"){

@@ -96,9 +96,6 @@ $posButtonId  = if_isset($_POST['posButtonId']);
 $copyFromMenu = if_isset($_POST['copyFromMenu']);
 $copyFromCol  = if_isset($_POST['copyFromCol']);
 $copyFromRow  = if_isset($_POST['copyFromRow']);
-
-setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_col]-$_GET[ret_row]", time() + (86400 * 30), "/");
-
 if ($menu_id) {
 	if (!$beskrivelse) $beskrivelse="?";
 	if (!$cols) $cols = 1;
@@ -493,7 +490,7 @@ if (($menu_id) && $ret_col && $ret_row) {
   }
   print "
   <div style='display: flex;   align-items: center; justify-content: space-between;'>
-    <INPUT CLASS='inputbox' TYPE='color' style='width:77px;text-align:center;cursor: pointer;height:27px' name='butcolor' value='#$b'>
+    <INPUT CLASS='inputbox' TYPE='color' style='width:77px;text-align:center;cursor: pointer' name='butcolor' value='#$b'>
     <div id='color-reset' onclick='document.getElementsByName(\"butcolor\")[0].value=\"#eeeef0\"'>
       <?xml version='1.0' ?>
       <svg 
@@ -507,7 +504,7 @@ if (($menu_id) && $ret_col && $ret_row) {
   \n";
   print "
   <div style='display: flex;  align-items: center; justify-content: space-between;'>
-    <INPUT CLASS='inputbox' TYPE='color' style='width:77px;text-align:center;cursor: pointer;height:27px' name='butexttcolor' value='#$b_font'>
+    <INPUT CLASS='inputbox' TYPE='color' style='width:77px;text-align:center;cursor: pointer' name='butexttcolor' value='#$b_font'>
     <div id='color-reset' onclick='document.getElementsByName(\"butexttcolor\")[0].value=\"#111111\"'>
       <?xml version='1.0' ?>
       <svg 
@@ -551,26 +548,24 @@ if (($menu_id) && $ret_col && $ret_row) {
     <input type=button value='Slet Knap' name='SletKnap' onclick='delete_btn();'>
   ";
 } else {
-	print "<tr><td>Menu (ID)</td><td><select CLASS='inputbox' name='menuvalg'>\n";
+	print "<tr><td>Menu ID</td><td>$menu_id</td></tr>\n";
+	print "<tr><td></td><td><select CLASS='inputbox' name='menuvalg'>\n";
 	if (($menu_id || $menu_id=='0') && $beskrivelse) $menuvalg=$menu_id.":".$beskrivelse;
 	else $menuvalg=NULL;
 	$menu_id=$menu_id*1;
 	($menu_id)?$disabled='':$disabled='disabled=disabled';
 
-	print "<option value='$menuvalg'>". explode(":", $menuvalg)[1] . " (" . explode(":", $menuvalg)[0] .") </option>";
+	print "<option value='$menuvalg'>$menuvalg</option>";
 	$q = db_select("select * from grupper where art = 'POSBUT' order by box1",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		$tmp1=$r['kodenr'].":".$r['box1'];
-		$tmp2=$r['box1'];
-		if ($tmp!=$menuvalg) print "<option value='$tmp1'>$tmp2</option>\n";
+		$tmp=$r['kodenr'].":".$r['box1'];
+		if ($tmp!=$menuvalg) print "<option value='$tmp'>$tmp</option>\n";
 	}
 	print "<option value='ny'>Opret ny</option>\n";
 	print "</select></td>\n";
 	print "<td><input type=submit value='OK' name='OK'></td></tr>\n";
 	print "<input type='hidden' name='menu_id' value='$menu_id'>\n";
 	print "<tr><td>Beskrivelse</td><td><INPUT CLASS='inputbox' TYPE='text' name='beskrivelse' value=\"$beskrivelse\"></td></tr>\n";
-	#
-	# Hvis der er en aktiv menu valgt
 	if ($beskrivelse) {
 		print "<tr><td>Menytype</td><td><SELECT CLASS='inputbox' $disabled name='menutype'>\n";
 		if ($menutype=='H') print "<option value='H'>Hovedmenu</option>\n";
@@ -584,15 +579,14 @@ if (($menu_id) && $ret_col && $ret_row) {
 		if ($menutype!='U') print "<option value='U'>$buttonTextArr[user]</option>\n";
 		if ($menutype) print "<option value=''>Undermenu</option>\n";
 		print "</select></td></tr>\n";
-
-		# Hvis det er en hoved menu
 		if ($menutype=='H') {
 			print "<tr><td>Aktiv fra</td><td><INPUT CLASS='inputbox' TYPE='text' 
-			style='width:50px;text-align:right' name='begin' value='$begin'> - <INPUT CLASS='inputbox' TYPE='text' 
+			style='width:50px;text-align:right' name='begin' value='$begin'></td></tr>";
+			print "<tr><td>Aktiv til</td><td><INPUT CLASS='inputbox' TYPE='text' 
 			style='width:50px;text-align:right' name='end' value='$end'></td></tr>";
-			print "<tr><td>Afdeling</td><td><SELECT CLASS='inputbox' $disabled name='projekt'>";
-		        $projekt = (int)$projekt;
-		        $qtxt = "select * from grupper where art='PRJ' and kodenr='$projekt'";
+			print "<tr><td>Projekt</td><td><SELECT CLASS='inputbox' $disabled name='projekt'>";
+      $projekt = (int)$projekt;
+      $qtxt = "select * from grupper where art='PRJ' and kodenr='$projekt'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			print "<option value='$projekt'>$r[beskrivelse]</option>";
 			$q=db_select("select * from grupper where art='PRJ'",__FILE__ . " linje " . __LINE__);
@@ -602,9 +596,6 @@ if (($menu_id) && $ret_col && $ret_row) {
 			if ($projekt) print "<option value=''></option>";
 			print "</select></td></tr>";
 		}
-
-		print "<tr><td colspan=3 style='border-bottom: 1px #999 solid'></td></tr>";
-
 		if (count($afd_nr)) {
 			print "<tr><td>Afdeling</td><td><SELECT CLASS='inputbox' $disabled name='afd'>";
 			if ($afd=='') print "<option value=''></option>";
@@ -617,19 +608,21 @@ if (($menu_id) && $ret_col && $ret_row) {
 			if ($afd!='') print "<option value=''></option>";
 		}
 	if ($menu_id || $menu_id=='0') {
-			print "<tr><td>Menustørrelse</td><td><INPUT CLASS='inputbox' $disabled TYPE='text' 
-			style='width:50px;text-align:right' title='Kolonner' name='rows' value='$rows'> x <INPUT CLASS='inputbox' $disabled TYPE='text' 
-			style='width:50px;text-align:right' title='Rækker' name='cols' value='$cols'></td></tr>";
+			print "<tr><td>Antal menur&aelig;kker</td><td><INPUT CLASS='inputbox' $disabled TYPE='text' 
+			style='width:50px;text-align:right' name='rows' value='$rows'></td></tr>";
+			print "<tr><td>Antal menukolonner</td><td><INPUT CLASS='inputbox' $disabled TYPE='text' 
+			style='width:50px;text-align:right' name='cols' value='$cols'></td></tr>";
 		} else {
 			print "<INPUT TYPE='hidden' name='rows' value='$rows'></td></tr>";
 			print "<INPUT TYPE='hidden' name='cols' value='$cols'></td></tr>";
 		}
-		print "<tr><td>Knap størrelse</td><td><INPUT CLASS='inputbox' TYPE='text' 
-		style='width:50px;text-align:right' name='height' value='$height'> x <INPUT CLASS='inputbox' TYPE='text' 
+		print "<tr><td>Knap h&oslash;jde</td><td><INPUT CLASS='inputbox' TYPE='text' 
+		style='width:50px;text-align:right' name='height' value='$height'></td></tr>";
+		print "<tr><td>Knap bredde</td><td><INPUT CLASS='inputbox' TYPE='text' 
 		style='width:50px;text-align:right' name='width' value='$width'></td></tr>";
 		print "<tr><td>Radius</td><td><INPUT CLASS='inputbox' TYPE='text' 
 		style='width:50px;text-align:right' name='radius' value='$radius'></td></tr>";
-		print "<tr><td>Tekst st&oslash;rrelse</td><td><INPUT CLASS='inputbox' TYPE='text' 
+		print "<tr><td>tekst st&oslash;rrelse</td><td><INPUT CLASS='inputbox' TYPE='text' 
 		style='width:50px;text-align:right' name='fontsize' value='$fontsize'></td></tr>";
 		print "<tr><td>Plads</td><td><SELECT CLASS='inputbox' $disabled name='plads'>";
 		if ($plads=='H') {
@@ -891,9 +884,8 @@ function output ($menu_id,$rows,$cols,$radius,$width,$height,$fontsize,$bgcolor2
 
 # Setup popups
 print "<div id='modal-bg' onclick='close_menu_popup()'></div>";
-
-# Menu modal
-print "<div id='menu-popup' class='posmenu-popup'>";
+/*
+print "<div id='menu-popup' class='popup'>";
 print "<input type='text' id='search-menu' placeholder='Søg efter en menu' onkeyup='filter_table(\"search-menu\", \"menu-table\")'>";
 print "<table id='menu-table' class='search-table'>";
 print "<tr><th>ID</th><th>Beskrivelse</th></tr>
@@ -913,14 +905,14 @@ while ($r = db_fetch_array($q)) {
 }
 print "</tbody></table>";
 print "</div>";
-
-# Item modal
-print "<div id='vare-popup' class='posmenu-popup'>";
+*/
+/*
+print "<div id='vare-popup' class='popup'>";
 print "<input type='text' id='search-vare' placeholder='Søg efter en vare' onkeyup='filter_table(\"search-vare\", \"vare-table\")'>";
 print "<table id='vare-table' class='search-table'>";
 print "<tr><th>ID</th><th>Beskrivelse</th></tr>
        <tbody>";
-$q=db_select("select varenr, beskrivelse, salgspris from varer where NOT beskrivelse = '' order by beskrivelse",__FILE__ . " linje " . __LINE__);
+$q=db_select("select varenr, beskrivelse from varer where NOT beskrivelse = '' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
   print "
     <tr 
@@ -928,7 +920,6 @@ while ($r = db_fetch_array($q)) {
       onclick='
         document.getElementsByName(\"butvnr\")[0].value=\"$r[varenr]\"; 
         document.getElementsByName(\"buttxt\")[0].value=\"$r[beskrivelse]\"; 
-        document.getElementsByName(\"localPrice\")[0].value=\"".dkDecimal($r["salgspris"])."\"; 
         close_menu_popup(); 
       '
     >
@@ -938,11 +929,12 @@ while ($r = db_fetch_array($q)) {
   ";
   $x++;
 }
+*/
 print "</tbody></table>";
 print "</div>";
 
-print "
-<script>
+
+print "<script>
   var start_pos = {menu: 0, row: 0, col: 0};
 
   function allowDrop(ev) {
@@ -1107,5 +1099,4 @@ print "
     })
   }
 </script>";
-
 ?>

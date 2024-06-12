@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ny_rykker.php --- lap 4.0.2 --- 2021.5.07 ---
+// --- debitor/ny_rykker.php --- lap 4.0.6 --- 2022.08.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,15 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2021 Saldi.dk ApS
+// Copyright (c) 2003 - 2022 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// 2012.11.05 - Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
-// 2014.06.28 - Valuta og valutakurs indsættes nu ved oprettesle af ny rykker. Søg 20140628 
-// 2014.07.07 - Hvis ingen valuta sættes til DKK, hvis ingen kurs sættes til sættes til 100. Søg 20140707 
-// 2014.11.06 - Indsat db_escape_string foran div variabler hvor de indsættes i tabeller.
-// 2017.03.03 - PHR Tilføjet felt_5 til insert into ordrer aht inkasso. 
-// 2021.04.22 - PHR currency now included in reminder  
-// 2021.05.07 - PHR Added dec limit 1 to query as it took the oldest currency and not the newest. 2021057 
+// 20121105 Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
+// 20140628 Valuta og valutakurs indsættes nu ved oprettelse af ny rykker. Søg 20140628 
+// 20140707 Hvis ingen valuta sættes til DKK, hvis ingen kurs sættes til sættes til 100. Søg 20140707 
+// 20141106 Indsat db_escape_string foran div variabler hvor de indsættes i tabeller.
+// 20170303 PHR Tilføjet felt_5 til insert into ordrer aht inkasso. 
+// 20210422 PHR currency now included in reminder  
+// 20210507 PHR Added dec limit 1 to query as it took the oldest currency and not the newest. 2021057 
+// 20220818 PHR Added db_escape_string at line ~247 
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -243,7 +244,7 @@ for ($i=0; $i<=$konto_antal; $i++) {
 					}
 					else $opp_amount=$r2['amount'];
 					$pos++;
-					db_modify("insert into ordrelinjer (posnr,enhed, ordre_id, serienr, beskrivelse) values ('$pos','$r2[id]', '$rykker_id[$i]', '$r2[transdate]', '$beskrivelse')",__FILE__ . " linje " . __LINE__);
+					db_modify("insert into ordrelinjer (posnr,enhed, ordre_id, serienr, beskrivelse) values ('$pos','$r2[id]', '$rykker_id[$i]', '$r2[transdate]', '".db_escape_string($beskrivelse)."')",__FILE__ . " linje " . __LINE__);
 					$forfalden=$forfalden+$opp_amount;
 					if ($renteamount[$x]) {
 						$q3 = db_select ("select * from varer where id IN (select yb from formularer where beskrivelse='GEBYR' and formular='6')",__FILE__ . " linje " . __LINE__);

@@ -95,7 +95,7 @@ include("../includes/connect.php");
 
 ////////////////// nemhandel ///////////////////////
  // Getting the api key and tenant id from the database
- /* $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
+ $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
  while($res = db_fetch_array($query)){
      if($res["var_value"] !== ""){
          if($res["var_name"] == "apiKey"){
@@ -104,8 +104,8 @@ include("../includes/connect.php");
              $tenantId = $res["var_value"];
          }
      }
- } */
- $apiKey = "6c772607-988c-4435-8d78-3670f4a0629d&d5610b95-e39d-4894-8a11-22eb350ed84e";
+ }
+ $apiKey = $tenantId . "&" . $key;
 ////////////////// nemhandel end ///////////////////////
 
 
@@ -113,8 +113,6 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
-
-
 
 $defaultProvision=$sqlstreng=NULL;
 if ($menu=='T') {
@@ -129,33 +127,13 @@ if ($menu=='T') {
 	include_once 'left_div_menu.php';
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontentLargeHolder\">\n";
-} elseif ($menu == 'S') {
-	/*print "<script>
-	if(window.self == window.top) {
-	//run this code if in an iframe
-	// alert('in frame');
-	parent.location.href = \"../index/main.php\";
-	} 
-	</script>";*/
-#	print "<script>try {parent.location.href = '../index/main.php'} catch {window.location.href =	 '../index/main.php'}</script>";
-#	die();
-	include("top.php");
-} else {
-	print "<script>
-	if(window.self !== window.top) {
-	//run this code if in an iframe
-	// alert('in frame');
-	parent.location.href = \"../index/menu.php\";
-	} 
-	</script>";
-	include("top.php");
-} 
 } else include("top.php");
 
 if (!isset($exec_path)) $exec_path="/usr/bin";
 
 $sektion=if_isset($_GET['sektion']);
 $skiftnavn=if_isset($_GET['skiftnavn']);
+
 if ($_POST) {
 	if ($sektion=='provision') {
 		$id=$_POST['id'];
@@ -168,6 +146,7 @@ if ($_POST) {
 		db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')",__FILE__ . " linje " . __LINE__);
 		} elseif ($id > 0) db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'",__FILE__ . " linje " . __LINE__);
 	#######################################################################################
+	} elseif ($sektion=='personlige_valg') {
 		$refresh_opener = NULL;
 		$id             = $_POST['id'];
 		$jsvars         = $_POST['jsvars'];
@@ -184,9 +163,10 @@ if ($_POST) {
 			$id=$r['id'];
 		} elseif ($id==0) {
 			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ";
+			$qtxt.= "('Personlige valg','$bruger_id','USET','$jsvars','$popup','$menu','$bgcolor','$nuance')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} elseif ($id>0) {
-#cho "$qtxt<br>";
+			$qtxt = "update grupper set box1='$jsvars',box2='$popup',box3='$menu',box4='$bgcolor',box5='$nuance' WHERE id = '$id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		if ($refresh_opener) {
@@ -240,23 +220,40 @@ if ($_POST) {
 		$qp_md5secret       = if_isset($_POST['qp_md5secret']);
 		$qp_itemGrp         = if_isset($_POST['qp_itemGrp']);
 		$vibrant_api        = if_isset($_POST['vibrant_id']);
-
-		$mobilepay_client_id      = if_isset($_POST['mobilepay_client_id'],"");
-		$mobilepay_client_secret  = if_isset($_POST['mobilepay_client_secret'],"");
-		$mobilepay_subscription   = if_isset($_POST['mobilepay_subscription'],"");
-		$mobilepay_msn            = if_isset($_POST['mobilepay_msn'],"");
-                $mobilepay_client_id      = if_isset($_POST['mobilepay_client_id'],"");
-                $mobilepay_client_secret  = if_isset($_POST['mobilepay_client_secret'],"");
-                $mobilepay_subscription   = if_isset($_POST['mobilepay_subscription'],"");
-                $mobilepay_msn            = if_isset($_POST['mobilepay_msn'],"");
-
+		$mobilepay		  	= if_isset($_POST['mobilepay'],array());
 		$copay_api          = if_isset($_POST['copay_id']);
+		$nemhandel			= if_isset($_POST['nemhandel']);
     
-		# Vibrant API save
-		if ($vibrant_api) {
-			update_settings_value("vibrant_auth", "globals", $vibrant_api, "The vibrant API key");
-		}
+    # Vibrant API save
+    if ($vibrant_api) {
+      # Expect a posted ID
+      $qtxt = "SELECT var_value FROM settings WHERE var_name='vibrant_auth'";
+      $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
+      # If the row already exsists
+      if ($r) {
+        $qtxt = "UPDATE settings SET var_value='$vibrant_api' WHERE var_name='vibrant_auth'";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+      # If the row needs to be created in the database
+      } else {
+        $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ('vibrant_auth', 'globals', '$vibrant_api', 'The vibrant API key')";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+      }
+    }
+
+		#mobilePay
+		for ($i=1; $i<=count($mobilepay); $i++) {
+			$qtxt = "SELECT var_value FROM settings WHERE var_name='storeId' and pos_id = '$i'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if($r) {
+				$qtxt = "UPDATE settings SET var_value='".$mobilepay[$i-1]."' WHERE var_name='storeId' and pos_id = '$i'";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			} elseif ($mobilepay[$i-1]) {
+				$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description, pos_id) ";
+				$qtxt.= "VALUES ('storeId', 'mobilepay', '".$mobilepay[$i-1]."', 'The mobilepay API key', '$i')";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
+		}
 
 	// Nemhandel
 	if($nemhandel){
@@ -268,10 +265,13 @@ if ($_POST) {
 			if(substr($res["cvrnr"], 0, 2) == "DK"){
 				$res["cvrnr"] = substr($res["cvrnr"], 2);
 			}
+	
 			$data = [
 				"name" => $res["firmanavn"],
 				"cvr" => "DK".$res["cvrnr"],
+				"currency" => "",
 				"country" => "DK",
+				"webhookUrl" => "",
 				"defaultEndpoint" => [
 					"endpointType" => "DK:CVR",
 					"endpointIdentifier" => "DK".$res["cvrnr"],
@@ -283,7 +283,7 @@ if ($_POST) {
 					"streetName" => explode(" ",$res["addr1"])[0],
 					"additionalStreetName" => $res["addr2"],
 					"buildingNumber" => end(explode(" ", $res["addr1"])),
-					"inhouseMail" => "",
+					"inhouseMail" => $res["email"],
 					"cityName" => $res["bynavn"],
 					"postalCode" => $res["postnr"],
 					"countrySubentity" => "",
@@ -297,6 +297,8 @@ if ($_POST) {
 				],
 				"payment" => [
 					"bankName" => $res["bank_navn"],
+                	"bankRegNo" => $res["bank_reg"],
+                	"bankAccount" => $res["bank_konto"],
 					"bic" => "",
 					"iban" => "",
 					"creditorIdentifier" => ""
@@ -319,6 +321,7 @@ if ($_POST) {
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 			curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
 			curl_setopt($ch, CURLOPT_POST, 1);
+			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
 			$response = curl_exec($ch);
 			curl_close($ch);
 
@@ -576,6 +579,7 @@ if ($_POST) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	#######################################################################################
+	} elseif ($sektion=='vare_valg') {
 
 		$id                              = $_POST['id'];
 		$box1                            = if_isset($_POST['box1']);#incl_moms
@@ -739,7 +743,6 @@ if ($_POST) {
 			}
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} 
-
 		if ($ownCommissionAccountNew) {
 			$qtxt="select id from kontoplan where regnskabsaar = '$regnaar' and kontotype = 'S' and kontonr='$ownCommissionAccountNew'";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -854,6 +857,7 @@ if ($_POST) {
 		$box3 = if_isset($_POST['box3']);#shop valg
 		$box4 = if_isset($_POST['box4']);#merchant id
 		$box5 = if_isset($_POST['box5']);#md5 secret
+#		$box6 = if_isset($_POST['box6']);#Bruges ved vare_valg
 		$box7 = if_isset($_POST['box7']);#Tegnsæt for webshop
 #		$box8 = if_isset($_POST['box8']);#Bruges ved ordre_valg
 		$box9 = if_isset($_POST['box9']);#Agreement ID
@@ -1188,6 +1192,7 @@ if ($_POST) {
 
       # Vibrant setup
       $termtype = $terminal_type[$x];
+      if (str_starts_with($termtype, "Vibrant: ")) {
         $term_name = str_replace("Vibrant: ", "", $termtype);
         $kasse_id = $x + 1;
 
@@ -1703,6 +1708,7 @@ if ($_POST) {
 	$valg=if_isset($_GET['valg']);
 	$sektion=if_isset($_GET['sektion']);
 }
+
 $docubizz=NULL;
 if(db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr = '2' and box6='on'",__FILE__ . " linje " . __LINE__))) $docubizz='on';
 
@@ -1711,9 +1717,12 @@ print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\
 if ($menu != 'T') {
 	print "<td width=\"170px\" valign=\"top\">";
 	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
+	print "<tr><td align=\"center\" valign=\"top\"><br></td></tr>";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoindstillinger>".findtekst(783,$sprog_id)."</a></td></tr>\n"; // 20210513
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=provision>".findtekst(784,$sprog_id)."</a>&nbsp;</td></tr>\n";
+	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=personlige_valg>".findtekst(785,$sprog_id)."</a></td></tr>\n";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ordre_valg>".findtekst(786,$sprog_id)."</a></td></tr>\n";
+	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=vare_valg>".findtekst(787,$sprog_id)."</a></td></tr>\n";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst(788,$sprog_id)."</a></td></tr>\n";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst(789,$sprog_id)."</a></td></tr>\n";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
@@ -1733,11 +1742,15 @@ if ($menu != 'T') {
 	# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoplan_io>Indl&aelig;s  / udl&aelig;s kontoplan</a></td></tr>";
 	print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_io>".findtekst(802,$sprog_id)."</a></td></tr>\n";
 	print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
-#cho "SWK $sektion<br>";
+}
 if (!$sektion) print "<td><br></td>";
 if ($sektion=="kontoindstillinger") kontoindstillinger($regnskab,$skiftnavn);
 if ($sektion=="provision") provision();
+if ($sektion=="personlige_valg") personlige_valg();
 if ($sektion=="ordre_valg") ordre_valg();
+if ($sektion=="vare_valg" || $sektion=="label") {
+	include ("diverseIncludes/items.php");
+	items($defaultProvision);
 }
 if ($sektion=="variant_valg") variant_valg();
 if ($sektion=="shop_valg") shop_valg();

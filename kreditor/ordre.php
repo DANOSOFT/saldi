@@ -126,8 +126,8 @@ $qtxt = "select box4 from grupper where art = 'DIV' and kodenr = '2'";
 if ($r=db_fetch_array(db_SELECT($qtxt,__FILE__ . " linje " . __LINE__))) $hurtigfakt=$r['box4'];
 $qtxt = "select box9 from grupper where art = 'DIV' and kodenr = '3'";
 if ($r=db_fetch_array(db_SELECT($qtxt,__FILE__ . " linje " . __LINE__))) $negativt_lager=$r['box9'];
-if($r=db_fetch_array(db_select("select id from labels limit 1",__FILE__ . " linje " . __LINE__))) $labelprint=1;
-else $labelprint=NULL;
+$qtxt = "select box1 from grupper where art = 'LABEL'";
+if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $labelprint=$r['box1'];
 
 if(isset($_GET['id']))       $id=$_GET['id'];  #20210716 This is used to correct undefined index error on the former code
 if(isset($_GET['vis']))      $vis=$_GET['vis'];
