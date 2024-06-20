@@ -82,7 +82,7 @@ function yearX1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $sluta
 	$kreditsum=0;
 	$qtxt = "select id, kontonr, primo, beskrivelse from kontoplan ";
 	$qtxt.= "where kontotype='S' and regnskabsaar='$kodenr' order by kontonr";
-#cho "$qtxt<br>";
+echo "$qtxt<br>";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$y++;
@@ -91,12 +91,12 @@ function yearX1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $sluta
 		$kredit[$y]="0,00";
 		if ($row['primo']>0) {
 			$debet[$y]=dkdecimal($row['primo'],2);
-#cho "$debet[$y]<br>";
+echo "$debet[$y]<br>";
 			$debetsum=$debetsum+$row['primo'];
 		}
 		elseif ($row['primo']<0) {
 			$kredit[$y]=dkdecimal($row['primo']*-1,2);
-#cho "$kredit[$y]<br>";
+echo "$kredit[$y]<br>";
 			$kreditsum=$kreditsum+($row['primo']*-1);
 		}
 		print "<td>$row[kontonr]</td>";

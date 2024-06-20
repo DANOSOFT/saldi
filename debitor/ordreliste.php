@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.0 ----2024-05-28--------------
+// --- debitor/ordreliste.php -----patch 4.1.0 ----2024-05-01--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,7 +85,6 @@
 // 20230829 MSC - Copy pasted new design into code
 // 20231113 PHR Added search for 'Land'
 // 20231206 PHR PHP 8 error in 'genberegn'
-// 20240528 PHR Added $_SESSION['debitorId']
 
 #ob_start();
 @session_start();
@@ -175,10 +174,7 @@ $nextfakt1 = strtolower(str_replace(' ','_', $kk));
 
 $id = if_isset($_GET['id']);
 $konto_id = if_isset($_GET['konto_id']);
-if ($konto_id) $_SESSION['debitorId'] = $konto_id;
-elseif (isset($_SESSION['debitorId']) && $_SESSION['debitorId']) $konto_id  = $_SESSION['debitorId'];
-if ($konto_id) $returside = "../debitor/debitorkort.php?id=$konto_id";
-else $returside=if_isset($_GET['returside']);
+$returside=if_isset($_GET['returside']);
 if (!$returside) $returside = '../index/menu.php';
 $valg= strtolower(if_isset($_GET['valg']));
 $sort = if_isset($_GET['sort']);
@@ -196,9 +192,8 @@ $shop_ordre_id=if_isset($_GET['shop_ordre_id']);
 $shop_faktura=if_isset($_GET['shop_faktura']);
 # if ($hent_nu && file_exists("../temp/$db/shoptidspkt.txt")) unlink ("../temp/$db/shoptidspkt.txt");
 
-if (!$returside && $konto_id && !$popup) {
-	$returside="debitorkort.php?id=$konto_id";
-}
+if (!$returside && $konto_id && !$popup) $returside="debitorkort.php?id=$konto_id";
+
 if (isset($_GET['valg'])) setcookie("saldi_ordreliste","$valg");
 else $valg = if_isset($_COOKIE['saldi_ordreliste']);
 

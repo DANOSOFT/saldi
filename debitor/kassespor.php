@@ -145,18 +145,8 @@ while ($r=db_fetch_array($q)) {
 		$x++;
 	}
 }
-
-# Check if the old system is in use.
-$r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
-if ($r[0]) {
-        ($r['box7'])?$bordnavn=explode(chr(9),$r['box7']):$bordnavn=array(); #20141119
-} else {
-        $bordnavn = array();
-        $q=db_select("select name from table_plan",__FILE__ . " linje " . __LINE__);
-        while ($r=db_fetch_array($q)) {
-                array_push($bordnavn, $r["name"]);
-        }
-}
+$r = db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr='2'",__FILE__ . " linje " . __LINE__)); 
+($r['box7'])?$bordnavn=explode(chr(9),$r['box7']):$bordnavn=array(); #20141119
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -408,23 +398,15 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	$linjebg=NULL;
 	$y=0;
 	$sort=str_replace('+',' ',$sort);
-        # Check if the old system is in use.
-        $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
-        if ($r[0]) {
-                if ($borde && count($bordnavn)) {
-                        for ($x=0;$x<count($bordnavn);$x++) {
-                                if ($bordnavn[$x]==$borde) {
-                                        $bordnr=$x;
-                                }
-                        }
-                }
-        } else {
-                $r=db_fetch_array(db_select("select id from table_plan where name='$borde'",__FILE__ . " linje " . __LINE__));
-                $bordnr = $r["id"];
-        }
-
+	if ($borde && count($bordnavn)) {
+		for ($x=0;$x<count($bordnavn);$x++) {
+			if ($bordnavn[$x]==$borde) {
+				$bordnr=$x;
+			}
+		}
+	}
+	
 	if (!isset ($id)) $id = NULL;
-	$id = (int)$id;
 
 	$r = db_fetch_array(db_select("select box5 from grupper where art='DIV' and kodenr='3'",__FILE__ . " linje " . __LINE__));
 	if (strstr($r['box5'],';')) list($straksbogfor,$tmp)=explode(';',$r['box5']); # 20170419
@@ -432,7 +414,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	$udvaelg='';
 	if (!$status) $status='3:4'; #20190404
 	if ($status) $udvaelg=$udvaelg.udvaelg($status, 'ordrer.status', 'NR');
-	if (trim($idnumre)) $udvaelg=$udvaelg.udvaelg($idnumre, 'ordrer.id', 'NR');
+	if ($idnumre) $udvaelg=$udvaelg.udvaelg($idnumre, 'ordrer.id', 'NR');
 	if ($fakturanumre) $udvaelg=$udvaelg.udvaelg($fakturanumre, 'ordrer.fakturanr', 'NR');
 	if ($betalinger) $udvaelg=$udvaelg.udvaelg($betalinger, 'ordrer.felt_1', '');
 	if ($logtimes) $udvaelg=$udvaelg.udvaelg($logtimes, 'ordrer.tidspkt', 'TIME');
@@ -509,31 +491,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						print "<td align=right>". str_replace(":",".",$tidspkt[$x]) ."<br></td>\n";
 						print "<td align=right>$fakturanr[$x]<br></td>\n";
 						print "<td align=right>$kasse[$x]<br></td>\n";
-
-                                                # Check if the old system is in use.
-                                                $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
-                                                if ($r[0]) {
-                                                        $bordarr = explode(chr(9), str_replace("\n", "  ", $r[0]));
-                                                } else {
-                                                        $bordarr = array();
-                                                }
-
-                                                # Old system
-                                                if (count($bordarr) != 0) {
-                                                        $txt = $bordnavn[$bord[$x]];
-                                                # New system
-                                                } else {
-                                                        echo "<!-- $bord[$x] -->";
-                                                        if ($bord[$x] == "") {
-                                                                $txt="";
-                                                        } else {
-                                                                $r=db_fetch_array(db_select("select name from table_plan where id = $bord[$x]",__FILE__ . " linje " . __LINE__));
-                                                                $txt = $r[0];
-                                                        }
-                                                }
-
-
-						print "<td align=right>".$txt."<br></td>\n";
+						print "<td align=right>".$bordnavn[$bord[$x]]."<br></td>\n";
 						print "<td align=right>$ref[$x]<br></td>\n";
 						print "<td align=right>$dkksum[$x]<br></td>\n";
 					} else {

@@ -1,6 +1,6 @@
 <?php
 
-// -- lager/optalling.php ------------------- patch 4.0.7 -- 2023-02-24 --
+// -- lager/optalling.php ------------------- patch 4.0.7 -- 2024-01-18 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or

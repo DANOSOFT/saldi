@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_adresser.php-----patch 4.1.0 ----2024-05-13--
-// LICENSE
+// --- systemdata/importer_adresser.php-----patch 4.0.8 ----2023-12-14--
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // -----------------------------------------------------------------------
 
 // 2013.02.10 Break ændret til break 1
@@ -32,13 +32,13 @@
 // 2021.07.14 LOE Translated some text.
 // 20230702 PHR php8
 // 20231214 PHR Correceted text error and recognition of Lb.Md.
-// 20240513 PHR Encoding recognition & group text search
 
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
 $title="Importer_adresser";
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
@@ -67,12 +67,9 @@ if($_POST) {
 	$kontonr   = if_isset($_POST['kontonr'],array());
 	$kontotype= if_isset($_POST['kontotype'],NULL);
 	$bilag     = if_isset($_POST['bilag'],NULL);
-	$encoding  = if_isset($_POST['encoding'],NULL);
-
 
 	if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv";
-
 		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
 			vis_data($filnavn, '', '', 1, $kontonr, $bilag);
 		} else echo "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
@@ -115,28 +112,16 @@ function upload(){
 function vis_data($filnavn, $splitter, $feltnavn, $feltantal){
 	
 	global $art,$db;
-	global $charset,$encoding;
+	global $charset;
 	global $felt_navn;
 	global $opdat;
 	global $sprog_id;
 
-	if (!$encoding) {
-		$content = file_get_contents($filnavn);
-		if (strpos($content,'æ')) $encoding = 'UTF-8';
-		elseif (strpos($content,'ø')) $encoding = 'UTF-8';
-		elseif (strpos($content,'å')) $encoding = 'UTF-8';
-		if (strpos($content,'Æ')) $encoding = 'UTF-8';
-		elseif (strpos($content,'Ø')) $encoding = 'UTF-8';
-		elseif (strpos($content,'Å')) $encoding = 'UTF-8';
-		else $encoding = 'ISO-8859-1';
-	}
-
-	$fp=fopen("$filnavn","r");
-	if ($fp) {
+		$fp=fopen("$filnavn","r");
+		if ($fp) {
 		$komma = $semikolon = $tabulator = 0;
 		for ($y=1; $y<4; $y++) $linje=fgets($fp);#korer frem til linje nr. 4.
-		if ($charset == 'UTF-8' && $encoding != $charset) $linje=utf8_encode($linje);
-		elseif ($encoding != $charset) $linje = utf8_decode($linje);
+		if ($charset=='UTF-8') $linje=utf8_encode($linje);
 		$tmp=$linje;
 		while ($tmp=substr(strstr($tmp,";"),1)) {$semikolon++;}
 		$tmp=$linje;
@@ -178,7 +163,6 @@ print "<tr><td colspan=$cols><table><tbody>";
 print "<tr><td>Konto art:<b>$art</b></td>\n";
 print "<input type=\"hidden\" name=\"art\" value=\"$art\">\n";
 print "<input type=\"hidden\" name=\"opdat\" value=\"$opdat\">\n";
-print "<input type=\"hidden\" name=\"encoding\" value=\"$encoding\">\n";
 print "</select></span>";
 print "<td colspan=\"$cols\" align=\"right\"><span title='".findtekst(1389, $sprog_id)."'>".findtekst(1377, $sprog_id)."<select name=splitter>\n";
 if ($splitter) print "<option>$splitter</option>\n";
@@ -192,30 +176,12 @@ print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Vis\" />";
 # if (!$art) $felt_navn=array("art","kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","ean","institution","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
 #else
 if ($art!='D') {
-	$i=0;
-	$grpNo = $grpTxt = array();
-	$qtxt = "select kodenr,beskrivelse from grupper where art = 'KG'";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while($r=db_fetch_array($q)) {
-		$grpNo[$i] =  $r['kodenr'];
-		$grpTxt[$i] = $r['beskrivelse'];
-		$i++;
-	}
 	$felt_navn=array("kontonr","firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","web","notes","kreditmax","betalingsbet","betalingsdage","cvrnr","bank_navn","bank_reg","bank_konto","bank_fi","swift","erh","gruppe","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
 	$felt_antal=count($felt_navn);
 	for ($x=0; $x<$felt_antal; $x++) {
 		$felt_betegn[$x]=$felt_navn[$x];
 	}
 } else {
-	$i=0;
-	$grpNo = $grpTxt = array();
-	$qtxt = "select kodenr,beskrivelse from grupper where art = 'DG'";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while($r=db_fetch_array($q)) {
-		$grpNo[$i] =  $r['kodenr'];
-		$grpTxt[$i] = $r['beskrivelse'];
-		$i++;
-	}
 	$felt_navn=array("kontonr","firmanavn","fornavn","efternavn","addr1","husnr","etage","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","mailfakt","web","notes","kreditmax","betalingsbet","betalingsdage","bank_reg","bank_konto","cvrnr","ean","institution","pbs_nr","gruppe","kontoansvarlig","oprettet","felt_1","felt_2","felt_3","felt_4","felt_5","kategori","status","kontakt_navn","kontakt_addr1","kontakt_addr2","kontakt_postnr","kontakt_bynavn","kontakt_tlf","kontakt_fax","kontakt_email","kontakt_notes");
 	$felt_tekst_id=array("357","360","358","359","361","412","413","362","144","146","364","398","377","378","402","677","367","391","381","368","57","382","383","376","379","380","414","374","386","65","255","256","257","258","259","388","494","403","404","405","406","407","408","409","410","411");
 	$felt_antal=count($felt_navn);
@@ -277,8 +243,7 @@ if ($fp) {
 		if ($linje=fgets($fp)) {
 			$x++;
 			$skriv_linje=1;
-			if ($charset == 'UTF-8' && $encoding != $charset) $linje=utf8_encode($linje);
-			elseif ($encoding != $charset) $linje = utf8_decode($linje);
+			if ($charset=='UTF-8') $linje=utf8_encode($linje);
 			$felt=array();
 			$felt = opdel($splitter, $linje);
 			for ($y=0; $y<=$feltantal; $y++) {
@@ -287,14 +252,6 @@ if ($fp) {
 				if ($feltnavn[$y]=='kontonr'&&!is_numeric($felt[$y])) {
 					$skriv_linje=2;
 					print "<BODY onLoad=\"javascript:alert('R&oslash;de linjer indeholder fejl (kontonummer ikke numerisk) og bliver ikke importeret')\">";
-				}
-				elseif ($feltnavn[$y]=='gruppe' && !is_integer($felt[$y])) {
-					if (in_array($felt[$y],$grpTxt)) {
-						for ($i=0;$i<count($grpNo);$i++) if ($felt[$y] == $grpTxt[$i]) $felt[$y] = $grpNo[$i];
-					} else {
-						$skriv_linje = 2;
-						print "<BODY onLoad=\"javascript:alert('R&oslash;de linjer indeholder fejl (Gruppe $felt[$y] ikke fundet) og bliver ikke importeret')\">";
-					}
 				}
 			}
  		}
@@ -316,9 +273,8 @@ print "</td></tr>";
 }
 
 function overfoer_data($filnavn, $splitter, $feltnavn, $feltantal){
-
-	global $art,$db;
-global $charset,$encoding;
+global $art,$db;
+global $charset;
 global $kontotype;
 global $opdat;
 
@@ -365,23 +321,13 @@ for ($y=0; $y<=$feltantal; $y++) {
 	}
 }
 */
+
 print "<tr><td colspan=$cols><hr></td></tr>\n";
 if ((!$splitter)||($splitter=='Semikolon')) {$splitter=';';}
 elseif ($splitter=='Komma') {$splitter=',';}
 elseif ($splitter=='Tabulator') {$splitter=chr(9);}
 
 
-$i=0;
-$grpNo = $grpTxt = array();
-if ($art!='D') $qtxt = "select kodenr,beskrivelse from grupper where art = 'KG'";
-else $qtxt = "select kodenr,beskrivelse from grupper where art = 'DG'";
-echo "$qtxt<br>";
-$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-while($r=db_fetch_array($q)) {
-	$grpNo[$i] =  $r['kodenr'];
-	$grpTxt[$i] = $r['beskrivelse'];
-	$i++;
-}
 transaktion('begin');
 
 #$felt_antal=$feltantal;
@@ -409,8 +355,7 @@ if ($fp) {
 		if ($linje=fgets($fp)) {
 			$x++;
 			$skriv_linje=1;
-			if ($charset == 'UTF-8' && $encoding != $charset) $linje=utf8_encode($linje);
-			elseif ($encoding != $charset) $linje = utf8_decode($linje);
+			if ($charset=='UTF-8') $linje=utf8_encode($linje);
 			$felt=array();
 			$felt = opdel($splitter, $linje);
 #			if ($ryd_firmanavn) $felt[$ryd_firmanavn]='';
@@ -473,14 +418,9 @@ if ($fp) {
 					elseif ($tmp=='efterkrav') $felt[$y]='Efterkrav';
 					else $felt[$y]='Netto';
 				}
-				if ($feltnavn[$y]=='gruppe' && !is_integer($felt[$y])) {
-					if (in_array($felt[$y],$grpTxt)) {
-						for ($i=0;$i<count($grpNo);$i++) if ($felt[$y] == $grpTxt[$i]) $felt[$y] = $grpNo[$i];
-					} else $skriv_linje = 2;
-				}
 			}
 		}
-		if ($skriv_linje==1) {
+		if ($skriv_linje==1){
 			$addr_a='';
 			$addr_b='';
 			$upd='';

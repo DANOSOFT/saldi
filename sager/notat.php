@@ -240,13 +240,12 @@ function noteliste($mine_notater) {
 		print "<div id=\"paging_container\">
 			<div class=\"info_text\"></div>
 			<div class=\"page_navigation $abortlist\"></div>";
-		 ($pageTitle == 'Stillads')?$taskTitle = 'Opstillings':$taskTitle = 'Opgave';
 			print "<div class=\"contentkundehead\">
 				<ul id=\"sort\">
 					<li>
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=datotid&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:115px\">Dato / tid</a>
 					<a href=\"notat.php?funktion=noteliste&amp;nysort=sagsnr&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:70px\">Sagsnr</a>
-					<a href=\"notat.php?funktion=noteliste&amp;nysort=udf_addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:215px\">$taskTitle adresse</a>
+					<a href=\"notat.php?funktion=noteliste&amp;nysort=udf_addr1&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:215px\">Opstillings adresse</a>
 				<a href=\"notat.php?funktion=noteliste&amp;nysort=hvem&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:80px\">Af</a>
 				<a href=\"notat.php?funktion=noteliste&amp;nysort=status&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:70px\">Status</a>
 				<a href=\"notat.php?funktion=noteliste&amp;nysort=beskrivelse&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:255px\">Beskrivelse</a>

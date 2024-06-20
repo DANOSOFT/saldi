@@ -138,8 +138,8 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		print "</div>";
 		print "<div class='content-noside'>";
 			print  "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-#	} elseif ($menu=='S') {
-#		include("../includes/sidemenu.php");
+	} elseif ($menu=='S') {
+		include("../includes/sidemenu.php");
 	} else {
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
 		print "<tr><td colspan=\"6\" height=\"8\">";

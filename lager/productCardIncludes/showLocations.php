@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productcardIncludes/showLocations.php --- lap 4.1.0 --- 2024-06-05 ---
+// --- lager/productcardIncludes/showLocations.php --- lap 4.0.8 --- 2023-09-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2023 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20230910 PHR Added orderlookup for incoming and outgoing orders ($orderInOutput & $orderOutOutput)
 // 20231018 PHR Inserted  '&& !count($variantVarerId)' to avoid deleteing variants from lagertatus
-// 20240605 PHR Replaced text 2046 (Følgevare) by 980 (Beholdning)
 ?>
 <style>
 .CellComment{
@@ -67,25 +66,16 @@
 			$lagersum+=$b_antal[$x];
 			if ($lagerbeh[$x]!=$b_antal[$x] && !count($vare_varianter) && !count($variantVarerId))  {
 				$l=0;
-				$lsId = array();
 				$qtxt="select id from lagerstatus where vare_id = '$id' and lager = '$x' order by id";
-#cho "$qtxt<br>";
 				$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r2=db_fetch_array($q2)) {
-					$lsId[$l] = $r2['id'];
 					if ($l>=1) {
-						$qtxt="delete from lagerstatus where id ='$lsId[$l]' and  vare_id = '$id' and lager = '$x'";
-#cho "$qtxt<br>";
+						$qtxt="delete from lagerstatus where id ='$r2[id]' and  vare_id = '$id' and lager = '$x'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 					$l++;
 				}
-				if (isset ($lsId[0]) && $lsId[0]) {
-					$qtxt = "update lagerstatus set beholdning='$b_antal[$x]' where vare_id = '$id' and lager = '$x'";
-				} else {
-					$qtxt = "insert into lagerstatus (vare_id,lager,beholdning) values ('$id','$x','$b_antal[$x]')";
-				}
-#cho "$qtxt<br>";
+				$qtxt="update lagerstatus set beholdning='$b_antal[$x]' where vare_id = '$id' and lager = '$x'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$lagerbeh[$x]=$b_antal[$x];
 			}
@@ -167,7 +157,7 @@
 		}
 		$orderOutOutput.= "</table>\n";
 #		}
-		print "<tr><td>".findtekst(980,$sprog_id)."</td><td>Min:</td><td width=\"5%\" align='right'>";
+		print "<tr><td>".findtekst(2046,$sprog_id)."</td><td>Min:</td><td width=\"5%\" align='right'>";
 		print "<input class=\"inputbox\" type=\"text\" size=\"5\" style=\"text-align:right\" name=\"min_lager\" ";
 		print "value=\"". dkdecimal($min_lager,0). "\"></td>";
 		print "<td width=\"5%\">Max:</td><td colspan=\"2\" align='right' >";

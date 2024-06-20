@@ -51,18 +51,9 @@ if(!isset($regnskab)){
 }
 $modulnr=0;
 include("../includes/connect.php");
-$newssnippet = get_settings_value("nyhed", "dashboard", "");
-
 include("gettingApiKey.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
-if ($_GET['close_snippet'] == '1') {
-   update_settings_value("closed_news_snippet", "dashboard", $newssnippet, "The newssnippet that was closed by the user");
-}
-
-$closed_newssnippet = get_settings_value("closed_news_snippet", "dashboard", "");
-
 if (isset($_GET['useMain']))	 {
 	($_GET['useMain'] == 'on')?$menu = 'S':$menu = '';
 	$qtxt = "update grupper set box3 ='$menu' where  art = 'USET' and kodenr = '$bruger_id'"; 
@@ -133,8 +124,6 @@ function oldmenu() {
 	global $stor_knap_bg,$sprog_id, $brugernavn; #20210721
 	global $textcolor;
 	global $vejledning,$version;
-	global $newssnippet, $closed_newssnippet;
-
 	
 	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	print "<tr><td align='center' valign='top'>\n";
@@ -146,12 +135,6 @@ function oldmenu() {
 	print "<td><div class='top_bund'>&nbsp;</div></td>\n";
 	print "<td width='20' title='".findtekst(161,$sprog_id)."'><div class='luk' onclick='location.href=\"logud.php\";' style='cursor:pointer;'></div></td>\n";
 	print "</tbody></table></td></tr><tr><td align='center' valign='middle'>\n";
-
-  # Newsbar
-  if ($closed_newssnippet != $newssnippet && $newssnippet != '') {
-    print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'menu.php?close_snippet=1'\">x</span></div>";
-  }
-
 
 	print "<table align='center' style='border:3px solid $bgcolor2;border-radius:5px;'><tbody>\n";
 	print "<tr><td style=\"background:url(../img/blaa2hvid_bg.gif);color:$textcolor;\" colspan=\"5\" align=\"center\">";
@@ -420,25 +403,3 @@ if ($menu=='T') {
 	}
 	promptBankAccount() */
 </script>
-
-<style>
-#newsbar {
-  background-color: #114691;
-  border-radius: 5px;
-  color: #fff;
-  display: flex;
-  justify-content: space-between;
-  padding: 10px;
-  position: absolute;
-  top: 3em;
-  width: calc(100% - 40px);
-}
-
-#newsbar #closebtn {
-  font-size: 16px;
-  cursor: pointer;
-  padding: 0 8px;
-}
-
-</style>
-

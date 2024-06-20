@@ -39,8 +39,8 @@ function pollPayment($paymentId, $token, $pollDelay) {
     }
 
     if (!$success) {
-        echo json_encode(["status" => "error", "res" => $response]);
-        exit;
+        echo "Failed after $maxAttempts attempts.\n";
+        $godkendt = false;
     }
     // return status
     if(isset(json_decode($response)->status))

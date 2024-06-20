@@ -66,7 +66,7 @@ $guid = db_fetch_array($q)[0];
 $qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 $terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
-if (file_exists("../../temp/$db/receipt_$kasse.txt")) unlink("../../temp/$db/receipt_$kasse.txt");
+
 if ($db=='pos_10' || $db=='laja_15') {
   $printfile = 'https://'.$_SERVER['SERVER_NAME'];
   $printfile.= str_replace('debitor/payments/flatpay.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
@@ -142,7 +142,7 @@ print "
         paused = true;
         var json_data = await res.json();
 
-        await fetch(
+        fetch(
           'save_receipt.php',
           {
             method: 'POST',
@@ -165,7 +165,7 @@ print "
         if (json_data.transApproved) {
           elm.style.backgroundColor = '#51e87d';
           elm.innerText = 'Success';
-          countdown(1);
+          countdown(0);
           document.getElementById('continue-success').style.display = 'block';
           document.getElementById('continue').style.display = 'none';
         } else if (json_data.transCancelled) {

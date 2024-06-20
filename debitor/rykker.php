@@ -92,8 +92,7 @@ if ($submit || $inkasso) {
 		if ($ny_valuta=='DKK') $ny_valutakurs=100; 
 		else {
 			$qtxt = "select kurs from grupper, valuta where grupper.art='VK' and grupper.box1='$ny_valuta' and ";
-			$qtxt.= "valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r[fakturadate]' ";
- 			$qtxt.= "order by valuta.valdate desc";
+			$qtxt.= "valuta.gruppe = ".nr_cast("grupper.kodenr")." and valuta.valdate <= '$r[fakturadate]' order by valuta.valdate desc<br>";
 			if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$ny_valutakurs=$r2['kurs'];
 			} else {

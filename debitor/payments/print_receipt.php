@@ -26,8 +26,8 @@
 if (isset($_GET['id']))       $id       = $_GET['id'];
 if (isset($_GET['filename'])) $filename = $_GET['filename'];
 
-if (!$kasse) $kasse = $_COOKIE['saldi_pos'];
 /*
+$kasse = $_COOKIE['saldi_pos'];
 $qtxt="select box3,box4,box5,box6,box11,box12 from grupper where art = 'POS' and kodenr='2'";
 $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
 $x=$kasse-1;
@@ -39,7 +39,7 @@ if ($printserver=='box' || $printserver=='saldibox') {
 	$printserver=file_get_contents($filnavn);
 }
 */
-#$kasse = 1;
+$kasse = 1;
 $printserver = "localhost";
 $bon = '';
 if ($type == 'flatpay') {

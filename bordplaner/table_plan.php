@@ -80,28 +80,28 @@ while ($r = db_fetch_array($q)) {
       # All items on table needs to be moved to new table
       if ($r["id"] != $flyt && $delflyt) {
         $link = "window.location.replace('../debitor/pos_ordre.php?id=$id&flyt_til=$r[id]&delflyt=$delflyt')";
-
+        
       # If the table is taken and the id you want to move to is not the same as the one you came from
       }
       elseif ((in_array($r['id'], $takenTables)) && $r['id'] != $flyt) {
         # Dont do anything
         $link = "";
         $cursor = "default";
-
+        
       # The same table as the one you came from
       }
       elseif ($r['id'] == $flyt) {
         $bgcolor = "#6879d5";
         $link = "window.location.replace('../debitor/pos_ordre.php?bordnr=$r[id]')";
         $cursor = "pointer";
-
+        
       # Only some of the items needs to be moved to the new table
       }
       else {
         $link = "window.location.replace('../debitor/pos_ordre.php?id=$id&flyt_til=$r[id]')";
         $cursor = "pointer";
       }
-
+      
     # We just want to switch tables
     }
     else {
@@ -158,4 +158,3 @@ open_page('cat$pages[0]');
 
 </script>";
 ?>
-

@@ -417,14 +417,12 @@ if($bordvalg=if_isset($_POST['bordvalg'])) {
 	$_POST['varenr_ny']=NULL;
 	$fokus=NULL;
   # Check if the old system is in use.
-  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
   if ($r[0]) {
     $bord = explode(chr(9), str_replace("\n", "  ", $r[0]));
   } else {
     $bord = array();
   }
-
-#print_r($bord);
 
   if (count($bord) == 0){
     if ($bordnr || $bordnr == '0') print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?bordnr=$bordnr\">\n";
@@ -445,7 +443,6 @@ if (isset($_POST['kasse']) && $_POST['kasse']) {
 } elseif (!$kasse && isset($_COOKIE['saldi_pos'])) $kasse = $_COOKIE['saldi_pos'];
 $r = db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr='2'",__FILE__ . " linje " . __LINE__)); 
 if ($r['box7']) $bord=explode(chr(9),$r['box7']); #20140508
-#if ($bruger_id == '-1') echo $_GET['bordnr'];
 if (isset($_GET['bordnr'])) $bordnr=$_GET['bordnr'];
 if (isset($_POST['id']) && $_POST['id']) $id=$_POST['id'];
 if (!$id && !$bordnr && $bordnr != '0') { #20150305
@@ -463,7 +460,6 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 } 
 if (!$bordnr && $bordnr != '0') $bordnr=$_COOKIE['saldi_bordnr']; #20150505-2
 if (isset($_GET['flyt_til']) && $id ) { #20140508
-if ($bruger_id == '-1') echo $_GET['flyt_til'];
 	$bordnr=$_GET['flyt_til'];
 	$r=db_fetch_array(db_select("select momssats,felt_5 from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
 	$momssats=$r['momssats'];
@@ -580,7 +576,7 @@ if ($bruger_id == '-1') echo $_GET['flyt_til'];
 	$qtxt.= " and (hvem = '$brugernavn' or ordredate < '". date("Y-m-d")."')";
 
   # Check if the old system is in use.
-  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
   if ($r[0]) {
 	  if (count($bord) >= 1 && $bordnr || $bordnr=='0') $qtxt .= " and nr = '$bordnr' ";
   } else {
@@ -754,7 +750,7 @@ if ($pfs && $pfs != $old_pfs) print "<meta http-equiv=\"refresh\" content=\"0;UR
 $ifs=$pfs*1.3;
 
 if ($kasse=trim($kasse)) {
-	$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+	$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1'",__FILE__ . " linje " . __LINE__));
 	$kasseantal=(int)$r['box1'];
 	$a=explode(chr(9),$r['box3']);
 	$b=$kasse-1;
@@ -926,12 +922,13 @@ if (($pre_bordnr || $pre_bordnr=='0') && ($bordnr || $bordnr=='0') && $pre_bordn
 */
 if (isset($_POST['flyt_bord'])) {
   # Check if the old system is in use.
-  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
   if ($r[0]) {
     $bord = explode(chr(9), str_replace("\n", "  ", $r[0]));
   } else {
     $bord = array();
   }
+
   if (count($bord) == 0){
 	  print "<meta http-equiv=\"refresh\" content=\"0;URL=../bordplaner/table_plan.php?id=$id&flyt=$bordnr\">\n";
   } else {
@@ -952,7 +949,7 @@ if ($df) {
 }
 if ($delflyt && $flyt) {
   # Check if the old system is in use.
-  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
   if ($r[0]) {
     $bord = explode(chr(9), str_replace("\n", "  ", $r[0]));
   } else {
@@ -1003,7 +1000,7 @@ if (if_isset($_POST['saet'])) {
 	gendan_saet($id);
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=saetpris.php?id=$id\">\n";
 }
-$r = db_fetch_array(db_select("select box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+$r = db_fetch_array(db_select("select box6,box12 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 $div_kort_kto=$r['box6'];
 $vis_saet=trim($r['box12']);
 if ($vare_id) {
@@ -1530,7 +1527,7 @@ if ($vare_id) {
 $x=0;
 if ($id && $gem) {
 	if (!$afd) { #20150302
-		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1'",__FILE__ . " linje " . __LINE__));
 		$kasseantal=(int)$r['box1'];
 		$afdelinger=explode(chr(9),$r['box3']);
 		$tmp=$kasse-1;
@@ -2219,21 +2216,19 @@ function opdater_konto($konto_id,$kontonr,$id) {
 
 
 function find_kasse($kasse) {
-	global $afd,$db,$id,$regnaar;
+	global $afd,$db,$id;
 	
 	$id*=1;
 	
   if ($kasse!="?" && isset($_COOKIE['saldi_pos'])) {
 		$kasse=stripslashes($_COOKIE['saldi_pos']);
-		$qtxt = "select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1'",__FILE__ . " linje " . __LINE__));
 		if ($kasse>$r['box1'])$kasse='?';
 		else return($kasse);
   } 
   if (!$kasse || $kasse=="?") {
 		print "<form name=pos_ordre action=\"pos_ordre.php?kasse=opdat&del_bord=$del_bord&id=$id\" method=\"post\" autocomplete=\"off\">\n";
-		$qtxt = "select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1'",__FILE__ . " linje " . __LINE__));
 		$kasseantal=(int)$r['box1'];
 		$afd=explode(chr(9),$r['box3']);
 		if ($id) {
@@ -2413,7 +2408,7 @@ function posbogfor ($kasse,$regnstart,$reportNumber) {
 	$afd=(int)$afdelinger[$kasse-1];
 	
 	# --> 20140709
-	$r=db_fetch_array(db_select("select box8,box9 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+	$r=db_fetch_array(db_select("select box8,box9 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 	$mellemkonti=explode(chr(9),$r['box8']);
 	$mellemkonto=$mellemkonti[$kasse-1];
 	$diffkonti=explode(chr(9),$r['box9']); 
@@ -2796,7 +2791,6 @@ function kasseoptalling (
 	global $id,$ifs;
 	global $log;
 	global $optalt;
-	global $regnaar;
 	global $sprog_id; #20210817
 
 	$color = 0;
@@ -2864,7 +2858,7 @@ function kasseoptalling (
 	$omsatning      = $tilgang+$kontosum;
 
 #cho "DKK TG $tilgang Om $omsatning<br>"; 	
-	$r=db_fetch_array(db_select("select box8,box9,box14 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+	$r=db_fetch_array(db_select("select box8,box9,box14 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 	$mellemkonti=explode(chr(9),$r['box8']);
 	$mellemkonto=$mellemkonti[$kasse-1];
 	$diffkonti=explode(chr(9),$r['box9']);
@@ -3081,11 +3075,11 @@ function flyt_bord($id,$bordnr,$delflyt) { #20140508
 function kundedisplay($beskrivelse,$pris,$ryd){
 #cho "Incl $incl_moms<br>\n";
 	global $db,$fast_morgen,$kasse;
-	global $printserver,$regnaar;
+	global $printserver;
 	global $kundedisplay;
 
 	if (!$printserver) {
-		$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+		$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 		$printer_ip=explode(chr(9),$r['box3']);
 		$tmp=$kasse-1;
 		$printserver=$printer_ip[$tmp];

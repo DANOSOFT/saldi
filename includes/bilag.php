@@ -400,7 +400,7 @@ function vis_bilag($kilde_id,$kilde,$bilag_id,$fokus,$filnavn,$nfs_mappe){
 }
 
 function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$nfs_mappe){
-	global $bruger_id,$db,$exec_path;
+	global $db,$exec_path;
 	global $sprog_id;
 	
 #cho "$kilde_id,$kilde,$bilag_id,$bilag<br>";
@@ -414,7 +414,7 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 	$newFileName = if_isset($_POST['newFileName']);
 
 	$descfil=if_isset($_POST['descfil']);
-
+	
 	if ($rename && $newFileName && $newFileName != $puljefil) {
 	  $legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.');
@@ -440,12 +440,12 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 		$tmpA = explode('.',$newFileName);
 		if (count($tmpA) > 1) $newExt = end($tmpA);
 		else $newExt = NULL;
-	if ($bruger_id == '-1') echo "$puljefil $newExt<br>";
 		if (strtolower($ext) != strtolower($newExt)) $newFileName.= ".$ext"; 
 		$newFileName= trim($newFileName,' ._'); 
 		rename("../".$nfs_mappe."/$db/pulje/$puljefil","../".$nfs_mappe."/$db/pulje/$newFileName"); 
 		$puljefil = $newFileName;
 	}
+	
 	if ($unlink && $unlinkFile) {
 		if ($descfil) system("rm ../".$nfs_mappe."/$db/pulje/$descfil\n");
 		if ($unlinkFile) system("rm $unlinkFile\n");
@@ -462,6 +462,7 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 		echo "indsætter $puljefil";
 		exit;
 	}
+	
 	$r=db_fetch_array(db_select("select * from grupper where art='bilag'",__FILE__ . " linje " . __LINE__));
 	$google_docs=$r['box7'];
 
@@ -514,6 +515,7 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 				if ($file != '.' && $file != '..' && substr($file,-5)!='.desc') {
 # 				if (substr($file,0,1)!='.' && substr($file,-5)!='.desc') {
 					if (strpos($file,' ')) {
+						$newFile = trim ($file);
 						$newFile = str_replace (' ','_',$file);
 						$from = "../".$nfs_mappe."/".$db."/pulje/".$file;
 						$to   = "../".$nfs_mappe."/".$db."/pulje/".$newFile;
@@ -608,13 +610,6 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 		$fullName = $newName ; 
 		$corrected = 1;
 	}
-	if (!$ext) {
-		$newName = $fullName.'.pdf';
-		exec("mv \"$fullName\" \"$newName\"\n"); 
-		$fullName = $newName ;
-		$puljefil = $puljefil.'.pdf';
-		$corrected = 1;
-	}
 	if (strtolower($ext) != 'pdf') {
 		$choices = array('bmp','jpg','jpeg','png','tif','tiff');
 #		$tmp=str_replace($fullName);
@@ -625,7 +620,6 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 				exec("$exec_path/mogrify -resize $reduce% $fullName");
 			}
 			$newName =  str_replace($ext,'pdf',$fullName);
-			$puljefil = str_replace($ext,'pdf',$puljefil);
 			exec("$exec_path/convert $fullName $newName");
 			if (file_exists($newName))  {
 				if (filesize($newName) > 10) {
@@ -633,15 +627,11 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 					$fullName = $newName;
 				} else unlink($newName);
 			} 
-			$corrected = 1;
 		} 
+		$corrected = 1;
 	}
-#	if ($bruger_id == '-1') {
-#		echo $corrected;
-#		exit;
-#	}
 	if ($corrected == '1') {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/bilag.php?bilag=$bilag&bilag_id=$bilag_id&kilde_id=$kilde_id&kilde=$kilde&fokus=$fokus&funktion=gennemse&puljefil=\">";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/bilag.php?bilag=$bilag&bilag_id=$bilag_id&kilde_id=$kilde_id&kilde=$kilde&fokus=$fokus&funktion=gennemse\">";
 	}
 	if ($puljefil) {
 		if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
@@ -673,14 +663,8 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 		$bilag=$r['bilag']+1;
 	}
 	if (!$dato) $dato=date("d-m-Y");
-	print "<tr><td>Filnavn</td><td><input type=\"text\" style=\"width:150px\" 
-	name=\"newFileName\" value=\"$puljefil\"</td></tr>\n";	
-	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" 
-	name=\"rename\" value=\"Ret filnavn\"</tr>\n";	
-	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" 
-	name=\"indsaet_bilag\" value=\"".findtekst(1415, $sprog_id)."\"</tr>\n";	
-	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" 
-	name=\"unlink\" value=\"".findtekst(1099, $sprog_id)."\"</tr>\n";	
+	print "<tr><td>Filnavn</td><td><input type=\"text\" style=\"width:150px\" name=\"newFileName\" value=\"$puljefil\"</td></tr>\n";	
+	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" name=\"rename\" value=\"Ret filnavn\"</tr>\n";	
 	print "<tr><td>Bilag&nbsp;</td>";
 	if ($readOnly) print "<td>$bilag</td><tr>";
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"bilag\" value=\"$bilag\"</td></tr>\n";	
@@ -711,6 +695,10 @@ function gennemse($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$puljefil,$n
 	print "<tr><td>Projekt&nbsp;</td>";
 	if ($readOnly) print "<td> $projekt</td><tr>";
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"projekt\" value=\"$projekt\"</td></tr>\n";	
+	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" 
+	name=\"indsaet_bilag\" value=\"".findtekst(1415, $sprog_id)."\"</tr>\n";	
+	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\" 
+	name=\"unlink\" value=\"".findtekst(1099, $sprog_id)."\"</tr>\n";	
 	print "</tbody></table></td></tr>\n";
 	print "<input type=\"hidden\" style=\"width:150px\" name=\"unlinkFile\" value=\"$fullName\"</td></tr>\n";	
 	print "<input type=\"hidden\" style=\"width:150px\" name=\"descfil\" value=\"$descfil\"</td></tr>\n";	

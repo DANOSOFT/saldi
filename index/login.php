@@ -249,16 +249,8 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 	#		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
 	#	}
 	$asIs = db_escape_string($brugernavn);
-	$low = strtolower($brugernavn);
-	$low = str_replace('Æ','æ',$low);
-	$low = str_replace('Ø','ø',$low);
-	$low = str_replace('Å','å',$low);
-	$low = db_escape_string($low);
-	$up = strtoupper($brugernavn);
-	$up = str_replace('æ','Æ',$up);
-	$up = str_replace('ø','Ø',$up);
-	$up = str_replace('å','Å',$up);
-	$up = db_escape_string($up);
+	$low  = mb_strtolower($asIs);
+	$up   = mb_strtoupper($asIs);
 	$qtxt = "select * from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
 	$qtxt.= "and db = '$db' and session_id != '$s_id'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -330,16 +322,8 @@ if (isset ($brug_timestamp)) {
 	$userId=$r['id'];
 } else {
 	$asIs = db_escape_string($brugernavn);
-	$low = strtolower($brugernavn);
-	$low = str_replace('Æ','æ',$low);
-	$low = str_replace('Ø','ø',$low);
-	$low = str_replace('Å','å',$low);
-	$low = db_escape_string($low);
-	$up = strtoupper($brugernavn);
-	$up = str_replace('æ','Æ',$up);
-	$up = str_replace('ø','Ø',$up);
-	$up = str_replace('å','Å',$up);
-	$up = db_escape_string($up);
+	$low  = mb_strtolower($asIs);
+	$up   = mb_strtoupper($asIs);
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = $r['brugernavn'];

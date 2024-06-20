@@ -7,7 +7,7 @@
     include("../includes/connect.php");
 
     // Getting the api key and tenant id from the database
-    /* $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
     while($res = db_fetch_array($query)){
         if($res["var_value"] !== ""){
             if($res["var_name"] == "apiKey"){
@@ -16,8 +16,8 @@
                 $tenantId = $res["var_value"];
             }
         }
-    } */
-    $apiKey = "6c772607-988c-4435-8d78-3670f4a0629d&d5610b95-e39d-4894-8a11-22eb350ed84e";
+    }
+    $apiKey = $tenantId . "&" . $key;
     // 6c772607-988c-4435-8d78-3670f4a0629d&d5610b95-e39d-4894-8a11-22eb350ed84e
 
     // created endpoint for ebconnect 9280c477-1645-4443-9dee-268f9ce59453
@@ -33,21 +33,13 @@
         if(substr($res["cvrnr"], 0, 2) == "DK"){
             $res["cvrnr"] = substr($res["cvrnr"], 2);
         }
-        // get domain name
-        $domain = "https://".$_SERVER['SERVER_NAME'];
-        if($domain == "https://ssl8.saldi.dk"){
-            $webhookUrl = "$domain/laja/debitor/easyUBL.php";
-        }else if($domain == "https://ssl5.saldi.dk"){
-            $webhookUrl = "$domain/finans/debitor/easyUBL.php";
-        }else{
-            $webhookUrl = "$domain/pos/debitor/easyUBL.php";
-        }
+
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
             "currency" => "",
             "country" => "DK",
-            "webhookUrl" => $webhookUrl,
+            "webhookUrl" => "",
             "defaultEndpoint" => [
                 "endpointType" => "DK:CVR",
                 "endpointIdentifier" => "DK".$res["cvrnr"],
@@ -59,7 +51,7 @@
                 "streetName" => explode(" ",$res["addr1"])[0],
                 "additionalStreetName" => $res["addr2"],
                 "buildingNumber" => end(explode(" ", $res["addr1"])),
-                "inhouseMail" => "",
+                "inhouseMail" => $res["email"],
                 "cityName" => $res["bynavn"],
                 "postalCode" => $res["postnr"],
                 "countrySubentity" => "",
@@ -175,25 +167,21 @@
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $result = curl_exec($ch);
-        $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        $ranStr = $characters[rand(0, 4)];
-        file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
         $result = json_decode($result, true);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
-            file_put_contents(curl_error($ch), "../temp/$db/fakture-error-$ranStr.json");
             exit();
         }
-        
+       
+        $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $randomString = '';
 
         for ($i = 0; $i < 10; $i++) {
-            $randomString .= $characters[rand(0, 4)];
+            $randomString .= $characters[rand(0, strlen($characters) - 1)];
         }
-
         // decode base64
         $xml = base64_decode($result["base64EncodedDocumentXml"]);
-        file_put_contents("../temp/$db/xml-$randomString.xml", $xml);
+        file_put_contents("../temp/$db/$randomString.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
         $data = [
@@ -232,14 +220,9 @@
         }else{
             $creditNote = "Inv";
         }
-        // check if the ean number is 13 characters long
-        if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
+        if($r_faktura["ean"] !== ""){
             $endpointId = $r_faktura["ean"];
             $endpointType = "EAN";
-        }else if($_faktura["ean"] !== ""){
-            // split at ean at : and take the first part
-            $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
-            $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
         }else{
             $endpointId = "DK".$r_faktura["cvrnr"];
             $endpointType = "DK:CVR";

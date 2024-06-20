@@ -66,7 +66,6 @@ $liste_id = if_isset($_GET['liste_id']);
 #$rf      = if_isset($_GET['rf']);
 #$vis     = if_isset($_GET['vis']);
 $find     = if_isset($_POST['find']);
-$align	  = if_isset($_POST['align']);
 if (isset($_POST['mail']) && $_POST['mail']) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=mail_modtagere.php?liste_id=$liste_id\">";
 	exit;
@@ -74,6 +73,7 @@ if (isset($_POST['mail']) && $_POST['mail']) {
 
 if ($reopen && $liste_id) {
 	$qtxt = "update betalingsliste set bogfort='-' where id='$liste_id'";
+	echo "$qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 if ($dan_liste) {
@@ -172,10 +172,7 @@ if ($menu=='T') {
 	print "<tr><td valign='top'>";
 	print "<table cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
 }
-if ($align) {
-	alignAccounts($db_id,$bruger_id,$liste_id);
-	exit;
-}
+
 if (!$liste_id) {
 	$tidspkt=microtime();
 	$listedate=date("Y-m-d");
@@ -230,7 +227,7 @@ if ($find) {
 				$qtxt = "select id from betalinger where egen_ref ='".db_escape_string($myRef)."' ";
 				$qtxt.= "and liste_id = '$liste_id'";
 				if ($id = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))[0]) {
-					$qtxt = "update betalinger set belob = '$amount' where id = '$id'";
+						$qtxt = "update betalinger set belob = '$amount' where id = '$id'";
 				} else {
 					$qtxt = "insert into betalinger";
 					$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
@@ -341,7 +338,6 @@ if ($udskriv) {
 	elseif ($format=='nordea') udskriv_nordea($db_id,$bruger_id,$liste_id);
 	elseif ($format=='sdc') udskriv_sdc($db_id,$bruger_id,$liste_id);
 	elseif ($format=='xml' || $format=='norskeBank') udskriv_xml($db_id,$bruger_id,$liste_id);
-	elseif ($format=='udlign') udlignKonti($db_id,$bruger_id,$liste_id);
 } else {
 	print "<form name=\"betalinger\" action=\"betalinger.php?liste_id=$liste_id\" method=\"post\">";
 	$r=db_fetch_array(db_select("select listenote, bogfort from betalingsliste where id='$liste_id'",__FILE__ . " linje " . __LINE__));
@@ -511,27 +507,11 @@ $q=db_select("select * from betalinger where liste_id=$liste_id order by modt_na
 		print "<br>Vil du i stedet trække alle registrede skyldige beløb til kunder, vælges 'fra kontokort'<br><br><br>";
 		print "</td></tr>";
 	} else {
-		print "<tr><td colspan=11 align='center'>";
-		if ($bogfort!='V') {
-			print "<input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\"> &nbsp;•&nbsp;";
-			if(!$fejl && $modtagerantal) { 
-				print "&nbsp;<select name=\"format\">";
-				print "<option value=\"bec\">BEC</option>";
-				print "<option value=\"danskebank\">Danske Bank</option>";
-				print "<option value=\"bankdata\">Jyske Bank</option>";
-				print "<option value=\"nordea\">Nordea</option>";
-				print "<option value=\"sdc\">SDC</option>";
-				print "<option value=\"xml\">XML</option>";
-				print "<option value=\"norskeBank\">Norske Bank XML</option>";
-				print "<option value=\"udlign\">Udlign konti</option>";
-				print "</select>";
-				print "&nbsp;•&nbsp;<input type=submit accesskey=\"u\" value=\"Udskriv og luk\" name=\"udskriv\">";
-			} else {
-				print "&nbsp;•&nbsp;<span title='Klik her for at fjerne alle ugyldige linjer'>";
-				print "<input type=submit accesskey=\"u\" value=\"Slet r&oslash;de\" name=\"slet_ugyldige\"></span>";
-			}
-		} else {
-			print "<select name=\"format\" style='width:200px;'>";
+	print "<tr><td colspan=11 align='center'>";
+	if ($bogfort!='V') {
+		print "<input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\"> &nbsp;•&nbsp;";
+		if(!$fejl && $modtagerantal) { 
+			print "&nbsp;<select name=\"format\">";
 			print "<option value=\"bec\">BEC</option>";
 			print "<option value=\"danskebank\">Danske Bank</option>";
 			print "<option value=\"bankdata\">Jyske Bank</option>";
@@ -539,13 +519,24 @@ $q=db_select("select * from betalinger where liste_id=$liste_id order by modt_na
 			print "<option value=\"sdc\">SDC</option>";
 			print "<option value=\"xml\">XML</option>";
 			print "<option value=\"norskeBank\">Norske Bank XML</option>";
-			print "</select>&nbsp;•&nbsp;";
-			print "<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\">&nbsp;•&nbsp;";
+			print "</select>";
+			print "&nbsp;•&nbsp;<input type=submit accesskey=\"u\" value=\"Udskriv og luk\" name=\"udskriv\">";
+		} else {
+			print "&nbsp;•&nbsp;<span title='Klik her for at fjerne alle ugyldige linjer'><input type=submit accesskey=\"u\" value=\"Slet r&oslash;de\" name=\"slet_ugyldige\"></span>";
 		}
-		if ($modtagerantal) {
-			print "&nbsp;•&nbsp;<input type=submit accesskey=\"m\" value=\"Mail til modtagere\" name=\"mail\">";
-			if ($bogfort!='V' && $db == 'pos_111') print "&nbsp;•&nbsp;<input type=submit accesskey=\"u\" value=\"Udlign modtagere\" name=\"align\">";
-		}
+	} else {
+		print "<select name=\"format\" style='width:200px;'>";
+		print "<option value=\"bec\">BEC</option>";
+		print "<option value=\"danskebank\">Danske Bank</option>";
+		print "<option value=\"bankdata\">Jyske Bank</option>";
+		print "<option value=\"nordea\">Nordea</option>";
+		print "<option value=\"sdc\">SDC</option>";
+		print "<option value=\"xml\">XML</option>";
+		print "<option value=\"norskeBank\">Norske Bank XML</option>";
+		print "</select>&nbsp;•&nbsp;";
+		print "<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\">&nbsp;•&nbsp;";
+	}
+	if ($modtagerantal) print "&nbsp;•&nbsp;<input type=submit accesskey=\"m\" value=\"Mail til modtagere\" name=\"mail\">";
 	}
 }
 	

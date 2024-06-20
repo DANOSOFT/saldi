@@ -25,11 +25,11 @@
 // This function finds the Vat account belonging to an account in ledger.
 //
 function findAccountVat($accountNo) {
-	global $db,$regnaar;
+	global $regnaar;
 	$vatAccount = NULL;
 	$qtxt="select moms from kontoplan where kontonr = '$accountNo' and regnskabsaar = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	if (trim($r['moms'])) {
+	if ($r['moms']) {
 		$vatType = substr($r['moms'],0,1).'M';
 		$vatNo   = substr($r['moms'],1);
 		$qtxt="select box1,box2 from grupper where art = '$vatType' and kodenr = '$vatNo'";

@@ -127,7 +127,7 @@ $TaxAccountingBasis = "A"; // The only valid value is "A" (Accounting)
  * @param string $NameOfCountry The name of the country
  * @return string Return taxauthority string
  */
-function TaxAuthorityName($NameOfCountry)
+function TaxAuthorityName(string $NameOfCountry)
 {
 	$TaxAuthorityName = '';
 	switch ($NameOfCountry) {
@@ -151,7 +151,7 @@ function TaxAuthorityName($NameOfCountry)
  * @param string $NameOfCountry The name of the country
  * @return string Returns the ISO 4217 currencycode
  */
-function defaultCurrency($NameOfCountry)
+function defaultCurrency(string $NameOfCountry)
 {
 	$currencyCode = '';
 	switch ($NameOfCountry) {
@@ -175,7 +175,7 @@ function defaultCurrency($NameOfCountry)
  * @param string $NameOfCountry The name of the country
  * @return string Returns the countrycode
  */
-function countryCode($NameOfCountry)
+function countryCode(string $NameOfCountry)
 {
 	$countryCode = '';
 	switch ($NameOfCountry) {
@@ -201,7 +201,7 @@ function countryCode($NameOfCountry)
  * @param string $NameOfCountry Countryname
  * @return string Return ISO 3166-2 region code
  */
-function regionNumber($cipcode, $NameOfCountry)
+function regionNumber(int $cipcode, string $NameOfCountry)
 {
 	$region = '';
 	if ($NameOfCountry != 'Denmark') {
@@ -283,7 +283,7 @@ function splitAddress($FullAddress)
  * @param string $ContactName the full name that you would split
  * @return array Return an array with firstname([0]) and lastname([1])
  */
-function splitName($ContactName)
+function splitName(string $ContactName)
 {
 	$names = preg_split('/\s+/', $ContactName);
 	if (count($names) != 1) {

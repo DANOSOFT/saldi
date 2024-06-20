@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.0 --- 2024-05-29 ---
+// --- finans/kassekladde.php --- ver 4.1.0 --- 2024-04-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,7 +85,6 @@
 // 20240401 PHR - Removed reset of '$kontrolsaldo' Why was it there?
 // 20240419	PHR - Corrected error in currency (valuta) 
 // 20240523	PHR - changed [$i] to [0] 
-// 20240529 PHR - changed 'if ($saldo[$y])' to 'if (abs($saldo[$y]) > 0)' as 0.00 was used as saldo
 
 ini_set('display_errors', 1);
 ob_start(); //Starter output buffering
@@ -1634,7 +1633,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		} elseif ($kontrolsaldo) {
 			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
 		}
-		if (abs($saldo[$y]) > 0) {
+		if ($saldo[$y]) {
 			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
 			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
 			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";

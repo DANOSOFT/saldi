@@ -72,7 +72,6 @@ for($x=0;$x<$dgcount;$x++) {
 		print "<tr bgcolor='$linjebg'><td>Måned</td><td></td>";
 		for ($d=$dd;$d<$dd60;$d+=$H24) {
 			print "<td style='width:15px'>";
-			if ($d==$showPeriodFrom) print date('m',$d);
 			if (date('d',$d)=='1') print date('m',$d);
 			print "</td>";
 		}
@@ -113,7 +112,7 @@ for($x=0;$x<$dgcount;$x++) {
 				$setgray = 0;
 				$linjebg=linjefarve($linjebg,$bgcolor,$bgcolor5,'0','0');
 				print "<tr bgcolor='$linjebg'>";
-				print "<td><a href='rental.php?rtItemId=$rtItemId&modRt=$rtId[$x]&customerId=$rpCustId[$x]'>$rpCustNo[$x]</a></td>";
+				print "<td><a href='rental.php?customerId=$rpCustId[$x]'>$rpCustNo[$x]</a></td>";
 				if (strlen($rpCustName[$x]) > 10) $tmp=substr(utf8_decode($rpCustName[$x]),0,10)."..";
 				else $tmp = utf8_decode($rpCustName[$x]);
 				print "<td title='$rpCustName[$x]'>". utf8_encode($tmp) ."</td>";
@@ -121,7 +120,6 @@ for($x=0;$x<$dgcount;$x++) {
 					$title   = "Ingen booking";
 					$tdcolor = 'green';
 					$tdtxt   = NULL;
-					$onclick.= "\"";
 					for ($y=0;$y<count($rpId[$x]);$y++) {
 						if ($rpFrom[$x][$y] <= $d && $rpTo[$x][$y] >= $d) {
 							$title = $rpCustNo[$x] ." : ". $rpCustName[$x] ."(". date("d.m.y",$rpFrom[$x][$y]) ." - ";
@@ -130,7 +128,7 @@ for($x=0;$x<$dgcount;$x++) {
 							$tmp     = $rpId[$x][$y]; 
 						}
 					}
-					print "<td title='$title' style='width:15px;background-color:$tdcolor' $onclick>";
+					print "<td title='$title' style='width:15px;background-color:$tdcolor'>";
 					print $tdtxt;
 					print "</td>\n";
 				}
