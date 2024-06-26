@@ -95,7 +95,8 @@
 // 20231129 LOE Minor bug fixes
 // 20240215 LOE Fixed some bugs + 20240219.
 // 20240407 PHR	Removed function getFiscalYear() and changed $fiscalYear to '1' everywhere 
-// 
+// 20240621 LOE modified list function block causing undefined "PHP Warning:  Undefined array key 2 in" error during account creation
+
 @session_start();
 $s_id=session_id();
 
@@ -649,13 +650,18 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	$fp=fopen("../importfiler/settings.txt","r");
 	while ($line=fgets($fp)) {
 		if (trim($line)) {
-			list($var_name,$var_value,$description)=explode("\t",$line);
-			$var_name=db_escape_string($var_name);
-			$var_value=db_escape_string($var_value);
-			$description=db_escape_string($description);
-			$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) ";
-			$qtxt.= "values ('$var_name','globals','$var_value','$description','0')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			#list($var_name,$var_value,$description)=explode("\t",$line); 
+			$exploded_values = explode("\t", $line); #20240621
+			if (count($exploded_values) >= 3) { #// Check if there are enough elements
+				list($var_name, $var_value, $description) = $exploded_values;
+				
+				$var_name=db_escape_string($var_name);
+				$var_value=db_escape_string($var_value);
+				$description=db_escape_string($description);
+				$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) ";
+				$qtxt.= "values ('$var_name','globals','$var_value','$description','0')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
 		}
 	}
 	fclose($fp);
