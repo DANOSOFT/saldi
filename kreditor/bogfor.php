@@ -6,8 +6,8 @@ $s_id=session_id();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/bogfor.php --- lap 4.0.8 --- 2023-08-24 ---
-// 							LICENSE
+// --- kreditor/bogfor.php --- lap 4.1.0 --- 2024-06-26 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -23,7 +23,7 @@ $s_id=session_id();
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // -------------------------------------------------------------------------
 //
 // 2013.11.08 Fejl v. fifo og varetilgang på varekøb.Søg #20131108
@@ -39,6 +39,7 @@ $s_id=session_id();
 // 20230616 PHR - php8
 // 20230626 PHR - Outcommented section as it is overloading the system and I don't think it is neccesary.
 // 20230824	PHR - Added call to productsIncludes & updateProductPrice. 
+// 20240626 PHR Added 'fiscal_year' in queries
 
 
 include("../includes/connect.php");
@@ -48,7 +49,10 @@ include("../includes/std_func.php");
 $afd = 0;
 
 $id=$_GET['id'];
-
+if (!$id) {
+	print print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+	exit;
+}
 $qtxt = "select levdate, status from ordrer where id = '$id'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$status = $r['status'];
@@ -144,7 +148,7 @@ if (!$row['levdate']){
 				if ($row['projekt']) $projekt[$x]=$row['projekt'];
 				else $projekt[$x]=$projekt[0];
 				$pris[$x]=$row['pris']-($row['pris']*$row['rabat']/100);
-				if ($valutakurs) $dkpris[$x]=afrund(($pris[$x]*$valutakurs/100),3); # Omregning til DKK.		
+				if ($valutakurs) $dkpris[$x]=afrund(($pris[$x]*$valutakurs/100),3); # Omregning til DKK.
 				else $dkpris[$x]=$pris[$x];
 				$serienr[$x]=$row['serienr'];
 				$samlevare[$x]=$row['samlevare'];
@@ -154,7 +158,8 @@ if (!$row['levdate']){
 		for ($x=1; $x<=$linjeantal; $x++) {
 			$tot_antal[$x]=0;
 			$tot_pris[$x]=0;
-			$q=db_select("select * from ordrelinjer where ordre_id = '$id' and vare_id=$vare_id[$x]",__FILE__ . " linje " . __LINE__);
+			$qtxt = "select * from ordrelinjer where ordre_id = '$id' and vare_id = '$vare_id[$x]'";
+			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while($r=db_fetch_array($q)){
 				$tot_antal[$x]+=$r['antal'];
 				$tot_pris[$x]+=$r['pris']*$r['antal'];
@@ -183,17 +188,9 @@ if (!$row['levdate']){
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 					exit;
 				}
-				$r=db_fetch_array(db_select("select box2 from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__));
-				($r['box2'] >= '2015')?$aut_lager='on':$aut_lager=NULL;
-				
-				if ($aut_lager){
-					$box1=$box3;
-					$box2=$box4;
-				} else {
-					if (!$box1 && $box3) $box1=$box3; #20131108
-					if (!$box2 && $box4) $box2=$box4; #20141117
-				}
-				if ($box11 && cvrnr_omr(cvrnr_land($cvrnr)) == "EU") $bf_kto=$box11; 
+				$box1=$box3;
+				$box2=$box4;
+				if ($box11 && cvrnr_omr(cvrnr_land($cvrnr)) == "EU") $bf_kto=$box11;
 				elseif ($box13 && cvrnr_omr(cvrnr_land($cvrnr)) == "UD") $bf_kto=$box13;
 				else $bf_kto=$box3;
 #cho __line__."cvr $cvrnr box11 $box11 box13 $box13 bf_kto $bf_kto<br>";
@@ -295,14 +292,17 @@ if (!$row['levdate']){
 							}
 						} elseif ($beholdning[$x]>0 && $kostmetode=='1') $ny_kostpris=($beholdning[$x]*$gl_kostpris[$x]+$antal[$x]*$snitpris[$x])/($beholdning[$x]+$antal[$x]);
 						else $ny_kostpris=$snitpris[$x];
+#cho __line__." KM $kostmetode <br>";
 						if ($kostmetode) {
+#cho __line__." $ny_kostpris!=$gl_kostpris[$x]<br>";
 							if ($ny_kostpris!=$gl_kostpris[$x]) {
+#cho __line__."<br>";
 								include_once("../lager/productsIncludes/updateProductPrice.php");
 								updateProductPrice($vare_id[$x],$ny_kostpris,$levdate);
 							}
 						}	
-#						#cho "update vare_lev set kostpris='$snitpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'<br>";
-						db_modify("update vare_lev set kostpris='$snitpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'",__FILE__ . " linje " . __LINE__);
+						$qtxt = "update vare_lev set kostpris='$snitpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} else {
 						$kred_linje_id[$x]=$kred_linje_id[$x]*1; # patch 2.0.2a
 						$query = db_select("select * from batch_kob where linje_id=$kred_linje_id[$x]",__FILE__ . " linje " . __LINE__);
@@ -403,7 +403,8 @@ function bogfor($id) {
 		if ($no_faktbill==1) $bilag='0';
 		else $bilag=trim($fakturanr);
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
-		$r = db_fetch_array(db_select("select box1,box2 from grupper where art = 'KG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
+		$qtxt = "select box1,box2 from grupper where art = 'KG' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['box2'];
 		$box1=substr(trim($r['box1']),0,1);
 		if ($box1 && ($box1!='E' || $box1!='Y')) $sum=$sum+$moms;	#moms tillaegges summen der ikke er eu moms.
@@ -498,7 +499,7 @@ function bogfor($id) {
 			}
 		}
 		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
-		$qtxt = "select box1,box6 from grupper where art='KG' and kodenr='". (int)$r['gruppe'] ."'";
+		$qtxt = "select box1,box6 from grupper where art='KG' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$box1=(int)substr(trim($r['box1']),1,1);
 		$smomsnr=substr(trim($r['box6']),1,1);
@@ -506,7 +507,8 @@ function bogfor($id) {
 
 #################### EU varekoeb moms ################
 		if (substr(trim($r['box1']),0,1)=='E') {
-		$r = db_fetch_array(db_select("select box1,box2,box3 from grupper where art='EM' and kodenr='$box1'",__FILE__ . " linje " . __LINE__));
+		$qtxt = "select box1,box2,box3 from grupper where art='EM' and kodenr='$box1' and fiscal_year = '$regnaar'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$kmomskto=trim($r['box3']); # Ser lidt forvirrende ud,men den er go nok - fordi koebsmomsen ligger i box 3 v. udenlandsmoms.
 			$emomskto=$r['box1'];
 			$moms=$sum/100*$r['box2']; #moms af varekoeb i udland beregnes
@@ -521,7 +523,8 @@ function bogfor($id) {
 
 #################### EU ydelseskoeb moms ################
 		} elseif (substr(trim($r['box1']),0,1)=='Y') {
-			$r = db_fetch_array(db_select("select box1,box2,box3 from grupper where art='YM' and kodenr='$box1'",__FILE__ . " linje " . __LINE__));
+			$qtxt = "select box1,box2,box3 from grupper where art='YM' and kodenr='$box1' and fiscal_year = '$regnaar'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$kmomskto=trim($r['box3']); # Ser lidt forvirrende ud,men den er go nok - fordi koebsmomsen ligger i box 3 v. udenlandsmoms.
 			$emomskto=$r['box1'];
 			$moms=$sum/100*$r['box2']; #moms af varekoeb i udland beregnes
@@ -538,7 +541,8 @@ function bogfor($id) {
 #cho "$omlev && $smomsnr<br>";
 			if ($omlev && $smomsnr) {
 #cho "select box1,box2,box3 from grupper where art='SM' and kodenr='$smomsnr'<br>";
-			$r = db_fetch_array(db_select("select box1,box2,box3 from grupper where art='SM' and kodenr='$smomsnr'",__FILE__ . " linje " . __LINE__));
+			$qtxt = "select box1,box2,box3 from grupper where art='SM' and kodenr='$smomsnr' and fiscal_year = '$regnaar'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$smomskto=$r['box1'];
 #cho "SM $smomskto<br>";
 				$smoms=0;
@@ -561,10 +565,11 @@ function bogfor($id) {
 			if ($smoms) {
 #cho "SM $smoms D $debet K $kredit<br>";
 			$tmp=$beskrivelse." (Omvendt betaling)";	
-#cho "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$tmp','$smomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id')<br>";			
+#cho "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$tmp','$smomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id')<br>";
 				db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$tmp','$smomskto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[0]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
 			}
-			$r = db_fetch_array(db_select("select box1 from grupper where art='KM' and kodenr='$box1'",__FILE__ . " linje " . __LINE__));
+			$qtxt = "select box1 from grupper where art='KM' and kodenr='$box1' and fiscal_year = '$regnaar'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$kmomskto=trim($r['box1']);
 		}			
 		if ($moms > 0) {$debet=$moms; $kredit='0';}

@@ -90,11 +90,13 @@
 // 20200220 PHR	Changed column lines to linecount in table paperflow as name lines can't be used in MariaDB 
 // 20220927 PHR Added column productlimit to table adresser and created to mylabel (4.0.6)
 // 20221209 MHS Added several columns to table varer (4.0.7)
-// 20230718 LOE Minor modification of initial data insertion + 20230804: where $fra_formular, saldi details are set as default
+// 20230718 LOE Minor modification of initial data insertion  
+// 20230804 LOE where $fra_formular, saldi details are set as default
 // 20231021 PHR Added column 'barcode' to 'ordrelinjer','report_number' & 'settletime' to 'ordrer',
 // 20231129 LOE Minor bug fixes
 // 20240215 LOE Fixed some bugs + 20240219.
 // 20240407 PHR	Removed function getFiscalYear() and changed $fiscalYear to '1' everywhere 
+// 20240531 PHR removed changes 20230804 made by LOE 
 // 20240621 LOE modified list function block causing undefined "PHP Warning:  Undefined array key 2 in" error during account creation
 
 @session_start();
@@ -305,15 +307,29 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	$qtxt.= "felt_3 text,felt_4 text,felt_5 text,vis_lev_addr varchar(2),kontotype varchar(15),fornavn varchar(60),";
 	$qtxt.= "efternavn varchar(60),lev_firmanavn varchar(90),lev_fornavn varchar(60),lev_efternavn varchar(60),lev_addr1 varchar(60),"; $qtxt.= "lev_addr2 varchar(60),lev_postnr varchar(15),lev_bynavn varchar(60),lev_land varchar(60),lev_kontakt varchar(60),";
 	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),kategori varchar(15),saldo numeric(15,3),";
-	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2), medlem text,PRIMARY KEY (id))";
-
+	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2), medlem text, long int, lat int,PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+
+	######## Ansatte ########
 	db_modify("CREATE TABLE ansatte (id serial NOT NULL,konto_id integer,navn text,addr1 text,addr2 text,postnr text,bynavn text,tlf text,fax text,mobil text,privattlf text,initialer text,email text,notes text,cprnr text,posnr integer,afd integer,provision numeric(15,3),nummer integer,loen numeric(15,3),hold integer,lukket varchar(2),bank text,startdate date,slutdate date,gruppe numeric(15,3),extraloen numeric(15,3),trainee text,password text,overtid numeric(1,0),sag_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+
+	######## crm ########
 	db_modify("CREATE TABLE  crm (id serial NOT NULL,konto_id int,kontakt_id int,ansat_id int,notat text,notedate date,spor text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+
+	######## Brugere ########
 	db_modify("CREATE TABLE brugere(id serial NOT NULL,brugernavn text,kode text,email text,twofactor boolean default false,tmp_kode text,status boolean,regnskabsaar integer,rettigheder text,ansat_id integer,sprog_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+
+	######## Grupper ########
 	db_modify("CREATE TABLE grupper (id serial NOT NULL,beskrivelse text,kode text,kodenr integer,art text,box1 text,box2 text,box3 text,box4 text,box5 text,box6 text,box7 text,box8 text,box9 text,box10 text,box11 text,box12 text,box13 text,box14 text,fiscal_year integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+
 	######## Kassekladde ########
-	db_modify("CREATE TABLE kassekladde (id serial NOT NULL,bilag integer,transdate date,beskrivelse text,d_type varchar(1),debet numeric(15,0),k_type varchar(1),kredit numeric(15,0),faktura text,amount numeric(15,3),kladde_id integer,momsfri varchar(2),medarb integer,ansat text,afd integer,projekt text,valuta integer,valutakurs numeric(15,3),ordre_id integer,forfaldsdate date,betal_id text,dokument text,saldo numeric(15,3),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	$qtxt = "CREATE TABLE kassekladde ";
+	$qtxt.= "(id serial NOT NULL,bilag integer,transdate date,beskrivelse text,d_type varchar(1),debet numeric(15,0),";
+	$qtxt.= "k_type varchar(1),kredit numeric(15,0),faktura text,amount numeric(15,3),kladde_id integer,";
+	$qtxt.= "momsfri varchar(2),medarb integer,ansat text,afd integer,projekt text,valuta integer,";
+	$qtxt.= "valutakurs numeric(15,3),ordre_id integer,forfaldsdate date,betal_id text,dokument text,";
+	$qtxt.= "saldo numeric(15,3),PRIMARY KEY (id))";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE tmpkassekl (id integer,lobenr integer,bilag text,transdate text,beskrivelse text,d_type text,debet text,k_type text,kredit text,faktura text,amount text,kladde_id integer,momsfri text,afd text,projekt text,ansat text,valuta text,valutakurs text,forfaldsdate text,betal_id text,dokument text)",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE kladdeliste (id serial NOT NULL,kladdedate date,bogforingsdate date,kladdenote text,bogfort varchar(2),oprettet_af text,bogfort_af text,hvem text,tidspkt text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
@@ -739,26 +755,24 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 					if ($linje && substr($linje,0,1)!="#") {
 						$linje=trim($linje);
 #						if ($db_encode!="UTF8") $linje=utf8_decode($linje);
-						db_modify("insert into varer (varenr,beskrivelse,gruppe,salgspris,kostpris,lukket) values ($linje)",__FILE__ . " linje " . __LINE__);
+						$qtxt = "insert into varer (varenr,beskrivelse,gruppe,salgspris,kostpris,lukket) values ($linje)";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 				}
 				fclose($fp);
 			}
+		} else {
+			$qtxt = "insert into varer (varenr,gruppe,salgspris,kostpris,lukket) values ('S1','1','0','0','')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		include("../includes/formularimport.php");
 		formularimport("../importfiler/formular.txt","0"); #20200227
 		db_modify("update formularer set sprog = 'Dansk'",__FILE__ . " linje " . __LINE__);
 		if ($fra_formular) {
-			db_modify("insert into adresser (firmanavn,addr1,addr2,postnr,bynavn,kontakt,tlf,email,cvrnr,art)values('$firmanavn','$addr1','$addr2','$postnr','$bynavn','','$tlf','$email','$cvrnr','S')",__FILE__ . " linje " . __LINE__);
-		}else{
-			$timestamp = date('U'); // The Unix timestamp 
-			$format = 'Y-m-d H:i:s'; // The desired output format
-			$new_datetime = date($format, $timestamp);
-			db_modify("insert into adresser (firmanavn,addr1,postnr,bynavn,land,tlf,email,bank_navn,bank_reg,bank_konto,betalingsdage,kontonr,cvrnr,art,gruppe,bank_fi,pbs_nr,felt_1,kontotype,rabatgruppe, modtime,invoiced)values('Saldi.dk ApS ','Østergade 24B','3200','Helsinge','Denmark','46902208','faktura@saldi.dk','Nordea', '2107', '5904815731','0','0','20756438' ,'S','1','86672146','04803620','localhost','erhverv','0','$new_datetime','1970-01-01')",__FILE__ . " linje " . __LINE__);
-		}
-		$qtxt="insert into adresser (kontonr,firmanavn,addr1,addr2,postnr,bynavn,kontakt,tlf,email,cvrnr,art)values('88535553','Advokaternes Inkasso Service','Esplanaden 26','','1263','København K','Torben Stohn','88535553','info@inkassoadvokat.dk','74159710','K')";
-#		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		//$r=db_fetch_array(db_select("select id from adresser where kontonr='88535553'",__FILE__ . " linje " . __LINE__));
+			$qtxt = "insert into adresser (firmanavn,addr1,addr2,postnr,bynavn,kontakt,tlf,email,cvrnr,art) ";
+			$qtxt.= "values('$firmanavn','$addr1','$addr2','$postnr','$bynavn','','$tlf','$email','$cvrnr','S')";
+		} else $qtxt = "insert into adresser (art) values ('S')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13,box14) values ('Div_valg (Rykker)','4','DIV','','','','','','','','','1','','','','','')",__FILE__ . " linje " . __LINE__); //since table indexes starts from one, manual insertions gives id =1
 	}
 	transaktion("commit");

@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/insertAccount.php----patch 4.0.8 ----2023-07-23--
-//                           LICENSE
+// --- kreditor/ordreIncludes/insertAccount.php----patch 4.0.8 ----2024-06-26--
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,11 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20230509 PHR php8
 // 20230718 LOE Minor modification
 // 20231207 PHR lock table while finding next ordrenr.
+// 20240626 PHR Added 'fiscal_year' in queries
 
 if (!function_exists('insertAccount')) {
 function insertAccount($id, $konto_id) {
@@ -36,26 +37,30 @@ function insertAccount($id, $konto_id) {
 	global $kred_ord_id;
 	global $lager,$land;
 	global $momssats;
-	global $postnr;
+	global $postnr,$regnaar;
 	global $status,$sum;
 	global $valuta,$omlev;
 	$tidspkt=date("U");
 
-	$afd         = (int)if_isset($afd,0);
-	$id          = (int)if_isset($id,0);
-	$kred_ord_id = (int)if_isset($kred_ord_id,0);
-	$lager       = (int)if_isset($lager,0);
-	$status      = (int)if_isset($status,0);
-	$sum         = (float)if_isset($sum,0);
+	if (!$konto_id) {
+		return 0;
+		exit;
+	}
+	if (!$afd)         $afd         = 0;
+	if (!$id)          $id          = 0;
+	if (!$kred_ord_id) $kred_ord_id = 0;
+	if (!$lager)       $lager       = 0;
+	if (!$status)      $status      = 0;
+	if (!$sum)         $sum         = 0;
 
 	$qtxt = "select * from adresser where id = '$konto_id'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($r = db_fetch_array($q)) {
+	if ($r = db_fetch_array($q))
+	{
 		$kontonr       = trim($r['kontonr']);
 		$firmanavn     = db_escape_string(trim($r['firmanavn']));
 		$addr1         = db_escape_string(trim($r['addr1']));
 		$addr2         = db_escape_string(trim($r['addr2']));
-		$email         = db_escape_string(trim($r['email']));
 		$postnr        = trim($r['postnr']);
 		$bynavn        = db_escape_string(trim($r['bynavn']));
 		$land          = db_escape_string(trim($r['land']));
@@ -64,25 +69,20 @@ function insertAccount($id, $konto_id) {
 		$cvrnr         = trim($r['cvrnr']);
 		$notes         = db_escape_string(trim($r['notes']));
 		$gruppe        = trim($r['gruppe']);
-		$kontakt       = db_escape_string(trim($r['kontakt']));
-		$lev_addr1     = db_escape_string(trim($r['lev_addr1']));
-		$lev_addr2     = db_escape_string(trim($r['lev_addr2']));
-		$lev_bynavn    = db_escape_string(trim($r['bynavn']));
-		$lev_kontakt   = db_escape_string(trim($r['kontakt']));
-		$lev_navn      = db_escape_string(trim($r['lev_firmanavn']));
-		$lev_postnr    = db_escape_string(trim($r['lev_postnr']));
 		$mail_fakt     = db_escape_string(trim($r['mailfakt']));
 		if ($email && $mail_fakt) $udskriv_til = "email";
 		else $udskriv_til = "PDF";
 	}
 	if ($gruppe) {
-		$q = db_select("select box1, box3,box9 from grupper where art='KG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__);
+		$qtxt = "select box1, box3,box9 from grupper where art='KG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
-			$valuta	=	trim($r['box3']);
-			$omlev	=	trim($r['box9']);
+			$valuta = trim($r['box3']);
+			$omlev  = trim($r['box9']);
 		if (substr($r['box1'],0,1)=='K') {
-			$tmp	= (float)substr($r['box1'],1,1);
-			$q = db_select("select box2 from grupper where art='KM' and kodenr = '$tmp'",__FILE__ . " linje " . __LINE__);
+			$tmp  = (float)substr($r['box1'],1,1);
+			$qtxt = "select box2 from grupper where art='KM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array($q);
 			$momssats = (float)trim($r['box2']);
 		} elseif (substr($r['box1'],0,1)=='E') {
@@ -149,3 +149,4 @@ function insertAccount($id, $konto_id) {
 	return $id;
 }}
 ?>
+
