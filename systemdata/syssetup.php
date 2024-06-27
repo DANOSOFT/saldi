@@ -1,6 +1,5 @@
 <?php
-
-// --- systemdata/syssetup.php --- lap 3.9.9 -- 2020-05-12 --
+// --- systemdata/syssetup.php --- lap 4.1.0 -- 2024-06-04 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20132127 Indsat kontrol for at kodenr er numerisk på momskoder.
@@ -31,17 +30,19 @@
 // 20161022 PHR tilretning iht flere afd pr lager. 20161022
 // 20170405 PHR	Ganger resultat med 1 for at undgå NULL værdier
 // 20181102 PHR Oprydning, udefinerede variabler.
-// 2018.12.20 MSC - Rettet isset fejl
-// 2019.02.21 MSC - Rettet topmenu design
-// 2019.02.21 MSC - Rettet isset fejl
-// 2019.02.25 MSC - Rettet topmenu design
-// 2020.03.08 PHR	Added Mysqli
-// 2020.03.08 PHR Removed 'Lagertilgang', 'Lagertræk' & 'Lagerregulering' from 'Varegrupper' 
-// 2020.05.12 PHR	Removed $box5 from 3. instance of skriv_formtabel in 'varegrupper'
-// 2020.05.12 PHR	Different changes for changes 30300308 to look nice in Firefox
-// #20210513  Loe	These texts were translated but not entered here previously
+// 20181220 MSC - Rettet isset fejl
+// 20190221 MSC - Rettet topmenu design
+// 20190221 MSC - Rettet isset fejl
+// 20190225 MSC - Rettet topmenu design
+// 20200308 PHR	Added Mysqli
+// 20200308 PHR Removed 'Lagertilgang', 'Lagertræk' & 'Lagerregulering' from 'Varegrupper' 
+// 20200512 PHR	Removed $box5 from 3. instance of skriv_formtabel in 'varegrupper'
+// 20200512 PHR	Different changes for changes 30300308 to look nice in Firefox
+// 20210513 Loe	These texts were translated but not entered here previously
 // 20220607 MSC - Implementing new design
 // 20220614 MSC - Added div class divSys
+// 20240407 PHR - save moved to syssetupIncludes/saveData.php
+// 20240604 PHR PHP8
 
 @session_start();
 $s_id=session_id();
@@ -78,12 +79,17 @@ if ($menu=='T') {
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontentLargeHolder\">\n";
 	print "<center><table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\" width='100%' height='350px'><tbody>";
-} else {
+} elseif ($menu=='S') {
 	include("top.php");
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
+} else {
+	include("oldTop.php");
 	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
 }
 $valg=if_isset($_GET['valg']);
+
 include_once("syssetupIncludes/saveData.php");
+
 ##############################################################################################################################
 if ($nopdat!=1) {
 	$x=0;
@@ -95,34 +101,35 @@ if ($nopdat!=1) {
 	$feltbredde=6;
 	$stockIO=NULL;
 	$qtxt = "SELECT * FROM grupper ";
-	$qtxt.= "	WHERE (art = 'SM' OR art = 'KM'  OR art = 'EM' OR art = 'YM' OR art = 'MR' OR art = 'DG' ";
-	$qtxt.= "OR art = 'KG' OR art = 'VG' OR art = 'POS' OR art = 'OreDif') and fiscal_year = '$regnaar' ";
+	$qtxt.= "WHERE ((art = 'SM' OR art = 'KM'  OR art = 'EM' OR art = 'YM' OR art = 'MR' OR art = 'DG' OR art = 'KG' ";
+	$qtxt.= "OR art = 'VG' OR art = 'POS' OR art = 'OreDif') and fiscal_year = '$regnaar') ";
+	$qtxt.= "OR art = 'AFD' OR art = 'LG' OR art = 'VPG' OR art = 'VTG' OR art = 'VRG' ";
 	$qtxt.= "order by kodenr";
 	if ($valg=="projekter") $qtxt.=' desc';
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)){
 		$x++;
-		$id[$x]=$row['id'];
-		$beskrivelse[$x]=htmlentities(stripslashes($row['beskrivelse']),ENT_COMPAT,$charset);
-		$kodenr[$x]=$row['kodenr'];
+		$id[$x]	=	$row['id'];
+		$beskrivelse[$x]	=	htmlentities(stripslashes($row['beskrivelse']),ENT_COMPAT,$charset);
+		$kodenr[$x]       = $row['kodenr'];
 		if (strlen($kodenr[$x]) > $feltbredde) $feltbredde=strlen($kodenr[$x]); 
-		$kode[$x]=$row['kode'];
-		$art[$x]=$row['art'];
-		$box1[$x]=$row['box1'];
-		$box2[$x]=$row['box2'];
-		$box3[$x]=$row['box3'];
-		$box4[$x]=$row['box4'];
-		$box5[$x]=$row['box5'];
-		$box6[$x]=$row['box6'];
-		$box7[$x]=$row['box7'];
-		$box8[$x]=$row['box8'];
-		$box9[$x]=$row['box9'];
-		$box10[$x]=$row['box10'];
-		$box11[$x]=$row['box11'];
-		$box12[$x]=$row['box12'];
-		$box13[$x]=$row['box13'];
-		$box14[$x]=$row['box14'];
-		if ($art[$x]=='VG' && $box1[$x] && $box2[$x]) $stockIO=1;
+		$kode[$x]         = $row['kode'];
+		$art[$x]          = $row['art'];
+		$box1[$x]         = $row['box1'];
+		$box2[$x]         = $row['box2'];
+		$box3[$x]         = $row['box3'];
+		$box4[$x]         = $row['box4'];
+		$box5[$x]         = $row['box5'];
+		$box6[$x]         = $row['box6'];
+		$box7[$x]         = $row['box7'];
+		$box8[$x]         = $row['box8'];
+		$box9[$x]         = $row['box9'];
+		$box10[$x]        = $row['box10'];
+		$box11[$x]        = $row['box11'];
+		$box12[$x]        = $row['box12'];
+		$box13[$x]        = $row['box13'];
+		$box14[$x]        = $row['box14'];
+		if ($art[$x] == 'VG' && $box1[$x] && $box2[$x]) $stockIO=1;
 	}
 }
 if (!$valg) $valg='moms';
@@ -283,6 +290,7 @@ elseif($valg=='varer'){
 	$y=skriv_formtabel('VTG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'7',$box4,'7','-','6','-','2','-','0','-','0','-','0','-','0','-','0','-','0','-','0','-','0');
 	print "</tbody></table></td></tr>";
 	print "<tr><td colspan=20><table width='100%'><tbody>";
+	// Rabatgrupper
 	print "<tr><td colspan=20 align=\"center\"><hr><b>".findtekst(1006,$sprog_id)."</td></tr><tr><td colspan=20><hr></td></tr>\n";
 	print "<tr><td></td><td>Nr.</td><td align=\"center\">".findtekst(914,$sprog_id)."</td><td align=\"center\">Type</td><td align=\"center\">Stk. rabat</td><td align=\"center\">v. antal</td></tr>\n";
 	$y=skriv_formtabel('VRG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'2',$box2,'20',$box3,'20','-','2','-','4','-','2','-','4','-','2','-','7','-','7','-','0','-','0','-','0','-','0');
@@ -374,29 +382,41 @@ function opdater_varer($kodenr,$art,$box1,$box2,$box3,$box4) {
 		if ($box2)$box2=usdecimal($box2);
 		if ($box3)$box3=usdecimal($box3);
 		if ($box4)$box4=usdecimal($box4);
-		if ($box1) db_modify("update varer set kostpris='$box1' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box2) db_modify("update varer set salgspris='$box2' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box3) db_modify("update varer set retail_price='$box3' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box4) db_modify("update varer set tier_price='$box4' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		return($box1.";".$box2.";".$box3.";".$box4);
+		if ($kodenr != '-') {
+			if ($box1) db_modify("update varer set kostpris='$box1' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			if ($box2) db_modify("update varer set salgspris='$box2' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			if ($box3) db_modify("update varer set retail_price='$box3' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			if ($box4) db_modify("update varer set tier_price='$box4' where prisgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			return($box1.";".$box2.";".$box3.";".$box4);
+		}
 	} 
 	if ($art=='VTG' && $kodenr) {
 		if ($box1)$box1=usdecimal($box1);
 		if ($box2)$box2=usdecimal($box2);
 		if ($box3)$box3=usdate($box3);
 		if ($box4)$box4=usdate($box4);
-		if ($box1) db_modify("update varer set special_price='$box1' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box2) db_modify("update varer set campaign_cost='$box2' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box3) db_modify("update varer set special_from_date='$box3' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box4) db_modify("update varer set special_to_date='$box4' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+		if ($kodenr != '-') {
+			if ($box1) db_modify("update varer set special_price='$box1' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			if ($box2) db_modify("update varer set campaign_cost='$box2' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			if ($box3) db_modify("update varer set special_from_date='$box3' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			if ($box4) db_modify("update varer set special_to_date='$box4' where tilbudgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+		}
 		return($box1.";".$box2.";".$box3.";".$box4);
 	} 
 	if ($art=='VRG' && $kodenr) {
 		if ($box2)$box2=usdecimal($box2);
 		if ($box3)$box3=usdecimal($box3);
-		if ($box1) db_modify("update varer set m_type='$box1' where rabatgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box2) db_modify("update varer set m_rabat='$box2' where rabatgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
-		if ($box3) db_modify("update varer set m_antal='$box3' where rabatgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+		if ($kodenr != '-') {
+			if ($box1) {
+				db_modify("update varer set m_type='$box1' where rabatgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			}
+			if ($box2) {
+				db_modify("update varer set m_rabat='$box2' where rabatgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			}
+			if ($box3) {
+				db_modify("update varer set m_antal='$box3' where rabatgruppe = '$kodenr'",__FILE__ . " linje " . __LINE__);
+			}
+		}
 	}
 }
 function titletxt($art,$felt) {

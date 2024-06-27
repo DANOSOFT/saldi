@@ -133,6 +133,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    update_settings_value("customergraph", "dashboard_toggles", if_isset($_POST['customergraph'], "off"), "Sho wthe customer graph per hour");
 }
 
+if ($_GET['close_snippet'] == '1') {
+   update_settings_value("closed_news_snippet", "dashboard", $newssnippet, "The newssnippet that was closed by the user");
+}
+if ($_GET['hidden'] == '1') {
+   update_settings_value("hide_dash", "dashboard", 1, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
+}
+if ($_GET['hidden'] == '0') {
+   update_settings_value("hide_dash", "dashboard", 0, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
+}
+
+
 $kontomin = get_settings_value("kontomin", "dashboard_values", 0);
 $kontomaks = get_settings_value("kontomaks", "dashboard_values", 2000);
 
@@ -143,6 +154,8 @@ $onlineusers = get_settings_value("onlineusers", "dashboard_toggles", "off");
 $revgraph = get_settings_value("revgraph", "dashboard_toggles", "on");
 $customergraph = get_settings_value("customergraph", "dashboard_toggles", "off");
 
+$closed_newssnippet = get_settings_value("closed_news_snippet", "dashboard", "");
+$hide_dash = get_settings_value("hide_dash", "dashboard", "0", $user=$bruger_id);
 
 /* 
 # Omsætning i et tidsrum
@@ -419,11 +432,19 @@ $name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
 print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em; height: 100vh' class='content'>";
 
+
+# Newsbar
+if ($closed_newssnippet != $newssnippet && $newssnippet != '') {
+        print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
+}
+
 # Titlebar
 print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em'>";
 print "<h1>Oversigt - $name</h1>";
 print "<div style='display: flex; gap: 2em'>";
-print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>Rediger din oversigt</button>";
+print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? "Skjul" : "Vis") ." oversigt</button>";
+if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>Rediger oversigt</button>";
+
 
 # Kassesystem eller ej
 $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
@@ -436,6 +457,10 @@ if ($state) {
 
 print "</div>";
 print "</div>";
+
+if ($hide_dash === "1") {
+        exit;
+}
 
 print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
 

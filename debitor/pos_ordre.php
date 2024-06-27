@@ -417,7 +417,7 @@ if($bordvalg=if_isset($_POST['bordvalg'])) {
 	$_POST['varenr_ny']=NULL;
 	$fokus=NULL;
   # Check if the old system is in use.
-  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
+  $r=db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
   if ($r[0]) {
     $bord = explode(chr(9), str_replace("\n", "  ", $r[0]));
   } else {

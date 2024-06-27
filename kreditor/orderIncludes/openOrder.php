@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrders.php --- lap 4.0.5 --- 2022.02.18 ---
+// --- kreditor/orderIncludes/openOrders.php --- lap 4.1.0 --- 2024.06.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20230111 MSC - Implementing new design
 // 20231219 MSC - Copy pasted new design into code
+// 20240626 PHR Added 'fiscal_year' in queries
 
 global $menu;
 

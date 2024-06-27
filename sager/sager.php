@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- lap 4.0.8 --- 2023-09-27 ---
+// --- sager/sager.php --- lap 3.3.0 --- 2024-05-31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,10 +17,11 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
-// GNU General Public License for more details.
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2012-2023 saldi.dk aps
+// Copyright (c) 2012-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // Har lagt al javascript i en separat fil ved navn 'jquery.sager.js' + diverse html rettelser
 // HTML rettelser til liste-visning og oprettelse af sag
@@ -47,11 +48,11 @@
 // 20160930 Tilføjet funktion ny_kunde, som ændre kunde på sag.
 // 20161125 Beregning og visning af dækningsbidrag og dækningsgrad i mellem lønudgifter og faktureringer. #20161125
 // 20170421 Mulighed for at vælge en fra og til dato i funktion 'akkordliste'
-// 20230927 PHR Page title now set in online.php
+// 20240531 Addad $regnaar to function akkordliste()
 
-	@session_start();	# Skal angives oeverst i filen??!!
-	$s_id=session_id();
-	ini_set("display_errors", "0");
+@session_start();	# Skal angives oeverst i filen??!!
+$s_id=session_id();
+
 
 	$bg="nix";
 	$header='nix';
@@ -83,7 +84,8 @@
 	if (!$funktion) {
 		($sag_id)?$funktion='':$funktion='sagsliste';  
 	}
-
+	
+ini_set("display_errors", "0");
 print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
 <html>
 	<head>
@@ -116,7 +118,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 				}
 		</style>
 		<![endif]-->
-		<title>".$pageTitle."</title>
+		<title>Stillads</title>
 		
 	</head>
 	<body>
@@ -131,7 +133,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 					unset($_SESSION['retstatus']);
 				}
 			} else {
-				$retstatus = if_isset($_SESSION['retstatus']);
+				$retstatus=$_SESSION['retstatus'];
 			}
 			
 			($retstatus=='on')?$checked_retstatus='checked':$checked_retstatus=NULL;
@@ -500,25 +502,25 @@ function sagsliste() {
 			unset($_SESSION['avanceretsoeg']);
 		}
 	} else {
-		$asoeg = if_isset($_SESSION['avanceretsoeg']);
+		$asoeg=$_SESSION['avanceretsoeg'];
 	}
 	
-	if(isset($_POST['soeg']) && $_POST['soeg']) {
-		$_SESSION['ss_sagsagsnr']    = $ss_sagsagsnr;
-		$_SESSION['ss_sagfirmanavn'] = $ss_sagfirmanavn;
-		$_SESSION['ss_sagadresse']   = $ss_sagadresse;
-		$_SESSION['ss_sagpostnr']    = $ss_sagpostnr;
-		$_SESSION['ss_sagby']        = $ss_sagby;
-		$_SESSION['ss_ansvarlig']    = $ss_ansvarlig;
-		$_SESSION['ss_status']       = $ss_status;
+	if($_POST['soeg']) {
+		$_SESSION['ss_sagsagsnr']=$ss_sagsagsnr;
+		$_SESSION['ss_sagfirmanavn']=$ss_sagfirmanavn;
+		$_SESSION['ss_sagadresse']=$ss_sagadresse;
+		$_SESSION['ss_sagpostnr']=$ss_sagpostnr;
+		$_SESSION['ss_sagby']=$ss_sagby;
+		$_SESSION['ss_ansvarlig']=$ss_ansvarlig;
+		$_SESSION['ss_status']=$ss_status;
 	} else {
-		$ss_sagsagsnr    = if_isset($_SESSION['ss_sagsagsnr']   );
-		$ss_sagfirmanavn = if_isset($_SESSION['ss_sagfirmanavn']);
-		$ss_sagadresse   = if_isset($_SESSION['ss_sagadresse']  );
-		$ss_sagpostnr    = if_isset($_SESSION['ss_sagpostnr']   );
-		$ss_sagby        = if_isset($_SESSION['ss_sagby']       );
-		$ss_ansvarlig    = if_isset($_SESSION['ss_ansvarlig']   );
-		$ss_status       = if_isset($_SESSION['ss_status']      );
+		$ss_sagsagsnr=$_SESSION['ss_sagsagsnr'];
+		$ss_sagfirmanavn=$_SESSION['ss_sagfirmanavn'];
+		$ss_sagadresse=$_SESSION['ss_sagadresse'];
+		$ss_sagpostnr=$_SESSION['ss_sagpostnr'];
+		$ss_sagby=$_SESSION['ss_sagby'];
+		$ss_ansvarlig=$_SESSION['ss_ansvarlig'];
+		$ss_status=$_SESSION['ss_status'];
 	}
 	/*
 	$statusupdat=if_isset($_POST['status']);
@@ -551,11 +553,11 @@ function sagsliste() {
 		$_SESSION['sager_ref']=$sortstyle[3];
 		$_SESSION['sager_status']=$sortstyle[4];
 	} else {
-		$sortstyle[0] = if_isset($_SESSION['sager_sagsnr']);
-		$sortstyle[1] = if_isset($_SESSION['sager_firmanavn']);
-		$sortstyle[2] = if_isset($_SESSION['sager_udf_addr1']);
-		$sortstyle[3] = if_isset($_SESSION['sager_ref']);
-		$sortstyle[4] = if_isset($_SESSION['sager_status']);
+		$sortstyle[0]=$_SESSION['sager_sagsnr'];
+		$sortstyle[1]=$_SESSION['sager_firmanavn'];
+		$sortstyle[2]=$_SESSION['sager_udf_addr1'];
+		$sortstyle[3]=$_SESSION['sager_ref'];
+		$sortstyle[4]=$_SESSION['sager_status'];
 	}
 	
 	if ($_GET['vis']) {
@@ -564,16 +566,16 @@ function sagsliste() {
 		$_SESSION['aktivL']=$aktivL;
 		$_SESSION['afsluttedeL']=$afsluttedeL;
 	} else {
-		$beregningL  = if_isset($_SESSION['beregningL']);
-		$tilbudL     = if_isset($_SESSION['tilbudL']);
-		$aktivL      = if_isset($_SESSION['aktivL']);
-		$afsluttedeL = if_isset($_SESSION['afsluttedeL']);
+		$beregningL=$_SESSION['beregningL'];
+		$tilbudL=$_SESSION['tilbudL'];
+		$aktivL=$_SESSION['aktivL'];
+		$afsluttedeL=$_SESSION['afsluttedeL'];
 	}
 	
 	if ($_POST['sag_limit']) {
 		$_SESSION['sag_limit']=$sag_limit;
 	} else {
-		$sag_limit = if_isset($_SESSION['sag_limit']);
+		$sag_limit=$_SESSION['sag_limit'];
 	}
 	
 	
@@ -604,8 +606,8 @@ function sagsliste() {
 	//print_r($sortarray);
 	//echo "sort: $sort";
 	
-	if (isset($sort) && $sort) $_SESSION['sager_sort']=$sort;
-	else $sort = if_isset($_SESSION['sager_sort']);
+	if ($sort) $_SESSION['sager_sort']=$sort;
+	else $sort=$_SESSION['sager_sort'];
 	if (!$sort) $sort="sagsnr%20desc";
 	
 	$sqlsort=urldecode($sort);
@@ -704,21 +706,12 @@ function sagsliste() {
 	 //Her ændres tekst til status 
 	$sag_status_tekst_liste="Beregning,Tilbud,Ordrebekræftelse,Montage,Godkendt,Afmeldt,Drivgods,Afsluttet"; // gammel status "Opm&aring;ling,Tilbud,Ordre modtaget,Montage,Aflevering,Afmeldt,Demontage,Afsluttet" 
 	
-	if ($r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__))) {
-		if ($r['box1']==$sag_status_tekst_liste) $sag_status_liste=explode(chr(44),$r['box1']);
-		else {
-			db_modify("update grupper set box1='$sag_status_tekst_liste' where art='SAGSTAT'",__FILE__ . " linje " . __LINE__);
-		}
-/*
-	$r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__));
-	$sag_status_liste=explode(chr(44),$r['box1']);
 	if ($r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__)) && ($r['box1']==$sag_status_tekst_liste)) {
 		$sag_status_liste=explode(chr(44),$r['box1']);
 	} elseif ($r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__)) && ($r['box1']!=$sag_status_tekst_liste)) {
 		db_modify("update grupper set box1='$sag_status_tekst_liste' where art='SAGSTAT'",__FILE__ . " linje " . __LINE__);
 		$r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__));
 		$sag_status_liste=explode(chr(44),$r['box1']);
-*/		
 	} else { 
 		db_modify("insert into grupper (art,box1) values ('SAGSTAT','$sag_status_tekst_liste')",__FILE__ . " linje " . __LINE__);
 		$r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__));
@@ -1168,8 +1161,6 @@ function ret_kunde() {
 	global $charset;
 	global $sprog_id;
 
-	$loen_id = $loen_sum = $tilbud_moms = $tilbud_sum = array();
-
 	print "<div class=\"content\">";
 	include "../debitor/debkort_save.php";
 	print "	<form name=\"ret_kunde\" action=\"sager.php?funktion=ret_kunde\" method=\"post\">\n";
@@ -1506,16 +1497,15 @@ function vis_sag() {
 	---------------------------------------------------------------------------------------------------------------------
 	*/
 	// Query til lønudgifter
-	$loen_id[0] = $loen_sum[0] = $x = 0;
-	$qtxt = "select * from loen where sag_id = '$id' and godkendt >= '1' and art != 'akktimer'";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$x=0;
+	$q = db_select("select * from loen where sag_id = '$id' and godkendt >= '1' and art != 'akktimer'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$loen_id[$x]=$r['id'];
 		$loen_sum[$x]=$r['sum'];
 		$x++;
 	}
-	$lonsum = '0';
-	(array_sum($loen_sum))?$lonsum = array_sum($loen_sum):$lonsum = '0';
+	(array_sum($loen_sum))?$lonsum = array_sum($loen_sum):$lonsum='0';
+	
 	// Query til tilbudssum ialt
 	if (db_fetch_array(db_select("select * from ordrer where sag_id = '$id' and status = '0' and art = 'OT'",__FILE__ . " linje " . __LINE__))) {
 		$x=0;
@@ -1527,7 +1517,7 @@ function vis_sag() {
 			$x++;
 		}
 	} else {
-		$tilbud_moms[0] = $tilbud_sum[0] = $x = 0;
+		$x=0;
 		$q = db_select("select * from ordrer where sag_id = '$id' and status = '0' and (art = 'DO' or art = 'DK')",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$tilbudid[$x]=$r['id'];
@@ -1643,7 +1633,7 @@ function vis_sag() {
 	}
 	
 	// Her er visning af tilbud efter gruppering af sum og beskrivelse 
-	$temp_tilbud_pris[0] = $x = 0;
+	$x=0;
 	$q = db_select("SELECT gruppe,sum(pris) AS pris,beskrivelse FROM temp_tilbud WHERE sag_id = '$id' GROUP BY gruppe,beskrivelse ORDER BY gruppe",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$temp_tilbud_gruppe[$x]=$r['gruppe'];
@@ -1657,7 +1647,7 @@ function vis_sag() {
 	
 	
 	// Query til fakturasum ialt
-	$faktura_sum[0] = $x = 0;
+	$x=0;
 	$q = db_select("select * from ordrer where sag_id = '$id' and status >= '3'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$fakturaid[$x]=$r['id'];
@@ -1844,18 +1834,17 @@ function vis_sag() {
 		$daekningsgrad = "<i>ingen dækningsgrad</i>";
 		$daekningsbidrag = "<i>ingen dækningsbidrag</i>";
 	} else {*/
-	$daekningsbidragsum = $fakturasum-$lonsumsocial; // Dækningsbidrag beregnes
-	if ($daekningsbidragsum < 0) {
-		$daekningsprocent = ($daekningsbidragsum/$lonsumsocial)*100; // Dækningsgrad i % hvis dækningsbidrag er negativ
-		$daekningsgrad = "<span style=\"color:red;\">".dkdecimal($daekningsprocent)."%</span>";
-		$daekningsbidrag = "<span style=\"color:red;\">".dkdecimal($daekningsbidragsum)."</span>";
-	} elseif ($fakturasum) {
-		$daekningsprocent = ($daekningsbidragsum/$fakturasum)*100; // Dækningsgrad i %
-		$daekningsgrad = "<span style=\"color:green;\">".dkdecimal($daekningsprocent)."%</span>";
-		$daekningsbidrag = "<span style=\"color:black;\">".dkdecimal($daekningsbidragsum)."</span>";
-	} else {
-		$daekningsprocent = $daekningsgrad = $daekningsbidrag = 0;
-	}
+		$daekningsbidragsum = $fakturasum-$lonsumsocial; // Dækningsbidrag beregnes
+		if ($daekningsbidragsum < 0) {
+			$daekningsprocent = ($daekningsbidragsum/$lonsumsocial)*100; // Dækningsgrad i % hvis dækningsbidrag er negativ
+			$daekningsgrad = "<span style=\"color:red;\">".dkdecimal($daekningsprocent)."%</span>";
+			$daekningsbidrag = "<span style=\"color:red;\">".dkdecimal($daekningsbidragsum)."</span>";
+		} else {
+			$daekningsprocent = ($daekningsbidragsum/$fakturasum)*100; // Dækningsgrad i %
+			$daekningsgrad = "<span style=\"color:green;\">".dkdecimal($daekningsprocent)."%</span>";
+			$daekningsbidrag = "<span style=\"color:black;\">".dkdecimal($daekningsbidragsum)."</span>";
+		}
+	//}
 	
 	print "<tr class=\"sagensomkostninger\">
 		<td colspan=\"9\"><a href=\"#\">Sagens omkostninger:</a></td> <!-- sagomkostning.php?sag_id=$id&amp;konto_id=$konto_id -->
@@ -3809,6 +3798,8 @@ function sag_kontakt() {
 
 function akkordliste() {
 
+	global $regnaar;
+
 	$id=if_isset($_GET['sag_id']);
 	$opg_id=if_isset($_POST['opg_id'])*1;
 	$opg_id2=if_isset($_POST['opg_id2'])*1;
@@ -3940,7 +3931,10 @@ function akkordliste() {
 		$q = db_select("SELECT loen_enheder.id as loenenhed_id,loen_enheder.loen_id as loenenhed_loenid,loen_enheder.vare_id as loenenhed_vareid,loen_enheder.op as total_op,loen_enheder.ned as total_ned,varer.id as varer_id,varer.varenr as varer_nr,varer.beskrivelse as varer_beskrivelse,varer.gruppe,varer.kategori,grupper.kodenr,grupper.beskrivelse as cat_beskrivelse,grupper.art,grupper.box10 FROM loen_enheder 
 										INNER JOIN varer ON loen_enheder.vare_id = varer.id
 										INNER JOIN grupper ON varer.gruppe = grupper.kodenr
-										WHERE loen_enheder.loen_id IN ($loen_ids) AND grupper.art = 'VG' AND grupper.box10 = 'on' ORDER BY gruppe,varer.varenr",__FILE__ . " linje " . __LINE__);
+										WHERE loen_enheder.loen_id IN ($loen_ids) AND grupper.art = 'VG'
+										AND grupper.box10 = 'on'
+										AND grupper.fiscal_year = '$regnaar'
+										ORDER BY gruppe,varer.varenr",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (in_array($r['loenenhed_vareid'],$loenenhed_vareid)) {
 				$op[$x]+=$r['total_op']*1;

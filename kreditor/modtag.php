@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- patch 4.0.8 --- 2023.10.25 ---
+// --- kreditor/modtag.php --- patch 4.1.0 --- 2024.06.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2013.08.30 Fejl v. "interne shops" (Rotary) de der blev forsøgt kald til ikke eksisterende url.Søn 20130830
@@ -34,6 +34,7 @@
 // 20181003 PHR - Lille udefinerbar rettelse
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20231025 PHR Added call to sync_shop_vare and log to stocklog.
+// 20240626 PHR Added 'fiscal_year' in queries
 
 
 @session_start();
@@ -161,14 +162,15 @@ if ($fejl==0) {
 			$variant_beholdning=$r['variant_beholdning']+$leveres[$x];
 		}
 		if (($vare_id[$x])&&($leveres[$x]!=0)) {
-			$query = db_select("select * from grupper where art='VG' and kodenr='$gruppe[$x]'",__FILE__ . " linje " . __LINE__);
-			$row = db_fetch_array($query);
-			$box1=trim($row['box1']); $box2=trim($row['box2']); $box3=trim($row['box3']); $box4=trim($row['box4']); $box8=trim($row['box8']); $box9=trim($row['box9']);
-#cho "box8 $box8<br>";
+			$qtxt = "select * from grupper where art='VG' and kodenr='$gruppe[$x]' and fiscal_year = '$regnaar'";
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			$r = db_fetch_array($q);
+			$box1=trim($r['box1']); $box2=trim($r['box2']); $box3=trim($r['box3']); $box4=trim($r['box4']); $box8=trim($r['box8']); $box9=trim($r['box9']);
 			if ($box8!='on') { # Dvs varen er IKKE lagerfoert.
 				if (!$box4) {
 					print "<BODY onLoad=\"javascript:alert('Varenr $varenr[$x] (Pos nr: $posnr[$x]) er ikke tilnykttet nogen varegruppe, modtagelse afbrudt')\">";
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+					exit;
 				}
 				db_modify("update ordrelinjer set bogf_konto='$box4' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
 # PHR - Pris fjernet 06.04.08 - Prisen skal ikke saettes ved modtagelse
@@ -221,12 +223,11 @@ if ($fejl==0) {
 				$qtxt = "select ansatte.navn,ansatte.initialer from ansatte,brugere where brugere.id = '$bruger_id' ";
 				$qtxt.= "and ansatte.id = brugere.ansat_id";
 				if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
-					$userName = db_escape_string(substr($r['navn'],0,10));
 					$initials = db_escape_string(trim(substr($r['initialer'],0,10)));
 				} else {
-					$userName = db_escape_string(substr($brugernavn,0,10));
 					$initials = '';
 				}
+				$userName = db_escape_string($brugernavn,0,25);
 				$qtxt = "insert into stocklog (item_id,username,initials,correction,reason,logtime) values ";
 				$qtxt.= "('$vare_id[$x]','$userName','$initials','$leveres[$x]','indkøbsordre $ordreNr','".date('U')."')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -418,7 +419,7 @@ function reservation($linje_id, $leveres, $vare_id, $serienr,$lager) {
 
 	$res_sum=0;
 	$query = db_select("select antal from reservation where linje_id=$linje_id and batch_salg_id<0",__FILE__ . " linje " . __LINE__);
-	while ($row = db_fetch_array($query)) {$res_sum=$res_sum+$row['antal'];} 
+	while ($row = db_fetch_array($query)) {$res_sum=$res_sum+$row['antal'];}
 	if ($leveres<$res_sum) {
 		print "<BODY onLoad=\"fejltekst('Der er reserveret flere varer end der modtages - foretag proiritering')\">";
 		exit;

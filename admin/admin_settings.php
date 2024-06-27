@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/admin_settings.php --- patch 4.0.4 --- 2021.09.17 ---
+// --------------- admin/admin_settings.php --- patch 4.1.0 --- 2024.05.22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190411 PHR Added alertText
 // 20210917 LOE Translated some texts
 // 20210921 Added this block of code to set language
+// 20240522 MMK Newssnippet
 
 @session_start();
 $s_id=session_id();
@@ -56,6 +57,7 @@ if (isset($_POST['gem'])) {
 	$alertText=if_isset($_POST['alertText']);
 	$lang = if_isset($_POST['LanguageName']); #20210920
 	$languageId = if_isset($_POST['LanguageId']); #20210920
+	$newssnippet = if_isset($_POST['newssnippet']);
 	$sprog_id = $languageId;
 /*
 	    $qtxt="select * from online where sprog ='$lang'and brugernavn = '$brugernavn'";  #20210921
@@ -96,6 +98,7 @@ if (isset($_POST['gem'])) {
 		$qtxt="insert into settings (var_name,var_value,var_description) values ";
 		$qtxt.="('alertText','".db_escape_string($alertText)."','".db_escape_string('Alert text if: unpredicted event')."')";
 	}
+	update_settings_value("nyhed", "dashboard", $newssnippet, "The news snippet showen to all admin accounts on this system");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="update settings set var_value='$languageId' where var_name='languageId'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -189,6 +192,7 @@ if (!$zip) $zip=system("which gzip");
 if (!$unzip) $unzip=system("which gunzip");
 if (!$tar) $tar=system("which tar");
 if (!$alertText) $alertText=findtekst(534, $sprog_id); #20210917
+$newssnippet = get_settings_value("nyhed", "dashboard", "");
 
 #include("../includes/languages.php"); #20210920
 print "<form name='admin_settings' action='admin_settings.php' method='post'>";
@@ -214,6 +218,7 @@ print "<tr><td>".findtekst(1922, $sprog_id)."</td><td><input style='width:400px'
 print "<tr><td>".findtekst(1923, $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
 print "<tr><td>".findtekst(1924, $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
 print "<tr><td>".findtekst(1925, $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
+print "<tr><td>".findtekst(3064, $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
 
 ##################### #20210920
 print "<tr><td title='".findtekst(2, $sprog_id)."'>".findtekst(436, $sprog_id)." ".findtekst(801, $sprog_id)."</td>";
@@ -243,3 +248,4 @@ print "</tbody></table>";
 print "</body></html>";
 
 ?>
+

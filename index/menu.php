@@ -46,7 +46,7 @@ if(!isset($regnskab)){
 	//throw error and exit, wrong call made. Could happen when trying to access menu.php before installation
 	//$alerttxt="An error occured. Please contact https://saldi.dk\\n";
 	header('Location: index.php'); 
-	print "<BODY onLoad=\"javascript:alert('$alerttxt')\">";
+	//print "<BODY onLoad=\"javascript:alert('$alerttxt')\">";
 	exit;
 }
 $modulnr=0;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- lap 4.0.7 --- 2023.05.09 ---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2024-06-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,10 +17,11 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20120814 søg 20120814
@@ -58,6 +59,9 @@
 // 20230215 PHR Various minor corrections
 // 20230503 PHR php8 + email was missing when inserting creditor.
 // 20230509 PHR more php8.
+// 20231025 PHR Added call to sync_shop_vare.
+// 20231219 MSC - Copy pasted new design into code
+// 20240626 PHR Added 'fiscal_year' in queries
 
 @session_start();
 $s_id=session_id();
@@ -86,7 +90,7 @@ $s_id=session_id();
 	</script>
 <?php
 $title="Kreditorordre";
-$css="../css/std.css";
+$css="../css/standard.css";
 $modulnr=7;
 
 $id=$konto_id=$debitor_id=$projekt=0;
@@ -126,8 +130,8 @@ $qtxt = "select box4 from grupper where art = 'DIV' and kodenr = '2'";
 if ($r=db_fetch_array(db_SELECT($qtxt,__FILE__ . " linje " . __LINE__))) $hurtigfakt=$r['box4'];
 $qtxt = "select box9 from grupper where art = 'DIV' and kodenr = '3'";
 if ($r=db_fetch_array(db_SELECT($qtxt,__FILE__ . " linje " . __LINE__))) $negativt_lager=$r['box9'];
-$qtxt = "select box1 from grupper where art = 'LABEL'";
-if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $labelprint=$r['box1'];
+if($r=db_fetch_array(db_select("select id from labels limit 1",__FILE__ . " linje " . __LINE__))) $labelprint=1;
+else $labelprint=NULL;
 
 if(isset($_GET['id']))       $id=$_GET['id'];  #20210716 This is used to correct undefined index error on the former code
 if(isset($_GET['vis']))      $vis=$_GET['vis'];
@@ -163,7 +167,6 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
 		$omlev=$row['omvbet'];
-#cho "$omlev=$row[omvbet]<br>";
 		if ($row['status']>2) {
 			print "Hmmm - har du brugt browserens opdater eller tilbageknap???";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">";
@@ -187,7 +190,8 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		if (!$rabat)         $rabat           = $row['rabat'];
 	}
 	if ((!$pris[0] || !$lev_varenr[0]) && $vare_id[0] && $konto_id) {
-		$query = db_select("select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+		$qtxt = "select * from vare_lev where vare_id = '$vare_id[0]' and lev_id = '$konto_id'";
+		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			$pris[0]=$row['kostpris'];
 			$lev_varenr[0]=$row['lev_varenr'];
@@ -217,19 +221,23 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 	if ($linjenr=='0' && $konto_id) { # 20201002
 		if ($serienr[0]) $antal[0]=afrund($antal[0],0);
 		if ($vare_id[0]) {
-			if ($r1 = db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[0]'",__FILE__ . " linje " . __LINE__))) {
-				$r2 = db_fetch_array(db_select("select box4,box6,box7,box8 from grupper where art = 'VG' and kodenr = '$r1[gruppe]'",__FILE__ . " linje " . __LINE__));
+			$qtxt = "select gruppe from varer where id = '$vare_id[0]'";
+			if ($r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$qtxt = "select box4,box6,box7,box8 from grupper where art = 'VG' and kodenr = '$r1[gruppe]' ";
+				$qtxt.= " and fiscal_year = '$regnaar'";
+				$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$bogfkto[0] = $r2['box4'];
 				$omvare[0] = $r2['box6'];
 				$momsfri[0] = $r2['box7'];
 				$lagerfort[0] = $r2['box8'];
 			}
-			# if (($omvare[0]!=NULL)&&($rabatsats>$r2['box6'])) $rabatsats=$r2['box6'];
+			if ($omvare[0] && $rabatsats>$r2['box6']) $rabatsats=$r2['box6'];
 			if ($bogfkto[0] && !$momsfri[0]) {
 				$r2 = db_fetch_array(db_select("select moms from kontoplan where kontonr = '$bogfkto[0]' and regnskabsaar = '$regnaar'",__FILE__ . " linje " . __LINE__));
 				if ($tmp=trim($r2['moms'])) { # f.eks S3
 					$tmp=substr($tmp,1); #f.eks 3
-					$r2 = db_fetch_array(db_select("select box2 from grupper where art = 'SM' and kodenr = '$tmp'",__FILE__ . " linje " . __LINE__));
+					$qtxt = "select box2 from grupper where art = 'SM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
+					$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					if ($r2['box2']) $varemomssats[0]=$r2['box2']*1;
 				}	else $varemomssats[0]=$momssats;
 			} elseif (!$momsfri[0]) $varemomssats[0]=$momssats;
@@ -301,6 +309,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$momsfri     = if_isset($_POST['momsfri']);
 		$serienr     = if_isset($_POST['serienr']);
 		$omvbet      = if_isset($_POST['omvbet']);
+		$omlev      = if_isset($_POST['omlev']);
 		$email       = db_escape_string(trim(if_isset($_POST['email'])));
 		$udskriv_til = trim(if_isset($_POST['udskriv_til']));
 		$mail_subj   = db_escape_string(if_isset($_POST['mail_subj'])); #20230105
@@ -335,10 +344,11 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredato')\">";
 			}
 		} else $valutakurs=100;
-  	if ($momssats > 0 && $konto_id) {
+		if ($momssats > 0 && $konto_id) {
 			$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
 			$gruppe=$r['gruppe']*1;
-			$r = db_fetch_array(db_select("select box1,box2,box9 from grupper where art = 'KG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
+			$qtxt = "select box1,box2,box9 from grupper where art = 'KG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$box1=substr(trim($r['box1']),0,1);
 			(trim($r['box9']))?$omlev='on':$omlev='';
 			if (!$box1 || $box1=='E') {
@@ -353,9 +363,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				print "<BODY onLoad=\"javascript:alert('$tekst')\">";
 			}
 		}
-
-			
-		 if (isset($_POST['delete']) && $_POST['delete'])	{
+	 if (isset($_POST['delete']) && $_POST['delete'])	{
 			$qtxt="select id from batch_kob where ordre_id='$id' limit 1";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) { #20200827
 				alert ('der ér modtaget varer på denne ordre, slet afbrudt');
@@ -371,7 +379,6 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		}
 
 		transaktion("begin");
-
 		for ($x=0;$x<=$linjeantal;$x++) {
 			$solgt[$x]=0;
 			$y="posn".$x;
@@ -471,14 +478,15 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$gruppe=$row['gruppe'];
 			}
 			if ($gruppe) {
-				$qtxt = "select box1,box3,box9 from grupper where art='KG' and kodenr='$gruppe'";
+				$qtxt = "select box1,box3,box9 from grupper where art='KG' and kodenr='$gruppe' and fiscal_year = '$regnaar'";
 				$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
 				$omlev=$row['box9'];
 				if (substr($row['box1'],0,1)=='K') {
 	 				$tmp= substr($row['box1'],1,1)*1;
 					$valuta=$r['box3'];
-					$query = db_select("select box2 from grupper where art='KM' and kodenr = '$tmp'",__FILE__ . " linje " . __LINE__);
+					$qtxt = "select box2 from grupper where art='KM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
+					$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					$row = db_fetch_array($query);
 					$momssats=trim($row['box2'])*1;
 				} elseif (substr($row['box1'],0,1)=='E') {
@@ -530,7 +538,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 
 					if (!$vare_id[$x]) $vare_id[$x]=find_vare_id($varenr[$x]);
 					if (!$hurtigfakt && $vare_id[$x]) {
-						$r = db_fetch_array(db_select("select grupper.box8, grupper.box9 from grupper,varer where varer.id = '$vare_id[$x]' and grupper.kodenr = varer.gruppe and grupper.art='VG'",__FILE__ . " linje " . __LINE__));
+						$qtxt = "select grupper.box8, grupper.box9 from grupper,varer where varer.id = '$vare_id[$x]' ";
+						$qtxt.= "and grupper.kodenr = varer.gruppe and grupper.art='VG' and grupper.fiscal_year='$regnaar'";
+						$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						$batch[$x]=$r['box9'];
 						if ($r['box8'] == 'on') {
 							$rest=0;
@@ -761,6 +771,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[0]) $antal[0]=afrund($antal[0],0);
 						if ($r1=db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[0]'",__FILE__ . " linje " . __LINE__))) {
 							$qtxt = "select box4,box6,box7,box8 from grupper where art = 'VG' and kodenr = '$r1[gruppe]'";
+							$qtxt.= "and fiscal_year = '$regnaar'";
 							$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 							$bogfkto[0] = $r2['box4'];
 							$omvare[0] = $r2['box6'];
@@ -772,12 +783,12 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							$r2 = db_fetch_array(db_select("select moms from kontoplan where kontonr = '$bogfkto[0]' and regnskabsaar = '$regnaar'",__FILE__ . " linje " . __LINE__));
 							if ($tmp=trim($r2['moms'])) { # f.eks S3
 								$tmp=substr($tmp,1); #f.eks 3
-								$r2 = db_fetch_array(db_select("select box2 from grupper where art = 'SM' and kodenr = '$tmp'",__FILE__ . " linje " . __LINE__));
+								$qtxt = "select box2 from grupper where art = 'SM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
+								$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 								if ($r2['box2']) $varemomssats[0]=$r2['box2']*1;
 							}	else $varemomssats[0]=$momssats;
 						} elseif (!$momsfri[0]) $varemomssats[0]=$momssats;
 						else $varemomssats[0]=$momssats;
-						
 						if ($variant_type[0]) {
 							$varianter=explode(chr(9),$variant_type[0]);
 							for ($y=0;$y<count($varianter);$y++) {
@@ -858,7 +869,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						$antal[$x]=$tidl_lev[$x];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						$r1 =	db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
-						$r2 = db_fetch_array(db_select("select box6,box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]'",__FILE__ . " linje " . __LINE__));
+						$qtxt = "select box6,box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]' and ";
+						$qtxt.= "fiscal_year = '$regnaar";
+						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						$bogfkto[$x] = $r2['box4'];
 						(trim($r2['box6']))?$omvare[$x]='on':$omvare[$x]='';
 						$momsfri[$x] = $r2['box7'];
@@ -867,7 +880,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							$r2 = db_fetch_array(db_select("select moms from kontoplan where kontonr = '$bogfkto[$x]' and regnskabsaar = '$regnaar'",__FILE__ . " linje " . __LINE__));
 							if ($tmp=trim($r2['moms'])) { # f.eks S3
 								$tmp=substr($tmp,1); #f.eks 3
-								$r2 = db_fetch_array(db_select("select box2 from grupper where art = 'SM' and kodenr = '$tmp'",__FILE__ . " linje " . __LINE__));
+								$qtxt = "select box2 from grupper where art = 'SM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
+								$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 								if ($r2['box2']) $varemomssats[$x]=$r2['box2']*1;
 							}	else $varemomssats[$x]=$momssats;
 						} elseif (!$momsfri[$x]) $varemomssats[$x]=$momssats;
@@ -980,7 +994,7 @@ function ordreside($id) {
 	global $krediteret;
 	global $labelprint;
 	global $momssum;
-	global $regnaar,$returside;
+	global $returside,$regnaar;
 	global $sort,$sprog_id,$submit;
 
 	$afd = $betalingsdage = $gruppe = $kred_ord_id = $konto_id = $lager = $momssats = $ordrenr = $status = 0;
@@ -1061,7 +1075,7 @@ function ordreside($id) {
 		if ($status<3) $fokus='vare0';
 		else $fokus='';
 	}
-	$x=0;	
+	$x=0;
 	if ($r=db_fetch_array(db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))) {
 		$q2=db_select("select navn,afd from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
 			while ($r2=db_fetch_array($q2)) {
@@ -1099,10 +1113,11 @@ function ordreside($id) {
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$row2 = db_fetch_array($query);
 		sidehoved($id, "$returside", "", "", "Leverand&oslash;r kreditnota $ordrenr (kreditering af ordre nr: <a href=ordre.php?id=$kred_ord_id>$row2[ordrenr]</a>)");
+	} elseif ($krediteret) {
+		sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr (krediteret p&aring; KN nr: $krediteret)");
+	}	else {
+		sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr");
 	}
-	elseif ($krediteret) {sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr (krediteret p&aring; KN nr: $krediteret)");}
-	else {sidehoved($id, "$returside", "", "", "Leverand&oslash;rordre $ordrenr");}
-
 	if (!$status) $status=0;
 	print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
 	print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
@@ -1113,6 +1128,7 @@ function ordreside($id) {
 	print "<input type=\"hidden\" name=\"kred_ord_id\" value=\"$kred_ord_id\">";
 	print "<input type=\"hidden\" name=\"afd\" value=\"$afd\">";
 	print "<input type=\"hidden\" name=\"lager\" value=\"$lager\">";
+	print "<input type=\"hidden\" name=\"omlev\" value=\"$omlev\">";
 
 	if ($status>=3) {
 		include("orderIncludes/closedOrder.php");
@@ -1191,12 +1207,14 @@ function kontoopslag($sort, $fokus, $id, $find){
 		print "<td> $r[tlf]</td>";
 		print "</tr>\n";
 	}
+
+	print "</tbody></table></td></tr></tbody></table>";
+
 	if ($menu=='T') {
 		include_once '../includes/topmenu/footer.php';
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
-	print "</tbody></table></td></tr></tbody></table>";
 	exit;
 }
 ######################################################################################################################################
@@ -1243,13 +1261,15 @@ function ansatopslag($sort, $fokus, $id){
 		print "<td> $row[email]</td>";
 		print "</tr>\n";
 	}
+
+	print "</tbody></table></td></tr></tbody></table>";
+
 	if ($menu=='T') {
 		include_once '../includes/topmenu/footer.php';
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
 
-print "</tbody></table></td></tr></tbody></table>";
 exit;
 }
 ######################################################################################################
@@ -1299,7 +1319,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find,$lager) {
 		}
 	}
 
-	print"<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
+	print"<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\" class='dataTable'>";
 	print"<tbody><tr>";
 	print"<td><b><a href=ordre.php?sort=varenr&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=$vis&lager=$lager>".findtekst(917, $sprog_id)."</a></b></td>";
 	print"<td><b> ".findtekst(945, $sprog_id)."</b></td>";
@@ -1407,13 +1427,14 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find,$lager) {
 			print "</tr>\n";
 		}
 	}
+	print "</tbody></table></td></tr></tbody></table>";
+
 	if ($menu=='T') {
 		include_once '../includes/topmenu/footer.php';
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
 
-	print "</tbody></table></td></tr></tbody></table>";
 	exit;
 }
 ######################################################################################################################################
@@ -1426,6 +1447,8 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst(154,$sprog_id);
+
+	include("../includes/topline_settings.php");
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -1443,6 +1466,47 @@ if ($menu=='T') {
 	else {print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";}
 	print "</div>";
 	print "<div class='content-noside'>";
+
+} elseif ($menu=='S') {
+		print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
+		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
+		print "<div align=\"center\">";
+		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+		print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+		if ($kort) {
+			print "<td width=10%><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
+			       <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
+		} else {
+			print "<td width=10%><a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+		}
+		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
+
+		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
+			print "<td width='10%'><a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a></td>";
+		} elseif (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {
+				print "<td width='10%'><a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>
+					   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a></td>";
+		} elseif ($kort=="../kreditor/kreditorkort.php") {
+			print "<td width='5%' onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\">
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst(1521, $sprog_id)."'>"
+				   .findtekst(813, $sprog_id)."</button></td>"; #20210716
+			print "<td width='5%'>
+				   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a></td>";
+		} elseif (($id)||($kort!="../lager/varekort.php")) {
+			print "<td width='10%'>
+				   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a></td>";
+	} else {
+		print "<td width='10%' align='center' style='$topStyle'><br></td>";
+	}
+	print "</tbody></table>";
+	print "</td></tr>\n";
+	print "<tr><td valign=\"top\" align=center>";
 } else {
 		print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
@@ -1472,8 +1536,9 @@ if ($menu=='T') {
 }
 ######################################################################################################################################
 function find_vare_id ($varenr) {
-	if ($r=db_fetch_array(db_select("select id from varer where varenr = '$varenr' or stregkode = '$varenr'",__FILE__ . " linje " . __LINE__))) {
-		return ($row['id']);
+	$qtxt = "select id from varer where varenr = '$varenr' or stregkode = '$varenr'";
+	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		return ($r['id']);
 	}	else return (0);
 }
 ######################################################################################################################################
@@ -1535,8 +1600,8 @@ print "</tbody></table>
 
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/topmenu/footer.php';
+#} else {
+#	include_once '../includes/topmenu/footer.php';
 }
 
 ?>

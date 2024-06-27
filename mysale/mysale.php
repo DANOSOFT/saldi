@@ -81,15 +81,20 @@ if ($tmpcode) {
 		$tmp.=chr(hexdec(substr($tmpcode,$x,2)));
 	}
 	list($email,$tmppw)=explode('|',$tmp);
-#cho "$email,$tmppw<br>";
 	if ($email && $tmppw) {
+echo "$email && $tmppw<br>";
 		$found = 0;
 		$fp = fopen("../temp/.ht_MyTmpPass","r"); 
 		while ($tmp = fgets($fp)) {	
+#cho "$tmp<br>";
 			list ($a,$b,$c,$d,$e) = explode (chr(9),$tmp);
+#cho "$a<br>$b<br>$c<br>$d<br>";
+
 			if ($a == $email && $b == $tmppw) {
 				$found = 1;
+#cho "Found $found<br>";
 				if ($e <= date('U')+60*60) $found=2;
+#cho "Found $found<br>";
 			}
 		}
 		if ($found == 1) alert('Midertidig kode udløbet');
@@ -97,6 +102,7 @@ if ($tmpcode) {
 			$_SESSION['mySalePw'] = $s_id;
 			include ('../includes/connect.php');
 			$qtxt = "select deb_id,link from mysale where email = '$email' and db = '$c'";
+echo "$qtxt<br>";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$id = $r['link'];
 				$_SESSION['mySaleAcId'] = $r['deb_id'];
