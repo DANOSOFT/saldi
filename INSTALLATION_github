@@ -1,0 +1,138 @@
+Installation of SALDI
+================================================= ===========================
+
+System requirements for server:
+----------------------
+Linux or other Unix-like system with web server with PHP support
+as well as a PostgreSQL or MySQLi/MariaDB database server. PostgreSQL is recommended
+as a database server.
+
+In newer versions of PostgreSQL, the database administrator must have the right
+'trust', which is set in the configuration file pg_hba.conf, for example as follows:
+
+ local all postgres trust
+
+If it is not set, there may be problems with loading the security
+copy.
+
+It is not recommended to use other database servers, as it is likely that there
+errors will occur when upgrading where there has been a change in the database model.
+
+System requirements for client:
+----------------------
+Web browser where cookies and JavaScript are enabled and which supports new ones
+windows and pop-ups.
+
+Saldi is developed for and tested with the web browsers:
+- Google Chrome / Chromium
+- Vivaldi
+
+Browsers from Microsoft are generally buggy and not recommended
+
+
+The installation itself:
+---------------------
+0. Clone it from github to your root directory without adding in into extra directory.
+
+e.g www/  
+
+www$ clone https://github.com/DANOSOFT/saldi.git
+
+or www/html/
+
+www/html$ clone https://github.com/DANOSOFT/saldi.git
+
+  
+1. If necessary, create the group balances:
+
+ sudo groupadd balances
+
+2. Optionally add the web user www-data to the balances group.
+
+ sudo sed -i 's/^\(balances:.*[a-z0-9]\)$/\1,www-data/' /etc/group
+ sudo sed -i 's/^\(balances:.*\\)$/\1www-data/' /etc/group
+ 
+3. Manually create these directories inside the root of saldi: 'temp' and 'logolib'.
+e.g saldi/loglib etc.
+
+4. Change the rights to the 'includes', 'logolib' and 'temp' directories, so
+ the web server user (the visitor) has access to write in
+ these. If this user on the system is called www-data and is a member of
+ the group balances then:
+
+ sudo chgrp -R balances /var/www/html/saldi/
+ sudo chmod 775 /var/www/html/saldi/{includes,logolib,temp}
+
+ or if you are down in the Saldi catalog itself:
+
+ sudo chmod 775 includes logolib temp
+ 
+ If that permission didn't work during installation, you can use 777. 
+
+ In the includes directory the file connect.php is created, so after
+ creation, it can be changed to 555. In the catalog logolib
+ are logos that are put up placed, while that too
+ can be changed to 555 if you do not have (multiple) logos,
+ which must be posted. However, it is important that there is write access
+ to the temp directory as this is where log files and backups are
+ is printed out.
+
+5. Make sure that both the web server and the database server are running. Look in
+ the documentation for these to see how.
+
+6. Open your browser.
+
+7. Specify the address of the web server and the directory under the web server
+ hierarchy where you copied the Balances files to. For example:
+ 
+	#domain/saldi/index.php
+
+       # http://localhost/saldi/index.php 
+
+8. It may be that the browser complains that the page is trying to
+ open pop-up windows. You must accept this. If not, it takes you to the installation page.
+
+9. In the newly opened popup window, select database server and character set as well
+ database administrator, password for this, username are specified
+ and password for the Balances administrator. There is instruction text
+ at each point that pops up when the cursor is moved over the field.
+ both the database and the database's administrator and acceptor.
+
+ Click the Install button when you have filled in all the fields.
+
+10. Then Saldi is installed, which can be seen from the header on it
+ page that appears, where the Next button is clicked.
+
+11. Now you will be asked to login with the information you provided
+ when creating the database:
+
+ saldi [ Database Name ]
+ Username [ SALDI administrator username ]
+ Password [ SALDI administrator password ]
+
+ You can always log in with the same information later to
+ manage accounts.
+
+12. Now the Administration menu for Balances appears. Here you choose
+ "Create saldi".
+
+13. On the "Create account" page, enter the name of the new account,
+ username for an administrator with associated password.
+ In addition, you must choose whether to create a standard
+ chart of accounts for the new accounts. If in doubt, choose the one,
+ as it suits most small businesses and it is possible
+ to correct it later. Click Save/Update.
+
+14. After some time, a message appears that the accounts are
+ created and activated. Click the OK button.
+
+15. In the Administration menu that appears, select "Show accounts" and i
+ the newly created account is selected from the list.
+
+16. Now it is time to set up the accounts in Balances. See the link
+ "User guide" under "Support" on the website http://saldi.dk/.
+
+================================================= =====================
+Last modified 2024-07-09 by Lawrence Ojomon E. <loe@saldi.dk>
+
+© Saldi.dk ApS - http://saldi.dk/
