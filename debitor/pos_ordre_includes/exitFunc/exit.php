@@ -200,7 +200,8 @@ print "\n<!-- Function afslut (start)-->\n";
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
-					} else if ("Vibrant:" == substr($r[0], 0, 8)) {
+					# Compadabilaty search
+					} else if ("Vibrant" == substr($r[0], 0, 7)) {
 						$tmp="payments/vibrant.php?amount=$belob&id=$id&indbetaling=$indbetaling";
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";

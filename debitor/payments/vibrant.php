@@ -68,6 +68,12 @@ $APIKEY = db_fetch_array($q)[0];
 $q=db_select("SELECT var_value FROM settings WHERE pos_id=$kasse AND var_grp='vibrant_terms'",__FILE__ . " linje " . __LINE__);
 $terminal_id = db_fetch_array($q)["var_value"];
 
+if (!$terminal_id) {
+	$qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
+}
+
 $printfile = 'https://'.$_SERVER['SERVER_NAME'];
 $printfile.= str_replace('debitor/payments/vibrant.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
 

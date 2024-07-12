@@ -77,5 +77,19 @@
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 
+	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='kds_records'";
+	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$qtxt = "CREATE TABLE kds_records (
+			id SERIAL PRIMARY KEY NOT NULL,
+			data text NOT NULL,
+			bumped boolean NOT NULL,
+			timestamp integer NOT NULL,
+			time_to_complete integer NOT NULL,
+			rush boolean,
+			last_undo boolean
+			)";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	}
+
 
 ?>

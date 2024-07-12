@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 4.0.8 --- 2024-03-30 ---
+// --- includes/rapportfunc.php --- patch 4.1.0 --- 2024-05-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,36 +24,36 @@
 // Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 2012.11.06 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
-// 2013.02.10 Div. fejl i forb. med udling af ørediff + break ændret til break 1
-// 2013.05.05	Div tilretninger i forb. med omskrivning af udlign_openpost.php 
-// 2014.05.03 Indsat valutakurs=100 ved DKK.(PHR Danosoft) Søg 20140503
-// 2014.05.05 Fjerner udligning hvis udligningssum er skæv.(PHR Danosoft) Søg 20140505
-// 2014.05.05 Indsat $valutakode*=1; (PHR Danosoft) Søg $valutakode*=1 & 20140505
-// 2014.06.28	Indsat valutakurs v. oprettelse af openpost i funktion bogfor_nu Søg 20140628
-// 2014.07.16 Ændret bredden af knapperne, så der var plads til "Betalingslister". ca
-// 2015.10.19	Fjernet ";" fra tekst da den gav falsk SQL injektion fejl
-// 2015.10.26	indsat mulighed for at ophæve udligning. søg "unAlign"
-// 2015.11.04	Betalingslister v debitor
-// 2016.02.26	Rettet så link til ret_valutadiff.php kun vises for posteringer i aktivt regnskabsår. Søg område ver ret_valutadiff.php 
-// 2016.04.13	Tilføjet link til at rette dkksum til 0 pr dd hvis dd er i aktivt regnskabsår og valutasum er 0.
-// 2016.04.14 Sorterer nu på ID for reg og faktnr, der giver mere mening //20160414
-// 2016.05.03 Ved visning af kontokort fra flere konti blev dkkamount forkert //20160503
-// 2017.03.03 Tilføjet inkasso.
-// 2017.03.16 Tilføjet 'flueben' ved PBS kunder. Søg $pbs.
-// 2017.04.03 Debitorrapportvisning oprettes i grupper hvis den ikke findes. 20170403
-// 2018.02.07 PHR Tilføjet mulig for udligning af alle med saldo 0,00. Søg udlign.
-// 2018.11.26 PHR Definition af div. variabler.
-// 2018.12.14 PHR Rettet fejl i kald til kreditor/betalingsliste
-// 2019.01.08 MSC - Rettet isset fejl
-// 2019.01.18 PHR - function kontosaldo. Ændret tablewidth fra 1010% til 100%
-// 2019.11.07	PHR - function 'kontoprint' Added email option. Search 20191107
-// 2020.02.03 PHR - function 'vis_aabne_poster. "where udlignet = '0'" must not be used if todate is prior to actual date ; #20200103
-// 2020.01.09 PHR - function 'bogfor_nu' Returns if allready accounted - 20200109
-// 2021.04.22 PHR - Sum now rounded - look in 'debitor/ny_rykker.php' 20210422 
-// 2021.04.27 PHR - Corrected error in currency (period sum) 
-// 20210701 - LOE - Translated some of these texts from Danish to English and Norsk
-// 20210816 PHR Changed query to not use cast - 20210816
+// 20121106 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
+// 20130210 Div. fejl i forb. med udling af ørediff + break ændret til break 1
+// 20130505	Div tilretninger i forb. med omskrivning af udlign_openpost.php 
+// 20140503 Indsat valutakurs=100 ved DKK.(PHR Danosoft) Søg 20140503
+// 20140505 Fjerner udligning hvis udligningssum er skæv.(PHR Danosoft) Søg 20140505
+// 20140505 Indsat $valutakode*=1; (PHR Danosoft) Søg $valutakode*=1 & 20140505
+// 20140628	Indsat valutakurs v. oprettelse af openpost i funktion bogfor_nu Søg 20140628
+// 20140716 Ændret bredden af knapperne, så der var plads til "Betalingslister". ca
+// 20151019	Fjernet ";" fra tekst da den gav falsk SQL injektion fejl
+// 20151026	indsat mulighed for at ophæve udligning. søg "unAlign"
+// 20151104	Betalingslister v debitor
+// 20160226	Rettet så link til ret_valutadiff.php kun vises for posteringer i aktivt regnskabsår. Søg område ver ret_valutadiff.php 
+// 20160413	Tilføjet link til at rette dkksum til 0 pr dd hvis dd er i aktivt regnskabsår og valutasum er 0.
+// 20160414 Sorterer nu på ID for reg og faktnr, der giver mere mening //20160414
+// 20160503 Ved visning af kontokort fra flere konti blev dkkamount forkert //20160503
+// 20170303 Tilføjet inkasso.
+// 20170316 Tilføjet 'flueben' ved PBS kunder. Søg $pbs.
+// 20170403 Debitorrapportvisning oprettes i grupper hvis den ikke findes. 20170403
+// 20180207 PHR Tilføjet mulig for udligning af alle med saldo 0,00. Søg udlign.
+// 20181126 PHR Definition af div. variabler.
+// 20181214 PHR Rettet fejl i kald til kreditor/betalingsliste
+// 20190108 MSC - Rettet isset fejl
+// 20190118 PHR - function kontosaldo. Ændret tablewidth fra 1010% til 100%
+// 20191107	PHR - function 'kontoprint' Added email option. Search 20191107
+// 20200203 PHR - function 'vis_aabne_poster. "where udlignet = '0'" must not be used if todate is prior to actual date ; #20200103
+// 20200109 PHR - function 'bogfor_nu' Returns if allready accounted - 20200109
+// 20210422 PHR - Sum now rounded - look in 'debitor/ny_rykker.php' 20210422 
+// 20210427 PHR - Corrected error in currency (period sum) 
+// 20210701 LOE - Translated some of these texts from Danish to English and Norsk
+// 20210816 PHR - Changed query to not use cast - 20210816
 // 20210824 MSC - Implementing new design
 // 20210831 MSC - Implementing new design
 // 20210901 MSC - Implementing new design
@@ -70,13 +70,15 @@
 // 20220901 MSC - Implementing new design
 // 20220905 MSC - Implementing new design
 // 20230111 MSC - Implementing new design
-// 20230522+20230616 PHR php8
-// 20230620 PHR outcommented section to reduce load. Guess it is not nessecary
-// 20230723 Moved some functions to reportFunc.php
+// 20230522	PHR - php8+20230616 
+// 20230620 PHR - outcommented section to reduce load. Guess it is not nessecary
+// 20230723 PHR - Moved some functions to reportFunc.php
 // 20230824 MSC - Copy pasted new design into code
 // 20240330 PHR	- Corrections in open post when fromdate != currentdate
 
 include("../includes/reportFunc/showOpenPosts.php");
+include("../includes/topline_settings.php");
+
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -197,6 +199,16 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "</div>";
 		print "<div class='content-noside'>";
 		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" ><tbody><!--Tabel 1 start-->\n";
+	} elseif ($menu=='S') {
+		print "<tr><td width=100% height=\"8\">\n";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
+
+		print "<td width='10%'><a accesskey=l href=\"rapport.php\">
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
+
+		print "<td width='80%' align='center' style='$topStyle'>".findtekst(1142,$sprog_id)." - $rapportart</td>\n";
+
+		print "<td width='10%' align='center' style='$topStyle'>\n";
 	} else {
 		print "<tr><td width=100% height=\"8\">\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
@@ -673,6 +685,8 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	($kontoart == 'D') ? $title = findtekst(449, $sprog_id) : $title = findtekst(450, $sprog_id);
 	($popup) ? $returside = "../includes/luk.php" : $returside = "../index/menu.php";
 
+	include("../includes/topline_settings.php");
+
 	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
@@ -683,6 +697,21 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 		print "</div>";
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv' style='width:700px; margin: auto;'><table width='100%' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" class='dataTableSmall'><tbody>\n";
+
+	} elseif ($menu == 'S') {
+		print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
+
+		print "<tr><td height='23px' width='10%' align='center'><a href=$returside accesskey=L>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+
+		print "<td width='80%' align='center' style='$topStyle'>$title</td>";
+
+		print "<td width='10%' align='center' style='$topStyle''><br></td>";
+
+		print "</tr><tr><td height=99%><br></td></td>";
+		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
+		print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
+
 	} else {
 		$butCol = '#009578';
 		$topStyle = "border:1;border-color:#fefefe;border-radius:5px;width:100%;height:100%;background:url('../img/knap_bg.gif');";
@@ -878,6 +907,8 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		$firstdate = date("Y-m-d");
 		$lastdate = '1970-01-01';
 
+		include("../includes/topline_settings.php");
+
 		$y = 0;
 		$qtxt = "select max(id) as max_valdif_id from openpost where konto_id='$kto_id[$x]' and abs(amount) = '0.001'";
 		$r2 = db_fetch_array(db_select("$qtxt", __FILE__ . " linje " . __LINE__));
@@ -972,7 +1003,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 				$forfaldsdate[$y] = '';
 			}
 		}
-
 		$luk = "<a accesskey=L href=\"$returside\">";
 
 		if ($menu == 'T') {
@@ -980,7 +1010,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		} else {
 			print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 		}
-		if ($menu == 'T' && $x == 1) {
+		if ($menu=='T' && $x==1) {
 			include_once '../includes/top_header.php';
 			include_once '../includes/top_menu.php';
 			print "<div id=\"header\">";
@@ -989,6 +1019,33 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 			print "</div>";
 			print "<div class='content-noside'>";
+		} elseif ($menu=='S' && $x==1) {
+			print "<tr><td colspan=\"9\" height='30px'>";
+			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
+
+			print "<tr><td width ='10%' align = 'center'>$luk
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   .findtekst(30, $sprog_id)."</button></a></td>";
+
+			if ($kontoart == 'K')
+				$tekst = findtekst(1140, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
+			else
+				$tekst = findtekst(1141, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
+
+			print "<td width ='80%' align = 'center' style='$topStyle'>$tekst</td>";
+
+			($kontoantal == 1) ? $w = 5 : $w = 10;
+			print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
+			if ($kontoantal == 1) { # 2019-11-07
+				if ($fromdate)
+					$firstdate = $fromdate;
+				if ($todate)
+					$lastdate = $todate;
+				print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=" . dkdato($firstdate) . 	"&dato_til=" . dkdato($lastdate) . "&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">
+					   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></td>\n";
+			}
+			print "</tbody></table>"; //B slut
+			print "</td></tr>\n";
 		} elseif ($x == 1) {
 			include("../includes/oldDesign/header.php");
 			print "<tr><td colspan=\"9\" height='30px'>";
@@ -1328,6 +1385,8 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 	global $top_bund;
 	global $sprog_id;
 
+	include("../includes/topline_settings.php");
+
 	$kilde = if_isset($_GET['kilde']);
 	$kilde_kto_fra = if_isset($_GET['kilde_kto_fra']);
 	$kilde_kto_til = if_isset($_GET['kilde_kto_til']);
@@ -1367,6 +1426,23 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		print "</div>";
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTableNTH'>\n";
+	} elseif ($menu=='S') {
+		print "<tr><td colspan=\"8\" height='30px'>";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
+
+		print "<tr><td width ='10%' align='center'>$luk
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></td>";
+
+		if ($kontoart == 'K')
+			$tekst = "Kreditorrapport - kontosaldo";
+		else
+			$tekst = "Debitorapport - kontosaldo";
+
+		print "<td width ='80%' align='center' style='$topStyle'>$tekst</td>";
+		print "<td width ='10%' align='center' style='$topStyle'><br></td>";
+
+		print "</tbody></table>"; //B slut
+		print "</td></tr>\n";
 	} else {
 		include("../includes/oldDesign/header.php");
 		print "<tr><td colspan=\"8\" height='30px'>";

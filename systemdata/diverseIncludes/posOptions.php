@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posOptions.php --- ver 4.1.0 -- 2023-12-30 ---
+// --- systemdata/diverseIncludes/posOptions.php --- ver 4.1.0 -- 2024-01-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 Saldi.DK ApS
+// Copyright (c) 2003-2024 Saldi.DK ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
 // 20131230 PHR addad fiscal year to groups.
@@ -65,7 +65,7 @@ function posOptions () {
 		$qtxt.= "box8,box9,box10,box11,box12,box13,box14,fiscal_year) ";
 		$qtxt.= "values ('Pos valg','','2','POS','0','','','','','','','','','','','','','','$regnaar')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt = "select * from grupper where art = 'POS' and kodenr = '2'";
+		$qtxt = "select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$id2=$r['id'];
 	}
@@ -83,14 +83,14 @@ function posOptions () {
 	($r['box12'])?$vis_saet='checked':$vis_saet='';
 	$bordvalg=explode(chr(9),$r['box13']);
 	($r['box14'])?$udtag0='checked':$udtag0=NULL;
-	if ($r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3'",__FILE__ . " linje " . __LINE__))) {
+	if ($r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__))) {
 		$id3=$r['id'];
 	} else {
 		$qtxt = "insert into grupper(beskrivelse,kode,kodenr,art,box1,box2,box3,box4,box5,box6,box7";
 		$qtxt.= ",box8,box9,box10,box11,box12,box13,box14,fiscal_year)";
 		$qtxt.= "values ('Pos valg','','3','POS','0','10','','','','','','','','','','','','','$regnaar')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
+		$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$id3=$r['id'];
 	}
 	($r['box1'])?$brugervalg='checked':$brugervalg=NULL;
@@ -138,6 +138,13 @@ function posOptions () {
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($r && $r['var_value'])?$jump2price='checked':$jump2price=NULL;
 
+	$lagerbeh = get_settings_value("show_stock", "POS", 0);
+	$lagerbeh = $lagerbeh == "on" ? "checked" : "";
+
+	$kdscolumns = get_settings_value("columns", "KDS", 5);
+	$kdsheight = get_settings_value("height", "KDS", 20);
+
+
 	/*
 	$posbuttons=0;
 	$q = db_select("select * from grupper where art = 'POSBUT'",__FILE__ . " linje " . __LINE__);
@@ -172,7 +179,8 @@ function posOptions () {
 		}
 		$afd_antal=$x;
 		$x=0;
-		$q = db_select("select * from grupper where art = 'SM' order by kodenr",__FILE__ . " linje " . __LINE__);
+		$qtxt = "select * from grupper where art = 'SM' and fiscal_year = '$regnaar' order by kodenr";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$x++;
 			$moms_nr[$x]=$r['kodenr'];
@@ -240,7 +248,7 @@ function posOptions () {
 				for($y=1;$y<=$afd_antal;$y++) {
 					if ($afd[$x]!=$afd_nr[$y]) print "<option value='$afd_nr[$y]'>$afd_navn[$y]</option>\n";
 				}
--				print "</SELECT></td>";
+				print "</SELECT></td>";
 			}
 			if ($moms_antal) {
 				print "<td title='".findtekst(273,$sprog_id)."'><SELECT class='inputbox' NAME=moms_nr[$x] title='".findtekst(273,$sprog_id)."'>\n";
@@ -251,7 +259,7 @@ function posOptions () {
 				for($y=1;$y<=$moms_antal;$y++) {
 					if ($moms[$x]!=$moms_nr[$y]) print "<option value='$moms_nr[$y]'>$moms_navn[$y]</option>\n";
 				}
--				print "</SELECT></td>\n";
+				print "</SELECT></td>\n";
 			}
 
 
@@ -274,39 +282,25 @@ function posOptions () {
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $posTermOption = $r[0];
 			if ($posTermOption == "Ip baseret"){
 				print "<option selected='selected' value='Ip baseret'>Ip baseret</option>
-					<option value='Flatpay'>Flatpay</option>";
-      } else if ($posTermOption == "Flatpay") {
-        print "<option value='Ip baseret'>Ip baseret</option>
-					<option selected='selected' value='Flatpay'>Flatpay</option>";
-      } else if (str_starts_with($posTermOption, "Vibrant")) {
+					<option value='Flatpay'>Flatpay</option>
+					<option value='Vibrant'>Vibrant</option>";
+			} else if ($posTermOption == "Flatpay") {
 				print "<option value='Ip baseret'>Ip baseret</option>
-				<option value='Flatpay'>Flatpay</option>";
-        # Handeled below
-      } else {
-				print "<option value='t'></option>
-				<option value='Ip baseret'>Ip baseret</option>
-				<option value='Flatpay'>Flatpay</option>";
-		  }
-
-			# $qtxt = "SELECT name, terminal_id, pos_id FROM vibrant_terms";
-			$qtxt = "SELECT var_name, var_value, pos_id FROM settings WHERE var_grp = 'vibrant_terms'";
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+					<option selected='selected' value='Flatpay'>Flatpay</option>
+					<option value='Vibrant'>Vibrant</option>";
+			} else if ($posTermOption == "Vibrant") {
+				print "<option value='Ip baseret'>Ip baseret</option>
+					<option value='Flatpay'>Flatpay</option>
+					<option selected='selected' value='Vibrant'>Vibrant</option>";
+			# Handeled below
+			} else {
+				print "<option value='Ip baseret'>Ip baseret</option>
+					<option value='Flatpay'>Flatpay</option>
+					<option value='Vibrant'>Vibrant</option>";
+			}
+			print "<option value='t'></option>";
       $i = 0;
 
-      while ($r = db_fetch_array($q)) {
-        if (!$r['pos_id'] || $r['pos_id'] == $x+1 || $r['pos_id'] == -1) {
-          if ($r['pos_id'] == $x+1 && str_starts_with($posTermOption, "Vibrant")) {
-            $selected = "selected='selected'";
-          } else {
-            $selected = "";
-          }
-          print "<option $selected value='Vibrant: $r[var_name]'>Vibrant: $r[var_name]</option>";
-        }
-        $i++;
-      }
-
-      print "<option value='vibrant_new'>Ny Vibrant terminal</option>";
-                
       print " </select>
             </td>\n";
 			print "<td align='center'><input class='inputbox' type='text' style='text-align:right;width:100px;' name='terminal_ip[$x]' value='$terminal_ip[$x]'></td>\n";
@@ -562,8 +556,31 @@ function type_change(idx) {
 	$text = findtekst(1962, $sprog_id);
 	$title = "".findtekst(1961, $sprog_id).".";
 	print "<tr><td title='$title'>$text</td>";
-	print "<td title='$title'><input class='inputbox' type='checkbox' name='jump2price' $jump2price></td></tr>\n";
+	print "<td title='$title'><input class='inputbox' type='checkbox' name='jump2price' $jump2price></td>\n";
+	print "<td title='".findtekst(3067,$sprog_id)."'>".findtekst(3066,$sprog_id)."</td>";
+	print "<td title='".findtekst(3067,$sprog_id)."'><input class='inputbox' type='checkbox' name='lagerbeh' $lagerbeh></td></tr>\n";
+	print "<td><br></td></tr>\n";
+	print "</tbody></table></td></tr>";
+	print "<tr><td><hr></td></tr>\n";
+	# KDS system settings
+	print "<tr><td><table border='0'><tbody>";
+	print "<tr><td>KDS / Køkkenprint Setup</td></tr>\n";
+	print "<tr><td>Antal kolonner</td><td><input class='inputbox' type='text' name='kdscolumns' value='$kdscolumns'></td></tr>\n";
+	print "<tr><td>Linjehøjde</td><td><input class='inputbox' type='text' name='kdsheight' value='$kdsheight'></td></tr>\n";
 	print "<tr><td><br></td></tr>\n";
+
+	print "</tbody></table></td></tr>";
+	print "<tr><td><table border='0'><tbody>";
+	print "<tr><td>Antal minutter</td><td>Farve</td></tr>\n";
+	$x = 0;
+	$q = db_select("select var_value from settings where var_name='color' and var_grp='KDS' order by var_value", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$row = explode("-", $r["var_value"]);
+		print "<tr><td><input class='inputbox' type='text' size='5' name='kdscolorindex[$x]' value='$row[0]'></td><td><input class='inputbox' type='color' name='kdscolor[$x]' value='$row[1]'></td></tr>\n";
+		$x++;
+	}
+	print "<tr><td><input class='inputbox' type='text' size='5' name='kdscolorindex[$x]' value=''></td><td><input class='inputbox' type='color' name='kdscolor[$x]' value=''></td></tr>\n";
+
 	print "<tr><td><br></td></tr>\n";
 	print "<td><br></td><td><br></td><td><br></td><td align = center><input class='button green medium' type=submit accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'></td>\n";
 	print "</form>\n";

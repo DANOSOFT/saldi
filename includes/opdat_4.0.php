@@ -591,12 +591,13 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 					db_modify("ALTER TABLE loen ADD column mentor_rate numeric(15,3)",__FILE__ . " linje " . __LINE__);
 				}
 				///// 20240215
-
+/*
 				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='grupper' and column_name = 'fiscal_year'";
 				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$qtxt = "ALTER table grupper ADD column fiscal_year int DEFAULT(0)";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
+*/				
 				/////
 				$qtxt="SELECT table_name FROM information_schema.columns WHERE table_name='pos_betalinger'";
 				if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){

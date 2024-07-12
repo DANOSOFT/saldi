@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/regnskab.php--patch 4.1.0 ----2024-02-26--------------
-//                           LICENSE
+// --- finans/rapport_includes/regnskab.php--patch 4.1.0 ----2024-06-14--------------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -33,9 +33,9 @@
 // 20230110 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20340226 PHR Budget error when "staggered financial year" if maaned_fra was in second year 
+// 20240614 PHR Fixed an error in budget
 
-function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
-{
+function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
 	global $ansatte, $ansatte_id, $afd_navn;
 	global $bgcolor, $bgcolor4, $bgcolor5;
@@ -46,7 +46,8 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	global $prj_navn_til;
 	global $top_bund;
 
-	// echo "KT3 $konto_til<br>";
+echo __line__." $konto_fra $konto_til<br>";
+
 
 	$budget = $lastYear = $show0 = NULL;
 	$kto_periode = $periodesum = $varekob = $varelager_i = $varelager_u = array();
@@ -303,27 +304,26 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	} else {
 		($simulering) ? $tmp = "Simuleret Regnskab" : $tmp = "Regnskab";
 	}
-	print "<tr><td colspan=\"$cols4\"><big><big>$tmp</span></big></big></td>";
+	print "<tr><td colspan=\"$cols4\"><big><big>$tmp</big></big></td>";
 
 	print "<td colspan=\"$cols2\" align=right><table style=\"text-align: left; width: 100%;\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody><tr>";
 	if ($afd || $afd == '0') {
-		print "<td>Afdeling</span></td>";
-		print "<td>$afd: $afd_navn</span></td></tr>";
+		print "<td>Afdeling</td>";
+		print "<td>$afd: $afd_navn</td></tr>";
 	}
-	print "<td>Regnskabs&aring;r</span></td>";
-	print "<td>$regnaar.</span></td></tr>";
-	print "<tr><td>Periode</span></td>";
+	print "<td colspan = '5'></td><td align = 'right'>Regnskabs&aring;r: $regnaar. : ";
+#	print "<tr><td colspan = '2'></td>";
 	if ($startdato < 10)
 		$startdato = "0" . $startdato * 1;
-	print "<td>Fra " . $startdato . ". $mf $aar_fra<br />Til " . $slutdato . ". $mt $aar_til</span></td></tr>";
+	print "$startdato/$mf $aar_fra - $slutdato/$mt $aar_til</td></tr>";
 	if ($ansat_fra) {
 		if (!$ansat_til || $ansat_fra == $ansat_til)
-			print "<tr><td>Medarbejder</span></td><td>$ansatte</span></td></tr>";
+			print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
 		else
-			print "<tr><td>Medarbejdere</span></td><td>$ansatte</span></td></tr>";
+			print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
 	}
 	if ($afd || $afd == '0')
-		print "<tr><td>Afdeling</span></td><td>$afd_navn</span></td></tr>";
+		print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
 	if ($projekt_fra) {
 		print "<td>Projekt:</td><td>";
 		#		print "<tr><td>Projekt $prj_navn_fra</td>";
@@ -604,6 +604,7 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 			}
 		}
 	}
+echo __line__." $konto_fra $konto_til<br>";
 	for ($x = 1; $x <= $kontoantal; $x++) {
 		if ($kontonr[$x] >= $konto_fra && $kontonr[$x] <= $konto_til && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220
 			if ($kontotype[$x] == 'H') {

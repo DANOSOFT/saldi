@@ -2173,3 +2173,6 @@
 3064	Slet	Delete	Slett
 3065	Alle data, inklusiv kunder, leverandører, varer, bilag mm som ikke har været ændret / handlet efter regnskabårets slutning
 bliver slettet, sammen med finansbilag fra før denne dato.
+3068	Aktiver debitoripad	Activate debitor ipad	Aktiver debitoripad
+3069	Dette felt aktivere debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer kundens iPad-system der kundene dine kan skrive en e-mail på en bestilling selv
+

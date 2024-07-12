@@ -239,6 +239,8 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 
 		$luk= "<a accesskey=L href=\"$returside\">";
 
+	include("../includes/topline_settings.php");
+
 	if ($menu=='T') {
 		print "";
 	} else {
@@ -248,6 +250,30 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		include_once ("../includes/topmenu/header.php");
 		print "<div class='$kund'>$title</div>
 		<div class='content-noside'><br>";
+	} elseif ($menu=='S' && $x==1) {
+		print "<tr><td colspan=\"9\" height=\"8\">";
+		print "<table width=\"100%\" align=\"center\" border=\"1\" cellspacing=\"3\" cellpadding=\"0\"><tbody>\n";
+
+		print "<td width='10%'>$luk
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
+
+		if ($kontoart=='K') $tekst = findtekst(1140,$sprog_id) ." - ". lcfirst(findtekst(133,$sprog_id));
+		else $tekst= findtekst(1141,$sprog_id) ." - ". lcfirst(findtekst(133,$sprog_id));
+
+		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>\n";
+
+		($kontoantal==1)?$w=5:$w=10;
+		print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\">\n
+		<button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">". findtekst(880,$sprog_id) ."</button></td>\n";
+
+		if ($kontoantal==1) { # 2019-11-07
+			if ($fromdate) $firstdate=$fromdate;
+			if ($todate) $lastdate=$todate;
+			print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=".dkdato($firstdate)."&dato_til=".dkdato($lastdate)."&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
+			<button\n style='$butUpStyle;width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">\nEmail\n</button></td>\n";
+		}
+		print "</tbody></table>"; //B slut
+		print "</td></tr>\n";
 	} elseif ($x==1) {
 		include("../includes/oldDesign/header.php");
 		print "<tr><td colspan=\"9\" height=\"8\">";
@@ -257,12 +283,12 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		else $tekst= findtekst(1141,$sprog_id) ." - ". lcfirst(findtekst(133,$sprog_id));
 		print "<td width=\"80%\" $top_bund>$tekst</td>";
 		($kontoantal==1)?$w=5:$w=10;
-		print "<td width=\"w%\" $top_bund onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">". findtekst(880,$sprog_id) ."</td>\n";
+		print "<td width=\"$w%\" $top_bund onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">". findtekst(880,$sprog_id) ."</td>\n";
 		if ($kontoantal==1) { # 2019-11-07
 			if ($fromdate) $firstdate=$fromdate;
 			if ($todate) $lastdate=$todate;
 			print "<td width=\"$w%\" $top_bund onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=".dkdato($firstdate);
-			print "&dato_til=".dkdato($lastdate)."&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,width=1000%,height=700%,";
+			print "&dato_til=".dkdato($lastdate)."&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,";
 			print "scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\"";
 			print "title=\"Send som mail (Åbner i popup)\">Email</td>\n";
 		}

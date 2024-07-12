@@ -42,6 +42,10 @@ function check_permissions($permarr) {
 	return !empty($filtered);
 }
 
+if (substr($brugernavn,0,11) == "debitoripad") {
+	header('Location: ../debitoripad/await.php');
+}
+
 ?>
   <meta charset="utf-8">
   <title>Sidebar</title>
@@ -55,7 +59,7 @@ function check_permissions($permarr) {
       <img class="logo-img" src="../img/sidebar_logo.png">
        <i id="icon-open" class='bx bxs-arrow-from-right'></i>
 <!--        <i id="icon-closed" class='bx bx-menu'></i>  -->
-       <i id="icon-closed" class='bx bxs-arrow-from-left'></i> 
+<!--        <i id="icon-closed" class='bx bxs-arrow-from-left'></i>  -->
      </div>
     <ul class="nav-links top-links" style='margin-top: 1em'>
       <li class="active">
@@ -198,12 +202,12 @@ function check_permissions($permarr) {
 
     <ul class="nav-links">
       <li>
-        <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
-          <i class='bx bx-phone' ></i>
+        <a href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');">
+          <i class='bx bx-envelope'></i>
           <span class="link_name">Kontakt</span>
         </a>
         <ul class="sub-menu blank" >
-          <li><a class="" href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">Kontakt</a></li>
+          <li><a class="" href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');">Kontakt</a></li>
         </ul>
       </li>
 

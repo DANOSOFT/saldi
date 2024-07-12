@@ -1,5 +1,9 @@
 <?php
     include("../includes/connect.php");
+    $qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name='invoices'";
+    if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+        db_modify("ALTER table ordrer ADD column invoices int",__FILE__ . " linje " . __LINE__);
+    }
     if($_GET["db"]){
         $db = $_GET["db"];
         $query = db_select("SELECT * FROM regnskab WHERE db = '$db'", __FILE__ . " linje " . __LINE__);
