@@ -25,6 +25,7 @@
 //
 // 20240207 PHR Accounts was not shown if all was alligned, evet if alligned after $todate.
 // 20240411 PHR	'if (abs($y)' changed to 'if (abs($y) >= 0.01'
+// 20240529	PHR Unalignet account with sum = 0 was not shown
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit) {
@@ -33,6 +34,11 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	global $menu;
 	global $sprog_id;
 
+	if (isset($_GET['showPBS'])) $showPBS = $_GET['showPBS'];
+	$qtxt= "select id from adresser where art = 'S' and pbs_nr > '0'";
+	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $usePBS=1;
+	else $showPBS=$usePBS=0;
+	
 	if ($menu=='T') {
 		$top_bund = "";
 		$padding = "style='padding: 25px 20px 10px 20px;'";
@@ -40,17 +46,26 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		$top_bund = (isset($top_bund) ? $top_bund : "");
 		$padding = "";
 	}
-	
 	$forfaldsum=$forfaldsum_plus8=$forfaldsum_plus30=$forfaldsum_plus60=$forfaldsum_plus90=$fromdate=$linjebg=$popup=$todate=NULL;
 	
 	
 	if ($menu=='T') {
 		print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTable'><thead>\n";
-		print "<tr><th>Kontonr.</th><th>PBS</th><th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
+		print "<tr><th>Kontonr.</th>";
+		if ($usePBS) print "<th>PBS</th>";
+		print "<th>".findtekst(360,$sprog_id)."</th><th align=right class='text-right'>>90</th><th align=right  class='text-right'>60-90</th><th align=right class='text-right'>30-60</th><th align=right class='text-right'>8-30</th><th align=right class='text-right'>0-8</th><th align=right class='text-right'>I alt</th><th align=right</th>";
 		print "</thead><tbody>";
 	} else {
 		print "<tr><td><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
-		print "<tr><td>Kontonr.</th><th>PBS</td><td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
+		print "<tr><td>Kontonr.</th>";
+		if ($usePBS) {
+			if ($showPBS) {
+				print "<th align=right title=\"Skjul PBS\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=0\">PBS</a></th>";
+			} else {
+				print "<th align=right title=\"Vis PBS\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=1\">PBS</a></th>";
+			}	
+		}
+		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";
 	}
 
 	$currentdate=date("Y-m-d");
@@ -94,6 +109,17 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$x++;
 		}
 	}
+	$qtxt = "select * from openpost where udlignet = '0'";
+	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (!in_array($r['konto_id'],$op_id)) {
+			$op_id[$x]=$r['konto_id'];
+			$op_amount[$x]=0;
+			$x++;
+		}
+	}
+
+
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 		$qtxt = "select * from adresser where kontonr >= '$konto_fra' and kontonr <= '$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
 	} elseif ($konto_fra && $konto_fra!='*') {
@@ -107,6 +133,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (in_array($r['id'],$op_id)) {
+			if (!$r['pbs_nr'] || $showPBS) {
 			$x++;
 			$konto_id[$x]=$r['id'];
 			print "<input type=hidden name='konto_id[$x]' value='$konto_id[$x]'>";
@@ -123,7 +150,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$pbs[$x]=trim($r['pbs']);
 			$pbs_nr[$x]=trim($r['pbs_nr']);
 			($pbs[$x] && $pbs_nr[$x])?$pbs[$x]='&#10004;':$pbs[$x]=NULL;
-		}
+		}}
 	}
 	$kontoantal=$x;	
 	$sum=0;
@@ -245,26 +272,46 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			$forfalden_plus30=afrund($forfalden_plus30,2);
 			$forfalden_plus8=afrund($forfalden_plus8,2);
 
-			if (($kontoart=='D' && $forfalden_plus90 > 0) || ($kontoart=='K' && $forfalden_plus90 < 0)) $color="rgb(255, 0, 0)";
-			else $color="rgb(0, 0, 0)";
-			$tmp=dkdecimal($forfalden_plus90,2);
+			if (abs($forfalden_plus90) > 0) {
+				$color="rgb(255, 0, 0)";
+				$tmp=dkdecimal($forfalden_plus90,2);
 			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			if (($kontoart=='D' && $forfalden_plus60 > 0) || ($kontoart=='K' && $forfalden_plus60 < 0)) $color="rgb(255, 0, 0)";
-			else $color="rgb(0, 0, 0)";
-			$tmp=dkdecimal($forfalden_plus60,2);
-			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			if (($kontoart=='D' && $forfalden_plus30 > 0) || ($kontoart=='K' && $forfalden_plus30 < 0)) $color="rgb(255, 0, 0)";
-			else $color="rgb(0, 0, 0)";
-			$tmp=dkdecimal($forfalden_plus30,2);
-			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			if (($kontoart=='D' && $forfalden_plus8 > 0) || ($kontoart=='K' && $forfalden_plus8 < 0)) $color="rgb(255, 0, 0)";
-			else $color="rgb(0, 0, 0)";
-			$tmp=dkdecimal($forfalden_plus8,2);
-			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
-			if (($kontoart=='D' && $forfalden > 0) || ($kontoart=='K' && $forfalden < 0)) $color="rgb(255, 0, 0)";
-			else $color="rgb(0, 0, 0)";
-			$tmp=dkdecimal($forfalden,2);
-			print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			} else {
+				$color="rgb(0, 0, 0)";
+				print "<td align=right></td>";
+			}
+			if (abs($forfalden_plus60) > 0) {
+				$color="rgb(255, 0, 0)";
+				$tmp=dkdecimal($forfalden_plus60,2);
+				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			} else {
+				$color="rgb(0, 0, 0)";
+				print "<td align=right></td>";
+			}
+			if (abs($forfalden_plus30) > 0) {
+				$color="rgb(255, 0, 0)";
+				$tmp=dkdecimal($forfalden_plus30,2);
+				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			} else {
+				$color="rgb(0, 0, 0)";
+				print "<td align=right></td>";
+			}
+			if (abs($forfalden_plus8) > 0) {
+				$color="rgb(255, 0, 0)";
+				$tmp=dkdecimal($forfalden_plus8,2);
+				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			} else {
+				$color="rgb(0, 0, 0)";
+				print "<td align=right></td>";
+			}
+			if (abs($forfalden) > 0) {
+				$color="rgb(255, 0, 0)";
+				$tmp=dkdecimal($forfalden,2);
+				print "<td align=right><span style='color: $color;'>$tmp</span></td>";
+			} else {
+				$color="rgb(0, 0, 0)";
+				print "<td align=right></td>";
+			}
 			if (afrund($kontrol,2)!=afrund($y,2)) {
 				ret_openpost($konto_id[$x]);
 				$tmp=dkdecimal($kontrol,2);

@@ -1077,7 +1077,7 @@ function krediter_pos($id) {
 		$qtxt.= "'$folgevare[$x]','$m_rabat[$x]','$beskrivelse[$x]','$bogfort_af[$x]','$enhed[$x]','$lev_varenr[$x]',";
 		$qtxt.= "'$oprettet_af[$x]','$serienr[$x]','$tidspkt[$x]','$varenr[$x]','$momssats[$x]','$projekt[$x]','$variant_id[$x]',";
 		$qtxt.= "'$kdo[$x]','$rabatart[$x]','$saet[$x]','$fast_db[$x]','$lager[$x]','$barcode[$x]')";
-		
+
 #cho "$qtxt<br>";	
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
@@ -2714,6 +2714,7 @@ fwrite ($hmlog, __line__."  $qtxt\n");
 								$qtxt.= " values ";
 								$qtxt.= "('0','$transdate','$beskrivelse','$vat_account[$y]','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime',";
 								$qtxt.= "'$projekt[$p]','$ansat','$id','$kasse',0)";
+// echo __line__." $qtxt<br>";						
 							} else {
 								$qtxt="insert into transaktioner ";
 								$qtxt.= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
@@ -2721,8 +2722,10 @@ fwrite ($hmlog, __line__."  $qtxt\n");
 								$qtxt.= " values ";
 								$qtxt.= "('0','$transdate','$beskrivelse','$vat_account[$y]','0','$debet','$kredit','0','$afd','$logdate',";
 								$qtxt.= "'$logtime','$projekt[$p]','$ansat','0','$kasse',0)";
+// echo __line__." $qtxt<br>";						
 							}
-#cho __line__." $qtxt<br>";						
+if ($vat_account[$y] == '1') exit;
+							#cho __line__." $qtxt<br>";						
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 							$tmp=$debet-$kredit;
 							$qtxt="update kontoplan set saldo=saldo+'$tmp' where kontonr='$vat_account[$y]' and regnskabsaar='$regnaar'";
@@ -3742,7 +3745,7 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
 			if ($incl_moms && $varemomssats) $pris=$pris-($pris*$varemomssats/(100+$varemomssats)); # 20190111 fjernet: $art=='PO' && 
 			else $pris*=1; #20140124
 			$kostpris=$r['kostpris']*1;
-		}	
+		}
 #		fwrite($log,__line__." Pris $pris\n");
 		if ($pris && $r['salgspris']==0 && $kostpris<1 && $kostpris>0) {
 			$fast_db=$kostpris;
@@ -4619,6 +4622,8 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 
 	$alerttekst=findtekst(154,$sprog_id);
 
+	include("../includes/topline_settings.php");
+
 		if ($menu=='T' && !$sag_id) {
 			include_once '../includes/top_header.php';
 			include_once '../includes/top_menu.php';
@@ -4691,6 +4696,29 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 
 #		} elseif ($menu=='S' && !$sag_id) {
 #		include("../includes/sidemenu.php");
+	} elseif ($menu=='S') {
+		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
+		print "<div align=\"center\">";
+		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+		print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"6\">";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+		if (!strstr($returside,"ordre.php")) {
+			print "<td width='10%'><a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   .findtekst(30,$sprog_id)."</button></a></td>";
+		} else {
+			print "<td width='10%'><a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   .findtekst(30,$sprog_id)."</button></a></td>";
+		}
+		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
+
+		print "<td width='10%'><a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
+
+		print "</tbody></table>";
+		print "</td></tr>\n";
 	} else {
 /* 20140502 -> Bliver også sat i online.php
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";

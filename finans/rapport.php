@@ -207,64 +207,39 @@ if ($_POST) {
 			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '$projekt_til'", __FILE__ . " linje " . __LINE__));
 			$prj_navn_til = $r['beskrivelse'];
 		}
-
 	}
-	#cho "135 $projekt_fra $prj_navn_fra<br>";
-#cho "135 $projekt_til $prj_navn_til<br>";
 	$tmp = str_replace("?", "", $projekt_fra);
 	if (!$tmp) {
 		$projekt_fra = NULL;
 		$projekt_til = NULL;
 	}
 	$konto_fra = if_isset($_POST['konto_fra']);
-	if ($konto_fra)
-		list($konto_fra, $beskrivelse) = explode(":", $konto_fra);
+	if ($konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra);
 	$konto_til = if_isset($_POST['konto_til']);
-	if ($konto_til)
-		list($konto_til, $beskrivelse) = explode(":", $konto_til);
+	if ($konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til);
 	$regnaar = if_isset($_POST['regnaar']);
-	if ($regnaar && !is_numeric($regnaar))
-		list($regnaar, $beskrivelse) = explode(" - ", $regnaar);
-
+	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar);
 }
-if (isset($_GET['rapportart']))
-	$rapportart = $_GET['rapportart'];
-if (isset($_GET['dato_fra']))
-	$dato_fra = $_GET['dato_fra'];
-if (isset($_GET['maaned_fra']))
-	$maaned_fra = $_GET['maaned_fra'];
-if (isset($_GET['aar_fra']))
-	$aar_fra = $_GET['aar_fra'];
-if (isset($_GET['konto_fra']))
-	$konto_fra = $_GET['konto_fra'];
-if (isset($_GET['konto_fra2']) && $_GET['konto_fra2'])
-	$konto_fra = $_GET['konto_fra2'];
-if (isset($_GET['ansat_fra']))
-	$ansat_fra = $_GET['ansat_fra'];
-if (isset($_GET['projekt_fra']))
-	$projekt_fra = $_GET['projekt_fra'];
-if (isset($_GET['dato_til']))
-	$dato_til = $_GET['dato_til'];
-if (isset($_GET['maaned_til']))
-	$maaned_til = $_GET['maaned_til'];
-if (isset($_GET['aar_til']))
-	$aar_til = $_GET['aar_til'];
-if (isset($_GET['konto_til']))
-	$konto_til = $_GET['konto_til'];
-if (isset($_GET['ansat_til']))
-	$ansat_til = $_GET['ansat_til'];
-if (isset($_GET['projekt_til']))
-	$projekt_til = $_GET['projekt_til'];
-if (isset($_GET['regnaar']))
-	$regnaar = $_GET['regnaar'];
-if (isset($_GET['afd']))
-	$afd = $_GET['afd'];
-if (isset($_GET['simulering']))
-	$simulering = $_GET['simulering'];
-if (isset($_GET['lagerbev']))
-	$lagerbev = $_GET['lagerbev'];
+echo __line__." $konto_fra $konto_til<br>";
 
-// echo "KT2 $konto_til<br>";
+if (isset($_GET['rapportart']))  $rapportart = $_GET['rapportart'];
+if (isset($_GET['dato_fra']))    $dato_fra = $_GET['dato_fra'];
+if (isset($_GET['maaned_fra']))  $maaned_fra = $_GET['maaned_fra'];
+if (isset($_GET['aar_fra']))     $aar_fra = $_GET['aar_fra'];
+if (isset($_GET['konto_fra']))	 $konto_fra = $_GET['konto_fra'];
+if (isset($_GET['konto_fra2']) && $_GET['konto_fra2']) $konto_fra = $_GET['konto_fra2'];
+if (isset($_GET['ansat_fra']))   $ansat_fra = $_GET['ansat_fra'];
+if (isset($_GET['projekt_fra'])) $projekt_fra = $_GET['projekt_fra'];
+if (isset($_GET['dato_til']))    $dato_til = $_GET['dato_til'];
+if (isset($_GET['maaned_til']))  $maaned_til = $_GET['maaned_til'];
+if (isset($_GET['aar_til']))     $aar_til = $_GET['aar_til'];
+if (isset($_GET['konto_til']))   $konto_til = $_GET['konto_til'];
+if (isset($_GET['ansat_til']))   $ansat_til = $_GET['ansat_til'];
+if (isset($_GET['projekt_til'])) $projekt_til = $_GET['projekt_til'];
+if (isset($_GET['regnaar']))     $regnaar = $_GET['regnaar'];
+if (isset($_GET['afd']))         $afd = $_GET['afd'];
+if (isset($_GET['simulering']))  $simulering = $_GET['simulering'];
+if (isset($_GET['lagerbev']))    $lagerbev = $_GET['lagerbev'];
 
 $regnaar = (int) $regnaar;
 $md[1] = "januar";
@@ -280,29 +255,53 @@ $md[10] = "oktober";
 $md[11] = "november";
 $md[12] = "december";
 
-if ($submit != 'ok')
-	$submit = 'forside';
+if ($submit != 'ok') $submit = 'forside';
+
 elseif ($rapportart) {
 	if ($rapportart == "balance" || $rapportart == "resultat" || $rapportart == "budget" || $rapportart == "lastYear") {
-		if ($r = db_fetch_array(db_select("select kontonr from kontoplan where regnskabsaar='$regnaar' and kontotype='X'", __FILE__ . " linje " . __LINE__))) {
-			if ($rapportart == "resultat") {
-				if (!$konto_til || $konto_til >= $r['kontonr'])
-					$konto_til = $r['kontonr'] - 1;
-			} elseif ($rapportart != "balance") {
-				$konto_til = $r['kontonr'] - 1;
-			} else
-				$konto_fra = $r['kontonr'] + 1;
-		} else
-			print "<BODY onLoad=\"javascript:alert('Sideskiftkonto ikke defineret i kontoplan - Balance & Resultat kan ikke adskilles')\">";
+		$qtxt = "select kontonr from kontoplan where regnskabsaar='$regnaar' and kontotype='X'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			if ($rapportart != "balance") {
+echo __line__." $konto_fra $konto_til<br>";
+				if (!$konto_til || $konto_til >= $r['kontonr']) {
+					$qtxt = "select max(kontonr) as kontonr from kontoplan where regnskabsaar='$regnaar' and kontonr < '$r[kontonr]'";
+echo "$qtxt<br>";
+					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_til = $r['kontonr'];
+				}
+echo __line__." $konto_fra $konto_til<br>";
+			} else {
+echo __line__." $konto_fra $konto_til<br>";
+				if (!$konto_fra || $konto_fra <= $r['kontonr']) {
+					$qtxt = "select min(kontonr) as kontonr from kontoplan where regnskabsaar='$regnaar' and kontonr > '$r[kontonr]'";
+					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_fra = $r['kontonr'];
+				}
+			}
+		}	else {
+			$txt = 'Sideskiftkonto ikke defineret i kontoplan - Balance & Resultat kan ikke adskilles';
+			alert($txt);
+		}
 		$submit = "regnskab";
-	} else
-		$submit = str2low($rapportart);
+	} else $submit = str2low($rapportart);
 }
+echo __line__." $konto_fra $konto_til<br>";
 
-#if ($maaned_fra && (!$aar_fra||!$aar_til)) {
-#	list ($aar_fra, $maaned_fra) = explode(" ", $maaned_fra);
-#	list ($aar_til, $maaned_til) = explode(" ", $maaned_til);
-#}
+/*
+elseif ($rapportart) {
+	if ($rapportart == "balance" || $rapportart == "resultat" || $rapportart == "budget" || $rapportart == "lastYear") {
+		$qtxt = "select kontonr from kontoplan where regnskabsaar='$regnaar' and kontotype='X'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			if ($rapportart == "resultat") {
+				if (!$konto_til || $konto_til >= $r['kontonr']) $konto_til = $r['kontonr'] - 1;
+			} elseif ($rapportart != "balance") $konto_til = $r['kontonr'] - 1;
+			elseif (!$konto_fra || $konto_fra <= $r['kontonr']) $konto_fra = $r['kontonr'] + 1;
+			} else {
+				$txt = 'Sideskiftkonto ikke defineret i kontoplan - Balance & Resultat kan ikke adskilles';
+				alert($txt);
+		}
+		$submit = "regnskab";
+	} else $submit = str2low($rapportart);
+}
+*/
 if (!$aar_fra || !$aar_til) {
 	$qtxt = "select box2,box4 from grupper where art='RA' and kodenr='$regnaar'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -376,7 +375,7 @@ function listeangivelser($regnaar, $rapportart, $option_type)
 	$liste_aarmd[$x] = $liste_aar[$x] . $liste_md[$x];
 	if (isset($kvartal_aar[$x]))
 		$kvartal_aarmd[$x] = ($kvartal_aar[$x] . $row['box1']) * 1 + 2;
-	$slut_aarmd = ($row['box4'] . $row['box3']) * 1;
+	$slut_aarmd = (int)($row['box4'] . $row['box3']);
 	while ($liste_aarmd[$x] < $slut_aarmd) {
 		$x++;
 		$liste_md[$x] = $liste_md[$x - 1] + 1;

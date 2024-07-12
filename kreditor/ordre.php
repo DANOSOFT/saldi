@@ -533,6 +533,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						print "<BODY onLoad=\"javascript:alert('Du kan ikke returnere $antal[$x] n&aring;r lagerbeholdningen er $a ! (Varenr: $varenr[$x])')\">";
 						$bogfor=0;
 					}
+					if ($status == 1 && $bogfor) $status = 2;
 				}
 				elseif (($art=='KK')&&($kred_ord_id)) { ###################	 Kreditnota ####################
 
@@ -585,7 +586,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					}
 				}
 				elseif ($submit != 'copy') {
-					if (!$antal[$x]) $antal[$x]=1;
+					if (!$antal[$x]) $antal[$x]=0; # 20240628 changed =1 to =0
 					if ($antal[$x] > 99999999) {
 						alert ("Ulovlig værdi i Antal ($antal[$x])");
 						$antal[$x] = 1;
@@ -595,19 +596,22 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($vare_id[$x]) {
 							if ($serienr[$x]) {
 								$sn_antal=0;
-								$query = db_select("select * from serienr where kobslinje_id = '$linje_id[$x]' order by serienr",__FILE__ . " linje " . __LINE__);
+								$qtxt = "select * from serienr where kobslinje_id = '$linje_id[$x]' order by serienr";
+								$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 								while ($row = db_fetch_array($query)){$sn_antal++;}
 								if (($sn_antal>0)&&($antal[$x]<$sn_antal)) {
 									 print "<BODY onLoad=\"javascript:alert('Posnr: $posnr_ny[$x] - $varenr[$x] Antal kan ikke v&aelig;re mindre end antal registrerede serienr!')\">";
 									$antal[$x]=$sn_antal;
 								}
-								$query = db_select("select * from serienr where salgslinje_id = '$linje_id[$x]' order by serienr",__FILE__ . " linje " . __LINE__);
+								$qtxt = "select * from serienr where salgslinje_id = '$linje_id[$x]' order by serienr";
+								$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 								while ($row = db_fetch_array($query)){$sn_antal--;}
 								if (($sn_antal<0)&&($antal[$x]>$sn_antal)&&($art!='KK'))	{
 									 print "<BODY onLoad=\"javascript:alert('Posnr: $posnr_ny[$x] - $varenr[$x] Antal kan ikke v&aelig;re st&oslash;rre end antal serienr!')\">";
 									$antal[$x]=$sn_antal;
 								}
-								$query = db_select("select * from serienr where salgslinje_id = '$linje_id[$x]' order by serienr",__FILE__ . " linje " . __LINE__);
+								$qtxt = "select * from serienr where salgslinje_id = '$linje_id[$x]' order by serienr";
+								$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 								while ($row = db_fetch_array($query)){$sn_antal++;}
 								if (($sn_antal>0)&&($antal[$x]<$sn_antal)&&($art=='KK'))	{
 									 print "<BODY onLoad=\"javascript:alert('Posnr: $posnr_ny[$x] - $varenr[$x] Antal kan ikke v&aelig;re mindre end antal serienr!')\">";
@@ -624,7 +628,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 								$antal[$x]=$reserveret[$x]; $submit='save'; $status=1;
 							}
 							$tidl_lev[$x]=0;
-							$query = db_select("select * from batch_kob where linje_id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+							$qtxt = "select * from batch_kob where linje_id = '$linje_id[$x]'";
+							$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 							while($row = db_fetch_array($query)){
 								$tidl_lev[$x]+=$row['antal'];
 								$solgt[$x]=-$row['rest'];
@@ -667,9 +672,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 								}
 							} else {
 								$tidl_lev[$x]=0;
-								$query = db_select("select * from batch_kob where linje_id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+								$qtxt = "select * from batch_kob where linje_id = '$linje_id[$x]'";
+								$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 								while($row = db_fetch_array($query)) $tidl_lev[$x]+=$row['antal'];
-#cho __LINE__." $tidl_lev[$x]<br>"; 								
 								if ($antal[$x]>$tidl_lev[$x]) {
 									print "<BODY onLoad=\"javascript:alert('Varenr. $varenr[$x]: antal &aelig;ndret fra $antal[$x] til $tidl_lev[$x]!')\">";
 									$antal[$x]=$tidl_lev[$x]; $submit = 'save'; $status=1;
@@ -1467,20 +1472,19 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 
-} elseif ($menu=='S') {
+} elseif ($menu=='k') {
 		print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
 		print "<div align=\"center\">";
 		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 		print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
 		if ($kort) {
 			print "<td width=10%><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
 			       <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
 		} else {
-			print "<td width=10%><a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>
-				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+			print "<td width=10%><a href=javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst') accesskey=L>
+				   <button type='button' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" onclick=\"loacation.href('ordreliste.php')\">".findtekst(30, $sprog_id)."</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
 

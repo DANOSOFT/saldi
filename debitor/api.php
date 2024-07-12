@@ -7,7 +7,7 @@
     include("../includes/connect.php");
 
     // Getting the api key and tenant id from the database
-    $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
+   /*  $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
     while($res = db_fetch_array($query)){
         if($res["var_value"] !== ""){
             if($res["var_name"] == "apiKey"){
@@ -16,8 +16,8 @@
                 $tenantId = $res["var_value"];
             }
         }
-    }
-    $apiKey = $tenantId . "&" . $key;
+    } */
+    $apiKey = "6c772607-988c-4435-8d78-3670f4a0629d&d5610b95-e39d-4894-8a11-22eb350ed84e";
     // 6c772607-988c-4435-8d78-3670f4a0629d&d5610b95-e39d-4894-8a11-22eb350ed84e
 
     // created endpoint for ebconnect 9280c477-1645-4443-9dee-268f9ce59453
@@ -33,13 +33,21 @@
         if(substr($res["cvrnr"], 0, 2) == "DK"){
             $res["cvrnr"] = substr($res["cvrnr"], 2);
         }
-
+        // get domain name
+        $domain = "https://".$_SERVER['SERVER_NAME'];
+        if($domain == "https://ssl8.saldi.dk"){
+            $webhookUrl = "$domain/laja/debitor/easyUBL.php";
+        }else if($domain == "https://ssl5.saldi.dk"){
+            $webhookUrl = "$domain/finans/debitor/easyUBL.php";
+        }else{
+            $webhookUrl = "$domain/pos/debitor/easyUBL.php";
+        }
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
-            "currency" => "",
+            "currency" => "DKK",
             "country" => "DK",
-            "webhookUrl" => "",
+            "webhookUrl" => $webhookUrl,
             "defaultEndpoint" => [
                 "endpointType" => "DK:CVR",
                 "endpointIdentifier" => "DK".$res["cvrnr"],
@@ -51,7 +59,7 @@
                 "streetName" => explode(" ",$res["addr1"])[0],
                 "additionalStreetName" => $res["addr2"],
                 "buildingNumber" => end(explode(" ", $res["addr1"])),
-                "inhouseMail" => $res["email"],
+                "inhouseMail" => "",
                 "cityName" => $res["bynavn"],
                 "postalCode" => $res["postnr"],
                 "countrySubentity" => "",
@@ -93,10 +101,11 @@
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
             curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data, JSON_UNESCAPED_UNICODE));
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
             $response = curl_exec($ch);
             $response = json_decode($response, true);
             curl_close($ch);
+            $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
 				$errorNumber = curl_errno($ch);
@@ -105,8 +114,7 @@
 				json_encode($error, JSON_PRETTY_PRINT);
 				
 				// save response in file in temp folder
-				$timestamp = date("Y-m-d-H-i-s");
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", $error);
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support.");
@@ -114,7 +122,7 @@
 				<?php
 				exit;
 			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000") {
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", $response);
+				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
 				?>
 				<script>
 					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support");
@@ -148,7 +156,7 @@
     }
 
     // Sending the invoice to the recipient through easyUBL
-    function getInvoicesOrder($data, $url) {
+    function getInvoicesOrder($data, $url, $orderId) {
         global $db, $apiKey;
         $companyID = getCompanyID();
         if($companyID == "error"){
@@ -167,21 +175,25 @@
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $result = curl_exec($ch);
+        $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $ranStr = $characters[rand(0, 4)];
+        file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
         $result = json_decode($result, true);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
+            file_put_contents(curl_error($ch), "../temp/$db/fakture-error-$ranStr.json");
             exit();
         }
-       
-        $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        
         $randomString = '';
 
         for ($i = 0; $i < 10; $i++) {
-            $randomString .= $characters[rand(0, strlen($characters) - 1)];
+            $randomString .= $characters[rand(0, 4)];
         }
+
         // decode base64
         $xml = base64_decode($result["base64EncodedDocumentXml"]);
-        file_put_contents("../temp/$db/$randomString.xml", $xml);
+        file_put_contents("../temp/$db/xml-$randomString.xml", $xml);
         curl_close($ch);
         $ch = curl_init();
         $data = [
@@ -201,6 +213,7 @@
         }
         file_put_contents("../temp/$db/$randomString.html", $result);
         curl_close($ch);
+
         return $randomString;
     }
 
@@ -220,9 +233,14 @@
         }else{
             $creditNote = "Inv";
         }
-        if($r_faktura["ean"] !== ""){
+        // check if the ean number is 13 characters long
+        if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
             $endpointId = $r_faktura["ean"];
             $endpointType = "EAN";
+        }else if($_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === true){
+            // split at ean at : and take the first part
+            $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
+            $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
         }else{
             $endpointId = "DK".$r_faktura["cvrnr"];
             $endpointType = "DK:CVR";
@@ -336,7 +354,7 @@
         }
         $data["invoiceLines"] = $line;
         /* echo json_encode($data, JSON_PRETTY_PRINT); */
-        $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/");
+        $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
         
         return $name;
     }

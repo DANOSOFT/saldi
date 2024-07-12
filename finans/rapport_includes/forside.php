@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- patch 4.1.0 --- 2024-04-24 ---
+// --- finans/rapport_includes/forside.php --- patch 4.1.0 --- 2024-05-22 ---
 // 										LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,7 +17,7 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
@@ -36,11 +36,11 @@
 // 20230918 PHR Fixed an 'end tag' error in 'konto_fra'
 // 20240128 PHR Fixed an error in 'dato_fra' ($action)
 // 20240403 PHR Some design changes.
-// 20240424 PHR Som issues regrating staggered financial years 
+// 20240424 PHR Some issues regarding staggered financial years
 
-function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
-{
-	global $brugernavn;
+function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
+
+	global $bruger_id,$brugernavn;
 	global $connection;
 	global $db_encode;
 	global $md, $menu;
@@ -55,6 +55,8 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	$konto_fra = (int) $konto_fra;
 	#$konto_til=$konto_til*1;
 	$konto_til = (int) $konto_til;
+
+echo __line__." $konto_til<br>";
 
 	($simulering) ? $simulering = "checked" : $simulering = NULL;
 	($lagerbev) ? $lagerbev = "checked" : $lagerbev = NULL;
@@ -85,16 +87,14 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	}
 	$antal_regnaar = $x;
 
-		
 	#	print_r($_POST);
 	if ($_POST['submit']) {
-		if (!is_numeric($maaned_fra)) $maaned_fra = NULL; 
+		if (!is_numeric($maaned_fra)) $maaned_fra = NULL;
 		if (!$maaned_fra) $maaned_fra = $aktivStartMd;
-		if (!is_numeric($maaned_til)) $maaned_til = NULL; 
+		if (!is_numeric($maaned_til)) $maaned_til = NULL;
 		if (!$maaned_til) $maaned_til = $aktivSlutMd;
 	} elseif (!$maaned_fra) $maaned_fra = $aktivStartMd;
-
-	if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
+if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	else $aar_fra = $aktivStartAar;
 	if ($aar_til != $aktivSlutAar) {
 		if ($maaned_til < $aktivSlutMd) $aar_til = $aktivStartAar;
@@ -112,37 +112,51 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 		}
 	} else $antal_mdr = $slut_md[$aktiv] + 1 - $start_md[$aktiv]; #12+1-1=12;
 	$query = db_select("select * from kontoplan where regnskabsaar='$regnaar' order by kontonr", __FILE__ . " linje " . __LINE__);
-	$x = 0;
+	$maxResult = $x = 0;
+	$minBalace = 99999999;
 	while ($row = db_fetch_array($query)) {
-		$x++;
 		$konto_id[$x] = $row['id'];
 		$kontonr[$x] = $row['kontonr'];
+		$kontoType[$x] = $row['kontotype'];
 		$konto_beskrivelse[$x] = $row['beskrivelse'];
+		if ($kontoType[$x] == 'D' && $maxResult < $kontonr[$x]) $maxResult = $kontonr[$x];
+		if ($kontoType[$x] == 'S' && $minBalace > $kontonr[$x]) $minBalace = $kontonr[$x];
+		if ($kontoType[$x] == 'X') $sideskift = $kontonr[$x];
+		if (!$konto_fra) $konto_fra = $kontonr[0];
+		$konto_til = $kontonr[$x];
 		if ($kontonr[$x] == $konto_fra) {
-			$konto_fra = $kontonr[$x] . " : " . $konto_beskrivelse[$x];
+			$ktoNameFrom = $konto_beskrivelse[$x];
 		}
 		if ($kontonr[$x] == $konto_til) {
-			$konto_til = $kontonr[$x] . " : " . $konto_beskrivelse[$x];
+			$ktoNameTo = $konto_beskrivelse[$x];
 		}
+		$x++;
 	}
 	$antal_konti = $x;
 	if (!$maaned_fra) {
-		$maaned_fra = $md[$start_md[$aktiv]];
-	} elseif (is_numeric($maaned_fra)) {
-		$maaned_fra = $md[$maaned_fra];
+#		$maaned_fra = $md[$start_md[$aktiv]];
+		$maaned_fra = $start_md[$aktiv];
+#	} elseif (is_numeric($maaned_fra)) {
+#		$maaned_fra = $md[$maaned_fra];
 	}
 	if (!$maaned_til) {
-		$maaned_til = $md[$slut_md[$aktiv]];
-	} elseif (is_numeric($maaned_til)) {
-		$maaned_til = $md[$maaned_til];
+#		$maaned_til = $md[$slut_md[$aktiv]];
+		$maaned_til = $slut_md[$aktiv];
+#	} elseif (is_numeric($maaned_til)) {
+#		$maaned_til = $md[$maaned_til];
 	}
 
-	if ($rapportart == 'balance' || $rapportart == 'regnskab' || !$konto_fra) {
-		$konto_fra = $kontonr[1] . " : " . $konto_beskrivelse[1];
+/*
+	echo __line__." KF $konto_fra KT $konto_til<br>";
+	if ($rapportart == 'balance' && $konto_fra <= $minBalance) {
+		$konto_fra = $minBalance;
 	}
-	if (($rapportart == 'resultat' || $rapportart == 'budget') || !$konto_til) {
-		$konto_til = $kontonr[$antal_konti] . " : " . $konto_beskrivelse[$antal_konti];
+echo __line__." KF $konto_fra KT $konto_til<br>";
+	if (($rapportart == 'resultat' || $rapportart == 'budget')  && $konto_til >= $maxResult) {
+		$konto_til = $maxResult;
 	}
+echo __line__." KF $konto_fra KT $konto_til<br>";
+*/
 
 	$query = db_select("select * from grupper where art='AFD' order by kodenr", __FILE__ . " linje " . __LINE__);
 	$x = 0;
@@ -187,6 +201,9 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 		$antal_ansatte = $x;
 	} else
 		$antal_ansatte = 0;
+
+	include ("../includes/topline_settings.php");
+
 	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
@@ -198,6 +215,22 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 		print "<div class='content-noside'>";
 #	} elseif ($menu == 'S') {
 #		include("../includes/sidemenu.php");
+	} elseif ($menu == 'S') {
+		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #
+		print "<tr>";
+
+		print "<td width='10%'>";
+		if ($popup)
+			print "<a href=../includes/luk.php accesskey=L>
+			<button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+		else
+			print "<a href=../index/menu.php accesskey=L>
+				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   .findtekst(30, $sprog_id)."</button></a></td>";
+
+		print "<td width='80%' align='center' style='$topStyle'> " . findtekst(897, $sprog_id) . " </td>";
+		print "<td width='10%' style='$topStyle'><br></td>";
+
 	} else {
 		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #A
 		print "<tr>";
@@ -237,7 +270,7 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	print "</select></td>";
 	$txt = findtekst(898, $sprog_id);
 	print "<td><input class='button gray medium' type='submit' value='$txt' name='submit'></td></tr>\n";
-	print "<tr><td><br><br></td></tr>";	
+	print "<tr><td><br><br></td></tr>";
 	print "</form>\n\n";
 	print "<form name=rapport action=rapport.php method=post>\n";
 		if ($r = db_fetch_array(db_select("select id from kladdeliste where bogfort='S'", __FILE__ . " linje " . __LINE__))) {
@@ -294,7 +327,7 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 		print "<td><input type='hidden' name='lagerbev' value=''></td></tr>";
 	} else {
 		#	print "<td> &nbsp;".findtekst(902,$sprog_id)."";
-#	print "<input class='checkmark' type='checkbox' name='lagerbev' $lagerbev> </td>";  
+#	print "<input class='checkmark' type='checkbox' name='lagerbev' $lagerbev> </td>";
 		print "</tr>\n";
 	}
 	if ($antal_afd) {
@@ -389,7 +422,8 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	print "<tr><td> " . findtekst(899, $sprog_id) . ":</td><td colspan=2>" . findtekst(903, $sprog_id) . " <select name=maaned_fra>\n";
 	if (!$aar_fra)
 		$aar_fra = $start_aar[$aktiv];
-	print "<option value='$aar_fra|$maaned_fra'>$aar_fra $maaned_fra</option>\n";
+		($maaned_fra<=9)?$m='0'.(int)$maaned_fra:$m=$maaned_fra;
+	print "<option value='$aar_fra|$maaned_fra'>$aar_fra $m</option>\n";
 	$x = $start_md[$aktiv] - 1;
 	$z = $start_aar[$aktiv];
 	for ($y = 1; $y <= $antal_mdr; $y++) {
@@ -398,7 +432,8 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 			$x = 1;
 		} else
 			$x++;
-		print "<option value='$z|$md[$x]'>$z $md[$x]</option>\n";
+		($x<=9)?$m='0'.$x:$m=$x;
+		print "<option value='$z|$x'>$z $m</option>\n";
 	}
 	#	if (($start_md[$aktiv]>1)&&($slut_md[$aktiv]<12)) {
 #		for ($x=1; $x<=$slut_md[$aktiv]; $x++) print "<option>$slut_aar[$aktiv] $md[$x]</option>\n";
@@ -413,9 +448,9 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	print "</select> ";
 	print "" . findtekst(904, $sprog_id) . " ";
 	print "<select name=maaned_til>\n";
-	if (!$aar_til)
-		$aar_til = $slut_aar[$aktiv];
-	print "<option value='$aar_til|$maaned_til'>$aar_til $maaned_til</option>\n";
+	if (!$aar_til) $aar_til = $slut_aar[$aktiv];
+	($maaned_til<=9)?$m='0'.(int)$maaned_til:$m=$maaned_til;
+	print "<option value='$aar_til|$maaned_til'>$aar_til $m</option>\n";
 	$x = $start_md[$aktiv] - 1;
 	$z = $start_aar[$aktiv];
 	for ($y = 1; $y <= $antal_mdr; $y++) {
@@ -424,8 +459,9 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 			$x = 1;
 		} else
 			$x++;
-		$md[$x] = trim($md[$x]);
-		print "<option value='$z|$md[$x]'>$z $md[$x]</option>\n";
+#		$md[$x] = trim($md[$x]);
+		($x<=9)?$m='0'.$x:$m=$x;
+		print "<option value='$z|$x'>$z $m</option>\n";
 	}
 	#	for ($x=$start_md[$aktiv]; $x <= 12; $x++) print "<option>$start_aar[$aktiv] $md[$x]</option>\n";
 #	if (($start_md[$aktiv]>1)&&($slut_md[$aktiv]<12)) {
@@ -443,20 +479,20 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	print "</td></tr>\n";
 	#print "<tr><td> ".findtekst(900,$sprog_id)."</td><td colspan=2><select name=Konto (fra)\n";
 	print "<tr><td> " . findtekst(900, $sprog_id) . ":</td><td colspan=2><select name=konto_fra>\n"; #20210722
-	print "<option>$konto_fra</option>\n";
+	print "<option value = '$konto_fra'>$konto_fra : $ktoNameFrom</option>\n";
 
 	for ($x = 1; $x <= $antal_konti; $x++)
-		print "<option>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
+		print "<option value = '$kontonr[$x]'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
 	#for ($x=1; $x<=$antal_konti; $x++) print "<option value='konto_fra'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
 	print "</td>";
 	# print "<td><input type='tekst' name='$konto_fra2' value='$konto_fra2'></td>";
 	print "</tr>\n";
 	#print "<tr><td>  ".findtekst(901,$sprog_id)."</td><td colspan=2><select name=Konto (til)>\n";
 	print "<tr><td>  " . findtekst(901, $sprog_id) . ":</td><td colspan=2><select name=konto_til>\n";
-	print "<option>$konto_til</option>\n";
+	print "<option value = '$konto_til'>$konto_til : $ktoNameTo</option>\n";
 	for ($x = 1; $x <= $antal_konti; $x++)
-		print "<option>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
-	#for ($x=1; $x<=$antal_konti; $x++)  print "<option value='konto_til'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n"; 
+		print "<option value = '$kontonr[$x]'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
+	#for ($x=1; $x<=$antal_konti; $x++)  print "<option value='konto_til'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
 	print "</td></tr>\n";
 	print "<input type=hidden name=regnaar value=$regnaar>\n";
 	if ($menu == 'T') {

@@ -2,11 +2,11 @@
 
     // This file is used to receive webhooks from EasyUBL
 
-    require '../phpmailer/PHPMailerAutoload.php';
+    require '../vendor/autoload.php';
     use PHPMailer\PHPMailer\PHPMailer;
     use PHPMailer\PHPMailer\SMTP;
     use PHPMailer\PHPMailer\Exception;
-
+    include("../includes/connect.php");
     // Retrieving webhook data
     $webhookData = file_get_contents('php://input');
     /* echo $randomString; */
@@ -21,6 +21,16 @@
     // get base64 encoded msg
     $base64 = json_decode($webhookData, true);
 
+    // get server name based on domain
+    $domain = "https://".$_SERVER['SERVER_NAME'];
+    if($domain == "https://ssl8.saldi.dk"){
+        $serverName = "$domain/laja";
+    }else if($domain == "https://ssl5.saldi.dk"){
+        $serverName = "$domain/finans";
+    }else{
+        $serverName = "$domain/pos";
+    }
+
     // get db name
     $companyId = json_decode($webhookData, true);
     $companyId = $companyId['companyId'];
@@ -28,49 +38,64 @@
     curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=getDBNameByCompanyId&companyId=$companyId");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $output = curl_exec($ch);
+    $jsonOutPut = $output;
     curl_close($ch);
     $output = json_decode($output, true);
     if($output["msg"] == "OK"){
         $db = $output["db_name"];
         $dbLocation = $output["db_location"];
+        $connection=db_connect($sqhost,$squser,$sqpass,$db);
         $email = $output["email"];
-        file_put_contents("../temp/$db/db-$timestamp.json", $output);
+        
         if(!file_exists("../temp/$db")){
             mkdir("../temp/$db");
         }
-        if($base64["documentStatusCode"] == 5120){
+        file_put_contents("../temp/$db/db-$timestamp.json", $jsonOutPut);
+        
+        // send notification to user
+        $decoded = base64_decode($base64["base64EncodedMessage"]);
+        if($decoded != ""){
+            db_modify("INSERT INTO notifications (msg, read_status) VALUES ('$decoded', 0)",  __FILE__ . " linje " . __LINE__);
+        }
+
+        if($base64["documentStatusCode"] == 5210){
+            db_modify("INSERT INTO notifications (msg, read_status) VALUES ('Du har modtaget en faktura', 0)",  __FILE__ . " linje " . __LINE__);
+        }
+
+        // update digital status
+        $incStatus = array(
+            0 => 'NoStatus',
+            5101 => 'Error',
+            5110 => 'Pending',
+            5115 => 'PendingValidating',
+            5120 => 'PendingValid',
+            5130 => 'Sending',
+            5140 => 'Sent',
+            5150 => 'Received',
+            5160 => 'Confirmed',
+            5170 => 'Rejected',
+            5180 => 'Approved',
+            5199 => 'Parked',
+            5130 => "Sending"
+        );
+        
+        if (array_key_exists($base64["documentStatusCode"], $incStatus)) {
+            $statusName = $incStatus[$base64["documentStatusCode"]];
+            db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE id = '$base64[externalIdentifier]'", __FILE__ . " linje " . __LINE__);
+        }
+
+        if($base64["documentStatusCode"] == 5110 || $base64["documentStatusCode"] == 5210){
             // decode base64
             $decoded = base64_decode($base64["base64EncodedMessage"]);
             file_put_contents("../temp/$db/msg-$timestamp.json", ["message" => $decoded]);
             $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, "https://ssl8.saldi.dk/laja/debitor/increaseInvoiceNumber.php?db=$db");
+            curl_setopt($ch, CURLOPT_URL, "$serverName/debitor/increaseInvoiceNumber.php?db=$db");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             $res = curl_exec($ch);
             curl_close($ch);
-            $timestamp = date("Y-m-d-H-i-s");
             file_put_contents("../temp/$db/increase-$timestamp.json", $res);
-            exit;
         }
         file_put_contents("../temp/$db/res-$timestamp.json", $webhookData);
-    }else{
-        file_put_contents("../temp/bad-companyId-$timestamp.json", $webhookData);
-        $mail->SMTPDebug = SMTP::DEBUG_OFF;  // Enable verbose debug output
-        $mail->isSMTP();                     // Send using SMTP
-        $mail->Host       = 'ssl8.saldi.dk'; // Set the SMTP server to send through                       
-        //$mail->SMTPSecure = 'tls';         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` also accepted
-        //$mail->Port       = 587;           // TCP port to connect to
-        //Recipients
-        $mail->setFrom("easyUBL-error@$_SERVER[SERVER_NAME]", 'Saldi');
-        $mail->addAddress("pblm@saldi.dk");  // Add a recipient
-        // Content
-        $mail->isHTML(true);                 // Set email format to HTML
-        $mail->Subject = 'Send faktura error';
-        $mail->Body    = 'Hej,<br><br>Der er sket en fejl i EasyUBL, der er sendt en faktura til et forkert selskab.<br><br>Venlig hilsen<br>Saldi';
-        $mail->AltBody = 'Hej, Der er sket en fejl i EasyUBL, der er sendt en faktura til et forkert selskab. Venlig hilsen Saldi';
-        // attach $webhookData
-        $mail->addStringAttachment($webhookData, "webhook-$timestamp.json");
-        $mail->send();
-        exit;
     }
 
     if($base64 == "" || $base64['documentXmlBase64Content'] == ""){
@@ -87,13 +112,13 @@
         // increase invoice number
         $newData = ["db" => $db, "db_location" => explode("/", $dbLocation)[2], "invoice" => $decoded];
         $newData = json_encode($newData);
-        /* file_put_contents("../temp/$db/error-$timestamp.json", $newData); */
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "https://ssl8.saldi.dk/laja/debitor/increaseInvoiceNumber.php?db=$db");
+        // file_put_contents("../temp/$db/error-$timestamp.json", $newData);
+/*         $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "$serverName/laja/debitor/increaseInvoiceNumber.php?db=$db");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $res = curl_exec($ch);
-        curl_close($ch);
-        /* file_put_contents("../temp/$db/iin-$timestamp.json", $res); */
+        curl_close($ch); */
+        // file_put_contents("../temp/$db/iin-$timestamp.json", $res);
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "https://storage.saldi.dk/getInvoice.php");
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -108,7 +133,7 @@
         try{
         $mail->SMTPDebug = SMTP::DEBUG_OFF;                      // Enable verbose debug output
         $mail->isSMTP();                                            // Send using SMTP
-        $mail->Host       = 'ssl8.saldi.dk';                       // Set the SMTP server to send through                       
+        $mail->Host       = $_SERVER['SERVER_NAME'];                       // Set the SMTP server to send through                       
         //$mail->SMTPSecure = 'tls';         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` also accepted
         //$mail->Port       = 587;                                    // TCP port to connect to
         //Recipients

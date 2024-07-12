@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.0 --- 2024-06-26 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.0 --- 2024-06-28 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 20230421 LOE - Fixed some bugs 
 // 20230718 LOE - Minor modification.
 // 20240626 PHR Added 'fiscal_year' in queries
+// 20240628 PHR 'recieve' is not shown if $bogfor == 1
 
 
 $kreditmax=NULL;
@@ -229,19 +230,21 @@ print "<td align='center'><input type='submit' style = 'width:120px;' accesskey=
 print "value='Gem' name='save' onclick='javascript:docChange = false;'></td>";
 print "<td align='center'><input type=submit style = 'width:120px;' accesskey='o' ";
 print "value='Opslag' name='lookup' onclick='javascript:docChange = false;'></td>";
-if ($art=='KK') {
-  print "<td align='center'>";
-  print "<!--Returnér --><input type='submit' style = 'width:120px;' accesskey='m' ";
-  print "value='".findtekst(937, $sprog_id)."' ";
-  print "name='return' onclick='javascript:docChange = false;'></td>";
-} else {
-  print "<td align=center><input type=submit style = 'width:120px;'";
-  print "accesskey='m' value='".findtekst(1485, $sprog_id)."' ";
-  print "name='receive' onclick='javascript:docChange = false;'></td>";
-}
+
 if ($status > 1 && $bogfor==1){
   print "<td align=center><input type=submit style = 'width:120px;'accesskey='b' value='".findtekst(1065, $sprog_id)."' ";
   print "name='postNow' onclick='javascript:docChange = false;'></td>";
+} else {
+  if ($art=='KK') {
+    print "<td align='center'>";
+    print "<!--Returnér --><input type='submit' style = 'width:120px;' accesskey='m' ";
+    print "value='".findtekst(937, $sprog_id)."' ";
+    print "name='return' onclick='javascript:docChange = false;'></td>";
+  } else {
+    print "<td align=center><input type=submit style = 'width:120px;'";
+    print "accesskey='m' value='".findtekst(1485, $sprog_id)."' ";
+    print "name='receive' onclick='javascript:docChange = false;'></td>";
+  }
 }
 if(!count($posnr) && $id) {
     print "<td align=center><input type='submit' style = 'width:120px;' value='".findtekst(1099, $sprog_id)."' ";

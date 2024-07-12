@@ -138,8 +138,8 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		print "</div>";
 		print "<div class='content-noside'>";
 			print  "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
-	} elseif ($menu=='S') {
-		include("../includes/sidemenu.php");
+#	} elseif ($menu=='S') {
+#		include("../includes/sidemenu.php");
 	} else {
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
 		print "<tr><td colspan=\"6\" height=\"8\">";
@@ -149,7 +149,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
-		print "<tr><td colspan=\"4\"><big><big><big>".findtekst(516,$sprog_id)."</span></big></big></big></td>";
+		print "<tr><td colspan=\"3\"><big><big><big>".findtekst(516,$sprog_id)."</big></big></big></td>";
 	}
 	if (!isset ($sprog_id)) $sprog_id = NULL;
 
@@ -158,19 +158,15 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	} else {
 		print "";
 	}
-
-	print "<td colspan=8 align=left><table style=\"text-align: left; width: 50%; \" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>";
-	print "<td colspan='1'><b>Regnskabs&aring;r:</b></span></td>";
-	print "<td colspan='1'>$regnaar.</span></td></tr>";
-	print "<tr><td><b>Periode:</b></span></td>";
+	print "<td colspan='4' align = 'right'><b>Regnskabs&aring;r </b>$regnaar : ";
 	## Finder start og slut paa regnskabsaar
 	if ($startdato < 10) $startdato="0".$startdato*1;	
-	print "<td colspan='2'>Fra ".$startdato.". $mf<br />Til ".$slutdato.". $mt</span></td></tr>";
+	print "$startdato/$mf $startaar - $slutdato/$mt $slutaar</td></tr>";
 	if ($ansat_fra) {
-		if (!$ansat_til || $ansat_fra==$ansat_til) print "<tr><td><b>Medarbejder:</b></span></td><td>$ansatte</span></td></tr>";
-		else print "<tr><td><b>Medarbejdere:</b></span></td><td>$ansatte</span></td></tr>";
+		if (!$ansat_til || $ansat_fra==$ansat_til) print "<tr><td><b>Medarbejder:</b></td><td>$ansatte</td></tr>";
+		else print "<tr><td><b>Medarbejdere:</b></td><td>$ansatte</td></tr>";
 	}
-	if ($afd||$afd=='0') print "<tr><td><b>Afdeling:</b></span></td><td>$afd_navn</span></td></tr>";
+	if ($afd||$afd=='0') print "<tr><td><b>Afdeling:</b></td><td>$afd_navn</td></tr>";
 	if ($projekt_fra) {
 		print "<td>Projekt:</td><td>";
 #		print "<tr><td>Projekt $prj_navn_fra</td>";
@@ -180,7 +176,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 		} else print "$projekt_fra, $prj_navn_fra";
 		print "</td></tr>";
 	}
-	print "</tbody></table></td></tr>";
 	print "<tr><td colspan=5><big><b>$firmanavn</b></big></td></tr>";
 	
 	$dim='';

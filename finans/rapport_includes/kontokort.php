@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/kontokort.php-----patch 4.0.8 ----2023-07-23-----
+// --- finans/rapport_includes/kontokort.php-----patch 4.1.0 ----2024-05-01-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0'
@@ -32,8 +32,7 @@
 
 
 
-function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
-{
+function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
 	global $afd_navn, $ansatte, $ansatte_id;
 	global $bgcolor, $bgcolor4, $bgcolor5;
@@ -60,8 +59,10 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	$konto_fra = trim($konto_fra);
 	$konto_til = trim($konto_til);
 
-	$mf = $maaned_fra;
-	$mt = $maaned_til;
+	$mf = (int)$maaned_fra;
+	$mt = (int)$maaned_til;
+	if ($mf < 10) $mf = '0'.$mf;
+	if ($mt < 10) $mt = '0'.$mt;
 
 	for ($x = 1; $x <= 12; $x++) {
 		if ($maaned_fra == $md[$x]) {
@@ -165,6 +166,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 
 	$title = "Rapport • Kontokort";
 
+	include("../includes/topline_settings.php");
+
 	#	print "  <a accesskey=L href=\"rapport.php?rapportart=Kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&afd=$afd\">Luk</a><br><br>";
 	$csvfile = "../temp/$db/rapport.csv";
 	$csv = fopen($csvfile, "w");
@@ -178,8 +181,23 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "</div>";
 		print "<div class='content-noside'>";
-#	} elseif ($menu == 'S') {
-#		include("../includes/sidemenu.php");
+	} elseif ($menu == 'S') {
+		print "<table width=100% cellpadding='0' cellspacing='1px' border='0' valign = 'top' align='center'> ";
+		print "<tr><td colspan='6' height='8'>";
+		print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
+
+		print "<td width='10%'>
+			   <a accesskey=L href='rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev'>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
+
+		print "<td width='80%' align='center' style='$topStyle'> Rapport - kontokort </td>\n";
+		print "<td width='10%' align='center' style='$topStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
+
+		print "</tbody></table>";
+		print "</td></tr>";
+		($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
+		print "<tr><td colspan='4'><big><big><big>  $tmp</big></big></big></td>";
+		print "<td colspan=6 align=right>";
 	} else {
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
 		print "<tr><td colspan=\"6\" height=\"8\">";
@@ -190,30 +208,30 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";
 		($simulering) ? $tmp = "Simuleret kontokort" : $tmp = "Kontokort";
-		print "<tr><td colspan=\"4\"><big><big><big>  $tmp</span></big></big></big></td>";
+		print "<tr><td colspan=\"4\"><big><big><big>  $tmp</big></big></big></td>";
 		#		fwrite($csv,"$tmp;");
 		print "<td colspan=6 align=right>";
 	}
 	print "<table style=\"text-align: left; width: 100%;\" class='dataTable' border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody><tr>";
-	print "<td colspan=0 width=10%><b>Regnskabs&aring;r: 2</b></span></td>";
-	print "<td colspan=6>$regnaar.</span></td></tr>";
+	print "<td colspan=0 width=10%><b>Regnskabs&aring;r:</td><td> $regnaar.</td></tr>";
 	if ($csv)
 		fwrite($csv, ";;" . utf8_decode("Regnskabsår") . "$regnaar\n");
-	print "<tr><td colspan=0 width=10%><b>Periode:</b></span></td>";
+#	print "<tr><td colspan=0 width=10%><b>Periode:</b></td>";
 	## Finder start og slut paa regnskabsaar
-	if ($startdato < 10)
-		$startdato = "0" . $startdato * 1;
-	print "<td colspan=6>Fra " . $startdato . ". $mf<br />Til " . $slutdato . ". $mt</span></td></tr>";
+	if ($startdato < 10) $startdato = "0" . (int)$startdato;
+	$a=substr($startaar,-2);
+	$b=substr($slutaar,-2);
+	print "<td colspan=6> $startdato/$mf $startaar - $slutdato/$mt $slutaar</td></tr>";
 	if ($csv)
-		fwrite($csv, ";;Fra " . $startdato . ". $mf\nTil " . $slutdato . ". $mt\n");
+		fwrite($csv, ";; $startdato / $mf - $slutdato / $mt\n");
 	if ($ansat_fra) {
 		if (!$ansat_til || $ansat_fra == $ansat_til)
-			print "<tr><td>Medarbejder</span></td><td>$ansatte</span></td></tr>";
+			print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
 		else
-			print "<tr><td>Medarbejdere</span></td><td>$ansatte</span></td></tr>";
+			print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
 	}
 	if ($afd || $afd == '0')
-		print "<tr><td>Afdeling</span></td><td>$afd_navn</span></td></tr>";
+		print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
 	if ($projekt_fra) {
 		print "<td>Projekt:</td><td>";
 		#		print "<tr><td>Projekt $prj_navn_fra</td>";
@@ -355,7 +373,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			print "<tr><td colspan=6><hr></td></tr>";
 			fwrite($csv, "-----------\n");
 			$kontosum = $primo[$x];
-			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,bilag,id", __FILE__ . " linje " . __LINE__);
+			$query = db_select("select debet, kredit from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnaarstart' and transdate<'$regnstart' $dim order by transdate,pos,bilag,id", __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
 				$kontosum = $kontosum + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 			}
@@ -374,7 +392,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			$tr = 0;
 			$transdate = array();
 			$qtxt = "select * from transaktioner where kontonr=$kontonr[$x] and transdate>='$regnstart' and transdate<='$regnslut' $dim ";
-			$qtxt .= "order by transdate,bilag,id";
+			$qtxt .= "order by transdate,pos,bilag,id";
 			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
 				$transdate[$tr] = $row['transdate'];
