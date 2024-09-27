@@ -43,11 +43,8 @@ function updateProductPrice($productId,$newCost,$deliveryDate) {
 	$tier_price_multiplier   = $r['tier_price_multiplier'];
 	$tier_price_method       = $r['tier_price_method'];
 	$tier_price_rounding     = $r['tier_price_rounding'];
-	$retail_price_multiplier = $r['retail_price_multiplier'];
-	$retail_price_method     = $r['retail_price_method'];
-	$retail_price_rounding   = $r['retail_price_rounding'];
 
-	if ($salesPrice_multiplier || $tier_price_multiplier || $retail_price_multiplier) {
+	if ($salesPrice_multiplier || $tier_price_multiplier) {
 		include_once("../lager/productsIncludes/addToPriceFunc.php");
 		if ($newCost && $salesPrice_multiplier>0 && $salesPrice_method && $salesPrice_rounding){
 			$salesPrice = addToPriceFunc($newCost, $salesPrice_rounding, $salesPrice_multiplier, $salesPrice_method);
@@ -63,14 +60,7 @@ function updateProductPrice($productId,$newCost,$deliveryDate) {
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
-		if ($newCost && $retail_price_multiplier>0 && $retail_price_method && $retail_price_rounding){
-			$retail_price = addToPriceFunc($newCost, $retail_price_rounding, $retail_price_multiplier, $retail_price_method);
-			if ($retail_price) {
-				$qtxt = "update varer set retail_price='$retail_price' where id='$productId'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
-		}
-		}
+	}
 }}
 
 ?>

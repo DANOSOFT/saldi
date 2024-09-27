@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varevisning.php --- lap 4.0.7 --- 2023.04.21 ---
+// --- lager/varevisning.php --- lap 4.1.1 --- 2024.08.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk ApS
+// Copyright (c) 2003-2024 saldi.dk ApS
 // --------------------------------------------------------------------
 // 20180328 Tilføjet $vis_lev_felt
 // 2018.11.23 PHR $vis_kostpriser tilføjet
@@ -30,7 +30,8 @@
 // 2019.04.29 PHR Added ShowTrademark.
 // 2019.04.30 PHR Error correction.
 // 2019.09.06 PHR some desigeupdates in 'top menu view'.
-// 2023.04.21 PHR PHP8
+// 2024.04.21 PHR PHP8
+// 2024.08.14 PHR Languages
 
 @session_start();
 $s_id=session_id();
@@ -41,8 +42,7 @@ $modulnr=9;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
-echo $bruger_id;
+include("../includes/topline_settings.php");
 
 if ($popup) $returside="../includes/luk.php";
 else $returside="varer.php	";
@@ -85,7 +85,7 @@ if (isset($_POST) && $_POST) {
 		$qtxt = "insert into settings(var_name, var_grp, var_value, user_id) values ";
 		$qtxt.= "('showProvision', 'items', '$showProvision', '$bruger_id')";
 	}
-	echo $qtxt;
+#	echo $qtxt;
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$box4 = $vis_lukkede.chr(9).$vis_lev_felt.chr(9).$vis_kostpriser.chr(9).$href_vnr.chr(9);
 	$box4.= $showProvision.chr(9).$showTrademark;
@@ -112,6 +112,22 @@ if ($menu=='T') {
 	print "	<tr><td height = \"10\" align=\"center\"></td></tr>";
 	print "	<tr><td height = \"25\" align=\"center\" valign=\"top\">
 	<table width=\"33%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+} elseif ($menu=='S') {
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">
+		   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>
+
+		   <td width=\"10%\"><a href=$returside accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>
+
+		   <td width=\"80%\" style='$topStyle' align='center'><font face='Arial, Helvetica, sans-serif'><small>Varevisning</small></td>
+		   <td width=\"10%\" style='$topStyle'></td>
+		   </tr>
+		   </tbody></table>
+		   </td></tr>
+<tr><td valign=\"top\">
+<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">
+<tbody><td valign=top width=25%>";
+print "<table border=\"0\" width=\"100%\" valign = \"top\"><tbody>";
 } else {
 print "
 	<tr><td height = \"25\" align=\"center\" valign=\"top\">
@@ -122,7 +138,7 @@ print "
 			 </tr>
 			</tbody></table>
 	</td></tr>
- <tr><td valign=\"top\">
+<tr><td valign=\"top\">
 <table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">
 <tbody><td valign=top width=25%>";
 print "<table border=\"0\" width=\"100%\" valign = \"top\"><tbody>";
@@ -139,11 +155,12 @@ if ($r = db_fetch_array(db_select("select * from grupper where art = 'VV' and bo
 	$vis_VG[0]='on';
 	$vis_K[0]='on';
 }
-print "<tr><td>$font Varegrupper</td></tr>";
+print "<tr><td>$font ". findtekst('774|Varegrupper',$sprog_id) ."</td></tr>";
 $x=0;
 if ($vis_VG[0]) $tmp='checked';
 else $tmp='';
-print "<tr><td><small>$font<input name= VG_$x type=checkbox $tmp> Alle varegrupper</small></td></tr>";
+$txt = findtekst('2111|Alle varegrupper',$sprog_id);
+print "<tr><td><small>$font<input name= VG_$x type=checkbox $tmp>$txt</small></td></tr>";
 $q = db_select("select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	$x++;
@@ -160,12 +177,13 @@ print "<input type=hidden name='VG_antal' value='$x'>";
 print "<form name='varevisning' action='varevisning.php' method='post'>";
 print "</tbody></table></td>";
 print "<td width='25%'><table  border=\"0\" width=\"100%\"><tbody>";
-print "<tr><td>$font Kreditorer</td></tr>";
+print "<tr><td>$font ". findtekst('607|Kreditorer',$sprog_id) ." </td></tr>";
 
 $x=0;
 if ($vis_K[0]) $tmp='checked';
 else $tmp='';
-print "<tr><td><small>$font<input name= K_$x type=checkbox $tmp> Alle leverand&oslash;rer</small></td></tr>";
+$txt = findtekst('565|Alle Leevrandører',$sprog_id);
+print "<tr><td><small>$font<input name= K_$x type=checkbox $tmp>$txt</small></td></tr>";
 $q = db_select("select distinct vare_lev.lev_id as lev_id, adresser.firmanavn as firmanavn from vare_lev, adresser where adresser.id=vare_lev.lev_id order by adresser.firmanavn",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	$x++;
@@ -184,13 +202,18 @@ if ($vis_kostpriser) $vis_kostpriser="checked";
 if ($showProvision) $showProvision = "checked";
 if ($showTrademark) $showTrademark="checked";
 if ($href_vnr) $href_vnr="checked";
-print "<tr><td><small>$font<input name='vis_lukkede' type='checkbox' $vis_lukkede> Vis udg&aring;ede varer</small></td></tr>";
-print "<tr><td><small>$font<input name='vis_lev_felt' type='checkbox' $vis_lev_felt> Vis søgefelt for kreditorer</small></td></tr>";
-print "<tr><td><small>$font<input name='vis_kostpriser' type='checkbox' $vis_kostpriser> Vis kostpriser</small></td></tr>";
-print "<tr><td><small>$font<input name='showTrademark' type='checkbox' $showTrademark> Vis Varemærke</small></td></tr>";
-$title="Ved afmærkning åbnes kun kortet ved klik på varenr";
-print "<tr><td title='$title'><small>$font<input name='href_vnr' title='$title' type='checkbox' $href_vnr> Href på varenr</small></td></tr>";
-print "<tr><td title='$title'><small>$font<input name='provision' title='$title' type='checkbox' $showProvision> Provision</small></td></tr>";
+$txt = findtekst('559|Vis udgåede varer',$sprog_id);
+print "<tr><td><small>$font<input name='vis_lukkede' type='checkbox' $vis_lukkede> $txt</small></td></tr>";
+$txt = findtekst('558|Vis søgefelt for kreditorer',$sprog_id);
+print "<tr><td><small>$font<input name='vis_lev_felt' type='checkbox' $vis_lev_felt> $txt</small></td></tr>";
+$txt = findtekst('560|Vis kostpriser',$sprog_id);
+print "<tr><td><small>$font<input name='vis_kostpriser' type='checkbox' $vis_kostpriser> $txt</small></td></tr>";
+$txt = findtekst('561|Vis Varemærke',$sprog_id);
+print "<tr><td><small>$font<input name='showTrademark' type='checkbox' $showTrademark> $txt</small></td></tr>";
+$txt = findtekst('562|Href på varenr',$sprog_id); //Href på varenr
+$title = findtekst(2112,$sprog_id); // Ved afmærkning åbnes kun kortet ved klik på varenr'
+print "<tr><td title='$title'><small>$font<input name='href_vnr' title='$title' type='checkbox' $href_vnr> $txt</small></td></tr>";
+#print "<tr><td title='$title'><small>$font<input name='provision' title='$title' type='checkbox' $showProvision> Provision</small></td></tr>";
 print "<tr><td align='left' height='50' valign=bottom><br>";
 print "<input type='submit' style='width:200px;' accesskey=\"g\" value=\"Gem\" name=\"gem\"><br><br>\n";
 print "<input type='submit' style='width:200px;' accesskey=\"m\" value=\"Gem og Luk\" name=\"gemLuk\"></td></tr>\n";

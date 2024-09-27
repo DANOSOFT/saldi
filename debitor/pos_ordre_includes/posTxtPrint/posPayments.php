@@ -4,29 +4,29 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/posTxtPrint/posPayments.php ---------- lap 3.7.4----2019.05.08-------
-// LICENS
+// --- debitor/pos_ordre_includes/posTxtPrint/posPayments.php --- lap 4.1.1 --- 2024.08.01 ---
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// En dansk oversaettelse af licensen kan laeses her:
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2019 saldi.dk aps
+// Copyright (c) 2019-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 06.05.2019 LN Get data from pos_betalinger and update ordrer 
+// 20240801 PHR - Replaced 'DKK' with $baseCurrency.
+
 	$betalt = 0;
 	$amount = array();
 	$qtxt = "select * from pos_betalinger where ordre_id = '$id' order by id";
@@ -36,9 +36,9 @@
 		$amount[$x]=$r['amount'];
 		$valuta[$x]=$r['valuta'];
 		$valutakurs[$x]=$r['valutakurs']*1;
-		if (!$valuta) $valuta='DKK';
+		if (!$valuta) $valuta=$baseCurrenccy;
 		if (!$valutakurs) $valutakurs=100;
-		if ($valuta[$x]!='DKK') $fremmedvaluta=1;
+		if ($valuta[$x]!=$baseCurrency) $fremmedvaluta=1;
 		$betalt+=$amount[$x];
 		$x++;
 	}
@@ -51,15 +51,11 @@
 		while(strlen($dkkamount[$x])<9) $dkkamount[$x]=" ".$dkkamount[$x];
 		$valutaamount[$x]=dkdecimal($amount[$x]*100/$valutakurs[$x],2);
 		if ($fremmedvaluta) {
-			if ($valuta[$x]!='DKK') $betalingstype[$x].=" $valuta[$x] $valutaamount[$x]";
+			if ($valuta[$x]!=$baseCurrenccy) $betalingstype[$x].=" $valuta[$x] $valutaamount[$x]";
 			else $betalingstype[$x].=" $valuta[$x]";
 		}
-		
 		$betalingstype[$x] = iconv($FromCharset, $ToCharset,$betalingstype[$x]);
 		while(strlen($betalingstype[$x])<19) $betalingstype[$x].=" ";
 	}
-
-
-
 ?>
 

@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --- debitor/pos_ordre_includes/exitFunc/settlePOS.php --patch 4.0.8 ----2024-05-19----
-// LICENSE
+//									 LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -13,7 +13,7 @@
 // of this license or later version of your choice.
 // However, respect the following:
 //
-// It is forbidden to use this program in competition with Saldi335.DK ApS
+// It is forbidden to use this program in competition with Saldi.dk ApS
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
@@ -30,7 +30,7 @@
 // 20210103	PHR Corrected last edit to 'sum+moms & payment = 0' (moms is vat)
 // 20210125 PHR Renamed from status.php and various changes related to voucher
 // 20210710 PHR	Added "|| ($incl_moms == 0 && count($vare_id)" as order was not settled if order contained items from diffent groups with different 
-//  groups with differentaccounts and total sum including VAT was 0;
+//  			groups with differentaccounts and total sum including VAT was 0;
 // 20210713 PHR Added variiant_id to m_rabat
 // 20220812 PHR If both quantity discount and ordinary discount the quantity discount is now regulated to fit the discountprice
 //              see also ordrefunc.php & productLines.php  
@@ -231,7 +231,6 @@ if ($status < 3) {
 			}
 		}
 	}
-#xit;
 	$fakturanr = 1;
 	$q = db_select("select fakturanr from ordrer where art = 'PO' and status >='3'", __FILE__ . " linje " . __LINE__); #max(fakturanr) fungerer ikke da feltet ikke er numerisk
 	while ($r = db_fetch_array($q)) {
@@ -367,8 +366,6 @@ if ($status < 3) {
 				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,receipt_id) values ";
 				$qtxt .= "('$id','$betaling','$modtaget','$betvaluta','$betvalkurs','$receipt_id')";
 			}
-			#cho "$qtxt<br>";
-#xit;
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($betaling == 'Kontant')
 				$evType = '12001';
@@ -387,17 +384,13 @@ if ($status < 3) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 		}
-		#cho "Retur $retur<br>";
-
-		#cho __FILE__." ".__LINE__." <br>";	
+		#cho __FILE__." ".__LINE__." <br>";
 		if (!$indbetaling) {
 			$svar = levering($id, 'on', '', '');
-			if ($svar != 'OK')
-				return ($svar);
+			if ($svar != 'OK') return ($svar);
 			$svar = bogfor($id, '');
 			#cho __FILE__." ".__LINE__." $svar<br>";	
-			if ($svar != 'OK')
-				return ($svar);
+			if ($svar != 'OK') return ($svar);
 		} else {
 			$svar = bogfor_indbetaling($id, '');
 			if ($svar != 'OK')

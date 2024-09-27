@@ -39,11 +39,15 @@ $filePath = "/finance/$kladde_id/$sourceId/";
 if (!file_exists($showDoc)) {
 	if (rename("$docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId","$showDoc")) {
 		$filemtime = filemtime($showDoc);
-		$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
-		$qtxt.= "('$globalId','$dokument','$filePath','$source','$sourceId','$filemtime','$userId')";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt = "update kassekladde set dokument = '' where id = '$sourceId'";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		$qtxt = "select id from documents where filename = '$dokument' and filepath = '$filePath' ";
+		$qtxt.= "and source = '$source' and source_id = '$sourceId'";
+		if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
+			$qtxt.= "('$globalId','$dokument','$filePath','$source','$sourceId','$filemtime','$userId')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$qtxt = "update kassekladde set dokument = '' where id = '$sourceId'";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		}
 	} else {
 		alert("Move from $docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId to $showDoc failed");
 	}

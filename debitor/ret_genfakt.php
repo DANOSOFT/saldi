@@ -50,6 +50,67 @@ print "<script>
 </script>";
 print "<script LANGUAGE=\"JavaScript\"  TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 
+?>
+<script>
+  document.addEventListener('keydown', function(event) {
+    // Only navigate when Ctrl is held down
+    if (event.ctrlKey) {
+      const rows = Array.from(document.getElementsByClassName('ordrelinje'));
+
+      // Get all inputs, textareas, and selects inside the rows, but ignore hidden elements
+      const inputsTextareasSelects = rows.flatMap(row => 
+        Array.from(row.querySelectorAll('input:not([type="hidden"]), textarea, select'))
+          .filter(el => el.offsetParent !== null && window.getComputedStyle(el).visibility !== 'hidden')
+      );
+      
+      const activeElement = document.activeElement;
+
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)) {
+        const currentIndex = inputsTextareasSelects.indexOf(activeElement);
+        let nextIndex = currentIndex;
+        
+        // Get column count once, outside of the switch, to reuse it
+        const columnCount = Array.from(rows[0].querySelectorAll('input:not([type="hidden"]), textarea, select'))
+          .filter(el => el.offsetParent !== null && window.getComputedStyle(el).visibility !== 'hidden')
+          .length;
+
+        switch (event.key) {
+          case 'ArrowRight':
+            nextIndex = currentIndex + 1;
+            break;
+          case 'ArrowLeft':
+            nextIndex = currentIndex - 1;
+            break;
+          case 'ArrowDown':
+            const currentRowIndex = Math.floor(currentIndex / columnCount);
+            const columnIndex = currentIndex % columnCount;
+            nextIndex = (currentRowIndex + 1) * columnCount + columnIndex;
+            break;
+          case 'ArrowUp':
+            const upRowIndex = Math.floor(currentIndex / columnCount);
+            nextIndex = (upRowIndex - 1) * columnCount + (currentIndex % columnCount);
+            break;
+          default:
+            return;
+        }
+
+        // Ensure next element exists and focus it
+        if (inputsTextareasSelects[nextIndex]) {
+          const nextElement = inputsTextareasSelects[nextIndex];
+          nextElement.focus();
+          event.preventDefault(); // Prevent default scrolling behavior
+
+          // Select the text if it's an input or textarea
+          if (nextElement.tagName === 'INPUT' || nextElement.tagName === 'TEXTAREA') {
+            nextElement.select();
+          }
+        }
+      }
+    }
+  });
+</script>
+<?php
+
 @session_start();
 $s_id=session_id();
 $title="Ret abonnementsordrer";
@@ -477,7 +538,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	if (($betalingsbet[$x]=='Kontant')||($betalingsbet[$x]=='Efterkrav')||($betalingsbet[$x]=='Forud')) $betalingsdage[$x]='';
 	elseif (!$betalingsdage[$x]) $betalingsdage[$x]='Nul';
 	if ($betalingsdage[$x])	{
-		$betalingsdage[$x]*=1; #20170517
+		$betalingsdage[$x] = (int)$betalingsdage[$x]; #20170517
 		print "</SELECT>+";
 		print "<input class=\"inputbox\" $onfocus type=\"text\" size=\"1\" style=\"text-align:right\" name=\"betalingsdage_$x\" value=\"$betalingsdage[$x]\">";
 		print "</span></td>\n";	
@@ -503,7 +564,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	if ($udskriv_til[$x]!="PDF") print "<option>PDF</option>\n";
 	if ($udskriv_til[$x]!="email" && $email) print "<option>email</option>\n";
 	if ($lev_pbs_nr) {
-		$tmp=$pbs_nr[$x]*1;
+		$tmp=(int)$pbs_nr[$x];
 		if ($udskriv_til[$x]!="PBS_FI" && $lev_pbs!='B') print "<option value=\"PBS_FI\">PBS</option>\n";
 		elseif ($tmp && $udskriv_til[$x]!="PBS_BS") print "<option title=\"Opkr&aelig;ves via PBS betalingsservice\" value=\"PBS_BS\">PBS</option>\n";
 	}
@@ -553,7 +614,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 		print "<input type=\"hidden\" name=\"linje_id[$y]\" value=\"$linje_id[$y]\">";
 		print "<input type=\"hidden\" name=\"ordre_id[$y]\" value=\"$id[$x]\">";
 		print "<input type=\"hidden\" name=\"projekt[$y]\" value=\"$projekt[$y]\">";
-		print "<tr>";
+		print "<tr class='ordrelinje'>";
 		print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:30px\" name=\"posnr_$y\" value=\"$posnr\"></td>";
 		if ($varenr[$y]) {
 			print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:80px\" name=\"varenr_$y\" value=\"$varenr[$y]\"></td>";
@@ -582,7 +643,7 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 	$y++;
 	$posnr++;
 	print "<input type=\"hidden\" name=\"ordre_id[$y]\" value=\"$id[$x]\">";
-	print "<tr>";
+	print "<tr class='ordrelinje'>";
 	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:30px\" name=\"posnr_$y\" value=\"$posnr\"></td>";
 	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:left;width:80px\" name=\"varenr_$y\"></td>";
 	print "<td><input class=\"inputbox\" $onfocus type=\"text\" style=\"text-align:right;width:50px\" name=\"dkantal_$y\"></td>";

@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php---patch 4.0.8 ----2023-08-2--------------
-//                           LICENSE
+// --- includes/std_func.php---patch 4.0.9 ----2024-08-15--------------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20130210 Break ændret til break 1 Tastefejl rettet.
@@ -108,22 +108,32 @@
 // 20230707 PHR Moved some functions to stdFunc/
 // 20230730 LOE Minor modifications, absolute path for stdFunc* 
 // 20230801 LOE locateDir() created, this assists to search for a file with relation to accounting directory
+// 20240416 LOE Converted some strings to int before maths operation and also Initialized $bynavn = null 
+// 20240726 PHR function findtekst now accepts textstring as first argument
+// 20240815 PHR function findtekst moved to stdFunc/findTxt.php
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
 include('stdFunc/usDecimal.php');
 if (!function_exists('locateDir')) {
-	function locateDir($baseRelativeDir)
-	{
+	function locateDir($baseRelativeDir) {
+		$i = 0;
+		while (!file_exists($baseRelativeDir)) {
+			$baseRelativeDir = '../'.$baseRelativeDir;
+			$i++;
+			if ($i>5) return '';
+		}
+		return $baseRelativeDir;
+/*
 		// format of $baseRelativeDir == "importfiler";
 		//  "foo", "bar" etc.
 		$currentDir = __DIR__;
 		// Get the file path of the directory above the current directory
 		$parentDir = dirname(__DIR__); //account path
 		$baseRelativeDir = $parentDir . "/" . $baseRelativeDir;
-
 		return $baseRelativeDir;
+*/
 	}
 }
 
@@ -175,11 +185,11 @@ if (!function_exists('usdate')) {
 		if (strpos($date, "-"))
 			list($day, $month, $year) = explode('-', $date);
 		if ($year)
-			$year = $year * 1;
+			$year = (int)$year;
 		if ($month)
-			$month = $month * 1;
+			$month = (int)$month;
 		if ($day)
-			$day = $day * 1;
+			$day = (int)$day;
 		if ($year && $year < 10)
 			$year = '0' . $year;
 		elseif (!$year)
@@ -194,7 +204,7 @@ if (!function_exists('usdate')) {
 			$date = $day . $month . $year;
 
 		if (strlen($date) <= 2) {
-			$date = $date * 1;
+			$date = (int)$date;
 			if ($date < 10)
 				$date = '0' . $date;
 			$date = $date . date("m");
@@ -275,96 +285,7 @@ if (!function_exists('usdate')) {
 		return $date;
 	}
 }
-
-if (!function_exists('findtekst')) {
-	function findtekst($textId, $languageID)
-	{
-		global $bruger_id;
-		global $db, $db_encode;
-		global $sqdb;
-		global $webservice;
-		$id = 0;
-
-		if (!preg_match('/^[0-9]+$/', $textId))
-			return $textId; # If other characters than digits in textID then return textID - used when developing # 20230224
-
-		#echo "L $languageID B $bruger_id<br>";
-
-		$linje = $newTxt = $tekst = $tmp = NULL;
-		$textId = trim($textId);
-		if (!$languageID || $languageID > 3) {
-			$languageID = 1;
-			$qtxt = "update brugere set language_id = '$languageID' where id = '$bruger_id'";
-		}
-		if (!is_numeric($textId))
-			$textId = 0;
-		$qtxt = "select id,tekst from tekster where tekst_id='$textId' and sprog_id = '$languageID'";
-		if ($db != $sqdb && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$tekst = $r['tekst'];
-			$id = $r['id'];
-		} elseif (file_exists("../importfiler/egnetekster.csv")) {
-			$fp = fopen("../importfiler/egnetekster.csv", "r");
-			if ($fp) {
-				$tmp = array();
-				while (!feof($fp)) {
-					if ($linje = trim(fgets($fp))) {
-						if (strpos($linje, chr(9)))
-							$tmp = explode(chr(9), $linje);
-						if ($textId == $tmp[0])
-							$newTxt = $tmp[$languageID]; # Linjen efter 1. tab. 
-					}
-				}
-				fclose($fp);
-			}
-		}
-		if (!$tekst && $textId) { # 20210304
-			$newTxt = NULL;
-			if (file_exists("../importfiler/egne_tekster.csv")) {
-				$fp = fopen("../importfiler/egne_tekster.csv", "r");
-				while (!feof($fp) && !$newTxt) {
-					if ($linje = trim(fgets($fp))) {
-						$a = explode("\t", $linje);
-						if ($a[0] == $textId) {
-							$newTxt = $a[$languageID];
-						}
-					}
-				}
-				fclose($fp);
-			}
-			if (!$newTxt) {
-
-				$fiE3E = locateDir("importfiler");
-				$fp = fopen("$fiE3E/tekster.csv", "r");
-				while (!feof($fp) && !$newTxt) {
-					if ($linje = trim(fgets($fp))) {
-						$a = explode("\t", $linje);
-						if ($a[0] == $textId) {
-							$newTxt = $a[$languageID];
-						}
-					}
-				}
-			}
-		}
-		if ($db != $sqdb && $newTxt && $newTxt != '-') {
-			if ($db_encode != "UTF8")
-				$newTxt = utf8_decode($newTxt);
-			$newTxt = str_replace('\n\n', "\n\n", $newTxt);
-			$tmp = db_escape_string($newTxt); #20140505
-			if ($id)
-				$qtxt = "update tekster set tekst='$tmp' where id=$id";
-			else
-				$qtxt = "insert into tekster(sprog_id,tekst_id,tekst) values ('$languageID','$textId','$tmp')";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$tekst = $newTxt;
-		} elseif ($db == $sqdb)
-			$tekst = $newTxt;
-		if (!$tekst)
-			$tekst = "Tekst nr: $textId";
-		elseif ($tekst == "-")
-			$tekst = '';
-		return ($tekst);
-	} //end offindtekst
-}
+if (!function_exists('findtekst')) include_once('../includes/stdFunc/findTxt.php');
 
 if (!function_exists('javascript')) {
 	function javascript()
@@ -407,6 +328,7 @@ if (!function_exists('bynavn')) {
 	function bynavn($postnr)
 	{
 		global $db_encode;
+		$bynavn = null;
 
 		$fp = fopen("../importfiler/postnr.csv", "r");
 		if ($fp) {
@@ -478,11 +400,11 @@ if (!function_exists('farvenuance')) {
 			$blaa_nuance = $blaa_fortegn * hexdec(str_repeat(substr($nuance, 5, 1), 2));
 		} else {
 			$roed_fortegn = substr($nuance, 0, 1) . "1";
-			$roed_nuance = $roed_fortegn * hexdec(substr($nuance, 1, 2));
+			$roed_nuance = intval($roed_fortegn) * hexdec(substr($nuance, 1, 2));
 			$groen_fortegn = substr($nuance, 3, 1) . "1";
-			$groen_nuance = $groen_fortegn * hexdec(substr($nuance, 4, 2));
+			$groen_nuance = intval($groen_fortegn) * hexdec(substr($nuance, 4, 2));
 			$blaa_fortegn = substr($nuance, 6, 1) . "1";
-			$blaa_nuance = $blaa_fortegn * hexdec(substr($nuance, 7, 2));
+			$blaa_nuance = intval($blaa_fortegn) * hexdec(substr($nuance, 7, 2));
 		}
 
 		$roed_farve = $roed_farve + $roed_nuance;
@@ -542,8 +464,8 @@ if (!function_exists('copy_row')) {
 		$r = 0;
 		$x = 0;
 		$fieldstring = NULL;
-		$q_string = "select * from $table where pris != '0' and m_rabat != '0' and rabat = '0' and id='$id'";
-		$q = db_select("$q_string", __FILE__ . " linje " . __LINE__);
+		$qtxt = "select * from $table where pris != '0' and m_rabat != '0' and rabat = '0' and id='$id'";
+		$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 		while ($r < db_num_fields($q)) {
 			if (db_field_name($q, $r) != 'id') {
 				$x++;
@@ -557,7 +479,7 @@ if (!function_exists('copy_row')) {
 		$ordre_id = NULL;
 		$posnr = NULL;
 		$x = 0;
-		$q = db_select("$q_string");
+		$q = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 		if ($r = db_fetch_array($q)) {
 			$fieldvalues = NULL;
 			$selectstring = NULL;
@@ -1143,8 +1065,7 @@ if (!function_exists('valutaopslag')) {
 }
 
 if (!function_exists('regnstartslut')) {
-	function regnstartslut($regnaar)
-	{
+	function regnstartslut($regnaar) {
 		$r = db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'", __FILE__ . " linje " . __LINE__));
 		$startmd = $r['box1'];
 		$startaar = $r['box2'];
@@ -1157,32 +1078,36 @@ if (!function_exists('regnstartslut')) {
 }
 
 if (!function_exists('lagerreguler')) {
-	function lagerreguler($vare_id, $ny_beholdning, $kostpris, $lager, $transdate, $variant_id)
-	{
+	function lagerreguler($vare_id, $ny_beholdning, $kostpris, $lager, $transdate, $variant_id) {
 		global $db;
 
 		$qtxt = "select box4 from grupper where art='API'";
-		#	fwrite($log,__file__." ".__line__." $qtxt\n");
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$api_fil = trim($r['box4']);
 
 		if ($lager < 1)
 			$lager = 1;
+
 		$ny_beholdning = (float) $ny_beholdning;
 		$vare_id = (int) $vare_id;
 		$variant_id = (int) $variant_id;
+
 		$x = 0;
 		$qtxt = "update lagerstatus set variant_id='0' where vare_id='$vare_id' and variant_id is NULL";
 		#	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt = "update lagerstatus set lager='1' where  vare_id='$vare_id' and lager = '0' or lager is NULL";
 		#	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		# If the item already exsits in lagerstatus, update it, else change it
 		$qtxt = "select id,beholdning from lagerstatus where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' order by id limit 1";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r['id']) {
-			$qtxt = "delete from lagerstatus where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and id !='$r[id]'";
+			# $qtxt = "delete from lagerstatus where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and id !='$r[id]'";
 			#		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$diff = $ny_beholdning - $r['beholdning'];
+			$existingStock = $r['beholdning'];
+			$diff = $ny_beholdning - $existingStock;
 			if ($diff) {
+#				echo "Updating";
+#						echo $ny_beholdning;
 				$qtxt = "update lagerstatus set beholdning='$ny_beholdning' where id='$r[id]'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				$qtxt = "update variant_varer set variant_beholdning='$ny_beholdning' where id='$variant_id'";
@@ -1193,6 +1118,7 @@ if (!function_exists('lagerreguler')) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			$diff = "$ny_beholdning";
 		}
+		# Når en lager ændring laves, der ikke har en lerveringsorder bhgskal den indsættes før lagerstyringen giver mening
 		if ($diff > 0) {
 			$qtxt = "insert into batch_kob(vare_id,variant_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest,lager)";
 			$qtxt .= "values";
@@ -1203,20 +1129,22 @@ if (!function_exists('lagerreguler')) {
 			$qtxt = "select id,rest,pris from batch_kob where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id' and rest>'0' order by kobsdate,id";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($diff && $r = db_fetch_array($q)) {
+				$pris = (float)$r['pris'];
 				if ($diff - $r['rest'] >= 0) {
 					$qtxt = "update batch_kob set rest='0' where id='$r[id]'";
 					db_modify("update batch_kob set rest='0' where id='$r[id]'", __FILE__ . " linje " . __LINE__);
 					$qtxt = "insert into batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager)";
 					$qtxt .= "values";
-					$qtxt .= "('$r[id]','$vare_id','$variant_id','0','$transdate','$transdate','0','$r[rest]','$r[pris]','1','$lager')";
+					$qtxt .= "('$r[id]','$vare_id','$variant_id','0','$transdate','$transdate','0','$r[rest]','$pris','1','$lager')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					$diff -= $r['rest'];
 				} else {
+					if (!$diff) $diff = 0;
 					$qtxt = "update batch_kob set rest=rest+$diff where id='$r[id]'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					$qtxt = "insert into batch_salg(batch_kob_id,vare_id,variant_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,lager)";
 					$qtxt .= "values";
-					$qtxt .= "('$r[id]','$vare_id','$variant_id','0','$transdate','$transdate','0','$diff','$r[pris]','1','$lager')";
+					$qtxt .= "('$r[id]','$vare_id','$variant_id','0','$transdate','$transdate','0','$diff','$pris','1','$lager')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					$diff = 0;
 				}
@@ -1228,15 +1156,24 @@ if (!function_exists('lagerreguler')) {
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		}
+    $qtxt="select id from styklister where vare_id='$vare_id' limit 1";
+#cho "$db $qtxt<br>";
+#		if (db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+#			$diff = $ny_beholdning - $existingStock;
+#			include_once('productCardIncludes/updateParentStock.php');
+#			updateParentStock($id, $lager, $diff);
+#	  }
+echo "sync_shop_vare($vare_id, $variant_id, $lager)";
 		sync_shop_vare($vare_id, $variant_id, $lager);
 		$qtxt = "select sum(beholdning) as beholdning from lagerstatus where vare_id='$vare_id'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$beholdning = $r['beholdning'] * 1;
 		$qtxt = "update varer set beholdning='$beholdning' where id='$vare_id'";
+#cho "$db $qtxt<br>";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#
 	}
-}
+} #	endfunc lagerreguler
 
 if (!function_exists('saldikrypt')) {
 	function saldikrypt($id, $pw)
@@ -1342,8 +1279,7 @@ if (!function_exists('alert')) {
 	}
 }
 if (!function_exists('sync_shop_vare')) {
-	function sync_shop_vare($vare_id, $variant_id, $lager)
-	{
+	function sync_shop_vare($vare_id, $variant_id, $lager) {
 		global $db;
 		$costPrice = 0;
 		$log = fopen("../temp/$db/rest_api.log", "a");
@@ -1412,6 +1348,7 @@ if (!function_exists('sync_shop_vare')) {
 			else
 				$shop_id = 0;
 			if (($shop_id || $itemNo) && is_numeric($stock)) {
+				$rand = rand();
 				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
@@ -1421,6 +1358,7 @@ if (!function_exists('sync_shop_vare')) {
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				if ($partOfItem) {
 					$x = 0;
+					$partOf = array();
 					$qtxt = "select * from styklister where vare_id = '$vare_id'";
 					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 					while ($r = db_fetch_array($q)) {
@@ -1519,6 +1457,7 @@ if (!function_exists('get_next_number')) {
 	function get_next_number($table, $art)
 	{
 		$x = 0;
+		$ktonr = array();
 		$qtxt = "select kontonr from $table where art='$art'";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -1842,5 +1781,48 @@ if (!function_exists('input_ip')) { #20210908
 		}
 	}
 }
+if(!function_exists('get_settings_value')){
+	function get_settings_value($var_name, $var_grp, $default, $user=NULL) {
+		$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
+		if ($user !== NULL) {
+			$qtxt = $qtxt." AND user_id=$user";
+		}
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($r) {
+			return $r[0];
+		} else {
+			return $default;
+		}
+	}
+}
 
+if(!function_exists('update_settings_value')){
+        function update_settings_value($var_name, $var_grp, $var_value, $var_description, $user=NULL, $posid=NULL) {
+                # Expect a posted ID
+                $qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
+                if ($user !== NULL)  $qtxt .= " AND user_id=$user";
+				if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
+                $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				
+                # If the row already exsists
+                if ($r) {
+                        $qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
+                        if ($user !== NULL)  $qtxt .= " AND user_id=$user";
+                        if ($posid !== NULL) $qtxt .= " AND pos_id=$posid";
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                # If the row needs to be created in the database
+                } else {
+                        $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description";
+                        if ($user !== NULL)  $qtxt .= ", user_id";
+                        if ($posid !== NULL) $qtxt .= ", pos_id";
+
+                        $qtxt .= ") VALUES ('$var_name', '$var_grp', '$var_value', '$var_description'";
+                        if ($user !== NULL)  $qtxt .= ", $user";
+                        if ($posid !== NULL) $qtxt .= ", $posid";
+                        $qtxt = $qtxt.")";
+
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                }
+        }
+}
 ?>

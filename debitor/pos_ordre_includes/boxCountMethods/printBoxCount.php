@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php -----patch 4.0.8 ----2023-07-22--
+// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 4.1.1 --- 2024-07-30--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,18 +21,19 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
-// LN 20190312 Make functions to print the box count
+// LN 20190312 Make functions to the box count
 // 20190314	PHR	Varius changes in function 'setPrintTxt' according to 'changeCardValue'
 // 20230623 PHR Added (float) to $omsatning, $byttepenge & $tilgang
+// 20240729 PHR Various translations
 
-function setSpecifiedPrintText() 
-{ 
-    $country = getCountry();
-    if ($country == "Switzerland") {
-        return ["fiveRappen" => "5 rappen", "tenRappen" => "10 rappen", "twentyRappen" => "20 rappen", "half" => "½ franc", "one" => "1 franc", "two" => "2 franc", "five" => "5 franc", "ten" => "10 franc", "twenty" => "20 franc", "fifty" => "50 franc", "hundred" => "100 franc", "twoHundred" => "200 franc", "fiveHundred" => "500 franc", "thousand" => "1000 franc", "other" => "Anderes franc"];
+function setSpecifiedPrintText() {
+	global $baseCurrency;
+
+	if ($baseCurrency == "EUR") {
+        return ["half" => "½ franc", "one" => "1 franc", "two" => "2 franc", "five" => "5 franc", "ten" => "10 franc", "twenty" => "20 franc", "fifty" => "50 franc", "hundred" => "100 franc", "twoHundred" => "200 franc", "fiveHundred" => "500 franc", "thousand" => "1000 franc", "other" => "Anderes franc"];
     } else {
         return ["half" => "50 øre", "one" => "1 kr:",
                 "two" => "2 kr:", "five" => "5 kr:", "ten" => "10 kr:", "twenty" => "20 kr:", "fifty" => "50 kr:", "hundred" => "100 kr:",
@@ -58,7 +59,6 @@ function setSpecifiedCashPrintText()
     }
 }
 
-
 function acceptPrint() {
 
     $country = getCountry();
@@ -69,7 +69,7 @@ function acceptPrint() {
     }
 }
 
-function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber) {
+function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber) {
 
 	echo __line__ ."$reportNumber<br>";
 
@@ -103,29 +103,33 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 	}
 	if ($reportNumber) {
 		$qtxt  = "insert into report (date,type,description,count,total,report_number) values ";
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". $ore_50*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". (int)$ore_10 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[one]','0','". $kr_1*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". (int)$ore_20 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[two]','0','". $kr_2*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". (int)$ore_50 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[five]','0','". $kr_5*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[one]','0','". (int)$kr_1 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[ten]','0','". $kr_10*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[two]','0','". (int)$kr_2 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[twenty]','0','". $kr_20*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[five]','0','". (int)$kr_5 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fifty]','0','". $kr_50*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[ten]','0','". (int)$kr_10 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[hundred]','0','". $kr_100*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[twenty]','0','". (int)$kr_20 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[twoHundred]','0','". $kr_200*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fifty]','0','". (int)$kr_50 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveHundred]','0','". $kr_500*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[hundred]','0','". (int)$kr_100 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[thousand]','0','". $kr_1000*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[twoHundred]','0','". (int)$kr_200 ."','$reportNumber')";
+		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveHundred]','0','". (int)$kr_500 ."','$reportNumber')";
+		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[thousand]','0','". (int)$kr_1000 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[other]','0','". $kr_andet*1 ."','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[other]','0','". (float)$kr_andet ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		if (count($valuta)) {
 			for ($x=0;$x<count($valuta);$x++) {
@@ -179,10 +183,14 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2,
 				$txt2=usdecimal($ny_kortsum[$x],2);
 			} else $txt2=usdecimal($kortsum[$x],2);
 			$qtxt2 = "('$dd','cashCount','$txt1','0','$txt2','$reportNumber')";
-				if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+			if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		}
 	}
 	$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['half']);
+	fwrite($fp,"  $tmp:  $ore_10\n");
+	fwrite($log,"  $tmp:  $ore_10\n");
+	fwrite($fp,"  $tmp:  $ore_20\n");
+	fwrite($log,"  $tmp:  $ore_20\n");
 	fwrite($fp,"  $tmp:  $ore_50\n");
 	fwrite($log,"  $tmp:  $ore_50\n");
 	fwrite($fp,"   $specifiedCashTxt[one]  $kr_1\n");

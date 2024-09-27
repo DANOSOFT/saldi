@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----includes/online.php-----patch 4.0.8 ----2023-08-01--------------
-//                           LICENSE
+// --- includes/online.php --- patch 4.1.1 --- 2024-08-15---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20120905 $ansat_navn bliver nu sat her. Søg 20120905
 // 20130120 $sag_rettigheder bliver nu sat her. Søg 20130120
@@ -51,13 +51,16 @@
 // 20230725 LOE Initilized $webservice and some modifications.
 // 20230801 LOE Minor modifications; javascript and css path 
 // 20231107 PK Added css- and javascript-link for flatpickr
+// 20240422 PHR Added 'S' in box3 when insertion uset in grupper
+// 26042024 PBLM changed the path of the javascript and css files to be relative to the file location for flatpickr
+// 23-05-2024 PBLM Setup notification from easyUBL
+// 20240815 PHR $title lookup in findtekst
 
 #include("../includes/connect.php"); #20211001
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
 	date_default_timezone_set($timezone);
 } else {
-
 	date_default_timezone_set('Europe/Copenhagen');
 	#$r=db_fetch_array(db_select("select lukket,version from regnskab where id='1'",__FILE__ . " linje " . __LINE__)); # 20190605
 	$r = db_fetch_array(db_select("select lukket,version from regnskab where id='1' and db = '$sqdb'", __FILE__ . " linje " . __LINE__)); # 20210930
@@ -67,8 +70,7 @@ if (isset($_COOKIE['timezone'])) { #20190110
 			$timezone = $r['var_value'];
 		} else {
 			$timezone = 'Europe/Copenhagen';
-			if ($r['id'])
-				$qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
+			if ($r['id']) $qtxt = "update settings set var_value='$timezone' where id='$r[id]'";
 			else {
 				$qtxt = "insert into settings (var_name,var_value,var_description)";
 				$qtxt .= " values ";
@@ -76,23 +78,8 @@ if (isset($_COOKIE['timezone'])) { #20190110
 			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-		$r = db_fetch_array(db_select("select var_value from settings where var_name='alertText'", __FILE__ . " linje " . __LINE__));
-
-		// ($r['var_value'])?$customAlertText=$r['var_value']:$customAlertText=NULL;
-		// $r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__));
-		// ($r['var_value'])?$ps2pdf=$r['var_value']:$ps2pdf=NULL;
-		// $r=db_fetch_array(db_select("select var_value from settings where var_name='pdftk'",__FILE__ . " linje " . __LINE__));
-		// ($r['var_value'])?$pdftk=$r['var_value']:$pdftk=NULL;
-		// $r=db_fetch_array(db_select("select var_value from settings where var_name='ftp'",__FILE__ . " linje " . __LINE__));
-		// ($r['var_value'])?$ftp=$r['var_value']:$ftp=NULL;
-		// $r=db_fetch_array(db_select("select var_value from settings where var_name='dbdump'",__FILE__ . " linje " . __LINE__));
-		// ($r['var_value'])?$dbdump=$r['var_value']:$dbdump=NULL;
-		// $r=db_fetch_array(db_select("select var_value from settings where var_name='tar'",__FILE__ . " linje " . __LINE__));
-		// ($r['var_value'])?$tar=$r['var_value']:$tar=NULL;
-		// $r=db_fetch_array(db_select("select var_value from settings where var_name='zip'",__FILE__ . " linje " . __LINE__));
-		// ($r['var_value'])?$zip=$r['var_value']:$zip=NULL;
-		// $r=db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'",__FILE__ . " linje " . __LINE__));
-		// ($r['var_value'])?$systemLanguage=$r['var_value']:$systemLanguage='Dansk';
+		$qtxt = "select var_value from settings where var_name='alertText'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$r ? $customAlertText = $r['var_value'] : $customAlertText = NULL; #20211018
 		$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
 		$r ? $ps2pdf = $r['var_value'] : $ps2pdf = NULL;
@@ -111,25 +98,18 @@ if (isset($_COOKIE['timezone'])) { #20190110
 
 	}
 }
-
-if (!isset($meta_returside))
-	$meta_returside = NULL;
+if (!isset($meta_returside)) $meta_returside = NULL;
 $db_skriv_id = NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.
-if (!isset($modulnr))
-	$modulnr = NULL;
-if (!isset($db_type))
-	$db_type = "postgres";
-if (!isset($db_type))
-	$db_type = "postgres";
-if (!isset($webservice))
-	$webservice = NULL;
+if (!isset($modulnr))    $modulnr = NULL;
+if (!isset($db_type))    $db_type = "postgres";
+if (!isset($webservice)) $webservice = NULL;
 $ip = $_SERVER['REMOTE_ADDR'];
-$ip = substr($ip, 0, 10);
+$ip              = substr($ip, 0, 10);
 $sag_rettigheder = NULL;
-#if ($title!="kreditorexport"){
-$unixtime = date("U");
-#include("../includes/connect.php"); #20211001
-$q = db_select("select * from online where session_id = '$s_id' order by logtime desc limit 1", __FILE__ . " linje " . __LINE__);
+$unixtime        = date("U");
+
+$qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 if ($r = db_fetch_array($q)) {
 	$dbuser = trim($r['dbuser']);
 	$db = trim($r['db']);
@@ -141,11 +121,12 @@ if ($r = db_fetch_array($q)) {
 	$logtime = $r['logtime'];
 	($r['language_id']) ? $languageID = $r['language_id'] : $languageID = 0;
 	$sprog_id = $languageID;
-	if ($logtime)
-		db_modify("update online set logtime = '$unixtime' where session_id = '$s_id'", __FILE__ . " linje " . __LINE__);
+	if ($logtime) {
+		$qtxt = "update online set logtime = '$unixtime' where session_id = '$s_id'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
 } elseif ($title != 'login' && $title != 'opdat' && $title != 'logud' && $title != 'Aaben regnskab') {
-	if ($webservice)
-		return ('Session expired');
+	if ($webservice) return ('Session expired');
 	else {
 		if (!isset($nextver))
 			$nextver = NULL;
@@ -159,32 +140,12 @@ if ($r = db_fetch_array($q)) {
 	}
 }
 #}
-if (substr($db, 0, 4) == 'laja')
-	ini_set('display_errors', 0);
-else
-	ini_set('display_errors', 0);
+if (substr($db, 0, 4) == 'laja') ini_set('display_errors', 0);
+else ini_set('display_errors', 0);
 
 $labelprint = 0;
-if ($sqdb == 'udvikling')
-	$labelprint = 1;
-elseif ($sqdb == 'severinus')
-	$labelprint = 1;
-elseif ($db == 'bizsys_22')
-	$labelprint = 1;
-elseif ($db == 'bizsys_25')
-	$labelprint = 1;
-
-if ($db == 'severinus_22')
-	$kundedisplay = 1;
-elseif ($db == 'grillbar_59')
-	$kundedisplay = 1;
-# elseif($db=='udvikling_5') $kundedisplay=1;
-else
-	$kundedisplay = 0;
-
-#if ($db == 'udvikling_5') $timezone='America/Godthab';
-#if (!isset($timezone)) $timezone='Europe/Copenhagen';
-#date_default_timezone_set($timezone);
+if ($sqdb == 'udvikling') $labelprint = 1;
+$kundedisplay = 0;
 
 if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbruger er logget af
 	include("../includes/std_func.php");
@@ -202,22 +163,6 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$lukket = $row['lukket'];
 
 }
-/*
-if ($row = db_fetch_array(db_select("select * from regnskab where db = 'develop'",__FILE__ . " linje " . __LINE__))){
-	$lingua= $row['sprog']; #20210916
-}
-*/
-#.............	
-// $query = db_select("select * from online where session_id = '$s_id' and brugernavn ='$brugernavn'",__FILE__ . " linje " . __LINE__);
-// if ($row = db_fetch_array($query)) {
-// 	$lang1 = trim($row['language_id']);	
-// }
-// $_SESSION['Language'] = $lang1; #20210922
-#..............
-
-
-
-
 
 if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	if (!isset($nextver)) { # 20150104
@@ -262,6 +207,12 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if (!$connection)
 			die("Unable to connect to PostgreSQL");
 	}
+
+	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$baseCurrency = $r['var_value'];
+	} else $baseCurrency = 'DKK';
+
 	if (!$revisor) {
 		if ($lukket) {
 			echo "regnskabet er lukket";
@@ -295,7 +246,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			#			$r = db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__)); 20140117 
 #			$g_id=$r['id']+1;
-			db_modify("insert into grupper(beskrivelse,art,kodenr,box1,box2,box3,box4,box5) values ('Usersettings','USET','$bruger_id','$jsvars','','on','#eeeef0','')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into grupper(beskrivelse,art,kodenr,box1,box2,box3,box4,box5) values ('Usersettings','USET','$bruger_id','$jsvars','','S','#eeeef0','')", __FILE__ . " linje " . __LINE__);
 		} else {
 			$jsvars = $r['box1'];
 			$popup = $r['box2'];
@@ -348,26 +299,22 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 
 $javaPath = "../javascript";
 if (!file_exists($javaPath)) {
-	if (file_exists("../../javascript")) {
-		$javaPath = "../../javascript";
-	} elseif (file_exists("../../../javascript")) {
-		$javaPath = "../../../javascript";
-	}
+	if (file_exists("../../javascript")) $javaPath = "../../javascript";
+	elseif (file_exists("../../../javascript")) $javaPath = "../../../javascript";
 }
 $cssPath = "../css";
 if (!file_exists($cssPath)) {
-	if (file_exists("../../css")) {
-		$cssPath = "../../css";
-	} elseif (file_exists("../../../css")) {
-		$cssPath = "../../../css";
-	}
+	if (file_exists("../../css")) $cssPath = "../../css";
+	elseif (file_exists("../../../css")) $cssPath = "../../../css";
 }
 ////<!-- PRINT "<!DOCTYPE html>\n -->
 if ($header != 'nix') {
-	if ($db_encode == "UTF8")
-		$charset = "UTF-8";
-	else
-		$charset = "ISO-8859-1";
+	if ($db_encode == "UTF8") $charset = "UTF-8";
+	else $charset = "ISO-8859-1";
+	if (isset($title) && substr($title,0,3) == 'txt') { #20240815
+		include_once('../includes/stdFunc/findTxt.php');
+		$title = findtekst(substr($title,3),$sprog_id);	
+	}
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
 	<html>\n
@@ -383,13 +330,11 @@ if ($header != 'nix') {
 	// print '<meta name="google" content="notranslate">';
 	if ($meta_returside)
 		print "$meta_returside"; #20140502
-	if ($css)
-		print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
-	else
-		print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
+	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
+	else      print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saft.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/prism.css\"/>\n";
-	print "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css\">\n"; #20231107
+	print "<link rel=\"stylesheet\" href=\"$cssPath/flatpickr.min.css\">\n"; #20231107
 	if (substr($title, 0, 3) == 'POS') { # 21071009
 		($title == 'POS_ordre' && isset($_COOKIE['saldi_pfs'])) ? $pfs = $_COOKIE['saldi_pfs'] : $pfs = 10;
 		print "<style> body {font-family: Arial, Helvetica, sans-serif;font-size: " . $pfs . "pt;} </style>";
@@ -399,9 +344,9 @@ if ($header != 'nix') {
 	print "<script type=\"text/javascript\" src=\"$javaPath/jquery.autosize.js\"></script>\n"; #20140502
 	print "<script LANGUAGE=\"JavaScript\" src=\"$javaPath/overlib.js\"></script>\n";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"$javaPath/confirmclose.js\"></script>\n"; #20140502
-	print "<script src=\"https://cdn.jsdelivr.net/npm/flatpickr\"></script>\n"; #20231107
-	print "<script src=\"https://npmcdn.com/flatpickr/dist/flatpickr.min.js\"></script>\n"; #20231107
-	print "<script src=\"https://npmcdn.com/flatpickr/dist/l10n/da.js\"></script>\n"; #20231107
+	print "<script src=\"$javaPath/flatpickr.js\"></script>\n"; #20231107
+	/* print "<script src=\"https://npmcdn.com/flatpickr/dist/flatpickr.min.js\"></script>\n"; #20231107
+	print "<script src=\"https://npmcdn.com/flatpickr/dist/l10n/da.js\"></script>\n"; #20231107 */
 	#	print "<script src=\"../javascript/sweetalert.min.js\"></script>";
 #	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/sweetalert.css\">";
 
@@ -425,31 +370,98 @@ if ($header != 'nix') {
 	</script>";
 	#20140502 -->
 	?> 
-	
-						<script type="text/javascript">
-				// jQuery funktion til autosize på textarea 
-					$(document).ready(function(){
-						$('.autosize').autosize();
-					});
-				 // jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
-				  $(function() {
-					$('textarea.comment').keyup(function(e) {
-						if (e.which == 13 && ! e.shiftKey) {
-							$("#submit").click();
-						}
-					});
-				  });
-				// $(document).on('focus', 'textarea', function(){
-				//            autosize($('textarea'));  //20201218
-				//});	
-					</script>
-					<?php
-					# <-- 20140502
-					print "</head>\n";
+	<script type="text/javascript">
+		// jQuery funktion til autosize på textarea 
+		$(document).ready(function(){
+			$('.autosize').autosize()
+		});
+		// jQuery funktion til ordrelinjer i ordre.php. Ved tryk på enter submitter formen og ved shift+enter laver den ny linje i textarea
+		$(function() {
+			$('textarea.comment').keyup(function(e) {
+				if (e.which == 13 && ! e.shiftKey) {
+					$("#submit").click()
+				}
+			})
+		})
+
+	</script>
+	<?php
+	# <-- 20140502
+	print "</head>\n";
 }
+/*
+// get backtrace file to ignore popup notification on pos
+	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='notifications'";
+	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$qtxt = "CREATE TABLE notifications (id SERIAL PRIMARY KEY, msg varchar(255), read_status int)";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	}
+	$backtrace = debug_backtrace();
+	$lastCall = end($backtrace);
+
+	if($lastCall["file"] != "pos_ordre.php"){
+		// get notifications for the user
+		$query = db_select("SELECT * FROM notifications WHERE read_status = 0", __FILE__ . " linje " . __LINE__);
+		while($notification = db_fetch_array($query)) {
+			// Send the notification to the user
+			?>
+			<div class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+				<!--
+					Background backdrop, show/hide based on modal state.
+
+					Entering: "ease-out duration-300"
+					From: "opacity-0"
+					To: "opacity-100"
+					Leaving: "ease-in duration-200"
+					From: "opacity-100"
+					To: "opacity-0"
+				-->
+				<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+				<div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+					<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+					<!--
+						Modal panel, show/hide based on modal state.
+
+						Entering: "ease-out duration-300"
+						From: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+						To: "opacity-100 translate-y-0 sm:scale-100"
+						Leaving: "ease-in duration-200"
+						From: "opacity-100 translate-y-0 sm:scale-100"
+						To: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+					-->
+					<div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+						<div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+						<div class="sm:flex sm:items-start">
+							<div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+							<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+							</svg>
+							</div>
+							<div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+							<h3 class="text-base font-semibold leading-6 text-gray-900" id="modal-title">Notifikation</h3>
+							<div class="mt-2">
+								<p class="text-sm text-gray-500"><?php echo $notification["msg"]; ?></p>
+							</div>
+							</div>
+						</div>
+						</div>
+						<div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+						<button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">OK</button>
+						</div>
+					</div>
+					</div>
+				</div>
+			</div>
+			<?php
+			// Mark the notification as read
+			db_modify("UPDATE notifications SET read_status = 1 WHERE id = $notification[id]", __FILE__ . " linje " . __LINE__);
+		}
+	}
+*/
 if ($bg != 'nix') {
-	if (!$bgcolor)
-		$bgcolor = "#000000";
+	if (!$bgcolor) $bgcolor = "#000000";
 	print "<body bgcolor=\"$bgcolor\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\">\n";
 }
+
 ?>

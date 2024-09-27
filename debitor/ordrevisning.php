@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------debitor/ordrevisning.php-----lap 4.0.3-------2021.09.14-----------
-// LICENSE
+// --------debitor/ordrevisning.php--patch 4.1.0 ----2024-05-01----
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -17,18 +17,22 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2021 Saldi.DK ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// 2018.11.28	PHR Tilføjet kundegruppe som søgefelt
-// 2098.05.02	PHR Corrected error in first time '$vis_feltantal' 20190502
-// 2019.07.03 PHR - Users can now choose whether they want dropdown. Search $dropDown
-// 2021.04.20 LOE - Translated these table data #20210420
-// 20210720 MSC - Implementing new top menu design
-// 20210721 MSC - Implementing new top menu design 
-// 20210906 MSC - Implementing new top menu design 
+// 20181128	PHR Tilføjet kundegruppe som søgefelt
+// 20980502	PHR Corrected error in first time '$vis_feltantal' 20190502
+// 20190703 PHR Users can now choose whether they want dropdown. Search $dropDown
+// 20210420 LOE Translated these table data #20210420
+// 20210720 MSC Implementing new top menu design
+// 20210721 MSC Implementing new top menu design 
+// 20210906 MSC Implementing new top menu design 
+// 20220630 MSC Implementing new top menu design 
+// 20220926 MSC Fixed title if statement and removed title in $menu=='T'
+// 20230829 MSC Copy pasted new design into code
 	
 @session_start();
 $s_id=session_id();
@@ -40,9 +44,15 @@ include("../includes/std_func.php");
 if (isset($_GET['valg'])) $valg=($_GET['valg']); //???
 else $valg="ordrer";
 
-if ($valg=="tilbud") $title="Tilbudsvisning";
-elseif ($valg=="ordrer") $title="Ordrevisning";
-else $title="Fakturavisning";
+if ($valg=="tilbud") {
+	$title="Tilbudsvisning";
+} elseif ($valg=="ordrer") {
+	$title="Ordrevisning";
+} elseif ($valg=="faktura") {
+	$title="Fakturavisning";
+} else {
+	$title="Visning";
+}
 
 $modulnr=6;
 
@@ -51,6 +61,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 
 $aa=findtekst(545,$sprog_id); #20210420
@@ -114,24 +125,40 @@ if (isset($_POST) && $_POST) {
 }
 
 if ($menu=='T') {
-	$title="Ordrevisning • Kunder";
-	$classtable2 ="class=tableOrdrevisning";
-	include_once '../includes/topmenu/header.php';
-		print "
-	<div class='$kund'>Ordrevisning</div>
-	<div class='content-noside'>";
+	$classtable2 ="class=dataTableForm";
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\"><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+#} elseif ($menu=='S') {
+#	include("../includes/sidemenu.php");
+#	$classtable2 ="";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
 	$classtable2 ="";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">
+		   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
+		   <td width=\"10%\" align=center><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst(30,$sprog_id)."</button></a></td>
+		   <td width='80%' align=center style=$topStyle>$title</td>
+		   <td width='10%' align=center style=$topStyle><br></td></tr>
+		   </tr>
+		   </tbody></table>
+		   </td></tr>";
+	print "<center>";
 } else {
 	$classtable2 ="";
 	include("../includes/oldDesign/header.php");
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">
-		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
+	print  "<tr><td height = \"25\" align=\"center\" valign=\"top\">
+			<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
 			<td width=\"10%\" align=center><div class=\"top_bund\"><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>".findtekst(30,$sprog_id)."</a></div></td>
 			<td width=\"80%\" align=center><div class=\"top_bund\">$title</a></div></td>
 			<td width=\"10%\" align=center><div class=\"top_bund\"><br></div></td>
-			 </tr>
+			</tr>
 			</tbody></table>
 	</td></tr>";
 	print "<center>";
@@ -249,7 +276,7 @@ if ($menu=='T') {
 } else {
 	print "<tr><td colspan=7><hr></td></tr>\n";
 }
-print "<tr><td colspan='7' align = 'center'><input type='submit' accesskey='a' value='OK' name='submit'> &nbsp;•&nbsp; <input type='button' onclick=\"location.href='ordreliste.php?valg=$valg&sort=$sort'\" accesskey='L' value='".findtekst(30,$sprog_id)."'></td></tr>\n";
+print "<tr><td colspan='10' align = 'center'><input type='submit' accesskey='a' value='OK' name='submit'></td></tr>\n";
 print "</form>";
 
 function sorter($pos,$var,$vis_feltantal) {
@@ -274,7 +301,7 @@ function sorter($pos,$var,$vis_feltantal) {
 	return($var);
 }
 
-print "</tbody></table>";
+print "</tbody></table></div>";
 
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';

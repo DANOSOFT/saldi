@@ -26,10 +26,11 @@
 // 20211102 MSC Implementing new top menu design 
 // 20230401 PHR	Changed category viewing and fixed some errors
 
+include("../includes/pagination.php");
+
 $r = db_fetch_array(db_select("select id,box1,box2,box11 from grupper where art = 'DLV' and kode ='$valg' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__));
 $dg_liste=explode(chr(9),$r['box1']);
 ($r['box2'])?$cat_liste=explode(chr(9),$r['box2']):$cat_liste=array();
-
 
 $udv1=$udvaelg;
 $colspan=$vis_feltantal+1;
@@ -175,4 +176,10 @@ for($i=0;$i<$dgcount;$i++) {
 		}
 	} 
 }
+
+print "<td colspan='100' align=right>";
+$start = if_isset($start, 0);
+$linjeantal = if_isset($linjeantal, 100);
+pagination($start, $linjeantal, 1000);
+print  "</td></tr>"; 
 ?>

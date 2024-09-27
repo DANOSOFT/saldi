@@ -341,7 +341,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 				</ns4:AngivelseFrekvens>
 			</ns4:AngivelseFrekvensListe>
 		</ns4:VirksomhedKalenderHent_O>
-		XML;
+XML;
 
 		$dom = new DOMDocument;
 
@@ -404,7 +404,8 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		}
 		// If VAT return kalender is present. Text and button for return VAT.
 		if (true) {
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Kalender for momsindberetning hvor frekvensen er: " . $frekvensTypeCode[$angivelseFrekvensTypeCode->nodeValue] . "</p></td></tr>";
+			$nodeValue = $angivelseFrekvensTypeCode->nodeValue;
+			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Kalender for momsindberetning hvor frekvensen er: " . $frekvensTypeCode[$nodeValue] . "</p></td></tr>";
 			print "<tr><td colspan=\"6\"><table class=\"kalender\">";
 			print "<tr><th>Skal være indberettet og betalt senest</th></tr>";
 			foreach ($kalenderHent as $kalender) {

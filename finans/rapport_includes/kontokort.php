@@ -42,11 +42,11 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	global $prj_navn_fra, $prj_navn_til;
 	global $top_bund;
 	global $sprog_id;
-	$query = db_select("select firmanavn from adresser where art='S'", __FILE__ . " linje " . __LINE__);
+	$query = db_select("select firmanavn, cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query))
 		$firmanavn = $row['firmanavn'];
-
-	$regnaar = $regnaar * 1; #fordi den er i tekstformat og skal vaere numerisk
+		$vatNo     = $row['cvrnr'];
+		$regnaar = (int)$regnaar; #fordi den er i tekstformat og skal vaere numerisk
 
 	#	list ($aar_fra, $maaned_fra) = explode(" ", $maaned_fra);
 #	list ($aar_til, $maaned_til) = explode(" ", $maaned_til);
@@ -188,10 +188,10 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 
 		print "<td width='10%'>
 			   <a accesskey=L href='rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev'>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
 
 		print "<td width='80%' align='center' style='$topStyle'> Rapport - kontokort </td>\n";
-		print "<td width='10%' align='center' style='$topStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
+		print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
 
 		print "</tbody></table>";
 		print "</td></tr>";
@@ -251,7 +251,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		print "</tbody></table>";
 	}
 	print "</td></tr>";
-	print "<tr><td colspan=5><big><b>$firmanavn</b></big></td></tr>";
+	print "<tr><td colspan=5><big><b>cvr: $vatNo | $firmanavn</b></big></td></tr>";
 
 	$dim = '';
 	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
