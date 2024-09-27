@@ -173,6 +173,10 @@
 		print "<td width=\"5%\">Max:</td><td colspan=\"2\" align='right' >";
 		print "<input class=\"inputbox\" type=\"text\" size=\"5\" style=\"text-align:right\" name=\"max_lager\" ";
 		print "value=\"". dkdecimal($max_lager,0) ."\"></td></tr>";
+		$txt647  = findtekst(647,$sprog_id); // Initialer
+		$txt916  = findtekst(916,$sprog_id); // Antal
+		$txt930  = findtekst(930,$sprog_id); // Tidspkt
+		$txt990  = findtekst(990,$sprog_id); // Bruger
 		if (count($lagernavn)) {
 			if ($beholdning!=$lagersum) {
 				db_modify("update varer set beholdning='$lagersum' where id='$id'",__FILE__ . " linje " . __LINE__);
@@ -201,12 +205,12 @@
 						$init[$s]=$r['initials'];
 							$reas[$s]=db_escape_string($r['reason']);
 						$corr[$s]=dkdecimal($r['correction']);
-						$daTi[$s]=date("d-m-Y H:i",$r['logtime']);
+						$daTi[$s]=date("d-m-Y H:i",(int)$r['logtime']);
 						$s++;
 					}
 					if ($s) {
 						($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
-						$txt = "<table><tr $linjebg><td>Bruger</td><td>Initialer</td><td>Antal</td><td>Tidspkt</td></tr>";
+						$txt = "<table><tr $linjebg><td>$txt990</td><td>$txt647</td><td>$txt916</td><td>$txt930</td></tr>";
 						for ($s=0;$s<count($usNa);$s++) {
 							($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
 							$txt.= "<tr $linjebg><td>$usNa[$s]</td>";

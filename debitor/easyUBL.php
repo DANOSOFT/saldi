@@ -80,7 +80,7 @@
         );
         
         if (array_key_exists($base64["documentStatusCode"], $incStatus)) {
-            $statusName = $incStatus[$base64["documentStatusCode"]];
+            $statusName = $incStatus[(int)$base64["documentStatusCode"]];
             db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE id = '$base64[externalIdentifier]'", __FILE__ . " linje " . __LINE__);
         }
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 4.0.7 --- 2022-11-24 ----
+// -----------------lager/lagerstatus.php--- lap 4.1.1 --- 2024-09-10 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20140128 Ved søgning på modtaget / leveret tjekkes ikke for dato hvis angivet dato = dags dato da det gav forkert lagerantal for 
 //          leverancer med leveringsdato > dd. Søg 20140128   
@@ -32,6 +32,7 @@
 // 20210728 LOE Translated some texts here
 // 20221010 PHR Zero stock was omitted in CSV
 // 20221124 PHR	Added select between levdate (deelvery date) and fakturadate (invoicedate). 
+// 20240910 PHR 'lagervalg' was omitted in CSV
  
 @session_start();
 $s_id=session_id();
@@ -46,6 +47,7 @@ $dateType = 'levdate';
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 # if ($popup) $returside="../includes/luk.php";
 # else $returside="rapport.php";
@@ -152,15 +154,33 @@ while ($r2=db_fetch_array($q2)){
 	}
 }
 $vareantal=$x;
+global $menu;
 
-print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
-print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-print "<tr>";
-print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210708
-print "<td width=80% $top_bund align=center>".ucfirst(findtekst(992, $sprog_id))."</td>";
-print "<td width=10% $top_bund><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock' "; 
-print "title=\"".findtekst(1655, $sprog_id)."\">CSV</a></td>";
-print "</tr></td></tbody></table>\n";
+if ($menu=='S') {
+	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
+	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
+	print "<tr>";
+
+	print "<td width='10%'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst(992, $sprog_id))."</td>";
+
+	print "<td width='10%'><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&lagervalg=$lagervalg' title=\"".findtekst(1655, $sprog_id)."\">
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+
+	print "</tr></td></tbody></table>\n";
+} else {
+	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
+	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
+	print "<tr>";
+	print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210708
+	print "<td width=80% $top_bund align=center>".ucfirst(findtekst(992, $sprog_id))."</td>";
+	print "<td width=10% $top_bund><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&lagervalg=$lagervalg' ";
+	print "title=\"".findtekst(1655, $sprog_id)."\">CSV</a></td>";
+	print "</tr></td></tbody></table>\n";
+}
+
 print "<form action=lagerstatus.php method=post>";
 print "<tr><td colspan=\"7\" align=\"center\">";
 if (count($lager)) {

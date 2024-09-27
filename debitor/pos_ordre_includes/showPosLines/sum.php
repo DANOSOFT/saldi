@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/sum.php --- lap 3.9.9 --- 2021.01.27-------
+// --- debitor/pos_ordre_includes/showPosLines/sum.php --- lap 4.1.1 --- 2024.07.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2019-2021 saldi.dk aps
+// Copyright (c) 2019-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // LN 20190508 Move the html that shows the sum here
 // 20210127 PHR Some minor design changes 
+// 20240725 PHR - Replaced 'DKK' with $baseCurrency.
+// 20240729 PHR Various translations
 
+//
 	print "<!-- pos_ordre_includes/showPosLines/sum.php start -->";
 	if ($sum || $sum=='0' || $pris_ny) {
 		$txt="Ex. moms: ".dkdecimal($nettosum,2)." Kost ".dkdecimal($kostsum,2)." \nDB:".dkdecimal($d_b,2).", DG:".dkdecimal($dg,2)."% ";
@@ -35,7 +38,9 @@
 		} elseif ($country == "Norway") {
             print "<tr><td><div onclick=\"javascript:alert('$txt')\">Ialt Nok</div></td><td align=\"right\"></td><td></  td><td align=\"right\"></td>";
 		} else {
-            print "<tr><td><div onclick=\"javascript:alert('$txt')\">I alt DKK</div></td><td align=\"right\"></td><td></  td><td align=\"right\"></td>";
+            print "<tr><td><div onclick=\"javascript:alert('$txt')\">";
+						print "". findtekst('3072|I alt',$sprog_id) ." $baseCurrency</div></td>";
+						print "<td align=\"right\"></td><td></  td><td align=\"right\"></td>";
 		}
 		print "<td align=\"right\"><div title=\"$txt\">";
 		if ($vis_saet && $status < 3)  {
@@ -43,7 +48,11 @@
 			print "<input type=\"hidden\" name=\"bruttosum\" value=\"$bruttosum\"></b>\n";
 			print "<input type=\"text\" class=\"inputbox\" style=\"width:100px;text-align:right;font-size:$ifs;\" ";
 			print "name=\"samlet_pris\" value=\"".dkdecimal($sum,2)."\"></b></div>\n";
-		} else print "<b>".dkdecimal($sum,2)."</b></div>";
+		} else {
+			$big = get_settings_value("show_big_sum", "POS", "off");
+			if ($big == "on") print "<b><h1>".dkdecimal($sum,2)."</h1></b></div>";
+			else print "<b>".dkdecimal($sum,2)."</b></div>";
+		}
 		$tmp=$sum+usdecimal($pris_ny,2);
 		if ($pris_ny) print " (".dkdecimal($tmp,2).")";
 		print "<input type=\"hidden\" name=\"betvaluta\" value=\"$betvaluta\">";

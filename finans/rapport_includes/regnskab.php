@@ -46,9 +46,6 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	global $prj_navn_til;
 	global $top_bund;
 
-echo __line__." $konto_fra $konto_til<br>";
-
-
 	$budget = $lastYear = $show0 = NULL;
 	$kto_periode = $periodesum = $varekob = $varelager_i = $varelager_u = array();
 	$lastYearPeriodSum = $lastYearYearSum = array();
@@ -105,9 +102,10 @@ echo __line__." $konto_fra $konto_til<br>";
 		$cols6 = 6;
 	}
 
-	$qtxt = "select firmanavn from adresser where art='S'";
+	$qtxt = "select firmanavn,cvrnr from adresser where art='S'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
 		$firmanavn = $r['firmanavn'];
+		$vatNo     = $r['cvrnr'];
 	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='$afd'";
 	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
 		$afd_navn = $r['beskrivelse'];
@@ -337,7 +335,7 @@ echo __line__." $konto_fra $konto_til<br>";
 		print "</td></tr>";
 	}
 	print "</tbody></table></td></tr>";
-	print "<tr><td colspan=\"4\"><big><b>$firmanavn</b></big></td>";
+	print "<tr><td colspan=\"4\"><big><b>cvr: $vatNo | <big><b>$firmanavn</b></big></td>";
 	fwrite($csv, "\"\";\"$firmanavn\";\"Perioden\";");
 	print "<td align=right> Perioden </td>";
 	if ($rapportart == 'budget') {
@@ -604,7 +602,7 @@ echo __line__." $konto_fra $konto_til<br>";
 			}
 		}
 	}
-echo __line__." $konto_fra $konto_til<br>";
+
 	for ($x = 1; $x <= $kontoantal; $x++) {
 		if ($kontonr[$x] >= $konto_fra && $kontonr[$x] <= $konto_til && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220
 			if ($kontotype[$x] == 'H') {

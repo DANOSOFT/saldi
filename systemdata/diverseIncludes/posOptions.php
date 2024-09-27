@@ -138,8 +138,14 @@ function posOptions () {
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($r && $r['var_value'])?$jump2price='checked':$jump2price=NULL;
 
-	$lagerbeh = get_settings_value("show_stock", "POS", 0);
+	$lagerbeh = get_settings_value("show_stock", "POS", "off");
 	$lagerbeh = $lagerbeh == "on" ? "checked" : "";
+
+	$kdsactive = get_settings_value("activated", "KDS", "off");
+	$kdsactive = $kdsactive == "on" ? "checked" : "";
+
+	$printactive = get_settings_value("activated", "kitchen-print", "on");
+	$printactive = $printactive == "on" ? "checked" : "";
 
 	$kdscolumns = get_settings_value("columns", "KDS", 5);
 	$kdsheight = get_settings_value("height", "KDS", 20);
@@ -283,19 +289,28 @@ function posOptions () {
 			if ($posTermOption == "Ip baseret"){
 				print "<option selected='selected' value='Ip baseret'>Ip baseret</option>
 					<option value='Flatpay'>Flatpay</option>
+					<option value='Move3500'>Move3500</option>
 					<option value='Vibrant'>Vibrant</option>";
 			} else if ($posTermOption == "Flatpay") {
 				print "<option value='Ip baseret'>Ip baseret</option>
 					<option selected='selected' value='Flatpay'>Flatpay</option>
+					<option value='Move3500'>Move3500</option>
+					<option value='Vibrant'>Vibrant</option>";
+			} else if ($posTermOption == "Move3500") {
+				print "<option value='Ip baseret'>Ip baseret</option>
+					<option value='Flatpay'>Flatpay</option>
+					<option selected='selected' value='Move3500'>Move3500</option>
 					<option value='Vibrant'>Vibrant</option>";
 			} else if ($posTermOption == "Vibrant") {
 				print "<option value='Ip baseret'>Ip baseret</option>
 					<option value='Flatpay'>Flatpay</option>
+					<option value='Move3500'>Move3500</option>
 					<option selected='selected' value='Vibrant'>Vibrant</option>";
 			# Handeled below
 			} else {
 				print "<option value='Ip baseret'>Ip baseret</option>
 					<option value='Flatpay'>Flatpay</option>
+					<option value='Move3500'>Move3500</option>
 					<option value='Vibrant'>Vibrant</option>";
 			}
 			print "<option value='t'></option>";
@@ -559,12 +574,19 @@ function type_change(idx) {
 	print "<td title='$title'><input class='inputbox' type='checkbox' name='jump2price' $jump2price></td>\n";
 	print "<td title='".findtekst(3067,$sprog_id)."'>".findtekst(3066,$sprog_id)."</td>";
 	print "<td title='".findtekst(3067,$sprog_id)."'><input class='inputbox' type='checkbox' name='lagerbeh' $lagerbeh></td></tr>\n";
+	$text = findtekst(3106, $sprog_id);
+	$title = "".findtekst(3107, $sprog_id).".";
+	$big = get_settings_value("show_big_sum", "POS", "off");
+	$big = $big == "on" ? "checked" : "";
+	print "<tr><td title='$title'>$text</td>";
+	print "<td title='$title'><input class='inputbox' type='checkbox' name='show_big_sum' $big></td>\n";
 	print "<td><br></td></tr>\n";
 	print "</tbody></table></td></tr>";
 	print "<tr><td><hr></td></tr>\n";
 	# KDS system settings
 	print "<tr><td><table border='0'><tbody>";
 	print "<tr><td>KDS / Køkkenprint Setup</td></tr>\n";
+	print "<tr><td>Aktiveret KDS / Print</td><td><input class='inputbox' type='checkbox' name='kdsactive' $kdsactive><input class='inputbox' type='checkbox' name='printactive' $printactive></td></tr>\n";
 	print "<tr><td>Antal kolonner</td><td><input class='inputbox' type='text' name='kdscolumns' value='$kdscolumns'></td></tr>\n";
 	print "<tr><td>Linjehøjde</td><td><input class='inputbox' type='text' name='kdsheight' value='$kdsheight'></td></tr>\n";
 	print "<tr><td><br></td></tr>\n";

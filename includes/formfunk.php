@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---includes/formfunk.php ------patch 4.0.8 ----2024-01-19--------------
+// ---includes/formfunk.php ------patch 4.1.1 ----2024-07-30--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -87,6 +87,7 @@
 // 2021.10.28 PHR ordrer.notes will now linebreak if line length > 5 chars  
 // 20230421 PHR Function modulus10 - cuts beginning of customer no instead of end, if too long
 // 20230712 PHR Added $creditedinvoice;
+// 20240729 PHR Various translations
 
 if (!function_exists('skriv')) {
 function skriv($id,$str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font,$formular,$line) {
@@ -916,7 +917,7 @@ print "<!--function formularprint start-->";
 	if ($ordre_antal>1) {
 		$printfilnavn='udskrift';
 		if ($formular<=1) $printfilnavn="tilbud";
-		if ($formular==2) $printfilnavn="ordrebek";
+		if ($formular==2) if ($formular==2) $printfilnavn = findtekst('3099|Ordrebek',$sprog_id);
 		if ($formular==3) $printfilnavn="flg_seddel";
 		if ($formular==4) $printfilnavn="faktura";
 		if ($formular==9) $printfilnavn="plukliste";
@@ -1092,7 +1093,7 @@ print "<!--function formularprint start-->";
 	if ($mail_fakt && $formular!=3 && $udskriv_til=='email') {
 		$mailantal++;
 		if ($formular<=1) $printfilnavn="tilbud".$ordrenr;
-		if ($formular==2) $printfilnavn="ordrebek".$ordrenr;
+		if ($formular==2) if ($formular==2) $printfilnavn = findtekst('3099|Ordrebek',$sprog_id).'_'.$ordrenr;
 		if ($formular==4) $printfilnavn="fakt".$fakturanr;
 		if ($formular==5) $printfilnavn="kn".$fakturanr;
 		if ($formular==9) $printfilnavn="plukliste".$ordrenr;
@@ -1112,7 +1113,7 @@ print "<!--function formularprint start-->";
 		$nomailantal++;
 #		if ($ordre_antal<=1) { #mere sigeende navn til udskrifter.
 			if ($formular<=1) $printfilnavn="tilbud".$ordrenr;
-			if ($formular==2) $printfilnavn="ordrebek".$ordrenr;
+			if ($formular==2) if ($formular==2) $printfilnavn = findtekst('3099|Ordrebek',$sprog_id).'_'.$ordrenr;
 			if ($formular==3) $printfilnavn="flgs".$ordrenr."_".$lev_nr;
 			if ($formular==3 && $fakturanr) $printfilnavn="flgs".$fakturanr."_".$lev_nr;
 			if ($formular==4) $printfilnavn="fakt".$fakturanr;
@@ -1446,7 +1447,7 @@ print "<!--function formularprint start-->";
 				($varenr[$x])?$linjesum[$x]=dkdecimal($linjesum[$x],2):$linjesum[$x]=NULL;
 				$linjemoms[$x]=dkdecimal($linjemoms[$x],2);
 				$pris[$x]=dkdecimal($pris[$x],2);
-				$rabat[$x]=dkdecimal($rabat[$x],2);
+				$rabat[$x]=dkdecimal($rabat[$x],get_settings_value("rabatdecimal", "ordre", 2));
 				$procent[$x]=dkdecimal($procent[$x],2);
 #			}
 				if ($x>1) $transportsum=$transportsum+$l_sum[$x-1];
@@ -1475,14 +1476,13 @@ print "<!--function formularprint start-->";
 						elseif ($variabel[$z]=="pris") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$pris[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 						elseif ($variabel[$z]=="enhed") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$enhed[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 						elseif ($variabel[$z]=="momssats") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$varemomssats[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
-						elseif ($variabel[$z]=="rabat") {
-                                                        $rabattxt = "";
-                                                        if ($rabat[$x] != "0,00") {
-                                                                $rabattxt = $rabat[$x];
-                                                        }
-                                                        $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$rabattxt", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
-                                                }
-
+						elseif ($variabel[$z]=="rabat") { 
+							$rabattxt = "";
+							if (usdecimal($rabat[$x]) != 0) {
+								$rabattxt = $rabat[$x];
+							}
+							$svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$rabattxt", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
+						}
 						elseif ($variabel[$z]=="procent") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$procent[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 						elseif ($variabel[$z]=="linjemoms") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$linjemoms[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 #						elseif ($variabel[$z]=="lokation") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$lokation[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
@@ -1871,12 +1871,12 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 			$var_antal=$x;
 		}
 #cho "$str[$x] $laengde[$x]<br>";
-		
+
 		$side=1;
 		$forfalden=0;
 		if (($konto_id[$q])||($rykker_id[$q])) {
 			$id=$rykker_id[$q];
-			
+
 			$qtxt="select ordrer.mail_fakt as mailfakt,ordrer.email as email,ordrer.art,ordrer.art as art,ordrer.ordredate as rykkerdate,";
 			$qtxt.="ordrer.sprog as sprog, ordrer.valuta as valuta,ordrer.felt_5 as inkasso from ordrer, adresser, grupper";
 			$qtxt.=" where ";
@@ -1913,68 +1913,69 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 			} else $qtxt=NULL;
 			if ($qtxt && $r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $deb_valutakurs=$r2['kurs'];
 			else $deb_valutakurs=100;
-		$x=0;
-		$sum=0;
-		$momssum=0;
-		$tmp=0;
-		$y=$ya;
-		$forfalden=0;
-		$dkkforfalden=0;
-		$amount=0;
-		$qtxt = "select serienr as forfaldsdato, beskrivelse, pris as amount, enhed as openpost_id ";
-		$qtxt.= "from ordrelinjer where ordre_id = '$rykker_id[$q]' order by serienr,varenr desc";
-		$q1 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		while ($r1 = db_fetch_array($q1)) {
-			if ($r1['openpost_id']) {
-				$qtxt="select faktnr, amount, valuta, valutakurs, transdate from openpost where id = '$r1[openpost_id]'";
-				if ($r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					$faktnr=$r2['faktnr'];
-					if (!$r2['valuta']) $r2['valuta']='DKK';
-					if (!$r2['valutakurs']) $r2['valutakurs']=100;
-					$valuta=$r2['valuta'];
-					$valutakurs=(float)$r2['valutakurs'];
-					$dkkamount=$r2['amount']*$valutakurs/100;
-					if ($deb_valuta!="DKK") $amount=$dkkamount*100/$deb_valutakurs;
-					else $amount=$r2['amount'];
-				}
-			} else {
-				$faktnr='';	
-				$amount=$r1['amount'];
-				if ($deb_valuta=="DKK") {
-					$dkkamount=$r1['amount'];
-					$amount=$dkkamount*100/$deb_valutakurs;
-				}	else {
+			$x=0;
+			$sum=0;
+			$momssum=0;
+			$tmp=0;
+			$y=$ya;
+			$forfalden=0;
+			$dkkforfalden=0;
+			$amount=0;
+			$qtxt = "select serienr as forfaldsdato, beskrivelse, pris as amount, enhed as openpost_id ";
+			$qtxt.= "from ordrelinjer where ordre_id = '$rykker_id[$q]' order by serienr,varenr desc";
+			$q1 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r1 = db_fetch_array($q1)) {
+				if ($r1['openpost_id']) {
+					$qtxt="select faktnr, amount, valuta, valutakurs, transdate from openpost where id = '$r1[openpost_id]'";
+					if ($r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+						$faktnr=$r2['faktnr'];
+						if (!$r2['valuta']) $r2['valuta']='DKK';
+						if (!$r2['valutakurs']) $r2['valutakurs']=100;
+						$valuta=$r2['valuta'];
+						$valutakurs=(float)$r2['valutakurs'];
+						$dkkamount=$r2['amount']*$valutakurs/100;
+						if ($deb_valuta!="DKK") $amount=$dkkamount*100/$deb_valutakurs;
+						else $amount=$r2['amount'];
+					}
+				} else {
+					$faktnr='';
 					$amount=$r1['amount'];
-					$dkkamount=$amount*$deb_valutakurs/100;
+					if ($deb_valuta=="DKK") {
+						$dkkamount=$r1['amount'];
+						$amount=$dkkamount*100/$deb_valutakurs;
+					}	else {
+						$amount=$r1['amount'];
+						$dkkamount=$amount*$deb_valutakurs/100;
+					}
+				}
+				if ($deb_valuta=='DKK') $amount=$dkkamount;
+				$forfalden+=afrund($amount,2); #20140628
+				$dkkforfalden+=afrund($dkkamount,2); #20140628
+				$belob=dkdecimal($amount,2);
+				if ($amount) { #20200505
+					for ($z=1; $z<=$var_antal; $z++) {
+						if ($variabel[$z]=="dato") {
+							$z_dato=$z;
+							skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", dkdato($r1['forfaldsdato']), "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
+						}
+						if ($variabel[$z]=="faktnr" && $faktnr) {
+							$z_faktnr=$z;
+							skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$faktnr", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
+						}
+						if (strstr($variabel[$z],"bel") && $belob) {
+							$z_belob=$z;
+							skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", $belob, "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
+						}
+						if (strtolower($variabel[$z]) == "beskrivelse") {
+							$z_beskrivelse=$z;
+							($laengde[$z])?$beskr=(substr($r1['beskrivelse'],0,$laengde[$z])):$beskr=$r1['beskrivelse']; #20190430
+							skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskr", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
+						}
+					}
+					$y=$y-4;
 				}
 			}
-			if ($deb_valuta=='DKK') $amount=$dkkamount;
-			$forfalden+=afrund($amount,2); #20140628
-			$dkkforfalden+=afrund($dkkamount,2); #20140628
-			$belob=dkdecimal($amount,2);
-			if ($amount) { #20200505
-				for ($z=1; $z<=$var_antal; $z++) {
-					if ($variabel[$z]=="dato") {
-						$z_dato=$z;
-						skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", dkdato($r1['forfaldsdato']), "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
-					}
-					if ($variabel[$z]=="faktnr" && $faktnr) {
-						$z_faktnr=$z;
-						skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$faktnr", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
-					}
-					if (strtolower($variabel[$z]) == "beskrivelse") {
-						$z_beskrivelse=$z;
-						($laengde[$z])?$beskr=(substr($r1['beskrivelse'],0,$laengde[$z])):$beskr=$r1['beskrivelse']; #20190430
-						skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskr", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
-					}
-					if (strstr($variabel[$z],"bel") && $belob) {
-						$z_belob=$z;
-						skriv($id,$str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", $belob, "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
-					}
-				}	
-				$y=$y-4;
-			}
-		}}
+		}
 		$ialt=dkdecimal($forfalden,2);
 		formulartekst($rykker_id[$q],$formular,$formularsprog);
 #		$ialt=dkdecimal($forfalden,2);

@@ -56,8 +56,6 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	#$konto_til=$konto_til*1;
 	$konto_til = (int) $konto_til;
 
-echo __line__." $konto_til<br>";
-
 	($simulering) ? $simulering = "checked" : $simulering = NULL;
 	($lagerbev) ? $lagerbev = "checked" : $lagerbev = NULL;
 	if (!$regnaar) {
@@ -272,7 +270,7 @@ echo __line__." KF $konto_fra KT $konto_til<br>";
 	print "<td><input class='button gray medium' type='submit' value='$txt' name='submit'></td></tr>\n";
 	print "<tr><td><br><br></td></tr>";
 	print "</form>\n\n";
-	print "<form name=rapport action=rapport.php method=post>\n";
+	print "<form target='_blank' name=rapport action=rapport.php method=post>\n";
 		if ($r = db_fetch_array(db_select("select id from kladdeliste where bogfort='S'", __FILE__ . " linje " . __LINE__))) {
 		print "<tr><td title='Medtag simulerede kladder i rapporter'>Simulering</td><td title='Medtag simulerede kladder i rapporter'><input class='checkmark' type='checkbox' name='simulering' $simulering></td></tr>";
 	}

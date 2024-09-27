@@ -26,6 +26,7 @@
 // 20240207 PHR Accounts was not shown if all was alligned, evet if alligned after $todate.
 // 20240411 PHR	'if (abs($y)' changed to 'if (abs($y) >= 0.01'
 // 20240529	PHR Unalignet account with sum = 0 was not shown
+// 20240924 PHR showPBS now saved in settings.
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit) {
@@ -34,11 +35,28 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	global $menu;
 	global $sprog_id;
 
-	if (isset($_GET['showPBS'])) $showPBS = $_GET['showPBS'];
+	
 	$qtxt= "select id from adresser where art = 'S' and pbs_nr > '0'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $usePBS=1;
-	else $showPBS=$usePBS=0;
-	
+	else $showPBS = $usePBS = 0;
+	if ($usePBS) {
+		if (isset($_GET['showPBS'])) { 
+			$showPBS = $_GET['showPBS'];
+			$qtxt = "select id from settings where var_name = 'showPBS' and user_id = '$bruger_id'";
+			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+				$qtxt = "update settings set var_value = '$showPBS' where id = '$r[id]'";
+			} else {
+				$qtxt = "insert into settings(var_name,var_value,var_grp,var_description,user_id) ";
+				$qtxt.= "values ";
+				$qtxt.= "('showPBS','$showPBS','openPost','if on, PBS customer are shown in open posts','$bruger_id')";
+			}
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		} else {
+			$qtxt = "select var_value from settings where var_name = 'showPBS' and user_id = '$bruger_id'";
+			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $showPBS = $r['var_value'];
+			else $showPBS = 0;
+		}
+	}
 	if ($menu=='T') {
 		$top_bund = "";
 		$padding = "style='padding: 25px 20px 10px 20px;'";
@@ -132,14 +150,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$x=0;
 	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (in_array($r['id'],$op_id)) {
+			$op_amount[$x]=0;		if (in_array($r['id'],$op_id)) {
 			if (!$r['pbs_nr'] || $showPBS) {
 			$x++;
 			$konto_id[$x]=$r['id'];
 			print "<input type=hidden name='konto_id[$x]' value='$konto_id[$x]'>";
 			$kontonr[$x]=trim($r['kontonr']);
 			$firmanavn[$x]=stripslashes($r['firmanavn']);
-#cho "$x $firmanavn[$x]<br>";	
 			$addr1[$x]=stripslashes($r['addr1']);
 			$addr2[$x]=stripslashes($r['addr2']);
 			$postnr[$x]=trim($r['postnr']);

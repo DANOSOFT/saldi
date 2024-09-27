@@ -1,6 +1,6 @@
 <?php
-// -----------debitor/historikkort.php--- lap 4.0.1 --- 2021-07-28 ----
-// LICENSE
+// -----------debitor/historikkort.php-----patch 4.0.8 ----2023-07-12----
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -12,10 +12,11 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20190213 MSC - Rettet isset fejl og db fejl + rettet topmenu design til
 // 20190215 MSC - Rettet topmenu design
@@ -47,6 +48,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if (!isset ($_GET['konto_id'])) $_GET['konto_id'] = NULL;
 if (!isset ($historik_id)) $historik_id = NULL;
@@ -149,6 +151,27 @@ if ($menu=='T') {
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	$center = "";
+	$width = "width=10%";
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
+	print "<tr><td align='center' valign='top' height='1%'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n";#tabel2a start
+
+	$tekst=findtekst(154,$sprog_id);
+
+	print "<td width='10%' align=center><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>\n";
+
+	print "<td width='80%' align=center style='$topStyle'>".findtekst(1668, $sprog_id)."</td>\n";
+
+	print "<td width='10%' align=center>
+		   <a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a><br></td>\n";
+
+	print "</tbody></table>\n";#tabel2a slut
+	print "</td></tr>\n";
+	print "<tr><td height=\"99%\"  width=\"100%\" valign=\"top\">";
 } else {
 	$center = "";
 	$width = "width=10%";
@@ -188,6 +211,7 @@ if ($id > 0){
 }
 
 if (db_fetch_array(db_select("select * from grupper where ART = 'FTP' and box1 !='' and box2 !='' and box3 !=''",__FILE__ . " linje " . __LINE__))) $vis_bilag=1;
+$vis_bilag=1;
 print "<form name='historikkort' action='historikkort.php?returside=$returside' method='post'>";
 print "<input type='hidden' name=\"id\" value='$id'>";
 print "<tr><td colspan='6' $center>";

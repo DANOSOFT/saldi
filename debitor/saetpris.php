@@ -1,6 +1,6 @@
 <?php
-// --- debitor/saetpris.php ---patch 4.0.8 ----2023-08-31----
-//                           LICENSE
+// --- debitor/saetpris.php ---patch 4.1.1 ----2024-09-25----
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -16,19 +16,21 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // -----------------------------------------------------------------------
 // 2015.03.04	PHR Tilføjet mulighed for at slette et sæt
 // 2021.05.01 PHR Added  and box8!='0' as it is now set to 0 where updating 'varegrupper'
 // 20220831 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20231002 MSC - Copy pasted new design into code
+// 20240815	PHR	Translations
+// 20240925	PHR	Translations
 
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
-$title="Sætpris";
+$title="txt2115";
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -112,7 +114,7 @@ if ($saet=$_POST['saetvalg']) {
 	if ($ny_saetpris) {
 		if (!db_fetch_array(db_select("select id from ordrelinjer where ordre_id='$id' and varenr='$svnr' and saet='$saet'",__FILE__ . " linje " . __LINE__))){
 			$r=db_fetch_array(db_select("select * from varer where varenr='$svnr'",__FILE__ . " linje " . __LINE__));
-			opret_ordrelinje($id,$r['id'],$r['varenr'],1,$r['beskrivelse'],0,0,100,'$art','','','0','on','','','',$saet);
+			opret_ordrelinje($id,$r['id'],$r['varenr'],1,$r['beskrivelse'],0,0,100,'$art','','','0','on','','','',$saet,'','','',__line__);
 			db_modify("update ordrelinjer set posnr='99',samlevare='on',lev_varenr='$ny_saetpris' where ordre_id='$id' and saet='$saet' and varenr='$svnr'",__FILE__ . " linje " . __LINE__);
 		}
 		$ny_rabat=$normalsum-$ny_saetpris;
@@ -195,12 +197,22 @@ $saetpris=0;
 $normalsum=0;
 $kostsum=0;
 
-print "<tr><td width=\"100%\" align=\"center\" colspan=\"3\"><big><b>Sæt $saet</b></big></td></tr>";
-print "<tr><td width=\"45%\" align=\"right\" valign=\"top\"><table cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tbody>";
+$txt914  = findtekst(914,$sprog_id); //Beskrivelse
+$txt915  = findtekst(915,$sprog_id); //Pris
+$txt916  = findtekst(916,$sprog_id); //Antal
+$txt950  = findtekst(950,$sprog_id); //Kostpris	
+$txt1091 = findtekst(1091,$sprog_id); //Opdater
+$txt2114 = findtekst(2114,$sprog_id); //Medtag
+$txt2127 = findtekst(2127,$sprog_id); //Normalpris	
+$txt2128 = findtekst(2128,$sprog_id); //Sætpris	
+$txt3074 = findtekst(30774,$sprog_id); //Sæt
+
+print "<tr><td width=\"100%\" align=\"center\" colspan=\"3\"><big><b>$txt30774 $saet</b></big></td></tr>";
+print "<tr><td width=\"50%\" align=\"right\" valign=\"top\"><table cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tbody>";
 print "<form name=\"saetpris\" align=\"center\" action=\"saetpris.php?id=$id\" method=post autocomplete=\"off\">\n";
 print "<tr><td align=\"center\" colspan=\"4\">$snavn</td></tr>";
 print "<tr><td colspan=\"4\"><hr></td></tr>";
-print "<tr><td><b>Beskrivelse</b></td><td style=\"width:40px;\" align=\"right\"><b>Antal</b></td><td style=\"width:80px;\" align=\"right\"><b>Pris</b></td><td align=\"center\"><b>Medtag</b></td></tr>";
+print "<tr><td><b>$txt914</b></td><td style=\"width:40px;\" align=\"right\">&nbsp;<b>$txt916</b></td><td style=\"width:80px;\" align=\"right\">&nbsp;<b>$txt915</b></td><td align=\"center\">&nbsp;<b> $txt2114</b></td></tr>";
 for ($x=0;$x<count($linje_id);$x++) {
 	if (!$valgt || $medtag[$x]) {
 		if (!$samlevare[$x]) { 
@@ -231,20 +243,21 @@ for ($x=0;$x<count($linje_id);$x++) {
 print "<tr><td colspan=\"4\"><hr></td></tr>";
 $saetpris=afrund($saetpris,2);
 # $saetpris=pos_afrund($saetpris,$difkto);
+
 print "<tr><td>
 	<input type=\"hidden\" name=\"kostsum\" value=\"$kostsum\">
 	<input type=\"hidden\" name=\"normalsum\" value=\"$normalsum\">
 	<input type=\"hidden\" name=\"saetpris\" value=\"$saetpris\">
 	<input type=\"hidden\" name=\"saet\" value=\"$saet\">
-	<!--Kostpris</td><td colspan=\"2\" align=\"right\">".dkdecimal($kostsum)."--></td></tr>";
-print "<tr><td>Normalpris</td><td title=\"Kostpris: ".dkdecimal($kostsum)."\" colspan=\"2\" align=\"right\">".dkdecimal($normalsum)."</td></tr>";
+	<!--$txt2127</td><td colspan=\"2\" align=\"right\">".dkdecimal($kostsum)."--></td></tr>";
+print "<tr><td>$txt2127</td><td title=\"$txt950: ".dkdecimal($kostsum)."\" colspan=\"2\" align=\"right\">".dkdecimal($normalsum)."</td></tr>";
 if (in_array("checked",$medtag)) {
-	print "<tr><td>Sætpris</td><td  title=\"Kostpris: ".dkdecimal($kostsum)."\" colspan=\"2\" align=\"right\">
+	print "<tr><td>$txt2128</td><td  title=\"$txt950: ".dkdecimal($kostsum)."\" colspan=\"2\" align=\"right\">
 	<input type=\"text\" style=\"text-align:right\" value=\"".dkdecimal($saetpris)."\" name=\"ny_saetpris\"></td></tr>";
 }
 print "<tr><td colspan=\"4\"><hr></td></tr>";
 print "<tr><td colspan=\"4\"><input type=\"hidden\" name=\"fokus\"><input type=\"hidden\" name=\"pre_fokus\" value=\"$fokus\">";
-print "<input style=\"width:100%;height:40px;font-size:120%\" type=\"submit\" name=\"opdater\" value=\"Opdater\"></td></tr>";
+print "<input style=\"width:100%;height:40px;font-size:120%\" type=\"submit\" name=\"opdater\" value=\"$txt1091\"></td></tr>";
 print "</form>";
 print "</tbody></table></td><td width=\"10%\"><br></td>";
 $fokus="ny_saetpris";
@@ -252,8 +265,14 @@ tastatur($id,$fokus,$saet);
 
 
 function tastatur($id,$fokus,$saet) {
-	global $art;
+	global $art,$sprog_id;
 
+	$txt30   = findtekst(30,$sprog_id); //Tilbage
+	$txt1099 = findtekst(1099,$sprog_id); //Slet
+	$txt1814 = findtekst(1814,$sprog_id); //Slet hele sættet fra ordren?
+	$txt2116 = findtekst(2116,$sprog_id); //Forfra
+	$txt2117 = findtekst(2117,$sprog_id); //Rud
+	
 	$x=0;
 	$q=db_select("select saet from ordrelinjer where ordre_id='$id' and saet>'0' group by saet order by saet",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
@@ -280,24 +299,24 @@ function tastatur($id,$fokus,$saet) {
 		print "</TR><TR>\n";
 		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"zero\"  VALUE=\",\" OnClick=\"saetpris.$fokus.value += ',';saetpris.$fokus.focus();\"></TD>\n";
 		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"zero\"  VALUE=\"0\" OnClick=\"saetpris.$fokus.value += '0';saetpris.$fokus.focus();\"></TD>\n";
-		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"clear\" VALUE=\"Ryd\" OnClick=\"saetpris.$fokus.value = '';saetpris.$fokus.focus();\"></TD>\n";
+		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"clear\" VALUE=\"$txt2117\" OnClick=\"saetpris.$fokus.value = '';saetpris.$fokus.focus();\"></TD>\n";
 		print "</TR><TR>\n";
-		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"forfra\" VALUE=\"Forfra\" OnClick=\"window.location.href='saetpris.php?id=$id&forfra=1&saet=$saet'\"></TD>\n";
+		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"forfra\" VALUE='$txt2116' OnClick=\"window.location.href='saetpris.php?id=$id&forfra=1&saet=$saet'\"></TD>\n";
 		print "<FORM ACTION=\"saetpris.php?id=$id\" method=\"post\" autocomplete=\"off\">\n";
 		print "<TD collspan=\"2\"><SELECT $stil NAME=\"saetvalg\" OnChange=\"this.form.submit()\">>";
-		if ($saet) print "<OPTION VALUE=\"$saet\">Sæt $saet</OPTION>";		
+		if ($saet) print "<OPTION VALUE=\"$saet\">$txt30774 $saet</OPTION>";		
 		for($x=0;$x<count($saets);$x++){
-			if ($saets[$x]!=$saet) print "<OPTION VALUE=\"$saets[$x]\">Sæt $saets[$x]</OPTION>";		
+			if ($saets[$x]!=$saet) print "<OPTION VALUE=\"$saets[$x]\">$txt3074 $saets[$x]</OPTION>";		
 		}
 		print "<OPTION VALUE=\"nyt_saet\">Nyt sæt</OPTION>";
 		print "</SELECT>";
 		print "</FORM>";
 		print "</TD>\n";
 		($art=='PO')?$href="pos_ordre.php?id=$id":$href="ordre.php?id=$id";
-		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"tilbage\"  VALUE=\"Tilbage\" OnClick=\"window.location.href='$href'\"></TD>\n";
+		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"tilbage\"  VALUE=\"$txt30\" OnClick=\"window.location.href='$href'\"></TD>\n";
 		print "</TR><TR>\n";
 		print "<FORM ACTION=\"saetpris.php?id=$id&saet=$saet\" method=\"post\" autocomplete=\"off\">\n";
-		print "<TD><INPUT TYPE=\"submit\" $stil OnClick=\"return confirm('Slet hele sættet fra ordren?');\" NAME=\"slet\" VALUE=\"Slet\"></TD>\n";
+		print "<TD><INPUT TYPE=\"submit\" $stil OnClick=\"return confirm('$txt1814');\" NAME=\"slet\" VALUE=\"$txt1099\"></TD>\n";
 		print "</FORM>";
 		print "<TD></TD>\n";
 		print "<TD><TD>\n";

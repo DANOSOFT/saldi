@@ -220,7 +220,6 @@ if ($_POST) {
 	$regnaar = if_isset($_POST['regnaar']);
 	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar);
 }
-echo __line__." $konto_fra $konto_til<br>";
 
 if (isset($_GET['rapportart']))  $rapportart = $_GET['rapportart'];
 if (isset($_GET['dato_fra']))    $dato_fra = $_GET['dato_fra'];
@@ -262,15 +261,11 @@ elseif ($rapportart) {
 		$qtxt = "select kontonr from kontoplan where regnskabsaar='$regnaar' and kontotype='X'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			if ($rapportart != "balance") {
-echo __line__." $konto_fra $konto_til<br>";
 				if (!$konto_til || $konto_til >= $r['kontonr']) {
 					$qtxt = "select max(kontonr) as kontonr from kontoplan where regnskabsaar='$regnaar' and kontonr < '$r[kontonr]'";
-echo "$qtxt<br>";
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_til = $r['kontonr'];
 				}
-echo __line__." $konto_fra $konto_til<br>";
 			} else {
-echo __line__." $konto_fra $konto_til<br>";
 				if (!$konto_fra || $konto_fra <= $r['kontonr']) {
 					$qtxt = "select min(kontonr) as kontonr from kontoplan where regnskabsaar='$regnaar' and kontonr > '$r[kontonr]'";
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_fra = $r['kontonr'];
@@ -283,8 +278,6 @@ echo __line__." $konto_fra $konto_til<br>";
 		$submit = "regnskab";
 	} else $submit = str2low($rapportart);
 }
-echo __line__." $konto_fra $konto_til<br>";
-
 /*
 elseif ($rapportart) {
 	if ($rapportart == "balance" || $rapportart == "resultat" || $rapportart == "budget" || $rapportart == "lastYear") {
@@ -320,8 +313,6 @@ if ($bankReconcile) {
 	header("Location: bankReconcile.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
 }
-// echo "KT3 $konto_til S $submit<br>";
-// echo $submit;
 include("rapport_includes/$submit.php");
 $submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev);
 #################################################################################################

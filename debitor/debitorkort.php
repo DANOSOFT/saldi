@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 4.0.8 --- 2023-09-25 ---
+// --- debitor/debitorkort.php --- lap 4.1.0 --- 2024-09-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 
 // 20121023 ID slettes fra pbs_kunder hvis pbs ikke afmærket, søg 20121023
@@ -35,18 +35,20 @@
 // 20200316 PHR - Some design update (Removed borders)
 // 20210523 PHR Added my sale password.
 // 20210702 LOE Translated these texts with findtekst() function
-// 20210706 LOE Commited out for future modification
+// 20210706 LOE Commented out for future modification
 // 20211006 PHR added 'anonymize'
 // 20221229 PHR some cleanup
 // 20230223 PHR repaired 'anonymize' after translalation error and renamed kategori to katString where is string
 // 20230925 PHR php8
+// 20240528 PHR Added $_SESSION['debitorId']
+// 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
  
 @session_start();
 $s_id=session_id();
 
 $fokus = $katString = NULL;
 $konto_id = $lukket = $ordre_id = $productlimit = $status = $status_antal = 0;
-$cat_id = array();
+$cat_id = $kategori = array();
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 
 $modulnr=6;
@@ -56,8 +58,19 @@ $css="../css/standard.css";
  include("../includes/connect.php");
  include("../includes/online.php");
  include("../includes/std_func.php");
+ include("../includes/topline_settings.php");
 
-  
+ $qtxt = "select id from settings where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+ if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+  $qtxt = "update settings set var_value = '' where id = '$r[id]'";
+ } else {
+	 $qtxt = "insert into settings (var_name, var_grp, user_id, var_description) ";
+	 $qtxt.= "values ";
+	 $qtxt.= "('debitorId','debitor', '$bruger_id','Used to track debitor Id when orderlist is called from debitor card')";
+ }
+ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+ 
+ #if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
  print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
 
  $id = if_isset($_GET['id']);
@@ -138,7 +151,11 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])){
 		$lev_kontakt=db_escape_string(trim($_POST['lev_kontakt']));
 		$lev_tlf=db_escape_string(trim($_POST['lev_tlf']));
 		(isset($_POST['lev_email']))?$lev_email = db_escape_string(trim($_POST['lev_email'])) : $lev_email = '';
+
 		$vis_lev_addr=db_escape_string(if_isset($_POST['vis_lev_addr'],NULL));
+		#echo $vis_lev_addr;
+  		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
+
 		$lukket=db_escape_string(if_isset($_POST['lukket'],NULL));
 		(isset($_POST['password']))?$password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit=db_escape_string(trim($_POST['productlimit']));
@@ -490,7 +507,9 @@ if ($id > 0){
 	$felt_4 = htmlentities(trim($r['felt_4']),ENT_COMPAT,$charset);
 	$felt_5 = htmlentities(trim($r['felt_5']),ENT_COMPAT,$charset);
 	($r['lukket']) ? $lukket='checked' : $lukket='';
-	$kategori=explode(chr(9),$r['kategori']);
+
+	$kategori=array();
+	if ($r['kategori'])$kategori=explode(chr(9),$r['kategori']);
 	if (!$oprettet) {
 		$oprettet = date("Y-m-d");
 		$qtxt="select max(oprettet) as oprettet from adresser where id < '$id'";
@@ -620,26 +639,45 @@ if ($menu=='T') {
 	print "</div></div>";
 	print "<div class='content-noside'>";
 	print  "<table border='0' cellspacing='1' class='dataTableForm' width='100%'>";
+
+} elseif ($menu=='S') {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
+	print "<tr><td align=\"center\" valign=\"top\">\n";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
+
+	print "<td width='10%'>
+		   <a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst(30,$sprog_id)."</button></a></td>\n";
+
+	print "<td width='80%' style='$topStyle' align='center'>".findtekst(356,$sprog_id)."</td>\n";
+
+	print "<td width='10%'>
+		   <a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst(39,$sprog_id)."</button></a></td>\n";
+
+	print "</tbody></table>"; # <- TABEL 1.1
+	print "</td></tr>\n";
+	print "<tr><td align = center valign = center>\n";
+	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 ->
+
 } else {
-#if ($menu=='S') {
-#	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-#	print "<tr><td style = 'width:150px;'>";
-#	print "</td><td><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
-#}
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
-print "<tr><td align=\"center\" valign=\"top\">\n";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>".findtekst(30,$sprog_id)."<!--tekst 30--></a></td>\n";
-else print "<td $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->".findtekst(30,$sprog_id)."<!--tekst 30--></a></td>\n";
-print "<td width=\"80%\"$top_bund>".findtekst(356,$sprog_id)."<!--tekst 356--></td>\n";
-print "<td width=\"10%\"$top_bund><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N><!--tekst 154-->".findtekst(39,$sprog_id)."<!--tekst 39--></a></td>\n";
-print "</tbody></table>"; # <- TABEL 1.1
-print "</td></tr>\n";
-print "<tr><td align = center valign = center>\n";
-print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 ->
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
+	print "<tr><td align=\"center\" valign=\"top\">\n";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>".findtekst(30,$sprog_id)."<!--tekst 30--></a></td>\n";
+	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->".findtekst(30,$sprog_id)."<!--tekst 30--></a></td>\n";
+	print "<td width=\"80%\"$top_bund>".findtekst(356,$sprog_id)."<!--tekst 356--></td>\n";
+	print "<td width=\"10%\"$top_bund><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N><!--tekst 154-->".findtekst(39,$sprog_id)."<!--tekst 39--></a></td>\n";
+	print "</tbody></table>"; # <- TABEL 1.1
+	print "</td></tr>\n";
+	print "<tr><td align = center valign = center>\n";
+	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 ->
 }
 print "<form name=debitorkort action=debitorkort.php method=post>\n";
-if($vis_lev_addr) {
+$vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+if ($vis_addr == "on") {
 	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
 	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
 	print "<input type=hidden name=\"felt_3\" value='$felt_3'>\n";
@@ -779,7 +817,7 @@ if (!$gruppe) {
 }	
 print "<td><select class='inputbox' NAME=gruppe onchange=\"javascript:docChange = true;\">\n";
 if ($gruppe) {	
-	$r = db_fetch_array(db_select("select beskrivelse from grupper where art='DG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select beskrivelse from grupper where art='DG' and kodenr='$gruppe' and fiscal_year='$regnaar'",__FILE__ . " linje " . __LINE__));
 	print "<option>$gruppe:$r[beskrivelse]</option>\n";
 }
 $q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -851,9 +889,8 @@ if ($pbs) {
 ##################### KONTOANSVARLIG ##################### 
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>".findtekst(386,$sprog_id)."<!--tekst 386--></td>\n";
-	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__));
 print "<td><select class='inputbox' NAME=kontoansvarlig value=\"$kontoansvarlig\"  onchange=\"javascript:docChange = true;\">\n";
-if ($r['initialer']) {
+if ($r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__))) {
 	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__));
 	print "<option>$r[initialer]</option>\n";
 }
@@ -892,7 +929,8 @@ print "<tr bgcolor=$bg><td>".findtekst(387,$sprog_id)."<!--tekst 387--></td><td>
 print "</tbody></table></td>";# <- TABEL 1.2.2
 print "<td valign=top><table border='0' width='100%'><tbody>"; # TABEL 1.2.3 ->
 $bg=$bgcolor5;
-if ($vis_lev_addr) {
+$vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+if ($vis_addr == "on") {
 	print "<tr bgcolor=$bg><td colspan=2 align=center height=25px><b>".findtekst(1148,$sprog_id)."</b></td></tr>\n"; #20210702
 	if ($kontotype=='privat') {
 		print "<input type=\"hidden\" name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
@@ -1057,6 +1095,47 @@ print "</tbody></table></td></tr>"; # <- TABEL 1.2
 print "<tr><td align = 'center' valign = 'bottom'>\n";
 if ($menu=='T')
 {
+} elseif ($menu=='S') {
+	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
+	print "<td width='25%' align=center style='$topStyle'>&nbsp;</td>\n";
+	$tekst=findtekst(130,$sprog_id);
+	if ($popup) {
+		print "<td width='10%' onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php', title='$tekst'>
+		<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(131,$sprog_id)."</button></td>\n";
+	} elseif ($returside!="historikkort.php") {
+		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id&returside=debitorkort.php>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(131,$sprog_id)."</button></a></td>\n";
+	} else {
+		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(131,$sprog_id)."</button></a></td>\n";
+	}
+	$tekst=findtekst(132,$sprog_id);
+	print "<td width='10%' title='$tekst'>
+		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(133,$sprog_id)."</button></a></td>\n";
+
+	$tekst=findtekst(129,$sprog_id);
+	if (substr($rettigheder,5,1)=='1') {
+		print "<td width='10%' title='$tekst'>
+			   <a href=ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(134,$sprog_id)."</button></a></td>\n";
+	} else {
+		print "<td width='10%' align='center' style='$topStyle'><span style=\"color:#999;\">".findtekst(134,$sprog_id)."</span></td>\n";
+	}
+
+	$r=db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
+	$jobkort=$r['box7'];
+	if ($jobkort) {
+		$tekst=findtekst(312,$sprog_id);#"Klik her for at &aring;bne listen med arbejdskort"
+
+	print "<td width='10%' title='$tekst'><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(38,$sprog_id)."</button></td>\n";
+	} else print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>".findtekst(38,$sprog_id)."</span></td>\n";
+
+	print "<td width='25%' style='$topStyle'>&nbsp;</td>\n";
+
+	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3
+	print "</tbody></table>"; # <- TABEL 1
 } else {
 	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
 	print "<td width='25%' $top_bund>&nbsp;</td>\n";
@@ -1090,9 +1169,6 @@ if ($menu=='T')
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
 	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3
 	print "</tbody></table>"; # <- TABEL 1
-}
-	if ($menu=='S') {
-	print "</tbody></table>";
 }
 
 function split_navn($firmanavn) {

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2024-06-26 ---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2024-09-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,8 @@
 // 20231025 PHR Added call to sync_shop_vare.
 // 20231219 MSC - Copy pasted new design into code
 // 20240626 PHR Added 'fiscal_year' in queries
+// 20240926 PHR added (float) lo $leveres[$x]
+// 20240926 PHR outcommented section 'if ($godkend=='on' && $status==2)' as it doesen't make sense.
 
 @session_start();
 $s_id=session_id();
@@ -401,6 +403,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$leveres[$x]=usdecimal($leveres[$x],2);
 				if ($art=='KK') $leveres[$x]=$leveres[$x]*-1;
 			} else $leveres[$x] = 0;
+			(float)$leveres[$x];
 			$y="beskrivelse".$x;
 			$beskrivelse[$x]=db_escape_string(trim($_POST[$y]));
 			$y="pris".$x;
@@ -849,8 +852,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
 			}
 		}
-		if ( $godkend=='on' && $status==2 ) {
-			$opret_ny=0;
+/*
+		if ( $godkend=='on' && $status==2 ) { #why this.
 			for($x=1; $x<=$linjeantal; $x++) {
 				if ($antal[$x]!=$tidl_lev[$x]) {$opret_ny=1;}
 			}
@@ -875,7 +878,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						$r1 =	db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
 						$qtxt = "select box6,box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]' and ";
-						$qtxt.= "fiscal_year = '$regnaar";
+						$qtxt.= "fiscal_year = '$regnaar'";
 						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						$bogfkto[$x] = $r2['box4'];
 						(trim($r2['box6']))?$omvare[$x]='on':$omvare[$x]='';
@@ -900,6 +903,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				db_modify("update ordrer set sum=$ny_sum where id = $ny_id",__FILE__ . " linje " . __LINE__);
 			}
 		}
+*/		
 		if ($submit == 'copy' || $submit == 'credit') {
 #			if ($kred_ord_id) {
 #				db_modify("update ordrer set kred_ord_id='$kred_ord_id' where id='$id'",__FILE__ . " linje " . __LINE__);}
@@ -1508,6 +1512,58 @@ if ($menu=='T') {
 	} else {
 		print "<td width='10%' align='center' style='$topStyle'><br></td>";
 	}
+	print "</tbody></table>";
+	print "</td></tr>\n";
+	print "<tr><td valign=\"top\" align=center>";
+} elseif ($menu=='S') {
+	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
+	print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
+	print "<div align=\"center\">";
+
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	if ($kort) print "<td width=\"10%\">$color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
+					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
+		  else print "<td width=\"10%\">$color
+					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>
+					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+					  .findtekst(30, $sprog_id)."</button></a></td>";
+
+	print "<td width=\"80%\" align='center' style='$topStyle'>$color$tekst</td>";
+
+	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
+		print "<td width=\"10%\">$color
+			   <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>
+			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   .findtekst(39, $sprog_id)."</button></a></td>";
+
+	} else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {
+		print "<td width=\"10%\"> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>
+			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   .findtekst(39, $sprog_id)."</button></a></td>";
+
+	} elseif ($kort=="../kreditor/kreditorkort.php") {
+		print "<td width=\"5%\" onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\">
+			   <span title='".findtekst(1521, $sprog_id)."'><u>
+			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   .findtekst(813, $sprog_id)."</button></u></span></td>"; #20210716
+		print "<td width=\"5%\">$color
+			   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
+			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   .findtekst(39, $sprog_id)."</button></a></td>";
+
+	} elseif (($id)||($kort!="../lager/varekort.php")) {
+		print "<td width=\"10%\">$color
+			   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
+			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   .findtekst(39, $sprog_id)."</button></a></td>";
+	}
+	else {
+		print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
+	}
+
 	print "</tbody></table>";
 	print "</td></tr>\n";
 	print "<tr><td valign=\"top\" align=center>";

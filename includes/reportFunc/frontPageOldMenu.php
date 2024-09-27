@@ -16,7 +16,7 @@
 		$overlib1 = "<span class='CellComment'>$tekst1</span>";
 		$overlib2 = "<span class='CellComment'>$tekst3</span>";
 		$overlib3 = "<span class='CellComment'>$tekst5</span>";
-		print "<tr><td align='center' class='CellWithComment'><b>x$tekst2</b> $overlib1</td>
+		print "<tr><td align='center' class='CellWithComment'><b>$tekst2</b> $overlib1</td>
 		<td align='center' colspan=3 class='CellWithComment'><b>$tekst4</b> $overlib2</td>
 		<td align='center' class='CellWithComment'><b>$tekst6</b> $overlib3</td></tr>";
 		print "<form name='regnskabsaar' action='rapport.php' method='post'>";

@@ -8,12 +8,12 @@
 	#else print "<a href=\"../index/menu.php\" accesskey=\"L\">Luk</a></td>";
 	print "<a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
 	print "<td width=80% $top_bund align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
-	if ($valg=="$tilbud1" && !$hurtigfakt) {print "<td width = 20% align=center $knap_ind>".findtekst(812, $sprog_id)."</td>";}
+	if ($valg=="tilbud" && !$hurtigfakt) {print "<td width = 20% align=center $knap_ind>".findtekst(812, $sprog_id)."</td>";}
 	elseif (!$hurtigfakt) {print "<td width = 20% align=center><a href='ordreliste.php?valg=tilbud&konto_id=$konto_id&returside=$returside'>".findtekst(812, $sprog_id)."</a></td>";} //20210318
-	if ($valg=="$ordrer1") {print "<td width = 20% align=center $knap_ind>".findtekst(107, $sprog_id)."</td>";}
-	else {print "<td width = 20% align=center><a href='ordreliste.php?valg=$ordrer1&konto_id=$konto_id&returside=$returside'>".findtekst(107, $sprog_id)."</a></td>";}
-	if ($valg=="$faktura1") print "<td width = 20% align=center $knap_ind>".findtekst(643, $sprog_id)."</td>";
-	else print "<td width = 20% align=center><a href='ordreliste.php?valg=$faktura1&konto_id=$konto_id&returside=$returside'>".findtekst(643, $sprog_id)."</a></td>";
+	if ($valg=="ordre") {print "<td width = 20% align=center $knap_ind>".findtekst(107, $sprog_id)."</td>";}
+	else {print "<td width = 20% align=center><a href='ordreliste.php?valg=ordre&konto_id=$konto_id&returside=$returside'>".findtekst(107, $sprog_id)."</a></td>";}
+	if ($valg=="faktura") print "<td width = 20% align=center $knap_ind>".findtekst(643, $sprog_id)."</td>";
+	else print "<td width = 20% align=center><a href='ordreliste.php?valg=faktura&konto_id=$konto_id&returside=$returside'>".findtekst(643, $sprog_id)."</a></td>";
 	if ($valg=='pbs') print "<td width = 20% align=center $knap_ind>".findtekst(385, $sprog_id)."</td>";
 	elseif ($pbs) print "<td width = 20% align=center><a href='ordreliste.php?valg=pbs&konto_id=$konto_id&returside=$returside'>".findtekst(385, $sprog_id)."</a></td>";
 	print "</tbody></table></td>\n"; # <- Tabel 1.1.1
@@ -35,7 +35,7 @@
 		}
 		print "</tbody></table></td></tr>\n"; # <- Tabel 1.1.1
 	}
-	if ($valg=="$ordrer1") { #20121017
+	if ($valg=="ordre") { #20121017
 		$dir = '../ublfiler/ind/';
 		if (file_exists("$dir")) {
 			$vis_xml=0;

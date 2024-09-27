@@ -1,12 +1,39 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- debitor/pos_ordre_includes/boxCountMethods/cashBalance.php --- lap 4.1.1 - 2024.07.30 -
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2003-2024 Saldi.dk ApS
+// ----------------------------------------------------------------------
+// 20240729 PHR Various translations and currency adjustment.
+
+
 function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
+	echo "<!-- function cashBalance Begin -->\n";
+
 	global $bruger_id,$brugernavn;
 	global $db,$db_encode,$FromCharset,$ToCharset;
 #	global $printserver;
 	global $regnaar,$reportNumber;
 	global $tracelog;
 	global $vis_saet;
-echo __line__."<br>";
 
 	$dd=date("Y-m-d");
 	$tid=date("H:i");
@@ -20,21 +47,23 @@ echo __line__."<br>";
 	
 	if (!$cookievalue) $cookievalue=if_isset($_COOKIE['saldi_kasseoptael'],NULL);
 	$tmparray=explode(chr(9),$cookievalue);
-	$ore_50       = if_isset($tmparray[0],0);
-	$kr_1         = if_isset($tmparray[1],0);
-	$kr_2         = if_isset($tmparray[2],0);
-	$kr_5         = if_isset($tmparray[3],0);
-	$kr_10        = if_isset($tmparray[4],0);
-	$kr_20        = if_isset($tmparray[5],0);
-	$kr_50        = if_isset($tmparray[6],0);
-	$kr_100       = if_isset($tmparray[7],0);
-	$kr_200       = if_isset($tmparray[8],0);
-	$kr_500       = if_isset($tmparray[9],0);
-	$kr_1000      = if_isset($tmparray[10],0);
-	$kr_andet     = if_isset($tmparray[11],0);
-	$fiveRappen   = if_isset($tmparray[12],0);
-	$tenRappen    = if_isset($tmparray[13],0);
-	$twentyRappen = if_isset($tmparray[14],0);
+	$ore_10       = if_isset($tmparray[0],0);
+	$ore_20       = if_isset($tmparray[1],0);
+	$ore_50       = if_isset($tmparray[2],0);
+	$kr_1         = if_isset($tmparray[3],0);
+	$kr_2         = if_isset($tmparray[4],0);
+	$kr_5         = if_isset($tmparray[5],0);
+	$kr_10        = if_isset($tmparray[6],0);
+	$kr_20        = if_isset($tmparray[7],0);
+	$kr_50        = if_isset($tmparray[8],0);
+	$kr_100       = if_isset($tmparray[9],0);
+	$kr_200       = if_isset($tmparray[10],0);
+	$kr_500       = if_isset($tmparray[11],0);
+	$kr_1000      = if_isset($tmparray[12],0);
+	$kr_andet     = if_isset($tmparray[13],0);
+#	$fiveRappen   = if_isset($tmparray[14],0);
+#	$tenRappen    = if_isset($tmparray[15],0);
+#	$twentyRappen = if_isset($tmparray[16],0);
 	for ($x=15;$x<count($tmparray);$x++) {
 		$optval[$x-15] = if_isset($tmparray[$x],0);
 	}
@@ -63,7 +92,7 @@ echo __line__."<br>";
 			$printpopup=1;
 		}
 	} else $printpopup=1;
-	if (!$godkendt && $optalassist) kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval, $fiveRappen, $tenRappen, $twentyRappen);
+	if (!$godkendt && $optalassist) kasseoptalling ($kasse,$optalt,$ore_10,$ore_20,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval); #, $fiveRappen, $tenRappen, $twentyRappen
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$startmd=$r['box1'];
 	$startaar=$r['box2'];
@@ -95,7 +124,7 @@ echo __line__."<br>";
 	$log=fopen("$logfil","a");
     setPrintHeaderTxt($FromCharset, $ToCharset, $fp, $dd, $tid, $kasse, $brugernavn);
 	if ($optalassist) {
-        setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval, $change_cardvalue,$reportNumber);
+        setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval, $change_cardvalue,$reportNumber);
 	} else {
 	 	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
 		$svar=findBoxSale($kasse,$optalt,'DKK');
@@ -190,33 +219,6 @@ echo __line__."<br>";
 
 	fclose($fp);
 	fclose($log);
-/* Outcommented 20210306 PHR 
-	$bon='';
-	$fp=fopen("$pfnavn","r");
-	while($linje=fgets($fp)) {
-		$bon.=$linje;
-	}
-	$bon=urlencode($bon);
-	if ($udskriv) $tmp="../temp/".$db."/kasseopg".str_replace("-","",$kasse).".txt";
-	else $tmp="/temp/".$db."/".str_replace("-","",$kasse).".txt";
-	$url="://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF'];
-	$url=str_replace("/debitor/pos_ordre.php","",$url);
-	if ($_SERVER['HTTPS']) $url="s".$url;
-	$url="http".$url;
-	if ($tracelog) fwrite ($tracelog, __file__." ".__line__." Calls $printserver/saldiprint.php\n");
-	if ($printpopup) {
-		print "<BODY onLoad=\"JavaScript:window.open('http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=1&bon=$bon&skuffe=1&gem=1' , '' , '$jsvars');\">\n";
-	} else {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=$bonantal&id=$id&returside=$url/debitor/pos_ordre.php&bon=$bon&skuffe=1&gem=1\">\n";
-	}
-*/
-/*
-	$accept = setCashCountText()['accept'];
-
-	if (isset($_POST['optael']) &&  $_POST['optael'] == $accept && getCountry() == "Norway") {
-		$_SESSION['boxZreport'] = true;
-        print "<meta http-equiv=\"refresh\" content=\"0\"; url=https://udvikling.saldi.dk/lars/debitor/pos_ordre.php?id='$id'&kasse='$kasse'&kassebeholdning=on&bordnr=$bordnr>";
-	}
-*/
+	echo "<!-- function cashBalance End -->\n";
 } # endfunc kassebeholdning
 ?>
