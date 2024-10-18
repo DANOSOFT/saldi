@@ -43,18 +43,18 @@
 43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
 45	Adresse 2	Address 2	adresse 2
-46	By	Town	By
+46	By	City	By
 47	Land	Country	Land
 48	Cvr nr.	Vat no.	MVA no.
-49	Tlf	Tel	Tlf
+49	Tlf	Phone	Tlf
 50	Fax	Fax	Faks
 51	Web	Web	Internett
 52	Email	Email	E-post
 53	Erh	IsH	Er H
 54	Ean	Ean	Ean
 55	Institution	Institution	Institusjon
-56	Betalingsbet.	Payment bet.	Betalingssatsing.
-57	Betalingsdage	Payment days	Betalingsdager
+56	Betalingsbet.	Pay.terms	Betalingsbet.
+57	Betalingsdage	Pay.days	Betalingsdager
 58	Bank_navn	Bank name	Bank navn
 59	Bank_reg	Bank_reg	Bank_reg
 60	Bank_konto	Bank_account	Bankkonto
@@ -79,7 +79,7 @@
 79	Dags dato anvendes som fakturadato	Today's date is used as the invoice date	Dagens dato brukes som fakturadato
 80	Ok	OK	OK
 81	Afbryd	Cancel	avbryt
-82	Genfakturering	Re-invoicing	Re-fakturering
+82	Genfakturer	Next invoice	Neste faktura
 83	Ja	Yes	Ja
 84	Nej	No	Nei
 85	Vælg om priser skal opdateres fra varekort eller overføres uændrede.	Choose whether prices are to be updated from product cards or transferred unchanged.	Velg om prisene skal oppdateres fra produktkort eller overføres uendret.
@@ -143,7 +143,7 @@
 143	Klik her for at sortere på postnr.	Click here to sort by postal code.	Klikk her for å sortere etter postnummer
 144	Postnr	ZIP code	post kode
 145	Klik her for at sortere på by.	Click here to sort by city.	Klikk her for å sortere etter by.
-146	By	Town	By
+146	By	City	By
 147	Klik her for at sortere på kontaktperson.	Click here to sort by contact person.	Klikk her for å sortere etter kontaktperson.
 148	Kontaktperson	Contact person	Kontaktperson
 149	Klik her for at sortere på telefonnummer.	Click here to sort by phone number.	Klikk her for å sortere etter telefonnummer.
@@ -280,7 +280,7 @@
 280	Antal betalingsmåder	Number of payment methods	Antall betalingsmåter
 281	Type af betalingsmåde	eg Dankort	Type betalingsmåte
 282	Vælg det kontonummer hvor betalinger skal konteres.	Select the account number where payments are to be posted.	Velg kontonummeret der betalingene skal bokføres.
-283	Kreditkort	Credit card	Kredittkort
+283	Kreditkort	Creditcard	Kredittkort
 284	Kontonr	Account no	Kontonr
 285	Vælg momsgruppe for kontantkunder.	Choose VAT group for cash customers.	Velg momsgruppe for kontantkunder.
 286	Momsgruppe	VAT group	Mva-gruppe
@@ -367,7 +367,7 @@
 367	Hjemmeside	Homepage	Hjemmeside
 368	Betalingsbetingelse	Payment terms	Betalingsbetingelser
 369	Forud	Prior	I forkant
-370	Kontant	Cash	Penger
+370	Kontant	Cash	Kontant
 371	Efterkrav	Cash on delivery	Kontantbetaling ved levering
 372	Netto	Net	Nett
 373	Lb. md.	EOM.	Løp. md.
@@ -665,10 +665,10 @@
 665	Løntillæg	Wage supplement	Lønnstillegg
 666	Postnr & by	ZIP code & city	Post kode & by
 667	E-mail/brug	Email / use	E-post / bruk
-668	Betalingsbet.	Payment terms	Betalingsbet.
+668	Betalingsbet.	Pay.terms	Betalingsbet.
 669	Ny kontakt	New contact	Ny kontakt
 670	Trainee	Trainee	Lærling
-671	Bilag	Appendix	Bilag
+671	Bilag	Attachment	Bilag
 672	Skriv navn til vedhæftet bilag	when sent per. mail.	Skriv navn for vedlegg
 673	Skriv her hvor mange borde der skal registreres	Write here how many tables to register	Skriv her hvor mange tabeller du skal registrere
 674	Antal borde	Number of tables	Antall bord
@@ -852,7 +852,7 @@
 852	Slet regnskab	Delete accounts	Slett kontoer
 853	Hvis du sætter flueben i feltet og klikker på `Slet` slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven. 	If you check the box and click on `Delete`, the accounts will be deleted and your account will be closed. We keep a backup copy for 5 years, cf. the Accounting Act.	Hvis du merker av i boksen og klikker på `Slett`, vil kontoene bli slettet og kontoen din vil bli stengt. Vi oppbevarer en sikkerhetskopi i 5 år, jf. Regnskapsloven.
 854	Gavekortnumre	Gift card numbers	Gavekortnummer
-855	Afmærk hvis hvert gavekort eller tilgodebevis skal have eget nummer.	Check if each gift card or voucher must have its own number.	Sjekk om hvert gavekort eller kupong må ha sitt eget nummer.
+855	Afmærk hvis hvert gavekort eller tilgodebevis skal have eget nummer.	Check if each gift card or voucher must have its own number.	Sjekk om hvert gavekort eller tilgodelapp må ha sitt eget nummer.
 856	Gavekorttekst	Gift card text	Gavekorttekst
 857	Angiv den tekst	Enter that text	Skriv inn teksten
 858	Vælg gavekort først før du kan tilføje en gavekorttekst.	Select gift card first before you can add a gift card text.	Velg gavekort først før du kan legge til en gavekorttekst.
@@ -1052,7 +1052,7 @@
 1052	Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.	Indicate any location or other that is part of the official address.	Angi hvilket som helst sted eller annet som er en del av den offisielle adressen.
 1053	Postnummer	Zip_code	Post kode
 1054	Angiv postnummeret for afhentningstedet	Enter the postcode for the collection point	Skriv inn postnummeret for innsamlingsstedet
-1055	Bynavn	City_name	By Navn
+1055	By	City	By
 1056	Angiv bynavn eller postdistrikt for afhentningsstedet	Enter city name or postal district for the pickup location	Angi bynavn eller postdistrikt for hentestedet
 1057	Danske Fragtmænd	Danish Freightmen	Danske fraktmenn
 1058	Afleveringsmetode som standard	Delivery method by default	Leveringsmåte som standard
@@ -1065,7 +1065,7 @@
 1065	Bogfør	Post	Bokfør
 1066	Udlign	Equalize	Utjevner
 1067	Budget	Budget	 Budsjett
-1068	Bilagstekst	Appendix_text	Vedleggstekst
+1068	Bilagstekst	Attachment text	Vedleggstekst
 1069	Valuta	Currency	Valuta  
 1070	Forfald	Due_date	Tidsfrist
 1071	Betal	Pay	Betale
@@ -1408,7 +1408,7 @@
 1408	Kassebillag	Cash bill	Kontantregning
 1409	Mappe til bilag ikke fundet	Folder for attachments not found	Mappen for vedlegg ble ikke funnet
 1410	Der tillades kun bilag af typen PDF	Only PDF attachments are allowed	Bare PDF-vedlegg er tillatt
-1411	Vedhæft bilag	Attach appendix	Legg vedlegg
+1411	Vedhæft bilag	Attach attachment	Legg vedlegg
 1412	Vælg bilag fra email	Select attachments from email	Velg vedlegg fra e-post
 1413	Gennemse	Browse	Bla gjennom
 1414	Vælg bilag fra enhed	Select attachments from device	Velg vedlegg fra enheten
@@ -1549,8 +1549,8 @@
 1549	Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)	Importing bank entries or other data from .csv file (comma separated file)	Importør bankposteringer eller andre data fra .csv-fil (kommasepareret fil)
 1550	Finder åbne poster, som modsvarer beløb og fakturanummer	Finds open items that match the amount and invoice number	Finder åbne poster, som modsvarer beløb og fakturanummer
 1551	Klik for at overføre kontonr til kassekladde	Click to transfer account number to cash journal	Klikk for å overføre kontonr til kassekladde
-1552	Bilagsnummer for 1. bilag. De øvrige beregnes automatisk. Sættes et lighedstegn anvendes orginalt bilagsnummer	Appendix number for 1st appendix. The others are calculated automatically. If an equal sign is added, the original document number is used	Bilagsnummer for 1. bilag. De øvrige beregnes automatisk. Settes et lighedstegn brukes orginalt bilagsnummer
-1553	Skriv 1. bilagsnr	Write 1st appendix no	Skriv 1. bilagsnr
+1552	Bilagsnummer for 1. bilag. De øvrige beregnes automatisk. Sættes et lighedstegn anvendes orginalt bilagsnummer	Attachment number for 1st attachment. The others are calculated automatically. If an equal sign is added, the original document number is used	Bilagsnummer for 1. bilag. De øvrige beregnes automatisk. Settes et lighedstegn brukes orginalt bilagsnummer
+1553	Skriv 1. bilagsnr	Write 1st attachment no	Skriv 1. bilagsnr
 1554	Sættes et lighedstegn, anvendes orginal bilagsdato	If an equals sign is used, the original document date is used	Sette et lighedstegn, brukes orginal bilagsdato
 1555	Skriv dato for alle bilag 	Write the date for all documents	Skriv dato for alle bilag
 1556	Afmærkes her, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt '=' i begge overstående felter!	Marked here, debit and credit are exchanged. Used when returning the entire journal. Put '=' in both of the above fields!	Afmærkes henne, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt '=' i begge overstående felter!
@@ -1575,21 +1575,21 @@
 1575	En tilsvarende postering er også ført på kladde	A similar entry is also entered on the draft	En tilsvarende postering er også ført på kladde
 1576	Importer data fra DocuBizz?	Import data from DocuBizz?	Importørdata fra DocuBizz?
 1577	Kladden er i brug af	The draft is in use	Kladden er i brug af
-1578	Ulovlig værdi i debetfelt (Bilag nr	Illegal value in debit field (Appendix no	Ulovlig verdi i debetfelt (Bilag nr
+1578	Ulovlig værdi i debetfelt (Bilag nr	Illegal value in debit field (Attachment no	Ulovlig verdi i debetfelt (Bilag nr
 1579	kladde ikke gemt!	draft not saved!	kladde ikke gemt!
-1580	Ulovlig værdi i kreditfelt (Bilag nr	Illegal value in credit field (Appendix no	Ulovlig verdi i kreditfelt (Bilag nr
+1580	Ulovlig værdi i kreditfelt (Bilag nr	Illegal value in credit field (Attachment no	Ulovlig verdi i kreditfelt (Bilag nr
 1581	Forskellige datoer i bilag	Different dates in appendices	Forskellige datoer i bilag
-1582	Ulovlig værdi i bilagsfelt (Bilag nr	Illegal value in appendix field (Appendix no	Ulovlig verdi i bilagsfelt (Bilag nr
+1582	Ulovlig værdi i bilagsfelt (Bilag nr	Illegal value in attachment field (Attachment no	Ulovlig verdi i bilagsfelt (Bilag nr
 1583	Brug af refresh konstateret - handling ignoreret	Use of refresh detected - action ignored	Brug af refresh konstateret - håndtering av ignoreret
 1584	Kladden er allerede bogført - kladden lukkes	The journal is already posted - the journal is closed	Kladden er allerede bogført - kladden lukkes
-1585	er ikke defineret som genvejstast (Bilag nr	is not defined as a shortcut key (Appendix no	er ikke defineret som genvejstast (Bilag nr
+1585	er ikke defineret som genvejstast (Bilag nr	is not defined as a shortcut key (Attachment no	er ikke defineret som genvejstast (Bilag nr
 1586	) Kladden en IKKE gemt!	) Drafts and NOT saved!	) Kladden en IKKE gemt!
 1587	Der er ingen konti som indeholder teksten	There are no accounts containing the text	Der er ingen konti som inneholder teksten
-1588	( Bilag nr	Appendix no	Vedlegg nr
+1588	( Bilag nr	Attachment no	Vedlegg nr
 1589	Der er ingen finanskonti hvor	There are no financial accounts where	Det er ingen økonomiske kontoer hvor
-1590	indgår (Bilag nr	included (Appendix no	inkludert (vedlegg nr
+1590	indgår (Bilag nr	included (Attachment no	inkludert (vedlegg nr
 1591	Debetkonto	Debit account	Debetkonto
-1592	er låst og må ikke anvendes (Bilag nr	is locked and must not be used (Appendix no	er låst og må ikke brukes (vedlegg nr
+1592	er låst og må ikke anvendes (Bilag nr	is locked and must not be used (Attachment no	er låst og må ikke brukes (vedlegg nr
 1593	Kreditkonto	Credit account	Kreditt konto
 1594	eksisterer ikke 	does not exist 	eksisterer ikke 
 1595	udenfor regnskabsår	outside financial year	utenfor regnskapsåret
@@ -1726,7 +1726,7 @@
 1726	Opdaterer beskrivelse, stregkode og pris fra shop	Updates description, barcode and price from shop	Oppdaterer beskrivelse, strekkode og pris fra butikk
 1727	Klik for at ændre navnet	Click to change the name	Klikk for å endre navnet
 1728	Afmærkes her vil hvert salg blive bogført i finans straks ved salg. Bør kun bruges ved få daglige salg	Marked here, each sale will be booked in finance immediately upon sale. Should only be used for a few daily sales	Merket her, vil hvert salg bli bokført i finans umiddelbart etter salg. Bør bare brukes til noen få daglig salg
-1729	Varnummer til salg af gavekort / tilgodebevis	Item number for sale of gift cards / vouchers	Varenummer for salg av gavekort / bilag
+1729	Varnummer til salg af gavekort / tilgodebevis	Item number for sale of gift cards / vouchers	Varenummer for salg av gavekort / tilgodelapp
 1730	Deaktiver bonprint	Disable voucher printing	Deaktiver kupongutskrift
 1731	Afmærk, hvis bonprint skal deaktiveres. Salg vil stadig blive registreret og bogført	Check if the bonprint is to be deactivated. Sales will still be recorded and posted	Kontroller om avtrykket skal deaktiveres. Salg vil fortsatt bli registrert og bokført
 1732	Illegal værdi i søgestreng	Illegal value in search string	Ulovlig verdi i søkestrengen
@@ -2127,13 +2127,13 @@
 2127	Normalpris	Regular price	Normalpris
 2128	Sætpris	Set	price	Sett pris
 2129	Rekv. nr.	Req. No.	Rekv. nr.
-2130
-2131
-2132
-2133
-2134
-2135
-2136
+2130	Slet ordrelinje	Delete orderline	Slett ordrelinje
+2131	konto	account	  konto
+2132	bilag	attachment	vedlegg
+2133	Dagens tilgang	Cash inflow	Dagens tilgang
+2134	Udtaget fra kasse	Withdrawn from cash register	Tatt ut av kassa
+2135	Salg på konto	Sales on account	Salg på konto
+2136	Godkend optælling	Approve count	Godkjenn telling
 2137
 2138
 2139
@@ -3089,7 +3089,7 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3089	Beregn	Calculate	Beregn
 3090	Skuffe	Drawer	Skuff
 3091	Udskriv sidste	Print last	Skriv ut sist
-3092	Dagens kontanttilgang	Cash inflow for the day	dagens kontanttilgang
+3092	Dagens kontanttilgang	Cash inflow for the day	Dagens kontanttilgang
 3093	Forventet beholdning	Expected cash balance	 Forventet beholdning
 3094	Optalt beholdning	Counted cash balance	Opptalt beholdning
 3095	Difference	Difference	Differanse

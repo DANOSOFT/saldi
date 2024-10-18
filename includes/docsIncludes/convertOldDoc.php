@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/uploadDoc.php -----patch 4.0.8 ----2023-08-06------
+// --- includes/docsIncludes/uploadDoc.php -----patch 4.1.0 ----2024-05-01------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 $path = "$docFolder/$db/finance/$kladde_id/$sourceId/";
@@ -39,15 +39,11 @@ $filePath = "/finance/$kladde_id/$sourceId/";
 if (!file_exists($showDoc)) {
 	if (rename("$docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId","$showDoc")) {
 		$filemtime = filemtime($showDoc);
-		$qtxt = "select id from documents where filename = '$dokument' and filepath = '$filePath' ";
-		$qtxt.= "and source = '$source' and source_id = '$sourceId'";
-		if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
-			$qtxt.= "('$globalId','$dokument','$filePath','$source','$sourceId','$filemtime','$userId')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$qtxt = "update kassekladde set dokument = '' where id = '$sourceId'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
+		$qtxt = "insert into documents(global_id,filename,filepath,source,source_id,timestamp,user_id) values ";
+		$qtxt.= "('$globalId','$dokument','$filePath','$source','$sourceId','$filemtime','$userId')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		$qtxt = "update kassekladde set dokument = '' where id = '$sourceId'";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	} else {
 		alert("Move from $docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId to $showDoc failed");
 	}

@@ -76,7 +76,10 @@
 		$qtxt = "CREATE TABLE notifications (id SERIAL PRIMARY KEY, msg varchar(255), read_status int)";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
-
+	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='volume_lager'";
+	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		db_modify("ALTER table varer ADD column volume_lager float default 1",__FILE__ . " linje " . __LINE__);
+	}
 	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='kds_records'";
 	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$qtxt = "CREATE TABLE kds_records (
