@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 4.0.8 --- 2024-04-03 ---
+// --- finans/rapport.php --- lap 4.0.8 --- 2024-10-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,15 +41,16 @@
 // 20180226 PHR - Bortkommenteret if (!$dim) så primo vises på afdelinger.
 // 20180424 PHR - Tilføjet "regnskab" (Resultat + bufget i et).
 // 20181031 PHR - Tilføjet  "&& $kontotype[$x]=='D'" så den kun søger i driftskonti da der kan ligge budgettal i andre konti hvis kontoplan ændret. 20181031
-// 2018.12.20 MSC - Rettet topmenu design til
-// 2018.12.21 MSC - Rettet topmenu design til og rettet isset fejl
-// 2019.02.07 MSC - Rettet array fejl (linje 815) - rettelse (linje 813)
-// 2019.02.20 PHR tilføjet " || ($kontotype[$x] == 'Z' && $x==$kontoantal) " Da balancekonto ellers ikke vises hvis sum=0 - 20190220
-// 2019.04.12 PHR Moved functions to 'rapport_includes' and added 'Resultat/Sidste år' 
+// 20181220 MSC - Rettet topmenu design til
+// 20181221 MSC - Rettet topmenu design til og rettet isset fejl
+// 20190207 MSC - Rettet array fejl (linje 815) - rettelse (linje 813)
+// 20190220 PHR tilføjet " || ($kontotype[$x] == 'Z' && $x==$kontoantal) " Da balancekonto ellers ikke vises hvis sum=0 - 20190220
+// 20190412 PHR Moved functions to 'rapport_includes' and added 'Resultat/Sidste år' 
 // 20190924 PHR Added option 'Poster uden afd". when "afdelinger" is used. $afd='0' 
 // 20210110 PHR some minor changes related til 'deferred financial year'
-// 20230611+20230619 PHR php8
+// 20230611 +20230619 PHR php8
 // 20240403 PHR Changet bankReconcile to $[POST]
+// 20241018 LOE Checks that some variables are set before using and other minore modifications
 
 @session_start();
 $s_id = session_id();
@@ -309,7 +310,7 @@ if ($submit == 'regnskabbasis') {
 	header("Location: regnskabbasis.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
 }
-if ($bankReconcile) {
+if (isset($bankReconcile) && $bankReconcile) {
 	header("Location: bankReconcile.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
 }
