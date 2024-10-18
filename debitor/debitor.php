@@ -54,6 +54,7 @@
 // 20230611 PHP - Fixed missing pre & nextpil 
 // 20230717 PBLM - Added link to booking on line 375
 // 20231128 MSC - Copy pasted new design into code
+// 20241018 LOE - Checks that some variables are set before usage e.g $cat_antal, inside count($cat_liste))
 
 #ob_start();
 @session_start();
@@ -444,9 +445,10 @@ if (count($dg_liste)) {
 
 if (count($cat_liste)) {
 	$r=db_fetch_array(db_select("select box1,box2 from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
-	$cat_id=explode(chr(9),$r['box1']);
-	$cat_beskrivelse=explode(chr(9),$r['box2']);
-	$cat_antal=count($cat_id);
+	if(isset($r['box1'])) $cat_id=explode(chr(9),$r['box1']);
+	
+	if(isset($r['box2'])) $cat_beskrivelse=explode(chr(9),$r['box2']);
+	if(isset($cat_id)) $cat_antal=count($cat_id);
 }
 
 $sortering="adresser.".$sortering;
@@ -507,7 +509,7 @@ elseif ($antal>$slut && $valg=='kommission') { #20230402
 }
 
 print "</tr>\n";
-if ($dg_antal || $cat_antal) $linjeantal=0;
+if ($dg_antal || isset($cat_antal) && $cat_antal) $linjeantal=0;
 #################################### Sogefelter ##########################################
 
 

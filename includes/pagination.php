@@ -1,20 +1,27 @@
 <?php
 
+//20241018 LOE Initialized queryParams and checks for query parameter before parsing.
+
 function build_url($page, $step) {
 	// Parse the current URL
 	$url = $_SERVER['REQUEST_URI'];
 	$parsedUrl = parse_url($url);
-	parse_str($parsedUrl['query'], $queryParams);
+	$queryParams = array();
+
+	#parse_str($parsedUrl['query'], $queryParams);
+	if (isset($parsedUrl['query'])) { 
+		parse_str($parsedUrl['query'], $queryParams);
+	}
 
 	// Update the start and linjeantal parameters
-	$queryParams['start'] = $page * $step+1;
-	$queryParams['linjeantal'] = $step;
+	if(isset($queryParams['start'])) $queryParams['start'] = $page * $step+1;
+	if(isset($queryParams['linjeantal'])) $queryParams['linjeantal'] = $step;
 
 	// Rebuild the query string with the updated parameters
 	$newQuery = http_build_query($queryParams);
-
-	// Rebuild the full URL
+    	// Rebuild the full URL
 	return $parsedUrl['path'] . '?' . $newQuery;
+	
 }
 
 function pagination($start, $step, $max) {
