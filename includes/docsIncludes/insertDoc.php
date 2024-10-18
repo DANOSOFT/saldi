@@ -68,10 +68,7 @@ if ($docFolder && $source == 'creditorOrder') {
 		$showDoc = "$docFolder/$filePath/$fileName";
 #cho __line__." $showDoc<br>";
 } elseif ($docFolder && $source == 'kassekladde') {
-	if (!$kladde_id) {
-		alert("Ingen aktiv kassekladde");
-		exit;
-	}
+#cho __line__." $sourceId<br>";
 	if (!$sourceId) {
 #cho __line__."<br>";
 		if (!$bilag) {

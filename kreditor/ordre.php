@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2024-09-26 ---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2024-10-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,7 +50,7 @@
 // 20220124 PHR replaced 'vareOpslag' with 'lookup' everywhere
 // 20220331 PHR changed various if statements from 'Kopi' & 'Kred' to 'copy' & 'credit' 
 // 20220627 MSC - Implementing new design
-// 20220629 MSC - Implementing new design
+// 20220629 MSC - Implementing new designfield
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20220124 MLH added debitor lookup funcionality
 // 20220124 MLH added kundeordnr / Rekv.nr.
@@ -64,6 +64,8 @@
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20240926 PHR added (float) lo $leveres[$x]
 // 20240926 PHR outcommented section 'if ($godkend=='on' && $status==2)' as it doesen't make sense.
+// 20240930 PHR some changes regarding creation of creditnote
+// 20241004	PHR Supplier SKU can now be used in input field.
 
 @session_start();
 $s_id=session_id();
@@ -391,6 +393,8 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			}
 			$y="vare".$x;
 			$varenr[$x]=db_escape_string(trim($_POST[$y]));
+			$y="lev_v".$x;
+			$lev_varenr[$x]=db_escape_string(trim($_POST[$y]));
 			$y="anta".$x;
 			$antal[$x]=$_POST[$y];
 			if ($antal[$x]){
@@ -403,7 +407,6 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$leveres[$x]=usdecimal($leveres[$x],2);
 				if ($art=='KK') $leveres[$x]=$leveres[$x]*-1;
 			} else $leveres[$x] = 0;
-			(float)$leveres[$x];
 			$y="beskrivelse".$x;
 			$beskrivelse[$x]=db_escape_string(trim($_POST[$y]));
 			$y="pris".$x;
@@ -417,6 +420,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt[$x],NULL);
+			(float)$leveres[$x];
 		}
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
@@ -499,19 +503,29 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				}
 			} elseif ($konto_id) print "<BODY onLoad=\"javascript:alert('Kreditor ikke tilknyttet en kreditorgruppe')\">";
 		}
-		if (!$id && !$konto_id && !$firmanavn && $varenr[0]) {
+		if (!$id && !$konto_id && !$firmanavn && ($varenr[0] || $lev_varenr[0])) {
 			$varenr[0]=strtoupper($varenr[0]);
 			$qtxt = "SELECT variant_type,vare_id FROM variant_varer WHERE upper(variant_stregkode) = '$varenr[0]'";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$vare_id[0]=$r['vare_id'];
-			$variant_type[0]=$r['variant_type'];
-		} else $variant_type[0]='';
-		if ($variant_type[0] && $vare_id[0]) $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where varer.id = '$vare_id[0]' and vare_lev.vare_id = '$vare_id[0]' and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
-		else $string="select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn from vare_lev,varer,adresser where (upper(varer.varenr) = '$varenr[0]' or upper(varer.stregkode) = '$varenr[0]') and vare_lev.vare_id = varer.id and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
-
-			$r=db_fetch_array(db_select($string,__FILE__ . " linje " . __LINE__));
+				$vare_id[0]=$r['vare_id'];
+				$variant_type[0]=$r['variant_type'];
+			} else $variant_type[0]='';
+			if ($variant_type[0] && $vare_id[0]) {
+				$qtxt = "select varer.id as vare_id, vare_lev.lev_id as konto_id, adresser.firmanavn as firmanavn ";
+				$qtxt.= "from vare_lev,varer,adresser where varer.id = '$vare_id[0]' and vare_lev.vare_id = '$vare_id[0]' ";
+				$qtxt.= "and adresser.id = vare_lev.lev_id order by vare_lev.posnr";
+			} else {
+				$qtxt = "select varer.id as vare_id, vare_lev.lev_id as konto_id, vare_lev.lev_varenr, ";
+				$qtxt.= "adresser.firmanavn as firmanavn from vare_lev,varer,adresser where ";
+				$qtxt.= "(upper(varer.varenr) = '$varenr[0]' or upper(varer.stregkode) = '$varenr[0]' ";
+				if ($lev_varenr[0]) $qtxt.= "or vare_lev.lev_varenr = '$lev_varenr[0]' ";
+				$qtxt.= ") and vare_lev.vare_id = varer.id and ";
+				$qtxt.= "adresser.id = vare_lev.lev_id order by vare_lev.posnr";
+			}
+			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$konto_id=$r['konto_id'];
 			$firmanavn=$r['firmanavn'];
+			$lev_varenr[0] = $r['lev_varenr'];
 			include_once('orderIncludes/insertAccount.php');
 			$id = insertAccount($id, $konto_id);
 		}
@@ -523,7 +537,6 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			for($x=1; $x<=$linjeantal; $x++) {
 				if (!($antal[$x])) $antal[$x] = 0;
 				$antal[$x]=afrund($antal[$x],2);
-				
 				if (!$varenr[$x]) {$antal[$x]=0; $pris[$x]=0; $rabat[$x]=0;}
 				elseif ($antal[$x]<0 && $art!='KK' && !$negativt_lager) {
 					$query = db_select("select gruppe, beholdning from varer where varenr = '$varenr[$x]' or stregkode = '$varenr[$x]'",__FILE__ . " linje " . __LINE__);
@@ -623,7 +636,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 							}
 							$status=2;
 							$reserveret[$x]=0;
-							$query = db_select("select * from reservation where linje_id = $linje_id[$x] and batch_salg_id!=0",__FILE__ . " linje " . __LINE__);
+							$query = db_select("select * from reservation where linje_id = $linje_id[$x] and batch_salg_id!=0",__FILE__ . " linje $lev_varenr[0]" . __LINE__);
 							while ($row = db_fetch_array($query))$reserveret[$x]=$reserveret[$x]+$row['antal'];
 							$reserveret[$x]=afrund($reserveret[$x],2);
 							if ($antal[$x]>=0 && $antal[$x]<$reserveret[$x]) {
@@ -682,10 +695,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 									print "<BODY onLoad=\"javascript:alert('Varenr. $varenr[$x]: antal &aelig;ndret fra $antal[$x] til $tidl_lev[$x]!')\">";
 									$antal[$x]=$tidl_lev[$x]; $submit = 'save'; $status=1;
 								}
-								if ($leveres[$x] < $antal[$x] + $tidl_lev[$x]) {
-									$tmp1=$leveres[$x]*-1;
+								if ($leveres[$x] && $leveres[$x] < $antal[$x] + $tidl_lev[$x]) {
+									($leveres[$x])?$tmp1=$leveres[$x]*-1:$tmp1=0;
 									$tmp2=abs($antal[$x]+$tidl_lev[$x]);
-
 									print "<BODY onLoad=\"javascript:alert('Posnr $posnr_ny[$x] :return&eacute;r &aelig;ndret fra $tmp1 til $tmp2!')\">";
 									$leveres[$x]=$antal[$x]+$tidl_lev[$x]; $submit = 'save'; $status=1;
 								}
@@ -728,15 +740,21 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				}
 			}
 			if ( $posnr_ny[0] > 0 && $submit != 'lookup' ) {
+				if ($lev_varenr[0] && !$varenr[0]) {
+					$qtxt = "select varenr from varer,vare_lev where ";
+					$qtxt.= "vare_lev.lev_varenr = '$lev_varenr[0]' and varer.id = vare_lev.vare_id";
+					if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $varenr[0] = $r['varenr'];
+				}
 				if ($varenr[0]) {
-					$varenr[0]=strtoupper($varenr[0]);
-					if ($r=db_fetch_array(db_select("SELECT id,vare_id,variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr[0]'",__FILE__ . " linje " . __LINE__))) {
+					$varenr[0] = strtoupper($varenr[0]);
+					$qtxt = "SELECT id,vare_id,variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr[0]'";
+					if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 						$vare_id[0]=$r['vare_id'];
 						$variant_type[0]=$r['variant_type'];
 						$variant_id[0]=$r['id'];
 					} else {
-							$variant_type[0]=0;
-							$variant_type[0]='';
+							$variant_type[0] = 0;
+							$variant_type[0] = '';
 					}
 					if ($variant_type[0] && $vare_id[0]) $string="SELECT * FROM varer WHERE id = '$vare_id[0]'";
 					else $string="SELECT * FROM varer WHERE upper(varenr) = '$varenr[0]' or upper(stregkode) = '$varenr[0]'";
@@ -913,11 +931,15 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 					$query = db_select("select id from varer where varenr = '$varenr[$x]' or stregkode = '$varenr[$x]'",__FILE__ . " linje " . __LINE__);
 					if ($row = db_fetch_array($query)) $vare_id[$x]=$row['id'];
 				}
+/* 20240930
 				if ($submit == 'credit' && $vare_id[$x] && !$hurtigfakt) {
 					$antal[$x]=0;
 					$query = db_select("select rest from batch_kob where vare_id = '$vare_id[$x]' and ordre_id = $kred_ord_id",__FILE__ . " linje " . __LINE__);
 					while ($row = db_fetch_array($query)) $antal[$x]=$antal[$x]-$row['rest'];
 				} elseif ($hurtigfakt && $submit == 'credit' && $antal[$x]) $antal[$x]=$antal[$x]*-1;
+*/
+				if ($submit == 'credit' && $vare_id[$x]) $antal[$x]=$antal[$x]*-1;
+
 				if ($serienr[$x]) $serienr[$x]="on";
 				if ($varemomssats[$x]=='') $varemomssats[$x]=find_varemomssats($linje_id[$x]); #20141106
 				if ($vare_id[$x]) {

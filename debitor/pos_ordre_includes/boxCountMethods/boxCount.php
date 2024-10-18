@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.1.1 - 2024.07.30 -
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.1.1 - 2024.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,7 +34,7 @@
 // 20200925 PHR Added button [Kasse] to make it possible to open drawer.
 // 20210517 PHR Outcommented setting '$ny_kortsum' to '$kortsum' and made 'card diff' red. (whish from Havemøbelland)
 // 20230655 PHR	if (count) changed to if ($count) 
-// 20240729 PHR Various translations
+// 20240729 + 20241007 PHR Various translations
 
 function setSpecifiedCashText() { 
   global $baseCurrency,$sprog_id;
@@ -343,9 +343,11 @@ echo "<!-- function setCreditCards Begin -->\n";
 		unset($_SESSION['boxZreport']);
 	}
 	print "</form></tbody></table></td>\n";
-    if (getCountry() != "Switzerland") {
+    if ($baseCurrency == "EUR") {
+        print file_get_contents("pos_ordre_includes/boxCountMethods/HowToCashCountEUR.html"); 
+		} else {
         print file_get_contents("pos_ordre_includes/boxCountMethods/vejl_kasseoptDK.html"); 
-	}
+		}
 	echo "<!-- function setCreditCards End -->\n";
 }
 function createXreport($txt,$amount,$curr) {

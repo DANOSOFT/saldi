@@ -354,10 +354,32 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1&poolFile=$poolFile\">";
 	}
 	if ($poolFile) {
+		$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
 		if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
-		else $src=$tmp;
+		elseif($ext == "xml"){
+			$apiKey = "6c772607-988c-4435-8d78-3670f4a0629d&d5610b95-e39d-4894-8a11-22eb350ed84e";
+			$fileContent = file_get_contents($fullName);
+			$data = [
+				"language" => "",
+				"base64EncodedDocumentXml" => base64_encode($fileContent)
+			];
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, 'https://easyubl.net/api/HumanReadable/HTMLDocument');
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($ch, CURLOPT_POST, 1);
+			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
+			$res = curl_exec($ch);
+			curl_close($ch);
+/* 			file_put_contents("../temp/$db/pulje/$poolFile.html", $res);
+			$src = "../temp/$db/pulje/$poolFile.html"; */
+			echo "<div style='width: 80%; margin:2rem auto;'>$res</div>";
+		}
+		else{ 
+		$src=$tmp;
 		print "<iframe style=\"width:100%;height:100%\" src=\"$fullName\" frameborder=\"0\">";
 		print "</iframe></td></tr>\n";
+		}
 	}
 	print "</tbody></table></td></tr>\n";
 	print "<tr><td><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid rgb(180, 180, 255); padding: 0pt 0pt 1px;\"><tbody>";

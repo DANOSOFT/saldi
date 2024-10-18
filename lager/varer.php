@@ -214,14 +214,22 @@ if (isset($_POST)) {
 	if (isset($_POST['varenummer'])){ # 20130115 
 		$varenummer=db_escape_string($_POST['varenummer']);		
 		$_SESSION['varenummer']=$varenummer;
+		update_settings_value("varenr", "ordresøg", $varenummer, "The searchitem used in the search field for varer.php", $bruger_id);
 	} elseif (isset($_SESSION['varenummer']) && $_SESSION['varenummer']) {
 		$varenummer=$_SESSION['varenummer'];
+		update_settings_value("varenr", "ordresøg", $varenummer, "The searchitem used in the search field for varer.php", $bruger_id);
+	} else {
+		$varenummer = get_settings_value("varenr", "ordresøg", "", $bruger_id);
 	}
 	if (isset($_POST['beskrivelse'])){
 		$beskrivelse=$_POST['beskrivelse'];
 		$_SESSION['beskrivelse']=$beskrivelse;
+		update_settings_value("beskrivelse", "ordresøg", $beskrivelse, "The searchitem used in the search field for varer.php", $bruger_id);
 	} elseif (isset($_SESSION['beskrivelse']) && $_SESSION['beskrivelse']) {
 		$beskrivelse=$_SESSION['beskrivelse'];
+		update_settings_value("beskrivelse", "ordresøg", $beskrivelse, "The searchitem used in the search field for varer.php", $bruger_id);
+	} else {
+		$beskrivelse = get_settings_value("beskrivelse", "ordresøg", "", $bruger_id);
 	}
 	$slut=$start+$linjeantal;
 }
