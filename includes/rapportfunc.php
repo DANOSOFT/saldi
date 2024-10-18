@@ -77,7 +77,6 @@
 // 20240330 PHR	- Corrections in open post when fromdate != currentdate
 
 include("../includes/reportFunc/showOpenPosts.php");
-include("../includes/topline_settings.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 	?>
@@ -108,6 +107,8 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	global $bruger_id;
 	global $menu;
 
+	echo "S ID $sprog_id";
+	
 	if ($dato_fra && $dato_til) {
 		$fromdate=usdate($dato_fra);
 		$todate=usdate($dato_til);
@@ -189,6 +190,8 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		$title = "Skjul åbne poster";
 	}
 
+	include("../includes/topline_settings.php");
+
 	if ($menu=='T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
@@ -204,7 +207,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
 
 		print "<td width='10%'><a accesskey=l href=\"rapport.php\">
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
 
 		print "<td width='80%' align='center' style='$topStyle'>".findtekst(1142,$sprog_id)." - $rapportart</td>\n";
 
@@ -653,8 +656,7 @@ if (!function_exists('find_maaned_nr')) {
 
 
 // ------------------------------------------------------------------------------------------------------------
-function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
-{
+function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 	global $bgcolor,$bgcolor5;
 	global $brugernavn;
 	global $bruger_id;
@@ -665,6 +667,7 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	global $popup;
 	global $menu;
 	global $rettigheder;
+	global $sprog_id;
 
 	$husk = "";
 	print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
@@ -687,7 +690,7 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 
 	include("../includes/topline_settings.php");
 
-	if ($menu == 'T') {
+	if ($menu=='T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
@@ -698,11 +701,11 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv' style='width:700px; margin: auto;'><table width='100%' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" class='dataTableSmall'><tbody>\n";
 
-	} elseif ($menu == 'S') {
+	} elseif ($menu=='S') {
 		print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
 
-		print "<tr><td height='23px' width='10%' align='center'><a href=$returside accesskey=L>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+		print "<tr><td width='10%' align='center' style='$buttonStyle'><a href=$returside accesskey=L>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
 
 		print "<td width='80%' align='center' style='$topStyle'>$title</td>";
 
@@ -742,8 +745,7 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 
 
 //------------------------------------------------------------------------------------------------------------
-function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
-{
+function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
 
 	//	global $connection;
 	global $bgcolor, $bgcolor5, $bruger_id;
@@ -1024,7 +1026,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
 
 			print "<tr><td width ='10%' align = 'center'>$luk
-				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 				   .findtekst(30, $sprog_id)."</button></a></td>";
 
 			if ($kontoart == 'K')
@@ -1035,14 +1037,15 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<td width ='80%' align = 'center' style='$topStyle'>$tekst</td>";
 
 			($kontoantal == 1) ? $w = 5 : $w = 10;
-			print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
+			print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
 			if ($kontoantal == 1) { # 2019-11-07
 				if ($fromdate)
 					$firstdate = $fromdate;
 				if ($todate)
 					$lastdate = $todate;
 				print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=" . dkdato($firstdate) . 	"&dato_til=" . dkdato($lastdate) . "&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">
-					   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></td>\n";
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></td>\n";
 			}
 			print "</tbody></table>"; //B slut
 			print "</td></tr>\n";
@@ -1431,7 +1434,7 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
 
 		print "<tr><td width ='10%' align='center'>$luk
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></td>";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></td>";
 
 		if ($kontoart == 'K')
 			$tekst = "Kreditorrapport - kontosaldo";

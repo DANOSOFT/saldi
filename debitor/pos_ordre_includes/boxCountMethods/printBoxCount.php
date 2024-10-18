@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 4.1.1 --- 2024-07-30--
-//                           LICENSE
+// --- debitor/pos_ordre_includes/boxCountMethods/printBoxCount.php --- patch 4.1.1 --- 2024-10-07 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -28,23 +28,20 @@
 // 20190314	PHR	Varius changes in function 'setPrintTxt' according to 'changeCardValue'
 // 20230623 PHR Added (float) to $omsatning, $byttepenge & $tilgang
 // 20240729 PHR Various translations
+// 20241007 PHR more translations
 
 function setSpecifiedPrintText() {
 	global $baseCurrency;
 
-	if ($baseCurrency == "EUR") {
-        return ["half" => "½ franc", "one" => "1 franc", "two" => "2 franc", "five" => "5 franc", "ten" => "10 franc", "twenty" => "20 franc", "fifty" => "50 franc", "hundred" => "100 franc", "twoHundred" => "200 franc", "fiveHundred" => "500 franc", "thousand" => "1000 franc", "other" => "Anderes franc"];
-    } else {
-        return ["half" => "50 øre", "one" => "1 kr:",
-                "two" => "2 kr:", "five" => "5 kr:", "ten" => "10 kr:", "twenty" => "20 kr:", "fifty" => "50 kr:", "hundred" => "100 kr:",
-                "twoHundred" => "200 kr:", "fiveHundred" => "500 kr:", "thousand" => "1000 kr:",
-                "other" => "Andet kr:"];
-    }
+  if ($baseCurrency == "EUR") {
+    return ["oneTenth" => "10 cent", "twoTenth" => "20 cent", "fiveTenth" => "50 cent", "one" => "1 eur:", "two" => "2 eur:", "five" => "5 eur:", "ten" => "10 eur:", "twenty" => "20 eur:", "fifty" => "50 eur:", "hundred" => "100 eur:", "twoHundred" => "200 eur:", "fiveHundred" => "500 eur:", "thousand" => "1000 eur:", "other" => "Other eur:"];
+  } else {
+    return ["fiveTenth" => "50 øre", "one" => "1 kr:", "two" => "2 kr:", "five" => "5 kr:", "ten" => "10 kr:", "twenty" => "20 kr:", "fifty" => "50 kr:", "hundred" => "100 kr:", "twoHundred" => "200 kr:", "fiveHundred" => "500 kr:", "thousand" => "1000 kr:", "other" => "Andet kr:"];
+  }
 }
 
 
-function setSpecifiedCashPrintText() 
-{
+function setSpecifiedCashPrintText() {
     $country = getCountry();
     if ($country == "Switzerland") {
         return ["portfolio" => "Morgen portfolio", "newPortfolio" => "Neues morgen portfolio", "dayApproach" => "Heutiger Ansatz: ", 
@@ -60,20 +57,20 @@ function setSpecifiedCashPrintText()
 }
 
 function acceptPrint() {
-
+	global $sprog_id;
+	
     $country = getCountry();
     if ($country == "Switzerland") {
         return "Zählen genehmigen?";
     } else {
-        return "Godkend optælling?";
+        return findtekst('2136|Godkend optælling', $sprog_id);
     }
 }
 
 function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $valuta, $optval,$changeCardValue,$reportNumber) {
 
-	echo __line__ ."$reportNumber<br>";
-
-
+	global  $baseCurrency, $sprog_id;
+	
 	$dd=date("Y-m-d");
 	$specifiedCashTxt = setSpecifiedPrintText();
 	$cashCountTxt = setSpecifiedCashPrintText();
@@ -93,7 +90,16 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 	$ValutaTilgang=if_isset($_POST['ValutaTilgang']);
 	$ValutaKasseDiff=if_isset($_POST['ValutaKasseDiff']);
 	$ValutaUdtages=if_isset($_POST['ValutaUdtages']);
-	
+
+	$txt2133 = findtekst('2133|Dagens tilgang',$sprog_id);	
+	$txt2134 = findtekst('2134|Udtaget fra kasse',$sprog_id);
+	$txt2135 = findtekst('2135|Salg på konto',$sprog_id);
+	$txt3075 = findtekst('3075|Dagens omsætning',$sprog_id);
+	$txt3088 = findtekst('3088|Morgenbeholdning',$sprog_id);
+	$txt3093 = findtekst('3093|Forventet beholdning',$sprog_id);
+	$txt3094 = findtekst('3094|Optalt beholdning',$sprog_id);
+	$txt3095 = findtekst('3095|Difference',$sprog_id);
+
 	$kortdiff=0;
 	if ($changeCardValue) {
 		for ($x=0;$x<count($kortsum);$x++) {
@@ -103,11 +109,13 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 	}
 	if ($reportNumber) {
 		$qtxt  = "insert into report (date,type,description,count,total,report_number) values ";
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". (int)$ore_10 ."','$reportNumber')";
-		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". (int)$ore_20 ."','$reportNumber')";
-		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[half]','0','". (int)$ore_50 ."','$reportNumber')";
+		if ($baseCurrency == 'EUR') {
+			$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[oneTenth]','0','". (int)$ore_10 ."','$reportNumber')";
+			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+			$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[twoTenth]','0','". (int)$ore_20 ."','$reportNumber')";
+			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
+		}
+		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveTenth]','0','". (int)$ore_50 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[one]','0','". (int)$kr_1 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
@@ -127,8 +135,10 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[fiveHundred]','0','". (int)$kr_500 ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[thousand]','0','". (int)$kr_1000 ."','$reportNumber')";
-		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+		if ($baseCurrency != 'EUR') {
+			$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[thousand]','0','". (int)$kr_1000 ."','$reportNumber')";
+			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
+		}
 		$qtxt2 = "('$dd','cashCount','$specifiedCashTxt[other]','0','". (float)$kr_andet ."','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		if (count($valuta)) {
@@ -137,43 +147,45 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 				db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 			}
 		}
+		
 		$byttepenge = (float)$byttepenge;
 		$omsatning  = (float)$omsatning;
 		$optalt     = (float)$optalt; 
 		$tilgang    = (float)$tilgang;
-		$qtxt2 = "('$dd','cashCount','$cashCountTxt[turnover]','0','$omsatning','$reportNumber')";
+		
+		$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3075)." $baseCurrency','0','$omsatning','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$cashCountTxt[portfolio]','0','$byttepenge','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3088)." $baseCurrency','0','$byttepenge','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$cashCountTxt[dayApproach]','0','$tilgang','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','".db_escape_string($txt2133)." $baseCurrency','0','$tilgang','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		$tmp=$byttepenge+$tilgang;
-		$qtxt2 = "('$dd','cashCount','$cashCountTxt[expInv]','0','$tmp','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3093)." $baseCurrency','0','$tmp','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$cashCountTxt[countInv]','0','$optalt','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3094)." $baseCurrency','0','$optalt','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		$tmp=$optalt-($byttepenge+$tilgang+$kortdiff);
-		$qtxt2 = "('$dd','cashCount','$cashCountTxt[diff]','0','$tmp','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3094)." $baseCurrency','0','$tmp','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-		$qtxt2 = "('$dd','cashCount','$cashCountTxt[fromBox] $kasse $cashCountTxt[currency]','0','$udtages','$reportNumber')";
+		$qtxt2 = "('$dd','cashCount','".db_escape_string($txt2134)." $kasse $baseCurrency','0','$udtages','$reportNumber')";
 		db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		for ($x=0;$x<count($valuta);$x++) {
-			$qtxt2 = "('$dd','cashCount','Morgenbeholdning $valuta[$x]:','0','". $ValutaByttePenge[$x] ."','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3088)." $valuta[$x]:','0','". $ValutaByttePenge[$x] ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-			$qtxt2 = "('$dd','cashCount','Dagens tilgang $valuta[$x]:','0','". usdecimal($ValutaTilgang[$x],2) ."','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','".db_escape_string($txt2133)." $valuta[$x]:','0','". usdecimal($ValutaTilgang[$x],2) ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 			$tmp=usdecimal($ValutaByttePenge[$x],2)+usdecimal($ValutaTilgang[$x],2);
-			$qtxt2 = "('$dd','cashCount','Forventet beholdning $valuta[$x]:','0','$tmp','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3093)." $valuta[$x]:','0','$tmp','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-			$qtxt2 = "('$dd','cashCount','Optalt beholdning $valuta[$x]:','0','". usdecimal($optval[$x],2) ."','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3094)." $valuta[$x]:','0','". usdecimal($optval[$x],2) ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-			$qtxt2 = "('$dd','cashCount','Difference $valuta[$x]:','0','". usdecimal($ValutaKasseDiff[$x],2) ."','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','".db_escape_string($txt3094)." $valuta[$x]:','0','". usdecimal($ValutaKasseDiff[$x],2) ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
-			$qtxt2 = "('$dd','cashCount','Udtaget fra kasse $kasse  $valuta[$x]:','0','". usdecimal($ValutaUdtages[$x],2) ."','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','".db_escape_string($txt2134)." $kasse $valuta[$x]:','0','". usdecimal($ValutaUdtages[$x],2) ."','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 		if ($kontosum) {
-			$qtxt2 = "('$dd','cashCount','Salg på konto','0','". usdecimal($kontosum,2) .#','$reportNumber')";
+			$qtxt2 = "('$dd','cashCount','".db_escape_string($txt2135)."','0','". usdecimal($kontosum,2) .#','$reportNumber')";
 			db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__); 
 		}
 		for ($x=0;$x<count($kortnavn);$x++) {
@@ -186,11 +198,15 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 			if ($txt1) db_modify($qtxt.$qtxt2,__FILE__ . " linje " . __LINE__);
 		}
 	}
-	$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['half']);
-	fwrite($fp,"  $tmp:  $ore_10\n");
-	fwrite($log,"  $tmp:  $ore_10\n");
-	fwrite($fp,"  $tmp:  $ore_20\n");
-	fwrite($log,"  $tmp:  $ore_20\n");
+	if ($baseCurrency == 'EUR') {
+		$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['oneTenth']);
+		fwrite($fp,"  $tmp:  $ore_10\n");
+		fwrite($log,"  $tmp:  $ore_10\n");
+		$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['twoTenth']);
+		fwrite($fp,"  $tmp:  $ore_20\n");
+		fwrite($log,"  $tmp:  $ore_20\n");
+	}
+	$tmp = iconv($FromCharset, $ToCharset,$specifiedCashTxt['fiveTenth']);
 	fwrite($fp,"  $tmp:  $ore_50\n");
 	fwrite($log,"  $tmp:  $ore_50\n");
 	fwrite($fp,"   $specifiedCashTxt[one]  $kr_1\n");
@@ -211,8 +227,10 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 	fwrite($log,"  $specifiedCashTxt[twoHundred]  $kr_200\n");
 	fwrite($fp,"   $specifiedCashTxt[fiveHundred]  $kr_500\n");
 	fwrite($log,"  $specifiedCashTxt[fiveHundred]  $kr_500\n");
-	fwrite($fp,"   $specifiedCashTxt[thousand]  $kr_1000\n");
-	fwrite($log,"  $specifiedCashTxt[thousand]  $kr_1000\n");
+	if ($baseCurrency != 'EUR') {
+		fwrite($fp,"   $specifiedCashTxt[thousand]  $kr_1000\n");
+		fwrite($log,"  $specifiedCashTxt[thousand]  $kr_1000\n");
+	}
 	fwrite($fp,"$specifiedCashTxt[other]  ".dkdecimal($kr_andet,2)."\n\n");
 	fwrite($log,"$specifiedCashTxt[other]  ".dkdecimal($kr_andet,2)."\n\n");
 	if (count($valuta)) {
@@ -223,44 +241,48 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 			fwrite($log,"$valuta[$x]  ".dkdecimal($optval[$x],2)."\n\n");
 		}
 	}
-	$txt1 = iconv($FromCharset, $ToCharset,$cashCountTxt['turnover']);
+	$txt1 = $txt3075;
 	$txt2=dkdecimal($omsatning,2);
 	while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 	fwrite($fp,"$txt1$txt2\n");
 	fwrite($log,"$txt1$txt2\n");
 
-	$txt1 = $cashCountTxt['portfolio'];
-	$txt2=dkdecimal($byttepenge,2);
-	while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
-	fwrite($fp,"$txt1$txt2\n");
-	fwrite($log,"$txt1$txt2\n");
-	$txt1 = $cashCountTxt['dayApproach'];
+	// Morgenbeholdning
+	$txt=dkdecimal($byttepenge,2);
+	while (strlen($txt3088)+strlen($txt)<40) $txt=" ".$txt;
+	fwrite($fp,"$txt3088$txt\n");
+	fwrite($log,"$txt3088$txt\n");
+	// Dagens tilgang
+	$txt1 = $txt2133;
 	$txt2=dkdecimal($tilgang,2);
 	while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 	fwrite($fp,"$txt1$txt2\n");
 	fwrite($log,"$txt1$txt2\n");
-	$txt1=$cashCountTxt['expInv'];
+	//Forventet beholdning
+	$txt1=$txt3093;
 	$txt2=dkdecimal($byttepenge+$tilgang,2);
 	while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 	fwrite($fp,"$txt1$txt2\n");
 	fwrite($log,"$txt1$txt2\n");
-	$txt1=$cashCountTxt['countInv'];
+	// Optalt beholdning
+	$txt1 =$txt3094 ;
 	$txt2=dkdecimal($optalt,2);
 	while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 	fwrite($fp,"$txt1$txt2\n");
 	fwrite($log,"$txt1$txt2\n");
-	$txt1=$cashCountTxt['diff'];
+	// Difference
+	$txt1=$txt3095;
 	$txt2=dkdecimal($optalt-($byttepenge+$tilgang+$kortdiff),2);
 	while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 	fwrite($fp,"$txt1$txt2\n");
 	fwrite($log,"$txt1$txt2\n");
-	$txt1="$cashCountTxt[fromBox] $kasse $cashCountTxt[currency]";
+	$txt1=$txt2134;
 	$txt2=dkdecimal($udtages,2);
 	while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 	fwrite($fp,"$txt1$txt2\n\n\n\n");
 	fwrite($log,"$txt1$txt2\n\n\n\n");
 	for ($x=0;$x<count($valuta);$x++) {
-		$txt1="Morgenbeholdning $valuta[$x]:";
+		$txt1="$txt3088 $valuta[$x]:";
 		$txt2=dkdecimal($ValutaByttePenge[$x],2);
 		while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 		fwrite($fp,"$txt1$txt2\n");
@@ -280,12 +302,12 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 		while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 		fwrite($fp,"$txt1$txt2\n");
 		fwrite($log,"$txt1$txt2\n");
-		$txt1="Difference $valuta[$x]:";
+		$txt1=$txt3095;
 		$txt2=dkdecimal($ValutaKasseDiff[$x],2);
 		while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 		fwrite($fp,"$txt1$txt2\n");
 		fwrite($log,"$txt1$txt2\n");
-		$txt1="Udtaget fra kasse $kasse  $valuta[$x]:";
+		$txt1=$txt2134;
 		$txt2=dkdecimal($ValutaUdtages[$x],2);
 		while (strlen($txt1)+strlen($txt2)<40) $txt2=" ".$txt2;
 		fwrite($fp,"$txt1$txt2\n\n");
@@ -312,16 +334,5 @@ function setPrintTxt($fp, $log, $FromCharset, $ToCharset, $ore_10, $ore_20, $ore
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
 ?>
 
