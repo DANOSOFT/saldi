@@ -20,7 +20,7 @@
     }
     print "<td>";
     if (!$specialType || $m_antal_array[0]) $specialType='price';
-    if ($special_price || $m_antal_array[0]) {
+    if ($special_price != 0 || $m_antal_array[0]) {
         ($specialType=='price')?print "".findtekst(949,$sprog_id)."":print "".findtekst(2025,$sprog_id)."";
         print "<input type='hidden' name='specialType' value='$specialType'>";
     } else {

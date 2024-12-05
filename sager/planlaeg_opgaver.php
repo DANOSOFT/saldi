@@ -63,6 +63,7 @@
 	$where="where sager.status != 'Beregning' and sager.status != 'Tilbud' and sager.status != 'Afsluttet' and opgaver.status != 'Beregning' and opgaver.status != 'Tilbud' and opgaver.status != 'Afsluttet' and opg_planfra > '0' and opg_plantil > '0'";
 	
 	$x=0;
+	$opg_assign_id = array();
 	$q=db_select("SELECT *,opgaver.id as opg_id,sager.ref as sager_ref,sager.beskrivelse as sager_beskrivelse,sager.status as sager_status FROM opgaver 
 								INNER JOIN sager ON opgaver.assign_id = sager.id
 								$where ORDER BY $order sager.id DESC",__FILE__ . " linje " . __LINE__);

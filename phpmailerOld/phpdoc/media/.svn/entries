@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="105"
+   name=""
+   committed-date="2006-06-26T14:04:58.038001Z"
+   url="http://lue.dk/svn/saldi/trunk/phpmailer/phpdoc/media"
+   last-author="ca"
+   kind="dir"
+   uuid="1132dd7b-f30e-0410-8cb5-98fd4e5af904"
+   repos="http://lue.dk/svn/saldi"
+   revision="124"/>
+<entry
+   committed-rev="105"
+   name="stylesheet.css"
+   text-time="2006-10-03T10:40:26.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="e32986e2e3009d7c91b33ece44a49ff4"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:26.000000Z"/>
+<entry
+   committed-rev="105"
+   name="banner.css"
+   text-time="2006-10-03T10:40:26.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="e43ca110d02f287cdaac6357ba539fff"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:26.000000Z"/>
+</wc-entries>

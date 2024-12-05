@@ -25,6 +25,8 @@
 @session_start();
 $s_id=session_id();
 
+$beskrivelse = $messages = $pageTitle = NULL;
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
@@ -32,7 +34,7 @@ include("../includes/std_func.php");
 //$sag_id=if_isset($_GET['sag_id']);
 //$sag_id=if_isset($_POST['sag_id']);
 //$konto_id=if_isset($_GET['konto_id']);
-$mappe_id=if_isset($_GET['mappe_id']);
+$mappe_id = if_isset($_GET['mappe_id']);
 
 		$bg="nix";
 		$header='nix';
@@ -116,7 +118,6 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 	} elseif ($filnavn) { 
 		vis_bilag($kilde_id,$kilde,$bilag_id,$fokus,$filnavn);
 	} elseif (if_isset($_FILES['uploadedfile']['name'])) { 
-	
 		//$filnavn=basename($_FILES['uploadedfile']['name']);
 		//$filnavn=htmlentities($filnavn,ENT_COMPAT,$charset);
 			//$test=$_FILES['uploadedfile']['name'];
@@ -198,11 +199,11 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 					//$messages[] = $filnavn.' Uploaded."<br>"';
 				}	else {
 					$messages = "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
-					upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages);
+					upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 				}
 			}// her slutter løkke til opload 
 		}
-	} else upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase);
+	} else upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,$messages,$beskrivelse);
 }
 // Her updateres fase, kategori og bilag til bilag
 if (isset($_POST['ret_bilag']) && $bilag_id) {

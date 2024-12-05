@@ -3,7 +3,7 @@
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
 5	Annullér	Cancel	Avbryt
-6	Jobnr.:	Job no .:	Jobbnr:
+6	Jobnr.:	Job no.:	Jobbnr:
 7	Felt 1	Field 1	Felt 1
 8	Felt 2	Field 2	Felt 2
 9	Felt 3	Field 3	Felt 3
@@ -767,7 +767,7 @@
 767	`Mit salg` findes i debitorkonti. Anvendes til at give provisions kunder adgang til at se deres salg (loppemarkeder og lign.). 	My sales` can be found in debtor accounts. Used to give commission customers access to see their sales (flea markets and the like).	`Salget mitt 'finnes i debitorkontoer. Brukes for å gi kommisjonskunder tilgang til å se deres salg (loppemarkeder og lignende).
 768	Aktivér &apos;Mit salg&apos;	Activate &apos;My sales&apos;	Aktiver &apos;Mitt salg&apos;
 769	Bank BIC	Bank BIC	Bank BIC
-770	Moms	VAT	Mva
+770	Moms	VAT	MVA
 771	Debitor-/kreditorgrupper	Debtor / creditor groups	Gjeld / kreditorgrupper
 772	Afdelinger	Departments	Avdelinger
 773	Projekter	Projects	Prosjekter
@@ -802,7 +802,7 @@
 802	Import & eksport	Import & export	Import Eksport
 803	Skabelon	Template	Mal
 804	Kontonr	Account_no.	Kontonr.
-805	Kontonavn	Account_name	Brukernavn
+805	Kontonavn	Account Name	Brukernavn
 806	Udfyld med sidste års tal 	Fill in with last year's numbers	Fyll ut med tallene i fjor
 807	Hent budget som datafil ved at h&oslash	jreklikke på	Download budget as data file by right-clicking on 	Last ned budsjett som datafil ved å høyreklikke		
 808	og vælg &apos;Gem link som ..	and select &apos;Save link as ..	og velg &apos;Lagre lenke som ..
@@ -892,9 +892,9 @@
 892	Ordrelistevisning	Order list view	Visning av ordreliste
 893	faktura	invoice	faktura
 894	Regnskabsår	Financial year	Regnskapsår
-895	Finansrapport	Financial report	Økonomisk Rapport
+895	Finansrapport	Financial Report	Økonomisk Rapport
 896	Rapporttype	Report type	Rapport type
-897	Finansrapport - forside	Financial report - front page	Økonomirapport - forsiden
+897	Finansrapport - forside	Financial Report - Front Page	Økonomirapport - forsiden
 898	Opdatér	Update	Oppdater
 899	Periode	Period	Periode
 900	Konto (fra)	Account (from)	Konto (fra)
@@ -902,7 +902,7 @@
 902	Medtag lagerbevægelser	Include stock movements	Inkluder lagerbevegelser
 903	fra	from	fra
 904	til	to	till
-905	Kontrolspor	Control track	Kontrollspor
+905	Kontrolspor	Control Track	Kontrollspor
 906	Provisionsrapport	Provisions report	Kommisjonens rapport
 907	Historik	History	Historie
 908	Debitorer 	Debtors	Skyldnere
@@ -2134,43 +2134,43 @@
 2134	Udtaget fra kasse	Withdrawn from cash register	Tatt ut av kassa
 2135	Salg på konto	Sales on account	Salg på konto
 2136	Godkend optælling	Approve count	Godkjenn telling
-2137
-2138
-2139
-2140
-2141
-2142
-2143
-2144
-2145
-2146
-2147
-2148
-2149
-2150
-2151
-2152
-2153
-2154
-2155
-2156
-2157
-2158
-2159
-2160
-2161
-2162
-2163
-2164
-2165
-2166
-2167
-2168
-2169
-2170
-2171
-2172
-2173
+2137	Udlejnings oversigt	Rental overview	Utleieoversikt
+2138	Daglig oversigt	Daily overview	Daglig oversikt
+2139	Indstillinger	Settings	Instillinger
+2140	Lukkedage	Closed days	Stengte dager
+2141	Udlejningsvare	Rental product	Utleieprodukt
+2142	Søg kunde historik	Search customer history	Søk kundehistorikk
+2143	Ekstern booking	Remote booking	Ekstern booking
+2144	Intern note	Internal note	Internt notat
+2145	Webfragt	Webfragt	Webfragt
+2146	Vis DG	Show DG	Viss DG
+2147	Afmærkes her vises dækningsgraden for produktet	If ticked here, the degree of coverage for the product is displayed	Hvis det er krysset av her, vises dekningsgraden for produktet
+2148	Rediger	Edit	Rediger
+2149	Åbn kassesystem	Open POS System	Åpne POS-system
+2150	Åbn sagsstyring	Open Case Management	Åpne saksbehandling
+2151	Opsæt din oversigt	Set up your dashboard	Sett opp oversikten din
+2152	Kontonumre	Account Numbers	Kontonumre
+2153	Min.	Min.	Min.
+2154	Maks.	Max.	Maks.
+2155	Er du i tvivl om dine kontotal?	Unsure about your account balances?	Er du usikker på dine kontotal?
+2156	Se vores guide	See our guide	Se vår guide
+2157	her	here	her
+2158	Nøgletal	Key Figures	Nøkkeltall
+2159	Omsætning for måneden	Revenue this month	Omsetning for måneden
+2160	Omsætning for året	Revenue this year	Omsetning for året
+2161	Ufakturerede ordrer	Unbilled orders	Ufakturerte ordrer
+2162	Grafer	Graphs	Grafer
+2163	Omsætningsgraf	Revenue graph	Omsetningsgraf
+2164	Kundefordeling	Customer distribution	Kundefordeling
+2165	Din omsætning sammenlignet med sidste år, ekskl. moms	Your revenue compared to last year, excluding VAT	Din omsetning sammenlignet med i fjor, ekskl. MVA
+2166	tusind	thousand	tusen
+2167	millioner	million	millioner
+2168	milliarder	billion	milliarder
+2169	billioner	trillion	billioner
+2170	Finansopslag	Finance Lookup	Finansoppslag
+2171	Afstem bank	Reconcile Bank	Avstem bank
+2172	Luk	Close	Lukk
+2173	Rapport - kontokort	Report - Account Card	Rapport - Kontokort
 2174
 2175
 2176
@@ -3075,9 +3075,9 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3075	Dagens omsætning	Today's turnover	Dagens omsetning
 3076	System	System
 3077	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days
-3078	Aktive medarbejdere	Active employees
+3078	Aktive medarbejdere	Active employees	Aktive medarbeidere
 3079	Har været aktive inden for den sidste time	Have been active within the last hour
-3080	Hvilket svarer til 	Which is equivalent to
+3080	Hvilket svarer til	Which is equivalent to	Som tilsvarer
 3081	ufaktureret	unbilled
 3082	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT
 3083	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT
@@ -3104,7 +3104,7 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3104	
 3105	Opret indkøbsforslag udfra igangværende tilbud og ordrebeholdning	Create purchase proposals based on ongoing offers and order inventory	Opprett innkjøpsforslag basert på pågående tilbud og ordrebeholdning.
 3106	Stor sum	Big total	Stor summ
-3107	Vis ordres totalsum større i kassesystemet	Show the oder sum larger in the point of sale system	Vis ordretotaler større i POS-systemet
+3107	Vis ordres totalsum større i kassesystemet	Show the order sum larger in the point of sale system	Vis ordretotaler større i POS-systemet
 3108	Mobil	Mobile	Mobil
 3109	Aktivere den mobile kasseløsning	Activates the mobile POS system setup	Aktivering av den mobile kasseløsningen
 3110	Bredde	width	Bredde
@@ -3112,6 +3112,6 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3112	Zoom	Zoom	Zoom
 3113	Grad af zoom	Degree of zoom	Grad av zoom
 3114	Omv.menu	Flp.menu	Omv.menu
-3115	Anvend omvendte primær og sekundær menuer (primærmenu i bunden)	Flip the primary and secondarry menus (primarry on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
+3115	Anvend omvendte primær og sekundær menuer (primærmenu i bunden)	Flip the primary and secondarry menus (primary on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
 3116	Decimaler på rabat	Decimals for discount values	Decimaler på rabatt
-3117	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount feilds in a order	Antall desimaler i rabattfelt
+3117	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt

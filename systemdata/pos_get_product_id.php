@@ -42,3 +42,4 @@ $product_id = db_fetch_array($q)[0];
 print $product_id;
 
 ?>
+

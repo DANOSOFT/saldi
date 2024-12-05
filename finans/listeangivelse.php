@@ -76,7 +76,7 @@ while ($row=db_fetch_array($query)) {
 }
 
 # Kan forbedres ved at slaa op i kontoplan og se om kontiene er samlekonti og i stedet have euvarekonti[] og euydelsekonti[]
-$query=db_select("select box3, box4 from grupper where art = 'MR' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__);
+$query=db_select("select box3, box4 from grupper where art = 'MR'",__FILE__ . " linje " . __LINE__);
 while ($row=db_fetch_array($query)) {
         $euvarekonto=$row['box3'];
         $euydelseskonto=$row['box4'];
@@ -145,7 +145,7 @@ while ($row = db_fetch_array($query)) {
 		$modtagercvrnr = strtoupper(substr($modtagercvrnr, 2));
 		$qtxt="select ordrelinjer.pris as pris, ordrelinjer.antal as antal, ordrelinjer.rabat as rabat, grupper.box12 as konto from "; #20171130
 		$qtxt.="ordrelinjer, varer, grupper where ordrelinjer.ordre_id = '$r[id]' and ordrelinjer.vare_id=varer.id ";
-		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' and grupper.fiscal_year = '$regnaar' order by ordrelinjer.posnr";
+		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' order by ordrelinjer.posnr";
 		$qq=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($rr = db_fetch_array($qq)) {
 			$debughtml.="<tr><td>".$rr['antal']." a ".$rr['pris']." (-".$rr['rabat']."</td><td>Konto: ".$rr['konto']."</td></tr>\n";
@@ -166,11 +166,12 @@ while ($row = db_fetch_array($query)) {
 			} 
 		}
 	}
+
 	if ( $fakturaer > 0 ) {
 		if ( $varesumdkk <> 0 || $ydelsessumdkk <> 0 ) {
 			$totalsumdkk+=$varesumdkk+$ydelsessumdkk;
 			$antal_poster++;
-			$datalinje="2,".$internref.",".$liste_slutdato.",".$egetcvrnr.",".$modtagerlandekode.",".$modtagercvrnr.",".$varesumdkk.",0,".$ydelsessumdkk;
+			$datalinje="2,".$internref.",".$kvartal_slutdato.",".$egetcvrnr.",".$modtagerlandekode.",".$modtagercvrnr.",".$varesumdkk.",0,".$ydelsessumdkk;
 			$datafil .= "\n".$datalinje;
 		}
 
@@ -210,7 +211,7 @@ if ( $antal_poster > 0 ) {
 	$bodyhtml.="<h2>Data til udfyldelse af papirblanket</h2>\n\n";
 	$bodyhtml.="<p>S&aelig;lgers CVR-/SE-nr.: <strong>".$egetcvrnr."</strong></p>\n";
 	$bodyhtml.="<p>S&aelig;lgers navn og adresse:<br /><strong>".$adrhtml."</strong></p>\n";
-	$bodyhtml.="<p>Periode (1): <strong>".$liste_slutdato_yymmdd."</strong></p>\n"; # Sidste dag i perioden i formatet YYMMDD
+	$bodyhtml.="<p>Periode (1): <strong>".$kvartal_slutdato_yymmdd."</strong></p>\n"; # Sidste dag i perioden i formatet YYMMDD
 	$bodyhtml.="<p>Periodens samlede varesalg, ydelsessalg og trekantshandel til EUlande<br />\nuden moms i hele danske kr. (2):<br />\n";
 	$bodyhtml.="<strong>".$totalsumdkk."</strong></p>\n";
 	$bodyhtml.="<table>\n";
@@ -274,7 +275,7 @@ function varelinjer($ordre_id, $faktdate, $udlign_date, $provision, $faktnr, $fi
 				$kostpris[$y]=$r1['kostpris']*$r1['antal'];
 				$kostpris[$x]=$kostpris[$x]+$kostpris[$y];
 			} else {
-				$r2=db_fetch_array(db_select("SELECT box8 from grupper where art='VG' and kodenr = '$r1[gruppe]' and fiscal_year = '$regnaar'"));
+				$r2=db_fetch_array(db_select("SELECT box8 from grupper where art='VG' and kodenr = '$r1[gruppe]'"));
 				if ($r2[box8]=='on') {
 					$q3=db_select("SELECT batch_salg.antal as antal, batch_kob.pris as kostpris from batch_kob, batch_salg where batch_salg.linje_id='$r1[linje_id]' and batch_kob.id=batch_salg.batch_kob_id");
 					while ($r3=db_fetch_array($q3)) {

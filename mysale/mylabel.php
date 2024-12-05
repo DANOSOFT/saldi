@@ -68,6 +68,19 @@ if ($id) {
 	else $account=$kto;
 	include ('../includes/db_query.php');
 }
+if ($db == 'bizsys_127') {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL='https://ssl4.saldi.dk/pos/mysale/mysale.php?id=$id'\">";
+	exit;
+} elseif (substr($db,0,6) == 'bizsys') {
+	print "<meta http-equiv=\"refresh\" content=\"0;URL='https://ssl7.saldi.dk/pos/mysale/mysale.php?id=$id'\">";
+	exit;
+}
+if ($db == 'pos_76') $showForSale = 1;
+elseif ($db == 'pos_92') $showForSale = 1;
+elseif ($db == 'pos_111') $showForSale = 1;
+else $showForSale = 0;
+
+
 if (!is_numeric($account)) {
 	print "<center><br><br><br><br><b>Fejl i ID<br><br>Kontakt butikken for nyt ID</b>";
 	exit;
@@ -91,7 +104,7 @@ include ('../includes/std_func.php');
 $qtxt = "select var_value from settings where var_name='medlemSetting' or var_name = 'memberShip'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $medlem = $r['var_value'];
 else $medlem = NULL;
-
+#if ($showForSale) $medlem = 1;
 if (isset($_GET['page'])) $page = $_GET['page']; 
 (isset($_GET['condition']))?$condition=$_GET['condition']:$condition='used';
 (isset($_POST['mySale']))?$mySale=$_POST['mySale']:$mySale=NULL; 
@@ -218,6 +231,9 @@ if ($mySale) {
 				if ($lockPrint[$x]) {
 					$qtxt = "update mylabel set lastprint = '". date('U') ."' where id = '$lockPrint[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					$qtxt = "update mylabel set firstprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
+					$qtxt.= "and hidden is FALSE and firstprint is NULL";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}
 			print "<BODY onload=\"javascript:";
@@ -225,6 +241,9 @@ if ($mySale) {
 		} else {
 			$qtxt = "update mylabel set lastprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
 			$qtxt.= "and hidden is FALSE";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$qtxt = "update mylabel set firstprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
+			$qtxt.= "and hidden is FALSE and firstprint is NULL";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			print "<BODY onload=\"javascript:";
 			print "window.open('../lager/labelprint.php?account=$account&condition=$condition&page=$page&print=$print');\">";
@@ -319,6 +338,7 @@ if ($medlem){
 	}
 	$vareLimit = $productLimit - count($tilsalgOprettet);
 } else $vareLimit = $productLimit = 0;
+if ($showForSale) $vareLimit = 99999;
 print "<html lang='da-dk'><body>";
 print "<div class='flex-container'>";
 print "<div class='container'>";
@@ -331,9 +351,9 @@ if ($mobile) {
 	print "<br>";
 	print "<div class='center'>". findtekst(1948, $sprog_id) ."<br>\n";
 	print findtekst(1949, $sprog_id) ." ";
-	if ($medlem){
+	if ($medlem) {
 		if($vareLimit <= 0) $vareLimit = 0;
-		print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
+			print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
 	}
 	print "<a href='https://saldi.dk/dok/myLabelPdf_$sprog_id.pdf' target='_blank'>". findtekst(1950, $sprog_id) ."</a></div>\n";
 }
@@ -420,7 +440,7 @@ for ($a=1;$a<=$rows;$a++) {
 	print "</form>";
 } else {
 	print "<table class='table' border = '1' valign='top'>\n";
-	($medlem)?$lines = $productLimit/5:$lines=13;
+	($medlem && $db != 'pos_76' && $db != 'pos_92' && $db != 'pos_111')?$lines = $productLimit/5:$lines=13;
 	for ($a=1;$a<=$lines;$a++) {
 		($lineColor==$bgcolor)?$lineColor=$bgcolor5:$lineColor=$bgcolor;
 #		if (!$productLimit || $count <= $productLimit) {

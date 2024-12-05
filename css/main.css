@@ -14,13 +14,15 @@
 
 html 
 {
-	overflow-y: scroll;
+    height: 100%;
+		overflow-y: scroll;
 }
 
 body
 {
     font: normal 12px Arial, Helvetica, sans-serif;
     color: #444;
+    height: 100%;
 		
 }
 
@@ -30,6 +32,10 @@ p
     line-height: 18px;   
 }
 
+h1
+{
+    
+}
 
 h4
 {

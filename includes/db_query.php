@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php --- lap 4.0.7 --- 2022-11-06 ---
-// LICENSE
+// --- includes/db_query.php ---patch 4.0.8 ----2023-07-30--------------
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -17,23 +17,41 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2022 Saldi.dk ApS
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
-// 2012.12.22 Tilføjet db_escape_string
-// 2013.02.10 Break ændret til break 1
-// 2015.10.05 Funktion injecttjek tjekker om der sker forsøg på at lave sql injektion
-// 2017.01.24 PHR split erstattet af explode
-// 2017.03.21 E.Viuff, Funktion injecttjek - Tilføjet $brugernavn til global og rettet db_query til db_modify.
-// 2017.05.01	Tilføjet understøttelse af mysqli.
-// 2019.04.12 customAlertText hentes nu fra tabellen settings.
-// 2019.07.04 RG (Rune Grysbæk) Mysqli implementering 20190704
-// 2020.02.25 PHR some changes regarding MySQLi
-// 2020.03.08 PHR addded function db_create, db_exists & tbl_exists.
+// 20121222 Tilføjet db_escape_string
+// 20130210 Break ændret til break 1
+// 20151005 Funktion injecttjek tjekker om der sker forsøg på at lave sql injektion
+// 20170124 PHR split erstattet af explode
+// 20170321 E.Viuff, Funktion injecttjek - Tilføjet $brugernavn til global og rettet db_query til db_modify.
+// 20170501	Tilføjet understøttelse af mysqli.
+// 20190412 customAlertText hentes nu fra tabellen settings.
+// 20190704 RG (Rune Grysbæk) Mysqli implementering 20190704
+// 20200225 PHR some changes regarding MySQLi
+// 20200308 PHR addded function db_create, db_exists & tbl_exists.
 // 20221106 PHR - Various changes to fit php8 / MySQLi
+// 20230730 LOE - Minor modification, abolute path to std_func
 
+
+if (!function_exists('get_relative')) {
+    function get_relative() {
+        $url = $_SERVER['REQUEST_URI'];
+        $questionMarkPos = strpos($url, '?');
+        if ($questionMarkPos !== false) {
+            $path = substr($url, 0, $questionMarkPos);
+        } else {
+            $path = $url;
+        }
+        $slashCount = substr_count($path, '/');
+        $relativePath = str_repeat('../', max(0, $slashCount - 2));
+
+        return $relativePath;
+    }
+}
 
 if (!function_exists('db_connect')) {
 	function db_connect($l_host, $l_bruger, $l_password, $l_database="", $l_spor="") {
@@ -106,7 +124,9 @@ if (!function_exists('db_modify')) {
 		global $db,$db_skriv_id,$db_type;
 		global $sqdb;
 		global $webservice;
-		
+
+		$temp = get_relative() . 'temp/' . $db;
+
 		$qtext=injecttjek($qtext);
 #20190704 START
 		if ($db_type=="mysql") { 
@@ -124,7 +144,7 @@ if (!function_exists('db_modify')) {
 		
 		$db=trim($db);
 		if ($db_skriv_id>1) {
-				$fp=fopen("../temp/$db/.ht_modify.log","a");
+				$fp=fopen("$temp/.ht_modify.log","a");
 				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n");
 				fwrite($fp,$qtext.";\n");
 			fclose($fp);
@@ -133,14 +153,14 @@ if (!function_exists('db_modify')) {
 			if ($db_type=="mysql")       $errtxt = mysql_error($connection);
 			else if ($db_type=="mysqli") $errtxt = mysqli_error($connection); #20190704
 			else $errtxt=pg_last_error();
-			$fp=fopen("../temp/$db/.ht_modify.log","a");
+			$fp=fopen("$temp/.ht_modify.log","a");
 			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
 			fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
 			fclose($fp);
 			$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
 			if (strstr($spor,"includes/opdat")) {
-				if (file_exists("../temp/$db/opdatfejl.txt")) {
-					$ff=fopen("../temp/$db/opdatfejl.txt","r");
+				if (file_exists("$temp/opdatfejl.txt")) {
+					$ff=fopen("$temp/opdatfejl.txt","r");
 					$lastmail=trim(fgets($ff));
 					fclose($ff);
 				} else $lastmail=0; 
@@ -150,13 +170,13 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Opdat fejl', $message, $headers);
 					}
-					$ff=fopen("../temp/$db/opdatfejl.txt","w");
+					$ff=fopen("$temp/opdatfejl.txt","w");
 					fwrite($ff,date("U")."\n");
 					fclose($ff);
 				} 
 			} else {
-				if (file_exists("../temp/$db/modifyfejl.txt")) {
-					$ff=fopen("../temp/$db/modifyfejl.txt","r");
+				if (file_exists("$temp/modifyfejl.txt")) {
+					$ff=fopen("$temp/modifyfejl.txt","r");
 					$lastmail=trim(fgets($ff));
 					fclose($ff);
 				} else $lastmail=0; 
@@ -166,7 +186,7 @@ if (!function_exists('db_modify')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - modify', $message, $headers);
 					}
-					$ff=fopen("../temp/$db/modifyfejl.txt","w");
+					$ff=fopen("$temp/modifyfejl.txt","w");
 					fwrite($ff,date("U")."\n");
 					fclose($ff);
 				} 
@@ -178,7 +198,7 @@ if (!function_exists('db_modify')) {
 				
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
 				if ($webservice) return ('1'.chr(9)."$alerttekst");
-				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">\n";
+				alert("$alerttekst");
 				exit;
 			}
 		}
@@ -193,8 +213,13 @@ if (!function_exists('db_select')) {
 		global $db,$db_type;
 		global $sqdb;
 
+		if (!function_exists('alert')) include('std_func.php'); #20230730
+
 		$qtext=injecttjek($qtext);
-		if (!file_exists("../temp/$db")) mkdir("../temp/$db", 0775);
+
+		$temp = get_relative() . 'temp/' . $db;
+
+		if (!file_exists($temp)) mkdir($temp, 0775);
 		if ($db_type=="mysql") {
 			$query=mysql_query($qtext);
 			$errtxt=mysql_error();
@@ -210,24 +235,24 @@ if (!function_exists('db_select')) {
 		if ($errtxt)	{		
 			$db=trim($db);
 			$linje="";
-			if (file_exists("../temp/$db/lasterror.txt")) {
-				$fp=fopen("../temp/$db/lasterror.txt","r");
+			if (file_exists("$temp/lasterror.txt")) {
+				$fp=fopen("$temp/lasterror.txt","r");
 				$linje=trim(fgets($fp));
 				fclose($fp);
 			}
 			list($tmp,$tmp2)=explode("\n",$errtxt);
 			$tmp.="_".date("h:i");
 			if ($linje != $tmp) {
-				$fp=fopen("../temp/$db/lasterror.txt","a");
+				$fp=fopen("$temp/lasterror.txt","a");
 				fwrite($fp,"$tmp");
 				fclose($fp);
-				$fp=fopen("../temp/$db/lasterror.txt","a");
+				$fp=fopen("$temp/lasterror.txt","a");
 				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
 				fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
 				fclose($fp);
 #				if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
-				if (file_exists("../temp/$db/selectfejl.txt")) {
-					$ff=fopen("../temp/$db/selectfejl.txt","r");
+				if (file_exists("$temp/selectfejl.txt")) {
+					$ff=fopen("$temp/selectfejl.txt","r");
 					$lastmail=trim(fgets($ff));
 					fclose($ff);
 				} else $lastmail=0; 
@@ -238,22 +263,22 @@ if (!function_exists('db_select')) {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 						mail('fejl@saldi.dk', 'SALDI Fejl - select', $message, $headers);
 					}
-					$ff=fopen("../temp/$db/selectfejl.txt","w");
+					$ff=fopen("$temp/selectfejl.txt","w");
 					fwrite($ff,date("U")."\n");
 					fclose($ff);
 				} 
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
-				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">\n";
+				alert("$alerttekst");
 			} else {
 				#	$customAlertText saettes i connect.php;
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
 				echo $fejltxt; 
-				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">\n";
+				alert("$alerttekst");
 				exit;
 			}
 		} else {
-			$fp=fopen("../temp/$db/.ht_select.log","a");
+			$fp=fopen("$temp/.ht_select.log","a");
 			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
 			fwrite($fp,$qtext.";\n");
 			fclose($fp);
@@ -332,7 +357,8 @@ if (!function_exists('transaktion')) {
 		global $db;
 		global $connection; #20190704
 
-		$fp=fopen("../temp/$db/.ht_modify.log","a");
+		$temp = get_relative() . 'temp/' . $db;
+		$fp=fopen("$temp/.ht_modify.log","a");
 		fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n");
 		fwrite($fp,$qtext.";\n");
 		if ($db_type=="mysql") mysql_query($qtext);
@@ -411,6 +437,7 @@ if (!function_exists('db_create')) {
 if (!function_exists('injecttjek')) {
 	function injecttjek($qtext) {
 		global $brugernavn,$db;
+		$temp = get_relative() . 'temp/' . $db;
 		if (strpos($qtext,';')) {
 			$tjek=1;
 			for ($x=0;$x<strlen($qtext);$x++) {
@@ -419,8 +446,8 @@ if (!function_exists('injecttjek')) {
 				if ($tjek && substr($qtext,$x,1)==";") {	
 					$s_id=session_id();
 					$txt="SQL injection registreret!!! - Handling logget & afbrudt";
-					print "<BODY onLoad=\"javascript:alert('$txt')\">";
-					$fp=fopen("../temp/$db/.ht_modify.log","a");
+					alert("$txt");
+					$fp=fopen("$temp/.ht_modify.log","a");
 					fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s")."\n");
 					fwrite($fp,"-- SQL injection fra ".$_SERVER["REMOTE_ADDR"]." | " .$qtext.";\n");	
 					fclose($fp);

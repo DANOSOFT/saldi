@@ -1,30 +1,30 @@
 <?php
-// ------------debitor/jobliste.php-----patch 4.0.8 ----2023-07-12-------
-//                           LICENSE
+// ------------debitor/jobliste.php---lap 3.2.2------2011-07-03----------
+// LICENS
 //
-// This program is free software. You can redistribute it and / or
-// modify it under the terms of the GNU General Public License (GPL)
-// which is published by The Free Software Foundation; either in version 2
-// of this license or later version of your choice.
-// However, respect the following:
+// Dette program er fri software. Du kan gendistribuere det og / eller
+// modificere det under betingelserne i GNU General Public License (GPL)
+// som er udgivet af The Free Software Foundation; enten i version 2
+// af denne licens eller en senere version efter eget valg.
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+// 
+// Programmet er udgivet med haab om at det vil vaere til gavn,
+// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
+// GNU General Public Licensen for flere detaljer.
+// 
+// En dansk oversaettelse af licensen kan laeses her:
+// http://www.fundanemt.com/gpl_da.html
 //
-// It is forbidden to use this program in competition with Saldi.DK ApS
-// or other proprietor of the program without prior written agreement.
-//
-// The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
-// See GNU General Public License for more details.
-// http://www.saldi.dk/dok/GNU_GPL_v2.html
-//
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
 ob_start();
 @session_start();
 $s_id=session_id();
 $title="Jobliste";
 $css="../css/standard.css";
-
-global $menu;
 
 $modulnr=5;
 $dk_dg=NULL; $vis_projekt=NULL;
@@ -34,7 +34,6 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
-include("../includes/topline_settings.php");
 
 $felt01= if_isset($_GET['felt01']);
 $felt02= if_isset($_GET['felt02']);
@@ -89,6 +88,7 @@ if ($nysort=='kolonne07') $nysort='felt_8';
 if ($nysort=='kolonne08') $nysort='felt_1';
 if ($felt08 && strlen($felt08)<2) $felt08='0'.$felt08;
 
+echo $felt08."<br>";
 ob_end_flush();	//Sender det "bufferede" output afsted...
 	
 if (!$nysort) $sort = "firmanavn";
@@ -100,68 +100,29 @@ $parameter="sort=$sort";
 
 $hreftext=NULL;
 #$hreftext="&jobnumre=$jobnumre&kontonumre=$kontonumre&fakturanumre=$fakturanumre&jobdatoer=$jobdatoer&lev_datoer=$lev_datoer&fakturadatoer=$fakturadatoer&genfaktdatoer=$genfaktdatoer&summer=$summer&ref=$ref[0]&kontoid=$kontoid";
+ 
+print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>";
+print "<tr><td height = 25 align=center valign=top>";
+print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
+#if ($popup) print "<td width=10% $top_bund><a href=../includes/luk.php?returside=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
+#else 
+print "<td width=10% $top_bund><a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
+print "<td width=30% $top_bund align=center><br></td>";
+print "<td width=10% $top_bund align=center><a href=debitor.php>".findtekst(34,$sprog_id)."</a></td>";
+print "<td width=10% $knap_ind align=center>".findtekst(38,$sprog_id)."</td>";
+print "<td width=30% $top_bund align=center><br></td>";
+if ($popup) print "<td width=10% $top_bund onClick=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id','job','scrollbars=1,resizable=1');job.focus();\"><a accesskey=N href=jobliste.php?$parameter>".findtekst(39,$sprog_id)."</a></td>";
+else print "<td width=10% $top_bund><a href=jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
+print "</td></tr>\n";
+#print "<tr><td></td><td align=center><table border=1	cellspacing=0 cellpadding=0><tbody>";
+#print "<td width = 20%$top_bund align=center><a href=jobliste.php?valg=tilbud accesskey=T>Tilbud</a></td>";
+#print "<td width = 20% bgcolor=$bgcolor5 align=center> jobr</td>";
+#print "<td width = 20% bgcolor=$bgcolor5 align=center> Faktura</td>";
+#print "</tbody></table></td><td></td</tr>\n";
 
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=jobliste.php?luk=luk accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\"><a accesskey=N href='jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id' title='Klik her for at oprette ny'><i class='fa fa-plus-square fa-lg'></i></a></div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') {
-	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>";
-	print "<tr><td height = 25 align=center valign=top>";
-	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-
-	print "<td width=10%><a href=\"jobliste.php?luk=luk\" accesskey=\"L\">
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
-
-	print "<td width=30% align=center style='$topStyle'><br></td>";
-
-	print "<td width=10% align=center><a href=debitor.php>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(34,$sprog_id)."</button></a></td>";
-
-	print "<td width=10% align=center>
-		   <button style='$butDownStyle; width: 100%'>".findtekst(38,$sprog_id)."</button></td>";
-
-	print "<td width=30% align=center style='$topStyle'><br></td>";
-
-	if ($popup) print "<td width=10% onClick=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id','job','scrollbars=1,resizable=1');job.focus();\">
-						<a accesskey=N href=jobliste.php?$parameter>
-						<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-						.findtekst(39,$sprog_id)."</button></a></td>";
-	else print "<td width=10%><a href=jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id accesskey=N>
-				<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
-
-	print "</td></tr>\n";
-	print "</tbody></table>";
-	print " </td></tr><tr><td align=center valign=top>";
-} else {
-	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>";
-	print "<tr><td height = 25 align=center valign=top>";
-	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-	#if ($popup) print "<td width=10% $top_bund><a href=../includes/luk.php?returside=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-	#else 
-	print "<td width=10% $top_bund><a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=30% $top_bund align=center><br></td>";
-	print "<td width=10% $top_bund align=center><a href=debitor.php>".findtekst(34,$sprog_id)."</a></td>";
-	print "<td width=10% $knap_ind align=center>".findtekst(38,$sprog_id)."</td>";
-	print "<td width=30% $top_bund align=center><br></td>";
-	if ($popup) print "<td width=10% $top_bund onClick=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id','job','scrollbars=1,resizable=1');job.focus();\"><a accesskey=N href=jobliste.php?$parameter>".findtekst(39,$sprog_id)."</a></td>";
-	else print "<td width=10% $top_bund><a href=jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
-	print "</td></tr>\n";
-	#print "<tr><td></td><td align=center><table border=1	cellspacing=0 cellpadding=0><tbody>";
-	#print "<td width = 20%$top_bund align=center><a href=jobliste.php?valg=tilbud accesskey=T>Tilbud</a></td>";
-	#print "<td width = 20% bgcolor=$bgcolor5 align=center> jobr</td>";
-	#print "<td width = 20% bgcolor=$bgcolor5 align=center> Faktura</td>";
-	#print "</tbody></table></td><td></td</tr>\n";
-
-	print "</tbody></table>";
-	print " </td></tr><tr><td align=center valign=top>";
-}
-print "<table cellpadding=1 cellspacing=1 border=0 width=100% valign = top class='dataTable'>";
+print "</tbody></table>";
+print " </td></tr><tr><td align=center valign=top>";
+print "<table cellpadding=1 cellspacing=1 border=0 width=100% valign = top>";
 
 print "<tbody>";
 print "<tr>";
@@ -228,7 +189,7 @@ if ($felt08) {
 $ialt=0;
 if ($konto_id) $udvaelg.="and konto_id=$konto_id ";
 $qtxt="select * from jobkort where id > 0 $udvaelg order by $sort";
-#echo "$qtxt<br>";
+echo "$qtxt<br>";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r =db_fetch_array($q)) {
 	$ialt++;
@@ -273,30 +234,25 @@ while ($r =db_fetch_array($q)) {
 	print "<tr bgcolor=\"$linjebg\">";
 #	if ($r['art']=='DK'){print "<td $javascript> (KN)&nbsp;$linjetext $understreg $r[id]</span><br></td>";}
 #	else {print "<td $javascript> $linjetext $understreg $r[id]</span><br></td>";}
-	print "<td $javascript> $linjetext $understreg $r[id]$slut</td>";
-	print "<td>$firmanavn</td>";
-	print "<td>$postnr</td>";
-	print "<td>$tlf</td>";
-	print "<td>$felt_2</td>";
-	print "<td>$felt_4</td>";
-	print "<td>$felt_8</td>";
-	print "<td>$felt_1</td>";
-	print "<td></td>";
+	print "<td $javascript> $linjetext $understreg $r[id]$slut<br></td>";
+	print "<td>$firmanavn<br></td>";
+	print "<td>$postnr<br></td>";
+	print "<td>$tlf<br></td>";
+	print "<td>$felt_2<br></td>";
+	print "<td>$felt_4<br></td>";
+	print "<td>$felt_8<br></td>";
+	print "<td>$felt_1<br></td>";
 	print "</tr>\n";
 }
 if (!$ialt && $konto_id) print "<Body onLoad=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id,'job','scrollbars=1,resizable=1');job.focus();\">";
 $cols=9;
+print "<tr><td colspan=$cols><hr></td></tr>\n";
+print "<tr><td colspan=$cols><hr></td></tr>\n";
 
-print "</tbody>
+?>
+</tbody>
 </table>
 	</td></tr>
 </tbody></table>
-";
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
-
-?>
+</body></html>

@@ -95,7 +95,6 @@ if ($_POST) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=provisionsrapport.php\">";
 		exit;
 	}
-
 	$submit = str2low(trim($_POST['submit']));
 	$rapportart = if_isset($_POST['rapportart']);
 	$aar_fra = if_isset($_POST['aar_fra']);
@@ -400,4 +399,5 @@ function listeangivelser($regnaar, $rapportart, $option_type)
 ?>
 </body>
 </html>
+
 

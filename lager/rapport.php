@@ -238,6 +238,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		$x++;
 	}
 	$x=1;
+	$$lev_id=array();
 	$q = db_select("select * from adresser where art = 'K' order by firmanavn",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (in_array($r['id'],$l_id)) {
@@ -379,6 +380,7 @@ function varegruppe($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,
 
 	$v_gr = array();
 	$v_navn = array();
+	$lev_vare_id = array();
 
 	$gruppenr=$kobssum=0;
 	if (is_numeric($varegruppe)) $gruppenr=$varegruppe;
@@ -507,7 +509,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		}
 #cho "A $vare_id[$x]<br>";
 	}
-	$v_id=array();
+	$v_id=$ov_qty=array();
 	$x=0;
 	# finder alle konti med bevaegelser i den anfoerte periode eller aabne poster fra foer perioden
 	$qtxt="select batch_salg.vare_id,batch_salg.pris,varer.gruppe,varer.beskrivelse from batch_salg,varer";
@@ -565,7 +567,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					$ov_qty[$v]=$r['qty'];
 				}
 			}
-		} elseif (in_array($r['vare_id'],$lev_id)) {
+		} elseif (in_array($r['vare_id'],$lev_vare_id)) {
 			$x++;
 			$v_id[$x]=trim($r['vare_id']);
 			$v_gr[$x]=trim($r['gruppe']);

@@ -4,24 +4,26 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- lap 4.0.7 --- 2024.07.30 ---
-//                           LICENSE
+// --- includes/udskriv.php --- lap 4.0.7 --- 2023.05.23 ---
+// LICENS
 //
-// This program is free software. You can redistribute it and / or
-// modify it under the terms of the GNU General Public License (GPL)
-// which is published by The Free Software Foundation; either in version 2
-// of this license or later version of your choice.
-// However, respect the following:
-//
-// It is forbidden to use this program in competition with Saldi.DK ApS
-// or other proprietor of the program without prior written agreement.
-//
-// The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
-// See GNU General Public License for more details.
+// Dette program er fri software. Du kan gendistribuere det og / eller
+// modificere det under betingelserne i GNU General Public License (GPL)
+// som er udgivet af The Free Software Foundation; enten i version 2
+// af denne licens eller en senere version efter eget valg.
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
+// 
+// Programmet er udgivet med haab om at det vil vaere til gavn,
+// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
+// GNU General Public Licensen for flere detaljer.
+// 
+// En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2023 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
 // 2013.12.02	Efter udskrivning af kreditorordre, åbnes ordre som debitorordre. Tilføjer $art. Søg $art.
@@ -36,7 +38,6 @@
 // 2019.11.05 PHR - Varius cleanup
 // 2020.01.13 PHR - Print from 'genfakturer' returned to includes/ordreliste.php which does not exist. 20200113
 // 20230522 PHR php8
-// 20240729 PHR Various translations
 
 @session_start();
 $s_id=session_id();
@@ -224,7 +225,7 @@ if ($valg) {
 		$ps_fil=str_replace("../temp/$db","",$ps_fil);
 		if (file_exists("../temp/$ps_fil.pdf")) {
 			if (strpos($ps_fil,'tilbud') && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bg_fil="../logolib/$db_id/tilbud_bg.pdf";
-			elseif (strpos($ps_fil,findtekst('3099|Ordrebek',$sprog_id)) && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
+			elseif (strpos($ps_fil,'ordre') && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
 			elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
 			elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
 			print "<!-- kommentar for at skjule uddata til siden \n";
@@ -279,40 +280,17 @@ if ($valg) {
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordreliste.php?gem_id=$id&gem=../temp/$ps_fil.pdf&download=$r[kundeordnr]_$r[firmanavn].pdf\">";
 				exit;
 			}
-
-			global $menu;
-
-			include("../includes/topline_settings.php");
-
-			if ($menu == 'S') {
-				print "<table width=100% height=100%><tbody>";
-
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
-				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-
-				print "<td width='10%' height='1%'><a href=$href>
-					   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal Luk</button></a></td>";
-
-				print "<td width='80%' style='$topStyle' align='center' title='Klik her for at &aring;bne filen i nyt vindue, h&oslash;jreklik her for at gemme.'><a href=../temp/$ps_fil.pdf target=blank>Vis PDF udskrift</a></td>";
-
-				print "<td width='10%' align='right' style='$topStyle'></td>";
-				print "<tr><td width=100% height=99% align='center' valign='middle' colspan='3'><iframe frameborder='0' width='100%' height='100%' scrolling='auto' src='../temp/$ps_fil.pdf'></iframe></td></tr>";
-				print "</tbody></table>";
-
-			} else {
-				print "<table width=100% height=100%><tbody>";
-				if ($returside) $href="\"$returside\" accesskey=\"L\"";
-				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal Luk</a></td>";
-				print "<td width=\"80%\" $top_bund align=\"center\" title=\"Klik her for at &aring;bne filen i nyt vindue, h&oslash;jreklik her for at gemme.\">";
-				print "<a href=../temp/$ps_fil.pdf target=blank>Vis PDF udskrift</a>";
-				print "</td>";
-				print "<td width=\"10%\" $top_bund align = \"right\"></td>";
-				print "<tr><td width=100% height=99% align=\"center\" valign=\"middle\" colspan=\"3\"><iframe frameborder=\"0\" width=\"100%\" height=\"100%\" scrolling=\"auto\" src=\"../temp/$ps_fil.pdf\"></iframe></td></tr>";
-				print "</tbody></table>";
-			}
+			print "<table width=100% height=100%><tbody>";
+			if ($returside) $href="\"$returside\" accesskey=\"L\"";
+			else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
+			print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal Luk</a></td>";
+			print "<td width=\"80%\" $top_bund align=\"center\" title=\"Klik her for at &aring;bne filen i nyt vindue, h&oslash;jreklik her for at gemme.\">";
+			print "<a href=../temp/$ps_fil.pdf target=blank>Vis PDF udskrift</a>";
+			print "</td>";
+  		print "<td width=\"10%\" $top_bund align = \"right\"></td>";
+			print "<tr><td width=100% height=99% align=\"center\" valign=\"middle\" colspan=\"3\"><iframe frameborder=\"0\" width=\"100%\" height=\"100%\" scrolling=\"auto\" src=\"../temp/$ps_fil.pdf\"></iframe></td></tr>";
+			print "</tbody></table>";
 			print exit;
-
 		} else print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
 	}
   if ($valg=="printer") {
@@ -333,54 +311,20 @@ if ($valg) {
   fclose ($log);
   #xit;
 }
-
-global $menu;
-
-include ("../includes/topline_settings.php");
-
-if ($menu == 'S') {
-	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
-
-	print "<td width=\"10%\"><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
-
-	print "<td width=\"80%\" align=\"center\" style='$topStyle'>Udskriftsvalg</td>";
-
-	print "<td width=\"10%\" align = \"right\" style='$topStyle'><br></td>";
-
-	print "</tbody></table>";
-	print "</td></tr>";
-	print "<tr><td height=\"99%\" align = center valign = middle>";
-	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-
-	print "<tr><td align=center><a href='udskriv.php?valg=pdf&ps_fil=$ps_fil'>
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">PDF</button></a></td></tr>";
-
-	print "<tr><td align=center><a href='udskriv.php?valg=printer&ps_fil=$ps_fil'>
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Printer</button></a></td></tr>";
-
-	print "</tbody></table></td>";
-	print "</tbody></table>";
-
-} else {
-	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">Luk</a></td>";
-	print "<td width=\"80%\" $top_bund align=\"center\">Udskriftsvalg</td>";
-	print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
-	print "<tr><td height=\"99%\" align = center valign = middle>";
-	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	print "<tr><td align=center> <a href='udskriv.php?valg=pdf&ps_fil=$ps_fil'>PDF</a></td></tr>";
-	print "<tr><td align=center> <a href='udskriv.php?valg=printer&ps_fil=$ps_fil'>Printer</a></td></tr>";
-	print "</tbody></table></td>";
-	print "</tbody></table>";
-}
-
+print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
+print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">Luk</a></td>";
+print "<td width=\"80%\" $top_bund align=\"center\">Udskriftsvalg</td>";
+print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
+print "</tbody></table>";
+print "</td></tr>";
+print "<tr><td height=\"99%\" align = center valign = middle>";
+print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+print "<tr><td align=center> <a href='udskriv.php?valg=pdf&ps_fil=$ps_fil'>PDF</a></td></tr>";
+print "<tr><td align=center> <a href='udskriv.php?valg=printer&ps_fil=$ps_fil'>Printer</a></td></tr>";
+print "</tbody></table></td>";
+print "</tbody></table>";
 exit;
 
 function historik($id,$filnavn) {

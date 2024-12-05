@@ -55,12 +55,12 @@
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 
-	if (isset($_GET['sag_id']))      $sagid = (int)$_GET['sag_id']*1;
+	if (isset($_GET['sag_id']))      $sagid = (int)$_GET['sag_id'];
 	elseif (isset($_POST['sag_id'])) $sagid = (int)$_POST['sag_id'];
 	
 	if (isset($_GET['konto_id']))      $konto_id = (int)$_GET['konto_id'];
 	elseif (isset($_POST['konto_id'])) $konto_id = (int)$_POST['konto_id'];
-	else $konto_id=$_POST['id']*1;
+	else $konto_id=(int)$_POST['id'];
 	$funktion=if_isset($_GET['funktion']);
 	if (!$funktion)$funktion="kundeliste";
 	

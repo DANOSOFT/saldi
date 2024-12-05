@@ -21,12 +21,12 @@ if ($id = $_POST['id']) {
 	$x=0;
 		$tmp=array();
 #echo "SELECT * FROM varer WHERE id > '0' AND kategori LIKE '%$id%' ORDER BY varenr ASC<br>";
-		$fp=fopen("test.txt","w");
+#		$fp=fopen("test.txt","w");
 		$query = db_select("SELECT * FROM varer WHERE id > '0' AND kategori LIKE '%$id%' ORDER BY varenr ASC",__FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$tmp=explode(chr(9),$row['kategori']);
 			if (in_array($id,$tmp)) {
-				fwrite($fp,"$row[beskrivelse]\n");
+	#			fwrite($fp,"$row[beskrivelse]\n");
 				$x++;
 				$vare_id[$x]=$row['id'];
 				$vare_nr[$x]=$row['varenr'];
@@ -37,7 +37,7 @@ if ($id = $_POST['id']) {
 			}
 		}
 		$antal_varer=$x;
-		fclose($fp);
+#		fclose($fp);
 		#echo $id;
 		for ($x=1;$x<=$antal_varer;$x++) {
                       

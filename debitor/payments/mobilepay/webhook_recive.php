@@ -32,7 +32,6 @@ $s_id = session_id();
 #
 # #####################################################
 
-file_put_contents("../../../temp/works", file_get_contents("php://input"));
 // Get the request body
 $requestBody = file_get_contents('php://input');
 
@@ -53,6 +52,7 @@ $expectedSignedString = "$method\n$pathAndQuery\n$xMsDate;$host;$xMsContentSha25
 // Define the secret
 $dbFolder = '../../../temp/' . $_GET["db"];
 $secret = file_get_contents("$dbFolder/.ht_mobilepay_secret.txt");
+#$secret = ""
 
 // Generate expected signature
 $expectedSignature = base64_encode(hash_hmac('sha256', $expectedSignedString, $secret, true));

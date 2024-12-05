@@ -55,7 +55,7 @@ if ($stregkode) {
 	else $txt=str_replace('$stregkode',$r['varenr'],$txt);
 }
 if (strpos($txt,'$enhedspris/$enhed')) {
-	if ($r['enhed'] && $r['indhold']) {
+	if ($r['enhed']  && $r['indhold'] && $r['indhold'] != 0) {
 		$txt=str_replace('$enhedspris',dkdecimal(($r['pris']/$r['indhold']),2),$txt);
 		$txt=str_replace('$enhed',$r['enhed'],$txt);
 	} else {
@@ -63,7 +63,7 @@ if (strpos($txt,'$enhedspris/$enhed')) {
 		$txt=str_replace('$enhedspris/$enhed','',$txt);
 	}
 } else {
-	if ($r['indhold']) $txt=str_replace('$enhedspris',dkdecimal(($r['pris']/$r['indhold']),2),$txt);
+	if ($r['indhold'] && $r['indhold'] != 0) $txt=str_replace('$enhedspris',dkdecimal(($r['pris']/$r['indhold']),2),$txt);
 	else $txt=str_replace('$enhedspris',dkdecimal(($r['pris']),2),$txt);
 	$txt=str_replace('$enhed',$r['enhed'],$txt);
 }

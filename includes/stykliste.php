@@ -30,6 +30,7 @@
 if (!function_exists('stykliste')) {
 function stykliste($id, $udskriv, $udvalg) {
 
+	$id = strtok($id, '?');
 	$ialt = $sum = $x = 0;
 	$qtxt = "select * from styklister where indgaar_i = '$id' order by posnr";
 echo __line__." $qtxt<br>";
@@ -42,7 +43,7 @@ echo __line__." $qtxt<br>";
 	}
 	$vareantal=$x;
 
-	$q = db_select("select varenr, beskrivelse from varer where id=$id",__FILE__ . " linje " . __LINE__);
+	$q = db_select("select id, varenr, beskrivelse from varer where id=$id",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
 
 	if ($udskriv) {
@@ -62,7 +63,7 @@ echo __line__." $qtxt<br>";
 			$pris=dkdecimal($r2['kostpris'],2);
 		}
 		$sum=dkdecimal($sum,2);
-	if ($udskriv) print "<tr><td>".htmlentities($r['varenr'],ENT_COMPAT,$charset)."</td><td>".htmlentities($r['beskrivelse'],ENT_COMPAT,$charset)."</td><td align=right> $pris</td><td align=right> ".dkdecimal($antal[$x],2)."</td><td align=right> $sum</td><td align=right>".dkdecimal($r['beholdning'])."</td></tr>";
+	if ($udskriv) print "<tr><td><a href='../lager/varekort.php?id=$r[id]&returside=".urlencode($_SERVER["REQUEST_URI"])."'>".htmlentities($r['varenr'],ENT_COMPAT,$charset)."</a></td><td>".htmlentities($r['beskrivelse'],ENT_COMPAT,$charset)."</td><td align=right> $pris</td><td align=right> ".dkdecimal($antal[$x],2)."</td><td align=right> $sum</td><td align=right>".dkdecimal($r['beholdning'])."</td></tr>";
 	}
 #	$ialt=dkdecimal($ialt,2);
 	if ($udskriv) {

@@ -5,22 +5,23 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // -------------/admin/slet_regnskab.php-----patch 3.8.9------2020.02.27--------
-// LICENS
+// Dette program er fri software. Du kan gendistribuere det og / eller
+// modificere det under betingelserne i GNU General Public License (GPL)
+// som er udgivet af The Free Software Foundation; enten i version 2
+// af denne licens eller en senere version efter eget valg.
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
+// 
+// Programmet er udgivet med haab om at det vil vaere til gavn,
+// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
+// GNU General Public Licensen for flere detaljer.
+// 
+// En dansk oversaettelse af licensen kan laeses her:
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// This program is free software. You can redistribute it and / or
-// modify it under the terms of the GNU General Public License (GPL)
-// which is published by The Free Software Foundation; either in version 2
-// of this license or later version of your choice.
-// However, respect the following:
-//
-// It is forbidden to use this program in competition with Saldi.DK ApS
-// or other proprietor of the program without prior written agreement.
-//
-// The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
-// GNU General Public License for more details.
-//
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2020.02.27 PHR Check if db exist before dropping 20200227 
 
@@ -37,8 +38,7 @@ if ($db != $sqdb) {
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
 	exit;
 }
-$modulnr = 103;
-$db_id = array();
+$modulnr=103;
 
 ?>
 <script LANGUAGE="JavaScript">
@@ -71,16 +71,16 @@ if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 
 <table cellpadding="1" cellspacing="1" border="0"><tbody>
 <?php
 $id=array();$db_navn=array();$regnskab=array();$slet=array();
-if (isset($_POST['regnskabsantal']) && $_POST['regnskabsantal']) {
+if ($_POST['regnskabsantal']) {
 	$regnskabsantal=$_POST['regnskabsantal'];
 	$id=$_POST['id'];
 	$db_navn=$_POST['db_navn'];
 	$regnskab=$_POST['regnskab'];
 	$slet=$_POST['slet'];
 
-	if (count($db_id)) {
+	if ($regnskabsantal) {
 		$slet_antal=0;
-		for ($x=1; $x<=count($db_id); $x++) {
+		for ($x=1; $x<=$regnskabsantal; $x++) {
 			if ($slet[$x]=='on'){
 			 	$slet_antal++;
 				$mappe='../nedlagte_regnskaber/';
@@ -127,7 +127,7 @@ if (isset($_POST['regnskabsantal']) && $_POST['regnskabsantal']) {
 		else print "<BODY onLoad=\"javascript:alert('$slet_antal regnskaber slettet')\">";
 		}
 }
-$q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
+$q = db_select("select * from brugere where brugernavn = '$brugernavn'");
 $r = db_fetch_array($q);
 list($admin,$oprette,$slette,$tmp)=explode(",",$r['rettigheder'],4);
 $adgang_til=explode(",",$tmp);

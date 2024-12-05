@@ -53,7 +53,7 @@ $url = "https://pos.api.vibrant.app/pos/v1/terminals";
 $data = array(
   "name" => "Terminal $id", 
   "mode" => "terminal", 
-  "descriptor" => "Terminal $id, fra Saldi", 
+  "descriptor" => "Sanderum Pub", 
   "virtual" => false
 );#Give me a call
 

@@ -42,7 +42,6 @@ $title="Labelprint";
 $modulnr=9;
 $css="../css/standard.css";
 $bg='nix';
-
 $bottom=$diffkto=NULL;
 $variant=$variant_type=NULL;
 $labelNames = array();

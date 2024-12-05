@@ -78,13 +78,13 @@ if (!function_exists('udvaelg')){
 				}	elseif ($art=="TEXT") {
 					if (strstr($tmp,'*')) {
 						$tmp=str_replace('*','%',$tmp);
-						$udvaelg = " and $key like '$tmp'";
+						$udvaelg = " and ($key like '$tmp'";
 						$udvaelg.= " or lower($key) like '".strtolower($tmp)."'";
-						$udvaelg.= " or upper($key) like '".strtoupper($tmp)."'";
+						$udvaelg.= " or upper($key) like '".strtoupper($tmp)."')";
 					} else {
-						$udvaelg = " and $key = '$tmp'";
+						$udvaelg = " and ($key = '$tmp'";
 						$udvaelg.= " or lower($key) like '".strtolower($tmp)."'";
-						$udvaelg.= " or upper($key) like '".strtoupper($tmp)."'";
+						$udvaelg.= " or upper($key) like '".strtoupper($tmp)."')";
 					}
 				} else $udvaelg= " and $key = '$tmp'";
 			}

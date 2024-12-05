@@ -1,4 +1,4 @@
-// <?php
+<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -77,8 +77,8 @@ include("../includes/std_func.php");
 
 global $menu;
 
-$vend=NULL;
-
+$vend    = NULL;
+$feltnavn = array();
 if(($_GET)||($_POST)) {
 
 	if ($_GET) {
@@ -135,7 +135,7 @@ if(($_GET)||($_POST)) {
 		}
 	}
 	elseif ($kontonr)	 {
-		$tmp=$kontonr*1;
+		$tmp=(int)$kontonr;
 		if (!$row=db_fetch_array(db_select("select id from kontoplan where kontonr=$tmp",__FILE__ . " linje " . __LINE__))) {
 			alert("Kontonummer $kontonr findes ikke i kontoplanen");
 			$show='Vis';
@@ -143,6 +143,7 @@ if(($_GET)||($_POST)) {
 		}
 	}
 	if (basename($_FILES['uploadedfile']['name'])) {
+//echo __line__." ".basename($_FILES['uploadedfile']['name'])."<br>";
 		$filnavn="../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv";
 		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
 		
@@ -157,7 +158,7 @@ if(($_GET)||($_POST)) {
 				$feltnavn[5]=if_isset($r['box8']);
 				$feltnavn[6]=if_isset($r['box9']);
 				$feltnavn[7]=if_isset($r['box10']);
-				$gebyrkonto=if_isset($r['box11'])*1;
+				$gebyrkonto=if_isset($r['box11'],0);
 			} else {
 				db_modify ("insert into grupper (beskrivelse,art,kode,kodenr) values ('Bankimport','KASKL','3','$bruger_id')",__FILE__ . " linje " . __LINE__);
 			}
@@ -612,7 +613,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
  			}		
  			if ($skriv_linje==1){
 				for ($y=0; $y<=$feltantal; $y++) {
-					$bilag=$bilag*1;
+					$bilag=(int)$bilag;
 					if ($feltnavn[$y]=='belob') $amount=usdecimal($felt[$y]);
 					elseif ($feltnavn[$y]=="dato") $transdate=usdate($felt[$y]);
 					elseif ($feltnavn[$y]=="beskrivelse") $beskrivelse=db_escape_string($felt[$y]);
@@ -670,7 +671,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$qtxt="select fakturanr,kontonr,sum,moms from ordrer where ordrenr = '$ordrenr' and sum >= '$tmp' and sum <='$amount' and art='DO'";
 					} elseif (substr($beskrivelse,0,6)=='DKSSL ') { #20131119
 						list($a,$b,$c)=explode(" ",$beskrivelse);
-						$ordrenr=substr($c,7)*1;
+						$ordrenr=(int)substr($c,7);
 						if ($ordrenr) $qtxt="select fakturanr,kontonr from ordrer where ordrenr = '$ordrenr' and sum = '$amount'";
 					}
 #cho __line__." $kundenr - $qtxt<br>";
@@ -680,7 +681,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 							$faktura=$r['fakturanr'];
 							$fakturasum=$r['sum']+$r['moms'];
 							$kortgebyr=$amount-$fakturasum;
-							$kredit=$r['kontonr']*1;
+							$kredit=(int)$r['kontonr'];
 							$k_type='D';
 						} else {
 							$faktura='';
@@ -745,7 +746,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$betalings_id="%".substr($beskrivelse,12,9);
 						$r=db_fetch_array(db_select("select fakturanr,kontonr from ordrer where betalings_id LIKE '$betalings_id' and sum = '$amount'",__FILE__ . " linje " . __LINE__));
 						$faktura=$r['fakturanr'];
-						$debet=$r['kontonr']*1;
+						$debet=(int)$r['kontonr'];
 						$d_type='D';
 					} elseif (substr($beskrivelse,0,4)=='Afr:' && is_numeric(substr($beskrivelse,5,4))) { #20201107
 						$d_type='D';

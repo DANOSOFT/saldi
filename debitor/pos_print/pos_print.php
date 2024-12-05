@@ -72,7 +72,8 @@ for($x=1;$x<=$linjeantal;$x++) {
 	list($txt,$txt2)=wrapText($txt,$width,'    ','',' ');
 	if (trim($txt)) fwrite($fp,"    $txt\n");
 */
-	$txt=iconv($FromCharset, $ToCharset,trim($itemName[$x]));
+	$txt = str_replace("•","*",$itemName[$x]);
+	$txt=iconv($FromCharset, $ToCharset,$txt);
 	$dkkpris[$x]="  ".trim($dkkpris[$x]);
 	list($txt,$txt2)=wrapText($txt,$width,"$antal[$x] ",$dkkpris[$x],' ');
 	fwrite($fp,"$antal[$x] $txt$dkkpris[$x]\n");

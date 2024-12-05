@@ -49,20 +49,20 @@ function loenliste() {
 	$loendateFra=if_isset($_GET['loendateFra']);
 	$loendateTil=if_isset($_GET['loendateTil']);
 	
-	$s_nummer=if_isset($_POST['s_nummer']);
+	$s_nummer=trim(if_isset($_POST['s_nummer']));
 	$s_loendate=if_isset($_POST['s_loendate']);
 	$s_loendateFra=if_isset($_POST['s_loendateFra']);
 	$s_loendateTil=if_isset($_POST['s_loendateTil']);
 	$s_oprettet=if_isset($_POST['s_oprettet']);
 	$s_afsluttet=if_isset($_POST['s_afsluttet']);
 	$s_godkendt=if_isset($_POST['s_godkendt']);
-	$s_afregnet=if_isset($_POST['s_afregnet']);
-	$s_sag_nr=if_isset($_POST['s_sag_nr']);
+	$s_afregnet=trim(if_isset($_POST['s_afregnet']));
+	$s_sag_nr=trim(if_isset($_POST['s_sag_nr']));
 	$s_art=if_isset($_POST['s_art']);
 	//$s_kategori=if_isset($_POST['s_kategori']);
 	$s_ansvarlig=if_isset($_POST['s_ansvarlig']);
 	$s_ansat=if_isset($_POST['s_ansat']);
-	$s_sum=if_isset($_POST['s_sum']);
+	$s_sum=trim(if_isset($_POST['s_sum']));
 	$s_limit=if_isset($_POST['s_limit']);
 //echo "Løndato: $s_loendate Fra: $s_loendateFra Til: $s_loendateTil<br>";
 
@@ -351,7 +351,6 @@ function loenliste() {
 		$where.= " and (ansatte LIKE '$tmp1%' or ansatte LIKE '%$tmp2' or ansatte LIKE '%$tmp3%' or ansatte = '$ansat_id')";
 		//echo "where = $where<br>";
 	}
-	
 	if ($s_nummer) $where.= " and nummer='$s_nummer'";  
 	//if ($s_loendate) $where.= " and loendate='".usdate($s_loendate)."'";
 	if ($s_loendate) {
@@ -546,7 +545,7 @@ function loenliste() {
 				for ($i=0;$i<count($ansvarlig);$i++) {
 					if ($ansvarlig[$i]==$s_ansvarlig) print "<OPTION value=\"$ansvarlig[$i]\">$ansvarlig[$i]&nbsp;</option>\n"; 
 				}
-				if (!$ansvarlig[$i]) print "<OPTION value=\"\">&nbsp;</option>\n";
+				if (!isset($ansvarlig[$i]) || !$ansvarlig[$i]) print "<OPTION value=\"\">&nbsp;</option>\n";
 				for ($i=0;$i<count($ansvarlig);$i++) {
 					if ($ansvarlig[$i]!=$s_ansvarlig) print "<OPTION value=\"$ansvarlig[$i]\">$ansvarlig[$i]&nbsp;</option>\n"; 
 				}

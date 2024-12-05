@@ -1,0 +1,110 @@
+* {
+	margin: 0;
+	padding: 0;
+	font-size: 19px;
+	font-family: Roboto, sans-serif;
+}
+
+#background {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	z-index: -1;
+	background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201920%201080%22%3E%3Cg%20transform=%22%20%20%20%20%20%20%20%20%20%20rotate(152%20960%20540)%20%20%20%20%20%20%20%20%20%20%20translate(-688.8611562991571%20-387.48440041827587)%20%20%20%20%20%20%20%20%20%20scale(1.7175637044782885)%20%20%20%20%20%20%20%20%22%3E%3Crect%20width=%221920%22%20height=%221080%22%20fill=%22rgb(240,%20240,%20245)%22%3E%3C/rect%3E%3Cg%20transform=%22translate(0,%200)%22%3E%3Cpath%20fill=%22rgb(245,%20245,%20248)%22%20fill-opacity=%221%22%20d=%22M0,352.943L45.714,350.075C91.429,347.207,182.857,341.471,274.286,340.581C365.714,339.692,457.143,343.65,548.571,344.095C640,344.54,731.429,341.472,822.857,303.183C914.286,264.894,1005.714,191.383,1097.143,185.175C1188.571,178.967,1280,240.06,1371.429,221.336C1462.857,202.612,1554.286,104.069,1645.714,98.48C1737.143,92.892,1828.571,180.258,1874.286,223.941L1920,267.624L1920,1080L1874.286,1080C1828.571,1080,1737.143,1080,1645.714,1080C1554.286,1080,1462.857,1080,1371.429,1080C1280,1080,1188.571,1080,1097.143,1080C1005.714,1080,914.286,1080,822.857,1080C731.429,1080,640,1080,548.571,1080C457.143,1080,365.714,1080,274.286,1080C182.857,1080,91.429,1080,45.714,1080L0,1080Z%22%3E%3C/path%3E%3C/g%3E%3Cg%20transform=%22translate(0,%20360)%22%3E%3Cpath%20fill=%22rgb(250,%20250,%20252)%22%20fill-opacity=%221%22%20d=%22M0,136.093L45.714,117.434C91.429,98.774,182.857,61.455,274.286,80.719C365.714,99.983,457.143,175.829,548.571,189.505C640,203.181,731.429,154.687,822.857,130.414C914.286,106.141,1005.714,106.09,1097.143,141.274C1188.571,176.458,1280,246.877,1371.429,284.697C1462.857,322.517,1554.286,327.739,1645.714,284.675C1737.143,241.611,1828.571,150.263,1874.286,104.589L1920,58.914L1920,720L1874.286,720C1828.571,720,1737.143,720,1645.714,720C1554.286,720,1462.857,720,1371.429,720C1280,720,1188.571,720,1097.143,720C1005.714,720,914.286,720,822.857,720C731.429,720,640,720,548.571,720C457.143,720,365.714,720,274.286,720C182.857,720,91.429,720,45.714,720L0,720Z%22%3E%3C/path%3E%3C/g%3E%3Cg%20transform=%22translate(0,%20720)%22%3E%3Cpath%20fill=%22rgb(255,%20255,%20255)%22%20fill-opacity=%221%22%20d=%22M0,107.121L45.714,134.307C91.429,161.493,182.857,215.866,274.286,254.33C365.714,292.794,457.143,315.35,548.571,300.514C640,285.679,731.429,233.452,822.857,180.313C914.286,127.174,1005.714,73.123,1097.143,43.365C1188.571,13.606,1280,8.141,1371.429,41.079C1462.857,74.017,1554.286,145.358,1645.714,167.782C1737.143,190.206,1828.571,163.713,1874.286,150.467L1920,137.221L1920,360L1874.286,360C1828.571,360,1737.143,360,1645.714,360C1554.286,360,1462.857,360,1371.429,360C1280,360,1188.571,360,1097.143,360C1005.714,360,914.286,360,822.857,360C731.429,360,640,360,548.571,360C457.143,360,365.714,360,274.286,360C182.857,360,91.429,360,45.714,360L0,360Z%22%3E%3C/path%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+	background-size: cover;
+	background-position: 100% 100%;
+}
+
+#statusline {
+	display: flex;
+	justify-content: space-between;
+	padding: 1em;
+	opacity: 1;
+	transition: opacity 0.5s ease-out;
+	font-size: 15px;
+}
+.dissapear {
+	opacity: 0 !important;
+}
+
+#form-wapper * {
+	box-sizing: border-box;
+}
+
+#form-wapper {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -20%);
+	background-color: #d6eff3;
+	border-radius: 5em;
+
+	box-sizing: border-box;
+	box-shadow: 0 0.125em 0.3125em rgba(0, 0, 0, 0.1);
+
+	transition: transform 0.5s ease-in;
+}
+
+.ease {
+	transform: translate(-50%, -50%) !important;
+}
+
+#form-wapper #cancel {
+	position: absolute;
+	cursor: pointer;
+	left: 50%;
+	transform: translate(-50%, 15px);
+	font-size: 15px;
+	color: #454545;
+}
+
+#form-wapper input {
+	border: none;
+	background-color: #00000000;
+	padding: 0.625rem;
+}
+
+#form-wapper input:focus {
+	border: none;
+	outline: none;
+}
+
+#form-wapper button {
+	border: none;
+	background-color: #fafafc;
+	cursor: pointer;
+	border-radius: 5em;
+	padding: 0.625rem 0.925rem;
+	box-sizing: border-box;
+}
+
+#form-wapper form {
+	padding: 0.625em;
+	box-sizing: border-box;
+
+	// position form inputs
+	display: flex;
+	justify-content: center;
+}
+
+/* Chooseform */
+
+#chooseform {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -20%);
+	padding-left: 20px;
+}
+
+#chooseform select {
+	width: 300px;
+	height: 40px;
+}
+
+#chooseform button {
+	width: 140px;
+	height: 40px;
+	margin-right: 20px;
+	margin-top: 20px;
+}

@@ -89,24 +89,7 @@ if ($response === false) {
     $accessToken = $response["access_token"];
 }
 
-echo $accessToken;
-
 curl_close($ch);
-
-
-
-
-
-
-
-
-
-
-
-# 21da9537-676b-4466-ba8f-009811f13dc3
-
-# 5d0ee077-f474-4926-8659-7bef13277c96
-
 
 
 
@@ -223,7 +206,7 @@ $headers = array(
 );
 
 $data = json_encode(array(
-    'url' => 'https://ssl4.saldi.dk/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db,
+    'url' => 'https://ssl9.saldi.dk/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db,
     'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
 ));
 

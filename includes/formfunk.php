@@ -90,11 +90,12 @@
 // 20240918 PBLM Added function betalingslink
 // 20241002 PHR 'Kontant' in texts replacet by text ID 370
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+#use PHPMailer\PHPMailer\PHPMailer;
+#use PHPMailer\PHPMailer\Exception;
 
 if (!function_exists('skriv')) {
 function skriv($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font,$formular,$line) {
+
 print "<!--function skriv start-->";
 	global $side;
 	global $connection;
@@ -134,7 +135,7 @@ print "<!--function skriv start-->";
 
 	$txt370 = findtekst('370|Kontant',$sprog_id);
 	$tekst = str_replace('Kontant', $txt370, $tekst);
-	
+
 	$vare_note=$tekst1=NULL;
 	if ($slutfed) $startfed=$slutfed=NULL;
 	if ($slutbig) $big=$slutbig=NULL;
@@ -214,6 +215,7 @@ print "<!--function skriv start-->";
 	else $form_font=$form_font.'-ISOLatin9 findfont';
 	if (strstr($tekstinfo, 'ordrelinjer')) {
 	list ($tekstinfo,$Opkt)=explode("_",$tekstinfo,2);
+#cho "Y $y > $Opkt<br>";
 		if ($y <= $Opkt) { # Sideskift
 			global $tekst1;
 			global $x1;
@@ -274,6 +276,7 @@ print "<!--function skriv start-->";
 						} elseif ($tabel=="eget" || $tabel=="egen") {
 							$q2 = db_select("select $variabel from adresser where art='S'",__FILE__ . " linje " . __LINE__);
 						} elseif (($tabel=="adresser") || ($tabel=="adresser")) {
+#cho "select $variabel from adresser where id='$id'<br>";
 							$q2 = db_select("select $variabel from adresser where id='$id'",__FILE__ . " linje " . __LINE__);
 						} elseif ($tabel=="ansat" && $ref) {
 							$r2 = db_fetch_array(db_select("select id from adresser where art='S'",__FILE__ . " linje " . __LINE__));
@@ -431,7 +434,7 @@ print "<!--function ombryd slut-->";
 if (!function_exists('find_form_tekst')) {
 function find_form_tekst($id, $sidetekst, $formular,$y_pos,$linjeafstand,$pos_part) {
 print "<!--function find_form_tekst start-->";
-	global $bruger_id,$brugsamletpris;
+	global $bruger_id,$brugernavn,$brugsamletpris;
 	global $deb_valuta,$deb_valutakurs;
 	global $formularsprog;
 	global $gebyr;
@@ -668,7 +671,10 @@ print "<!--function find_form_tekst start-->";
 					if ($variabel=='rente') $streng[$x]=$rente;
 					if ($variabel=='kontosaldo') $streng[$x]=dkdecimal(find_saldo($id),2);
 					if (strstr($variabel,'betalingsid')) $streng[$x]=modulus_10($id);
-					if($variabel == 'betalingslink') $streng[$x] = betalingslink($id);
+					if($variabel == 'betalingslink') {
+						include_once("../includes/formFuncIncludes/paymentLink.php");
+						$streng[$x] = paymentLink($id);
+					}
 					if ($variabel=='grossWeight') $streng[$x]=dkdecimal(findWeight($id,'grossWeight',$lev_nr),2);
 					if ($variabel=='netWeight') $streng[$x]=dkdecimal(findWeight($id,'netWeight',$lev_nr),2);
 				}
@@ -719,7 +725,7 @@ print "<!--function find_forfaldsdato start-->";
 	$forfaldsmd=$faktmd;
 	$forfaldsdag=$faktdag;
 	$slutdag=31;
-	if (($fakturadate)&&($betalingsbet=="Netto"||$betalingsbet=="Lb. md.")) {
+	if (($fakturadate)&&in_array($betalingsbet, array("Netto", "netto", "Lb. md."))) { # Define ultimo
 		while (!checkdate($forfaldsmd, $slutdag, $forfaldsaar)) {
 			$slutdag--;
 			if ($slutdag<27) break 1;
@@ -992,7 +998,8 @@ print "<!--function formularprint start-->";
 		$antal_ordrelinjer=25;
 		$x=0;
 	
-		$qtxt = "select adresser.gruppe,ordrer.procenttillag from ordrer,adresser where ordrer.id = '$ordre_id[$o]' and adresser.id=ordrer.konto_id";
+		$qtxt = "select adresser.gruppe,ordrer.procenttillag from ordrer,adresser ";
+		$qtxt.= "where ordrer.id = '$ordre_id[$o]' and adresser.id=ordrer.konto_id";
  		$r=db_fetch_array(db_SELECT($qtxt,__FILE__ . " linje " . __LINE__));
 		$gruppe=(int)$r['gruppe'];
 		$procenttillag=$r['procenttillag'];
@@ -1397,7 +1404,8 @@ print "<!--function formularprint start-->";
 	if ($status<3 && $procenttillag>0) {
 		$r=db_fetch_array(db_select("select box13 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
 		list($tmp,$procentvare)=explode(chr(9),$r['box13']);
-		if ($procentvare && $r=db_fetch_array(db_select("select beskrivelse from varer where varenr='$procentvare'",__FILE__ . " linje " . LINE__))){
+		$qtxt = "select beskrivelse from varer where varenr='$procentvare'";
+		if ($procentvare && $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
 					$x++;
 					$linjeantal++;
 					$posnr[$x]=$posnr[$x-1]+1;
@@ -1484,11 +1492,11 @@ print "<!--function formularprint start-->";
 						elseif ($variabel[$z]=="enhed") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$enhed[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 						elseif ($variabel[$z]=="momssats") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$varemomssats[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 						elseif ($variabel[$z]=="rabat") {
-								$rabattxt = "";
-								if (usdecimal($rabat[$x]) != 0) {
-										$rabattxt = $rabat[$x];
-								}
-								$svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$rabattxt", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
+							$rabattxt = "";
+							if (usdecimal($rabat[$x]) != 0) {
+								$rabattxt = $rabat[$x];
+							}
+							$svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$rabattxt", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 						}
 						elseif ($variabel[$z]=="procent") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$procent[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 						elseif ($variabel[$z]=="linjemoms") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$linjemoms[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
@@ -1533,10 +1541,6 @@ print "<!--function formularprint start-->";
 	}
 // UDSKRIVNING
 	if ($mailantal>0) {
-		if (file_exists('../phpmailer/phpmailer.php')) {
-			ini_set("include_path", ".:../phpmailer");
-			require_once("class.phpmailer.php");
-		}
 		include("../includes/connect.php");
 		if (!isset($exec_path)) $exec_path="/usr/bin";
 		$r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__));
@@ -1706,8 +1710,10 @@ return ($y); #indsat 2011.01.27 grundet tomme sider v. sideskift i kommentar. sa
 #cho 
 print "<!--function bundtekst slut-->";
 }}
-if (!function_exists('send_mails')) include ("../includes/formFuncIncludes/sendMail.php");
-
+if (!function_exists('send_mails')) {
+	if (file_exists("../../vendor/autoload.php")) include ("../includes/formFuncIncludes/sendMail.php");
+	else include ("../includes/formFuncIncludes/oldSendMail.php");
+}
 if (!function_exists('find_saldo')) {
 	function find_saldo($ordre_id) {
 		print "<!--function find_saldo start-->";
@@ -1990,24 +1996,6 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 	}
 #	fclose($psfp);
 	if ($mailantal>0) {
-
-		/*
-		require_once "../../vendor/autoload.php"; //PHPMailer Object
-		$mail = new  PHPMailer();
-		$mail->SMTPOptions = array( 
-			'ssl' => array( 
-				'verify_peer' => false, 
-				'verify_peer_name' => false, 
-				'allow_self_signed' => true 
-			) 
-		);
-*/
-		if(!class_exists('phpmailer')) {
-			if (file_exists('../phpmailer.phpmailer.php')) {
-				ini_set("include_path", ".:../phpmailer");
-				require_once("class.phpmailer.php");
-			}
-		}
 		if (!isset($exec_path)) $exec_path="/usr/bin";
 		if (!isset($exec_path)) $exec_path="/usr/bin";
 		include("../includes/connect.php");
@@ -2314,12 +2302,12 @@ if ($mailantal>0) {
 	if ($r['var_value']) $pdftk=$r['var_value'];
 	else $pdftk="$exec_path/pdftk";
 	include("../includes/online.php");
+/*
 	if(!class_exists('phpmailer')) {
-		if (file_exists('../phpmailer.phpmailer.php')) {
-			ini_set("include_path", ".:../phpmailer");
-			require_once("class.phpmailer.php");
-		}
+		ini_set("include_path", ".:../phpmailer");
+		require_once("class.phpmailer.php");
 	}
+*/
 	for($x=1;$x<=$mailantal;$x++) {
 #		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
 		system ("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
@@ -2356,42 +2344,5 @@ function findWeight($id,$wType,$deliverNo) {
 		}
 	}
 	return "$weight";
-}
-
-#betalingslink
-function betalingslink($id){
-	global $db;
-	$query = db_select("SELECT sum, moms FROM ordrer WHERE id = $id",__FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array($query);
-	$sum = $r['sum'];
-	$moms = $r['moms'];
-	$sum = str_replace(",",".",$sum);
-	$moms = str_replace(",",".",$moms);
-	$amount = $sum + $moms;
-	$amount = $amount * 100;
-	$apiKey = "vibrant_pos.47e4a2de-668b-4479-a765-9c56a4474e10.3GJrTmw~-jrY..AoBCx.7Dq2n1cuvk2c";
-	$ch = curl_init();
-
-	curl_setopt($ch, CURLOPT_URL, 'https://pos.api.vibrant.app//pos/v1/payment_link');
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	curl_setopt($ch, CURLOPT_POST, 1);
-	curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array("amount" => $amount)));
-
-	$headers = array();
-	$headers[] = 'Accept: application/json';
-	$headers[] = 'Apikey: ' . $apiKey;
-	$headers[] = 'Content-Type: application/json';
-	curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-	$result = curl_exec($ch);
-	if (curl_errno($ch)) {
-		echo 'Error:' . curl_error($ch);
-	}
-	curl_close($ch);
-	$result = json_decode($result);
-	$paymentIntentId = $result->paymentIntentId;
-	file_put_contents("../temp/$db/paymentIntentId.txt", $paymentIntentId."\n", FILE_APPEND);
-	$betalingsLink = $result->vibrantUrl;
-	return "<a href='$betalingsLink' style='text-decoration: none; font-weight: 700; padding-top: 0.5rem; padding-bottom: 0.5rem; padding-left: 1rem; padding-right: 1rem; background-color: rgb(59 130 246); color: #fff; border-radius: 0.25rem; text-align: center;'>Betal her</a>";
 }
 ?>

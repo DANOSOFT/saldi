@@ -594,7 +594,7 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 /*
 				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='grupper' and column_name = 'fiscal_year'";
 				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$qtxt = "ALTER table grupper ADD column fiscal_year int DEFAULT(0)";
+					$qtxt = "ALTER table grupper ADD column fiscal_year int DEFAULT 0";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 */				
@@ -817,7 +817,7 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='grupper' and column_name = 'fiscal_year'";
 				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					transaktion('begin');
-					$qtxt = "ALTER table grupper ADD column fiscal_year int DEFAULT(0)";
+					$qtxt = "ALTER table grupper ADD column fiscal_year int DEFAULT 0";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				$i = 0;
 				$qtxt = "select kodenr from grupper where art = 'RA' order by id";

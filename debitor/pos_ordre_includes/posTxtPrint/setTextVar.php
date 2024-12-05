@@ -4,31 +4,32 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/posTxtPrint/setTextVar.php --- lap 4.1.1 --- 2020.02.11 ---
-// LICENSE
+// ------------- debitor/pos_ordre_includes/posTxtPrint/setTextVar.php --- lap 3.8.9----2020.02.11-------
+// LICENS
 //
-// This program is free software. You can redistribute it and / or
-// modify it under the terms of the GNU General Public License (GPL)
-// which is published by The Free Software Foundation; either in version 2
-// of this license or later version of your choice.
-// However, respect the following:
+// Dette program er fri software. Du kan gendistribuere det og / eller
+// modificere det under betingelserne i GNU General Public License (GPL)
+// som er udgivet af The Free Software Foundation; enten i version 2
+// af denne licens eller en senere version efter eget valg
+// Fra og med version 3.2.2 dog under iagttagelse af følgende:
+// 
+// Programmet må ikke uden forudgående skriftlig aftale anvendes
+// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
+// 
+// Dette program er udgivet med haab om at det vil vaere til gavn,
+// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
+// GNU General Public Licensen for flere detaljer.
 //
-// It is forbidden to use this program in competition with Saldi.DK ApS
-// or other proprietor of the program without prior written agreement.
-//
-// The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
-// See GNU General Public License for more details.
+// En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2019-2024 Saldi.dk ApS
+// Copyright (c) 2004-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190705 LN Handle txt variables
 // 20200211 PHR	Corrected error in parameters 
-// 20240801 PHR - Replaced 'DKK' with $baseCurrency.
 
-  $sum+=$moms;
+    $sum+=$moms;
 	if ($konto_id) {
 		if (!$x) $indbetaling=$sum;
 		$gl_saldo=dkdecimal($betaling2,2);
@@ -73,9 +74,9 @@
 	while(strlen($dkkmoms)<9){
 		$dkkmoms=" ".$dkkmoms;
 	}
+	$q = db_select("select var_value from settings where var_name='deactivateBonprint'", __FILE__ . " linje " . __LINE__);
+	$disabledPrinter = db_fetch_array($q)['var_value'];
 
-	$query = db_select("select var_value from settings where var_name='deactivateBonprint'", __FILE__ . " linje " . __LINE__);
-	$disabledPrinter = db_fetch_array($query)['var_value'];
 	if(isset($doNotPrint) && $doNotPrint == "copied") {
 		printWarningMessage($doNotPrint);
 		return true;
@@ -85,16 +86,6 @@
 		} elseif ($type == "zRapport") {
 			$filnavn = "pos_ordre_includes/report/zRapport.php";
 		} else {
-			$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-			$qtxt.= "values ";
-			$qtxt.= "('13012','". date('U') ."','$kasse','$bruger_id','$id','".__file__."','".__line__."')";
-			db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($betaling == 'Kontant' || $betaling2 == 'Kontant' || abs($retur) > 0.01) {
-				$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-				$qtxt.= "values ";
-				$qtxt.= "('13005','". date('U') ."','$kasse','$bruger_id','$id','".__file__."','".__line__."')";
-				db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-			}
 			$filnavn="pos_print/pos_print_".$db_id.".php";
 		}
 		if (file_exists("$filnavn")){

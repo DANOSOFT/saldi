@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- patch 4.1.0 --- 2024-10-18 ---
-// 										LICENSE
+// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2024-11-20 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -38,6 +38,7 @@
 // 20240403 PHR Some design changes.
 // 20240424 PHR Some issues regarding staggered financial years
 // 20241018 LOE Ensured some variables are set first like: $_POST['submit'] and $konto_beskrivelse etc.
+// 20241120 PHR	Rermoved  "target='	'" from <form ...
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -259,7 +260,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	print "<td><input class='button gray medium' type='submit' value='$txt' name='submit'></td></tr>\n";
 	print "<tr><td><br><br></td></tr>";
 	print "</form>\n\n";
-	print "<form target='_blank' name=rapport action=rapport.php method=post>\n";
+	print "<form name=rapport action=rapport.php method=post>\n";
 		if ($r = db_fetch_array(db_select("select id from kladdeliste where bogfort='S'", __FILE__ . " linje " . __LINE__))) {
 		print "<tr><td title='Medtag simulerede kladder i rapporter'>Simulering</td><td title='Medtag simulerede kladder i rapporter'><input class='checkmark' type='checkbox' name='simulering' $simulering></td></tr>";
 	}
@@ -505,12 +506,12 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		} else {
 			print "<tr><td colspan=3 ALIGN=center><br><hr><br>
 			<span title='Afstem bank efter kontoudtog (csv)'>
-			<input  style = 'width:150px;' class='button orange medium' type=submit value = 'Afstem bank' name='bankReconcile'>
+			<input  style = 'width:150px;' class='button orange medium' type=submit value ='" . findtekst('2171|Afstem bank', $sprog_id) . "' name='bankReconcile'>
 			</span>
 			</td></tr>";
 			print "<tr><td colspan=3 ALIGN=center><br>
 			<span title='Vilk&aring;rlig s&oslash;gning i transaktioner'>
-			<input  style = 'width:150px;' class='button orange medium' type=submit value=" . findtekst(905, $sprog_id) . " name='kontrolspor'>
+			<input  style = 'width:150px;' class='button orange medium' type=submit value='" . findtekst('905|Kontrolspor', $sprog_id) . "' name='kontrolspor'>
 			</span>
 			</td></tr>";
 			#		print "<tr><td colspan=3 ALIGN=center><span title='Rapport over medarbejdernes provisionsindtjening'>  <input class='button blue medium' type=submit value=".findtekst(906,$sprog_id)." name='provisionsrapport'></span></td></tr>";
@@ -535,3 +536,4 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 }
 # endfunc forside
 ?>
+

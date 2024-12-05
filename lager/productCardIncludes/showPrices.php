@@ -12,7 +12,7 @@
     print "<tr><td>".findtekst(949,$sprog_id)."</td><td>";
     print "<input $type style=text-align:right size=\"8\" name=\"salgspris\" value=\"$tmp\">";
     print "</td>";
-    if ($enhed2) {
+    if ($enhed2 && $forhold && $forhold !=0) {
         $tmp=dkdecimal($salgspris/$forhold,2);
         print "<td><INPUT class=\"inputbox\" READONLY=readonly style=text-align:right size=8 value=\"$tmp\"></td>";
     } elseif($incl_moms) {
@@ -24,7 +24,7 @@
     // B2B price
     $tmp=dkdecimal($tier_price,2);
     print "<tr><td>B2B ".findtekst(949,$sprog_id)."</td><td><input $type style=text-align:right size=8 name=tier_price value=\"$tmp\" onchange=\"javascript:docChange = true;\"></td>";
-    if ($enhed2) {
+    if ($enhed2 && $forhold && $forhold !=0) {
         $tmp=dkdecimal($tier_price/$forhold,2);
         print "<td><INPUT class=\"inputbox\" READONLY=readonly style=text-align:right size=8 value=\"$tmp\"></td>";
     }
@@ -35,7 +35,7 @@
     else $type="type=text";
     $tmp=dkdecimal($retail_price,2);
     print "<tr><td>Vejl.pris</td><td><input $type style=text-align:right size=8 name=retail_price value=\"$tmp\" onchange=\"javascript:docChange = true;\"></td>";
-    if ($enhed2) {
+    if ($enhed2 && $forhold && $forhold !=0) {
         $tmp=dkdecimal($retail_price/$forhold,2);
         print "<td><INPUT class=\"inputbox\" READONLY=readonly style=text-align:right size=8 value=\"$tmp\"></td>";
     }

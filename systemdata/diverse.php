@@ -182,6 +182,7 @@ if ($_POST) {
 		elseif ($id==0){
 		db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')",__FILE__ . " linje " . __LINE__);
 		} elseif ($id > 0) db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'",__FILE__ . " linje " . __LINE__);
+		
 	#######################################################################################
 	} elseif ($sektion=='personlige_valg') {
 		$refresh_opener = NULL;
@@ -195,7 +196,6 @@ if ($_POST) {
 		else $menu      = '';
 		$bgcolor        = "#".$_POST['bgcolor'];
 		$nuance         = $_POST['nuance'];
-
 		$qtxt = "select id from grupper WHERE art = 'USET' and kodenr='$bruger_id'";
 		if  (($id==0) && ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) {
 			$id=$r['id'];
@@ -205,73 +205,6 @@ if ($_POST) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} elseif ($id>0) {
 			$qtxt = "update grupper set box1='$jsvars',box2='$popup',box3='$menu',box4='$bgcolor',box5='$nuance' WHERE id = '$id'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-
-		if ($refresh_opener) {
-			print "<BODY onLoad=\"javascript:opener.location.reload();\">";
-		}
-
-	#######################################################################################
-	} elseif ($sektion=='userSettings') {
-		$refresh_opener = NULL;
-		$id             = $_POST['id'];
-		$jsvars         = $_POST['jsvars'];
-		$popup          = if_isset($_POST['popup']);
-		if ($popup && $_POST['popup']=='') $refresh_opener="on";
-		$menu           = $_POST['menu'];
-		if ($menu=="sidemenu") $menu='S';
-		elseif ($menu=="topmenu") $menu='T';
-		else $menu      = '';
-		$bgcolor        = "#".$_POST['bgcolor'];
-		$fgcolor        = "#".$_POST['fgcolor'];
-		$buttonColor    = "#".$_POST['buttonColor'];
-		$fgcolor        = "#".$_POST['fgcolor'];
-		$buttonTxtColor = "#".$_POST['buttonTxtColor'];
-		$show_date_pkr = $_POST['show_date_pkr'];
-
-		update_settings_value("datepicker", "personlige", $show_date_pkr, "Sets if the date picker or text input is used");
-
-		$qtxt = "select id from settings WHERE var_grp = 'colors' and var_name = 'bgcolor' and user_id = '$bruger_id'";
-		if ($r['id']) $qtxt = "update settings set var_value = '$bgcolor' where id = '$r[id]'";
-		else {
-			$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, user_id, var_description) VALUES ";
-			$qtxt.= "('bgcolor', 'colors', '$bgcolor', '$bruger_id', 'General background color')";
-		}
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from settings WHERE var_grp = 'colors' and var_name = 'fgcolor' and user_id = '$bruger_id'";
-		if ($r['id']) $qtxt = "update settings set var_value = '$fgcolor' where id = '$r[id]'";
-		else {
-			$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, user_id, var_description) VALUES ";
-			$qtxt.= "('fgcolor', 'colors', '$fgcolor', '$bruger_id', 'General foreground color, eg line contrast')";
-		}
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from settings WHERE var_grp = 'colors' and var_name = 'buttonColor' and user_id = '$bruger_id'";
-		if ($r['id']) $qtxt = "update settings set var_value = '$buttonColor' where id = '$r[id]'";
-		else {
-			$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, user_id, var_description) VALUES ";
-			$qtxt.= "('buttonColor', 'colors', '$buttonColor', '$bruger_id', 'General button color')";
-		}
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$qtxt = "select id from settings WHERE var_grp = 'colors' and var_name = 'buttonTxtColor' and user_id = '$bruger_id'";
-		if ($r['id']) $qtxt = "update settings set var_value = '$buttonTxtColor' where id = '$r[id]'";
-		else {
-			$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, user_id, var_description) VALUES ";
-			$qtxt.= "('bgcolor', 'colors', '$buttonTxtColor', '$bruger_id', 'General button color')";
-		}
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from grupper WHERE art = 'USET' and kodenr='$bruger_id'";
-		if  (($id==0) && ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) {
-			$id=$r['id'];
-		} elseif ($id==0) {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ";
-			$qtxt.= "('UserSettings','$bruger_id','USET','$jsvars','$popup','$menu','$bgcolor','$fgcolor')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		} elseif ($id>0) {
-			$qtxt = "update grupper set box1='$jsvars',box2='$popup',box3='$menu',box4='$bgcolor',box5='$fgcolor' WHERE id = '$id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		if ($refresh_opener) {
@@ -621,8 +554,8 @@ if ($_POST) {
 		$kostmetode       = if_isset($_POST['kostmetode']);
 		$saetvarenr       = if_isset($_POST['saetvarenr']); #20150907
 		$orderNoteEnabled = if_isset($_POST['orderNoteEnabled']);
-		$debitoripad      = if_isset($_POST['debitoripad']);
-		$rabatdecimal     = if_isset($_POST['rabatdecimal']);
+		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
+
 
 		if ($box2 && $r=db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'",__FILE__ . " linje " . __LINE__))) {
 			$box2=$r['id'];
@@ -683,9 +616,9 @@ if ($_POST) {
 			$qtxt = "insert into settings (var_name, var_value) values ('orderNoteEnabled','$orderNoteEnabled')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
-
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
-		update_settings_value("rabatdecimal", "ordre", $rabatdecimal, "The amount of decimals in the order system for discounts");
+
+
 	#######################################################################################
 	} elseif ($sektion=='productOptions') {
 
@@ -719,13 +652,6 @@ if ($_POST) {
 		$confirmDescriptionChange        = if_isset($_POST['confirmDescriptionChange']);
 		$confirmStockChange_id           = if_isset($_POST['confirmStockChange_id']);
 		$confirmStockChange              = if_isset($_POST['confirmStockChange']);
-		$statusmail                      = if_isset($_POST['statusmail']);
-		$lagertrigger                    = if_isset($_POST['lagertrigger']);
-		$lagertime                       = if_isset($_POST['lagertime']);
-		
-		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
-		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
-		update_settings_value("time", "lagerstatus", $lagertime, "The amount of time between each statusmail in hours");
 
 		if ($vatOnItemCard_id) $qtxt="update settings set var_value='$vatOnItemCard' where id='$vatOnItemCard_id'";
 		else {
@@ -1204,27 +1130,7 @@ if ($_POST) {
 
 		$box14_2            = if_isset($_POST['udtag0']);
 
-		$kdscolorindex      = if_isset($_POST['kdscolorindex']);
-		$kdscolor           = if_isset($_POST['kdscolor']);
-
-		update_settings_value("show_big_sum", "POS", if_isset($_POST['show_big_sum'], "off"), "Shows a big sum ");
 		update_settings_value("show_stock", "POS", if_isset($_POST['lagerbeh'], "0"), "Weather or not to show the stock level on sale in the POS system");
-
-		update_settings_value("activated", "KDS", if_isset($_POST['kdsactive'], "off"), "The KDS system is activated");
-		update_settings_value("activated", "kitchen-print", if_isset($_POST['printactive'], "off"), "The physical kitchen print is acitaved");
-
-		update_settings_value("columns", "KDS", if_isset($_POST['kdscolumns'], "5"), "The amount of columns in the KDS system");
-		update_settings_value("height", "KDS", if_isset($_POST['kdsheight'], "20"), "The lineheight of each element in the KDS system");
-
-		# KDS Color setup
-		db_modify("DELETE FROM settings WHERE var_name='color' AND var_grp='KDS'",__FILE__ . " linje " . __LINE__);
-		for ($i = 0; $i < count($kdscolorindex); $i++) {
-			if ($kdscolorindex[$i] != "") {
-				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('color', 'KDS', '$kdscolorindex[$i]-$kdscolor[$i]', 'The color of KDS header at set minute interval')",__FILE__ . " linje " . __LINE__);
-			}
-		}
-
-
 
     # Table plan logic
     # Get the amount of tables currently in the system
@@ -1311,14 +1217,51 @@ if ($_POST) {
 				if ($txt) print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 			}
 
-
-      # Set terminal type
+      # Flatpay setup
       $kasse_id = $x + 1;
       $qtxt = "SELECT var_value FROM settings WHERE pos_id=$kasse_id and var_name='terminal_type'";
-      $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
       $termtype = $terminal_type[$x];
 
       # Check if a payment type has been setup on this term
+      if ($r) {
+        # It does exist, edit the row
+        # Check if it has a vibrant thingy setup
+				# $qtxt = "SELECT id FROM vibrant_terms WHERE pos_id=$kasse_id";
+        $qtxt = "SELECT var_value FROM settings WHERE pos_id=$kasse_id AND var_grp='vibrant_terms'";
+        $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+
+        # If the terminal has vibrant setup we want to set its terminal id to be -1 as we save the vibrant terminal ids for later user
+        if ($r) {
+          $qtxt = "UPDATE settings SET pos_id=-1 WHERE pos_id=$kasse_id AND var_grp='vibrant_terms'";
+          db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+        }
+
+        # Modify to use the right payment method on the selected terminal
+        $qtxt = "UPDATE settings SET var_value='$termtype' WHERE pos_id=$kasse_id and var_name='terminal_type'";
+			  db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+      } else {
+        # It has not been setup yet, create the row
+        $qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description, pos_id) 
+                 VALUES ('terminal_type', 'POS', '$termtype', 'What the main payment system should be.', $kasse_id)";
+			  db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+      }
+
+      # Vibrant setup
+      $termtype = $terminal_type[$x];
+      if (str_starts_with($termtype, "Vibrant: ")) {
+        $term_name = str_replace("Vibrant: ", "", $termtype);
+        $kasse_id = $x + 1;
+
+        $qtxt = "UPDATE settings SET pos_id='$kasse_id' WHERE var_name='$term_name' AND var_grp='vibrant_terms'";
+			  db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+      } 
+      
+      $kasse_id = $x + 1;
+      $qtxt = "SELECT var_value FROM settings WHERE pos_id=$kasse_id and var_name='terminal_type'";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+
+      # Check if another payment type has been setup on this term
       if ($r) {
         # It does exist, edit the row
         $qtxt = "UPDATE settings SET var_value='$termtype' WHERE pos_id=$kasse_id and var_name='terminal_type'";
@@ -1329,7 +1272,7 @@ if ($_POST) {
                  VALUES ('terminal_type', 'POS', '$termtype', 'What the main payment system should be.', $kasse_id)";
 			  db_modify($qtxt,__FILE__ . " linje " . __LINE__);
       }
-
+       
 
 			if ($box2) {
 				$box2.=chr(9).$kassekonti[$x];
@@ -1713,19 +1656,6 @@ if ($_POST) {
 
 			}
 			include("../includes/online.php");
-		}	elseif (isset($_POST['updateCurrency'])) {
-			$baseCurrency=$_POST['baseCurrency'];
-			if ($baseCurrency) {
-				$qtxt = "select id from settings where var_name='baseCurrency'";
-				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				if ($r['id']) $qtxt="update settings set var_value='$baseCurrency', user_id='0' where id='$r[id]'";
-				else {
-					$qtxt="insert into settings (var_name,var_value,var_description,user_id)";
-					$qtxt.=" values ";
-					$qtxt.="('baseCurrency','$baseCurrency','System Base currency','0')";
-				}
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
 		}	elseif (isset($_POST['opdat_tidszone'])) {
 			$timezone=$_POST['timezone'];
 			if ($timezone) {
@@ -1863,14 +1793,9 @@ if ($menu != 'T') {
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(784,$sprog_id)."</button></a></td></tr>\n";
 
-/*
- 		print "<tr><td align=left><a href=diverse.php?sektion=userSettings>
-				<button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				.findtekst(785,$sprog_id)."</button></a></td></tr>\n";
-*/
- 		print "<tr><td align=left><a href=diverse.php?sektion=userSettings>
-				<button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				.findtekst(785,$sprog_id)."</button></a></td></tr>\n";
+		print "<tr><td align=left><a href=diverse.php?sektion=personlige_valg>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   .findtekst(785,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=ordre_valg>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
@@ -1945,7 +1870,6 @@ if ($menu != 'T') {
 		print "<tr><td align=\"center\" valign=\"top\"><br></td></tr>";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoindstillinger>".findtekst(783,$sprog_id)."</a></td></tr>\n"; // 20210513
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=provision>".findtekst(784,$sprog_id)."</a>&nbsp;</td></tr>\n";
-#		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=userSettings>".findtekst(785,$sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=personlige_valg>".findtekst(785,$sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ordre_valg>".findtekst(786,$sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=productOptions>".findtekst(787,$sprog_id)."</a></td></tr>\n";

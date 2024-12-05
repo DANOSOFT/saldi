@@ -168,7 +168,7 @@ function varesync($valg) {
 		$tilbud[$y]=trim($tilbud[$y],'"');
 
 		$newstock[$y]=0;
-#if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
+if ($brugernavn=='phr') echo "$varenr[$y]	$stregkode[$y]<br>";
 		if (!$shop_id[$y]) {
 			if (substr($stregkode[$y],0,3)=='EAN' && is_numeric(substr($stregkode[$y],3))) $shop_id[$y]=substr($stregkode[$y],3);
 			elseif (is_numeric($varenr[$y])) $shop_id[$y]=$varenr[$y];
@@ -222,7 +222,7 @@ function varesync($valg) {
 				echo "Opretter $varenr[$y], $beskrivelse[$y]<br>";
 				$qtxt = "insert into varer (varenr,stregkode,beskrivelse,salgspris,kostpris,gruppe,beholdning,lukket) ";
 				$qtxt.= "values ";
-				$qtxt.= "('$varenr[$y]','$stregkode[$y]','$beskrivelse[$y]','$salgspris[$y]','$kostpris[$y]','$gruppe[$y]','0','')";
+				$qtxt.= "('$varenr[$y]','$stregkode[$y]','$beskrivelse[$y]','$salgspris[$y]','$kostpris[$y]','$gruppe[$y]','0','0')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt="select id from varer where varenr='$varenr[$y]'";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -267,7 +267,6 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 						if (!in_array($sProductId[$i],$svSaldiId)) {
 							$qtxt = "insert into shop_varer (saldi_id,saldi_variant,shop_id,shop_variant) ";
 							$qtxt.= "values ('$sProductId[$i]','0','$shop_id[$y]','0')";
-echo __line__." $qtxt<br>";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
 					}
@@ -312,7 +311,7 @@ echo __line__." $qtxt<br>";
 #cho "curl '$api_fil?variant=*&filename=$vfn.csv'<br>";
 #cho "$api_fil?variant=*<br>";
 		shell_exec("nohup curl '$api_fil?variant=*&filename=$vfn.csv'\n");
-#cho 	"cd ../temp/$db/<br>wget $lf<br>";
+echo 	"cd ../temp/$db/<br>wget $lf<br>";
 		system ("cd ../temp/$db/\nwget $lf\n");
 		#		$systxt="/usr/bin/wget --no-cache --no-check-certificate --spider --header='$header' '$api_fil?variant=*&filename=$vfn.csv' \n";
 #		$result=system ($systxt);

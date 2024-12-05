@@ -328,7 +328,7 @@
 6131	Fremstillede varer og handelsvarer	H		0	0	100
 6140	Fremstillede varer og handelsvarer	S		0	0	100
 6150	Nedskrivning på fremstillede varer og handelsvarer	S		0	0	100
-6160	Fremstillede varer og handelsvarer	Z		6131	0	100
+6160	Fremstillede varer og handelsvarer	Z		6140	0	100
 6161	Forudbetalinger for varer	H		0	0	100
 6170	Forudbetalinger for varer	S		0	0	100
 6180	Forudbetalinger for varer	Z		6170	0	100

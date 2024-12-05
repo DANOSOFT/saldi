@@ -440,7 +440,7 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 	$tr_tjek = array();
 	if (!$afsluttet) {
 #	} else {
-	$c_sum=0;
+	$c_id=$c_sum=0;
 	for ($x=0;$x<count($l_vare_id);$x++) {
 		if (is_numeric($l_liste[$x]) && !in_array($l_vare_id[$x],$vare_id)){
 			for ($c=0;$c<count($cat_id);$c++) {

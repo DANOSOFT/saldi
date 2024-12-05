@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- ver 4.0.7 --- 2022-11-24 --
+// --- debitor/mail_kontoudtog.php --- ver 4.0.5 --- 2022-02-25 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,8 +38,6 @@
 // 20201027 PHR 'bizsys' replaced by 'post' when sending mails.
 // 20210805 LOE Translated texts
 // 20220226 PHR function send_htmlmails, Added: $mail->CharSet = "$charset";
-// 20220809 PHR Changed if($charset=="UTF-8") to if($charset != "UTF-8") and utf8_decode to utf8_encode
-// 20221124 PHR Changed 'from' address to $db@$_SERVER_NAME  + added $mail->ReturnPath = $afsendermail;
 
 @session_start();
 $s_id=session_id();
@@ -338,9 +336,22 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	global $subjekt;
 	global $sprog_id;
 
-	ini_set("include_path", "../phpmailer");
-	require("class.phpmailer.php");
-	
+	if (file_exists("../../vendor/autoload.php")) {
+		require_once "../../vendor/autoload.php"; //PHPMailer Object
+		$mail = new  PHPMailer\PHPMailer\PHPMailer();
+			$mail->SMTPOptions = array( 
+			'ssl' => array( 
+				'verify_peer' => false, 
+				'verify_peer_name' => false, 
+				'allow_self_signed' => true 
+			) 
+		);
+	} elseif (file_exists("../phpmailer")) {
+		ini_set("include_path", "../phpmailer");
+		require("class.phpmailer.php");
+		$mail = new PHPMailer();
+	}
+	$mail->CharSet = 'UTF-8';
 	$tmpmappe="../temp/$db/".str_replace(" ","_",$brugernavn);
 	if (!file_exists($tmpmappe)) mkdir($tmpmappe);
 	$r = db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
@@ -358,7 +369,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			$fromdate[$x]= usdate($fra[$x]);
 			$todate[$x]=usdate($til[$x]);
 			$mailtext = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTMP 4.01 Transitional//EN\">\n";
-			$mailtext .= "<html><head><meta content=\"text/html; charset=UTF-8\" http-equiv=\"content-type\">\n";
+			$mailtext .= "<html><head><meta content=\"text/html; charset=ISO-8859-15\" http-equiv=\"content-type\">\n";
 			$mailtext .= "<title>".findtekst(1802, $sprog_id)." $afsendernavn</title></head>\n";
 		 	$mailtext .= "<body bgcolor=$bgcolor link='#000000' vlink='#000000' alink='#000000' center=''>\n";
 			$mailtext .= "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
@@ -464,18 +475,17 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			$afsendermail=$r['email'];
 			$afsendernavn=$r['firmanavn'];
 
-			if ($charset!="UTF-8") {
-				$subjekt=utf8_encode($subjekt);
-				$mailtext=utf8_encode($mailtext);
-				$afsendernavn=utf8_encode($afsendernavn);
-				$afsendermail=utf8_encode($afsendermail);
+			if ($charset=="UTF-8") {
+				$subjekt=utf8_decode($subjekt);
+				$mailtext=utf8_decode($mailtext);
+				$afsendernavn=utf8_decode($afsendernavn);
+				$afsendermail=utf8_decode($afsendermail);
 			}
 			$from = $afsendermail;
 			$fp=fopen("$tmpmappe/$x/kontoudtog.html","w");
 			fwrite($fp,$mailtext);
 			fclose ($fp);
 
-			$mail = new PHPMailer();
 			$mail->IsSMTP();                                   // send via SMTP
 			$mail->CharSet = "$charset";
 			$mail->SMTPDebug  = 2;
@@ -490,14 +500,14 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			} else {
 				$mail->SMTPAuth = false;
 				if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-					$from = $db.'@'.$_SERVER['SERVER_NAME']; #20130731
+					if ($_SERVER['SERVER_NAME']=='ssl.saldi.dk') $from = $db.'@ssl.saldi.dk'; #20130731
+					elseif ($_SERVER['SERVER_NAME']=='ssl2.saldi.dk') $from = $db.'@ssl2.saldi.dk'; #20130731
+					else $from = 'kanikkebesvares@saldi.dk';
 					$from=str_replace('bizsys_','post_',$from);
 				}  
 			}
 			$mail->From = $from;
 			$mail->FromName = $afsendernavn;
-			$mail->AddReplyTo($afsendermail,"$afsendernavn");
-			$mail->ReturnPath = $afsendermail;
 			$splitter=NULL;
 			if (strpos($email[$x],";")) $splitter=';';
 			elseif (strpos($email[$x],",")) $splitter=',';
@@ -510,6 +520,7 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			} else $mail->AddAddress($email[$x]);
 			$mail->AddBCC($afsendermail); 
 			$mail->AddReplyTo($afsendermail,$afsendernavn);
+
 			$mail->WordWrap = 50;                              // set word wrap
 			$mail->AddAttachment("$tmpmappe/$x/kontoudtog.html");      // attachment
 			$mail->IsHTML(true);                               // send as HTML
@@ -542,9 +553,9 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['fax'] ) $mailaltbody .= " * fax ".$r['fax'];
 			if ( $r['cvrnr'] ) $mailaltbody .= " * cvr ".$r['cvrnr'];
 			
-			if ($charset!="UTF-8"){
-				$mailbody=utf8_encode($mailbody);
-				$mailaltbody=utf8_encode($mailaltbody);
+			if ($charset=="UTF-8"){
+				$mailbody=utf8_decode($mailbody);
+				$mailaltbody=utf8_decode($mailaltbody);
 			}
 
 

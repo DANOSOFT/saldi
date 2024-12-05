@@ -412,6 +412,9 @@ function fod_indsaml_data($periode) {
 			$loentimer[$x] += $at[$y];
 		}
 		list($km,$km_sats,$km_fra)=explode("|",$r['korsel']);
+		if (!$km)      $km      = 0;
+		if (!$km_sats) $km_sats = 0;
+		if (!$km_fra)  $km_fra  = 0;
 		$ak = explode(chr(9),$km);
 		list($s1,$s2)=explode("|",$r['skur']);
 		$as1=explode(chr(9),$s1);

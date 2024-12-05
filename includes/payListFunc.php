@@ -675,5 +675,94 @@ function udskriv_xml($db_id,$bruger_id,$liste_id){
 #	}
 	print "<tr><td width=40%><br></td><td $top_bund title=\"Klik på knappen for at &aring;bne betalingsfilen eller h&oslash;jreklik for at gemme\"> <a href='$filnavn'>Se / gem betalingsfil</a></td><td width=40%><br></td></tr>\n";
 }
+function alignAccounts($db_id,$bruger_id,$liste_id) {
+	global $regnaar;
+	$qtxt="select * from betalinger where liste_id=$liste_id order by id";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	$i = $sum = 0;
+	while ($r=db_fetch_array($q)) {
+		$linjeId[$i] 				= $r['id'];
+		$custAccountNo[$i] 	= substr($r['egen_ref'],5,4);
+		$amount[$i]  				= usdecimal($r['belob']);
+		$alignDate[$i] 			= usdate($r['betalingsdato']);
+		$sum+= $amount[$i];
+		$i++;
+	}
+	$offsetAccount = if_isset($_POST['offsetAccount'],NULL);
+	if ($offsetAccount && is_numeric($offsetAccount)) {
+		$qtxt = "select id from kontoplan where kontonr = '$offsetAccount' and regnskabsaar = '$regnaar'"; 
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$doAlign = 1;
+			for ($i=0;$i<count($linjeId);$i++) {
+				if ($amount[$i] < 0) {
+					alert ("Beløb må ikke være negativt (Konto $custAccountNo[$i])");
+					$doAlign = 0;
+				}
+				$qtxt = "select id,gruppe from adresser where kontonr = '$custAccountNo[$i]'"; 
+				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$custAccountId[$i] = $r['id'];
+					$alignText[$i] = "Overførsel konto $custAccountNo[$i]";
+					$custGroup[$i] = $r['gruppe'];
+					if ($custGroup[$i]) {
+						$qtxt = "select box2 from grupper where art='DG' and kodenr = '$custGroup[$i]' and fiscal_year = '$regnaar'";
+						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+							$samlekonto[$i] = $r['box2'];
+						} else {
+							$doAlign = 0;
+							echo "Samlekonto mangler for debotorgruppe $custGroup[$i] (Konto $custAccountNo[$i])<br>";
+						}
+					} else {
+						$doAlign = 0;
+						echo "Konto $custAccountNo[$i] ikke tilknyttet en debitorgruppe<br>";
+					}
+				} else {
+					$custAccountId[$i] = NULL;
+					$doAlign = 0;
+				}
+			}
+		}	else {
+			alert("Konto $offsetAccount ikke fundet i regnskabsår $regnaar");
+			$doAlign = 0;
+		}
+		if ($doAlign == 1) {
+			transaktion('begin');
+			$uxtime  = date('U');
+			$logdate = date("Y-m-d");
+			$logtime = date('H:i:s');
+			for ($i=0;$i<count($linjeId);$i++) {
+				$qtxt = "insert into openpost (konto_id,konto_nr,faktnr,amount,beskrivelse,transdate,valuta,valutakurs,uxtid) ";
+				$qtxt.= "values ";
+				$qtxt.= "('$custAccountId[$i]','$custAccountNo[$i]','0','$amount[$i]',";
+				$qtxt.= "'$alignText[$i]','$alignDate[$i]','DKK','100','$uxtime')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$qtxt = "insert into transaktioner (kontonr,bilag,transdate,beskrivelse,debet,kredit,faktura,kladde_id,ansat,";
+				$qtxt.= "ordre_id,valuta,valutakurs,logdate,logtime) ";
+				$qtxt.= "values ";
+				$qtxt.= "('$samlekonto[$i]','0','$alignDate[$i]','$alignText[$i]','$amount[$i]','0','0','0','0',";
+				$qtxt.= "'0','DKK','100','$logdate','$logtime')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$qtxt = "insert into transaktioner (kontonr,bilag,transdate,beskrivelse,debet,kredit,faktura,kladde_id,ansat,";
+				$qtxt.= "ordre_id,valuta,valutakurs,logdate,logtime) ";
+				$qtxt.= "values ";
+				$qtxt.= "('$offsetAccount','0','$alignDate[$i]','$alignText[$i]','0','$amount[$i]','0','0','0',";
+				$qtxt.= "'0','DKK','100','$logdate','$logtime')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
+			$qtxt = "update betalingsliste set bogfort='V' where id='$liste_id'";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			transaktion('commit');
+			print "<meta http-equiv='refresh' content='0; url=betalinger.php?liste_id=$liste_id'>";
+		}
+	}
+	
+	print "<center><br><br>";
+	print "<b>Obs - denne funktion må kun bruges hvis du ikke anvender saldi til bagføring</b><br><br>"; 
+ 	print "<form name = 'alignOpenPosts' method='post' action='betalinger.php?liste_id=$liste_id' method = 'post'>";
+	print "Udligner ". count($amount) ." åbne poster med et total sum af kr: ". dkdecimal($sum) ."<br><br><br>"; 
+	print "Angiv modkonto <input type = text' name = 'offsetAccount'><br><br>";
+	print "<input type = 'submit' style = 'width:150px' name = 'cancel' value = 'Fortryd'> ";
+	print "<input type = 'submit' style = 'width:150px' name = 'align' value = 'Udlign'> ";
+	print "</form>";
+}
 
 ?>

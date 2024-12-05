@@ -107,8 +107,6 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	global $bruger_id;
 	global $menu;
 
-	echo "S ID $sprog_id";
-	
 	if ($dato_fra && $dato_til) {
 		$fromdate=usdate($dato_fra);
 		$todate=usdate($dato_til);

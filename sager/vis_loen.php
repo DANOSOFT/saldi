@@ -681,7 +681,7 @@ function vis_loen($id) {
 					
 				print "<tbody>";
 				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt);
-#cho "sum fra liste $sum<br>"; 				
+#cho "sum fra liste $sum<br>";
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>Lønlinjer ialt:</b></td>
 					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum)."</b></td>						

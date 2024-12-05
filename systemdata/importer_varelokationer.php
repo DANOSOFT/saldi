@@ -210,10 +210,11 @@ function overfoer_data($filnavn,$lager,$charset) {
 				else {
 					$qtxt=NULL;
 					if ($lok_id) {
-						$qtxt="update lagerstatus set lok1='$lokation' where id=$lok_id";
+						$qtxt="update lagerstatus set lok1='".db_escape_string($lokation)."' where id=$lok_id";
 						$upd++;
 					} elseif ($lokation) {
-						$qtxt="insert into lagerstatus(vare_id,beholdning,lager,lok1) values ('$vare_id','0','$lager','$lokation')";
+						$qtxt = "insert into lagerstatus(vare_id,beholdning,lager,lok1) values ";
+						$qtxt.= "('$vare_id','0','$lager','".db_escape_string($lokation)."')";
 						$imp++;
 					}
 					#cho "$qtxt<br>";

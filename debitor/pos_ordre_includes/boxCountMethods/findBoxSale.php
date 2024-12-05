@@ -1,39 +1,8 @@
 <?php
-//                ___   _   _   ___  _     ___  _ _
-//               / __| / \ | | |   \| |   |   \| / /
-//               \__ \/ _ \| |_| |) | | _ | |) |  <
-//               |___/_/ \_|___|___/|_||_||___/|_\_\
-//
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 4.1.1 --- 2024.07.29-------
-// LICENSE
-//
-// This program is free software. You can redistribute it and / or
-// modify it under the terms of the GNU General Public License (GPL)
-// which is published by The Free Software Foundation; either in version 2
-// of this license or later version of your choice.
-// However, respect the following:
-//
-// It is forbidden to use this program in competition with Saldi.DK ApS
-// or other proprietor of the program without prior written agreement.
-//
-// The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
-// GNU General Public License for more details.
-//
-// Copyright (c) 2019-2024 saldi.dk aps
-// ----------------------------------------------------------------------
-//
-// LN 20190508 Move the html that shows the sum here
-// 20210127 PHR Some minor design changes 
-// 20240502 PHR Changed '$kortkonti = $kortkonti[0]' to '$kortkonti = $kortkonto[0]';
-// 20240725 PHR - Replaced 'DKK' with $baseCurrency.
-// 20240729 PHR Various translations
-
-
 function findBoxSale ($kasse,$optalt,$valuta) {
 	echo "<!-- function findBoxSale begin -->"; 
 	#cho "Valuta $valuta<br>";
-  global $baseCurrency,$db,$regnaar;
+  global $db,$regnaar;
 	global $sprog_id,$straksbogfor;
 	global $vis_saet;
 	
@@ -52,7 +21,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 #	}
 	$alert1 = findtekst(1872, $sprog_id);
 	if ($regnstart=='2000-01-01') alert($alert1);
-	$qtxt = "select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
+	$qtxt = "select * from grupper where art = 'POS' and kodenr = '1'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$kassekonti=explode(chr(9),$r['box2']);
 	$kortantal=(int)$r['box4'];
@@ -63,11 +32,11 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 	$kortkonto=explode(chr(9),$kortkonti);
 	$straksbogfor=$r['box9'];
 	$o_liste=NULL; #20150519
-	if ($valuta != $baseCurrency) {
+	if ($valuta!='DKK') {
 		$kortantal=0;
 		$kortnavn=array();
 	}
-	$qtxt = "select box1,box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+	$qtxt = "select box1,box6 from grupper where art = 'POS' and kodenr = '2'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($byttepenge=$r['box1'])?$fast_morgen=1:$fast_morgen=0;
 	$otherCardsAccount = (int)$r['box6'];
@@ -101,11 +70,9 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		}
 		$kortsum[$i] = 0;
 	}
-	if ($valuta!=$baseCurrency) {
-		
-		if ($r = db_fetch_array(db_select("select * from grupper where art = 'VK' and box1='$valuta'",__FILE__ . " linje " . __LINE__))) {
-			$kassekonti=explode(chr(9),$r['box4']);
-		}
+	if ($valuta!='DKK') {
+		$r = db_fetch_array(db_select("select * from grupper where art = 'VK' and box1='$valuta'",__FILE__ . " linje " . __LINE__));
+		$kassekonti=explode(chr(9),$r['box4']);
 		if (!$kassekonti[$kasse-1]) {
 			return("Kontonr mangler for $valuta"); #20160824 
 			exit;
@@ -213,27 +180,27 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			if ($r['status'] == '3' || in_array($r['ordre_id'],$oList)) {
-				$betalingstype = $r['betalingstype']; #20170317
+				$betalingstype=$r['betalingstype']; #20170317
 #cho __line__." $betalingstype<br>";
-				if (substr($betalingstype,0,14)=='Betalingskort|')$betalingstype = 'Betalingskort';
+				if (substr($betalingstype,0,14)=='Betalingskort|')$betalingstype='Betalingskort';	
 				if (!in_array($r['ordre_id'],$oid)) {
 					$oid[$b]  = $r['ordre_id'];
 					$oVat[$b] = (float)$r['moms'];
 					$osum[$b] = $r['sum']+$r['moms'];
-#if ($betalingstype == 'Mastercard') $tsum+=$osum[$b];
-#cho __line__." $oid[$b] $betalingstype $osum[$b]<i> $oVat[$b]</i> $tsum+=$osum[$b]<br>";
+#$tsum+=$osum[$b];
+#cho __line__." $betalingstype $osum[$b]<i> $oVat</i> $tsum+=$osum[$b]<br>";
 					$bvaluta[$b] = $r['valuta'];
 					$b++;
 				}
 #					if (strtolower($r['betalingstype'])=='konto') $kontosalg.=$oid[$b].chr(9);
 ##cho "OID $oid[$b] $osum[$b] <b>$tsum</b><br>";
 				if (strtolower($r['betalingstype'])=='konto') $kontosum+=$r['amount'];
-				elseif ($valuta==$baseCurrency && $r['betalingstype']=='Kontant' && ($r['valuta'] == $valuta || $r['valuta'] == '')) {
+				elseif ($valuta=='DKK' && $r['betalingstype']=='Kontant' && ($r['valuta'] == $valuta || $r['valuta'] == '')) {
 					$tilgang+=$r['amount'];
-				} elseif ($valuta!=$baseCurrency && $r['betalingstype']=='Kontant' && $r['valuta'] == $valuta) {
+				} elseif ($valuta!='DKK' && $r['betalingstype']=='Kontant' && $r['valuta'] == $valuta) {
 					$tilgang+=$r['amount'];
 				} else {
-					if ($betalingstype && !in_array(strtolower($betalingstype),$l_cardName)) {
+					if (!in_array(strtolower($betalingstype),$l_cardName)) {
 						$i = count($kortnavn);
 						$l_cardName[$i] = strtolower($betalingstype);
 						$kortnavn[$i]   = $betalingstype;
@@ -296,7 +263,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 			$vatAmounts = $vatAmount[$i];
 		}
 	}
-	if ($valuta==$baseCurrency) $tilgang-=$retur;
+	if ($valuta=='DKK') $tilgang-=$retur;
 	}
 	if ($straksbogfor && $kortantal) { #20150121b
 		for ($x=0;$x<$kortantal;$x++) {
@@ -316,13 +283,13 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 	($diff<0)?$prefix=NULL:$prefix="+";
 	for ($x=0;$x<count($kortnavn);$x++) {
 		if ($x) {
-			$kortnavne .= chr(9).$kortnavn[$x];
-			$kortkonti .= chr(9).$kortkonto[$x];
-			$kortsummer.= chr(9).$kortsum[$x];
+			$kortnavne.=chr(9).$kortnavn[$x];
+			$kortkonti.=chr(9).$kortkonto[$x];
+			$kortsummer.=chr(9).$kortsum[$x];
 		} else {
-			$kortnavne  = $kortnavn[0];
-			$kortkonti  = $kortkonto[0];
-			$kortsummer = $kortsum[0];
+			$kortnavne=$kortnavn[0];
+			$kortkonti=$kortkonti[0];
+			$kortsummer=$kortsum[0];
 		}
 	}
 #cho __line__." Kortsum ".array_sum($kortsum)."<br>";
@@ -330,8 +297,8 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 #cho __line__." Tilgang ".$tilgang."<br>";
 #cho __line__." totalsum ".$kontosum+array_sum($kortsum)+$tilgang."<br>";
 
-	$valutaer = '';
-	$valutasummer = 0;
+	$valutaer='';
+	$valutasummer=0;
 	/*	
 	$valutasummer=$valutasum[0];
 	for ($x=1;$x<count($valuta);$x++) {

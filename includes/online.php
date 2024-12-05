@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 4.1.1 --- 2024-08-15---
+// --- includes/online.php --- patch 4.1.0 --- 2024-04-23---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20120905 $ansat_navn bliver nu sat her. Søg 20120905
 // 20130120 $sag_rettigheder bliver nu sat her. Søg 20130120
@@ -54,7 +54,6 @@
 // 20240422 PHR Added 'S' in box3 when insertion uset in grupper
 // 26042024 PBLM changed the path of the javascript and css files to be relative to the file location for flatpickr
 // 23-05-2024 PBLM Setup notification from easyUBL
-// 20240815 PHR $title lookup in findtekst
 
 #include("../includes/connect.php"); #20211001
 if (isset($_COOKIE['timezone'])) { #20190110
@@ -95,9 +94,9 @@ if (isset($_COOKIE['timezone'])) { #20190110
 		$r ? $zip = $r['var_value'] : $zip = NULL;
 		$r = db_fetch_array(db_select("select var_value from settings where var_name='systemLanguage'", __FILE__ . " linje " . __LINE__));
 		$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
-
 	}
 }
+
 if (!isset($meta_returside)) $meta_returside = NULL;
 $db_skriv_id = NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.
 if (!isset($modulnr))    $modulnr = NULL;
@@ -311,10 +310,6 @@ if (!file_exists($cssPath)) {
 if ($header != 'nix') {
 	if ($db_encode == "UTF8") $charset = "UTF-8";
 	else $charset = "ISO-8859-1";
-	if (isset($title) && substr($title,0,3) == 'txt') { #20240815
-		include_once('../includes/stdFunc/findTxt.php');
-		$title = findtekst(substr($title,3),$sprog_id);	
-	}
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
 	<html>\n

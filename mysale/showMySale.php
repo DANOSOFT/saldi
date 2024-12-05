@@ -64,7 +64,16 @@ if (!$sort) $sort = 'id desc';
 <?php
 
 if ($from) $dateFrom = $from;
-else {
+elseif ($db == 'pos_111') {
+	$m = date('m');
+	$y = date('Y');
+	if (date('d') < 16) $m--;
+	if ($m < 1) {
+		$m = 12;
+		$y--;
+	}
+	$dateFrom = $y."-".$m."-15";
+} else {
 	$dateFrom = date('Y-m');
 	$dateFrom .= '-1';
 }
@@ -81,7 +90,11 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$medlem = $r['var_value'];
 	$tilsalg = if_isset($_GET['tilsalg']);
 }
-if ($db == 'pos_76') $medlem = 1;
+$members = array('pos_76','pos_92','pos_111','pos_115');
+if (in_array($db,$members)) {
+	$medlem = 1;
+	$tilsalg = if_isset($_GET['tilsalg']);
+}
 $access = $custName = NULL;
 $qtxt = "SELECT * FROM adresser WHERE ";
 if ($accountId) {
@@ -111,14 +124,20 @@ else $mySaleLabel = NULL;
 
 $tilsalgOprettet = $udbetalingArray = array();
 
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='mylabel' and column_name='firstprint'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table mylabel ADD column firstprint varchar(15)",__FILE__ . " linje " . __LINE__);
+	db_modify("UPDATE mylabel set firstprint = lastprint",__FILE__ . " linje " . __LINE__);
+}
+
 if ($medlem) {
 	$y = 0;
-	$qtxt = "SELECT created,lastprint,account_id,barcode,id,description,price,lastprint ";
+	$qtxt = "SELECT created,lastprint,account_id,barcode,id,description,price,firstprint ";
 	$qtxt.= "FROM mylabel WHERE account_id = '$medlemsIDtest' AND sold = '0' AND hidden = 'f' ORDER BY $sort";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$tilsalgCreated[$y] = $r['created'];
-		$tilsalgOprettet[$y] = $r['lastprint'];
+		$tilsalgOprettet[$y] = $r['firstprint'];
 		$tilsalgAccount[$y] = $r['account_id'];
 		$tilsalgId[$y] = $r['barcode'];
 		$tilsalgBeskrivelse[$y] = $r['description'];
@@ -140,7 +159,7 @@ if ($medlem) {
 		$udbetalingArray[$y][2] = $r['beskrivelse'];
 		$udbetalingArray[$y][3] = "";
 		$udbetalingArray[$y][4] = $r['amount'];
-		if ($db = 'pos_76') $udbetalingArray[$y][4] = 0;
+		if (in_array($db,$members)) $udbetalingArray[$y][4] = 0;
 		$y++;
 	}
 }  
@@ -199,8 +218,8 @@ if ($custName && $access) {
 $x = 0;
 $fakturadate = $solgtArray = array();
 $qtxt = "select batch_salg.fakturadate,batch_salg.id,batch_salg.ordre_id,batch_salg.antal,batch_salg.pris,ordrelinjer.kostpris,";
-$qtxt .= "ordrelinjer.beskrivelse,ordrelinjer.barcode,varer.kostpris as provision from varer,batch_salg,ordrelinjer ";
-$qtxt .= "where batch_salg.antal!=0 and varer.varenr like ";
+$qtxt .= "ordrelinjer.beskrivelse,ordrelinjer.barcode,ordrelinjer.vat_price,varer.kostpris as provision ";
+$qtxt .= "from varer,batch_salg,ordrelinjer where batch_salg.antal!=0 and varer.varenr like ";
 ($condition == 'new') ? $qtxt .= "'kn%$account' " : $qtxt .= "'kb%$account' ";
 $qtxt .= "and batch_salg.vare_id=varer.id and batch_salg.fakturadate>='$dateFrom' and batch_salg.fakturadate<='$dateTo' ";
 $qtxt .= "and ordrelinjer.id=batch_salg.linje_id order by batch_salg.$sort";
@@ -215,9 +234,10 @@ while ($r = db_fetch_array($q)) {
 		$vareid[$x] = $r['id'];
 	}
 	$pris[$x] = $r['pris'];
+	if ($db == 'pos_118') $pris[$x] = $r['vat_price'];
 	$beskrivelse[$x] = $r['beskrivelse'];
-	$kostpris[$x] = $r['kostpris'] * 1;
-	if (!$kostpris[$x]) $kostpris[$x] = $pris[$x] * 0.85;
+	$kostpris[$x] = (float)$r['kostpris'];
+	#if (!$kostpris[$x]) $kostpris[$x] = $pris[$x] * 0.85;
 	($pris[$x]) ? $provision[$x] = $kostpris[$x] * 100 / $pris[$x] : $provision[$x] = 0;
 	if ($provision[$x] < 50) {
 		$provision[$x] = 100 - $provision[$x];
@@ -336,23 +356,26 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 	print "</tr>";
 	if ($medlem) {
 		for ($x = 0; $x < count($tilsalgOprettet); $x++) {
-			($lineColor == $bgcolor) ? $lineColor = $bgcolor5 : $lineColor = $bgcolor;
-			print "<tr bgcolor='$lineColor'>";
-			print "<td>" . date("d.m.Y", $tilsalgCreated[$x]) . "</td>";
-			print "<td align='left'>$tilsalgId[$x]</td>";
-			print "<td title='$tilsalgBeskrivelse[$x]' style='white-space:nowrap;overflow:hidden;'>";
-			($mobile) ? print substr($tilsalgBeskrivelse[$x], 0, 15) : print $tilsalgBeskrivelse[$x];
-			print "</td>";
-			print "<td align='right'>" . number_format($tilsalgPris[$x], 2, ',', '.') . "</td>";
-#			print "<td align='right'>" . number_format($tilsalgMedlemPris[$x], 2, ',', '.') . "</td>";
-		/*	if ($tilsalgOprettet[$x]) {
+			($tilsalgOprettet[$x] > '1')?$showDate = $tilsalgOprettet[$x]:$showDate = $tilsalgCreated[$x];
+#if ($bruger_id == '-1') echo $tilsalgOprettet[$x]."<br>";
+				if ($tilsalgPris[$x] != 0) {
+				($lineColor == $bgcolor) ? $lineColor = $bgcolor5 : $lineColor = $bgcolor;
+				print "<tr bgcolor='$lineColor'>";
+				print "<td>" . date("d.m.Y", $showDate) . "</td>";
+				print "<td align='left'>$tilsalgId[$x]</td>";
+				print "<td title='$tilsalgBeskrivelse[$x]' style='white-space:nowrap;overflow:hidden;'>";
+				($mobile) ? print substr($tilsalgBeskrivelse[$x], 0, 15) : print $tilsalgBeskrivelse[$x];
+				print "</td>";
+				print "<td align='right'>" . number_format($tilsalgPris[$x], 2, ',', '.') . "</td>";
+	#			print "<td align='right'>" . number_format($tilsalgMedlemPris[$x], 2, ',', '.') . "</td>";
+			/*	if ($tilsalgOprettet[$x]) {
 				print "&nbsp;<td align='center'><img src=\"../ikoner/checkmrk.png\" style=\"border: 0px solid; </td>\">";
-			} else {
-				print "&nbsp;<td align='center'><img src=\"../ikoner/slet.png\" style=\"border: 0px solid; </td>\">";
-			}
-			print "<td align='center'><input name=\"printItem\" type=\"checkbox\" $printed></td>"; */
-			print "</tr>";
-		}
+				} else {
+					print "&nbsp;<td align='center'><img src=\"../ikoner/slet.png\" style=\"border: 0px solid; </td>\">";
+				}
+				print "<td align='center'><input name=\"printItem\" type=\"checkbox\" $printed></td>"; */
+				print "</tr>";
+			}}
 	}
 } else {
 	print "<center>";
@@ -409,7 +432,7 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 
 	if ($medlem) {
 		for ($x = 0; $x < count($testArray); $x++) {
-			if (isset($testArray[$x][2]) && ($db != 'pos_76' || substr($testArray[$x][2],0,3) != 'Afr'))	 {
+			if (isset($testArray[$x][2]) && substr($testArray[$x][2],0,3) != 'Afr')	 {
 				($lineColor == $bgcolor) ? $lineColor = $bgcolor5 : $lineColor = $bgcolor;
 				print "<tr bgcolor='$lineColor'>";
 				$date = date_create("" . if_isset($testArray[$x][0],date('Y-m-d')) . "");

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/sager.php --- lap 3.3.0 --- 2024-05-31 ---
+// --- sager/sager.php --- lap 3.3.0 --- 2024-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,7 +39,7 @@
 // 20150528 Der er sat session på tilbud, aktive og afsluttede i leftmenu, så den husker søgning. Søg tilbudL eller aktivL eller afsluttedeL
 // 20150717
 // 20151019 Der er indsat to nye punkter i status "Beregning og Drivgods". Der er rettet flere steder på siden(Søg #20151019, #20151019-1, #20151019-2) + 
-//					main.css(Søg status_color1, statcolor_1) + ajax_statusupdate.php + autocomplete.php(Søg case 'sagsnr',case 'sagsaddr') + planlaeg_sager.php + planlaeg_sag.php
+// main.css(Søg status_color1, statcolor_1) + ajax_statusupdate.php + autocomplete.php(Søg case 'sagsnr',case 'sagsaddr') + planlaeg_sager.php + planlaeg_sag.php
 // 20160303 Har delt query til visning af timer og loen_id. Har fjernet 'akkord afregning' fra query(timer), da den talte alle dyrtidstimer sammen to gange. Søg. #20160303
 // 20160405 Har tilføjet afvist = '' til query under akkord afregning, da sedler som havde været godkendt og afvist blev talt med i samlet timeantal.
 // 20160415 Query til visning af faktura i grupper under sagens omkostninger.
@@ -49,6 +49,7 @@
 // 20161125 Beregning og visning af dækningsbidrag og dækningsgrad i mellem lønudgifter og faktureringer. #20161125
 // 20170421 Mulighed for at vælge en fra og til dato i funktion 'akkordliste'
 // 20240531 Addad $regnaar to function akkordliste()
+// 20241126 PHP8
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -58,15 +59,9 @@ $s_id=session_id();
 	$header='nix';
 
 	$menu_sager='id="menuActive"';
-	$menu_planlaeg=NULL;
-	$menu_dagbog=NULL;
-	$menu_kunder=NULL;
-	$menu_loen=NULL;
-	$menu_ansatte=NULL;
-	$menu_certificering=NULL;
-	$menu_medarbejdermappe=NULL;
+	$menu_planlaeg=$menu_dagbog=$menu_kunder=$menu_loen=$menu_ansatte=$menu_certificering=$menu_medarbejdermappe=NULL;
 
-	$modulnr=0;
+	$modulnr = 0;
 	include("../includes/connect.php");
 	include("../includes/online.php");
 	include("../includes/std_func.php");
@@ -133,7 +128,7 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 					unset($_SESSION['retstatus']);
 				}
 			} else {
-				$retstatus=$_SESSION['retstatus'];
+				$retstatus=if_isset($_SESSION['retstatus'],NULL);
 			}
 			
 			($retstatus=='on')?$checked_retstatus='checked':$checked_retstatus=NULL;
@@ -706,15 +701,20 @@ function sagsliste() {
 	 //Her ændres tekst til status 
 	$sag_status_tekst_liste="Beregning,Tilbud,Ordrebekræftelse,Montage,Godkendt,Afmeldt,Drivgods,Afsluttet"; // gammel status "Opm&aring;ling,Tilbud,Ordre modtaget,Montage,Aflevering,Afmeldt,Demontage,Afsluttet" 
 	
-	if ($r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__)) && ($r['box1']==$sag_status_tekst_liste)) {
+	$qtx1 = "select * from grupper where art = 'SAGSTAT'";
+	if ($r=db_fetch_array(db_select($qtx1,__FILE__ . " linje " . __LINE__)) 
+		&& ($r['box1']==$sag_status_tekst_liste)) {
 		$sag_status_liste=explode(chr(44),$r['box1']);
-	} elseif ($r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__)) && ($r['box1']!=$sag_status_tekst_liste)) {
-		db_modify("update grupper set box1='$sag_status_tekst_liste' where art='SAGSTAT'",__FILE__ . " linje " . __LINE__);
-		$r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__));
+	} elseif ($r=db_fetch_array(db_select($qtx1,__FILE__ . " linje " . __LINE__)) 
+		&& ($r['box1']!=$sag_status_tekst_liste)) {
+		$qtx2 = "update grupper set box1='$sag_status_tekst_liste' where art='SAGSTAT'";
+		db_modify($qtx2,__FILE__ . " linje " . __LINE__);
+		$r=db_fetch_array(db_select($qtx1,__FILE__ . " linje " . __LINE__));
 		$sag_status_liste=explode(chr(44),$r['box1']);
-	} else { 
-		db_modify("insert into grupper (art,box1) values ('SAGSTAT','$sag_status_tekst_liste')",__FILE__ . " linje " . __LINE__);
-		$r=db_fetch_array(db_select("select * from grupper where art = 'SAGSTAT'",__FILE__ . " linje " . __LINE__));
+	} else {
+		$qtx2 = "insert into grupper (art,box1) values ('SAGSTAT','$sag_status_tekst_liste')";
+		db_modify($qtx2,__FILE__ . " linje " . __LINE__);
+		$r=db_fetch_array(db_select($qtx1,__FILE__ . " linje " . __LINE__));
 		$sag_status_liste=explode(chr(44),$r['box1']);
 	}
 	
@@ -1160,7 +1160,7 @@ function ret_kunde() {
 
 	global $charset;
 	global $sprog_id;
-
+	
 	print "<div class=\"content\">";
 	include "../debitor/debkort_save.php";
 	print "	<form name=\"ret_kunde\" action=\"sager.php?funktion=ret_kunde\" method=\"post\">\n";
@@ -1183,7 +1183,10 @@ function ret_kunde() {
 function vis_sag() {
 	global $brugernavn;
 	global $db;
-
+	
+	$ansatte_id = 0;
+	$ansatte_navn = $ansatte_tlf = $ansatte_email = NULL;
+	
 	$id=if_isset($_GET['sag_id']);
 	$konto_id=if_isset($_GET['konto_id']);
 	$vis_fase=if_isset($_GET['vis_fase']);
@@ -1280,14 +1283,15 @@ function vis_sag() {
 	}
 	
 	// query til kunde-ansatte i hoved
-	$r=db_fetch_array(db_select("select * from ansatte where konto_id='$konto_id' and navn='$kontakt'",__FILE__ . " linje " . __LINE__));
-	$ansatte_id=$r['id'];
-	$ansatte_navn=$r['navn'];
-	$ansatte_tlf=$r['mobil'];
-	$ansatte_email=$r['email'];
-	(!$ansatte_tlf)?$ansatte_tlf='<i>Ingen telefonnummer</i>':$ansatte_tlf;
-	(!$ansatte_email)?$ansatte_email='<i>Ingen emailadresse</i>':$ansatte_email;
-	
+	$qtxt = "select * from ansatte where konto_id='$konto_id' and navn='$kontakt'";
+	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$ansatte_id=$r['id'];
+		$ansatte_navn=$r['navn'];
+		$ansatte_tlf=$r['mobil'];
+		$ansatte_email=$r['email'];
+		(!$ansatte_tlf)?$ansatte_tlf='<i>Ingen telefonnummer</i>':$ansatte_tlf;
+		(!$ansatte_email)?$ansatte_email='<i>Ingen emailadresse</i>':$ansatte_email;
+	}
 	$x=0;
 	$q=db_select("select * from opgaver where assign_id='$id' order by nr",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
@@ -1296,7 +1300,7 @@ function vis_sag() {
 		$opgave_status[$x]=$r['status'];
 		$opgave_beskrivelse[$x]=$r['beskrivelse'];
 		$opgave_omfang[$x]=$r['omfang'];
-		$opgave_udf_firmanavn[$x]=$r['udf_firmanavn'];
+#		$opgave_udf_firmanavn[$x]=$r['udf_firmanavn'];
 		$opgave_ref[$x]=$r['ref'];
 		$opgave_oprettet_af[$x]=$r['oprettet_af'];
 		$opgave_dato[$x]=date("d-m-y",$r['tidspkt']);
@@ -1305,10 +1309,11 @@ function vis_sag() {
 	}
 	
 	$x=0;
+	$bilag_id = array();
 	$q=db_select("select * from bilag where assign_to='sager' and assign_id='$id' order by datotid asc",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
 		$bilag_id[$x]=$r['id'];
-		$bilag_sub_id[$x]=$r['sub_id'];
+#		$bilag_sub_id[$x]=$r['sub_id'];
 		$bilag_title[$x]=$r['navn'];
 		$tmp=utf8_decode($r['navn']);
 		//if (strlen($tmp)>17) $tmp=substr($tmp,0,17)."...";
@@ -1326,17 +1331,17 @@ function vis_sag() {
 		$x++;
 	}
 
-	$x=0;
+	$notat_id[0] = $x = 0;
 	$q=db_select("select * from noter where assign_to='sager' and assign_id='$id' order by datotid asc",__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
 		$notat_id[$x]=$r['id'];
-		$notat_sub_id[$x]=$r['sub_id'];
-		list($notat_notat[$x],$tmp)=explode("\n",$r['notat'],2);
+#		$notat_sub_id[$x]=$r['sub_id'];
+		(strpos($r['notat'],"\n"))? list($notat_notat[$x],$tmp)=explode("\n",$r['notat'],2):$notat_notat[$x]=$r['notat'];
 		$notat_title[$x]=$r['beskrivelse'];
 		$tmp=utf8_decode($r['beskrivelse']);
 		//if (strlen($tmp)>20) $tmp=substr($tmp,0,20)."...";
 		$notat_beskrivelse[$x]=utf8_encode($tmp);
-		$notat_overskrift[$x]=$r['overskrift'];
+#		$notat_overskrift[$x]=$r['overskrift'];
 		$notat_dato[$x]=date("d-m-Y",$r['datotid']);
 		$notat_tidspkt[$x]=date("H:i",$r['datotid']);
 		$notat_datotid[$x]=$r['datotid'];
@@ -1348,7 +1353,7 @@ function vis_sag() {
 		$x++;
 	}
 
-	$x=0;
+	$kontrol_id[0] = $x = 0;
 	$q = db_select("select * from tjekskema where sag_id = '$id' order by id",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$kontrol_id[$x]=$r['id'];
@@ -1372,7 +1377,7 @@ function vis_sag() {
 		$x++;
 	}
 */
-	$x=0;
+	$opgave_id[0] = $x = 0;
 	$q = db_select("select * from opgaver where assign_to = 'sager' and assign_id = '$id' order by nr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$opgave_id[$x]=$r['id'];
@@ -1407,7 +1412,7 @@ function vis_sag() {
 	*/
 	
 	// Query til Tilbud
-	$x=0;
+	$ordrer_id[0] = $x=0;
 	$q = db_select("select * from ordrer where sag_id = '$id' and status <= '2' and (art = 'DO' or art = 'DK') order by datotid",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$ordrer_id[$x]=$r['id'];
@@ -1432,7 +1437,7 @@ function vis_sag() {
 	}
 	
 	// Query til original tilbud
-	$x=0;
+	$ot_id[0] = $x = 0;
 	$q = db_select("select * from ordrer where sag_id = '$id' and status <= '2' and art = 'OT' order by id",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$ot_id[$x]=$r['id'];
@@ -1449,7 +1454,7 @@ function vis_sag() {
 	}
 	
 	// Query til Faktura
-	$x=0;
+	$faktura_id[0] = $x = 0;
 	$q = db_select("select * from ordrer where sag_id = '$id' and status >= '3' and kred_ord_id is NULL order by fakturanr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$faktura_id[$x]=$r['id'];
@@ -1472,7 +1477,7 @@ function vis_sag() {
 	}
 	
 	// Query til kreditnota
-	$x=0;
+	$kreditnota_id[0] = $x = 0;
 	$q = db_select("select * from ordrer where sag_id = '$id' and status >= '3' and kred_ord_id >= '1' order by fakturanr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$kreditnota_id[$x]=$r['id'];
@@ -1497,7 +1502,8 @@ function vis_sag() {
 	---------------------------------------------------------------------------------------------------------------------
 	*/
 	// Query til lønudgifter
-	$x=0;
+	$x = 0;
+	$loen_sum = array();
 	$q = db_select("select * from loen where sag_id = '$id' and godkendt >= '1' and art != 'akktimer'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$loen_id[$x]=$r['id'];
@@ -1505,7 +1511,8 @@ function vis_sag() {
 		$x++;
 	}
 	(array_sum($loen_sum))?$lonsum = array_sum($loen_sum):$lonsum='0';
-	
+
+	$tilbud_moms = $tilbud_sum = array();
 	// Query til tilbudssum ialt
 	if (db_fetch_array(db_select("select * from ordrer where sag_id = '$id' and status = '0' and art = 'OT'",__FILE__ . " linje " . __LINE__))) {
 		$x=0;
@@ -1633,7 +1640,8 @@ function vis_sag() {
 	}
 	
 	// Her er visning af tilbud efter gruppering af sum og beskrivelse 
-	$x=0;
+	$x = 0;
+	$temp_tilbud_pris = array();
 	$q = db_select("SELECT gruppe,sum(pris) AS pris,beskrivelse FROM temp_tilbud WHERE sag_id = '$id' GROUP BY gruppe,beskrivelse ORDER BY gruppe",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$temp_tilbud_gruppe[$x]=$r['gruppe'];
@@ -1647,7 +1655,8 @@ function vis_sag() {
 	
 	
 	// Query til fakturasum ialt
-	$x=0;
+	$x = 0;
+	$faktura_sum = array();
 	$q = db_select("select * from ordrer where sag_id = '$id' and status >= '3'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$fakturaid[$x]=$r['id'];
@@ -1839,10 +1848,14 @@ function vis_sag() {
 			$daekningsprocent = ($daekningsbidragsum/$lonsumsocial)*100; // Dækningsgrad i % hvis dækningsbidrag er negativ
 			$daekningsgrad = "<span style=\"color:red;\">".dkdecimal($daekningsprocent)."%</span>";
 			$daekningsbidrag = "<span style=\"color:red;\">".dkdecimal($daekningsbidragsum)."</span>";
-		} else {
+		} elseif ($fakturasum != 0) {
 			$daekningsprocent = ($daekningsbidragsum/$fakturasum)*100; // Dækningsgrad i %
 			$daekningsgrad = "<span style=\"color:green;\">".dkdecimal($daekningsprocent)."%</span>";
 			$daekningsbidrag = "<span style=\"color:black;\">".dkdecimal($daekningsbidragsum)."</span>";
+		} else {
+			$daekningsprocent = $daekningsgrad = $daekningsbidrag = 0; // Dækningsgrad i %
+			$daekningsgrad = "<span style=\"color:green;\">0%</span>";
+			$daekningsbidrag = "<span style=\"color:black;\">0,00</span>";
 		}
 	//}
 	
@@ -1980,11 +1993,11 @@ function vis_sag() {
 		<td colspan=\"4\"><p style=\"margin:10px 0 10px 0;\"><b>Lønudgifter: $lonudgifter kr.</b></p></td>
 	</tr>\n";
 	*/
-	if (!$kontrol_id) print "<tr><td colspan=\"9\"><hr></td></tr>\n";
+	if (!$kontrol_id[0]) print "<tr><td colspan=\"9\"><hr></td></tr>\n";
 	print "</tbody>\n";
 	
 	//Her skal liste med kontrolskemaer vises
-	if ($kontrol_id) {
+	if ($kontrol_id[0]) {
 	print "<tbody><tr><td colspan=\"9\"><hr></td></tr>\n";
 	print "<tr><td colspan=\"9\"><p><b>Kontrol:</b></p></td></tr>"; 
 	print "<tr class=\"tableSagerHead\">
@@ -2050,7 +2063,7 @@ function vis_sag() {
 		#print "</big></b></td></tr>";
 #		if ($status==$x || (is_numeric($vis_fase) && $vis_fase==$x)) {
 			//print "<tr><td><a href=\"sager.php?sag_id=$id&amp;funktion=kontrolskema&amp;sag_fase=$x\"><b>Kontrolskema</b></a></td></tr>"; # sag_fase i kontrolskema??
-			if ($ordrer_id) { 
+			if ($ordrer_id[0]) { 
 				print "<tbody><tr><td colspan=\"9\"><p><b>Tilbud:</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
 						<td colspan=\"1\"><p>Nummer</p></td>
@@ -2083,7 +2096,7 @@ function vis_sag() {
 					print "</tbody>\n";
 				}
 				print "<tbody>\n";
-			if (!$ordrer_id) {
+			if (!$ordrer_id[0]) {
 			print "<tr><td colspan=\"9\"><p><i><b>Opret tilbud til sagen her:</b></i></p></tr>\n";
 			print "<tr><td colspan=\"9\"><a class=\"button green small\" title=\"klik her for at oprette et tilbud til sagen\" href=\"../debitor/ordre.php?funktion=opret_ordre&amp;sag_id=$id&amp;konto_id=$konto_id&amp;returside=sager\">Opret Tilbud</a></td></tr>\n";
 			} else {
@@ -2092,7 +2105,7 @@ function vis_sag() {
 			
 			print "<tr><td colspan=\"9\"><hr></td></tr>\n";
 			print "</tbody>\n";
-			if ($ot_id) {
+			if ($ot_id[0]) {
 				print "<tbody><tr><td colspan=\"9\"><p><b>Original tilbud:</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
 						<td colspan=\"1\"><p>Nummer</p></td>
@@ -2119,7 +2132,7 @@ function vis_sag() {
 					print "<tr><td colspan=\"9\"><hr></td></tr>\n";
 					print "</tbody>\n";
 			}
-			if ($faktura_id) {
+			if ($faktura_id[0]) {
 				print "<tbody><tr><td colspan=\"9\"><p><b>Faktura:</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
 						<td colspan=\"1\"><p>Nummer</p></td>
@@ -2146,7 +2159,7 @@ function vis_sag() {
 					print "<tr><td colspan=\"9\"><hr></td></tr>\n";
 					print "</tbody>\n";
 			}
-			if ($kreditnota_id) {
+			if ($kreditnota_id[0]) {
 				print "<tbody><tr><td colspan=\"9\"><p><b>Kreditnota:</b></p></td></tr>";
 				print "<tr class=\"tableSagerHead\">
 						<td colspan=\"1\"><p>Nummer</p></td>
@@ -2221,7 +2234,7 @@ function vis_sag() {
 			<a class=\"button gray small textSpaceSmall\" title=\"klik her for at se alle bilag fra sagen\" href=\"view_bilag_sager.php?sag_id=$id\" target=\"blank\">Vis alle</a></td></tr>\n";
 			}
 			print "<tr><td colspan=\"9\"><hr></td></tr></tbody>\n";
-			if ($notat_id) {
+			if ($notat_id[0]) {
 				print "<tbody><tr><td colspan=\"9\"><p><b>Noter:</b></p></td></tr>\n";
 				print "<tr style=\"background:lightgray;\">
 					<td colspan=\"1\"><p>Overskrift</p></td>
@@ -2269,7 +2282,7 @@ function vis_sag() {
 				print "</tbody>\n";
 			}
 			print "<tbody>\n";
-			if (!$notat_id) {
+			if (!$notat_id[0]) {
 			print "<tr><td colspan=\"9\"><p><i><b>Opret notat til sagen her:</b></i></p></tr>\n";
 			print "<tr><td colspan=\"9\"><a class=\"button blue small\" title=\"klik her for at oprettet et notat til sagen\" href=\"../sager/notat.php?sag_id=$id&amp;sag_fase=$x&amp;konto_id=$konto_id\">Opret notat</a></td></tr>\n";
 			} else {
@@ -2278,7 +2291,7 @@ function vis_sag() {
 			print "</tbody>\n";
 #		} 
 #	}
-	if ($opgave_id) {
+	if ($opgave_id[0]) {
 		print "<tbody>\n";
 		print "<tr><td colspan=\"9\"><hr></td></tr>\n";
 		print "<tr><td colspan=\"9\"><p><b>Opgaver:</b></p></td></tr>\n";
@@ -2395,6 +2408,7 @@ function ret_opgave($sag_id) {
 	
 	// Query til kunde kontakt
 	$x=0;
+	$k_kontakt = array();
 	$q=db_select("select * from ansatte where konto_id='$sag_konto_id' order by posnr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$k_id[$x]=$r['id'];
@@ -2606,10 +2620,10 @@ function ret_opgave($sag_id) {
 			<div class=\"row\">
 				<div class=\"left\">Kontakt:</div>"; 
 				print "<div class=\"right\"><select style=\"width:194px;\" id=\"opgave_kontakt\" name=\"opgave_kontakt\">\n";
-					for ($x=0;$x<=count($k_kontakt);$x++) {
+					for ($x=0;$x<count($k_kontakt);$x++) {
 						if ($opgave_kontakt==$k_kontakt[$x]) print "<option value=\"$k_kontakt[$x]\">$k_kontakt[$x]&nbsp;</option>\n";	
 					}
-					for ($x=0;$x<=count($k_kontakt);$x++) {
+					for ($x=0;$x<count($k_kontakt);$x++) {
 						if ($opgave_kontakt!=$k_kontakt[$x]) print "<option value=\"$k_kontakt[$x]\">$k_kontakt[$x]&nbsp;</option>\n";	
 					}
 					//print "<option><p>$kontakt</p></option>";
@@ -2693,7 +2707,7 @@ function ret_opgave($sag_id) {
 
 function ret_sag() {
 	global $brugernavn;
-	global $db;
+	global $db,$sprog_id;
 
 	$id=if_isset($_GET['sag_id']);
 	$konto_id=if_isset($_GET['konto_id']);
@@ -2851,6 +2865,7 @@ function ret_sag() {
 	
 	// Query til kunde kontakt
 	$x=0;
+	$k_kontakt = array();
 	$q=db_select("select * from ansatte where konto_id='$konto_id' order by posnr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$k_kontakt[$x]=htmlspecialchars($r['navn']);
@@ -3148,10 +3163,10 @@ function ret_sag() {
 				<div class=\"row\">
 						<div class=\"left\">Stilladstype</div>";
 							print "<div class=\"right\"><select style=\"width:194px;\" id=\"beskrivelse\" name=\"beskrivelse\" class=\"printSelect3\">\n";
-							for ($x=0;$x<=count($v_cat);$x++) {
+							for ($x=0;$x<count($v_cat);$x++) {
 								if ($beskrivelse==$v_cat[$x]) print "<option value=\"$v_cat[$x]\">$v_cat[$x]&nbsp;</option>\n";	
 							}
-							for ($x=0;$x<=count($v_cat);$x++) {
+							for ($x=0;$x<count($v_cat);$x++) {
 								if ($beskrivelse!=$v_cat[$x]) print "<option value=\"$v_cat[$x]\">$v_cat[$x]&nbsp;</option>\n";	
 							}
 							print "</select></div>\n";
@@ -3466,6 +3481,7 @@ function kontrolskema() {
 */
 
 function kopi_ordre() {
+	global $brugernavn;
 
 	//$konto_id=$_GET['konto_id'];
 	$id=$_GET['sag_id'];
@@ -3553,7 +3569,8 @@ function kopi_ordre() {
 	else $where='';
 	
 	$x=0;
-	$q=db_select("select * from sager $where order by $sqlsort limit $limit",__FILE__ . " linje " . __LINE__);
+	$qtxt = "select * from sager $where order by $sqlsort limit $limit";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$sag_id[$x]=$r['id'];
@@ -3927,6 +3944,7 @@ function akkordliste() {
 	// Her hentes akkordliste
 	if ($loen_ids) {
 		$x=-1;
+		$loenenhed_vareid = array();
 		$qtxt=
 		$q = db_select("SELECT loen_enheder.id as loenenhed_id,loen_enheder.loen_id as loenenhed_loenid,loen_enheder.vare_id as loenenhed_vareid,loen_enheder.op as total_op,loen_enheder.ned as total_ned,varer.id as varer_id,varer.varenr as varer_nr,varer.beskrivelse as varer_beskrivelse,varer.gruppe,varer.kategori,grupper.kodenr,grupper.beskrivelse as cat_beskrivelse,grupper.art,grupper.box10 FROM loen_enheder 
 										INNER JOIN varer ON loen_enheder.vare_id = varer.id

@@ -116,7 +116,7 @@ if(($_GET)||($_POST)) {
 									$r=db_fetch_array(db_select("select firmanavn from adresser where kontonr='$kundenr[$x]'",__FILE__ . " linje " . __LINE__));
 									$firmanavn[$x]=$r['firmanavn'];
 									if ($tilfra[$x]=='0231') {	
-										print  "<tr><td>$kundenr[$x]</td><td>$firmanavn[$x]</td><td>$pbsnr[$x]</td><td>Tilmeldt - Stamkort opdateret</td></tr>";
+										print  "<tr><td>$kundenr[$x]</td><td>$firmanavn</td><td>$pbsnr[$x]</td><td>Tilmeldt - Stamkort opdateret</td></tr>";
 										db_modify("update adresser set pbs='on',pbs_nr='$pbsnr[$x]' where kontonr = '$kundenr[$x]' and art = 'D'",__FILE__ . " linje " . __LINE__);
 										if ($udskriv_til) db_modify("update ordrer set pbs='FI',udskriv_til='$udskriv_til' where kontonr = '$kundenr[$x]' and art = 'DO' and nextfakt >= '$dd'",__FILE__ . " linje " . __LINE__);
 									} elseif ($tilfra[$x]=='0232' || $tilfra[$x]=='0233' || $tilfra[$x]=='0234') {

@@ -55,3 +55,4 @@ $qtxt = "UPDATE pos_buttons SET menu_id = $to_menu, col = $to_col, row = $to_row
 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 ?>
+

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitor.php -----patch 4.1.0 ----2024-05-01--------------
+// --- debitor/debitor.php -----patch 4.0.8 ----2023-07-12--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20160218 Udvælg fungerer nu også hvis debitor er med i flere kategorier. Søg 20160218
@@ -46,15 +46,9 @@
 // 20210907 MSC - Implementing new design
 // 20211102 MSC - Implementing new design
 // 20220226 PHR - Added: 	$mail->CharSet = "$charset";
-// 20220824 MSC - Implementing new design
-// 20220824 MSC - $title moved further down the file search //WEBPAGE TITLE
-// 20220912 MSC - Implementing new design
-// 20230111 MSC - Implementing new design
 // 20230402 PHR - Added  '&& $cat_liste[0] != '0'' 
 // 20230611 PHP - Fixed missing pre & nextpil 
 // 20230717 PBLM - Added link to booking on line 375
-// 20231128 MSC - Copy pasted new design into code
-// 20241018 LOE - Checks that some variables are set before usage e.g $cat_antal, inside count($cat_liste))
 
 #ob_start();
 @session_start();
@@ -103,6 +97,7 @@ if ((isset($_POST['kommission']) || isset($_POST['historik'])) && $_POST['debId'
 	if (isset($_POST['invite'])) $invite=$_POST['invite'];
 	if (isset($_POST['mailTo'])) $mailTo=$_POST['mailTo'];
 	$start*=1;
+
 	for ($i=0;$i<count($debId);$i++) {
 		$qtxt="select id,kontonr,firmanavn,email from adresser where id='$debId[$i]'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -129,8 +124,7 @@ if ((isset($_POST['kommission']) || isset($_POST['historik'])) && $_POST['debId'
 #			$qtxt = "CREATE TABLE mysale (id serial NOT NULL,deb_id int, db varchar(20), email varchar(60), link text, PRIMARY KEY (id))";
 #			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
-	$x = 0;
-	$myAccId = array();
+	$x=0;
 	$qtxt="select * from mysale where db='$db'";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -158,7 +152,6 @@ if ((isset($_POST['kommission']) || isset($_POST['historik'])) && $_POST['debId'
 		ini_set("include_path", ".:../phpmailer");
 		require("class.phpmailer.php");
 	}
-	# Hent egen stamdata
 	$qtxt="select * from adresser where art='S'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$afsendermail=$r['email'];
@@ -352,37 +345,43 @@ $sort=str_replace("adresser.","",$sort);
 $sortering=$sort;
 
 if ($menu=='T') {
+	include_once '../includes/topmenu/header.php';
 	if ($valg=='debitor') {
-		$title = "".findtekst(117,$sprog_id)."";
-		} if ($valg=='historik') {
-			$title= "".findtekst(907,$sprog_id)."";
-		} if ($valg=='kommission') {
-			$title= "".findtekst(909,$sprog_id)."";
-		} if ($valg=='rental') {
-			$title= "".findtekst(1116,$sprog_id)."";
-		}
-} else {
-	$title="Debitorliste";
-}
-
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";   
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">";
-	if ($valg=='rental') {
-		print "";
-	} else {
-		print "<a accesskey=V href='debitorvisning.php?valg=$valg' title='Ændre visning'><i class='fa fa-gear fa-lg'></i></a> &nbsp; ";
+	print "<div class='$kund'>".findtekst(117,$sprog_id)."</div>
+		<div class='content-noside'>";
+	} if ($valg=='historik') {
+	print "<div class='$kund'>".findtekst(907,$sprog_id)."</div>
+		<div class='content-noside'>";
 	}
-	print "<a accesskey=N href='ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id' title='Opret nyt kundekort'><i class='fa fa-plus-square fa-lg'></i></a></div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
-else include_once 'debLstIncludes/oldTopLine.php';
+} else {
+	include("../includes/oldDesign/header.php");
+	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>\n";
+	print "<tr><td height = 25 align=center valign=top>";
+	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% $top_bund>\n";
+	print "<a href=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
+	print "<td width=80% $top_bund align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n";
 
+	if ($valg=='debitor') print "<td width = 20% align=center $knap_ind>".findtekst(908,$sprog_id)."</td>"; #20210701
+	else print "<td width = 20% align=center><a href='debitor.php?valg=debitor&returside=$returside'>".findtekst(908,$sprog_id)."</a></td>";
+	if ($valg=='historik') print "<td width = 20% align=center $knap_ind>".findtekst(907,$sprog_id)."</td>";
+	else print "<td width = 20% align=center><a href='debitor.php?valg=historik&returside=$returside'>".findtekst(907,$sprog_id)."</a></td>";
+	if ($valg=='kommission') print "<td width = 20% align=center $knap_ind>".findtekst(909,$sprog_id)."</td>";
+	elseif ($showMySale) {
+		print "<td width = 20% align=center><a href='debitor.php?valg=kommission&returside=$returside'>".findtekst(909,$sprog_id)."</a></td>";
+	}	
+#		print "<td width = 20% align=center><a href='debitor.php?valg=rental&returside=$returside'>".findtekst(1116,$sprog_id)."</a></td>";
+	print "<td width = 20% align=center><a href='../rental/index.php?vare'>Booking</a></td>";
+	$title=findtekst(1664, $sprog_id); #20210728
+	if ($jobkort)	print "<td width = 20% align=center><a href='jobliste.php' title ='$title'>".findtekst(38,$sprog_id)."</a></td>";
+	print "</tbody></table></td>\n";
+	print "<td width=5% $top_bund><a accesskey=V href=debitorvisning.php?valg=$valg>".findtekst(813,$sprog_id)."</a></td>\n";
+	print "<td width=5%  $top_bund>";
+	if ($valg=='kommission' ||$valg=='historik') print "<a href=mailTxt.php?valg=$valg&returside=debitor.php>".findtekst(218,$sprog_id)."</a></td>\n";
+	else print "<a href=debitorkort.php?returside=debitor.php>".findtekst(39,$sprog_id)."</a></td>\n";
+	print "</td></tr>\n";
+	print "</tbody></table>";
+	print " </td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"100%\">";
+}
 
 $r = db_fetch_array(db_select("select box3,box4,box5,box6,box8,box11 from grupper where art = 'DLV' and kodenr = '$bruger_id' and kode='$valg'",__FILE__ . " linje " . __LINE__));
 $vis_felt=explode(chr(9),$r['box3']);
@@ -445,10 +444,9 @@ if (count($dg_liste)) {
 
 if (count($cat_liste)) {
 	$r=db_fetch_array(db_select("select box1,box2 from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
-	if(isset($r['box1'])) $cat_id=explode(chr(9),$r['box1']);
-	
-	if(isset($r['box2'])) $cat_beskrivelse=explode(chr(9),$r['box2']);
-	if(isset($cat_id)) $cat_antal=count($cat_id);
+	$cat_id=explode(chr(9),$r['box1']);
+	$cat_beskrivelse=explode(chr(9),$r['box2']);
+	$cat_antal=count($cat_id);
 }
 
 $sortering="adresser.".$sortering;
@@ -463,7 +461,8 @@ $qtxt = "select count(id) as antal from adresser where art = 'D' $udvaelg";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $antal=$r['antal'];
 if ($menu=='T'){
-	print "<table class='dataTableBooking' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
+	print "<div class=\"maincontentLargeHolder\">\n";
+	print "<div class='dataTablediv'><table class='dataTable' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
 } else {
 	print "<table cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><tbody>\n<tr>";
 }
@@ -472,14 +471,14 @@ if ($start>0) {
 	if ($prepil<0) $prepil=0;
 	print "<td class='imgNoTextDeco style='padding: 20px'><a href=debitor.php?start=$prepil&valg=$valg><img class='imgInvert imgFade' src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
 } else {
-	print "<td width=10px>";
+	print "<td>";
 #	if (file_exists("rotary_addrsync.php")) print "<a href=\"rotary_addrsync.php\" target=\"blank\" title=\"".findtekst(1665, $sprog_id)."\">!</a>";
 	print "</td>";
 }
 if ($valg != 'rental' && $start == 0) {
 	for ($x=0;$x<$vis_feltantal;$x++) {
 		if (substr($vis_felt[$x],0,4) == 'cat_') {
-			print "<td width=10px align=$justering[$x]><b>$feltnavn[$x]</b></td>\n";
+			print "<td align=$justering[$x]><b>$feltnavn[$x]</b></td>\n";
 		} else {
 			if ($feltbredde[$x]) $width="width=$feltbredde[$x]";
 			else $width="";
@@ -492,8 +491,8 @@ if ($valg=='kommission'  && $start == 0) {
 	$folder=str_replace('debitor/debitor.php','',$folder);
 	$myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
 	$myLink=str_replace('bizsys','mysale',$myLink);
-	print "<td align='center' width=10px><b>Aktiv</b></td>";
-	print "<td align='center' width=10px><b>Inviter</b></td>";
+	print "<td align='center'><b>Aktiv</b></td>";
+	print "<td align='center'><b>Inviter</b></td>";
 }
 
 if ($antal>$slut && !$dg_liste[0] && !$cat_liste[0] && $cat_liste[0] != '0' && $valg=='debitor') { #20230402
@@ -503,18 +502,16 @@ if ($antal>$slut && !$dg_liste[0] && !$cat_liste[0] && $cat_liste[0] != '0' && $
 elseif ($antal>$slut && $valg=='kommission') { #20230402
 	$nextpil=$start+$linjeantal;
 	$tmp = $vis_feltantal+2;
-	print "<td align=right class='imgNoTextDeco' style='width:10px;' colspan='1'><a href=debitor.php?start=$nextpil&valg=$valg><img class='imgInvert imgFade' src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td><tr>";
-} else {
-	print "<td width=10px></td>";
+	print "<td align=right class='imgNoTextDeco' style='padding: 20px' colspan='$tmp'><a href=debitor.php?start=$nextpil&valg=$valg><img class='imgInvert imgFade' src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td><tr>";
 }
 
 print "</tr>\n";
-if ($dg_antal || isset($cat_antal) && $cat_antal) $linjeantal=0;
+if ($dg_antal || $cat_antal) $linjeantal=0;
 #################################### Sogefelter ##########################################
 
 
 
-print "<tr><td width=10px></td>"; #giver plase til venstrepil v. flere sider
+print "<tr><td></td>"; #giver plase til venstrepil v. flere sider
 if (!$start) {
 	print "<form name=debitorliste action=debitor.php method=post>\n";	
 	print "<input type=hidden name=valg value=$valg>\n";
@@ -594,9 +591,10 @@ if (!$start) {
 		}
 	}
 	print "</td>\n";
-	if ($valg=='kommission') print "<td colspan='1'></td><td colspan='1'></td>";
-	print "<td colspan='1' align=right style='width:10px;'><input class='button blue medium' type='submit' value=\"Søg\" name=\"search\"></td>";
+	if ($valg=='kommission') print "<td colspan='2'></td>";
 
+	print "<td colspan='4' align=center><input class='button blue small' type='submit' value=\"Søg\" name=\"search\"></td>\n";
+	if ($valg=='historik') print "";
 	print "</form></tr>\n";
 }
 
@@ -646,22 +644,22 @@ $colspan++;
 #print "<tr><td colspan=$colspan><hr></td></tr>\n";
 
 if ($menu=='T') {
-	print "
-</tfoot>
-</table>
-</td></tr>
-</tbody></table>
-";
-include_once '../includes/topmenu/footer.php';
+		print "
+	</tfoot>
+	</table>
+	</td></tr>
+	</tbody></table></div></div>
+	";
+	include_once '../includes/topmenu/footerDebRapporter.php';
 } else {
-	print "
-</tbody>
-</table>
-</td></tr>
-</tbody></table>
-";
+		print "
+	</tbody>
+	</table>
+	</td></tr>
+	</tbody></table>
+	";
 
-include_once '../includes/oldDesign/footer.php';
+	include_once '../includes/oldDesign/footer.php';
 }
 
 

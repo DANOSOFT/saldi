@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.1.1 - 2024.10.07 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.0.8 - 2023.06.25 -
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190215 Make function to count the box when submitting
@@ -34,17 +34,17 @@
 // 20200925 PHR Added button [Kasse] to make it possible to open drawer.
 // 20210517 PHR Outcommented setting '$ny_kortsum' to '$kortsum' and made 'card diff' red. (whish from Havemøbelland)
 // 20230655 PHR	if (count) changed to if ($count) 
-// 20240729 + 20241007 PHR Various translations
 
-function setSpecifiedCashText() { 
-  global $baseCurrency,$sprog_id;
-#  $country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
-  if ($baseCurrency == "EUR") {
-        return ["tenth" => "10 ¢", "fiveth" => "20 ¢", "half" => "50 ¢", "one" => "1 €", "two" => "2 €", "five" => "5 €", "ten" => "10 €", 
-        "twenty" => "20 €", "fifty" => "50 f€", "hundred" => "100 €", "twoHundred" => "200 €", 
-        "fiveHundred" => "500 €", "other" => findtekst('630|Andet',$sprog_id),
-        "turnover" => findtekst('3075|Dagens omsætning',$sprog_id), "headline" => findtekst('3086|Optæl kassebeholdning for kasse',$sprog_id), 
-        "subline" => "(". findtekst('3087|Antal mønter/sedler af hver slags',$sprog_id) .")"];
+function setSpecifiedCashText() 
+{ 
+    $country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
+    if ($country == "Switzerland") {
+        return ["fiveRappen" => "5 rappen", "tenRappen" => "10 rappen", "twentyRappen" => "20 rappen", 
+        "half" => "½ franc", "one" => "1 franc", "two" => "2 franc", "five" => "5 franc", "ten" => "10 franc", 
+        "twenty" => "20 franc", "fifty" => "50 franc", "hundred" => "100 franc", "twoHundred" => "200 franc", 
+        "fiveHundred" => "500 franc", "thousand" => "1000 franc", "other" => "Anderes franc", 
+        "turnover" => "Heutiger umsatz", "headline" => "Zählkasse für Box ", 
+        "subline" => "(Anzahl Münzen / Banknoten jeder Art)"];
     } else {
         return ["half" => "50 øre", "one" => "1 kr", "two" => "2 kr", "five" => "5 kr", "ten" => "10 kr", 
                 "twenty" => "20 kr", "fifty" => "50 kr", "hundred" => "100 kr", "twoHundred" => "200 kr", 
@@ -53,11 +53,11 @@ function setSpecifiedCashText() {
                 "subline" => "(Antal mønter/sedler af hver slags)"];
     }
 }
-/*
-function setCashCountText() {
-	global $baseCurrency,$sprog_id;
+
+function setCashCountText() 
+{
 		echo "<!-- setCashCountText Begin -->\n";
-		$country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
+    $country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
     if ($country == "Switzerland") {
         return ["portfolio" => "Morgen portfolio", "newPortfolio" => "Neues morgen portfolio", "dayApproach" => "Heutiger Ansatz", 
                 "expInv" => "Erwartetes inventar", "countInv" => "Gezähltes inventar", "diff" => "Unterschied", "fromBox" => "Aus der Box genommen", "currency" => "SFR", "calculate" => "Berechnen", "cancel" => "Rückgängig", "printLast" => "Zuletzt drucken",
@@ -66,12 +66,12 @@ function setCashCountText() {
         return ["portfolio" => "Morgenbeholdning", "newPortfolio" => "Ny Morgenbeholdning", "dayApproach" => "Dagens tilgang", 
                 "expInv" => "Forventet beholdning", "countInv" => "Optalt beholdning", "diff" => "Difference", "fromBox" => "Udtages fra kasse", "currency" => "DKK", "calculate" => "Beregn", "cancel" => "Fortryd", "printLast" => "Udskriv sidste",
                 "accept" => "Godkend","drawer" => "Skuffe"];
-#    }
+    }
 		echo "<!-- setCashCountText End -->\n";
 }
-*/
-function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
-	global $baseCurrency,$db;
+
+function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
+	global $db;
 	
 	$txt = setSpecifiedCashText();
 	$country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
@@ -92,46 +92,32 @@ function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_
         $temp = $txt['twentyRappen'];
         print "<tr><td align='right'>$temp</td><td> </td> <td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"rappen_20\" value=\"$twentyRappen\"></td></tr>\n";
 	}
-	if ($baseCurrency =='EUR') {
-		$temp = $txt['tenth'];
-		print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='ore_10' value='$ore_10'></td></tr>\n";
-		$temp = $txt['fiveth'];
-		print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='ore_20' value='$ore_20'></td></tr>\n";
-	}
-	else {
-		print "<input type = 'hidden' name = name='ore_10' value='$ore_10'>";
-		print "<input type = 'hidden' name = name='ore_20' value='$ore_20'>";
-	}
 	$temp = $txt['half'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='ore_50' value='$ore_50'></td></tr>\n";
+
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"ore_50\" value=\"$ore_50\"></td></tr>\n";
 	$temp = $txt['one'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_1' value='$kr_1'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_1\" value=\"$kr_1\"></td></tr>\n";
 	$temp = $txt['two'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_2' value='$kr_2'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_2\" value=\"$kr_2\"></td></tr>\n";
 	$temp = $txt['five'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_5' value='$kr_5'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_5\" value=\"$kr_5\"></td></tr>\n";
 	$temp = $txt['ten'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_10' value='$kr_10'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_10\" value=\"$kr_10\"></td></tr>\n";
 	$temp = $txt['twenty'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_20' value='$kr_20'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_20\" value=\"$kr_20\"></td></tr>\n";
 	$temp = $txt['fifty'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_50' value='$kr_50'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_50\" value=\"$kr_50\"></td></tr>\n";
 	$temp = $txt['hundred'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_100' value='$kr_100'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_100\" value=\"$kr_100\"></td></tr>\n";
 	$temp = $txt['twoHundred'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_200' value='$kr_200'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_200\" value=\"$kr_200\"></td></tr>\n";
 	$temp = $txt['fiveHundred'];
-	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_500' value='$kr_500'></td></tr>\n";
+	print "<tr><td align='right'>$temp</td> <td> </td><td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_500\" value=\"$kr_500\"></td></tr>\n";
 	$temp = $txt['thousand'];
-	if ($baseCurrency =='EUR') {
-		print "<input type = 'hidden' name='kr_1000' value='$kr_1000'>";
-	} else {
-		print "<tr><td align='right'>$temp</td><td> </td> <td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_1000' value='$kr_1000'></td></tr>\n";
-	}
+	print "<tr><td align='right'>$temp</td><td> </td> <td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_1000\" value=\"$kr_1000\"></td></tr>\n";
 	$temp = $txt['other'];
-	print "<tr><td align='right'>$temp</td> <td> </td> <td align='right'><input style='width:100;text-align:right;font-size:$ifs;' name='kr_andet' value='".dkdecimal($kr_andet,2)."'></td></tr>\n";
-#	$txt = "Five rappen $fiveRappen \n Ten rappen $tenRappen \n Twenty rappen $twentyRappen \n1 kr $kr_1\n2 kr $kr_2\n"; 
-	$txt = "10 øre\n 20 øre \n 50 øre \n1 kr $kr_1\n2 kr $kr_2\n"; 
+	print "<tr><td align='right'>$temp</td> <td> </td> <td align='right'><input style=\"width:100;text-align:right;font-size:$ifs;\" name=\"kr_andet\" value=\"".dkdecimal($kr_andet,2)."\"></td></tr>\n";
+	$txt = "Five rappen $fiveRappen \n Ten rappen $tenRappen \n Twenty rappen $twentyRappen \n1 kr $kr_1\n2 kr $kr_2\n"; 
 	file_put_contents($logfil,$txt,FILE_APPEND);
 	$txt = "5 kr $kr_5\n10 kr $kr_10\n20 kr $kr_20\n50 kr $kr_50\n100 kr $kr_100\n200 kr $kr_200\n500 kr $kr_500\n";
 	file_put_contents($logfil,$txt,FILE_APPEND);
@@ -141,10 +127,8 @@ function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_
 
 
 function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang, $forventet, $optalt, $kassediff, $color, $mellemkonto, $udtages) {
-	global $baseCurrency;
-
 	echo "<!-- ". __file__ ." cashCountResult Begin -->\n";
-	global $bruger_id,$db,$ifs,$FromCharset,$sprog_id,$ToCharset;
+	global $bruger_id,$db,$ifs,$FromCharset,$ToCharset;
 	
 	$qtxt="select box3 from grupper where art = 'POS' and kodenr='2'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
@@ -162,8 +146,8 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 
 	$logfil="../temp/".$db."/kasseopg".str_replace("-","",$kasse).".log";
 	
- /*   
 	$txtArray = setCashCountText();
+    
 	$calc = $txtArray['calculate'];
 	$drawer = $txtArray['drawer'];
 	$cancel = $txtArray['cancel'];
@@ -176,28 +160,19 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	$diff = $txtArray['diff'];
 	$fromBox = $txtArray['fromBox'];
 	$curr = $txtArray['currency'];
-*/    
- $curr        = $baseCurrency;
- $printLast   = findtekst('3091|Udskriv sidste',$sprog_id);
- $portfolio   = findtekst('3088|Morgenbeholdning',$sprog_id);
- $dayApproach = findtekst('3092|Dagens kontanttilgang',$sprog_id);
- $expInv      = findtekst('3093|Forventet beholdning',$sprog_id);
- $countInv    = findtekst('3094|Optalt beholdning',$sprog_id);
- $diff        = findtekst('3095|Difference',$sprog_id);
- $fromBox     = findtekst('3096|Udtag fra kasse',$sprog_id);
- 
+    
 	print "<tr><td align=\"center\" colspan=\"3\">";
 	print "<span onclick='window.open(\"http://$printserver/saldiprint.php?skuffe=1\")'>";
-	print "<button type='button' style='width:100px'>". findtekst('3090|Skuffe',$sprog_id) ."</button></span>&nbsp;";
-	print "<input type='submit' style='width:100px' name='optael' value='". findtekst('3089|Beregn',$sprog_id) ."'>&nbsp;";
-	print "<input type='submit' style='width:100px' name='optael' value='". findtekst('81|Afbryd',$sprog_id) ."'>";
+	print "<button type='button' style='width:100px'>$drawer</button></span>&nbsp;";
+	print "<input type='submit' style='width:100px' name='optael' value=\"$calc\">&nbsp;";
+	print "<input type='submit' style='width:100px' name='optael' value=\"$cancel\">";
 	print "</td></tr>\n";
-	print "<tr><td align=\"center\" colspan=\"3\">";
-	print "<a href=pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&printXreport=1>";
-	print "<input style='width:100px' type=\"button\" name=\"xReport\" value=\"X-rapport\"></a>\n";
+	print "<tr>";
+	print "<td><a href=pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&printXreport=1>";
+	print "<input  style='width:100px' type=\"button\" name=\"xReport\" value=\"X-rapport\"></a></td>\n";
 	if (file_exists("$pfnavn")) {
-		print "<a href=pos_ordre.php?id=$id&kasse=$kasse&udskriv_kasseopg=$pfnavn>";
-		print "<input style='width:100px' type=\"button\" name=\"optael\" value=\"$printLast\"></a>\n";
+		print "<td><a href=pos_ordre.php?id=$id&kasse=$kasse&udskriv_kasseopg=$pfnavn>";
+		print "<input type=\"button\" name=\"optael\" value=\"$printLast\"></a></td>\n";
 	} else print "<td></td>";
 	print "<td></td>";
 	
@@ -263,7 +238,7 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 
 function setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_kortsum, $vatRates, $vatAmounts, $accountPayment, $ifs, $kortdiff, $omsatning, $log, $id) {
 echo "<!-- function setCreditCards Begin -->\n";
-	global $baseCurrency,$db,$db_encode,$kasse,$reportNumber,$sprog_id;
+	global $db,$db_encode,$kasse,$reportNumber,$sprog_id;
 
 	if ($db_encode=="UTF8") $FromCharset = "UTF-8";
 	else $FromCharset = "iso-8859-15";
@@ -274,12 +249,11 @@ echo "<!-- function setCreditCards Begin -->\n";
 	if (!$ny_kortsum) $ny_kortsum = array();
 
 	$logfil="../temp/".$db."/kasseopg".str_replace("-","",$kasse).".log";
-#	$curr = setCashCountText()['currency'];
-	$curr = $baseCurrency;
+	$curr = setCashCountText()['currency'];
 	
 	for ($x=0;$x<count($kontkonto);$x++) {
-		$kortsum[$x]    = (float)if_isset($kortsum[$x],0);
-		$ny_kortsum[$x] = (float)if_isset($ny_kortsum[$x],0);
+		$kortsum[$x]    = if_isset($kortsum[$x],0);
+		$ny_kortsum[$x] = if_isset($ny_kortsum[$x],0);
 		if ($change_cardvalue) {
 			print "<tr><td colspan='2'><b>$kortnavn[$x]</b>(".dkdecimal($kortsum[$x],2).")</td><td align='right'>"; 
 			print "<input type='text' style=\"width:100;text-align:right;font-size:$ifs;\" ";
@@ -343,11 +317,9 @@ echo "<!-- function setCreditCards Begin -->\n";
 		unset($_SESSION['boxZreport']);
 	}
 	print "</form></tbody></table></td>\n";
-    if ($baseCurrency == "EUR") {
-        print file_get_contents("pos_ordre_includes/boxCountMethods/HowToCashCountEUR.html"); 
-		} else {
+    if (getCountry() != "Switzerland") {
         print file_get_contents("pos_ordre_includes/boxCountMethods/vejl_kasseoptDK.html"); 
-		}
+	}
 	echo "<!-- function setCreditCards End -->\n";
 }
 function createXreport($txt,$amount,$curr) {

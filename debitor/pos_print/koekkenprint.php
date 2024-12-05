@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_print/koekkenprint.php--- lap 4.0.3 --- 2021-09-15----
+// --- debitor/pos_print/koekkenprint.php--- lap 4.1.0 --- 2024-05-21----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Copyright (c) 2008-2021 saldi.dk aps
 // -----------------------------------------------------------------------
 // 20210915 - PHR Replaced convert with iconv.
+// 20240521 - PHR PHP8
 
 function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori) {
 	global $besked,$bordnavn,$bruger_id,$brugernavn,$db;
@@ -30,18 +31,22 @@ function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori) {
 	global $FromCharset,$ToCharset;
 	global $notes,$tilfravalg;
 
+#	for ($i=0;$i<count($kategori);$i++) {
+#		for ($x=0;$x<count($kategori);$x++) echo "$i $x ".$kategori[$i][$x]."<br>";
+#	}
 	$udskrives=array();
 	for($y=0;$y<count($kp);$y++) {
-
 				$udskrives[$y]=0;
 				for ($x=0;$x<count($linje_id);$x++) {
 // Hvis der er bestilling på varen OG (der er flere køkkener og varen har køkkenet som kategori ELLER der ikke er defineret køkken kategorier);
+#cho "$cat_id[$y]<br>";
 					if ($bestil[$x] && (in_array ($cat_id[$y],$kategori[$x]) || count($cat_id)<1)) $udskrives[$y]=1;
 				}
 				$kp[$y]=strtolower($kp[$y]);
+#cho "$kp[$y]<br>";				
 				if (trim($kp[$y])=='box') {
 					$z=$y+1;
-					$filnavn="https://saldi.dk/kasse/K".$z."_".$_SERVER['REMOTE_ADDR'].".ip";
+					$filnavn="http://saldi.dk/kasse/K".$z."_".$_SERVER['REMOTE_ADDR'].".ip";
 #cho __line__." $filnavn<br>";
 					if ($fp=fopen($filnavn,'r')) {
 						$kp[$y]=trim(fgets($fp));
@@ -57,6 +62,14 @@ function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori) {
 				$fp=fopen("$pfnavn","w");
 				if ($y) fwrite($fp,"$kp[$y]\n");
 				if ($udskrives[$y]) {
+#					$txt = chr(27).'@'; # Initialize
+					$txt = chr(27).'R4'; # Denmark I
+#					$txt = chr(27).'R10'; # Denmark II
+						fwrite($fp,"$txt");
+					$txt = chr(27).'G1'; # s emphasized
+					fwrite($fp,"$txt");
+#					$txt = chr(29).chr(33).chr(12); # font size
+#					fwrite($fp,"$txt");
 					$txt=iconv($FromCharset, $ToCharset, "******   BESTILLING   ******");
 					while (strlen($txt)<40) $txt=" ".$txt." ";
 					fwrite($fp,"$txt\n");

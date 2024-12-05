@@ -143,10 +143,15 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 				} else {
 				 $nyfilnavn = $filnavn;
 				}
-				
+				$fase = (int)$fase;
 				$datotid=date('U');
-				db_modify("insert into bilag(navn,filtype,beskrivelse,datotid,assign_to,assign_id,kategori,fase,hvem,bilag_fase) values('".db_escape_string($nyfilnavn)."','".db_escape_string($filtype)."','".db_escape_string($beskrivelse)."','$datotid','sager','$kilde_id','$kategori','$fase','$ansat_navn','".db_escape_string($bilag_fase)."')",__FILE__ . " linje " . __LINE__);
-				$r=db_fetch_array(db_select("select max(id) as id from bilag where assign_to = 'sager' and datotid='$datotid'",__FILE__ . " linje " . __LINE__));
+				$qtxt = "insert into bilag(navn,filtype,beskrivelse,datotid,assign_to,assign_id,kategori,fase,hvem,bilag_fase) "; 
+				$qtxt.= "values ";
+				$qtxt.= "('".db_escape_string($nyfilnavn)."','".db_escape_string($filtype)."','".db_escape_string($beskrivelse)."',";
+				$qtxt.= "'$datotid','sager','$kilde_id','$kategori','$fase','$ansat_navn','".db_escape_string($bilag_fase)."')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$qtxt = "select max(id) as id from bilag where assign_to = 'sager' and datotid='$datotid'";
+				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$ny_id=$r['id']; // lægger 1 til ved hver gang den kører
 				if (!file_exists("../bilag/".$db."/".$kilde_id)) {
 					if (!file_exists("../bilag")) mkdir("../bilag",0777); 
@@ -192,7 +197,7 @@ if(($_GET['kilde_id'])||($_POST['kilde_id'])) {
 				}
 			}// her slutter løkke til opload 
 		}
-	} else upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase);
+	} else upload($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$fase,'','');
 }
 // Her updateres fase, kategori og bilag til bilag + tilknyt af arbejdsseddel
 if (isset($_POST['ret_bilag']) && $bilag_id) {

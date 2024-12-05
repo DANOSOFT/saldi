@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----/lager/varekort_includes/notesEtx.php----lap 4.0.8---2023-08-30-----
+// ----/lager/varekort_includes/notesEtx.php----lap 4.1.0---2024-05-31-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,11 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2020.11.22 PHR - Created this file from notes section of ../varekort.php
 // 17/05-2023 PBLM - Fixed made rental button work
 // 20230827 PHR - Changed $box8 to $stockItem
+// 20240527 MMK - Added Wolt intergration settings
 
 print "\n<!-- productCardIncludes/notesEtc.php start -->\n";
 
@@ -48,6 +49,7 @@ print "&nbsp;<input $readonly title='$title' class='inputbox' type=checkbox name
 if ($readonly) print "<input type=hidden name='samlevare' value='$samlevare'>";
 if ($lukket==0) print "<td>Udg&aring;et &nbsp;<input class='inputbox' type=checkbox name=lukket></td>";
 else print "<td>Udg&aring;et &nbsp;<input class='inputbox' type=checkbox name=lukket checked></td>";
+print "<td>Volt intergeret &nbsp;<input class='inputbox' type=checkbox name=volt></td>";
 print "</tbody></table></td></tr>\n";# <- Note tabel 
 print "<!-- varekort_includes/notesEtc.php end -->\n"; 
 

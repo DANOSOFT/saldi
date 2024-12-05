@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------finans/kontrolspor.php-------------lap 4.0.1-----2023-04-21-----
-// LICENSE
+// ----------finans/kontrolspor.php------ patch 4.0.7 --- 2023.03.04 ---
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -17,10 +17,10 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
-//
-// Copyright (c) 2003-2023 saldi.dk ApS
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20160226 PHR Diverse oprydning...
 // 20170424 PHR Medtager nu transaktioner selvom konto mangler i kontoplan.
@@ -48,6 +48,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
+include("../includes/topline_settings.php");
 
 $id = if_isset($_GET['id']);
 $kontonr = if_isset($_GET['kontonr']);
@@ -78,6 +79,8 @@ $projektnumre = if_isset($_GET['projektnumre']);
 $kassenumre = if_isset($_GET['kassenumre']);
 $beskrivelse = if_isset($_GET['beskrivelse']);
 $start = if_isset($_GET['start']);
+$valuta =  if_isset($_GET['valuta']);
+$valutakurs =  if_isset($_GET['valutakurs']);
 $csv =  if_isset($_GET['csv']);
 
 if (!isset ($_POST['submit'])) $_POST['submit'] = 0;
@@ -168,7 +171,29 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
+	print "<table width=100% height=100% cellpadding=\"0\" cellspacing=\"0px\" border=\"0\" valign = \"top\" align='center'> ";
+	print "<tr><td height = 25 align=center valign=top>";
+	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
+	print "<tr>";
+
+	print "<td width=10%>";
+
+	if ($popup) print "<a href=../includes/luk.php accesskey=L>
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+					   .findtekst(30,$sprog_id)."</button></a></td>";
+	else print "<a href=rapport.php accesskey=L>
+			    <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				.findtekst(30,$sprog_id)."</button></a></td>";
+
+	print "<td width=80% align='center' style='$topStyle'>".findtekst(905,$sprog_id)."</td>";
+
+	print "<td width=10%><a href=kontrolspor.php?csv=1&valg=$valg $hreftext' title=\"".findtekst(505,$sprog_id)."\">
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			CSV</button></a></td>";
+
+	print "</tr>\n";
+	print "</tbody></table></td></tr>";
+	print "<tr style='height: 10px;'><td>";
 } else {
 	print "<table width=100% height=100% cellpadding=\"0\" cellspacing=\"0px\" border=\"0\" valign = \"top\" align='center'> ";
 	print "<tr><td height = 25 align=center valign=top>";
@@ -219,7 +244,13 @@ print "<td align=right><b><a href='kontrolspor.php?nysort=kontonr&sort=$sort&val
 print "<td align=right><b><a href='kontrolspor.php?nysort=faktura&sort=$sort&valg=$valg$hreftext'>".findtekst(828,$sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=debet&sort=$sort&valg=$valg$hreftext'>".findtekst(1000,$sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kredit&sort=$sort&valg=$valg$hreftext'>".findtekst(1001,$sprog_id)."</a></b></td>";
-if($vis_projekt) print "<td align=right><b><a href='kontrolspor.php?nysort=projekt&sort=$sort&valg=$valg$hreftext'>".findtekst(533,$sprog_id)."</a></b></td>";
+if($vis_projekt) {
+		print "<td align=right><b>";
+		print "<a href='kontrolspor.php?nysort=projekt&sort=$sort&valg=$valg$hreftext'>".findtekst(533,$sprog_id)."";
+		print "</a></b></td>";
+}
+print "<td align=right><b>Valuta</b></td>";
+print "<td align=right><b>Valutakurs</b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kasse&sort=$sort&valg=$valg$hreftext'>".findtekst(931,$sprog_id)."</a></b></td>";
 print "<td align=center><b><a href='kontrolspor.php?nysort=beskrivelse&sort=$sort&valg=$valg$hreftext'>".findtekst(1203,$sprog_id)."</a></b></td>";
 print "</tr>\n";
@@ -242,6 +273,7 @@ print "<td align=\"right\"><span title= '".findtekst(1616, $sprog_id)."'><input 
 print "<td align=\"right\"><span title= '".findtekst(1617, $sprog_id)."'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:80px\" name=\"debetbelob\" value=\"$debetbelob\"></td>";
 print "<td align=\"right\"><span title= '".findtekst(1617, $sprog_id)."'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:80px\" name=\"kreditbelob\" value=\"$kreditbelob\"></td>";
 if ($vis_projekt) print "<td align=\"right\"><span title= '".findtekst(1618, $sprog_id)."'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:200px\" name=\"projektnumre\" value=\"$projektnumre\"></td>";
+print "<td></td><td></td>";
 print "<td align=\"right\"><span title= '".findtekst(1619, $sprog_id)."'><input class=\"inputbox\" type=\"text\" style=\"text-align:right;width:50px\" name=\"kassenumre\" value=\"$kassenumre\"></td>";
 print "<td><span title= '".findtekst(1620, $sprog_id)."'><input class=\"inputbox\" type=\"text\"  style=\"text-align:left;width:100%\" name=beskrivelse value=\"$beskrivelse\"></td>"; #20210721
 print "<td><input class='button green small' type=submit value=\"OK\" name=\"submit\"></td>";
@@ -259,6 +291,17 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 	global $rettigheder;
 	global $csv;
 	global $sprog_id; #20210709
+
+	$currencyNo[0]   = 0;
+	$currencyName[0] = 'DKK';
+	$i = 1;
+	$qtxt = "select * from grupper where art = 'VK' order by kodenr";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$currencyNo[$i]   = $r['kodenr'];
+		$currencyName[$i] = $r['box1'];
+		$i++;
+	}
 
 	if ($sort=='id') $sort='transaktioner.id';
 	$ret_projekt=substr($rettigheder,1,1);
@@ -338,6 +381,16 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 		$faktura[$z]=$r['faktura'];
 		$kontonr[$z]=$r['kontonr'];
 		$kasse[$z]=$r['kasse_nr'];
+		$valuta[$z] = (int)$r['valuta'];
+		$kurs[$z]   = (float)$r['valutakurs'];
+		if ($valuta[$z] == 0) {
+			$valuta[$z] = $currencyName[0];
+			$kurs[$z]   = 100;
+		} else {
+			for ($i = 1; $i < count($currencyNo); $i++) {
+				if ($valuta[$z] == $currencyNo[$i]) $valuta[$z] = $currencyName[$i];
+			}
+		}
 		$z++;
 	}
 	if (!isset ($id)) $id = NULL;
@@ -421,6 +474,8 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 								($ret_projekt)?$tmp="<a href=\"../includes/ret_transaktion.php?id=$row[id]&felt=projekt\">$row[projekt]</a>":$tmp=$row['projekt'];
 								print "<td align=\"right\" title=\"$title\">$tmp<br></td>";
 							}
+							print "<td align=\"right\">$valuta[$z]<br></td>";
+							print "<td align=\"right\">$kurs[$z]<br></td>";
 							print "<td align=\"right\">$kasse[$z]<br></td>";
 							print "<td colspan='2'> &nbsp; $transtxt[$z]<br></td>";
 							print "</tr>\n";

@@ -35,8 +35,9 @@
 // 20220618 PHR Changed 'language' and 'language_id' to 'languageId'
 // 20230726 LOE Minor modification
 
+
 $regnskab=''; $brugernavn=''; $kode=''; $languageId=''; 
-$css="../css/login.css";
+$css="../css/login.css?v=2";
 if(file_exists("../includes/connect.php")){
 	if (filesize("../includes/connect.php") < 10) unlink ("../includes/connect.php"); 
 }
@@ -57,7 +58,6 @@ include("../includes/db_query.php");
 #include("../includes/online.php"); #20210929
 include("../includes/std_func.php");
 $hm=$rs=$bn=null; #20211007
-
 
 print "
 <script>
@@ -106,8 +106,6 @@ if (!isset($_POST['fejltxt']) && isset($_POST['regnskab']) && isset($_POST['brug
 	print "</form>";
 	exit;
 }
-
-
 if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
 if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
 if (isset ($_GET['tlf'])) $kode = stripslashes($_GET['tlf']);
@@ -160,13 +158,16 @@ elseif (!file_exists("../sager/sager.php")) $host="SALDI";
 if (file_exists("bg.php")) include ("bg.php");
 
 else $style=''; 
-print "<body $style>\n";
-print "	<div id=\"main\">\n";    				
-print "		<div class=\"loginHolder\">\n";
-print "			<div class=\"loginBox\">\n";
-print "				<div class=\"loginForm\">\n";    
-print "				<form method=\"POST\" action=\"index.php\">\n";
-print "				<select id=\"languageId\" name=\"languageId\" onchange=\"this.form.submit();\" >\n";
+print "<body>\n";
+print " <div id=\"main\">\n";
+print "         <div class=\"loginHolder\">\n";
+print "                 <div class=\"loginBox\">\n";
+print "                         <div class=\"loginForm\">\n";
+print "                         <a href='https://saldi.dk'><img class=\"logoimg\" src='../img/Saldi_Main_Logo.png' width='100px'></a>\n";
+print "                         <form method=\"POST\" action=\"index.php\">\n";
+print "                         <div class='loginAction'>\n";
+print "                                 <h2>Login</h2>\n";
+print "                                 <select id=\"languageId\" name=\"languageId\" onchange=\"this.form.submit();\" >\n";
 
 
 $fp = fopen("../importfiler/tekster.csv","r");
@@ -185,6 +186,7 @@ print "<option value=\"$x\">". findtekst(1,$x) ."</option>\n";
 }
 }
 print "</select>\n";
+print "                         </div>\n";
 print "</form>\n";
 
 print "					<form name=\"login1\" METHOD=\"POST\" ACTION=\"index.php\" onSubmit=\"return handleLogin(this);\">\n";
@@ -218,11 +220,12 @@ if (strtolower($sqdb)=='rotary') {
 	print "<label style=\"text-align:center;font-size:12px;\">".findtekst(325,$sprog_id)."</label>\n";
 }
 
-print "					</form>\n";
-print "				</div><!-- end of loginForm -->\n";
-print "			</div><!-- end of loginBox -->\n";
-print	"		</div><!-- end of loginHolder -->\n";
-print "	</div><!-- end of main -->\n";
+print "                                 </form>\n";
+print "                         </div><!-- end of loginForm -->\n";
+print " <div id=\"footer\"><p>Copyright&nbsp;&copy;&nbsp; - $copyright</p></div>\n";
+print "                 </div><!-- end of loginBox -->\n";
+print   "               </div><!-- end of loginHolder -->\n";
+print " </div><!-- end of main -->\n";
 include ("../includes/version.php");
 print "	<div id=\"footer\"><p>Copyright&nbsp;&copy;&nbsp; - $copyright</p></div>\n";
 

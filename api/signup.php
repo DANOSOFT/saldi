@@ -1,6 +1,6 @@
 <?php
 
-// --- mysale/signuop.php --- lap 4.0.6 --- 2022.08.19---
+// --- mysale/signup.php --- lap 4.0.6 --- 2022.08.19---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,8 +39,9 @@ $fakturanr=if_isset($_GET['fakturanr']);
 
 $brugernavn='quickpay';
 $password = '686327';
+$regnskab = 'LoppeKlubben';
 
-$title='kortbetaling';
+$title='SignUp';
 
 print "<html><head>
 					<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />

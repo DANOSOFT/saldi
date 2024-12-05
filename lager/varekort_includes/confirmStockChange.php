@@ -22,7 +22,6 @@
 //
 // Copyright (c) 2020-2020 saldi.dk aps
 // ----------------------------------------------------------------------
-echo "XXXXXX";
 print "<script Language=\"JavaScript\">\n";
 print "	<!--\n";
 print "	function Form_Validator(confirmStockChange) {\n";

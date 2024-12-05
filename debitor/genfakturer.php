@@ -119,7 +119,6 @@ if ($_POST) {
 
 		$udskriv_antal=0;
 		$ny_liste='';
-		print "<script>javascript:document.body.style.cursor = 'wait';</script>";
 		for ($q=0; $q<$ordre_antal; $q++) {
 			list($id,$pbs)=explode(",",genfakt($ordre_id[$q],$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$regnaar));
 
@@ -127,7 +126,6 @@ if ($_POST) {
 				levering($id,'on','on');
 				$svar=bogfor($id,'on','on');
 				if ($svar != 'OK') {
-					print "<script>javascript:document.body.style.cursor = 'default';</script>";
 					if (strpos($svar,'invoicedate prior to')) $tekst="Genfaktureringsdato før fakturadato";
 					else $tekst="Der er konstateret en ubalance i posteringssummen,\\nkontakt venligst Danosoft på tlf. +45 46902208";
 					print "<BODY onLoad=\"javascript:alert('$tekst')\">\n";
@@ -145,8 +143,7 @@ if ($_POST) {
 				else $udskriv ="$id";
 				$udskriv_antal++;	
 			}
-		}
-		print "<script>javascript:document.body.style.cursor = 'default';</script>";
+		} 	
 	}
 	if ($udskriv && $komplet) print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=-1&ordre_antal=$udskriv_antal&skriv=$udskriv&formular=4' , '' , ',statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes, location=1');\">";
 	else {
@@ -169,6 +166,7 @@ if ($_POST) {
 }
 	
 function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$regnaar) {
+	
 	transaktion('begin');
 	if ($r=db_fetch_array(db_select("select * from ordrer where id = $id",__FILE__ . " linje " . __LINE__))){
 		$pbs=$r['pbs'];
@@ -236,8 +234,7 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 				$r2=db_fetch_array(db_select("select varenr,gruppe from varer where id='$r[vare_id]'",__FILE__ . " linje " . __LINE__));
 				$gruppe=$r2['gruppe'];
 				$varenr=$r2['varenr'];
-				$qtxt = "select box4,box7 from grupper where art='VG' and kodenr='$gruppe' and fiscal_year='$regnaar'";
-				$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				$r2=db_fetch_array(db_select("select box4,box7 from grupper where art='VG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
 				$bogfkto = $r2['box4'];
 				$momsfri=$r2['box7'];
 				if ($opdat_pris) {
@@ -263,7 +260,7 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 					$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					if ($tmp=trim($r2['moms'])) { # f.eks S3
 						$tmp=substr($tmp,1); #f.eks 3
-						$qtxt="select box1,box2 from grupper where art = 'SM' and kodenr = '$tmp' and fiscal_year='$regnaar'";
+						$qtxt="select box1,box2 from grupper where art = 'SM' and kodenr = '$tmp'";
 						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						if ($r2['box1']) $vatAccount=$r2['box1']*1;
 						if ($r2['box2']) $varemomssats=$r2['box2']*1;

@@ -1,4 +1,4 @@
-<?php
+		<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -165,11 +165,13 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	$low = str_replace('Æ','æ',$low);
 	$low = str_replace('Ø','ø',$low);
 	$low = str_replace('Å','å',$low);
+	$low = str_replace('É','é',$low);
 	$low = db_escape_string($low);
 	$up = strtoupper($regnskab);
 	$up = str_replace('æ','Æ',$up);
 	$up = str_replace('ø','Ø',$up);
 	$up = str_replace('å','Å',$up);
+	$up = str_replace('é','É',$up);
 	$up = db_escape_string($up);
 
 	$qtxt = "select * from regnskab where regnskab = '$asIs' or lower(regnskab) = '$low' or upper(regnskab) = '$up'";
@@ -249,8 +251,18 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 	#		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
 	#	}
 	$asIs = db_escape_string($brugernavn);
-	$low  = mb_strtolower($asIs);
-	$up   = mb_strtoupper($asIs);
+	$low = strtolower($brugernavn);
+	$low = str_replace('Æ','æ',$low);
+	$low = str_replace('Ø','ø',$low);
+	$low = str_replace('Å','å',$low);
+	$low = str_replace('É','é',$low);
+	$low = db_escape_string($low);
+	$up = strtoupper($brugernavn);
+	$up = str_replace('æ','Æ',$up);
+	$up = str_replace('ø','Ø',$up);
+	$up = str_replace('å','Å',$up);
+	$up = str_replace('é','É',$up);
+	$up = db_escape_string($up);
 	$qtxt = "select * from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
 	$qtxt.= "and db = '$db' and session_id != '$s_id'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -322,8 +334,18 @@ if (isset ($brug_timestamp)) {
 	$userId=$r['id'];
 } else {
 	$asIs = db_escape_string($brugernavn);
-	$low  = mb_strtolower($asIs);
-	$up   = mb_strtoupper($asIs);
+	$low = strtolower($brugernavn);
+	$low = str_replace('Æ','æ',$low);
+	$low = str_replace('Ø','ø',$low);
+	$low = str_replace('Å','å',$low);
+	$low = str_replace('É','é',$low);
+	$low = db_escape_string($low);
+	$up = strtoupper($brugernavn);
+	$up = str_replace('æ','Æ',$up);
+	$up = str_replace('ø','Ø',$up);
+	$up = str_replace('å','Å',$up);
+	$up = str_replace('é','É',$up);
+	$up = db_escape_string($up);
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = $r['brugernavn'];
@@ -358,7 +380,6 @@ if (isset ($brug_timestamp)) {
 		}
 	}
 }
-
 if (!$dbMail && $db != $sqdb) {
 	$qtxt = "select email from adresser where art = 'S'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -428,7 +449,8 @@ if(!isset($afbryd)){
 			db_modify("delete from online where brugernavn = '".db_escape_string($brugernavn)."' and db = '$db' and session_id != '$s_id'",__FILE__ . " linje " . __LINE__);
 			include("../includes/online.php");
 		}
-		if (1==1) {
+echo __line__."<br>";
+		if (1==2) {
 			$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&globalId=$globalId&dbName=$db&dbMail=$mainMail";
 			$url.= "&dbAlias=". urlencode($regnskab) ."&dbLocation=$dbLocation&userId=$userId&userName=". urlencode($brugernavn);
 			$url.= "&usermail=". urlencode($usermail);;
@@ -454,7 +476,9 @@ if(!isset($afbryd)){
 				}
 			}
 		}
-		if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
+#echo __line__."<br>";
+#			if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
+#echo __line__."<br>";
 #		transtjek();
 		}
 		if (file_exists("../utils/rotary_addrsync.php") && is_numeric($regnskab) && !file_exists("../temp/$db/rotary_addrsync.txt")) {
@@ -465,7 +489,9 @@ if(!isset($afbryd)){
 		}
 		hent_shop_ordrer(0,'');
 #if (!$sag_rettigheder&&$rettigheder) print "<meta http-equiv=\"refresh\" content=\"0;URL=sidemenu.php\">";
+#echo __line__."<br>";
 if (!$sag_rettigheder&&$rettigheder) {
+#echo __line__."<br>";
 		##########################
 	    $restricted=null; #20211018
 			$ip = get_ip(); #20211015

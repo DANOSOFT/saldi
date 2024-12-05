@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 4.0.7 --- 2023.03.04 ---
-//                           LICENSE
+// --------------------finans/bogfor.php------ lap 4.0.7 -- 2022-10-18 -----
+// LICENS
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -17,10 +17,10 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
-// See GNU General Public License for more details.
-// http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2003-2022 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20121122 - Åbne poster udlignes ikke mere automatisk hvis forskelligt projektnummer. Søg 20121122
 // 20130210 - Break ændret til break 1
@@ -47,8 +47,6 @@
 // 20201205 PHR Lots of cleanup and rewriting of currency diff. handling
 // 20210319 LOE - Translated some of these texts from Danish to English
 // 20221018	PHR - Some cleanup.
-// 20230324	PHR - Correted errors in 'findtekst' (wrong text ID) 
-// 20230626 PHR - Moved this part into 'if ($r = db_fetch_array($q)) {' from below as amount was aligned
 
 @session_start();
 $s_id=session_id();
@@ -67,6 +65,8 @@ include("../includes/genberegn.php");
 
 genberegn($regnaar);
 
+$showDate = if_isset($_GET['showDate']);
+#if ($showDate) $showDate=usdate($showDate); 
 $funktion=if_isset($_GET['funktion']);
 $kladde_id=if_isset($_GET['kladde_id']);
 if (($_POST) && ($_POST['kladde_id'])) $kladde_id = $_POST['kladde_id'];
@@ -112,12 +112,12 @@ if ($menu=='T') {
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
+	print "<div id=\"header\"> 
+			<div class=\"headerbtnLft\"></div>
+			<span class=\"headerTxt\">$overskrift</span>";     
+	print "<div class=\"headerbtnRght\"></div>";       
+	print "</div><!-- end of header -->
+		<div class=\"maincontentLargeHolder\">\n";
 } else {
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -380,18 +380,19 @@ print "<form name=kassekladde action=bogfor.php?funktion=$funktion method=post>"
 if ($funktion=='bogfor') {
 	$query = db_select("select kladdenote from kladdeliste where id=$kladde_id",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	print "<td align=center valign=\"top\" height=10px><center><b><font face=\"Helvetica, Arial, sans-serif\">Bem&aelig;rkning:&nbsp;</b><input type=text size=95 name=kladdenote value='$row[kladdenote]'></center></td>";
+	print "<td align=center valign=\"top\" height=10px><b><font face=\"Helvetica, Arial, sans-serif\">Bem&aelig;rkning:&nbsp;</b><input type=text size=95 name=kladdenote value='$row[kladdenote]'></td>";
 	print "</tr><tr><td height=10px><hr></td></tr>";
 }
 $d_sum=0; $k_sum=0;
-print "<tr><td align = center valign=\"top\"><center><table class='dataTableSmall' border=1 cellspacing=0 cellpadding=0><tbody>";
-print "<tr><td colspan=\"6\" class='tableHeader'><b>".findtekst(1088,$sprog_id)."</b></td></tr>
+print "<tr><td align = center valign=\"top\"><table class='dataTable2' border='1' bordercolor = '#cfcfcf' cellspacing='2' cellpadding='0'><tbody>";
+print "<tr><td colspan=\"6\" class='tableHeader'><b>".findtekst(1088,$sprog_id)."<!-- text 1088 --></b></td></tr>
 	<tr><td class='tableText'>$font ".findtekst(440,$sprog_id)."</td>
 	<td class='tableText'>$font ".(findtekst(914,$sprog_id))."</td>
-	<td align=\"center\" class='tableText'>$font ".findtekst(1073,$sprog_id)."</td>
-	<td align=\"center\" class='tableText'>$font ".ucfirst(findtekst(1000,$sprog_id))."</td>
-	<td align=\"center\" class='tableText'>$font ".ucfirst(findtekst(1001,$sprog_id))."</td>
-	<td align=\"center\" class='tableText'>$font ".findtekst(39,$sprog_id)." ".lcfirst(findtekst(1073,$sprog_id))."</td></tr>";
+	<td align=\"center\" class='tableText'>$font ".findtekst(1073,$sprog_id)."<!-- text 1073 --></td>
+	<td align=\"center\" class='tableText'>$font ".ucfirst(findtekst(1000,$sprog_id))."<!-- text 1000 --></td>
+	<td align=\"center\" class='tableText'>$font ".ucfirst(findtekst(1001,$sprog_id))."<!-- text 1000 --></td>
+	<td align=\"center\" class='tableText'>
+	$font ".findtekst(39,$sprog_id)." ".lcfirst(findtekst(1073,$sprog_id))."<!-- text 1073 --></td></tr>";
 for ($y=0; $y<$kontoantal; $y++) {
 	$d_sum=$d_sum+afrund($kontodebet[$y],2);
 	$k_sum=$k_sum+afrund($kontokredit[$y],2);
@@ -515,12 +516,18 @@ if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
 	$fejl=1; #20140228
 }
 if (!$fejl) { #20140228
-	$query = db_select("select * from kladdeliste where id = $kladde_id and bogfort = 'V'",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from kladdeliste where id = '$kladde_id' and bogfort = 'V'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		print "Kladden er bogf&oslash;rt!";
 		genberegn($regnaar);
 		exit;	
 	}
+	$qtxt = "select max(transdate) as maxdate from kassekladde where kladde_id = '$kladde_id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$maxDate = $r['maxdate'];
+	($showDate)?$oppDate = $showDate: $oppDate = $maxDate;
+	if ($oppDate > $regnslut) $oppDate = $regnslut; 
+	
 	for ($x=1;$x<=$debitorantal;$x++) {
 		$debitordebet[$x]=0;
 		$debitorkredit[$x]=0;
@@ -532,7 +539,7 @@ if (!$fejl) { #20140228
 		$debitor_id[$x]=$r['id']*1;
 		$debitor_navn[$x]=$r['firmanavn'];
 		$debitor_pre[$x]=0;
-		$q=db_select("select amount,valutakurs from openpost where konto_id='$debitor_id[$x]' and transdate<='$regnslut'",__FILE__ . " linje " . __LINE__);
+		$q=db_select("select amount,valutakurs from openpost where konto_id='$debitor_id[$x]' and transdate<='$oppDate'",__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
 			if ($r['valutakurs']) $debitor_pre[$x]+=afrund($r['amount']*$r['valutakurs']/100,2);
 			else $debitor_pre[$x]+=afrund($r['amount'],2);
@@ -542,7 +549,15 @@ if (!$fejl) { #20140228
 	}
 
 	if ($debitorantal) {
-		print "<tr><td colspan=\"6\" class='tableHeader'><b>Debitorbev&aelig;gelser</b></td></tr>";
+		print "<tr><td colspan=\"3\" class='tableHeader'><b>Debitorbev&aelig;gelser pr ".dkdato($oppDate)."</b></td>";
+		print "<td colspan=\"3\" align = 'center'>";
+		if ($oppDate == $showDate) {
+			print "<a href = 'bogfor.php?kladde_id=$kladde_id&funktion=$funktion'>";
+			print " Vis pr bogføringdato</a></td></tr>";
+		} else {
+			print "<a href = 'bogfor.php?kladde_id=$kladde_id&funktion=$funktion&showDate=".date('Y-m-d')."'>";
+			print " Vis pr dd</a></td></tr>";
+		}
 		print "<tr><td class='tableText'>$font Konto</td>
 			<td class='tableText'>$font Beskrivelse</td>
 			<td align=\"center\" class='tableText'>$font Saldo</td>
@@ -629,7 +644,7 @@ if (!$fejl) { #20140228
 		}
 		print "<tr><td colspan=6 class='tableHeader'><br></td></tr><tr><td colspan=6 align=center><input class='button green medium' type=submit $onclick accesskey=\"b\" value=\"Bogf&oslash;r\" name=\"bogfor\"> <input class='button red medium' type=submit accesskey=\"l\" value=\"".findtekst(30,$sprog_id)."\" name=\"luk\"></td></tr>";
 	} else {
-		print "<tr><td colspan=6 class='tableHeader'><br></td></tr><tr><td colspan=6 align=center><input class='button gray medium' type=submit $onclick accesskey=\"b\" value=\"".findtekst(1085,$sprog_id)." ".findtekst(1086,$sprog_id)."\" name=\"simuler\"> <input class='button red medium' type=submit accesskey=\"l\" value=\"".findtekst(30,$sprog_id)."\" name=\"luk\"></td></tr>";
+		print "<tr><td colspan=6 class='tableHeader'><br></td></tr><tr><td colspan=6 align=center><input class='button white medium' type=submit $onclick accesskey=\"b\" value=\"".findtekst(1085,$sprog_id)." ".findtekst(1086,$sprog_id)."\" name=\"simuler\"> <input class='button red medium' type=submit accesskey=\"l\" value=\"".findtekst(30,$sprog_id)."\" name=\"luk\"></td></tr>";
 	}
 	print "</form>";
 }
@@ -993,6 +1008,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			} 
 		}
 	}
+	
 	if (abs($tjeksum)<=0.01) { # && $transtjek==$transantal){
 		$dato=date("Y-m-d");
 		if ($simuler) {
@@ -1034,56 +1050,30 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	$dato=date("Y-m-d");
 	$belob=$amount*-1;
 	$debet=str_replace(" ","",$debet);
-	$qtxt = "select id from adresser where kontonr = '$debet' and art ='$art'";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while($row = db_fetch_array($q)){
+	$query = db_select("select id from adresser where kontonr = '$debet' and art ='$art'",__FILE__ . " linje " . __LINE__);
+	while($row = db_fetch_array($query)){
 		$konto_id=$row['id'];
 		$query = db_select("select MAX(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) $udlign_id=$row['udlign_id']+1;
 # -> 2009.05.04		
 		$min=$belob-0.005; 
 		$max=$belob+0.005;
-		if (strpos($faktura,";")) {
-			$invoices = explode(';',$faktura);
-		} else $invoices[0] = $faktura; 
-		
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
-		if ($udlign_date<$transdate) $udlign_date=$transdate;
-		for ($x=0;$x<count($invoices);$x++) {
-			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and projekt='$projekt' and udlignet!='1' and ";
-			$qtxt.= " faktnr='$invoices[$x]'";
-			if (count($invoices) == 1) $qtxt.= " and amount >= '$min' and amount < '$max'";  
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($r = db_fetch_array($q)) {
+		$query = db_select("select id,transdate from openpost where konto_id='$konto_id' and faktnr='$faktura' and projekt='$projekt' and amount >= '$min' and amount < '$max' and udlignet!='1'",__FILE__ . " linje " . __LINE__);
+		if ($row = db_fetch_array($query)) {
 # $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-				$udlign_date=$r['transdate'];
-				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
-				$qtxt.= "where id = '$r[id]'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				// 20230626 -->
-				$qtxt = "insert into openpost
-				(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
-				if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
-				$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) "; 
-				$qtxt.= "values ";
-				$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id',";
-				if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-				$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projekt')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$udlignet=1;
-				// <-- 20230626
-			}
+			$udlign_date=$row['transdate'];
+			if ($udlign_date<$transdate) $udlign_date=$transdate;
+			db_modify("update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
+			if ($forfaldsdate) db_modify("insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,transdate,udlign_id,bilag_id,valuta,valutakurs,forfaldsdate,betal_id,projekt)values('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id', '$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$forfaldsdate','$betal_id','$projekt')",__FILE__ . " linje " . __LINE__);
+			else db_modify("insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,transdate,udlign_id,bilag_id,valuta,valutakurs,projekt)values('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id', '$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projekt')",__FILE__ . " linje " . __LINE__);
+			$udlignet=1;
 		}
 	}
-	if ($udlignet<1) {
+	if ($udlignet<1)	{
 		if ($faktura=="-") $faktura="";
-		$qtxt = "insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,";
-		if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
-		$qtxt.= "bilag_id,valuta,valutakurs,projekt)";
-		$qtxt.= " values ('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id',";
-		if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projekt')";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		if ($forfaldsdate) db_modify("insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,bilag_id,valuta,valutakurs,forfaldsdate,betal_id,projekt)values('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id','$bilag_id','$valuta','$valutakurs','$forfaldsdate','$betal_id','$projekt')",__FILE__ . " linje " . __LINE__);
+		else db_modify("insert into openpost (konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,transdate,kladde_id,bilag_id,valuta,valutakurs,projekt)values('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id','$bilag_id','$valuta','$valutakurs','$projekt')",__FILE__ . " linje " . __LINE__);
 	}
 }
 ######################################################################################################################################
@@ -1217,9 +1207,4 @@ function valutaopslag($amount, $valuta, $transdate)
 }
 ######################################################################################################################################
 
-if ($menu=='T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
-}
 ?>

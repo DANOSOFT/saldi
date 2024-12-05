@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="105"
+   name=""
+   committed-date="2006-06-26T14:04:58.038001Z"
+   url="http://lue.dk/svn/saldi/trunk/phpmailer/language"
+   last-author="ca"
+   kind="dir"
+   uuid="1132dd7b-f30e-0410-8cb5-98fd4e5af904"
+   repos="http://lue.dk/svn/saldi"
+   revision="124"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-ja.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="6f9eb63106e972b7ff9f9d605f88030f"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-dk.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="595844e5dea306bf33a7599e0622e88f"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-fi.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="22440d4dc78d5c9b0c94475360dafd42"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-en.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="b7f236cc4933f80627057b537d69c74b"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-br.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="01cc0199b21677f3d4fac265deb75311"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-fo.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="ef4c9133d2f47e2e465503166eade122"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-fr.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="2a143194226f77e814ad357f3d5c2bb5"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-se.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="d937f894dc6026fbc293f125eb11d8f4"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-es.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="20126e773e7242c938ad7d6e34cc49f9"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-nl.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="b081c76bb1c902db179a5f73c176e749"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-pl.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="834df6074d44f33ba44bcf91c9469757"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-no.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="bc9d95f1f4f38b11e0eda438fc0ff23c"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-hu.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="56a65279fafead7f94bc2b0466bf45d6"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-it.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="6c28a179271876cf6071dcb3fbb1f0a6"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-cz.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="fbca852177fe138c18b123281198d09f"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-ro.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="4dfc224b33a96f5b97f0469c6b4f9122"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-ca.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="d0c1fb638b0e007196fbe8011eb99eb2"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-tr.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="c3f082577ca0065526cedceea0335c55"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:24.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-ru.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="03a3fb1d9c5df60c3db46039e48e0aac"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:25.000000Z"/>
+<entry
+   committed-rev="105"
+   name="phpmailer.lang-de.php"
+   text-time="2006-10-03T10:40:25.000000Z"
+   committed-date="2006-06-26T14:04:58.038001Z"
+   checksum="963e3b2d382fbd5a43b5a6410c47496f"
+   last-author="ca"
+   kind="file"
+   prop-time="2006-10-03T10:40:25.000000Z"/>
+</wc-entries>
