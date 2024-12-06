@@ -1,0 +1,350 @@
+This is an unofficial translation of the GNU General Public License
+into danish. It was not published by the Free Software Foundation, and
+does not legally state the distribution terms for software that uses the
+GNU GPL--only the original English text of the GNU GPL does that (see: 
+http://www.fsf.org/copyleft/gpl.html). However, we hope that this 
+translation will help danish speakers understand the GNU GPL better.
+
+Dette er en uofficiel dansk oversï¿½ttelse af GNU General
+Public License. Denne oversï¿½ttelse er ikke offentliggjort af
+Free Software Foundation og er ikke en juridisk beskrivelse af
+forhold, der gï¿½r sig gï¿½ldende for software distribueret under GNU GPL --
+det er kun den originale engelske version af GNU GPL (se: 
+http://www.fsf.org/copyleft/gpl.html). Det er dog vores hï¿½b, at denne 
+oversï¿½ttelse vil hjï¿½lpe dansktalende til at forstï¿½ GNU GPL bedre.
+
+-------------------------------------------------------------------------
+
+Denne oversï¿½ttelse vedligeholdes af Christian Hansen 
+<chrsen@fundanemt.com>
+Sidst ï¿½ndret 20020716
+
+=========================================================================
+
+                    GNU GENERAL PUBLIC LICENSE
+                      2. version, juni 1991
+
+Copyright (C) 1989, 1991 Free Software Foundation, Inc.
+59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+
+Enhver har tilladelse til at kopiere og distribuere ordrette
+eksemplarer af dette licensdokument, men det er ikke tilladt at ï¿½ndre
+det.
+
+                            Forord
+
+De fleste licenser pï¿½ software har til formï¿½l at fjerne Deres ret
+til at dele softwaren med andre og ï¿½ndre i det. I modsï¿½tning hertil
+har GNU General Public License til formï¿½l at garantere Deres ret til
+at dele og ï¿½ndre frit software - for at sikre, at det pï¿½gï¿½ldende
+software er tilgï¿½ngeligt for alle brugere. Denne licens, General
+Public License, er gï¿½ldende for stï¿½rstedelen af Free Software
+Foundations software samt for ethvert andet program, hvis ophavsmï¿½nd
+ï¿½nsker at anvende licensen. (En del af Free Software Foundations
+programmer er i stedet omfattet af "The GNU Library General Public
+License".) De kan ogsï¿½ anvende licensen til Deres programmer.
+
+Vi taler om frit software - ikke gratis software. Dvs. vi taler om
+frihedsgraden, og ikke om prisen. Vores licenser, General Public
+Licenses, er udarbejdet med henblik pï¿½ at sikre Deres frihed til at
+distribuere kopier af frit software (og evt. tage betaling for denne
+ydelse) og at sï¿½rge for, at De modtager den pï¿½gï¿½ldende kildetekst
+eller kan fï¿½ den, hvis De vil; at De kan ï¿½ndre softwaren eller bruge
+dele af det til nye programmer; og at De er klar over, at De har
+disse rettigheder.
+
+For at beskytte Deres rettigheder er vi nï¿½dt til at lave
+restriktioner, der forbyder andre at nï¿½gte Dem disse rettigheder
+eller krï¿½ve, at De afstï¿½r disse rettigheder. Disse restriktioner
+indebï¿½rer visse forpligtelser for Dem, hvis De distribuerer kopier af
+softwaren eller ï¿½ndrer det.
+
+Hvis De f.eks. distribuerer kopier af et sï¿½dant program, enten
+gratis eller mod gebyr, er De forpligtet til at give modtagere alle
+de rettigheder, som De selv har. De skal sikre, at ogsï¿½ modtagerne
+fï¿½r eller kan fï¿½ fat pï¿½ kildeteksten. Desuden er De forpligtet til,
+at vise modtagerne disse betingelser, sï¿½ de ogsï¿½ er bekendt med deres
+rettigheder.
+
+Vi beskytter Deres rettigheder med en totrinsmodel: (1) vi tager
+ophavsret pï¿½ softwaren og (2) vi tilbyder Dem denne licens, der giver
+Dem juridisk ret til at kopiere, distribuere og/eller ï¿½ndre
+softwaren.
+
+Desuden vil vi med henblik pï¿½ at beskytte os selv og de enkelte
+softwareproducenter sikre os, at alle er bekendte med, at der ikke
+ydes nogen garanti pï¿½ dette frie software. Hvis programmet er ï¿½ndret
+af en anden og givet videre, vil vi have, at modtagerne skal vide, at
+deres version ikke er det originale program. Sï¿½ledes undgï¿½r vi, at
+eventuelle problemer indarbejdet af andre ikke skader de oprindelige
+softwareproducenters ry.
+
+Endelig er ethvert frit program under konstant trussel fra
+softwarepatenter. Vi ï¿½nsker at undgï¿½ faren for, at de, der
+videregiver et frit program, personligt udtager patentlicens, hvorved
+programmet faktisk bliver beskyttet af ophavsret. For at undgï¿½ dette
+har vi gjort det klart, at ethvert patent skal registreres til alles
+frie afbenyttelse eller slet ikke registreres.
+
+Nedenfor fï¿½lger de betingelser og vilkï¿½r, der gï¿½lder i forhold til
+at kopiere, distribuere og ï¿½ndre software under General Public License.
+
+
+   BETINGELSER OG VILKï¿½R FOR KOPIERING, DISTRIBUTION OG ï¿½NDRING AF
+                SOFTWARE UNDER GENERAL PUBLIC LICENSE
+
+0. Denne licens gï¿½lder for ethvert program eller andet vï¿½rk, som
+   ved siden af navnet pï¿½ ophavsretindehaveren har en meddelelse om, at
+   det pï¿½gï¿½ldende produkt mï¿½ distribueres under de gï¿½ldende betingelser
+   for denne General Public License. I det fï¿½lgende henviser ordet
+   "Program" til ethvert sï¿½dant program eller vï¿½rk, og et "Vï¿½rk baseret
+   pï¿½ Programmet" betegner enten Programmet eller ethvert afledt vï¿½rk i
+   henhold til lovgivningen om ophavsret. Det betyder med andre ord et
+   vï¿½rk, der indeholder Programmet eller en del af det, enten ordret
+   eller ï¿½ndret og/eller oversat til et andet sprog. (I det fï¿½lgende
+   omfattes oversï¿½ttelser, uden begrï¿½nsninger, af termen "ï¿½ndring".)
+   Enhver licenstager tiltales som "De".
+   
+   Aktiviteter ud over kopiering, distribution og ï¿½ndring er ikke dï¿½kket
+   af denne licens men falder uden for dens omrï¿½de. Der er ingen
+   restriktioner pï¿½ at kï¿½re Programmet, og outputtet fra Programmet er
+   kun omfattet, hvis indholdet heraf udgï¿½r et Vï¿½rk baseret pï¿½
+   Programmet (uafhï¿½ngigt af at vï¿½re blevet lavet ved at kï¿½re
+   Programmet). Om dette er tilfï¿½ldet, afhï¿½nger af, hvad Programmet gï¿½r.
+
+1. De har ret til at kopiere og distribuere ordrette kopier af
+   Programmets kildetekst, sï¿½ledes som De har modtaget den, i ethvert
+   medium, under forudsï¿½tning af, at alle kopier tydeligt og pï¿½ behï¿½rig
+   vis forsynes med en passende ophavsretmeddelelse og
+   garantifraskrivelse; at alle meddelelser, der refererer til denne
+   licens og den manglende garanti, bibeholdes; og at en kopi af denne
+   licens vedlï¿½gges, nï¿½r De distribuerer Programmet.
+   
+   De har ret til at tage et gebyr for den fysiske handling at overfï¿½re
+   en kopi, og De kan eventuelt tilbyde garantibeskyttelse mod et gebyr.
+
+2. De har ret til at ï¿½ndre Deres kopi eller kopier, eller en
+   hvilken som helst del deraf, hvorved der skabes et Vï¿½rk baseret pï¿½
+   Programmet, samt ret til at kopiere og distribuere sï¿½danne ï¿½ndringer
+   eller vï¿½rk i henhold til paragraf 1 ovenfor, forudsat De ogsï¿½
+   opfylder fï¿½lgende betingelser:
+   
+     a. De er forpligtet til at sikre, at de ï¿½ndrede filer har en
+        tydelig meddelelse om, at De har foretaget ï¿½ndringer i
+        filerne samt datoen herfor.
+
+     b. De er forpligtet til at sikre, at ethvert vï¿½rk, som De
+        distribuerer eller offentliggï¿½r, der helt eller delvis
+        indeholder Programmet, eller som er afledt af Programmet
+        eller dele heraf, skal registreres til alles frie
+        afbenyttelse i henhold til denne licens.
+
+     c. Hvis det ï¿½ndrede program normalt lï¿½ser kommandoer
+        interaktivt, nï¿½r det kï¿½res, skal De sikre, at der ved
+        starten pï¿½ programkï¿½rslen for interaktiv brug pï¿½ den mest
+        normale vis udskrives eller vises en meddelelse, som
+        indeholder behï¿½rig ophavsretmeddelelse og
+        garantifraskrivelse (eller alternativt tilkendegive, at De
+        ï¿½nsker at tilbyde garanti) samt fortï¿½ller, at brugere har
+        ret til videredistribuere Programmet under disse
+        betingelser. Desuden skal meddelelsen orientere brugeren
+        om, hvordan en kopi af denne licens kan vises. (Undtagelse:
+        Hvis selve Programmet er interaktivt, men ikke normalt
+        printer en sï¿½dan besked, krï¿½ves det ikke, at Deres Vï¿½rk
+        baseret pï¿½ Programmet printer den omtalte besked.)
+       
+   Disse krav er gï¿½ldende for det ï¿½ndrede vï¿½rk i sin helhed. Hvis
+   identificerbare sektioner af vï¿½rket ikke er afledt af Programmet, og
+   hvis disse i sig selv med rimelighed kan anses for at vï¿½re
+   selvstï¿½ndige og separate vï¿½rker, sï¿½ gï¿½lder denne licens og dens
+   betingelser ikke for de sektioner, nï¿½r De distribuerer dem som
+   separate vï¿½rker. Hvis De derimod distribuerer de samme sektioner som
+   en del af et hele, der udgï¿½r et Vï¿½rk baseret pï¿½ Programmet, skal
+   denne distribution vï¿½re i overensstemmelse med licensens betingelser.
+   De rettigheder, som licensen yder alle, udvides til det pï¿½gï¿½ldende
+   vï¿½rk i sin helhed og gï¿½lder sï¿½ledes for enhver del af vï¿½rket, uanset
+   ophavsmanden.
+   
+   Det er sï¿½ledes ikke vores hensigt med denne paragraf at pï¿½berï¿½be os
+   rettigheder eller bestride Deres rettigheder til vï¿½rker skrevet af
+   Dem alene. Hensigten er derimod at udï¿½ve vores ret til at kontrollere
+   distributionen af afledte vï¿½rker eller kollektive vï¿½rker baseret pï¿½
+   Programmet.
+   
+   Hertil kommer, at forekomsten af et andet vï¿½rk pï¿½ et lagrings- eller
+   distributionsmedium, der indeholder Programmet eller et Vï¿½rk baseret
+   pï¿½ Programmet, medfï¿½rer ikke, at det andet vï¿½rk omfattes af
+   betingelserne for denne licens.
+
+3. De har ret til at kopiere og distribuere Programmet (eller et
+   Vï¿½rk baseret pï¿½ Programmet i henhold til paragraf 2) i objektkode
+   eller i eksekverbar form i henhold til betingelserne i paragraf 1 og
+   2 under forudsï¿½tning af, at De ogsï¿½ fï¿½lger ï¿½n af disse
+   retningslinjer:
+   
+     a. Programmet ledsages af den fuldstï¿½ndige maskinlï¿½sbare
+        kildetekst, der skal distribueres under de anfï¿½rte
+        betingelser i paragraf 1 og 2 ovenfor i et medium, der
+        sï¿½dvanligvis bruges til udveksling af software; eller
+   
+     b. Programmet ledsages af et skriftligt tilbud - gï¿½ldende i
+        mindst tre ï¿½r - om at give tredjemand den fuldstï¿½ndige
+        maskinlï¿½sbare kildetekst, der skal distribueres under de
+        anfï¿½rte betingelser i paragraf 1 og 2 ovenfor i et medium,
+        der sï¿½dvanligvis bruges til udveksling af software, mod et
+        gebyr, der maksimalt dï¿½kker Deres omkostninger ved rent
+        fysisk at udfï¿½re distributionen,; eller
+   
+     c. Programmet ledsages af den information, som De modtog
+        vedrï¿½rende tilbuddet om at distribuere kildeteksten. (Dette
+        alternativ gï¿½lder udelukkende for ukommerciel distribution,
+        og kun hvis De har modtaget Programmet i objektkode eller i
+        eksekverbar form med et sï¿½dant tilbud i henhold til stykke
+        b ovenfor.)
+   
+   Kildeteksten for et vï¿½rk betyder den form af et givet vï¿½rk, der
+   foretrï¿½kkes som grundlag for at ï¿½ndre det. For et eksekverbart vï¿½rk
+   betyder den fuldstï¿½ndige kildetekst hele kildeteksten for alle de
+   moduler, det indeholder, plus eventuelle tilhï¿½rende
+   grï¿½nseflade-definitionsfiler plus de skripter, der anvendes til at
+   kontrollere kompileringen og installeringen af det eksekverbare
+   software. Helt undtagelsesvis behï¿½ver den kildetekst, der
+   distribueres, dog ikke at indeholde noget, der normalt distribueres
+   (enten i kildeform eller i binï¿½r form) sammen med de stï¿½rre
+   komponenter i operativsystemet (compiler, kerneprogram, osv.), som
+   det eksekverbare program kï¿½res pï¿½, medmindre den komponent selv
+   ledsager det eksekverbare program.
+   
+   Hvis distributionen af det eksekverbare program eller objektkoden
+   foretages ved tilbud om adgang til at kopiere fra et angivet sted,
+   regnes tilbud om tilsvarende adgang til at kopiere kildeteksten fra
+   det samme sted som distribution af kildeteksten, ogsï¿½ selv om
+   tredjemand ikke er tvunget til at kopiere kildeteksten sammen med
+   objektkoden.
+   
+4. De har kun ret til at kopiere, ï¿½ndre, udstede underlicenser for
+   eller distribuere Programmet som udtrykkeligt anfï¿½rt i de specifikke
+   betingelser for licensen. Herudover er ethvert forsï¿½g pï¿½ at kopiere,
+   ï¿½ndre, udstede underlicenser for eller distribuere Programmet
+   ugyldigt og medfï¿½rer automatisk ophï¿½r af Deres rettigheder i henhold
+   til denne licens. Pï¿½ den anden side vil tredjemand, der mï¿½tte have
+   modtaget kopier eller rettigheder fra Dem i henhold til denne licens,
+   ikke miste sin licens sï¿½ lï¿½nge alle betingelser for licensen
+   overholdes.
+   
+5. De er ikke forpligtet til at acceptere denne licens, eftersom
+   De ikke har skrevet under pï¿½ den. De har dog ingen anden mulighed for
+   at fï¿½ tilladelse til at ï¿½ndre eller distribuere Programmet eller dets
+   afledte vï¿½rker, og de handlinger er forbudt ved lov, hvis De ikke
+   accepterer denne licens. Ved at ï¿½ndre eller distribuere Programmet
+   (eller et Vï¿½rk baseret pï¿½ Programmet) tilkendegiver De derfor Deres
+   accept af licensen samt alle dens betingelser og vilkï¿½r for at
+   kopiere, distribuere eller ï¿½ndre Programmet eller Vï¿½rker baseret pï¿½
+   Programmet.
+   
+6. Hver gang De distribuerer Programmet (eller et Vï¿½rk baseret pï¿½
+   Programmet), fï¿½r modtageren automatisk licens fra den oprindelige
+   licensgiver til at kopiere, distribuere eller ï¿½ndre Programmet i
+   henhold til disse betingelser og vilkï¿½r. De har ikke ret til at
+   pï¿½lï¿½gge modtagerne yderligere restriktioner i deres brug af de
+   rettigheder, der herved ydes. De er ikke ansvarlig for at hï¿½ndhï¿½ve
+   tredjemands overholdelse af denne licens.
+   
+7. Hvis De som fï¿½lge af en retsafgï¿½relse eller pï¿½stand om
+   krï¿½nkelse af patentret eller af en hvilken som helst anden grund
+   (ikke begrï¿½nset til patentudstedelse) pï¿½tvinges vilkï¿½r (det vï¿½re sig
+   ved retskendelse, kontrakt eller andet), der strider mod vilkï¿½rene
+   for denne licens, er De ikke dermed fritaget for vilkï¿½rene for denne
+   licens. Hvis De ikke kan distribuere Programmet, sï¿½ledes at De pï¿½
+   samme tid opfylder Deres forpligtelser i henhold til denne licens og
+   i overensstemmelse med andre relevante forpligtelser, fï¿½lger det, at
+   De ikke har tilladelse til at distribuere Programmet overhovedet.
+   Hvis f.eks. en patentlicens ikke ville tillade afgiftsfri
+   videredistribution af Programmet via alle dem, der modtager kopier
+   direkte eller indirekte igennem Dem, ville den eneste mï¿½de, hvorpï¿½ De
+   kunne overholde bï¿½de patentlicensen og denne licens, at De
+   fuldstï¿½ndigt afholder Dem fra at distribuere Programmet.
+   
+   Dersom en del af denne paragraf erklï¿½res ugyldig eller bliver umulig
+   at hï¿½ndhï¿½ve i en bestemt situation, er det hensigten, at resten af
+   paragraffen skal finde anvendelse, ligesom det er hensigten, at
+   paragraffen som helhed skal gï¿½lde i andre situationer.
+   
+   Det er sï¿½ledes ikke formï¿½let med denne paragraf at tilskynde Dem til
+   at krï¿½nke andre patenter eller ejendomskrav eller at bestride
+   gyldigheden af sï¿½danne krav. Denne paragraf har udelukkende til
+   formï¿½l at beskytte integriteten af distributionssystemet for frit
+   software, som er implementeret gennem offentlig licenspraksis. Der er
+   mange mennesker, der har ydet store bidrag til det brede udvalg af
+   software, der distribueres via dette system i tiltro til, at systemet
+   anvendes konsekvent. Det er op til softwareproducenten/donoren at
+   beslutte, om han eller hun er villig til at distribuere software via
+   et andet system, og en licenstager har ikke ret til at pï¿½tvinge nogen
+   et sï¿½dant valg.
+   
+   Formï¿½let med denne paragraf er at gï¿½re det fuldstï¿½ndigt klart, hvad
+   konsekvensen af resten af denne licens menes at vï¿½re.
+   
+8. Hvis distributionen og/eller brugen af Programmet er underlagt
+  restriktioner i visse lande pga. enten patenter eller grï¿½nseflader,
+  der er belagt med ophavsret, kan den oprindelige ophavsretindehaver,
+  der har placeret Programmet under denne licens, tilfï¿½je en
+  udtrykkelig geografisk distributionsbegrï¿½nsning, der udelukker de
+  pï¿½gï¿½ldende lande, sï¿½ledes at distribution kun er tilladt i eller
+  imellem lande, der ikke pï¿½ denne vis er udelukket. I tilfï¿½lde heraf
+  inkorporerer denne licens en sï¿½dan begrï¿½nsning som om den var
+  indarbejdet i selve licenstekstens ordlyd.
+  
+9. The Free Software Foundation offentliggï¿½r formodentligt
+  reviderede og/eller nye versioner af sin General Public License fra
+  tid til anden. Sï¿½danne nye versioner vil udtrykke den samme
+  grundlï¿½ggende tankegang som den nuvï¿½rende version, men visse detaljer
+  vil sikkert ï¿½ndres for at tage hï¿½jde for nye vinkler eller problemer.
+  
+  Det er let at kende forskel pï¿½ de forskellige versioner, idet de alle
+  er tydeligt forsynet med et nummer. Hvis Programmet specificerer et
+  versionsnummer for denne licens som gï¿½ldende for Programmet, tillige
+  med ordene "alle senere versioner", har De mulighed for at vï¿½lge, om
+  De vil fï¿½lge vilkï¿½r og betingelser for enten den version eller en
+  anden senere version udgivet af The Free Software Foundation. Hvis
+  Programmet ikke specificerer et versionsnummer for denne licens, kan
+  De vï¿½lge blandt samtlige versioner, der nogensinde er udgivet af The
+  Free Software Foundation.
+  
+10. Hvis De ï¿½nsker at inkorporere dele af Programmet i andre frie
+  programmer, der er underlagt andre distributionsbetingelser, foreslï¿½r
+  vi, at De skriver til ophavsmanden og anmoder om tilladelse. Hvis det
+  drejer sig om software, hvor ophavsretten tilhï¿½rer The Free Software
+  Foundation, bedes De skrive til The Free Software Foundation. Der er
+  visse undtagelser. Vores afgï¿½relse vil vï¿½re baseret pï¿½ to mï¿½l - at
+  bevare den frie status for alle afledte vï¿½rker af vores frie software
+  og at fremme udvekslingen og genbrugen af software generelt.
+
+ 
+                             INGEN GARANTI
+  
+11. IDET LICENSEN GIVER GRATIS BRUGSTILLADELSE Pï¿½ PROGRAMMET, YDES
+  DER INGEN GARANTI Pï¿½ PROGRAMMET I DET OMFANG, DET ER TILLADT EFTER
+  Gï¿½LDENDE LOV. MEDMINDRE DET UDTRYKKELIGT MEDDELES SKRIFTLIGT, YDER
+  OPHAVSRETINDEHAVERNE OG/ELLER ANDRE PARTER PROGRAMMET "SOM BESET"
+  UDEN GARANTI AF NOGEN ART, DET Vï¿½RE SIG UDTRYKTE ELLER UNDERFORSTï¿½EDE
+  GARANTIER, HERUNDER, MEN IKKE BEGRï¿½NSET TIL, DE UNDERFORSTï¿½EDE
+  GARANTIER VEDRï¿½RENDE SALGBARHED OG SPECIFIK BRUGSEGNETHED. DEN FULDE
+  RISIKO, HVAD ANGï¿½R PROGRAMMETS KVALITET OG FUNKTION, Pï¿½HVILER DEM.
+  SKULLE DET VISE SIG, AT PROGRAMMET ER DEFEKT, SKAL DE ERHOLDE
+  UDGIFTERNE TIL AL Nï¿½DVENDIG SERVICE, REPARATION ELLER JUSTERING.
+  
+12. UNDER INGEN OMSTï¿½NDIGHEDER - MEDMINDRE DET KRï¿½VES AF Gï¿½LDENDE
+  LOV ELLER ER SKRIFTLIGT AFTALT - SKAL EN OPHAVSRETINDEHAVER ELLER EN
+  ANDEN PART, DER HAR TILLADELSE TIL AT ï¿½NDRE OG/ELLER DISTRIBUERE
+  PROGRAMMET Sï¿½LEDES SOM BESKREVET OVENFOR, Vï¿½RE ERSTATNINGSANSVARLIG
+  OVER FOR DEM VEDRï¿½RENDE SKADER, HERUNDER GENERELLE, SPECIFIKKE OG
+  TILFï¿½LDIGE SKADER SAMT Fï¿½LGESKADER I FORBINDELSE MED BRUG AF ELLER
+  MANGLENDE BRUG AF PROGRAMMET (HERUNDER MEN IKKE BEGRï¿½NSET TIL TAB AF
+  DATA ELLER DATA, DER ER BLEVET UNï¿½JAGTIGE, ELLER TAB, DER ER Pï¿½Fï¿½RT
+  DEM ELLER TREDJEMAND, ELLER PROGRAMMETS MANGLENDE EVNE TIL AT Kï¿½RE
+  SAMMEN MED ANDRE PROGRAMMER) SELV OM DEN Pï¿½Gï¿½LDENDE
+  OPHAVSRETINDEHAVER ELLER ANDEN PART ER BLEVET OPLYST OM MULIGHEDEN
+  FOR, AT Sï¿½DANNE TAB KUNNE OPSTï¿½.
+  
+  HER SLUTTER BETINGELSER OG VILKï¿½R FOR GENERAL PUBLIC LICENSE
