@@ -22,16 +22,10 @@ includes/connect.php
 includes/temp/
 index/ch/
 
-/var/www/html/develop/temp/
-/var/www/html/develop/docker/
-/var/www/html/develop/doc/
-doc/
 docker/
 includes/connect.php
 #html/includes/oldDesign/
 kreditor/betalinger_old.php
-lager/labelprint_includes/newlabel.php
-lager/labelprint_includes/oldlabel.php
 logolib/
 
 paperpdf/
@@ -42,8 +36,7 @@ logolib/
 vouchers/
 /temp/
 /docker/
-/doc/
-doc/
 docker/
 SaldiAPI/
-
+phpmailerOld/
+phpmailer/
