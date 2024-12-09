@@ -34,7 +34,7 @@ $modulnr=104;
 $css="../css/standard.css";
 
 include("../includes/std_func.php");
-$title=findtekst("Brugere", $sprog_id);
+#$title=findtekst("Brugere", $sprog_id);
 include("../includes/connect.php");
 include("../includes/online.php");
 
