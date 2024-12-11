@@ -219,266 +219,266 @@
 // 20240418 PHR Error in SQL query. grupper.art = varer.gruppe changed to grupper.kodenr = varer.gruppe
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
-echo "<!--function levering start-->";
-#cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
-# Denne funktion kontrollerer levering of kalder funktioner som registrerer salget i tabellerne varer,batch_salg og ect batch_kob
-global $afd_lager;
-global $regnaar;
-global $levdate;
-global $lev_nr;
-global $db,$db_skriv_id;
+	echo "<!--function levering start-->";
+	#cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
+	# Denne funktion kontrollerer levering of kalder funktioner som registrerer salget i tabellerne varer,batch_salg og ect batch_kob
+	global $afd_lager;
+	global $regnaar;
+	global $levdate;
+	global $lev_nr;
+	global $db,$db_skriv_id;
 
-$fejl=0;
+	$fejl=0;
 
-$lager=array();
-#$fp=fopen("../temp/ordrelev.log","a");
-$r=db_fetch_array(db_select("select afd,art,ref from ordrer where id = $id",__FILE__ . " linje " . __LINE__));
-$afd=$r['afd'];
-$art=$r['art'];
-$ref=$r['ref'];
-if ($afd==''){
-	if ($r['art']=='PO' && $r['felt_5']) { #20161011
-		if ($r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__))){
-		 $afdelinger=explode(chr(9),$r['box3']);
-		 $tmp=$r['felt_5']-1;
-		 $afd=$afdelinger[$tmp];
-		}
-	}
-}
-
-$variant_varer=array(); //20181223
-$x=0;
-$qtxt="SELECT distinct(vare_id) FROM variant_varer";
-$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-while ($r=db_fetch_array($q)) {
-	$variant_varer[$x]=$r['vare_id'];
-	$x++;
-}
-
-if ($afd==''){
-	if ($ref) {
-		$r=db_fetch_array(db_select("select ansatte.afd from ansatte where navn='$ref'",__FILE__ . " linje " . __LINE__));
-		$afd=$r['afd']*1;
-		if ($afd=='') {
-			$r=db_fetch_array(db_select("select ansat_id from brugere where brugernavn='$ref'",__FILE__ . " linje " . __LINE__));
-			$ansat_id=$r['ansat_id']*1;
-			$r=db_fetch_array(db_select("select afd from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
-			$afd=$r['afd']*1;
-		$afd=$r['afd']*1;
-		}
-		db_modify("update ordrer set afd='$afd' where id='$id'",__FILE__ . " linje " . __LINE__);
-	}
-}
-if ($afd) { #20161022
-	$qtxt = "select box1 from grupper where kodenr='$afd' and art = 'AFD'";
-	($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$afd_lager=(int)$r['box1']:$afd_lager=0;;
-	if (!$afd_lager) {
-		$qtxt = "select kodenr from grupper where box1='$afd' and art = 'LG'";
-		($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$afd_lager=(int)$r['kodenr']:$afd_lager=0;
-	}
-}
-#cho __line__."Afd $afd Lager $lager<br>";
-#exit;
-#transaktion(commit);
-#xit;
-$q = db_select("select lev_nr from batch_salg where ordre_id = $id order by lev_nr",__FILE__ . " linje " . __LINE__);
-while ($r=db_fetch_array($q)) {
-	if ($lev_nr<=$r['lev_nr']){
-		$lev_nr=$r['lev_nr']+1;
-	}
-}
-if (!$lev_nr) $lev_nr=1;
-
-$x=0;
-
-db_modify("update variant_varer set variant_beholdning=0 where variant_beholdning is NULL",__FILE__ . " linje " . __LINE__);
-
-$q=db_select("select id,lager from ordrelinjer where ordre_id = '$id' and posnr > '0' order by posnr",__FILE__ . " linje " . __LINE__);
-while ($r=db_fetch_array($q)) {
-	$x++;
-	db_modify("update ordrelinjer set posnr='$x' where id='$r[id]'",__FILE__ . " linje " . __LINE__);
-}
-$query = db_select("select * from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
-$row =db_fetch_array($query);
-
-$ref=$row['ref'];
-$levdate=$row['levdate'];
-$ordredate=$row['ordredate']; #20150810
-$fakturadate=$row['fakturadate'];
-$art=$row['art'];
-
-if ($regnaar) { // 20230719
-	$qtxt = "select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'";
-	if ($row = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-#	$year=substr(str_replace(" ","",$row['box2']),-2); #aendret 060308 - grundet mulighed for fakt i aar 2208
-		$year=trim($row['box2']);
-		$aarstart=str_replace(" ","",$year.$row['box1']);
-#	$year=substr(str_replace(" ","",$row['box4']),-2);
-		$year=trim($row['box4']);
-		$aarslut=str_replace(" ","",$year.$row['box3']);
-	}
-}
-
-#if ($hurtigfakt && !$fakturadate) {
-#	$fakturadate=date("Y-m-d");
-#	db_modify("update ordrer set fakturadate = '$fakturadate' where id = $id",__FILE__ . " linje " . __LINE__);
-#}
-
-if ($hurtigfakt && $fakturadate && $fakturadate != $levdate) {
-	db_modify("update ordrer set levdate = fakturadate where id = $id",__FILE__ . " linje " . __LINE__);
-#cho "update ordrer set levdate = fakturadate where id = $id<br>";
-# exit;
-	$levdate=$fakturadate;
-}
-if ($hurtigfakt && $fakturadate && (!$ordredate || $ordredate>$fakturadate)) {
-	db_modify("update ordrer set ordredate = fakturadate where id = $id",__FILE__ . " linje " . __LINE__);
-	$ordredate=$fakturadate;
-}
-$r=db_fetch_array(db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
-if ($fakturadate && !$r['levdate']){
-	if ($webservice) return('Manglende leveringsdato');  
-	else print "<BODY onLoad=\"javascript:alert('Leveringsdato SKAL udfyldes')\">";
-	exit;
-} else {
-	if (!$hurtigfakt && $r['levdate']<$r['ordredate']) {
-		 print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato $r[levdate]<$r[ordredate]')\">";
-		 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-		 exit;
-	}
-	list ($year, $month, $day) = explode ('-', $r['levdate']);
-	$year=trim($year);
-	$tmp=date("Y");
-	if (!$hurtigfakt && $art!='PO' && !$webservice && !$genfakt && ($year<$tmp-10||$year>$tmp+10)) {
-		 print "<BODY onLoad=\"javascript:alert('Tjek leveringsdato $levdate')\">";
-		 print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-		 exit;
-	}
-	if ($hurtigfakt=='on' && !$fakturadate) {
-		$fakturadate=date('Y-m-d');
-		db_modify("update ordrer set fakturadate='$fakturadate' where id='$id'",__FILE__ . " linje " . __LINE__);
-#		 #print "<meta http-equiv=\"refresh\" content=\"0;URL=fakturadato.php?id=$id&returside=levering.php&hurtigfakt=on\">";
-#		exit;
-	}
-	if ($fejl==0){
-		$fakturanr=1;
-		$x=0;
-
-		$query = db_select("select * from ordrelinjer where ordre_id = '$id' order by posnr,id",__FILE__ . " linje " . __LINE__);
-		while ($row =db_fetch_array($query)){
-			if (($row['posnr']>0)&&(strlen(trim(($row['varenr'])))>0)){
-				$x++;
-				$linje_id[$x]=$row['id'];
-				$folgevare[$x]=$row['folgevare'];
-				$kred_linje_id[$x]=$row['kred_linje_id'];
-				$vare_id[$x]=$row['vare_id'];
-				$varenr[$x]=$row['varenr'];
-				$antal[$x]=afrund($row['antal'],3); #20131202
-				$leveres[$x]=afrund($row['leveres'],3); #20131202
-				$pris[$x]=$row['pris'];
-				$kostpris[$x]=$row['kostpris'];
-				$rabat[$x]=$row['rabat'];
-				$nettopris[$x]=$row['pris']-($row['pris']*$row['rabat']/100);
-				$serienr[$x]=trim($row['serienr']);
-				$posnr[$x]=$row['posnr'];
-				$bogf_konto[$x]=$row['bogf_konto'];
-				$variant_id[$x]=$row['variant_id']*1;
-				if ($hurtigfakt=='on') $leveres[$x]=$antal[$x];
-				$lager[$x]=$row['lager']*1;
-				if (!$lager[$x]) $lager[$x]=1;
+	$lager=array();
+	#$fp=fopen("../temp/ordrelev.log","a");
+	$r=db_fetch_array(db_select("select afd,art,ref from ordrer where id = $id",__FILE__ . " linje " . __LINE__));
+	$afd=$r['afd'];
+	$art=$r['art'];
+	$ref=$r['ref'];
+	if ($afd==''){
+		if ($r['art']=='PO' && $r['felt_5']) { #20161011
+			if ($r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__))){
+			$afdelinger=explode(chr(9),$r['box3']);
+			$tmp=$r['felt_5']-1;
+			$afd=$afdelinger[$tmp];
 			}
 		}
-		$linjeantal=$x;
-		if (count($variant_varer)) { //20181223
+	}
+
+	$variant_varer=array(); //20181223
+	$x=0;
+	$qtxt="SELECT distinct(vare_id) FROM variant_varer";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q)) {
+		$variant_varer[$x]=$r['vare_id'];
+		$x++;
+	}
+
+	if ($afd==''){
+		if ($ref) {
+			$r=db_fetch_array(db_select("select ansatte.afd from ansatte where navn='$ref'",__FILE__ . " linje " . __LINE__));
+			$afd=$r['afd']*1;
+			if ($afd=='') {
+				$r=db_fetch_array(db_select("select ansat_id from brugere where brugernavn='$ref'",__FILE__ . " linje " . __LINE__));
+				$ansat_id=$r['ansat_id']*1;
+				$r=db_fetch_array(db_select("select afd from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
+				$afd=$r['afd']*1;
+			$afd=$r['afd']*1;
+			}
+			db_modify("update ordrer set afd='$afd' where id='$id'",__FILE__ . " linje " . __LINE__);
+		}
+	}
+	if ($afd) { #20161022
+		$qtxt = "select box1 from grupper where kodenr='$afd' and art = 'AFD'";
+		($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$afd_lager=(int)$r['box1']:$afd_lager=0;;
+		if (!$afd_lager) {
+			$qtxt = "select kodenr from grupper where box1='$afd' and art = 'LG'";
+			($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$afd_lager=(int)$r['kodenr']:$afd_lager=0;
+		}
+	}
+	#cho __line__."Afd $afd Lager $lager<br>";
+	#exit;
+	#transaktion(commit);
+	#xit;
+	$q = db_select("select lev_nr from batch_salg where ordre_id = $id order by lev_nr",__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q)) {
+		if ($lev_nr<=$r['lev_nr']){
+			$lev_nr=$r['lev_nr']+1;
+		}
+	}
+	if (!$lev_nr) $lev_nr=1;
+
+	$x=0;
+
+	db_modify("update variant_varer set variant_beholdning=0 where variant_beholdning is NULL",__FILE__ . " linje " . __LINE__);
+
+	$q=db_select("select id,lager from ordrelinjer where ordre_id = '$id' and posnr > '0' order by posnr",__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q)) {
+		$x++;
+		db_modify("update ordrelinjer set posnr='$x' where id='$r[id]'",__FILE__ . " linje " . __LINE__);
+	}
+	$query = db_select("select * from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
+	$row =db_fetch_array($query);
+
+	$ref=$row['ref'];
+	$levdate=$row['levdate'];
+	$ordredate=$row['ordredate']; #20150810
+	$fakturadate=$row['fakturadate'];
+	$art=$row['art'];
+
+	if ($regnaar) { // 20230719
+		$qtxt = "select box1, box2, box3, box4 from grupper where art='RA' and kodenr='$regnaar'";
+		if ($row = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	#	$year=substr(str_replace(" ","",$row['box2']),-2); #aendret 060308 - grundet mulighed for fakt i aar 2208
+			$year=trim($row['box2']);
+			$aarstart=str_replace(" ","",$year.$row['box1']);
+	#	$year=substr(str_replace(" ","",$row['box4']),-2);
+			$year=trim($row['box4']);
+			$aarslut=str_replace(" ","",$year.$row['box3']);
+		}
+	}
+
+	#if ($hurtigfakt && !$fakturadate) {
+	#	$fakturadate=date("Y-m-d");
+	#	db_modify("update ordrer set fakturadate = '$fakturadate' where id = $id",__FILE__ . " linje " . __LINE__);
+	#}
+
+	if ($hurtigfakt && $fakturadate && $fakturadate != $levdate) {
+		db_modify("update ordrer set levdate = fakturadate where id = $id",__FILE__ . " linje " . __LINE__);
+	#cho "update ordrer set levdate = fakturadate where id = $id<br>";
+	# exit;
+		$levdate=$fakturadate;
+	}
+	if ($hurtigfakt && $fakturadate && (!$ordredate || $ordredate>$fakturadate)) {
+		db_modify("update ordrer set ordredate = fakturadate where id = $id",__FILE__ . " linje " . __LINE__);
+		$ordredate=$fakturadate;
+	}
+	$r=db_fetch_array(db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
+	if ($fakturadate && !$r['levdate']){
+		if ($webservice) return('Manglende leveringsdato');  
+		else print "<BODY onLoad=\"javascript:alert('Leveringsdato SKAL udfyldes')\">";
+		exit;
+	} else {
+		if (!$hurtigfakt && $r['levdate']<$r['ordredate']) {
+			print "<BODY onLoad=\"javascript:alert('Leveringsdato er f&oslash;r ordredato $r[levdate]<$r[ordredate]')\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+			exit;
+		}
+		list ($year, $month, $day) = explode ('-', $r['levdate']);
+		$year=trim($year);
+		$tmp=date("Y");
+		if (!$hurtigfakt && $art!='PO' && !$webservice && !$genfakt && ($year<$tmp-10||$year>$tmp+10)) {
+			print "<BODY onLoad=\"javascript:alert('Tjek leveringsdato $levdate')\">";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+			exit;
+		}
+		if ($hurtigfakt=='on' && !$fakturadate) {
+			$fakturadate=date('Y-m-d');
+			db_modify("update ordrer set fakturadate='$fakturadate' where id='$id'",__FILE__ . " linje " . __LINE__);
+	#		 #print "<meta http-equiv=\"refresh\" content=\"0;URL=fakturadato.php?id=$id&returside=levering.php&hurtigfakt=on\">";
+	#		exit;
+		}
+		if ($fejl==0){
+			$fakturanr=1;
+			$x=0;
+
+			$query = db_select("select * from ordrelinjer where ordre_id = '$id' order by posnr,id",__FILE__ . " linje " . __LINE__);
+			while ($row =db_fetch_array($query)){
+				if (($row['posnr']>0)&&(strlen(trim(($row['varenr'])))>0)){
+					$x++;
+					$linje_id[$x]=$row['id'];
+					$folgevare[$x]=$row['folgevare'];
+					$kred_linje_id[$x]=$row['kred_linje_id'];
+					$vare_id[$x]=$row['vare_id'];
+					$varenr[$x]=$row['varenr'];
+					$antal[$x]=afrund($row['antal'],3); #20131202
+					$leveres[$x]=afrund($row['leveres'],3); #20131202
+					$pris[$x]=$row['pris'];
+					$kostpris[$x]=$row['kostpris'];
+					$rabat[$x]=$row['rabat'];
+					$nettopris[$x]=$row['pris']-($row['pris']*$row['rabat']/100);
+					$serienr[$x]=trim($row['serienr']);
+					$posnr[$x]=$row['posnr'];
+					$bogf_konto[$x]=$row['bogf_konto'];
+					$variant_id[$x]=$row['variant_id']*1;
+					if ($hurtigfakt=='on') $leveres[$x]=$antal[$x];
+					$lager[$x]=$row['lager']*1;
+					if (!$lager[$x]) $lager[$x]=1;
+				}
+			}
+			$linjeantal=$x;
+			if (count($variant_varer)) { //20181223
+				for ($x=1; $x<=$linjeantal; $x++) {
+					if (!$variant_id[$x] && in_array($vare_id[$x],$variant_varer)) {
+						alert("Ingen variantinformation for varenr: $varenr[$x], variantvarer skal indsættes med stregkode");
+						print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+						exit;
+					}
+				}
+			}
 			for ($x=1; $x<=$linjeantal; $x++) {
-				if (!$variant_id[$x] && in_array($vare_id[$x],$variant_varer)) {
-					alert("Ingen variantinformation for varenr: $varenr[$x], variantvarer skal indsættes med stregkode");
+				$tidl_lev=0;
+				$qtxt="select antal from batch_salg where linje_id = $linje_id[$x]";
+				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+				while ($r=db_fetch_array($q)) {
+					$tidl_lev=$tidl_lev+$r['antal'];
+				}
+				if ($hurtigfakt=='on') $leveres[$x]=$antal[$x]-$tidl_lev;
+				if (($antal[$x]>0)&&($antal[$x]<$leveres[$x]+$tidl_lev)) {
+					print "<BODY onLoad=\"javascript:alert('Der er sat for meget til levering (pos nr. $posnr[$x])')\">";
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 					exit;
 				}
-			}
-		}
-		for ($x=1; $x<=$linjeantal; $x++) {
-			$tidl_lev=0;
-			$qtxt="select antal from batch_salg where linje_id = $linje_id[$x]";
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			while ($r=db_fetch_array($q)) {
-				$tidl_lev=$tidl_lev+$r['antal'];
-			}
-			if ($hurtigfakt=='on') $leveres[$x]=$antal[$x]-$tidl_lev;
-			if (($antal[$x]>0)&&($antal[$x]<$leveres[$x]+$tidl_lev)) {
-				print "<BODY onLoad=\"javascript:alert('Der er sat for meget til levering (pos nr. $posnr[$x])')\">";
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-				exit;
-			}
-			if ($art != 'PO' && $serienr[$x]) {
-				if ($leveres[$x]>0) {
-					$sn_antal[$x]=0;
-					$query = db_select("select * from serienr where salgslinje_id = '$linje_id[$x]' and batch_salg_id=0",__FILE__ . " linje " . __LINE__);
-					while ($row =db_fetch_array($query)) $sn_antal[$x]++; 
-					if ($leveres[$x]!=$sn_antal[$x]) {
-						print "<BODY onLoad=\"javascript:alert('Der er sat $leveres[$x] til levering men valgt $sn_antal[$x] serienumre (pos nr: $posnr[$x])')\">";
-						print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-						exit;
+				if ($art != 'PO' && $serienr[$x]) {
+					if ($leveres[$x]>0) {
+						$sn_antal[$x]=0;
+						$query = db_select("select * from serienr where salgslinje_id = '$linje_id[$x]' and batch_salg_id=0",__FILE__ . " linje " . __LINE__);
+						while ($row =db_fetch_array($query)) $sn_antal[$x]++; 
+						if ($leveres[$x]!=$sn_antal[$x]) {
+							print "<BODY onLoad=\"javascript:alert('Der er sat $leveres[$x] til levering men valgt $sn_antal[$x] serienumre (pos nr: $posnr[$x])')\">";
+							print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+							exit;
+						}
+					}
+					if ($leveres[$x]<0) {
+						$sn_antal[$x]=0;
+						if ($art=='DK') $qtxt = "select * from serienr where salgslinje_id = $kred_linje_id[$x]*-1";# 20121001 Rettet KO til DK 
+						else $qtxt = "select * from serienr where salgslinje_id <0 and vare_id=$vare_id[$x]";
+						$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+						while ($row =db_fetch_array($q)) {
+							db_modify("insert into serienr (vare_id,kobslinje_id,salgslinje_id,batch_kob_id,batch_salg_id,serienr) values ('$vare_id[$x]','$linje_id[$x]','0','0','0','$row[serienr]')",__FILE__ . " linje " . __LINE__);
+							db_modify("update serienr set salgslinje_id=abs(salgslinje_id) where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
+							$sn_antal[$x]++;
+						}
+					if ($leveres[$x]+$sn_antal[$x]!=0){
+							$tmp=$leveres[$x]*-1;
+							print "<BODY onLoad=\"javascript:alert('Der er sat $tmp til returnering men valgt $sn_antal[$x] serienumre (pos nr: $posnr[$x])')\">";
+							print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+							exit;
+						}
 					}
 				}
-				if ($leveres[$x]<0) {
-					$sn_antal[$x]=0;
-					if ($art=='DK') $qtxt = "select * from serienr where salgslinje_id = $kred_linje_id[$x]*-1";# 20121001 Rettet KO til DK 
-					else $qtxt = "select * from serienr where salgslinje_id <0 and vare_id=$vare_id[$x]";
-					$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-					while ($row =db_fetch_array($q)) {
-						db_modify("insert into serienr (vare_id,kobslinje_id,salgslinje_id,batch_kob_id,batch_salg_id,serienr) values ('$vare_id[$x]','$linje_id[$x]','0','0','0','$row[serienr]')",__FILE__ . " linje " . __LINE__);
-						db_modify("update serienr set salgslinje_id=abs(salgslinje_id) where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
-						$sn_antal[$x]++;
-					}
-				if ($leveres[$x]+$sn_antal[$x]!=0){
-						$tmp=$leveres[$x]*-1;
-						print "<BODY onLoad=\"javascript:alert('Der er sat $tmp til returnering men valgt $sn_antal[$x] serienumre (pos nr: $posnr[$x])')\">";
-						print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-						exit;
-					}
+				if ($leveres[$x]<0 && $art == 'DK') {
+					$tidl_lev=0;
+					$query = db_select("select * from batch_kob where linje_id = '$linje_id[$x]' and ordre_id=$id",__FILE__ . " linje " . __LINE__);
+					while($row = db_fetch_array($query)) $tidl_lev=$tidl_lev-$row['antal'];
+					if ($leveres[$x]>$tidl_lev+$antal[$x]) $leveres[$x]=$antal[$x]-$tidl_lev;
 				}
 			}
-			if ($leveres[$x]<0 && $art == 'DK') {
-				 $tidl_lev=0;
-				 $query = db_select("select * from batch_kob where linje_id = '$linje_id[$x]' and ordre_id=$id",__FILE__ . " linje " . __LINE__);
-				 while($row = db_fetch_array($query)) $tidl_lev=$tidl_lev-$row['antal'];
-				 if ($leveres[$x]>$tidl_lev+$antal[$x]) $leveres[$x]=$antal[$x]-$tidl_lev;
-			}
-		}
-			for ($x=1; $x<=$linjeantal; $x++)	{
-			$sn_start=0;
-			$query = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
-			$row =db_fetch_array($query);
-#			$kostpris[$x]=$row['kostpris'];
-			$gruppe[$x]=$row['gruppe'];
-			if ($row['beholdning']) {$beholdning[$x]=$row['beholdning'];}
-			else $beholdning[$x]=0;
-			$beholdning[$x]=$beholdning[$x]-$leveres[$x];
-			if (trim($row['samlevare'])=='on') {
-#				samlevare($id,$art,$linje_id[$x], $vare_id[$x], $leveres[$x])
-#				for ($a=1; $a<=$leveres[$x]; $a++) samlevare($vare_id[$x], $linje_id[$x]);
-			}
-			if (!$gruppe[$x]) {
-				print "<BODY onLoad=\"javascript:alert('Vare tilh&oslash;rer ikke nogen varegruppe - kontroller vare og indstillinger! (pos nr: $posnr[$x])')\">";
-				if ($art=='PO') print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">";
-				else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
-				exit;
-			}
-			if ($vare_id[$x] && $leveres[$x])  {
-				linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x],$bogf_konto[$x],$variant_id[$x],$lager[$x]);
-#				if (trim($row['samlevare'])=='on') {
-#					$q2 = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
-#					while($r2 =db_fetch_array($q2)) 
-#				}
+				for ($x=1; $x<=$linjeantal; $x++)	{
+				$sn_start=0;
+				$query = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
+				$row =db_fetch_array($query);
+	#			$kostpris[$x]=$row['kostpris'];
+				$gruppe[$x]=$row['gruppe'];
+				if ($row['beholdning']) {$beholdning[$x]=$row['beholdning'];}
+				else $beholdning[$x]=0;
+				$beholdning[$x]=$beholdning[$x]-$leveres[$x];
+				if (trim($row['samlevare'])=='on') {
+	#				samlevare($id,$art,$linje_id[$x], $vare_id[$x], $leveres[$x])
+	#				for ($a=1; $a<=$leveres[$x]; $a++) samlevare($vare_id[$x], $linje_id[$x]);
+				}
+				if (!$gruppe[$x]) {
+					print "<BODY onLoad=\"javascript:alert('Vare tilh&oslash;rer ikke nogen varegruppe - kontroller vare og indstillinger! (pos nr: $posnr[$x])')\">";
+					if ($art=='PO') print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">";
+					else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
+					exit;
+				}
+				if ($vare_id[$x] && $leveres[$x])  {
+					linjeopdat($id, $gruppe[$x], $linje_id[$x], $beholdning[$x], $vare_id[$x], $leveres[$x], $pris[$x], $nettopris[$x], $rabat[$x], $row['samlevare'], $x, $posnr[$x], $serienr[$x], $kred_linje_id[$x],$bogf_konto[$x],$variant_id[$x],$lager[$x]);
+	#				if (trim($row['samlevare'])=='on') {
+	#					$q2 = db_select("select * from varer where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
+	#					while($r2 =db_fetch_array($q2)) 
+	#				}
+				}
 			}
 		}
 	}
-}
-#fclose ($fp);
-echo "<!--function levering slut-->";
-#xit;
-return("OK");
+	#fclose ($fp);
+	echo "<!--function levering slut-->";
+	#xit;
+	return("OK");
 } #endfunc levering
 
 #############################################################################################
@@ -4831,10 +4831,10 @@ if (strlen($ore)>2) { # 20150812
 //---------------- Sagstyring ---------------//
 
 function opret_ordre($sag_id,$konto_id) {
-//exit;
 		global $bruger_id,$brugernavn;
 		global $db,$db_skriv_id,$default_procenttillag;
 		global $regnaar;
+		global $sprog_id;
 		
 		//#cho '(opret_ordre = '.$brugernavn.')';
 		//#cho '(opret_ordre '.$sag_id.')';

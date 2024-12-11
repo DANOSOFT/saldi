@@ -1565,6 +1565,7 @@ function ordre_valg() {
 		$orderNoteEnabled=NULL;
 	}
 
+	$portovarenr = get_settings_value("porto_varnr", "ordre", "");
 	$debitoripad = get_settings_value("debitoripad", "ordre", "off");
 	if ($debitoripad === "on") {
 		$debitoripad = "checked";
@@ -1629,6 +1630,7 @@ function ordre_valg() {
 	print "<tr><td title='".findtekst(690,$sprog_id)."'>".findtekst(689,$sprog_id)."</td><td><INPUT title='".findtekst(690,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box10' value='$kortkonto'></td></tr>";
 	print "<tr><td title='".findtekst(1711,$sprog_id)."'>".findtekst(1714,$sprog_id)."</td><td><INPUT title='".findtekst(1712,$sprog_id)."' class='inputbox' type='checkbox' name='orderNoteEnabled' $orderNoteEnabled></td></tr>";
 	print "<tr><td title='".findtekst(3069,$sprog_id)."'>".findtekst(3068,$sprog_id)."</td><td><INPUT title='".findtekst(3069,$sprog_id)."' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
+	print "<tr><td title='".findtekst(690,$sprog_id)."'>".findtekst(2400,$sprog_id)."</td><td><INPUT title='".findtekst(2401,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='portovarenr' value='$portovarenr'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";

@@ -338,4 +338,13 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table varer ADD column volume_lager float default 1",__FILE__ . " linje " . __LINE__);
 }
 
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='gls_label'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table ordrer ADD column gls_label bool default false",__FILE__ . " linje " . __LINE__);
+}
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='fedex_label'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table ordrer ADD column fedex_label bool default false",__FILE__ . " linje " . __LINE__);
+}
+
 ?>
