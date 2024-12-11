@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 4.1.0 --- 2024-05-28 ---
+// --- debitor/debitorkort.php --- lap 4.1.0 --- 2024-09-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -41,14 +41,14 @@
 // 20230223 PHR repaired 'anonymize' after translalation error and renamed kategori to katString where is string
 // 20230925 PHR php8
 // 20240528 PHR Added $_SESSION['debitorId']
-
+// 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
  
 @session_start();
 $s_id=session_id();
 
 $fokus = $katString = NULL;
 $konto_id = $lukket = $ordre_id = $productlimit = $status = $status_antal = 0;
-$cat_id = array();
+$cat_id = $kategori = array();
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 
 $modulnr=6;
@@ -58,8 +58,19 @@ $css="../css/standard.css";
  include("../includes/connect.php");
  include("../includes/online.php");
  include("../includes/std_func.php");
+ include("../includes/topline_settings.php");
 
- if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
+ $qtxt = "select id from settings where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+ if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+  $qtxt = "update settings set var_value = '' where id = '$r[id]'";
+ } else {
+	 $qtxt = "insert into settings (var_name, var_grp, user_id, var_description) ";
+	 $qtxt.= "values ";
+	 $qtxt.= "('debitorId','debitor', '$bruger_id','Used to track debitor Id when orderlist is called from debitor card')";
+ }
+ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+ 
+ #if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
  print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
 
  $id = if_isset($_GET['id']);
@@ -90,7 +101,7 @@ if (isset($_GET['delete_category'])) {
 	$delete_category=NULL;
 	db_modify("update grupper set box1='$box1',box2='$box2' where art = 'DebInfo'",__FILE__ . " linje " . __LINE__);  
 }
-$rename_category=if_isset($_GET['rename_category']);
+$rename_category=isset($_GET['rename_category']) ? $_GET['rename_category'] : NULL;
 
 if (isset($_POST['id']) || isset($_POST['firmanavn'])){
  	$submit = if_isset($_POST['submit'],NULL);
@@ -140,7 +151,10 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])){
 		$lev_kontakt=db_escape_string(trim($_POST['lev_kontakt']));
 		$lev_tlf=db_escape_string(trim($_POST['lev_tlf']));
 		(isset($_POST['lev_email']))?$lev_email = db_escape_string(trim($_POST['lev_email'])) : $lev_email = '';
+
 		$vis_lev_addr=db_escape_string(if_isset($_POST['vis_lev_addr'],NULL));
+  		update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
+
 		$lukket=db_escape_string(if_isset($_POST['lukket'],NULL));
 		(isset($_POST['password']))?$password = db_escape_string(trim($_POST['password'])) : $password = '';
 		$productlimit=db_escape_string(trim($_POST['productlimit']));
@@ -164,7 +178,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])){
 		$cat_valg        = if_isset($_POST['cat_valg'],array());
 		$cat_beskrivelse = if_isset($_POST['cat_beskrivelse'],array());
 		$newCatName      = if_isset($_POST['newCatName'],NULL);
-		$rename_category = if_isset($_POST['rename_category'],NULL);
+		$rename_category = isset($_POST['rename_category']) ? $_POST['rename_category'] : NULL;
 
 		$status=db_escape_string(trim($_POST['status']));
 		(isset($_POST['ny_status']))?$ny_status = db_escape_string(trim($_POST['ny_status'])): $ny_status = '';		$status_id=$_POST['status_id'];
@@ -213,48 +227,87 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])){
 			 include("../includes/online.php");
 			}
 		}
-		######### Kategorier
-		
-		if (!isset ($kategori)) $kategori = array();
- 		if (!isset ($status_valg)) $status_valg = array();
-		if (!isset ($box3)) $box3 = NULL;
-		if (!isset ($box4)) $box4 = NULL;
+######### Kategorier (Categories Section)
 
-		for ($x=0;$x<count($cat_id);$x++) {
-			if (!isset($cat_valg[$x])) $cat_valg[$x] = ''; 
-			if ($cat_valg[$x]) {
-				($katString || $katString == '0')?$katString.=chr(9).$cat_id[$x]:$katString=$cat_id[$x];
-			}
-		}
-		$tmp=findtekst(343,$sprog_id);
-		if ($newCatName && $newCatName!=$tmp) {
-			if (!is_numeric($rename_category) && in_array($newCatName,$cat_beskrivelse)) {
-				$alerttekst=findtekst(344,$sprog_id);
-			} else {
-				if (!is_numeric($rename_category)) {
-					$x='0';
-					$y=count($cat_id);
-					while(in_array($x,$cat_id)) $x++; #finder laveste ledige vaerdi
-					$cat_id[$y] = $x;
-					$cat_beskrivelse[$y]=$newCatName;
-				}
-				$box1 = $box2 = NULL;
-				for ($x=0;$x<count($cat_id);$x++) {
-					if (($cat_id[$x] || $cat_id[$x] == '0') && $cat_beskrivelse[$x]) {
-						if ($cat_id[$x] == $rename_category) {
-							$cat_beskrivelse[$x]=$newCatName;
-						}
-						($box1 || $box1 == '0')?$box1.=chr(9).$cat_id[$x]:$box1=$cat_id[$x];
-						($box2)?$box2.=chr(9).db_escape_string($cat_beskrivelse[$x]):$box2=db_escape_string($cat_beskrivelse[$x]);
-					}
-				}
-				$rename_category=NULL;
-				$qtxt = "update grupper set box1='$box1',box2='$box2' where art = 'DebInfo'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
-			}
-		}
+// Ensure the required variables are initialized if they are not already set
+if (!isset($kategori)) $kategori = array();
+if (!isset($status_valg)) $status_valg = array();
+if (!isset($box3)) $box3 = NULL;
+if (!isset($box4)) $box4 = NULL;
+
+// Loop through all category IDs
+for ($x = 0; $x < count($cat_id); $x++) {
+    // Ensure the corresponding category selection is initialized
+    if (!isset($cat_valg[$x])) $cat_valg[$x] = ''; 
+    
+    // If the category is selected (indicated by "on")
+    if ($cat_valg[$x] == "on") {
+        // Add the category ID to the katString, separated by a tab character (chr(9))
+        // If katString is empty, initialize it with the first category ID
+        ($katString || $katString == '0') ? $katString .= chr(9) . $cat_id[$x] : $katString = $cat_id[$x];
+    }
+}
+
+// Retrieve the placeholder text for a new category name based on the language ID
+$tmp = findtekst(343, $sprog_id);
+
+// Check if a new category name was provided and it does not match the placeholder text
+if ($newCatName && $newCatName != $tmp) {
+    // Check for duplicate category names if not renaming
+    if (!is_numeric($rename_category) && in_array($newCatName, $cat_beskrivelse)) {
+        // Set an alert message if the new name already exists
+        $alerttekst = findtekst(344, $sprog_id);
+    } else {
+        $isRenamed = false; // Track if renaming occurred
+
+        // Loop through all category IDs and descriptions
+        for ($x = 0; $x < count($cat_id); $x++) {
+            // Ensure both the ID and description are valid
+            if (($cat_id[$x] || $cat_id[$x] == '0') && $cat_beskrivelse[$x]) {
+                // Update the category description if renaming
+                if ($cat_id[$x] == $rename_category) {
+                    $cat_beskrivelse[$x] = $newCatName;
+                    $isRenamed = true; // Mark as renamed
+                }
+            }
+        }
+
+        // If renaming was not successful, add a new category
+        if (!$isRenamed) {
+            $x = '0'; // Start with 0 for the new category ID
+            $y = count($cat_id);
+            // Find the lowest unused category ID
+            while (in_array($x, $cat_id)) $x++;
+            // Assign the new ID and description to the arrays
+            $cat_id[$y] = $x;
+            $cat_beskrivelse[$y] = $newCatName;
+        }
+
+        // Initialize temporary storage variables for updated category data
+        $box1 = $box2 = NULL;
+        for ($x = 0; $x < count($cat_id); $x++) {
+            if (($cat_id[$x] || $cat_id[$x] == '0') && $cat_beskrivelse[$x]) {
+                // Build the box1 string with category IDs (tab-separated)
+                ($box1 || $box1 == '0') ? $box1 .= chr(9) . $cat_id[$x] : $box1 = $cat_id[$x];
+                // Build the box2 string with escaped category descriptions (tab-separated)
+                ($box2) ? $box2 .= chr(9) . db_escape_string($cat_beskrivelse[$x]) : $box2 = db_escape_string($cat_beskrivelse[$x]);
+            }
+        }
+
+        // Reset the rename_category variable
+        $rename_category = NULL;
+
+        // Prepare the SQL query to update the category group data
+        $qtxt = "update grupper set box1='$box1',box2='$box2' where art = 'DebInfo'";
+        
+        // Execute the query to update the database
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    }
+}
+
 		######### Status
 
+		/*
 		for ($x=0;$x<count($status_valg);$x++) {
 			if ($status_valg[$x] || $status_valg[$x] == '0') {
 				($status)?$status.=chr(9).$status_id[$x]:$status=$status_id[$x];
@@ -287,6 +340,53 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])){
 		}
 		$rename_status=0;
 		db_modify("update grupper set box3='$box3',box4='$box4' where art = 'DebInfo'",__FILE__ . " linje " . __LINE__);  
+		*/
+
+		// Helper function to append values with tabs
+		function appendWithTab(&$target, $value) {
+			$target = isset($target) ? $target . chr(9) . $value : $value;
+		}
+
+		// Add selected statuses
+		foreach ($status_valg as $index => $status_value) {
+			if ($status_value || $status_value === '0') {
+				appendWithTab($status, $status_id[$index]);
+			}
+		}
+
+		// Handle new status
+		if ($ny_status) {
+			if (!$rename_status && in_array($ny_status, $status_beskrivelse)) {
+				$alerttekst = findtekst(344, $sprog_id);
+			} else {
+				if (!$rename_status) {
+					$x = 1;
+					while (in_array($x, $status_id)) $x++; // Find the lowest available value
+					$status = $x;
+					$status_id[$status_antal] = $x;
+					$status_beskrivelse[$status_antal] = $ny_status;
+					$status_antal++;
+				}
+				$box3 = null;
+				$box4 = null;
+			}
+		}
+
+		// Always keep existing statuses in $box3 and $box4, whether they are used or not
+		for ($x = 0; $x < $status_antal; $x++) {
+			if ($status_id[$x] == $rename_status) {
+				$status_beskrivelse[$x] = $ny_status;
+			}
+
+			// Add all statuses to $box3 and $box4 without removing them
+			appendWithTab($box3, $status_id[$x]);
+			appendWithTab($box4, $status_beskrivelse[$x]);
+		}
+
+		// Reset rename status and update database
+		$rename_status = 0;
+		db_modify("UPDATE grupper SET box3 = '$box3', box4 = '$box4' WHERE art = 'DebInfo'", __FILE__ . " linje " . __LINE__);
+
 
 		######### Tjekker om kontonr er integer
  
@@ -492,7 +592,9 @@ if ($id > 0){
 	$felt_4 = htmlentities(trim($r['felt_4']),ENT_COMPAT,$charset);
 	$felt_5 = htmlentities(trim($r['felt_5']),ENT_COMPAT,$charset);
 	($r['lukket']) ? $lukket='checked' : $lukket='';
-	$kategori=explode(chr(9),$r['kategori']);
+
+	$kategori=array();
+	if ($r['kategori'] || $r['kategori'] == 0)$kategori=explode(chr(9),$r['kategori']);
 	if (!$oprettet) {
 		$oprettet = date("Y-m-d");
 		$qtxt="select max(oprettet) as oprettet from adresser where id < '$id'";
@@ -594,13 +696,6 @@ if (!isset ($felt_4)) $felt_4 = NULL;
 if (!isset ($felt_5)) $felt_5 = NULL;
 if (!isset ($kontonr)) $kontonr = NULL;
 
-$topCol = '#114691';
-$butDownCol = '#2b66ba';
-$butUpCol = '#1a55a9';
-$topStyle = "border:0;border-color:$topCol;color:#fff;border-radius:5px;height:100%;background-color:$topCol;";
-$butDownStyle = "border:0;border-color:$butDownCol;color:#fff;border-radius:5px;background-color:$butDownCol;";
-$butUpStyle   = "border:0;border-color:$butUpCol;color:#fff;border-radius:5px;background-color:$butUpCol;";
-
 $tekst=findtekst(154,$sprog_id);
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -630,20 +725,21 @@ if ($menu=='T') {
 	print "<div class='content-noside'>";
 	print  "<table border='0' cellspacing='1' class='dataTableForm' width='100%'>";
 
-} elseif ($menu =='S') {
+} elseif ($menu=='S') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
 
 	print "<td width='10%'>
-		   <a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   <a href=\"$returside\" accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		   .findtekst(30,$sprog_id)."</button></a></td>\n";
 
 	print "<td width='80%' style='$topStyle' align='center'>".findtekst(356,$sprog_id)."</td>\n";
 
-	print "<td width='10%'><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+	print "<td width='10%'>
+		   <a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		   .findtekst(39,$sprog_id)."</button></a></td>\n";
 
 	print "</tbody></table>"; # <- TABEL 1.1
@@ -665,7 +761,8 @@ if ($menu=='T') {
 	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 ->
 }
 print "<form name=debitorkort action=debitorkort.php method=post>\n";
-if($vis_lev_addr) {
+$vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+if ($vis_addr == "on") {
 	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
 	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
 	print "<input type=hidden name=\"felt_3\" value='$felt_3'>\n";
@@ -805,7 +902,7 @@ if (!$gruppe) {
 }	
 print "<td><select class='inputbox' NAME=gruppe onchange=\"javascript:docChange = true;\">\n";
 if ($gruppe) {	
-	$r = db_fetch_array(db_select("select beskrivelse from grupper where art='DG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select beskrivelse from grupper where art='DG' and kodenr='$gruppe' and fiscal_year='$regnaar'",__FILE__ . " linje " . __LINE__));
 	print "<option>$gruppe:$r[beskrivelse]</option>\n";
 }
 $q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -842,7 +939,8 @@ print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg=$bgcolor5;
 print "<tr bgcolor=$bg><td>".findtekst(376,$sprog_id)."<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst(377,$sprog_id)."<!--tekst 377-->";
+print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>".findtekst(378,$sprog_id)."<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype=='erhverv') {
@@ -877,9 +975,8 @@ if ($pbs) {
 ##################### KONTOANSVARLIG ##################### 
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>".findtekst(386,$sprog_id)."<!--tekst 386--></td>\n";
-	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__));
 print "<td><select class='inputbox' NAME=kontoansvarlig value=\"$kontoansvarlig\"  onchange=\"javascript:docChange = true;\">\n";
-if ($r['initialer']) {
+if ($r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__))) {
 	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__));
 	print "<option>$r[initialer]</option>\n";
 }
@@ -918,7 +1015,8 @@ print "<tr bgcolor=$bg><td>".findtekst(387,$sprog_id)."<!--tekst 387--></td><td>
 print "</tbody></table></td>";# <- TABEL 1.2.2
 print "<td valign=top><table border='0' width='100%'><tbody>"; # TABEL 1.2.3 ->
 $bg=$bgcolor5;
-if ($vis_lev_addr) {
+$vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
+if ($vis_addr == "on") {
 	print "<tr bgcolor=$bg><td colspan=2 align=center height=25px><b>".findtekst(1148,$sprog_id)."</b></td></tr>\n"; #20210702
 	if ($kontotype=='privat') {
 		print "<input type=\"hidden\" name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
@@ -966,10 +1064,10 @@ if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	print "</td><td><input type='text' class='inputbox' name=\"Password\" size=\"25\" value=\"**********\"></td></tr>\n";
 }
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-	print "<tr bgcolor=$bg><td>";
-	$oLibTxt = "Sæt limit på hvor mange varer en kunde kan oprette";
-	print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">Varelimit</span>";
-	print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"". dkdecimal($productlimit,0) . "\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>";
+$oLibTxt = "Sæt limit på hvor mange varer en kunde kan oprette";
+print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">Varelimit</span>";
+print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"". dkdecimal($productlimit,0) . "\"></td></tr>\n";
 
 
 print "</tbody></table></td></tr>"; # <- TABEL 1.2.3
@@ -992,31 +1090,41 @@ if (!is_numeric($rename_category)) {
 		$tekst=findtekst(395,$sprog_id);
 		$tekst=str_replace('$firmanavn',$firmanavn,$tekst);
 		print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"cat_valg[$x]\" $checked></td>\n";
-		print "<td title=\"".findtekst(396,$sprog_id)."\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&rename_category=$cat_id[$x]\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-		print "<td title=\"".findtekst(397,$sprog_id)."\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&delete_category=$cat_id[$x]\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+		print "<td title=\"".findtekst(396,$sprog_id)."\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&rename_category=$cat_id[$x]\" id=\"rename_category-$x\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+		print "<td title=\"".findtekst(397,$sprog_id)."\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&delete_category=$cat_id[$x]\" id=\"delete_category-$x\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
 		print "</tr>\n";
 		print "<input type=\"hidden\" name=\"cat_id[$x]\" value=\"$cat_id[$x]\">\n";
 		print "<input type=\"hidden\" name=\"cat_beskrivelse[$x]\" value=\"$cat_beskrivelse[$x]\">\n";
 	}
 }
 }
-if (is_numeric($rename_category)){
-	for ($x=0;$x<count($cat_id);$x++) {
-		print "<input type=\"hidden\" name=\"cat_id[$x]\" value=\"$cat_id[$x]\">\n";
-		print "<input type=\"hidden\" name=\"cat_beskrivelse[$x]\" value=\"$cat_beskrivelse[$x]\">\n";
-		if ($rename_category==$cat_id[$x]) $newCatName=$cat_beskrivelse[$x];
-		else {
-			print "<tr><td>$cat_beskrivelse[$x]</td></tr>\n";
-		}
-	}
-#	$tekst=findtekst(388,$sprog_id);
-#	$tekst=str_replace('$newCatName',$newCatName,$tekst);
-#	print "<tr><td colspan=\"4\">$tekst<!--tekst 388--></td></tr>\n";
-	print "<input type=\"hidden\" name=\"rename_category\" value=\"$rename_category\">\n";
-	print "<tr><td colspan=\"4\" title=\"Skriv det nye navn p&aring; kategorien her\"><input type=\"text\" size=\"25\" name=\"newCatName\" value=\"$newCatName\"></td></tr>\n";
+// Check if we are renaming a category by verifying if $rename_category is numeric
+if (is_numeric($rename_category)) {
+    // Loop through all category IDs
+    for ($x = 0; $x < count($cat_id); $x++) {
+        // Output hidden inputs to retain category IDs and descriptions in the form
+        print "<input type=\"hidden\" name=\"cat_id[$x]\" value=\"$cat_id[$x]\">\n";
+        print "<input type=\"hidden\" name=\"cat_beskrivelse[$x]\" value=\"$cat_beskrivelse[$x]\">\n";
+
+        // If the current category ID matches the one being renamed, save it for later
+        if ($rename_category == $cat_id[$x]) {
+            $newCatName = $cat_beskrivelse[$x];
+        } else {
+            print "<tr><td>$cat_beskrivelse[$x]</td></tr>\n";
+        }
+    }
+    // Add a hidden input to retain the rename_category value in the form
+    print "<input type=\"hidden\" name=\"rename_category\" value=\"$rename_category\">\n";
+
+    // Provide an input field for entering the new category name
+    print "<tr><td colspan=\"4\" title=\"Skriv det nye navn p&aring; kategorien her\"><input type=\"text\" size=\"25\" name=\"newCatName\" value=\"$newCatName\"></td></tr>\n";
+
 } else {
-	print "<tr><td colspan=\"4\" title=\"".findtekst(390,$sprog_id)."\"><!--tekst 390--><input class='inputbox' type=\"text\" size=\"25\" name=\"newCatName\" placeholder=\"".findtekst(343,$sprog_id)."\"></td></tr>\n";
+    // If not renaming a category, display a text input field for creating a new category
+    // Use placeholders and titles for better user guidance
+    print "<tr><td colspan=\"4\" title=\"".findtekst(390, $sprog_id)."\"><!--tekst 390--><input class='inputbox' type=\"text\" size=\"25\" name=\"newCatName\" placeholder=\"".findtekst(343, $sprog_id)."\"></td></tr>\n";
 }
+
 
 print "</tbody></table></td>";# <- TABEL 1.2.4.1
 print "<td><table border=0 width='100%'><tbody>"; # TABEL 1.2.4.2 ->
@@ -1083,6 +1191,47 @@ print "</tbody></table></td></tr>"; # <- TABEL 1.2
 print "<tr><td align = 'center' valign = 'bottom'>\n";
 if ($menu=='T')
 {
+} elseif ($menu=='S') {
+	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
+	print "<td width='25%' align=center style='$topStyle'>&nbsp;</td>\n";
+	$tekst=findtekst(130,$sprog_id);
+	if ($popup) {
+		print "<td width='10%' onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php', title='$tekst'>
+		<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(131,$sprog_id)."</button></td>\n";
+	} elseif ($returside!="historikkort.php") {
+		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id&returside=debitorkort.php>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(131,$sprog_id)."</button></a></td>\n";
+	} else {
+		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(131,$sprog_id)."</button></a></td>\n";
+	}
+	$tekst=findtekst(132,$sprog_id);
+	print "<td width='10%' title='$tekst'>
+		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(133,$sprog_id)."</button></a></td>\n";
+
+	$tekst=findtekst(129,$sprog_id);
+	if (substr($rettigheder,5,1)=='1') {
+		print "<td width='10%' title='$tekst'>
+			   <a href=ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(134,$sprog_id)."</button></a></td>\n";
+	} else {
+		print "<td width='10%' align='center' style='$topStyle'><span style=\"color:#999;\">".findtekst(134,$sprog_id)."</span></td>\n";
+	}
+
+	$r=db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
+	$jobkort=$r['box7'];
+	if ($jobkort) {
+		$tekst=findtekst(312,$sprog_id);#"Klik her for at &aring;bne listen med arbejdskort"
+
+	print "<td width='10%' title='$tekst'><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(38,$sprog_id)."</button></td>\n";
+	} else print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>".findtekst(38,$sprog_id)."</span></td>\n";
+
+	print "<td width='25%' style='$topStyle'>&nbsp;</td>\n";
+
+	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3
+	print "</tbody></table>"; # <- TABEL 1
 } else {
 	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
 	print "<td width='25%' $top_bund>&nbsp;</td>\n";
@@ -1116,9 +1265,6 @@ if ($menu=='T')
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
 	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3
 	print "</tbody></table>"; # <- TABEL 1
-}
-	if ($menu=='S') {
-	print "</tbody></table>";
 }
 
 function split_navn($firmanavn) {

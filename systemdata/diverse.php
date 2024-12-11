@@ -554,7 +554,10 @@ if ($_POST) {
 		$kostmetode       = if_isset($_POST['kostmetode']);
 		$saetvarenr       = if_isset($_POST['saetvarenr']); #20150907
 		$orderNoteEnabled = if_isset($_POST['orderNoteEnabled']);
+		$debitoripad      = if_isset($_POST['debitoripad']);
+		$portovarenr      = if_isset($_POST['portovarenr']);
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
+		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
 
 
 		if ($box2 && $r=db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'",__FILE__ . " linje " . __LINE__))) {
@@ -616,7 +619,6 @@ if ($_POST) {
 			$qtxt = "insert into settings (var_name, var_value) values ('orderNoteEnabled','$orderNoteEnabled')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
-		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 
 
 	#######################################################################################

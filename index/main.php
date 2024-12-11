@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- index/main.php --- lap 4.1.0 --- 2024.02.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,12 +27,13 @@
 @session_start();
 $s_id = session_id();
 
-$css = "../css/sidebar_style.css";
+$css = "../css/sidebar_style.css?v=20";
 
 include ("../includes/std_func.php");
 include ("../includes/connect.php");
 include ("../includes/online.php");
 include ("../includes/stdFunc/dkDecimal.php");
+
 
 function check_permissions($permarr) {
 	global $rettigheder;
@@ -52,127 +53,144 @@ if (substr($brugernavn,0,11) == "debitoripad") {
   <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
   <link rel="icon" href="../img/saldiLogo.png">
   <link href='../css/sidebar_style.css' rel='stylesheet'>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=0.8">
+
+  <div class="modalbg" onclick="
+    document.getElementsByClassName('sidebar')[0].style.width=''; 
+    document.getElementsByClassName('modalbg')[0].style.display='none'; 
+  "></div>
   <div class="sidebar">
 
-    <div class="logo">
+    <div class="logo wide">
       <img class="logo-img" src="../img/sidebar_logo.png">
        <i id="icon-open" class='bx bxs-arrow-from-right'></i>
-<!--        <i id="icon-closed" class='bx bx-menu'></i>  -->
-<!--        <i id="icon-closed" class='bx bxs-arrow-from-left'></i>  -->
+    </div>
+
+    <div class="logo small" onclick="
+      document.getElementsByClassName('sidebar')[0].style.width=''; 
+      document.getElementsByClassName('modalbg')[0].style.display='none'; 
+    ">
+      <img class="logo-img" src="../img/sidebar_logo.png">
+      <i id="icon-open" class='bx bxs-arrow-from-right'></i>
      </div>
+
     <ul class="nav-links top-links" style='margin-top: 1em'>
+      <!-- Finans -->
       <li class="active">
-        <a href="#" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
+        <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
 	  <i class='bx bxs-dashboard'></i>
-          <span class="link_name">Overblik</span>
+	  <span class="link_name"><?php print findtekst('3100|Oversigt', $sprog_id); ?></span>
         </a>
         <ul class="sub-menu blank" >
-          <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'>Overblik</a></li>
+          <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst(3075, $sprog_id); ?></a></li>
         </ul>
       </li>
 
       <li style="display: <?php if (check_permissions(array(2,3,4))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="finans">
           <a href="#">
             <i class='bx bx-coin-stack' ></i>
-            <span class="link_name">Finans</span>
+            <span class="link_name"><?php print findtekst(600, $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow' > </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name">Finans</span></li>
+          <li><span class="link_name"><?php print findtekst(600, $sprog_id); ?></span></li>
 <?php 
 	if (check_permissions(array(2))) {
-		echo '<li><a href="#" onclick=\'update_iframe("/finans/kladdeliste.php")\'>Kassekladder</a></li>';
+		echo '<li><a href="#" id="kladdeliste" onclick=\'update_iframe("/finans/kladdeliste.php")\'>'.findtekst(601, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(3))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/finans/regnskab.php")\'>Regnskab</a></li>';
+		echo '<li><a href="#" id="regnskab" onclick=\'update_iframe("/finans/regnskab.php")\'>'.findtekst(602, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(4))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/finans/rapport.php")\'>Rapporter</a></li>';
+	  echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>'.findtekst(603, $sprog_id).'</a></li>';
 	}
 ?>
         </ul>
       </li>
 
+      <!-- Debitor -->
       <li style="display: <?php if (check_permissions(array(5,6,12))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="debitor">
           <a href="#">
 	    <i class='bx bx-group'></i>
-            <span class="link_name">Debitor</span>
+            <span class="link_name"><?php print findtekst(604, $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow' > </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name">Debitor</span></li>
+          <li><span class="link_name"><?php print findtekst(604, $sprog_id); ?></span></li>
 <?php 
 	if (check_permissions(array(5))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>Ordrer</a></li>';
+		  echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>'.findtekst(605, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(6))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>Konti</a></li>';
+		  echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>'.findtekst(606, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(12))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>Rapporter</a></li>';
+		  echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>'.findtekst(603, $sprog_id).'</a></li>';
 	}
 ?>
         </ul>
       </li>
 
+      <!-- Kreditor -->
       <li style="display: <?php if (check_permissions(array(7,8,13))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="kreditor">
           <a href="#">
             <i class='bx bx-archive-out' ></i>
-            <span class="link_name">Kreditor</span>
+            <span class="link_name"><?php print findtekst(607, $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow' > </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name">Kreditor</span></li>
+          <li><span class="link_name"><?php print findtekst(607, $sprog_id); ?></span></li>
 <?php 
 	if (check_permissions(array(7))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/kreditor/ordreliste.php")\'>Ordrer</a></li>';
+		  echo '<li><a href="#" onclick=\'update_iframe("/kreditor/ordreliste.php")\'>'.findtekst(605, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(8))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/kreditor/kreditor.php")\'>Konti</a></li>';
+		  echo '<li><a href="#" onclick=\'update_iframe("/kreditor/kreditor.php")\'>'.findtekst(606, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(13))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/kreditor/rapport.php")\'>Rapporter</a></li>';
+		  echo '<li><a href="#" onclick=\'update_iframe("/kreditor/rapport.php")\'>'.findtekst(603, $sprog_id).'</a></li>';
 	}
 ?>
         </ul>
       </li>
 
+      <!-- Kreditor -->
       <li style="display: <?php if (check_permissions(array(9,10,15))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="lager">
           <a href="#">
             <i class='bx bx-package' ></i>
-            <span class="link_name">Lager</span>
+            <span class="link_name"><?php print findtekst(608, $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow' > </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name">Lager</span></li>
+          <li><span class="link_name"><?php print findtekst(608, $sprog_id); ?></span></li>
 <?php 
 	if (check_permissions(array(9))) {
-        	echo '<li><a href="#" onclick=\'update_iframe("/lager/varer.php")\'>Varer</a></li>';
+        	echo '<li><a href="#" onclick=\'update_iframe("/lager/varer.php")\'>'.findtekst(609, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(10))) {
-        	echo '<li><a href="#" onclick=\'update_iframe("/lager/modtageliste.php")\'>Varemodtagelse</a></li>';
+        	echo '<li><a href="#" onclick=\'update_iframe("/lager/modtageliste.php")\'>'.findtekst(610, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(15))) {
-        	echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>Rapporter</a></li>';
+        	echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>'.findtekst(603, $sprog_id).'</a></li>';
 	}
 ?>
         </ul>
       </li>
 
+      <!-- Kreditor -->
       <li style="display: <?php if (check_permissions(array(0,1,11))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="system">
           <a href="#">
           <i class='bx bx-cog'></i>
-          <span class="link_name">System</span>
+          <span class="link_name"><?php print findtekst(3076, $sprog_id); ?></span>
         </a>
         <i class='bx bxs-chevron-down arrow' > </i>
         </div>
@@ -180,20 +198,20 @@ if (substr($brugernavn,0,11) == "debitoripad") {
           <li><span class="link_name">System</span></li>
 <?php 
 	if (check_permissions(array(0))) {
-        	echo '<li><a href="#" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>Kontoplan</a></li>';
+        	echo '<li><a href="#" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>'.findtekst(612, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(1))) {
-        	echo '<li><a href="#" onclick=\'update_iframe("/systemdata/syssetup.php")\'>Indstillinger</a></li>';
+        	echo '<li><a href="#" onclick=\'update_iframe("/systemdata/syssetup.php")\'>'.findtekst(613, $sprog_id).'</a></li>';
 		
 		# Kassesystem eller ej
 		$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
 		$state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($state) {
-			print "<li><a href=\"#\" onclick='update_iframe(\"/systemdata/posmenuer.php\")'>POS menuer</a></li>";
+			print "<li><a href=\"#\" onclick='update_iframe(\"/systemdata/posmenuer.php\")'>".findtekst(1940, $sprog_id)."</a></li>";
 		}
 	}
 	if (check_permissions(array(11))) {
-        	echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>Sikkerhedskopi</a></li>';
+        	echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>'.findtekst(614, $sprog_id).'</a></li>';
 	}
 ?>
         </ul>
@@ -204,20 +222,20 @@ if (substr($brugernavn,0,11) == "debitoripad") {
       <li>
         <a href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');">
           <i class='bx bx-envelope'></i>
-          <span class="link_name">Kontakt</span>
+          <span class="link_name"><?php print findtekst(398, $sprog_id); ?></span>
         </a>
         <ul class="sub-menu blank" >
-          <li><a class="" href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');">Kontakt</a></li>
+          <li><a class="" href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');"><?php print findtekst(398, $sprog_id); ?></a></li>
         </ul>
       </li>
 
       <li>
         <a href="#" onclick='redirect_uri("/index/logud.php")'>
           <i class='bx bx-log-out' ></i>
-          <span class="link_name">Logud</span>
+          <span class="link_name"><?php print findtekst(93, $sprog_id); ?></span>
         </a>
         <ul class="sub-menu blank" >
-          <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'>Logud</a></li>
+          <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst(93, $sprog_id); ?></a></li>
         </ul>
       </li>
 
@@ -230,17 +248,26 @@ if (substr($brugernavn,0,11) == "debitoripad") {
   </div>
 
 <section class="home-section">
+  <div class="topbar">
+    <a href="javascript:void(0)" onclick="document.getElementsByClassName('sidebar')[0].setAttribute(`style`, `width: 210px !important; height: ${window.screen.availHeight+1}px`); document.getElementsByClassName('modalbg')[0].style.display='block'; "><i class='bx bx-menu' style="color: white; font-size: 50px"></i></a>
+  </div>
+
   <div class="home-content">
     <iframe 
       onLoad="
       document.title = 'Saldi - ' + this.contentWindow.document.title; 
 console.log('Locaiton', this.contentWindow.document.location.href);
-trigger_iframe_load();"
+      trigger_iframe_load();
+      stopLoading();
+      content_finished_loading(this);"
       id="iframe_a" src="-" 
       name="iframe_a" 
       title="Site" 
       class="content-iframe"
     ></iframe>
+  </div>
+<div id="loadingBar">
+  <div></div>
   </div>
 </section>
 
@@ -269,10 +296,6 @@ function getCookie(cname) {
   return "";
 }
 
-  const warn_paths = [
-    // "systemdata/syssetup.php",
-  ]
-
   let arrow = document.querySelectorAll(".icon_link");
 
   for (var i = 0; i < arrow.length; i++) {
@@ -284,8 +307,8 @@ function getCookie(cname) {
   }
 
   let sidebar = document.querySelector(".sidebar");
-  let sidebarBtn = document.querySelector(".logo");
-  sidebarBtn.addEventListener("click", ()=>{
+  let sidebarBtn = document.querySelector(".logo.wide");
+  sidebarBtn.addEventListener("click", () => {
     sidebar.classList.toggle("closed");
     document.cookie = `isSidebarOpen=${sidebar.classList.contains("closed")}`
   });
@@ -299,14 +322,7 @@ function getCookie(cname) {
     const iframe = document.querySelector(".content-iframe")
     const path = iframe.contentWindow.location.href
 
-    doConfirm = false;
-    for (let i = 0; i < warn_paths.length; i++) {
-      if (path.endsWith(warn_paths[i])) {
-        doConfirm = true;
-      }
-    }
-    
-    if (doConfirm || iframe.contentWindow?.docChange) {
+    if (iframe.contentWindow?.docChange) {
       if (!window.confirm("Er du sikker på du gerne vil ændre side? Dine ændringer vil ikke blive gemt")) {
         return;
       }
@@ -320,23 +336,31 @@ function getCookie(cname) {
   }
 
   // Check for page reloads and manage inital load of iframe
-  if (window.performance) {
-    if (performance.navigation.type == performance.navigation.TYPE_RELOAD) {
-      // This page is reloaded
-      update_iframe(getCookie("last-sidebar-location"));
-    } else {
-      // This page is not reloaded
-      update_iframe("/index/dashboard.php");
-    }
-  } else {
-    // Performance does not work on this machine
-    update_iframe("/index/dashboard.php");
+  update_iframe(window.location.hash == "" ? "/index/dashboard.php" : window.location.hash.replace("#", ""));
+  
+  let manualHashChange = true;
+  addEventListener("hashchange", (event) => {
+    if (manualHashChange) {
+      const newHash = event.newURL.split("#")[1];
+      if (newHash && newHash !== "/") {
+        update_iframe(newHash);
   }
+    }
+  });
 
   function trigger_iframe_load() {
-    const iframe = document.querySelector(".content-iframe")
-    const path = "/" + iframe.contentWindow.document.location.pathname.split("/").slice(2).join("/");
-    setCookie('last-sidebar-location', path, 1)
+    const iframe = document.querySelector(".content-iframe");
+    const path = "/" + iframe.contentWindow.document.location.href.split("/").slice(4).join("/");
+    
+    // Prevent iframe load hashchange from triggering update_iframe
+    manualHashChange = false;
+    window.location.hash = path;
+    setCookie('last-sidebar-location', path, 1);
+
+    // Reset manualHashChange flag after the hash has been set
+    setTimeout(() => {
+      manualHashChange = true;
+    }, 0);
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -345,7 +369,6 @@ function getCookie(cname) {
       refs[i].addEventListener('click', function () {
         clear_sidebar();
         this.classList.toggle('active');
-	console.log(this);
       });
     }
   });
@@ -357,6 +380,60 @@ function getCookie(cname) {
     }
   }
 
+  function startLoading() {
+    var loadingBar = document.getElementById('loadingBar');
+    loadingBar.style.display = 'block'; // Show the loading bar
+  }
+
+  function stopLoading() {
+    var loadingBar = document.getElementById('loadingBar');
+    loadingBar.style.display = 'none'; // Hide the loading bar
+  }
+
+  var content_finished_loading = function(iframe) {
+    // inject the start loading handler when content finished loading
+    iframe.contentWindow.onbeforeunload = startLoading;
+  };
 </script>
+
+<style>
+  /* The loading bar container */
+  #loadingBar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background-color: #f3f3f3;
+    z-index: 9999;
+    display: none; /* Initially hidden */
+    overflow: hidden;
+  }
+
+  /* The loading bar itself, with cool back-and-forth animation */
+  #loadingBar div {
+    position: fixed;
+    height: 100%;
+    width: 0;
+    background-color: #4caf50;
+    animation: loadingAnimation 2s infinite ease-in-out;
+  }
+
+  /* Keyframes for back-and-forth animation */
+  @keyframes loadingAnimation {
+    0% {
+      width: 0;
+      left: 0;
+    }
+    50% {
+      width: 100%;
+      left: 0;
+    }
+    100% {
+      width: 0;
+      left: 100%;
+    }
+  }
+</style>
 
 </html>
