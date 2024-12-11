@@ -6,12 +6,11 @@
 }
 
 .sidebar {
-    position: absolute;
+    position: fixed;
     top: 0;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    width: 210px;
+    height: 100% !important;
     background-color: #114691;
     z-index: 100;
     transition: all 0.5s ease;
@@ -241,13 +240,18 @@
 
 .sidebar.closed .nav-links li .sub-menu .link_name {
     font-size: 16px;
+    font-weight: bold;
     padding-left: 6px;
     opacity: 1;
     display: block;
 }
 
 .sidebar.closed ul.nav-links li ul.sub-menu li a {
-    color: #ccc;
+    color: #fff;
+}
+
+.sidebar.closed ul.nav-links li ul.sub-menu.blank li a {
+    font-weight: bold;
 }
 
 .sidebar .nav-links li .sub-menu.blank {
@@ -266,19 +270,17 @@
     position: fixed;
     top: 0;
     background: #E4E9F7;
-    height: 100vh;
-    left: 210px;
-    width: calc(100% - 210px);
+    /* height: 100%; */
     transition: all 0.5s ease;
+    width: calc(100% - 210px);
 }
 
 .sidebar.closed ~ .home-section{
     left: 72px;
-    width: calc(100% - 72px);
+    width: calc(100vw - 72px);
 }
 
 .home-section .home-content {
-    height: 100%;
     display: flex;
     align-items: center;
 }
@@ -321,7 +323,6 @@
 
 #iframe_a {
 	width: 100%;
-	height: 100%;
 	border: none;
 }
 
@@ -344,11 +345,77 @@
     display: none;
 }
 
-.sidebar.closed .logo #icon-open {
+/*.sidebar.closed .logo #icon-open {
     display: none;
 }
 
 .sidebar:not(.closed) .logo #icon-closed {
     display: none;
+}*/
+
+.topbar {
+    width: 100%;
+    height: 50px;
+    background-color: #114691;
 }
 
+.modalbg {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background-color: #15151525;
+    z-index: 100;
+    display: none;
+}
+
+body {
+    height: 100vh;
+}
+
+@media screen and (min-width: 780px) {
+    .sidebar {
+        width: 210px;
+    }
+    .home-section {
+        left: 210px;
+        /* width: calc(100% - 210px); */
+    }
+    .topbar {
+        display: none;
+    }
+    .small {
+        display: none !important;
+    }
+    .home-section, .home-section .home-content {
+        height: 100%;
+    }
+    iframe {
+	    height: 100%;
+    }
+  }
+@media screen and (max-width: 780px) {
+    .sidebar, .sidebar.closed {
+        width: 0 !important;
+    }
+    .home-section {
+        width: 100% !important;
+        left: 0px !important;
+    }
+    .wide {
+        display: none !important;
+    }  
+    iframe {
+	    height: 100%;
+    }
+    .home-section {
+        height: calc(100% - 50px);
+    }
+    .home-section .home-content {
+	    height: 100%;
+    }
+    /* .home-section {
+        width: calc(100% - 72px);
+    }  */
+  }
