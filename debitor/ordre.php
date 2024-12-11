@@ -560,6 +560,18 @@ if (!$id && $konto_id && $kontonr) {
 	$qtxt.="'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn',";
 	$qtxt.="'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+
+	# Porto vare system
+	## Create a new order line on creation from the specified sku
+	$sku = get_settings_value("porto_varnr", "ordre", null);
+	if ($sku != null) {
+		$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1",__FILE__ . " linje " . __LINE__);
+		$ordre = db_fetch_array($query);
+		$query = db_select("select * from varer where varenr='$sku' limit 1",__FILE__ . " linje " . __LINE__);
+		$vare = db_fetch_array($query);
+		opret_ordrelinje($ordre["id"], $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
+	}
+
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) $id=$row['id'];
 } elseif($status<3 && $id && $firmanavn) {
@@ -1363,6 +1375,18 @@ if ($status<3 && $b_submit) {
 		if ($brugervalg) $ref='';
 		$qtext="insert into ordrer (ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,status,ref,lev_adr,valuta,projekt,sprog,pbs,afd,restordre,felt_1,felt_2,felt_3,felt_4,felt_5,vis_lev_addr) values ($ordrenr,'$konto_id','$kontonr','$kundeordnr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','$art','$ordredate','$momssats',$status,'$ref','$lev_adr','$valuta','$masterprojekt','$formularsprog','$pbs','$afd','0','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$vis_lev_addr')";#20131017 
 		db_modify($qtext,__FILE__ . " linje " . __LINE__);
+
+		# Porto vare system
+		## Create a new order line on creation from the specified sku
+		$sku = get_settings_value("porto_varnr", "ordre", null);
+		if ($sku != null) {
+			$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1",__FILE__ . " linje " . __LINE__);
+			$ordre = db_fetch_array($query);
+			$query = db_select("select * from varer where varenr='$sku' limit 1",__FILE__ . " linje " . __LINE__);
+			$vare = db_fetch_array($query);
+			opret_ordrelinje($ordre["id"], $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
+		}
+
 		$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
 			$id=$row['id'];
@@ -2203,7 +2227,9 @@ function ordreside($id,$regnskab) {
 			$gls_pass = "50875";
 			$gls_id = "2080050875";
 */			
+		// Gls label setup
 		if (isset($_REQUEST['gls_go'])){  // BZ
+			db_modify ("update ordrer set gls_label = true where id = '$id'",__FILE__ . " linje " . __LINE__);
 			$tGrossWeight=$_POST['tGrossWeight']*1;
 			$qtxt="select var_name,var_value from settings where var_grp='GLS'";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -2215,7 +2241,9 @@ function ordreside($id,$regnskab) {
 			}
 			gls_label($gls_user,$gls_pass,$gls_id,$gls_ctId,$ordrenr,$kundeordnr,$firmanavn,$addr1,$postnr,$bynavn,$land,$email,$lev_navn,$lev_addr1,$lev_postnr,$lev_bynavn,$lev_land,$kontakt,$tGrossWeight);
 		}
+		// Fedex label setup
 		if (isset($_REQUEST['dfm_go'])){   
+			db_modify ("update ordrer set fedex_label = true where id = '$id'",__FILE__ . " linje " . __LINE__);
 			$tGrossWeight=1;
 			$qtxt="select var_name,var_value from settings where var_grp='GLS'";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -4340,12 +4368,18 @@ $kundeordre = findtekst(1092,$sprog_id);
 
 	if ( ($gls_user) || (($dfm_user) && ($status>=3)) ) print "<tr><td align=\"center\"><br>";
 	if ($gls_user) {
+		$q=db_select("select gls_label, fedex_label from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
+		$r=db_fetch_array($q);
+
+		$gls_stil = $r["gls_label"] == "t" ? "color: gray" : "";
+		$fedex_stil = $r["fedex_label"] == "t" ? "color: gray" : "";
+
 		 //print "<form name=\"form\" action=\"http://api.gls.dk/ws/\"  method=\"POST\">".
 		print "<form name=\"GLS\"  method=\"POST\">";
 		print "<input type=\"hidden\" name=\"tGrossWeight\" value=\"$tGrossWeight\">\n";
-		print "\n<input type=\"submit\" name=\"gls_go\" value=\"GLS Label\"></form>"; 
+		print "\n<input type=\"submit\" name=\"gls_go\" value=\"GLS Label\" style='$gls_stil' onclick=\"this.style.color = 'gray'\"></form>"; 
 /* GLS knap slut */
-    		print "<form name=\"fedexlabel_form\" action=\"https://www.fedex.com/shipping/shipEntryAction.do\" target=\"_blank\" method=\"POST\">";
+    	print "<form name=\"fedexlabel_form\" action=\"https://www.fedex.com/shipping/shipEntryAction.do\" target=\"_blank\" method=\"POST\">";
 	  	$txtWeight=ceil($tGrossWeight);
 		if ($txtWeight < 1) $txtWeight=1;
 		print
@@ -4391,7 +4425,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 		}
 		if(!empty($lev_kontakt)) print "\n<input type=\"hidden\" name=\"toData.addressData.contactName\" value=\"".$lev_kontakt."\">";
 		else print "\n<input type=\"hidden\" name=\"toData.addressData.contactName\" value=\"".$kontakt."\">";
-		print "\n<input type=\"submit\" value=\"Send til Fedex\"></form>"; 
+		print "\n<input type=\"submit\" value=\"Send til Fedex\" style='$fedex_stil' onclick=\"this.style.color = 'gray'\"></form>"; 
 		print "</td></tr>";
 	}	
 	if (($dfm_user) && ($status>=3)) {

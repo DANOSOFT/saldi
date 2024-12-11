@@ -77,7 +77,7 @@ if (substr($brugernavn,0,11) == "debitoripad") {
     <ul class="nav-links top-links" style='margin-top: 1em'>
       <!-- Finans -->
       <li class="active">
-        <a href="#" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
+        <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
 	  <i class='bx bxs-dashboard'></i>
 	  <span class="link_name"><?php print findtekst('3100|Oversigt', $sprog_id); ?></span>
         </a>
@@ -87,7 +87,7 @@ if (substr($brugernavn,0,11) == "debitoripad") {
       </li>
 
       <li style="display: <?php if (check_permissions(array(2,3,4))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="finans">
           <a href="#">
             <i class='bx bx-coin-stack' ></i>
             <span class="link_name"><?php print findtekst(600, $sprog_id); ?></span>
@@ -98,13 +98,13 @@ if (substr($brugernavn,0,11) == "debitoripad") {
           <li><span class="link_name"><?php print findtekst(600, $sprog_id); ?></span></li>
 <?php 
 	if (check_permissions(array(2))) {
-		echo '<li><a href="#" onclick=\'update_iframe("/finans/kladdeliste.php")\'>'.findtekst(601, $sprog_id).'</a></li>';
+		echo '<li><a href="#" id="kladdeliste" onclick=\'update_iframe("/finans/kladdeliste.php")\'>'.findtekst(601, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(3))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/finans/regnskab.php")\'>'.findtekst(602, $sprog_id).'</a></li>';
+		echo '<li><a href="#" id="regnskab" onclick=\'update_iframe("/finans/regnskab.php")\'>'.findtekst(602, $sprog_id).'</a></li>';
 	}
 	if (check_permissions(array(4))) {
-		  echo '<li><a href="#" onclick=\'update_iframe("/finans/rapport.php")\'>'.findtekst(603, $sprog_id).'</a></li>';
+	  echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>'.findtekst(603, $sprog_id).'</a></li>';
 	}
 ?>
         </ul>
@@ -112,7 +112,7 @@ if (substr($brugernavn,0,11) == "debitoripad") {
 
       <!-- Debitor -->
       <li style="display: <?php if (check_permissions(array(5,6,12))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="debitor">
           <a href="#">
 	    <i class='bx bx-group'></i>
             <span class="link_name"><?php print findtekst(604, $sprog_id); ?></span>
@@ -137,7 +137,7 @@ if (substr($brugernavn,0,11) == "debitoripad") {
 
       <!-- Kreditor -->
       <li style="display: <?php if (check_permissions(array(7,8,13))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="kreditor">
           <a href="#">
             <i class='bx bx-archive-out' ></i>
             <span class="link_name"><?php print findtekst(607, $sprog_id); ?></span>
@@ -162,7 +162,7 @@ if (substr($brugernavn,0,11) == "debitoripad") {
 
       <!-- Kreditor -->
       <li style="display: <?php if (check_permissions(array(9,10,15))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="lager">
           <a href="#">
             <i class='bx bx-package' ></i>
             <span class="link_name"><?php print findtekst(608, $sprog_id); ?></span>
@@ -187,7 +187,7 @@ if (substr($brugernavn,0,11) == "debitoripad") {
 
       <!-- Kreditor -->
       <li style="display: <?php if (check_permissions(array(0,1,11))) {echo 'block';} else {echo 'none';} ?>">
-        <div class="icon_link">
+        <div class="icon_link" id="system">
           <a href="#">
           <i class='bx bx-cog'></i>
           <span class="link_name"><?php print findtekst(3076, $sprog_id); ?></span>
