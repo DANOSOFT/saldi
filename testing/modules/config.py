@@ -19,7 +19,7 @@ class Config:
         return driver
 
     @staticmethod
-    def login(driver, regnskab="develop", username="admin", password="05November2024"):
+    def login(driver, regnskab="develop", username="admin", password=""):
         wait = WebDriverWait(driver, 10)
         # Type login information and continue
         wait.until(EC.presence_of_element_located((By.NAME, "regnskab"))).send_keys(regnskab)
@@ -43,25 +43,6 @@ class Config:
         except TimeoutException:
             # If the button is not found within the timeout, continue
             print("Continue button not found, moving on.")
-
-    @staticmethod
-    def toggleSidebarMenu(driver, tabName):
-        """
-        Toggles on of the tabs in the sidebar based on the tab name
-        """
-        tabs = {
-            "overblik": 1,
-            "finans": 2,
-            "debitor": 3,
-            "kreditor": 4,
-        }
-
-        wait = WebDriverWait(driver, 10)
-
-        system_link = wait.until(
-            EC.element_to_be_clickable((By.XPATH, f"/html/body/div[2]/ul[1]/li[{tabNumber}]/div"))
-        )
-        system_link.click()
 
     @staticmethod
     def toFrame(driver):
