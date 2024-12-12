@@ -1564,7 +1564,7 @@ function emailKontrolskema() {
 				//$mail->Body = '<span style="font-size: 12px;line-height: 18px;">'.$nymessage.'</span>';
 				$mail->Body = '<table border="0" cellspacing="0" style="width:595px;margin:20px;">';
 				$mail->Body .= '<tr>';
-				$mail->Body .= '<td><span style="font: normal 12px Arial, Helvetica, sans-serif;line-height: 18px;color: #444;">'.utf8_decode($nymessage).'</span></td>';
+				$mail->Body .= '<td><span style="font: normal 12px Arial, Helvetica, sans-serif;line-height: 18px;color: #444;">'.$nymessage.'</span></td>';
 				$mail->Body .= '</tr>';
 				$mail->Body .= '</table>';
 				$mail->Body .= "$mailtext";
@@ -1591,27 +1591,28 @@ function emailKontrolskema() {
 						if ($status==4) {$statcolor = "background-color:white;"; $option_name = "N/A";}
 					
 					$mail->Body .= '<tr>';
-					$mail->Body .= '<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.utf8_decode($tjekpunkt[$x]).'</span></td>';
-					$mail->Body .= '<td style="'.$statcolor.'border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.utf8_decode($option_name).'</span></td>';
-					$mail->Body .= '<td colspan="3" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.utf8_decode($status_tekst).'&nbsp;</span></td>';
+					$mail->Body .= '<td colspan="2" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.$tjekpunkt[$x].'</span></td>';
+					$mail->Body .= '<td style="'.$statcolor.'border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.$option_name.'</span></td>';
+					$mail->Body .= '<td colspan="3" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.$status_tekst.'&nbsp;</span></td>';
 					$mail->Body .= '</tr>';
 				}	
 			}
 			
 			$mail->Body .= "$mailTableBottom";
 			$mail->AltBody = "This is the body in plain text for non-HTML mail clients";
-
-			if(!$mail->Send())
-			{
-				echo "Message could not be sent. <p>";
-				echo "Mailer Error: " . $mail->ErrorInfo;
+      echo "<!--";
+			$beskedSendtTil = $errorTxt = NULL;
+			if(!$mail->Send()) {
+				$errorTxt = "Message could not be sent. <p><br>Mailer Error: " . $mail->ErrorInfo;
 				exit;
 			} else {
 				for ($i=0;$i<count($emails);$i++) {
 					$beskedSendtTil.=$emails[$i].'\\n';
 				}
-				print "<BODY onLoad=\"javascript:alert('Besked sendt til:\\n$beskedSendtTil')\">";
 			}
+			echo "-->";
+			if ($beskedSendtTil) print "<BODY onLoad=\"javascript:alert('Besked sendt til:\\n$beskedSendtTil')\">";
+			elseif ($errorTxt) echo "$errorTxt<br>";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/kontrol_sager.php?sag_id=$sag_id&amp;funktion=kontrolskema&amp;sag_fase=$sag_fase&amp;tjek_id=$tjekpunkt_id&amp;tjekskema_id=$tjekskema_id\">";
 		}
 	}
@@ -2077,11 +2078,11 @@ global $db;
 		</tr>
 		<tr>
 			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Stillads til:<br>(Evt. Tegning)</b></span></td>
-			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.utf8_decode($stillads_til).'</span></td>
+			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span>'.$stillads_til.'</span></td>
 		</tr>
 		<tr>
 			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Generalt for sagen:</b></span></td>
-			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><i><b>'.utf8_decode($sag_omfang).'</b></i></span></td>
+			<td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><i><b>'.$sag_omfang.'</b></i></span></td>
 		</tr>
 		<tr>
 			<td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>Husk hver dag at:</b></span></td>
@@ -2155,12 +2156,9 @@ global $db;
 		} 
 		*/
 		if ($mail_fejl == "0") {
+/*
 			ini_set("include_path", ".:../phpmailer");
 			require("class.phpmailer.php");
-			
-			$beskrivelse=utf8_decode($beskrivelse);
-			$mailtext=utf8_decode($mailtext);
-			
 			
 			$mail = new PHPMailer();
 
@@ -2169,6 +2167,28 @@ global $db;
 			$mail->SMTPAuth = false;     // turn on SMTP authentication
 			//$mail->Username = "";  // SMTP username
 			//$mail->Password = ""; // SMTP password
+*/
+
+			require_once "../../vendor/autoload.php"; //PHPMailer Object
+			$mail = new  PHPMailer\PHPMailer\PHPMailer();
+			$mail->SMTPOptions = array(
+			'ssl' => array(
+			'verify_peer' => false,
+			'verify_peer_name' => false,
+			'allow_self_signed' => true
+			)
+			);
+			$mail->CharSet = 'UTF-8';
+			$mail->IsSMTP();                                   // send via SMTP
+			$mail->SMTPDebug  = 2;
+			$mail->Host  = $smtp; // SMTP servers
+
+			$beskrivelse=$beskrivelse;
+			$mailtext=$mailtext;
+
+
+
+
 
 			$mail->From = 'mailer.'.$db.'@saldi.dk';
 			$mail->FromName = $afsendernavn;
