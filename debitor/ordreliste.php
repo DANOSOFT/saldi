@@ -450,41 +450,76 @@ for ($x=0;$x<$vis_feltantal;$x++) {
 			$udvaelg.=")";
 		} elseif (!$konto_id) $udvaelg.="and ordrer.konto_id='0'"; 
 	} else {
-
+		// Get the field name from the $vis_felt array
 		$tmp=$vis_felt[$x];
+
+		// If the field is 'ordrenr' (order number) and there's a search value
 		if ($tmp=='ordrenr' && $find[$x]) {
+		    // Limit the length of the order number to 10 characters if it's longer
 			if (strlen($find[$x])>=11) $find[$x]=substr($find[$x],0,10);
 			$find[$x]*=1;
 		}
+
+		// If the field is 'kontonr' (account number) and there's a search value
 		if ($tmp=="kontonr" && $find[$x]) {
 			$find[$x]*=1;
 		}
+
+		// If the field is 'sum_m_moms' (sum including VAT) and there's a search value
 		if ($vis_felt[$x]=='sum_m_moms' && $find[$x]) {
+			// If the search value contains a range (e.g., a:b)
 			if ($vis_felt[$x]=='sum_m_moms' && strpos($find[$x],':')) {
+				// Split the range into two values and create the serarch pattern
 			list($a,$b) = explode(':',$find[$x]);
 				$udvaelg=$udvaelg." and ordrer.sum+ordrer.moms >= '". usdecimal($a) ."' and ordrer.sum+ordrer.moms <= '". usdecimal($b) ."'";
 			} else $udvaelg=$udvaelg." and ordrer.sum+ordrer.moms='". usdecimal($find[$x]). "'";
+
+		// If the field is 'kundegruppe' (customer group) and the value is numeric
 		} elseif ($vis_felt[$x]=='kundegruppe' && is_numeric($find[$x])) {
 			$udvaelg=$udvaelg." and adresser.gruppe='$find[$x]'";
+
+		// If it's a dropdown field and there's a search value
 		} elseif ($dropDown[$x] && ($find[$x]||$find[$x]=="0")) {
 			$udvaelg=$udvaelg." and ordrer.$tmp='$find[$x]'";
+
+		// If it's a date field or 'nextfakt' (next invoice date) field
 		} elseif ((strpos($vis_felt[$x],"date") || $vis_felt[$x]=="nextfakt") && ($find[$x]||$find[$x]=="0")) {
+			// If the field is 'nextfakt', set a flag that actiaves the "Genfaktuer" button later in this file
 			if ($vis_felt[$x]=="nextfakt") $genfakturer="1";
 			$tmp2="ordrer.".$tmp."";
 			$udvaelg=$udvaelg.udvaelg($find[$x],$tmp2, 'DATO');
+
+		// If the field is 'sum' and there's a search value
 		} elseif ($vis_felt[$x]=="sum" && ($find[$x]||$find[$x]=="0")) {
 			$tmp2="ordrer.".$tmp."";
 			$udvaelg=$udvaelg.udvaelg($find[$x],$tmp2, 'BELOB');
+		
+		// If the field is 'betalt' (paid) and there's a search value
 		} elseif ($vis_felt[$x]=="betalt" && ($find[$x]||$find[$x]=="0")) {
 			$tmp2="ordrer.".$tmp."";
-
 			$udvaelg=$udvaelg.udvaelg($find[$x],$tmp2, 'BELOB');
+
+		// If the field is a text field (as defined in $tekstfelter above) and there's a search value
 		} elseif (in_array($vis_felt[$x],$tekstfelter) && $find[$x]) { #20121004 20160901
 			$tmp2="ordrer.".$tmp."";
-			$udvaelg=$udvaelg.udvaelg($find[$x],$tmp2,'');
+			$udvaelg=$udvaelg.udvaelg($find[$x],$tmp2,'TEXT');
+
+		// If the field is 'land' (country) and there's a search value
 		} elseif ($find[$x] && $vis_felt[$x] == 'land') {
 			$tmp2="ordrer.".strtolower($tmp)."";
 			$udvaelg=$udvaelg.udvaelg($find[$x],$tmp2, 'TEXT');
+
+		// If the field is fakturanr
+		} elseif ($vis_felt[$x]=='fakturanr' && $find[$x]) {
+			$tmp2="ordrer.".strtolower($tmp)."";
+			// If the search value contains a range (e.g., a:b)
+			if (strpos($find[$x],':')) {
+				// Split the range into two values and create the serarch pattern
+				list($a,$b) = explode(':',$find[$x]);
+				$udvaelg=$udvaelg." and ordrer.fakturanr >= '". usdecimal($a) ."' and ordrer.fakturanr <= '". usdecimal($b) ."'";
+			} else $udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
+		
+		// If there's any other field with a search value
 		} elseif ($find[$x]||$find[$x]=="0") {
 			$tmp2="ordrer.".$tmp."";
 			$udvaelg=$udvaelg.udvaelg($find[$x],$tmp2, 'NR');
@@ -739,39 +774,85 @@ while ($r0=db_fetch_array($q0)) {
 	
 			$linjebg=linjefarve($linjebg, $bgcolor, $bgcolor5, $bgnuance1, $bgnuance);
 			print "<tr bgcolor=\"$linjebg\" title='$tr_title'><td bgcolor=$bgcolor></td>";
-		} elseif ($vis_lagerstatus) {
-			$linjebg=NULL;
-#			$lnr=0;
-#			$r=db_fetch_array(db_select("select count(antal) as linjeantal from ordrelinjer where ordre_id='$id' and antal != '0'"));
-#			$ls_linjeantal=$r['linjeantal'];
-			$spantxt="<table><tbody>";
-			$spantxt.="<tr><td>Varenr</td><td>".findtekst(948, $sprog_id)."</td><td>".findtekst(916, $sprog_id)."</td><td>".findtekst(1190, $sprog_id)."</td><td>".findtekst(1428, $sprog_id)."</td><td>".findtekst(1429, $sprog_id)."</td><td>".findtekst(1430, $sprog_id)."</td><td>".findtekst(976, $sprog_id)."</td></tr>";
-			$q=db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'",__FILE__ . " linje " . __LINE__);
-			while ($r=db_fetch_array($q)) {
-				$r2=db_fetch_array(db_select("select beholdning,gruppe from varer where id='$r[vare_id]'",__FILE__ . " linje " . __LINE__));
-				if (in_array($r2['gruppe'],$ls_vgr)) {
-					$tmp=find_beholdning($r['vare_id'],NULL);
-					if ($r2['beholdning']-($r['antal']-$r['leveret'])<0 && $r2['beholdning']+$tmp[4]-($r['antal']-$r['leveret'])>=0) $spanbg="#FFFF00";	
-					elseif ($r2['beholdning']-($r['antal']-$r['leveret'])<0) $spanbg="#FF0000";
-					else $spanbg="#00FF00";
-					if ($spanbg!="#00FF00") {
-						$spantxt.="<tr bgcolor=$spanbg><td>$r[varenr]</td><td align=right>".dkdecimal($r2['beholdning']*1,0)."</td>";
-						$spantxt.="<td align=right>".dkdecimal($r['antal']*1,0)."</td><td align=right>".dkdecimal($r['leveret']*1,0)."</td>";
-						$spantxt.="<td align=right>$tmp[1]</td><td align=right>$tmp[2]</td><td align=right>$tmp[3]</td><td align=right>$tmp[4]</td></tr>";
-						if (!$linjebg || $linjebg=="#FFFF00") {
-							if ($r2['beholdning']-($r['antal']-$r['leveret'])<0 && $r2['beholdning']+$tmp[4]-($r['antal']-$r['leveret'])>=0) $linjebg="#FFFF00";	
-							elseif ($r2['beholdning']-($r['antal']-$r['leveret'])<0) $linjebg="#FF0000";
+        } elseif ($vis_lagerstatus) {
+            // Initialize background color for the table rows
+            $linjebg = NULL;
+            $spantxt = "<table><tbody>";
+
+            // Add table headers with localized text using the findtekst function
+            $spantxt .= "<tr><td>Varenr</td><td>" . findtekst(948, $sprog_id) . "</td><td>" . findtekst(916, $sprog_id) . "</td><td>" . findtekst(1190, $sprog_id) . "</td><td>" . findtekst(1428, $sprog_id) . "</td><td>" . findtekst(1429, $sprog_id) . "</td><td>" . findtekst(1430, $sprog_id) . "</td><td>" . findtekst(976, $sprog_id) . "</td></tr>";
+
+            // Fetch all order lines with non-zero quantities for the specified order ID
+            $q = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
+
+            // Iterate through each order line
+            while ($r = db_fetch_array($q)) {
+                // Fetch stock and group information for the current product
+                $r2 = db_fetch_array(db_select("select beholdning, gruppe from varer where id='$r[vare_id]'", __FILE__ . " linje " . __LINE__));
+
+                // Check if the product group is part of the lagerførte list
+                if (in_array($r2['gruppe'], $ls_vgr) || true) {
+                    // Calculate stock availability
+                    $tmp = find_beholdning($r['vare_id'], NULL);
+
+                    // Determine background color based on stock levels
+                    if ($r2['beholdning'] - ($r['antal'] - $r['leveret']) < 0 && $r2['beholdning'] + $tmp[4] - ($r['antal'] - $r['leveret']) >= 0 && in_array($r2['gruppe'], $ls_vgr)) {
+                        $spanbg = "#FFFF66"; // Yellow: Low stock but sufficient with pending stock
+                    } elseif ($r2['beholdning'] - ($r['antal'] - $r['leveret']) < 0 && in_array($r2['gruppe'], $ls_vgr)) {
+                        $spanbg = "#FF4D4D"; // Red: Insufficient stock
+                    } elseif ($r['antal'] != $r['leveret']) {
+                        $spanbg = "#66FF66"; // Green: Pending levering 
+                    } else {
+                        $spanbg = "#FF33FF"; // Purple: Sufficient stock
+                    }
+
+                    // Add a table row if the background color is not purple (indicating a potential issue)
+                    if ($spanbg != "#FF33FF") {
+						if ($spanbg != "#66FF66") {
+                        $spantxt .= "<tr bgcolor=$spanbg><td>$r[varenr]</td><td align=right>" . dkdecimal($r2['beholdning'] * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>" . dkdecimal($r['antal'] * 1, 0) . "</td><td align=right>" . dkdecimal($r['leveret'] * 1, 0) . "</td>";
+                        $spantxt .= "<td align=right>$tmp[1]</td><td align=right>$tmp[2]</td><td align=right>$tmp[3]</td><td align=right>$tmp[4]</td></tr>";
 						}
-					}  
-				}
-			}
-			$spantxt.="<tr><td>Grøn</td><td colspan=7>".findtekst(1431, $sprog_id)."</td></tr>";
-			$spantxt.="<tr><td>Gul</td><td colspan=7>".findtekst(1432, $sprog_id)."</td></tr>";
-			$spantxt.="<tr><td>Rød</td><td colspan=7>".findtekst(1433, $sprog_id)."</td></tr>";
-			$spantxt.="</tbody></table>";
-			if (!$linjebg) $linjebg="#00FF00";
-			print "<tr bgcolor=\"$linjebg\" title=''><td bgcolor=\"$bgcolor\">";
-			print "</td>";
+
+                        // Update the row background color if it indicates stock issues
+                        if (true) {
+							# If it is green and there is a potential stock issue
+                            if (($linjebg == null || $linjebg == "#66FF66") &&
+								 $r2['beholdning'] - ($r['antal'] - $r['leveret']) < 0 &&
+								 $r2['beholdning'] + $tmp[4] - ($r['antal'] - $r['leveret']) >= 0 &&
+								in_array($r2['gruppe'], $ls_vgr)
+							) {
+                                $linjebg = "#FFFF66"; // Yellow: Potential stock issue
+
+							} elseif (($linjebg == null || $linjebg == "#FFFF66" || $linjebg == "#FF33FF" || $linjebg == "#66FF66") &&
+									  $r2['beholdning'] - ($r['antal'] - $r['leveret']) < 0 &&
+									  in_array($r2['gruppe'], $ls_vgr)
+							) {
+                                $linjebg = "#FF4D4D"; // Red: Definite stock issue
+
+                            } elseif ($r['antal'] != $r['leveret'] && $linjebg == null) {
+                                $linjebg = "#66FF66"; // Purple: In stock but not delivered
+                            } 
+                        }
+                    }
+                }
+            }
+
+            // Add a legend explaining the color codes
+            $spantxt .= "<tr><td colspan=100><hr></td></tr>";
+            $spantxt .= "<tr><td>Magenta</td><td colspan=7>" . findtekst(2403, $sprog_id) . "</td></tr>";
+            $spantxt .= "<tr><td>Grøn</td><td colspan=7>" . findtekst(1431, $sprog_id) . "</td></tr>";
+            $spantxt .= "<tr><td>Gul</td><td colspan=7>" . findtekst(1432, $sprog_id) . "</td></tr>";
+            $spantxt .= "<tr><td>Rød</td><td colspan=7>" . findtekst(1433, $sprog_id) . "</td></tr>";
+            $spantxt .= "</tbody></table>";
+
+            // Set the default row background color to purple if no issues were found
+            if (!$linjebg) $linjebg = "#FF33FF";
+
+            // Print the table row with the calculated background color
+            print "<tr bgcolor=\"$linjebg\" title=''><td bgcolor=\"$bgcolor\">";
+            print "</td>";
+
 		} else {
 			if ($linjebg!=$bgcolor) {
 				$linjebg=$bgcolor; $color='#000000';
@@ -780,8 +861,8 @@ while ($r0=db_fetch_array($q0)) {
 			}
 			print "<tr bgcolor=\"$linjebg\" title='$tr_title'><td $TableBG></td>";
 		}
+
 		($ordreliste)?$ordreliste=$ordreliste.",".$r0['id']:$ordreliste=$r0['id'];
-#cho __line__." $ordreliste<br>";		
 		if ($r0['art']=='DK') {
 			print "<td align=$justering[0] $javascript style='color:$color'>(KN)&nbsp;$linjetext $understreg $r0[ordrenr]</div><br></td>";
 		} else {
@@ -789,11 +870,11 @@ while ($r0=db_fetch_array($q0)) {
 			if ($popup) print " $javascript";
 			print " style='color:$color'>";
 			if (!$popup) print "<a href='$href'>";
-			if ($vis_lagerstatus && $linjebg!="#00FF00") {
+			if ($vis_lagerstatus) {
 				print "<span onmouseover=\"return overlib('".$spantxt."', WIDTH=800);\" onmouseout=\"return nd();\">";
 			}
 			print "$linjetext $understreg $r0[ordrenr]";
-			if ($vis_lagerstatus && $linjebg!="#00FF00") print "</span>";
+			if ($vis_lagerstatus) print "</span>";
 			if (!$popup) print "</a>";
 			print "</div><br></td>";
 		}
@@ -853,8 +934,51 @@ while ($r0=db_fetch_array($q0)) {
 			
 		} else {
 			if ($checked[$id]=='on' || $check_all) $checked[$id]='checked';
-			print "<td><label class='checkContainerOrdreliste'><input class=\"inputbox\" type=\"checkbox\" name=\"checked[$id]\" $checked[$id]><span class='checkmarkOrdreliste'></span></label></td>";
+			print "<td>
+				<label class='checkContainerOrdreliste'>
+					<input class=\"inputbox\" type=\"checkbox\" name=\"checked[$id]\" $checked[$id]>
+					<span class='checkmarkOrdreliste'></span>
+				</label>";
+			print "</td>";
 		}
+		
+		if ($valg == "ordrer") {
+			?>
+			<td>
+				<div style="display:flex;gap:5px;">
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=9&udskriv_til=PDF" target="_blank" title="Klik for at printe plukliste"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z"/></svg></a>
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=2&udskriv_til=PDF" target="_blank" title="Klik for at printe ordrebekræftigelse"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
+					<?php if ($row['email']) {
+						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=2&udskriv_til=email" target="_blank" title="Klik for at sende ordrebekræftigelse via email" onclick="return confirm('Er du sikker på, at du vil sende ordrebekræftigelse?\nKundens mail: <?php print $r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
+					} ?>
+				</div>
+			</td>
+			<?php
+		} else if ($valg == "faktura") {
+			?>
+			<td>
+				<div style="display:flex;gap:5px;">
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=3&udskriv_til=PDF" target="_blank" title="Klik for at printe følgeseddel"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z"/></svg></a>
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=4&udskriv_til=PDF" target="_blank" title="Klik for at printe faktura"><svg  xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
+					<?php if ($row['email']) {
+						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=4&udskriv_til=email" target="_blank" title="Klik for at sende faktura via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
+					} ?>
+				</div>
+			</td>
+			<?php
+		} else if ($valg == "tilbud") {
+			?>
+			<td>
+				<div style="display:flex;gap:5px;">
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=1&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
+					<?php if ($row['email']) {
+						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=1&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email"  onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
+					} ?>
+				</div>
+			</td>
+			<?php
+		}
+
 		print "<input type=hidden name=ordre_id[$l] value=$id>"; #20210818
 		$ialt+=$sum;
 		$ialt_m_moms+=$sum_m_moms;
