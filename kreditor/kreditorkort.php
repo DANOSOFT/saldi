@@ -440,7 +440,6 @@ print "<td width=\"40%\" $top_bund>&nbsp;</td>";
 print	"</tbody></table>";#tabel 1.3 slut
 print	"</td></tr>";
 print	"</tbody></table>\n";#tabel 1 slut
-print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapi.js\"></script>\n";
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
 if (isset($_GET['cvrnr']) && $cvrnr) {
 	echo "<script type=\"text/javascript\">    cvrapi('$cvrnr', 'dk', 'vat');      </script>";
