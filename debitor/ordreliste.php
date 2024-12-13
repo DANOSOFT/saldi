@@ -121,6 +121,7 @@ $fakturadatoer=$fakturanumre=$firma=$firmanavn=$firmanavn_ant=NULL;
 $genfakt=$genfaktdatoer=$genfakturer=NULL;
 $hreftext=$hurtigfakt=NULL; 
 $ialt_m_moms=NULL;
+$ialt_kostpris=NULL;
 $konto_id=$kontonumre=NULL; 
 $lev_datoer=$linjebg=NULL; 
 $ny_sort=NULL;
@@ -947,7 +948,7 @@ while ($r0=db_fetch_array($q0)) {
 			} elseif ($vis_felt[$x]=='kundeordnr' && $valg=="faktura") {
 				$tmp=$vis_felt[$x];
 				if ($db=='bizsys_49' || $db=='udvikling_5') {
-				if ($gem_id==$r0['id']) print "<a href='$gem' download='$download' title='".findtekst(1434, $sprog_id)."'><font color='green'>$r0[$tmp]</font></a>";
+					if ($gem_id==$r0['id']) print "<a href='$gem' download='$download' title='".findtekst(1434, $sprog_id)."'><font color='green'>$r0[$tmp]</font></a>";
 					else print "<a href='formularprint.php?id=$r0[id]&ordre_antal=1&formular=4&udskriv_til=fil'>$r0[$tmp]</a>";
 #					print "<span onclick=window.open('formularprint.php?id=$r0[id]&ordre_antal=1&formular=4&udskriv_til=fil')>$r0[$tmp]</span>";
 				} else {
@@ -1016,9 +1017,17 @@ while ($r0=db_fetch_array($q0)) {
 			<?php
 		}
 
+		$q3=db_select("select sum(V.kostpris) as sum_kostpris
+					  from ordrelinjer O 
+					  join varer V on O.vare_id = V.id 
+				  	  where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
+		$r3=db_fetch_array($q3);
+		$kostpris_fetch = $r3["sum_kostpris"];
+
 		print "<input type=hidden name=ordre_id[$l] value=$id>"; #20210818
 		$ialt+=$sum;
 		$ialt_m_moms+=$sum_m_moms;
+		$ialt_kostpris+=$kostpris_fetch;
 		$l++;
 		print "</tr>\n";
 	}# endif ($lnr>=$start && $lnr<$slut)
@@ -1125,22 +1134,19 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 } #else db_modify("insert into grupper (beskrivelse,kode,kodenr,art,box1) values ('Ordrelistevisning','$valg','$bruger_id','OLV','$ordreliste')",__FILE__ . " linje " . __LINE__);
 
-#if ($valg=='tilbud') {$cols=7;}
-#elseif ($valg=='faktura') {$cols=12;}
-#else {$cols=8;}
-#if ($vis_projekt) $cols++;
 if ($menu=='T') {
 	print "<tr><td colspan=11 class='border-hr-top'></td></tr>\n";
 } else {
 	print "<tr><td colspan=11><hr></td></tr>\n";
 }
 
-#$cols=$cols-4;
-$dk_db=dkdecimal($ialt-$totalkost,2);		
-if ($ialt!=0) {$dk_dg=dkdecimal(($ialt-$totalkost)*100/$ialt,2);}		
+# Calcualte db / dg and total price
+$dk_db=dkdecimal($ialt-$ialt_kostpris,2);		
+if ($ialt!=0) {$dk_dg=dkdecimal(($ialt-$ialt_kostpris)*100/$ialt,2);}		
 $ialt=dkdecimal($ialt,2);
 $ialt_m_moms=dkdecimal($ialt_m_moms,2);
-#$cols--;
+
+# Display the prcie and dg / db
 print "<tr><td colspan='$colspan' width='100%'>";
 print "<table border='0' width='100%' style='width:100%;'><tbody>";
 if ($valg=="faktura") {
@@ -1153,7 +1159,7 @@ if ($valg=="faktura") {
 		print "<a href=\"ordreliste.php?vis_lagerstatus=on&valg=$valg\">".findtekst(810,$sprog_id)."</a>";#20210318
 		print "</span>";
 	}
-	print "</td><td width=70% align=right>".findtekst(811,$sprog_id)."</td><td width=20% align=right><b>$ialt_m_moms ($ialt)</td></tr></tr>\n";
+	print "</td><td width=70% align=right>".findtekst(811,$sprog_id)."<br>db / dg (excl. moms.)</td><td width=20% align=right><b>$ialt_m_moms ($ialt)<br>$dk_db / $dk_dg%</td></tr></tr>\n";
 }
 if ($genberegn==1) print "<meta http-equiv=\"refresh\" content=\"0;URL='ordreliste.php?genberegn=2&valg=$valg'\">";
 #$cols++;
