@@ -1,4 +1,10 @@
-import { getBooking, updateBooking, updateItem, getAllItemsFromId ,deleteItem, createItem, getClosedDays, getItemBookings, getSettings } from "/pos/rental/api/api.js"
+// Make sure you're in an async context
+(async () => {
+  const url = new URL(window.location.href)
+  const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
+  const firstFolder = pathSegments[0]
+  // Dynamically import the module
+  const { getBooking, updateBooking, updateItem, getAllItemsFromId ,deleteItem, createItem, getClosedDays, getItemBookings, getSettings } = await import(`/${firstFolder}/rental/api/api.js`)
 
 const settings = await getSettings()
 
@@ -579,3 +585,4 @@ if (queryString !== "") {
         editItem(urlParams.get("item_id"))
     }
 }
+})()

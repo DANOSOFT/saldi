@@ -1,4 +1,10 @@
-import { getClosedDays, insertClosedDay, deleteClosedDay, getSettings} from '/pos/rental/api/api.js'
+// Make sure you're in an async context
+(async () => {
+    const url = new URL(window.location.href)
+    const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
+    const firstFolder = pathSegments[0]
+    // Dynamically import the module
+    const { getClosedDays, insertClosedDay, deleteClosedDay, getSettings } = await import(`/${firstFolder}/rental/api/api.js`)
 
 const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;" width="24" height="24" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
 <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
@@ -11,7 +17,11 @@ if(settings.use_password == "1"){
     if(pass != settings.pass){
         console.log(pass + " " + settings.pass)
         alert("Forkert adgangskode")
-        window.location.href = "/laja/rental/index.php?vare"
+        // get the first folder in url
+        const currentUrl = new URL(window.location.href)
+        const currentPathSegments = currentUrl.pathname.split('/').filter(segment => segment !== '')
+        const redirectFolder = currentPathSegments[0]
+        window.location.href = `/${redirectFolder}/rental/index.php?vare`
     }
 }
 
@@ -127,3 +137,4 @@ const datePick = flatpickr("#calendar", {
         window.location.reload()
     }
 })
+})()

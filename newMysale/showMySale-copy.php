@@ -27,7 +27,7 @@
 // 20220930 DAPE added productlimit
 // 20230311 PHR Various updates according to PHP8 
 // 20230325 PHR added memberShip to query and corrected an sols and for sale buttons in mobileView. 
-// 16712/2024 PBLM added functionality to despina
+// 28.08.2024 PBLM added sidebar and fixed email strtolower
 
 if ($from) $from = usdate($from);
 if ($to) $to = usdate($to);
@@ -35,6 +35,7 @@ if ($sort && $newSort && $sort == $newSort) $sort = $sort . " desc";
 else $sort = $newSort;
 #if (isset($_COOKIE['mysale'])) list($f,$t,$s)=explode("|",$_COOKIE['mysale']);
 if (isset($_SESSION['mySale'])) list($f, $t, $s) = explode("|", $_SESSION['mySale']);
+(substr($_SERVER['PHP_SELF'],0,4)=='/no/')?$sprog_id=3:$sprog_id=1;
 if (!$from) $from = $f;
 if (!$to)   $to   = $t;
 if (!$sort) $sort = $s;
@@ -102,8 +103,10 @@ if ($accountId) {
 } else {
 	$qtxt.= "(art = 'D' and kontonr='" . db_escape_string($account) . "' )";
 }
+
 $qtxt.= "or art = 'S'";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+
 while ($r = db_fetch_array($q)) {
 	if ($r['art'] == 'S') {
 		$store = $r['firmanavn'];
@@ -129,7 +132,14 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table mylabel ADD column firstprint varchar(15)",__FILE__ . " linje " . __LINE__);
 	db_modify("UPDATE mylabel set firstprint = lastprint",__FILE__ . " linje " . __LINE__);
 }
-
+$showNew = $showUsed = 0;
+$tmp = 'kn%'.$account;
+$qtxt = "select id from ordrelinjer where varenr like '$tmp' limit 1";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $showNew = 1;
+$tmp = 'kb%'.$account;
+$qtxt = "select id from ordrelinjer where varenr = '$tmp' limit 1";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $showUsed = 1;
+/*
 if ($medlem) {
 	$y = 0;
 	$qtxt = "SELECT created,lastprint,account_id,barcode,id,description,price,firstprint ";
@@ -163,70 +173,94 @@ if ($medlem) {
 		$y++;
 	}
 }  
+*/
+$urlPrefix = "https://ssl8.saldi.dk/laja/mysale/mysale.php?id=";
+if (strpos($id, $urlPrefix) === 0) {
+    // Remove the URL prefix
+    $newId = str_replace($urlPrefix, '', $id);
+}else{
+	$newId = $id;
+}
+?>
+<button data-drawer-target="default-sidebar" data-drawer-toggle="default-sidebar" aria-controls="default-sidebar" type="button" class="inline-flex items-center p-2 mt-2 ms-3 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600">
+   <span class="sr-only">Åben sidebar</span>
+   <svg class="w-20 h-20" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+   <path clip-rule="evenodd" fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"></path>
+   </svg>
+</button>
+
+<aside id="default-sidebar" class="fixed top-0 left-0 z-40 w-1/2 lg:w-64 h-screen transition-transform -translate-x-full lg:translate-x-0" aria-label="Sidebar">
+   <div class="h-full px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800">
+      <ul class="space-y-2 font-medium">
+         <li>
+            <a href="mysale.php?id=<?php echo $newId ?>" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path d="M13.5 2c-.178 0-.356.013-.492.022l-.074.005a1 1 0 0 0-.934.998V11a1 1 0 0 0 1 1h7.975a1 1 0 0 0 .998-.934l.005-.074A7.04 7.04 0 0 0 22 10.5 8.5 8.5 0 0 0 13.5 2Z"/>
+					<path d="M11 6.025a1 1 0 0 0-1.065-.998 8.5 8.5 0 1 0 9.038 9.039A1 1 0 0 0 17.975 13H11V6.025Z"/>
+				</svg>
+               <span class="ms-3 font-sans text-5xl lg:text-base">Oversigt</span>
+            </a>
+         </li>
+         <li>
+            <a href="mysale.php?id=<?php echo $newId ?>&condition=<?php echo $condition ?>&editProfile=1" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path fill-rule="evenodd" d="M17 10v1.126c.367.095.714.24 1.032.428l.796-.797 1.415 1.415-.797.796c.188.318.333.665.428 1.032H21v2h-1.126c-.095.367-.24.714-.428 1.032l.797.796-1.415 1.415-.796-.797a3.979 3.979 0 0 1-1.032.428V20h-2v-1.126a3.977 3.977 0 0 1-1.032-.428l-.796.797-1.415-1.415.797-.796A3.975 3.975 0 0 1 12.126 16H11v-2h1.126c.095-.367.24-.714.428-1.032l-.797-.796 1.415-1.415.796.797A3.977 3.977 0 0 1 15 11.126V10h2Zm.406 3.578.016.016c.354.358.574.85.578 1.392v.028a2 2 0 0 1-3.409 1.406l-.01-.012a2 2 0 0 1 2.826-2.83ZM5 8a4 4 0 1 1 7.938.703 7.029 7.029 0 0 0-3.235 3.235A4 4 0 0 1 5 8Zm4.29 5H7a4 4 0 0 0-4 4v1a2 2 0 0 0 2 2h6.101A6.979 6.979 0 0 1 9 15c0-.695.101-1.366.29-2Z" clip-rule="evenodd"/>
+				</svg>
+               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Profil</span>
+            </a>
+         </li>
+         <li>
+            <a href=mylabel.php?id=<?php echo $newId?>&condition=<?php echo $condition?> class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path d="M4 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h11.613a2 2 0 0 0 1.346-.52l4.4-4a2 2 0 0 0 0-2.96l-4.4-4A2 2 0 0 0 15.613 6H4Z"/>
+				</svg>
+				<span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base"><?php echo findtekst(3063,$sprog_id) ?></span>
+            </a>
+         </li>
+		 <li>
+            <a href="remoteBooking.php?id=<?php echo $id?>&condition=<?php echo $condition?>" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path fill-rule="evenodd" d="M6 5V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v2H3V7a2 2 0 0 1 2-2h1ZM3 19v-8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm5-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2H8Z" clip-rule="evenodd"/>
+				</svg>
+               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Book stand</span>
+            </a>
+         </li>
+		 <li>
+			<a href="mybooking.php?id=<?php echo $newId?>" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path fill-rule="evenodd" d="M6 5V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v2H3V7a2 2 0 0 1 2-2h1ZM3 19v-8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm5-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2H8Z" clip-rule="evenodd"/>
+				</svg>
+				<span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Mine bookinger</span>
+			</a>
+		</li>
+         <li>
+            <a href="mysale.php" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+					<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12H4m12 0-4 4m4-4-4-4m3-4h2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-2"/>
+				</svg>
+               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Logud</span>
+            </a>
+         </li>
+      </ul>
+   </div>
+</aside>
+<?php
 
 if ($custName && $access) {
 	$myLabel = 0;
 	($mobile) ? $wh = 50 : $wh = 25;
 	if ($link) $id = $link;
-
-	// new implementation for Despina
-	$qtxt = "SELECT * FROM settings WHERE var_name='showMysaleTimes' AND var_value='1'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	if ($r) {
-		$qtxt = "SELECT id FROM adresser WHERE art='D' AND kontonr='$account'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$id = $r['id'];
-		$today = date('Y-m-d');
-		$today = strtotime($today);
-		$qtxt = "SELECT rt_to FROM rentalperiod WHERE rt_to >= '$today' AND cust_id = '$id'";
-		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		if(db_num_rows($query) > 1) {
-			while($r = db_fetch_array($query)) {
-				$rt_to = $r['rt_to'];
-				// get the day difference between today and the rental period end date
-				$diff = $rt_to - $today;
-				$diff = floor($diff / (60 * 60 * 24));
-				// make a select to select the rental item that is closest to the rental period end date
-				$rt_to_array[] = $diff;
-			}
-			$min = min($rt_to_array);
-			$key = array_search($min, $rt_to_array);
-			// get the day difference between today and the rental period end date
-			$diff = $rt_to - $today;
-			$diff = floor($diff / (60 * 60 * 24));
-			// make a div with a text that says how many days are left
-			if($diff == 0){
-				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
-				print "Din korteste lejeperiode udløber i dag";
-				print "</div></div>";
-			}else{
-				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
-				print "Dage tibage på din korteste lejeperiode: <b>$diff</b>";
-				print "</div></div>";
-			}
-		}elseif(db_num_rows($query) == 1){
-			$r = db_fetch_array($query);
-			$rt_to = $r['rt_to'];
-			// get the day difference between today and the rental period end date
-			$diff = $rt_to - $today;
-			$diff = floor($diff / (60 * 60 * 24));
-			// make a div with a text that says how many days are left
-			if($diff == 0){
-				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
-				print "Din lejeperiode udløber i dag";
-				print "</div></div>";
-			}else{
-				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
-				print "Dage tibage på din lejeperiode: <b>$diff</b>";
-				print "</div></div>";
-			}
-		}
-	}
-	print "<div style='float:right;'><a href = mysale.php?id=$id&condition=$condition&editProfile=1>";
-	print "<img class='checkMobile' src=\"../img/profile.png\" style=\"border: 0px solid;width:$wh;height:$wh\"></a></div>";
-	print "<center>";
+	/* print "<div style='float:right;'><a href = mysale.php?id=$id&condition=$condition&editProfile=1>";
+	print "<img class='checkMobile' src=\"../img/profile.png\" style=\"border: 0px solid;width:$wh;height:$wh\"></a></div>"; */
+	/* print "<center>";
 	if ($mobile) print "Velkommen " . $custName . ", kundenr $custNo<br>";
-	else print "<br>Velkommen " . $custName . ", kundenr $custNo<br><br>" . $store . ".<br>";
+	else print "<br>Velkommen " . $custName . ", kundenr $custNo<br><br>" . $store . ".<br>"; */
+	?>
+	<div class="flex flex-col items-center justify-center mt-4">
+		<h3 class="text-3xl font-bold text-center">Velkommen <?php echo $custName ?>, kundenr <?php echo $custNo ?></h3>
+		<p class="text-center">Her kan du se dine salg.</p>
+	</div>
+	<?php
 	$qtxt = "select box1 from grupper where art='LABEL'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (strpos($r['box1'], '$minpris')) $myLabel = 1;
@@ -249,7 +283,7 @@ if ($custName && $access) {
 		}
 		if ($medlem) {
 			if (!isset($_SESSION['linkLog']) || !$mySaleLabel) {
-				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>Mine labels</button></a><br><br>";
+				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
 			}
 			($mobile) ? $style = "text-align:center;width:275px;font-size:25pt;margin:3px;" : 
 									$style = "text-align:center;width:80px;margin:3px;";
@@ -261,19 +295,26 @@ if ($custName && $access) {
 				print "<a href=mysale.php?id=$id&tilsalg=1><button style='$style'>Til salg</button></a><br><br>";
 			}
 		} else {
-			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>Mine labels</button></a><br><br>";
+			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
 		}
 	}
 } else {
-	print "<center><br><br>Velkommen " . $custName . ". Du har ikke adgang til 'Mit salg' hos " . $store . ".<br><br>";
-	print "Kontakt " . $store . " for åbning af adgang.<br></style>";
+	/* print "<center><br><br>Velkommen " . $custName . ". Du har ikke adgang til 'Mit salg' hos " . $store . ".<br><br>";
+	print "Kontakt " . $store . " for åbning af adgang.<br></style>"; */
+	?>
+	<div class="flex flex-col items-center justify-center mt-4">
+		<h3 class="text-3xl font-bold text-center">Velkommen <?php echo $custName ?></h3>
+		<p class="text-center">Du har ikke adgang til 'Mit salg' hos <?php echo $store ?>.</p>
+		<p class="text-center">Kontakt <?php echo $store ?> for åbning af adgang.</p>
+	</div>
+	<?php
 	exit;
 }
 $x = 0;
 $fakturadate = $solgtArray = array();
 $qtxt = "select batch_salg.fakturadate,batch_salg.id,batch_salg.ordre_id,batch_salg.antal,batch_salg.pris,ordrelinjer.kostpris,";
-$qtxt .= "ordrelinjer.beskrivelse,ordrelinjer.barcode,ordrelinjer.vat_price,varer.kostpris as provision ";
-$qtxt .= "from varer,batch_salg,ordrelinjer where batch_salg.antal!=0 and varer.varenr like ";
+$qtxt .= "ordrelinjer.beskrivelse,ordrelinjer.barcode,varer.kostpris as provision from varer,batch_salg,ordrelinjer ";
+$qtxt .= "where batch_salg.antal!=0 and varer.varenr like ";
 ($condition == 'new') ? $qtxt .= "'kn%$account' " : $qtxt .= "'kb%$account' ";
 $qtxt .= "and batch_salg.vare_id=varer.id and batch_salg.fakturadate>='$dateFrom' and batch_salg.fakturadate<='$dateTo' ";
 $qtxt .= "and ordrelinjer.id=batch_salg.linje_id order by batch_salg.$sort";
@@ -288,10 +329,9 @@ while ($r = db_fetch_array($q)) {
 		$vareid[$x] = $r['id'];
 	}
 	$pris[$x] = $r['pris'];
-	if ($db == 'pos_118') $pris[$x] = $r['vat_price'];
 	$beskrivelse[$x] = $r['beskrivelse'];
-	$kostpris[$x] = (float)$r['kostpris'];
-	#if (!$kostpris[$x]) $kostpris[$x] = $pris[$x] * 0.85;
+	$kostpris[$x] = $r['kostpris'] * 1;
+	if (!$kostpris[$x]) $kostpris[$x] = $pris[$x] * 0.85;
 	($pris[$x]) ? $provision[$x] = $kostpris[$x] * 100 / $pris[$x] : $provision[$x] = 0;
 	if ($provision[$x] < 50) {
 		$provision[$x] = 100 - $provision[$x];
@@ -359,24 +399,22 @@ usort($testArray, 'date_compare');
 
 
 if ($tilsalg == 1) {
-
-
-
-
-
 	print "<center>";
 	print "<table border='0'>";
 	print "<form action='mysale.php?id=$id&sort=$sort' method='post'>";
 	print "<tr>";
 	if ($medlem) {
 	} else {
-		print "<td><select name ='condition'>";
-		if ($condition == 'new') print "<option value='new'>nyt</option>";
-		print "<option value='used'>brugt</option>";
-		if ($condition != 'new') print "<option value='new'>nyt</option>";
+		if ($showNew && $showUsed) {
+			print "<td><select name ='condition'>";
+			if ($condition == 'new') print "<option value='new'>nyt</option>";
+			print "<option value='used'>brugt</option>";
+			if ($condition != 'new') print "<option value='new'>nyt</option>";
+			print "</select></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
 	}
-	/*
-print "</select></td>";
+	
 print "<td style='text-align:center'>Tilføj vare</td>";
 if ($mobile) {
 	print "<td style='width:225px'>";
@@ -397,7 +435,7 @@ if ($mobile) {
 
 print "<td style='width:50px'><input style='text-align:center; width:50px;' type='button' name='update' value='Gem'></td>";
 print "<td ><input style='text-align:center; width:90px;' type='button' name='update' value='Gem & print'></td>";
-*/
+
 	print "</tr>";
 	print "</form>";
 	print "</table><table border='0' width='90%'>";
@@ -437,10 +475,18 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 	print "<form action='mysale.php?id=$id&sort=$sort' method='post'>";
 	print "<tr>";
 	if (!$medlem) {
-		print "<td><select name ='condition'>";
-		if ($condition == 'new') print "<option value='new'>nyt</option>";
-		print "<option value='used'>brugt</option>";
-		if ($condition != 'new') print "<option value='new'>nyt</option>";
+		if ($showNew && $showUsed) {
+			print "<td><select name ='condition'>";
+			if ($condition == 'new') print "<option value='new'>nyt</option>";
+			print "<option value='used'>brugt</option>";
+			if ($condition != 'new') print "<option value='new'>nyt</option>";
+			print "</select></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
+#		print "<td><select name ='condition'>";
+#		if ($condition == 'new') print "<option value='new'>nyt</option>";
+#		print "<option value='used'>brugt</option>";
+#		if ($condition != 'new') print "<option value='new'>nyt</option>";
 	}
 
 
@@ -463,7 +509,7 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 		print "<input  class='inputbox' style='text-align:center;  width:131px;' type='text' id='tbDateto' name='dateTo' ";
 		print "value='" . dkdato($to) . "' onchange='this.form.submit()'></td>";
 	}
-	print "<td  align='right'><input class='submit' style='text-align:center;' type='submit' name='update' value='Ok'></td>";
+	print "<td align='right'><input class='submit' style='text-align:center;' type='submit' name='update' value='Ok'></td>";
 	print "</tr>";
 	print "</form>";
 	print "</table><table border='0' width='90%'>";
@@ -472,7 +518,7 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 	if ($medlem) {
 		print "<td align='left'>Id</td><td style='width:50px'>Beskrivelse</td>";
 	} else {
-		print "<td align='right'>Antal</td><td style='width:50px'>Beskrivelse</td>";
+		print "<td align='right'>". findtekst(916,$sprog_id) ."</td><td style='width:50px'>Beskrivelse</td>";
 		print "<td align='right'><a href='mysale.php?id=$id&sort=$sort&newSort=pris'>Pris</a></td><td align='right'>I alt</td>";
 	}
 	if ($medlem) {

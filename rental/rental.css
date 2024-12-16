@@ -152,6 +152,19 @@ a{
     color: #fff !important;
 }
 
+.today-circle{
+    border-radius: 50%;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: inline-block;
+    background: #1fc219;
+    color: #fff;
+}
+
+.today-circle:hover{
+    color: #fff !important;
+}
+
 .has-action {
     position: relative;
 }
@@ -204,3 +217,13 @@ a{
   .patch-notes ul li strong {
     font-weight: bold;
   }
+
+/*   @media (max-width: 600px) {
+    body {
+      transform: scale(0.5);
+      transform-origin: top left;
+    }
+    .header{
+        width: 100%;
+    }
+  } */

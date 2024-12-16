@@ -31,21 +31,21 @@
 31	Nuværende tekst	Current text	Gjeldende tekst
 32	Ny tekst	New text	Ny tekst
 33	Skriv nyt tekstforslag	Write new text suggestion	Skriv nytt tekstforslag
-34	Debitorliste	Debtor list	Gjeldeliste
+34	Debitorliste	Debtor List	Gjeldeliste
 35	Kunde	Customer	Kunde
 36	Postnr.	ZIP code.	Post kode.
 37	Telefon	Telephone	Telefon
-38	Stillingsliste	Job list	Stillingsliste
+38	Stillingsliste	Job List	Stillingsliste
 39	Ny	New	Ny
 40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
 41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Write a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
 42	Afmærk de felter som skal eksporteres.	Mark the fields to be exported.	Merk feltene som skal eksporteres.
-43	Kontonr.	Account no.	Kontonr.
+43	Kontonr.	Account No.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
 45	Adresse 2	Address 2	adresse 2
 46	By	City	By
 47	Land	Country	Land
-48	Cvr nr.	Vat no.	MVA no.
+48	Cvr nr.	Vat No.	MVA nr.
 49	Tlf	Phone	Tlf
 50	Fax	Fax	Faks
 51	Web	Web	Internett
@@ -122,15 +122,15 @@
 122	Indstillinger	Settings	Innstillinger
 123	Klik her for finansrapporter	Click here for financial reports	Klikk her for Klikk her for økonomiske rapporter
 124	Rapporter	Reports	Rapporter
-125	Klik her for at se åbne poster og kontokort for dine kunder. Her kan du også skrive rykkere og få en oversigt over de 100 kunder med med største omsætning.	Click here to see open records and credit cards for your customers. Here you can also write reminders and get an overview of the 100 customers with the largest turnover.	Klikk her for å se åpne poster og kredittkort for kundene dine. Her kan du også skrive påminnelser og få oversikt over de 100 kundene med størst omsetning.
-126	Klik her for at se åbne poster og kontokort for dine leverandører. Her kan du også lave betalingslister til banken.	Click here to see open records and credit cards for your suppliers. Here you can also make payment lists for the bank.	Klikk her for å se åpne poster og kredittkort for leverandørene dine. Her kan du også lage betalingslister for banken.
+125	Klik her for at se åbne poster og kontokort for dine kunder. Her kan du også skrive rykkere og få en oversigt over de 100 kunder med med største omsætning.	Click here to see open records and general ledgers for your customers. Here you can also write reminders and get an overview of the 100 customers with the largest turnover.	Klikk her for å se åpne poster og kontokort for kundene dine. Her kan du også skrive påminnelser og få oversikt over de 100 kundene med størst omsetning.
+126	Klik her for at se åbne poster og kontokort for dine leverandører. Her kan du også lave betalingslister til banken.	Click here to see open records and general ledgers for your suppliers. Here you can also make payment lists for the bank.	Klikk her for å se åpne poster og kontokort for leverandørene dine. Her kan du også lage betalingslister for banken.
 127	Klik ker for at få overblik over dit vareflow og se beholdning for dit lager på et vilkårligt tidspunkt.	Click to get an overview of your item flow and see stock for your stock at any time.	Klikk for å få en oversikt over varestrømmen din og se lager for lageret ditt når som helst.
 128	Her kan du gemme en sikkerhedskopi af hele dit regnskab	or load a previously saved backup.	Her kan du lagre en sikkerhetskopi av hele kontoene dine
 129	Vis fakturaliste.	Show invoice list.	Vis fakturaliste.
 130	Vis historik.	View history.	Vis historie.
 131	Historik	History	Historie
-132	Vis Kontokort.	View Credit Card.	Vis kredittkort.
-133	Kontokort	Credit card	Kredittkort
+132	Vis Kontokort.	View General Ledger.	Vis kontokort.
+133	Kontokort	General Ledger	Kontokort
 134	Fakturaliste	Invoice list	Fakturaliste
 135	Klik her for at sortere på kontonummer.	Click here to sort by account number.	Klikk her for å sortere etter kontonummer.
 136	Kontonummer	Account number	Kontonummer
@@ -145,7 +145,7 @@
 145	Klik her for at sortere på by.	Click here to sort by city.	Klikk her for å sortere etter by.
 146	By	City	By
 147	Klik her for at sortere på kontaktperson.	Click here to sort by contact person.	Klikk her for å sortere etter kontaktperson.
-148	Kontaktperson	Contact person	Kontaktperson
+148	Kontaktperson	Contact Person	Kontaktperson
 149	Klik her for at sortere på telefonnummer.	Click here to sort by phone number.	Klikk her for å sortere etter telefonnummer.
 150	Telefon.	Telephone.	Telefon.
 151	Kundeansvarlig - Klik her for at sortere på dette felt	Customer Manager - Click here to sort in this field	Customer Manager - Klikk her for å sortere i dette feltet
@@ -268,12 +268,12 @@
 268	Vælg kontonumre for de enkelte kasser.	Select account numbers for each box.	Velg kontonumre for hver boks.
 269	Vælg afdeling og kontonumre for de enkelte kasser.	Select department and account numbers for each box.	Velg avdelings- og kontonummer for hver boks.
 270	Konti.	Accounts.	Kontoer.
-271	PoS-valg	PoS selection	PoS-valg
-272	Kassenr.	Box no.	Boks nr.
+271	PoS-valg	PoS Selection	PoS-valg
+272	Kassenr.	Box No.	Boks nr.
 273	Vælg den afdeling som kassen skal konteres under	Select the department under which the box is to be posted	Velg avdelingen der boksen skal legges ut
 274	Afdeling	Department	Avdeling
 275	Vælg det kontonummer hvor bevægelser skal konteres	Select the account number where movements are to be posted	Velg kontonummeret der transaksjoner skal bokføres
-276	Kontonr.	Account no.	Kontonr.
+276	Kontonr.	Account No.	Kontonr.
 277	Kontonr. <variable> eksisterer ikke	Account no. <variable> does not exist	Kontonr. <variable> eksisterer ikke
 278	Kontonr skal udfyldes for alle kasser	Account number must be filled in for all boxes	Kontonummer må fylles ut for alle boksene
 279	Skriv her hvor mange forskellige betalingskort og andre betalingsmuligheder der modtages	Write here how many different payment cards and other payment options are received	Skriv her hvor mange forskjellige betalingskort og andre betalingsalternativer som mottas
@@ -281,8 +281,8 @@
 281	Type af betalingsmåde	eg Dankort	Type betalingsmåte
 282	Vælg det kontonummer hvor betalinger skal konteres.	Select the account number where payments are to be posted.	Velg kontonummeret der betalingene skal bokføres.
 283	Kreditkort	Creditcard	Kredittkort
-284	Kontonr	Account no	Kontonr
-285	Vælg momsgruppe for kontantkunder.	Choose VAT group for cash customers.	Velg momsgruppe for kontantkunder.
+284	Kontonr	Account No	Kontonr
+285	Vælg momsgruppe for kontantkunder.	Select VAT group for cash customers.	Velg momsgruppe for kontantkunder.
 286	Momsgruppe	VAT group	Mva-gruppe
 287	Varenr. for rabat	Item no. for discount	Varenr. for rabatt
 288	For at kunne give rabat på kontantsalg	this field must be filled in with the item number of the item used for the purpose.	For å kunne gi rabatt på kontantsalg
@@ -353,14 +353,14 @@
 353	Privat	Private	Privat
 354	Erhverv	profession	yrke
 355	Vis leveringsadresse	Show delivery address	Vis leveringsadresse
-356	Debitorkort	Debtor card	Gjeldskort
-357	Kundenr	Customer no	Kundenr
+356	Debitorkort	Debtor Card	Debitor kort
+357	Kundenr.	Customer No.	Kundenr.
 358	Fornavn	First name	Fornavn
 359	Efternavn	Last name	Etternavn
 360	Firmanavn	Company Name	Selskapsnavn
 361	Adresse	Address	Adresse
-362	Adresse2	Address2	Adresse 2
-363	Postnr./By	Zipcode/city	Postnummer/by
+362	Adresse 2	Address 2	Adresse 2
+363	Postnr./By	Zipcode/City	Postnummer/By
 364	Land	Country	Land
 365	E-mail / brug mail	Email / use mail	Send e-post / bruk e-post
 366	Afmærk her hvis modtageren skal modtage tilbud	order	Sjekk her om mottakeren skal motta et tilbud
@@ -382,13 +382,13 @@
 382	Bank reg.	Bank reg.	Bankreg.
 383	Bank konto	Bank account	bankkonto
 384	PBS-nr.	PBS number.	PBS-nummer.
-385	PBS		PBS	PBS
+385	PBS	PBS	PBS
 386	Kundeansvarlig	Customer manager	Kundesjef
 387	Lukket	Closed	Lukket
 388	Kategorier	Categories	Kategorier
 389	Omdøb $ny_kategori til:	Rename $ny_kategori to:	Gi nytt navn til $ny_kategori til:
 390	For at oprette en ny kategori skrives navnet på kategorien her. For at oprette en underkategori skrives id på den overstående kategori foran navnet med | som adskillelse	eg 31 | Men's socks. ID is found by holding the mouse over the name of the category.	For å opprette en ny kategori, skriv inn navnet på kategorien her. For å opprette en underkategori, skriv inn ID-en for kategorien ovenfor foran navnet med | som separasjon
-391	Bemærkning	Remark	Bemerke
+391	Bemærkning	Remark	Merknad
 392	Kontaktpersoner	Contact persons	Kontaktpersoner
 393	Positionsnummer. Primær kontakt har nummer 1	Position number. Primary contact has number 1	Posisjonsnummer. Primærkontakt har nummer 1
 394	Pos.	Pos.	Pos.
@@ -438,16 +438,16 @@
 438	Dato	Date	Dato
 439	Skriv et kontonummer eller et interval adskilt af kolon. Listen vil blive sorteret efter kontonummer<br>Der kan også skrives et kontonavn,<br>f.eks<br>Skrives DANOSOFT aps vises kun bevægelser for DANOSOFT aps<br>DANO* vil vise bevægelser for alle hvor navnet starter med DANO<br>*aps vil vise alle hvor navnet slutter på aps<br>*SOFT* viser alle hvor navnet indeholder soft.	Enter an account number or range separated by a colon. The list will be sorted by account number <br> An account name can also be typed, for example <br> Typing DANOSOFT aps only shows movements for DANOSOFT aps <br> DANO * will show movements for everyone where the name starts with DANO < br> * aps will show all where the name ends in aps <br> * SOFT * shows all where the name contains soft.	Skriv inn et kontonummer eller område atskilt med kolon. Listen vil bli sortert etter kontonummer <br> Et kontonavn kan også skrives inn, for eksempel <br> Tast inn DANOSOFT aps viser kun bevegelser for DANOSOFT aps <br> DANO * vil vise bevegelser for alle der navnet starter med DANO < br> * aps vil vise alle hvor navnet slutter på aps <br> * SOFT * viser alle der navnet inneholder soft.
 440	Konto	Account	Regnskap
-441	Åbne poster	Open records	Åpne poster
+441	Åbne poster	Open Records	Åpne poster
 442	Kontosaldo	Account balance	Saldo
-443	Kontokort	Credit card	Kredittkort
+443	Kontokort	General Ledger	Kontokort
 444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per. the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
 445	Viser en liste over saldi på valgte konti pr. den angivne dato 	Displays a list of balances on selected accounts per. the specified date	Viser en liste over saldoer på valgte kontoer pr. angitt dato
 446	Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.	Displays a specification of account movements on selected accounts in the specified date range.	Viser en spesifikasjon av kontotransaksjoner på valgte kontoer i det angitte datoperioden.
 447	Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.	List of the 100 debtors with the highest turnover in the last 12 months.	Liste over de 100 skyldnere med høyest omsetning de siste 12 månedene.
 448	Top 100	Top 100	Topp 100
 449	Debitorrapporter	Accounts receivable reports	Rapporter om kundefordringer
-450	Kreditorrapporter	Creditor reports	Kreditorrapporter
+450	Kreditorrapporter	Creditor Reports	Kreditorrapporter
 451	Afmærk her hvis din søgning skal huskes	Check here if your search is to be remembered	Sjekk her hvis søket ditt skal huskes
 452	Husk	Remember	Huske
 453	Afmærk her for at finansbogføre hver handel separat. Hvis der ikke er afmærket	bookkeeping is done together by cash counting.	Sjekk her for å legge ut hver handel separat. Hvis ikke merket
@@ -491,13 +491,13 @@
 491	Klik på teksten for at indsætte den i ordren.	Click on the text to insert it in the order.	Klikk på teksten for å sette den inn i rekkefølgen.
 492	Klik på krydset for at slette denne tekst fra listen.	Click the cross to delete this text from the list.	Klikk på krysset for å slette denne teksten fra listen.
 493	Vil du slette denne tekst?	Do you want to delete this text?	Vil du slette denne teksten?
-494	Status.	Status.	Status.
+494	Status	Status	Status
 495	Ny status	New status	Ny status
 496	Vælg &apos;Ny Status&apos; for at tilføje en ny status	Select &apos;New Status&apos; to add a new status	Velg &apos;Ny status&apos; for å legge til en ny status								
 497	Navn på ny status.	Name of new status.	Navn på ny status.
 498	Kopi af faktura gemt kl. $time	Copy from invoice saved at $time	Kopi av faktura lagret kl $time
 499	Kopi af kreditnota gemt kl. $time	Copy from credit note saved at $time	Kopi av kreditnota lagret kl $time
-500	Ordre nr.	Order no.	Best.nr
+500	Ordrenr.	Order no.	Ordrenr.
 501	Opdatér feltet herunder med information fra ordren?	Update the field below with information from the order?	Oppdater feltet nedenfor med informasjon fra bestillingen?
 502	Kontakt	Contact	Ta kontakt med
 503	Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.	If the API for the webshop is used	Hvis API for nettbutikken brukes, skriv inn URL-en til butikkens funksjonsmappe her.
@@ -512,8 +512,8 @@
 512	Saldo for driftkonti og summering af disse for valgte konti i valgt periode.	Balance of current accounts and summation of these for selected accounts in selected period.	Balanse over løpende kontoer og summering av disse for utvalgte kontoer i valgt periode.
 513	Saldo for driftkonti + budgettal og summering af disse for valgte konti i valgt periode.	Balance for operating accounts + budget figures and summation of these for selected accounts in selected period.	Balanse for driftskontoer + budsjettall og summering av disse for utvalgte kontoer i valgt periode.
 514	Saldo for momskonti og summering i valgt periode.	Balance for VAT accounts and summary in selected period.	Saldo for merverdiavgiftskontoer og sammendrag i valgt periode.
-515	Kontokort	Credit card	Kredittkort
-516	Kontokort med moms	Credit card with VAT	Kredittkort med mva
+515	Kontokort	General Ledger	Kontokort
+516	Kontokort med moms	General Ledger with VAT	Kontokort med MVA
 517	Balance	Balance	Balanse
 518	Resultat	Result	Resultat
 519	Resultat/budget	Result / budget	Resultat / budsjett
@@ -532,26 +532,26 @@
 532	Betalingslister	Payment lists	Betalingslister
 533	Salgsmoms 25% 	Sales tax 25%	Moms 25%
 534	Uforudset hændelse, kontakt salditeamet på telefon 4690 2208	Unforeseen event, contact the balance team on telephone 4690 2208	Uforutsett hendelse, kontakt balanseteamet på telefon 4690 2208
-535	Antal felter på	 fakturaoversigten	Number of fields on	 the invoice overview	Antall felt på	 fakturaoversikten
-536	Antal linjer på	 fakturaoversigten	Number of lines on	 the invoice overview	Antall linjer på	 fakturaoversikten
-537	Vælg hvilke felter der skal være synlige påoversigten	Select which fields should be visible in the overview	Velg hvilke felt som skal være synlige i oversikten
-538	Ordrenr kan ikke fravælges	Order No. cannot be deselected	Bestillingsnr. Kan ikke fjernes
-539	Valgfri overskrift	Optional heading	Valgfri overskrift
-540	Feltbredde	Field width	Feltbredde
+535	Antal felter på fakturaoversigten	Number of fields on the invoice overview	Antall felt på fakturaoversikten
+536	Antal linjer på fakturaoversigten	Number of lines on the invoice overview	Antall linjer på fakturaoversikten
+537	Vælg hvilke felter der skal være synlige på oversigten	Select which fields should be visible in the overview	Velg hvilke felt som skal være synlige i oversikten
+538	Ordrenr kan ikke fravælges	Order no. cannot be deselected	Bestillingsnr. Kan ikke fjernes
+539	Valgfri overskrift	Optional Heading	Valgfri overskrift
+540	Feltbredde	Field Width	Feltbredde
 541	Justering	Adjustment	Justering
 542	DropDown	DropDown	Fall ned
 543	Felt	Field	Felt
-544	Fakturavisning	Invoice display	Fakturavisning
-545	Tilbudsvisning	Offer view	Tilbyr utsikt
-546	Ordrevisning	Order display	Bestill skjerm
+544	Fakturavisning	Invoice Display	Fakturavisning
+545	Tilbudsvisning	Offer Display	Tilbyr utsikt
+546	Ordrevisning	Order Display	Bestill skjerm
 547	Leverandørordre	Supplier order	Leverandørbestilling
 548	Vælg om lukkede kreditorer skal være synlige på oversigten.	Choose whether closed creditors should be visible on the overview.	Velg om lukkede kreditorer skal være synlige i oversikten.
-549	Postnr, by	Zipcode, city	Postnummer, by
+549	Postnr, by	Zipcode, City	Postnummer, by
 550	Lev.dato	Delivery Date	Deveringsdato
 551	Modtagelse	Receipt	Kvittering
 552	Valuta / Kurs	Currency / Exchange Rate	Valutakurs
 553	Projekt	Project	Prosjekt
-554	Leveringsadresse.	Delivery address.	Leveringsadresse.
+554	Leveringsadresse	Delivery Address	Leveringsadresse
 555	Godkend	Approve	Godkjen
 556	Alle varegrupper	All product groups	Alle produktgrupper
 557	Forbrugssvarer	Consumer products	Forbruksvarer
@@ -560,8 +560,8 @@
 560	Vis kostpriser	Show cost prices	Vis kostpris
 561	Vis Varemærke	Show Trademark	Vis varemerke
 562	Href på varenr	Href on item no	Href på varenr
-563	Varevisning	Item display	Elementvisning
-564	Gem og Luk	Save and close	Lagre og lukk
+563	Varevisning	Item Display	Elementvisning
+564	Gem og Luk	Save and Close	Lagre og lukk
 565	Alle leverandører	All suppliers	Alle leverandører
 566	Varekort	Product card	Produktkort
 567	Kortbetalinger	Card payments	Kortbetalinger
@@ -589,11 +589,11 @@
 589	Ansat	Employee	Ansatt
 590	Vis fratrådte	Show resigned	Show trakk seg
 591	Kreditornr	Creditor number	Kreditornummer
-592	Konto	account	regnskap
+592	Konto	Account	Konto
 593	Lande	Countries	Land
 594	dataansvarlig	data controller	dataansvarlig
 595	Beregn	Calculate	Regne ut
-596	lagerværdi	stock value	aksjeverdi
+596	Lagerværdi	Inventory Value	Lagerverdi
 597	Du kan se dine kollegers kladder ved at klikke på	You can see your colleagues' drafts by clicking	Du kan se kollegaenes utkast ved å klikke
 598	-	-	-
 599	Bemærkning	Remark	Bemerke
@@ -604,10 +604,10 @@
 604	Debitor	Debtor	Skyldneren
 605	Ordre	Order	Rekkefølge
 606	Konti	Accounts	Kontoer
-607	Kredtor	Creditors	Kreditorer
-608	Lager	Stock	Lager
+607	Kreditor	Creditors	Kreditorer
+608	Lager	Inventory	Lager
 609	Varer	Goods	Varer
-610	Varemodtagelse	Goods receipt	Varemottak
+610	Varemodtagelse	Goods Receipt	Varemottak
 611	Systemdata	System data	Systemdata
 612	Kontoplan	Chart of Accounts	Kontooversikt
 613	Indstillinger	Settings	Innstillinger
@@ -629,7 +629,7 @@
 629	Certificerings uddannelse	Certification training	Sertifiseringstrening
 630	Andet	Other	Annet
 631	Helbred	Health	Helse
-632	Kontaktperson	Contact person	Kontaktperson
+632	Kontaktperson	Contact Person	Kontaktperson
 633	Fast timetillæg	Fixed hourly supplement	Fast timetillegg
 634	Ejer	Owner	Eieren
 635	Dato	Date	Dato
@@ -801,16 +801,16 @@
 801	Sprog	Language	Språk
 802	Import & eksport	Import & export	Import Eksport
 803	Skabelon	Template	Mal
-804	Kontonr	Account_no.	Kontonr.
+804	Kontonr.	Account no.	Kontonr.
 805	Kontonavn	Account Name	Brukernavn
 806	Udfyld med sidste års tal 	Fill in with last year's numbers	Fyll ut med tallene i fjor
-807	Hent budget som datafil ved at h&oslash	jreklikke på	Download budget as data file by right-clicking on 	Last ned budsjett som datafil ved å høyreklikke		
+807	Hent budget som datafil ved at højreklikke på	Download budget as data file by right-clicking on	Last ned budsjett som datafil ved å høyreklikke
 808	og vælg &apos;Gem link som ..	and select &apos;Save link as ..	og velg &apos;Lagre lenke som ..
 809	dette link	this link	denne lenken
 810	Vis lagerstatus	View stock status	Se lagerstatus
 811	Samlet omsætning incl./excl. Moms	Total turnover incl./excl. VAT	Total omsetning inkl. Ekskl. Mva
 812	Tilbud	Offer	Tilbud
-813	Visning	Viewing	Visning
+813	Visning	Display	Visning
 814	Leveres til	Delivered to	Leveres til
 815	Vor.ref.	Our ref.	Vår ref.
 816	Projektnr.	Project no.	Prosjektnr.
@@ -879,13 +879,13 @@
 879	Hent fra shop	Pick up from shop	Henting fra butikk
 880	Udskriv	Print	Skrive ut
 881	Ordredato	Order Date	Bestillingsdato
-882	Fakt.nr.	Invoice.nr.	Fakta nr.
-883	Fakt.dato.	Invoice.date.	Fakta.Dato.
+882	Fakt.nr.	Invoice No.	Fakt.nr.
+883	Fakt.dato.	Invoice Date.	Fakt.Dato.
 884	Sælger	Selling	Selger
 885	Fakturasum	Invoice_sum	Fakturasum
 886	Levdato	Delivery Date	Leveringsdato
 887	Ordresum	Order amount	Bestillingsbeløp
-888	Tilbudsnr	Offer no	Tilbud nr
+888	Tilbudsnr.	Offer no.	Tilbud nr.
 889	Tilbudsdato	Offer date	Tilbudsdato
 890	Tilbudssum	Offer amount	Tilby sum
 891	nextfakt	Next_Invoice	neste_faktor
@@ -907,19 +907,19 @@
 907	Historik	History	Historie
 908	Debitorer 	Debtors	Skyldnere
 909	Kommission	Commission	Kommisjon
-910	bynavn	city name	bynavn
-911	debitorlistevisning	debtor list view	visning av skyldnerliste
+910	Bynavn	City Name	Bynavn
+911	Debitorlistevisning	Debtor List Display	Visning av skyldnerliste
 912	Ingen debitorer opfylder de angivne søgekriterier	No debtors meet the specified search criteria	Ingen skyldnere oppfyller de angitte søkekriteriene
 913	Søg	Search	Søk
 914	Beskrivelse	Description	Beskrivelse
 915	Pris	Price	Pris
 916	Antal	Quantity	Antall
-917	Varenr	Item no	Varenr
-918	Salgsstat	Sales state	Salgstilstand
+917	Varenr.	Item no.	Varenr.
+918	Salgsstat	Sales State	Salgstilstand
 919	Varetekst	Item text	Varetekst
 920	Vis detaljer	Show details	Vis detaljer
 921	Fortyd	Undo	Fortyd
-922	Salgstatsstik	Sales statistics	Salgsstatistikk
+922	Salgstatsstik	Sales Statistics	Salgsstatistikk
 923	Multiroute	Multi-route	Flere ruter
 924	Vis åbne poster	Show open records	Vis åpne poster
 925	Kun konti i debet	Only accounts in debit	Bare kontoer som belastes
@@ -927,7 +927,7 @@
 927	Skjul åbne poster	Hide open entries	Skjul åpne oppføringer
 928	Bonnr	Receipt no	Bonnr
 929	Bondato	Receipt Date	Bondato
-930	Tidspkt	Time	Tid
+930	Tidspkt.	Time	Tid
 931	Kasse	Box	Eske
 932	Bord	Table	Bord
 933	Ref.	Ref.	Ref.
@@ -936,18 +936,18 @@
 936	Modtaget	Received	Mottatt
 937	Returnér	Return	Komme tilbake
 938	Tilgang kasse	Access box	Tilgangsboks
-939	Forslagsdato	Proposal date	Forslagsdato
-940	Modt.nr.	Model no	Modt.nr.
-941	Modt.dato	Model date	Modt.dato
-942	Samlet omsætning (excl. moms.)	Total turnover (excl. VAT)	Total omsetning (eks mva)
-943	Importer OIOUBL faktura	Import OIOUBL invoice	Importer OIOUBL-faktura
+939	Forslagsdato	Proposal Date	Forslagsdato
+940	Modt.nr.	Model No.	Modt.nr.
+941	Modt.dato	Model Date	Modt.dato
+942	Samlet omsætning (excl. moms.)	Total turnover (excl. VAT)	Total omsetning (eks MVA)
+943	Importer OIOUBL faktura	Import OIOUBL Invoice	Importer OIOUBL-faktura
 944	kreditorlistevisning	vendor list view	visning av leverandørliste
 945	Enhed	Unit	Enhet
 946	Varemrk.	WARM.	Varemerke.
 947	Ialt	Total	Total
 948	Beholdn.	Retain.	Se.
-949	Salgspris	Sale price	Salgs pris
-950	Kostpris	Cost price	Innkjøpspris
+949	Salgspris	Sale Price	Salgs pris
+950	Kostpris	Cost Price	Kostpris
 951	Leverandør	Supplier	Leverandør
 952	Lev. varenr	Live. item no	Lev. varenr
 953	Ordrebeholdning	Order book	Ordrebeholdning
@@ -989,8 +989,8 @@
 989	Faktura	Invoice	Faktura
 990	Bruger	User	Bruker
 991	Kunder	Customers	Kunder
-992	lagerstatus	stock status	lagerstatus
-993	Beholdningsrapport	Inventory report	Lagerrapport
+992	Lagerstatus	Inventory Status	Lagerstatus
+993	Beholdningsrapport	Inventory Report	Lagerrapport
 994	Salgsmoms (udgående moms)	Sales VAT (outgoing VAT)	Moms (utgående mva)
 995	Sats	Rate	Vurdere
 996	Købsmoms (indgående moms)	Purchase VAT (input tax)	Moms (inngående skatt)
@@ -1083,8 +1083,8 @@
 1083	Afregning Kommisionssalg	Settlement Commission sales	Salg av forlikskommisjonen
 1084	Kontrolsum	Checksum	Sjekksum
 1085	Simuleret	Simulated	Simulert
-1086	Bogføring	accounting	regnskap
-1087	Kladde	draft	utkast
+1086	Bogføring	Accounting	Bokføring
+1087	Kladde	Draft	Utkast
 1088	Finansbevægelser	Financial movements	Økonomiske bevegelser
 1089	Simulerede kladder	Simulated drafts	Simulerte utkast
 1090	Annuller simulering	Cancel simulation	Avbryt simulering
@@ -1117,16 +1117,16 @@
 1117	Vælg hvilke felter der skal være synlige på oversigten.	Choose which fields should be visible on the overview.	Velg hvilke felt som skal være synlige i oversikten.
 1118	Kontonr. kan ikke fravælges.	Account no. can not be deselected.	Kontonr. kan ikke avvelges.
 1119	Valgbar	Selectable	Valgbar
-1120	Debitorvisning	Debtor view	Gjeldsvisning
+1120	Debitorvisning	Debtor Display	Gjeldsvisning
 1121	Vælg om lukkede debitorer skal være synlige på oversigten.	Select whether closed receivables should be visible on the overview.	Velg om lukkede fordringer skal være synlige i oversikten.
 1122	Samt hvilke kundegrupper og kategorier der skal være synlige på oversigten.	As well as which customer groups and categories should be visible on the overview.	Samt hvilke kundegrupper og kategorier som skal være synlige i oversikten.
 1123	Hvis intet er valgt, vil alt blive vist!	If nothing is selected, everything will be displayed!	Hvis ingenting er valgt, vil alt vises!
 1124	Skjul lukkede debitorer	Hide closed receivables	Skjul lukkede fordringer
 1125	Kundegrupper	Customer groups	Kundegrupper
-1126	Antal felter på 	Number of fields on	Antall felt på
-1127	Antal linjer på 	Number of lines on	Antall linjer på
-1128	oversigten	the overview	oversikten
-1129	Historikvisning	History view	Historievisning
+1126	Antal felter på 	Number of fields on the	Antall felt på
+1127	Antal linjer på 	Number of lines on the	Antall linjer på
+1128	oversigten	overview	oversikten
+1129	Historikvisning	History Display	Historievisning
 1130	Åbnerykkere	Open reminders	Åpne påminnelser
 1131	Rykkernr	Reminder no	Påminnelse nr
 1132	Skjul	Hide	Skjul
@@ -1137,8 +1137,8 @@
 1137	Afsluttede rykkere	Completed reminders	Fullførte påminnelser
 1138	Afslut	Exit	Exit
 1139	Ny rykker	New reminder	Ny påminnelse
-1140	Kreditorrapport	Creditor report	Kreditorrapport
-1141	Debitorapport	Debtor report	Gjeldsrapport
+1140	Kreditorrapport	Creditor Report	Kreditorrapport
+1141	Debitorapport	Debtor Report	Gjeldsrapport
 1142	Rapport	Report	Rapportere
 1143	Rykkerbrev	Reminder letter	Påminnelsesbrev
 1144	Inkassosag	Debt collection case	Inkassosak
@@ -1146,7 +1146,7 @@
 1146	Slet valgte	Delete selected	Slett valgte
 1147	inkasso	debt collection	inkasso
 1148	Levering	Delivery	Leveranse
-1149	Kundetype 	Customer type;Kundetype
+1149	Kundetype	Customer type	Kundetype
 1150	Skriv emne og tekst til den mail der skal sendes.	Write subject and text for the email to be sent.	Skriv emne og tekst for e-posten som skal sendes.
 1151	Teksten &apos;$kunde&apos; bliver erstattet af kundens navn / firmanavn	The text &apos;$kunde&apos; will be replaced by customer&apos;s name / company name	Teksten &apos;$kunde&apos; vil bli erstattet av kundens navn / firmanavn
 1152	Skriv emne og tekst til den mail der skal bruges som invitation til &apos;Mit Salg&apos;	Write subject and text for the email to be used as an invitation to &apos;My Sales&apos;	Skriv emne og tekst for e-posten som skal brukes som en invitasjon til &apos;Mitt salg&apos
@@ -1162,7 +1162,7 @@
 1162	Link	Link	Lenke
 1163	Tekst	Text	Tekst
 1164	Forfaldsdato	Due date	Tidsfrist
-1165	Primosaldo	Firstbalance	Førstesaldo
+1165	Primosaldo	Opening Balance	Åpningssaldo
 1166	Omsætning	Turnover	Omsetning
 1167	Skriv fra & til dato som mmddåå:mmddå&å. Hvis der kun skrives én dato, sættes dato til dags dato.	Write from & to date as mmddåå: mmddå & å. If only one date is written, the date is set to today's date.	Skriv fra & til dags dato som mmddåå: mmddå & å. Hvis det bare skrives en dato, settes datoen til dagens dato.
 1168	Vælg period	Select period	Velg periode
@@ -1180,13 +1180,13 @@
 1180	Udenlandsk overførsel	International transfer	Internasjonal overføring
 1181	Bankoverf. med straks advisering	Bank transfer. with immediate notice	Bankoverføring. med øyeblikkelig varsel
 1182	Bankoverf. med normal advisering	Bank transfer. with normal advice	Bankoverføring. med vanlig råd
-1183	Kreditorgruppe	Creditor group	Kredittgruppe
-1184	Kreditorkort	Credit card	Kredittkort
+1183	Kreditorgruppe	Creditor Group	Kreditorgruppe
+1184	Kreditorkort	Creditor Card	Kreditorkort
 1185	Skjul lukkede kreditorer	Hide closed creditors	Skjul lukkede kreditorer
 1186	Leverandørgrupper	Supplier groups	Leverandørgrupper
 1187	Antal linjer på Kreditoroversigten	Number of lines on the Creditor Overview	Antall linjer på kreditoroversikten
 1188	Antal felter på Kreditoroversigten	Number of fields on the Creditor Overview	Antall felt i kreditoroversikten
-1189	Kreditorvisning	Creditor view	Kreditorvisning
+1189	Kreditorvisning	Creditor Display	Kreditorvisning
 1190	Leveres	Delivered	Levert
 1191	Genvej	Shortcut	Genvej
 1192	Kontotype	Account type	Kontotype
@@ -1201,7 +1201,7 @@
 1201	Ordreliste • Kunder       	Order list • Customers 	 Bestillingsliste • Kunder
 1202	Log	Log	Løk
 1203	Søgetekst	Search text	Søgetekst
-1204	Klik for at åbne, højreklik fra at gemme	Click to open, right click from save	Klikk for å åpne, høyreklikk fra lagre
+1204	Klik for at åbne, højreklik for at gemme	Click to open, right-click to save	Klikk for å åpne, høyreklikk for å lagre
 1205	Diff. konto	Diff. account	Diff. regnskap
 1206	Ret	Modify	Ret
 1207	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse af dato for kursændringen.\\nEllers risikerer du at lave rod i dit regnskab	If the exchange rate changes, do not correct the exchange rate, but add a new exchange rate stating the date of the exchange rate change. \\ nOtherwise, you risk messing up your accounts.	Ved kursændring skal du ikke rette kursen, men tilføje en ny kurs med angivelse av dato for kursændringen. \\ nEllers risikerer du at lave rod i dette regnskab
@@ -1218,7 +1218,7 @@
 1218	År	Year	År
 1219	Tilladt	Allowed	Tillatt
 1220	1.fakturanummer	1st invoice number	1. fakturanummer
-1221	1.modtagelsesnummer	1st reception number	1. mottaksnummer
+1221	1.modtagelsesnummer	1st receipt number	1. mottaksnummer
 1222	Undlad bilagsnummer til faktura	Do not include document number for invoice	Ikke ta med dokumentnummer for faktura
 1223	Brug fakturanummer som bilagsnummer	Use invoice number as document number	Bruk fakturanummer som dokumentnummer
 1224	Brug modtagelsesnummer som bilagsnummer	Use the receipt number as the document number	Bruk kvitteringsnummeret som dokumentnummer
@@ -1383,8 +1383,8 @@
 1383	Eksporter varer	Export products	Eksporter varer
 1384	Eksporter adresser	Export addresses	Eksporter adresser
 1385	Importer_adresser	Import_addresses	Import_adresser
-1386	Debitorimport	Debtor import	Gjeldsimport
-1387	Kreditorimport	Credit import	Kredittimport
+1386	Debitorimport	Debtor Import	Gjeldsimport
+1387	Kreditorimport	Credit Import	Kredittimport
 1388	Opdater eksisterende	Update existing	Oppdater eksisterende
 1389	Angiv hvilket skilletegn der anvendes til opdeling af kolonner	Specify which delimiter is used to split columns	Spesifiser hvilken avgrenser som skal brukes til å dele kolonner
 1390	Vælg	Select	Velg
@@ -1410,7 +1410,7 @@
 1410	Der tillades kun bilag af typen PDF	Only PDF attachments are allowed	Bare PDF-vedlegg er tillatt
 1411	Vedhæft bilag	Attach attachment	Legg vedlegg
 1412	Vælg bilag fra email	Select attachments from email	Velg vedlegg fra e-post
-1413	Gennemse	Browse	Bla gjennom
+1413	Gennemse	Browse	Gjennomse
 1414	Vælg bilag fra enhed	Select attachments from device	Velg vedlegg fra enheten
 1415	Indsæt	Insert	Sett inn
 1416	Ingen bilag i puljen	No vouchers in pool	
@@ -1504,7 +1504,7 @@
 1504	Nummer herunder viser projektnummer, hvis ordrelinjen er tilknyttet et projekt	The number below shows the project number if the order line is associated with a project	Nummeret nedenfor viser prosjektnummeret hvis ordrelinjen er knyttet til et prosjekt
 1505	Opretter en kreditnota med samme indhold. Kan redigeres inden endelig kreditering	Creates a credit memo with the same content. Can be edited before final crediting	Oppretter en kreditnota med samme innhold. Kan redigeres før endelig kreditering
 1506	Udskriver ordre til PDF	Prints orders to PDF	Skriver ut bestillinger til PDF
-1507	Klik her for at importere en elektronisk faktura af typen oioubl	Click here to import an electronic invoice of the type oioubl	Klikk her for å importere en elektronisk faktura av typen oioubl
+1507	Klik her for at importere en elektronisk faktura af typen OIOUBL	Click here to import an electronic invoice of the type OIOUBL	Klikk her for å importere en elektronisk faktura av typen OIOUBL
 1508	Indtastningsfeltet herunder er det antal, som returneres ved klik på Returnér. Antallet i parantes er det, der allerede er returneret	The input field below is the number that is returned by clicking on Return. The number in parentheses is what has already been returned	Inndatafeltet nedenfor er nummeret som returneres ved å klikke på Return. Tallet i parentes er det som allerede er returnert
 1509	Nummer herunder viser projektnummer hvis ordrelinjen er tilknyttet et projekt	The number below shows the project number if the order line is associated with a project	Nummeret nedenfor viser prosjektnummeret hvis ordrelinjen er knyttet til et prosjekt
 1510	Indtastningsfeltet herunder er det antal, som modtages ved klik på Modtag. Antallet i parantes er det, der allerede er modtaget.	The input field below is the number received by clicking Receive. The number in parentheses is what has already been received.	Inndatafeltet nedenfor er nummeret som mottas ved å klikke Motta. Antallet i parentes er det som allerede er mottatt.
@@ -1532,8 +1532,8 @@
 1532	Beløb til betaling stemmer ikke	Amount to be paid does not match	Beløpet som skal betales samsvarer ikke
 1533	Ordre omdannes til kreditnota ved fakturering!	Orders are converted to a credit note upon invoicing!	Bestillinger konverteres til en kreditnota ved fakturering!
 1534	Kreditnota sendes pr. mail til	Credit note sent per. mail to	Kredittnota sendt pr. post til
-1535	Tilbud udskrives som PDF. Ved fakturering udskrives til oioubl	Offers are printed as PDF. When invoicing, print to oioubl	Tilbud skrives ut som PDF. Ved fakturering, skriv ut til oioubl
-1536	Ordrebekrftelse udskrives som PDF. Ved fakturering udskrives til oioubl	Order confirmation is printed as a PDF. When invoicing, print to oioubl	Bestillingsbekreftelse skrives ut som PDF. Ved fakturering, skriv ut til oioubl
+1535	Tilbud udskrives som PDF. Ved fakturering udskrives til OIOUBL	Offers are printed as PDF. When invoicing, print to OIOUBL	Tilbud skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
+1536	Ordrebekrftelse udskrives som PDF. Ved fakturering udskrives til OIOUBL	Order confirmation is printed as a PDF. When invoicing, print to OIOUBL	Bestillingsbekreftelse skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
 1537	Tilbud sendes pr mail til	Offers are sent by email to	Tilbud sendes på e-post til
 1538	Ordrebekræftelse sendes pr mail til	Order confirmation is sent by email to	Ordrebekreftelse sendes på e-post til
 1539	Klik her for at opdele ordren i 2.<br>Den ene vil indeholde ikke leverede varer<br>Den anden vil indeholde leverede varer	Click here to split the order into 2. <br> One will contain undelivered products <br> The other will contain delivered products	Klikk her for å dele ordren i 2. <br> Den ene inneholder varer som ikke er levert <br> Den andre inneholder leverte varer
@@ -1607,16 +1607,16 @@
 1607	Kladde er låst af	Draft is locked off	Utkast er låst av
 1608	Klik her for at komme til forsiden af rapporter	Click here to get to the front page of reports	Klikk her for å komme til forsiden av rapporter
 1609	Angiv maksimale antal linjer, som skal vises pr. side	Specify the maximum number of lines to be displayed per page	Angi maksimalt antall linjer som skal vises pr side
-1610	Angiv et id-nummer eller angiv to adskilt af kolon (f.eks 345:350)	Enter an ID number or enter two separated by a colon (eg 345: 350)	Skriv inn et ID-nummer eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
-1611	Angiv en dato eller angiv to adskilt af kolon (f.eks 010605:300605)	Enter a date or enter two separated by colon (eg 010605: 300605)	Skriv inn en dato eller skriv inn to atskilt med kolon (f.eks. 010605: 300605)
+1610	Angiv et id-nummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter an ID number, or enter two separated by a colon (eg 345: 350)	Skriv inn et ID-nummer, eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
+1611	Angiv en dato, eller angiv to adskilt af kolon (f.eks 010605:300605)	Enter a date, or enter two separated by colon (eg 010605: 300605)	Skriv inn en dato, eller skriv inn to atskilt med kolon (f.eks. 010605: 300605)
 1612	Angiv et tidspunkt (f.eks 17:35)	Enter a time (eg 17:35)	Angi en tid (f.eks. 17:35)
-1613	Angiv et kassekladdenummer eller angiv to adskilt af kolon (f.eks 345:350)	Enter a cash journal number or enter two separated by a colon (eg 345: 350)	Skriv inn et kontantjournalnummer eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
-1614	Angiv et bilagsnummer eller angiv to adskilt af kolon (f.eks 345:350)	Enter a document number or enter two separated by a colon (eg 345: 350)	Skriv inn et dokumentnummer eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
-1615	Angiv et kontonummer eller angiv to adskilt af kolon (f.eks 345:350)	Enter an account number or enter two separated by colon (eg 345: 350)	Skriv inn et kontonummer eller skriv inn to atskilt med kolon (f.eks. 345: 350)
-1616	Angiv et fakturanummer eller angiv to adskilt af kolon (f.eks 345:350)	Enter an invoice number or enter two separated by a colon (eg 345: 350)	Angi et fakturanummer eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
-1617	Angiv et beløb eller angiv to adskilt af kolon (f.eks 10000,00:14999,99)	Enter an amount or enter two separated by colon (eg 10000.00: 14999.99)	Angi et beløp eller skriv inn to atskilt med kolon (f.eks. 10000,00: 14999,99)
-1618	Angiv et projektnummer eller angiv to adskilt af kolon (f.eks 5:7)	Enter a project number or enter two separated by a colon (eg 5: 7)	Skriv inn et prosjektnummer eller skriv inn to atskilt med et kolon (f.eks. 5: 7)
-1619	Angiv et kassenummer eller angiv to adskilt af kolon (f.eks 1:3)	Enter a box number or enter two separated by a colon (eg 1: 3)	Skriv inn et boksnummer eller skriv inn to atskilt med et kolon (f.eks. 1: 3)
+1613	Angiv et kassekladdenummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter a cash journal number, or enter two separated by a colon (eg 345: 350)	Skriv inn et kontantjournalnummer, eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
+1614	Angiv et bilagsnummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter a document number, or enter two separated by a colon (eg 345: 350)	Skriv inn et dokumentnummer, eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
+1615	Angiv et kontonummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter an account number, or enter two separated by colon (eg 345: 350)	Skriv inn et kontonummer, eller skriv inn to atskilt med kolon (f.eks. 345: 350)
+1616	Angiv et fakturanummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter an invoice number, or enter two separated by a colon (eg 345: 350)	Angi et fakturanummer, eller skriv inn to atskilt med et kolon (f.eks. 345: 350)
+1617	Angiv et beløb, eller angiv to adskilt af kolon (f.eks 10000,00:14999,99)	Enter an amount, or enter two separated by colon (eg 10000.00: 14999.99)	Angi et beløp, eller skriv inn to atskilt med kolon (f.eks. 10000,00: 14999,99)
+1618	Angiv et projektnummer, eller angiv to adskilt af kolon (f.eks 5:7)	Enter a project number, or enter two separated by a colon (eg 5: 7)	Skriv inn et prosjektnummer, eller skriv inn to atskilt med et kolon (f.eks. 5: 7)
+1619	Angiv et kassenummer, eller angiv to adskilt af kolon (f.eks 1:3)	Enter a box number, or enter two separated by a colon (eg 1: 3)	Skriv inn et boksnummer, eller skriv inn to atskilt med et kolon (f.eks. 1: 3)
 1620	Angiv en søgetekst. Der kan anvendes * før og efter teksten	Enter a search text. It can be used * before and after the text	Skriv inn en søketekst. Den kan brukes * før og etter teksten
 1621	Projektnummeret kan rettes ved at klikke her	The project number can be corrected by clicking here	Prosjektnummeret kan rettes ved å klikke her
 1622	Kontroller konto	Check account	Sjekk konto
@@ -1953,7 +1953,7 @@
 1953	Udskriv Ark	Print Sheet	Skriv ut ark
 1954	Klik for at udskrive alle afmærkede labels	Click to print all marked labels	Klikk for å skrive ut alle merkede etiketter
 1955	Udskriv Labels	Print Labels	Skriv ut etiketter
-1956	Lageroptælling	Inventory counting	Lagertelling
+1956	Lageroptælling	Inventory Count	Lagertelling
 1957	Paperflow Id	Paperflow Id	Paperflow Id
 1958	Paperflow Bearer	Paperflow Bearer	Paperflow Bearer
 1959	Opdel	Spilt	Del opp
@@ -1963,7 +1963,7 @@
 1963	Oplysninger til SALDI-installering	Information for SALDI installation	Informasjon for SALDI-installasjon
 1964	Databaseserver	Databaseserver	Databaseserver
 1965	Tegnsæt	Character set	Karaktersett
-1966	 Databasenavn 	Database name	Databasenavn
+1966	Databasenavn	Database name	Databasenavn
 1967	Dataadministrator	Data Administrator	Dataadministrator
 1968	Adgangskode for databaseadministrator	Database Administrator Password	Databaseadministratorpassord
 1969	SALDI-administratorens brugernavn	SALDI administrator username	SALDI administrator brukernavn
@@ -2007,7 +2007,7 @@
 2007	Glemt adgangskode?	Forgot password?	Glemt passord?
 2008	Angiv antal der stal flyttes til anden eller ny ordre	Specify quantity to be moved to second or new order	Spesifiser antall som skal flyttes til andre eller ny ordre
 2009	Flyt	Move Flytt	
-2010	Flyt det angivne antal fra valgte linjer til:  (ordredato / ordrenr)	Move the specified quantity from selected lines to (order date / order no)	Flytt det angitte tallet fra valgte linjer til (bestillingsdato / ordre nr)
+2010	Flyt det angivne antal fra valgte linjer til:  (ordredato / ordrenr)	Move the specified quantity from selected lines to (order date / order no)	Flytt det angitte tallet fra valgte linjer til (bestillingsdato / ordrenr)
 2011	Opret ny ordre	Create new order Oprett ny bestilling	
 2012	Antal, ej modtaget, der skal flyttes, maks: $maxQ	 Quantity, not recieved, to be moved, max: $maxQ	Antall, ej mottaget, som skal flyttes, maks: $maxQ
 2013	Antal modtaget, der skal flyttes, maks: $maxQ	 Quantity recieved, to be moved, max: $maxQ	Antall mottaget, som skal flyttes, maks: $maxQ
@@ -2078,9 +2078,9 @@
 2078	Ekstra indstillinger for automatisk beregning ved import	Extra automatic calculation setting on import	Extra automatisk beräkningsinställning vid import
 2079	Når du importerer varer, så kan Saldi automatisk beregne priser. Her kan du sætte indstillingen for automatisk beregning. Vær opmærksom på, at dette kun har effekt ved importen, hvis du undlader at vælge en pris kolonne  	When you import products, Saldi can automatically calculate prices. Here you can set the automatic calculation settings. Be aware that this only has an effect on import if you avoid to select a Prices column	När du importerar produkter kan Saldi automatiskt beräkna priser. Här kan du ställa in de automatiska beräkningsinställningarna. Tänk på att detta bara påverkar importen om du undviker att välja en kolumn för priser
 2080	Vejl. pris = købspris+	Retail price = purchase price+	Vejl. pris = inköpspris+
-2081	Autoberegn	Auto calculate	Autoberäkna
-2082	prisliste	price list	prislista
-2083	Autoberegn	Auto calculate	Autoberäkna
+2081	Autoberegn	Auto calculate	Autoberegn
+2082	Prisliste	Price List	Prisliste
+2083	Autoberegn	Auto calculate	Autoberegn
 2084	Klik her for at eksportere til csv	Click here to export to csv	Klikk her for å eksportere til csv
 2085	Vejl.pris	Retail price	Vejl.pris
 2086	Vejledende pris	Retail price	Vejledende pris
@@ -2170,51 +2170,51 @@
 2170	Finansopslag	Finance Lookup	Finansoppslag
 2171	Afstem bank	Reconcile Bank	Avstem bank
 2172	Luk	Close	Lukk
-2173	Rapport - kontokort	Report - Account Card	Rapport - Kontokort
-2174
-2175
-2176
-2177
-2178
-2179
-2180
-2181
-2182
-2183
-2184
-2185
-2186
-2187
-2188
-2189
-2190
-2191
-2192
-2193
-2194
-2195
-2196
-2197
-2198
-2199
-2200
-2201
-2202
-2203
-2204
-2205
-2206
-2207
-2208
-2209
-2210
-2211
-2212
-2213
-2214
-2215
-2216
-2217
+2173	Rapport - kontokort	Report - General Ledger	Rapport - Kontokort
+2174	Antal kunder pr. time i gennemsnit over de sidste 30 dage	Average number of customers per hour in the last 30 days	Gjennomsnittlig antall kunder per time de siste 30 dagene
+2175	Simuleret kontokort	Simulated General Ledger	Simulert kontokort
+2176	CVR	VAT	MVA
+2177	Simulering	Simulation	Simulering
+2178	Pos nr.	Item no.	Varenr.
+2179	Klik her for at åbne filen i nyt vindue, højreklik her for at gemme	Click here to open the file in a new window, right-click to save	Klikk her for å åpne filen i et nytt vindu, høyreklikk her for å lagre
+2180	Vis PDF-udskrift	Show PDF Prin	Vis PDF-utskrift
+2181	Klik her for at lukke Top 100	Click here to close Top 100	Klikk her for å lukke Top 100
+2182	Skan bilag	Scan Attachement	Skann bilag
+2183	Angiv et ordrenummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter an order number, or enter two separated by a colon (e.g. 345:350)	Skriv inn et ordrenummer, eller skriv inn to adskilt med kolon (f.eks. 345:350)
+2184	Angiv et modtagelsesnummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter a receipt number, or enter two separated by a colon (e.g. 345:350)	Skriv inn et kvitteringsnummer, eller skriv inn to adskilt med kolon (f.eks. 345:350)
+2185	Navn på modtager. Der kan søges med * før og efter teksten	Recipient name. You can search using * before and after the text	Navn på mottaker. Det kan søkes ved å bruke * før og etter teksten
+2186	Vælg et firma	Select a company	Velg et firma
+2187	Vælg en referanceperson	Select a reference person	Velg en referanseperson
+2188	Vælg et projektnr.	Select a project no.	Velg et prosjektnr.
+2189	Udlign åbne poster	Equalize Open Records	Utlikn åpne poster
+2190	Ordreeksport	Order Export	Ordreeksport
+2191	Åbner CSV filen. Højreklik for at gemme	Opens the CSV file. Right-click to save	Åpner CSV-filen. Høyreklikk for å lagre
+2192	Åbn ordrefil	Open Order File	Åpne ordrefil
+2193	Varenummer / Stregkode	Item Number / Barcode	Varenummer / Strekkode
+2194	Opslag tager ikke hensyn til store og små bogstaver.	Lookup does not take case sensitivity into account.	Oppslag tar ikke hensyn til storeog små bokstaver.
+2195	Ønskes opslag på blot en del af varenummeret, så brug % for flere vilkårlige tegn, og _ for et enkelt vilkårligt tegn.	If you want to search for only part of the item number, use % for multiple unspecified characters, and _ for a single unspecified character.	Ønskes oppslag på bare en del av varenummeret, bruk % for flere vilkårlige tegn og _ for ett vilkårlig tegn.
+2196	Eksempel: d_d% vil finde dvd, Dvd-afspiller og Dadida.	Example: d_d% will return dvd, Dvd player, and Dadida.	Eksempel: d_d% vil finne dvd, Dvd-spiller og Dadida.
+2197	Klik	Click	Klikk
+2198	for liste over ikke-optalte varer	for a list of uncounted items	for liste over ikke-optalte varer
+2199	Ikke-optalte varer pr	Uncounted items as of	Ikke-optalte varer pr
+2200	Lagerværdi sum	Inventory Value Total	Lagerverdi sum
+2201	Import af lageroptælling til lager	Import of inventory count for inventory	Import av lageroptelling til lager
+2202	Listen skal bestå af 2 kolonner, adskilt af komma, semikolon eller tabulator.	The list must consist of 2 columns, separated by a comma, semicolon, or tab.	Listen må bestå av 2 kolonner, adskilt av komma, semikolon eller tabulator.
+2203	1. kolonne skal indeholde varenummer eller stregkode, 2. kolonne den optalte beholdning.	The 1st column must contain an item number or barcode, and the 2nd column the counted inventory.	1. kolonne må inneholde varenummer eller strekkode, 2. kolonne den opptalte beholdningen.
+2204	Datoen skal være den dato hvor optællingen blev udført.	The date must be the date when the count took place.	Datoen må være den datoen hvor opptellingen ble utført.
+2205	Hvis optællingen er sket mellem midnat og dagens 1. varebevægelse, skal den foregående dags dato anføres.	If the count took place between midnight and the first inventory movement of the day, the previous day's date must be entered.	Hvis opptellingen har skjedd mellom midnatt og dagens første varebevegelse, skal den foregående dagens dato anføres.
+2206	Dato for optælling	Date of count	Dato for opptelling
+2207	Medtager alle varer fra valgte leverandører, uanset ordrestatus	Includes all items from selected suppliers, regardless of order status	Inkluderer alle varer fra valgte leverandører, uavhengig av ordrestatus
+2208	Medtager kun varer fra valgte leverandører, som vil komme under minimum ud fra ordrer & tilbud	Includes only items from selected suppliers that will be below the minimum based on orders & offers	Inkluderer kun varer fra valgte leverandører som vil være under minimum ut fra ordre & tilbud
+2209	Bogfør kassekladde	Post Cash Journal	Bokfør kassekladde
+2210	Her kan du afstemme det, der er bogført i Saldi, med et kontoudtog fra banken.	Here you can reconcile what has been posted in Saldi with a bank statement.	Her kan du avstemme det som er bokført i Saldi med et kontoutdrag fra banken.
+2211	Systemet finder selv datoerne fra kontoudtoget og de modsvarende datoer i Saldi,	The system automatically finds the dates from the bank statement and the corresponding dates in Saldi,	Systemet finner selv datoene fra kontoutdraget og de tilsvarende datoene i Saldi,
+2212	så du nemt kan finde eventuelle differencer.	making it easy for you to identify any discrepancies.	slik at du enkelt kan finne eventuelle differanser.
+2213	Bankafstemning	Bank Reconciliation	Bankavstemming
+2214	Valutakurs	Exch. Rate	Valutakurs
+2215	Varegrænse	Product Limit	Varegrense
+2216	Udskriv kontoudtog som PDF (Åbner i popup)	Print statement as PDF (Opens in popup)	Skriv ut kontoutdrag som PDF (Åpnes i popup)
+2217	Sæt grænse for, hvor mange varer en kunde kan oprette	Set a limit on how many items a customer can create	Sett grense for hvor mange varer en kunde kan opprette
 2218
 2219
 2220
@@ -2397,10 +2397,10 @@
 2397
 2398
 2399
-2400	Varenr. for porto	Varenr. for porto	Varenr. for porto 
-2401	Varen tilføjes automatisk til nye debitor ordrer	The item autoamtically gets added to new orders	Varen legges automatisk til nye kundeordrer
-2402	Klar til fakturereing, ordren er helt leveret	Ready for invoicing, the order is fully delivered	Klar for fakturering, bestillingen er ferdig levert
-2403	Klar til fakturereing, ordren er helt leveret (Varer vises ikke)	Ready for invoicing, the order is fully delivered (Items not shown)	Klar for fakturering, bestillingen er ferdig levert (varer ikke vist)
+2400
+2401
+2402
+2403
 2404
 2405
 2406

@@ -1,4 +1,10 @@
-import { getSettings, updateSettings,  } from '/pos/rental/api/api.js'
+// Make sure you're in an async context
+(async () => {
+    const url = new URL(window.location.href)
+    const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
+    const firstFolder = pathSegments[0]
+    // Dynamically import the module
+    const { getSettings, updateSettings } = await import(`/${firstFolder}/rental/api/api.js`)
 
 const save = document.querySelector('.save')
 const format = document.querySelector('.format')
@@ -20,7 +26,11 @@ if(settings.use_password == "1"){
     if(pass != settings.pass){
         console.log(pass + " " + settings.pass)
         alert("Forkert adgangskode")
-        window.location.href = "/laja/rental/index.php?vare"
+        // get the first folder in url
+        const currentUrl = new URL(window.location.href)
+        const currentPathSegments = currentUrl.pathname.split('/').filter(segment => segment !== '')
+        const redirectFolder = currentPathSegments[0]
+        window.location.href = `/${redirectFolder}/rental/index.php?vare`
     }
 }
 
@@ -59,3 +69,4 @@ save.addEventListener('click', async e => {
     const res = await updateSettings(data)
     alert(res)
 })
+})()
