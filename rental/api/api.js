@@ -313,3 +313,78 @@ export const getBookingsByCust = async (id) => {
     headers: { "Content-Type": "application/json" }
   })
 }
+
+export const getAllProducts = async () => {
+  const url = `${apiUrl}getAllProducts`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" }
+  })
+}
+
+export const updateRemoteProduct = async (data) => {
+  const url = `${apiUrl}updateRemoteProduct`
+  return await fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+}
+
+export const updateMail = async (data) => {
+  const url = `${apiUrl}updateMail`
+  return await fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+}
+
+export const getMailInfo = async () => {
+  const url = `${apiUrl}getMailInfo`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" }
+  })
+}
+
+export const getBookingsForItems = async () => {
+  const url = `${apiUrl}getBookingsForItems`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
+export const getBookingsForItemsByType = async (type) => {
+  const url = `${apiUrl}getBookingsForItemsByType=${type}`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
+export const getPayment = async () => {
+  const url = `${apiUrl}getPayment`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
+export const updatePayment = async (data) => {
+  const url = `${apiUrl}updatePayment`
+  return await fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+}
+
+export const getRemoteLink = async () => {
+  const url = `${apiUrl}getRemoteLink`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  })
+}

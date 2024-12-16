@@ -27,7 +27,7 @@
 // 20220930 DAPE added productlimit
 // 20230311 PHR Various updates according to PHP8 
 // 20230325 PHR added memberShip to query and corrected an sols and for sale buttons in mobileView. 
- 
+// 16712/2024 PBLM added functionality to despina
 
 if ($from) $from = usdate($from);
 if ($to) $to = usdate($to);
@@ -168,6 +168,58 @@ if ($custName && $access) {
 	$myLabel = 0;
 	($mobile) ? $wh = 50 : $wh = 25;
 	if ($link) $id = $link;
+
+	// new implementation for Despina
+	$qtxt = "SELECT * FROM settings WHERE var_name='showMysaleTimes' AND var_value='1'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($r) {
+		$qtxt = "SELECT id FROM adresser WHERE art='D' AND kontonr='$account'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$id = $r['id'];
+		$today = date('Y-m-d');
+		$today = strtotime($today);
+		$qtxt = "SELECT rt_to FROM rentalperiod WHERE rt_to >= '$today' AND cust_id = '$id'";
+		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		if(db_num_rows($query) > 1) {
+			while($r = db_fetch_array($query)) {
+				$rt_to = $r['rt_to'];
+				// get the day difference between today and the rental period end date
+				$diff = $rt_to - $today;
+				$diff = floor($diff / (60 * 60 * 24));
+				// make a select to select the rental item that is closest to the rental period end date
+				$rt_to_array[] = $diff;
+			}
+			$min = min($rt_to_array);
+			// get the day difference between today and the rental period end date
+			$diff = $min;
+			// make a div with a text that says how many days are left
+			if($diff == 0){
+				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
+				print "Din korteste lejeperiode udløber i dag";
+				print "</div></div>";
+			}else{
+				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
+				print "Dage tibage på din korteste lejeperiode: <b>$diff</b>";
+				print "</div></div>";
+			}
+		}elseif(db_num_rows($query) == 1){
+			$r = db_fetch_array($query);
+			$rt_to = $r['rt_to'];
+			// get the day difference between today and the rental period end date
+			$diff = $rt_to - $today;
+			$diff = floor($diff / (60 * 60 * 24));
+			// make a div with a text that says how many days are left
+			if($diff == 0){
+				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
+				print "Din lejeperiode udløber i dag";
+				print "</div></div>";
+			}else{
+				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
+				print "Dage tibage på din lejeperiode: <b>$diff</b>";
+				print "</div></div>";
+			}
+		}
+	}
 	print "<div style='float:right;'><a href = mysale.php?id=$id&condition=$condition&editProfile=1>";
 	print "<img class='checkMobile' src=\"../img/profile.png\" style=\"border: 0px solid;width:$wh;height:$wh\"></a></div>";
 	print "<center>";
