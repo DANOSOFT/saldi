@@ -134,7 +134,34 @@ if (substr($brugernavn,0,11) == "debitoripad") {
 ?>
         </ul>
       </li>
-
+      <!-- Booking -->
+      <?php
+        $query = db_select("select var_value from settings where var_grp='rental'", __FILE__ . " linje " . __LINE__);
+        if(db_num_rows($query) > 0) {
+       ?>
+      <li style="display: <?php if (check_permissions(array(6))) {echo 'block';} else {echo 'none';} ?>">
+        <div class="icon_link">
+          <a href="#">
+            <i class='bx bx-calendar' ></i>
+            <span class="link_name"><?php print findtekst(1116, $sprog_id); ?></span>
+          </a>
+          <i class='bx bxs-chevron-down arrow' > </i>
+        </div>
+        <ul class="sub-menu">
+          <li><span class="link_name"><?php print findtekst(1116, $sprog_id); ?></span></li>
+<?php
+  if (check_permissions(array(6))) {
+    echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php?vare")\'>'.findtekst(2137, $sprog_id).'</a></li>';
+    echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php")\'>'.findtekst(2138, $sprog_id).'</a></li>';
+    echo '<li><a href="#" onclick=\'update_iframe("/rental/settings.php")\'>'.findtekst(122, $sprog_id).'</a></li>';
+    echo '<li><a href="#" onclick=\'update_iframe("/rental/daysoff.php")\'>'.findtekst(2140, $sprog_id).'</a></li>';
+    echo '<li><a href="#" onclick=\'update_iframe("/rental/items.php")\'>'.findtekst(2141, $sprog_id).'</a></li>';
+    echo '<li><a href="#" onclick=\'update_iframe("/rental/remote.php")\'>'.findtekst(2143, $sprog_id).'</a></li>';
+    echo '<li><a href="#" onclick=\'update_iframe("/rental/lookupcust.php")\'>'.findtekst(2142, $sprog_id).'</a></li>';
+  }
+?>
+        </ul>
+<?php } ?>
       <!-- Kreditor -->
       <li style="display: <?php if (check_permissions(array(7,8,13))) {echo 'block';} else {echo 'none';} ?>">
         <div class="icon_link" id="kreditor">
