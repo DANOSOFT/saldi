@@ -1,17 +1,28 @@
-import { getCustomers, deleteBooking, createReservation, getProductInfos, getBooking, getReservations, editReservationComment, getReservationsByItem, deleteReservation, getItem, getBookingByCustomer, getSettings, getItemBookings, updateSettings, editReservationDates } from "/pos/rental/api/api.js"
-//
+
+// Make sure you're in an async context
+(async () => {
+    const url = new URL(window.location.href)
+    const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
+    const firstFolder = pathSegments[0]
+    // Dynamically import the module
+    const { getCustomers, deleteBooking, createReservation, getProductInfos, getBooking, getReservations, getClosedDays, editReservationComment, getBookingsForItemsByType, getReservationsByItem, deleteReservation, getItem, getBookingByCustomer, getSettings, getItemBookings, updateSettings, editReservationDates, getBookingsForItems } = await import(`/${firstFolder}/rental/api/api.js`)
+
+    //
 //
 //  Hvis du skal ændre noget i koden så held og lykke
 //  Der er ikke lavet kommentarer til alt
 //  Hvis du har brug for hjælp så kontakt mig
 //  - Patrick Madsen
 //
+
+
 let scrollPosition = 0
 let availableItems = [], searchInput
+let itemsInfo = {}
 const searchItems = []
 const queryString = window.location.search
 const settings = await getSettings()
-if(settings == ""){
+if(settings.success == false){
     const data = {
         booking_format: 2,
         search_cust_number: 1,
@@ -23,7 +34,8 @@ if(settings == ""){
         end_day: 0,
         put_together: 0,
         use_password: 0,
-        password: ""
+        password: "",
+        invoice_date: 0
     }
     const res = await updateSettings(data)
 }
@@ -86,8 +98,10 @@ window.availableOnDay = async (date, productInfo, value) => {
             const bookingToDate = new Date(booking.toDate)
             const givenFromDate = new Date(date)
             const givenToDate = new Date(date)
-            // The booking overlaps with the given period if it starts before the period ends and ends after the period starts
-            return bookingFromDate <= givenToDate && bookingToDate >= givenFromDate
+            // Check if the booking overlaps with the given period
+            return bookingFromDate <= givenFromDate && bookingToDate >= givenFromDate ||
+                bookingFromDate <= givenToDate && bookingToDate >= givenToDate ||
+                bookingFromDate >= givenFromDate && bookingToDate <= givenToDate
         })
         // check if there is any reservations in the given period
         let hasReservationDuringPeriod
@@ -318,7 +332,8 @@ const createCalendar = async () => {
         const txtNode = document.createTextNode(days[i])
         const td = document.createElement("td")
         let currentDate = currentYear + "-" + ("0" + (currentMonth + 1)).slice(-2) + "-" + ("0" + days[i]).slice(-2)
-        
+        let today = new Date()
+        today = today.getFullYear() + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + ("0" + today.getDate()).slice(-2)
         const a = document.createElement("a")
         let j = 0
         custDates.forEach(date => {
@@ -328,7 +343,11 @@ const createCalendar = async () => {
             }
             startDate = startDate.getFullYear() + "-" + ("0" + (startDate.getMonth() + 1)).slice(-2) + "-" + ("0" + startDate.getDate()).slice(-2)
             const endDate = settings.end_day == 1 ? date[6] : date[1]
-            if((currentDate == endDate || currentDate == startDate) && j == 0){
+
+            if(currentDate === today){
+                a.setAttribute("class", "today-circle link-dark")
+                j++
+            }else if((currentDate == endDate || currentDate == startDate) && j == 0){
                 a.setAttribute("class", "circle link-dark")
                 j++
             }
@@ -370,7 +389,7 @@ const createCalendar = async () => {
     for (let i = 0; i < rows.length; i++) {
         newTable += "<tr>"
         for (let j = 0; j < rows[i].length; j++) {
-            newTable += rows[i][j]
+                newTable += rows[i][j]
         }
         newTable += "</tr>"
     }
@@ -466,10 +485,10 @@ const createReservationList = async (year, month, day, value) => {
             item_id: customer.item_id
         }
     })
-
+    
     // check if a customer have booked the same item twice in a row dependent on date
     if(settings.put_together == "1"){
-        // Sort the customerInfo array by id and item_nbame
+        // Sort the customerInfo array by id and item_name
         let mergedArray = [];
 
         customerInfo.sort((a, b) => a.id - b.id || a.item_name.localeCompare(b.item_name) || new Date(a.fromDate) - new Date(b.fromDate))
@@ -479,7 +498,6 @@ const createReservationList = async (year, month, day, value) => {
                 customerInfo[i].id === customerInfo[i-1].id && 
                 customerInfo[i].item_name === customerInfo[i-1].item_name && 
                 Math.abs((new Date(customerInfo[i].fromDate) - new Date(customerInfo[i-1].toDate)) / (1000 * 60 * 60 * 24)) < 2) {
-                
                 mergedArray[mergedArray.length - 1].toDate = customerInfo[i].toDate
             } else {
                 mergedArray.push(customerInfo[i])
@@ -520,6 +538,7 @@ const createReservationList = async (year, month, day, value) => {
         date.setDate(date.getDate() + 1)
         startSelectedDate = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
     }
+
     let check = false
     // check if there is any bookings starting startSelectedDate
     customerInfo.some(date => {
@@ -597,7 +616,36 @@ const createReservationList = async (year, month, day, value) => {
     console.log(currentDate) */
     // Populate the table'
     
-    customerInfo.sort((a, b) => a.item_name.localeCompare(b.item_name))
+    // Sort customerInfo nummeric based on item_name
+    const stripParentheses = (str) => str.replace(/\(.*?\)/g, '').trim();
+
+    // Sort customerInfo with numeric items first and items with letters last
+    customerInfo.sort((a, b) => {
+        const isNumeric = (str) => /^\d+$/.test(str);
+
+        const strippedA = stripParentheses(a.item_name);
+        const strippedB = stripParentheses(b.item_name);
+
+        const aIsNumeric = isNumeric(strippedA);
+        const bIsNumeric = isNumeric(strippedB);
+
+        // If both items are numeric, compare them numerically
+        if (aIsNumeric && bIsNumeric) {
+            return parseInt(strippedA, 10) - parseInt(strippedB, 10);
+        }
+
+        // If one item is numeric and the other isn't, the numeric one comes first
+        if (aIsNumeric) {
+            return -1;
+        }
+        if (bIsNumeric) {
+            return 1;
+        }
+
+        // If neither item is numeric, compare them as strings
+        return strippedA.localeCompare(strippedB);
+    });
+
     for (const date of customerInfo) {
         if (value == "one") {
             if(settings.start_day == 1){
@@ -640,8 +688,8 @@ const createReservationList = async (year, month, day, value) => {
                         <td>${customer.tlf}</td>
                         <td>${customer.item_name}</td>
                         <td>${customer.account_number}</td>
-                        <td>${date.fromDate}</td>
-                        <td>${date.toDate}</td>
+                        <td>${customer.fromDate}</td>
+                        <td>${customer.toDate}</td>
                         <td>
                         <a href="edit.php?id=${customer.booking_id}">
                             <button class="btn btn-primary">${editIcon}</button>
@@ -689,8 +737,8 @@ const createReservationList = async (year, month, day, value) => {
                         <td>${customer.tlf}</td>
                         <td>${customer.item_name}</td>
                         <td>${customer.account_number}</td>
-                        <td>${date.fromDate}</td>
-                        <td>${date.toDate}</td>
+                        <td>${customer.fromDate}</td>
+                        <td>${customer.toDate}</td>
                         <td>
                         <a href="edit.php?id=${customer.booking_id}">
                             <button class="btn btn-primary">${editIcon}</button>
@@ -740,8 +788,8 @@ const createReservationList = async (year, month, day, value) => {
                         <td>${customer.tlf}</td>
                         <td>${customer.item_name}</td>
                         <td>${customer.account_number}</td>
-                        <td>${date.fromDate}</td>
-                        <td>${date.toDate}</td>
+                        <td>${customer.fromDate}</td>
+                        <td>${customer.toDate}</td>
                         <td>
                         <a href="edit.php?id=${customer.booking_id}">
                             <button class="btn btn-primary">${editIcon}</button>
@@ -789,8 +837,8 @@ const createReservationList = async (year, month, day, value) => {
                         <td>${customer.tlf}</td>
                         <td>${customer.item_name}</td>
                         <td>${customer.account_number}</td>
-                        <td>${date.fromDate}</td>
-                        <td>${date.toDate}</td>
+                        <td>${customer.fromDate}</td>
+                        <td>${customer.toDate}</td>
                         <td>
                         <a href="edit.php?id=${customer.booking_id}">
                             <button class="btn btn-primary">${editIcon}</button>
@@ -901,8 +949,8 @@ const createReservationList = async (year, month, day, value) => {
                         <td>${customer.tlf}</td>
                         <td>${customer.item_name}</td>
                         <td>${customer.account_number}</td>
-                        <td>${date.fromDate}</td>
-                        <td>${date.toDate}</td>
+                        <td>${customer.fromDate}</td>
+                        <td>${customer.toDate}</td>
                         <td>
                         <a href="edit.php?id=${customer.booking_id}">
                             <button class="btn btn-primary">${editIcon}</button>
@@ -918,6 +966,7 @@ const createReservationList = async (year, month, day, value) => {
             })
         }
     }
+        
    /*  const button = document.createElement("a");
     button.href = "booking.php?day=" + day + "&month=" + month + "&year=" + year + "&format=1";
     button.className = "btn btn-primary";
@@ -945,7 +994,11 @@ const createReservationList = async (year, month, day, value) => {
     printButton.addEventListener("click", () => {
         const printWindow = window.open('', '_blank')
         const tables = document.querySelectorAll('.table')
-        printWindow.document.write('<html><head><title>Print</title></head><body>')
+        // get the weekday of the selected date in like monday, tuesday etc.
+        const date = new Date(year, month - 1, day)
+        const days = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag']
+        const weekday = days[date.getDay()]
+        printWindow.document.write(`<html><head><title>Print</title></head><body><h1>${weekday + " " + day+"/"+month+"/"+year}</h1>`)
         tables.forEach((table, index) => {
             let header = table.previousElementSibling
             while (header && header.tagName.toLowerCase() !== 'h3') {
@@ -1024,7 +1077,6 @@ const monthlyOverview = async (year, month) => {
         booking_id: customer.booking_id,
         item_name: customer.item_name
     }))
-    console.log(month, year)
     /* const customerDates = await getCustomerDates(month, year) */
 
     // Populate the table
@@ -1078,6 +1130,21 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     currentMonth = parseInt(thisMonth)
     currentYear = year
     const product = await getProductInfos(currentMonth+1, currentYear)
+    if(product.success == false){
+        const tablePoint = document.querySelector(".table-point")
+        tablePoint.innerHTML = `<div class="mx-auto" style="width: 40%;"><p>
+        Der er ikke sat nogen vare til udlejning.<br>
+
+        For at sætte varer til udlejning skal du følge disse trin:</p>
+        <ol>
+        <li>Klik på linket herunder</li>
+        <li><a href="../lager/varer.php?returside=../index/menu.php">Link til vare</a></li>
+        <li>Find den specifikke vare, du ønsker at sætte til udlejning, og klik på den.</li>
+        <li>Nederst til højre på skærmen vil du se en knap mærket "Udlejning". Klik på denne knap.</li>
+        </ol>
+        <p>Når du har fulgt disse trin, vil varen blive markeret som værende til udlejning.</p></div>`
+        return
+    }
     const table = document.querySelector(".table")
     
     
@@ -1087,7 +1154,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     span.appendChild(document.createTextNode(months[currentMonth] + " - " + currentYear))
 
     // Constructing data for the table
-    const productInfo = product.map((product) => ({
+    let productInfo = product.map((product) => ({
         product_name: product.product_name,
         item_name: product.item_name,
         fromDate: new Date(product.from * 1000).getFullYear() + "-" + ("0" + (new Date(product.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(product.from * 1000).getDate()).slice(-2),
@@ -1118,16 +1185,25 @@ const productOverviewMonth = async (thisMonth, year, value) => {
 
     let screenWidth = screen.width;
 
+    const currentDate = new Date(new Date().getFullYear() + "-" + ("0" + (new Date().getMonth() + 1)).slice(-2) + "-" + ("0" + new Date().getDate()).slice(-2))
     days.forEach(day => {
         let firstDate = new Date(currentYear+"-"+(currentMonth+1)+"-"+day)
         let dayNumber = firstDate.getDay()
-        tableHeader += `<th scope='col' role="button" class="link-primary th-link" title="se ledige stande d.${day} ${months[currentMonth]}" onclick='availableOnDay("${currentYear}-${(currentMonth+1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}", ${JSON.stringify(productInfo)}, "${value}")'>${(screenWidth < 1920) ? daysSingleChar[dayNumber] : daysChar[dayNumber]}<br>${day}</th>`
+        const firstDateNoTime = new Date(firstDate.getFullYear() + "-" + ("0" + (firstDate.getMonth() + 1)).slice(-2) + "-" + ("0" + firstDate.getDate()).slice(-2))
+        if(currentDate.getTime() === firstDateNoTime.getTime()){
+            tableHeader += `<th scope='col' role="button" class="link-success th-link bg-dark-subtle" title="se ledige stande d.${day} ${months[currentMonth]}" onclick='availableOnDay("${currentYear}-${(currentMonth+1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}", ${JSON.stringify(productInfo)}, "${value}")'>${(screenWidth < 1920) ? daysSingleChar[dayNumber] : daysChar[dayNumber]}<br>${day}</th>`
+        }else{
+            tableHeader += `<th scope='col' role="button" class="link-primary th-link" title="se ledige stande d.${day} ${months[currentMonth]}" onclick='availableOnDay("${currentYear}-${(currentMonth+1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}", ${JSON.stringify(productInfo)}, "${value}")'>${(screenWidth < 1920) ? daysSingleChar[dayNumber] : daysChar[dayNumber]}<br>${day}</th>`
+        }
     })
 
     tableHeader += "</tr></thead><tbody class='tBody'><div class='eraseTable'>"
     table.innerHTML = tableHeader
     const tBody = document.querySelector(".tBody")
     const eraseTable = document.querySelector(".eraseTable")
+
+    const getClosedDates = await getClosedDays()
+    const closedDates = getClosedDates.map(date => new Date(date.date * 1000).getFullYear() + "-" + ("0" + (new Date(date.date * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(date.date * 1000).getDate()).slice(-2))
     // Constructing data for the table
     const initialTable = () => {
         // Creating a list of unique products
@@ -1187,6 +1263,11 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     }
                 })
                 if (i == 0){
+                    // check if date is in closed dates array
+                    if(closedDates.includes(currentDate)){
+                        tableContent += `<td class='bg-secondary'></td>`
+                        return
+                    }
                     if(resBool == true){
                         const isInReservation = resDates.some(resDate => resDate.getMonth() == currentMonth && resDate.getDate() == day && resDate.getFullYear() == currentYear)
                         // if the day is in the reservation
@@ -1264,6 +1345,11 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     }
                 })
                 if (i == 0){
+                    // check if date is in closed dates array
+                    if(closedDates.includes(currentDate)){
+                        tableContent += `<td class='bg-secondary'></td>`
+                        return
+                    }
                     if(resBool == true){
                         const isInReservation = resDates.some(resDate => resDate.getMonth() == currentMonth && resDate.getDate() == day && resDate.getFullYear() == currentYear)
                         if(isInReservation){
@@ -1322,6 +1408,10 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     }
                 })
                 if (i == 0){
+                    if(closedDates.includes(currentDate)){
+                        tableContent += `<td class='bg-secondary'></td>`
+                        return
+                    }
                     if(custDates[0].item_reserved == 1){
                         tableContent += `<td class='bg-success'><span style="color:yellow">*</span></td>`
                     }else{
@@ -1335,11 +1425,51 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     }
 
     // work in progress
-    const showAvailability = (availableItems) => {
+    const showAvailability = (availableItems, itemsInfo = null) => {
+        // Helper function to strip out content within parentheses
+        const stripParentheses = (str) => str.replace(/\(.*?\)/g, '').trim()
+        // Sort availableItems with numeric items first and items with letters last
+        availableItems.sort((a, b) => {
+            const isNumeric = (str) => /^\d+$/.test(str)
+
+            const strippedA = stripParentheses(a.item_name)
+            const strippedB = stripParentheses(b.item_name)
+
+            const aIsNumeric = isNumeric(strippedA)
+            const bIsNumeric = isNumeric(strippedB)
+
+            // If both items are numeric, compare them numerically
+            if (aIsNumeric && bIsNumeric) {
+                return parseInt(strippedA, 10) - parseInt(strippedB, 10)
+            }
+
+            // If one item is numeric and the other isn't, the numeric one comes first
+            if (aIsNumeric) {
+                return -1
+            }
+            if (bIsNumeric) {
+                return 1
+            }
+
+            // If neither item is numeric, compare them as strings
+            return strippedA.localeCompare(strippedB)
+        })
+
+        // check if itemsInfo is not null
+        if(itemsInfo != null){
+            productInfo = itemsInfo
+        }
+
         // Creating a list of unique products
         const thLink = document.querySelectorAll(".th-link")
+        const days = getDaysInMonth(currentYear, currentMonth)
+
         // remove onclick event from th-link and class link-primary and add searchItem class
-        thLink.forEach(link => {
+        thLink.forEach((link, index) => {
+            const day = days[index]
+            let firstDate = new Date(currentYear+"-"+(currentMonth+1)+"-"+day)
+            let dayNumber = firstDate.getDay()
+            link.innerHTML = `<th scope='col' role="button" class="link-primary th-link" title="se ledige stande d.${day} ${months[currentMonth]}" onclick='availableOnDay("${currentYear}-${(currentMonth+1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}", ${JSON.stringify(productInfo)}, "${value}")'>${(screenWidth < 1920) ? daysSingleChar[dayNumber] : daysChar[dayNumber]}<br>${day}</th>`
             link.removeAttribute("onclick")
             link.classList.remove("link-primary")
             link.style.cursor = "default"
@@ -1349,7 +1479,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
         uniqueProducts.forEach(async product => {
             let resBool = false
             const resDates = []
-            const productDates = productInfo.filter(p => p.item_id === product)
+            const productDates = productInfo.filter(p => p.item_id == product)
             if(reservations.success == false){
                 resBool = false
             }else{
@@ -1420,6 +1550,10 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     }
                 })
                 if (i == 0){
+                    if(closedDates.includes(currentDate)){
+                        tableContent += `<td class='bg-secondary'></td>`
+                        return
+                    }
                     if(resBool == true){
                         const isInReservation = resDates.some(resDate => resDate.getMonth() == currentMonth && resDate.getDate() == day && resDate.getFullYear() == currentYear)
                         if(isInReservation){
@@ -1465,9 +1599,12 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     span.innerHTML = ""
                     span.appendChild(document.createTextNode(months[currentMonth] + " - " + currentYear))
                     fromDate = date[0] + "-" + date[1] + "-" + date[2]
+
+                    // Update the minDate of the "to" flatpickr instance
+                    toPicker.set('minDate', dateStr)
                 }
             })
-            flatpickr(".to", {
+            const toPicker = flatpickr(".to", {
                 altInput: true,
                 altFormat: "j F Y",
                 dateFormat: "Y-m-d",
@@ -1488,105 +1625,85 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                 // check if all is selected in the select element
                 if(standType == "all"){
                     // check if item has booking in the given period
-                    // Create a set of all item IDs
-                    const itemIds = new Set(productInfo.map(item => item.item_id))
-
-                    // Filter the item IDs
-                    const availableItemIds = Array.from(itemIds).filter(itemId => {
+                    const items = await getBookingsForItems()
+                    
+                    if(items.success == false){
+                        alert(items.msg)
+                        // refresh the page
+                        window.location.href = "index.php?vare"
+                    }
+                    itemsInfo = items.map((item) => ({
+                        product_name: item.product_name,
+                        item_name: item.item_name,
+                        fromDate: new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2),
+                        toDate: new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2),
+                        product_id: item.product_id,
+                        cust_id: item.cust_id,
+                        rental_id: item.rental_id,
+                        cust_name: item.cust_name,
+                        item_id: item.item_id,
+                        kontonr: item.kontonr
+                    }))
+                    // check if there is any bookings in the given period fromDate to toDate
+                    availableItems = itemsInfo.filter(item => {
                         // Find all bookings for this item
-                        const bookings = productInfo.filter(item => item.item_id === itemId)
-
+                        const bookings = itemsInfo.filter(booking => booking.item_id === item.item_id)
+                    
                         // Check if any of the bookings overlap with the given period
                         const hasBookingDuringPeriod = bookings.some(booking => {
-                            if (!booking.fromDate || !booking.toDate || booking.fromDate === 'NaN-aN-aN' || booking.toDate === 'NaN-aN-aN') {
-                                // If the booking doesn't have valid dates, it doesn't overlap with the given period
-                                return false
-                            }
-
-                            const bookingFromDate = new Date(booking.fromDate)
-                            const bookingToDate = new Date(booking.toDate)
-                            const givenFromDate = new Date(fromDate)
-                            const givenToDate = new Date(toDate)
-
-                            // The booking overlaps with the given period if it starts before the period ends and ends after the period starts
-                            return bookingFromDate <= givenToDate && bookingToDate >= givenFromDate
+                            return !(booking.toDate < fromDate || booking.fromDate > toDate)
                         })
-
-                        // check if there is any reservations in the given period
-                        let hasReservationDuringPeriod
-                        if(reservations.success == false){
-                            resBool = false
-                        }else{
-                            hasReservationDuringPeriod = reservations.some(reservation => {
-                                if(reservation.item_id == itemId){
-                                    const from = new Date(reservation.from * 1000)
-                                    const to = new Date(reservation.to * 1000)
-                                    // check if the reservation is in the current month or later months
-                                    if(to > new Date()){
-                                        // check if this month is in the reservation
-                                        return from <= new Date(toDate) && to >= new Date(fromDate)
-                                    }
-                                }
-                            })
-                        }
-
-                        // The item is available if it doesn't have any bookings during the given period
-                        return !hasBookingDuringPeriod && !hasReservationDuringPeriod
-                    });
-
-                    // Get the available items
-                    availableItems = productInfo.filter(item => availableItemIds.includes(item.item_id))
-                }else{
-                    // check if item has booking in the given period and if the item is the same as the selected item
-                    // Create a set of all item IDs
-                    const itemIds = new Set(productInfo.map(item => item.item_id))
-
-                    // Filter the item IDs
-                    const availableItemIds = Array.from(itemIds).filter(itemId => {
-                        // Find all bookings for this item
-                        const bookings = productInfo.filter(item => item.item_id === itemId)
-
-                        // Check if any of the bookings overlap with the given period
-                        const hasBookingDuringPeriod = bookings.some(booking => {
-                            if (!booking.fromDate || !booking.toDate || booking.fromDate === 'NaN-aN-aN' || booking.toDate === 'NaN-aN-aN') {
-                                // If the booking doesn't have valid dates, it doesn't overlap with the given period
-                                return false
-                            }
-
-                            const bookingFromDate = new Date(booking.fromDate)
-                            const bookingToDate = new Date(booking.toDate)
-                            const givenFromDate = new Date(fromDate)
-                            const givenToDate = new Date(toDate)
-
-                            // The booking overlaps with the given period if it starts before the period ends and ends after the period starts
-                            return bookingFromDate <= givenToDate && bookingToDate >= givenFromDate
-                        })
-                        // check if there is any reservations in the given period
-                        let hasReservationDuringPeriod
-                        if(reservations.success == false){
-                            resBool = false
-                        }else{
-                            hasReservationDuringPeriod = reservations.some(reservation => {
-                                if(reservation.item_id == itemId){
-                                    const from = new Date(reservation.from * 1000)
-                                    const to = new Date(reservation.to * 1000)
-                                    // check if the reservation is in the current month or later months
-                                    if(to > new Date()){
-                                        // check if this month is in the reservation
-                                        return from <= new Date(toDate) && to >= new Date(fromDate)
-                                    }
-                                }
-                            })
-                        }
-
-                        // The item is available if it doesn't have any bookings during the given period
-                        return !hasBookingDuringPeriod && !hasReservationDuringPeriod
+                    
+                        // Return true if there are no bookings during the given period
+                        return !hasBookingDuringPeriod
                     })
+                }else{
+                    const items = await getBookingsForItemsByType(standType)
+                    itemsInfo = items.map((item) => ({
+                        product_name: item.product_name,
+                        item_name: item.item_name,
+                        fromDate: new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2),
+                        toDate: new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2),
+                        product_id: item.product_id,
+                        cust_id: item.cust_id,
+                        rental_id: item.rental_id,
+                        cust_name: item.cust_name,
+                        item_id: item.item_id,
+                        kontonr: item.kontonr
+                    }))
 
-                    // Get the available items
-                    availableItems = productInfo.filter(item => availableItemIds.includes(item.item_id)).filter(item => item.product_id == standType)
+                    // check if there is any bookings in the given period fromDate to toDate
+                    availableItems = itemsInfo.filter(item => {
+                        // Find all bookings for this item
+                        const bookings = itemsInfo.filter(booking => booking.item_id === item.item_id)
+                    
+                        let hasReservationDuringPeriod = false
+                        if (!reservations.success) {
+                            hasReservationDuringPeriod = reservations.some(reservation => {
+                                if (parseInt(reservation.item_id) === parseInt(item.item_id)) {
+                                    const from = new Date(reservation.from * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.from * 1000).getDate()).slice(-2)
+                                    const to = new Date(reservation.to * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.to * 1000).getDate()).slice(-2)
+                                    // Check if the reservation overlap wit the given period
+                                    return from <= toDate && to >= fromDate
+                                }
+                                return false
+                            })
+                        }
+                    
+                        if (hasReservationDuringPeriod) {
+                            return false
+                        }
+        
+                        // Check if any of the bookings overlap with the given period
+                        const hasBookingDuringPeriod = bookings.some(booking => {
+                            return !(booking.toDate < fromDate || booking.fromDate > toDate)
+                        });
+                    
+                        // Return true if there are no bookings during the given period
+                        return !hasBookingDuringPeriod
+                    })
                 }
-                showAvailability(availableItems)
+                showAvailability(availableItems, itemsInfo)
             })
         }else{
             /* const date = prompt("Indtast en dato i formatet dd-mm-yyyy")
@@ -2701,4 +2818,4 @@ if (queryString !== "") {
 } else {
     createCalendar()
 }
-
+})()

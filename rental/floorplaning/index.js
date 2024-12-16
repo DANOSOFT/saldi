@@ -2,7 +2,7 @@ let app = new PIXI.Application({ width: 640, height: 360 })
 document.body.appendChild(app.view)
 
 // Magically load the PNG asynchronously
-let sprite = PIXI.Sprite.from('sample.png')
+let sprite = PIXI.Sprite.from('https://pixijs.com/assets/bunny.png')
 
 app.stage.addChild(sprite)
 

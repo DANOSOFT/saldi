@@ -16,21 +16,20 @@
     <script src="../javascript/flatpickrDa.js"></script>
 </head>
 <body>
-    <?php 
-        $side = "lookupcust";
-        include "header.php" 
-    ?>
-    <div class="width-80">
-        <div class="form-group">
-            <label for="customers">Vælg bruger</label>
-            <input list="customers" class="form-control customers-search">
-            <datalist id="customers" class="customers"></datalist>
-        </div><br>
-
-        <div class="bookings">
-        </div>
+   <?php
+   $side = "settings"; 
+   include "header.php"; 
+   ?>
+    <div id="loading">
+    <img id="loading-image" src="https://upload.wikimedia.org/wikipedia/commons/c/c7/Loading_2.gif?20170503175831" alt="Loading..." />
     </div>
-    <script src="bootstrap.min.js"></script>
-    <script src="lookupcust.js?<?php echo time(); ?>" type="module"></script>
+    <div class="content">
+        
+    </div>
+</div>
+</div>
+
+    <script src="bootstrap.min.js" integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe" crossorigin="anonymous"></script>
+    <script src="remote.js?<?php echo time(); ?>" type="module"></script>
 </body>
 </html>
