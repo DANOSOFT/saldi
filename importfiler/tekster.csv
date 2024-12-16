@@ -2399,8 +2399,8 @@
 2399
 2400	Varenr. for porto	Varenr. for porto	Varenr. for porto 
 2401	Varen tilføjes automatisk til nye debitor ordrer	The item autoamtically gets added to new orders	Varen legges automatisk til nye kundeordrer
-2402
-2403
+2402	Klar til fakturereing, ordren er helt leveret	Ready for invoicing, the order is fully delivered	Klar for fakturering, bestillingen er ferdig levert
+2403	Klar til fakturereing, ordren er helt leveret (Varer vises ikke)	Ready for invoicing, the order is fully delivered (Items not shown)	Klar for fakturering, bestillingen er ferdig levert (varer ikke vist)
 2404
 2405
 2406
