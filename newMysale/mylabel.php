@@ -98,6 +98,8 @@ $qtxt = "select var_value from settings where var_name='medlemSetting' or var_na
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $medlem = $r['var_value'];
 else $medlem = NULL;
 
+$labelsize = get_settings_value("labelsize", "mysale", 22);
+
 if (isset($_GET['page'])) $page = $_GET['page']; 
 (isset($_GET['condition']))?$condition=$_GET['condition']:$condition='used';
 (isset($_POST['mySale']))?$mySale=$_POST['mySale']:$mySale=NULL; 
@@ -400,7 +402,7 @@ include_once("sidemenu.php");
 				print "<div $title class='". ($mobile ? 'grid grid-cols-9' : '') ."'>";
 				if (!$productLimit || $showLabel) {
 					print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-					print "<input type='text' $ro maxlength='22' name='labelName[$a][$b]' class='". ($mobile ? 'col-span-5' : '') ." bg-gray-50 border border-gray-300 text-gray-900 text-5xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500'";
+					print "<input type='text' $ro maxlength='$labelsize' name='labelName[$a][$b]' class='". ($mobile ? 'col-span-5' : '') ." bg-gray-50 border border-gray-300 text-gray-900 text-5xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500'";
 					print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
 					print "<input type='text' $ro name='price[$a][$b]' class='". ($mobile ? 'col-span-2' : '') ." bg-gray-50 border border-gray-300 text-gray-900 text-5xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500'";
 					print "value='". $price[$a][$b] ."' placeholder='Pris'>";

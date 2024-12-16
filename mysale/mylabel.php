@@ -101,6 +101,8 @@ include ('../includes/std_func.php');
 
 (substr($_SERVER['PHP_SELF'],0,4)=='/no/')?$sprog_id=3:$sprog_id=1;
 
+$labelsize = get_settings_value("labelsize", "mysale", 22);
+
 $qtxt = "select var_value from settings where var_name='medlemSetting' or var_name = 'memberShip'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $medlem = $r['var_value'];
 else $medlem = NULL;
@@ -398,8 +400,8 @@ for ($a=1;$a<=$rows;$a++) {
 				if ($mobile) print "<td class='tdLabel'; $title>";
 				else print "<td class='tdLabel'; $title>";
 				print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-				if ($mobile) print "<input type='text' $ro maxlength='22' class='inputLabel' name='labelName[$a][$b]' ";
-				else print "<input type='text' $ro maxlength='22' class='inputLabel' name='labelName[$a][$b]' ";
+				if ($mobile) print "<input type='text' $ro maxlength='$labelsize' class='inputLabel' name='labelName[$a][$b]' ";
+				else print "<input type='text' $ro maxlength='$labelsize' class='inputLabel' name='labelName[$a][$b]' ";
 				print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
 				($price[$a][$b])?$ta='text-align:right':$ta='text-align:center';
 				print "<input type='text' $ro style='$ta;' class='inputPris' 
@@ -461,7 +463,7 @@ for ($a=1;$a<=$rows;$a++) {
 				print "<td style='width:175px;height:40px'; $title>";
 				if (!$productLimit || $showLabel) {
 					print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-					print "<input type='text' $ro maxlength='22' style='width:150px;' name='labelName[$a][$b]' ";
+					print "<input type='text' $ro maxlength='$labelsize' style='width:150px;' name='labelName[$a][$b]' ";
 					print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
 					if ($labelId[$a][$b]) print "<input type='checkbox' name='selectLabel[$a][$b]' $all>"; 
 					else print "<input type='hidden' name='selectLabel[$a][$b]' value=''>";
