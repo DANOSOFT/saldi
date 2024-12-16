@@ -262,7 +262,7 @@ $account=$r['kontonr'];
 $productLimit=$r['productlimit'];
 $custName=$r['firmanavn'];
 $access=$r['mysale'];
-
+if ($productLimit) $medlem = 1;
 /*
 $qtxt = "select var_value from settings where var_name='medlemSetting'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $medlem=$r['var_value'];
@@ -445,7 +445,7 @@ for ($a=1;$a<=$rows;$a++) {
 	($medlem && $db != 'pos_76' && $db != 'pos_92' && $db != 'pos_111')?$lines = $productLimit/5:$lines=13;
 	for ($a=1;$a<=$lines;$a++) {
 		($lineColor==$bgcolor)?$lineColor=$bgcolor5:$lineColor=$bgcolor;
-#		if (!$productLimit || $count <= $productLimit) {
+		if (!$productLimit || $count <= $productLimit) {
 			print "<tr bgcolor='$lineColor'>";
 			for ($b=1;$b<=5;$b++) {
 				if (!isset ($barcode[$a][$b]))   $barcode[$a][$b]   = NULL;
@@ -481,7 +481,7 @@ for ($a=1;$a<=$rows;$a++) {
 				print "</td>";
 			}
 			print "</tr>\n";
-#		}
+		}
 	}
 	print "</td></tr></table>";
 	print "<div class='footer'>";

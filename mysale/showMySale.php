@@ -190,10 +190,8 @@ if ($custName && $access) {
 				$rt_to_array[] = $diff;
 			}
 			$min = min($rt_to_array);
-			$key = array_search($min, $rt_to_array);
 			// get the day difference between today and the rental period end date
-			$diff = $rt_to - $today;
-			$diff = floor($diff / (60 * 60 * 24));
+			$diff = $min;
 			// make a div with a text that says how many days are left
 			if($diff == 0){
 				print "<div style='width:100%;'><div style='background-color: #f2f2f2; border: 1px solid #f2f2f2; border-radius: 5px; padding: 5px; display: flex; justify-content: flex-end;'>";
