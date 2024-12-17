@@ -1017,9 +1017,8 @@ while ($r0=db_fetch_array($q0)) {
 			<?php
 		}
 
-		$q3=db_select("select sum(V.kostpris) as sum_kostpris
-					  from ordrelinjer O 
-					  join varer V on O.vare_id = V.id 
+		$q3=db_select("select sum(kostpris * antal) as sum_kostpris
+					  from ordrelinjer
 				  	  where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
 		$r3=db_fetch_array($q3);
 		$kostpris_fetch = $r3["sum_kostpris"];

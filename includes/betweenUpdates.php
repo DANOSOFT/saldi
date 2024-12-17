@@ -31,7 +31,7 @@
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='grupper' and column_name = 'fiscal_year'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	$qtxt = "ALTER table grupper ADD column fiscal_year int DEFAULT 0";
+	$qtxt = "ALTER table grupper ADD column fiscal_year int DEFAULT(0)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
@@ -115,6 +115,9 @@ $chklst = $delete = array();
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify("update tekster set tekst = '' where tekst_id = '636'", __FILE__ . " linje " . __LINE__);
 	}
+	$qtxt = "Select id from tekster where tekst_id = '639' and sprog_id = '1' and tekst != 'Kladdeliste'";
+	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "Select id from tekster where tekst_id = '666' and tekst like '%town%'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify("update tekster set tekst = '' where tekst_id = '666'", __FILE__ . " linje " . __LINE__);
@@ -123,6 +126,7 @@ $chklst = $delete = array();
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		db_modify("update tekster set tekst = '' where id = '$r[id]'", __FILE__ . " linje " . __LINE__);
 	}
+
 
 	function ensureTableAndColumns($db, $tableName, $expectedColumns, $renameColumns = []) {
 		// Check if table exists
@@ -220,7 +224,7 @@ $chklst = $delete = array();
 	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'payment_intent_id' => 'varchar(255)', 'amount' => 'INTEGER', 'betalings_link' => 'varchar(255)', 'kontonr' => 'INTEGER', 'created_at' => 'TIMESTAMP'];
 	ensureTableAndColumns($db, 'betalingslink', $expectedColumns);
 
-	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'apikey' => 'varchar(255)'];
+	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'apikey' => 'varchar(255)', 'trade_conditions' => 'varchar(255)'];
 	ensureTableAndColumns($db, 'rentalpayment', $expectedColumns);
 	
 	/*
@@ -338,6 +342,16 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table varer ADD column volume_lager float default 1",__FILE__ . " linje " . __LINE__);
 }
 
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='lev_land'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table ordrer ADD column lev_land VARCHAR(25)",__FILE__ . " linje " . __LINE__);
+}
+
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='lev_email'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table ordrer ADD column lev_email VARCHAR",__FILE__ . " linje " . __LINE__);
+}
+
 $qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='gls_label'";
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table ordrer ADD column gls_label bool default false",__FILE__ . " linje " . __LINE__);
@@ -346,5 +360,12 @@ $qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='ordr
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table ordrer ADD column fedex_label bool default false",__FILE__ . " linje " . __LINE__);
 }
+# Access global db
+include ('../includes/connect.php');
+$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name='sms'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table regnskab ADD column sms integer",__FILE__ . " linje " . __LINE__);
+}
+include ('../includes/online.php');
 
 ?>
