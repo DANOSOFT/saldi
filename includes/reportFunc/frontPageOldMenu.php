@@ -40,12 +40,12 @@
 			$tekst3 = findtekst(455, $sprog_id);
 			print "<tr>";
 			if ($popup) {
-				print "<td align=center><span onClick='javascript:top100=window.open('top100.php','top100','$jsvars');top100.focus();' title='a $tekst1'><input style=' style=\"$butStyle\" type=submit value='$tekst2' name='submit'></span></td>";
+				print "<td align=center><span onClick=\"javascript:top100=window.open('top100.php','top100','$jsvars');top100.focus();\" title='a $tekst1'><input style=\"$butStyle\" type=submit value='$tekst2' name='submit'></span></td>";
 				if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 >= '1'", __FILE__ . " linje " . __LINE__))) {
 					print "<td colspan=3 align=center><span onClick='javascript:kassespor=window.open('kassespor.php','kassespor','$jsvars');kassespor.focus();' title='$tekst1'><input  style=\"$butStyle\" type=submit value='$tekst3' name='submit'></span></td>";
 				}
 			} else {
-				print "<td align=center><span title='$tekst1' onClick='window.location.href='top100.php''><input style=\"$butStyle\" type=button value='$tekst2' name='submit'></span></td>";
+				print "<td align=center><span title='$tekst1' onClick=\"window.location.href='top100.php'\"><input style=\"$butStyle\" type=button value='$tekst2' name='submit'></span></td>";
 				print "<td colspan = '3' align=center><input title='" . findtekst(918, $sprog_id) . "' style=\"$butStyle\" type='submit' value='" . findtekst(918, $sprog_id) . "' name='salgsstat'></td>";
 				if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 >= '1'", __FILE__ . " linje " . __LINE__))) {
 					print "<td colspan=2 align=center><a href='kassespor.php'><input title='Oversigt over POS transaktioner' style=\"$butStyle\" type='button' value='$tekst3'></a></td>";
@@ -73,17 +73,20 @@
 		}
 		print "</tr>\n";
 		print "</form>\n";
+		$txt2134 = findtekst('2134|Vælg periode', $sprog_id);
+		$txt903 = findtekst('903|fra', $sprog_id);
+		$txt904 = findtekst('904|til', $sprog_id);
 		if ($kontoart == 'D') {
 			print "<tr><td colspan='6'><hr></td></tr>\n";
 			print "<tr><td colspan='6'>&nbsp;</td></tr>\n";
 			print "<tr><th colspan='6' style='text-align:center;'><p>SAF-T Cash Register Rapport</p></th></tr>\n";
 			print "<tr><td colspan='6' style='text-align:center;'>&nbsp;</td></tr>\n";
-			print "<tr><td colspan='6' style='text-align:center;'>Vælg periode:</td></tr>\n";
+			print "<tr><td colspan='6' style='text-align:center;'>$txt2134:</td></tr>\n";
 			print "<form method='post' action='saftCashRegister.php'>";
 			print "<tr><td colspan='6' style='text-align:center;'><div>
-            <span>fra</span>
+            <span>$txt903</span>
             <input type='text' id='fromDate' name='startDate' />
-            <span>til</span>
+            <span>$txt904</span>
             <input type='text' id='toDate' name='endDate' />
             </div></td></tr>\n";
 			print "<tr><td colspan='6' style='text-align:center;'>&nbsp;</td></tr>\n";
