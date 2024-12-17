@@ -114,23 +114,6 @@ include("../includes/std_func.php");
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
-function update_settings_value($var_name, $var_grp, $var_value, $var_description) {
-	# Expect a posted ID
-	$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
-	# If the row already exsists
-	if ($r) {
-		$qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	# If the row needs to be created in the database
-	} else {
-		$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ('$var_name', '$var_grp', '$var_value', '$var_description')";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	}
-}
-
-
 $defaultProvision=$sqlstreng=NULL;
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
