@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------------
 //
 // 20130210 -Break ændret til break 1
@@ -49,6 +49,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
+include("../includes/topline_settings.php");
 	
 $udfyld=if_isset($_POST['udfyld']);
 $procent=if_isset($_POST['procent']);
@@ -114,21 +115,40 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 	print  "<table class='dataTable' width='100%' border='0' cellspacing='0'>";
-} else {
+} elseif ($menu=='S') {
 	print "<div align=\"center\">";
 
 	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "	<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "		<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "			<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	print "<td width='10%'>";
+	print "<a href=\"../index/menu.php\" accesskey=\"L\">
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
+
+	print "<td style='$topStyle' align='center'>$title $beskrivelse[0]</td>";
+
+	print "<td width='13%'><a href='regnskab.php' accesskey='R'>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst('115|Regnskab',$sprog_id)."</button></a></td>";
+
+	print "</tbody></table>";
+	print "</td></tr>";
+} else {
+	print "<div align=\"center\">";
+	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
 	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>"; # 20210312
 	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-	print "			<td width=\"80%\" $top_bund>$title $beskrivelse[0]</td> ";
-	print "			<td width=\"10%\" $top_bund><a href=\"regnskab.php\" accesskey=\"R\">".findtekst(115,$sprog_id)."</a></td> ";
-	print "			</tbody></table> ";
-	print "	</td></tr> ";
-}		
-		
+	print "<td width=\"80%\" $top_bund>$title $beskrivelse[0]</td> ";
+	print "<td width=\"10%\" $top_bund><a href=\"regnskab.php\" accesskey=\"R\">".findtekst(115,$sprog_id)."</a></td> ";
+	print "</tbody></table> ";
+	print "</td></tr> ";
+}
+
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 #echo "$slutdato, $slutmaaned, $slutaar	";				
 	$slutdato=$slutdato-1;
@@ -349,8 +369,8 @@ fclose($fp);
 print "<input type='hidden' name='kontoantal' value='$kontoantal'>\n";
 print "<input type='hidden' name='maanedantal' value='$maanedantal'>\n";
 print "<tr>\n";
-print "<td colspan='20'><center><input class='button green medium' style='width:150px;' type='submit' name='gem' value='Gem' accesskey='g'>\n</center></td></tr>";  # 20210312
-print "<tr><td colspan='20'><center>".findtekst(807, $sprog_id)." <a href='".$filnavn."'>".findtekst(809, $sprog_id)." </a>".findtekst(808, $sprog_id)." \".</center></td></tr>"; 
+print "<td colspan='20'><center><input class='button green medium' style='width:150px;' type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."' accesskey='g'>\n</center></td></tr>";  # 20210312
+print "<tr><td colspan='20'><center>".findtekst('807|Hent budget som datafil ved at højreklikke på', $sprog_id)." <a href='".$filnavn."'>".findtekst('809|dette link', $sprog_id)."</a> ".findtekst('808|og vælg &apos;Gem link som ..', $sprog_id)."'</center></td></tr>"; 
 print "</tr>\n";
 print "</form>\n"; # 20150622 del 3 slut
 ####################################################################################################

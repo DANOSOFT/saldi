@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20121122 - Åbne poster udlignes ikke mere automatisk hvis forskelligt projektnummer. Søg 20121122
 // 20130210 - Break ændret til break 1
@@ -58,12 +58,13 @@ $tjeksum=array();
 $css="../css/standard.css";
 
 $modulnr=2;
-$title="Bogf&oslash;r kassekladde";
+$title="Bogfør kassekladde";
 
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
+include("../includes/topline_settings.php");
 
 genberegn($regnaar);
 
@@ -98,7 +99,7 @@ if ($kladde_id) {
 	}
 }
 if ($funktion=='bogfor') {
-	$overskrift="Bogf&oslash;r kassekladde $kladde_id";
+	$overskrift = findtekst('2209|Bogfør kassekladde', $sprog_id);
 	$href="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>";
 } elseif ($funktion=='simuler') {
 	$overskrift="".findtekst(1085,$sprog_id)." ".findtekst(1086,$sprog_id).", ".findtekst(1087,$sprog_id)." $kladde_id"; #20210319
@@ -118,6 +119,15 @@ if ($menu=='T') {
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	print "<tr><td height = '25' align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+	print "<td width='10%'>$href<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
+	print "<td width='80%' align='center' style='$topStyle'>$overskrift</td>";
+	print "<td width='10%' align='center' style='$topStyle'></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
 } else {
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -487,7 +497,7 @@ $fejl=0; #20140228
 if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
 	print "<tr><td colspan=6><br>";
 	print "<table width=100% border=1><tbody>"; 
-	print "<tr><td align=center colspan=2>Der er differencer p&aring; f&oslash;lgende bilag</td></tr>";
+	print "<tr><td align=center colspan=2>Der er differencer p&aring; følgende bilag</td></tr>";
 	print "<tr><td align=center>Bilag</td><td align=center>Difference</td></tr>";
 	$tmp=NULL;
 	for ($x=1; $x<=$posteringer; $x++) {
@@ -517,7 +527,7 @@ if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
 if (!$fejl) { #20140228
 	$query = db_select("select * from kladdeliste where id = $kladde_id and bogfort = 'V'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		print "Kladden er bogf&oslash;rt!";
+		print "Kladden er bogført!";
 		genberegn($regnaar);
 		exit;	
 	}
@@ -620,16 +630,16 @@ if (!$fejl) { #20140228
 					$txt.= "Der er i alt foretaget $transantal posteringer inden for de sidste 12 m&aring;neder, og der er ikke flere gratis posteringer.\\n";
 					$txt.= "For at komme videre kan du foretage en sikkerhedskopi, bestille et professionelt regnskab p&aring; http://saldi.dk/bestilling \\n";
 					$txt.= "og indlæse din sikkerhedskopi af hele dit regnskab der.\\n";
-					$txt.= "Alternativt kan du kontakte Saldi.dk ApS p&aring; tlf 4690 2208 og h&oslash;re om mulighederne for ekstra gratis posteringer,\\n";
+					$txt.= "Alternativt kan du kontakte Saldi.dk ApS på tlf 4690 2208 og høre om mulighederne for ekstra gratis posteringer,\\n";
 					$txt.= "som kan fås ved at linke til saldi.dk fra din hjemmeside\\n";
 					$onclick= "onclick=\"return confirm('$txt')\"";
 					print "<input type=\"hidden\" name=\"stop\" value=\"on\">";
 				}
 			} 
 		}
-		print "<tr><td colspan=6 class='tableHeader'><br></td></tr><tr><td colspan=6 align=center><input class='button green medium' type=submit $onclick accesskey=\"b\" value=\"Bogf&oslash;r\" name=\"bogfor\"> <input class='button red medium' type=submit accesskey=\"l\" value=\"".findtekst(30,$sprog_id)."\" name=\"luk\"></td></tr>";
+		print "<tr><td colspan=6 class='tableHeader'><br></td></tr><tr><td colspan=6 align=center><input class='button green medium' type=submit $onclick accesskey=\"b\" value=\"".findtekst('1065|Bogfør', $sprog_id)."\" name=\"bogfor\"> <input class='button red medium' type=submit accesskey=\"l\" value=\"".findtekst('30|Tilbage', $sprog_id)."\" name=\"luk\"></td></tr>";
 	} else {
-		print "<tr><td colspan=6 class='tableHeader'><br></td></tr><tr><td colspan=6 align=center><input class='button gray medium' type=submit $onclick accesskey=\"b\" value=\"".findtekst(1085,$sprog_id)." ".findtekst(1086,$sprog_id)."\" name=\"simuler\"> <input class='button red medium' type=submit accesskey=\"l\" value=\"".findtekst(30,$sprog_id)."\" name=\"luk\"></td></tr>";
+		print "<tr><td colspan=6 class='tableHeader'><br></td></tr><tr><td colspan=6 align=center><input class='button gray medium' type=submit $onclick accesskey=\"b\" value=\"".findtekst('1085|Simuleret',$sprog_id)." ".findtekst('1086|Bogføring', $sprog_id)."\" name=\"simuler\"> <input class='button red medium' type=submit accesskey=\"l\" value=\"".findtekst('30|Tilbage', $sprog_id)."\" name=\"luk\"></td></tr>";
 	}
 	print "</form>";
 }
@@ -848,7 +858,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				$kasklid[$transtjek]=$row['id'];
 				$kasklmonth[$transtjek]=$row['saldo'];
 				$transamount[$transtjek]=$d_amount[$y];
-			} else print "<tr><td>Der er sket en fejl ved bogf&oslash;ring af bilag: $bilag[$y], debetkonto: $debet[$y]!</td></tr>";
+			} else print "<tr><td>Der er sket en fejl ved bogføring af bilag: $bilag[$y], debetkonto: $debet[$y]!</td></tr>";
 		}
 		if ($kredit[$y]>0) {
 			#$tjeksum=$tjeksum-$k_amount[$y];
@@ -871,7 +881,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				$kasklid[$transtjek]=$r['id'];
 				$kasklmonth[$transtjek]=$r['saldo'];
 				$transamount[$transtjek]=$k_amount[$y]*-1;
-			} else print "<tr><td>Der er sket en fejl ved bogf&oslash;ring af bilag: $bilag[$y], kreditkonto: $kredit[$y]!</td></tr>";
+			} else print "<tr><td>Der er sket en fejl ved bogføring af bilag: $bilag[$y], kreditkonto: $kredit[$y]!</td></tr>";
 		}
 		
 		if ($d_momskto[$y]>0) { #moms af debetpostering 
@@ -894,7 +904,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 				$kasklid[$transtjek]=$r['id'];
 				$kasklmonth[$transtjek]=$r['saldo'];
 				$transamount[$transtjek]=$d_moms[$y];
-			} else print "<tr><td>Der er sket en fejl ved bogf&oslash;ring af bilag: $bilag[$y], debetkonto: $d_momskto[$y]!</td></tr>";
+			} else print "<tr><td>Der er sket en fejl ved bogføring af bilag: $bilag[$y], debetkonto: $d_momskto[$y]!</td></tr>";
 		}
 		if ($k_momskto[$y]>0) { #moms af kreditpostering
 						$qtxt = "insert into $tabel ";
@@ -1014,7 +1024,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 		}
 #xit;
 	} else {
-		print "<tr><td align=center>$font Der er konstateret en afvigelse!\nKladde ikke bogf&oslash;rt\nKontakt venligst Saldi's udviklerteam!</td></tr>";
+		print "<tr><td align=center>$font Der er konstateret en afvigelse!\nKladde ikke bogført\nKontakt venligst Saldi's udviklerteam!</td></tr>";
 		exit;
 	}
 #xit;	

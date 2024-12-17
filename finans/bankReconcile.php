@@ -38,6 +38,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 global $menu;
 global $fokus;
@@ -58,13 +59,25 @@ if ($menu == 'T') {
 	print "</div>";
 	print "<div class='content-noside'><center>";
 } elseif ($menu == 'S') {
-	include("../includes/sidemenu.php");
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	print "<td width=\"10%\"><a href=rapport.php accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+	print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('2213|Bankafstemning', $sprog_id)."</td>";
+	print "<td width=\"10%\" align='center' style='$buttonStyle'><br></td>";
+
+	print "</tbody></table>";
+	print "</td></tr>";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=rapport.php accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
-	print "<td width=\"80%\" $top_bund>Bankafstemning</td>";
+	print "<td width=\"10%\" $top_bund><a href=rapport.php accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+	print "<td width=\"80%\" $top_bund>".findtekst('2213|Bankafstemning', $sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund ><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -185,18 +198,18 @@ function upload($kladde_id, $bilag)
 
 	print "<tr><td height='20%' align='center' valign = 'top'></td></tr>";
 	print "<tr><td align='center' valign = 'top'>
-		<table width=\"50%\" style='border:1px solid $bgcolor2;border-radius:5px;'><tbody>";
-	print "<tr><td><center>Her kan du afstemme det der er bogført i Saldi med et kontoudtog fra banken<br>
-		Systemet finder selv datoerne fra i kontoudtoget og de modsvarende datoer i Saldi,<br> 
-		så du nemt kan finde eventuelle differencer.<br><br><br></td></tr>";
+		   <table width=\"50%\" style='border:1px solid $bgcolor2;border-radius:5px;'><tbody>";
+	print "<tr><td><center>".findtekst('2210|Her kan du afstemme det, der er bogført i Saldi, med et kontoudtog fra banken.', $sprog_id)."<br>"
+		   .findtekst('2211|Systemet finder selv datoerne fra kontoudtoget og de modsvarende datoer i Saldi,', $sprog_id)." "
+		   .findtekst('2212|så du nemt kan finde eventuelle differencer.', $sprog_id)."<br><br><br></td></tr>";
 	print "<form enctype=\"multipart/form-data\" action=\"bankReconcile.php\" method=\"POST\">";
 	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000\">";
 	print "<input type=\"hidden\" name=\"kladde_id\" value=$kladde_id>";
 	print "<input type=\"hidden\" name=\"bilag\" value=$bilag>";
-	print "<tr><td width=100% align=center> " . findtekst(1364, $sprog_id) . ": 
+	print "<tr><td width=100% align=center> " . findtekst('1364|Vælg datafil', $sprog_id) . ": 
 	<input name=\"uploadedfile\" type=\"file\" /><br /></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td align=center><input  style = 'width:150px;' type=\"submit\" value=\"" . findtekst(1078, $sprog_id) . "\" /></td></tr>";
+	print "<tr><td align=center><input  style = 'width:150px;' type=\"submit\" value=\"" . findtekst('1078|Hent', $sprog_id) . "\" /></td></tr>";
 	print "<tr><td></form></td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>";

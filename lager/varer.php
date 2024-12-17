@@ -319,6 +319,23 @@ if ($beskrivelse) { #20161206
 
 $next=udskriv($start, $slut, $sort, '', '');
 
+include("../includes/topline_settings.php");
+
+$txt30   = findtekst(30,$sprog_id);   # Tilbage
+$txt39   = findtekst(39,$sprog_id);   # Ny
+$txt159  = findtekst(159,$sprog_id);  # Fortryd
+$txt813  = findtekst(813,$sprog_id);  # Visning
+$txt953  = findtekst(953,$sprog_id);  # Ordrebeholdning
+$txt955  = findtekst(955,$sprog_id);  # Alle varer fra lev.
+$txt957  = findtekst(957,$sprog_id);  # Vareliste
+$txt954  = findtekst(954,$sprog_id);  # Indkøbsforslag
+$txt2110 = findtekst(2110,$sprog_id); # Viser status for tilbud.....
+$txt2113 = findtekst(2113,$sprog_id); # Tilbage til varelisten uden at bestille
+$txt3102 = findtekst(3102,$sprog_id); # Opret en ny vare
+$txt3103 = findtekst(3103,$sprog_id); # Luk varelisten....
+$txt3105 = findtekst(3105,$sprog_id); # Opret indkøbsforslag /....
+$txt3101 = findtekst(3101,$sprog_id); # Vælg hvilke varegrupper.....
+
 if ($menu=='T') {
 #	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
 	include_once '../includes/top_header.php';
@@ -333,28 +350,85 @@ if ($menu=='T') {
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontent\">\n";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\"><tbody>"; # -> 1
+
+} elseif ($menu=='S') {
+	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
+	print "<tr><td height = '25' align='center' valign='top'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
+	print "<tr><td width='10%'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%' title='$backTitle' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
+	if ($start<$linjeantal) {
+		if ($makeSuggestion) {
+			print "<td width='10%'><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>";
+			print "<button style='$buttonStyle; width:100%' title='$txt2113' onMouseOver=\"this.style.cursor='pointer'\">";
+			print "$txt159</button></a></td>\n";
+		} else {
+			print "<td width='15%'>
+				   <a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&find=$find'>
+				   <button style='$buttonStyle; width:100%' title='$txt3105' onMouseOver=\"this.style.cursor='pointer'\">
+				   $txt954</button></a></td>\n";
+		}
+	}
+	print "<td style='$topStyle' align='center'> $txt957</td>\n";
+
+	if ($start<$linjeantal) {
+		if ($stock && !$makeSuggestion) {
+			print "<td width='10%'><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
+		} elseif ($stock && $makeSuggestion && !$alle_varer) {
+			print "<td width='14%'>
+				   <a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst('2207|Medtager alle varer fra valgte leverandører, uanset ordrestatus', $sprog_id)."'>$txt955</button></a></td>\n";
+		} elseif ($stock && $makeSuggestion && $alle_varer) {
+			print "<td width='10%'>
+				   <a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst('2208|Medtager kun varer fra valgte leverandører, som vil komme under minimum ud fra ordrer & tilbud', $sprog_id)."'>".findtekst('956|Kun mangler', $sprog_id)."</button></a></td>\n";
+		} else {
+			print "<td width='10%'><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst('2110|Viser status for tilbud, salgsordrer og indkøbsordrer', $sprog_id)."'>$txt953</button></a></td>\n";
+		}
+	} #else print "<td width='80%' $top_bund> Visning</td>\n";
+
+	print "<td width='5%'><a href='varevisning.php'>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
+	print "<td width='5%'><a href='varekort.php?returside=varer.php'>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst('3102|Opret en ny vare', $sprog_id)."'>".findtekst('39|Ny', $sprog_id)."</button></a></td>";
+
+	print "</tr>\n";
+	print "</tbody></table>\n";
+
 } else {
 	print "<table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-	print "<tr><td width=\"10%\" $top_bund><a href=\"$returside\" accesskey=L><span title='Luk varelisten og g&aring; tilbage til hovedmenuen'>Luk</span></a></td>\n";
+	print "<tr><td width=\"10%\" $top_bund><a href=\"$returside\" accesskey=L><span title='$backTitle'>$txt30</span></a></td>\n";
 	if ($start<$linjeantal) {
-		if ($makeSuggestion) print "<td width=\"10%\" $top_bund><a href=\"varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal\"><span title='Tilbage til varelisten uden at bestille'>Fortryd</span></a></td>\n";
-		else print "<td width=\"10%\" $top_bund><a href=\"varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse\"><span title='Opret indk&oslash;bsforslag udfra igangv&aelig;rende tilbud og ordrebeholdning'>Indk&oslash;bsforslag</span></a></td>\n";
+		if ($makeSuggestion) {
+			print "<td width=\"10%\" $top_bund><a href=\"varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal\"><span title='$txt2113'>$txt159</span></a></td>\n";
+		} else {
+			print "<td width=\"10%\" $top_bund><a href=\"varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&find=$find\"><span title='$txt3105'>$txt954</span></a></td>\n";
+		}
 	}	
-	print "<td width=\"60%\" $top_bund> Vareliste</td>\n";
+	print "<td width=\"50%\" $top_bund>$txt957</td>\n";
 	if ($start<$linjeantal) {
-		if ($stock && !$makeSuggestion) print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>Tilbage</a></td>\n";
-		elseif ($stock && $makeSuggestion && !$alle_varer) print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'><span title='Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus'>Alle varer fra lev.</span></a></td>\n"; 
-		elseif ($stock && $makeSuggestion && $alle_varer) print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'><span title='Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud'>Kun mangler</span></a></td>\n"; 
-		else print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'><span title='Viser status for tilbud, salgsordrer og indk&oslash;bsordrer'>Ordrebeholdning</span></a></td>\n";
+		if ($stock && !$makeSuggestion) {
+			print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>$txt30</a></td>\n";
+		} elseif ($stock && $makeSuggestion && !$alle_varer) {
+			$titletxt = 'Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus';
+			print "<td width=\"15%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'><span title=$titletxt>$txt955</span></a></td>\n";
+		} elseif ($stock && $makeSuggestion && $alle_varer) {
+			$titletxt = 'Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud';
+			print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'><span title='$titletxt'>$txt</span></a></td>\n";
+		} else {
+			print "<td width=\"10%\" $top_bund><a href='varer.php?sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'><span title='$txt2110'>$txt953</span></a></td>\n";
+		}
 	} #else print "<td width=\"80%\" $top_bund> Visning</td>\n";
 	if ($popup) {
-		print "<td width=\"5%\"$top_bund onClick=\"javascript:vare_vis=window.open('varevisning.php','vare_vis','scrollbars=1,resizable=1');vare_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></td>";
+		print "<td width=\"5%\" $top_bund onClick=\"javascript:vare_vis=window.open('varevisning.php','vare_vis','scrollbars=1,resizable=1');vare_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='$txt3101'><u>$txt813</u></span></td>";
 		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:window.open('varekort.php?opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');ordre.focus();\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
 	} else {
-		print "<td width=\"5%\" $top_bund><a href=\"varevisning.php\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></a></td>";
-		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside=varer.php\"><span title='Opret en ny vare'>Ny</span></a></td>";
+		print "<td width=\"5%\" $top_bund><a href=\"varevisning.php\"> <span title='$txt3101'><u>$txt813</u></span></a></td>";
+		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside=varer.php\"><span title='$txt813</span></a></td>";
 	}
 	print "</tr>\n";
 	print "</tbody></table>\n";
@@ -383,7 +457,7 @@ if (!$makeSuggestion) {
 		if (file_exists("../temp/$db/vareliste.csv")) unlink("../temp/$db/vareliste.csv"); 
 		$csvfil=fopen("../temp/$db/vareliste.csv","w");
 	} else {
-	print "<tr><td colspan='2' width='20%'>";
+	print "<tr><td colspan='2' width='15%'>";
 	if ($start>=$linjeantal) {
 		$tmp=$start-$linjeantal;
 		print "<a href='varer.php?sort=$sort&amp;start=$tmp&amp;linjeantal=$linjeantal&amp;varenummer=$varenummer&amp;beskrivelse=$beskrivelse&amp;beholdning=$stock'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a>&nbsp;";
@@ -412,11 +486,11 @@ if (!$makeSuggestion) {
 }
 if ($csv) fwrite($csvfil,"\"Varenr\";\"Enhed\";\"Varemrk.\";\"Beskrivelse\";");
 else {
-print "<tr>";
-print "<td><b><a href=\"varer.php?sort=varenr&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(917,$sprog_id).".</a></b></td>\n"; #20210401
-print "<td><b><a href=\"varer.php?sort=enhed&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(945,$sprog_id)."</a></b></td>\n";
-print "<td><b><a href=\"varer.php?sort=beskrivelse&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(914,$sprog_id)."</a></b></td>\n";
-if ($showTrademark) print "<td><b><a href=\"varer.php?sort=trademark&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst(946,$sprog_id)."</a></b></td>\n";
+	print "<tr>";
+	print "<td><b><a href=\"varer.php?sort=varenr&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst('917|Varenr.', $sprog_id)."</a></b></td>\n"; #20210401
+	print "<td><b><a href=\"varer.php?sort=enhed&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst('945|Enhed', $sprog_id)."</a></b></td>\n";
+	print "<td><b><a href=\"varer.php?sort=beskrivelse&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst('914|Beskrivelse', $sprog_id)."</a></b></td>\n";
+if ($showTrademark) print "<td><b><a href=\"varer.php?sort=trademark&amp;vis_lev=$vis_lev&amp;start=$start&amp;linjeantal=$linjeantal\">".findtekst('946|Varemrk.', $sprog_id)."</a></b></td>\n";
 }
 if (!$vis_lev){
 	if ($lagerantal>1 && !$makeSuggestion) {
@@ -434,31 +508,31 @@ if (!$vis_lev){
 		if ($csv) fwrite($csvfil,"\"Ialt\";");
 		else print "<td align=right><b><a href=\"varer.php?sort=beholdning&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(947,$sprog_id)."</a></b></td>\n";
 	} else {
-		if ($stock) {	
-			print "<td align=right><b> I tilbud</b></td>\n";
-			print "<td align=right><b> I ordre</b></td>\n";
-			print "<td align=right><b> Bestilt</b></td>\n";
+		if ($stock) {
+			print "<td align=right><b>".findtekst('1428|I tilbud', $sprog_id)."</b></td>\n";
+			print "<td align=right><b>".findtekst('1429|I ordre', $sprog_id)."</b></td>\n";
+			print "<td align=right><b>".findtekst('976|Bestilt', $sprog_id)."</b></td>\n";
 		}
-		print "<td align=right><b><a href=\"varer.php?sort=beholdning&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(948,$sprog_id)."</a></b></td>\n";
+		print "<td align=right><b><a href=\"varer.php?sort=beholdning&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(948,$sprog_id)."</a></b></td></td></td>\n";
 	}
 }
 if ($makeSuggestion) {
 	print "<td align=right><span title='Klik her for at oprette indk&oslash;bsordrer med nedenst&aring;ende antal'>";
-	print "<input class='button gray small' type=\"submit\" value=\"Bestil\" name=\"submit\"></span></td>\n";
+	print "<input class='button gray small' type=\"submit\" value=\"".findtekst('2218|Order', $sprog_id)."\" name=\"submit\"></span></td>\n";
 }	else {
 	if ($csv) fwrite($csvfil,"\"Kostpris\";\"Salgspris\"\n");
 	else {
 		($vatOnItemCard)?$tekst="<br>(incl.moms)":$tekst="";
 		print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b><a href=\"varer.php?sort=salgspris&amp;vis_lev=$vis_lev&amp;linjeantal=$linjeantal\">".findtekst(949,$sprog_id)."</a></b>$tekst</td>\n";
-		if ($vis_kostpriser) print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b>".findtekst(950,$sprog_id)."</b></td>\n";
+		if ($vis_kostpriser) print "<td align=\"right\" valign=\"top\" rowspan=\"2\"><b>".findtekst('950|Kostpris', $sprog_id)."</b></td>\n";
 	}
 }
 if ($vis_lev) {
-	print "<td align=right><b>".findtekst(950,$sprog_id)."</b></td>\n";
-	print "<td align=right><b>".findtekst(948,$sprog_id)."</b></td>\n";	
+	print "<td align=right><b>".findtekst('950|Kostpris', $sprog_id)."</b></td>\n";
+	print "<td align=right><b>".findtekst('948|Beholdn.', $sprog_id)."</b></td>\n";	
 	print "<td></td>\n";
-	print "<td><b> ".findtekst(951,$sprog_id)."</b></td>\n";
-	print "<td><b> ".findtekst(952,$sprog_id)."</td>\n";
+	print "<td><b> ".findtekst('951|Leverandør', $sprog_id)."</b></td>\n";
+	print "<td><b> ".findtekst('952|Lev. varenr', $sprog_id)."</td>\n";
 }
 print "</tr><tr>\n";
 
