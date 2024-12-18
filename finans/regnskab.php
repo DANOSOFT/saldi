@@ -56,6 +56,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
+include("../includes/topline_settings.php");
 
 $beregn_lager=if_isset($_POST['beregn_lager']);
 if ($menu=='T') {
@@ -67,15 +68,29 @@ if ($menu=='T') {
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+		print "<center>";
+		print "<table width='100%' height='20' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+	
+		print "<td width='10%' align='center'><a href='../index/menu.php' accesskey='L'>";
+		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
+	
+		print "<td width='80%' align='center' style='$topStyle'>".findtekst(849,$sprog_id)."</td>";
+	
+		print "<td width='10%' align='center'><a href=\"budget.php\" accesskey=\"B\">";
+		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Budget</button></a></td>";
+	
+		print "</tbody></table> ";
+		print "</td></tr> ";
 } else {
 	print "<center>";
 #	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print "	<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "		<table width='100%' height='20' align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "			<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
+	print "<table width='100%' height='20' align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
 	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";//20210225
 	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund> ".findtekst(849,$sprog_id)."</td> ";
+	print "<td width=\"80%\" $top_bund> ".findtekst(849,$sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund><a href=\"budget.php\" accesskey=\"B\">Budget</a></td> ";
 	print "</tbody></table> ";
 	print "</td></tr> ";
@@ -161,6 +176,7 @@ while ($row = db_fetch_array($query)) {
 	$kontotype[$x]=$row['kontotype'];
 	$beskrivelse[$x]=$row['beskrivelse'];
 	$fra_kto[$x]=$row['fra_kto'];
+	$til_kto[$x]=$row['til_kto'];
 	$kontovaluta[$x]=$row['valuta'];
 	$kontokurs[$x]=$row['valutakurs'];
 	if ($kontotype[$x]=="S") $primo[$x]=afrund($row['primo'],2);
@@ -306,7 +322,7 @@ if ($vis_medtag_lager) {
 	print "</form></td></tr>";
 }
 
-print "<tr><td><b> ".findtekst(804, $sprog_id)."</b></td> "; #20210721
+print "<tr style='background: white;position: sticky;top: 0;'><td style='padding-top: 5px;padding-bottom: 5px'><b> ".findtekst(804, $sprog_id)."</b></td> "; #20210721
 print "<td><b> ".findtekst(805, $sprog_id)."</b></td> ";
 fwrite($csv,"Kontonr;Kontonavn");
 if ($vis_valuta) {
@@ -321,13 +337,17 @@ fwrite($csv,";Primo");
 $tmp=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
 fwrite($csv,";". str_replace('"','',$tmp) ."I alt\n");
 #$cols+=count(explode(";",$tmp));
-print "<td align=right><b> I alt</a></b></td> ";
+
+$txt3072 = findtekst('3072|I alt', $sprog_id);
+print "<td align=right><b>$txt3072</a></b></td> ";
 print "</tr>";
 $y='';
 for ($x=1; $x<=$kontoantal; $x++){
 	if (!isset($ultimo[$x])) $ultimo[$x]=0;
 	if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 	else {$linjebg=$bgcolor5; $color='#000000';}
+
+	if ($kontotype[$x] == "Z") $linjebg = "#ffaaaa";
 	print "<tr bgcolor=$linjebg>";
 	if ($kontotype[$x]=='H' || $kontotype[$x]=='X') {
 		print "<td><b> $kontonr[$x]<br></b></td>";
@@ -337,7 +357,9 @@ for ($x=1; $x<=$kontoantal; $x++){
 #		if ($kontotype[$x]!='Z') {$link="<a href=kontospec.php?kontonr=$kontonr[$x]&month=";}
 #		else {$link='';}
 		print "<td>$kontonr[$x]<br></td>";
-		print "<td>$beskrivelse[$x]<br></td>";
+		if ($kontotype[$x] == "Z") $text = "Sumkonti $fra_kto[$x] - $til_kto[$x]";
+		else $text = "";
+		print "<td title='$text'>$beskrivelse[$x]<br></td>";       
 		fwrite($csv,"$kontonr[$x];". utf8_decode($beskrivelse[$x]) ."");
 		if ($vis_valuta) print "<td align=\"center\">$valutanavn[$x]</td>";
 		$title='';
