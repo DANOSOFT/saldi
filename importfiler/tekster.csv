@@ -438,7 +438,7 @@
 438	Dato	Date	Dato
 439	Skriv et kontonummer eller et interval adskilt af kolon. Listen vil blive sorteret efter kontonummer<br>Der kan også skrives et kontonavn,<br>f.eks<br>Skrives DANOSOFT aps vises kun bevægelser for DANOSOFT aps<br>DANO* vil vise bevægelser for alle hvor navnet starter med DANO<br>*aps vil vise alle hvor navnet slutter på aps<br>*SOFT* viser alle hvor navnet indeholder soft.	Enter an account number or range separated by a colon. The list will be sorted by account number <br> An account name can also be typed, for example <br> Typing DANOSOFT aps only shows movements for DANOSOFT aps <br> DANO * will show movements for everyone where the name starts with DANO < br> * aps will show all where the name ends in aps <br> * SOFT * shows all where the name contains soft.	Skriv inn et kontonummer eller område atskilt med kolon. Listen vil bli sortert etter kontonummer <br> Et kontonavn kan også skrives inn, for eksempel <br> Tast inn DANOSOFT aps viser kun bevegelser for DANOSOFT aps <br> DANO * vil vise bevegelser for alle der navnet starter med DANO < br> * aps vil vise alle hvor navnet slutter på aps <br> * SOFT * viser alle der navnet inneholder soft.
 440	Konto	Account	Regnskap
-441	Åbne poster	Open Records	Åpne poster
+441	Åbne poster	Open Items	Åpne poster
 442	Kontosaldo	Account balance	Saldo
 443	Kontokort	General Ledger	Kontokort
 444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per. the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
@@ -637,9 +637,9 @@
 637	Bogført	Posted	Postet
 638	Af	Of	Av
 639	Kladdeliste	Draft list	Utkastliste
-640	Du opretter en ny kassekladde ved at klikke på	create a new cash journal by clicking	Du oppretter en ny kontantjournal ved å klikke
+640	Du opretter en ny kassekladde ved at klikke på	Create a new cash journal by clicking	Du oppretter en ny kontantjournal ved å klikke
 641	vis egne	show owner	vis egne
-642	øverst til h&oslash	jre	at the top right	øverst til høyre		
+642	øverst til højre	at the top right	øverst til høyre
 643	Faktura	Invoice	Faktura
 644	Opslag	Lookup	Oppslag
 645	Medarbejdernr.	Employee no.	Ansatt nummer.
@@ -825,7 +825,7 @@
 825	Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.	No users without rights. Create an unauthorized user and select it to enable the API.	Ingen brukere uten rettigheter. Opprett en uautorisert bruker og velg den for å aktivere API.
 826	Forslagssum	Suggested sum	Foreslått sum
 827	Forslag	Suggestions	Forslag
-828	Fakturanr	Invoice number	Fakturanr
+828	Fakturanr.	Invoice no.	Fakturanr.
 829	API Klient	API Client	API-klient
 830	Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten	If you want to integrate with the webshop, you must enter the full url for the api client here	Hvis du vil integrere med nettbutikken, må du oppgi hele url for api-klienten her
 831	Saldi db:	Saldi db:	Saldi db:
@@ -1542,7 +1542,7 @@
 1542	Ordren er i brug af	The order is in use of	Bestillingen er i bruk av
 1543	Angiv belob - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
 1544	Klik her for at gemme	Click here to save	Klikk her for å lagre
-1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	Lookup - your cursor's location indicates which table the lookup is in	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i
+1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	Lookup - your cursor&apos;s location indicates which table the lookup is in	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i
 1546	Simulering af bogføring viser bevægelser i kontoplanen	Posting simulation shows movements in the chart of accounts	Bokføringssimulering viser bevegelser i kontoplanen
 1547	Bogfør - der foretages først en simulering, som du skal bekræfte	Post - a simulation is performed first, which you must confirm	Bogfør - der foretages først en simulering, som du skal bekrefte
 1548	Henter afsluttede ordrer fra ordreliste	Retrieves completed orders from order list	Henter avsluttede ordrer fra ordreliste
@@ -1553,7 +1553,7 @@
 1553	Skriv 1. bilagsnr	Write 1st attachment no	Skriv 1. bilagsnr
 1554	Sættes et lighedstegn, anvendes orginal bilagsdato	If an equals sign is used, the original document date is used	Sette et lighedstegn, brukes orginal bilagsdato
 1555	Skriv dato for alle bilag 	Write the date for all documents	Skriv dato for alle bilag
-1556	Afmærkes her, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt '=' i begge overstående felter!	Marked here, debit and credit are exchanged. Used when returning the entire journal. Put '=' in both of the above fields!	Afmærkes henne, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt '=' i begge overstående felter!
+1556	Afmærkes her, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!	Marked here, debit and credit are exchanged. Used when returning the entire journal. Put &apos;=&apos; in both of the above fields!	Afmærkes henne, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!
 1557	Vend fortegn (tilbagefør)	Flip sign (reverse)	Vend fortegn (tilbagefør)
 1558	Klik her for at lukke kassekladden	Click here to close the checkout journal	Klikk her for at lukke kassekladden
 1559	Her kan skrives en bemærkning til kladden	A comment on the journal can be written here	Hennes kan skrives og bemærkning til kladden
@@ -1617,7 +1617,7 @@
 1617	Angiv et beløb, eller angiv to adskilt af kolon (f.eks 10000,00:14999,99)	Enter an amount, or enter two separated by colon (eg 10000.00: 14999.99)	Angi et beløp, eller skriv inn to atskilt med kolon (f.eks. 10000,00: 14999,99)
 1618	Angiv et projektnummer, eller angiv to adskilt af kolon (f.eks 5:7)	Enter a project number, or enter two separated by a colon (eg 5: 7)	Skriv inn et prosjektnummer, eller skriv inn to atskilt med et kolon (f.eks. 5: 7)
 1619	Angiv et kassenummer, eller angiv to adskilt af kolon (f.eks 1:3)	Enter a box number, or enter two separated by a colon (eg 1: 3)	Skriv inn et boksnummer, eller skriv inn to atskilt med et kolon (f.eks. 1: 3)
-1620	Angiv en søgetekst. Der kan anvendes * før og efter teksten	Enter a search text. It can be used * before and after the text	Skriv inn en søketekst. Den kan brukes * før og etter teksten
+1620	Angiv en søgetekst. Der kan anvendes * før og efter teksten	Enter a search text. * can be used before and after the text	Skriv inn en søketekst. Den kan brukes * før og etter teksten
 1621	Projektnummeret kan rettes ved at klikke her	The project number can be corrected by clicking here	Prosjektnummeret kan rettes ved å klikke her
 1622	Kontroller konto	Check account	Sjekk konto
 1623	En kort kom-i-gang-vejledning med henvisning til yderligere dokumentation og videoer.	A short get-started guide with reference to additional documentation and videos.	En kort startveiledning med referanse til tilleggsdokumentasjon og videoer.
@@ -2110,7 +2110,7 @@
 2110	Viser status for tilbud, salgsordrer og indkøbsordrer	Displays status for quotes, sales orders, and purchase orders	Viser status for tilbud, salgsordrer og innkjøpsordrer.
 2111	Alle varegrupper	All product groups	Alle varegrupper3000	Vis enhed	View unit type	Visa enhet
 2112	Ved afmærkning åbnes varekortet kun ved klik på varenr	When marked, the product card is only opened by clicking on the product number	Ved markering åpnes varekortet kun ved å klikke på varenummeret
-2113	Tilbage til varelisten uden at bestille	Back to the productlist without ordering	Tilbake til produktlisten uten bestilling
+2113	Tilbage til varelisten uden at bestille	Back to the product list without ordering	Tilbake til produktlisten uten bestilling
 2114	Medtag	Include	Ta med
 2115	Sætpris	Set price	Sett pris
 2116	Forfra	Reset	På nytt
@@ -2215,13 +2215,13 @@
 2215	Varegrænse	Product Limit	Varegrense
 2216	Udskriv kontoudtog som PDF (Åbner i popup)	Print statement as PDF (Opens in popup)	Skriv ut kontoutdrag som PDF (Åpnes i popup)
 2217	Sæt grænse for, hvor mange varer en kunde kan oprette	Set a limit on how many items a customer can create	Sett grense for hvor mange varer en kunde kan opprette
-2218
-2219
-2220
-2221
-2222
-2223
-2224
+2218	Bestil	Order	Bestill
+2219	Skriv en søgetekst. Der søges efter varer, hvor teksten indgår.	Enter a search term. Products will be searched for where the term appears.	Skriv en søketekst. Det søkes etter varer hvor teksten inngår.
+2220	Skrives 2 eller flere ord adskilt af &apos;+&apos;, søges der efter varer, hvor alle ord indgår.	If two or more words are entered, separated by a &apos;+&apos;, products will be searched for where all the words appear.	Skrives 2 eller flere ord atskilt med &apos;+&apos;, søkes det etter varer hvor alle ordene inngår.
+2221	Skrives &apos;*&apos; før eller efter søgeteksten, søges der efter varer, som starter eller slutter med ordet.	If &apos;*&apos; is added before or after the search term, products will be searched for that start or end with that word.	Skrives &apos;*&apos; før eller etter søketeksten, søkes det etter varer som starter eller slutter med ordet.
+2222	Skrives &quot; før og efter søgeteksten, søges der efter varer, hvor beskrivelsen matcher præcist.	If a &quot; is added before or after the search term, products will be searched for where the description matches exactly.	Skrives &quot; før og etter søketeksten, søkes det etter varer hvor beskrivelsen stemmer nøyaktig.
+2223	Masse vare-scan	Bulk product scan	Masse vare-scan
+2224	Oversigt	Dashboard	Oversikt
 2225
 2226
 2227
@@ -3076,9 +3076,9 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3076	System	System
 3077	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days
 3078	Aktive medarbejdere	Active employees	Aktive medarbeidere
-3079	Har været aktive inden for den sidste time	Have been active within the last hour
+3079	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
 3080	Hvilket svarer til	Which is equivalent to	Som tilsvarer
-3081	ufaktureret	unbilled
+3081	ufaktureret	unbilled	ufakturert
 3082	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT
 3083	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT
 3084	mere end sidste år til dato	more than last year to date	

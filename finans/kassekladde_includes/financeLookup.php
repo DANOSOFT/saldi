@@ -11,6 +11,8 @@ function financeLookup($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato
 	global $sprog_id;
 	global $top_bund;
 
+	include("../includes/topline_settings.php");
+
 	$linjebg=NULL;
 	$spantekst=NULL;
 
@@ -31,30 +33,38 @@ function financeLookup($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato
 		include_once '../includes/top_menu.php';
 		include_once '../includes/top_header.php';
 		print "<div id=\"header\">
-		<div class=\"headerbtnLft\"><a href='kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$datodato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr' class=\"button red small left\" accesskey=L>".findtekst(30, $sprog_id)."</a></div>
-		<span class=\"headerTxt\">Finansopslag</span>";
+		<div class=\"headerbtnLft\"><a href='kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$datodato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr' class=\"button red small left\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div>
+		<span class=\"headerTxt\">".findtekst('2170|Finansopslag', $sprog_id)."</span>";
 		print "<div class=\"headerbtnRght\"></div>";
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 			print  "<table class='dataTable2' border='0' cellspacing='1' align='center';>";
+	} elseif ($menu=='S') {
+		print"<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+		print"<td width='10%'><a href='kassekladde.php?fokus=$fokus&kladde_id=$kladde_id' accesskey=L>
+			  <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
+		print"<td width='80%' style=$topStyle align=center>".findtekst('2170|Finansopslag', $sprog_id)."</td>\n";
+		print"<td width='10%' style=$topStyle align='right'><br></td>\n";
+		print"</tbody></table>";
+		print"</td></tr>\n";
 	} else {
-	print"<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print"<td width=\"10%\" $top_bund><a href='kassekladde.php?fokus=$fokus&kladde_id=$kladde_id' accesskey=L>".findtekst(30, $sprog_id)."</a></td>\n";
-	print"<td width=\"80%\" $top_bund>Finansopslag</td>\n";
-	print"<td width=\"10%\" $top_bund align=\"right\"><br></td>\n";
-	print"</tbody></table>";
-	print"</td></tr>\n";
+		print"<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+		print"<td width=\"10%\" $top_bund><a href='kassekladde.php?fokus=$fokus&kladde_id=$kladde_id' accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
+		print"<td width=\"80%\" $top_bund>".findtekst('2170|Finansopslag', $sprog_id)."</td>\n";
+		print"<td width=\"10%\" $top_bund align=\"right\"><br></td>\n";
+		print"</tbody></table>";
+		print"</td></tr>\n";
 	}
 	?>
 	<tr><td valign="top">
 	<table cellpadding="0" cellspacing="0" border="0" width="100%" valign = "top">
 	<tbody>
 	<tr>
-		<td width=10%><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>">Kontonr</b></td>
-		<td width=35%><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>">Beskrivelse</a></b></td>
-		<td align="center"><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>">Moms</a></b></td>
-		<td align="center"><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>">Genvej</a></b></td>
-		<td align="right"><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>">Saldo</a></b></td>
+		<td width=10%><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>"><?php echo findtekst('43|Kontonr.', $sprog_id);?></b></td>
+		<td width=35%><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>"><?php echo findtekst('914|Beskrivelse', $sprog_id);?></a></b></td>
+		<td align="center"><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>"><?php echo findtekst('770|Moms', $sprog_id);?></a></b></td>
+		<td align="center"><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>"><?php echo findtekst('1191|Genvej', $sprog_id);?></a></b></td>
+		<td align="right"><b><font face="Helvetica, Arial, sans-serif" color="<?php echo $fgcolor ?>"><?php echo findtekst('1073|Saldo', $sprog_id);?></a></b></td>
 		</tr>
 		<tr><td colspan="5"><hr></td></tr>
 		<?php

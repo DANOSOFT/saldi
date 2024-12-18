@@ -1025,9 +1025,9 @@ if (!$simuler) {
 			include_once '../includes/top_header.php';
 			include_once '../includes/top_menu.php';
 
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<div id='header'>";
-			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
 			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\"' title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
 			print "</div>";
@@ -1038,10 +1038,10 @@ if (!$simuler) {
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 
 			print "<td width='10%'>";
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			.findtekst(30, $sprog_id)."</button></a></td>";
+			.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 			print "<td width='80%' style='$topStyle' align='center'> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
 
@@ -1053,11 +1053,11 @@ if (!$simuler) {
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 			if ($popup) print "<td onClick='JavaScript:opener.location.reload();' width='10%' $top_bund>";
 			else print "<td $top_bund>";
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
 				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst(30, $sprog_id) . "</a></td>";
 			} else {
-				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst(30, $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
 			print "<td width='80%' $top_bund> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
 			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>$ny</a></td></tr>";

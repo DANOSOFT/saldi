@@ -137,7 +137,6 @@ $customergraph = get_settings_value("customergraph", "dashboard_toggles", "off")
 $closed_newssnippet = get_settings_value("closed_news_snippet", "dashboard", "");
 $hide_dash = get_settings_value("hide_dash", "dashboard", "0", $user=$bruger_id);
 
-
 /* 
 # Omsætning i et tidsrum
 
@@ -147,25 +146,26 @@ WHERE T.transdate >= '2024-01-01'
 AND T.transdate <= '2024-02-01'
 AND T.kontonr < 2000;
  
-# Ufakturede ordre 
+# Ufakturerede ordrer
 SELECT count(*) FROM "ordrer" WHERE "status" < '3' AND "ordredate" > '2024-03-09'
 
  */
 
 function formatNumber($number, $dkFormat = true) {
+    global $sprog_id;
     $suffix = '';
     if ($number >= 1000 && $number < 1000000) {
         $number = $number / 1000;
-        $suffix = ' tusind';
+        $suffix = ' '.findtekst('2166|tusind', $sprog_id);
     } elseif ($number >= 1000000 && $number < 1000000000) {
         $number = $number / 1000000;
-        $suffix = ' millioner';
+        $suffix = ' '.findtekst('2167|millioner', $sprog_id);
     } elseif ($number >= 1000000000 && $number < 1000000000000) {
         $number = $number / 1000000000;
-        $suffix = ' milliarder';
+        $suffix = ' '.findtekst('2168|milliarder', $sprog_id);
     } elseif ($number >= 1000000000000) {
 	$number = $number / 1000000000000;
-        $suffix = ' billioner';
+        $suffix = ' '.findtekst('2169|billioner', $sprog_id);
     }
 
     if ($dkFormat) {
@@ -180,6 +180,7 @@ function revenue_graph() {
 	# Omsætningsgraf
 	global $kontomin;
 	global $kontomaks;
+	global $sprog_id;
 
 	echo '
 <div style="
@@ -190,7 +191,7 @@ function revenue_graph() {
 	box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
 	padding: 1.4em 2em;
 ">
-	<h4 style="margin: 0; color: #999">Din omsætning sammenlignet med sidste år, ekskl. moms</h4>
+	<h4 style="margin: 0; color: #999">'.findtekst("2165|Din omsætning sammenlignet med sidste år, ekskl. moms", $sprog_id).'</h4>
 	<div style="flex: 1; width: 100%">
 	  <canvas id="myChart"></canvas>
 	</div>
@@ -242,7 +243,7 @@ function revenue_graph() {
 	    data: {
 	      labels: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'December'],
 	      datasets: [{
-		label: 'Omsætning $lastYear',
+		label: '".findtekst('1166|Omsætning', $sprog_id)." $lastYear',
 		data: ['";
 
 	echo implode("','", $revenue_last);
@@ -251,7 +252,7 @@ function revenue_graph() {
 		borderWidth: 1
 	      },
 	      {
-		label: 'Omsætning $currentYear',
+		label: '".findtekst('1166|Omsætning', $sprog_id)." $currentYear',
 		data: ['";
 
 	echo implode("','", $revenue_now);
@@ -280,6 +281,7 @@ function revenue_graph() {
 
 function customer_graph() {
 	# Omsætningsgraf
+	global $sprog_id;
 	echo '
 <div style="
 	flex: 2;
@@ -289,7 +291,7 @@ function customer_graph() {
 	box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
 	padding: 1.4em 2em;
 ">
-	<h4 style="margin: 0; color: #999">Antal kunder per tidspunkt gennesnit de sidste 30 dage</h4>
+	<h4 style="margin: 0; color: #999">'.findtekst("2174|Antal kunder pr. time i gennemsnit over de sidste 30 dage", $sprog_id).'</h4>
 	<div style="flex: 1; width: 100%">
 	  <canvas id="customerChart"></canvas>
 	</div>
@@ -420,10 +422,10 @@ if ($closed_newssnippet != $newssnippet && $newssnippet != '') {
 
 # Titlebar
 print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em'>";
-print "<h1>Oversigt - $name</h1>";
+print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
 print "<div style='display: flex; gap: 2em'>";
-print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? "Skjul" : "Vis") ." oversigt</button>";
-if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>Rediger oversigt</button>";
+print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".findtekst('2224|Oversigt', $sprog_id)."</button>";
+if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .findtekst('2224|Oversigt', $sprog_id). "</button>";
 
 
 # Kassesystem eller ej
@@ -432,11 +434,11 @@ $state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 $qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
 $orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($state) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>Åben kassesystem</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 } elseif ($orderXpress) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>Åben sagsstyring</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>" .findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
 } else {
-	print "<button style='padding: 1em; cursor: not-allowed' disabled>Åben kassesystem</button>";
+	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 }
 
 
@@ -482,11 +484,11 @@ if ($revmonth === "on") {
 	$revenue_last = db_fetch_array($q)[0];
 	$revenue_diff = $revenue - $revenue_last;
 	$revenue_status = $revenue_diff > 0 ? 
-		"<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>mere end sidste år til dato</span>" 
+		"<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst('3084|mere end sidste år til dato', $sprog_id)."</span>" 
 		: 
-		"<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>mindre end sidste år til dato</span>";
+		"<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst('3085|mindre end sidste år til dato', $sprog_id)."</span>";
 
-	key_value("Omsætning denne måned, ekskl. moms", formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
+	key_value(findtekst('3083|Omsætning denne måned, ekskl. moms', $sprog_id), formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
 }
 
 # #######################################
@@ -524,11 +526,11 @@ if ($revyear === "on") {
 	$revenue_last = db_fetch_array($q)[0];
 	$revenue_diff = $revenue - $revenue_last;
 	$revenue_status = $revenue_diff > 0 ? 
-		"<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>mere end sidste år til dato</span>" 
+		"<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst('3084|mere end sidste år til dato', $sprog_id)."</span>" 
 		: 
-		"<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>mindre end sidste år til dato</span>";
+		"<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst('3085|mindre end sidste år til dato', $sprog_id)."</span>";
 
-	key_value("Omsætning for året, ekskl. moms", formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
+	key_value(findtekst('3082|Omsætning for året, ekskl. moms', $sprog_id), formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
 }
 
 # #######################################
@@ -547,7 +549,7 @@ if ($ordercount === "on") {
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
-	key_value("Ufakturerede ordrer de sidste 30 dage", $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>Hvilket svarer til <span style='color: 15b79f'>$active_total kr</span> ufaktureret</span>");
+	key_value(findtekst('3077|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3080|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('3081|ufaktureret', $sprog_id)."</span>");
 
 	# key_value("Gennemsnitlig rabat", "25%");
 }
@@ -559,7 +561,7 @@ if ($ordercount === "on") {
 # #######################################
 
 if ($onlineusers === "on") {
-	key_value("Aktive medarbejdere", $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>Har været aktive inden for den sidte time</span>");
+	key_value(findtekst('3078|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3079|Har været aktive inden for den sidste time', $sprog_id)."</span>");
 }
 
 # Close the contianer div
@@ -586,30 +588,30 @@ print "
   <div style='top: 0; position: absolute; height: 100vh; width: 100vw; background-color: #00000030'>
   </div>
   <div style='width: 700px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em'>
-    <h3>Opsæt din oversigt</h3>
+    <h3>".findtekst('2151|Opsæt din oversigt', $sprog_id)."</h3>
 
 <form method='post'>
   <table>
     <tr>
-      <th>Kontonumre</th>
+      <th>".findtekst('2152|Kontonumre', $sprog_id)."</th>
       <th></th>
     </tr>
     <tr>
-      <td>Konto min</td>
+      <td>".findtekst('2153|Min.', $sprog_id)." ".strtolower(findtekst('1166|Omsætning', $sprog_id)).":</td>
       <td><input type='text' name='kontomin' value='$kontomin' /></td>
-      <td>Er du i tvilv om dine kontotal?</td>
+      <td>".findtekst('2155|Er du i tvivl om dine kontotal?', $sprog_id)."</td>
     </tr>
     <tr>
-      <td>Konto maks</td>
+      <td>".findtekst('2154|Maks.', $sprog_id)." ".strtolower(findtekst('1166|Omsætning', $sprog_id)).":</td>
       <td><input type='text' name='kontomaks' value='$kontomaks' /></td>
-      <td> Se vores guide <a href='https://site.saldi.dk/saldi-manualer/omsaetningstal' target='_blank'>her</a></td>
+      <td>".findtekst('2156|Se vores guide', $sprog_id)." <a href='https://site.saldi.dk/saldi-manualer/omsaetningstal' target='_blank'>".findtekst('2157|her', $sprog_id)."</a>.</td>
     </tr>
     <tr>
-      <th>Nøgletal</th>
+      <th>".findtekst('2158|Nøgletal', $sprog_id)."</th>
       <th></th>
     </tr>
     <tr>
-      <td>Omsætning for måndet</td>
+      <td>".findtekst('2159|Omsætning for måneden', $sprog_id)."</td>
       <td><input type='checkbox' name='revmonth' ";
 if ($revmonth === "on") {
 	print "checked";
@@ -617,7 +619,7 @@ if ($revmonth === "on") {
 print " /></td>
     </tr>
     <tr>
-      <td>Omsætning for året</td>
+      <td>".findtekst('2160|Omsætning for året', $sprog_id)."</td>
       <td><input type='checkbox' name='revyear' ";
 if ($revyear === "on") {
 	print "checked";
@@ -625,7 +627,7 @@ if ($revyear === "on") {
 print " /></td>
     </tr>
     <tr>
-      <td>Ufaktueret ordre</td>
+      <td>".findtekst('2161|Ufakturerede ordrer', $sprog_id)."</td>
       <td><input type='checkbox' name='ordercount' ";
 if ($ordercount === "on") {
 	print "checked";
@@ -633,7 +635,7 @@ if ($ordercount === "on") {
 print " /></td>
     </tr>
     <tr>
-      <td>Aktive medarbejdere</td>
+      <td>".findtekst('3078|Aktive medarbejdere', $sprog_id)."</td>
       <td><input type='checkbox' name='onlineusers' ";
 if ($onlineusers === "on") {
 	print "checked";
@@ -641,11 +643,11 @@ if ($onlineusers === "on") {
 print " /></td>
     </tr>
     <tr>
-      <th>Grafer</th>
+      <th>".findtekst('2162|Grafer', $sprog_id)."</th>
       <th></th>
     </tr>
     <tr>
-      <td>Omsætningsgraf</td>
+      <td>".findtekst('2163|Omsætningsgraf', $sprog_id)."</td>
       <td><input type='checkbox' name='revgraph' ";
 if ($revgraph === "on") {
 	print "checked";
@@ -653,7 +655,7 @@ if ($revgraph === "on") {
 print " /></td>
     </tr>
     <tr>
-      <td>Kundefordeling</td>
+      <td>".findtekst('2164|Kundefordeling', $sprog_id)."</td>
       <td><input type='checkbox' name='customergraph' ";
 if ($customergraph === "on") {
 	print "checked";
@@ -661,7 +663,7 @@ if ($customergraph === "on") {
 print " /></td>
     </tr>
   </table> 
-  <button type='submit'>Gem</button>
+  <button type='submit'>".findtekst('3|Gem', $sprog_id)."</button>
 </form>
   </div>
 </div>
@@ -669,4 +671,3 @@ print " /></td>
 
 
 ?>
-
