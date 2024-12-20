@@ -135,13 +135,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    update_settings_value("varegrp_doughnut", "dashboard_toggles", if_isset($_POST['varegrpdoughnut'],  "off"),   "Show the sales of varegrupper in the year in a doughnut");
 }
 
-if ($_GET['close_snippet'] == '1') {
+if (isset($_GET['close_snippet']) && $_GET['close_snippet'] == '1') {
    update_settings_value("closed_news_snippet", "dashboard", $newssnippet, "The newssnippet that was closed by the user");
 }
-if ($_GET['hidden'] == '1') {
+if (isset($_GET['hidden']) && $_GET['hidden'] == '1') {
    update_settings_value("hide_dash", "dashboard", 1, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
 }
-if ($_GET['hidden'] == '0') {
+if (isset($_GET['hidden']) && $_GET['hidden'] == '0') {
    update_settings_value("hide_dash", "dashboard", 0, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
 }
 

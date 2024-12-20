@@ -182,12 +182,13 @@
 // 20240703 PHR - Removed "and samlevare != 'on'" as it blocked invoice for orders with 'samlevare'
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240728 PHR - Moved texts to tekster.scv
-// 20240815 PHR- $title 
+// 20240815 PHR	-  $title 
 // 20240828 PHR - Corrected 'change customer' to search for customer no first and then phone. 
-// 20240925	PHR Some translations
-// 20241003 PHR More transations
-// 18-10-2024 PBLM fixed del ordre
-// 13-11-2024 MMK added warning to delete line
+// 20240925	PHR - Some translations
+// 20241003 PHR - More transations
+// 18102024 PBLM-fixed del ordre
+// 13112024 MMK - added warning to delete line
+// 20241220 LOE - Ensured some variables are set before using them
 
 @session_start();
 $s_id=session_id();
@@ -801,11 +802,12 @@ if ($b_submit) {
 		if ($konto_id=$r['id']) db_modify("update ordrer set konto_id='$r[id]' where id='$id'",__FILE__ . " linje " . __LINE__);
 		else $kontonr='0';
 	}
-	$firmanavn = db_escape_string(trim($_POST['firmanavn']));
-	$addr1 = db_escape_string(trim($_POST['addr1']));
-	$addr2 = db_escape_string(trim($_POST['addr2']));
-	$postnr = trim($_POST['postnr']);
-	$bynavn = trim($_POST['bynavn']);
+	$firmanavn = isset($_POST['firmanavn']) ? db_escape_string(trim($_POST['firmanavn'])) : '';
+	$addr1 = isset($_POST['addr1']) ? db_escape_string(trim($_POST['addr1'])) : '';
+	$addr2 = isset($_POST['addr2']) ? db_escape_string(trim($_POST['addr2'])) : '';
+	$postnr = isset($_POST['postnr']) ? trim($_POST['postnr']) : '';
+	$bynavn = isset($_POST['bynavn']) ? trim($_POST['bynavn']) : '';
+
 	if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
 	else $bynavn = db_escape_string($bynavn);
 	$postnr = db_escape_string($postnr);
@@ -816,21 +818,22 @@ if ($b_submit) {
 		$r = db_fetch_array($q);
 		$email = $r["email"];
 	}
-	$ean = db_escape_string(trim($_POST['ean']));
-	$kontakt = db_escape_string(trim($_POST['kontakt']));
-	$kontakt_tlf = db_escape_string(trim(if_isset($_POST['kontakt_tlf'])));
-  $kundeordnr =  db_escape_string(trim($_POST['kundeordnr']));
-	$lev_navn = db_escape_string(trim($_POST['lev_navn']));
-	$lev_addr1 = db_escape_string(trim($_POST['lev_addr1']));
-	$lev_addr2 = db_escape_string(trim($_POST['lev_addr2']));
-	$lev_postnr = trim($_POST['lev_postnr']);
-	$lev_bynavn = trim($_POST['lev_bynavn']);
-  $lev_addr2 = db_escape_string(trim($_POST['lev_addr2']));
-  $lev_email = db_escape_string(trim($_POST['lev_email']));
-  $lev_land = db_escape_string(trim($_POST['lev_land']));
+
+	$ean = isset($_POST['ean']) ? db_escape_string(trim($_POST['ean'])) : ''; // Default value if not set
+	$kontakt = isset($_POST['kontakt']) ? db_escape_string(trim($_POST['kontakt'])) : '';
+	$kontakt_tlf = isset($_POST['kontakt_tlf']) ? db_escape_string(trim($_POST['kontakt_tlf'])) : '';
+	$kundeordnr = isset($_POST['kundeordnr']) ? db_escape_string(trim($_POST['kundeordnr'])) : '';
+	$lev_navn = isset($_POST['lev_navn']) ? db_escape_string(trim($_POST['lev_navn'])) : '';
+	$lev_addr1 = isset($_POST['lev_addr1']) ? db_escape_string(trim($_POST['lev_addr1'])) : '';
+	$lev_addr2 = isset($_POST['lev_addr2']) ? db_escape_string(trim($_POST['lev_addr2'])) : '';
+	$lev_postnr = isset($_POST['lev_postnr']) ? trim($_POST['lev_postnr']) : '';
+	$lev_bynavn = isset($_POST['lev_bynavn']) ? trim($_POST['lev_bynavn']) : '';
+	$lev_email = isset($_POST['lev_email']) ? db_escape_string(trim($_POST['lev_email'])) : '';
+	$lev_land = isset($_POST['lev_land']) ? db_escape_string(trim($_POST['lev_land'])) : '';
+
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
 	else $lev_bynavn = db_escape_string($lev_bynavn);
-	$lev_kontakt = db_escape_string(trim($_POST['lev_kontakt']));
+	$lev_kontakt = isset($_POST['lev_kontakt'])? db_escape_string(trim($_POST['lev_kontakt'])) : '';
 	$vis_lev_addr=if_isset($_POST['vis_lev_addr']);
 	update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 

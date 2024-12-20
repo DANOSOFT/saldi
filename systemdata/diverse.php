@@ -80,6 +80,7 @@
 // 20221231 PHR	sektion 'bilag' box3 (ftp passwd) is now urlencoded as it failed with special characters in password. 
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240126 PBLM Added nemhandel (diverse valg)
+// 20241220 LOE Initialized tenantID and $key to null if not set
 
 @session_start();
 $s_id=session_id();
@@ -104,8 +105,10 @@ include("../includes/connect.php");
              $tenantId = $res["var_value"];
          }
      }
+	 var_dump($res);
  }
- $apiKey = $tenantId . "&" . $key;
+ $apiKey = (isset($tenantId) && isset($key)) ? $tenantId . "&" . $key : null;
+
 ////////////////// nemhandel end ///////////////////////
 
 
