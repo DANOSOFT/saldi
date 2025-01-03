@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // --------------------------------------------------------------------------
 
 // 20121011 Indsat "and (lukket != 'on' or saldo != 0)" søg 20121011
@@ -56,6 +56,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
+include("../includes/topline_settings.php");
 
 $beregn_lager=if_isset($_POST['beregn_lager']);
 if ($menu=='T') {
@@ -67,15 +68,29 @@ if ($menu=='T') {
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	print "<center>";
+	print "<table width='100%' height='20' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+	print "<td width='10%' align='center'><a href='../index/menu.php' accesskey='L'>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst('849|Regnskab',$sprog_id)."</td>";
+
+	print "<td width='10%' align='center'><a href=\"budget.php\" accesskey=\"B\">";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Budget</button></a></td>";
+
+	print "</tbody></table> ";
+	print "</td></tr> ";
 } else {
 	print "<center>";
 #	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print "	<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "		<table width='100%' height='20' align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "			<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
-	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";//20210225
-	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund> ".findtekst(849,$sprog_id)."</td> ";
+	print "<table width='100%' height='20' align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
+	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst('30|Tilbage',$sprog_id)."</a></td>";//20210225
+	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst('30|Tilbage',$sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund> ".findtekst('849|Regnskab',$sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund><a href=\"budget.php\" accesskey=\"B\">Budget</a></td> ";
 	print "</tbody></table> ";
 	print "</td></tr> ";
@@ -299,15 +314,15 @@ print "<tbody>";
 
 if ($vis_medtag_lager) {
 	$title= findtekst(1624, $sprog_id); 
-	print  "<tr>";
+	print "<tr>";
 	print "<td colspan='$cols' align='center'>";
 	print "<form name='stockvalue' method='post' action='regnskab.php'>";
 	print "&nbsp;<input type='submit' title='$title' name='beregn_lager' value='".findtekst(595,$sprog_id)." ".findtekst(596,$sprog_id)."'>";
 	print "</form></td></tr>";
 }
 
-print "<tr><td><b> ".findtekst(804, $sprog_id)."</b></td> "; #20210721
-print "<td><b> ".findtekst(805, $sprog_id)."</b></td> ";
+print "<tr><td width='8%'><b>".findtekst('804|Kontonr', $sprog_id)."</b></td>"; #20210721
+print "<td><b> ".findtekst('805|Kontonavn', $sprog_id)."</b></td> ";
 fwrite($csv,"Kontonr;Kontonavn");
 if ($vis_valuta) {
 	print "<td align=\"center\"><b>".findtekst(776, $sprog_id)."</b></td>";
@@ -321,7 +336,9 @@ fwrite($csv,";Primo");
 $tmp=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
 fwrite($csv,";". str_replace('"','',$tmp) ."I alt\n");
 #$cols+=count(explode(";",$tmp));
-print "<td align=right><b> I alt</a></b></td> ";
+
+$txt3072 = findtekst('3072|I alt', $sprog_id);
+print "<td align=right><b>$txt3072</a></b></td> ";
 print "</tr>";
 $y='';
 for ($x=1; $x<=$kontoantal; $x++){

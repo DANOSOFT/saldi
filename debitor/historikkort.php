@@ -48,6 +48,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if (!isset ($_GET['konto_id'])) $_GET['konto_id'] = NULL;
 if (!isset ($historik_id)) $historik_id = NULL;
@@ -143,25 +144,46 @@ if (strstr($returside,'historikkort.php')) $returside="historik.php";
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\"> 
+	print "<div id=\"header\">
 		<div class=\"headerbtnLft\"><a class='button red small' href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>Luk</a></div>
 		<span class=\"headerTxt\">Historik</span>";     
 	print "<div class=\"headerbtnRght\"></div>";
 	print "</div><!-- end of header -->
 		<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu=='S') {
+	$center = "";
+	$width = "width=10%";
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
+	print "<tr><td align='center' valign='top' height='1%'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n";#tabel2a start
+
+	$tekst=findtekst(154,$sprog_id);
+
+	print "<td width='10%' align=center><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>\n";
+
+	print "<td width='80%' align=center style='$topStyle'>".findtekst(1668, $sprog_id)."</td>\n";
+
+	print "<td width='10%' align=center>
+		   <a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a><br></td>\n";
+
+	print "</tbody></table>\n";#tabel2a slut
+	print "</td></tr>\n";
+	print "<tr><td height=\"99%\"  width=\"100%\" valign=\"top\">";
 } else {
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel1 start
-print "<tr><td align=\"center\" valign=\"top\" height=\"1%\">\n";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n";#tabel2a start
-$tekst=findtekst(154,$sprog_id);
-#if ($returside=="debitorkort.php") print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?id=$id&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
-#print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
-print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>Luk</a></div></td>\n";
-print "<td width=\"80%\" align=center><div class=\"top_bund\">Historik for debitor</div></td>\n";
-print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>Ny</a><br></div></td>\n";
-print "</tbody></table>\n";#tabel2a slut
-print "</td></tr>\n";
-print "<tr><td height=\"99%\"  width=\"100%\" valign=\"top\">";
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel1 start
+	print "<tr><td align=\"center\" valign=\"top\" height=\"1%\">\n";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n";#tabel2a start
+	$tekst=findtekst(154,$sprog_id);
+	#if ($returside=="debitorkort.php") print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?id=$id&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
+	#print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>".findtekst(30, $sprog_id)."</a></div></td>\n";
+	print "<td width=\"80%\" align=center><div class=\"top_bund\">".findtekst(1668, $sprog_id)."</div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a><br></div></td>\n";
+	print "</tbody></table>\n";#tabel2a slut
+	print "</td></tr>\n";
+	print "<tr><td height=\"99%\"  width=\"100%\" valign=\"top\">";
 }
 print "<table class='dataTable2' width=\"100%\" cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";#tabel2b start
 
@@ -190,16 +212,16 @@ print "<form name='historikkort' action='historikkort.php?returside=$returside' 
 print "<input type='hidden' name=\"id\" value='$id'>";
 print "<tr><td colspan='6'>";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"800\"><tbody>";#tabel3a start;
-print "<tr><td title=\"$notes\"><a href=debitorkort.php?id=$id&returside=historikkort.php>$firmanavn</a></td><td></td><td></td><td> Oprettet</td><td>";
+print "<tr><td title=\"$notes\"><a href=debitorkort.php?id=$id&returside=historikkort.php>$firmanavn</a></td><td></td><td></td><td> ".findtekst(65, $sprog_id)."</td><td>";
 #print "<tr><td>$firmanavn</td><td></td><td></td><td> Oprettet</td><td>";
 if ($oprettet) print " $oprettet";
 else print " <input type=text name=oprettet size=11 onchange=\"javascript:docChange = true;\">";
 print "</td></tr>\n";
 print "<tr><td> $addr1</td><td> $addr2</td></tr>\n";
-print "<tr><td> $postnr $bynavn</td><td> $land</td><td></td><td> Seneste kontakt</td><td> $kontaktet</td></tr>\n";
+print "<tr><td> $postnr $bynavn</td><td> $land</td><td></td><td> ".findtekst(1669, $sprog_id)."</td><td> $kontaktet</td></tr>\n";
 print "<tr><td> Tlf: $tlf</td><td> ";
 if ($fax) print "Fax: $fax";
-print "</td><td></td><td> N&aelig;ste kontakt</td><td> $kontaktes</td>\n";
+print "</td><td></td><td> ".findtekst(1670, $sprog_id)."</td><td> $kontaktes</td>\n";
 	if (db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '2' and box7='on'",__FILE__ . " linje " . __LINE__))) {
 		$url="jobliste.php?kontonr=$kontonr&konto_id=$id&returside=historikkort.php";
 		$jobkort="<a href=$url><input type=\"button\" style=\"width:75px\" value=\"jobkort\" onClick=\"window.navigate('$url')\"></a>";
@@ -243,7 +265,7 @@ while ($r = db_fetch_array($q)){
 	print "<option>$r[navn]</option>";
 }
 print "</SELECT></td></tr>\n";
-print "<tr><td colspan =\"2\"> har talt med</td></tr>\n";
+print "<tr><td colspan =\"2\">".findtekst(1671, $sprog_id)."</td></tr>\n";
 print "<tr><td colspan =\"2\"><SELECT NAME=kontakt value=\"$kontakt\">";
 $q = db_select("select id, navn, tlf, mobil, email, notes from ansatte where konto_id = $id",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)){
@@ -254,13 +276,13 @@ print "<option></option>";
 print "</SELECT></td></tr>\n";
 if (!$kontaktet) $kontaktet=date("d-m-Y");
 print "<tr><td>den</td><td><input type=text size=11 name=kontaktet value=\"$kontaktet\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
-print "<tr><td> Kontaktes igen</td>";
+print "<tr><td> ".findtekst(1672, $sprog_id)."</td>";
 print "<td><input type=text size=11 name=kontaktes value=\"$kontaktes\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($historik_id) {
 	print "<input type=hidden name=historik_id value=$historik_id>";
-	print "<td align=right><input class='button green medium' type=submit accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+	print "<td align=right><input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
 } else {
-	print "<td colspan=2 align=right><input class='button green medium' type=submit accesskey=\"g\" value=\"Gem\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+	print "<td colspan=2 align=right><input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst(3, $sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
 }
 print "</td></tbody></table></td>";#tabel3b slut;
 print "<td colspan=4><textarea name=\"note\" rows=\"10\" cols=\"100\" onchange=\"javascript:docChange = true;\">$notat</textarea></td></tr>\n";

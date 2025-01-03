@@ -6,10 +6,10 @@
 	$TableBG = "bgcolor=$bgcolor";
 
 	print "<tr><td height = '25' align = 'center' valign = 'top'>";
-	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% style=$butUpStyle>"; # Tabel 1.1 ->
+	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% style=$buttonStyle>"; # Tabel 1.1 ->
 	print "<a href=$returside accesskey='L'>
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
-	print "<td width=80% style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+	print "<td style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
 	if ($valg=='debitor') {
 		print "<td width = '100px' align=center>
@@ -60,18 +60,18 @@
 
 	print "</tbody></table></td>\n";
 
-	print "<td width=5% style=$butUpStyle><a accesskey=V href=debitorvisning.php?valg=$valg>
-		   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+	print "<td width=5% style=$buttonStyle><a accesskey=V href=debitorvisning.php?valg=$valg>
+		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		   .findtekst(813,$sprog_id)."</button></a></td>\n";
 
 	print "<td width=5% style=$butUpStyle>";
 	if ($valg=='kommission' || $valg=='historik') {
 		print "<a href=mailTxt.php?valg=$valg&returside=debitor.php>
-			   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(218,$sprog_id)."</button></a></td>\n";
 	} else {
 		print "<a href=debitorkort.php?returside=debitor.php>
-			   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(39,$sprog_id)."</button></a></td>\n";
 	}
 	print "<center>"; #20141107

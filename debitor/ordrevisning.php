@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // --------debitor/ordrevisning.php-----lap 4.0.3-------2021.09.14-----------
-// LICENSE
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 Saldi.DK ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2018.11.28	PHR Tilføjet kundegruppe som søgefelt
 // 2098.05.02	PHR Corrected error in first time '$vis_feltantal' 20190502
@@ -40,9 +40,15 @@ include("../includes/std_func.php");
 if (isset($_GET['valg'])) $valg=($_GET['valg']); //???
 else $valg="ordrer";
 
-if ($valg=="tilbud") $title="Tilbudsvisning";
-elseif ($valg=="ordrer") $title="Ordrevisning";
-else $title="Fakturavisning";
+if ($valg=="tilbud") {
+	$title=findtekst('545|Tilbudsvisning',$sprog_id);
+} elseif ($valg=="ordrer") {
+	$title=findtekst('546|Ordrevisning',$sprog_id);
+} elseif ($valg=="faktura") {
+	$title=findtekst('544|Fakturavisning', $sprog_id);
+} else {
+	$title=findtekst('813|Visning', $sprog_id);
+}
 
 $modulnr=6;
 
@@ -51,11 +57,12 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 
-$aa=findtekst(545,$sprog_id); #20210420
-$bb=findtekst(546,$sprog_id);
-$cc=findtekst(544,$sprog_id);
+$aa=findtekst('545|Tilbudsvisning',$sprog_id); #20210420
+$bb=findtekst('546|Ordrevisning',$sprog_id);
+$cc=findtekst('544|Fakturavisning',$sprog_id);
 
 if (isset($_GET['valg'])) $valg=($_GET['valg']);
 else $valg="ordrer";
@@ -115,23 +122,41 @@ if (isset($_POST) && $_POST) {
 
 if ($menu=='T') {
 	$title="Ordrevisning • Kunder";
-	$classtable2 ="class=tableOrdrevisning";
-	include_once '../includes/topmenu/header.php';
-		print "
-	<div class='$kund'>Ordrevisning</div>
-	<div class='content-noside'>";
+	$classtable2 ="class=dataTableForm";
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\"><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+#} elseif ($menu=='S') {
+#	include("../includes/sidemenu.php");
+#	$classtable2 ="";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
 	$classtable2 ="";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">
+		   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
+
+		   <td width=\"10%\" align=center><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>
+
+		   <td width='80%' align=center style=$topStyle>$title</td>
+		   <td width='10%' align=center style=$topStyle><br></td></tr>
+		   </tr>
+		   </tbody></table>
+		   </td></tr>";
+	print "<center>";
 } else {
 	$classtable2 ="";
 	include("../includes/oldDesign/header.php");
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">
-		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
-			<td width=\"10%\" align=center><div class=\"top_bund\"><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>".findtekst(30,$sprog_id)."</a></div></td>
+	print  "<tr><td height = \"25\" align=\"center\" valign=\"top\">
+			<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>
+			<td width=\"10%\" align=center><div class=\"top_bund\"><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>".findtekst('30|Tilbage',$sprog_id)."</a></div></td>
 			<td width=\"80%\" align=center><div class=\"top_bund\">$title</a></div></td>
 			<td width=\"10%\" align=center><div class=\"top_bund\"><br></div></td>
-			 </tr>
+			</tr>
 			</tbody></table>
 	</td></tr>";
 	print "<center>";
@@ -155,8 +180,8 @@ $i++;
 $felter[$i] = 'kundegruppe';
 sort($felter);
 #$feltantal=count($felter);
-print "<tr><td colspan='7' align='center'>".findtekst(537,$sprog_id)."</td></tr>"; #20210420
-print "<tr><td colspan='7' align='center'>".findtekst(538,$sprog_id)."</td></tr>";
+print "<tr><td colspan='7' align='center'>".findtekst(537, $sprog_id)."</td></tr>"; #20210420
+print "<tr><td colspan='7' align='center'>".findtekst(538, $sprog_id)."</td></tr>";
 if ($menu=='T') {
 	print "<tr><td colspan=7 class='border-hr-top'></td></tr>\n";
 } else {
@@ -178,7 +203,7 @@ if (count($feltbredde)<=1) {
 		$vis_felt="ordrenr,ordredate,kontonr,firmanavn,ref,sum";
 		$justering="right,left,left,left,left,right";
 		$feltbredde="50,100,100,150,100,100";
-		$feltnavn="Tilbudsnr.,Tilbudsdato,Kontonr.,Firmanavn,S&aelig;lger,Tilbudssum";
+		$feltnavn=findtekst('888|Tilbudsnr.', $sprog_id).",".findtekst('889|Tilbudsdato', $sprog_id).",".findtekst('43|Kontonr.', $sprog_id).",".findtekst('28|Firmanavn', $sprog_id).",".findtekst('884|Sælger', $sprog_id).",".findtekst('890|Tilbudssum', $sprog_id);
 	} elseif ($valg=="ordrer") {
 		$vis_felt="ordrenr,ordredate,levdate,kontonr,firmanavn,ref,sum";
 		$justering="right,left,left,left,left,left,right";
@@ -194,14 +219,14 @@ if (count($feltbredde)<=1) {
 	$vis_linjeantal=100;
 }
 print "<table width=100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\" valign = \"top\" class='table-Ordrevisning-no-title'><tbody>";
-print "<tr><td colspan=\"3\" ><b>".findtekst(535,$sprog_id)."</b></td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
-print "<tr><td colspan=\"3\"><b>".findtekst(536,$sprog_id)."</b></td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td></tr>";
+print "<tr><td colspan=\"3\" ><b>".findtekst(535, $sprog_id)."</b></td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
+print "<tr><td colspan=\"3\"><b>".findtekst(536, $sprog_id)."</b></td><td><input class=\"inputbox\" type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td></tr>";
 if ($menu=='T') {
 	print "<tr><td colspan=7 class='border-hr-top'></td></tr>\n";
 } else {
 	print "<tr><td colspan=7><hr></td></tr>\n";
 }
-print "<tr><td ><b>Pos</b></td><td colspan=\"2\"><b>".findtekst(543,$sprog_id)."</b></td><td><b>".findtekst(539,$sprog_id)."</b></td><td align=\"right\"><b>".findtekst(540,$sprog_id)."</b></td><td><b>".findtekst(541,$sprog_id)."</b></td><td><b>".findtekst(542,$sprog_id)."</b></td></tr>";
+print "<tr><td ><b>Pos</b></td><td colspan=\"2\"><b>".findtekst('543|Felt', $sprog_id)."</b></td><td><b>".findtekst('539|Valgfri overskrift', $sprog_id)."</b></td><td align=\"right\"><b>".findtekst('540|Feltbredde', $sprog_id)."</b></td><td><b>".findtekst('541|Justering', $sprog_id)."</b></td><td><b>".findtekst('542|DropDown', $sprog_id)."</b></td></tr>";
 if ($menu=='T') {
 	print "<tr><td colspan=7 class='border-hr-bottom'></td></tr>\n";
 } else {
@@ -210,8 +235,8 @@ if ($menu=='T') {
 if (!$feltnavn[0]) $feltnavn[0]="Ordrenr";
 if (!$feltbredde[0]) $feltbredde[0]=50;
 if ($feltbredde[0]<=10) $feltbredde[0]*=10;
-print "<tr><td>Posnr</td>";
-print "<td colspan=\"2\">".findtekst(500,$sprog_id)."</td>";
+print "<tr><td>".findtekst('2178|Posnr', $sprog_id)."</td>";
+print "<td colspan=\"2\">".findtekst('500|Ordrenr.', $sprog_id)."</td>";
 print "<td><input class=\"inputbox\" type=text name=feltnavn[0] size=20 value=$feltnavn[0]></td>";
 print "<td align=\"right\" width=\"200px\"><input class=\"inputbox\" type=text name=feltbredde[0] style=\"text-align:right;width:$feltbredde[0]px;\"  value=$feltbredde[0]></td>";
 print "<td><SELECT class=\"inputbox\" NAME=justering[0]>";
@@ -249,7 +274,7 @@ if ($menu=='T') {
 } else {
 	print "<tr><td colspan=7><hr></td></tr>\n";
 }
-print "<tr><td colspan='7' align = 'center'><input type='submit' accesskey='a' value='OK' name='submit'> &nbsp;•&nbsp; <input type='button' onclick=\"location.href='ordreliste.php?valg=$valg&sort=$sort'\" accesskey='L' value='".findtekst(30,$sprog_id)."'></td></tr>\n";
+print "<tr><td colspan='10' align = 'center'><input type='submit' accesskey='a' value='OK' name='submit'> &nbsp;•&nbsp; <input type='button' onclick=\"location.href='ordreliste.php?valg=$valg&sort=$sort'\" accesskey='L' value='".findtekst('30|Tilbage',$sprog_id)."'></td></tr>\n";
 print "</form>";
 
 function sorter($pos,$var,$vis_feltantal) {

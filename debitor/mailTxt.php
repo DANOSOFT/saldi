@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // ---------------debitor/mailTxt.php---lap 3.9.5------2020-11-11----
-// LICENSE
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2020 saldi.dk aps
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20201111 PHR rehamed to mailTxt.php and added ordinary mail til customers not using MySale
 
@@ -39,6 +39,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
+include("../includes/topline_settings.php");
 	
 $id = if_isset($_GET['id']);
 $valg =  if_isset($_GET['valg']);
@@ -79,14 +80,14 @@ $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $firmanavn=$r['firmanavn'];
 
 if ($valg=='historik') {
-	$subject = "Information fra $firmanavn";
-	$mailText = "Kære $"."kunde,\n\nDette er en meddelse til dig fra os :-)\n\n";
-	$mailText.= "Bedste hilsner\n$firmanavn\n";
+	$subject = "".findtekst('1157|Information fra', $sprog_id)." $firmanavn"; #20210702
+	$mailText = "".findtekst('1158|Kære $kunde, Dette er en meddelse til dig fra os :-)', $sprog_id)."\n\n";
+	$mailText.= "".findtekst('1159|Bedste hilsner', $sprog_id)."\n$firmanavn\n";
 } else {
-	$subject = "Adgang til dit salg hos $firmanavn";
-	$mailText = "Kære $"."kunde,\n\nKlik på nedestående link for at se dit salg.\n\n";
-	$mailText.= "$"."link\n\n";
-	$mailText.= "Bedste hilsner\n$firmanavn\n";
+	$subject = "".findtekst('1160|Adgang til dit salg hos', $sprog_id)." $firmanavn";
+	$mailText = "".findtekst('1161|Kære $"."kunde,\n\nKlik på nedestående link for at se dit salg.', $sprog_id)."\n\n";
+	$mailText.= "$"."".lcfirst(findtekst('1161|Link', $sprog_id))."\n\n";
+	$mailText.= "".findtekst('1159|Bedste hilsner', $sprog_id)."\n$firmanavn\n";
 }
 
 $qtxt="select id,var_value from settings where var_name = 'mailSubject' and var_grp = '$varGrp' and user_id='0'";
@@ -109,31 +110,43 @@ $txt = $r['id'] .'|'. $r['kontonr'] .'@'. $db  .'@'. $_SERVER['HTTP_HOST'];
 for ($x=0;$x<strlen($txt);$x++) {
 	$lnk.=dechex(ord(substr($txt,$x,1)));
 }
-$myLink="<a href='$lnk'>MitSalg</a>";
+$myLink="<a href='$lnk'>". findtekst(1881,$sprog_id) ."</a>";
 
 if ($valg=='historik') {
-	$instruction = "<b>Skriv emne og tekst til den mail der skal sendes.</b><br><br>";
-	$instruction.= "Teksten '$"."kunde' bliver erstattet af kundens navn / firmanavn<br>";
+	$instruction = "<b>".findtekst(1150,$sprog_id)."</b><br><br>";
+	$instruction.= findtekst(1151,$sprog_id);
 } else {
-	$instruction = "<b>Skriv emne og tekst til den mail der skal bruges som invitation til 'Mit Salg'.</b><br><br>";
-	$instruction.= "Teksterne '$"."kunde'  og '$"."link' bliver erstattet af hhv kundens navn og ink til  kundens salg<br>";
+	$instruction = "<b>".findtekst(1152,$sprog_id)."</b><br><br>";
+	$instruction.= "".findtekst(1153,$sprog_id)."<br>";
 }
-$instruction.= "Der kan anvendes HTML koder i teksten.<br>";
-$instruction.= "F.eks bliver &lt;b&gt;fed&lt;/b&gt; vist som <b>fed</b>.<br>";
+$instruction.= "".findtekst(1154,$sprog_id)."<br>";
+$instruction.= "".findtekst(1155,$sprog_id)."<br>";
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\"> 
 		<div class=\"headerbtnLft\"></div>
-		<span class=\"headerTxt\">Konti</span>";     
+		<span class=\"headerTxt\">".findtekst(606,$sprog_id)."</span>";     
 	print "<div class=\"headerbtnRght\"></div>";
 	print "</div><!-- end of header -->
 	<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu=='S') {
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
+	print "<tr><td height = '25' align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
+
+	print "<td width=10%><a href=debitor.php?valg=$valg accesskey=L>
+		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
+	print "<td width=80% style=$topStyle align=center></td>";
+	print "<td width=10% style=$topStyle align=center></td>";
+
+	print "</tr></tbody></table>";
+	print "</td></tr>\n<tr><td align=\"center\" valign=\"middle\" width=\"100%\">";
 } else {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	print "<tr><td height = '25' align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
-	print "<td width=10% $top_bund><a href=debitor.php?valg=$valg accesskey=L>Luk</a></td>";
+	print "<td width=10% $top_bund><a href=debitor.php?valg=$valg accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 	print "<td width=80% $top_bund></td>";
 	print "<td width=10% $top_bund></td>";
 	print "</tr></tbody></table>";
@@ -153,7 +166,7 @@ $txt=str_replace("\n","<br>",$mailText);
 $txt=str_replace('$kunde',$kundenavn,$txt);
 $txt=str_replace('$link',$myLink,$txt);
 
-print "<tr><td colspan='2' align='center' width='560px'><br><b>Eksempel</b><hr></td></tr>";
+print "<tr><td colspan='2' align='center' width='560px'><br><b>".findtekst(1156,$sprog_id)."</b><hr></td></tr>";
 print "<tr><td colspan='2'>$txt</td></tr>";
 ?>
 </tbody>
