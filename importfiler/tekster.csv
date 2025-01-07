@@ -182,7 +182,7 @@
 182	Varemodtagelse	Goods receipt	Varemottak
 183	Tillad negativ lagerbeholdning	Allow negative inventory	Tillat negativ beholdning
 184	Brug betalingslister	Use payment lists	Bruk betalingslister
-185	Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervesformater). Hvis dette felt er afmærket	there will be extra fields on the cash journal for payment ID when posting creditor invoices	Med betalingslister kan du overføre betalinger til en bank via ERH (bankenes forretningsformater). Hvis dette feltet er merket av
+185	Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervsformater). Hvis dette felt er afmærket	there will be extra fields on the cash journal for payment ID when posting creditor invoices	Med betalingslister kan du overføre betalinger til en bank via ERH (bankenes forretningsformater). Hvis dette feltet er merket av
 186	Hvis dette felt afmærkes	the user is forced to actively select the debtor group when creating debtors.	Hvis dette feltet er merket av
 187	Hvis dette felt afmærkes	the user is forced to actively choose the customer manager when creating debtors.	Hvis dette feltet er merket av
 188	Hvis dette felt afmærkes	Comment lines from offers / orders on delivery notes are included.	Hvis dette feltet er merket av
@@ -2223,10 +2223,10 @@
 2223	Masse vare-scan	Bulk product scan	Masse vare-scan
 2224	Oversigt	Dashboard	Oversikt
 2225	Top 100 i perioden	Top 100 during the period	Topp 100 i perioden
-2226
-2227
-2228
-2229
+2226	Kasse	Cash Register	Kasse
+2227	Reg. nr.	Reg. no.	Reg. nr.
+2228	SWIFT nr.	SWIFT no.	SWIFT nr.
+2229	ERH kode	Bank code	Bankkode
 2230
 2231
 2232
