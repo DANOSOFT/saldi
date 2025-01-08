@@ -40,12 +40,12 @@
 40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
 41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Write a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
 42	Afmærk de felter som skal eksporteres.	Mark the fields to be exported.	Merk feltene som skal eksporteres.
-43	Kontonr.	Account No.	Kontonr.
+43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
 45	Adresse 2	Address 2	adresse 2
 46	By	City	By
 47	Land	Country	Land
-48	Cvr nr.	Vat No.	MVA nr.
+48	Cvr nr.	Vat no.	MVA nr.
 49	Tlf	Phone	Tlf
 50	Fax	Fax	Faks
 51	Web	Web	Internett
@@ -1173,7 +1173,7 @@
 1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
 1174	Kontonummer for valutakursdifferanser og avrunding av øret	Account number for exchange rate differences and year rounding	Kontonummer for valutakursdifferanser og avrunding av øret
 1175	Tilføj 	Add	Legge til
-1176	Leverandørnr	Supplier no	Leverandør nr
+1176	Leverandørnr.	Supplier no.	Leverandør nr.
 1177	FI kreditor nr.	FI creditor no.	FI kreditor nr.
 1178	Kort	Card	Kart
 1179	Bankoverf. med kort advisering	Bank transfer. with brief advice	Bankoverføring. med kort varsel

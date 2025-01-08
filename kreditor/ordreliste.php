@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 4.0.8 ----2023-10-17----------
+// --- kreditor/ordreliste.php -----patch 4.1.0 ----2024-05-08----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -226,6 +226,18 @@ if ($menu=='T') {
 			   .findtekst('643|Faktura', $sprog_id)."</button></a></td>";
 	}
 
+	if ($paperflow) {
+	print "</td><td width = 20% align=center ";
+		if ($valg=='skanBilag') {
+			print "<td width = '100px' align=center>
+				   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2182|Skan bilag', $sprog_id)."</button></td>";
+		} else {
+			print "<td width = 20% align=center><a href='ordreliste.php?sort=$sort&valg=faktura$hreftext'>
+				   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+				   .findtekst('2182|Skan bilag', $sprog_id)."</button></a></td>";
+		}
+	print "</td>";
+	}
 	print "</tbody></table></td>";
 	print "<td width=10% style='$buttonStyle'><a href=ordre.php?returside=ordreliste.php>
 		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a></td>";

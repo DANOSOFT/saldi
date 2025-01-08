@@ -63,6 +63,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
+include("../includes/topline_settings.php");
 
 if ($menu=='T') {
 	$title="Konti";
@@ -229,6 +230,27 @@ if ($menu=='T') {
 	print "<div class=\"headerbtnRght headLink\"><a accesskey=V href=kreditorvisning.php?valg=$valg title='Ændre ordrevisnig'><i class='fa fa-gear'></i></a> &nbsp; <a accesskey=N href='kreditorkort.php?returside=kreditor.php' title='Opret nyt leverandør kort'><i class='fa fa-plus-square'></i></a></div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>\n";
+	print "<tr><td height = 25 align=center valign=top>";
+	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>\n";
+
+	print "<tr><td width=10%><a href=$returside accesskey=L>
+		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst(30,$sprog_id)."</button></a></td>";
+
+	print "<td width = 80% align=center style='$topStyle'>".findtekst(607,$sprog_id)."</td>";
+
+	print "<td width=5%><a accesskey=V href=kreditorvisning.php?valg=$valg>
+		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst(813,$sprog_id)."</button></a></td>\n";
+
+	print "<td width=5%><a href=kreditorkort.php?returside=kreditor.php>
+		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		   .findtekst(39,$sprog_id)."</button></a></td></tr>\n";
+
+	print "</tbody></table>";
+	print " </td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"100%\">";
 } else {
 	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>\n";
 	print "<tr><td height = 25 align=center valign=top>";

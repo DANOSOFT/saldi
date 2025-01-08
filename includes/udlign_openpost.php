@@ -36,13 +36,13 @@
 // 2014.05.05 Flyttet $dkkamount[$x]=$amount[$x]*$valutakurs[$x]/100; ned under if ($valuta[$x]=='DKK') $valutakurs[$x]=100; (PHR Danosoft) Søg 20140505
 // 2014.05.27 indsat afrund forskellige steder for at undgå differ på 1 øre.(PHR Danosoft) Søg 20140527
 // 2015.03.01 Kontrol for at diff ikke overstiger maxdiff da det er lykkes for sundkiosken at oprette diffposteringer uden årsag 20150311
-// 2015.09.07	Fejl i rettelse fra 20130529. =! rettet til !=.
+// 2015.09.07 Fejl i rettelse fra 20130529. =! rettet til !=.
 // 2016.04.12 PHR !='DKK' rettet =='DKK' da maxdiff ikke relaterer til valutadiff.
 // 2016.04.14 PHR fjernet - foran 100 da der blev reguleret omvendt! #20160414
 // 2016.04.26 PHR '==' rettet til '='.  #20160426-1
 // 2016.04.26 PHR Indsat 'desc limit 1'. #20160426-2
-// 2016.04.26	PHR Rettet $diff til $tmp.  #20160426-3
-// 2016.10.28	PHR Rettet < til <=  da den gav posteringsdifference #20161028 
+// 2016.04.26 PHR Rettet $diff til $tmp.  #20160426-3
+// 2016.10.28 PHR Rettet < til <=  da den gav posteringsdifference #20161028 
 
 @session_start();
 $s_id=session_id();
@@ -53,10 +53,13 @@ $linjebg=$sum=NULL;
 $title="&Aring;benpostudligning";
 $css="../css/standard.css";
 
+global $menu;
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
+include("../includes/topline_settings.php");
 
 if (isset($_POST['submit'])) {
  	$submit=strtolower(trim($_POST['submit']));
@@ -268,6 +271,21 @@ if (!$diffkto) $maxdiff=0;
 #cho __line__." SUB $submit<br>";
 if (!isset($submit)) include ("../includes/alignOpenpostIncludes/findMatch.php");
 
+if ($menu=='S') {
+print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
+print "<tr><td colspan=8 align=center>";
+print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+
+print "<td width='10%' align=center>
+	   <a href=$retur?rapportart=kontokort&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&submit=ok>
+	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
+
+print "<td width='80%' align='center' style='$topStyle'>Udlign åbne poster<br></td>";
+
+print "<td width='10%' align='center' style='$topStyle'><br></td>";
+
+print " </tr></tbody></table></td></tr>";
+} else {
 print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 print "<tr><td colspan=8 align=center>";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>";
@@ -275,6 +293,7 @@ print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=$retur?rap
 print "<td width=\"80%\" align=center><div class=\"top_bund\">Udlign &aring;bne poster<br></div></td>";
 print "<td width=\"10%\"><div class=\"top_bund\"><br></div></td>";
 print " </tr></tbody></table></td></tr>";
+}
 		
 print "<tr><td><br></td></tr>";
 if (isset($submit) && $submit=='udlign') {

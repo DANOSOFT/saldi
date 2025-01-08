@@ -122,7 +122,7 @@ if ($_POST) {
 			$tmp2=$tmp2.$y;
 		}
 		$tmp2=(int)$tmp2;
-		if ($tmp2!=$ny_kontonr) {print "<BODY onLoad=\"javascript:alert('Kontonummer m&aring; kun best&aring; af heltal uden mellemrum')\">\n";}
+		if ($tmp2!=$ny_kontonr) {print "<BODY onLoad=\"javascript:alert('".findtekst('345|Kontonummer må kun bestå af heltal uden mellemrum', $sprog_id)."')\">\n";}
 		$ny_kontonr=$tmp2;
 	
  
@@ -295,30 +295,30 @@ print "<input type=hidden name=fokus value='$fokus'>\n";
 $bg=$bgcolor5;
 print "<tr bgcolor=$bg><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTableSmall'><tbody>\n"; # tabel 1.2.1 ->
 $bg=$bgcolor5;
-print "<tr bgcolor=$bg><td>".findtekst(1176,$sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst('1176|Leverandørnr.', $sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(646,$sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n"; #20210707
+print "<tr bgcolor=$bg><td>".findtekst('646|Navn', $sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n"; #20210707
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(361,$sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=addr1 value=\"$addr1\"  onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst('361|Adresse', $sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=addr1 value=\"$addr1\"  onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(362,$sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=addr2 value=\"$addr2\" onchange=\"javascript:docChange = true;\" ></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst('362|Adresse 2', $sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=addr2 value=\"$addr2\" onchange=\"javascript:docChange = true;\" ></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(363,$sprog_id)."</td><td><input class=\"inputbox\" type=text size=3 name=postnr value=\"$postnr\" onchange=\"javascript:docChange = true;\">";
+print "<tr bgcolor=$bg><td>".findtekst('363|Postnr./By', $sprog_id)."</td><td><input class=\"inputbox\" type=text size=3 name=postnr value=\"$postnr\" onchange=\"javascript:docChange = true;\">";
 print "<input class=\"inputbox\" type=text size=18 name=bynavn value=\"$bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(364,$sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=land value=\"$land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>".findtekst('364|Land', $sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=land value=\"$land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 print "<tr bgcolor=$bg><td>e-mail</td><td><input class=\"inputbox\" type=text size=25 name=email value=\"$email\" onchange=\"javascript:docChange = true;\"></td>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(367,$sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=web value=\"$web\" onchange=\"javascript:docChange = true;\"></td>\n";	
+print "<tr bgcolor=$bg><td>".findtekst('367|Hjemmeside', $sprog_id)."</td><td><input class=\"inputbox\" type=text size=25 name=web value=\"$web\" onchange=\"javascript:docChange = true;\"></td>\n";	
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td> ".findtekst(368,$sprog_id)."</td>\n";
+print "<tr bgcolor=$bg><td> ".findtekst('368|Betalingsbetingelse', $sprog_id)."</td>\n";
 print "<td><SELECT NAME=betalingsbet onchange=\"javascript:docChange = true;\">\n";
 print "<option>$betalingsbet</option>\n";
-if ($betalingsbet!='Forud') print "<option>".findtekst(369,$sprog_id)."</option>\n";
-if ($betalingsbet!='Kontant') print "<option>".findtekst(370,$sprog_id)."</option>\n";
-if ($betalingsbet!='Efterkrav') print "<option>".findtekst(371,$sprog_id)."</option>\n";
-if ($betalingsbet!='Netto') print "<option>".findtekst(372,$sprog_id)."</option>\n";
+if ($betalingsbet!='Forud') print "<option>".findtekst('369|Forud', $sprog_id)."</option>\n";
+if ($betalingsbet!='Kontant') print "<option>".findtekst('370|Kontant', $sprog_id)."</option>\n";
+if ($betalingsbet!='Efterkrav') print "<option>".findtekst('371|Efterkrav', $sprog_id)."</option>\n";
+if ($betalingsbet!='Netto') print "<option>".findtekst('372|Netto', $sprog_id)."</option>\n";
 if ($betalingsbet!='Lb. md.') print "<option>Lb. md.</option>\n";
 if (($betalingsbet=='Kontant')||($betalingsbet=='Efterkrav')||($betalingsbet=='Forud')) $betalingsdage='';
 elseif (!$betalingsdage) $betalingsdage='Nul';
@@ -328,7 +328,7 @@ if ($betalingsdage){
 } 
 print "</td></tr>\n";
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>".findtekst(1183,$sprog_id)."</td>\n";
+print "<tr bgcolor=$bg><td>".findtekst('1183|Kreditorgruppe', $sprog_id)."</td>\n";
 if (!$gruppe) {$gruppe=1;}
 $q = db_select("select beskrivelse from grupper where art='KG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
