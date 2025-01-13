@@ -127,20 +127,19 @@ const addEventListeners = (elements, event, handler) => {
 
 const singleItem = async (item) => {
   const searchInput = document.querySelector(".customers-search")
-
-    const optionsList = document.getElementById("customers").options
-    let selectedText
-    searchInput.addEventListener("change", () => {
-        const selectedValue = searchInput.value
-        
-        for (let i = 0; i < optionsList.length; i++) {
-            const option = optionsList[i]
-            if (option.text === selectedValue) {
-                selectedText = option.dataset.value
-                break // Exit loop once we find the matching option
-            }
-        }
-    })
+  const optionsList = document.getElementById("customers").options
+  let selectedText
+  searchInput.addEventListener("change", () => {
+      const selectedValue = searchInput.value
+      
+      for (let i = 0; i < optionsList.length; i++) {
+          const option = optionsList[i]
+          if (option.text === selectedValue) {
+              selectedText = option.dataset.value
+              break // Exit loop once we find the matching option
+          }
+      }
+  })
 
   // item already selected
   const itemsSelect = document.querySelector(".items")
@@ -176,6 +175,7 @@ const singleItem = async (item) => {
       closedDates.push(formattedDate)
     })
   }
+
   // Helper function to generate dates between two dates
   function generateDates(startDate, endDate) {
     const dates = []
@@ -201,7 +201,7 @@ const singleItem = async (item) => {
   }
 
   // get disabled dates from bookings 
-  const allDatesWithoutEnds = []
+/*   const allDatesWithoutEnds = []
   const allDatesWithoutStarts = []
   if(dates){
     dates.forEach(d => {
@@ -227,7 +227,7 @@ const singleItem = async (item) => {
       allDatesWithoutEnds.push(c)
       allDatesWithoutStarts.push(c)
     })
-  }
+  } */
 
   // get already booked dates
   const bookedDates = []
@@ -247,8 +247,6 @@ const singleItem = async (item) => {
   let fromDateData, toDateData, fromDate, addedDays, lastDay
   const addedDaysArray = []
   closedDates.push(...bookedDates)
-
-  
 
   const datePick = flatpickr(fromCalendar, {
     dateFormat: 'Y-m-d',
@@ -338,7 +336,6 @@ const singleItem = async (item) => {
       if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
         return
       }
-
       update()
     }
   })

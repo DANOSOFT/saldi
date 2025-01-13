@@ -388,3 +388,12 @@ export const getRemoteLink = async () => {
     headers: { "Content-Type": "application/json" },
   })
 }
+
+export const updateOrder = async (data) => {
+  const url = `${apiUrl}updateOrder`
+  return await fetchJson(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+}

@@ -1,0 +1,59 @@
+data: Array
+(
+    [booking_id] => 1374
+    [from] => 1734652800
+    [to] => 1743811200
+    [fromDate] => 2024-12-20
+    [toDate] => 2025-04-05
+    [days] => 107
+    [customer_id] => 942
+)
+
+data: Array
+(
+    [booking_id] => 1374
+    [from] => 1734652800
+    [to] => 1743811200
+    [fromDate] => 2024-12-20
+    [toDate] => 2025-04-05
+    [days] => 107
+    [customer_id] => 942
+    [item_id] => 254
+)
+
+data: Array
+(
+    [booking_id] => 1374
+    [from] => 1734652800
+    [to] => 1743811200
+    [fromDate] => 2024-12-20
+    [toDate] => 2025-04-05
+    [days] => 107
+    [customer_id] => 942
+    [item_id] => 254
+)
+
+data: Array
+(
+    [customer_id] => 291
+    [item_id] => 315
+    [from] => 1736899200
+    [to] => 1737417600
+    [fromDate] => 2025-01-15
+    [toDate] => 2025-01-21
+    [days] => 7
+    [booking_id] => 1461
+)
+
+data: Array
+(
+    [booking_id] => 1461
+    [from] => 1736899200
+    [to] => 1738022400
+    [fromDate] => 2025-01-15
+    [toDate] => 2025-01-28
+    [days] => 14
+    [customer_id] => 291
+    [item_id] => 315
+)
+
