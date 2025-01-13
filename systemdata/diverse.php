@@ -267,11 +267,15 @@ if ($_POST) {
 
 		$copay_api          = if_isset($_POST['copay_id']);
 		$nemhandel          = if_isset($_POST['nemhandel']);
+
+		$labelsize          = if_isset($_POST['labelsize']);
     
 		# Vibrant API save
 		if ($vibrant_api) {
 			update_settings_value("vibrant_auth", "globals", $vibrant_api, "The vibrant API key");
 		}
+
+	 	update_settings_value("labelsize", "mysale", $labelsize, "The maxlength of the labels in mysale");
 
 		#mobilePay
 		if ($mobilepay_client_id) {

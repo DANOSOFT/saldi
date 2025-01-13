@@ -782,6 +782,8 @@ function div_valg() {
 	}
 	array_multisort($itemGrpNo, SORT_ASC, $itemGrpName);
 
+	$labelsize = get_settings_value("labelsize", "mysale", 22);
+
 	print "<form name='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
 	print "<tr style='background-color:$bgcolor5'><td colspan='6'><b>".findtekst(794,$sprog_id)."</b></td></tr>\n";
 	print "<tr><td colspan='2'>&nbsp;</td></tr>\n";
@@ -824,6 +826,12 @@ function div_valg() {
 	print "<td title='".findtekst(768,$sprog_id)."'>\n";
 	print "<!-- 768 : Brug 'Mit salg' -->";
 	print "<input name='mySale' class='inputbox' type='checkbox' $mySale>\n";
+	print "</td></tr>\n";
+
+	print "<tr>\n<td title='".findtekst(2450,$sprog_id)."'>Label maxlength</td>\n";
+	print "<td title='".findtekst(2450,$sprog_id)."'>\n";
+	print "<!-- 768 : Brug 'Mit salg' -->";
+	print "<input name='labelsize' class='inputbox' type='text' value='$labelsize'>\n";
 	print "</td></tr>\n";
 /*
 	echo "mySale: $mySale <br>";
