@@ -88,6 +88,8 @@
 // 20220413 PHR Renamed pos_valg til posOptions and moved function to diverse/posOptions.php
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240130 PBLM Added Nemhandel (diverse valg)
+// 06-01-2025 PBLM Added a second file to api_valg
+
 	include("sys_div_func_includes/chooseProvision.php");
 
 ini_set('display_errors','0');
@@ -1770,6 +1772,7 @@ function api_valg() {
 	$ip_list=trim($r['box2']);
 	$api_bruger=trim($r['box3']);
 	$api_fil=trim($r['box4']);
+	$api_fil2=trim($r['box5']);
 
 	$x=0;
 	$q=db_select("select * from brugere order by brugernavn",__FILE__ . " linje " . __LINE__);
@@ -1798,10 +1801,12 @@ function api_valg() {
 			print "<tr><td title='".findtekst(820,$sprog_id)."'><!--tekst 820-->".findtekst(819,$sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst(819,$sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key'></td></tr>";
 			print "<tr><td title='".findtekst(822,$sprog_id)."'><!--tekst 822-->".findtekst(821,$sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst(822,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst(830,$sprog_id)."'><!--tekst 830-->".findtekst(829,$sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
+			print "<tr><td title='".findtekst(830,$sprog_id)."'><!--tekst 830-->".findtekst(829,$sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
 		} else {
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_key' value = '$api_key'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'>";
+			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil2' value= '$api_fil2'>";
 		}
 		print "<tr><td title='".findtekst(824,$sprog_id)."'><!--tekst 824-->".findtekst(823,$sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst(824,$sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
 		if ($api_bruger) {

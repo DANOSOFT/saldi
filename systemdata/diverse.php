@@ -80,6 +80,7 @@
 // 20221231 PHR	sektion 'bilag' box3 (ftp passwd) is now urlencoded as it failed with special characters in password. 
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240126 PBLM Added nemhandel (diverse valg)
+// 05-01-2025 PBLM Added a second file to api_valg
 
 @session_start();
 $s_id=session_id();
@@ -936,13 +937,14 @@ if ($_POST) {
 		$box2=db_escape_string(if_isset($_POST['ip_list']));
 		$box3=db_escape_string(if_isset($_POST['api_bruger']));
 		$box4=db_escape_string(if_isset($_POST['api_fil']));
+		$box5=db_escape_string(if_isset($_POST["api_fil2"]));
 
 		$qtxt=NULL;
 		if  ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'API' and kodenr='1'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
 		if (!$id) {
-			$qtxt="insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4) values ('API valg','1','API','$box1','$box2','$box3','$box4')";
+			$qtxt="insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ('API valg','1','API','$box1','$box2','$box3','$box4', '$box5')";
 		} elseif ($id > 0) {
-			$qtxt="update grupper set box1='$box1',box2='$box2',box3='$box3',box4='$box4' WHERE id = '$id'";
+			$qtxt="update grupper set box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5' WHERE id = '$id'";
 		}
 		if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	#######################################################################################

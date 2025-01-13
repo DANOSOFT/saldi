@@ -111,6 +111,8 @@
 // 20240416 LOE Converted some strings to int before maths operation and also Initialized $bynavn = null 
 // 20240726 PHR function findtekst now accepts textstring as first argument
 // 20240815 PHR function findtekst moved to stdFunc/findTxt.php
+// 06-01-2025 PBLM changed hent_shop_order to include a second api client
+// 06-01-2025 PBLM changed sync_shop_vare to include a second api client
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -1084,7 +1086,6 @@ if (!function_exists('lagerreguler')) {
 		$qtxt = "select box4 from grupper where art='API'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$api_fil = trim($r['box4']);
-
 		if ($lager < 1)
 			$lager = 1;
 
@@ -1251,9 +1252,11 @@ if (!function_exists('hent_shop_ordrer')) {
 	function hent_shop_ordrer($shop_ordre_id, $from_date)
 	{
 		global $db;
-		$qtxt = "select box4 from grupper where art='API'";
-		($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $api_fil = trim($r['box4']) : $api_fil = 0;
+		$qtxt = "select box4, box5 from grupper where art='API'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))
+		($r['box4']) ? $api_fil = trim($r['box4']) : $api_fil = 0;
 		if ($api_fil) {
+			file_put_contents("../temp/$db/ny_shop.txt", $r["box5"]);
 			if (file_exists("../temp/$db/shoptidspkt.txt")) {
 				$tidspkt = trim(file_get_contents("../temp/$db/shoptidspkt.txt"));
 			} else
@@ -1268,6 +1271,15 @@ if (!function_exists('hent_shop_ordrer')) {
 				if ($from_date)
 					$api_txt .= "&from_date=$from_date";
 				exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+				
+				if($r["box5"]){
+					$api_txt = "$r[box5]?put_new_orders=1";
+				if ($shop_ordre_id)
+					$api_txt .= "&ordre_id=$shop_ordre_id";
+				if ($from_date)
+					$api_txt .= "&from_date=$from_date";
+				exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+				}
 			}
 		}
 	}
@@ -1280,13 +1292,14 @@ if (!function_exists('alert')) {
 }
 if (!function_exists('sync_shop_vare')) {
 	function sync_shop_vare($vare_id, $variant_id, $lager) {
-		global $db;
+		global $bruger_id,$db;
 		$costPrice = 0;
 		$log = fopen("../temp/$db/rest_api.log", "a");
-		$qtxt = "select box4 from grupper where art='API'";
+		$qtxt = "select box4, box5 from grupper where art='API'";
 		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
+		$api_fil2 = trim($r["box5"]);
 		if (!$api_fil) {
 			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
 			fclose($log);
@@ -1328,9 +1341,17 @@ if (!function_exists('sync_shop_vare')) {
 			$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
 			fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 			exec("nohup $txt > /dev/null 2>&1 &\n");
+			if($api_fil2){
+				$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil2?update_stock=$shop_id";
+				$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
+				fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
+				exec("nohup $txt > /dev/null 2>&1 &\n");
+			}
 		} else {
-			$qtxt = "select varer.varenr, varer.kostpris, lagerstatus.beholdning as stock from lagerstatus,varer ";
+
+			$qtxt = "select varer.varenr, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
 			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
+
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$stock = $r['stock'];
 				$itemNo = $r['varenr'];
@@ -1347,15 +1368,47 @@ if (!function_exists('sync_shop_vare')) {
 				$shop_id = $r['itemNo'];
 			else
 				$shop_id = 0;
+
+
+			$qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$salesPrice = $r['salgspris'];
+				$discountType = $r['m_type'];
+				$discount = $r['m_rabat'];
+				$itemNo = $r['varenr'];
+				$costPrice = $r['kostpris'];
+				$retailPrice = $r["retail_price"];
+				$webFragt = $r["colli_webfragt"];
+				$stregkode = $r["stregkode"];
+				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt";
+				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				if($api_fil2){
+					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt";
+					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				}
+			}
 			if (($shop_id || $itemNo) && is_numeric($stock)) {
 				$rand = rand();
 				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-				$txt .= "&stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$itemNo") . "&rand=$rand";
+				if($api_fil2){
+					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
+					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				}
+					$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
+					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				if($api_fil2){
+					$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
+					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				}
 				if ($partOfItem) {
 					$x = 0;
 					$partOf = array();
@@ -1376,20 +1429,36 @@ if (!function_exists('sync_shop_vare')) {
 					}
 					for ($x = 0; $x < count($partOf); $x++) {
 						$shop_id = 0;
-						$qtxt = "select varenr from varer where id = $partOf[$x]";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-							$itemNo = $r['varenr'];
+						$qtxt = "select varenr,kostpris from varer where id = '$partOf[$x]'";
+#if ($bruger_id == '-1') echo __line__." $qtxt<br>";
+						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+							$costPrice = $r['kostpris'];
+							$productNo = $r['varenr'];
+						}
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
 						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-							$shop_id = $r['shop_id'];
+						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
 						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
-						$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil?update_stock=$shop_id";
-						$txt .= "&stock=$stock&totalStock=$totalStock&stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$itemNo");
+						$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
+						$txt .= "stockno=$lager&costPrice=$costPrice&sku=" . urlencode("$productNo");
 						$txt .= "&file=" . __FILE__ . "&line=" . __LINE__ . "'";
 						fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-						exec("/usr/bin/nohup $txt > /dev/null 2>&1 &\n");
-					}
+						exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						if($api_fil2){
+							$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
+							$txt .= "stockno=$lager&costPrice=$costPrice&sku=" . urlencode("$productNo");
+							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__ . "'";
+							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
+							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						}
+						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo"); 
+						shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						if($api_fil2){
+							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo"); 
+							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						}
 				}
+					}
 			}
 		}
 		return ('OK');
