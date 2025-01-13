@@ -5,6 +5,7 @@
     @session_start();
     $s_id=session_id();
     include("../includes/connect.php");
+    include("../includes/var2str.php");
 
     // Getting the api key and tenant id from the database
    /*  $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
@@ -35,13 +36,9 @@
         }
         // get domain name
         $domain = "https://".$_SERVER['SERVER_NAME'];
-        if($domain == "https://ssl8.saldi.dk"){
-            $webhookUrl = "$domain/laja/debitor/easyUBL.php";
-        }else if($domain == "https://ssl5.saldi.dk"){
-            $webhookUrl = "$domain/finans/debitor/easyUBL.php";
-        }else{
-            $webhookUrl = "$domain/pos/debitor/easyUBL.php";
-        }
+        $path = trim($_SERVER['REQUEST_URI'], '/');
+        $firstFolder = explode('/', $path)[0];
+        $webhookUrl = "$domain/$firstFolder/debitor/easyUBL.php";
         $data = [
             "name" => $res["firmanavn"],
             "cvr" => "DK".$res["cvrnr"],
@@ -105,6 +102,7 @@
             $response = curl_exec($ch);
             $response = json_decode($response, true);
             curl_close($ch);
+            echo $response;
             $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
@@ -175,6 +173,7 @@
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $result = curl_exec($ch);
+        
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
         file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
@@ -214,11 +213,17 @@
         file_put_contents("../temp/$db/$randomString.html", $result);
         curl_close($ch);
 
+        $ch = curl_init("increaseInvoiceNumber.php?db=$db");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $res = curl_exec($ch);
+        curl_close($ch);
+
         return $randomString;
     }
 
     // Setting up the invoice data
     function sendInvoice($id, $type) {
+				global $db;
         $query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
         $adresse = db_fetch_array($query);
         $query = db_select("SELECT * FROM ordrer WHERE id = $id", __FILE__ . " linje " . __LINE__);
@@ -228,7 +233,7 @@
             $initials[$key] = substr($value, 0, 1);
         }
         $initials = implode("", $initials);
-        if($type == "creditnote"){
+        if($r_faktura["art"] == "DK"){
             $creditNote = "Cre";
         }else{
             $creditNote = "Inv";
@@ -236,7 +241,7 @@
         // check if the ean number is 13 characters long
         if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
             $endpointId = $r_faktura["ean"];
-            $endpointType = "EAN";
+            $endpointType = "GLN";
         }else if($_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === true){
             // split at ean at : and take the first part
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
@@ -274,11 +279,11 @@
         }
         $data = [
             "invoiceCreditnote" => $creditNote,
-            "id" => $r_faktura["id"],
+            "id" => $r_faktura["fakturanr"],
             "issueDate" => date("c", strtotime($r_faktura["fakturadate"])),
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => date("c", strtotime($r_faktura["levdate"])),
-            "salesOrderID" => $r_faktura["ordrenr"],
+            "salesOrderID" => $r_faktura["kundeordnr"],
             "note" => $r_faktura["notes"],
             "buyerReference" => "",
             "accountingCost" => "0",
@@ -325,34 +330,54 @@
     
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         while ($res = db_fetch_array($query)) {
-            if ($res["rabat"] > 0) {
-                $discAmount = round((float)$res["pris"] * ((float)$res["rabat"] / 100), 0);
-                $price = (float)$res["pris"] - $discAmount;
-                $price = $price*0.80;
+            /* $res["pris"] = abs($res["pris"]);
+            $res["rabat"] = abs($res["rabat"]);
+            $res["antal"] = abs($res["antal"]);
+            $res["momssats"] = abs($res["momssats"]); */
+            $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
+            if(trim($res["beskrivelse"]) == ""){
+                continue;
+            }
+            file_put_contents("../temp/$db/ordrelinjer.json", json_encode($res, JSON_PRETTY_PRINT), FILE_APPEND);
+            if($res["rabat"] > 0) {
+                $price = $res["pris"];
+                $price *= ($res["procent"]/100);
                 $discPrct = $res["rabat"];
-            } else {
-                $price = (float)$res["pris"]*1.25;
+                $discAmount = $price * ($discPrct / 100) * $res["antal"];
+                $lineAmount = $res["antal"] * ($price - ($price/100 * $discPrct));
+            }else{
+                $price = $res["pris"];
+                $price *= ($res["procent"]/100);
                 $discAmount = 0;
                 $discPrct = 0;
+                $lineAmount = $res["antal"] * $price; 
             }
+            if($res["momssats"] == null){
+                $res["momssats"] = 0;
+            }
+            // remove html tags from the description (beskrivelse)
+            
+            $beskrivelse = var2str($res["beskrivelse"], $id, $res['posnr'], $res["varenr"], $res["antal"], $res["enhed"], $price, $res["rabat"], $res["procent"], $res["serienr"], $res["momssats"]);
             $line[] = array(
                 "id" => $res["id"],
-                "quantity" => round($res["antal"], 0),
+                "quantity" => $res["antal"],
                 "quantityUnitCode" => "EA",
                 "price" => $price,
-                "discountPercent" => round((float)$discPrct, 0),
+                "discountPercent" => $discPrct,
                 "discountAmount" => $discAmount,
-                "vatPercent" => round($res["momssats"], 0),
-                "lineAmount" => $price,
-                "priceInclTax" => true,
-                "taxOnProfit" => true,
+                "vatPercent" => ($res["momssats"] != "" && $res["momssats"] != null) ? $res["momssats"] : 0,
+                "lineAmount" => $lineAmount,
+                "priceInclTax" => false,
+                "taxOnProfit" => false,
                 "name" => ($res["varenr"] != "" && $res["varenr"] != null && $res["varenr"] != "null") ? $res["varenr"] : "txt",
-                "description" => $res["beskrivelse"],
+                "description" => $beskrivelse,
                 "accountingCost" => "",
-                "commodityCode" => ""
+                "commodityCode" => "",
+                "isAllowanceCharge" => false,
             );
         }
         $data["invoiceLines"] = $line;
+        file_put_contents("../temp/$db/data.json", json_encode($data, JSON_PRETTY_PRINT), FILE_APPEND);
         /* echo json_encode($data, JSON_PRETTY_PRINT); */
         $name = getInvoicesOrder($data, "https://EasyUBL.net/api/SendDocuments/InvoiceCreditnote/", $id);
         
@@ -510,6 +535,7 @@
                 $discAmount = 0;
                 $discPrct = 0;
             }
+            $beskrivelse = var2str($res["beskrivelse"], $id, $res['posnr'], $res["varenr"], $res["antal"], $res["enhed"], $price, $res["rabat"], $res["procent"], $res["serienr"], $res["momssats"]);
             $line[] = array(
                 "id" => $res["id"],
                 "quantity" => round($res["antal"], 0),
@@ -522,7 +548,7 @@
                 "priceInclTax" => true,
                 "taxOnProfit" => true,
                 "name" => $res["varenr"],
-                "description" => $res["beskrivelse"],
+                "description" => $beskrivelse,
                 "accountingCost" => "",
                 "commodityCode" => ""
             );
