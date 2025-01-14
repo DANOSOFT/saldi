@@ -550,7 +550,7 @@ if (!$makeSuggestion && !$csv) {
 	print "<td>$spantitle<input class=\"inputbox\" type=\"text\" style=\"width:600px\" name=\"beskrivelse\" value="; 
 	if (strstr($beskrivelse,"'")) print "\"$beskrivelse\"";
 	else print "'$beskrivelse'";
-	print ">&nbsp;<input class='button gray small' type=\"submit\" value=\"S&oslash;g\" name=\"submit\"></span></td>";
+	print ">&nbsp;<input class='button gray small' type=\"submit\" value=\"".findtekst('913|Søg', $sprog_id)."\" name=\"submit\"></span></td>";
 	if ($showTrademark) print "<td></td>";
 	print "<td colspan=5 align=right></td></tr>\n";
 }

@@ -27,6 +27,9 @@ $title="Modtageliste";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
+
+global $menu;
 
 $sort=isset($_GET['sort'])? $_GET['sort']:Null;
 $rf=isset($_GET['rf'])? $_GET['rf']:Null;
@@ -40,34 +43,64 @@ if (!$sort) {
 if ($popup) $returside="../includes/luk.php";
 else $returside="../index/menu.php";
 
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\"><a accesskey=N href='modtagelse.php?returside=modtageliste.php&tjek=-1' title='Klik her for at oprette en ny modtagelse'><i class='fa fa-plus-square fa-lg'></i></a></div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
+
+} elseif ($menu=='S') {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
+		   <tr><td height = \"25\" align=\"center\" valign=\"top\">
+		   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>
+
+		   <td width='10%'><a href=$returside accesskey=L>
+		   <button style='$buttonStyle; width:100%' title='".findtekst('2230|Klik her for at lukke modtagelisten', $sprog_id)."' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>
+
+		   <td width='80%' align='center' style='$topStyle'>".findtekst('963|Modtageliste', $sprog_id)."</td>
+
+		   <td width='10%'><a href=modtageliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N>
+		   <button style='$buttonStyle; width:100%' title='".findtekst('2231|Klik her for at oprette en ny modtagelse', $sprog_id)."' onMouseOver=\"this.style.cursor='pointer'\" onClick=\"javascript:liste=window.open('modtagelse.php?returside=modtageliste.php&tjek=-1','liste','<?php echo $jsvars ?>');liste.focus();\">".findtekst(39,$sprog_id)."</button></a></td>
+
+		   </tbody></table>
+		   </td></tr>
+		   <tr><td valign=\"top\">
+		   <table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
+} else {
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
 		<tr><td height = \"25\" align=\"center\" valign=\"top\">
 		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>
-		<td width=\"10%\"  title=\"Klik her for at lukke modtagelisten\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$returside accesskey=L>Luk</a></td>
-		<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Modtageliste</td>
-		<td width=\"10%\" title=\"Klik her for at oprette en ny modtagelse\" $top_bund onClick=\"javascript:liste=window.open('modtagelse.php?returside=modtageliste.php&tjek=-1','liste','<?php echo $jsvars ?>');liste.focus();\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=modtageliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N>Ny</a></td>
+		<td width=\"10%\"  title=\"".findtekst('2230|Klik her for at lukke modtagelisten', $sprog_id)."\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$returside accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>
+		<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('963|Modtageliste', $sprog_id)."</td>
+		<td width=\"10%\" title=\"".findtekst('2231|Klik her for at oprette en ny modtagelse', $sprog_id)."\" $top_bund onClick=\"javascript:liste=window.open('modtagelse.php?returside=modtageliste.php&tjek=-1','liste','<?php echo $jsvars ?>');liste.focus();\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=modtageliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>
 		</tbody></table>
 		</td></tr>
 		<tr><td valign=\"top\">
 		<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
+}
 
-if ($vis=='alle') {print "<tr><td colspan=6 align=center><a href=modtageliste.php?sort=$sort&rf=$rf>Vis egne</a></td></tr>";}
-else {print "<tr><td colspan=6 align=center title='Klik her for at se alle lister'><a href=modtageliste.php?sort=$sort&rf=$rf&vis=alle>Vis alle</a></td></tr>";}
+if ($vis=='alle') {print "<tr><td colspan=6 align=center><a href=modtageliste.php?sort=$sort&rf=$rf>".findtekst('641|Vis egne', $sprog_id)."</a></td></tr>";}
+else {print "<tr><td colspan=6 align=center title='Klik her for at se alle lister'><a href=modtageliste.php?sort=$sort&rf=$rf&vis=alle>".findtekst('636|Vis alle', $sprog_id)."</a></td></tr>";}
 if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';}
 else {$linjebg=$bgcolor5; $color='#000000';}
 print "<tr bgcolor=\"$linjebg\">";
 if (($sort == 'id')&&(!$rf)) {print "<td width = 5%><b><a href=modtageliste.php?sort=id&rf=desc>Id</a></b></td>\n";}
 else {print "<td width = 5% title='Klik her for at sortere p&aring; ID'><b><a href=modtageliste.php?sort=id>Id</a></b></td>\n";}
-if (($sort == 'listedate')&&(!$rf)) {print "<td width = 10%><b><a href=modtageliste.php?sort=listedate&rf=desc>Dato</a></b></td>\n";}
-else {print "<td width = 10% title='Klik her for at sortere p&aring; dato'><b><a href=modtageliste.php?sort=initdate>Dato</a></b></td>\n";}
-if (($sort == 'init_af')&&(!$rf)) {print "<td><b><a href=modtageliste.php?sort=init_af&rf=desc>Oprettet af</a></b></td>\n";}
-else {print "<td title='Klik her for at sortere p&aring; ejer (den der har oprettet modtagelsen)'><b><a href=modtageliste.php?sort=init_af>Oprettet af</a></b></td>\n";}
+if (($sort == 'listedate')&&(!$rf)) {print "<td width = 10%><b><a href=modtageliste.php?sort=listedate&rf=desc>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";}
+else {print "<td width = 10% title='Klik her for at sortere p&aring; dato'><b><a href=modtageliste.php?sort=initdate>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";}
+if (($sort == 'init_af')&&(!$rf)) {print "<td><b><a href=modtageliste.php?sort=init_af&rf=desc>".findtekst('958|Oprettet af', $sprog_id)."</a></b></td>\n";}
+else {print "<td title='Klik her for at sortere p&aring; ejer (den der har oprettet modtagelsen)'><b><a href=modtageliste.php?sort=init_af>".findtekst('958|Oprettet af', $sprog_id)."</a></b></td>\n";}
 #if (($sort == 'listenote')&&(!$rf)) {print "<td width = 70%><b><a href=modtageliste.php?sort=listenote&rf=desc>Bem&aelig;rkning</a></b></td>\n";}
 #else {print "<td width = 70% title='Klik her for at sortere p&aring; bem&aelig;rkning'><b><a href=modtageliste.php?sort=listenote>Bem&aelig;rkning</a></b></td>\n";}
-if (($sort == 'modtaget_af')&&(!$rf)) {print "<td><b><a href=modtageliste.php?sort=modtaget_af&rf=desc>Modtaget af</a></b></td>\n";}
-else {print "<td title='Klik her for at sortere p&aring; \"bogf&oslash;rt af\"'><b><a href=modtageliste.php?sort=modtaget_af>Modtaget af</a></b></td>\n";}
-if (($sort == 'modtagdate')&&(!$rf)) {print "<td><b><a href=modtageliste.php?sort=modtagdate&rf=desc>Modtagelsesdato</a></b></td>\n";}
-else {print "<td><b><a href=modtageliste.php?sort=modtagdate>Modtagelsesdato</a></b></td>\n";}
+if (($sort == 'modtaget_af')&&(!$rf)) {print "<td><b><a href=modtageliste.php?sort=modtaget_af&rf=desc>".findtekst('959|Modtaget af', $sprog_id)."</a></b></td>\n";}
+else {print "<td title='Klik her for at sortere p&aring; \"bogf&oslash;rt af\"'><b><a href=modtageliste.php?sort=modtaget_af>".findtekst('959|Modtaget af', $sprog_id)."</a></b></td>\n";}
+if (($sort == 'modtagdate')&&(!$rf)) {print "<td><b><a href=modtageliste.php?sort=modtagdate&rf=desc>".findtekst('960|Modtagelsesdato', $sprog_id)."</a></b></td>\n";}
+else {print "<td><b><a href=modtageliste.php?sort=modtagdate>".findtekst('960|Modtagelsesdato', $sprog_id)."</a></b></td>\n";}
 print "</tr>\n";
 $tjek=0;
 #$sqhost = "localhost";

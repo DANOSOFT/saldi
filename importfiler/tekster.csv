@@ -638,7 +638,7 @@
 638	Af	Of	Av
 639	Kladdeliste	Draft list	Utkastliste
 640	Du opretter en ny kassekladde ved at klikke på	Create a new cash journal by clicking	Du oppretter en ny kontantjournal ved å klikke
-641	vis egne	show owner	vis egne
+641	Vis egne	Show own	Vis egne
 642	øverst til højre	at the top right	øverst til høyre
 643	Faktura	Invoice	Faktura
 644	Opslag	Lookup	Oppslag
@@ -2227,8 +2227,8 @@
 2227	Reg. nr.	Reg. no.	Reg. nr.
 2228	SWIFT nr.	SWIFT no.	SWIFT nr.
 2229	ERH kode	Bank code	Bankkode
-2230
-2231
+2230	Klik her for at lukke modtagelisten	Click here to close the receipt list	Klikk her for å lukke mottakerlisten
+2231	Klik her for at oprette en ny modtagelse	Click here to create a new receipt	Klikk her for å opprette en ny mottakelse
 2232
 2233
 2234
