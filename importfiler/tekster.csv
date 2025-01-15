@@ -958,8 +958,8 @@
 958	Oprettet af	Created by	Laget av
 959	Modtaget af	Received by	Mottatt av
 960	Modtagelsesdato	Date of receipt	Dato for kvitering
-961	Du opretter en ny modtagelse ved at klikke på<u>Ny</u> øverst til højre.	To create a new receipt, click <u> New </u> at the top right.	For å opprette et nytt mottak, klikk <u> Ny </u> øverst til høyre.
-962	Du kan se dine kollegers lister ved at klikke på <u>Vis alle</u>.	You can view your colleagues' lists by clicking <u> Show All </u>.	Du kan se kollegelistene dine ved å klikke <u> Vis alle </u>.
+961	Du opretter en ny modtagelse ved at klikke på <u>Ny</u> øverst til højre.	To create a new receipt, click <u>New</u> at the top right.	For å opprette et nytt mottak, klikk <u>Ny</u> øverst til høyre.
+962	Du kan se dine kollegers lister ved at klikke på <u>Vis alle</u>.	You can view your colleagues' lists by clicking <u>Show all</u>.	Du kan se kollegelistene dine ved å klikke <u>Vis alle</u>.
 963	Modtageliste	Receipt list	Kvitteringsliste
 964	Varerapport - forside	Item report - front page	Varerapport - forsiden
 965	Varerapport	Item report	Varerapport
@@ -2229,10 +2229,10 @@
 2229	ERH kode	Bank code	Bankkode
 2230	Klik her for at lukke modtagelisten	Click here to close the receipt list	Klikk her for å lukke mottakerlisten
 2231	Klik her for at oprette en ny modtagelse	Click here to create a new receipt	Klikk her for å opprette en ny mottakelse
-2232
-2233
-2234
-2235
+2232	Optalt i alt	A total of	I alt
+2233	varer ud fra en samlet vareliste på	items counted from a total inventory of	varer telt ut fra en samlet vareliste på
+2234	lagerførte varer.	stocked items.	lagerførte varer.
+2235	Samlet lagerværdi pr.	Total inventory value as of	Samlet lagerværdi per
 2236
 2237
 2238

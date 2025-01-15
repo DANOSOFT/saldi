@@ -166,9 +166,9 @@ $tjek=0;
 	}
 	if (!$tjek) {
 		print "<tr><td colspan=5 height=25> </td></tr>"; 
-		print "<tr><td colspan=3 align=right>TIP 1: </td><td>Du opretter en ny modtagelse ved at klikke p&aring; <u>Ny</u> &oslash;verst til h&oslash;jre.</td></tr>"; 
+		print "<tr><td colspan=3 align=right>TIP 1: </td><td>".findtekst('961|Du opretter en ny modtagelse ved at klikke på Ny øverst til højre.', $sprog_id)."</td></tr>"; 
 		if (db_fetch_array(db_select("select * from modtageliste",__FILE__ . " linje " . __LINE__))) {
-			print "<tr><td colspan=3 align=right>TIP 2: </td><td>Du kan se dine kollegers lister ved at klikke p&aring; <u>Vis alle</u>.</td></tr>"; 
+			print "<tr><td colspan=3 align=right>TIP 2: </td><td>".findtekst('962|Du kan se dine kollegers lister ved at klikke på Vis alle.', $sprog_id)."</td></tr>"; 
 		}
 	}
 ?>

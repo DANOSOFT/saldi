@@ -49,14 +49,17 @@ $s_id=session_id();
 
 ini_set('max_execution_time', 1200);
 
-$css="../css/standard.css";
-$title="lageropt&aelig;lling";
-$modulnr=15;
-$lagernr=array();
+include("../includes/std_func.php");
+
+$css = "../css/standard.css";
+$modulnr = 15;
+$lagernr = array();
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+include("../includes/topline_settings.php");
+
+$title = findtekst('1956|Lageroptælling', $sprog_id);
 
 if ($popup) $returside="../includes/luk.php";
 else $returside="rapport.php";
@@ -158,15 +161,36 @@ while($r=db_fetch_array($q)){
 	$lagernavn[$x]=$r['beskrivelse'];
 	$x++;
 }
+
+global $menu;
 $vnr=$varenr;
-print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
-print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
-print "<td width=10% $top_bund><a href=$returside accesskey=L>Luk</a></td>\n";
-print "<td width=80% $top_bund>$title</td>\n";
-print "<td width=10% $top_bund>";
-($importer)? print "<a href=optalling.php>Afbryd</a>":print "<a href=optalling.php?importer=1&lager=$lager&dato=$dato>Importer</a>";
-print "</a><br></td>\n";
-print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
+
+if ($menu=='S') {
+	// print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
+	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
+
+	print "<td width=10%><a href=$returside accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+
+	print "<td width=80% style='$topStyle' align='center'>$title</td>";
+
+	print "<td width=10%>";
+	($importer)? print "<a href=optalling.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('81|Afbryd', $sprog_id)."</button>"
+			   : print "<a href=optalling.php?importer=1&lager=$lager&dato=$dato><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1356|Importér', $sprog_id)."</button>";
+	print "</a></td>";
+
+	print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
+} else {
+	print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
+	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
+	print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></td>\n";
+	print "<td width=80% $top_bund>$title</td>\n";
+	print "<td width=10% $top_bund>";
+	($importer)? print "<a href=optalling.php>".findtekst('81|Afbryd', $sprog_id)."</a>":print "<a href=optalling.php?importer=1&lager=$lager&dato=$dato>".findtekst('1356|Importér', $sprog_id)."</a>";
+	print "</a><br></td>\n";
+	print "</tbody></table name=\"tabel_1.1\"></td></tr>\n"; # <- tabel 1.1
+}
+
 if ($vis_ej_exist) $vis_ej_exist="<a href=\"../temp/$db/optael_ej_exist.txt\" target=\"blank\">Ikke oprettede varer</a>";
 print "<tr><td>$vis_ej_exist<br></td></tr>\n";
 
@@ -299,9 +323,9 @@ if ($varenr=trim($varenr)) {
 } else {
 	$fokus="varenr";
 	print "<tr>
-	<td align=\"center\">Dato</td><td align=\"center\"></td>";
+	<td align=\"center\">".findtekst('438|Dato', $sprog_id)."</td><td align=\"center\"></td>";
 	if (count($lagernr)) print "<td align=\"center\">Lager</td>";
-	print "<td align=\"center\">Varenummer / Stregkode</td></tr>";
+	print "<td align=\"center\">".findtekst('2193|Varenummer / Stregkode', $sprog_id)."</td></tr>";
 	print "<tr><td align=\"center\"><input style=\"width:100px;text-align:left;\" type=\"text\" name=\"dato\" value=\"".dkdato($date)."\"></td><td align=\"center\">";
 #cho count($lagernr)."<br>";
 	if (count($lagernr)) {
@@ -316,9 +340,9 @@ if ($varenr=trim($varenr)) {
 		print "</select></td>";	
 	}
 	
-	$titletxt="Opslag tager ikke hensyn til store og små bogstaver. ";
-	$titletxt.="Ønskes opslag på blot en del af varenummeret, så brug % for et antal vilkårlige tegn og _ for et enkelt vilkårligt tegn.";
-	$titletxt.="Eksempel: d_d% vil finde dvd, Dvd-afspiller og Dadida.";
+	$titletxt = findtekst('2194|Opslag tager ikke hensyn til store og små bogstaver.', $sprog_id)." ";
+	$titletxt .= findtekst('2195|Ønskes opslag på blot en del af varenummeret, så brug % for flere vilkårlige tegn, og _ for et enkelt vilkårligt tegn.', $sprog_id). " ";
+	$titletxt .= findtekst('2196|Eksempel: d_d% vil finde dvd, Dvd-afspiller og Dadida.', $sprog_id);
 	print "<td align=\"center\" title=\"$titletxt\"><input style=\"width:300px;text-align:left;\" type=\"text\" name=\"varenr\"></td>\n";
 }
 
@@ -356,6 +380,7 @@ function vis_optalling($lager,$vnr,$gentael) {
 	global $bgcolor,$bgcolor2;
 	global $regnaar;
 	global $dato;
+	global $sprog_id;
 
 
 	$behold=$kpris=$lagervalue=$opt=$vareantal=0;
@@ -473,8 +498,8 @@ for ($x=1;$x<=$antal;$x++) {
 		$vareantal+=$r['antal'];
 #		if ($antal) {	
 			print "<tr><td colspan=\"8\">";
-			if ($antal) print "Optalt ialt $antal varer udfra en samlet vareliste på $vareantal lagerf&oslash;rte varer.";
-			print "Klik <a href=optalling.php?vis_ej_optalt=1&dato=$dato&lager=$lager>her</a> for liste over ikke optalte varer";
+			if ($antal) print findtekst('2232|Optalt i alt', $sprog_id)." $antal ".findtekst('2233|varer ud fra en samlet vareliste på', $sprog_id)." $vareantal ".findtekst('2234|lagerførte varer.', $sprog_id);
+			print findtekst('2197|Klik', $sprog_id)." <a href=optalling.php?vis_ej_optalt=1&dato=$dato&lager=$lager>".findtekst('2157|her', $sprog_id)."</a> ".findtekst('2198|for liste over ikke optalte varer', $sprog_id);
 			print "<td></tr>"; 
 			print "<tr><td colspan=\"8\">";
 			#21130109 - linjen herunder
@@ -491,6 +516,7 @@ function vis_ej_optalt($lager) {
 	global $bgcolor;
 	global $bgcolor2;
 	global $dato; # 20140625
+	global $sprog_id;
 	
 	$date=usdate($dato); # 20140625
 
@@ -508,8 +534,8 @@ function vis_ej_optalt($lager) {
 		else $gruppe="gruppe = '".$r['kodenr']."'";
 	}
 	if ($gruppe) { #20140625
-		print "<tr bgcolor=\"$baggrund\"><td colspan=\"7\" align=\"center\"><b><big>----- Ikke optalte varer pr $dato -----</b></big></td><tr>\n";
-		print "<tr bgcolor=\"$baggrund\"><td>Varenr</td><td>Beskrivelse</td><td align=\"right\">Beholdning</td><td align=\"right\">Kostpris</td><td align=\"right\">Lagerv&aelig;rdi</td><td align=\"right\">Lagerv&aelig;rdi&nbsp;sum</td><tr>\n";
+		print "<tr bgcolor=\"$baggrund\"><td colspan=\"7\" align=\"center\"><b><big>----- ".findtekst('2199|Ikke-optalte varer pr', $sprog_id)." $dato -----</b></big></td><tr>\n";
+		print "<tr bgcolor=\"$baggrund\"><td>".findtekst('917|Varenr.', $sprog_id)."</td><td>".findtekst('914|Beskrivelse.', $sprog_id)."</td><td align=\"right\">".findtekst('980|Beholdning.', $sprog_id)."</td><td align=\"right\">".findtekst('950|Kostpris.', $sprog_id)."</td><td align=\"right\">".findtekst('596|Lagerværdi.', $sprog_id)."</td><td align=\"right\">".findtekst('2200|Lagerværdi sum', $sprog_id)."</td><tr>\n";
 
 		$q=db_select("select * from varer where ($gruppe) and lukket != 'on' order by varenr",__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
@@ -757,8 +783,8 @@ function bogfor($lager,$nulstil_ej_optalt,$dato,$bogfor,$godkend_regdif) {
 								$qtxt.="($vare_id[$v],'0','$transdate','$transdate','0','$tmp','$kostpris[$v]','$tmp','$lager','$variant_id[$v]')";
 								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 							} else {
-								$y=0;
-								$restsum=0;
+								$y = 0;
+								$restsum = 0;
 								$qtxt="select id,rest from batch_kob where vare_id='$vare_id[$v]' and variant_id='$variant_id[$v]'  and kobsdate <= '$transdate' and rest > '0' and lager='$lager' ";
 								$qtxt.="order by kobsdate";
 								$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1106,6 +1132,7 @@ function importer($lager,$dato){
 	global $charset;
 	global $db;
 	global $bruger_id;
+	global $sprog_id;
 
 
 	$indsat=0;
@@ -1288,23 +1315,23 @@ if (is_array($variant_id)) exit;
 		if (!$dato) $dato=date("d-m-Y");
 		print "<form enctype=\"multipart/form-data\" action=\"optalling.php?importer=1&lager=$lager&dato=$dato\" method=\"POST\">";
 		print "<tr><td width=100% align=center><table width=\"500px\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-		print "<tr><td width=100% align=center colspan=\"2\"><b><big>Import af lageropt&aelig;lling til lager $lager</big></b><br><hr></td></tr>";
-		print "<tr><td width=100% colspan=\"2\">Listen skal best&aring; af 2 kolonner, adskilt af komma, semikolon eller tabulator.<br>";
-		print "1. kolonne skal indeholde varenummer eller stregkode, 2. kolonne den optalte beholdning";
+		print "<tr><td width=100% align=center colspan=\"2\"><b><big>".findtekst('2201|Import af lageroptælling til lager', $sprog_id)." $lager</big></b><br><hr></td></tr>";
+		print "<tr><td width=100% colspan=\"2\">".findtekst('2202|Listen skal bestå af 2 kolonner, adskilt af komma, semikolon eller tabulator.', $sprog_id)."<br>";
+		print findtekst('2203|1. kolonne skal indeholde varenummer eller stregkode, 2. kolonne den optalte beholdning.', $sprog_id)." ";
 #		print " Er der flere lagre, vælges hvilket lager optællingen vedrører<br>";
-		print "Datoen skal være den dato hvor opt&aelig;llingen er sket. Hvis opt&aelig;llingen er sket ";
-		print "mellem midnat og dagens 1. varebev&aelig;gelse skal anf&oslash;res den foreg&aring;ende dags dato.<br><hr></td></tr>";
+		print findtekst('2204|Datoen skal være den dato hvor optællingen blev udført.', $sprog_id)." ";
+		print findtekst('2205|Hvis optællingen er sket mellem midnat og dagens 1. varebevægelse, skal den foregående dags dato anføres.', $sprog_id)."<br><hr></td></tr>";
 		print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000\">";
-		print "<tr><td>Dato for opt&aelig;lling</td><td><input class=\"inputbox\" style=\"text-align:left\" type=\"text\" name=\"dato\" value=\"$dato\"></td></tr>";
+		print "<tr><td>".findtekst('2206|Dato for optælling', $sprog_id)."</td><td><input class=\"inputbox\" style=\"text-align:left\" type=\"text\" name=\"dato\" value=\"$dato\"></td></tr>";
 #		$r=db_fetch_array(db_select("select count(kodenr) as lagerantal from grupper where art='LG'",__FILE__ . " linje " . __LINE__));
 #		if ($lagerantal=$r['lagerantal']){
 #			print "<tr><td>Vælg lager<select name=\"lager\">";
 #			for ($i=1;$i<=$lagerantal;$i++) print "<option>$i</option>";
-		print "<tr><td>Lager</td><td><b>$lager</b></td></tr>";
+		print "<tr><td>".findtekst('608|Lager', $sprog_id)."</td><td><b>$lager</b></td></tr>";
 		print "<tr><td><input type=\"hidden\" name=\"lager\" value=\"$lager\"></td></tr>";
-		print "<tr><td>V&aelig;lg datafil:</td><td><input class=\"inputbox\" name=\"uploadfile\" type=\"file\" /><br /></td></tr>";
+		print "<tr><td>".findtekst('1364|Vælg datafil', $sprog_id).":</td><td><input class=\"inputbox\" name=\"uploadfile\" type=\"file\" /><br /></td></tr>";
 		print "<tr><td><br></td></tr>";
-		print "<tr><td></td><td align=center><input type=\"submit\" value=\"Hent\"/></td></tr>";
+		print "<tr><td></td><td align=center><input type=\"submit\" value=\"".findtekst('1078|Hent', $sprog_id)."\"/></td></tr>";
 		print "<tr><td></form></td></tr>";
 		print "</tbody></table>";
 		print "</td></tr>";
