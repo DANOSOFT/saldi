@@ -946,8 +946,8 @@
 946	Varemrk.	WARM.	Varemerke.
 947	Ialt	Total	Total
 948	Beholdn.	Retain.	Se.
-949	Salgspris	Sale Price	Salgs pris
-950	Kostpris	Cost Price	Kostpris
+949	Salgspris	Sales price	Salgspris
+950	Kostpris	Cost price	Kostpris
 951	Leverandør	Supplier	Leverandør
 952	Lev. varenr	Live. item no	Lev. varenr
 953	Ordrebeholdning	Order book	Ordrebeholdning
@@ -2233,13 +2233,13 @@
 2233	varer ud fra en samlet vareliste på	items counted from a total inventory of	varer telt ut fra en samlet vareliste på
 2234	lagerførte varer.	stocked items.	lagerførte varer.
 2235	Samlet lagerværdi pr.	Total inventory value as of	Samlet lagerværdi per
-2236
-2237
-2238
-2239
-2240
-2241
-2242
+2236	Varespor	Item tracking	Varespor
+2237	Lagerreguleret	Inventory regulated	Lagerregulert
+2238	Købt i alt	Total purchased	Kjøpt i alt
+2239	Bestilt i alt	Total ordered	Bestilt i alt
+2240	Ordrebeholdning	Order inventory	Ordrebeholdning
+2241	Solgt i alt	Total sold	Solgt i alt
+2242	Ordrebeh. i alt	Total order inv.	Ordrebeh. i alt
 2243
 2244
 2245
