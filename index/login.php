@@ -78,13 +78,16 @@ include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 
-print "<!--";
-$timezone = system("timedatectl | grep \"Time zone\"");
-print "-->";
+#print "<!--";
+$timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
+#print "-->";
+if ($errcode === 0) {
 list($tmp,$timezone) = explode(":",$timezone);
 list($timezone,$tmp) = explode("(",$timezone);
 $timezone = trim($timezone);
-if (!$timezone) $timezone = 'Europe/Copenhagen';
+} else {
+	$timezone = 'Europe/Copenhagen';
+}
 date_default_timezone_set($timezone);
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name = 'invoices'";
