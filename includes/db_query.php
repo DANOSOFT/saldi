@@ -142,7 +142,7 @@ if (!function_exists('db_modify')) {
 		}
 #20190704 END
 		
-		$db=trim($db);
+		$db=trim($db ?? '');
 		if ($db_skriv_id>1) {
 				$fp=fopen("$temp/.ht_modify.log","a");
 				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n");

@@ -82,9 +82,9 @@ include("../includes/std_func.php");
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
 #print "-->";
 if ($errcode === 0) {
-list($tmp,$timezone) = explode(":",$timezone);
-list($timezone,$tmp) = explode("(",$timezone);
-$timezone = trim($timezone);
+	list($tmp,$timezone) = explode(":",$timezone);
+	list($timezone,$tmp) = explode("(",$timezone);
+	$timezone = trim($timezone);
 } else {
 	$timezone = 'Europe/Copenhagen';
 }
@@ -199,7 +199,7 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		$db_id      = trim($r['id']);
 		$post_max   = $r['posteringer']*1;
 		$bruger_max = $r['brugerantal']*1;	
-		$lukket     = trim($r['lukket']);
+		$lukket     = trim($r['lukket'] ?? '');
 		if(isset($r['email'] ))  $dbMail = $r['email'];
 		if(isset($r['global_id']))  $globalId = $r['global_id'];
 		if (!$db) {
