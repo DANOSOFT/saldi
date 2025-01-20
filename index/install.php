@@ -32,6 +32,7 @@
 // 20220823 PHR Changed email to varchar(60) in 'regnskab'
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20250116 allow user specified hostname for database, ie. other than localhost.
+// 20250121 Increase session_id length specifier from 30 to 32.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -224,7 +225,7 @@ if (isset($_POST['opret'])){
 	$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version,bilag) values ";
 	$qtxt.= "('$db_navn' ,'$db_host', '$db_bruger', '$db_navn', '$version','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "CREATE TABLE online (session_id varchar(30), brugernavn text, db varchar(30), dbuser varchar(30), rettigheder varchar(30), ";
+	$qtxt = "CREATE TABLE online (session_id varchar(32), brugernavn text, db varchar(30), dbuser varchar(30), rettigheder varchar(30), ";
 	$qtxt.= "regnskabsaar integer, logtime varchar(30), revisor boolean, language_id int)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE kundedata (id serial NOT NULL, firmanavn text, addr1 text, addr2 text, postnr varchar(10), ";
