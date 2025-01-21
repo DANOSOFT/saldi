@@ -239,7 +239,7 @@ print "<form name=\"optalling\" action=\"optalling.php?gentael=$gentael&lager=$l
 if ($varenr=trim($varenr)) {
 	$fokus="optalt";
 
-	print "<tr><td>Varenr</td><td><!-- Lager --></td><td>Beskrivelse</td><td align=\"left\">Beholdning ($dato)</td><td align=\"right\">Ny beholdning</td></tr>\n";
+	print "<tr><td>".findtekst('917|Varenr.', $sprog_id)."</td><td><!-- ".findtekst('608|Lager', $sprog_id)." --></td><td>".findtekst('914|Beskrivelse', $sprog_id)."</td><td align=\"left\">".findtekst('980|Beholdning', $sprog_id)." ($dato)</td><td align=\"right\">".findtekst('2243|Ny beholdning', $sprog_id)."</td></tr>\n";
 	if (!$r=db_fetch_array(db_select("select * from varer where varenr='$varenr' or stregkode='$varenr'",__FILE__ . " linje " . __LINE__))) {
 		$r=db_fetch_array(db_select("select * from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__));
 	}
@@ -324,7 +324,7 @@ if ($varenr=trim($varenr)) {
 	$fokus="varenr";
 	print "<tr>
 	<td align=\"center\">".findtekst('438|Dato', $sprog_id)."</td><td align=\"center\"></td>";
-	if (count($lagernr)) print "<td align=\"center\">Lager</td>";
+	if (count($lagernr)) print "<td align=\"center\">".findtekst('608|Lager', $sprog_id)."</td>";
 	print "<td align=\"center\">".findtekst('2193|Varenummer / Stregkode', $sprog_id)."</td></tr>";
 	print "<tr><td align=\"center\"><input style=\"width:100px;text-align:left;\" type=\"text\" name=\"dato\" value=\"".dkdato($date)."\"></td><td align=\"center\">";
 #cho count($lagernr)."<br>";
@@ -347,7 +347,7 @@ if ($varenr=trim($varenr)) {
 }
 
 print "</tr><tr><td colspan=\"5\" align=\"center\"><input type=\"submit\" value=\"OK\"></form>";
-if ($varenr) print "<a style=\"text-decoration:none\" href=optalling.php?lager=$lager><input type=\"button\" value=\"Fortryd\"></a>";
+if ($varenr) print "<a style=\"text-decoration:none\" href=optalling.php?lager=$lager><input type=\"button\" value=\"".findtekst('159|Fortryd', $sprog_id)."\"></a>";
 print "</td></tr>\n";
 print "</tbody></table  name=\"tabel_1.2\"></td></tr>\n"; # <- tabel 1.2
 print "<tr><td align=\"center\" width=\"100%\"><hr></td></tr>";

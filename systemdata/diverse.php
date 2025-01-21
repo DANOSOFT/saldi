@@ -1789,7 +1789,7 @@ if ($menu != 'T') {
 	print "<td width=\"170px\" valign=\"top\">";
 	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
 	if ($menu == 'S') {
-		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; Tilbage</b></button></a></td></tr>\n"; // 200240428
+		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
 
 		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"

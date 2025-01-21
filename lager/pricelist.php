@@ -35,8 +35,11 @@ $linjebg=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 $returside="rapport.php";
+
+global $menu;
 
 $zero_stock  		= false;
 $show_all_products	= false;
@@ -164,25 +167,43 @@ $url_part = "varegruppe=$varegruppe&lagervalg=$lagervalg&zero_stock=$zero_stock&
 
 if ($autoprint) {// Print friendly
 	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
-	print "<tr><td><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% $top_bund align=center>".ucfirst(findtekst(2082, $sprog_id))."</td></td></tr></tbody></td></tr></table></td></tr>";
-	if ($custom_text) print "<tr><td><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% $top_bund align=center>".$custom_text."</td></td></tr></tbody></td></tr></table></td></tr>";
-	print "<tr><td><hr></td></tr>";
+	print "<tr><td align='center'>".ucfirst(findtekst('2082|Prisliste', $sprog_id))."<br>";
+	if ($custom_text) print $custom_text;
+	print "</td></tr><tr><td><hr></td></tr>";
 	print "</tbody></table>";
 
 } else {
-	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
-	print "<tr><td>";
-	print "  <table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr>";
-	print "    <td width=10% $top_bund><a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210708
-	print "    <td width=80% $top_bund align=center>".ucfirst(findtekst(2082, $sprog_id))."</td>";
-	print "    <td width=10% $top_bund><a href='pricelist.php?csv=1&".$url_part."' title='".findtekst(2084, $sprog_id)."'>CSV</a></td>";
-	print "  </tr></tbody></table>\n";
-	if ($custom_text) print "<tr><td><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% $top_bund align=center>".$custom_text."</td></td></tr></tbody></td></tr></table></td></tr>";
-	print "</td></tr>";
+	if ($menu=='S') {
+		print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
+		print "<tr><td>";
+		print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr>";
 
+		print "<td width='10%'><a href='$returside' accesskey=L>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+
+		print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst(2082, $sprog_id))."</td>";
+
+		print "<td width='10%'><a href='pricelist.php?csv=1&".$url_part."' title='".findtekst(2084, $sprog_id)."'>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+
+		print "</tr></tbody></table>\n";
+		if ($custom_text) print "<tr><td><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% style=$topStyle align=center>"
+								 .$custom_text."</td></td></tr></tbody></td></tr></table></td></tr>";
+		print "</td></tr>";
+	} else {
+		print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
+		print "<tr><td>";
+		print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr>";
+		print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210708
+		print "<td width=80% $top_bund align=center>".ucfirst(findtekst(2082, $sprog_id))."</td>";
+		print "<td width=10% $top_bund><a href='pricelist.php?csv=1&".$url_part."' title='".findtekst(2084, $sprog_id)."'>CSV</a></td>";
+		print "</tr></tbody></table>\n";
+		if ($custom_text) print "<tr><td><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% $top_bund align=center>".$custom_text."</td></td></tr></tbody></td></tr></table></td></tr>";
+		print "</td></tr>";
+	}
 	print "<tr><td align=\"center\"><form action=pricelist.php method=post>";
 	if (count($lager)) {
-		print " Lager: <select class=\"inputbox\" name=\"lagervalg\">";
+		print " ".findtekst('608|Lager', $sprog_id).": <select class=\"inputbox\" name=\"lagervalg\">";
 		for ($x=0;$x<=count($lager);$x++){
 			if ($lagervalg==$lager[$x]) print "<option value='$lager[$x]'>$lagernavn[$x]</option>";
 		}
@@ -191,7 +212,7 @@ if ($autoprint) {// Print friendly
 		}
 		print "</select>";
 	}
-	print " Varegruppe: <select class=\"inputbox\" name=\"varegruppe\">";
+	print " ".findtekst('429|Varegruppe', $sprog_id).": <select class=\"inputbox\" name=\"varegruppe\">";
 	if ($varegruppe) print "<option>$varegruppe</option>";
 	if ($varegruppe!="0:Alle") print "<option>0:Alle</option>";
 
