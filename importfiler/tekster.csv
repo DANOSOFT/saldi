@@ -2241,11 +2241,11 @@
 2241	Solgt i alt	Total sold	Solgt i alt
 2242	Ordrebeh. i alt	Total order inv.	Ordrebeh. i alt
 2243	Ny beholdning	New stock	Ny inventar
-2244
-2245
-2246
-2247
-2248
+2244	En beskrivende tekst efter eget valg	A descriptive text of your choice	En beskrivende tekst etter eget valg
+2245	Det nummer i kontoplanen som salgsmomsen skal konteres på	The number in the chart of accounts to which the sales tax should be posted	Kontonummeret i kontoplanen som salgsmomsen skal føres på
+2246	Momskode hos SKAT	VAT Code	MVA-kode
+2247	Den moms du skal betale til SKAT	The VAT you need to pay to the tax authorities	MVA-en du skal betale til Skatteetaten
+2248	Nr.	No.	Nr.
 2249
 2250
 2251
@@ -3035,7 +3035,7 @@
 3036	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
 3037	systemdata &#8658; kontoplan	system data &#8658; chart of accounts	systemdata &#8658; kontoplan
 3038	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
-3039	Map til	Map to	Kart til
+3039	Map til	Map to	Map til
 3040	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
 3041	eksisterer ikke	doesn't exist	eksisterer ikke
 3042	Standard Kontoplan	Standard Chart of Accounts	Standard Kontoplan

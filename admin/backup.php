@@ -38,6 +38,7 @@ $modulnr=11;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if (!isset($exec_path)) $exec_path="/usr/bin";
 
@@ -68,33 +69,34 @@ if (isset($_GET['backup']) && $_GET['backup']==1) {
 	system ("mv $gz_filnavn $dat_filnavn");
 	print "--> \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 }
-print "<div align=\"center\">";
+
+print "<div align='center'>";
 if ($menu=='T') {
-#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
+#	print "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>";
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">\n";
-	print "<div class=\"headerbtnLft\"></div>\n";
-#	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";       
+	print "<div id='header'>";
+	print "<div class='headerbtnLft'></div>\n";
+#	print "<span class='headerTxt'>Systemsetup</span>\n";     
+#	print "<div class='headerbtnRght'><!--<a href='index.php?page=../debitor/debitorkort.php;title=debitor' class='button green small right'>Ny debitor</a>--></div>";       
 	print "</div><!-- end of header -->";
-	print "<div id=\"leftmenuholder\">";
+	print "<div id='leftmenuholder'>";
 	include_once 'left_menu.php';
 	print "</div><!-- end of leftmenuholder -->\n";
-	print "<div class=\"maincontent\">\n";
-	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\"><tbody>"; # -> 1
+	print "<div class='maincontent'>\n";
+	print "<table border='0' cellspacing='0' id='dataTable' class='dataTable'><tbody>"; # -> 1
 } else {
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund title=\"Klik her for at vende tilbage til hovedmenuen\"><a href=$returside accesskey=L>Luk</a></td>";
-	print "<td width=\"80%\" $top_bund>Sikkerhedskopi</td>";
-	print "<td width=\"10%\" $top_bund><br></td>";
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+	print "<tr><td align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+	print "<td width='10%' $top_bund title='Klik her for at vende tilbage til hovedmenuen'><a href=$returside accesskey=L>Luk</a></td>";
+	print "<td width='80%' $top_bund>Sikkerhedskopi</td>";
+	print "<td width='10%' $top_bund><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
 }
-print "<td align=\"center\" valign=\"middle\">";
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+print "<td align='center' valign='middle'>";
+print "<table cellpadding='1' cellspacing='1' border='0'><tbody>";
 if (file_exists("../temp/$dat_filnavn")) {
 	print "<tr><td align=center> Klik her: </td><td $top_bund  title=\"Her har du mulighed for danne en sikkerhedkopi som du kan gemme.\">";
 	print "<a href='../temp/$dat_filnavn'>Gem sikkerhedskopi</a></td></tr>";

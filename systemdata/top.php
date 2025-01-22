@@ -37,12 +37,7 @@ if (findtekst(778,$sprog_id) == 'Regnskabså') {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 
-$topCol       = '#114691';
-$butDownCol   = '#2b66ba';
-$butUpCol     = '#1a55a9';
-$topStyle     = "border:0;border-color:$topCol;color:#fff;border-radius:5px;height:100%;background-color:$topCol;";
-$butDownStyle = "border:0;border-color:$butDownCol;color:#fff;border-radius:5px;background-color:$butDownCol;";
-$butUpStyle   = "border:0;border-color:$butUpCol;color:#fff;border-radius:5px;background-color:$butUpCol;";
+include("../includes/topline_settings.php");
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
@@ -50,9 +45,9 @@ print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cel
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
 
 print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
-       <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
 
-       <td align='center' style='$topStyle'>".findtekst(613,$sprog_id)."<br></td>
+       <td align='center' style='$topStyle'>".findtekst(613, $sprog_id)."<br></td>
 
        <td width=\"170px\" style='$topStyle'><br></td></tr>
        </tbody></table></td></tr>"; # <- tabel 1.1.1
@@ -63,46 +58,46 @@ print "<table align=\"left\" border=\"0\" cellspacing=\"2\" cellpadding=\"2\"wid
 print "<tr><td width=\"170px\"><br></td></tr>
 
       <tr><td><a href=\"syssetup.php?valg=moms\" accesskey=\"M\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(770,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(770, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"syssetup.php?valg=debitor\" accesskey=\"D\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(771,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(771, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"syssetup.php?valg=afdelinger\" accesskey=\"A\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(772,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(772, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"projekter.php\" accesskey=\"P\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(773,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(773, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"syssetup.php?valg=lagre\" accesskey=\"G\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(608,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(608, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"syssetup.php?valg=varer\" accesskey=\"V\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(774,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(774, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"rabatgrupper.php\" accesskey=\"V\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(775,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(775, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"valuta.php\" accesskey=\"U\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(776,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(776, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"brugere.php\" accesskey=\"B\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(777,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(777, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"regnskabsaar.php\" accesskey=\"R\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(778,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(778, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"stamkort.php\" accesskey=\"S\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(779,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(779, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"formularkort.php?valg=formularer\" accesskey=\"F\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(780,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(780, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"enheder.php\" accesskey=\"E\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(781,$sprog_id)."</button></a></td></tr>
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(781, $sprog_id)."</button></a></td></tr>
 
       <tr><td><a href=\"diverse.php?valg=diverse\" accesskey=\"I\">
-      <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(782,$sprog_id)."</button></a></td></tr>";
+      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(782, $sprog_id)."</button></a></td></tr>";
 
 print "</tbody></table>";# <-tabel 1.1.2
 print "</td><td align=\"center\" valign=\"top\" height=\"99%\"><br>";
