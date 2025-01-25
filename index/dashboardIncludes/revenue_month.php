@@ -1,6 +1,18 @@
 <?php
-// Find årstallet fra $regnstart
+// Definer første og sidste dag for regnskabsåret
+$firstDayOfYear = date('Y-m-d', strtotime($regnstart)); // Første dag i regnskabsåret
+$lastDayOfYear = date('Y-m-d', strtotime($regnslut)); // Sidste dag i regnskabsåret
+
+// Hent dags dato (kun måned og dag)
+$currentMonthDay = date('-m-d');
+
+// Beregn dagens dato for dette regnskabsår
+$currentDateThisYear = date('Y', strtotime($regnstart)) . $currentMonthDay;
+
 $regnskabsår = date('Y', strtotime($regnstart));
+if ($currentDateThisYear < $firstDayOfYear) {
+    $regnskabsår++;
+}
 
 // Første dag i denne måned baseret på $regnstart
 $firstDayOfMonth = date('Y-m-d', mktime(0, 0, 0, date('m'), 1, $regnskabsår)); // Første dag i denne måned baseret på regnskabsåret
