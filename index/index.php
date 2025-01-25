@@ -34,6 +34,7 @@
 // 20220426 DAPE Fixed language select, made language selector dynamic to take new languages whenever they're implemented in tekster.csv
 // 20220618 PHR Changed 'language' and 'language_id' to 'languageId'
 // 20230726 LOE Minor modification
+// 20250123 Fix broken language selection
 // 20250125 Fix broken huskmig cookie
 
 
@@ -74,7 +75,7 @@ if(isset($_POST['languageId'])){
 } elseif(isset($_COOKIE['languageId'])){
 	$languageId = $_COOKIE['languageId'];
 }
-if ($languageId) setcookie('languageId',$languageId, time() + (10 * 365 * 24 * 60 * 60) );
+if ($languageId) setcookie('languageId',$languageId, time() + (10 * 365 * 24 * 60 * 60), get_root() );
 
 if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
 

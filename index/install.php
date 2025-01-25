@@ -33,6 +33,7 @@
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20250116 allow user specified hostname for database, ie. other than localhost.
 // 20250129 Increase session_id length constraint from 30 to 32 on table online.
+// 20250123 Remove whitespace before /usr/bin/ps2pdf
 
 session_start();
 ob_start(); //Starter output buffering
@@ -245,7 +246,7 @@ if (isset($_POST['opret'])){
 	$qtxt.= "('timezone','globals','Europe/Copenhagen','Global Timezone','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
-	$qtxt.= "('ps2pdf','globals',' 	/usr/bin/ps2pdf','Program for converting PostScript to PDF','0')";
+	$qtxt.= "('ps2pdf','globals','/usr/bin/ps2pdf','Program for converting PostScript to PDF','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('html2pdf','globals','/usr/bin/weasyprint','Program for converting HTML to PDF','0')";

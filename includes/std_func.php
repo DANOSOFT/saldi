@@ -112,6 +112,7 @@
 // 20240726 PHR function findtekst now accepts textstring as first argument
 // 20240815 PHR function findtekst moved to stdFunc/findTxt.php
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250124 Function get_root()
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -196,6 +197,32 @@ if (!function_exists('get_relative')) {
 
         return $relativePath;
     }
+}
+
+if (!function_exists('get_root')) {
+    function get_root(): string {
+		/**
+		 * Returns the root path from where the app is running.
+		 * E.g.:
+		 * https://saldi.dk/ => /
+		 * http://localhost/saldi/ => /saldi
+		 * 
+		 * @return string - App's root path
+		 */
+		$rootpath = $_SERVER['SCRIPT_NAME'];
+		$subdirs = substr_count($rootpath, '/', 1);
+		for($i=0; $i<$subdirs; $i++){
+			$rootpath = dirname($rootpath);
+		}
+		switch (is_string($rootpath)) {
+			case true:
+				return $rootpath;
+				break;
+			default:
+				return "/";
+				break;
+		}
+	}
 }
 
 if (!function_exists('if_isset')) {

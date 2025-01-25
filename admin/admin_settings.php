@@ -27,6 +27,7 @@
 // 20210917 LOE Translated some texts
 // 20210921 Added this block of code to set language
 // 20240522 MMK Newssnippet
+// 20250123 Fix broken language selection
 
 @session_start();
 $s_id=session_id();
@@ -100,10 +101,13 @@ if (isset($_POST['gem'])) {
 	}
 	update_settings_value("nyhed", "dashboard", $newssnippet, "The news snippet showen to all admin accounts on this system");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt="update settings set var_value='$languageId' where var_name='languageId'";
+	$qtxt="update settings set var_value='$languageId' where var_name='language_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="update online set language_id='$languageId' where session_id = '$s_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	// Cookie must be updated
+	setcookie('languageId',$languageId, time() + (10 * 365 * 24 * 60 * 60), get_root() );
+	
 	
 } else {
 	$ps2pdf=$html2pdf=$pdfmerge=$ftp=$dbdump=$zip=$unzip=$tar=$alertText=NULL;
@@ -119,11 +123,12 @@ if ($db != $sqdb) {
 
 $q = db_select("select * from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($q);
-if ($brugerId=$r['id']) {
+if (isset($r['id'])) {  
 	$rettigheder=$r['rettigheder'];
 #	if (strstr($rettigheder,",")=='0') echo "NUL<br>";
 	list($admin,$oprette,$slette,$tmp)=explode(",",$rettigheder,4);
 }
+
 $q=db_select("select * from settings",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	if ($r['var_name']=='ps2pdf') {
@@ -153,7 +158,7 @@ while ($r=db_fetch_array($q)) {
 	} elseif ($r['var_name']=='alertText') {
 		$alertTextId=$r['id'];
 		$alertText=$r['var_value'];
-	} elseif ($r['var_name']=='languageId') {
+	} elseif ($r['var_name']=='language_id') {
 		$languageId=$r['var_value'];
 	} elseif ($r['var_name']=='languages') {
 		$languages=explode(chr(9),$r['var_value']);
@@ -229,11 +234,9 @@ foreach ($languages as $k => $v) {
 }
 */
 
-for ($l=1;$l<count($languages);$l++) {
-	if ($languageId == $l) print "<option  value='$l'>$languages[$l]</option>";
-}
-for ($l=1;$l<count($languages);$l++) {
-	if ($languageId != $l) print "<option value='$l'>$languages[$l]</option>";
+print "<option value='$languageId'>".$languages[$languageId-1]."</option>";
+for ($l=0;$l<count($languages);$l++) {
+	if ($languageId-1 != $l) print "<option value='".($l+1)."'>$languages[$l]</option>";
 }
 print "</SELECT></td></tr>";
 #####################
