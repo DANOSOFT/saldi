@@ -139,8 +139,8 @@ $dbMail=NULL;
 
 if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	if ($regnskab = trim($_POST['regnskab'])){
-		$brugernavn = trim($_POST['brugernavn']);
-		$password = trim($_POST['password']); // password i formatet uppercase( md5( timestamp + uppercase( md5(original_password) ) ) )
+		$brugernavn = trim(if_isset($_POST['brugernavn'], ''));
+		$password = trim(if_isset($_POST['password'], '')); // password i formatet uppercase( md5( timestamp + uppercase( md5(original_password) ) ) )
 		(isset($_POST['timestamp']))?$timestamp = trim($_POST['timestamp']):$timestamp=NULL;
 		#(isset($_POST['timestamp']))?$timestamp = trim($_POST['timestamp']):$timestamp = date('Y-m-d'); #20211001 latr
 		if (isset($_POST['fortsaet'])) $fortsaet = $_POST['fortsaet'];
@@ -192,14 +192,14 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
  # $qtxt.= " or upper(regnskab) = '".db_escape_string(strtoupper($regnskab))."'";
 
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
-		$dbuser = trim($r['dbuser']);
-		$dbver = trim($r['version']);
-		if (isset($r['dbpass'])) $dbpass = trim($r['dbpass']);
-		$db         = trim($r['db']);
-		$db_id      = trim($r['id']);
-		$post_max   = $r['posteringer']*1;
-		$bruger_max = $r['brugerantal']*1;	
-		$lukket     = trim($r['lukket'] ?? '');
+		$dbuser = trim(if_isset($r['dbuser'], ''));
+		$dbver = trim(if_isset($r['version'], ''));
+		$dbpass = trim(if_isset($r['dbpass'], ''));
+		$db         = trim(if_isset($r['db'], ''));
+		$db_id      = trim(if_isset($r['id'], ''));
+		$post_max   = if_isset($r['posteringer'], 0)*1;
+		$bruger_max = if_isset($r['brugerantal'], 0)*1;	
+		$lukket     = trim(if_isset($r['lukket'], ''));
 		if(isset($r['email'] ))  $dbMail = $r['email'];
 		if(isset($r['global_id']))  $globalId = $r['global_id'];
 		if (!$db) {
@@ -365,7 +365,7 @@ if (isset ($brug_timestamp)) {
 	$pw2  = saldikrypt($r['id'],$password);
 	if ($r['kode']==$pw1 || $r['kode']==$pw2) {
 		$userId      = $r['id'];
-		$rettigheder = trim($r['rettigheder']);
+		$rettigheder = trim(if_isset($r['rettigheder'], ''));
 		$regnskabsaar = $r['regnskabsaar'];
 		($db != $sqdb)?$ansat_id=$r['ansat_id']*1:$ansat_id=NULL;
 	}
@@ -384,7 +384,7 @@ if (isset ($brug_timestamp)) {
 			if (date("U")<=$tidspkt) {
 				if ($tmp_kode==$password) {
 					$userId=$r['id'];
-					$rettigheder=trim($r['rettigheder']); #20150209 + næste 2
+					$rettigheder=trim(if_isset($r['rettigheder'], '')); #20150209 + næste 2
 					$regnskabsaar=$r['regnskabsaar'];
 					$ansat_id=$r['ansat_id']*1;
 				} 

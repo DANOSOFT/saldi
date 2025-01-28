@@ -110,9 +110,9 @@ $unixtime        = date("U");
 $qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 if ($r = db_fetch_array($q)) {
-	$dbuser = trim($r['dbuser']);
-	$db = trim($r['db']);
-	$regnaar = trim($r['regnskabsaar'] ?? '');
+	$dbuser = trim(if_isset($r['dbuser'], ''));
+	$db = trim(if_isset($r['db'], ''));
+	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
 	$brugernavn = db_escape_string($r['brugernavn']);
 	$rettigheder = $r['rettigheder'];
 	$superUserPermission = $rettigheder;
@@ -220,7 +220,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		}
 		$r = db_fetch_array(db_select("select * from brugere where brugernavn= '$brugernavn'", __FILE__ . " linje " . __LINE__));
 		$bruger_id = $r['id'];
-		$rettigheder = trim($r['rettigheder']);
+		$rettigheder = trim(if_isset($r['rettigheder'], ''));
 		$ansat_id = $r['ansat_id'] * 1;
 		#		if ($r['language_id']) $languageID=$sprog_id=$r['language_id'];
 		if ($ansat_id) { #20120905 
