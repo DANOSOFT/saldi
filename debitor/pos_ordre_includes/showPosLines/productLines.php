@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/productLines.php -- lap 4.0.8 --- 2023.10.09 ---
+// --- debitor/pos_ordre_includes/showPosLines/productLines.php -- lap 4.1.1 --- 2024.09.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2023 saldi.dk aps
+// Copyright (c) 2019-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190508	LN Move function vis-pos_linjer here
@@ -40,12 +40,19 @@
 // 20230421 PHR Added ImachimeCustomDisplay
 // 20230531 PHR Added Discount to ImachimeCustomDisplay
 // 20231009 PHR Groupdiscount was handled as always as amount
+// 20240729 PHR Various translations
+// 20240909 PHR Added m_rabat to customerDisplay;
 
 	print "<!-- ---------- start productLines.php ---------- -->\n";
 	$customerDisplay = NULL;
+	$qtxt = "update settings set pos_id = '0' where var_name = 'customerDisplay' and pos_id is NULL";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "select var_value from settings where var_name = 'customerDisplay'";
+	$qtxt.= "and (pos_id = '$kasse' or pos_id = '0')";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $customerDisplay=$r['var_value'];
-	unlink("../temp/$db/customerDisplay.txt");
+	if (file_exists("../temp/$db/customerDisplay.txt")) {
+		unlink("../temp/$db/customerDisplay.txt");
+	}
 	file_put_contents("../temp/$db/customerDisplay.txt",date("H-i-s")."\n",FILE_APPEND);
 	$displayTxt = $displayQty = $displayPrice = array();
 	$dx=0;
@@ -73,7 +80,7 @@
 
 	$s = 0;
 	$stockGrp = array();
-	$qtxt = "select kodenr from grupper where art = 'VG' and box8 = 'on'";
+	$qtxt = "select kodenr from grupper where art = 'VG' and box8 = 'on' and fiscal_year = '$regnaar'";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$stockGrp[$s]=$r['kodenr'];
@@ -109,16 +116,50 @@
 				print dkdecimal($pris[$x],2);
 				print "</td>";
 				file_put_contents("../temp/$db/customerDisplay.txt",$antal[$x]."\t".$beskrivelse[$x]."\t".$pris[$x]."\n",FILE_APPEND);
-				if ($rabat[$x]) {
-					$displayLine[$dx]  = $linje_id[$x];
-					$displayTxt[$dx]   = 'Rabat '.$rabat[$x];
-					$displayQty[$dx]   = $antal[$x];
-					$displayPrice[$dx] = -$pris[$x]/100*$rabat[$x]*$antal[$x];
+				if (abs($rabat[$x])) {
+					// Process when $rabat has a value.
+					$displayLine[$dx] = $linje_id[$x];
+					$displayTxt[$dx]  = 'Rabat ' . $rabat[$x];
+				
+					// Append '%' if the discount type is not 'amount'.
+					if ($rabatart[$x] != 'amount') {
+						$displayTxt[$dx] .= '%';
+					}
+				
+					$displayQty[$dx] = $antal[$x];
+				
+					// Calculate price adjustment based on discount type.
+					if ($rabatart[$x] == 'amount') {
+						$displayPrice[$dx] = -$m_rabat[$x] * $antal[$x];
+					} else {
+						$displayPrice[$dx] = -($pris[$x] / 100) * $rabat[$x] * $antal[$x];
+					}
+				
+					$dx++;
+				} elseif (abs($m_rabat[$x])) {
+					// Process when $m_rabat has a value.
+					$displayLine[$dx] = $linje_id[$x];
+					$displayTxt[$dx]  = 'Rabat ' . $m_rabat[$x];
+				
+					// Append '%' if the discount type is not 'amount'.
+					if ($rabatart[$x] == 'amount') {
+						$displayTxt[$dx] .= '%';
+					}
+				
+					$displayQty[$dx] = $antal[$x];
+				
+					// Calculate price adjustment based on discount type.
+					if ($rabatart[$x] != 'amount') {
+						$displayPrice[$dx] = $m_rabat[$x] * $antal[$x];
+					} else {
+						$displayPrice[$dx] = ($pris[$x] / 100) * $m_rabat[$x] * $antal[$x];
+					}
+				
 					$dx++;
 				}
 				$displayLine[$dx]  = $linje_id[$x];
 				$displayTxt[$dx]   = $beskrivelse[$x];
-				$displayQty[$dx]   = $antal[$x]; 
+				$displayQty[$dx]   = $antal[$x];
 				$displayPrice[$dx] = $pris[$x]*$antal[$x];
 				$dx++;
 			}
@@ -142,8 +183,9 @@
 				}
 				print "</select>";
 			} elseif ($status<'3' && !$varenr_ny && !$saet[$x]) {
+				$txt = findtekst('3098|Ret',$sprog_id);
 				$href="pos_ordre.php?id=$id&ret=$linje_id[$x]&antal=$antal[$x]&leveret=$leveret[$x]"; #20210320 Added antal
-				print "<input type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"Ret\">\n";
+				print "<input type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"$txt\">\n";
 			}
 			print "</td></tr>\n";
 		}
@@ -170,7 +212,7 @@
 						file_put_contents("../temp/$db/customerDisplay.txt",$antal[$x]."\t".$discounttxt[$x]."\t".$tmp*$antal[$x]."\n",FILE_APPEND);
 						$displayLine[$dx]  = $linje_id[$x];
 						$displayTxt[$dx]   = $discounttxt[$x];
-						$displayQty[$dx]   = $antal[$x]; 
+						$displayQty[$dx]   = $antal[$x];
 						$displayPrice[$dx] = $tmp*$antal[$x];
 						$dx++;
 					}
@@ -192,8 +234,9 @@
 			$lev_vnr*=$r2['antal'];
 			print "<tr bgcolor=\"$linjebg\"><td></td><td></td><td></td><td>$r2[beskrivelse]</td><td></td><td title=$srbt\" align=\"right\">".dkdecimal($lev_vnr,2)."</td>\n";
 			if ($r2['varenr']!=$svnr) {
+				$txt = findtekst('3098|Ret',$sprog_id);
 				$href="pos_ordre.php?id=$id&ret=$r2[id]&saet=$saet[$x]&leveret=$leveret[$x]";
-				print "<td><!--<input type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"Ret\">--></td></tr>\n";
+				print "<td><!--<input type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"$txt\">--></td></tr>\n";
 			}
 		}
 		if ($status < 3) {   #|| $tilfravalg[$x] fjernet 20190424
@@ -205,7 +248,7 @@
 					if ($tfvare[$fv]>0 && $show) {
 						$qtxt="select varenr,beskrivelse,salgspris,gruppe from varer where id = '$tfvare[$fv]'";
 						$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-						$qtxt="select box4, box7 from grupper where art = 'VG' and kodenr = '$r[gruppe]'";
+						$qtxt="select box4, box7 from grupper where art = 'VG' and kodenr = '$r[gruppe]' and fiscal_year = '$regnaar'";
 						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						$f_bogfkto=$r2['box4'];
 						$f_momsfri=$r2['box7'];
@@ -216,7 +259,7 @@
 						$qtxt="select moms from kontoplan where kontonr = '$f_bogfkto' and regnskabsaar = '$regnaar'";
 						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						$kodenr=substr($r2['moms'],1);
-						$r2 = db_fetch_array(db_select("select box2 from grupper where kodenr = '$kodenr' and art = 'SM'",__FILE__ . " linje " . __LINE__));
+						$r2 = db_fetch_array(db_select("select box2 from grupper where kodenr = '$kodenr' and art = 'SM' and fiscal_year = '$regnaar' ",__FILE__ . " linje " . __LINE__));
 						$f_momssats=$r2['box2']*1;
 						$f_pris=$r['salgspris']+$r['salgspris']*$f_momssats/100;
 					}
@@ -231,7 +274,7 @@
 					.$r['beskrivelse']."\t".$f_pris*$antal[$x]."\n",FILE_APPEND);
 					$displayLine[$dx]  = $linje_id[$x];
 					$displayTxt[$dx]   = $r['beskrivelse'];
-					$displayQty[$dx]   = $antal[$x]; 
+					$displayQty[$dx]   = $antal[$x];
 					$displayPrice[$dx] = $f_pris*$antal[$x];
 					$dx++;
 #					kundedisplay($r['beskrivelse'],$antal[$x]*$f_pris,0,$antal[$x]);

@@ -42,7 +42,7 @@ function setAccordinglyLanguage()
     } else {
         return ["draw" => "Skuffe", "user" => "Bruger", "price" => "Pris", "discount" => "Rabat", "boxCount" => "Kasseoptælling",
             "table" => "Bord", "moveTable" => "Flyt bord", "splitTable" => "Del bord", "clear" => "Ryd",
-            "start" => "Forfra", "findReceipt" => "Find bon", "print" => "Udskriv", "close" => "Luk",
+            "start" => "Forfra", "findReceipt" => "Find bon", "print" => "Udskriv", "close" => "Luk123",
             "sendToKitchen" => "Send til køkken", "back" => "Tilbage", "newCustomer" => "Ny kunde", "copy" => "Kopier",
             "correction" => "Korrektion"];    
     }

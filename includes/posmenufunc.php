@@ -162,8 +162,22 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 	if (!$fontsize) $fontsize=$height*$width/200;
 
 #	$stil="style=\"width:".$width."px;height:".$height."px;text-align:center;font-size:".$fontsize."px; background-color:#$b;\"";
-	$stil="STYLE=\"display: table-cell;moz-border-radius:".$radius."px;-webkit-border-radius:".$radius."px;width:".$width."px;height:".$height."px;";
-	$stil.="text-align:center;vertical-align:middle;font-size:".$fontsize."px;border: 1px solid $bgcolor2;white-space: normal;background-color: $b;\"";
+  $stil="STYLE=\"
+    display: table-cell;
+    border-radius:".$radius."px;
+    moz-border-radius:".$radius."px;
+    -webkit-border-radius:".$radius."px;
+    -webkit-appearance: none;
+    width:".$width."px;
+    height:".$height."px;";
+  $stil.="
+    text-align:center;
+    vertical-align:middle;
+    font-size:".$fontsize."px;
+    border: 1px solid $bgcolor2;
+    white-space: normal;
+    background-color: $b;
+    setcolor: ;\"";
 	$nostil="STYLE=\"display: table-cell;moz-border-radius:0px;-webkit-border-radius:0px;width:".$width."px;height:".$height."px;text-align:center;";
 	$nostil.="vertical-align:middle;font-size:".$fontsize."px;white-space: normal;border: 0px solid $bgcolor;\"";
 #		background-color: $bgcolor;\"";
@@ -181,6 +195,12 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 				$b=$r['color'];
 				$c=$r['vare_id']*1;			
 				$d=$r['funktion']*1;
+				if ($r['fontcolor'] !== NULL) {
+					$font = "color: #$r[fontcolor]; ";
+				} else {
+					$font = "";
+				}
+			
 			}
 			if ($a=='--') {
 				print "<td><input type=\"button\" $stil value= \"\"></td>";
@@ -198,7 +218,7 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 					}
 */
 					$knap="<input type=\"button\" $stil value= \"$a\">";
-					$knap=str_replace("background-color: ;","background-color: $b;",$knap); 
+					$knap=str_replace("background-color: ;","background-color: #$b;$font",$knap); 
 
 				}
 				if (!$d || $d==1) {
@@ -276,7 +296,11 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
                 $bordnr = $r[0];
               }
               $r=db_fetch_array(db_select("select name from table_plan where id = $bordnr",__FILE__ . " linje " . __LINE__));
-              $txt = $r[0];
+	      if ($r) {
+                $txt = $r[0];
+	      } else {
+                $txt = "Vælg bord";
+}
             }
 
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
@@ -493,6 +517,20 @@ if (!$terminal_ip) $terminal_ip='localhost';
 					} elseif ($c=='45') {
 						$txt = "Gem bestilling";
 						$knap="<input type=\"submit\" name=\"saveOrder\" onclick=\"window.location.href='pos_ordre.php?id=$id&saveOrder=true\" $disabled $tmp value=\"$txt\">\n";
+						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
+						print "<td>".$knap;
+					} elseif ($c=='46') {
+						$txt = "Åben scanner";
+ 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
+						$knap="<input type=\"button\" name=\"scanner\" onclick=\"window.location.href='barcode_scan.php?id=$id'\" $disabled $tmp value=\"$txt\">\n";
+					  $knap=str_replace("setcolor: ;","color: $b_font;",$knap); 
+						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
+						print "<td>".$knap;
+					} elseif ($c=='47') {
+						$txt = "Afstemning";
+ 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
+						$knap="<input type=\"button\" name=\"scanner\" onclick=\"window.location.href='payments/lane3000_afstemning.php'\" $disabled $tmp value=\"$txt\">\n";
+					  $knap=str_replace("setcolor: ;","color: $b_font;",$knap); 
 						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
 					} else {

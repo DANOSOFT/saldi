@@ -47,7 +47,7 @@ else
 // -->
 </script>
 <?php
-$title="SALDI - genindl&aelig;s sikkerhedskopi";
+$title="SALDI - genindlæs sikkerhedskopi";
 $modulnr=11;
 $css="../css/standard.css";
 $backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=$uploadedfile=NULL;
@@ -76,6 +76,8 @@ else $returside="../index/menu.php";
 
 if (!file_exists("../temp/$db")) mkdir("../temp/$db", 0775);
 
+include("../includes/topline_settings.php");
+
 print "<div align=\"center\">";
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -88,12 +90,25 @@ if ($menu=='T') {
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"maincontent\">\n";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\"><tbody>"; # -> 1
+} elseif ($menu=='S') {
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+	print "<tr><td height = '25' align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+	print "<td width='10%'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+	print "<td width='80%' style='$topStyle' align='center'>".findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)."</td>";
+	print "<td width='10%' style='$topStyle' align='center'><br></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"$returside\" accesskey=L>Luk</a></td>";
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Indl&aelig;s sikkerhedskopi</td>";
+	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Indlæs sikkerhedskopi</td>";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";

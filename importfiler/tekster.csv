@@ -1241,7 +1241,7 @@
 1241	Klik her	Click here	Klikk her
 1242	og gem sikkerhedskopien et passende sted.	and save the backup in a convenient location.	og lagre sikkerhetskopien på et praktisk sted.
 1243	Hvis din browser forsøger at åbne filen	If your browser tries to open the file	Hvis nettleseren din prøver å åpne filen
-1244	skal du højreklikke og vælge 'gem som'	right click and select 'save as'	høyreklikk og velg 'lagre som'
+1244	skal du højreklikke og vælge 'gem som'.	right click and select 'save as'.	høyreklikk og velg 'lagre som'.
 1245	Dan sikkerhedskopi	Make a backup	Ta en sikkerhetskopi
 1246	for at danne en sikkerhedskopi	to create a backup	for å lage en sikkerhetskopi
 1247	Indlæs sikkerhedskopi	Load backup	Last inn sikkerhetskopi
@@ -2246,8 +2246,8 @@
 2246	Momskode hos SKAT	VAT Code	MVA-kode
 2247	Den moms du skal betale til SKAT	The VAT you need to pay to the tax authorities	MVA-en du skal betale til Skatteetaten
 2248	Nr.	No.	Nr.
-2249
-2250
+2249	Skriv bonnummer eller 'S' for sidste bon	Enter receipt number or 'S' for last receipt	Skriv bonnummer eller 'S' for siste bon
+2250	Bon	Receipt	Bon
 2251
 2252
 2253

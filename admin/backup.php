@@ -84,36 +84,78 @@ if ($menu=='T') {
 	include_once 'left_menu.php';
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class='maincontent'>\n";
+
 	print "<table border='0' cellspacing='0' id='dataTable' class='dataTable'><tbody>"; # -> 1
+} elseif ($menu=='S') {
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+	print "<tr><td align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+	print "<td width='10%' title='".findtekst('1673|Klik her for at vende tilbage til hovedmenuen', $sprog_id)."'>";
+	print "<a href=$returside accesskey=L><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst('614|Sikkerhedskopi', $sprog_id)."</td>";
+
+	print "<td width='10%' align='center' style='$topStyle'><br></td>";
+
+	print "</tbody></table>";
+	print "</td></tr>";
 } else {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	print "<tr><td align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-	print "<td width='10%' $top_bund title='Klik her for at vende tilbage til hovedmenuen'><a href=$returside accesskey=L>Luk</a></td>";
-	print "<td width='80%' $top_bund>Sikkerhedskopi</td>";
+	print "<td width='10%' $top_bund title='".findtekst('1673|Klik her for at vende tilbage til hovedmenuen', $sprog_id)."'>";
+	print "<a href=$returside accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+	print "<td width='80%' $top_bund>".findtekst('614|Sikkerhedskopi', $sprog_id)."</td>";
 	print "<td width='10%' $top_bund><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
 }
+
+if ($menu=='T' || $menu=='S') {
+	$style = "";
+	$buttonStart = "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	$buttonEnd = "</button>";
+} else {
+	$style = $top_bund;
+	$buttonStart = "";
+	$buttonEnd = "";
+}
+
 print "<td align='center' valign='middle'>";
 print "<table cellpadding='1' cellspacing='1' border='0'><tbody>";
 if (file_exists("../temp/$dat_filnavn")) {
-	print "<tr><td align=center> Klik her: </td><td $top_bund  title=\"Her har du mulighed for danne en sikkerhedkopi som du kan gemme.\">";
-	print "<a href='../temp/$dat_filnavn'>Gem sikkerhedskopi</a></td></tr>";
-	print "<tr><td align=center colspan=2> og gem sikkerhedskopien et passende sted.</td></tr>";
-	print "<tr><td align=center colspan=2> Hvis din browser forsøger at åbne filen</td></tr>";
-	print "<tr><td align=center colspan=2> skal du højreklikke og vælge 'gem som'</td></tr>";
+	print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td>";
+	print "<td $style title='".findtekst('1674|Her har du mulighed for danne en sikkerhedkopi som du kan gemme.', $sprog_id).".'>";
+	print "<a href='../temp/$dat_filnavn'> $buttonStart";
+	print findtekst('3|Gem', $sprog_id)." ".findtekst('614|Sikkerhedskopi', $sprog_id);
+	print "$buttonEnd </a></td></tr>";
+	print "<tr><td align=center colspan=2>".findtekst('1242|og gem sikkerhedskopien et passende sted.', $sprog_id)."</td></tr>";
+	print "<tr><td align=center colspan=2>".findtekst('1243|Hvis din browser forsøger at åbne filen', $sprog_id)."</td></tr>";
+	print "<tr><td align=center colspan=2>".findtekst('1244|skal du højreklikke og vælge gem som', $sprog_id)."</td></tr>";
 } else {
-	print "<tr><td align=center> Klik her: </td><td $top_bund  title=\"Her har du mulighed for at gemme sikkerhedskopien på din computer.\">";
-	print "<a href='backup.php?backup=1'>Dan sikkerhedskopi</a></td></tr>";
-	print "<tr><td align=center colspan=2>for at danne en sikkerhedskopi<br>som du kan gemme på din computer.</td></tr>";
+	print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td><td $style  title='".findtekst('1675|Her har du mulighed for at gemme sikkerhedskopien på din computer', $sprog_id)."'>";
+	print "<a href='backup.php?backup=1'> $buttonStart";
+	print findtekst('1245|Dan sikkerhedskopi', $sprog_id);
+	print "$buttonEnd </a></td></tr>";
+	print "<tr><td align=center colspan=2>".findtekst('1246|for at danne en sikkerhedskopi', $sprog_id)."<br>".findtekst('1676|som du kan gemme på din computer', $sprog_id).".</td></tr>";
 	print "<tr><td colspan=2><hr></td></tr>";
-	print "<tr><td align=center> Klik her: </td>";
-	print "<td $top_bund title=\"Her har du mulighed for at genindl&aelig;se en tidligere gemt sikkerhedskopi\">";
-	print "<a href=../admin/restore.php>Indl&aelig;s sikkerhedskopi</a></td></tr>";
-	print "<tr><td align=center colspan=2>for at indl&aelig;se en sikkerhedskopi<br>fra din computer.</td></tr>";
+	print "<tr><td align=center> ".findtekst('1241|Klik her', $sprog_id).": </td>";
+	print "<td $style title='".findtekst('1677|Her har du mulighed for at genindlæse en tidligere gemt sikkerhedskopi', $sprog_id)."'>";
+	print "<a href=../admin/restore.php> $buttonStart";
+	print findtekst('1247|Indlæs sikkerhedskopi', $sprog_id);
+	print "$buttonEnd </a></td></tr>";
+	print "<tr><td align=center colspan=2>".findtekst('1248|for at indlæse en sikkerhedskopi<br>fra din computer.', $sprog_id)."</td></tr>";
 }
-print "</tbody></table></div>";
+print "</tbody></table></tbody></table>";
+
+print "</div></div>";
+
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 
 ?>
-</body></html>
