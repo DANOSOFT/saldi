@@ -1,9 +1,4 @@
-(async () => {
-  const url = new URL(window.location.href)
-  const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
-  const firstFolder = pathSegments[0]
-  // Dynamically import the module
-  const { getAllCustomers, getAllItems, getCustomers, getReservationsByItem, deleteReservationByItem, getSettings, createReservation, createBooking, createOrder, getClosedDays, getItem, getItemBookings, getAllProductNames } = await import(`/${firstFolder}/rental/api/api.js`)
+import { getAllCustomers, getAllItems, getCustomers, getReservationsByItem, deleteReservationByItem, getSettings, createReservation, createBooking, createOrder, getClosedDays, getItem, getItemBookings, getAllProductNames } from "/pos/rental/api/api.js"
 
 const cust = document.querySelector(".customer")
 
@@ -127,19 +122,20 @@ const addEventListeners = (elements, event, handler) => {
 
 const singleItem = async (item) => {
   const searchInput = document.querySelector(".customers-search")
-  const optionsList = document.getElementById("customers").options
-  let selectedText
-  searchInput.addEventListener("change", () => {
-      const selectedValue = searchInput.value
-      
-      for (let i = 0; i < optionsList.length; i++) {
-          const option = optionsList[i]
-          if (option.text === selectedValue) {
-              selectedText = option.dataset.value
-              break // Exit loop once we find the matching option
-          }
-      }
-  })
+
+    const optionsList = document.getElementById("customers").options
+    let selectedText
+    searchInput.addEventListener("change", () => {
+        const selectedValue = searchInput.value
+        
+        for (let i = 0; i < optionsList.length; i++) {
+            const option = optionsList[i]
+            if (option.text === selectedValue) {
+                selectedText = option.dataset.value
+                break // Exit loop once we find the matching option
+            }
+        }
+    })
 
   // item already selected
   const itemsSelect = document.querySelector(".items")
@@ -175,7 +171,6 @@ const singleItem = async (item) => {
       closedDates.push(formattedDate)
     })
   }
-
   // Helper function to generate dates between two dates
   function generateDates(startDate, endDate) {
     const dates = []
@@ -201,7 +196,7 @@ const singleItem = async (item) => {
   }
 
   // get disabled dates from bookings 
-/*   const allDatesWithoutEnds = []
+  const allDatesWithoutEnds = []
   const allDatesWithoutStarts = []
   if(dates){
     dates.forEach(d => {
@@ -227,7 +222,7 @@ const singleItem = async (item) => {
       allDatesWithoutEnds.push(c)
       allDatesWithoutStarts.push(c)
     })
-  } */
+  }
 
   // get already booked dates
   const bookedDates = []
@@ -247,7 +242,7 @@ const singleItem = async (item) => {
   let fromDateData, toDateData, fromDate, addedDays, lastDay
   const addedDaysArray = []
   closedDates.push(...bookedDates)
-
+  
   const datePick = flatpickr(fromCalendar, {
     dateFormat: 'Y-m-d',
     theme: "dark",
@@ -258,13 +253,19 @@ const singleItem = async (item) => {
       if(bookings.msg === "Der er ingen bookinger"){
         return
       }
-      bookings.sort((a, b) => b.to - a.to)
 
-      // Get the last booking
-      const lastBooking = bookings[0]
-    
       const date = new Date(dayElem.dateObj)
       const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+
+      // get the latest booking where booking.to is earlier than date
+      const lastBooking = bookings
+    .filter(booking => new Date(booking.to * 1000) < date)
+    .reduce((closest, current) => {
+        if (!closest) return current
+        const closestDiff = Math.abs(date - new Date(closest.to * 1000))
+        const currentDiff = Math.abs(date - new Date(current.to * 1000))
+        return currentDiff < closestDiff ? current : closest
+    }, null)
 
       if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
         addedDaysArray.push(dateStr)
@@ -274,13 +275,13 @@ const singleItem = async (item) => {
 
       // Calculate the difference between dayElem.dateObj and the last day of the last booking
       const lastBookingDate = new Date(lastBooking.to * 1000)
+  
       // add 1 day to the from date to avoid conflicts with the end date of the previous booking
       lastBookingDate.setDate(lastBookingDate.getDate() + 2)
-      const diffInDays = Math.ceil((dayElem.dateObj - lastBookingDate) / (1000 * 60 * 60 * 24))
 
       const timeDifference = Math.abs(date - lastBookingDate)
       const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
-      console.log(daysDifference)
+      
       // Check if the difference is equal to or greater than 7 and there is no booking on dayElem.dateObj
       if (date > lastBookingDate && daysDifference % 7 === 0 && !bookings.some(booking => new Date(booking.from * 1000).toDateString() === dayElem.dateObj.toDateString()) && !closedDates.includes(dateStr)) {
         // Add class to dayElem
@@ -336,6 +337,7 @@ const singleItem = async (item) => {
       if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
         return
       }
+
       update()
     }
   })
@@ -524,7 +526,7 @@ const init = async () => {
   })
 
   if(urlParams === "" || !urlParams.has("item")){
-    await drawForm()
+    window.location.href = "index.php?vare"
   }
 
   if(urlParams !== "" && (urlParams.has("day") && urlParams.has("month") && urlParams.has("year"))){
@@ -544,4 +546,3 @@ const init = async () => {
 }
 
 init()
-})()
