@@ -182,11 +182,68 @@ if (strpos($id, $urlPrefix) === 0) {
 	$newId = $id;
 }
 ?>
-<body class="dark:bg-gray-700">
-<?php
-include_once("sidemenu.php");
-?>
-<div class="p-4 lg:ml-64 h-screen">
+<button data-drawer-target="default-sidebar" data-drawer-toggle="default-sidebar" aria-controls="default-sidebar" type="button" class="inline-flex items-center p-2 mt-2 ms-3 text-sm text-gray-500 rounded-lg lg:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600">
+   <span class="sr-only">Åben sidebar</span>
+   <svg class="w-20 h-20" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+   <path clip-rule="evenodd" fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"></path>
+   </svg>
+</button>
+
+<aside id="default-sidebar" class="fixed top-0 left-0 z-40 w-1/2 lg:w-64 h-screen transition-transform -translate-x-full lg:translate-x-0" aria-label="Sidebar">
+   <div class="h-full px-3 py-4 overflow-y-auto bg-gray-50 dark:bg-gray-800">
+      <ul class="space-y-2 font-medium">
+         <li>
+            <a href="mysale.php?id=<?php echo $newId ?>" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path d="M13.5 2c-.178 0-.356.013-.492.022l-.074.005a1 1 0 0 0-.934.998V11a1 1 0 0 0 1 1h7.975a1 1 0 0 0 .998-.934l.005-.074A7.04 7.04 0 0 0 22 10.5 8.5 8.5 0 0 0 13.5 2Z"/>
+					<path d="M11 6.025a1 1 0 0 0-1.065-.998 8.5 8.5 0 1 0 9.038 9.039A1 1 0 0 0 17.975 13H11V6.025Z"/>
+				</svg>
+               <span class="ms-3 font-sans text-5xl lg:text-base">Oversigt</span>
+            </a>
+         </li>
+         <li>
+            <a href="mysale.php?id=<?php echo $newId ?>&condition=<?php echo $condition ?>&editProfile=1" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path fill-rule="evenodd" d="M17 10v1.126c.367.095.714.24 1.032.428l.796-.797 1.415 1.415-.797.796c.188.318.333.665.428 1.032H21v2h-1.126c-.095.367-.24.714-.428 1.032l.797.796-1.415 1.415-.796-.797a3.979 3.979 0 0 1-1.032.428V20h-2v-1.126a3.977 3.977 0 0 1-1.032-.428l-.796.797-1.415-1.415.797-.796A3.975 3.975 0 0 1 12.126 16H11v-2h1.126c.095-.367.24-.714.428-1.032l-.797-.796 1.415-1.415.796.797A3.977 3.977 0 0 1 15 11.126V10h2Zm.406 3.578.016.016c.354.358.574.85.578 1.392v.028a2 2 0 0 1-3.409 1.406l-.01-.012a2 2 0 0 1 2.826-2.83ZM5 8a4 4 0 1 1 7.938.703 7.029 7.029 0 0 0-3.235 3.235A4 4 0 0 1 5 8Zm4.29 5H7a4 4 0 0 0-4 4v1a2 2 0 0 0 2 2h6.101A6.979 6.979 0 0 1 9 15c0-.695.101-1.366.29-2Z" clip-rule="evenodd"/>
+				</svg>
+               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Profil</span>
+            </a>
+         </li>
+         <li>
+            <a href=mylabel.php?id=<?php echo $newId?>&condition=<?php echo $condition?> class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path d="M4 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h11.613a2 2 0 0 0 1.346-.52l4.4-4a2 2 0 0 0 0-2.96l-4.4-4A2 2 0 0 0 15.613 6H4Z"/>
+				</svg>
+				<span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base"><?php echo findtekst(3063,$sprog_id) ?></span>
+            </a>
+         </li>
+		 <li>
+            <a href="remoteBooking.php?id=<?php echo $id?>&condition=<?php echo $condition?>" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path fill-rule="evenodd" d="M6 5V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v2H3V7a2 2 0 0 1 2-2h1ZM3 19v-8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm5-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2H8Z" clip-rule="evenodd"/>
+				</svg>
+               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Book stand</span>
+            </a>
+         </li>
+		 <li>
+			<a href="mybooking.php?id=<?php echo $newId?>" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+					<path fill-rule="evenodd" d="M6 5V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h3V4a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v2H3V7a2 2 0 0 1 2-2h1ZM3 19v-8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Zm5-6a1 1 0 1 0 0 2h8a1 1 0 1 0 0-2H8Z" clip-rule="evenodd"/>
+				</svg>
+				<span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Mine bookinger</span>
+			</a>
+		</li>
+         <li>
+            <a href="mysale.php" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group">
+				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+					<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12H4m12 0-4 4m4-4-4-4m3-4h2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-2"/>
+				</svg>
+               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base">Logud</span>
+            </a>
+         </li>
+      </ul>
+   </div>
+</aside>
 <?php
 
 if ($custName && $access) {
@@ -200,8 +257,8 @@ if ($custName && $access) {
 	else print "<br>Velkommen " . $custName . ", kundenr $custNo<br><br>" . $store . ".<br>"; */
 	?>
 	<div class="flex flex-col items-center justify-center mt-4">
-		<h3 class="text-5xl lg:text-3xl font-bold text-center dark:text-white">Velkommen <?php echo $custName ?>, kundenr <?php echo $custNo ?></h3>
-		<p class="text-center text-5xl lg:text-2xl dark:text-white">Her kan du se dine salg.</p>
+		<h3 class="text-3xl font-bold text-center">Velkommen <?php echo $custName ?>, kundenr <?php echo $custNo ?></h3>
+		<p class="text-center">Her kan du se dine salg.</p>
 	</div>
 	<?php
 	$qtxt = "select box1 from grupper where art='LABEL'";
@@ -224,7 +281,7 @@ if ($custName && $access) {
 			}
 #			print "<br >Du kan tilføje <b>$vareLimit</b> varer.</br><br><br>";
 		}
-		/* if ($medlem) {
+		if ($medlem) {
 			if (!isset($_SESSION['linkLog']) || !$mySaleLabel) {
 				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
 			}
@@ -239,16 +296,16 @@ if ($custName && $access) {
 			}
 		} else {
 			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
-		} */
+		}
 	}
 } else {
 	/* print "<center><br><br>Velkommen " . $custName . ". Du har ikke adgang til 'Mit salg' hos " . $store . ".<br><br>";
 	print "Kontakt " . $store . " for åbning af adgang.<br></style>"; */
 	?>
 	<div class="flex flex-col items-center justify-center mt-4">
-		<h3 class="text-3xl font-bold text-center dark:text-white">Velkommen <?php echo $custName ?></h3>
-		<p class="text-center dark:text-white">Du har ikke adgang til 'Mit salg' hos <?php echo $store ?>.</p>
-		<p class="text-center dark:text-white">Kontakt <?php echo $store ?> for åbning af adgang.</p>
+		<h3 class="text-3xl font-bold text-center">Velkommen <?php echo $custName ?></h3>
+		<p class="text-center">Du har ikke adgang til 'Mit salg' hos <?php echo $store ?>.</p>
+		<p class="text-center">Kontakt <?php echo $store ?> for åbning af adgang.</p>
 	</div>
 	<?php
 	exit;
@@ -340,68 +397,80 @@ usort($testArray, 'date_compare');
 
 
 
-if ($tilsalg == 1) {
-	?>
-	<div class="flex flex-col items-center justify-center mt-4">
-		<form action='mysale.php?id=<?php echo $id ?>&sort=<?php echo $sort ?>' method='post'>
-			<?php if (!$medlem) {
-				if ($showNew && $showUsed) { ?>
-					<select name='condition' class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-						<?php if ($condition == 'new') { ?>
-							<option value='new'>nyt</option>
-						<?php } ?>
-						<option value='used'>brugt</option>
-						<?php if ($condition != 'new') { ?>
-							<option value='new'>nyt</option>
-						<?php } ?>
-					</select>
-				<?php } elseif ($showNew) { ?>
-					<div class="text-xl font-bold dark:text-white"><?php echo findtekst(3062,$sprog_id) ?></div>
-				<?php } else { ?>
-					<div class="text-xl font-bold dark:text-white"><?php echo findtekst(3060,$sprog_id) ?></div>
-				<?php }
-			} ?>
-		</form>
 
-		<div class="relative w-full lg:w-2/3 max-w-full">
-			<div class="overflow-hidden">
-				<table class="w-full text-4xl lg:text-sm text-left rtl:text-right text-gray-900 dark:text-gray-400 mb-4">
-					<thead class="text-3xl lg:text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-500 dark:text-gray-300">
-						<tr>
-							<th scope="col" class="px-6 py-3">
-								<a href='mysale.php?id=<?php echo $id ?>&sort=<?php echo $sort ?>&tilsalg=1&newSort=id' class="dark:text-white">Oprettet</a>
-							</th>
-							<th scope="col" class="px-6 py-3">Id</th>
-							<th scope="col" class="px-6 py-3">Beskrivelse</th>
-							<th scope="col" class="px-6 py-3">Salgspris</th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php if ($medlem) {
-							for ($x = 0; $x < count($tilsalgOprettet); $x++) {
-								$showDate = ($tilsalgOprettet[$x] > '1') ? $tilsalgOprettet[$x] : $tilsalgCreated[$x];
-								if ($tilsalgPris[$x] != 0) { ?>
-									<tr class="bg-gray-50 dark:bg-gray-700">
-										<td class="px-6 py-4 whitespace-nowrap"><?php echo date("d.m.Y", $showDate) ?></td>
-										<td class="px-6 py-4 whitespace-nowrap"><?php echo $tilsalgId[$x] ?></td>
-										<td class="px-6 py-4 whitespace-nowrap" title="<?php echo $tilsalgBeskrivelse[$x] ?>">
-											<?php echo $mobile ? substr($tilsalgBeskrivelse[$x], 0, 15) : $tilsalgBeskrivelse[$x] ?>
-										</td>
-										<td class="px-6 py-4 whitespace-nowrap text-right">
-											<?php echo number_format($tilsalgPris[$x], 2, ',', '.') ?>
-										</td>
-									</tr>
-						<?php }
-							}
-						} ?>
-					</tbody>
-				</table>
-			</div>
-		</div>
-	</div>
-	<?php
+if ($tilsalg == 1) {
+	print "<center>";
+	print "<table border='0'>";
+	print "<form action='mysale.php?id=$id&sort=$sort' method='post'>";
+	print "<tr>";
+	if ($medlem) {
+	} else {
+		if ($showNew && $showUsed) {
+			print "<td><select name ='condition'>";
+			if ($condition == 'new') print "<option value='new'>nyt</option>";
+			print "<option value='used'>brugt</option>";
+			if ($condition != 'new') print "<option value='new'>nyt</option>";
+			print "</select></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
+	}
+	
+print "<td style='text-align:center'>Tilføj vare</td>";
+if ($mobile) {
+	print "<td style='width:225px'>";
+ 	print "<input class='inputbox' style='text-align:center; width:225px;' type='text' id='tbDatefrom' name='dateFrom' ";
+	print "value='". dkdato($from) ."' onchange='this.form.submit()'></td>";
+ 	print "<td style='text-align:center;width:15px'>-</td>";
+	print "<td style='width:225px'>";
+	print "<input  class='inputbox' style='text-align:center;  width:225px;' type='text' id='tbDateto' name='dateTo' ";
+	print "value='". dkdato($to) ."' onchange='this.form.submit()'></td>";
 } else {
-	/* print "<center>";
+	print "<td width='80px'>";
+	print "<input class='inputbox' style='text-align:left; width:150px;' type='text' id='beskrivelse' name='beskriv' ";
+	print "placeholder='Beskrivelse' '></td>";
+	print "<td width='40px'>";
+	print "<input  class='inputbox' style='text-align:left;  width:100px;' type='text' id='normalPris' name='normalPris' ";
+	print "placeholder='Normal pris' '></td>";
+}
+
+print "<td style='width:50px'><input style='text-align:center; width:50px;' type='button' name='update' value='Gem'></td>";
+print "<td ><input style='text-align:center; width:90px;' type='button' name='update' value='Gem & print'></td>";
+
+	print "</tr>";
+	print "</form>";
+	print "</table><table border='0' width='90%'>";
+	print "<tr bgcolor='$lineColor'>";
+	print "<td><a href='mysale.php?id=$id&sort=$sort&tilsalg=1&newSort=id'>Oprettet</a></td>";
+	print "<td align='left'>Id</td><td style='width:50px'>Beskrivelse</td>";
+	if ($mobile) print "<td align='right'>Salgspris</td>";
+	else print "<td align='right'>Salgspris</td>";#<td align='right'>Medlemspris</td>";
+	#print "<td align='right'>Printet</td><td align='right'>Print</td>";
+	print "</tr>";
+	if ($medlem) {
+		for ($x = 0; $x < count($tilsalgOprettet); $x++) {
+			($tilsalgOprettet[$x] > '1')?$showDate = $tilsalgOprettet[$x]:$showDate = $tilsalgCreated[$x];
+#if ($bruger_id == '-1') echo $tilsalgOprettet[$x]."<br>";
+				if ($tilsalgPris[$x] != 0) {
+				($lineColor == $bgcolor) ? $lineColor = $bgcolor5 : $lineColor = $bgcolor;
+				print "<tr bgcolor='$lineColor'>";
+				print "<td>" . date("d.m.Y", $showDate) . "</td>";
+				print "<td align='left'>$tilsalgId[$x]</td>";
+				print "<td title='$tilsalgBeskrivelse[$x]' style='white-space:nowrap;overflow:hidden;'>";
+				($mobile) ? print substr($tilsalgBeskrivelse[$x], 0, 15) : print $tilsalgBeskrivelse[$x];
+				print "</td>";
+				print "<td align='right'>" . number_format($tilsalgPris[$x], 2, ',', '.') . "</td>";
+	#			print "<td align='right'>" . number_format($tilsalgMedlemPris[$x], 2, ',', '.') . "</td>";
+			/*	if ($tilsalgOprettet[$x]) {
+				print "&nbsp;<td align='center'><img src=\"../ikoner/checkmrk.png\" style=\"border: 0px solid; </td>\">";
+				} else {
+					print "&nbsp;<td align='center'><img src=\"../ikoner/slet.png\" style=\"border: 0px solid; </td>\">";
+				}
+				print "<td align='center'><input name=\"printItem\" type=\"checkbox\" $printed></td>"; */
+				print "</tr>";
+			}}
+	}
+} else {
+	print "<center>";
 	print "<table border='0'>";
 	print "<form action='mysale.php?id=$id&sort=$sort' method='post'>";
 	print "<tr>";
@@ -459,179 +528,9 @@ if ($tilsalg == 1) {
 		if ($mobile) print "<td align='right'>Din del</td>";
 		else print "<td align='right'>Din del</td><td align='right'>Din %</td>";
 	}
-	print "</tr>"; */
-	?>
-	<div class="flex flex-col items-center justify-center mt-4">
-	<form action='mysale.php?id=<?php echo $id ?>&sort=<?php echo $sort ?>' method='post'>
-		<?php if (!$medlem) {
-			if ($showNew && $showUsed) {
-		?>
-			<!-- <select name ='condition' class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-				<option value='new'>nyt</option>
-				<option value='used'>brugt</option>
-				<option value='new'>nyt</option>
-			</select> -->
-			<?php } /* elseif ($showNew) print findtekst(3062,$sprog_id);
-			else print findtekst(3060,$sprog_id); */ ?>
-			<!-- <select name ='condition' class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-				<option value='new'>nyt</option>
-				<option value='used'>brugt</option>
-				<?php /* if ($condition != 'new'){ */ ?>
-					<option value='new'>nyt</option>
-				<?php /* } */ ?>
-			</select> -->
-			<?php }	?>
-			<!-- <h3 class="mt-4 mb-4 text-xl font-bold">Periode</h3> -->
-			<div class="grid lg:grid-cols-7 lg:gap-6 grid-cols-6 gap-3">
-				<div class="relative z-0 w-full mb-5 group col-span-3">
-					<label for="tbDatefrom" class="block mb-4 text-5xl lg:text-sm font-medium text-gray-900 dark:text-white text-center">Fra</label>
-					<input id="tbDatefrom" 
-						type="text"
-						class="bg-gray-50 border border-gray-300 text-gray-900 text-4xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-6 lg:p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 min-h-[80px] md:min-h-0" 
-						name="dateFrom"
-						value="<?php echo dkdato($from) ?>"
-						onchange="this.form.submit()">
-				</div>
-				<div class="relative z-0 w-full mb-5 group col-span-3">
-					<label for="tbDateto" class="block mb-4 text-5xl lg:text-sm font-medium text-gray-900 dark:text-white text-center">Til</label>
-					<input id="tbDateto"
-						type="text" 
-						class="bg-gray-50 border border-gray-300 text-gray-900 text-4xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-6 lg:p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 min-h-[80px] md:min-h-0"
-						name="dateTo"
-						value="<?php echo dkdato($to) ?>"
-						onchange="this.form.submit()">
-				</div>
-			</div>
-		</form>
-		<div class="flex flex-col items-center mb-3">
-			<div class="text-center">
-				<label for="condition" class="block mb-4 text-5xl lg:text-xl font-medium text-gray-900 dark:text-white">Vælg mellem at se nyt / brugt</label>
-			</div>
-			<div class="text-center">
-				<select name="condition" id="condition" onchange="javascript:this.form.submit()" class="bg-gray-50 border border-gray-300 text-gray-900 text-4xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-96 p-3 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-					<option value="used" <?php echo ($condition == 'used') ? 'selected' : ''; ?>>Brugt</option>
-					<option value="new" <?php echo ($condition == 'new') ? 'selected' : ''; ?>>Nyt</option>
-				</select>
-			</div>
-		</div>
-		<script>
-			const condition = document.getElementById('condition')
-			condition.addEventListener('change', function() {
-				const url = `mysale.php?id=<?php echo $newId ?>&condition=${condition.value}`;
-				window.location.href = url;
-			})
-		</script>
-		<?php 
-			$qtxt = "select var_value from settings where var_name='medlemSetting' or var_name='memberShip'";
-			if($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))){
-		?>
-		<div class="flex space-x-4 mb-4 justify-center">
-			<a href="mysale.php?id=<?php echo $newId ?>&sort=<?php echo $sort ?>&tilsalg=1" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Til salg</a>
-			<a href="mysale.php?id=<?php echo $newId ?>&sort=<?php echo $sort ?>&tilsalg=0" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Solgt</a>
-		</div>
-		<?php } ?>
-		<h3 class="text-5xl lg:text-3xl font-bold text-center lg:mb-2 mb-4 dark:text-white">Salgsoversigt</h3>
-		<div class="relative w-full lg:w-2/3 max-w-full">
-			<div class="overflow-hidden">
-				<table class="w-full text-4xl lg:text-sm text-left rtl:text-right text-gray-900 dark:text-gray-400 mb-4">
-				<thead class="text-3xl lg:text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-500 dark:text-gray-300">
-					<tr>
-						<th scope="col" class="px-6 py-3"><a href='mysale.php?id=<?php echo $id ?>&sort=<?php echo $sort ?>&newSort=id'>Dato</a></th>
-						<?php if ($medlem) { ?>
-							<th scope="col" class="px-6 py-3">Id</th>
-							<th scope="col" class="px-6 py-3">Beskrivelse</th>
-						<?php } else { ?>
-							<?php if($mobile) { ?>
-								<th scope="col" class="px-6 py-3">#</th>
-							<?php }else{ ?>
-							<th scope="col" class="px-6 py-3"><?php echo findtekst(916,$sprog_id) ?></th>
-							<?php } ?>
-							<th scope="col" class="px-6 py-3">Beskrivelse</th>
-							<th scope="col" class="px-6 py-3"><a href='mysale.php?id=$id&sort=$sort&newSort=pris'>Pris</a></th>
-							<?php if(!$mobile) { ?>
-							<th scope="col" class="px-6 py-3">I alt</th>
-							<?php } ?>
-						<?php } ?>
-						<?php if ($medlem) { ?>
-							<th scope="col" class="px-6 py-3">Salgspris</th>
-							<th scope="col" class="px-6 py-3">Din andel</th>
-						<?php } else { ?>
-							<th scope="col" class="px-6 py-3">Din del</th>
-							<?php if(!$mobile) { ?>
-								<th scope="col" class="px-6 py-3">Din %</th>
-							<?php } ?>
-						<?php } ?>
-					</tr>
-				</thead>
-				<tbody>
-					<?php if($medlem){
-						for($x = 0; $x < count($testArray); $x++){
-					?>
-						<tr class="bg-gray-50 dark:bg-gray-700">
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo dkdato($testArray[$x][0]) ?></td>	
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo $testArray[$x][1] ?></td>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo $testArray[$x][2] ?></td>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo number_format($testArray[$x][3], 2, ',', '.') ?></td>
-							<?php if(!$mobile) { ?>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo number_format($testArray[$x][4], 2, ',', '.') ?></td>
-							<?php } ?>
-						</tr>
-						<?php }
-							} else {
-								for($x = 0; $x < count($fakturadate); $x++){
-						?>
-						<tr class="bg-gray-50 dark:bg-gray-700">
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo dkdato($fakturadate[$x]) ?></td>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo number_format($antal[$x], 0, ',', '.') ?></td>
-							<?php if($mobile) { ?>
-							<td class="px-6 py-4 whitespace-nowrap" title="<?php echo $beskrivelse[$x] ?>"><?php echo substr($beskrivelse[$x], 0, 10) . (strlen($beskrivelse[$x]) > 10 ? '...' : '') ?></td>
-							<?php }else{ ?>
-								<td class="px-6 py-4 whitespace-nowrap" title="<?php echo $beskrivelse[$x] ?>"><?php echo substr($beskrivelse[$x], 0, 30) . (strlen($beskrivelse[$x]) > 30 ? '...' : '') ?></td>
-							<?php } ?>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo number_format($pris[$x], 2, ',', '.') ?></td>
-							<?php if(!$mobile) { ?>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo number_format($linePrice[$x], 2, ',', '.') ?></td>
-							<?php } ?>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo number_format($yourPrice[$x], 2, ',', '.') ?></td>
-							<?php if(!$mobile) { ?>
-							<td class="px-6 py-4 whitespace-nowrap"><?php echo number_format($provision[$x], 0, ',', '.') ?></td>
-							<?php } ?>
-						</tr>
-						<?php }
-					} ?>
-					<?php if($medlem){ ?>
-						<tr class="bg-gray-50 dark:bg-gray-700">
-							<td class="px-6 py-4 whitespace-nowrap"></td>
-							<td class="px-6 py-4 whitespace-nowrap"></td>
-							<td class="px-6 py-4 whitespace-nowrap"></td>
-							<td class="px-6 py-4 whitespace-nowrap"></td>
-							<td class="px-6 py-4 whitespace-nowrap"><b><?php echo number_format($yourTotalPrice, 2, ',', '.') ?></b></td>
-						</tr>
-					<?php } else { ?>
-						<tr class="bg-gray-50 dark:bg-gray-700">
+	print "</tr>";
 
-							<td class="px-6 py-4">I alt</td>
-
-							<td class="px-6 py-4 whitespace-nowrap"><b><?php echo number_format($qty, 0, ',', '.') ?></b></td>
-							<td class="px-6 py-4 whitespace-nowrap"></td>
-							<td class="px-6 py-4 whitespace-nowrap"></td>
-							<?php if(!$mobile) { ?>
-							<td class="px-6 py-4 whitespace-nowrap"><b><?php echo number_format($totalPrice, 2, ',', '.') ?></b></td>
-							<?php } ?>
-							<td class="px-6 py-4 whitespace-nowrap"><b><?php echo number_format($yourTotalPrice, 2, ',', '.') ?></b></td>
-							<?php if (!$mobile) { ?>
-								<td class="px-6 py-4 whitespace-nowrap"><b><?php echo number_format($avgPct, 0, ',', '.') ?></b></td>
-							<?php } ?>
-						</tr>
-					<?php } ?>
-				</tbody>
-			</table>
-		</div>
-	</div>
-</div>
-	<?php
-}
-	/* if ($medlem) {
+	if ($medlem) {
 		for ($x = 0; $x < count($testArray); $x++) {
 			if (isset($testArray[$x][2]) && substr($testArray[$x][2],0,3) != 'Afr')	 {
 				($lineColor == $bgcolor) ? $lineColor = $bgcolor5 : $lineColor = $bgcolor;
@@ -686,5 +585,5 @@ if ($tilsalg == 1) {
 		print "</tr>";
 	}
 	print "</table>";
-} */
+}
 ?>

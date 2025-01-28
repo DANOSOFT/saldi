@@ -26,6 +26,7 @@
 // 20210908 PHR Password can now be empty.
 // 20220212 PHR Cleanup
 // 20230406 PHR	Minor changes in memberShip (only used by pos_38)
+// 04/09/2024 PBLM added sidemenu
 
 if ($accountId && isset($_POST['addr1'])) {	
 	$qtxt = "update adresser set ";
@@ -105,11 +106,21 @@ else{
     $memberOutput = 'Inaktiv';
 }
 */
-($mobile)?$width='400':$width='200';
-print "<center><table border = '0' style = 'width:". $width * 2 ."px'>";
+$urlPrefix = "https://ssl8.saldi.dk/laja/mysale/mysale.php?id=";
+if (strpos($id, $urlPrefix) === 0) {
+    // Remove the URL prefix
+    $newId = str_replace($urlPrefix, '', $id);
+}else{
+	$newId = $id;
+}
+?>
+<body class="dark:bg-gray-700">
+
+<?php
+include_once("sidemenu.php");
+/* print "<center><table border = '0' style = 'width:". $width * 2 ."px'>";
 print "<br>Her har du mulighed for at se dine stamoplysninger<br>og lægge adgangskode på din profil<br><br>";
 print "<form action='mysale.php?id=$id&sort=$sort' method='post'>";
-print "<input style='width:". $width * 2 ."px' value='Tilbage' type = 'submit'>";
 print "</form>";
 print "<form action='mysale.php?id=$id&sort=$sort&editProfile=1' method='post'>";
 if ($memberShip) { # most be corrected by DAPE
@@ -142,5 +153,69 @@ print "<input style='width:". $width ."px' name = 'pw2' type = 'text' value = '$
 print "<tr><td colspan = '2' align='center'>";
 print "<input style='width:". $width *2 ."px' name = 'save' value='Gem' type = 'submit'></td></tr>";
 print "</form>";
-print "</table></center>";
+print "</table></center>"; */
 ?>
+<div class="p-4 lg:ml-64 h-screen">
+	<!-- <h1 class="text-2xl font-semibold dark:text-white">Profil</h1>
+	<p class="text-sm text-gray-500 dark:text-gray-400">Her har du mulighed for at se dine stamoplysninger og lægge adgangskode på din profil</p> -->
+	<form class="mx-auto mt-4 w-3/4 lg:w-2/4" action='mysale.php?id=<?php echo $id ?>&sort=<?php echo $sort ?>&editProfile=1' method='post'>
+	<?php if ($memberShip) { # most be corrected by DAPE
+		if ($memberOutput == 'Aktiv') { ?>
+			<p>Status <?php echo $memberOutput ?></p>
+		<?php } else { ?>
+			<p>Status <?php echo $memberOutput ?></p>
+		<?php }
+	} ?>
+<!-- 	<div class="relative z-0 w-full mb-5 group">
+		<p class="dark:text-white">Kontonr: <?php echo $accountNo ?></p>
+	</div>
+	<div class="relative z-0 w-full mb-5 group">
+		<p class="dark:text-white">Navn: <?php echo $name ?></p>
+	</div> -->
+	<div class="relative z-0 w-full mb-6 group">
+        <input type="text" name="addr1" id="addr1" value="<?php echo $addr1 ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " required />
+        <label for="addr1" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Addresse</label>
+    </div>
+	<div class="relative z-0 w-full mb-6 group">
+        <input type="text" name="addr2" id="addr2" value="<?php echo $addr2 ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
+        <label for="addr2" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Addresse 2.</label>
+    </div>
+    <div class="relative z-0 w-full mb-6 group">
+        <input type="text" name="email" id="email" value="<?php echo $email ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " required />
+        <label for="email" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Email</label>
+    </div>
+	<div class="relative z-0 w-full mb-6 group">
+		<input type="tel" pattern="[0-9]{8}" name="phone" id="phone" value="<?php echo $phone ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " required />
+		<label for="phone" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Telefon</label>
+	</div>
+	<div class="grid md:grid-cols-2 md:gap-6">
+		<div class="relative z-0 w-full mb-6 group">
+			<input type="text" name="zip" id="zip" value="<?php echo $zip ?>" class="block pt-8 px-6 w-full text-5xl  lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " required />
+			<label for="zip" class="peer-focus:font-medium absolute text-5xl  lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Postnr</label>
+		</div>
+		<div class="relative z-0 w-full mb-6 group">
+			<input type="text" name="city" id="city" value="<?php echo $city ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " required />
+			<label for="city" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">By</label>
+		</div>
+	</div>
+	<div class="grid md:grid-cols-2 md:gap-6">
+		<div class="relative z-0 w-full mb-6 group">
+			<input type="text" name="bankReg" id="bankReg" value="<?php echo $bankReg ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " required />
+			<label for="bankReg" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Bank Reg. nr<span class="invisible lg:visible">: (Til udbetaling)</span></label>
+		</div>
+		<div class="relative z-0 w-full mb-6 group">
+			<input type="text" name="bankKto" id="bankKto" value="<?php echo $bankKto ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " required />
+			<label for="bankKto" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Bank Konto nr<span class="invisible lg:visible">: (Til udbetaling)</span></label>
+		</div>
+	</div>
+	<div class="relative z-0 w-full mb-6 group">
+		<input type="password" name="pw1" id="pw1" value="<?php echo $showPw ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
+		<label for="pw1" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Password</label>
+	</div>
+	<div class="relative z-0 w-full mb-6 group">
+		<input type="password" name="pw2" id="pw2" value="<?php echo $showPw ?>" class="block pt-8 px-6 w-full text-5xl lg:text-sm text-gray-900 bg-transparent border-0 border-b-2 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer" placeholder=" " />
+		<label for="pw2" class="peer-focus:font-medium absolute text-5xl lg:text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-6 scale-75 top-3 -z-10 origin-[0] peer-focus:start-0 rtl:peer-focus:translate-x-1/4 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Gentag password</label>
+	</div>
+	<button type="submit" name="save" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-3xl lg:text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Submit</button>
+	</form>
+</div>
