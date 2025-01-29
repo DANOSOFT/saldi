@@ -2,6 +2,8 @@
 function vat_info($regnstart, $regnslut) {
     # Omsætningsgraf
     global $regnaar, $sprog_id;
+    global $kontomin;
+    global $kontomaks;
 
     $qtxt = "select * from grupper where art = 'MR' and fiscal_year = $regnaar";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -15,6 +17,10 @@ function vat_info($regnstart, $regnslut) {
     // Beregn første og sidste dag for det foregående regnskabsår
     $firstDayOfLastYear = date('Y-m-d', strtotime('-1 year', strtotime($firstDayOfYear))); // Første dag sidste regnskabsår
     $lastDayOfLastYear = date('Y-m-d', strtotime('-1 year', strtotime($lastDayOfYear))); // Sidste dag sidste regnskabsår
+    // If the calculated date is before the first day of the fiscal year, adjust it to the next year
+    if ($lastDayOfLastYear < $firstDayOfLastYear) {
+        $lastDayOfLastYear = date('Y-m-d', strtotime('+1 year', strtotime($lastDayOfLastYear)));
+    }
 
     // Sammenligning for dette regnskabsår
     $qtxt = "
