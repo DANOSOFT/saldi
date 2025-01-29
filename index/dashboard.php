@@ -98,9 +98,9 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 	# Titlebar
 	print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap'>";
 	print "<h1>Velkommen - $name</h1>";
-  if (is_null($regnaar)) {
-    print "<p>Der er ikke et aktivt rengskabsår, aktiver et regnskabsår gennem System » Indstillinger » Regnskabsår</p>";
-  }
+  	if (is_null($regnaar)) {
+		print "<p>Der er ikke et aktivt rengskabsår, aktiver et regnskabsår gennem System » Indstillinger » Regnskabsår</p>";
+	}
 	print "<div style='display: flex; gap: 2em'>";
 	$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
 	$state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -146,13 +146,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    update_settings_value("varegrp_doughnut", "dashboard_toggles", if_isset($_POST['varegrpdoughnut'],  "off"),   "Show the sales of varegrupper in the year in a doughnut");
 }
 
-if ($_GET['close_snippet'] == '1') {
+if (isset($_GET['close_snippet']) && $_GET['close_snippet'] == '1') {
    update_settings_value("closed_news_snippet", "dashboard", $newssnippet, "The newssnippet that was closed by the user");
 }
-if ($_GET['hidden'] == '1') {
+if (isset($_GET['hidden']) && $_GET['hidden'] == '1') {
    update_settings_value("hide_dash", "dashboard", 1, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
 }
-if ($_GET['hidden'] == '0') {
+if (isset($_GET['hidden']) && $_GET['hidden'] == '0') {
    update_settings_value("hide_dash", "dashboard", 0, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
 }
 
@@ -238,7 +238,7 @@ print "<div style='display: flex; justify-content: space-between; flex-wrap: wra
 print "<h1>".findtekst(3075, $sprog_id)." - $name</h1>";
 print "<div style='display: flex; gap: 2em'>";
 print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? "Skjul" : "Vis") ." oversigt</button>";
-if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>Rediger oversigt</button>";
+if ($hide_dash !== "1" || is_null($regnaar)) print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>Rediger oversigt</button>";
 
 # Kassesystem eller ej
 $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
@@ -254,7 +254,7 @@ if ($state) {
 print "</div>";
 print "</div>";
 
-if ($hide_dash === "1") {
+if ($hide_dash === "1" || is_null($regnaar)) {
 	exit;
 }
 
