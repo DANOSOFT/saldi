@@ -578,6 +578,10 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	$qtxt .= "local_name varchar(100), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, sort TEXT)", __FILE__ . " line " . __LINE__);
+
+	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id CHARACTER VARYING(10), selector TEXT)", __FILE__ . " line " . __LINE__);
+
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {
 		db_modify("ALTER TABLE adresser ADD modtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", __FILE__ . "linje" . __LINE__);

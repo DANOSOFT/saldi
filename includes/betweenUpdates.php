@@ -368,4 +368,25 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 }
 include ('../includes/online.php');
 
+db_modify("CREATE TABLE IF NOT EXISTS datatables (
+    id SERIAL PRIMARY KEY, -- Auto increment integer
+    user_id INTEGER NOT NULL,
+    tabel_id CHARACTER VARYING(10),
+    column_setup TEXT,
+    search_setup TEXT,
+    filter_setup TEXT,
+    rowcount INTEGER,
+    \"offset\" INTEGER,
+    sort TEXT
+)
+", __FILE__ . " line " . __LINE__);
+
+db_modify("
+CREATE TABLE IF NOT EXISTS tutorials (
+	id SERIAL PRIMARY KEY, -- Auto increment integer
+	user_id INTEGER NOT NULL,
+	tutorial_id CHARACTER VARYING(10),
+	selector TEXT
+)
+", __FILE__ . " line " . __LINE__);
 ?>
