@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -133,7 +134,7 @@ print "<table border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\">
 print "<tr bgcolor='$bgc'><td>Afd</td><td>Varenr</td><td>Beskrivelse</td><td width='80px'>Beholdning</td>";
 print "<td width='80px' align='center'>Min</td><td width='80px' align='center'>Max</td>";
 print "<td width='80px' align='center'>Køb</td><tr>";
-fwrite($fp,"Afd;Varenr;Beskrivelse;Beholdning;Min;Max;".utf8_decode('Køb')."\n");
+fwrite($fp,"Afd;Varenr;Beskrivelse;Beholdning;Min;Max;".mb_convert_encoding('Køb', 'ISO-8859-1', 'UTF-8')."\n");
 
 for ($a=0;$a<count($vGr);$a++) {
 	if (in_array($vGr[$a],$itemGrp)) {
@@ -153,7 +154,7 @@ for ($a=0;$a<count($vGr);$a++) {
 						($bgc==$bgcolor)?$bgc=$bgcolor2:$bgc=$bgcolor;
 						print "<tr bgcolor='$bgc'>";
 						print "<td>$stkDescription[$c]</td><td>$itemNo[$b]</td><td>$itemDescription[$b]</td>";
-						fwrite($fp,"$stkDescription[$c];".utf8_decode($itemNo[$b]).";".utf8_decode($itemDescription[$b]).";");
+						fwrite($fp,"$stkDescription[$c];".mb_convert_encoding($itemNo[$b], 'ISO-8859-1', 'UTF-8').";".mb_convert_encoding($itemDescription[$b], 'ISO-8859-1', 'UTF-8').";");
 						print "<td align='right'>". dkdecimal($stock[$d]) ."</td><td align='right'>". dkdecimal($itemMin[$b]) ."</td>";
 						fwrite($fp,dkdecimal($stock[$d]) .";". dkdecimal($itemMin[$b]) .";");
 						print "<td align='right'>". dkdecimal($itemMax[$b]) ."</td><td align='right'>". dkdecimal($itemMax[$b]-$stock[$d]) ." </td>";

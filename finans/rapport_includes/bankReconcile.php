@@ -58,6 +58,7 @@
 // 20220531	PHR Added kundenr as select option (Sparebanken Vest,Norway)
 // 20220617 PHR Better recognition of date formats
 // 20220531	PHR Added 'Modtager konto'
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 ini_set("auto_detect_line_endings", true);
 
@@ -259,10 +260,10 @@ if ($fp) {
 	while ($linje=fgets($fp)) {
 		if ($linje) {
 			$y++;
-			if ($tegnsaet=='UTF-8') $linje=utf8_decode($linje);
+			if ($tegnsaet=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$linje=trim($linje);
 			$linje=trim($linje,"?");
-			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$anftegn=0;
 				$felt=array();
 				$z=0;
@@ -758,12 +759,12 @@ function nummertjek ($nummer){
 	$retur=1;
 	$nummerliste=array("1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",", ".", "-");
 	for ($x=0; $x<strlen($nummer); $x++) {
-		if (!in_array($nummer{$x}, $nummerliste)) $retur=0;
+		if (!in_array($nummer[$x], $nummerliste)) $retur=0;
 	}
 	if ($retur) {
 		for ($x=0; $x<strlen($nummer); $x++) {
-			if ($nummer{$x}==',') $komma++;
-			elseif ($nummer{$x}=='.') $punktum++;
+			if ($nummer[$x]==',') $komma++;
+			elseif ($nummer[$x]=='.') $punktum++;
 		}
 		if ((!$komma)&&(!$punktum)) $retur='US';
 		elseif (($komma==1)&&(substr($nummer,-3,1)==',')) $retur='DK';

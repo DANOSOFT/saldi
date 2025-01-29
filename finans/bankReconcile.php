@@ -25,6 +25,7 @@
 
 // 20240213	PHR Copied from bankimport.php
 // 20240403 PHR Added instruction text
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 ini_set("auto_detect_line_endings", true);
 
@@ -296,11 +297,11 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $vend)
 				$y++;
 				$ny_linje[$y] = '';
 				if ($tegnsaet == 'UTF-8')
-					$linje = utf8_decode($linje);
+					$linje = mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 				$linje = trim($linje);
 				$linje = trim($linje, "?");
 				if ($charset == 'UTF-8')
-					$linje = utf8_encode($linje);
+					$linje = mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				$anftegn = 0;
 				$felt = array();
 				$z = 0;

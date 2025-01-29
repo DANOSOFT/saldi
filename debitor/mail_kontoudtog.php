@@ -38,6 +38,7 @@
 // 20201027 PHR 'bizsys' replaced by 'post' when sending mails.
 // 20210805 LOE Translated texts
 // 20220226 PHR function send_htmlmails, Added: $mail->CharSet = "$charset";
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -476,10 +477,10 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			$afsendernavn=$r['firmanavn'];
 
 			if ($charset=="UTF-8") {
-				$subjekt=utf8_decode($subjekt);
-				$mailtext=utf8_decode($mailtext);
-				$afsendernavn=utf8_decode($afsendernavn);
-				$afsendermail=utf8_decode($afsendermail);
+				$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
+				$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
+				$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
+				$afsendermail=mb_convert_encoding($afsendermail, 'ISO-8859-1', 'UTF-8');
 			}
 			$from = $afsendermail;
 			$fp=fopen("$tmpmappe/$x/kontoudtog.html","w");
@@ -554,8 +555,8 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['cvrnr'] ) $mailaltbody .= " * cvr ".$r['cvrnr'];
 			
 			if ($charset=="UTF-8"){
-				$mailbody=utf8_decode($mailbody);
-				$mailaltbody=utf8_decode($mailaltbody);
+				$mailbody=mb_convert_encoding($mailbody, 'ISO-8859-1', 'UTF-8');
+				$mailaltbody=mb_convert_encoding($mailaltbody, 'ISO-8859-1', 'UTF-8');
 			}
 
 

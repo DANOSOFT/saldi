@@ -53,6 +53,7 @@
 // 2019.10.31 PHR	- Minor design update look for '$trbg'
 // 2020.03.15 PHR - Added minmaxrepport (execlusive for bizsys_49)
 // 2020.04.08 PHR	- Added Vat to summary repport
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 	@session_start();
 	$s_id=session_id();
@@ -636,7 +637,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<tr><td><br></td></tr>";
 			print "<tr><td><br></td></tr>";
 			print "<tr><td colspan=\"3\"><b>$varenr[$x] $beskrivelse[$x]</b></td></tr>";
-			fwrite($csvfile,";;;\"$varenr[$x] ".utf8_decode($beskrivelse[$x])."\"\r\n");
+			fwrite($csvfile,";;;\"$varenr[$x] ".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
 #			if ($enhed[$x]) print "<tr><td colspan=\"3\">$enhed[$x]</td></tr>";
 #			print "<tr><td colspan=\"3\"><b>$beskrivelse[$x]</b></td></tr>";
 			print "<tr><td></td></tr>";
@@ -829,12 +830,12 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$qtxt="select beskrivelse from grupper where art='VG' and kodenr='".$v_gr[$x]."'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				print "<tr><td colspan='2'><b><big>$r[beskrivelse]</big></b></tr>";
-				fwrite($csvfile, utf8_decode($r['beskrivelse'])."\r\n");
+				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8')."\r\n");
 			}
 			print "<tr><td>$varenr[$x]</td>";
 			print "<td>$enhed[$x]</td>";
 			print "<td>$beskrivelse[$x]</td>";
-			fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".utf8_decode($beskrivelse[$x])."\";");
+			fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";");
 			if ($kun_salg) {
 				print "<td align=right>".dkdecimal($t_solgt,2)."</td>";
 				fwrite($csvfile, dkdecimal($t_solgt,2).";");
@@ -885,7 +886,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$qtxt="select beskrivelse from grupper where art='VG' and kodenr='$vg'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				print "<tr><td><b>$r[beskrivelse]</b></td>";
-				fwrite($csvfile, utf8_decode($r['beskrivelse']).";");
+				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8').";");
 				if (!$kun_salg) print "<td colspan='2'>";
 				print "<td colspan='2'></td><td align='right'><b>". dkdecimal($g_solgt[$vg],2) ."</b></td>";
 				fwrite($csvfile, ";". dkdecimal($g_solgt[$vg],2) .";");
@@ -942,7 +943,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "<tr><td>$varenr[$x]</td>";
 		print "<td>$enhed[$x]</td>";
 		print "<td>$beskrivelse[$x]</td>";
-		fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".utf8_decode($beskrivelse[$x])."\"\r\n");
+		fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
 		if (!$kun_salg) {
 			print "<td align=right> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 			fwrite($csvfile, dkdecimal($tt_kobt,2).";");

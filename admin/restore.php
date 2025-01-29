@@ -28,6 +28,7 @@
 // 20160609 PHR if ($POST) fungerer ikke mere, hvis ikke det angives hvad der postes.  
 // 20200308 PHR Varius changes related til Centos 8 / mariadb /postgresql 9x
 // 20241108 PHR PHP8
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -245,10 +246,10 @@ if ($fp) {
 			if ($backup_encode!=$db_encode) {
 				if ($db_encode=="UTF8" && $backup_encode=="LATIN9") {
 					$linje=str_replace("SET client_encoding = 'LATIN9';","SET client_encoding = 'UTF8';",$linje);
-					$ny_linje=utf8_encode($linje);
+					$ny_linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				}	elseif ($db_encode=="LATIN9" && $backup_encode=="UTF8") {
 					$linje=str_replace("SET client_encoding = 'UTF8';","SET client_encoding = 'LATIN9';",$linje);
-					$ny_linje=utf8_decode($linje);
+					$ny_linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 				} else {
 					$restore = "NUL";
 				}

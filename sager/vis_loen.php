@@ -1,4 +1,7 @@
 <?php
+
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+
 function vis_loen($id) {
 	global $charset;
 	global $sprog_id;
@@ -248,7 +251,7 @@ function vis_loen($id) {
 			$loen_datotext=NULL;
 		} else {
 			$loen_datotext = strftime('%A den %d. %B %Y',strtotime($loendate));
-			if ($db_encode=='UTF8') $loen_datotext=utf8_encode($loen_datotext); 
+			if ($db_encode=='UTF8') $loen_datotext=mb_convert_encoding($loen_datotext, 'UTF-8', 'ISO-8859-1'); 
 			$dato = date('d-m-y');
 			$tid = date('H:i');
 		}

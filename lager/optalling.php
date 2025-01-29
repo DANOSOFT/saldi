@@ -43,6 +43,7 @@
 // 20200905 PHR varenr not found wher seraching for barcode. Inserted: or stregkode = '$varenr'
 // 20200905 PHR Updating api now witten to apilog and & removed from  exec command as call was interrupted?
 // 20230224 CA  Case insensitive and 'like' search using % and _. Searching for _vd% gets DVD, Vd, dvd-player
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
  
 @session_start();
 $s_id=session_id();
@@ -1168,7 +1169,7 @@ function importer($lager,$dato){
 					if (substr($varenr,0,1)=='"' && substr($varenr,-1,1)=='"') $varenr=substr($varenr,1,strlen($varenr)-2);
 #					$varenr=strtolower($varenr);
 					if (substr($antal,0,1)=='"' && substr($antal,-1,1)=='"') $antal=substr($antal,1,strlen($antal)-2);
-					$tmp=utf8_encode($varenr);
+					$tmp=mb_convert_encoding($varenr, 'UTF-8', 'ISO-8859-1');
 					if (strpos($tmp,'æ') || strpos($tmp,'ø') || strpos($tmp,'å') || strpos($tmp,'Æ') || strpos($tmp,'Ø') || strpos($tmp,'Å')) {
 						$varenr=$tmp;
 					}

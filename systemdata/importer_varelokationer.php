@@ -25,6 +25,7 @@
 //
 // Copyright (c) 2003-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -173,8 +174,8 @@ function overfoer_data($filnavn,$lager,$charset) {
 			$skriv_linje=0;
 			if ($linje=fgets($fp)) {
 				$x++;
-				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 				list($varenr,$lokation)=explode($splitter,$linje);
 				$vare_id=NULL;
 				$lok_id=NULL;

@@ -50,6 +50,7 @@
 // 20170421 Mulighed for at vælge en fra og til dato i funktion 'akkordliste'
 // 20240531 Addad $regnaar to function akkordliste()
 // 20241126 PHP8
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -1314,9 +1315,9 @@ function vis_sag() {
 		$bilag_id[$x]=$r['id'];
 #		$bilag_sub_id[$x]=$r['sub_id'];
 		$bilag_title[$x]=$r['navn'];
-		$tmp=utf8_decode($r['navn']);
+		$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
 		//if (strlen($tmp)>17) $tmp=substr($tmp,0,17)."...";
-		$bilag_navn[$x]=utf8_encode($tmp);
+		$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 		$bilag_filtype[$x]=$r['filtype'];
 		$bilag_kategori[$x]=$r['kategori'];
 		$bilag_beskrivelse[$x]=$r['beskrivelse'];
@@ -1337,9 +1338,9 @@ function vis_sag() {
 #		$notat_sub_id[$x]=$r['sub_id'];
 		(strpos($r['notat'],"\n"))? list($notat_notat[$x],$tmp)=explode("\n",$r['notat'],2):$notat_notat[$x]=$r['notat'];
 		$notat_title[$x]=$r['beskrivelse'];
-		$tmp=utf8_decode($r['beskrivelse']);
+		$tmp=mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8');
 		//if (strlen($tmp)>20) $tmp=substr($tmp,0,20)."...";
-		$notat_beskrivelse[$x]=utf8_encode($tmp);
+		$notat_beskrivelse[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 #		$notat_overskrift[$x]=$r['overskrift'];
 		$notat_dato[$x]=date("d-m-Y",$r['datotid']);
 		$notat_tidspkt[$x]=date("H:i",$r['datotid']);

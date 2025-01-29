@@ -22,6 +22,7 @@
 // ----------------------------------------------------------------------
 // 2015.01.27 tilføjet $bruger_id da man eller får en tom mail hvis brugernavnet ikke er en 
 //		mailadresse og der ikke er tilknyttet en mailadresse 20150137 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 $css="../css/standard.css";
 
@@ -162,9 +163,9 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 		ini_set("include_path", ".:../phpmailer");
 		require("class.phpmailer.php");
 		if ($charset=="UTF-8" || $webservice) {
-			$subjekt=utf8_decode($subjekt);
-			$mailtext=utf8_decode($mailtext);
-			$firmanavn=utf8_decode($firmanavn);
+			$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
+			$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
+			$firmanavn=mb_convert_encoding($firmanavn, 'ISO-8859-1', 'UTF-8');
 		}
 				$mail = new PHPMailer();
 		$mail->IsSMTP();                                   // send via SMTP

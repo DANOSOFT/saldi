@@ -31,6 +31,7 @@
 // 20220825 PHR Sets domainname in emails to servername for all saldi servers 
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20230718 PHR Added $begin & $end to be used in no dates in 'beskrivelse'
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -222,8 +223,8 @@ function send_mail($subjekt,$mailtekst,$modtager,$afsendermail,$afsendernavn) {
 	
 	$mailtekst=str_replace("\n","<br>",$mailtekst);
 #	if ($charset == 'UTF-8') {
-#		$subjekt=utf8_decode($subjekt);
-#		$mailtekst=utf8_decode($mailtekst);
+#		$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
+#		$mailtekst=mb_convert_encoding($mailtekst, 'ISO-8859-1', 'UTF-8');
 #	}
 #	echo $mailtekst;
 	$tmpmappe="../temp/$db/afr_mail";
@@ -235,10 +236,10 @@ function send_mail($subjekt,$mailtekst,$modtager,$afsendermail,$afsendernavn) {
 		$mailtext .= "</html>\n";			
 /*
 		if ($charset=="UTF-8") {
-			$subjekt=utf8_decode($subjekt);
-			$mailtext=utf8_decode($mailtext);
-			$afsendernavn=utf8_decode($afsendernavn);
-			$afsendermail=utf8_decode($afsendermail);
+			$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
+			$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
+			$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
+			$afsendermail=mb_convert_encoding($afsendermail, 'ISO-8859-1', 'UTF-8');
 		}
 */		
 #	echo $mailtext;

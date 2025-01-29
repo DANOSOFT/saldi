@@ -23,6 +23,7 @@
 // ----------------------------------------------------------------------
 
 // den eneste dette script gør at konvertere variabler til iso-8859-1 og sender dem videre til GLS - kaldes fra debitor/ordre.php
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 print "<html xmlns=\"http://www.w3.org/1999/xhtml\" dir=\"ltr\" lang=\"da\">
 <head>
@@ -30,15 +31,15 @@ print "<html xmlns=\"http://www.w3.org/1999/xhtml\" dir=\"ltr\" lang=\"da\">
 </head><body>";
 
 if ($_POST) {
-	$txtConsigneeNo=trim(utf8_decode($_POST['txtConsigneeNo']));
-	$txtReferenceNo=trim(utf8_decode($_POST['txtReferenceNo']));
-	$txtConsigneeEmail=trim(utf8_decode($_POST['txtConsigneeEmail']));
-	$txtName1=trim(utf8_decode($_POST['txtName1']));
-	$txtZipCodeDisplay=trim(utf8_decode($_POST['txtZipCodeDisplay']));
-	$txtCity=trim(utf8_decode($_POST['txtCity']));
-	$txtStreet=trim(utf8_decode($_POST['txtStreet']));
-	$txtName2=trim(utf8_decode($_POST['txtName2']));
-	$txtContact=trim(utf8_decode($_POST['txtContact']));
+	$txtConsigneeNo=trim(mb_convert_encoding($_POST['txtConsigneeNo'], 'ISO-8859-1', 'UTF-8'));
+	$txtReferenceNo=trim(mb_convert_encoding($_POST['txtReferenceNo'], 'ISO-8859-1', 'UTF-8'));
+	$txtConsigneeEmail=trim(mb_convert_encoding($_POST['txtConsigneeEmail'], 'ISO-8859-1', 'UTF-8'));
+	$txtName1=trim(mb_convert_encoding($_POST['txtName1'], 'ISO-8859-1', 'UTF-8'));
+	$txtZipCodeDisplay=trim(mb_convert_encoding($_POST['txtZipCodeDisplay'], 'ISO-8859-1', 'UTF-8'));
+	$txtCity=trim(mb_convert_encoding($_POST['txtCity'], 'ISO-8859-1', 'UTF-8'));
+	$txtStreet=trim(mb_convert_encoding($_POST['txtStreet'], 'ISO-8859-1', 'UTF-8'));
+	$txtName2=trim(mb_convert_encoding($_POST['txtName2'], 'ISO-8859-1', 'UTF-8'));
+	$txtContact=trim(mb_convert_encoding($_POST['txtContact'], 'ISO-8859-1', 'UTF-8'));
 
 	print "<table style=\"width:100%;text-align: center; position:fixed;top:90%;\">\n";
 	print "<tr><td>";

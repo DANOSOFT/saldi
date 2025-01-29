@@ -20,6 +20,7 @@
 //
 // Copyright (c) 2004-2012 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 $vare_id=$_GET['vare_id'];
@@ -42,7 +43,7 @@ for($i=0;$i<=count($shop_kat_id);$i++) {
 }
 
 ($publiceret)?$status=1:$status=0;
-$beskrivelse=utf8_decode($beskrivelse);
+$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 # $beskrivelse=htmlkod($beskrivelse);
 # $notes=htmlkod($notes);
 

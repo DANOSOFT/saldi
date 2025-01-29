@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2003-2021 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
  
 @session_start();
@@ -262,7 +263,7 @@ if ($csv) {
 				(($show_salgspris)?"Salgspris".";":"").
 				(($show_retail_price)?"Vejl.pris".";":"").
 				"";
-	$linje=utf8_decode($linje);
+	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	fwrite($fp,"$linje\n");
 }
  
@@ -304,7 +305,7 @@ for($x=1; $x<=$vareantal; $x++) {
 						(($show_salgspris)?"".dkdecimal($salgspris[$x]).";":"").
 						(($show_retail_price)?"".dkdecimal($retail_price[$x]).";":"").
 						"";
-			$linje=utf8_decode($linje);
+			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			fwrite($fp,"$linje\n");
 		}
 	} 

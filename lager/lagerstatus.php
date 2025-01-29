@@ -32,6 +32,7 @@
 // 20210728 LOE Translated some texts here
 // 20221010 PHR Zero stock was omitted in CSV
 // 20221124 PHR	Added select between levdate (deelvery date) and fakturadate (invoicedate). 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
  
 @session_start();
 $s_id=session_id();
@@ -206,7 +207,7 @@ print "<tr><td width=8%>".findtekst(917, $sprog_id).".</td><td width=5%>".findte
 if ($csv) {
 	$fp=fopen("../temp/$db/lagerstatus.csv","w");
 	$linje="Varenr".";"."Enhed".";"."Beskrivelse".";"."Købt".";"."Solgt".";"."Antal".";"."Købspris".";"."Kostpris".";"."Salgspris";
-	$linje=utf8_decode($linje);
+	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	fwrite($fp,"$linje\n");
 }
  
@@ -377,7 +378,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		<td align=right>".dkdecimal($salgspris[$x]*$batch_t_antal[$x])."<br></td></tr>";
 		if ($csv) {
 			$linje="$varenr[$x]".";"."$enhed[$x]".";"."$beskrivelse[$x]".";"."$batch_k_antal[$x]".";"."$batch_s_antal[$x]".";".$batch_t_antal[$x].";".dkdecimal($batch_pris[$x]).";".dkdecimal($kostpris[$x]*$batch_t_antal[$x]).";".dkdecimal($salgspris[$x]*$batch_t_antal[$x]);
-			$linje=utf8_decode($linje);
+			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			fwrite($fp,"$linje\n");
 		}
 		$lagervalue=$lagervalue+$batch_pris[$x];$kostvalue=$kostvalue+$kostpris[$x]*$batch_t_antal[$x]; $salgsvalue=$salgsvalue+($salgspris[$x]*$batch_t_antal[$x]);
