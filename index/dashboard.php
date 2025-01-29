@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2024-2024 saldi.dk aps
 // ----------------------------------------------------------------------
+// MMK 241004 
 
 @session_start();
 $s_id = session_id();
@@ -42,8 +43,8 @@ $qtxt = "SELECT brugernavn, logtime FROM online WHERE db='$db'";
 $online_people = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 # Get amount of active users
-$timestamp = (int) date("U") - (1*60*60*1000);
-$qtxt = "SELECT count(brugernavn) FROM online WHERE db='$db' AND logtime > '$timestamp'";
+$timestamp = (int) date("U") - (60*60);
+$qtxt = "SELECT count(brugernavn) FROM online WHERE db='$db' AND logtime > '$timestamp' AND revisor is not true";
 $online_people_amount = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
 $newssnippet = get_settings_value("nyhed", "dashboard", "");
@@ -53,10 +54,17 @@ include ("../includes/stdFunc/dkDecimal.php");
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 $row = db_fetch_array($query);
-$startmaaned=(int)$row['box1'];
-$startaar=(int)$row['box2'];
-$slutmaaned=(int)$row['box3'];
-$slutaar=(int)$row['box4'];
+
+$box1 = (int)$row['box1'];
+$box2 = (int)$row['box2'];
+$box3 = (int)$row['box3'];
+$box4 = (int)$row['box4'];
+
+$startmaaned = if_isset($box1, 1);
+$startaar = if_isset($box2, 2000);
+$slutmaaned = if_isset($box3, 1);
+$slutaar = if_isset($box4, 2001);
+
 $slutdato=31;
 $regnskabsaar=$row['beskrivelse'];
 
@@ -81,7 +89,7 @@ function check_permissions($permarr) {
 }
 
 # If the user has finans -> regnskab or finans -> reports level access
-if (!check_permissions(array(3,4))) {
+if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 	$qtxt = "SELECT firmanavn FROM adresser WHERE art='S'";
 	$name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
@@ -90,6 +98,9 @@ if (!check_permissions(array(3,4))) {
 	# Titlebar
 	print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap'>";
 	print "<h1>Velkommen - $name</h1>";
+  if (is_null($regnaar)) {
+    print "<p>Der er ikke et aktivt rengskabsår, aktiver et regnskabsår gennem System » Indstillinger » Regnskabsår</p>";
+  }
 	print "<div style='display: flex; gap: 2em'>";
 	$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
 	$state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -99,7 +110,7 @@ if (!check_permissions(array(3,4))) {
 		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>Åben kassesystem</button>";
 	} elseif ($orderXpress) {
 		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>Åben sagsstyring</button>";
-	} 
+	}
 
 	print "</div>";
 	print "</div>";
@@ -135,13 +146,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    update_settings_value("varegrp_doughnut", "dashboard_toggles", if_isset($_POST['varegrpdoughnut'],  "off"),   "Show the sales of varegrupper in the year in a doughnut");
 }
 
-if (isset($_GET['close_snippet']) && $_GET['close_snippet'] == '1') {
+if ($_GET['close_snippet'] == '1') {
    update_settings_value("closed_news_snippet", "dashboard", $newssnippet, "The newssnippet that was closed by the user");
 }
-if (isset($_GET['hidden']) && $_GET['hidden'] == '1') {
+if ($_GET['hidden'] == '1') {
    update_settings_value("hide_dash", "dashboard", 1, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
 }
-if (isset($_GET['hidden']) && $_GET['hidden'] == '0') {
+if ($_GET['hidden'] == '0') {
    update_settings_value("hide_dash", "dashboard", 0, "Weather or not the newssnippet is showen to the user", $user=$bruger_id);
 }
 
@@ -238,13 +249,13 @@ if ($state) {
 	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>Åben kassesystem</button>";
 } elseif ($orderXpress) {
 	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>Åben sagsstyring</button>";
-} 
-
+}
+	
 print "</div>";
 print "</div>";
 
 if ($hide_dash === "1") {
-        exit;
+	exit;
 }
 
 print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
@@ -281,7 +292,7 @@ if ($ordercount === "on") {
 	$currentDate->sub(new DateInterval('P30D'));
 	$thirtyDaysAgo = $currentDate->format('Y-m-d');
 
-	$q=db_select("SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status = 1 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'",__FILE__ . " linje " . __LINE__);
+	$q=db_select("SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status = 2 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'",__FILE__ . " linje " . __LINE__);
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
@@ -354,71 +365,71 @@ print "
   <!-- Popup Content -->
   <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em'>
     <h3>Opsæt din oversigt</h3>
-    
-    <form method='post'>
-      <table>
+
+<form method='post'>
+  <table>
         <!-- Kontonumre Section -->
-        <tr>
-          <th>Kontonumre</th>
-          <th></th>
-        </tr>
-        <tr>
+    <tr>
+      <th>Kontonumre</th>
+      <th></th>
+    </tr>
+    <tr>
           <td>Konto min</td>
-          <td><input type='text' name='kontomin' value='$kontomin' /></td>
+      <td><input type='text' name='kontomin' value='$kontomin' /></td>
           <td>Er du i tvivl om dine kontotal?</td>
-        </tr>
-        <tr>
+    </tr>
+    <tr>
           <td>Konto maks</td>
-          <td><input type='text' name='kontomaks' value='$kontomaks' /></td>
+      <td><input type='text' name='kontomaks' value='$kontomaks' /></td>
           <td>Se vores guide <a href='https://site.saldi.dk/saldi-manualer/omsaetningstal' target='_blank'>her</a></td>
-        </tr>
+    </tr>
         
         <!-- Nøgletal Section -->
-        <tr>
-          <th>Nøgletal</th>
-          <th></th>
-        </tr>
-        <tr>
+    <tr>
+      <th>Nøgletal</th>
+      <th></th>
+    </tr>
+    <tr>
           <td>Omsætning for måneden</td>
           <td><input type='checkbox' name='revmonth' " . ($revmonth === "on" ? "checked" : "") . " /></td>
-        </tr>
-        <tr>
-          <td>Omsætning for året</td>
+    </tr>
+    <tr>
+      <td>Omsætning for året</td>
           <td><input type='checkbox' name='revyear' " . ($revyear === "on" ? "checked" : "") . " /></td>
-        </tr>
-        <tr>
+    </tr>
+    <tr>
           <td>Ufaktureret ordre</td>
           <td><input type='checkbox' name='ordercount' " . ($ordercount === "on" ? "checked" : "") . " /></td>
-        </tr>
-        <tr>
-          <td>Aktive medarbejdere</td>
+    </tr>
+    <tr>
+      <td>Aktive medarbejdere</td>
           <td><input type='checkbox' name='onlineusers' " . ($onlineusers === "on" ? "checked" : "") . " /></td>
-        </tr>
+    </tr>
         <tr>
           <td>Momsangivelse</td>
           <td><input type='checkbox' name='vatcount' " . ($vat_count === "on" ? "checked" : "") . " /></td>
         </tr>
         
         <!-- Grafer Section -->
-        <tr>
-          <th>Grafer</th>
-          <th></th>
-        </tr>
-        <tr>
-          <td>Omsætningsgraf</td>
+    <tr>
+      <th>Grafer</th>
+      <th></th>
+    </tr>
+    <tr>
+      <td>Omsætningsgraf</td>
           <td><input type='checkbox' name='revgraph' " . ($revgraph === "on" ? "checked" : "") . " /></td>
-        </tr>
-        <tr>
-          <td>Kundefordeling</td>
+    </tr>
+    <tr>
+      <td>Kundefordeling</td>
           <td><input type='checkbox' name='customergraph' " . ($customergraph === "on" ? "checked" : "") . " /></td>
         </tr>
         <tr>
           <td>Varegruppe omsætning</td>
           <td><input type='checkbox' name='varegrpdoughnut' " . ($varegrp_doughnut === "on" ? "checked" : "") . " /></td>
-        </tr>
-      </table>
-      <button type='submit'>Gem</button>
-    </form>
+    </tr>
+  </table> 
+  <button type='submit'>Gem</button>
+</form>
   </div>
 </div>
 ";
