@@ -32,7 +32,7 @@
 // 20220823 PHR Changed email to varchar(60) in 'regnskab'
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20250116 allow user specified hostname for database, ie. other than localhost.
-// 20250121 Increase session_id length specifier from 30 to 32.
+// 20250129 Increase session_id length constraint from 30 to 32 on table online.
 
 session_start();
 ob_start(); //Starter output buffering

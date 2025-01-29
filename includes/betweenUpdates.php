@@ -366,10 +366,6 @@ $qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='regn
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table regnskab ADD column sms integer",__FILE__ . " linje " . __LINE__);
 }
-$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='online' and column_name='session_id'";
-if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE online ALTER COLUMN session_id TYPE varchar(32)",__FILE__ . " linje " . __LINE__);
-}
 include ('../includes/online.php');
 
 ?>
