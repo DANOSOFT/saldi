@@ -59,6 +59,7 @@
 // 20230718 LOE - Made some modifications + 20230725
 // 20240417 PHR - Unified login - redirets to correct server.
 // 20240417 PHR - 'regnskab' and 'brugernavn' is now case-insensitive
+// 20250129 Increase session_id length constraint from 30 to 32 on table online.
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -90,6 +91,14 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='re
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER table regnskab ADD column invoices int DEFAULT(0)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+// Increase session_id length constraint to 32 on table online if needed.
+// Must be done before insertion of record in online, therefore not included in betweenUpdates.
+$qtxt="SELECT column_name, data_type, character_maximum_length FROM information_schema.columns 
+		WHERE table_name = 'online' AND column_name = 'session_id' AND character_maximum_length < 32";
+if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE online ALTER COLUMN session_id TYPE varchar(32)";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 
 
