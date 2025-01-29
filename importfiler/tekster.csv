@@ -354,7 +354,7 @@
 354	Erhverv	profession	yrke
 355	Vis leveringsadresse	Show delivery address	Vis leveringsadresse
 356	Debitorkort	Debtor Card	Debitor kort
-357	Kundenr.	Customer No.	Kundenr.
+357	Kundenr.	Customer no.	Kundenr.
 358	Fornavn	First name	Fornavn
 359	Efternavn	Last name	Etternavn
 360	Firmanavn	Company Name	Selskapsnavn
@@ -1173,7 +1173,7 @@
 1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
 1174	Kontonummer for valutakursdifferanser og avrunding av øret	Account number for exchange rate differences and year rounding	Kontonummer for valutakursdifferanser og avrunding av øret
 1175	Tilføj 	Add	Legge til
-1176	Leverandørnr.	Supplier no.	Leverandør nr.
+1176	Leverandørnr.	Supplier no.	Leverandørnr.
 1177	FI kreditor nr.	FI creditor no.	FI kreditor nr.
 1178	Kort	Card	Kart
 1179	Bankoverf. med kort advisering	Bank transfer. with brief advice	Bankoverføring. med kort varsel
@@ -2248,11 +2248,11 @@
 2248	Nr.	No.	Nr.
 2249	Skriv bonnummer eller 'S' for sidste bon	Enter receipt number or 'S' for last receipt	Skriv bonnummer eller 'S' for siste bon
 2250	Bon	Receipt	Bon
-2251
-2252
-2253
-2254
-2255
+2251	Vælg brugernavn og angiv adgangskode	Choose a username and enter a password	Velg brukernavn og angi passord
+2252	Ekspedient	Clerk	Ekspeditør
+2253	Vælg kasse	Choose cash register	Velg kasse
+2254	Indtast nummer	Enter number	Skriv inn nummer
+2255	Gavekortnummer	Gift card number	Gavekortnummer
 2256
 2257
 2258

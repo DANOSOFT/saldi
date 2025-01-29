@@ -3314,7 +3314,7 @@ $kundeordre = findtekst(1092,$sprog_id);  #20210630
 	print"<table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign=\"top\">";
 	print"<tbody><tr>";
 	print"<td><b><a href=$href?sort=kontonr&funktion=kontoOpslag&fokus=$fokus&id=$id>";
-	($o_art=='KO')?print "Leverandørnr":print "Kundenr";
+	($o_art=='KO') ? print findtekst('1176|Leverandørnr.', $sprog_id) : print findtekst('357|Kundenr.', $sprog_id);
 	print "</b></td>";
 	print"<td><b><a href=$href?sort=firmanavn&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(646,$sprog_id)."</b></td>";
 	print"<td><b><a href=$href?sort=addr1&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(648,$sprog_id)."</b></td>";
@@ -4720,17 +4720,17 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 
 		if (!strstr($returside,"ordre.php")) {
 			print "<td width='10%'><a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>
-				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 				   .findtekst(30,$sprog_id)."</button></a></td>";
 		} else {
 			print "<td width='10%'><a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>
-				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 				   .findtekst(30,$sprog_id)."</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
 
 		print "<td width='10%'><a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
 
 		print "</tbody></table>";
 		print "</td></tr>\n";

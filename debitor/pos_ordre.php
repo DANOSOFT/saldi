@@ -1900,6 +1900,7 @@ function skift_bruger($ny_bruger,$kode,$pwtjek) {
 	global $s_id;
 	global $db;
 	global $ifs;
+	global $sprog_id;
 	
 	if (!$ny_bruger && !$kode) {
 		$x=0;
@@ -1910,11 +1911,11 @@ function skift_bruger($ny_bruger,$kode,$pwtjek) {
 		}
 		print "<table><tbody>\n";
 		print "<tr><td colspan=\"2\" align=\"center\">\n";
-		print 	"<form name=pos_ordre action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
-		Print 	"<big><b>Vælg brugernavn og angiv adgangskode</b></big>\n";
+		print "<form name=pos_ordre action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
+		Print "<big><b>".findtekst('2251|Vælg brugernavn og angiv adgangskode', $sprog_id)."</b></big>\n";
 		print "</td></tr>\n";
 		$stil=find_stil('select',2,0);
-		print "<tr><td><big>Ekspedient : </big><select class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" NAME=\"ny_bruger\">\n";
+		print "<tr><td><big>".findtekst('2252|Ekspedient', $sprog_id).": </big><select class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" NAME=\"ny_bruger\">\n";
 		print "<option>$brugernavn</option>\n";
 		for ($x=0;$x<count($loginnavn);$x++) {
 			if ($loginnavn[$x] != $brugernavn) print "<option>$loginnavn[$x]</option>\n";
@@ -2241,7 +2242,7 @@ function opdater_konto($konto_id,$kontonr,$id) {
 
 
 function find_kasse($kasse) {
-	global $afd,$db,$id,$regnaar;
+	global $afd,$db,$id,$regnaar,$sprog_id;
 	
 	$id*=1;
 	
@@ -2290,7 +2291,7 @@ function find_kasse($kasse) {
 			print "<tr><td><input type = 'submit' style = 'width:200px;height:50px;' name = 'kasse' value='$kasse'></td></tr>";
 		}
 	}	else {
-		print "<tr><td>V&aelig;lg kasse</td><td><SELECT $stil NAME=\"kasse\">\n";
+		print "<tr><td>".findtekst('2253|Vælg kasse', $sprog_id)."</td><td><SELECT $stil NAME=\"kasse\">\n";
 		for ($x = 0; $x < count($afd); $x++) {
 			$kasse = $x + 1;
 			if (!count($afd_nr) && $kasse == $nuv_kasse)

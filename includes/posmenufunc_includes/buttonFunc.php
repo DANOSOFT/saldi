@@ -33,6 +33,7 @@ function setAccordinglyLanguage()
 {
     $country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
     
+#   if ($country != "Denmark" || $country != "Norway") {
     if ($country == "Switzerland") {
         return ["draw" => "Drawer", "user" => "User", "price" => "Price", "discount" => "Discount", "boxCount" => "Cash count",
             "table" => "Table", "moveTable" => "Move table", "splitTable" => "Split table", "clear" => "Clear",
@@ -42,7 +43,7 @@ function setAccordinglyLanguage()
     } else {
         return ["draw" => "Skuffe", "user" => "Bruger", "price" => "Pris", "discount" => "Rabat", "boxCount" => "Kasseoptælling",
             "table" => "Bord", "moveTable" => "Flyt bord", "splitTable" => "Del bord", "clear" => "Ryd",
-            "start" => "Forfra", "findReceipt" => "Find bon", "print" => "Udskriv", "close" => "Luk123",
+            "start" => "Forfra", "findReceipt" => "Find bon", "print" => "Udskriv", "close" => "Luk",
             "sendToKitchen" => "Send til køkken", "back" => "Tilbage", "newCustomer" => "Ny kunde", "copy" => "Kopier",
             "correction" => "Korrektion"];    
     }

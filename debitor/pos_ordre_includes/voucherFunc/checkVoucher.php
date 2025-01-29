@@ -24,6 +24,8 @@
 // --------------------------------------------------------------------------
 
 function voucherstatus($id,$konto_id) {
+	global $sprog_id;
+
 	if ($_POST['voucherstatus'] == "status") {
 		$barcode = $_POST['giftcardNumber'];
 		$qtxt="select id,item_id from voucher where barcode = '$barcode'";
@@ -41,13 +43,13 @@ function voucherstatus($id,$konto_id) {
 			$amount = number_format($amount, 2, ',', '.');
 			$alertTxt="$gkName #" . $barcode . ": Saldo: $amount";
 		} else {
-			$alertTxt="Gavekort nummer: " . $barcode . ": ikke fundet";
+			$alertTxt=findtekst('2255|Gavekortnummer', $sprog_id) . ": " . $barcode . ": ".findtekst('1926|ikke fundet!', $sprog_id);
 		}
 		alert($alertTxt);
 	} else {
-		print "<p>Indtast nummer:</p>\n";
+		print "<p>".findtekst('2254|Indtast nummer', $sprog_id).":</p>\n";
 		print "<form name=\"voucherstatus\" action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
-		print "Gavekort nummer: <input id='giftcardStatus' name=\"giftcardNumber\" type=\"text\" /><br />\n";
+		print findtekst('2255|Gavekortnummer', $sprog_id).": <input id='giftcardStatus' name=\"giftcardNumber\" type=\"text\" /><br />\n";
 		print "<input value=\"status\" type=\"submit\" name=\"voucherstatus\"/>\n";
 		print "</form>\n";
 		print "<script>window.onload = function() { $('#giftcardStatus').focus(); } </script>";

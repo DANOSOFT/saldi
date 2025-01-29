@@ -278,7 +278,7 @@ echo "<!-- function setCreditCards Begin -->\n";
 	}
 	if ($kortdiff) {
 		print "<tr><td colspan='2'><span style='color:red;'><b>Difference på kort</b></span></td>"; #20210517
-		print "<td align='right' ><span style='color:red;'><b>".dkdecimal($kortdiff,2)."</b> $curr</span></td></tr>"; 
+		print "<td align='right'><span style='color:red;'><b>".dkdecimal($kortdiff,2)."</b> $curr</span></td></tr>"; 
 	}
 #	$txt1 = iconv($FromCharset, $ToCharset,$turnover);
 #	$txt2 = dkdecimal($omsatning,2);
