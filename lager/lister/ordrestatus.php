@@ -377,7 +377,7 @@ $columns[] = array(
     "width" => "0.5",
     "sqlOverride" => "CASE 
         WHEN vg.box7 = 'on' THEN v.salgspris
-        ELSE (100+sm.box2)/100*v.salgspris
+        ELSE (100+sm.box2::float)/100*v.salgspris
     END"
 );
 

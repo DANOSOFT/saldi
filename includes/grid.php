@@ -83,14 +83,14 @@ function DEFAULT_GENERATE_SEARCH($column, $term) {
             # Check for number range
             if (strstr($term, ':')) {
                 list($num1, $num2) = explode(":", $term, 2);
-                return "round({$field}, {$column['decimalPrecision']}) >= '$num1' 
+                return "round({$field}::numeric, {$column['decimalPrecision']}) >= '".usdecimal($num1)."' 
                         AND 
-                        round({$field}, {$column['decimalPrecision']}) <= '$num2'";
+                        round({$field}::numeric, {$column['decimalPrecision']}) <= '".usdecimal($num2)."'";
             } else {
                 $term = usdecimal($term);
-                return "round({$field}, {$column['decimalPrecision']}) >= $term 
+                return "round({$field}::numeric, {$column['decimalPrecision']}) >= $term 
                         AND 
-                        round({$field}, {$column['decimalPrecision']}) <= $term";
+                        round({$field}::numeric, {$column['decimalPrecision']}) <= $term";
             }
         default:
             return "1=1";
@@ -300,7 +300,8 @@ function create_datagrid($id, $grid_data) {
 
     // Update search configuration in the database
     if (isset($_GET["search"][$id])) {
-        db_modify("UPDATE datatables SET search_setup='$search_json', rowcount=$selectedrowcount, \"offset\"=$offset, \"sort\"='$sort' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
+        $qtxt = "UPDATE datatables SET search_setup='".($search_json)."', rowcount=$selectedrowcount, \"offset\"=$offset, \"sort\"='".str_replace("'", "''", $sort)."' WHERE user_id = $bruger_id AND tabel_id='$id'";
+        db_modify($qtxt, __FILE__ . " line " . __LINE__);
     }
 
     // Process filters
@@ -320,6 +321,7 @@ function create_datagrid($id, $grid_data) {
     if ($menu == "main") {
         // Build and execute the main query
         $query = build_query($id, $grid_data, $columns_updated, $filters_updated, $searchTerms, $sort, $selectedrowcount, $offset);
+        print "<!-- \n DEBUG QUERY \n\n$query -->";
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
         $rows = fetch_rows_from_query($sqlquery);
 
@@ -867,11 +869,15 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     print "<tr>";
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
-        echo "<th class='$column[field]' style='text-align: {$column['align']}; width: {$width}%;'>";
         if ($column["sortable"]) {
-            $sortkey = $column["sqlOverride"] == "" ? $column["field"] : $column["sqlOverride"];
-            echo "<span class='sortable' onclick=\"setSort$id('$sortkey')\">$column[headerName]</span>";
+            echo "<th 
+                class='$column[field] sortable-td' 
+                style='cursor: pointer; text-align: {$column['align']}; width: {$width}%;' 
+                onclick=\"setSort$id('$column[field]')\"
+            >";
+            echo "<span class='sortable'>$column[headerName]</span>";
         } else {
+            echo "<th class='$column[field]' style='text-align: {$column['align']}; width: {$width}%;'>";
             echo "<span>$column[headerName]</span>";
         }
         if ($column["description"]) {
@@ -1507,6 +1513,11 @@ function render_search_style() {
                       user-select: none; /* Non-prefixed version, currently
                                             supported by Chrome, Edge, Opera and Firefox */
         }
+        .datatable .sortable-td:hover .sortable {
+            color: #114691;
+            transition: color 0.2s ease-in-out;
+        }
+
     </style>
 STYLE;
 }
@@ -1975,9 +1986,9 @@ function render_sort_script($id) {
     <script>
         function setSort$id(header) {
             const sortBox = document.getElementsByName('sort[$id]')[0];
-            if (sortBox.value != header) {
+            if (sortBox.value !== header) {
                 sortBox.value=header;
-            } else if (sortBox.value == header) {
+            } else if (sortBox.value === header) {
                 sortBox.value=header + " desc";
             }
             sortBox.form.submit();
