@@ -1073,6 +1073,56 @@ function render_table_row($columns, $row, $searchTerms) {
     }
 }*/
 
+/**
+ * Renders a column setup form for a data table.
+ *
+ * This function generates an HTML form that allows users to configure which columns
+ * should be visible in a table. It includes column position, field name, optional headers,
+ * descriptions, width settings, and alignment options. The form also provides buttons 
+ * to save changes or close the setup interface.
+ *
+ * @param string $id          The unique identifier for the table.
+ * @param array  $columns     An array of currently selected columns for the table.
+ * @param array  $all_columns An array of all available columns that can be displayed.
+ * 
+ * @return void Outputs the HTML structure directly.
+ */
+function render_column_setup($id, $columns, $all_columns) {
+    echo <<<HTML
+    <div class="datatable-wrapper" id="datatable-wrapper-$id">
+        <form method="POST" action="">
+            <div class="datatable-search-wrapper">
+                <table class="datatable" id="datatable-$id" style="width: 100%;">
+                    <tr><td colspan=100>Vælg hvilke felter der skal være synlige i tabellen</td></tr>
+                    <tr><td colspan=100><hr></td></tr>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Felt</th>
+                        <th>Valgfri overskrift</th>
+                        <th>Valgfri beskrivelse</th>
+                        <th align='right' style='text-align: right;'>Feltbredde</th>
+                        <th>Justering</th>
+                    </tr>
+                    <tr><td colspan=100><hr></td></tr>
+HTML;
+
+    // Render table headers and input fields for column setup
+    render_columns($id, $columns, $all_columns);
+
+    echo <<<HTML
+            <tr>
+                <td colspan="100" align="right">
+                    <button>Gem</button>
+                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>Luk</button>
+                </td>
+            </tr>
+                </table>
+            </div>
+        </form>
+    </div>
+HTML;
+}
+
 
 // Render table with highligthing
 /*
