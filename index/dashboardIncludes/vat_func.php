@@ -2,8 +2,6 @@
 function vat_info($regnstart, $regnslut) {
     # Omsætningsgraf
     global $regnaar, $sprog_id;
-    global $kontomin;
-    global $kontomaks;
 
     $qtxt = "select * from grupper where art = 'MR' and fiscal_year = $regnaar";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
