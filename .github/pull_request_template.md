@@ -1,5 +1,5 @@
 ## What are the changes about?
-Provide a breif explanation of the changes you have made
+Provide a brief explanation of the changes you have made
 
 ## Have you checked the following? 
 - [ ] I have updated relevant documentation at https://github.com/DANOSOFT/saldi/wiki
