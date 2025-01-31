@@ -1,4 +1,4 @@
- <?php
+<?php
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		

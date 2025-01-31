@@ -356,7 +356,6 @@ if (isset($_POST['opret'])){
 
 
 function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type) {
-	fwrite($fp," \n");
 	fwrite($fp,"<?php\n");
 	fwrite($fp,"//                         ___   _   _   __  _     ___  _ _  \n");
 	fwrite($fp,"//                        / __| / \ | | |  \| |   |   \| / / \n");
