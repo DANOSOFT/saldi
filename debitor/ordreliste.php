@@ -89,6 +89,7 @@
 // 20240815 PHR- $title 
 // 20250828 PHR error in translation of 'tilbud'
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
+// 06-01-2024 PBLM Added box5 on line 1187 for the extra api client
 #ob_start();
 @session_start();
 $s_id=session_id();
@@ -1182,7 +1183,7 @@ if ($valg=="ordrer") {
 }	
 #cho "select box4 from grupper where art='API'<br>";
 
-if ($r=db_fetch_array(db_select("select box4 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
+if ($r=db_fetch_array(db_select("select box4, box5 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
 	$api_fil=trim($r['box4']);
 	if (file_exists("../temp/$db/shoptidspkt.txt")) {
 		$fp=fopen("../temp/$db/shoptidspkt.txt","r");
@@ -1201,6 +1202,14 @@ if ($r=db_fetch_array(db_select("select box4 from grupper where art='API' and bo
 		if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
 		elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
 		exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		if($r["box5"]){
+			$api_txt="$r[box5]?put_new_orders=1";
+	//		$api_encode='utf-8';
+			if ($api_encode) $api_txt.="&encode=$api_encode";
+			if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+			elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+			exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		}
 	} elseif ($hent_nu) alert("vent 30 sekunder");
 	print "<tr><td><a href=\"$_SERVER[PHP_SELF]?sort=$sort&hent_nu=1\">".findtekst(879,$sprog_id)."</td></tr>";
 }

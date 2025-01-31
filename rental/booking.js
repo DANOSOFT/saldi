@@ -176,6 +176,7 @@ const singleItem = async (item) => {
       closedDates.push(formattedDate)
     })
   }
+
   // Helper function to generate dates between two dates
   function generateDates(startDate, endDate) {
     const dates = []
@@ -200,35 +201,6 @@ const singleItem = async (item) => {
     return dates
   }
 
-  // get disabled dates from bookings 
-  const allDatesWithoutEnds = []
-  const allDatesWithoutStarts = []
-  if(dates){
-    dates.forEach(d => {
-      const [fromDate, toDate] = d
-      const fromDateObj = new Date(fromDate)
-      const toDateObj = new Date(toDate)
-      
-      // Exclude the end date and add it to the allDatesWithoutEnds array
-      toDateObj.setDate(toDateObj.getDate() - 1)
-      const endDates = generateDates(fromDateObj, toDateObj)
-      allDatesWithoutEnds.push(...endDates)
-      
-      // Exclude the start date and add it to the allDatesWithoutStarts array
-      const startDates = generateDates(new Date(fromDate), new Date(toDate))
-      startDates.shift() // Remove the first element (start date)
-      allDatesWithoutStarts.push(...startDates)
-    })
-
-    // Now we have two separate arrays: allDatesWithoutEnds and allDatesWithoutStarts
-  }
-  if(closedDates){
-    closedDates.forEach(c => {
-      allDatesWithoutEnds.push(c)
-      allDatesWithoutStarts.push(c)
-    })
-  }
-
   // get already booked dates
   const bookedDates = []
   if(dates){
@@ -248,8 +220,6 @@ const singleItem = async (item) => {
   const addedDaysArray = []
   closedDates.push(...bookedDates)
 
-  
-
   const datePick = flatpickr(fromCalendar, {
     dateFormat: 'Y-m-d',
     theme: "dark",
@@ -260,29 +230,44 @@ const singleItem = async (item) => {
       if(bookings.msg === "Der er ingen bookinger"){
         return
       }
-      bookings.sort((a, b) => b.to - a.to)
 
-      // Get the last booking
-      const lastBooking = bookings[0]
-    
       const date = new Date(dayElem.dateObj)
       const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
 
+      // get the latest booking where booking.to is earlier than date
+      const lastBooking = bookings
+    .filter(booking => new Date(booking.to * 1000) < date)
+    .reduce((closest, current) => {
+        if (!closest) return current
+        const closestDiff = Math.abs(date - new Date(closest.to * 1000))
+        const currentDiff = Math.abs(date - new Date(current.to * 1000))
+        return currentDiff < closestDiff ? current : closest
+    }, null)
+    
       if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
         addedDaysArray.push(dateStr)
       }
-      const daysToAdd = addedDaysArray.filter(d => d >= fromDateData && d <= dateStr)
+      const daysToAdd = addedDaysArray.filter(d => d <= dateStr)
       addedDays = daysToAdd.length
-
-      // Calculate the difference between dayElem.dateObj and the last day of the last booking
-      const lastBookingDate = new Date(lastBooking.to * 1000)
-      // add 1 day to the from date to avoid conflicts with the end date of the previous booking
-      lastBookingDate.setDate(lastBookingDate.getDate() + 2)
-      const diffInDays = Math.ceil((dayElem.dateObj - lastBookingDate) / (1000 * 60 * 60 * 24))
-
+      let lastBookingDate = new Date()
+      lastBookingDate.setHours(0,0,0,0)
+      if(lastBooking != null){
+        const bookingDate = new Date(lastBooking.to)
+        bookingDate.setHours(0,0,0,0)
+        date.setHours(0,0,0,0)
+        const dayDiff = (date - bookingDate) / (1000 * 60 * 60 * 24)
+        if(dayDiff === 0 || dayDiff === 1){
+          // Calculate the difference between dayElem.dateObj and the last day of the last booking
+          lastBookingDate = new Date(lastBooking.to * 1000)
+      
+          // add 1 day to the from date to avoid conflicts with the end date of the previous booking
+          lastBookingDate.setDate(lastBookingDate.getDate() + 2)
+        }
+      }
+      console.log(addedDays)
       const timeDifference = Math.abs(date - lastBookingDate)
       const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
-      console.log(daysDifference)
+      
       // Check if the difference is equal to or greater than 7 and there is no booking on dayElem.dateObj
       if (date > lastBookingDate && daysDifference % 7 === 0 && !bookings.some(booking => new Date(booking.from * 1000).toDateString() === dayElem.dateObj.toDateString()) && !closedDates.includes(dateStr)) {
         // Add class to dayElem
@@ -527,7 +512,7 @@ const init = async () => {
   })
 
   if(urlParams === "" || !urlParams.has("item")){
-    await drawForm()
+    window.location.href = "index.php?vare"
   }
 
   if(urlParams !== "" && (urlParams.has("day") && urlParams.has("month") && urlParams.has("year"))){
