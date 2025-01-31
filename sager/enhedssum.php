@@ -14,7 +14,6 @@ function enhedssum($id) {
 	$y=0;
 	$sum=0;
 	$l_vare_id=array();
-	#cho "SELECT * FROM loen_enheder WHERE loen_id = '$id'<br>";
 	$q = db_select("SELECT * FROM loen_enheder WHERE loen_id = '$id'",__FILE__ . " linje " . __LINE__); // Har fjernet 'order by
 	while ($r = db_fetch_array($q)) {
 		$l_id[$x]=$r['id'];
@@ -43,10 +42,8 @@ function enhedssum($id) {
 		if ($l_ned_40[$x]) $l_sum+=$l_ned_40[$x]*$l_pris_ned[$x]*0.4;
 		if ($l_ned_60[$x]) $l_sum+=$l_ned_60[$x]*$l_pris_ned[$x]*0.6;
 		if ($l_ned_30m[$x]) $l_sum+=$l_ned_30m[$x]*$l_pris_ned[$x]*0.06;
-		#cho "$l_id[$x] Lsum $l_sum<br>";
 		$sum+=$l_sum;
 	}
-	#cho "Sum $sum<br>";
 	return ($sum);
 }
 

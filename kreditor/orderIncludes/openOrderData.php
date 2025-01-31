@@ -276,7 +276,6 @@ else {
 	if ($vis_projekt && !$projekt[0]) print "<td align=center title='".findtekst(1509, $sprog_id)."'>Proj.</td>";
 	else print "<td></td>";
 }
-#cho "OL $omlev<br>";
 if ($omlev) print "<td title ='".findtekst(1512, $sprog_id)."'>O/B</td>";
 
 print "</tr>\n";

@@ -70,8 +70,6 @@ function pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetalin
 	$betalt=0;
 	$fremmedvaluta=0;
 
-	#cho "Kalder pos_ordre_includes/posTxtPrint/posPayments.php<br>";
-	
 	include("pos_ordre_includes/posTxtPrint/posPayments.php"); #20190507
 	include("pos_ordre_includes/posTxtPrint/ordrerData.php"); #20190506
 

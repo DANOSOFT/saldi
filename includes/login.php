@@ -202,7 +202,6 @@ if (isset ($brug_timestamp)) {
 		}
 	}
 }
-#cho "BID $bruger_id";
 if ($bruger_id) {
 	$db_skriv_id=NULL;
 	if ($db_type=='mysql') {

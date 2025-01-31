@@ -107,7 +107,6 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 
 #$_COOKIE['timezone'] = $timezone;#20210929
 
-#cho "select var_value from settings where var_name='alertText'<br>";
 $r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
 if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];
 $r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__)); #20211007

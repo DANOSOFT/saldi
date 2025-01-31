@@ -34,7 +34,6 @@ $q=db_select("select * from ordrelinjer where ordre_id>0 order by ordre_id",__FI
 while ($r=db_fetch_array($q)){
 	if ($r['ordre_id']!=$l_ordre_id[$x]) {
 		if ($l_ordre_id[$x]) {
-#cho "L $l_ordre_id[$x] Sum: $l_ordresum[$x] Moms: $l_momssum[$x]<br>";
 			$x++;
 		}
 		$l_ordre_id[$x]=$r['ordre_id'];
@@ -60,7 +59,6 @@ while ($r=db_fetch_array($q)){
 	$ordresum[$x]=$r['sum'];
 	$momssum[$x]=$r['moms'];
 	$momssats[$x]=$r['momssats'];
-#cho "O $ordre_id[$x] Sum: $ordresum[$x] Moms: $momssum[$x]<br>";
 	$x++;
 }
 
@@ -81,7 +79,6 @@ for ($x=0;$x<count($ordre_id);$x++){
 				$m_sum+=$m;
 				print "<tr><td>".dkdato($bondate[$x])."</td><td>$bonnr[$x]</td><td align=\"right\">".dkdecimal($s)."</td><td align=\"right\">".dkdecimal($m)."</td><td align=\"right\">".dkdecimal($s+$m)."</td><td></tr>";
 
-			#cho "<Fejl på Nummer $ordrenr[$x]($ordre_id[$x]) Sumdiff=$s, Momsdiff=$m<br>Ordersum: $ordresum[$x] Ordrelinjesum: $l_ordresum[$y]<br>";  
 			} #else echo "Ingen fejl på ID $ordre_id[$x]. Sumdiff=$s, Momsdiff=$m<br>";
 		}
 	}

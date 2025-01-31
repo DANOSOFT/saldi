@@ -50,28 +50,20 @@ if ($_POST['submit']) {
 	$art=trim($_POST['art']);
 	$retur_linje_id=$_POST['retur_linje_id'];
 
-	for ($x=1; $x<=$sn_antal; $x++) {
-		#cho "ID $sn_id[$x] Valg $valg[$x]<br>";
-	}		
-	
 	if (!$sn_tjek) $sn_tjek=array();
 	if ($_POST['status']<3)	{
 		$y=0;
 		if ($antal>0) {
-#cho __line__." $sn_antal<br>";
 			for ($x=1; $x<=$sn_antal; $x++) {
 				if (trim($valg[$x])=="on" && $y<$antal) {
 					$y++;
 					$qtxt = "update serienr set serienr='$serienr[$x]',salgslinje_id='$linje_id' where id='$sn_id[$x]'";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif ($valg[$x] != "on") {
 					$qtxt = "update serienr set salgslinje_id=0 where id=$sn_id[$x]";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif ($sn_id[$x]) {
 					$qtxt = "update serienr set serienr='$serienr[$x]',salgslinje_id=0 where id='$sn_id[$x]'";
-#cho __line__." $qtxt<br>";
 #					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -82,15 +74,12 @@ if ($_POST['submit']) {
 			}
 		} elseif ($art=='DK') {
 			for ($x=1; $x<=$sn_antal; $x++) {
-#cho "Valg $valg[$x]<br>";
 				if (trim($valg[$x])=="on") {
 					$y++;
 					$qtxt = "update serienr set salgslinje_id=$kred_linje_id*-1 where id=$sn_id[$x]";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif ($sn_id[$x]) {
 					$qtxt =	"update serienr set salgslinje_id=$kred_linje_id where id=$sn_id[$x]";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -100,13 +89,11 @@ if ($_POST['submit']) {
 					$y++;
 					if ($retur_linje_id[$x] > 0) {
 						$qtxt = "update serienr set salgslinje_id=$retur_linje_id[$x]*-1 where id='$sn_id[$x]'";
-#cho __line__." $qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #						db_modify("insert into serienr (vare_id,kobslinje_id,salgslinje_id,batch_kob_id,batch_salg_id,serienr) values ('$vare_id','$linje_id','0','0','0','$serienr')",__FILE__ . " linje " . __LINE__);
 					}
 				} elseif ($sn_id[$x]) {
 					$qtxt = "update serienr set salgslinje_id=".abs($retur_linje_id[$x])." where id='$sn_id[$x]'";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #					db_modify("delete from serienr where linje_id='$linje_id' and serienr='$serienr'",__FILE__ . " linje " . __LINE__);
 				}
@@ -114,12 +101,10 @@ if ($_POST['submit']) {
 		} 
 	}
 }
-#cho "submit $submit<br>";
 if ($submit=="Luk") print "<body onload=\"javascript:window.close();\">";
 
 $antal=0;
 $qtxt = "select * from ordrelinjer where id = '$linje_id'";
-#cho "$qtxt<br>";
 $query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 if ($row = db_fetch_array($query)) {
 	$ordre_id=$row['ordre_id'];
@@ -197,7 +182,6 @@ echo "$qtxt<br>";
 			if ($status < 3) {
 				$sn_antal++;
 				$tmp='';
-#cho $r['salgslinje_id']."<br>"; 
 				if ($r['salgslinje_id'] == $linje_id && $valgt < $antal) {
 					$tmp= "checked";
 					$valgt++;
@@ -220,7 +204,6 @@ echo "$qtxt<br>";
 		
 	}
 } else { #Varer tages retur - evt kreditnota;
-#cho __line__." $art<br>";
 	$sn_antal=0;
 	$tmp=$kred_linje_id*-1;
 	if ($art=='KO') {
@@ -243,11 +226,8 @@ echo "$qtxt<br>";
 	}
 } else {
 		$qtxt = "select kred_ord_id from ordrer where id = '$ordre_id'";
-#cho "$antal<br>";
-#cho "$qtxt<br>";		
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $orgOrdId = $r['kred_ord_id'];
 		else $orgOrdId = 0;
-#cho "$orgOrdId<br>";	
 		$checkCount = $sn_antal = 0;
 /*
 		$qtxt = "select serienr.salgslinje_id,serienr.id,serienr.serienr,ordrelinjer.kred_linje_id ";
@@ -259,10 +239,8 @@ echo "$qtxt<br>";
 */
 		$qtxt = "select * from serienr where";
 		$qtxt.=" abs(salgslinje_id)='$kred_linje_id'";
-#cho "$qtxt<br>";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-#cho 	$r['salgslinje_id']." ".$r['salgslinje_id']." $linje_id<br>";
 #			if ($r['salgslinje_id'] > 0 || abs($r['salgslinje_id']) == $linje_id) {
 				$sn_antal++;
 				if ($r['salgslinje_id']<0 && $checkCount < abs($antal)) {

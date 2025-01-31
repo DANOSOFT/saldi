@@ -109,7 +109,6 @@ print "<!--function skriv start-->";
 	global $form_id;
 	global $subtotal;
 #	global $id;
-#cho __line__." $id $tekst<br>";
 	global $sum;
 	global $ref;
 	global $transportsum;
@@ -167,12 +166,10 @@ print "<!--function skriv start-->";
 	if (substr($tekst,0,7)=="<small>") {
 		$small='on';
 		$tekst=str_replace("<small>","",$tekst);
-#cho "$tekst<br>";	
 	}
 	if (substr($tekst,-8)=="</small>") {
 		$slutsmall='on';
 		$tekst=str_replace("</small>","",$tekst);
-#cho "$tekst<br>";	
 	}
 	if (substr($tekst,0,5)=="<big>") {
 		$big='on';
@@ -215,7 +212,6 @@ print "<!--function skriv start-->";
 	else $form_font=$form_font.'-ISOLatin9 findfont';
 	if (strstr($tekstinfo, 'ordrelinjer')) {
 	list ($tekstinfo,$Opkt)=explode("_",$tekstinfo,2);
-#cho "Y $y > $Opkt<br>";
 		if ($y <= $Opkt) { # Sideskift
 			global $tekst1;
 			global $x1;
@@ -276,7 +272,6 @@ print "<!--function skriv start-->";
 						} elseif ($tabel=="eget" || $tabel=="egen") {
 							$q2 = db_select("select $variabel from adresser where art='S'",__FILE__ . " linje " . __LINE__);
 						} elseif (($tabel=="adresser") || ($tabel=="adresser")) {
-#cho "select $variabel from adresser where id='$id'<br>";
 							$q2 = db_select("select $variabel from adresser where id='$id'",__FILE__ . " linje " . __LINE__);
 						} elseif ($tabel=="ansat" && $ref) {
 							$r2 = db_fetch_array(db_select("select id from adresser where art='S'",__FILE__ . " linje " . __LINE__));
@@ -318,7 +313,6 @@ print "<!--function skriv start-->";
 							$a=210-$a;
 							fwrite($htmfp,"<div style=\"position:absolute;right:".$a."mm;top:".$b."mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:".$c."px;\">".$ny_streng."</span></div>\n");
 						} else fwrite($htmfp,"<div style=\"position:absolute;left:".$a."mm;top:".$b."mm\"><span style=\"color:$htmcolor;font-family:Arial, Helvetica, sans-serif;font-size:".$c."px;\">".$ny_streng."</span></div>\n");
-#cho "$ny_streng<br>"; 
 					}
 				}
 			}
@@ -340,7 +334,6 @@ print "<!--function skriv start-->";
 			$htmfp=fopen($tmp,"w");
 			fwrite($htmfp,$htm_ini);
 			if ($logoart=='PS') fwrite($psfp, $logo);
-#cho __line__." $id<br>";			
 			formulartekst($id,$formular,$formularsprog);
 		}
 	}
@@ -361,7 +354,6 @@ print "<!--function skriv start-->";
 		$i1=NULL;$i2=NULL;
 	}
 	if ($x && $tekst && $y2/2.86>$Opkt) {
-#cho "$tekst | $line<br>";
 if ($tekst=='891,42') exit;
 		if ($x!='22') fwrite($psfp,"/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (".utf8_iso8859($tekst).") $format show\n");
 		$a=$x/2.86;
@@ -387,7 +379,6 @@ print "<!--function ombryd start-->";
 	$lokation=NULL;
 	if (strpos($tekst,chr(9))) {
 		list($tekst,$lokation,$vare_note)=explode(chr(9),$tekst);
-#cho $tekst;
 	}
 	$tekst=wordwrap($tekst, $laengde, "\n", true);
 	$nytekst="";
@@ -414,7 +405,6 @@ print "<!--function ombryd start-->";
 				$nytekst="";
 		 }
 	}
-#cho "nytext $nytekst<br>";
 	$nytekst=trim($nytekst);
 	if (strlen($nytekst)>=1){
 		$y=skriv($id,$str,$fed,$italic,$color,$nytekst,$tekstinfo,$x,$y,$format,$form_font,$formular,__LINE__);
@@ -468,7 +458,6 @@ print "<!--function find_form_tekst start-->";
 	elseif ($side!="1") $qtxt = "select * from formularer where formular = $formular and (side = 'A' or side = '!1') and lower(sprog)='$formularsprog' $pos_part order by xb, xa";
 	$query = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
-#cho "B-----> ".$row['beskrivelse']."<br>";
 		$z=-1;
 		$y=0;
 		$streng=array();
@@ -482,9 +471,6 @@ print "<!--function find_form_tekst start-->";
 #|| ($streng[$y]=="betalingsid" && substr($row['beskrivelse'],$x,1)=="(")
 					if ((substr($row['beskrivelse'],$x,1)!=" " && substr($row['beskrivelse'],$x,1)!=";")) { # alm variabel opbygges
 					if (!isset($if[$y]))$if[$y]=NULL;
-#cho __line__." $if[$y]<br>";
-#cho __line__." ".$row['beskrivelse']."<br>";
-#cho __line__." ".substr($row['beskrivelse'],$x,1)."<br>";
 						if (($if[$y]=='1')&&(substr($row['beskrivelse'],$x,1)==")")) { # opbygning af "if-variabel" slut  
 #						$streng[$y]=substr($streng[$y],0,strlen($streng[$y])-1);
 							list($if_tabel,$if_variabel) = explode("_",$streng[$y],2); #07.10.2007 --> 
@@ -527,13 +513,10 @@ print "<!--function find_form_tekst start-->";
 				}# endif
 			} # end if-else
 		} # endfor ($x=0; $x<strlen($row['beskrivelse'])
-#cho "Streng $streng[$y]<br>";
-#cho $row['beskrivelse']."<br>";
 		$streng_antal=$y;
 		$ny_streng=$q2=NULL;
 		for ($x=0; $x<=$streng_antal; $x++){
 		$if[$x]=NULL;
-#cho "-------------------------- Streng $streng[$x] -----------------------------------<br>";
 			if (isset($streng[$x]) && substr($streng[$x],0,1)=="$") {
 				$streng[$x]=substr($streng[$x],1);
 				list($tabel, $variabel)=explode("_",$streng[$x],2);
@@ -590,7 +573,6 @@ print "<!--function find_form_tekst start-->";
 						if ($deb_valuta=='DKK') $amount=$dkkamount;
 						if ($tabel=='skyldig' || $dd >= $r2['forfaldsdate']) $opensum+=afrund($amount,2);
 					}
-#cho __line__;				
 					$q2=NULL;
 					$sum=dkdecimal($opensum,2);
 				}	elseif ($tabel=="forfalden" || $tabel=="rykker") {# finder forfalden_sum på rykker - $tabel=="rykker" indsat 14.04.08
@@ -688,7 +670,6 @@ print "<!--function find_form_tekst start-->";
 			}
 		if (isset($streng[$x])) $ny_streng.=$streng[$x];
 		} #endfor ($x=0; $x<=$streng_antal; $x++)
-#cho 	"$ny_streng && $udskriv<br>";	
 		if ($ny_streng && $udskriv) {
 			if ($y_pos) {
 				if (!$pre_xa || $pre_xa >= $row['xa']) {
@@ -970,7 +951,6 @@ print "<!--function formularprint start-->";
 			return 'OK';
 			exit;
 		}
-#cho "UT $udskriv_til<br>";
 		$fakturanr=$row['fakturanr'];
 		($inkasso)?$mail_fakt='on':$mail_fakt=$row['mail_fakt'];
 		$email[0]=$row['email'];
@@ -1022,7 +1002,6 @@ print "<!--function formularprint start-->";
 	elseif ($formular==2 && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bgr="ordrer_bg";
 	elseif ($formular<=1 && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bgr="tilbud_bg";
 	elseif (file_exists("../logolib/$db_id/bg.pdf"))	$bgr="bg";
-	#cho "formular: $formular bg: $bgr<br>"; 
 	print "<!-- kommentar for at skjule uddata til siden \n";
 	if (!file_exists("../logolib/$db_id")) mkdir("../logolib/$db_id"); 
 	if (system("which pdftk") && file_exists("../logolib/$db_id/$bgr.pdf")) {
@@ -1073,7 +1052,6 @@ print "<!--function formularprint start-->";
 			fclose($logofil);
 		}
 	}
-#cho "select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'<br>";
 	$query = db_select("select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 	if ($row['beskrivelse']=='generelt') {
@@ -1085,7 +1063,6 @@ print "<!--function formularprint start-->";
 		else {
 			$x++;
 			$variabel[$x]=$row['beskrivelse'];
-#cho $variabel[$x]."<br>";
 			
 			$justering[$x]=$row['justering'];
 			$xa[$x]=$row['xa'];
@@ -1140,7 +1117,6 @@ print "<!--function formularprint start-->";
 			$psfp=fopen("$pfnavn.ps","w");
 			$htmfp=fopen("$pfnavn.htm","w");
 #		} else {
-##cho __line__." $printfilnavn<br>";
 #			fclose ($htmfp);
 #			$pfnavn=$mappe."/".$printfilnavn.".".$ordrenr;
 #			$htmfp=fopen($pfnavn.".htm","w");
@@ -1305,7 +1281,6 @@ print "<!--function formularprint start-->";
 							if ($momsfri[$x]!='on' && !$omvbet[$x]) {
 								$moms+=afrund($l_sum[$x]*$varemomssats[$x]/100,3); #Decimaltal aendret til 3 2010.12.17 grundet momsdiff (0,01 kr) i ordre id 371 i saldi_297
 								$momssum+=afrund($linjesum[$x],2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
-#cho __line__." ms $momssum<br>";
 								if ($incl_moms && !$b2b) {
 									$tmp=afrund($pris[$x]+$pris[$x]*$varemomssats[$x]/100,2);
 									if ($rabatart[$x]=="amount") $linjesum[$x]=($tmp-$rabat[$x])*$antal[$x];
@@ -1421,7 +1396,6 @@ print "<!--function formularprint start-->";
 					$pris[$x]=$linjesum[$x];
 				}	
 			}
-#cho __line__." ms $momssum<br>";
 			$y=$ya;
 			$y_tjek=$y;
 			$Opkt=$y-($antal_ordrelinjer*$linjeafstand);
@@ -1519,7 +1493,6 @@ print "<!--function formularprint start-->";
 				$sum=$r['sum'];
 				$moms=$r['moms'];
 			}
-#cho __line__." ms $momssum<br>";
 
 			$momssum=afrund($momssum,2);
 			$sum=afrund($sum,2);
@@ -1529,13 +1502,11 @@ print "<!--function formularprint start-->";
 			$sum=dkdecimal($sum,2);
 
 		}
-#cho __line__." ms $momssum<br>";
 		
 		if ($id) find_form_tekst($id, 'S', $formular,0,$linjeafstand,""); # Sum paa sidste side.
 
 		if ($ordre_id[$o]) bundtekst($ordre_id[$o]); # Uden denne skrives kun  side 1
 #		if ($mail_fakt) fclose($psfp2);
-		#cho "$o A $ordre_id[$o] $mappe/$pfliste[$o]<br>";
 		fclose($psfp);
 		fclose($htmfp);
 	}
@@ -1629,7 +1600,6 @@ $rabat=NULL;
 	}
 	
 	$qtxt="select * from formularer where formular = '$formular' and art = '1' and beskrivelse != 'LOGO' and lower(sprog)='$formularsprog'";
-#cho "$qtxt<br>";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$xa=$row['xa']*2.86;
@@ -1668,7 +1638,6 @@ $rabat=NULL;
 			#			fwrite($htmfp,"<div style=\"position:absolute;top:".$xa/2.86 ."mm;left:".$xb/2.86 ."mm;\">.</div>\n");
 		}
 	}
-#cho __line__." $id<br>";;
 	if ($id) find_form_tekst($id, 'A', $formular,0,0,0);
 	return $rabat;
 print "<!--function formulartekst slut-->";
@@ -1695,7 +1664,6 @@ global $linjeafstand;
 $y=$ya-$linjeafstand;
 $side=$side+1;
 
-#cho "side $side<br>";
 
 if ($logoart!='EPS') fwrite($psfp,"showpage\n");
 else fwrite($psfp, $logo);
@@ -1704,10 +1672,8 @@ fwrite($htmfp,"</body>\n</html>\n");
 #$htmfp=fopen($mappe."/".$printfilnavn."_$side.htm","w");
 #fwrite($htmfp,$htminitxt);
 
-#cho "Bundtekst returnerer: $y<br>";
 return ($y); #indsat 2011.01.27 grundet tomme sider v. sideskift i kommentar. saldi_2 ordre id 3310
 # fwrite($psfp,"showpage");
-#cho 
 print "<!--function bundtekst slut-->";
 }}
 if (!function_exists('send_mails')) {
@@ -1756,7 +1722,6 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 	global $db,$db_id,$deb_valuta,$deb_valutakurs;
 	global $exec_path,$formularsprog,$psfp,$htmfp,$ialt,$valuta,$s_id;
 
-#cho "$konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$regnaar,$inkasso<br>";
 
 	$mailantal=0;
 	$nomailantal=0;
@@ -1796,20 +1761,17 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 		$logoart='EPS';
 	}
 	print "-->\n";
-#cho "Logo $logo | $logoart<br>";;
 	if ($logoart != 'PDF') {
 		$fsize=filesize($logo);
 		$logofil=fopen($logo,"r");
 		$translate=0;
 		$logo="";
-	#cho "Logo $logo | $logoart<br>";;
 		while (!feof($logofil)) {
 			$linje=fgets($logofil);
 			if ($logoart=='EPS')	{
 				if (substr($linje,0,2)!="%!") {
 					if (strstr($linje, "translate")&&(!$translate)) {
 						$linje="$logo_X $logo_Y translate \n";
-#cho "<br>Linle $linje<br>";
 						$translate=1;
 					}
 					$logo=$logo.$linje;
@@ -1875,7 +1837,6 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 				$xa[$x]=$row['xa'];
 				$str[$x]=$row['str'];
 				$laengde[$x]=$row['xb'];
-#cho "$str[$x] $laengde[$x]<br>";
 				$color[$x]=$row['color'];
 				$fed[$x]=$row['fed'];
 				$kursiv[$x]=$row['kursiv'];
@@ -1883,7 +1844,6 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 			}
 			$var_antal=$x;
 		}
-#cho "$str[$x] $laengde[$x]<br>";
 		
 		$side=1;
 		$forfalden=0;
@@ -1894,7 +1854,6 @@ function rykkerprint($konto_id,$rykker_id,$rykkernr,$maaned_fra,$maaned_til,$reg
 			$qtxt.="ordrer.sprog as sprog, ordrer.valuta as valuta,ordrer.felt_5 as inkasso from ordrer, adresser, grupper";
 			$qtxt.=" where ";
 			$qtxt.="ordrer.id = $rykker_id[$q] and adresser.id=ordrer.konto_id and ".nr_cast("grupper.kodenr")." = adresser.gruppe and grupper.art = 'DG'";
-#cho "$qtxt<br>";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			($inkasso)?$mailfakt='on':$mailfakt=$r['mailfakt'];
 			if ($mailfakt) {
@@ -2189,7 +2148,6 @@ for ($i=0;$i<count($konto_id);$i++) {
 			$q1 = db_select("$qxt",__FILE__ . " linje " . __LINE__);
 			while ($r1 = db_fetch_array($q1)) {
 			
-#cho "PSFP $psfp<br>";
 				$valuta=$r1['valuta'];
 				$amount=$r1['amount'];
 				$valutakurs=(float)$r1['valutakurs'];
@@ -2271,11 +2229,8 @@ for ($i=0;$i<count($konto_id);$i++) {
 					$qtxt="select * from formularer where formular = '$formular' and art = '3' and beskrivelse='generelt'";
 					$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					$y=$r['ya'];
-					#cho __line__." Y $y<br>";					
 					$udskrevet=$side-1; #20150410
-#cho "$udskrevet=$side-1 <br> $y <= 	$Opkt<br>";
 				}
-	#cho "$udskrevet!=$side<br>";
 			}
 			if ($udskrevet!=$side) {
 				formulartekst($konto_id[$i],$formular,$formularsprog); 		 
@@ -2289,7 +2244,6 @@ for ($i=0;$i<count($konto_id);$i++) {
 fclose($psfp);
 fclose($htmfp);
 #if ($mailantal>0) include("mail_faktura.php");
-#cho "lukker nu<br>";
 if ($mailantal>0) {
 	if (!isset($exec_path)) $exec_path="/usr/bin";
 #	$qtxt="select * from formularer where formular = '11' and art = '5' and sprog='Dansk' order by xa,id";

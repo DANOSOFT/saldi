@@ -48,7 +48,6 @@ function varesync($valg) {
 	while($r=db_fetch_array($q)) {
 		if ($x) {
 			if ($r['saldi_id']==$a && $r['shop_id']==$b && $r['saldi_variant']==$c && $r['shop_variant']==$d) {
-#cho "sletter $r[id]<br>";
 				db_modify("delete from shop_varer where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -91,7 +90,6 @@ function varesync($valg) {
 		$next_id=1;
 	}
 	$qtxt="select box4 from grupper where art='API'";
-#cho "$qtxt<br>";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$api_fil=trim($r['box4']);
 	$tmparray=explode("/",$api_fil);
@@ -128,7 +126,6 @@ function varesync($valg) {
 		$lf=$lagerfil."files/shop_products.csv";
 		$pfn='shop_products';
 	}
-#cho "nohup curl '$api_fil?products_id=*&filename=$pfn.csv'\n<br>";
 	shell_exec("nohup curl '$api_fil?products_id=*&filename=$pfn.csv'\n");
 	system ("cd ../temp/$db/\nwget $lf\n");
 	$indhold=file_get_contents("../temp/$db/$pfn.csv");
@@ -308,15 +305,12 @@ file_put_contents("../temp/$db/varesync.log","$qtxt\n",FILE_APPEND);
 		$sfn='vStck_'.date('Hi');
 		$sf=$lagerfil."files/$sfn.csv";
 		$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-#cho "curl '$api_fil?variant=*&filename=$vfn.csv'<br>";
-#cho "$api_fil?variant=*<br>";
 		shell_exec("nohup curl '$api_fil?variant=*&filename=$vfn.csv'\n");
 echo 	"cd ../temp/$db/<br>wget $lf<br>";
 		system ("cd ../temp/$db/\nwget $lf\n");
 		#		$systxt="/usr/bin/wget --no-cache --no-check-certificate --spider --header='$header' '$api_fil?variant=*&filename=$vfn.csv' \n";
 #		$result=system ($systxt);
 		if (file_exists("../temp/$db/$sfn.csv")) unlink("../temp/$db/$sfn.csv");
-#cho 	"cd ../temp/$db/<br>wget $sf<br>";
 		system ("cd ../temp/$db/\nwget $sf\n");
 		if (!file_exists("../temp/$db/$vfn.csv")) exit;
 		if (file_exists("../temp/$db/$sfn.csv")) {
@@ -345,7 +339,6 @@ echo 	"cd ../temp/$db/<br>wget $lf<br>";
 #	unlink("../temp/$db/$vfn.csv");
 	$linje=explode("\n",$indhold);
  	(substr($linje[0],-4,3) == 'qty')?$useQty=1:$useQty=0;
-#cho __line__  ." $useQty<br>";
 	for ($y=0;$y<count($linje);$y++){
 		if ($y==0) {
 			$vars=explode(";",$linje[$y]);

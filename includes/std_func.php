@@ -1481,7 +1481,6 @@ if (!function_exists('lagerreguler')) {
 			}
 		}
     $qtxt="select id from styklister where vare_id='$vare_id' limit 1";
-#cho "$db $qtxt<br>";
 #		if (db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 #			$diff = $ny_beholdning - $existingStock;
 #			include_once('productCardIncludes/updateParentStock.php');
@@ -1493,7 +1492,6 @@ echo "sync_shop_vare($vare_id, $variant_id, $lager)";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$beholdning = $r['beholdning'] * 1;
 		$qtxt = "update varer set beholdning='$beholdning' where id='$vare_id'";
-#cho "$db $qtxt<br>";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#
 	}
@@ -1622,7 +1620,6 @@ if (!function_exists('hent_shop_ordrer')) {
 		if ($tidspkt < date("U") - 300 || $shop_ordre_id) {
 		  file_put_contents("../temp/$db/shoptidspkt.txt", date("U"));
 		  #      $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-  #cho   "/usr/bin/wget --spider --no-check-certificate --header='$header' $api_fil?put_new_orders=1 \n<br>";
 		  $api_txt = "$api_fil?put_new_orders=1";
 		  if ($shop_ordre_id)
 			$api_txt .= "&ordre_id=$shop_ordre_id";

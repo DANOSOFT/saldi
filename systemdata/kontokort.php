@@ -283,7 +283,6 @@ if ($id > 0) {
 		if (!$valutakurs)
 			$valutakurs = 100;
 		if ($valutakode) {
-			#cho "select box1 from grupper where art='VK' and kodenr = '$valutakode'<br>";
 			$r = db_fetch_array(db_select("select box1 from grupper where art='VK' and kodenr = '$valutakode'", __FILE__ . " linje " . __LINE__));
 			$valuta = $r['box1'];
 		} else

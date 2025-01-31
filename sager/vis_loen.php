@@ -33,7 +33,6 @@ function vis_loen($id) {
 	$opg_nr=$r['opg_nr'];
 	$opgave_id=$r['opg_id'];
 	$master_id=$r['master_id'];
-#cho "S $sum<br>";	
 	$loen_art=$r['art'];
 	$feriefra=$r['feriefra']; // indsat 20140627
 	$ferietil=$r['ferietil']; // indsat 20140627
@@ -59,7 +58,6 @@ function vis_loen($id) {
 		$t100pct=$r['t100pct'];
 		list($skur1,$skur2)=explode("|",$r['skur']);
 		list($km,$km_sats,$km_fra)=explode("|",$r['korsel']);
-#cho "$km,$km_sats,$km_fra<br>";
 	if ($ansatte) {
 			$ansat_id=explode(chr(9),$ansatte);
 			$loen_fordeling=explode(chr(9),$fordeling);
@@ -75,12 +73,9 @@ function vis_loen($id) {
 	}
 	if ($loen_art=='akkord' || $loen_art=='akktimer'){
 		if ($master_id) {
-#cho "select nummer from loen where id='$master_id'<br>";
 			if ($r2=db_fetch_array(db_select("select nummer from loen where id='$master_id' and sag_id='$sag_id' and opg_id='$opg_id'",__FILE__ . " linje " . __LINE__))) {
 				$master_nr=$r2['nummer'];
-#cho "Bundet på seddel nr $master_nr<br>";
 			}	else {
-#cho "update loen set master_id='0',godkendt='' where id='$id'<br>";
 				db_modify("update loen set master_id='0',godkendt='' where id='$id'",__FILE__ . " linje " . __LINE__);
 				$master_id=NULL;
 				$master_nr=NULL;
@@ -105,12 +100,9 @@ function vis_loen($id) {
 #		else $qtxt="select * from loen where sag_id = '$sag_id' and kategori = '$listevalg' and art='akktimer' and afsluttet='' and afvist='' and  and id != '$id' order by loendate";
 		#20131003 tilføjet and opg_id='$opg_id' 
 		$qtxt="select * from loen where sag_id = '$sag_id' and opg_id='$opg_id' and art='akktimer' and id != '$id' and (master_id='$id' or master_id='0' or master_id is NULL) order by loendate";
-#cho "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$y;
 		while ($r=db_fetch_array($q)) {
-#cho "ID $r[id]<br>";
-		#cho "(".!trim($r['afvist'])." and (".!trim($r['afsluttet'])," || ".$r['opg_id']."==$opg_id))";
 			if (!trim($r['afvist']) and ((!trim($r['afsluttet']) and $r['kategori']==$listevalg) || $r['opg_id']==$opg_id)) {	## 20130301 Query finder ikke afvist selvom afvist er '' - derfor dette.	
 # 			if (!trim($r['afvist']) and !trim($r['afsluttet']) and $r['opg_id']==$opg_id)) {	## 20130301 Query finder ikke afvist selvom afvist er '' - derfor dette.	
 				if ($ansatte){ # 20141103 
@@ -203,11 +195,8 @@ function vis_loen($id) {
 				$aa_sum+=($r['ned_60']*$r['pris_ned']*0.6);
 				$aa_sum+=($r['ned_30m']*$r['pris_ned']*0.1);
 				$x++;
-#cho "AA 	$aa_sum  | $r[tekst] $r[op]*$r[pris_op] $r[ned]*$r[pris_ned]<br>";
 			} else db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__);
 			
-#cho "$r[vare_id] || $r[tekst] $r[op] $r[ned]<br>";
-#cho "$r[op]*$r[pris_op] | $r[ned]*$r[pris_ned] |".$r['op']*$r['pris_op']."|".$r['ned']*$r['pris_ned']."| aa_sum $aa_sum<br>";
 		}
 	}
 	$aa_sum80=$aa_sum*0.8;
@@ -218,16 +207,13 @@ function vis_loen($id) {
 
 	for ($x=0;$x<count($ansat_id);$x++) {
 		$ansat_id[$x]*=1;
-#cho "select * from ansatte where id = '$ansat_id[$x]'<br>";
 		$r=db_fetch_array(db_select("select * from ansatte where id = '$ansat_id[$x]'",__FILE__ . " linje " . __LINE__));
 		$medarb_nr[$x]=$r['nummer'];
 		$medarb_navn[$x]=$r['navn'];
-#cho "$medarb_nr[$x] $medarb_navn[$x]<br>";
 		$medarb_trainee[$x]=$r['trainee'];
 		$medarb_startdate[$x]=$r['startdate'];
 		$medarb_loen[$x]=str_replace(",",".",$r['loen'])*1;
 		$medarb_extraloen[$x]=str_replace(",",".",$r['extraloen'])*1;
-#cho "$medarb_trainee[$x] t $traineemdr $traineepct<br>";
 	}
 		
 	($afsluttet || $godkendt)?$readonly="readonly=\"readonly\"":$readonly=NULL;
@@ -504,13 +490,10 @@ function vis_loen($id) {
 				$l_timer=0;
 				for($x=0;$x<=count($ansat_id);$x++) {
 				if (isset($loen_timer[$x])) {
-#cho "$loen_fordeling[$x] :: $fordel_timer[$x]=$loen_timer[$x]*$loen_fordeling[$x]/100<br>";
 				if ($loen_fordeling[$x]) $fordel_timer[$x]=$loen_timer[$x]*$loen_fordeling[$x]/100;
 					else $fordel_timer[$x]=$loen_timer[$x];
-#cho "$fordel_timer[$x]<br>";
 					$l_timer+=$fordel_timer[$x];
 					}
-#cho "$loen_timer[$x] :: $fordel_timer[$x]<br>";
 				}
 				$f_sum=0;
 				$t_sum=0;
@@ -549,38 +532,28 @@ function vis_loen($id) {
 						elseif ($loen_art=='timer') $loen_loen[$x]=$medarb_loen[$x];#+$medarb_extraloen[$x];
 						else $loen_loen[$x]=$medarb_extraloen[$x];
 					} 
-#cho "$t_belob[$x]=$loen_loen[$x]*$loen_timer[$x]+$loen_loen[$x]*$loen_50pct[$x]/2+$loen_loen[$x]*$loen_100pct[$x]<br>";
 #					$t_belob[$x]=$loen_loen[$x]*$loen_timer[$x]+$loen_loen[$x]*$loen_50pct[$x]/2+$loen_loen[$x]*$loen_100pct[$x];
 					$t_belob[$x]=$loen_loen[$x]*$loen_timer[$x]+$overtid_50pct*$loen_50pct[$x]+$overtid_100pct*$loen_100pct[$x];
-#cho "$aa_sum aa $aa_belob[$x] $aa_sum/$l_timer*$fordel_timer[$x]<br>";
 					if ($loen_timer[$x] && $l_timer) $aa_belob[$x]=$aa_sum/$l_timer*$fordel_timer[$x];
-#cho "$aa_belob[$x]=$aa_sum/$l_timer*$fordel_timer[$x]<br>";
 					$loen_sum[$x]=$t_belob[$x]+$aa_belob[$x]+$loen_skur1[$x]+$loen_skur2[$x];
-#cho "$loen_sum[$x]<br>";
 					if ($loen_km[$x] || $skur1[$x] || $skur2[$x]){ #&& $loen_art!='akk_afr') {
 						$t_km=0;
 						$tjek=0;
 						
 						$qtxt="select * from loen where (art='akktimer' or art='akkord' or art='timer') and loendate='$loen_date[$x]' and id < '$id' and afvist = '' order by id";
-#cho "$qtxt<br>";			
 						$q=db_select($qtxt,__FILE__ . " linje " . __LINE__); # finder hvormeget kørsel personen har haft samme dag. (incl aktuelle seddel). 
 						while ($r=db_fetch_array($q)) {
-#cho "ID $r[id]<br>";						
 							$a=explode(chr(9),$r['ansatte']);
 							if (in_array($ansat_id[$x],$a)) {
 								$k=explode("|",$r['korsel']);
-#cho "$r[id]:$k[0] -> ";		
 								for ($i=0;$i<count($a);$i++) { #20150623
 									if ($a[$i]==$ansat_id[$x]) {
-#cho "$t_km -> ";
 										$t_km+=$k[0];    
-#cho "$t_km<br>";
 									}
 								}
 							}
 							$tjek=1;
 						} # 20150617 Flytte fra over '$fratræk' længere nede da km blev forkert
-#cho "$t_km -> $loen_km[$x]<br>";
 						if ($t_km==$loen_km[$x]) {
 							if ($km_fra<=$loen_km[$x]) {
 								$fratraek[$x]=$km_fra;
@@ -636,7 +609,6 @@ function vis_loen($id) {
 					print "</tbody>";
 					//print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">";
 				}
-				#cho "update loen set sum='$sum' where id='$id'<br>";
 				if (!$afsluttet || $afslut) db_modify("update loen set sum='$sum' where id='$id'",__FILE__ . " linje " . __LINE__); #20130604
 
 #				print "<tbody class=\"akkordTableBody\">
@@ -681,7 +653,6 @@ function vis_loen($id) {
 					
 				print "<tbody>";
 				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt);
-#cho "sum fra liste $sum<br>";
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>Lønlinjer ialt:</b></td>
 					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum)."</b></td>						
@@ -760,7 +731,6 @@ function vis_loen($id) {
 							if (($loen_art=='plads' || $loen_art=='sygdom' || $loen_art=='barn_syg' || $loen_art=='skole') && $sum && $loendato && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
 							if ($loen_art=='ferie' && $feriefra && $ferietil && $loendato && (!empty($medarb_nr[0]))) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
 						}
-#cho "(substr($sag_rettigheder,6,1) && $afsluttet && !$godkendt && !$afvist)<br>";						
 						if (substr($sag_rettigheder,6,1) && $afsluttet && !$godkendt && !$afvist) {
 							print "<input name=\"godkend\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Godkend\" onclick=\"return confirm('Bekræft godkendelse')\">";
 							print "<input name=\"afvis\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Afvis\" onclick=\"return confirm('Bekræft afvisning')\">";

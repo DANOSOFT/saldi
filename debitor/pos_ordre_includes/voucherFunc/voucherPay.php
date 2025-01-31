@@ -44,7 +44,6 @@ function voucherPay($orderId, $betaling, $modtaget) {
 	$qtxt = "select var_value from settings where var_name = 'voucherItems' and var_grp = 'Paycards'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $vouchers = explode(chr(9),$r['var_value']);
 	if ($vouchers[$payCardNo] && !isset($_POST['giftcardNumber'])) {
-		#cho __line__." $modtaget -> >$_POST[modtaget]<<br>";
 		if (!$modtaget && strpos($betaling,'på beløb')) {
 			$qtxt = "select sum (amount*valutakurs/100) as paid from pos_betalinger where ordre_id='$orderId'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -80,11 +79,6 @@ function voucherPay($orderId, $betaling, $modtaget) {
 			$('#getGiftcardNumber').focus(); 
 			}
 		</script>";
-		#cho "Post array: <br>";
-		#hho '<pre>'; print_r($_POST); #cho '</pre>';
-		#cho "Get array: <br>";
-		#cho '<pre>'; print_r($_GET); #cho '</pre>';
-		#cho "Id: $orderId <br>";
 		exit(0);
 	} elseif (isset($_POST['giftcardNumber']) && $_POST['giftcardNumber'] >= '0') {
 		if (!isset($_COOKIE['giftcard']) || !$_COOKIE['giftcard']) {
@@ -102,6 +96,5 @@ function voucherPay($orderId, $betaling, $modtaget) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
 		exit;
 	}	
-	#cho __line__."<br>";
 }}
 ?>

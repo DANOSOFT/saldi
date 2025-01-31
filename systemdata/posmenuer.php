@@ -256,7 +256,6 @@ if ($menuvalg=='ny') {
 		if (strlen($butexttcolor)>6) $butexttcolor=substr($butexttcolor,-6); #20160218
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$but_id=$r['id'];
-				#cho "$buttxt && $butfunc<br>";
 				if ($buttxt=='-' && $butfunc != '5') $qtxt="delete from pos_buttons where id='$but_id'"; # 20160307
 				else $qtxt="update pos_buttons set beskrivelse='$buttxt',color='$butcolor',fontcolor='$butexttcolor',funktion='$butfunc',vare_id='$butvnr' where id='$r[id]'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -814,7 +813,6 @@ function output ($menu_id,$rows,$cols,$radius,$width,$height,$fontsize,$bgcolor2
 			name='flyt_row[$x]' value='$x' onchange= 'this.form.submit()'>
 			</td>";
 		for ($y=1;$y<=$cols;$y++) {
-#cho "select * from pos_buttons where menu_id='$menu_id' and row='$x' and col='$y'<br>";
 			$qtxt = "select * from pos_buttons where menu_id='$menu_id' and row='$x' and col='$y'";
 				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
 				$a = $r['beskrivelse'];

@@ -144,7 +144,6 @@ function overfoer_data($filnavn,$lager,$charset) {
 	while($r=db_fetch_array($q)){
 		$l_id[$l]=$r['id'];
 		$l_vid[$l]=$r['vare_id'];
-#cho __line__." $l_id[$l] -> $l_vid[$l]<br>";		
 		$l++;
 	}
 
@@ -156,10 +155,8 @@ function overfoer_data($filnavn,$lager,$charset) {
 		$vl_id[$v]=NULL;
 		if (in_array($v_id[$v],$l_vid)) {
 			for ($l=0;$l<count($l_id);$l++){
-#cho __line__." if ($l_vid[$l]==$v_id[$v])<br>"; 
 					if ($l_vid[$l]==$v_id[$v]) {
 					$vl_id[$v]=$l_id[$l];
-#cho __line__." if $vl_id[$v]=$l_vid[$l];<br>"; 
 					break 1;
 				}
 			}
@@ -185,14 +182,12 @@ function overfoer_data($filnavn,$lager,$charset) {
 					if ($v_nr[$v]==$varenr)	{
 						$vare_id=$v_id[$v];
 						$lok_id=$vl_id[$v];
-#cho __line__." $vare_id $lok_id<br>";
 						}
 					if (!$vare_id) {
 						for ($v=0;$v<count($v_id);$v++) {
 							if (strtolower($v_nr[$v])==strtolower($varenr)) {
 								$vare_id=$v_id[$v];
 								$lok_id=$vl_id[$v];
-#cho __line__." $vare_id $lok_id<br>";
 							}
 						}
 					}
@@ -201,7 +196,6 @@ function overfoer_data($filnavn,$lager,$charset) {
 							if (is_numeric($v_nr[$v]) && $v_nr[$v]*1==$varenr*1) {
 								$vare_id=$v_id[$v];
 								$lok_id=$vl_id[$v];
-#cho __line__." $vare_id $lok_id<br>";
 							}
 						}
 					}
@@ -217,9 +211,7 @@ function overfoer_data($filnavn,$lager,$charset) {
 						$qtxt.= "('$vare_id','0','$lager','".db_escape_string($lokation)."')";
 						$imp++;
 					}
-					#cho "$qtxt<br>";
 					if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					#cho "$vare_id har ingen lokation<br>";
 				}
 			}
 		}

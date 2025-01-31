@@ -179,7 +179,6 @@ if(isset($id) & $id != NULL){
 }
 print "<tr><td>Bank</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"bank_navn\" value=\"$bank_navn\"></td></tr>\n";
 print "<tr><td>Email ".findtekst(594, $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"kontakt\" value=\"$kontakt\"></td></tr>";
-#cho $_SERVER["SERVER_NAME"]."<br>";
 if (in_array($_SERVER["SERVER_NAME"],$saldinames)) {
 #	if (substr($db,0,6)=='bizsys' || substr($db,0,7)=='grillbar') {
 #		$href='https://bizsys.dk/wp-content/uploads/2018/05/Bizsys-databehandleraftale.pdf';

@@ -757,11 +757,9 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 
 	$email = $forfaldsum = $fromdate = $kto_fra = $kto_til = $returside = $todate = NULL;
 
-	#cho "$_GET[unAlign]<br>";
 	$unAlign = if_isset($_GET['unAlign'], NULL);
 	$unAlignAccount = if_isset($_GET['unAlignAccount'], 0);
 	$unAlignId = if_isset($_GET['oppId'], 0);
-	#cho "UA $unAlign | $unAlignAccount<br>";
 	if ($unAlign || $unAlignId) {
 		$qtxt = "update openpost set udlignet='0',udlign_id='0' where konto_id = '$unAlignAccount'";
 		if ($unAlign)
@@ -918,7 +916,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' and transdate<='$todate' order by transdate,id,faktnr,refnr"; //20160414
 		else
 			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' order by transdate,id,faktnr,refnr"; //20160414
-#cho "$qtxt<br>";
 		$q2 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$y++;
@@ -1551,7 +1548,6 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 				$amount = $amount * $oppkurs / 100;
 			}
 			$kontosum[$x] += afrund($amount, 2);
-			#cho "$kontosum[$x]+= $amount<br>";
 		}
 		$totalsum = $totalsum + $kontosum[$x];
 		if (afrund($kontosum[$x], 2)) {

@@ -119,12 +119,10 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
 
 #if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
-#cho "$date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer<br>";
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref); 
 elseif ($submit == 'lagerstatus') print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
 elseif (strpos($submit,'ageropt')) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
-#cho "$submit($regnaar, $date_from, $date_to, $varenr, $varenavn, $varegruppe)";
 
 #############################################################################################################
 function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref) {
@@ -484,7 +482,6 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$vare_id[$x]=$r['id'];
 			}
 		}
-#cho "A $vare_id[$x]<br>";
 	}
 	$v_id=array();
 	$x=0;
@@ -496,7 +493,6 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	if ($ref) $qtxt.=" and batch_salg.ordre_id = ordrer.id and (ordrer.ref='$ref_navn' or ordrer.ref='$ref_brugernavn')";
 	if ($lagertal) $qtxt.=" order by varer.gruppe,varer.beskrivelse";
 	else $qtxt.=" and batch_salg.fakturadate>='$date_from' order by varer.beskrivelse";
-#cho "$qtxt<br>";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		if ((in_array(trim($row['vare_id']),$vare_id))&&(!in_array(trim($row['vare_id']), $v_id))) {
@@ -506,12 +502,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
 		}
 	}
- #cho "select vare_id, pris from batch_kob where fakturadate>='$date_from' and fakturadate<='$date_to' order by vare_id<br>";	
 	$qtxt="select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
 	$qtxt.="from batch_kob,varer where batch_kob.fakturadate<='$date_to' and batch_kob.vare_id = varer.id "; #20181003
 	if ($lagertal) $qtxt.="order by gruppe,varer.beskrivelse";
 	else $qtxt.=" and batch_kob.fakturadate>='$date_from' order by varer.beskrivelse";
-#cho "$qtxt<br>";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__); 
 	while ($row = db_fetch_array($query)) {
 		if ((in_array(trim($row['vare_id']), $vare_id))&&(!in_array(trim($row['vare_id']), $v_id))) {
@@ -817,7 +811,6 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					}
 				}
 			}
-#cho "$t_kobt+$t_regul-$t_solgt<br>";
 			if (!$kun_salg) {	
 				print "<tr><td colspan=\"$cols\"><hr></td></tr>";
 				fwrite($csvfile, "-----------\r\n");

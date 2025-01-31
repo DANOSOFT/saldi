@@ -50,18 +50,15 @@ for ($co=0;$co<count($coAc);$co++) {
 
 	$qtxt = "select moms from kontoplan where kontonr = '$coAc[$co]' and regnskabsaar <= '$regnaar' ";
 	$qtxt.= "order by regnskabsaar desc limit 1";
-#cho __line__." $qtxt<br>";	
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($toVatCode=substr($r['moms'],1)) {
 		$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$toVatCode' ";
-#cho __line__." $qtxt<br>";	
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$toVatAccount = $r['box1']*1;
 		$toVatPercent  = $r['box2']*1;
 	} else $toVatAccount=$toVatPercent=0;
 
 	$qtxt = "select distinct(gruppe) as cgroup from varer where provision > '0' and varenr like '$itNo[$co]'";
-#cho __line__." $qtxt<br>";	
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$cGroup[$c]=$r['cgroup'];
@@ -73,23 +70,19 @@ for ($co=0;$co<count($coAc);$co++) {
 	$qtxt.= "and ordrelinjer.varenr like '$itNo[$co]' and ordrelinjer.kostpris > '0' ";
 	$qtxt.= "and (ordrer.report_number = '0' or ordrer.report_number = '$reportNumber') and ordrelinjer.ordre_id = ordrer.id ";
 	$qtxt.= "and pos_betalinger.ordre_id = ordrer.id and ordrer.felt_5 = '$kasse' order by ordrelinjer.vare_id";
-echo __line__." $qtxt<br>";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$itemId[$v]=$r['vare_id'];
-#cho __line__." $itemId[$v]<br>";	
 		$v++;
 	}
 	
 	for ($c=0;$c<count($cGroup);$c++) {
 		$v=0;
 		$qtxt = "select id, provision from varer where gruppe = '$cGroup[$c]' and provision > '0' and varenr like '$itNo[$co]' order by id";
-#cho __line__." $qtxt<br>";	
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			if (in_array($r['id'],$itemId)) {
 				$cItemId[$c][$v]=$r['id'];
-#cho __line__." ". $cItemId[$c][$v] ."<br>";	
 				$v++;
 			}
 		}
@@ -128,7 +121,6 @@ echo __line__." $r[id] $r[varenr] $r[antal] $r[ordre_id] $linePrice | $cost ".af
 		$fromAccount=$r['box4'];
 		$qtxt = "select moms from kontoplan where kontonr = '$fromAccount' and regnskabsaar <= '$regnaar' ";
 		$qtxt.= "order by regnskabsaar desc limit 1";
-#cho __line__." $qtxt<br>";	
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if ($fromVatCode=substr($r['moms'],1)) {
 			$qtxt = "select box1,box2 from grupper where art = 'SM' and kodenr = '$fromVatCode' ";
@@ -139,7 +131,6 @@ echo __line__." $r[id] $r[varenr] $r[antal] $r[ordre_id] $linePrice | $cost ".af
 		if ($commission && $fromVatPercent) {
 #			if ($costVat) $fromVat = afrund($commission * $fromVatPercent / (100+$fromVatPercent),2);
 			$fromVat = afrund($commission * $fromVatPercent / 100,2);
-#cho __line__." $costVat $commission CV $fromVat<br>";
 			$debet=$kredit=0;
 			($fromVat > 0)?$debet=$fromVat:$kredit=abs($fromVat);
 			$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";

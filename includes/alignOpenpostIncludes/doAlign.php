@@ -131,13 +131,11 @@ echo "DKDIF $dkkdiff<br>";
 				$qtxt.="(kontonr, bilag,transdate,logdate,logtime,beskrivelse,kredit,kladde_id,afd,ansat,projekt)";
 				$qtxt.=" values ";
 				$qtxt.="($diffkto,'0','$alignDate','$logdate','$logtime','$bogf_besk','$dkkdiff','0','0','0','0')";
-#cho "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt="insert into transaktioner ";
 				$qtxt.="(kontonr, bilag, transdate, logdate, logtime, beskrivelse, debet, kladde_id,afd, ansat, projekt)";
 				$qtxt.=" values ";
 				$qtxt.="('$samlekonto', '0', '$alignDate', '$logdate', '$logtime', '$bogf_besk', '$dkkdiff', '0', '0', '0', '0')";
-#cho "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($diff) {
 					$tmp=$diff*-1;
@@ -154,7 +152,6 @@ echo "DKDIF $dkkdiff<br>";
 					$qtxt.="(konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date)";
 					$qtxt.=" values "; 
 					$qtxt.="('$konto_id[0]','$kontonr[0]','$tmp','$bogf_besk','1','$alignDate','0','0','$basisvaluta','$vkurs','$udlign_id','$alignDate')";
-#cho "$qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}

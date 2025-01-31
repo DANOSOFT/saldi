@@ -1560,19 +1560,15 @@ function samlevare($id,$art,$v_id,$leveres) {
 	} 
 /*
 else {
-#cho "select antal,posnr from ordrelinjer where id='$linje_id'<br>";
 		$r=db_fetch_array(db_select("select antal,posnr,kred_linje_id from ordrelinjer where id='$linje_id'",__FILE__ . " linje " . __LINE__));
 		$antal=$r['antal']*1;
 		$posnr=$r['posnr']*1;
 		$kred_linje_id=$r['kred_linje_id']*1;
-#cho "$antal select id,antal from ordrelinjer where id='$kred_linje_id'<br>";
 		if ($antal && $r=db_fetch_array(db_select("select id,antal from ordrelinjer where id='$kred_linje_id'",__FILE__ . " linje " . __LINE__))) {
 			$org_antal=$r['antal'];
-#cho "select * from ordrelinjer where samlevare='$r[id]'<br>";
 			$q=db_select("select * from ordrelinjer where samlevare='$r[id]'",__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
 				$ny_antal=afrund($r['antal']*$org_antal/$antal,2);
-#cho "insert into ordrelinjer (ordre_id, varenr, vare_id, beskrivelse, antal, leveres, pris, posnr) 
 					values 
 				('$id', '$r[varenr]', '$r[vare_id]', '$r[beskrivelse]', '$ny_antal', '$ny_antal', '$r[pris]', '$r[posnr]' )<br>";
 				db_modify("insert into ordrelinjer (ordre_id, varenr, vare_id, beskrivelse, antal, leveres, pris, posnr) 

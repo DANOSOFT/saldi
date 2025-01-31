@@ -10,7 +10,6 @@ $dd=date("Y-m-d");
 
 $x=0;
 $qtxt = "SELECT * FROM variant_varer where variant_beholdning < 0 ORDER BY id";
-#cho "$qtxt<br>";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$variantId[$x] = $r['id'];

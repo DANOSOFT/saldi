@@ -30,7 +30,6 @@ $brugt=array();
 $pre=array();
 while ($a <= count($kat_id)) {
         $niveau=0;
-#cho "A $a ID $kat_id[$a] Master $kat_master[$a]<br>";
     if (!$kat_master[$a] && !in_array($kat_id[$a],$used_id)) {
         $checked=NULL;
         for ($y=0;$y<count($kategori);$y++) {
@@ -53,9 +52,7 @@ while ($a <= count($kat_id)) {
     for ($d=1;$d<=count($kat_id);$d++) {
     $q++;
 # Master_id skal være = master  & id må ikke være brugt før og master skal være sat.
-#cho "$q $kat_master[$d]()==$kat_id[$c]($kat_beskrivelse[$c]) $kat_beskrivelse[$d]<br>";
     if ($kat_master[$d]==$kat_id[$c] && !in_array($kat_id[$d],$used_id) && in_array($kat_master[$d],$used_id)) {
-#cho "her $kat_beskrivelse[$d]<br>";
         $checked=NULL;
         for ($y=0;$y<=$kategori_antal;$y++) {
             if ($kat_id[$d]==$kategori[$y]) $checked="checked";
@@ -77,16 +74,12 @@ while ($a <= count($kat_id)) {
             $b++;
             $c=$d;
             $d=1;
-#cho "$a | $c | $d | $kat_id[$c] | $kat_beskrivelse[$c] | $kat_master[$c]</br>\n";
         }
-#cho "$d==count($kat_id) && $c!=$a<br>";
         if ($d==count($kat_id) && $c!=$a) {
-#cho "skifter A $a B $c D $d<br>";
             $c=$a;
             if ($niveau && $pre[$niveau]) $c=$pre[$niveau];
             $d=1;
             $niveau--;
-#cho "-> A $a B $c D $d<br>";
         }
 #       if ($q>10000) {
 #           break 1;

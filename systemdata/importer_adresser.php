@@ -451,7 +451,6 @@ if ($fp) {
 						}
 					}
 				}
-#cho "$feltnavn[$y]<br>";
 				if ($feltnavn[$y] && $feltnavn[$y]!='husnr'  && $feltnavn[$y]!='etage' ) {
 					$felt[$y]=trim(db_escape_string($felt[$y]));
 					if ($feltnavn[$y]=='betalingsdage') $felt[$y]*=1;
@@ -491,9 +490,7 @@ if ($fp) {
 					$konto_id=$r['id'];
 					$imp_antal++;
 					db_modify("update adresser set $upd where id='$konto_id'",__FILE__ . " linje " . __LINE__);
-#cho "kontonr=$kontonr opdateret<br>";
 				} else {
-#cho "kontonr=$kontonr ikke opdateret<br>";
 					$konto_id=0;
 				}
 			} else {
@@ -574,16 +571,11 @@ function opdel ($splitter,$linje){
 	}
 	$var=explode(chr(9),$ny_linje);
 	for($i=0;$i<$feltantal;$i++) {
-#cho "$var[$i] - ";
 		$var[$i]=trim($var[$i]);
-#cho substr($var[$i],0,1);
-#cho " - ";
-#cho substr($var[$i],-1);
 
 		if (substr($var[$i],0,1)==chr(34) && substr($var[$i],-1)==chr(34)) {
 			$var[$i]=substr($var[$i],1,strlen($var[$i])-2);
 		}
-#cho " - $var[$i]<br>";
 	}
 	return $var;
 }

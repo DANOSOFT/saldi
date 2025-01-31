@@ -35,7 +35,6 @@ if(!class_exists('phpmailer')) {
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
 	global $charset;
-#cho "$charset<br>";
 	global $db,$db_id,$deb_valuta,$deb_valutakurs;
 	global $mailantal;
 	global $formular,$formularsprog;
@@ -58,13 +57,8 @@ print "<!--function send_mails start-->";
 	}
 	$bilag=$brugermail=$mail_bilag=NULL;
 	
-#cho __line__." sender $ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr<br>";
-#cho __line__."<br>";
 	$ordre_id*=1; #21040423
-#cho __line__."<br>";
  	$qtxt="select mail_bilag,lev_addr1,lev_postnr,lev_bynavn,sag_id from ordrer where id='$ordre_id'";
-#cho __line__."<br>";
-#cho __line__." $qtxt<br>";	
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$mail_bilag=$r['mail_bilag'];
 	$lev_addr1=$r['lev_addr1']; # 2013.11.27 Henter leveringsaddr.
@@ -90,7 +84,6 @@ print "<!--function send_mails start-->";
 	} else $emails[0]=$email;
 
 	$qtxt="select * from formularer where formular='$form_nr' and art='5' and lower(sprog)='".strtolower($formularsprog)."'";
-#cho __line__." $qtxt<br>";	
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if (!$subjekt && $r['xa']=='1') $subjekt=$r['beskrivelse'];
@@ -113,7 +106,6 @@ print "<!--function send_mails start-->";
 	if ($sag_id) $subjekt=$subjekt." vedr.: $lev_addr1, $lev_postnr $lev_bynavn"; #2013.11.27 Her tilføjes leveringsaddr. til subjekt hvis der er sag_id
 	
 	$qtxt="select * from adresser where art='S'";
-#cho __line__." $qtxt<br>";	
 	$row = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$afsendermail=$row['email'];
 	$afsendernavn=$row['firmanavn'];
@@ -165,7 +157,6 @@ print "<!--function send_mails start-->";
 			system ($kommando);
 		}
 	}
-	#cho "B $mailbilag<br>";
 	
 	if (strpos($subjekt,'$')!== false) {
 		$ordliste=explode(" ",$subjekt);
@@ -193,7 +184,6 @@ print "<!--function send_mails start-->";
 				}
 				$tmp=trim($tmp);
 				$qtxt="select $tmp from ordrer where id='$ordre_id'";
-				#cho "$qtxt<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$ordliste[$a]=$r[$tmp];
 				if ($br) {
@@ -300,7 +290,6 @@ print "<!--function send_mails start-->";
 	$mail->Subject  =  "$subjekt";
 	$mail->Body     =  "$mailtext";
 	$mail->AltBody  =  "$ren_text";
-#cho "<br>from $from<br>";
 	$svar=NULL;
 	print "<!--";
 	if(!$mail->Send()){
@@ -325,7 +314,6 @@ print "<!--function send_mails start-->";
 			alert($tekst);
 		}
 	}
-	#cho "Mail sent to $email<br>";
 	return("Mail sent to $email");
 	print "<!--function send_mails slut-->";
 }

@@ -174,7 +174,6 @@ global $charset,$sprog_id;
 
 $feltnavn = if_isset($feltnavn,array());
 $komma = $semikolon = $tabulator = 0;
-#cho "$charset<br>";
 
 $fp=fopen("$filnavn","r");
 if ($fp) {
@@ -560,7 +559,6 @@ if ($fp) {
 	$lokation=0;
 	$varenr="";
 	$salgspris_isset=$tier_price_isset=$retail_price_isset=false;
-#cho "$splitter<br>";	
 	while (!feof($fp)) {
 		$skriv_linje=0;
  		if ($linje=fgets($fp)) {
@@ -577,13 +575,9 @@ if ($fp) {
 			}
 			if ($colNum && $cols) { # 20220628 '>=' changed to '&&'
 #				$preLine.= $linje;
-#cho __line__." $x $colNum < $cols<br>";
 				
-#cho __line__." $x $linje<br>";
 #			}	else {
 				$x++;
-#cho __line__." $x $colNum > $cols<br>";
-#cho __line__." $x $linje<br>";
 				if ($preLine) {
 					$preLine.= $linje;
 					$linje = $preLine;
@@ -597,14 +591,12 @@ if ($fp) {
 				$felt=array();
 				$felt = opdel($splitter, $linje);
 				for ($y=0; $y<count($felt); $y++) {
-#cho __line__." $x $y $feltnavn[$y] | $felt[$y]<br>";
 					$medtag_felt[$y]=1;
 					if (!trim($feltnavn[$y])) $medtag_felt[$y]=0;
 					$felt[$y]=trim($felt[$y]);
 					$feltnavn[$y]=strtolower($feltnavn[$y]);
 					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
 					if ($feltnavn[$y]=='varenr') {
-#cho "$feltnavn[$y] | $varenr | $felt[$y]<br>";
 					$varenr = $felt[$y];
 #					if ($varenr != $felt[$y]) $skriv_linje=0;
 				}

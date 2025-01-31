@@ -282,7 +282,6 @@ if ($id > 0) {
 	$preNo = $r['kodenr'] -1;
 	if ($preNo) {
 		$qtxt = "select box10 from grupper where art = 'RA' and kodenr = '$preNo'";
-#cho "$qtxt<br>";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		($r['box10'] == 'on')?$preDeleted = 1:$preDeleted = 0;
 	}
@@ -290,7 +289,6 @@ if ($id > 0) {
 	$query = db_select("select * from grupper where id = '$id' and art = 'RA'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		genberegn($row['kodenr']);
-#cho __line__." preDeleted $preDeleted<br>";
 		if ($row['kodenr']==1) {
 			include_once("fiscalYearInc/year1.php");
 			year1($row['id'], $row['kodenr'], $row['beskrivelse'], $row['box1'], $row['box2'], $row['box3'], $row['box4'], $row['box5'],'');

@@ -696,9 +696,7 @@ function tastatur($kasse,$status) {
 
 	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1'",__FILE__ . " linje " . __LINE__));
 	$kortantal=$r['box4']*1;
-#cho "kortantal	$kortantal<br>\n";
 	$korttyper=explode(chr(9),$r['box5']);
-#cho "korttyper ".count($korttyper),"<br>\n";
 #for ($i=0;$i<count($korttyper);$i++) #cho "$korttyper[$i]<br>\n";
 	$vis_kontoopslag=$r['box11'];
 	$vis_hurtigknap=$r['box12'];

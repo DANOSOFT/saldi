@@ -404,7 +404,6 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 				$transvaluta[$tr] = $row['valuta'];
 				if ($kontovaluta[$x]) {
 					for ($y = 0; $y <= count($valkode); $y++) {
-						#cho "$valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]<br>";
 						if ($valkode[$y] == $kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]) {
 							$transkurs[$tr] = $valkurs[$y];
 							break 1;
@@ -412,7 +411,6 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 					}
 				} else
 					$transkurs[$tr] = 100;
-				#cho "TK1 $transkurs[$tr]<br>";
 				$tr++;
 			}
 

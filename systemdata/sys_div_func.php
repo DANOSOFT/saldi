@@ -483,8 +483,6 @@ if ($sqlstreng=trim($sqlstreng)) {
 			exit;
 		}
 	}
-#cho "del 1 $del1<br>";
-#cho "del2 $del2<br>";
 
 	for($x=0;$x<strlen($del2);$x++){
 		$t=substr($del2,$x,1);
@@ -502,11 +500,8 @@ if ($sqlstreng=trim($sqlstreng)) {
 
 
 	}
-#cho "$sqlstreng<br>";
 	$qtxt="select ".db_escape_string($del1);
-#cho "$qtxt<br>";
 	$qtxt="select ".$sqlstreng;
-	#cho "$qtxt<br>";
 
 	$r=0;
 	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__ . " funktion sqlquery_io");
@@ -1997,7 +1992,6 @@ function prislister()
 
         print "<tr bgcolor='$bgcolor5'><td colspan='10'><b><u>".findtekst(792,$sprog_id)."</u></b></td></tr>\n";
         print "<tr><td colspan='10'>\n";
-#cho $q;
 	print "<p>".findtekst(1318,$sprog_id)."</p>\n";
 	print "</td></tr>\n";
 
@@ -2294,7 +2288,6 @@ function tjekliste() {
 			$punkt_id[$x]=0;
 			$gruppe_id[$x]=$id[$x];
 			$liste_id[$x]=$liste_id[$x-1];
-#cho "select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by tjekpunkt<br>\n";
 			$q3 = db_select("select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by tjekpunkt",__FILE__ . " linje " . __LINE__);
 			while ($r3 = db_fetch_array($q3)) {
 				$x++;

@@ -39,7 +39,6 @@ function useVoucher($orderId, $voucherName) {
 		return 0;
 		exit;
 	} else {
-#cho	print_r($_POST);
 		$price = str_replace('q','',$_POST['price']);
 		$sum = $_POST['sum'];
 /*
@@ -47,16 +46,13 @@ function useVoucher($orderId, $voucherName) {
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$leftToPay = $_POST['sum'] - $r['paid'];
 */
-#cho "$price=$sum<br>";
 #		if (!$price) $price=$sum;
 		
 		$qtxt="select sum (amount) as amount, sum (vat) as vat from voucheruse where voucher_id='$voucherId'";
-#cho "$qtxt<br>";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$amount = $r['amount']*1;
 		$vat    = $r['vat']*1;
 		$newAmount = $amount + $vat - $price;
-#cho "$newAmount = $amount + $vat - $price<br>";
 		if ($newAmount < 0 && $gkNb) {
 			$tmp = $amount+$vat;
 			#alert("Der står ikke nok på gavekortet, amount: " . $amount . ", pris: " . $price . ", gk id: " . $voucherId);

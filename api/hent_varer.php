@@ -55,7 +55,6 @@ if (isset($_GET['shop_id'])) {
 } else $shop_id=NULL;
 
 if (!$saldi_vnr && $shop_id) $saldi_vnr=$shop_id;
-#cho "svnr $saldi_vnr<br>";
 $shop_vnr=if_isset($_GET['shop_vnr']);
 $saldi_id=if_isset($_POST['saldi_id']);
 if (!$saldi_id) $saldi_id=if_isset($_GET['saldi_id']);
@@ -82,19 +81,15 @@ $url=str_replace("/?","/hent_vare.php?",$shopurl);
 $url.="&saldiurl=$saldiurl";
 print "<table border=\"1\"><tbody>";
 
-#cho "$saldi_id && $shop_id<br>";
 #xit;
 if ($saldi_id && $shop_id) {
 	$qtxt="select id from shop_varer where saldi_id='$saldi_id'";
-#cho __line__." $qtxt<br>";
 #xit;
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['id']) $qtxt="update shop_varer set shop_id='$shop_id' where id ='$r[id]'";
 	else $qtxt="insert into shop_varer(saldi_id,shop_id) values ('$saldi_id','$shop_id')";
-#cho __line__." $qtxt";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$next_id=$shop_id;
-#cho $url."<br>";	
 $fp=fopen("log.txt","a");
 fwrite($fp,__line__." ".date("H:i:s")."next id $next_id\n");
 fclose ($fp);
@@ -178,7 +173,6 @@ fclose ($fp);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$url&next_id=$shop_id&linje=$linje\">";
 			exit;
 		}
-#cho "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			if (!in_array($r['id'],$shop_saldi_id)) {
@@ -224,9 +218,7 @@ fclose ($fp);
 		
 	} else print "<meta http-equiv=\"refresh\" content=\"0;URL=$url&next_id=$shop_id&linje=$linje\">";
 } else {
-#cho ">$next_id< && >$beskrivelse<<br>";
 	if (!$next_id && !$beskrivelse) $next_id=0;
-	#cho "$url -> $next_id<br>"; 
 	$linje=__line__;
 	if ($next_id || $next_id=='0') {
 #xit;

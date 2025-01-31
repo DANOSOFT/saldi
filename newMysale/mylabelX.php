@@ -138,9 +138,7 @@ if ($mySale) {
 			$price[$a][$b]=str_replace('|','',$price[$a][$b]);
 			$price[$a][$b] = usdecimal($price[$a][$b])*1;
 			$labelName[$a][$b] = db_escape_string(trim($labelName[$a][$b]));
-#cho $labelId[$a][$b] ." || ". $labelName[$a][$b] ."||". $price[$a][$b] ."<br>";
 			if ($labelId[$a][$b]) {
-#cho $labelId[$a][$b]."<br>";
 				$barcode[$a][$b]=dechex($price[$a][$b]*100);
 				while(strlen($barcode[$a][$b])<6) $barcode[$a][$b]='0'.$barcode[$a][$b];
 				$barcode[$a][$b]=$labelId[$a][$b].$barcode[$a][$b];

@@ -1131,7 +1131,6 @@ if ($_POST) {
 				$box13_2.=chr(9).$bordvalg[$x];	 #20161116
 				$box2_3.=chr(9).$pfs[$x];	 #20161116
 				$poEaSa.=chr(9).$postEachSale[$x];
-#cho "$x $bordvalg[$x]<br>";
 				for ($y=0;$y<count($ValutaKode);$y++) {
 					$VKbox4[$y].=chr(9).$ValutaKonti[$x][$y];
 					$VKbox5[$y].=chr(9).$ValutaMlKonti[$x][$y];
@@ -1149,7 +1148,6 @@ if ($_POST) {
 				$box13_2=$bordvalg[$x];	 #20161116
 				$box2_3=$pfs[$x];
 				$poEaSa=$postEachSale[$x];
-			#cho "$x $bordvalg[$x]<br>";
 				for ($y=0;$y<count($ValutaKode);$y++) {
 					$VKbox4[$y]=$ValutaKonti[$x][$y];
 					$VKbox5[$y]=$ValutaMlKonti[$x][$y];
@@ -1238,7 +1236,6 @@ if ($_POST) {
 		} elseif ($id1 > 0) {
 			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',box14='$box14' WHERE id = '$id1'",__FILE__ . " linje " . __LINE__);
 		}
-#cho __line__." $box13_2<br>";
 		if ($id2) {
 			$qtxt = "update grupper set box1 = '$kasseprimo',box2='$optalassist',box3='$box3_2',box4='$box4_2',";
 			$qtxt.= "box5='$box5_2',box6='$div_kort_kto',box7='$box7_2',box8='$box8_2',box9='$box9_2',box10='$box10_2',";
@@ -1587,7 +1584,6 @@ if ($_POST) {
 		if ($ny_tjekliste=$_POST['ny_tjekliste']) {
 			$r = db_fetch_array($q = db_select("select max(fase) as fase from tjekliste WHERE assign_to = 'sager'",__FILE__ . " linje " . __LINE__));
 			$nf=$r['fase']+1;
-#cho "A insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekliste','0','sager','$ny_fase')<br>";
 			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekliste','0','sager','$nf')",__FILE__ . " linje " . __LINE__);
 		}
 		for ($x=1;$x<=$tjekantal;$x++) {
@@ -1595,11 +1591,9 @@ if ($_POST) {
 			if ($fase[$x]!=$nf) db_modify("update tjekliste set fase='$nf' WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
 			if ($ret && $ret==$id[$x] && $tjekpunkt[$x]) db_modify("update tjekliste set tjekpunkt='$tjekpunkt[$x]' WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
 			if (isset($ny_tjekgruppe[$x]) && $ny_tjekgruppe[$x]) {
-#cho "B insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe[$x]','$liste_id[$x]','sager','$fase[$x]')";
 				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe[$x]','$liste_id[$x]','sager','$fase[$x]')",__FILE__ . " linje " . __LINE__);
 			}
 			if (isset($nyt_tjekpunkt[$x]) && $nyt_tjekpunkt[$x]) {
-#cho "B insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$nyt_tjekpunkt[$x]','$gruppe_id[$x]','sager','$fase[$x]')";
 				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$nyt_tjekpunkt[$x]','$gruppe_id[$x]','sager','$fase[$x]')",__FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -1610,7 +1604,6 @@ if ($_POST) {
 			($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && isset($r['fase']))?$ny_fase=$r['fase']:$ny_fase=NULL;
 			if ($ny_fase || $ny_fase=='0') $ny_fase++;
 			else $ny_fase=0;
-#cho "B insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe','0','sager','$ny_fase')";
 #			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe','0','sager','$ny_fase')",__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -1739,7 +1732,6 @@ if ($menu != 'T') {
 		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
 	}
 } 
-#cho "SWK $sektion<br>";
 if (!$sektion) print "<td><br></td>";
 if ($sektion=="kontoindstillinger") kontoindstillinger($regnskab,$skiftnavn);
 if ($sektion=="provision") provision();

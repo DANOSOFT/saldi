@@ -290,7 +290,6 @@ function importer($filnavn,$opret_lev,$opret_vare,$nfs_mappe){
 	}
 	if (isset($_POST['importer']) && $_POST['importer']=='Importer') {
 		transaktion('begin');
-		#cho "Importer til ordre";
 		$r=db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art='KO' or art='KK'",__FILE__ . " linje " . __LINE__));
 		$ordrenr=$r['ordrenr']+1;
 
@@ -370,7 +369,6 @@ function vis_oioubl($filnavn,$nfs_mappe) {
 	for ($x=0;$x<=$linjeantal;$x++) {
 		$linje[$x]=trim($linje[$x]);
 		$tmp=strtolower($linje[$x]);
-#cho htmlentities($linje[$x])." -> ".htmlentities($tmp)."<br>";
 		if ((strstr($tmp,"<cbc:id>") || $orderid) && !$fakturanr) {
 			$orderid=1;
 			$find="<cbc:id";
@@ -392,7 +390,6 @@ function vis_oioubl($filnavn,$nfs_mappe) {
 			if (strstr($tmp,"</cac:orderreference>")) $orderreference=0;
 		}
 		if (strstr($tmp,"<cac:accountingsupplierparty>") || $accountingsupplierparty) {
-#cho "Z1 $tmp -> $linje[$x] ->\"cbc:endpointid\"<br>";
 			$accountingsupplierparty=1;
 			if (strstr($tmp,"<cac:party>") || $party) {
 				$party=1;
@@ -445,11 +442,9 @@ function vis_oioubl($filnavn,$nfs_mappe) {
 				if (strstr($tmp,"</cbc:note>")) $linenote=0;
 			}
 			if ((strstr($tmp,"<cbc:invoicedquantity") || $invoicedquantity)) {
-#cho htmlentities($tmp);
 				$invoicedquantity=1;
 				$find="<cbc:invoicedquantity";
 				if (strstr($tmp,"$find")) $l_antal[$linjenr]=find_var ($tmp,$linje[$x],$find);
-#cho "<br>$linjenr antal ".$l_antal[$linjenr]."<br>";
 				if (strstr($tmp,"</cbc:invoicedquantity>")) $invoicedquantity=0;
 			}
 			if ((strstr($tmp,"<cbc:lineextensionamount") || $lineextensionamount)) {
@@ -481,13 +476,11 @@ function vis_oioubl($filnavn,$nfs_mappe) {
 				if (strstr($tmp,"</cbc:description>")) $description=0;
 			}
 			if (strstr($tmp,"<cac:price") || $price) {
-#cho "Pris $l_pris[$linjenr]<br>";
 				$price=1;
 				if ((strstr($tmp,"<cbc:priceamount") || $priceamount)) {
 					$priceamount=1;
 					$find="<cbc:priceamount";
 					if (strstr($tmp,"$find")) $l_pris[$linjenr]=find_var ($tmp,$linje[$x],$find);
-#cho "$linjenr Pris $l_pris[$linjenr]<br>";
 					if (strstr($tmp,"</cbc:priceamount>")) $priceamount=0;
 				}
 				if (strstr($tmp,"</cac:price>")) $price=0;
@@ -525,7 +518,6 @@ function vis_oioubl($filnavn,$nfs_mappe) {
 	}
 		$l_posnr[$x]=$x+1;
 		print "<tr bgcolor=\"$linjebg\"><td>$l_varenr[$x]</td><td align=\"right\">".dkdecimal($l_antal[$x])."</td><td>$l_tekst[$x]</td><td align=\"right\">".dkdecimal($l_pris[$x])."</td><td align=\"right\">".dkdecimal($l_momssats[$x])."</td>\n";
-#cho "Pos $l_posnr[$x], vnr $l_varenr[$x], antal $l_antal[$x], tekst $l_tekst[$x], pris $l_pris[$x], momssats $l_momssats[$x]<br>";
 	}
 	print "<tr><td colspan=\"5\"><hr></td></tr>";
 	print "</tbody></table>";
@@ -539,9 +531,7 @@ if ($varname=="<sellersitemidentification") echo htmlentities($tmp)."<br>";
 	if (strstr($lowline,$varname)) {
 		$pos=strpos("$varname",$lowline)+strlen($varname);
 	}
-#cho "<br>pre var: ";
 	while(substr($lowline,$pos,1)!=">") {
-#cho substr($lowline,$pos,1);
 		$pos++;
 		if ($pos>200) {
 			echo "A: fejl i skema, linje $x<br>"; 
@@ -551,9 +541,7 @@ if ($varname=="<sellersitemidentification") echo htmlentities($tmp)."<br>";
 	}
 	$pos++;
 	$var='';
-#cho "<br>var: ";
 	while(substr($lowline,$pos,1)!="<" && $pos<=strlen($lowline)) {
-#cho substr($lowline,$pos,1);
 		$var.=substr($line,$pos,1);
 		$pos++;
 		if ($pos>200) {
@@ -563,7 +551,6 @@ if ($varname=="<sellersitemidentification") echo htmlentities($tmp)."<br>";
 		}
 	}
 #$var="$pos - hest";
-#cho "<br>var $var<br>";
 	return ("$var"); 
 }
 

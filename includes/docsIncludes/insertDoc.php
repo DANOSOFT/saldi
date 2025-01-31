@@ -39,8 +39,6 @@ else alert ('Missing global ID');
 
 $docFolder.= "/$db";
 if ($poolFile && !$fileName) $fileName = $poolFile;
-#cho "$poolFile && !$fileName<br>";
-#cho __line__." $docFolder && $source<br>";
 if ($docFolder && $source == 'creditorOrder') {
 	
 	if (!file_exists("$docFolder"))                 mkdir ("$docFolder/",0777);
@@ -66,14 +64,12 @@ if ($docFolder && $source == 'creditorOrder') {
 			$showDoc = "$docFolder/$filePath/$fileName";
 		} else alert("$docFolder/$filePath/$fileName allready exists");
 		$showDoc = "$docFolder/$filePath/$fileName";
-#cho __line__." $showDoc<br>";
 } elseif ($docFolder && $source == 'kassekladde') {
 	if (!$kladde_id) {
 		alert("Ingen aktiv kassekladde");
 		exit;
 	}
 	if (!$sourceId) {
-#cho __line__."<br>";
 		if (!$bilag) {
 			include_once("../includes/stdFunc/fiscalYear.php");
 			$bilag=1;
@@ -87,7 +83,6 @@ if ($docFolder && $source == 'creditorOrder') {
 		}
 		$qtxt = "insert into kassekladde (bilag,kladde_id,transdate,d_type,k_type,amount) values ";
 		$qtxt.= "('$bilag','$kladde_id','". date("Y-m-d") ."','F','F','0')";
-#cho "$qtxt<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt = "select max(id) as id from kassekladde where kladde_id = '$kladde_id' and bilag = '$bilag'";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -97,23 +92,19 @@ if ($docFolder && $source == 'creditorOrder') {
 	if ($sourceId) {
 		if ($_POST['dato']) {
 			$qtxt = "update kassekladde set transdate = '". usdate($_POST['dato']) ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
 		}
 		if ($_POST['beskrivelse']) {
 			$qtxt = "update kassekladde set beskrivelse = '". db_escape_string($_POST['beskrivelse']) ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
 		}
 		if ($_POST['debet']) {
 			if (!is_numeric(substr($_POST['debet'],0,1))) {
 				$qtxt = "update kassekladde set d_type = '". substr($_POST['debet'],0,1) ."', ";
 				$qtxt.= "debet = '". (int)substr($_POST['debet'],1) ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
 			} else {
 				$qtxt = "update kassekladde set debet = '". (int)$_POST['debet'] ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -121,22 +112,18 @@ if ($docFolder && $source == 'creditorOrder') {
 			if (!is_numeric(substr($_POST['kredit'],0,1))) {
 				$qtxt = "update kassekladde set k_type = '". substr($_POST['kredit'],0,1) ."', ";
 				$qtxt.= "kredit = '". (int)substr($_POST['kredit'],1) ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
 			} else {
 				$qtxt = "update kassekladde set kredit = '". (int)$_POST['kredit'] ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
 		if ($_POST['sum']) {
 			$qtxt = "update kassekladde set amount = '". usdecimal($_POST['sum']) ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
 		}
 		if ($_POST['fakturanr']) {
 			$qtxt = "update kassekladde set faktura = '". db_escape_string($_POST['fakturanr']) ."' where id = '$sourceId'";
-#cho $qtxt."<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);				
 		}
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=../finans/kassekladde.php?kladde_id=$kladde_id\">";
@@ -145,26 +132,18 @@ if ($docFolder && $source == 'creditorOrder') {
 	}
 	$path = "../bilag/$db/finance/$kladde_id/$sourceId/";
 	$showDoc = $path.$fileName;
-#cho "$showDoc <br>";
 	if(!file_exists("../bilag/$db")) 							mkdir ("../bilag/$db",0777);
 	if(!file_exists("../bilag/$db")) {
 		print "creation of ../bilag/$db failed<br>";
 		exit;
 	}
-#cho __line__."<br>";
 	if (!file_exists($docFolder))                 			mkdir ($docFolder,0777);
-#cho __line__."<br>";
 	if (!file_exists("$docFolder")) print "Ku ik oprette $docFolder<br>";
-#cho __line__."<br>";
 	if (!file_exists("$docFolder/finance"))        		mkdir ("$docFolder/finance",0777);
-#cho __line__."<br>";
 	if (!file_exists("$docFolder/finance")) print "Ku ik oprette $docFolder/finance<br>";
-#cho __line__."<br>";
 	if (!file_exists("$docFolder/finance/$kladde_id")) 	mkdir ("$docFolder/finance/$kladde_id",0777); //Groups the individual attached files
 # 	if (!file_exists("$docFolder/finance/$kladde_id")) #cho "Ku ik oprette $docFolder/finance/$kladde_id<br>";
-#cho __line__."$docFolder/finance/$kladde_id/$sourceId<br>";
 	if (!file_exists("$docFolder/finance/$kladde_id/$sourceId")) 	mkdir ("$docFolder/finance/$kladde_id/$sourceId",0777);
-#cho __line__."<br>";
 #	if (!file_exists("$docFolder/finance/$kladde_id/$sourceId")) #cho "Ku ik oprette $docFolder/finance/$kladde_id/$sourceId<br>";
 	$filePath = "/finance/$kladde_id/$sourceId";
 }
@@ -227,9 +206,7 @@ $queryParameters =
 $targetPage = "docsIncludes/emailDoc.php?" . $queryParameters;
 
 
-#cho '<a href="' . $targetPage . '">';
 print "<button id=\"emailD\">Email files</button>";
-#cho '</a>';
 #****************
 print "</td></tr>";
 */

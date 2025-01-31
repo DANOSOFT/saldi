@@ -128,7 +128,6 @@ if ($resetPW) {
             file_put_contents("../temp/$db/error-$timestamp.json", $e->errorMessage());
         }
 	}
-#cho __line__." connect<br>";	
 	include ('../includes/connect.php');
 	$qtxt = "delete from online where session_id = '$s_id' and brugernavn = '". db_escape_string($email) ."' and db = '$databases[$x]'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -297,7 +296,6 @@ if($tmpcode) {
 	$tmp='';
 	for ($x=0;$x<strlen($tmpcode);$x=$x+2) $tmp.=chr(hexdec(substr($tmpcode,$x,2)));
 	list($email,$tmppw)=explode('|',$tmp);
-#cho "$email,$tmppw<br>";
 	if ($email && $tmppw) {
 		$found = 0;
 		$fp = fopen("../temp/.ht_MyTmpPass","r"); 
@@ -348,11 +346,9 @@ if (!$account)    $account = 0;
 if (isset($_POST['condition'])) $condition=$_POST['condition'];
 $accountId = (int)trim($accountId);
 $totalPrice=$qty=$yourTotalPrice=0;
-#cho __line__." connect<br>";	
 // revomoves leftover.
 $logtime = date('U');
 $tmp = $logtime - 10;
-#cho __line__." CSS $css<br>";
 
 $qtxt = "delete from online where rettigheder = '0' and regnskabsaar = '0' and logtime < '". $logtime ."'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -484,7 +480,6 @@ if ($account && !$resetPW) {
 						if ($mail->Send()) alert("Mail sent to $email, kundenr. $r2[kontonr]");
 						else alert("Fejl i afsendelse til $email, kundenr. $r2[kontonr]");
 					}
-#cho __line__." connect<br>";	
 					include ('../includes/connect.php');
 					$qtxt = "delete from online where session_id = '$s_id' and brugernavn = '". db_escape_string($email) ."' and db = '$databases[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -494,14 +489,11 @@ if ($account && !$resetPW) {
 				print "<meta http-equiv=\"refresh\" content=\"0;URL='mysale.php?id=$id&email=$email'\">";
 				exit;
 			} else {
-#cho __line__." CSS $css<br>";
 				$x=0;
 				$qtxt = "select db from mysale where lower (email) = '". db_escape_string($email) ."'";
-#cho __line__." $qtxt<br>";
 				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r=db_fetch_array($q)) {
 					$databases[$x]=$r['db'];
-#cho __line__." $databases[$x]<br>";
 					$x++;
 				}
 				$found = $x = '0';
@@ -510,35 +502,24 @@ if ($account && !$resetPW) {
 					$qtxt.= " values ";
 					$qtxt.= "('$s_id','". db_escape_string($email) ."','". db_escape_string($databases[$x]) ."','". db_escape_string($squser) ."',";
 					$qtxt.= "'0',0,'". date('U') ."',FALSE,'1')";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#cho __line__." CSS $css<br>";
-#cho __line__." online<br>";	
 					include ('../includes/online.php');
-#cho __line__." CSS $css<br>";
 					$found=0;
 					$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='adresser' and column_name='password'";
-#cho __line__." $qtxt<br>";
 					if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 						db_modify("ALTER table adresser ADD column password varchar(50)",__FILE__ . " linje " . __LINE__);
 					}
 					$qtxt = "select id,kontonr,password from adresser where lower(email) = '". db_escape_string($email) ."'";
-#cho __line__." $db $qtxt<br>";
 					$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					while ($r2=db_fetch_array($q2)) {
-#cho __line__." $db $qtxt<br>";
 					$encPw = saldikrypt($r2['id'],$pw);
-#cho "$r2[id] -> $r2[password] == $encPw<br>";					
 					if ($r2['password'] == $encPw) {
 							$accountId = $r2['id'];
 							$account   = $r2['kontonr'];
 							$found     = $databases[$x];
 						}
 					}
-#cho __line__." CSS $css<br>";
 					
-#cho __line__." $db $found<br>";
-#cho __line__." connect<br>";	
 					include ('../includes/connect.php');
 					if ($found) {
 						$qtxt = "select link from mysale where deb_id = '$accountId' and email = '$email' and db='$found'";
@@ -560,7 +541,6 @@ if ($account && !$resetPW) {
 #								print "<meta http-equiv=\"refresh\" content=\"0;URL='mysale.php?id=$id&email=$email'\">";
 								exit;
 							}
-#cho "CSS $css<br>";	
 							if (!$css) {
 								if(isMobileDevice()) {
 									$mobile=1;
@@ -574,15 +554,12 @@ if ($account && !$resetPW) {
 						}
 					} else {
 						$qtxt = "delete from online where session_id='$s_id' and brugernavn='". db_escape_string($email) ."' and db='$databases[$x]'";
-#cho __line__." $qtxt<br>";	
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
-#cho __line__." online<br>";	
 					if ($found) include ('../includes/online.php');
 					$x++;
 				} #else alert('Email ikke genkendt');
 			} 
-#cho __line__." $db $found<br>";
 		} else {
 			print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 			print "<div class='text-center text-5xl lg:text-2xl font-bold p-4'>Velkommen til 'mit salg'</div>";
@@ -603,9 +580,7 @@ if ($account && !$resetPW) {
     #test2
     #test3
  	
-#cho __line__." CSS $css<br>";
 	
-#cho __line__." $db $found<br>";
 #xit;
 if ($editProfile) {
 	include("editProfile.php");
@@ -613,11 +588,9 @@ if ($editProfile) {
 }
 elseif ($showMySale) include("showMySale.php");
 print "</body></html>";
-#cho __line__." connect<br>";	
 include ('../includes/connect.php');
 $qtxt = "delete from online where session_id='$s_id' and brugernavn='$account' and db='$db'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#cho __line__." CSS $css<br>";
 }
 function askPW($accountId,$email,$mobile) {
 	?>

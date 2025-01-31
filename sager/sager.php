@@ -74,7 +74,6 @@ $s_id=session_id();
 	$returside=if_isset($_GET['returside']);
 	$konto_id=if_isset($_GET['konto_id']);
 	$ordre_id=if_isset($_GET['ordre_id']);
-	#cho "returside: $returside";
 		
 	if (!$funktion) {
 		($sag_id)?$funktion='':$funktion='sagsliste';  
@@ -2249,7 +2248,6 @@ function vis_sag() {
 				print "</tbody>\n";
 				print "<tbody class=\"tableSagerZebra\">";
 				for ($y=0;$y<count($notat_id);$y++) {
-	#cho "$notat_fase[$y]==$x<br>";
 	#				if ($notat_fase[$y]==$x) {
 					$stat = "";
 					if (!$notat_status[$y]) $stat = "Kladde";

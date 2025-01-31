@@ -51,7 +51,6 @@ if (!file_exists("../includes/connect.php")) {
 	exit;
 }
 
-#cho $_SERVER['HTTP_USER_AGENT'];
 if (!isset($timezone)) $timezone='Europe/Copenhagen';
 
 include("../includes/connect.php");

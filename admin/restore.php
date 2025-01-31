@@ -119,14 +119,11 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 			case 2: print "<BODY onLoad=\"javascript:alert('Filen er for stor - er det en SALDI-sikkerhedskopi?')\">";
 		}
 	}
-#cho __line__."<br>";
 	if (basename($_FILES['uploadedfile']['name'])) {
-#cho __line__."<br>";
 		$filnavn="../temp/".$db."/restore.gz";
 		$tmp=$_FILES['uploadedfile']['tmp_name'];
 		system ("rm -rf ../temp/".$db."/*");
 		if(move_uploaded_file($tmp, $filnavn)) {
-#cho __line__."<br>";
 			system ("gunzip $filnavn");
 			$filnavn=str_replace(".gz","",$filnavn);
 			if (file_exists($filnavn)) system ("cd ../temp/$db\n/bin/tar -xf restore");
@@ -134,19 +131,15 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 			$infofil="../temp/".$db."/temp/backup.info";
 			$fp=fopen($infofil,"r");
 			if ($fp) {
-#cho __line__."<br>";
 				$linje=trim(fgets($fp));
 				list($backupdate,$backupdb,$backupver,$backupnavn,$backup_encode,$backup_dbtype)=explode(chr(9),$linje);
 				$backupfil="../temp/".$db."/temp/".$backupdb.".sql";
 				$backupdato=substr($backupdate,6,2)."-".substr($backupdate,4,2)."-".substr($backupdate,0,4);
 				$backuptid=substr($backupdate,-4,2).":".substr($backupdate,-2,2);
 			}
-#cho __line__."<br>";
 			if ($fp) fclose($fp);
 			unlink($infofil);
-#cho __line__."<br>";
 			print "<script>javascript:document.body.style.cursor = 'default';</script>";
-#cho __line__."<br>";
 			if (($db_type=='mysql' or $db_type=='mysqli') && ($backup_dbtype!='mysql' and $backup_dbtype!='mysqli')) { #RG_mysqli
 				print "<BODY onLoad=\"javascript:alert('En PostgreSQL-sikkerhedskopi kan ikke indl&aelig;ses i et MySQL-baseret system')\">";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=backup.php\">";
@@ -207,7 +200,6 @@ function upload($db){
 }
 
 function restore($filnavn,$backup_encode,$backup_dbtype){
-#cho __line__."<br>";
 
 global $connection;
 global $s_id;
@@ -221,19 +213,16 @@ global $sqhost;
 global $db_encode;
 global $db_type;
 global $charset;
-#cho __line__."<br>";
 
 if (!$db_encode) $db_encode="LATIN9";
 if (!$backup_encode) $backup_encode="UTF8";
 if (!$db_type) $db_type="postgresql";
 if (!$backup_dbtype) $backup_dbtype="postgresql";
-#cho __line__."<br>";
 
 $filnavn2="../temp/$db/restore.sql";
 $restore="";
 $fp=fopen("$filnavn","r");
 $fp2=fopen("$filnavn2","w");
-#cho __line__."<br>";
 
 if ($fp) {
 	while (!feof($fp)) {
@@ -271,31 +260,21 @@ if ($fp) {
 } else echo "$filnavn ikke fundet";
 fclose($fp);
 fclose($fp2);
-#cho __line__." $restore	<br>";
 
 if ($restore=='OK') {
-#cho __line__." $db_type<br>";
 	if ($db_type=='mysql') {
 		mysql_select_db("$sqdb");
 	} else if ($db_type=='mysqli') { #RG_mysqli
 		$connection = db_connect ("$sqhost", "$squser", "$sqpass", "$sqdb");
 		mysqli_select_db($connection, $sqdb);
 	} else {
-#cho __line__." $db_type<br>";
 		if ($connection) db_close($connection);
-#cho __line__." $db_type<br>";
 		$connection = db_connect ("$sqhost","$squser","$sqpass","$sqdb");
-#cho __line__." $db_type<br>";
 	}
-#cho __line__." $db_type<br>";
 	db_modify("delete from online where db='$db'",__FILE__ . " linje " . __LINE__);
-#cho __line__." $db_type<br>";
 	db_modify("update regnskab set version = '' where db='$db'",__FILE__ . " linje " . __LINE__);
-#cho __line__." $db_type<br>";
 	db_modify("DROP DATABASE $db",__FILE__ . " linje " . __LINE__);
-#cho __line__." $db_type<br>";
 		db_create($db);
-#cho __line__."<br>";
   print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 	if (substr($db_type,0,5)=='mysql') system("mysql -u $squser --password=$sqpass $db < $filnavn2");
 	else {
@@ -303,7 +282,6 @@ if ($restore=='OK') {
 	}
 	db_close($connection);
   print "-->";
-#cho __line__."<br>";
 	alert('Regnskabet er genskabt. Du skal logge ind igen!');
 	unlink($filnavn);
 	unlink($filnavn2);

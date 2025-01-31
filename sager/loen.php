@@ -164,12 +164,10 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $r = db_fetch_array(db_select("select * from grupper where art = 'loen'", __FILE__ . " linje " . __LINE__));
 list($overtid_50pct, $overtid_100pct) = explode(chr(9), $r['box8']);
 $overtid = $r['box8'];
-#cho "overtid: $overtid<br>";
 $qtxt = "select * from settings where var_grp = 'salary' and var_name = 'mentor'";
 ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $mentor = $r['var_value'] : $mentor = 0;
 
 if ($overtid == NULL) {
-	#cho "Er tom<br>";
 	$overtid_50pct = '59.18';
 	$overtid_100pct = '118.35';
 	db_modify("update grupper set box8='" . $overtid_50pct . chr(9) . $overtid_100pct . "' where art = 'loen'", __FILE__ . " linje " . __LINE__);

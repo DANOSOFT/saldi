@@ -537,7 +537,6 @@ if (!function_exists('transtjek')) {
 	function transtjek () {
 		global $db;
 		$r=db_fetch_array(db_select("select sum(debet) as debet,sum(kredit) as kredit from transaktioner",__FILE__ . " linje " . __LINE__));
-#cho __line__." ".$r['debet']."-".$r['kredit']."<br>";
 		$diff=abs(afrund($r['debet']-$r['kredit'],2));
 		if ($diff >= 1) { 
 			$message=$db." | Ubalance i regnskab: kr: $diff";
@@ -1157,7 +1156,6 @@ function hent_shop_ordrer($shop_ordre_id,$from_date) {
 			fwrite($fp,date("U"));
 			fclose ($fp);
 			$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-#cho 	"/usr/bin/wget --spider --no-check-certificate --header='$header' $api_fil?put_new_orders=1 \n<br>";
 			$api_txt="$api_fil?put_new_orders=1";
 			if ($shop_ordre_id) $api_txt.="&ordre_id=$shop_ordre_id";
 			if ($from_date) $api_txt.="&from_date=$from_date";

@@ -192,7 +192,6 @@ elseif($valg=='debitor'){
 	print "<td align=\"center\"><span title=\"".$spantitle."\">B2B</td>\n";
 	$spantitle="Omvendt betaligspligt!\nAfm&aelig;rk her,hvis denne kundegruppe er omfattet af omvendt betalingspligt";
  	print "<td align=\"center\"><span title=\"".$spantitle."\">OB</td></tr>\n"; # 20141212B spantilte -> spantitle (slut)
-#cho "$id[$x] $beskrivelse[$x]<br>";
 	$y=skriv_formtabel('DG',$x,$y,$art,$id,'D',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'6','-','4',$box7,'4',$box8,'checkbox',$box9,'checkbox','-','2','-','2','-','2','-','2','-','2');
 	print "<tr><td><br></td></tr>\n";
 	print "<tr><td></td><td colspan=2><b>Kreditorgrupper</td><td></td></tr>\n";
@@ -320,16 +319,13 @@ function kontotjek ($konto) {
 	$konto = (int)$konto;
 	if ($konto) {
 		$qtxt="SELECT id FROM kontoplan WHERE kontonr = '$konto' and (kontotype = 'D' or kontotype = 'S') and regnskabsaar='$regnaar'";
-#cho "$qtxt<br>";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$konto_id=$r['id'];
-#cho "KONTO_ID $konto_id<br>";		
 if (!$konto_id=$r['id']){
 			print tekstboks('Kontonr: '.$konto.' kan ikke anvendes!'); # 20141212A
 			$fejl=1;
 #			print "<BODY onLoad=\"javascript:alert('Kontonr: $konto kan ikke anvendes!!')\">";
 		} else #cho "ID $r[id]<br>";
-#cho $fejl;
 	return $fejl;
 	}
 }

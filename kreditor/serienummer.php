@@ -45,7 +45,6 @@ if ($_POST['submit']) {
   $valg=$_POST['valg'];
   $art=trim($_POST['art']);
 
-#cho "$leveres $leveret<br>";
 
   if ($_POST['status']<3) {
     for ($x=1; $x<=$antal; $x++) {
@@ -132,13 +131,11 @@ if ($antal>0) {
 } else {
 	$sn_antal=0;  # Hvis kobslinje ID er negativ er serienummeret valgt til returnering.
 	if ($art=='KK') {  # Kreditnota
-#cho "art $art select * from serienr where salgslinje_id<= 0 and (kobslinje_id =$kred_linje_id  or kobslinje_id =-$kred_linje_id) order by serienr<br>"	;
 		$query = db_select("select * from serienr where kobslinje_id =$kred_linje_id  or kobslinje_id =-$kred_linje_id order by serienr",__FILE__ . " linje " . __LINE__);
 	} else { # Negativ ordre.
 		$query = db_select("select * from serienr where (salgslinje_id='$linje_id' or salgslinje_id<= '0') and kobslinje_id >'0' and vare_id = '$vare_id' order by serienr",__FILE__ . " linje " . __LINE__);
 	}
 	$solgt=0;
-#cho "$leveret $antal";
   while ($row = db_fetch_array($query)) {
 		if ($art=='KK' && $row['salgslinje_id']>0) {
       print "<tr><td>$row[serienr]</td><td>solgt</td></tr>"; 

@@ -12,7 +12,6 @@ function loenafregning() {#Summeret lønafregning
 
 	fod_log('loenafregning:' . "\n");
 
-#cho "ansat_id $ansat_id<br>";
 	$afregnet = NULL;
 	$predatoer = NULL;
 	
@@ -145,7 +144,6 @@ function loenafregning() {#Summeret lønafregning
 				for ($d = 0;$d<count($ad);$d++) {
 					if ($ad[$d] && $ad[$d]>=$slutdate && (!in_array($ad[$d],$post_d))) {
 						$post_d[$y] = $ad[$d];
-#cho "PO $post_d[$y]<br>";
 						$y++;
 					}
 				}
@@ -155,12 +153,10 @@ function loenafregning() {#Summeret lønafregning
 			for ($d = 0;$d<count($pre_d);$d++) {
 				$predatoer.=$pre_d[$d];
 				$datoliste[$d] = $pre_d[$d];
-#cho "D1 $datoliste[$d]<br>";
 			}
 			$tmp = $periode;
 			for ($d = count($pre_d);$d<14+count($pre_d);$d++) {
 				$datoliste[$d] = date("Y-m-d",$tmp);
-#cho "D2 $datoliste[$d]<br>";
 				$tmp += 86400;
 			}
 			
@@ -169,7 +165,6 @@ function loenafregning() {#Summeret lønafregning
 			for ($d = $a;$d<$b;$d++) {
 				$postdatoer.=$post_d[$d-$a];
 				$datoliste[$d] = $post_d[$d-$a];
-#cho "D3 $datoliste[$d]<br>";
 			}
 			
 			$datoantal = count($datoliste);
@@ -370,7 +365,6 @@ function loenafregning() {#Summeret lønafregning
 			$qtxt.=" and ansatte like '%" . $fodansatinfos[0]->id . "%'";
 
 		$qtxt.=" order by loendate";
-		#cho "$qtxt<br>";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$ad = array();
@@ -393,12 +387,10 @@ function loenafregning() {#Summeret lønafregning
 		sort($post_d);
 		for ($d = 0;$d<count($pre_d);$d++) {
 			$datoliste[$d] = $pre_d[$d];
-#cho "D1 $datoliste[$d]<br>";
 		}
 		$tmp = $periode;
 		for ($d = count($pre_d);$d<14+count($pre_d);$d++) {
 			$datoliste[$d] = date("Y-m-d",$tmp);
-#cho "D2 $datoliste[$d]<br>";
 			$tmp += 86400;
 		}
 		
@@ -593,8 +585,6 @@ function loenafregning() {#Summeret lønafregning
 					print "</div><!-- end of printableArea -->\n";
 					
 					print "<input type=\"hidden\" name=\"alle_ansatte_id\" value=\"".rtrim($alle_ansatte_id, ",")."\">\n";
-					#cho "alle_ansatte_id: $alle_ansatte_id<br>";
-					#cho "periode: $periode";
 					if ($refresh=='on') {
 						$refresh = NULL;
 						//print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/loen.php?funktion=loenafregning&amp;alle_ansatte_id=".rtrim($alle_ansatte_id, ",")."&amp;periode=$periode\">";

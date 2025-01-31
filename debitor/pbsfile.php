@@ -460,7 +460,6 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 			$fx++;
 			$forfaldsdage[$fx]=$forfaldsdag;
 			$o_id[$fx]=$ordre_id[$x];
-#cho "FF $forfaldsdage[$fx]<br>";
 		} else {
 			for ($y=1;$y<=$fx;$y++) {
 				if ($forfaldsdage[$y]==$forfaldsdage[$fx]) $o_id[$fx].=",".$ordre_id[$x]; 
@@ -470,7 +469,6 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 	$fx=1;
 	$k_id=array();
 	while($forfaldsdage[$fx]){
-#CHO "IOD $o_id[$fx]<br>";
 		$tjek=array();
 		$tjek=explode(",",$o_id[$fx]);
 		$lnr++;
@@ -486,18 +484,14 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		$q=db_select("select * from ordrer order by konto_id",__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
 			if (in_array($r['id'],$tjek)) {
-#cho "A kontonr $r[kontonr]<br>";
 				if (!in_array($r['kontonr'],$kontonr)) {
 					$x++;
 					$kontonr[$x]=$r['kontonr'];
 					$belob[$x]=round(($r['sum']+$r['moms'])*100,0);
-#cho "B kontonr $r[kontonr] : $belob[$x]<br>";
 				} else {
 					$belob[$x]+=round(($r['sum']+$r['moms'])*100,0);
-#cho "C kontonr $r[kontonr] : $belob[$x]<br>";
 				}
 				$total[$fx]+=round(($r['sum']+$r['moms'])*100,0);
-#cho "total $total[$fx]<br>";
 			}
 		}
 		$kontoantal=0;		

@@ -212,9 +212,7 @@ print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0 class
 
 print "<form name=transaktionsliste action=kontrolspor.php method=post>";
 if (!$linjeantal) $linjeantal=50;
-#cho "A next $next start $start | linjeantal $linjeantal<br>"; 
 $next=udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre, $kontonumre, $transdatoer, $logdatoer, $debetbelob, $kreditbelob, $logtid, $beskrivelse, $sort, $start+50,'',$projektnumre,$kassenumre);
-#cho "B next $next start $start | linjeantal $linjeantal<br>"; 
 if ($start>=$linjeantal) {
 	$tmp=$start-$linjeantal;
 	print "<td width=10%><a href='kontrolspor.php?sort=$sort&start=$tmp'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
@@ -334,7 +332,6 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 	if ($beskrivelse) $udvaelg.=udvaelg($beskrivelse, 'transaktioner.beskrivelse', 'TEXT');
 	
 	$udvaelg=trim($udvaelg);
-#cho __line__." $udvaelg<br>";
 	if (substr($udvaelg,0,3)=='and') $udvaelg="where".substr($udvaelg, 3);
 	elseif (substr($udvaelg,0,2)=='((') $udvaelg="where ".$udvaelg;
 	if ($sort=="logdate") $sort = $sort.", logtime";
@@ -349,10 +346,8 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 	}
 	if ($b_strlen=strlen($beskrivelse)) {
 	}
-#cho __line__." $udvaelg<br>";
 	if (!$udvaelg) $udvaelg="where";
 	else $udvaelg=$udvaelg." and";
-#cho __line__." $udvaelg<br>";
 	
 	$z=0;
 	
@@ -395,7 +390,6 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 	}
 	if (!isset ($id)) $id = NULL;
 	$x=0;
-#cho "select transaktioner.*, kontoplan.beskrivelse as kontonavn from transaktioner, kontoplan $udvaelg kontoplan.regnskabsaar='$regnaar' and kontoplan.kontonr = transaktioner.kontonr order by $sort<br>";
 	if(isset($id)){
 		for ($z=0;$z<count($id);$z++) {
 		/*

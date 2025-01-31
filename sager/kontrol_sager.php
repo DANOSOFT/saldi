@@ -929,40 +929,34 @@ function arbejdsseddel() {
 	$x=0;
 	$id = array();
 	$qtxt = "select * from tjekliste where assign_to = 'sager' and assign_id = '0' and fase = '$sag_fase'";
-#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$id[$x]=$r['id'];
 		$tjekpunkt[$x]=$r['tjekpunkt']; 
-#cho __line__." $tjekpunkt[$x]<br>";
 		$fase[$x]=$r['fase']*1;
 		$assign_id[$x]=$r['assign_id']*1;
 		$punkt_id[$x]=0;
 		$gruppe_id[$x]=0;
 		$liste_id[$x]=$id[$x];
 		$qtxt = "select * from tjekliste where assign_to = 'sager' and assign_id = '$id[$x]' order by id";
-#cho __line__." $qtxt<br>";
 		$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$x++;
 			$max_gruppe=$x;
 			$id[$x]=$r2['id'];
 			$tjekpunkt[$x]=htmlspecialchars($r2['tjekpunkt']); 
-#cho __line__." $tjekpunkt[$x]<br>";
 			$assign_id[$x]=$r2['assign_id']*1;
 			$fase[$x]=$fase[$x-1];
 			$punkt_id[$x]=0;
 			$gruppe_id[$x]=$id[$x];
 			$liste_id[$x]=$liste_id[$x-1];
 			$qtxt = "select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by id";
-#cho __line__." $qtxt<br>";
 			$q3 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r3 = db_fetch_array($q3)) {
 				$x++;
 				$id[$x]=$r3['id'];
 				$tjekpunkt[$x]=htmlspecialchars($r3['tjekpunkt']); 
-#cho __line__." $tjekpunkt[$x]<br>";
 				$assign_id[$x]=$r3['assign_id']*1;
 				$fase[$x]=$fase[$x-1];
 				$punkt_id[$x]=$id[$x];

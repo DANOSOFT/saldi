@@ -253,7 +253,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	$qtxt = "select kontonr,projekt from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' order by transdate,bilag,id";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)){
-#cho "$row[projekt]<br>";
 		if (!in_array($r['kontonr'],$ktonr)) {
 			$x++;
 			$ktonr[$x]=$r['kontonr'];
@@ -312,7 +311,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 				$sim++;
 				if ($kontovaluta[$x]) {
 					for ($y=0;$y<=count($valkode);$y++){
-#cho "$valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]<br>";
 						if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $sim_transdate[$tr]) {
 							$sim_transkurs[$tr]=$valkurs[$y];
 							break 1;
@@ -413,7 +411,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 						$amount=$r2['debet']-$r2['kredit'];
 						for ($i=1;$i<=$momsantal;$i++) {
 							$tmp=round(abs($xmoms-$amount*100/$momssats[$i]),2);
-#cho "$r2[kontonr] == $momskonto[$i] && $tmp<0.1<br>";
 							if ($r2['kontonr'] == $momskonto[$i] && $tmp<0.1) $moms=$amount; 
 						}
 					}

@@ -51,10 +51,8 @@ for ($x=0;$x<count($line);$x++) {
 		$txtlen=(int)$txtlen;
 	} elseif (trim($line[$x])=='<top>') {
 		$top = $line[$x];
-#cho __line__ ." ". urlencode($line[$x]) ."<br>";
 	} elseif ($top && $endtop==0) {
 		$top.= $line[$x];
-#cho __line__ ." ". urlencode($line[$x]) ."<br>";
 		if (trim($line[$x])=='</top>') $endtop=1;
 	} elseif (trim($line[$x])=='<bottom>') {
 		$bottom = $line[$x];
@@ -234,7 +232,6 @@ for ($l=0;$l<count($labels);$l++) {
 			$labelTxt=str_replace('$kostpris',$r['kostpris'],$labelTxt);
 			if ($barcode[$a][$b]) {
 					$myImg=barcode($barcode[$a][$b]);
-#cho "$myImg<br>";				
 					$labelTxt=str_replace('$img',$myImg,$labelTxt);
 			} else $labelTxt=str_replace('$img',$img,$labelTxt);
 			if ($price[$a][$b]) $labelTxt=str_replace('$beskrivelse',$price[$a][$b],$labelTxt);

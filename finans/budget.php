@@ -66,7 +66,6 @@ $filnavn="../temp/$db/budget_".$startaar.$startmaaned."-".$slutaar.$slutmaaned."
 $fp=fopen($filnavn,"w"); # 20150622 del 1 slut
 		
 if (!$udfyld && isset($_POST['gem'])) {
-#cho "Gemmer nu<br>";	
 	$kontoantal=$_POST['kontoantal'];
 	$maanedantal=$_POST['maanedantal'];
 	$kontonr=$_POST['kontonr'];

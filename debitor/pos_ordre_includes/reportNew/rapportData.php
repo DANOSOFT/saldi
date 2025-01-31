@@ -173,8 +173,6 @@ function calculateTurnoverx($kasse) {
 	$me=$r['box3'];	
 	$ye=$r['box4'];	
 	
-#cho "$yb,$mb,$ye,$me<br>";
-		
 	$acYbegin=$yb."-".$mb."-01";
 	$acYend=$ye.$me;
 #	if ($acYbegin > date('Ym') || $acYend > date('Ym'))  
@@ -182,7 +180,6 @@ function calculateTurnoverx($kasse) {
 	
 	$qtxt = "select sum(sum) as turnover, sum(moms) as totalvat from ";
 	$qtxt.= "ordrer where felt_5 ='$kasse' and status > 2 and fakturadate >= '$acYbegin'";
-#cho "$qtxt<br>";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)); 
 	$turnover = $r['turnover'];
 	$totalVat = $r['totalvat'];
@@ -202,8 +199,6 @@ $ordreQuery = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 */	
 	$turnoverWithVat = $turnover + $totalVat;
-#cho "$turnoverWithVat = $turnover + $totalVat<br>";
-#xit;
 	return ["turnoverWithoutVat" => subtractTurnover($turnover, false), "turnoverWithVat" => subtractTurnover($turnoverWithVat, true)];
 }
 

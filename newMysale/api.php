@@ -447,7 +447,6 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
         }
         $bogfkto = $r2['box4'];
         $omvare = $r2['box6'];
-#cho __LINE__." $bogfkto = ".$r2['box4']."<br>";
         if (!$momsfri) $momsfri = $r2['box7']; #20170207
         $lagerfort = $r2['box8'];
         if (!$bogfkto) 	{
@@ -529,7 +528,6 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
     if (!is_numeric($rabatgruppe)) $rabatgruppe = 0;
     if (!is_numeric($varerabatgruppe)) $varerabatgruppe = 0;
 
-#cho __LINE." P: ".$pris." ".$pris*1 ."<br>";
     $vare_id*=1;
     $m_rabat=0;
     $rabat_ny*=1;
@@ -593,23 +591,18 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
                 $rabatart=$r2['rabatart'];
             }
         }
-#cho __LINE__." P: ".$pris." ".$pris*1 ."<br>";
          ($linje_id && $art=='DK')?$kred_linje_id=$linje_id:$kred_linje_id='0';
-#cho "$momssats if (!$varemomssats && $varemomssats!='0')<br>";
         if (!$varemomssats && $varemomssats!='0') {
             ($momsfri)?$varemomssats='0':$varemomssats=$momssats;
         }
         $varemomssats*=1;
 #		fwrite($log,__line__." Varemomssats $varemomssats\n");
-        #cho __LINE__." P: ".$pris." ".$pris*1 ." $valutakur s&& $valutakurs!=100<br>";
         if ($valutakurs && $valutakurs!=100) {
             $pris=$pris*100/$valutakurs;
             $kostpris=$kostpris*100/$valutakurs;
         }
         if ($momsfri) $VatPrice=$pris;
         else $VatPrice=$pris+$pris*$varemomssats/100;
-#cho __LINE__." P: ".$pris." ".$pris*1 ."<br>";
-#cho "rabarart $rabatart<br>";
 #		if ($variant_type) {
 #			$varianter=explode(chr(9),$variant_type);
 #			for ($y=0;$y<count($varianter);$y++) {
@@ -619,8 +612,6 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
 #				$beskrivelse.=", ".$r1['var_besk']; #.":".$r1['vt_besk'];
 #			}
 #		}
-#cho __LINE__." P: ".$pris." ".$pris*1 ."<br>";
-#cho "insert into ordrelinjer (ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,m_rabat,pris,kostpris,momsfri,momssats,posnr,projekt,folgevare,rabatgruppe,bogf_konto,kred_linje_id,kdo,serienr,variant_id) values ('$id','$vare_id','$varenr','$enhed','$beskrivelse','$antal','$rabat','$rabatart','$m_rabat','$pris','$kostpris','$momsfri','$varemomssats','$posnr','0','$folgevare','$rabatgruppe','$bogfkto','$kred_linje_id','$kdo','$serienr','$variant_id')<br>";
 # exit;
         ($webservice) ?$leveres=$antal:$leveres=0; 
         if ($id && is_numeric($posnr)) {
@@ -666,7 +657,6 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
         }
 #fclose($log);		
         # finder antal af varen på ordren.
-#cho "select sum(antal) as antal from ordrelinjer where vare_id='$vare_id' and pris=$pris and ordre_id='$id<br>";
         $qtxt = "select sum(antal) as antal from ordrelinjer where ";
         $qtxt.= "vare_id='$vare_id' and pris != 0 and rabat='0' and ordre_id='$id'";
         $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -677,13 +667,11 @@ function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_
             $r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
             m_rabat($r2['id'],$vare_id,0,$tmpantal,$id,$pris);
         }	else {
-#cho "update ordrelinjer set m_rabat='0' where ordre_id = '$id' and vare_id = '$vare_id'<br>";
             db_modify("update ordrelinjer set m_rabat='0' where ordre_id = '$id' and vare_id = '$vare_id'",__FILE__ . " linje " . __LINE__);
         }
     }
     if ($vis_saet && $status) db_modify("update ordrer set felt_2='0' where id = '$id'",__FILE__ . " linje " . __LINE__);
     $sum=$pris*$antal;
-#cho "retur Sum $sum<br>";
     return($sum);
 #	$varenr=$next_varenr;
 #	$antal=NULL;

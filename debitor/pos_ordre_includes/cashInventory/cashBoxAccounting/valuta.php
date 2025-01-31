@@ -53,7 +53,7 @@
             db_modify($qtxt,__FILE__ . " linje " . __LINE__);
             $qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$dd','Kassedifference, kasse $kasse','$diffkonto','0','$kredit','$debet',0,'$afd','$dd','$logtime','','$ansat_id','0','$kasse')";
             db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-        } #else #cho __line__." Ikke her<br>";
+        } 
     } else {
         if ($ValutaKonti[$z] && $ValutaTilgang[$z]) {
             if ($ValutaTilgang[$z]>0) {$debet=$ValutaTilgang[$z];$kredit=0;}

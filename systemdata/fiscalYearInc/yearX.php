@@ -142,7 +142,6 @@ function yearX($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 		print "<td width='10'><br /></td></tr>\n";
 		if (isset($ny_primo[$y])) $ny_sum+=$ny_primo[$y];
 	}
-#cho "select * from kontoplan where kontotype='S' and regnskabsaar='$pre_regnaar' order by kontonr<br>";
 	$query = db_select("select * from kontoplan where kontotype='S' and regnskabsaar='$pre_regnaar' order by kontonr",__FILE__ . " linje " . __LINE__);
 	$y=0;
 	while ($row = db_fetch_array($query)) {

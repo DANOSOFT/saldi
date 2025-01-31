@@ -222,7 +222,6 @@ if ($justering[0] != "C") print "<option value=\"center\" style=\"text-align:cen
 if ($justering[0] != "R") print "<option value=\"right\" style=\"text-align:right\">Right</option>"; 
 print "</SELECT>";
 print "<input type='hidden' name='dropDown[0]' value=''></td></tr>";
-#cho count($feltbredde)."<br>";
 for ($x=1;$x<=$vis_feltantal;$x++) {
 if (!$feltnavn[$x]) $feltnavn[$x]=$vis_felt[$x];
 	if (!isset($feltbredde[$x])) $feltbredde[$x]=100;

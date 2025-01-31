@@ -221,7 +221,6 @@ if ($fp) {
 		$skriv_linje[$x]=0;
 		if ($linje=fgets($fp)) {
 			$x++;
-#cho "$x | $linje<br>";		
 			$skriv_linje[$x]=1;
 			if ($charset=='UTF-8') $linje=utf8_encode($linje);
 			$felt=array();
@@ -361,7 +360,6 @@ $q=db_select("select varenr,id,varianter from varer",__FILE__ . " linje " . __LI
 while ($r=db_fetch_array($q)) {
 	$varer_id[$x]=$r['id'];
 	$varer_nr[$x]=$r['varenr'];
-#cho $r['varianter']."<br>";
 	$varer_varianter[$x]=$r['varianter'];
 	$x++;
 }
@@ -381,7 +379,6 @@ elseif ($splitter=='Tabulator') {$splitter=chr(9);}
 
 transaktion('begin');
 
-#cho "$filnavn<br>";
 $fp=fopen("$filnavn","r");
 if ($fp) {
 	$kontonumre=array();
@@ -453,7 +450,6 @@ if ($fp) {
 						$v = count($variant_type_beskrivelse);
 						$variant_type_beskrivelse[$v]	= $felt[$y];
 						$qtxt = "insert into variant_typer (variant_id,shop_id,beskrivelse) values ('1','0','". db_escape_string($felt[$y]) ."')";
-#cho __line__." $qtxt<br>"; 
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt = "select id from variant_typer where beskrivelse = '". db_escape_string($felt[$y]) ."'";
 						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $varianter_id[$v] = $r['id'];
@@ -461,12 +457,10 @@ if ($fp) {
 				}
 */				
 				if (in_array($feltnavn[$y],$varianter_beskrivelse) and !$felt[$y]) $skriv_linje[$x]=0;
-#cho __line__." $x $skriv_linje[$x] $feltnavn[$y] $tmp_feltnavn[$y]<br>";
 				if ($skriv_linje[$x] && (in_array($feltnavn[$y],$varianter_beskrivelse) ||
 						in_array($tmp_feltnavn[$y],$varianter_beskrivelse))) {
 					if ($felt[$y]) {
 						for($i=0;$i<count($varianter_id);$i++) {
-#cho "$varianter_beskrivelse[$i] == $feltnavn[$y] - $varianter_id[$i] - $felt[$y]<br>";
 							if ($varianter_beskrivelse[$i]==$feltnavn[$y]) {
 								$variant_id=$varianter_id[$i];
 								$felt[$y] = strtolower($felt[$y]);
@@ -474,7 +468,6 @@ if ($fp) {
 									$v = count($variant_type_beskrivelse);
 									$variant_type_beskrivelse[$v]	= $felt[$y];
 									$qtxt = "insert into variant_typer (variant_id,shop_id,beskrivelse) values ('$variant_id','0','". db_escape_string($felt[$y]) ."')";
-#cho __line__." $qtxt<br>"; 
 									db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 									$qtxt = "select id from variant_typer where variant_id = '$variant_id' and beskrivelse = '". db_escape_string($felt[$y]) ."'";
 									if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $variant_type_id[$v] = $r['id'];
@@ -526,21 +519,17 @@ if ($fp) {
 					$vare_a.=",".$fName[$y];
 					$vare_b.=",'".$fValue[$y]."'";
 					$upd=$upd.",".$fName[$y]."='".$fValue[$y]."'";
-#cho __line__." $upd<br>";
 				}
 			}
 			$qtxt="select id from variant_varer where variant_stregkode='$stregkode'";
-#cho __line__." $qtxt<br>";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 					$variant_id=$r['id'];
 					$upd_antal++;
 					$qtxt="update variant_varer set $upd where id='$variant_id'";
-#cho __line__." $qtxt<br>";
 				} else {
 					$imp_antal++;
 					$qtxt="insert into variant_varer($vare_a) values ($vare_b)";
 				}
-#cho __line__." $qtxt<br>";
 				if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -551,7 +540,6 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 $x=0;
 $vare_id=array();
 $qtxt="select vare_id,variant_id from variant_varer order by vare_id,variant_id";
-#cho __line__."$qtxt<br>";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	if (in_array($r['vare_id'],$vare_id)) {
@@ -569,13 +557,11 @@ while ($r=db_fetch_array($q)) {
 	}
 }
 $qtxt="select id from varer order by id";
-#cho __line__."$qtxt<br>";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	for ($x=1;$x<=count($vare_id);$x++) {
 		if ($r['id']==$vare_id[$x]) { 
 			$qtxt="update varer set varianter = '$vare_varianter[$x]' where id='$vare_id[$x]'";
-#cho __line__."$qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -630,7 +616,6 @@ function opdel ($splitter,$linje){
 			$z++;
 			$anftegn=0;
 		} elseif (!$anftegn && substr($linje,$z,1)==$splitter) {
-#cho "$y B $var[$y]<br>";
 			$y++;
 		} elseif ($tegn!=chr(34)) {
 			$var[$y]=$var[$y].substr($linje,$z,1);

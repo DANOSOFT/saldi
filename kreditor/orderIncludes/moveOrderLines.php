@@ -96,8 +96,6 @@ else {
 			$qtxt = "UPDATE batch_kob SET ordre_id = '$newId' WHERE linje_id='$linje_id[$x]'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} elseif ($mSQt[$x]) {
-#cho __line__." $mQt[$x] | $mSQt[$x] | $maxQt[$x] | $maxSQt[$x]<br>";
-			#cho __line__." flytter ID $linje_id[$x] | $mSQt[$x] ($maxQt[$x]) $varenr[$x] ej lev<br>";
 			$qtxt = "CREATE TEMPORARY TABLE temp_table AS SELECT * FROM ordrelinjer WHERE id = '$linje_id[$x]'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt = "select max(id) as new_id FROM ordrelinjer";
@@ -109,7 +107,6 @@ else {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt = "SELECT setval('ordrelinjer_id_seq', $newLineId)";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#cho __line__." $antal[$x] = $antal[$x] - $mSQt[$x]<br>";
 			$antal[$x] = $antal[$x] - $mSQt[$x];
 			$leveret[$x] = $leveret[$x] - $mSQt[$x];
 			$qtxt = "UPDATE ordrelinjer SET antal = $antal[$x] WHERE id='$linje_id[$x]'";
@@ -128,7 +125,6 @@ else {
 			}
 
 			$qtxt = "SELECT * FROM batch_kob WHERE linje_id='$linje_id[$x]' ORDER BY id";
-#cho __line__." $qtxt<br>";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$bk = $mvRm= 0;
 			while ($r = db_fetch_array($q)) {
@@ -137,21 +133,16 @@ else {
 				$bkRm[$bk] = $r['rest']*1;
 				$bkDt[$bk] = $r['kobsdate'];
 				$mvRm     += $bkRm[$bk]; 
-				#cho __line__." $bk bkQt $bkQt[$bk] bkRm $bkRm[$bk] x $x mSQt $mSQt[$x] Kbsd $bkDt[$bk]<br>";
 				
 				$bk++;
 			}
 			$mvQt = $mSQt[$x];
 			for ($bk=0;$bk<count($bkId);$bk++) {
-#cho __line__." $bk mv $mvQt ($bkQt[$bk])<br>";
 				$deliveryDate = $bkDt[$bk];
 				if ($mvQt && $bkQt[$bk] && $bkQt[$bk] <= $mvQt) {
-#cho __line__." $bkQt[$bk] <= $mvQt<br>";
 					$qtxt = "UPDATE batch_kob SET ordre_id = '$newId', linje_id = '$newLineId' WHERE id = $bkId[$bk]";
-				#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$mvQt-= $bkQt[$bk];
-#cho __line__." $mvQt = $mvQt - $bkQt[$bk]<br>";
 				} else {
 					$bkQt[$bk]-= $mvQt;
 #					$mvQt = 0;
@@ -169,7 +160,6 @@ else {
 			}
 			if ($mvQt) {
 				$qtxt = "insert into batch_kob (kobsdate,vare_id,ordre_id,linje_id,antal,rest) values ('$deliveryDate','$vare_id[$x]','$newId','$newLineId','$mvQt','$mvRm')";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 			$newQty = $antal[$x];
@@ -181,7 +171,6 @@ else {
 				$oldQty = $r['antal'];
 				$oldId = $r['id'];
 				if ($mvQt) {
-#cho __line__." $oldQty >= $mvQt<br>";
 					if ($mvQt && $oldQty >= $mvQt) {
 						$qtxt = "update batch_kob set antal = antal-$mvQt where id = '$oldId'";
 						$mvQt = 0;
@@ -189,7 +178,6 @@ else {
 						$qtxt = "update batch_kob set antal = 0 where id = '$oldId'";
 						$mvQt-= $oldQty;
 					}
-					#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -198,7 +186,6 @@ else {
 ##cho __line__." $qtxt<br>";
 #			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt = "DROP TABLE temp_table";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}

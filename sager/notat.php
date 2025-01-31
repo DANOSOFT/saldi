@@ -63,7 +63,6 @@ $mine_notater=if_isset($_GET['mine_notater']);
 
 if (isset($_POST['find_person']) && ($_POST['find_person']=='Find person')) $funktion="find_person"; 
 if (isset($_POST['find_sag']) && ($_POST['find_sag']=='Find sag')) {
-#cho $_POST['submit']." | ".$_POST['find_sag']." /sager/sager.php?notat_id=$id&funktion=sagsliste<br>";
 #	exit;
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/notat.php?notat_id=$id&funktion=findsag\">";
 }
@@ -111,7 +110,6 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		<div id=\"leftmenuholder\">";
 			include("leftmenu.php");
 			print "</div><!-- end of leftmenuholder -->";
-#cho "$funktion -> $id || $sag_id<br>";
 
 			if ($funktion) $funktion($id,$sag_id,$sag_fase);
 			elseif ($id || $sag_id) ret_note($id,$sag_id,$sag_fase);
@@ -429,7 +427,6 @@ function find_person($id,$sag_id,$sag_fase) {
 } # end of function find_person
 	
 function ret_note($id,$sag_id,$sag_fase) {
-	#cho "ID = $id";
 	global $brugernavn;
 	global $ansat_id;
 	global $db;
@@ -678,8 +675,6 @@ function ret_note($id,$sag_id,$sag_fase) {
 			} 
 			*/
 		}
-		#cho "Sag id $sag_id<br>";
-	#cho "select * from noter where id='$id'<br>";
 	#exit;
 		$r = db_fetch_array(db_select("select * from noter where id='$id'",__FILE__ . " linje " . __LINE__));
 		$hvem=$r['hvem'];
@@ -724,7 +719,6 @@ function ret_note($id,$sag_id,$sag_fase) {
 			//echo "status: $status";
 			//exit;
 	#			(isset($_POST['notat']))?$status=1:$status=0; 
-#cho "insert into noter(notat,beskrivelse,status,hvem,assign_to,assign_id,fase,datotid) values ('$notat','$beskrivelse','$status','$brugernavn','sager','$sag_id','$sag_fase','$datotid')";
 #exit;
 			db_modify("insert into noter(notat,beskrivelse,status,hvem,assign_to,assign_id,fase,datotid,notat_fase,kategori,nr,sagsnr) values ('$notat','$beskrivelse','$status','$brugernavn','sager','$sag_id','$sag_fase','$datotid','$notat_fase','$kategori','$notat_nr','$sagsnr')",__FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select max (id) as id from noter where hvem='$brugernavn' and status = '$status'",__FILE__ . " linje " . __LINE__));

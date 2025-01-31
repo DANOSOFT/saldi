@@ -31,19 +31,12 @@ function tjek ($id,$beskrivelse,$kodenr,$kode,$art,$box1,$box2,$box3,$box4,$box5
 			print tekstboks($fejl); # 20141212A
 		}
 		if (!$fejl && ($art=='DS'|| $art=='KS'||$art=='KM'||$art=='SM')) $fejl=kontotjek($box1);
-#cho __line__."<br>";
 		if (!$fejl && ($art=='DG'|| $art=='KG')) $fejl=momsktotjek($art,$box1);
-#cho __line__."<br>";
 		if (!$fejl && $art=='KG') $fejl=momsktotjek('DG',$box6);
-#cho __line__."<br>";
 		if (!$fejl && ($art=='DG'|| $art=='KG')) $fejl=kontotjek($box2);
-#cho __line__."<br>";
 		if (!$fejl && ($art=='DG'|| $art=='KG')) $fejl=kontotjek($box5);
-#cho __line__."<br>";
 		if (!$fejl && ($art=='DG'|| $art=='KG')) $fejl=sprogtjek($box4);
-#cho __line__."<br>";
 		if (!$fejl && $art=='LG' && $box1) $fejl=afdelingstjek($box1);
-#cho __line__."<br>";
 		return $fejl;
 	}
 }

@@ -218,7 +218,6 @@ function ansatliste() {
 	//$sort=if_isset($_GET['sort']);
 	//if (!$sort) $sort='navn';
 	//$dd=date("Y-m-d");
-#cho "select ansatte.* from ansatte,adresser where adresser.art='S' and ansatte.konto_id = adresser.id order by $sort<br>";
 	$q=db_select("select ansatte.* from ansatte,adresser $where order by $sqlsort",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;

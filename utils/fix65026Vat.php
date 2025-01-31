@@ -38,7 +38,6 @@ while ($r=db_fetch_array($q)){
 	$x++;
 }
 for ($x=0;$x<count($transDate);$x++) {
-#cho "$transDate[$x] | $diff[$x]<br>";
 	if ($diff[$x]) {
 		$qtxt = "select id from transaktioner where transdate = '$transDate[$x]' and debet = $diff[$x]";
 echo "$qtxt<br>";

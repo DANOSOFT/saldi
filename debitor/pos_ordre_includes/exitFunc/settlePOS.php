@@ -70,7 +70,6 @@ if ($status < 3) {
 		$saet[$x]         = $r['saet'];
 
 		if ($rabatgruppe[$x]) {
-			#cho __line__." $rabatgruppe[$x]<br>";
 			if ($rabatgruppe[$x] == $rabatgruppe[$x-1]) {
 				$rabatantal[$x] = $antal[$x] + $rabatantal[$x-1];
 				$rabatantal[$x-1] = 0;
@@ -80,7 +79,6 @@ if ($status < 3) {
 			$rabatantal[$x] = 0;
 		$m_rabat[$x] = $r['m_rabat'] * -1;
 		$m_rabat[$x] = $m_rabat[$x] - ($m_rabat[$x] * $rabat[$x] / 100); #20220812
-#cho "m_rabat $m_rabat[$x]<br>";
 	}
 	$linjeantal = $x;
 	transaktion("begin");
@@ -101,7 +99,6 @@ if ($status < 3) {
 	$sum = 0;
 	$moms = 0;
 	$incl_moms = 0;
-	#cho __FILE__." ".__LINE__."<br>";	
 	for ($x = 1; $x <= count($linje_id); $x++) {
 		$pos++;
 		$qtxt = "update ordrelinjer set posnr='$pos',projekt='$projekt' where id='$linje_id[$x]'";
@@ -152,7 +149,6 @@ if ($status < 3) {
 			}
 		}
 		if ($rabatantal[$x]) {
-			#cho "rabatantal[$x]<br>";
 			list($grupperabat, $rabattype) = explode(";", grupperabat($rabatantal[$x], $rabatgruppe[$x]));
 			if ($grupperabat) {
 				$pos++;
@@ -231,7 +227,6 @@ if ($status < 3) {
 			}
 		}
 	}
-#xit;
 	$fakturanr = 1;
 	$q = db_select("select fakturanr from ordrer where art = 'PO' and status >='3'", __FILE__ . " linje " . __LINE__); #max(fakturanr) fungerer ikke da feltet ikke er numerisk
 	while ($r = db_fetch_array($q)) {
@@ -264,7 +259,6 @@ if ($status < 3) {
 		} else
 			$modtaget2 = $saldo + $sum;
 	}
-	#cho __line__." Sum $sum<br>";	
 	$moms = afrund($moms, 2);
 	if ($betaling == 'Kontant' && !$betaling2 && $retur) {
 		if (!$tmp) {
@@ -290,10 +284,7 @@ if ($status < 3) {
 	}
 	$modtaget = afrund($modtaget, 2);
 	$modtaget2 = afrund($modtaget2, 2);
-	#cho __FILE__." ".__LINE__."<br>";	
-#cho __line__." $sum+$moms!=$incl_moms<br>";
 	if ($sum + $moms != $incl_moms) {
-		#xit;
 // Denne rutine korrigerer for de differencer det kan opstå i totaler fordi momsberegningen på skærmen vises for den enkelte vare, mens databasen indeholder 
 // summen at varer excl moms og momsen separat. Hvis der er difference på summen tillægges/frratrækkes de enkelte varer så mange tienedele ører som muligt
 // uden at den afrundede værdi incl moms ændres, indtil summen ex. moms + moms svarer til summen af varer incl moms. 20131205
@@ -325,8 +316,6 @@ if ($status < 3) {
 			exit;
 		}
 	}
-	#xit;	
-#cho __FILE__." ".__LINE__."<br>";	
 	$tidspkt = date("H:i");
 	$dd = date("Y-m-d");
 	$betalt = afrund($betalt, 3);
@@ -367,8 +356,6 @@ if ($status < 3) {
 				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,receipt_id) values ";
 				$qtxt .= "('$id','$betaling','$modtaget','$betvaluta','$betvalkurs','$receipt_id')";
 			}
-			#cho "$qtxt<br>";
-#xit;
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($betaling == 'Kontant')
 				$evType = '12001';
@@ -387,15 +374,12 @@ if ($status < 3) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 		}
-		#cho "Retur $retur<br>";
 
-		#cho __FILE__." ".__LINE__." <br>";	
 		if (!$indbetaling) {
 			$svar = levering($id, 'on', '', '');
 			if ($svar != 'OK')
 				return ($svar);
 			$svar = bogfor($id, '');
-			#cho __FILE__." ".__LINE__." $svar<br>";	
 			if ($svar != 'OK')
 				return ($svar);
 		} else {

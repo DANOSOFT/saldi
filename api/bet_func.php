@@ -5,12 +5,10 @@ function logon($s_id,$regnskab,$brugernavn,$password,$sqhost,$squser,$sqpass,$sq
 	include("../includes/db_query.php");
 	include ("../includes/connect.php");
 #	db_modify("delete from online where  session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-#cho "select * from regnskab where regnskab = '$regnskab'";
 	if ($r=db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))) {
 		if ($db = trim($r['db'])) {
 			$connection = db_connect ($sqhost,$squser,$sqpass,$db);
 			if ($connection) {
-#cho "select id from brugere where brugernavn='PBS_TILMELDING'<br>";
 				$r=db_fetch_array(db_select("select id from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));
 				if ($r['id']) {
 				#				db_modify("insert into online (session_id, brugernavn, db, dbuser) values ('$s_id', '$brugernavn', '$db', '$squser')",__FILE__ . " linje " . __LINE__);

@@ -680,17 +680,14 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd)";
 						$qtxt.="  values ";
 						$qtxt.="('$bilag','$transdate','$beskrivelse','F','$kontonr','F','0','$faktura','$amount','$kladde_id','$valuta_kode','$afd')";
-#cho "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd)";
 						$qtxt.="  values ";
 						$qtxt.="('$bilag','$transdate','$beskrivelse','F','0','$k_type','$kredit','$faktura','$fakturasum','$kladde_id','$valuta_kode','$afd')";
-#cho "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd)";
 						$qtxt.="  values ";
 						$qtxt.="('$bilag','$transdate','$beskrivelse','F','0','F','$gebyrkonto','$faktura','$kortgebyr','$kladde_id','$valuta_kode','$afd')";
-#cho "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} else {
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd)";
@@ -701,7 +698,6 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 					}
 					$bilag++;
 				} elseif ($amount<0) {
-#cho substr($beskrivelse,0,4) ." | ". substr($beskrivelse,5,4) ."<br>";
 						$dtype=$ktype='F';
 						$debet=0;
 						$amount=$amount*-1;

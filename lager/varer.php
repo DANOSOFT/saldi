@@ -650,7 +650,6 @@ if (!$vis_K[0]) {
 	while ($r=db_fetch_array($q)){ 
 		$x++;
 		$lagergrupper[$x]=$r['kodenr'];
-#cho "$lagergrupper[$x]<br>";
 	}
 
 if (($stock||$makeSuggestion)&&!$udskriv) $varer_i_ordre=find_varer_i_ordre(); 
