@@ -147,7 +147,8 @@ print "<form name=ordrevisning action=ordrevisning.php?sort=$sort&valg=$valg met
 $i=0;
 $q = db_select("select * from ordrer",__FILE__ . " linje " . __LINE__);
 while ($i < db_num_fields($q)) { 
-	$felter[$i] = db_field_name($q,$i); 
+	$field = db_field_name($q, $i);
+	$felter[$i] = is_object($field) ? $field->name : (string)$field;
 	$i++; 
 }
 $felter[$i] = 'sum_m_moms';
