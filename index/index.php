@@ -70,7 +70,6 @@ parent.location.href = \"../index/index.php\";
 </script>";
 
 
-
 if(isset($_POST['languageId'])){
 	$languageId = $_POST['languageId'];
 } elseif(isset($_COOKIE['languageId'])){
