@@ -98,6 +98,7 @@
 // 20240407 PHR	Removed function getFiscalYear() and changed $fiscalYear to '1' everywhere 
 // 20240531 PHR removed changes 20230804 made by LOE 
 // 20240621 LOE modified list function block causing undefined "PHP Warning:  Undefined array key 2 in" error during account creation
+// 20250121 connection as first parameter in pg_*
 
 @session_start();
 $s_id=session_id();
@@ -577,6 +578,10 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	$qtxt .= "local_name varchar(100), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, sort TEXT)", __FILE__ . " line " . __LINE__);
+
+	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id CHARACTER VARYING(10), selector TEXT)", __FILE__ . " line " . __LINE__);
+
 
 	if ($db_type=="mysql" || $db_type=="mysqli") {
 		db_modify("ALTER TABLE adresser ADD modtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", __FILE__ . "linje" . __LINE__);
@@ -600,23 +605,23 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 		$qtxt.= "RETURN NEW; ";
 		$qtxt.= "END; ";
 		$qtxt.= "$$ language 'plpgsql';";
-		pg_query($qtxt);
+		pg_query($connection, $qtxt);
 		$qtxt = "CREATE TRIGGER update_adresser_modtime BEFORE UPDATE ";
 		$qtxt.= "ON adresser FOR EACH ROW EXECUTE PROCEDURE ";
 		$qtxt.= "update_modtime_column(); ";
-		pg_query($qtxt);
+		pg_query($connection, $qtxt);
 		$qtxt = "CREATE TRIGGER update_batch_kob_modtime BEFORE UPDATE ";
 		$qtxt.= "ON batch_kob FOR EACH ROW EXECUTE PROCEDURE ";
 		$qtxt.= "update_modtime_column(); ";
-		pg_query($qtxt);
+		pg_query($connection, $qtxt);
 		$qtxt = "CREATE TRIGGER update_batch_salg_modtime BEFORE UPDATE ";
 		$qtxt.= "ON batch_salg FOR EACH ROW EXECUTE PROCEDURE ";
 		$qtxt.= "update_modtime_column(); ";
-		pg_query($qtxt);
+		pg_query($connection, $qtxt);
 		$qtxt = "CREATE TRIGGER update_varer_modtime BEFORE UPDATE ";
 		$qtxt.= "ON varer FOR EACH ROW EXECUTE PROCEDURE ";
 		$qtxt.= "update_modtime_column(); ";
-		pg_query($qtxt);
+		pg_query($connection, $qtxt);
 	}
 	$qtxt = file_get_contents('../importfiler/saf_t_codes.sql');
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);

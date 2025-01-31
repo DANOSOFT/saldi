@@ -31,6 +31,8 @@
 // 20220207 PHR Changed varchar size in 'regnskab'
 // 20220823 PHR Changed email to varchar(60) in 'regnskab'
 // 20221106 PHR - Various changes to fit php8 / MySQLi
+// 20250116 allow user specified hostname for database, ie. other than localhost.
+// 20250129 Increase session_id length constraint from 30 to 32 on table online.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -70,6 +72,12 @@ if (isset($_POST['opret'])){
 		$felt_mangler=true;
 		$db_navn="<i>Feltet er tomt!</i>";
 	}
+
+	$db_host=trim($_POST['db_host']);
+	if ( strlen($db_host)==0 ) {
+		$db_host="localhost";
+	}
+
 	$db_bruger=trim($_POST['db_bruger']);
 	if ( strlen($db_bruger)==0 ) {
 		$felt_mangler=true;
@@ -108,6 +116,7 @@ if (isset($_POST['opret'])){
 	}
 	$_SESSION['db_encode']=$db_encode;
 	$_SESSION['db_type']=$_POST['db_type'];
+	$_SESSION['db_host']=$db_host;
 	$_SESSION['db_navn']=$db_navn;
 	$_SESSION['db_bruger']=$db_bruger;
 	$_SESSION['db_password']=$db_password;
@@ -117,6 +126,7 @@ if (isset($_POST['opret'])){
 	$tmp = "<table>\n";
 	$tmp.= "<tr><td colspan=\"2\" align=\"center\"><big><b>Oplysninger til SALDI-installering</b></big></td></tr>\n";	
 	$tmp.= "<tr><td>Databaseserver </td><td><b>$db_type</b></td></tr>\n";
+	$tmp.="<tr><td>Servernavn </td><td><b>$db_host</b></td></tr>\n";
 	$tmp.= "<tr><td>Tegns&aelig;t </td><td><b>$db_encode</b></td></tr>\n";
 	$tmp.= "<tr><td>Databasenavn </td><td><b>$db_navn</b></td></tr>\n";
 	$tmp.= "<tr><td>Dataadministrator </td><td><b>$db_bruger</b></td></tr>\n";
@@ -169,14 +179,13 @@ if (isset($_POST['opret'])){
 
 	$tmp="";
 
-	$host="localhost";
 	$tempdb="template0";
 
 	if ($db_type=="mysqli") {
-		echo "$host , $db_bruger' '$db_password<br>";
-		$connection = db_connect ("$host", "$db_bruger", "$db_password");
+		echo "$db_host , $db_bruger' '$db_password<br>";
+		$connection = db_connect ("$db_host", "$db_bruger", "$db_password");
 	} else {
-		$connection = db_connect ("$host", "$db_bruger", "$db_password", "template1");
+		$connection = db_connect ("$db_host", "$db_bruger", "$db_password", "template1");
 	}
 
 	if (!$connection)	{
@@ -199,7 +208,7 @@ if (isset($_POST['opret'])){
 		else $qtxt = "CREATE DATABASE $db_navn encoding = 'LATIN9' template $tempdb";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		db_close($connection);
-		$connection = db_connect ("$host", "$db_bruger", "$db_password", "$db_navn");
+		$connection = db_connect ("$db_host", "$db_bruger", "$db_password", "$db_navn");
 	}
 	transaktion("begin");
 
@@ -214,9 +223,9 @@ if (isset($_POST['opret'])){
 	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0), PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version,bilag) values ";
-	$qtxt.= "('$db_navn' ,'$host', '$db_bruger', '$db_navn', '$version','0')";
+	$qtxt.= "('$db_navn' ,'$db_host', '$db_bruger', '$db_navn', '$version','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "CREATE TABLE online (session_id varchar(30), brugernavn text, db varchar(30), dbuser varchar(30), rettigheder varchar(30), ";
+	$qtxt = "CREATE TABLE online (session_id varchar(32), brugernavn text, db varchar(30), dbuser varchar(30), rettigheder varchar(30), ";
 	$qtxt.= "regnskabsaar integer, logtime varchar(30), revisor boolean, language_id int)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE kundedata (id serial NOT NULL, firmanavn text, addr1 text, addr2 text, postnr varchar(10), ";
@@ -270,7 +279,7 @@ if (isset($_POST['opret'])){
 	
 	
 	if ($fp=fopen("../includes/connect.php","w")) {
-		skriv_connect($fp,$host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type);
+		skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type);
 		fclose($fp);
 		print "<table width=\"75%\"><tr><td style=\"text-align:center\">\n\n";
 		print "\n\n<h1>SALDI er installeret</h1>\n\n";
@@ -296,6 +305,7 @@ if (isset($_POST['opret'])){
 } else {
 	$db_encode    = if_isset($_SESSION['db_encode']);
 	$db_type      = if_isset($_SESSION['db_type']);
+	$db_host      = if_isset($_SESSION['db_host']);
 	$db_navn      = if_isset($_SESSION['db_navn']);
 	$db_bruger    = if_isset($_SESSION['db_bruger']);
 	$db_password  = if_isset($_SESSION['db_password']);
@@ -313,9 +323,11 @@ if (isset($_POST['opret'])){
 	if ($db_type!='MySQLi') print "<option>MySQLi</option></SELECT>";
 	print "</td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">Servernavn</td><td title=\"Hostname for databaseserver\"><input type=\"text\" name=\"db_host\" value=\"$db_host\"><td><td width=\"5%\"></td></tr>";
+	print "<tr><td><br></td></tr>";
 	print "<tr><td><font face=\"Arial,Helvetica\">Tegns&aelig;t</td><td title=\"V&aelig;lg det tegns&aelig;t du &oslash;nsker at bruge. Nyere versioner af PostgreSQL fungerer kun med UTF8\"><SELECT NAME=db_encode><option>UTF8</option><option>LATIN9</option></SELECT></td><td></td></tr>";;
 	print "<tr><td><br></td></tr>";
-	print	"<tr><td><font face=\"Arial,Helvetica\">Databasenavn</td><td title=\"&Oslash;nsket navn p&aring; din hoveddatabase for SALDI\"><INPUT TYPE=TEXT NAME=db_navn VALUE = \"$db_navn\"> <td><td width=5%></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">Databasenavn</td><td title=\"&Oslash;nsket navn p&aring; din hoveddatabase for SALDI\"><INPUT TYPE=TEXT NAME=db_navn VALUE = \"$db_navn\"> <td><td width=5%></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><font face=\"Arial,Helvetica\">Eksisterende databaseadministrator</td> <td title=\"Navn p&aring; en bruger, som har i forvejen har tilladelse til at oprette, rette og slette databaser. Typisk er det for PostgreSQL brugeren postgres og for MySQL brugeren root.\"><INPUT TYPE=TEXT NAME=db_bruger VALUE=\"$db_bruger\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -329,7 +341,7 @@ if (isset($_POST['opret'])){
 	print "<tr><td><br></td></tr>";
 	print "<tr><td colspan=2 align=center title=\"Klik her for at oprette dit SALDI-system\"><INPUT TYPE=submit name=opret VALUE=Install&eacute;r></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print   "<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\"> <b>Alle</b> felter skal udfyldes. Hvis du er i tvivl, s&aring; udfyld kun de tomme felter.</td></tr>";
+	print "<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\"> <b>Alle</b> felter skal udfyldes. Hvis du er i tvivl, s&aring; udfyld kun de tomme felter.</td></tr>";
 	print "<tr><td><br></td></tr><tr></tr></FORM>";
 	print "</tr>";
 	print	"</tbody></table>";
@@ -343,8 +355,7 @@ if (isset($_POST['opret'])){
 }
 
 
-function skriv_connect($fp,$host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type) {
-	fwrite($fp," \n");
+function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type) {
 	fwrite($fp,"<?php\n");
 	fwrite($fp,"//                         ___   _   _   __  _     ___  _ _  \n");
 	fwrite($fp,"//                        / __| / \ | | |  \| |   |   \| / / \n");
@@ -386,7 +397,7 @@ function skriv_connect($fp,$host,$db_bruger,$db_password,$db_navn,$db_encode,$db
 	fwrite($fp,"	include(\"../../includes/settings.php\");\n");
 	fwrite($fp,"}\n");
 	fwrite($fp,"\n");
-	fwrite($fp,"\$sqhost = \"$host\";\n");
+	fwrite($fp,"\$sqhost = \"$db_host\";\n");
 	fwrite($fp,"\$squser = \"$db_bruger\";\n");
 	fwrite($fp,"\$sqpass = \"$db_password\";\n");
 	fwrite($fp,"\$sqdb   = \"$db_navn\";\n");

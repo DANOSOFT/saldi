@@ -247,7 +247,8 @@ if (substr($brugernavn,0,11) == "debitoripad") {
 
     <ul class="nav-links">
       <li>
-        <a href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');">
+           <!-- update the file below with your email setup -->
+        <a href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');"> 
           <i class='bx bx-envelope'></i>
           <span class="link_name"><?php print findtekst(398, $sprog_id); ?></span>
         </a>

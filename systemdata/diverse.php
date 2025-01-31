@@ -81,6 +81,7 @@
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240126 PBLM Added nemhandel (diverse valg)
 // 05-01-2025 PBLM Added a second file to api_valg
+// 20241220 LOE Initialized tenantID and $key to null if not set
 
 @session_start();
 $s_id=session_id();
@@ -92,45 +93,10 @@ $css="../css/standard.css";
 $diffkto=NULL;
 
 include("../includes/connect.php");
-
-
-////////////////// nemhandel ///////////////////////
- // Getting the api key and tenant id from the database
- $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
- while($res = db_fetch_array($query)){
-     if($res["var_value"] !== ""){
-         if($res["var_name"] == "apiKey"){
-             $key = $res["var_value"];
-         }elseif($res["var_name"] == "tenantId"){
-             $tenantId = $res["var_value"];
-         }
-     }
- }
- $apiKey = $tenantId . "&" . $key;
-////////////////// nemhandel end ///////////////////////
-
-
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
-
-function update_settings_value($var_name, $var_grp, $var_value, $var_description) {
-	# Expect a posted ID
-	$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
-	# If the row already exsists
-	if ($r) {
-		$qtxt = "UPDATE settings SET var_value='$var_value' WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	# If the row needs to be created in the database
-	} else {
-		$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ('$var_name', '$var_grp', '$var_value', '$var_description')";
-		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	}
-}
-
 
 $defaultProvision=$sqlstreng=NULL;
 if ($menu=='T') {
@@ -285,135 +251,6 @@ if ($_POST) {
 			update_settings_value("MSN",             "mobilepay", $mobilepay_msn,           "The Merchant-Serial-Number provided for the mobilepay intergreation");
 		}
 
-	// Nemhandel
-	if($nemhandel){
-		function createCompany(){
-			$query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
-			$res = db_fetch_array($query);
-			// check if there is alraedy "DK" before the cvr number
-			if(substr($res["cvrnr"], 0, 2) == "DK"){
-				$res["cvrnr"] = substr($res["cvrnr"], 2);
-			}
-	
-			$domain = "https://".$_SERVER['SERVER_NAME'];
-			if($domain == "https://ssl8.saldi.dk"){
-				$webhookUrl = "$domain/laja/debitor/easyUBL.php";
-			}else if($domain == "https://ssl5.saldi.dk"){
-				$webhookUrl = "$domain/finans/debitor/easyUBL.php";
-			}else{
-				$webhookUrl = "$domain/pos/debitor/easyUBL.php";
-			}
-			$data = [
-				"name" => $res["firmanavn"],
-				"cvr" => "DK".$res["cvrnr"],
-				"currency" => "DKK",
-				"country" => "DK",
-				"webhookUrl" => $webhookUrl,
-				"defaultEndpoint" => [
-					"endpointType" => "DK:CVR",
-					"endpointIdentifier" => "DK".$res["cvrnr"],
-					"registerAsRecipient" => true
-				],
-				"defaultAddress" => [
-					"name" => $res["firmanavn"],
-					"department" => "",
-					"streetName" => explode(" ",$res["addr1"])[0],
-					"additionalStreetName" => $res["addr2"],
-					"buildingNumber" => end(explode(" ", $res["addr1"])),
-					"inhouseMail" => $res["email"],
-					"cityName" => $res["bynavn"],
-					"postalCode" => $res["postnr"],
-					"countrySubentity" => "",
-					"countryCode" => "DK"
-				],
-				"defaultContact" => [
-					"id" => "",
-					"name" => $res["firmanavn"],
-					"email" => $res["email"],
-					"sms" => $res["tlf"]
-				],
-				"payment" => [
-					"bankName" => $res["bank_navn"],
-					"bankRegNo" => $res["bank_reg"],
-					"bankAccount" => $res["bank_konto"],
-					"bic" => "",
-					"iban" => "",
-					"creditorIdentifier" => ""
-				],
-				"doNotReceiveUBL" => false,
-			];
-	
-			/* echo json_encode($data, JSON_PRETTY_PRINT); */
-			return $data;
-		}
-
-		$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
-		if(db_num_rows($query) === 0){
-			// If the company id is not in the database, create it
-			$timestamp = date("Y-m-d-H-i-s");
-			$guid = "00000000-0000-0000-0000-000000000000";
-			$data = createCompany();
-			file_put_contents("../temp/$db/query-$timestamp.json", ["data" => json_encode($data)]);
-			$ch = curl_init();
-			curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$guid");
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
-			curl_setopt($ch, CURLOPT_POST, 1);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-			curl_setopt($ch, CURLOPT_HEADER, true); // Enable header in the response
-			$response = curl_exec($ch);
-			$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-			$requestHeaders = curl_getinfo($ch, CURLINFO_HEADER_OUT);
-			file_put_contents("../temp/$db/requestHeaders-$timestamp.txt", $requestHeaders);
-			curl_close($ch);
-			file_put_contents("../temp/$db/ApiKey-$timestamp.json", $apiKey);
-			$response = json_decode($response, true);
-			if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
-				// An error occurred
-				$errorNumber = curl_errno($ch);
-				$errorMessage = curl_error($ch);
-				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
-				json_encode($error, JSON_PRETTY_PRINT);
-				// save response in file in temp folder
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error));
-				file_put_contents("../temp/$db/nemhandel-http-code-$timestamp.json", $httpcode);
-				?>
-				<script>
-					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support.");
-				</script>
-				<?php
-				exit;
-			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000") {
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response));
-				?>
-				<script>
-					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support");
-				</script>
-				<?php
-				exit;
-			}else{
-				// Request successful
-				file_put_contents("../temp/$db/companyId-$timestamp.json", $response);
-				$query = db_select("SELECT * FROM settings WHERE var_name = 'globalId'", __FILE__ . " linje " . __LINE__);
-				$globalid = db_fetch_array($query)["var_value"];
-				$companyId = $response["companyID"];
-				$query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('companyID', 'easyUBL', '$companyId')", __FILE__ . " linje " . __LINE__);
-				file_put_contents("../temp/$db/create-in-ssl2-$timestamp.json", ["globalid" => $globalid, "companyId" => $companyId]);
-				
-				// Send the company id to ssl2.saldi.dk for storage
-				$ch = curl_init();
-				curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=insertCompanyId&companyId=$companyId&globalId=$globalid");
-				curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-				curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json"));
-				$res = curl_exec($ch);
-	
-				// save response in file in temp folder
-				$timestamp = date("Y-m-d-H-i-s");
-				file_put_contents("../temp/$db/Create-in-nemhandel-$timestamp.json", $res);
-				curl_close($ch);
-			}
-		}
-	}
 
     # Copayone API save
     if ($copay_api) {

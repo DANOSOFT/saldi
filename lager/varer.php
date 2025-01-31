@@ -59,6 +59,7 @@
 // 2023.06.03 PHR - php8
 // 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
 
+
 @session_start();
 $s_id=session_id();
 
@@ -87,6 +88,12 @@ $beskrivelse = $fokus = $linjeantal = $slut = $start = $udvalg = $vis_lev = $vis
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+
+// Navigate to new lagersystem
+if ($menu == "S") {
+	header('Location: lister/vareliste.php');
+	exit;
+}
 	
 if ($popup) $returside="../includes/luk.php";
 else $returside=(if_isset($_GET['returside']));

@@ -34,6 +34,7 @@
 // 20220426 DAPE Fixed language select, made language selector dynamic to take new languages whenever they're implemented in tekster.csv
 // 20220618 PHR Changed 'language' and 'language_id' to 'languageId'
 // 20230726 LOE Minor modification
+// 20250125 Fix broken huskmig cookie
 
 
 $regnskab=''; $brugernavn=''; $kode=''; $languageId=''; 
@@ -69,7 +70,6 @@ parent.location.href = \"../index/index.php\";
 </script>";
 
 
-
 if(isset($_POST['languageId'])){
 	$languageId = $_POST['languageId'];
 } elseif(isset($_COOKIE['languageId'])){
@@ -77,7 +77,7 @@ if(isset($_POST['languageId'])){
 }
 if ($languageId) setcookie('languageId',$languageId, time() + (10 * 365 * 24 * 60 * 60) );
 
- if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
+if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
 
 if (!isset($_POST['fejltxt']) && isset($_POST['regnskab']) && isset($_POST['brugernavn']) && isset($_POST['password']) && isset($_POST['languageId'])) {
 	if ( isset ($_POST['regnskab'])  )   $regnskab    = $_POST['regnskab'] ;#20211007
@@ -87,19 +87,20 @@ if (!isset($_POST['fejltxt']) && isset($_POST['regnskab']) && isset($_POST['brug
 	if (file_exists("redirect.php")) include ("redirect.php"); 
 	else $action="login.php";
 	if(isset($_POST['huskmig'])){ #20211007
-	$cookievalue = $huskmig . chr(9) . $_POST['regnskab'] . chr(9) . $_POST['brugernavn'];
+		$cookievalue = "huskmig" . chr(9) . $_POST['regnskab'] . chr(9) . $_POST['brugernavn'];
 	}
-	if (isset($_POST['huskmig'])){ setcookie ('saldi_huskmig', $cookievalue, time() + (86400 * 30));} #20211007
-	#elseif ($rs == $_POST['regnskab'] && $bn == $_POST['brugernavn']) {
+	if (isset($_POST['huskmig'])){ 
+		setcookie ('saldi_huskmig', $cookievalue, time() + (86400 * 30));
+	} #20211007
 	elseif ($rs == $regnskab && $bn == $brugernavn) {	
-		setcookie ('saldi_huskmig', $cookievalue, time() - 3600);
+		setcookie ('saldi_huskmig', "", time() - 3600);
 	}
 	print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$action\" onSubmit=\"return handleLogin(this);\">\n";
 	print "<input type=\"hidden\" name=\"regnskab\" value=\"$_POST[regnskab]\">\n";
 	print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
 	print "<input type=\"hidden\" name=\"password\"  value=\"$_POST[password]\">\n";
 	if(isset($_COOKIE['languageId'])){
-	print "<input type=\"hidden\" name=\"languageId\"  value=\"$_COOKIE[languageId]\">\n"; #20220330
+		print "<input type=\"hidden\" name=\"languageId\"  value=\"$_COOKIE[languageId]\">\n"; #20220330
 	}
 	print "<input type=\"hidden\" name=\"vent\"  value=\"$_POST[vent]\">\n";
 	print "<body onload=\"document.login.submit()\">";
@@ -172,18 +173,18 @@ print "                                 <select id=\"languageId\" name=\"languag
 
 $fp = fopen("../importfiler/tekster.csv","r");
 if ($linje=trim(fgets($fp))) {
-$a = explode("\t",$linje);
+	$a = explode("\t",$linje);
 }
 fclose($fp);
 
 if (!is_numeric($languageId)) $languageId = 1;
 for ($x=1; $x<count($a); $x++){
-if ($x == $languageId){
-print "<option selected value=\"$x\">". findtekst(1,$x) ."</option>\n";
-}
-else {
-print "<option value=\"$x\">". findtekst(1,$x) ."</option>\n";
-}
+	if ($x == $languageId){
+		print "<option selected value=\"$x\">". findtekst(1,$x) ."</option>\n";
+	}
+	else {
+		print "<option value=\"$x\">". findtekst(1,$x) ."</option>\n";
+	}
 }
 print "</select>\n";
 print "                         </div>\n";

@@ -25,6 +25,7 @@
 //
 // Copyright (c) 2003-2020 saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20250121 connection as first parameter in pg_*
 
 function opdat_3_8($under_nr, $lap_nr){
 	global $version;
@@ -223,23 +224,23 @@ function opdat_3_8($under_nr, $lap_nr){
 				$qtxt.= "RETURN NEW; ";
 				$qtxt.= "END; ";
 				$qtxt.= "$$ language 'plpgsql';";
-				pg_query($qtxt);
+				pg_query($connection, $qtxt);
 				$qtxt = "CREATE TRIGGER update_adresser_modtime BEFORE UPDATE ";
 				$qtxt.= "ON adresser FOR EACH ROW EXECUTE PROCEDURE ";
 				$qtxt.= "update_modtime_column(); ";
-				pg_query($qtxt);
+				pg_query($connection, $qtxt);
 				$qtxt = "CREATE TRIGGER update_batch_kob_modtime BEFORE UPDATE ";
 				$qtxt.= "ON batch_kob FOR EACH ROW EXECUTE PROCEDURE ";
 				$qtxt.= "update_modtime_column(); ";
-				pg_query($qtxt);
+				pg_query($connection, $qtxt);
 				$qtxt = "CREATE TRIGGER update_batch_salg_modtime BEFORE UPDATE ";
 				$qtxt.= "ON batch_salg FOR EACH ROW EXECUTE PROCEDURE ";
 				$qtxt.= "update_modtime_column(); ";
-				pg_query($qtxt);
+				pg_query($connection, $qtxt);
 				$qtxt = "CREATE TRIGGER update_varer_modtime BEFORE UPDATE ";
 				$qtxt.= "ON varer FOR EACH ROW EXECUTE PROCEDURE ";
 				$qtxt.= "update_modtime_column(); ";
-				pg_query($qtxt);
+				pg_query($connection, $qtxt);
 				$qtxt="UPDATE grupper set box1='$nextver' where art = 'VE'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}

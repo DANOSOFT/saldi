@@ -20,11 +20,6 @@ span {font-size: 13px;}
     }
 }
 
-canvas {
-  width:100% !important;
-  height:300px !important;
-}
-
 #newsbar {
   background-color: #114691;
   border-radius: 5px;
