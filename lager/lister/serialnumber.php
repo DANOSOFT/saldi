@@ -281,7 +281,8 @@ ORDER BY
             return ""; 
         }
     },
-    'metaColumn' => function ($row) {
+    // Only show metaColumn if settings rettighedder
+    'metaColumn' => substr($rettigheder,1,1) ? function ($row) {
         if ($row['salgs_ordre'] == "") {
 
             return <<<HTML
@@ -327,7 +328,7 @@ HTML;
         } else {
             return "<td></td>"; 
         }
-    },
+    } : NULL,
 
     "columns" => $columns,
     "filters" => $filters,

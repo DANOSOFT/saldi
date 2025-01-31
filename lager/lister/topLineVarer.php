@@ -39,34 +39,38 @@
 				</button></a></td>";
 		}
 
-		print "<td>&nbsp;</td>";
+		if (substr($rettigheder,5,1)) {
+			print "<td>&nbsp;</td>";
 
-		if ($valg=="Ordrevisning") {
-			print "<td width = '200px' align=center id='ordrevisning'>
-				<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_ordre Ordrevisning 
-				</button></td>";
-		} else {
-			print "<td width = '200px' align=center id='ordrevisning'>
-				<a href='ordrestatus.php?returside=$returside'>
-				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_ordre Ordrevisning 
-				</button></a></td>";
+			if ($valg=="Ordrevisning") {
+				print "<td width = '200px' align=center id='ordrevisning'>
+					<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
+					$icon_ordre Ordrevisning 
+					</button></td>";
+			} else {
+				print "<td width = '200px' align=center id='ordrevisning'>
+					<a href='ordrestatus.php?returside=$returside'>
+					<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
+					$icon_ordre Ordrevisning 
+					</button></a></td>";
+			}
 		}
 
-		print "<td>&nbsp;</td>";
+		if (substr($rettigheder,7,1)) {
+			print "<td>&nbsp;</td>";
 
-		if ($valg=="Indkøb") {
-			print "<td width = '200px' align=center id='indkob'>
-				<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_indkob Indkøb 
-				</button></td>";
-		} else {
-			print "<td width = '200px' align=center id='indkob'>
-				<a href='indkøb.php?returside=$returside'>
-				<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				$icon_indkob Indkøb 
-				</button></a></td>";
+			if ($valg=="Indkøb") {
+				print "<td width = '200px' align=center id='indkob'>
+					<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
+					$icon_indkob Indkøb 
+					</button></td>";
+			} else {
+				print "<td width = '200px' align=center id='indkob'>
+					<a href='indkøb.php?returside=$returside'>
+					<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
+					$icon_indkob Indkøb 
+					</button></a></td>";
+			}
 		}
 
 		print "<td>&nbsp;</td>";
