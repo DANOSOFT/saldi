@@ -1422,14 +1422,6 @@ if ($client_id) {
 #
 # #########################################################
 
-// Nemhandel
-$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
-if(db_num_rows($query) <= 0) {
-	echo "<tr><td><label>Opret i nemhandel (for at modtage/afsende electronisk fakture)</label></td>\n<td><input type='checkbox' name='nemhandel'></td></tr>\n";
-} else {
-	echo "<tr><td>Du er oprettet i nemhandel</td></tr>\n";
-}
-
   # API key for copayone
   $qtxt = "SELECT var_value FROM settings WHERE var_name='copayone_auth'";
   $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
