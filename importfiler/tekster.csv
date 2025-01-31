@@ -877,7 +877,7 @@
 877	Samlet omsætning incl. moms.	Total turnover incl. VAT.	Total omsetning inkl. Mva.
 878	Samlet omsætning / db / dg (excl. moms.)	Total turnover / db / dg (excl. VAT)	Total omsetning / db / dg (eks mva)
 879	Hent fra shop	Pick up from shop	Henting fra butikk
-880	Udskriv	Print	Skrive ut
+880	Udskriv	Print	Skriv ut
 881	Ordredato	Order Date	Bestillingsdato
 882	Fakt.nr.	Invoice No.	Fakt.nr.
 883	Fakt.dato.	Invoice Date.	Fakt.Dato.
@@ -1097,7 +1097,7 @@
 1097	Vor ref.	Our ref.	Vår ref.
 1098	Jobkort	Job card	Jobbkort
 1099	Slet	Delete	Slett
-1100	Kopier	Copy	Kopiere
+1100	Kopier	Copy	Kopier
 1101	Original tilbud	Original offer	Opprinnelig tilbud
 1102	Kreditnota	Credit note	Kredittnota
 1103	Kortterminal	Card terminal	Kortterminal
@@ -2113,7 +2113,7 @@
 2113	Tilbage til varelisten uden at bestille	Back to the product list without ordering	Tilbake til produktlisten uten bestilling
 2114	Medtag	Include	Ta med
 2115	Sætpris	Set price	Sett pris
-2116	Forfra	Reset	På nytt
+2116	Forfra	Reset	Forfra
 2117	Ryd	Clear	Rydd		
 2118	Opret ny kunde	Create new customer	Opprett ny kunde
 2119	Årsag skal udfyldes	Reason is mandatory	Begrunnelse må fylles ut
@@ -2253,14 +2253,14 @@
 2253	Vælg kasse	Choose cash register	Velg kasse
 2254	Indtast nummer	Enter number	Skriv inn nummer
 2255	Gavekortnummer	Gift card number	Gavekortnummer
-2256
-2257
-2258
-2259
-2260
-2261
-2262
-2263
+2256	Retur til kassespor	Return to checkout tracks	Retur til kassespor
+2257	Afstemning	Reconciliation	Avstemming
+2258	Find bon	Find rcpt.	Find kvitt.
+2259	Del bord	Split table	Del bord
+2260	Flyt bord	Move table	Flytt bord
+2261	Kasseoptælling	Cash count	Kasseoptelling
+2262	Ny kunde	New costumer	Ny kunde
+2263	Korrektion	Correction	Korreksjon
 2264
 2265
 2266

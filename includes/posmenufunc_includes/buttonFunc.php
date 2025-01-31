@@ -32,8 +32,7 @@
 function setAccordinglyLanguage()
 {
     $country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
-    
-#   if ($country != "Denmark" || $country != "Norway") {
+
     if ($country == "Switzerland") {
         return ["draw" => "Drawer", "user" => "User", "price" => "Price", "discount" => "Discount", "boxCount" => "Cash count",
             "table" => "Table", "moveTable" => "Move table", "splitTable" => "Split table", "clear" => "Clear",
