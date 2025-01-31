@@ -201,35 +201,6 @@ const singleItem = async (item) => {
     return dates
   }
 
-  // get disabled dates from bookings 
-/*   const allDatesWithoutEnds = []
-  const allDatesWithoutStarts = []
-  if(dates){
-    dates.forEach(d => {
-      const [fromDate, toDate] = d
-      const fromDateObj = new Date(fromDate)
-      const toDateObj = new Date(toDate)
-      
-      // Exclude the end date and add it to the allDatesWithoutEnds array
-      toDateObj.setDate(toDateObj.getDate() - 1)
-      const endDates = generateDates(fromDateObj, toDateObj)
-      allDatesWithoutEnds.push(...endDates)
-      
-      // Exclude the start date and add it to the allDatesWithoutStarts array
-      const startDates = generateDates(new Date(fromDate), new Date(toDate))
-      startDates.shift() // Remove the first element (start date)
-      allDatesWithoutStarts.push(...startDates)
-    })
-
-    // Now we have two separate arrays: allDatesWithoutEnds and allDatesWithoutStarts
-  }
-  if(closedDates){
-    closedDates.forEach(c => {
-      allDatesWithoutEnds.push(c)
-      allDatesWithoutStarts.push(c)
-    })
-  } */
-
   // get already booked dates
   const bookedDates = []
   if(dates){
