@@ -30,6 +30,7 @@
 // 20241108 PHR PHP8
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20222706 MSC - Implementing new design
+// 20250201 Add hostname to psql
 
 @session_start();
 $s_id=session_id();
@@ -277,12 +278,12 @@ if ($restore=='OK') {
 		if (file_exists("/usr/bin/mysql")) $mysql = "/usr/bin/mysql";
 		elseif (file_exists("/bin/mysql")) $mysql = "/usr/mysql";
 		else echo "mysql not found<br>";
-		if ($mysql) system("$mysql -u $squser --password=$sqpass $db < $filnavn2");
+		if ($mysql) system("$mysql -u $squser --password=$sqpass -h $sqhost $db < $filnavn2");
 	} else {
 		if (file_exists("/usr/bin/psql")) $psql = "/usr/bin/psql";
 		elseif (file_exists("/bin/psql")) $psql = "/usr/psql";
 		else echo "psql not found<br>";
-		if ($psql) system("export PGPASSWORD=$sqpass\n$psql -U $squser $db < $filnavn2");
+		if ($psql) system("export PGPASSWORD=$sqpass\n$psql -h $sqhost -U $squser $db < $filnavn2");
 	}
 	db_close($connection);
 	print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
