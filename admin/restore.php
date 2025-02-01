@@ -29,6 +29,8 @@
 // 20200308 PHR Varius changes related til Centos 8 / mariadb /postgresql 9x
 // 20241108 PHR PHP8
 // 20250201 Add hostname to psql
+// 20250201 removed init of $uploadedfile which was never used
+// 20250201 $brugernavn is never set near the end of the restore function
 
 @session_start();
 $s_id=session_id();
@@ -51,7 +53,7 @@ else
 $title="SALDI - genindl&aelig;s sikkerhedskopi";
 $modulnr=11;
 $css="../css/standard.css";
-$backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=$uploadedfile=NULL;
+$backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=NULL;
 
 include("../includes/connect.php");
 if (isset($_GET['db']) && $_GET['db']) {
@@ -112,7 +114,12 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 			print "<script>javascript:document.body.style.cursor = 'default';</script>";
 		} 
 	}
-	$fejl = $_FILES['uploadedfile']['error'];
+	// if_isset cannot be used here since 'error' will be 0 on succes. But if_isset would return it as false
+	if (isset($_FILES['uploadedfile']['error'])) {
+		$fejl = $_FILES['uploadedfile']['error'];
+	} else {
+			$fejl = false;
+	}
 	if ($fejl) {
 		print "<script>javascript:document.body.style.cursor = 'default';</script>";
 		switch ($fejl) {
@@ -120,7 +127,7 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 			case 2: print "<BODY onLoad=\"javascript:alert('Filen er for stor - er det en SALDI-sikkerhedskopi?')\">";
 		}
 	}
-	if (basename($_FILES['uploadedfile']['name'])) {
+	if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."/restore.gz";
 		$tmp=$_FILES['uploadedfile']['tmp_name'];
 		system ("rm -rf ../temp/".$db."/*");
@@ -204,7 +211,6 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 
 global $connection;
 global $s_id;
-global $brugernavn;
 global $regnskab;
 global $db;
 global $sqdb;
@@ -291,7 +297,7 @@ if ($restore=='OK') {
 #		print "<BODY ONLOAD=\"JavaScript:opener.location.reload();\"";
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 #	} else 
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."\">";
 } else {
 	unlink($filnavn);
 	unlink($filnavn2);
