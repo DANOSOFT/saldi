@@ -11,7 +11,6 @@
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	
-	ini_set("display_errors", "1");
 	$opg_id=if_isset($_POST['opg_id']);
 	$id=if_isset($_POST['id']);
 	$planfra=if_isset($_POST['planfra']);

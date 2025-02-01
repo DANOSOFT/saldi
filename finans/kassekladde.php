@@ -90,7 +90,6 @@
 // 20240804	PHR - Removed (float) from belob
 // 20240807 PHR	- Minor correction.
 
-ini_set('display_errors', 1);
 ob_start(); //Starter output buffering
 
 @session_start();
