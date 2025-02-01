@@ -28,6 +28,7 @@
 // 20160609 PHR if ($POST) fungerer ikke mere, hvis ikke det angives hvad der postes.  
 // 20200308 PHR Varius changes related til Centos 8 / mariadb /postgresql 9x
 // 20241108 PHR PHP8
+// 20250201 Add hostname to psql
 
 @session_start();
 $s_id=session_id();
@@ -278,7 +279,7 @@ if ($restore=='OK') {
   print "<!-- Saldi-kommentar for at skjule uddata til siden \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
 	if (substr($db_type,0,5)=='mysql') system("mysql -u $squser --password=$sqpass $db < $filnavn2");
 	else {
-		system("export PGPASSWORD=$sqpass\n/usr/bin/psql -U $squser $db < $filnavn2");
+		system("export PGPASSWORD=$sqpass\n/usr/bin/psql -h $sqhost -U $squser $db < $filnavn2");
 	}
 	db_close($connection);
   print "-->";
