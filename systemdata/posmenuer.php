@@ -343,7 +343,7 @@ print "<table border = '1'><tbody><tr><td>\n";
 print "<form name='posmenuer' action='posmenuer.php' method='post'>\n";
 // Vindue 1 - >
 print "<table border='0'><tbody>\n";
-print "<tr><td><a href=diverse.php?sektion=pos_valg>$buttonTextArr[close]</a></td></tr>\n";
+print "<tr><td><a href=diverse.php?sektion=pos_valg>".findtekst('2172|Luk', $sprog_id)."</a></td></tr>\n";
 if (($menu_id) && $ret_col && $ret_row) {
 	$qtxt="select * from pos_buttons where menu_id='$menu_id' and row='$ret_row' and col='$ret_col'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -573,16 +573,16 @@ if (($menu_id) && $ret_col && $ret_row) {
 	# Hvis der er en aktiv menu valgt
 	if ($beskrivelse) {
 		print "<tr><td>Menytype</td><td><SELECT CLASS='inputbox' $disabled name='menutype'>\n";
-		if ($menutype=='H') print "<option value='H'>Hovedmenu</option>\n";
-		elseif ($menutype=='B') print "<option value='B'>Bogført</option>\n";
-		elseif ($menutype=='A') print "<option value='A'>Afslutning</option>\n";
-		elseif ($menutype=='U') print "<option value='U'>$buttonTextArr[user]</option>\n";
-		else print "<option value=''>Undermenu</option>\n";
-		if ($menutype!='H') print "<option value='H'>Hovedmenu</option>\n";
-		if ($menutype!='A') print "<option value='A'>Afslutning</option>\n";
-		if ($menutype!='B') print "<option value='B'>Bogført</option>\n";
-		if ($menutype!='U') print "<option value='U'>$buttonTextArr[user]</option>\n";
-		if ($menutype) print "<option value=''>Undermenu</option>\n";
+		if ($menutype=='H') print "<option value='H'>".findtekst('2273|Hovedmenu', $sprog_id)."</option>\n";
+		elseif ($menutype=='B') print "<option value='B'>".findtekst('637|Bogført', $sprog_id)."</option>\n";
+		elseif ($menutype=='A') print "<option value='A'>".findtekst('2270|Afslutning', $sprog_id)."</option>\n";
+		elseif ($menutype=='U') print "<option value='U'>".findtekst('990|Bruger', $sprog_id)."</option>\n";
+		else print "<option value=''>".findtekst('2274|Undermenu', $sprog_id)."</option>\n";
+		if ($menutype!='H') print "<option value='H'>".findtekst('2273|Hovedmenu', $sprog_id)."</option>\n";
+		if ($menutype!='A') print "<option value='A'>".findtekst('2270|Afslutning', $sprog_id)."</option>\n";
+		if ($menutype!='B') print "<option value='B'>".findtekst('637|Bogført', $sprog_id)."</option>\n";
+		if ($menutype!='U') print "<option value='U'>".findtekst('990|Bruger', $sprog_id)."</option>\n";
+		if ($menutype) print "<option value=''>".findtekst('2274|Undermenu', $sprog_id)."</option>\n";
 		print "</select></td></tr>\n";
 
 		# Hvis det er en hoved menu

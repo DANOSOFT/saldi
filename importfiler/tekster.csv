@@ -634,7 +634,7 @@
 634	Ejer	Owner	Eieren
 635	Dato	Date	Dato
 636	Vis alle	Show all	Vis alt
-637	Bogført	Posted	Postet
+637	Bogført	Posted	Bokført
 638	Af	Of	Av
 639	Kladdeliste	Draft list	Utkastliste
 640	Du opretter en ny kassekladde ved at klikke på	Create a new cash journal by clicking	Du oppretter en ny kontantjournal ved å klikke
@@ -928,7 +928,7 @@
 928	Bonnr	Receipt no	Bonnr
 929	Bondato	Receipt Date	Bondato
 930	Tidspkt.	Time	Tid
-931	Kasse	Box	Eske
+931	Kasse	Register	Kasse
 932	Bord	Table	Bord
 933	Ref.	Ref.	Ref.
 934	Beløb	Amount	Beløp
@@ -2223,7 +2223,7 @@
 2223	Masse vare-scan	Bulk product scan	Masse vare-scan
 2224	Oversigt	Dashboard	Oversikt
 2225	Top 100 i perioden	Top 100 during the period	Topp 100 i perioden
-2226	Kasse	Cash Register	Kasse
+2226	Kasse	Cash register	Kasse
 2227	Reg. nr.	Reg. no.	Reg. nr.
 2228	SWIFT nr.	SWIFT no.	SWIFT nr.
 2229	ERH kode	Bank code	Bankkode
@@ -2261,17 +2261,17 @@
 2261	Kasseoptælling	Cash count	Kasseoptelling
 2262	Ny kunde	New costumer	Ny kunde
 2263	Korrektion	Correction	Korreksjon
-2264
-2265
-2266
-2267
-2268
-2269
-2270
-2271
-2272
-2273
-2274
+2264	Hent bestilling	Retrieve order	Hent bestilling
+2265	Gem bestilling	Save order	Lagre bestilling
+2266	Åbn scanner	Open scanner	Åpne scanner
+2267	Vælg bord	Select table	Velg bord
+2268	Send til køkken	Send to kitchen	Send til kjøkken
+2269	X-Rapport	X-Report	X-Rapport
+2270	Afslutning	Closing	Avslutning
+2271	Gem som tilbud	Save as offer	Lagre som tilbud
+2272	Gavekort	Gift card	Gavekort
+2273	Hovedmenu	Main menu	Hovedmeny
+2274	Undermenu	Submenu	Undermeny
 2275
 2276
 2277
