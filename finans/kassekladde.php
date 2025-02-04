@@ -89,6 +89,7 @@
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240804	PHR - Removed (float) from belob
 // 20240807 PHR	- Minor correction.
+// 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
 
 ini_set('display_errors', 1);
 ob_start(); //Starter output buffering
@@ -767,6 +768,7 @@ if ($_POST) {
 		if ($kladde_id) {
 			$bilag[$x] = db_escape_string($bilag[$x]);
 			$dato[$x] = db_escape_string($dato[$x]);
+			#cho __line__." dato[$x] $dato[$x]<br>";
 			$beskrivelse[$x] = db_escape_string($beskrivelse[$x]);
 			$d_type[$x] = db_escape_string($d_type[$x]);
 			$debet[$x] = db_escape_string($debet[$x]);
@@ -787,11 +789,13 @@ if ($_POST) {
 			$qtxt .= "('$x', '$id[$x]', '$bilag[$x]', '$dato[$x]', '$beskrivelse[$x]', '$d_type[$x]', '$debet[$x]', ";
 			$qtxt .= "'$k_type[$x]', '$kredit[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', ";
 			$qtxt .= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
+			#cho __line__." $qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		if ($fejl)
 			$submit = 'save'; #20210721
 	}
+	#cho __line__." F $fejl<br>";
 	if ($fejl)
 		$submit = 'save';
 	if ($submit == 'copy2new') {
@@ -855,11 +859,13 @@ if ($_POST) {
 							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kontonr, $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						}
 					}
+					#cho __line__." $submit $debet[$x] $fokus $x<br>";
 					if ($fejl)
 						$submit = 'save';
 				}
 			}
 			#******************************
+#cho __line__." $submit $debet[$x] $fokus $x<br>";
 #			if ($submit === 'lookup' || $submit === 'save' ) {
 			if ($submit === 'lookup') {
 				if (isset($debet[$opslag_id])) {
@@ -975,6 +981,7 @@ if ($r = db_fetch_array(db_select("select id from adresser where art = 'S'", __F
 		$z++;
 		$vis_ansat = 1;
 		$ansat_id[$z] = 0;
+		#cho $r['id'];
 		$ansat_id[$z] = $r['id'];
 		$ansat_init[$z] = $r['initialer'];
 	}
@@ -1181,8 +1188,10 @@ if ($kladde_id) {
 	} else {
 		$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, id";
 	}
+	#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
+	#cho __line__." $qtxt<br>";
 	while ($row = db_fetch_array($q)) {
 		$x++;
 		$id[$x] = $row['id'];
@@ -1200,6 +1209,7 @@ if ($kladde_id) {
 		} else {
 			$transdate[$x] = $row['transdate'];
 			$dato[$x] = dkdato($row['transdate']);
+			#cho __line__." transdate[$x] $transdate[$x] | dato[$x] $dato[$x]<br>";
 			if ($row['forfaldsdate']) {
 				$forfaldsdate[$x] = $row['forfaldsdate'];
 				$forfaldsdato[$x] = dkdato($row['forfaldsdate']);
@@ -1772,6 +1782,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' onchange='javascript:docChange = true;'></td>\n";
 		}
 	}
+	#cho __line__." X $x<br>";	
 	if ($x != 1 || $bilag[$x])
 		$bilagsnr = $bilag[$x];
 	if ($x < 3000) {
@@ -1784,6 +1795,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$y = $x;
 	} else
 		$y = $x - 1;
+	#cho __line__." Y $y<br>";  	
 
 	$x++;
 	if ($x == 1) {
@@ -1997,6 +2009,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					}
 				}
 			}
+			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 	
 			if (($d_type == "D") || ($k_type == "D") || ($d_type == "K") || ($k_type == "K")) {
 				$z = 0;
@@ -2014,6 +2027,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				}
 
 			}
+			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			if ($d_type == "F" && strlen($debet) == 1 && !is_numeric($debet) && $debet != '0') {
 				$debet = strtoupper($debet);
 				$query = db_select("select kontonr from kontoplan where genvej='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
@@ -2027,6 +2041,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$fejl = 1;
 				}
 			}
+			#cho __line__." $submit $debet[$x] $fokus $x<br>";
 			if (($d_type == "F" && strlen($debet) > 1 && !is_numeric($debet))) {
 				$i = 0;
 				$d = $debet;
@@ -2048,7 +2063,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$debet = $findarray[0];
 				} elseif ($i > 1) {
 					include('kassekladde_includes/financeLookup.php');
-					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $opslag_id);
+					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			} elseif (($k_type == "F") && (strlen($kredit) > 1) && (!is_numeric($kredit))) {
 				$i = 0;
@@ -2070,7 +2085,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($i == 1) $kredit = $findarray[0]; //20240523
 				elseif ($i > 1) {
 					include('kassekladde_includes/financeLookup.php');
-					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $opslag_id);
+					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			}
 			if (!$fejl && $k_type == "F" && strlen($kredit) == 1 && !is_numeric($kredit) && $kredit != '0') {
@@ -2197,6 +2212,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($k_type == "D" && strtoupper($kredit) == "D")
 				$kredit = 0;
 			$transdate = usdate($dato);
+			#cho __line__." $transdate<br>";
 			list($year, $month, $day) = explode('-', $transdate);
 			$ym = $year . $month;
 
