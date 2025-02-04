@@ -1,6 +1,5 @@
 <?php
 
-ini_set('display_errors','On');
 include ("saldi_connect.php");
 include("soapfunc.php");
 list($fejl,$s_id)=explode(chr(9),logon($regnskab,$brugernavn,$adgangskode));

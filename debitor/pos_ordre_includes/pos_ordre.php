@@ -274,7 +274,6 @@ include("pos_ordre_includes/divFuncs/drawer/drawerStatusFunc.php");
 preDrawerCheck();
 global $initial_price; #from debitor/pos_ordre_includes/showPosLines/productLines.php
 
-ini_set('display_errors', '0');
 
 // Projekt kan knytttes til menu, f.eks dag og aften så man kan trække en rapport på hvor man har sin indtjening. 
 // Projektet knyttes til varen så det både kan være dag og aften på samme bon. 

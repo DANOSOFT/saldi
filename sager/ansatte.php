@@ -32,7 +32,6 @@ $s_id=session_id();
 // 20151007 PK - Der er sat session på alle og aftrådte i leftmenu, så den husker søgning. Søg alleA eller tiltraadteA
 // 20170911 PK - Har sat validering på brugernavn så der ikke kommer duplikater. Søg 20170911 
 
-	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
 

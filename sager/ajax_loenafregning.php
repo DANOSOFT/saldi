@@ -11,7 +11,6 @@
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	
-	ini_set("display_errors", "1");
 	$alle_ansatte_id=if_isset($_POST['alle_ansatte_id']);
 	$periode=if_isset($_POST['periode']);
 	

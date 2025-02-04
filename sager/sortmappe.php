@@ -12,7 +12,6 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-ini_set("display_errors", "1");
 
 
 if (isset($_POST['orders'])) {

@@ -63,7 +63,6 @@ echo $s;
 
 /*
 
-ini_set('display_errors',1);
 // Initiate curl session in a variable (resource)
 $curl_handle = curl_init();
 //$url = ;

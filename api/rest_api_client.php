@@ -28,7 +28,6 @@
 // Copyright (c) 2004-2017 DANOSOFT ApS
 // ----------------------------------------------------------------------
 
-ini_set('display_errors', 1);
 
 if(!ini_get('allow_url_fopen') ) {
    echo 'allow_url_fopen not enabled<br>';

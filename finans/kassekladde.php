@@ -91,7 +91,6 @@
 // 20240807 PHR	- Minor correction.
 // 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
 
-ini_set('display_errors', 1);
 ob_start(); //Starter output buffering
 
 @session_start();
