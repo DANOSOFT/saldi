@@ -1177,7 +1177,7 @@ if ($b_submit) {
 #    if (!$x && !$varenr[$x])$y="vare_".$x;
 #    $varenr[$x]=db_escape_string(trim(if_isset($_POST[$y])));
 		$y="dkan".$x;
-		$dkantal[$x]=trim(if_isset($_POST[$y]));
+		$dkantal[$x]=trim(isset($_POST[$y]) ? $_POST[$y] : 0);
 		if ($x==0 && $dkantal[$x] == '') $antal[$x]=1; #20160913
 		if ($dkantal[$x] || $dkantal[$x]=='0'){
 			if ( strstr($dkantal[$x], ":") ) $dkantal[$x]=tid2decimal($dkantal[$x], "t");
@@ -1948,13 +1948,13 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
 		<script>
       
 			if(confirm('Ved at sende fakture digitalt, vil du blive oprettet i nemhandel') == true)
-				window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+				window.open('peppol.php?id=<?php print $id;?>&type=invoice' ,'_blank')
 		</script>
 		<?php
 		}else{
 		?>
 		<script>
-			window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+			window.open('peppol.php?id=<?php print $id;?>&type=invoice' ,'_blank')
 		</script>
 		<?php
 		}
@@ -1962,7 +1962,7 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
 		// Not done yet
 		?>
 		<script>
-			window.open('peppol.php?id=<?php echo $id;?>&type=order' ,'_blank')
+			window.open('peppol.php?id=<?php print $id;?>&type=order' ,'_blank')
 		</script>
 		<?php
 	} */elseif($udskriv_til=="Digitalt" && $art=="DK" && $status >=3){
@@ -1972,13 +1972,13 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
 		<script>
       
 			if(confirm("ved at sende faktura/kreditnote digitalt, vil du blive oprettet i nemhandel") == true)
-				window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+				window.open('peppol.php?id=<?php print $id;?>&type=invoice' ,'_blank')
 		</script>
 		<?php
 		}else{
 		?>
 		<script>
-			window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+			window.open('peppol.php?id=<?php print $id;?>&type=invoice' ,'_blank')
 		</script>
 		<?php
 		}
