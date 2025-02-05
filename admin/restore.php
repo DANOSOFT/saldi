@@ -217,8 +217,6 @@ if (!$db_type) $db_type="postgresql";
 if (!$backup_dbtype) $backup_dbtype="postgresql";
 
 $filnavn2="../temp/$db/restore.sql";
-if(file_exists("$filnavn")) echo __line__." $filnavn exists<br>";
-else echo __line__." $filnavn doesn't exist<br>";
 $restore="";
 $fp=fopen("$filnavn","r");
 $fp2=fopen("$filnavn2","w");
@@ -267,8 +265,6 @@ if ($restore=='OK') {
 		mysqli_select_db($connection, $sqdb);
 	} else {
 		db_close($connection);
-		if ($connection = db_connect ("$sqhost","$squser","$sqpass","$sqdb"))  echo __line__."connection OK<br>	";
-		else echo __line__." connection failed<br>";
 	}
 	db_modify("delete from online where db='$db'",__FILE__ . " linje " . __LINE__);
 	db_modify("update regnskab set version = '' where db='$db'",__FILE__ . " linje " . __LINE__);
