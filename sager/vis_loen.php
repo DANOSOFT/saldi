@@ -1,4 +1,7 @@
 <?php
+
+// 20250207 migrate from strftime to IntlDateFormatter.
+
 function vis_loen($id) {
 	global $charset;
 	global $sprog_id;
@@ -243,12 +246,18 @@ function vis_loen($id) {
 		$datotext_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else { 
 		$loendato=dkdato($loendate); 
-		setlocale(LC_TIME, "danish"); 
 		if ($loendate==NULL) {
 			$loen_datotext=NULL;
 		} else {
-			$loen_datotext = strftime('%A den %d. %B %Y',strtotime($loendate));
-			if ($db_encode=='UTF8') $loen_datotext=utf8_encode($loen_datotext); 
+			$date_fmt = new IntlDateFormatter(
+				'da_DK',
+				IntlDateFormatter::FULL,
+				IntlDateFormatter::NONE
+			);
+			$loen_datotext = $date_fmt->format(strtotime($loendate));
+			if ($db_encode != 'UTF8') {
+				$loen_datotext = $loen_datotext=mb_convert_encoding($loen_datotext, 'ISO-8859-1', 'UTF-8');
+			}
 			$dato = date('d-m-y');
 			$tid = date('H:i');
 		}

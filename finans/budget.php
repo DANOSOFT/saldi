@@ -35,6 +35,7 @@
 // 20190216 PHR	Ændret csv til ISO-8859-1.
 // 20210312 LOE Translated the former Danish text here to English and Applied findtekst function to this and the menu items
 // 20220926 MSC Removed a 2 number in title for budget
+// 20250207 Decrease arguments in call to periodeoverskrifter
 
 @session_start();
 $s_id=session_id();
@@ -269,7 +270,7 @@ print "<td><b>".findtekst(805, $sprog_id)."</b></td> ";
 #	print "<td width=20 title=\"$z. regnskabsm&aring;ned\"><b> MD_$z<b><br></td>";
 #}
 $budget_csvdata="\"Kontonr\";\"Kontonavn\";"; # 20150622 del 2 start
-$budget_csvdata.=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
+$budget_csvdata.=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, $regnskabsaar);
 print "<td align=right><b> I alt</a></b></td> "; 
 $budget_csvdata.="\"I alt\"\n"; # 20150622 del 2 slut
 print "</tr>";

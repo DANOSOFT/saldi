@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
+// 20250207 migrate from strftime to IntlDateFormatter.
 
 @session_start();
 $s_id = session_id();
@@ -74,8 +75,6 @@ if ($_SERVER["REQUEST_METHOD"] === "GET") {
 // Main Execution
 function render_crm_calendar()
 {
-    // Set locale for date handling
-    setlocale(LC_TIME, 'da_DK.UTF-8');
 
     // Determine selected year and month
     $selected_year = $_GET['year'] ?? date('Y');
@@ -136,8 +135,10 @@ function render_month_navigation($selected_year, $selected_month)
             </select>
             <select name="month" onchange="this.form.submit()">
                 <?php
+                $date_fmt = new IntlDateFormatter('da_DK');
+                $date_fmt->setPattern('MMMM');
                 for ($month = 1; $month <= 12; $month++) {
-                    $month_name = strftime('%B', mktime(0, 0, 0, $month, 1));
+                    $month_name = $date_fmt->format(mktime(0, 0, 0, $month, 1));
                     $selected = $month == $selected_month ? 'selected' : '';
                     echo "<option value='$month' $selected>" . ucfirst($month_name) . "</option>";
                 }
