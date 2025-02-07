@@ -3302,10 +3302,10 @@ function kontoopslag($o_art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$
 #	if (substr($find,-1,1)!='%') $find=$find.'%';
 $kundeordre = findtekst(1092,$sprog_id);  #20210630
 		if($o_art=='DO'||$o_art=='DK') {
-		sidehoved($id, "../debitor/ordre.php", "../debitor/debitorkort.php", $fokus, "$kundeordre $id - Kontoopslag");
+		sidehoved($id, "../debitor/ordre.php", "../debitor/debitorkort.php", $fokus, "$kundeordre $id - ".findtekst('2295|Kontoopslag', $sprog_id));
 		$href="ordre.php";
 	} elseif ($o_art=='PO'||$o_art=='KO') {
-		sidehoved($id, "../debitor/pos_ordre.php", "../debitor/debitorkort.php", $fokus, "POS ordre $id - Kontoopslag");
+		sidehoved($id, "../debitor/pos_ordre.php", "../debitor/debitorkort.php", $fokus, findtekst('2294|POS-ordre', $sprog_id)." $id - ".findtekst('2295|Kontoopslag', $sprog_id));
 		$href="pos_ordre.php";
 		$find="";
 		$fokus="kontonr";
@@ -3316,14 +3316,14 @@ $kundeordre = findtekst(1092,$sprog_id);  #20210630
 	print"<td><b><a href=$href?sort=kontonr&funktion=kontoOpslag&fokus=$fokus&id=$id>";
 	($o_art=='KO') ? print findtekst('1176|Leverandørnr.', $sprog_id) : print findtekst('357|Kundenr.', $sprog_id);
 	print "</b></td>";
-	print"<td><b><a href=$href?sort=firmanavn&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(646,$sprog_id)."</b></td>";
-	print"<td><b><a href=$href?sort=addr1&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(648,$sprog_id)."</b></td>";
-	print"<td><b><a href=$href?sort=addr2&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(649,$sprog_id)."</b></td>";
-	print"<td><b><a href=$href?sort=postnr&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(650,$sprog_id)."</b></td>";
-	print"<td><b><a href=$href?sort=bynavn&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(910,$sprog_id)."</b></td>";
-	print"<td><b><a href=$href?sort=land&funktion=kontoOpslag&fokus=$fokus&id=$id>".lcfirst(findtekst(593,$sprog_id))."</b></td>";
-	print"<td><b><a href=$href?sort=kontakt&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(148,$sprog_id)."</b></td>";
-	print"<td><b><a href=$href?sort=tlf&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst(37,$sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=firmanavn&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('646|Navn', $sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=addr1&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('648|Adresse', $sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=addr2&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('649|Adresse 2', $sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=postnr&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('650|Postnr.', $sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=bynavn&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('910|Bynavn', $sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=land&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('593|Lande', $sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=kontakt&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('148|Kontaktperson', $sprog_id)."</b></td>";
+	print"<td><b><a href=$href?sort=tlf&funktion=kontoOpslag&fokus=$fokus&id=$id>".findtekst('37|Telefon', $sprog_id)."</b></td>";
 	print" </tr>\n";
 	if ($o_art=='PO'||$o_art=='KO')	{
 	  print "<form NAME=\"kontoopslag\" action=\"pos_ordre.php?fokus=kontonr&id=$id\" method=\"post\">";
@@ -4356,12 +4356,12 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find) {
 		}
 		$rowheight=NULL;
 	}
-	($sort=='varenr')?$txt='<i>Varenr</i>':$txt='Varenr';
+	($sort=='varenr')?$txt='<i>'.findtekst('917|Varenr.', $sprog_id).'.</i>':$txt=findtekst('917|Varenr.', $sprog_id).".";
 	print "<td><a href=$href?sort=varenr&funktion=vareOpslag&fokus=$fokus&id=$id&vis_kost=$vis_kost&bordnr=$bordnr><b>$txt</b></a></td>";
-	print "<td><b> Enhed</b></td>";
-	($sort=='beskrivelse')?$txt='<i>Beskrivelse</i>':$txt='Beskrivelse';
+	print "<td><b>".findtekst('945|Enhed', $sprog_id)."</b></td>";
+	($sort=='beskrivelse')?$txt='<i>'.findtekst('914|Beskrivelse', $sprog_id).'</i>':$txt=findtekst('914|Beskrivelse', $sprog_id);
 	print "<td><a href=$href?sort=beskrivelse&funktion=vareOpslag&fokus=$fokus&id=$id&vis_kost=$vis_kost&bordnr=$bordnr><b>$txt</b></a></td>";
-	($sort=='salgspris')?$txt='<i>Salgspris</i>':$txt='Salgspris';
+	($sort=='salgspris')?$txt='<i>'.findtekst('949|Salgspris', $sprog_id).'</i>':$txt=findtekst('949|Salgspris', $sprog_id);
 	print "<td align=right><a href=$href?sort=salgspris&funktion=vareOpslag&fokus=$fokus&id=$id&bordnr=$bordnr><b>$txt</b></a></td>";
 	if (count($lg_nr)>1){
 		for ($x=0;$x<count($lg_nr);$x++) {
@@ -4369,16 +4369,16 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find) {
 			print "<td align=right><b>$lg_navn[$x]</b></td>";
 		}
 	} else {
-		print "<td align=right><b><a href=$href?sort=beholdning&funktion=vareOpslag&fokus=$fokus&id=$id&bordnr=$bordnr>Beholdning</a></b></td>";
+		print "<td align=right><b><a href=$href?sort=beholdning&funktion=vareOpslag&fokus=$fokus&id=$id&bordnr=$bordnr>".findtekst('980|Beholdning', $sprog_id)."</a></b></td>";
 	}	
-	if ($vis_kost) {print"<td align=right><b> Kostpris</b></td>";}
+	if ($vis_kost) {print"<td align=right><b>".findtekst('950|Kostpris', $sprog_id)."</b></td>";}
 #	if ($art!='PO') print"<td align=right><b><a href=$href?sort=beholdning&funktion=vareOpslag&fokus=$fokus&id=$id&vis_kost=$vis_kost>Beh.</a></b></td>";
 	if ($art=='PO') {
 		print "<td><form name='vareopslag' action='pos_ordre.php?id=$id&fokus=varenr_ny' method='post'></td>";
 		print " </tr>\n";
 		print "<td colspan='2'><input type='hidden' name='fokus' value='varenr_ny'></td>";
 		print "<td><input type='text' style='width:100%' name='varenr_ny' value='$findStr' id='opslag_0'></td>";
-		print "<td><input type=submit name=\"OK\" value=\"Søg\"></form></td>";
+		print "<td><input type=submit name='OK' value='".findtekst('913|Søg', $sprog_id)."'></form></td>";
 		print " </tr>\n";
 	}
 	if (count($lg_nr)>1) {
@@ -4418,7 +4418,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find) {
 		else {$linjebg=$bgcolor5; $color='#000000';}
 #		$colspan=5+count($lg_nr);
 		print "<tr bgcolor=\"$linjebg\"  onclick=\"window.document.location='$href?id=$id&bordnr=$bordnr';\">";
-		print "<td colspan=\"$cols\" $rowheight align=\"center\"><big><big>Tilbage</big></big></td></tr>\n";
+		print "<td colspan=\"$cols\" $rowheight align=\"center\"><big><big>".findtekst('30|Tilbage', $sprog_id)."</big></big></td></tr>\n";
 	}
 	$z=$x=0;
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);

@@ -1725,6 +1725,7 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 	global $pfs;
 	global $vis_saet;
 	global $tracelog;
+	global $sprog_id;
 
 	$retur=NULL;
 	
@@ -1770,7 +1771,7 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 		}
 		if ($konto_id) {
 			print "<tr><td><b>$kontonr</b>\n";
-			if ($kundeordnr) print "&nbsp;&nbsp;&nbsp; Rekv.nr: $kundeordnr";
+			if ($kundeordnr) print "&nbsp;&nbsp;&nbsp; ".findtekst('2129|Rekv. nr.', $sprog_id).": $kundeordnr";
 			print "</td></tr>\n";
 			print "<tr><td colspan=\"2\"><b>D $firmanavn</b></td></tr>\n";
 			if (!$vis_saet) {

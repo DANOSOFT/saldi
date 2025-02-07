@@ -333,20 +333,20 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 	} else $fokus="varenr_ny";
 	if ($kontonr) {
 		print "<tr><td><b>$kontonr</b></td><td colspan=\"2\">\n";
-		if ($status<3) print "Rekv.nr:&nbsp; <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
-		elseif ($kundeordnr) print "&nbsp; Rekv.nr:&nbsp; $kundeordnr</td>\n";
-		($bordnavn)?$tmp=" Bord: $bordnavn |":$tmp='';  
-		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">Ekspedient: $ref |$tmp Bon: $fakturanr</td>\n";
+		if ($status<3) print findtekst('2129|Rekv. nr.', $sprog_id).": <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
+		elseif ($kundeordnr) print "&nbsp; ".findtekst('2129|Rekv. nr.', $sprog_id).":&nbsp; $kundeordnr</td>\n";
+		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td>\n";
 		print "</tr>\n<tr><td colspan=\"2\"><b>$firmanavn</b></td>\n";
-		if ($status>=3) print "<td colspan=\"4\" align=\"right\">Kasse: $kasse | $fakturadato kl. $tidspkt</td></tr>\n";
+		if ($status>=3) print "<td colspan=\"4\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato - $tidspkt</td></tr>\n";
 		if (!$vis_saet) {
 			if ($betalingsbet!='Kontant') list($betalingsbet,$kreditmax,$saldo)=explode(";",find_saldo($konto_id,$sum,$moms));
-			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>Ingen kredit</b></td>\n";
+			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>".findtekst('1866|Ingen kredit', $sprog_id)."</b></td>\n";
 		}
 	} elseif ($status>=3) {
-		($bordnavn)?$tmp=" Bord: $bordnavn |":$tmp='';  
-		print "<tr><td colspan=\"6\" align=\"right\">Ekspedient: $ref |$tmp Bon: $fakturanr</td></tr>\n";
-		print "<tr><td colspan=\"6\" align=\"right\">Kasse: $kasse | $fakturadato kl. $tidspkt</td></tr>\n";
+		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td></tr>\n";
+		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato - $tidspkt</td></tr>\n";
 	}
 	print "<tr><td style='width:20%;height:25px;' valign='bottom'>". findtekst('320|Varenummer',$sprog_id) ."</td>";
 	print "<td style='width:7%' valign='bottom'>". findtekst('916|Antal',$sprog_id) ."</td>";
@@ -528,7 +528,7 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 	list($sum,$rest,$afrundet,$kostsum)=explode(chr(32),vis_pos_linjer($id,$momssats,$status,$pris[0],1));
 	if ($konto_id && $kreditmax != 0 && $sum+$moms > $kreditmax - $saldo && $status < '3') {
 		$ny_saldo=$saldo+$sum+$moms;
-		$txt = "Kreditmax: ".dkdecimal($kreditmax,2)."<br>Gl. saldo :  ".dkdecimal($saldo,2)."<br>Ny saldo :  ".dkdecimal($ny_saldo,2);
+		$txt = findtekst('381|Kreditmax', $sprog_id).": ".dkdecimal($kreditmax,2).'\n'.findtekst('2297|Gl. saldo', $sprog_id).": ".dkdecimal($saldo,2).'\n'.findtekst('2298|Ny saldo', $sprog_id).": ".dkdecimal($ny_saldo,2);
 		#print "<BODY onLoad=\"javascript:alert('$txt')\">\n";
 		alert("$txt");
 	}
@@ -548,7 +548,7 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 // 			else $tmp=dkdecimal($modtaget-$afrundet);
 			$tmp=dkdecimal(pos_afrund($rest*-1,$difkto,''),2);
 			if ($betaling != "Konto" || $betalingsbet=='Kontant') {
-				print "<tr><td><b>Retur";
+				print "<tr><td><b>".findtekst('2296|Retur', $sprog_id);
 				if ($betvaluta!= '$baseCurrency') print " $baseCurrency";
 				print "</b></td><td colspan=\"4\" align=\"right\"><b>$tmp</b></td></tr>\n";
 				if ($kundedisplay) {
@@ -559,27 +559,27 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 		}
 	} elseif ($status >= 3) {
 		$r=db_fetch_array($q = db_select("select * from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
-		print "<tr><td>Saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal((float)$r['felt_3'],2)."</td></tr>\n";
+		print "<tr><td>".findtekst('1073|Saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal((float)$r['felt_3'],2)."</td></tr>\n";
 		$indbetaling=($r['felt_4']-$r['felt_3'])*-1;
-		print "<tr><td colspan=\"3\">Indbetaling - (Det beløb der skal indsættes på kontoen!)</td><td rowspan=\"2\" colspan=\"1\" align=\"right\">".dkdecimal($indbetaling,2)."</td></tr>\n";
-		print "<tr><td colspan=\"3\">Indbetaling - (Det beløb der skal indsættes på kontoen!)</td>";
+		print "<tr><td colspan=\"3\">".findtekst('2299|Indbetaling - (Det beløb der skal indsættes på kontoen!)', $sprog_id)."</td><td rowspan=\"2\" colspan=\"1\" align=\"right\">".dkdecimal($indbetaling,2)."</td></tr>\n";
+		print "<tr><td colspan=\"3\">".findtekst('2299|Indbetaling - (Det beløb der skal indsættes på kontoen!)', $sprog_id)."</td>";
 		print "<tr><td>$r[felt_1]</td><td colspan=\"4\" align=\"right\">".dkdecimal($r['felt_2'],2)."</td></tr>\n";
 		$ny_saldo=$r['felt_4'];
-		print "<tr><td>Ny saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2)."</td></tr>\n";
+		print "<tr><td>".findtekst('2298|Ny saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2)."</td></tr>\n";
 		$retur=pos_afrund($r['felt_2']+$r['felt_4']-$r['felt_3'],$difkto,'');
-		print "<tr><td>Retur</td><td  colspan=\"4\" align=\"right\">".dkdecimal($retur,2)."</td></tr>\n";
+		print "<tr><td>".findtekst('2296|Retur', $sprog_id)."</td><td  colspan=\"4\" align=\"right\">".dkdecimal($retur,2)."</td></tr>\n";
 	}
 	print "<tr><td colspan=\"6\" align=\"right\"><button STYLE=\"width: 100%;height: 0.01em;\" ";
 	print "onClick=\"this.form.submit(); this.disabled=true;\"></button></td></tr>\n"; #20220427
 #	print "<tr><td colspan=\"6\" align=\"right\"><input  STYLE=\"width: 100%;height: 0.01em;\" type=submit name=\"OK\" value=\"\"></td></tr>\n";
 	if ($kontonr && $status<3 && ($betalingsbet!='Kontant' || $saldo)) { #20161001
-		print "<tr><td>Gl. saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($saldo,2)."</td></tr>\n";
+		print "<tr><td>".findtekst('2297|Gl. saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($saldo,2)."</td></tr>\n";
 		$ny_saldo=(float)$saldo+(float)$sum;
-		print "<tr><td>Ny saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2);
+		print "<tr><td>".findtekst('2298|Ny saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2);
 		if ($pris[0]) print "<br>(".dkdecimal($ny_saldo+$pris[0],2).")";
 		print "</td></tr>\n";
 		if ($kreditmax) {
-			print "<tr><td>Kreditmax</td><td colspan=\"4\" align=\"right\">".dkdecimal($kreditmax,2)."</td></tr>\n";
+			print "<tr><td>".findtekst('381|Kreditmax', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($kreditmax,2)."</td></tr>\n";
 		}
 	}
 	print "\n<!-- Function varescan (slut)-->\n";

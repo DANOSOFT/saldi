@@ -280,7 +280,7 @@
 280	Antal betalingsmåder	Number of payment methods	Antall betalingsmåter
 281	Type af betalingsmåde	eg Dankort	Type betalingsmåte
 282	Vælg det kontonummer hvor betalinger skal konteres.	Select the account number where payments are to be posted.	Velg kontonummeret der betalingene skal bokføres.
-283	Kreditkort	Creditcard	Kredittkort
+283	Kreditkort	Credit card	Kredittkort
 284	Kontonr	Account No	Kontonr
 285	Vælg momsgruppe for kontantkunder.	Select VAT group for cash customers.	Velg momsgruppe for kontantkunder.
 286	Momsgruppe	VAT group	Mva-gruppe
@@ -378,7 +378,7 @@
 378	Telefax	Fax	Faks
 379	EAN-nr.	EAN no.	EAN-nr.
 380	Institutionsnr.	Institution no.	Institusjonsnr.
-381	Kreditmax	Creditmax	Kreditmax
+381	Kreditmax	Max credit	Kreditmax
 382	Bank reg.	Bank reg.	Bankreg.
 383	Bank konto	Bank account	bankkonto
 384	PBS-nr.	PBS number.	PBS-nummer.
@@ -583,7 +583,7 @@
 583	Streger	Lines	Linjer
 584	Flyt center	Move center	Flytt senter
 585	Mail tekst	Mail text	E-posttekst
-586	Vælg	Select	Velge
+586	Vælg	Select	Velg
 587	formularskabelon	form template	skjemamal
 588	Pos. Kontakt	Pos. Contact	Pos. Ta kontakt med
 589	Ansat	Employee	Ansatt
@@ -647,7 +647,7 @@
 647	Initialer	Initials	Initialer
 648	Adresse	Address	Adresse
 649	Adresse 2	Address 2	Adresse 2
-650	Postnr	ZIP code	post kode
+650	Postnr.	ZIP code	post kode
 651	By	City	By
 652	E-mail	E-mail	E-post
 653	Mobil	Mobile phone	Mobiltelefon
@@ -1070,7 +1070,7 @@
 1070	Forfald	Due_date	Tidsfrist
 1071	Betal	Pay	Betale
 1072	Kassekladde 	Cash_journal	Kontantjournal
-1073	Saldo	Balance	Balansere
+1073	Saldo	Balance	Saldo
 1074	Importer	Import	Import
 1075	Tema	Theme	Tema
 1076	Bankposteringer	Bank entries	Bankoppføringer
@@ -1938,7 +1938,7 @@
 1938	Det vil slette alle nuværende POS-menuer	This will delete all the current POS menus	Det vil slette alle nåværende POS-menuer
 1939	Tryk OK for at fortsætte 	Press OK to continue	Trykk på OK for å fortsette
 1940	POS-menuer	POS menus	POS-menyer
-1941	Eksport og Import af POS-menuer	Export and import POS-menuer	Eksport og import POS-menyer
+1941	Import og eksport af POS-menuer	Import and export POS-menus	Import og eksport POS-menyer
 1942	Slet valgte labels. En udskrevet label fungerer stadig selvom den slettes.	Delete selected labels. A printed label still works even if it is deleted.	Slett valgte etiketter. En trykt etikett fungerer fortsatt selv om den er slettet.
 1943	Slet valgte labels?	Delete selected labels?	Slett valgte etiketter?
 1944	Klik for at oprette nyt labelark	Click to create new label sheet	Klikk for å opprette et nytt etikettark
@@ -2126,7 +2126,7 @@
 2126	Prisliste	Price list Prisliste
 2127	Normalpris	Regular price	Normalpris
 2128	Sætpris	Set	price	Sett pris
-2129	Rekv. nr.	Req. No.	Rekv. nr.
+2129	Rekv. nr.	Req. no.	Rekv. nr.
 2130	Slet ordrelinje	Delete orderline	Slett ordrelinje
 2131	konto	account	  konto
 2132	bilag	attachment	vedlegg
@@ -2272,31 +2272,31 @@
 2272	Gavekort	Gift card	Gavekort
 2273	Hovedmenu	Main menu	Hovedmeny
 2274	Undermenu	Submenu	Undermeny
-2275
-2276
-2277
-2278
-2279
-2280
-2281
-2282
-2283
-2284
-2285
-2286
-2287
-2288
-2289
-2290
-2291
-2292
-2293
-2294
-2295
-2296
-2297
-2298
-2299
+2275	Tastatur	Keyboard	Tastatur
+2276	Menu	Menu	Meny
+2277	Opret ny	Create new	Oprett ny
+2278	Højre side	Right side	Høyre side
+2279	Bund	Bottom	Bunn
+2280	Menutype	Menu type	Menytype
+2281	Menustørrelse	Menu size	Menystørrelse
+2282	Knapstørrelse	Button size	Knapstørrelse
+2283	Tekststørrelse	Text size	Tekststørrelse
+2284	Plads	Position	Plass
+2285	Kopier fra menu nr.	Copy from menu no.	Kopier fra meny nr.
+2286	Aktiv fra	Active from	Aktiv fra
+2287	Skift menu	Change menu	Bytt meny
+2288	Farvekode	Color code	Fargekode
+2289	Tekst farvekode	Text color code	Tekst fargekode
+2290	Vare-/menunr	Item/menu no	Vare-/menynr
+2291	Funktion	Function	Funksjon
+2292	Byt med	Swap with	Bytt med
+2293	Kopier fra	Copy from	Kopier fra
+2294	POS-ordre	POS order	POS-ordre
+2295	Kontoopslag	Account lookup	Kontooppslag
+2296	Retur	Return	Retur
+2297	Gl. saldo	Old balance	Gl. saldo
+2298	Ny saldo	New balance	Ny saldo
+2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
 2300
 2301
 2302
