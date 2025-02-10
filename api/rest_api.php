@@ -777,7 +777,8 @@ LEFT JOIN
 LEFT JOIN 
     varer v ON v.varenr = ol.varenr
 WHERE 
-    ol.varenr LIKE 'kb%'", __FILE__ . " linje " . __LINE__);
+    (ol.varenr LIKE 'kb%' OR ol.varenr LIKE 'kn%')
+    AND o.status >= 3", __FILE__ . " linje " . __LINE__);
 
     while ($r = db_fetch_array($result)) {
         $data[] = $r;
