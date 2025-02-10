@@ -27,6 +27,7 @@
 // ----------------------------------------------------------------------
 //
 // LN 20190709 Make helper functions for the takeAway
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 function formatDate($date)
@@ -75,7 +76,7 @@ function getprintVariables()
 
 function adjustLength($number, $description, $price)
 {
-    $length = strlen($number) + mb_strlen(utf8_decode($description)) + strlen($price);
+    $length = strlen($number) + mb_strlen(mb_convert_encoding($description, 'ISO-8859-1', 'UTF-8')) + strlen($price);
     $txt = $number . " " . $description;
     for ($i = 0; $i < (45 - $length); $i++) {
         $txt .= " ";

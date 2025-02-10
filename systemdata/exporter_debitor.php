@@ -16,6 +16,7 @@
 //
 // Copyright (c) 2004-2009 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -46,13 +47,13 @@ if (fwrite($fp,"kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)
 		
 		$tmp1=str_replace("\n","\\n",$r[kontonr].chr(9).chr(32).$r[firmanavn].chr(32).chr(9).chr(32).$r[addr1].chr(32).chr(9).chr(32).$r[addr2].chr(32).chr(9).chr(32).$r[postnr].chr(32).chr(9).chr(32).$r[bynavn].chr(32).chr(9).chr(32).$r[land].chr(32).chr(9).chr(32).$r[kontakt].chr(32).chr(9).chr(32).$r[tlf].chr(32).chr(9).chr(32).$r[fax].chr(32).chr(9).chr(32).$r[email].chr(32).chr(9).chr(32).$r[web].chr(32).chr(9).chr(32).$r[notes].chr(32).chr(9).$kreditmax.chr(9).chr(32).$r[betalingsbet].chr(32).chr(9).$r[betalingsdage].chr(9).chr(32).$r[cvrnr].chr(32).chr(9).chr(32).$r[ean].chr(32).chr(9).chr(32).$r[institution].chr(32).chr(9).$r[gruppe].chr(9).chr(32).$kontoansvarlig.chr(32).chr(9).chr(32).$oprettet);
 		$tmp1=str_replace("\r","\\r",$tmp1);
-		if ($charset=='UTF-8') $tmp1=utf8_decode($tmp1);
+		if ($charset=='UTF-8') $tmp1=mb_convert_encoding($tmp1, 'ISO-8859-1', 'UTF-8');
 		$q2=db_select("select * from ansatte where konto_id='$r[id]' order by navn",__FILE__ . " linje " . __LINE__);
 		while ($r2=db_fetch_array($q2)) {
 			$ansatte++;
 			$tmp2=str_replace("\n","\\n",$r2[navn].chr(32).chr(9).chr(32).$r2[addr1].chr(32).chr(9).chr(32).$r2[addr2].chr(32).chr(9).chr(32).$r2[postnr].chr(32).chr(9).chr(32).$r2[bynavn].chr(32).chr(9).chr(32).$r2[tlf].chr(32).chr(9).chr(32).$r2[fax].chr(32).chr(9).chr(32).$r2[email].chr(32).chr(9).chr(32).$r2[notes]);
 			$tmp2=str_replace("\r","\\r",$tmp2);
-		if ($charset=='UTF-8') $tmp2=utf8_decode($tmp2);
+		if ($charset=='UTF-8') $tmp2=mb_convert_encoding($tmp2, 'ISO-8859-1', 'UTF-8');
 			$linje=$tmp1.chr(32).chr(9).chr(32).$tmp2;
 			fwrite($fp, $linje."\r\n");
 		}

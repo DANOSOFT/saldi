@@ -37,6 +37,7 @@
 // 20231030 PHR php8
 // 20240402 PHR - Missing '>'
 // 20240419 PHR Some claeanup
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id = session_id();
@@ -48,7 +49,6 @@ include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
 
-# ini_set('display_errors', 1);
 
 print "<div align=\"center\">";
 
@@ -368,7 +368,7 @@ function vis_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $bilag
 					$linje = substr($linje, 3);
 				$y++;
 				if ($charset == 'UTF-8' && $fileCharSet != 'UTF-8')
-					$linje = utf8_encode($linje);
+					$linje = mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				$anftegn = 0;
 				$felt = array();
 				$z = 0;

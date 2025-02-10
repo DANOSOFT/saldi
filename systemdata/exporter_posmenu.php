@@ -21,6 +21,7 @@
 // Copyright (c) 2004-2021 Saldi.dk ApS
 // --------------------------------------------------------------------------
 // 20211119 CA  Export all menus for PoS
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -47,7 +48,7 @@ if (fwrite($fp,"fileformat".chr(9)."version".chr(9)."delimiter".chr(9)."charset"
 	$q=db_select("select * from pos_buttons order by menu_id",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		 $beskrivelse=$r['beskrivelse'];
-		 if ($charset=="UTF-8") $beskrivelse=utf8_decode($beskrivelse);
+		 if ($charset=="UTF-8") $beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 		 $r['col']*=1;$r['row']*=1;$r['colspan']*=1;$r['rowspan']*=1;
 		 $linje=str_replace("\n","",$r['menu_id'].chr(9).$r['row'].chr(9).$r['col'].chr(9).$beskrivelse.chr(9).$r['color'].chr(9).$r['funktion'].chr(9).$r['vare_id'].chr(9).$r['colspan'].chr(9).$r['rowspan']);
 		 fwrite($fp, $linje."\r\n");
@@ -57,7 +58,7 @@ if (fwrite($fp,"fileformat".chr(9)."version".chr(9)."delimiter".chr(9)."charset"
 	$q=db_select("select * from grupper where art='POSBUT' order by kodenr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$beskrivelse=$r['box1'];
-		if ($charset=="UTF-8") $beskrivelse=utf8_decode($beskrivelse);
+		if ($charset=="UTF-8") $beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 		$r['kode']*=1;$r['kodenr']*=1;$r['box2']*=1;$r['box3']*=1;$r['h']*=1;$r['box5']*=1;
 		$linje=str_replace("\n","",$r['beskrivelse'].chr(9).$r['art'].chr(9).$r['kode'].chr(9).$r['kodenr'].chr(9).$beskrivelse.chr(9).$r['box2'].chr(9).$r['box3'].chr(9).$r['box4'].chr(9).$r['box5'].chr(9).$r['box6'].chr(9).$r['box7'].chr(9).$r['box8'].chr(9).$r['box9'].chr(9).$r['box10'].chr(9).$r['box11'].chr(9).$r['box12']);
 		fwrite($fp, $linje."\r\n");

@@ -159,6 +159,11 @@ const getCustomerDates = async (month, year) => {
 
 //backward button function
 const backward = async () => {
+    const backwardButton = document.querySelector(".backward")
+    backwardButton.disabled = true;
+    setTimeout(() => {
+        backwardButton.disabled = false;
+    }, 1500);
     scrollPosition = window.scrollY || document.documentElement.scrollTop;
     const urlParams = new URLSearchParams(queryString)
     if (urlParams.has("vare")) {
@@ -196,6 +201,11 @@ document.querySelector(".backward").addEventListener("click", backward)
 
 // forward button function
 const forward = async () => {
+    const forwardButton = document.querySelector(".forward")
+    forwardButton.disabled = true;
+    setTimeout(() => {
+        forwardButton.disabled = false;
+    }, 1500);
     scrollPosition = window.scrollY || document.documentElement.scrollTop;
     const urlParams = new URLSearchParams(queryString)
     if (urlParams.has("vare")) {
@@ -617,10 +627,14 @@ const createReservationList = async (year, month, day, value) => {
     // Populate the table'
     
     // Sort customerInfo nummeric based on item_name
-    const stripParentheses = (str) => str.replace(/\(.*?\)/g, '').trim();
+    const stripParentheses = (str) => {
+        if (!str) return ''; // Return empty string if str is null/undefined
+        return str.replace(/\(.*?\)/g, '').trim();
+    };
 
     // Sort customerInfo with numeric items first and items with letters last
     customerInfo.sort((a, b) => {
+        console.log(a.item_name)
         const isNumeric = (str) => /^\d+$/.test(str);
 
         const strippedA = stripParentheses(a.item_name);

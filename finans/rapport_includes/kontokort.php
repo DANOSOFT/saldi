@@ -29,7 +29,7 @@
 // 20210125 PHR added csv option.
 // 20210211 PHR some cleanup
 // 20210301 PHR error in csv.
-
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
@@ -215,7 +215,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 	print "<table style=\"text-align: left; width: 100%;\" class='dataTable' border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody><tr>";
 	print "<td colspan=0 width=10%><b>Regnskabs&aring;r:</td><td> $regnaar.</td></tr>";
 	if ($csv)
-		fwrite($csv, ";;" . utf8_decode("Regnskabsår") . "$regnaar\n");
+		fwrite($csv, ";;" . mb_convert_encoding("Regnskabsår", 'ISO-8859-1', 'UTF-8') . "$regnaar\n");
 #	print "<tr><td colspan=0 width=10%><b>Periode:</b></td>";
 	## Finder start og slut paa regnskabsaar
 	if ($startdato < 10) $startdato = "0" . (int)$startdato;
@@ -369,7 +369,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 			print "<tr><td colspan=6><hr></td></tr>";
 			fwrite($csv, "-----------\n");
 			print "<tr bgcolor=\"$bgcolor5\"><td></td><td></td><td colspan=4>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</tr>";
-			fwrite($csv, ";;$kontonr[$x] : " . utf8_decode($kontobeskrivelse[$x]) . " : $kontomoms[$x]\n");
+			fwrite($csv, ";;$kontonr[$x] : " . mb_convert_encoding($kontobeskrivelse[$x], 'ISO-8859-1', 'UTF-8') . " : $kontomoms[$x]\n");
 			print "<tr><td colspan=6><hr></td></tr>";
 			fwrite($csv, "-----------\n");
 			$kontosum = $primo[$x];
@@ -681,7 +681,7 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 					fwrite($csv, dkdato($transdate[$tr]) . ";");
 					($kladde_id[$tr]) ? $js = "onclick=\"window.open('kassekladde.php?kladde_id=$kladde_id[$tr]&visipop=on')\"" : $js = NULL;
 					print "<td title='Kladde: $kladde_id[$tr]' $js>$bilag[$tr]</td><td>$kontonr[$x] : $beskrivelse[$tr] </td>";
-					fwrite($csv, "$bilag[$tr];$kontonr[$x] : " . utf8_decode($beskrivelse[$tr]) . ";");
+					fwrite($csv, "$bilag[$tr];$kontonr[$x] : " . mb_convert_encoding($beskrivelse[$tr], 'ISO-8859-1', 'UTF-8') . ";");
 					if ($kontovaluta[$x]) {
 						if ($transvaluta[$tr] == '-1')
 							$tmp = 0;

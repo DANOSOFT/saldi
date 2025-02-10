@@ -53,6 +53,7 @@
 // 08/01/2025 PBLM change the search criteria for adresser so it no longer search for addr and firmanavn but only uses tlf in insert_shop_order
 // 08/01/2025 PBLM change some *1 to (int)
 // 04-02-2025 PBLM added discountType to insert_shop_orderline
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -1077,7 +1078,7 @@ function chk4utf8 ($text) {
 	}
 	$text=trim($text);
 	if ($enc=='IS0-8859') {
-		$text=utf8_encode($text);
+		$text=mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1');
 		fwrite ($fil,"UTF: $text\n");
 		$text=trim($text);
 	}

@@ -19,6 +19,7 @@
 // --------------------------------------------------------------------------
 // 20211124 CA  Import POS menus from a file
 // 20220307 PHR Set db_escape_string on 'beskrivelse'
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 function posmenu_import($filnavn) {
 
@@ -37,7 +38,7 @@ if ($fp) {
 		if ( strlen($linje) < 3 ) { 
 			$importtable++;
 		} else {
-			if ($db_encode=="UTF8") $linje=utf8_encode($linje);
+			if ($db_encode=="UTF8") $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			if ( $importtable===1 ) { # Import table pos_buttons
 				list($menu_id, $row, $col, $beskrivelse, $color, $funktion, $vare_id, $colspan, $rowspan) = explode(chr(9),$linje);
 				if ((substr($menu_id,0,1))=="'"&&(substr($menu_id,-1))=="'") $menu_id=(substr($menu_id,1,strlen($menu_id)-2));

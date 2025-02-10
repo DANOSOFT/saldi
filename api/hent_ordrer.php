@@ -25,6 +25,7 @@
 //
 // Copyright (c) 2003-2017 saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -161,7 +162,7 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	$ordresum=0;
 	while($linje=fgets($fp)) {
 		fwrite($fp2,$linje."\n"); 
-		if ($encoding!='UTF-8') $linje=utf8_encode($linje);
+		if ($encoding!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 		$linje=db_escape_string($linje);
 		if ($x==0) {
 			list($date,$ordre_fornavn,$ordre_efternavn,$ordre_email,$ordresum,$forsendelse,$vaegt,$valuta,$betaling,$korttype)=explode(chr(9),$linje);

@@ -22,6 +22,7 @@
 // ----------------------------------------------------------------------
 //
 // Ændret dato for import fra "Forfaldsdato" til "seneste status"
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -94,7 +95,7 @@ function vis_data($kladde_id, $filnavn, $bilag, $modkonto){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-			$linje=trim(utf8_encode($linje));
+			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 			if ($linje) {
 				$y++;
 				$skriv_linje[$y]=1;
@@ -148,7 +149,7 @@ function flyt_data($kladde_id, $filnavn, $bilag, $modkonto){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-			$linje=trim(utf8_encode($linje));
+			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 			if ($linje) {
 				$y++;
 				$skriv_linje[$y]=1;

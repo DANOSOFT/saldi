@@ -17,6 +17,7 @@
 //
 // Copyright (c) 2004-2011 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -85,7 +86,7 @@ if ($fp=fopen("$filnavn","r")) {
 		$x++;
 		$projekt=NULL;
 		$extra=NULL;
-		if ($db_encode=="UTF8") $linje=utf8_encode($line);
+		if ($db_encode=="UTF8") $linje=mb_convert_encoding($line, 'UTF-8', 'ISO-8859-1');
 		else $linje=$line;
 		list($felt1,$tmp,$tmp,$tmp,$fd)=split(chr(9), $linje);
 		$ym="20".substr($fd,0,4);

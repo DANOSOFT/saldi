@@ -22,6 +22,7 @@
 // ----------------------------------------------------------------------
 //
 // 20150908 Default varenr er nu varenr i stedet for vare_id.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 #sleep (1);
 
@@ -64,8 +65,8 @@ $pris=if_isset($_GET['pris'])*1;
 $specialpris=if_isset($_GET['specialpris'])*1;
 
 if ($encoding!='UTF-8') {
-	$beskrivelse=utf8_encode($beskrivelse);
-	$shop_vnr=utf8_encode($shop_vnr);
+	$beskrivelse=mb_convert_encoding($beskrivelse, 'UTF-8', 'ISO-8859-1');
+	$shop_vnr=mb_convert_encoding($shop_vnr, 'UTF-8', 'ISO-8859-1');
 }
 
 $fp=fopen("log.txt","a");

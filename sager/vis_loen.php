@@ -1,5 +1,6 @@
 <?php
 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250207 migrate from strftime to IntlDateFormatter.
 
 function vis_loen($id) {

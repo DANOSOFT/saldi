@@ -99,11 +99,11 @@
 // 20240531 PHR removed changes 20230804 made by LOE 
 // 20240621 LOE modified list function block causing undefined "PHP Warning:  Undefined array key 2 in" error during account creation
 // 20250121 connection as first parameter in pg_*
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
 
-ini_set("display_errors","1");
 $css="../css/standard.css";
 		
 include("../includes/connect.php");
@@ -167,14 +167,14 @@ if ($_POST){
 	}
 /*
 	if ($db_encode=="UTF8") {
-		$firmanavn=utf8_encode($firmanavn);
-		$addr1=utf8_encode($addr1);
-		$addr2=utf8_encode($addr2);
-		$bynavn=utf8_encode($bynavn);
-		$kontakt=utf8_encode($kontakt);
-		$regnskab=utf8_encode($regnskab);
-		$brugernavn=utf8_encode($brugernavn);
-		$passwd=utf8_encode($passwd);
+		$firmanavn=mb_convert_encoding($firmanavn, 'UTF-8', 'ISO-8859-1');
+		$addr1=mb_convert_encoding($addr1, 'UTF-8', 'ISO-8859-1');
+		$addr2=mb_convert_encoding($addr2, 'UTF-8', 'ISO-8859-1');
+		$bynavn=mb_convert_encoding($bynavn, 'UTF-8', 'ISO-8859-1');
+		$kontakt=mb_convert_encoding($kontakt, 'UTF-8', 'ISO-8859-1');
+		$regnskab=mb_convert_encoding($regnskab, 'UTF-8', 'ISO-8859-1');
+		$brugernavn=mb_convert_encoding($brugernavn, 'UTF-8', 'ISO-8859-1');
+		$passwd=mb_convert_encoding($passwd, 'UTF-8', 'ISO-8859-1');
 	}
 */
 	$x=0;
@@ -701,7 +701,7 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 			}
 			for ($x=0; $x<count($kontonr); $x++){
 				$beskrivelse[$x]=db_escape_string(trim(str_replace('"','',$beskrivelse[$x])));
-#				if ($db_encode=="UTF8") $beskrivelse[$x]=utf8_encode($beskrivelse[$x]);
+#				if ($db_encode=="UTF8") $beskrivelse[$x]=mb_convert_encoding($beskrivelse[$x], 'UTF-8', 'ISO-8859-1');
 				$kontotype[$x]=trim(str_replace('"','',$kontotype[$x]));
 				$moms[$x]=trim(str_replace('"','',$moms[$x]));
 				(is_numeric($fra_kto[$x]))?$fra_kto[$x]*= 1:$fra_kto[$x] = 0;
@@ -723,7 +723,7 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 				$linje=fgets($fp);
 				if ($linje && substr($linje,0,1)!="#") {
 					$linje=trim($linje);
-#					if ($db_encode!="UTF8") $linje=utf8_decode($linje);
+#					if ($db_encode!="UTF8") $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 					$qtxt = "insert into grupper (beskrivelse,kode,kodenr,art,";
 					$qtxt.= "	box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12,box13,box14,fiscal_year)";
 					//$qtxt.= "values ($linje,'1')";  //1
@@ -759,7 +759,7 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 					$linje=fgets($fp);
 					if ($linje && substr($linje,0,1)!="#") {
 						$linje=trim($linje);
-#						if ($db_encode!="UTF8") $linje=utf8_decode($linje);
+#						if ($db_encode!="UTF8") $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 						$qtxt = "insert into varer (varenr,beskrivelse,gruppe,salgspris,kostpris,lukket) values ($linje)";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}

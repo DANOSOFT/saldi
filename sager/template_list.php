@@ -17,7 +17,6 @@
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	
-	ini_set("display_errors", "1");
 
 
 

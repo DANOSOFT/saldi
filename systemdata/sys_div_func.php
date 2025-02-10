@@ -89,10 +89,10 @@
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240130 PBLM Added Nemhandel (diverse valg)
 // 06-01-2025 PBLM Added a second file to api_valg
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 	include("sys_div_func_includes/chooseProvision.php");
 
-ini_set('display_errors','0');
 
 function kontoindstillinger($regnskab,$skiftnavn) {
 	global $bgcolor,$bgcolor5,$sprog_id,$timezone;
@@ -521,7 +521,7 @@ if ($sqlstreng=trim($sqlstreng)) {
 		$arraysize=count($r);
 		for ($x=0;$x<$arraysize;$x++) {
 			if (isset($fieldType[$x]) && $fieldType[$x]=='numeric') $r[$x]=dkdecimal($r[$x]);
-			elseif(isset($r[$x])) $r[$x]=utf8_decode($r[$x]);
+			elseif(isset($r[$x])) $r[$x]=mb_convert_encoding($r[$x], 'ISO-8859-1', 'UTF-8');
 			if (!isset($r[$x])) $r[$x] = '';
 			($linje)?$linje.='";"'.$r[$x]:$linje='"'.$r[$x];
 		}

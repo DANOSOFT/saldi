@@ -19,6 +19,7 @@
 // Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20210713  LOE - Translated some texts here
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 @session_start();
 $s_id=session_id();
 $title="Eksporter formularer";
@@ -39,7 +40,7 @@ if (fwrite($fp,"formular".chr(9)."art".chr(9)."beskrivelse".chr(9)."justering".c
 	$q=db_select("select * from formularer order by sprog,formular,art",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$beskrivelse=$r['beskrivelse'];
-		if ($charset=="UTF-8") $beskrivelse=utf8_decode($beskrivelse);
+		if ($charset=="UTF-8") $beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 		$r['xa']*=1;$r['ya']*=1;$r['xb']*=1;$r['yb']*=1;$r['str']*=1;
 		$linje=str_replace("\n","",$r['formular'].chr(9).$r['art'].chr(9).$beskrivelse.chr(9).$r['justering'].chr(9).$r['xa'].chr(9).$r['ya'].chr(9).$r['xb'].chr(9).$r['yb'].chr(9).$r['str'].chr(9).$r['color'].chr(9).$r['font'].chr(9).$r['fed'].chr(9).$r['kursiv'].chr(9).$r['side'].chr(9).$r['sprog']);
 		fwrite($fp, $linje."\r\n");

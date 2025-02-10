@@ -11,7 +11,6 @@
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	
-	ini_set("display_errors", "1");
 	$id=if_isset($_POST['sagid']);
 	$status=if_isset($_POST['status']);
 	

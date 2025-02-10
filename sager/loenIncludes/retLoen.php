@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 20230703 PHR New up/down height add on's was omitted in new note (seddel) whe denied (afvist) 
 // 20231005 PHR mentor and km now omittet on hoursalary (timeløn)  
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 function ret_loen() {
 	global $brugernavn;
@@ -895,7 +896,7 @@ function ret_loen() {
 			);
 			$fmt->setPattern('EEEE d. MMMM y');
 			$loen_datotext = $fmt->format(new DateTime($loendate));
-			if ($db_encode=='UTF8') $loen_datotext=utf8_encode($loen_datotext); 
+			if ($db_encode=='UTF8') $loen_datotext=mb_convert_encoding($loen_datotext, 'UTF-8', 'ISO-8859-1'); 
 
 			$dato = date('d-m-y');
 			$tid = date('H:i');

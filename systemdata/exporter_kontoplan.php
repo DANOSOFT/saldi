@@ -20,6 +20,7 @@
 // ----------------------------------------------------------------------
 // 20190225 MSC - Rettet topmenu design
 // 20210713 LOE - Translated these texts to Norsk and English
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -41,7 +42,7 @@ if (fwrite($fp, "kontonr".chr(9)."beskrivelse".chr(9)."kontotype".chr(9)."momsko
 	$q=db_select("select * from kontoplan where regnskabsaar='$regnskabsaar' order by kontonr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$beskrivelse=$r['beskrivelse'];
-		if ($charset=="UTF-8") $beskrivelse=utf8_decode($beskrivelse);
+		if ($charset=="UTF-8") $beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 		$linje=str_replace("\n","",$r['kontonr'].chr(9).$beskrivelse.chr(9).$r['kontotype'].chr(9).$r['moms'].chr(9).$r['fra_kto']);
 		fwrite($fp, $linje."\r\n");
 	} 
