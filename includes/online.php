@@ -139,8 +139,6 @@ if ($r = db_fetch_array($q)) {
 	}
 }
 #}
-if (substr($db, 0, 4) == 'laja') ini_set('display_errors', 0);
-else ini_set('display_errors', 0);
 
 $labelprint = 0;
 if ($sqdb == 'udvikling') $labelprint = 1;

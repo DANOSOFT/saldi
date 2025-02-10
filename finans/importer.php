@@ -49,7 +49,6 @@ include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
 
-# ini_set('display_errors', 1);
 
 print "<div align=\"center\">";
 

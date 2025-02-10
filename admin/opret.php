@@ -104,7 +104,6 @@
 @session_start();
 $s_id=session_id();
 
-ini_set("display_errors","1");
 $css="../css/standard.css";
 		
 include("../includes/connect.php");

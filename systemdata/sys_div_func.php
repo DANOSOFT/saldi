@@ -93,7 +93,6 @@
 
 	include("sys_div_func_includes/chooseProvision.php");
 
-ini_set('display_errors','0');
 
 function kontoindstillinger($regnskab,$skiftnavn) {
 	global $bgcolor,$bgcolor5,$sprog_id,$timezone;
