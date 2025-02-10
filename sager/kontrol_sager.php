@@ -27,6 +27,7 @@
 // 20170303 Visning af bilag, hvis tilknyttet. Søg #20170303
 // 20190806 PHR Added db_escape_string to $status_tekst[$x]
 // 20200416 PHR Moved query text to qtxt and added db_escape_string to needed fields. #20200416
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -443,8 +444,8 @@ function kontrolskema() {
 		while ($r = db_fetch_array($q)) {
 			$bilag_id[$x]=$r['bilagid'];
 			$bilag_title[$x]=$r['navn'];
-			$tmp=utf8_decode($r['navn']);
-			$bilag_navn[$x]=utf8_encode($tmp);
+			$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
+			$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 			$bilag_beskrivelse[$x]=$r['beskrivelse'];
 			$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
 			$bilag_hvem[$x]=$r['hvem'];
@@ -1017,8 +1018,8 @@ function arbejdsseddel() {
 		while ($r = db_fetch_array($q)) {
 			$bilag_id[$x]=$r['bilagid'];
 			$bilag_title[$x]=$r['navn'];
-			$tmp=utf8_decode($r['navn']);
-			$bilag_navn[$x]=utf8_encode($tmp);
+			$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
+			$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 			$bilag_beskrivelse[$x]=$r['beskrivelse'];
 			$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
 			$bilag_hvem[$x]=$r['hvem'];
@@ -1499,8 +1500,8 @@ function emailKontrolskema() {
 			//if ($sag_id) $message.=", vedrørende $sag_tekst\r\n";
 			$message.="<br>$mailtext\r\n";
 			$message.="<br>\r\nVenlig hilsen $afsendernavn.\r\n";
-			$subject=utf8_decode($subject);
-			$message=utf8_decode($message);
+			$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+			$message=mb_convert_encoding($message, 'ISO-8859-1', 'UTF-8');
 			if (mail ($to, $subject, $message, $headers)) {
 				print "<BODY onLoad=\"javascript:alert('Besked sendt')\">";
 			}
@@ -1511,8 +1512,8 @@ function emailKontrolskema() {
 			ini_set("include_path", ".:../phpmailer");
 			require("class.phpmailer.php");
 			
-			$beskrivelse=utf8_decode($beskrivelse);
-			$mailtext=utf8_decode($mailtext);
+			$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
+			$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
 			
 			
 			$mail = new PHPMailer();
@@ -1566,7 +1567,7 @@ function emailKontrolskema() {
 			
 			for ($x=1;$x<=count($id);$x++) {
 				if ($gruppe_id[$x] && !$punkt_id[$x]) { 
-					$mail->Body .= '<tr><td colspan="6" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.utf8_decode($tjekpunkt[$x]).'</b></span></td></tr>'; 
+					$mail->Body .= '<tr><td colspan="6" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.mb_convert_encoding($tjekpunkt[$x], 'ISO-8859-1', 'UTF-8').'</b></span></td></tr>'; 
 				}
 				// Kontrolskema vises hvis der er id
 				if ($punkt_id[$x] && $tjekskema_id) { 
@@ -2142,8 +2143,8 @@ global $db;
 			//if ($sag_id) $message.=", vedrørende $sag_tekst\r\n";
 			$message.="<br>$mailtext\r\n";
 			$message.="<br>\r\nVenlig hilsen $afsendernavn.\r\n";
-			$subject=utf8_decode($subject);
-			$message=utf8_decode($message);
+			$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+			$message=mb_convert_encoding($message, 'ISO-8859-1', 'UTF-8');
 			if (mail ($to, $subject, $message, $headers)) {
 				print "<BODY onLoad=\"javascript:alert('Besked sendt')\">";
 			}
@@ -2204,7 +2205,7 @@ global $db;
 				//$mail->Body = '<span style="font-size: 12px;line-height: 18px;">'.$nymessage.'</span>';
 				$mail->Body = '<table border="0" cellspacing="0" style="width:595px;margin:20px;">';
 				$mail->Body .= '<tr>';
-				$mail->Body .= '<td><span style="font: normal 12px Arial, Helvetica, sans-serif;line-height:18px;color:#444;">'.utf8_decode($nymessage).'</span></td>';
+				$mail->Body .= '<td><span style="font: normal 12px Arial, Helvetica, sans-serif;line-height:18px;color:#444;">'.mb_convert_encoding($nymessage, 'ISO-8859-1', 'UTF-8').'</span></td>';
 				$mail->Body .= '</tr>';
 				$mail->Body .= '</table>';
 				$mail->Body .= "$mailtext";
@@ -2212,7 +2213,7 @@ global $db;
 			
 			for ($x=1;$x<=count($id);$x++) {
 				if ($gruppe_id[$x] && !$punkt_id[$x]) { 
-					$mail->Body .= '<tr><td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.utf8_decode($tjekpunkt[$x]).':</b></span></td><td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;">';
+					$mail->Body .= '<tr><td colspan="2" style="vertical-align:top;border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;"><span><b>'.mb_convert_encoding($tjekpunkt[$x], 'ISO-8859-1', 'UTF-8').':</b></span></td><td colspan="4" style="border-width:1px;border-style:solid;border-color:black;padding-top:5px;padding-bottom:5px;padding-right:7px;padding-left:7px;">';
 				}
 				// Kontrolskema vises hvis der er id
 				if ($punkt_id[$x] && $tjekskema_id) { 
@@ -2229,9 +2230,9 @@ global $db;
 						$statuscolor=NULL;
 					}
 					
-					$mail->Body .= '<span style="float:left;min-width:91px;margin-top:0px;margin-bottom:0px;margin-right:6px;margin-left:0px;'.$statuscolor.'">'.$status.'&nbsp;'.utf8_decode($tjekpunkt[$x]).'&nbsp;&nbsp;</span>';
+					$mail->Body .= '<span style="float:left;min-width:91px;margin-top:0px;margin-bottom:0px;margin-right:6px;margin-left:0px;'.$statuscolor.'">'.$status.'&nbsp;'.mb_convert_encoding($tjekpunkt[$x], 'ISO-8859-1', 'UTF-8').'&nbsp;&nbsp;</span>';
 					//$mail->Body .= '<table border="0" cellspacing="0" style="width:91px;float:left;">';
-					//$mail->Body .= '<tr><td>'.$status.'&nbsp;'.utf8_decode($tjekpunkt[$x]).'</td></tr>';
+					//$mail->Body .= '<tr><td>'.$status.'&nbsp;'.mb_convert_encoding($tjekpunkt[$x], 'ISO-8859-1', 'UTF-8').'</td></tr>';
 					//$mail->Body .= '</table>';
 				}	
 				

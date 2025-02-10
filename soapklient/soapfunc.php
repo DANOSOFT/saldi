@@ -20,6 +20,7 @@
 //
 // Copyright (c) 2004-2012 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 if (!function_exists('logon')) {
 	function logon($regnskab,$username,$password) {
@@ -50,7 +51,7 @@ if (!function_exists('logon')) {
 if (!function_exists('multiselect')) {
 	function multiselect($s_id,$query) {
 		global $url;
-		$query=utf8_encode($query);
+		$query=mb_convert_encoding($query, 'UTF-8', 'ISO-8859-1');
 		$string="$s_id".chr(9)."$query";
 		(strpos(getcwd(),'soapklient'))?$folder="":$folder="soapklient/";
 		$wsdl='multiselect.wsdl';
@@ -73,7 +74,7 @@ if (!function_exists('multiselect')) {
 if (!function_exists('singleselect')) {
 	function singleselect($s_id,$query) {
 		global $url;
-		$query=utf8_encode($query);
+		$query=mb_convert_encoding($query, 'UTF-8', 'ISO-8859-1');
 		$string="$s_id".chr(9)."$query";
 		(strpos(getcwd(),'soapklient'))?$folder="":$folder="soapklient/";
 		$wsdl='singleselect.wsdl';
@@ -96,7 +97,7 @@ if (!function_exists('singleselect')) {
 if (!function_exists('singleinsert')) {
 	function singleinsert($s_id,$query) {
 		global $url;
-		$query=utf8_encode($query);
+		$query=mb_convert_encoding($query, 'UTF-8', 'ISO-8859-1');
 		$string="$s_id".chr(9)."$query";
 		(strpos(getcwd(),'soapklient'))?$folder="":$folder="soapklient/";
 		$wsdl='singleinsert.wsdl';
@@ -120,7 +121,7 @@ if (!function_exists('singleinsert')) {
 if (!function_exists('singleupdate')) {
 	function singleupdate($s_id,$query) {
 		global $url;
-		$query=utf8_encode($query);
+		$query=mb_convert_encoding($query, 'UTF-8', 'ISO-8859-1');
 		$string="$s_id".chr(9)."$query";
 		(strpos(getcwd(),'soapklient'))?$folder="":$folder="soapklient/";
 		$wsdl='singleupdate.wsdl';
@@ -145,7 +146,7 @@ if (!function_exists('addorderline')) {
 	function addorderline($s_id,$ordre_id,$products_model,$products_name,$products_quantity,$products_price,$products_tax,$posnr) {
 		global $url;
 		$string="$s_id".chr(9)."$ordre_id".chr(9)."$products_model".chr(9)."$products_name".chr(9)."$products_quantity".chr(9)."$products_price".chr(9)."$products_tax".chr(9)."$posnr";
-		$string=utf8_encode($string);
+		$string=mb_convert_encoding($string, 'UTF-8', 'ISO-8859-1');
 		(strpos(getcwd(),'soapklient'))?$folder="":$folder="soapklient/";
 		$wsdl='addorderline.wsdl';
 #		unlink("$folder".$wsdl);

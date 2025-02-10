@@ -35,6 +35,7 @@
 // 20190216 PHR	Ændret csv til ISO-8859-1.
 // 20210312 LOE Translated the former Danish text here to English and Applied findtekst function to this and the menu items
 // 20220926 MSC Removed a 2 number in title for budget
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -341,7 +342,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 }
 
 if ($fp) { # 20150622 del 3 start
-	fwrite ($fp, utf8_decode($budget_csvdata));
+	fwrite ($fp, mb_convert_encoding($budget_csvdata, 'ISO-8859-1', 'UTF-8'));
 }
 fclose($fp);
 

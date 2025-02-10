@@ -32,6 +32,7 @@
 // 20160107 Har fjernet alle medarbejdere som ikke har en email og aftrådte i 'find person'. Søg #20160107
 // 20190910 PHR '$notat' will not be saved if $status > 0. 
 // 20190910 PHR Button 'bilag' removed by # as it doesn't work. 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -555,8 +556,8 @@ function ret_note($id,$sag_id,$sag_fase) {
 				if ($sag_id) $message.=", vedrørende $sag_tekst\r\n";
 				$message.=".<br><br> \r\nBeskeden kan ses under \"Dagbog\" i vores sagssystem.\r\n";
 				$message.="<br><br>\r\nVenlig hilsen $stam_firmanavn.\r\n";
-				$subject=utf8_decode($subject);
-				$message=utf8_decode($message);
+				$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+				$message=mb_convert_encoding($message, 'ISO-8859-1', 'UTF-8');
 				if (mail ($to, $subject, $message, $headers)) {
 					print "<BODY onLoad=\"javascript:alert('Besked sendt')\">";
 				}
@@ -607,9 +608,9 @@ function ret_note($id,$sag_id,$sag_fase) {
 		ini_set("include_path", ".:../phpmailer");
 		require("class.phpmailer.php");
 		
-		$beskrivelse=utf8_decode($beskrivelse);
-		$notat=utf8_decode($notat);
-		$sag_tekst=utf8_decode(", vedrørende $sag_tekst");
+		$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
+		$notat=mb_convert_encoding($notat, 'ISO-8859-1', 'UTF-8');
+		$sag_tekst=mb_convert_encoding(", vedrørende $sag_tekst", 'ISO-8859-1', 'UTF-8');
 		
 		$mail = new PHPMailer();
 
@@ -667,8 +668,8 @@ function ret_note($id,$sag_id,$sag_fase) {
 		if ($sag_id) $message.=", vedrørende $sag_tekst\r\n";
 		$message.=".<br>$notat\r\n";
 		$message.="<br>\r\nVenlig hilsen $stam_firmanavn.\r\n";
-		$subject=utf8_decode($subject);
-		$message=utf8_decode($message);
+		$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+		$message=mb_convert_encoding($message, 'ISO-8859-1', 'UTF-8');
 		if (mail ($to, $subject, $message, $headers)) {
 			print "<BODY onLoad=\"javascript:alert('Besked sendt')\">";
 		}

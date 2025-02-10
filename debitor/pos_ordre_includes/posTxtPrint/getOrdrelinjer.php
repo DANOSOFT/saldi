@@ -27,6 +27,7 @@
 // 20200721 PHR Added conversion of é & É 
 // 20200905 PHR Added ItemNo & ItemName
 // 20211124 PHR sets saet,salmevare and rabatgruppe to 0 if NULL to make sort function correct.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
     
     $saetpris = 0;
     $x = 0;
@@ -67,7 +68,7 @@
 			$tilfravalg[$x]=$r['tilfravalg'];
 			$beskrivelse[$x]=str_replace('é','e+acute',$beskrivelse[$x]);
 			$beskrivelse[$x]=str_replace('È','E+acute',$beskrivelse[$x]);
-			if ($FromCharset=='UTF-8') $beskrivelse[$x]=utf8_decode($beskrivelse[$x]);
+			if ($FromCharset=='UTF-8') $beskrivelse[$x]=mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8');
 			if (iconv('iso-8859-1','cp865//TRANSLIT',$beskrivelse[$x])) {
 				$beskrivelse[$x] = iconv('iso-8859-1','cp865//TRANSLIT',$beskrivelse[$x]);
 			} elseif (iconv('iso-8859-1','cp865//IGNORE',$beskrivelse[$x])) {

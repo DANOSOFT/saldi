@@ -54,6 +54,7 @@
 // 20230611 PHP - Fixed missing pre & nextpil 
 // 20230717 PBLM - Added link to booking on line 375
 // 20231128 MSC - Copy pasted new design into code
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 #ob_start();
 @session_start();
@@ -200,9 +201,9 @@ if ((isset($_POST['kommission']) || isset($_POST['historik'])) && $_POST['debId'
 			}
 /*
 			if ($charset=="UTF-8") {
-				$subject=utf8_decode($subject);
-				$mailText=utf8_decode($mailText);
-				$afsendernavn=utf8_decode($afsendernavn);
+				$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+				$mailText=mb_convert_encoding($mailText, 'ISO-8859-1', 'UTF-8');
+				$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
 			}
 */			
 			$mail = new PHPMailer();

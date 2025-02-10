@@ -111,6 +111,7 @@
 // 20240416 LOE Converted some strings to int before maths operation and also Initialized $bynavn = null 
 // 20240726 PHR function findtekst now accepts textstring as first argument
 // 20240815 PHR function findtekst moved to stdFunc/findTxt.php
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -424,7 +425,7 @@ if (!function_exists('bynavn')) {
 		if ($fp) {
 			while ($linje = trim(fgets($fp))) {
 				if ($db_encode == "UTF8")
-					$linje = utf8_encode($linje);
+					$linje = mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				list($a, $b) = explode(chr(9), $linje);
 				if ($a == $postnr) {
 					$bynavn = str_replace('"', '', $b);

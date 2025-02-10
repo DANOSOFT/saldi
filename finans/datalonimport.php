@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 //
 // 20201103 PHR Switches $kontonr[$y],$beskrivelse[$y] in list | explode
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -90,7 +91,7 @@ function vis_data($kladde_id, $filnavn, $bilag){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-#			$linje=trim(utf8_encode($linje));
+#			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 			if ($linje) {
 				$y++;
 				$skriv_linje[$y]=1;
@@ -101,7 +102,7 @@ function vis_data($kladde_id, $filnavn, $bilag){
 						while(!is_numeric(substr($linje,0,1)) && $linje) $linje=substr($linje,1);	
 					}
 				}
-				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",utf8_encode($linje));
+				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 				else list($dato[$y],$kontonr[$y],$beskrivelse[$y],$belob[$y])=explode(";",$linje);
 				if (!is_numeric($kontonr[$y]) && is_numeric($beskrivelse[$y])) {
 					list($dato[$y],$beskrivelse[$y],$kontonr[$y],$belob[$y])=explode(";",$linje);
@@ -161,7 +162,7 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-#			$linje=trim(utf8_encode($linje));
+#			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 			if ($linje = trim($linje)) {
 				$y++;
 				$skriv_linje[$y]=1;
@@ -172,7 +173,7 @@ function flyt_data($kladde_id, $filnavn, $bilag){
 						while(!is_numeric(substr($linje,0,1)) && $linje) $linje=substr($linje,1);	
 					}
 				}
-				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",utf8_encode($linje));
+				if ($preSetNo) list($dato[$y],$bilag,$faktura[$y],$beskrivelse[$y],$belob[$y],$tmp,$kontonr[$y])=explode(";",mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 				else {
 					list($dato[$y],$kontonr[$y],$beskrivelse[$y],$belob[$y])=explode(";",$linje);
 					if (!is_numeric($kontonr[$y]) && is_numeric($beskrivelse[$y])) {

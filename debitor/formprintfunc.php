@@ -17,6 +17,7 @@
 //
 // Copyright (c) 2004-2010 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 function formularprint($id,$formular,$lev_nr,$charset) {
 	
@@ -219,8 +220,8 @@ for ($q=0; $q<$ordre_antal; $q++) {
 				$projekt[$x]=($row['projekt']);
 				$beskrivelse[$x]=stripslashes(trim($row['beskrivelse']));
 				if ($charset=="utf-8") {
-					$varenr[$x]=utf8_decode($varenr[$x]);
-					$beskrivelse[$x]=utf8_decode($beskrivelse[$x]);
+					$varenr[$x]=mb_convert_encoding($varenr[$x], 'ISO-8859-1', 'UTF-8');
+					$beskrivelse[$x]=mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8');
 				}
 				if (strpos($beskrivelse[$x],"\$ultimo")||strpos($beskrivelse[$x],"\$maaned")||strpos($beskrivelse[$x],"\$aar")){
 					$beskrivelse[$x]=var2str($beskrivelse[$x],$ordre_id[$q]);
@@ -406,9 +407,9 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr,$charset) {
 	}
 	
 	if ($charset=="UTF-8") {
-		$subjekt=utf8_decode($subjekt);
-		$mailtext=utf8_decode($mailtext);
-		$afsendernavn=utf8_decode($afsendernavn);
+		$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
+		$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
+		$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
 	}
 /*
 echo "<br>Fra $afsendernavn | $afsendermail <br>";

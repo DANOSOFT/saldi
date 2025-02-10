@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2013 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20170303 Visning af bilag, hvis tilknyttet. Søg #20170303
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 	$bg="nix";
 	$header='nix';
@@ -954,8 +955,8 @@ function vis_arbejdsseddel() {
 	while ($r = db_fetch_array($q)) {
 		$bilag_id[$x]=$r['bilagid'];
 		$bilag_title[$x]=$r['navn'];
-		$tmp=utf8_decode($r['navn']);
-		$bilag_navn[$x]=utf8_encode($tmp);
+		$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
+		$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 		$bilag_beskrivelse[$x]=$r['beskrivelse'];
 		$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
 		$bilag_hvem[$x]=$r['hvem'];
@@ -1200,8 +1201,8 @@ function vis_kontrolskema() {
 	while ($r = db_fetch_array($q)) {
 		$bilag_id[$x]=$r['bilagid'];
 		$bilag_title[$x]=$r['navn'];
-		$tmp=utf8_decode($r['navn']);
-		$bilag_navn[$x]=utf8_encode($tmp);
+		$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
+		$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 		$bilag_beskrivelse[$x]=$r['beskrivelse'];
 		$bilag_dato[$x]=date("d-m-Y",$r['datotid']);
 		$bilag_hvem[$x]=$r['hvem'];

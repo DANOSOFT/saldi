@@ -33,6 +33,7 @@
 // 20210708 LOE - Translated some of these texts from Danish to English and Norsk
 // 20210709 LOE - Bug fixed findtekst function wasn't working here
 // 20210721 LOE - Did translations on title tags
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 ob_start();
@@ -476,7 +477,7 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 							}
 						}
 						if ($csv) {
-							fwrite($fp,"\"".$id[$z]."\";\"".$transdato."\";\"".$logdato."\";\"".substr($logtime[$z],0,5)."\";\"".$kladde_id[$z]."\";\"".$bilag[$x]."\";\"".$kontonr[$z]."\";\"".utf8_decode(stripslashes($kontonavn[$z]))."\";\"".$row['faktura']."\";\"".dkdecimal($debet[$z],2)."\";\"".dkdecimal($kredit[$z],2)."\";\"".$row['projekt']."\";\"".utf8_decode(stripslashes($transtxt[$z]))."\"\n");
+							fwrite($fp,"\"".$id[$z]."\";\"".$transdato."\";\"".$logdato."\";\"".substr($logtime[$z],0,5)."\";\"".$kladde_id[$z]."\";\"".$bilag[$x]."\";\"".$kontonr[$z]."\";\"".mb_convert_encoding(stripslashes($kontonavn[$z]), 'ISO-8859-1', 'UTF-8')."\";\"".$row['faktura']."\";\"".dkdecimal($debet[$z],2)."\";\"".dkdecimal($kredit[$z],2)."\";\"".$row['projekt']."\";\"".mb_convert_encoding(stripslashes($transtxt[$z]), 'ISO-8859-1', 'UTF-8')."\"\n");
 						}
 					}
 				}

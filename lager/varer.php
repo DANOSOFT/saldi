@@ -58,6 +58,7 @@
 // 2023.04.14 LOE - Minor modifications
 // 2023.06.03 PHR - php8
 // 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 @session_start();
@@ -713,7 +714,7 @@ for ($v=0;$v<count($varenr);$v++) {
 #			if ($popup) print "<td </td>";
 #			else print "<td><a href=\"varekort.php?id=$id[$v]&amp;returside=varer.php\"><FONT style=\"COLOR:$color;\">".htmlentities(stripslashes($varenr),ENT_COMPAT,$charset)."</font></a></td>";	
 			if ($csv) {
-				fwrite($csvfil,"\"".utf8_decode($varenr[$v])."\";\"".utf8_decode($enhed[$v])."\";\"".utf8_decode($description[$v])."\";");
+				fwrite($csvfil,"\"".mb_convert_encoding($varenr[$v], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($enhed[$v], 'ISO-8859-1', 'UTF-8')."\";\"".mb_convert_encoding($description[$v], 'ISO-8859-1', 'UTF-8')."\";");
 			} else {
 				print "<td $js><FONT style=\"COLOR:$color;\">";
 				if ($href_vnr) print "<a href = 'varekort.php?id=$id[$v]'>";
@@ -734,7 +735,7 @@ for ($v=0;$v<count($varenr);$v++) {
 						$qtxt = "select id, lager,lok1,beholdning from lagerstatus where vare_id = '$id[$v]' and lager = '$x'";
 						if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 							$y = (float)$r2['beholdning'];
-							$lok=trim(utf8_decode($r2['lok1']));
+							$lok=trim(mb_convert_encoding($r2['lok1'], 'ISO-8859-1', 'UTF-8'));
 						} else {
 							$y=0;
 							$lok='';

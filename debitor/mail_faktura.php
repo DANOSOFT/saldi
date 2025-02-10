@@ -18,6 +18,7 @@
 //
 // Copyright (c) 2004-2009 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 # $mailantal=1;
 # $pfliste[1]="../temp/$db/ordrebek576";
@@ -53,9 +54,9 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr) {
 	}
 	
 	if ($charset=="UTF-8") {
-		$subjekt=utf8_decode($subjekt);
-		$mailtext=utf8_decode($mailtext);
-		$afsendernavn=utf8_decode($afsendernavn);
+		$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
+		$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
+		$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
 	}
 	
 /*

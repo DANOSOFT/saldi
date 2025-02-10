@@ -22,6 +22,7 @@
 // ----------------------------------------------------------------------
 // 20130510, Tilføjet $formularnr.
 // 20130819, Tilføjet sporingsdata. Søg 20130819.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 function formularimport($filnavn,$formularnr) {
 	global $db_encode;
@@ -36,7 +37,7 @@ $fp=fopen($filnavn,"r");
 			$linje=trim(fgets($fp));
 			if ($linje) {
 				$linje=str_replace("\n","",$linje);
-				if ($db_encode=="UTF8") $linje=utf8_encode($linje);
+				if ($db_encode=="UTF8") $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				list($formular, $art, $beskrivelse, $justering, $xa, $ya, $xb, $yb, $str, $color, $font, $fed, $kursiv, $side, $sprog) = explode(chr(9),$linje);
 				if ((substr($formular,0,1))=="'"&&(substr($formular,-1))=="'") $formular=(substr($formular,1,strlen($formular)-2));
 				if ((substr($art,0,1))=="'"&&(substr($art,-1))=="'") $art=(substr($art,1,strlen($art)-2));

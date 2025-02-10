@@ -40,6 +40,7 @@
 // 20221004 MLH added filterOption, salesPriceFromPurchasePrice, salesPriceRoundingMethod, salesPriceMethod, tierPriceFromPurchasePrice, tierPriceRoundingMethod, tierPriceMethod
 // 20221025 MLH fixed a programming issue regarding the value of POST variable "submit"
 // 20230523 PHR php8
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -181,8 +182,8 @@ if ($fp) {
 		$tmp=fgets($fp);
 		if($tmp) $linje=$tmp;
 	}
-	if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-	elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+	if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+	elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	$tmp=$linje;
 	while ($tmp=substr(strstr($tmp,";"),1)) {$semikolon++;}
 	$tmp=$linje;
@@ -375,8 +376,8 @@ if ($fp) {
 			$colNum=1;
 			$preLine='';
 			$skriv_linje=1;
-			if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-			elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+			if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+			elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$felt=array();
 			$felt = opdel($splitter, $linje);
 			for ($y=0; $y<=$feltantal; $y++) {
@@ -585,8 +586,8 @@ if ($fp) {
 				$colNum=1;
 				$preLine='';
 				$skriv_linje=1;
-				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 				$vare_id=0;
 				$felt=array();
 				$felt = opdel($splitter, $linje);

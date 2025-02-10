@@ -41,6 +41,7 @@
 // 20210607 LOE updated the if function retrieving the data from kontoplan.txt file for Danish and English languages
 // 20210721 LOE translated some texts here and also updated title texts with translated ones.
 // 20220624 CA  rolled back retrieving data from kontoplan.txt DA and EN cause it overwrites existing accounting plans.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -358,7 +359,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 	print "<tr bgcolor=$linjebg_highlight>";
 	if ($kontotype[$x]=='H' || $kontotype[$x]=='X') {
 		print "<td><b> $kontonr[$x]<br></b></td>";
-		fwrite($csv,"$kontonr[$x];". utf8_decode($beskrivelse[$x]) ."\n");
+		fwrite($csv,"$kontonr[$x];". mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8') ."\n");
 		print "<td colspan=\"$cols\"><b>$beskrivelse[$x]<br></b></td>";
 	}	else {
 #		if ($kontotype[$x]!='Z') {$link="<a href=kontospec.php?kontonr=$kontonr[$x]&month=";}
@@ -370,7 +371,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 		if ($kontotype[$x] == "Z") $text = "Sumkonti $fra_kto[$x] - $til_kto[$x]";
 		else $text = "";
 		print "<td title='$text'>$beskrivelse[$x]<br></td>";       
-		fwrite($csv,"$kontonr[$x];". utf8_decode($beskrivelse[$x]) ."");
+		fwrite($csv,"$kontonr[$x];". mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8') ."");
 
 		$konti_total = array();
 

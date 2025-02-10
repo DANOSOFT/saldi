@@ -16,6 +16,8 @@
 //
 // Copyright (c) 2004-2009 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+//
 function opdat_2_0($under_nr, $lap_nr){
 	global $version;
 	global $db;
@@ -217,10 +219,10 @@ function opdat_2_0($under_nr, $lap_nr){
 		db_modify("insert into formularer (beskrivelse, formular, art, xa, ya, xb, yb, str, color, font, fed, kursiv, side, justering, sprog) values ('Tilbud', 1, 5, 1, 0, 0, 0, 10, 0, '', '', '', '', '', 'Dansk')",__FILE__ . " linje " . __LINE__);
 		db_modify("insert into formularer (beskrivelse, formular, art, xa, ya, xb, yb, str, color, font, fed, kursiv, side, justering, sprog) values ('Hermed fremsendes tilbud', 1, 5, 2, 0, 0, 0, 10, 0, '', '', '', '', '', 'Dansk')",__FILE__ . " linje " . __LINE__);
 		$tmp='Ordrebekræftelse';
-		if ($db_encode=="UTF8") $tmp=utf8_encode($tmp);
+		if ($db_encode=="UTF8") $tmp=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 		db_modify("insert into formularer (beskrivelse, formular, art, xa, ya, xb, yb, str, color, font, fed, kursiv, side, justering, sprog) values ('$tmp', 2, 5, 1, 0, 0, 0, 10, 0, '', '', '', '', '', 'Dansk')",__FILE__ . " linje " . __LINE__);
 		$tmp='Hermed fremsendes ordrebekræftelse';
-		if ($db_encode=="UTF8") $tmp=utf8_encode($tmp);
+		if ($db_encode=="UTF8") $tmp=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
 		db_modify("insert into formularer (beskrivelse, formular, art, xa, ya, xb, yb, str, color, font, fed, kursiv, side, justering, sprog) values ('$tmp', 2, 5, 2, 0, 0, 0, 10, 0, '', '', '', '', '', 'Dansk')",__FILE__ . " linje " . __LINE__);
 		db_modify("insert into formularer (beskrivelse, formular, art, xa, ya, xb, yb, str, color, font, fed, kursiv, side, justering, sprog) values ('Faktura', 4, 5, 1, 0, 0, 0, 10, 0, '', '', '', '', '', 'Dansk')",__FILE__ . " linje " . __LINE__);
 		db_modify("insert into formularer (beskrivelse, formular, art, xa, ya, xb, yb, str, color, font, fed, kursiv, side, justering, sprog) values ('Hermed fremsendes faktura', 4, 5, 2, 0, 0, 0, 10, 0, '', '', '', '', '', 'Dansk')",__FILE__ . " linje " . __LINE__);
