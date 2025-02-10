@@ -1179,6 +1179,38 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../includes/luk.php?tabel=kladdeliste&id=$kladde_id'>";
 	else
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
+
+	print "<script>
+	document.addEventListener('DOMContentLoaded', function() { 
+		console.log('CONTENT LOAD');
+		var element = document.body;
+		var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
+		if (scrollpos && element) {
+			element.scrollTo(0, parseInt(scrollpos, 10));
+		}
+	});
+
+	function saveScrollPosition() {
+		var element = document.body;
+		if (element) {
+			var scrollKey = 'kassekladde-$kladde_id';
+			localStorage.setItem(scrollKey, element.scrollTop);
+			console.log('Scroll position saved:', element.scrollTop);
+		}
+	}
+	
+	document.addEventListener('visibilitychange', function() {
+		if (document.visibilityState === 'hidden') {
+			saveScrollPosition();
+		}
+	});
+	
+	window.addEventListener('beforeunload', function() {
+		saveScrollPosition();
+	});
+	
+	</script>";
+
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) {
@@ -1394,8 +1426,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 #			$kontrolsaldo = $r['primo'];
 			if ($r['moms']) {
 				$r2 = db_fetch_array(db_select("select box2 from grupper where
-						kode='" . substr($r[moms], 0, 1) . "' and
-						kodenr='" . substr($r[moms], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
+						kode='" . substr($r['moms'], 0, 1) . "' and
+						kodenr='" . substr($r['moms'], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
 				$kontrolmoms = $r['box2'] * 1;
 			}
 		}
