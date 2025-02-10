@@ -756,6 +756,58 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	return($saldi_id); 
 }
 
+function get_sold_labels() {
+    $data = array();
+    $result = db_select("SELECT 
+    SUBSTR(ol.varenr, 6) AS kontonr, 
+    ol.varenr, 
+    ol.beskrivelse, 
+    ol.pris, 
+    ol.antal, 
+    o.fakturadate AS date, 
+    o.tidspkt, 
+    a.firmanavn, 
+    a.email, 
+    v.kostpris AS sats
+FROM 
+    ordrelinjer ol
+LEFT JOIN 
+    ordrer o ON o.id = ol.ordre_id
+LEFT JOIN 
+    adresser a ON a.kontonr = SUBSTR(ol.varenr, 6)
+LEFT JOIN 
+    varer v ON v.varenr = ol.varenr
+WHERE 
+    (ol.varenr LIKE 'kb%' OR ol.varenr LIKE 'kn%')
+    AND o.status >= 3", __FILE__ . " linje " . __LINE__);
+
+    while ($r = db_fetch_array($result)) {
+        $data[] = $r;
+    }
+
+    return $data;
+}
+
+function get_all_labels() {
+    $data = array();
+    $result = db_select("SELECT 
+    ml.description, 
+    ml.price, 
+    ml.sold, 
+    ml.hidden,
+    a.firmanavn, 
+    a.email
+FROM mylabel ml
+LEFT JOIN adresser a ON a.id = ml.account_id
+", __FILE__ . " linje " . __LINE__);
+
+    while ($r = db_fetch_array($result)) {
+        $data[] = $r;
+    }
+
+    return $data;
+}
+
 function access_check(){
 	global $sqhost;
 	global $squser;
@@ -776,7 +828,6 @@ function access_check(){
 		fwrite($log,__line__." Missing db\n");
 		fclose($log);
 		return 'missing db';
-		exit;
 	}
 	$qtxt="select id,lukket from regnskab where db='$db'"; #20201223
 	fwrite($log,__line__." $qtxt\n");
@@ -786,13 +837,11 @@ function access_check(){
 			fwrite($log,__line__." Account $db closed\n");
 			fclose($log);
 			return( "Account $db closed");
-			exit;
 		} 
 	} else {
 		fwrite($log,__line__." Non existing account $db\n");
 		fclose($log);
 		return( "Non existing account $db");
-		exit;
 	}
 	
 	$ip=$_SERVER['REMOTE_ADDR'];
@@ -817,7 +866,6 @@ function access_check(){
 		fwrite($log,__line__." Missing saldiuser\n");
 		fclose($log);
 		return 'Missing saldiuser';
-		exit;
 	}
 	if ($db != $master) {
 		$year=date("Y"); #20190318 --->
@@ -834,7 +882,6 @@ function access_check(){
 			fwrite($log,__line__." Missing year in ledger\n");
 			fclose($log);
 			return 'Missing ledger';
-			exit;
 		} #<---
 		$q=db_select("select * from grupper where art = 'API' and kodenr = '1'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'",__FILE__ . " linje " . __LINE__));
@@ -874,6 +921,14 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$order_by  = if_isset($_GET['order_by']);
 			$limit     = if_isset($_GET['limit']);
 			if ($select && $from) $value = fetch_from_table($select,$from,$where,$order_by,$limit);
+##############################################
+		} elseif ($action=='get_sold_labels') {
+			fclose ($log);
+			$value = get_sold_labels();
+##############################################
+		} elseif ($action=='get_all_labels') {
+			fclose ($log);
+			$value = get_all_labels();
 ##############################################
 		} elseif ($action=='update_table') {
 			fclose ($log);
