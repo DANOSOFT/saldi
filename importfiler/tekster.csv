@@ -1050,7 +1050,7 @@
 1050	Angiv vejnavn, husnummer, etage m.v.	Enter street name, house number, floor, etc.	Skriv inn gatenavn, husnummer, etasje osv.
 1051	Eventuelt ekstra adresselinje	Any additional address bar	Eventuell tilleggsadresselinje
 1052	Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.	Indicate any location or other that is part of the official address.	Angi hvilket som helst sted eller annet som er en del av den offisielle adressen.
-1053	Postnummer	Zip_code	Post kode
+1053	Postnummer	Zip code	Post kode
 1054	Angiv postnummeret for afhentningstedet	Enter the postcode for the collection point	Skriv inn postnummeret for innsamlingsstedet
 1055	By	City	By
 1056	Angiv bynavn eller postdistrikt for afhentningsstedet	Enter city name or postal district for the pickup location	Angi bynavn eller postdistrikt for hentestedet
@@ -1069,7 +1069,7 @@
 1069	Valuta	Currency	Valuta  
 1070	Forfald	Due_date	Tidsfrist
 1071	Betal	Pay	Betale
-1072	Kassekladde 	Cash_journal	Kontantjournal
+1072	Kassekladde 	Cash journal	Kontantjournal
 1073	Saldo	Balance	Saldo
 1074	Importer	Import	Import
 1075	Tema	Theme	Tema
@@ -2242,7 +2242,7 @@
 2242	Ordrebeh. i alt	Total order inv.	Ordrebeh. i alt
 2243	Ny beholdning	New stock	Ny inventar
 2244	En beskrivende tekst efter eget valg	A descriptive text of your choice	En beskrivende tekst etter eget valg
-2245	Det nummer i kontoplanen som salgsmomsen skal konteres på	The number in the chart of accounts to which the sales tax should be posted	Kontonummeret i kontoplanen som salgsmomsen skal føres på
+2245	Det nummer i kontoplanen som salgsmomsen skal konteres på	The number in the chart of accounts to which the sales tax should be posted	Det nummeret i kontoplanen som utgående moms skal bokføres på
 2246	Momskode hos SKAT	VAT Code	MVA-kode
 2247	Den moms du skal betale til SKAT	The VAT you need to pay to the tax authorities	MVA-en du skal betale til Skatteetaten
 2248	Nr.	No.	Nr.
@@ -2297,12 +2297,12 @@
 2297	Gl. saldo	Old balance	Gl. saldo
 2298	Ny saldo	New balance	Ny saldo
 2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
-2300
-2301
-2302
-2303
-2304
-2305
+2300	Delbetaling	Partial payment	Delbetaling
+2301	Vil du slette konto	Do you want to delete account	Vil du slette konto
+2302	Det nummer i kontoplanen som købsmomsen skal konteres på	The number in the chart of accounts to which the purchase tax should be posted	Det nummeret i kontoplanen som inngående MVA skal bokføres på
+2303	Den moms du skal have retur fra SKAT	The VAT you are owed by the tax authorities	Den MVA du skal ha tilbake fra Skatteetaten
+2304	Konto til postering af salgsmoms for ydelseskøb i udlandet	Account for posting of sales VAT for service purchases abroad	Konto for postering av utgående MVA for tjenestekjøp i utlandet
+2305	Konto til postering af købsmoms for ydelseskøb i udlandet	Account for posting of purchase VAT for service purchases abroad	Konto for postering av inngående MVA for tjenestekjøp i utlandet
 2306
 2307
 2308

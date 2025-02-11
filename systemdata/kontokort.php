@@ -326,18 +326,23 @@ if ($id > 0) {
 	($r = db_fetch_array($q)) ? $slet = 0 : $slet = 1;
 
 }
-if ($kontotype == 'H')
+if ($kontotype == 'H') {
 	$kontotype = 'Overskrift';
-elseif ($kontotype == 'D')
+	$ktOversættelse = findtekst('1195|Overskrift', $sprog_id);
+} elseif ($kontotype == 'D') {
 	$kontotype = 'Drift';
-elseif ($kontotype == 'S')
+	$ktOversættelse = findtekst('1194|Drift', $sprog_id);
+} elseif ($kontotype == 'S') {
 	$kontotype = 'Status';
-elseif ($kontotype == 'Z')
+} elseif ($kontotype == 'Z') {
 	$kontotype = 'Sum';
-elseif ($kontotype == 'R')
+} elseif ($kontotype == 'R') {
 	$kontotype = 'Resultat';
-elseif ($kontotype == 'X')
+	$ktOversættelse = findtekst('518|Resultat', $sprog_id);
+} elseif ($kontotype == 'X') {
 	$kontotype = 'Sideskift';
+	$ktOversættelse = findtekst('1193|Sideskift', $sprog_id);
+}
 
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
@@ -355,12 +360,12 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 
 	print "<tr><td width=\"10%\"><a href=kontoplan.php accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-	print "<td width=\"80%\" align='center' style='$topStyle'> ". findtekst(443, $sprog_id)."</td>";
+	print "<td width=\"80%\" align='center' style='$topStyle'> ". findtekst('443|Kontokort', $sprog_id)."</td>";
 
 	print "<td width=\"10%\"><a href=kontokort.php accesskey=N>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a><br></td></tr>";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><br></td></tr>";
 
 	if ($previousPage)
 		print "<tr><td colspan=2><a href='kontokort.php?id=$previousPage'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
@@ -378,9 +383,9 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\"  height=1% valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<tr><td width=\"10%\" $top_bund ><a href=kontoplan.php accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>"; #20210707
-	print "<td width=\"80%\"  $top_bund >  " . findtekst(443, $sprog_id) . "</td>";
-	print "<td width=\"10%\"  $top_bund > <a href=kontokort.php accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></td></tr>";
+	print "<tr><td width=\"10%\" $top_bund ><a href=kontoplan.php accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>"; #20210707
+	print "<td width=\"80%\"  $top_bund >  " . findtekst('443|Kontokort', $sprog_id) . "</td>";
+	print "<td width=\"10%\"  $top_bund > <a href=kontokort.php accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a><br></td></tr>";
 	if ($previousPage)
 		print "<tr><td colspan=2><a href='kontokort.php?id=$previousPage'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
 	else
@@ -412,15 +417,15 @@ print "<input type=\"hidden\" name=\"konto_fra\" value=\"$konto_fra\">";
 print "<input type=\"hidden\" name=\"konto_til\" value=\"$konto_til\">";
 print "<input type=\"hidden\" name=\"rapportart\" value=\"$rapportart\">";
 if ($id && $saldo) {
-	print "<tr><td>" . findtekst(804, $sprog_id) . "</td><td><br></td><td colspan=2> $kontonr</td></tr>\n";
+	print "<tr><td>" . findtekst('804|Kontonr.', $sprog_id) . "</td><td><br></td><td colspan=2> $kontonr</td></tr>\n";
 	print "<input type=hidden name=kontonr value=\"$kontonr\">";
 } else {
-	print "<tr><td>" . findtekst(804, $sprog_id) . ":</td><td><br></td>";
+	print "<tr><td>" . findtekst('804|Kontonr.', $sprog_id) . ":</td><td><br></td>";
 	print "<td colspan=2><input type='text' style = 'width:70px' name=kontonr value=\"$kontonr\"></td></tr>\n";
 }
 if ($kontotype == 'Drift') {
 	if ($map_to && !in_array($map_to,$stdDkt)) $map_to = 0; 
-	print "<tr><td>Map til:</td><td><br></td>";
+	print "<tr><td>".findtekst('3039|Map til)', $sprog_id).":</td><td><br></td>";
 	print "<td colspan=2><SELECT name='map_to' style = 'width:70px'>";
 	print "<OPTION value = '$map_to'>$map_to</OPTION>";
 	for ($i=0;$i<count($stdDkt);$i++) {
@@ -429,7 +434,7 @@ if ($kontotype == 'Drift') {
 	print "</SELECT>";
 } elseif ($kontotype == 'Status') {
 	if ($map_to && !in_array($map_to,$stdSkt)) $map_to = 0; 
-	print "<tr><td>Map til:</td><td><br></td>";
+	print "<tr><td>".findtekst('3039|Map til)', $sprog_id).":</td><td><br></td>";
 	print "<td colspan=2><SELECT name='map_to' style = 'width:70px'>";
 	print "<OPTION value = '$map_to'>$map_to</OPTION>";
 	for ($i=0;$i<count($stdSkt);$i++) {
@@ -437,39 +442,39 @@ if ($kontotype == 'Drift') {
 	}
 }	
 	
-print "<tr><td>" . findtekst(805, $sprog_id) . ":</td><td><br></td><td colspan=2><input type=text size=25 name=beskrivelse value=\"$beskrivelse\"></td></tr>\n";
-print "<tr><td>" . findtekst(1192, $sprog_id) . ":</td><td><br></td>";
+print "<tr><td>" . findtekst('805|Kontonavn', $sprog_id) . ":</td><td><br></td><td colspan=2><input type=text size=25 name=beskrivelse value=\"$beskrivelse\"></td></tr>\n";
+print "<tr><td>" . findtekst('1192|Kontotype', $sprog_id) . ":</td><td><br></td>";
 print "<td colspan=2><SELECT NAME = 'kontotype' style = 'width:70px'>";
 #print "<td>sa $saldo sl $slet<br></td>";
 if ($kontotype)
-	print "<OPTION>$kontotype</OPTION>\n";
+	print "<OPTION>$ktOversættelse</OPTION>\n";
 if ($saldo) {
 	if ($kontotype != 'Drift')
-		print "<OPTION>" . findtekst(1194, $sprog_id) . "</OPTION>\n";
+		print "<OPTION>" . findtekst('1194|Drift', $sprog_id) . "</OPTION>\n";
 	if ($kontotype != 'Status')
 		print "<OPTION>Status</OPTION>\n";
 	if (!$resultatkonto && $kontotype != 'Resultat')
-		print "<OPTION>" . findtekst(518, $sprog_id) . "</OPTION>\n";
+		print "<OPTION>" . findtekst('518|Resultat', $sprog_id) . "</OPTION>\n";
 } else {
 	if ($kontotype != 'Overskrift')
-		print "<OPTION>" . findtekst(1195, $sprog_id) . "</OPTION>\n";
+		print "<OPTION>" . findtekst('1195|Overskrift', $sprog_id) . "</OPTION>\n";
 	if ($kontotype != 'Drift')
-		print "<OPTION>" . findtekst(1194, $sprog_id) . "</OPTION>\n";
+		print "<OPTION>" . findtekst('1194|Drift', $sprog_id) . "</OPTION>\n";
 	if ($kontotype != 'Status') print "<OPTION>Status</OPTION>\n";
 	$qtxt = "SELECT id from kontoplan where regnskabsaar = '$regnaar' and kontotype='R'";
 	$r = db_fetch_array($q = db_SELECT($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$r['id'] && $kontotype != 'Resultat')
-		print "<OPTION>" . findtekst(518, $sprog_id) . "</OPTION>\n";
+		print "<OPTION>" . findtekst('518|Resultat', $sprog_id) . "</OPTION>\n";
 	if ($kontotype != 'Sum') print "<OPTION>Sum</OPTION>\n";
 	$qtxt =	"select id from kontoplan where regnskabsaar = '$regnaar' and kontotype='X'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$r['id'] && $kontotype != 'Sideskift')
-		print "<OPTION>" . findtekst(1193, $sprog_id) . "</OPTION>\n";
+		print "<OPTION>" . findtekst('1193|Sideskift', $sprog_id) . "</OPTION>\n";
 }
 print "</SELECT></td></tr>\n";
 
 if ($kontotype == 'Drift' || $kontotype == 'Status') {
-	print "<tr><td>" . findtekst(1095, $sprog_id) . ":</td><td><br></td>";
+	print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . ":</td><td><br></td>";
 	print "<td colspan=2><SELECT NAME = 'moms' style = 'width:70px'>";
 	print "<OPTION>$moms</OPTION>\n";
 	$qtxt = "select kode, kodenr from grupper where art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM'";
@@ -485,9 +490,9 @@ if ($kontotype == 'Drift' || $kontotype == 'Status') {
 }
 
 if ($kontotype == 'Sum') {
-	print "<tr><td>" . findtekst(900, $sprog_id) . ":</td><td><br></td><td><input type=text size=6 name=fra_kto value='$fra_kto'></td></tr>\n";
+	print "<tr><td>" . findtekst('900|Konto (fra)', $sprog_id) . ":</td><td><br></td><td><input type=text size=6 name=fra_kto value='$fra_kto'></td></tr>\n";
 } elseif ($kontotype == 'Resultat') {
-	print "<tr><td>" . findtekst(518, $sprog_id) . "" . findtekst(592, $sprog_id) . "_</td><td><br></td><td><input type=text size=6 name=fra_kto value='$fra_kto'></td></tr>\n";
+	print "<tr><td>" . findtekst('518|Resultat', $sprog_id) . "" . findtekst('592|Konto', $sprog_id) . "_</td><td><br></td><td><input type=text size=6 name=fra_kto value='$fra_kto'></td></tr>\n";
 }
 if (($kontotype == 'Drift') || ($kontotype == 'Status')) {
 	$x = 0;
@@ -498,7 +503,7 @@ if (($kontotype == 'Drift') || ($kontotype == 'Status')) {
 		$x++;
 		$shortCut[$x] = $r['genvej'];
 	}
-	print "<tr><td>" . findtekst(1191, $sprog_id) . ":</td><td><br></td>";
+	print "<tr><td>" . findtekst('1191|Genvej', $sprog_id) . ":</td><td><br></td>";
 	print "<td><SELECT NAME='genvej' style = 'width:70px'>";
 	print "<OPTION>$genvej</OPTION>\n";
 	if ($genvej)
@@ -518,7 +523,7 @@ if (($kontotype == 'Drift') || ($kontotype == 'Status')) {
 			$valuta_navn[$x] = $r['beskrivelse'];
 			$x++;
 		}
-		print "</tr><tr><td>" . findtekst(2101, $sprog_id) . ":</td><td></td>";
+		print "</tr><tr><td>" . findtekst('2101|Valuta', $sprog_id) . ":</td><td></td>";
 		print "<td><SELECT NAME = 'ny_valuta' style = 'width:70px'>";
 		for ($x = 0; $x < count($valuta_kode); $x++) {
 			if ($valuta == $valuta_kode[$x])
@@ -533,23 +538,23 @@ if (($kontotype == 'Drift') || ($kontotype == 'Status')) {
 		print "<input type=\"hidden\" name=\"ny_valuta\" value='DKK'>";
 }
 if ($kontotype == 'Drift' || $kontotype == 'Status') {
-	print "<tr><td colspan=\"2\">" . findtekst(1073, $sprog_id) . "</td>";
+	print "<tr><td colspan=\"2\">" . findtekst('1073|Saldo', $sprog_id) . "</td>";
 	if ($valutakurs != 0)
 		print "<td>$valuta: " . dkdecimal($saldo * 100 / $valutakurs) . "</td>";
 	print "</tr>";
 }
 if ($lukket == 'on')
 	$lukket = "checked";
-print "<tr><td colspan=\"2\">" . findtekst(387, $sprog_id) . ":</td>";
+print "<tr><td colspan=\"2\">" . findtekst('387|Lukket', $sprog_id) . ":</td>";
 print "<td><input type=checkbox name=lukket $lukket></td></tr>\n";
 print "<tr><td><br></td></tr>\n";
 print "<tr><td><br></td></tr>\n";
 print "<tr><td colspan=4 align=center>";
 print "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 print "<tr>";
-print "<td align=center><input class='button green medium' type=submit accesskey=\"g\" value=\"" . findtekst(471, $sprog_id) . "\" name=\"gem\"></td>";
+print "<td align=center><input class='button green medium' type=submit accesskey=\"g\" value=\"" . findtekst('471|Gem/opdatér', $sprog_id) . "\" name=\"gem\"></td>";
 if ($slet == 1)
-	print "<td align = center><input class='button red medium' type=submit accesskey=\"s\" value=\"" . findtekst(1099, $sprog_id) . "\" name=\"slet\" onclick=\"return confirm('Vil du slette konto $kontonr?')\" ></td>";
+	print "<td align = center><input class='button red medium' type=submit accesskey=\"s\" value=\"" . findtekst('1099|Slet', $sprog_id) . "\" name=\"slet\" onclick=\"return confirm('".findtekst('2301|Vil du slette konto)', $sprog_id)." $kontonr?')\" ></td>";
 print "</tr>";
 print "<tr><td><br></td></tr>\n";
 if ($regnaar_return > "")
