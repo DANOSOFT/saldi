@@ -176,7 +176,7 @@ if ($menu=='T') {
 	print "<tr>";
 
 	print "<td width=10%><a href=rapport.php accesskey=L>
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
 
 	print "<td width=80% align='center' style='$topStyle'>".findtekst(455,$sprog_id)."</td>\n";
 

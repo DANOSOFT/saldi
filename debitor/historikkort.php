@@ -275,6 +275,48 @@ if ($menu == 'T') {
 	$width = "width=20%";
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
+<<<<<<< HEAD
+	print "<div id=\"header\">
+		<div class=\"headerbtnLft\"><a class='button red small' href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>Luk</a></div>
+		<span class=\"headerTxt\">Historik</span>";     
+	print "<div class=\"headerbtnRght\"></div>";
+	print "</div><!-- end of header -->
+		<div class=\"maincontentLargeHolder\">\n";
+} elseif ($menu=='S') {
+	$center = "";
+	$width = "width=10%";
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
+	print "<tr><td align='center' valign='top' height='1%'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n";#tabel2a start
+
+	$tekst=findtekst(154,$sprog_id);
+
+	print "<td width='10%' align=center><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>\n";
+
+	print "<td width='80%' align=center style='$topStyle'>".findtekst(1668, $sprog_id)."</td>\n";
+
+	print "<td width='10%' align=center>
+		   <a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a><br></td>\n";
+
+	print "</tbody></table>\n";#tabel2a slut
+	print "</td></tr>\n";
+	print "<tr><td height=\"99%\"  width=\"100%\" valign=\"top\">";
+} else {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel1 start
+	print "<tr><td align=\"center\" valign=\"top\" height=\"1%\">\n";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n";#tabel2a start
+	$tekst=findtekst(154,$sprog_id);
+	#if ($returside=="debitorkort.php") print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?id=$id&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
+	#print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>".findtekst(30, $sprog_id)."</a></div></td>\n";
+	print "<td width=\"80%\" align=center><div class=\"top_bund\">".findtekst(1668, $sprog_id)."</div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a><br></div></td>\n";
+	print "</tbody></table>\n";#tabel2a slut
+	print "</td></tr>\n";
+	print "<tr><td height=\"99%\"  width=\"100%\" valign=\"top\">";
+=======
 	print "<div id=\"header\">";
 	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";
@@ -316,6 +358,7 @@ if ($menu == 'T') {
 	print "</tbody></table>\n"; #tabel2a slut
 	print "</td></tr>\n";
 	print "<tr><td width=\"100%\" valign=\"top\">";
+>>>>>>> master
 }
 print "<table class='dataTableForm' width=\"100%\" cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>"; #tabel2b start
 
@@ -353,6 +396,25 @@ $clean_phone = preg_replace('/[^0-9+]/', '', $tlf);
 
 print "<form name='historikkort' action='?id=$id&returside=".urlencode($returside)."' method='post'>";
 print "<input type='hidden' name=\"id\" value='$id'>";
+<<<<<<< HEAD
+print "<tr><td colspan='6'>";
+print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"800\"><tbody>";#tabel3a start;
+print "<tr><td title=\"$notes\"><a href=debitorkort.php?id=$id&returside=historikkort.php>$firmanavn</a></td><td></td><td></td><td> ".findtekst(65, $sprog_id)."</td><td>";
+#print "<tr><td>$firmanavn</td><td></td><td></td><td> Oprettet</td><td>";
+if ($oprettet) print " $oprettet";
+else print " <input type=text name=oprettet size=11 onchange=\"javascript:docChange = true;\">";
+print "</td></tr>\n";
+print "<tr><td> $addr1</td><td> $addr2</td></tr>\n";
+print "<tr><td> $postnr $bynavn</td><td> $land</td><td></td><td> ".findtekst(1669, $sprog_id)."</td><td> $kontaktet</td></tr>\n";
+print "<tr><td> Tlf: $tlf</td><td> ";
+if ($fax) print "Fax: $fax";
+print "</td><td></td><td> ".findtekst(1670, $sprog_id)."</td><td> $kontaktes</td>\n";
+	if (db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '2' and box7='on'",__FILE__ . " linje " . __LINE__))) {
+		$url="jobliste.php?kontonr=$kontonr&konto_id=$id&returside=historikkort.php";
+		$jobkort="<a href=$url><input type=\"button\" style=\"width:75px\" value=\"jobkort\" onClick=\"window.navigate('$url')\"></a>";
+		print "<td>$jobkort</a></td></tr>";
+	} else print "<tr>";
+=======
 print "<section id='contact-header'>";
 print "<div class='column'>";
 print " <h1>$company_icon $firmanavn</h1>";
@@ -388,6 +450,7 @@ if (db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr
 }
 print "</div>";
 print "</section>";
+>>>>>>> master
 
 
 $hrtd = "align='center'";
@@ -397,6 +460,84 @@ print "</tbody></table></td></tr>"; #tabel3a slut;
 print "<tr><td $hrtd colspan=6><hr class='hrtd'></td></tr>";
 print "<tr><td $width><table border=0 width=100%><tbody>"; #tabel3b start;
 if ($historik_id) {
+<<<<<<< HEAD
+	$r=db_fetch_array(db_select("select * from historik where id = '$historik_id'",__FILE__ . " linje " . __LINE__));
+	$notat=($r['notat']);
+	$kontaktet=dkdato($r['kontaktet']);
+	if ($r['kontaktes']) $kontaktes=dkdato($r['kontaktes']);
+	else $kontaktes=NULL;
+	$ansat_id=$r['ansat_id']*1;
+	$kontakt_id=$r['kontakt_id']*1;
+	$r = db_fetch_array(db_select("select id, navn from ansatte where id = $ansat_id",__FILE__ . " linje " . __LINE__));
+	$ansat=$r['navn'];
+	$r = db_fetch_array(db_select("select id, navn from ansatte where id = $kontakt_id",__FILE__ . " linje " . __LINE__));
+	$kontakt=$r['navn'];
+} else {$notat=''; $kontaktet=''; $kontaktes=''; $kontakt_id='';}
+$ansat_id=$ansat_id*1;
+if ($ansat_id) {
+	$r=db_fetch_array(db_select("select navn from ansatte where id = $ansat_id and lukket != 'on'",__FILE__ . " linje " . __LINE__));
+	$ansat_navn=$r['navn'];
+} else $ansat_navn='';
+$r = db_fetch_array(db_select("select id from adresser where art='S'",__FILE__ . " linje " . __LINE__));
+$egen_id=$r['id']*1;
+print "<input type=hidden name=egen_id value=$egen_id>";
+print "<tr><td colspan =\"2\"><select name='ansat' value=\"$ansat\">";
+if ($ansat_navn) print "<option>$ansat_navn</option>";
+$q = db_select("select id, navn from ansatte where konto_id = $egen_id and lukket != 'on' and id != $ansat_id",__FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)){
+	print "<option>$r[navn]</option>";
+}
+print "</SELECT></td></tr>\n";
+print "<tr><td colspan =\"2\">".findtekst(1671, $sprog_id)."</td></tr>\n";
+print "<tr><td colspan =\"2\"><SELECT NAME=kontakt value=\"$kontakt\">";
+$q = db_select("select id, navn, tlf, mobil, email, notes from ansatte where konto_id = $id",__FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)){
+	print "<option title=\"D: $r[tlf] M: $r[mobil] E: $r[email] B: $r[notes]\">$r[navn]</option>\n";
+}
+print "<option></option>";
+
+print "</SELECT></td></tr>\n";
+if (!$kontaktet) $kontaktet=date("d-m-Y");
+print "<tr><td>den</td><td><input type=text size=11 name=kontaktet value=\"$kontaktet\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr><td> ".findtekst(1672, $sprog_id)."</td>";
+print "<td><input type=text size=11 name=kontaktes value=\"$kontaktes\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+if ($historik_id) {
+	print "<input type=hidden name=historik_id value=$historik_id>";
+	print "<td align=right><input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+} else {
+	print "<td colspan=2 align=right><input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst(3, $sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+}
+print "</td></tbody></table></td>";#tabel3b slut;
+print "<td colspan=4><textarea name=\"note\" rows=\"10\" cols=\"100\" onchange=\"javascript:docChange = true;\">$notat</textarea></td></tr>\n";
+print "</form>";
+$q = db_select("select * from historik where konto_id = $id order by kontaktet desc, id desc",__FILE__ . " linje " . __LINE__);
+print "<tr><td $hrtd colspan=6><hr class='hrtd'></tr>";
+while ($r=db_fetch_array($q)){
+	$ansat_id=$r['ansat_id']*1;
+	$kontakt_id=$r['kontakt_id']*1;
+	$ansat=str_replace(" ","&nbsp;",$r1['navn']);
+	$notedato=dkdato($r['notedate']);
+	$kontaktet=dkdato($r['kontaktet']);
+	if ($r['kontaktes']) $kontaktes=dkdato($r['kontaktes']);
+	else $kontaktes='';
+	$r1 = db_fetch_array(db_select("select navn from ansatte where id = $ansat_id",__FILE__ . " linje " . __LINE__));
+	$ansat=str_replace(" ","&nbsp;",$r1['navn']);
+	$r1 = db_fetch_array(db_select("select navn, tlf, mobil, email, notes from ansatte where id = $kontakt_id",__FILE__ . " linje " . __LINE__));
+	$kontakt=str_replace(" ","&nbsp;",$r1['navn']);
+	$notat=str_replace("  ","&nbsp;&nbsp;",htmlentities($r['notat'],ENT_COMPAT,$charset));
+	$notat=str_replace("\n","<br>",$notat);
+	$dokument=$r['dokument'];
+	print "<tr><td><table border=0 width=100%><tbody>";
+	print "<tr><td colspan=2 width=100% >$ansat&nbsp;=&gt;<span title=\"D: $r1[tlf] M: $r1[mobil] E: $r1[email] B: $r1[notes]\">&nbsp;$kontakt</span></td></tr>";
+	print "<tr><td colspan=2>$kontaktet &nbsp; $kontaktes</td></tr>";
+#	if ($r[notedate]==date("Y-m-d")) 
+	print "<tr><td><a href=historikkort.php?id=$id&historik_id=$r[id]&handling=ret>&nbsp;&nbsp;ret&nbsp;&nbsp;</a>&nbsp;&nbsp;&nbsp;<a href=historikkort.php?id=$id&historik_id=$r[id]&handling=slet onClick=\"return Slet()\">&nbsp;slet&nbsp;</a></td>";
+	if ($vis_bilag) {
+		if ($dokument) print "<td title=\"klik her for at &aring;bne bilaget: $dokument\" align=right><a href=\"../includes/bilag.php?kilde=historik&filnavn=$dokument&kilde_id=$id&bilag_id=$r[id]\"><img style=\"border: 0px solid\" alt=\"clip med papir\" src=\"../ikoner/paper.png\"></a></td>";
+		else print "<td title=\"klik her for at vedh&aelig;fte et bilag\" align=right><a href=\"../includes/bilag.php?kilde=historik&&ny=ja&kilde_id=$id&bilag_id=$r[id]\"><img style=\"border: 0px solid\" alt=\"papirclip\" src=\"../ikoner/clip.png\"></a></td>";
+	} 
+	print "</tbody></table>";
+=======
 	$r = db_fetch_array(db_select("select * from historik where id = '$historik_id'", __FILE__ . " linje " . __LINE__));
 	$notat = ($r['notat']);
 	$kontaktet = dkdato($r['kontaktet']);
@@ -413,6 +554,7 @@ if ($historik_id) {
 	$kontaktet = '';
 	$kontaktes = '';
 	$kontakt_id = '';
+>>>>>>> master
 
 	$employee = if_isset($_GET["employee"], NULL);
 	if ($employee) {

@@ -66,6 +66,8 @@
 // 20230613 PHR php8
 // 20231220 PHR added htmlentities to #20210829
 // 20240112 PHR Set $myDe to '-' if empty 
+// 20240729 PHR Various translations
+
 
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
@@ -84,7 +86,6 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 	global $varenr_ny,$vatrate,$vis_saet,$voucherNumber;
 
   $barcodeNew = NULL;
-  
   if (($fokus == 'rabat_ny' || $fokus == 'pris_ny') && $_POST['barcodeNew']) {
 		$varenr_ny = $_POST['barcodeNew'];
 	}
@@ -179,10 +180,6 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$vare_id=$r['vare_id'];
 			$variant_type=$r['variant_type'];
 			$variant_id=$r['id'];
-#			$qtxt = "select beskrivelse from varer where id = '$vare_id'";
-#			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-#				$beskrivelse[0] = $r['beskrivelse']." ".$variant_type;
-#			}
 		} else {
 			$variant_id=0;
 			$variant_type='';
@@ -284,7 +281,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			$beskrivelse[0] = $r['beskrivelse'];
 			if ($varenr_ny != if_isset($_POST['antal_ny'], 0)){ #Then a new item is NOT scannet into the quantity field
 				if ($myDe) $beskrivelse[0] = $myDe; # Then the barcode is scanned from a mysale label
-				elseif (isset($_POST['beskrivelse_old']) && $_POST['beskrivelse_old']) { # Then it is a correction af an existing orderline
+				elseif (isset($_POST['beskrivelse_old'])) { # Then it is a correction af an existing orderline
 					$beskrivelse[0] = $_POST['beskrivelse_old']; # Test scan from mysale and contineous scan if you change this.
 					$myPr = $_POST['pris_old'];
 				}
@@ -336,22 +333,31 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 	} else $fokus="varenr_ny";
 	if ($kontonr) {
 		print "<tr><td><b>$kontonr</b></td><td colspan=\"2\">\n";
-		if ($status<3) print "Rekv.nr:&nbsp; <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
-		elseif ($kundeordnr) print "&nbsp; Rekv.nr:&nbsp; $kundeordnr</td>\n";
-		($bordnavn)?$tmp=" Bord: $bordnavn |":$tmp='';  
-		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">Ekspedient: $ref |$tmp Bon: $fakturanr</td>\n";
+		if ($status<3) print findtekst('2129|Rekv. nr.', $sprog_id).": <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
+		elseif ($kundeordnr) print "&nbsp; ".findtekst('2129|Rekv. nr.', $sprog_id).":&nbsp; $kundeordnr</td>\n";
+		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td>\n";
 		print "</tr>\n<tr><td colspan=\"2\"><b>$firmanavn</b></td>\n";
-		if ($status>=3) print "<td colspan=\"4\" align=\"right\">Kasse: $kasse | $fakturadato kl. $tidspkt</td></tr>\n";
+		if ($status>=3) print "<td colspan=\"4\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato - $tidspkt</td></tr>\n";
 		if (!$vis_saet) {
 			if ($betalingsbet!='Kontant') list($betalingsbet,$kreditmax,$saldo)=explode(";",find_saldo($konto_id,$sum,$moms));
-			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>Ingen kredit</b></td>\n";
+			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>".findtekst('1866|Ingen kredit', $sprog_id)."</b></td>\n";
 		}
 	} elseif ($status>=3) {
-		($bordnavn)?$tmp=" Bord: $bordnavn |":$tmp='';  
-		print "<tr><td colspan=\"6\" align=\"right\">Ekspedient: $ref |$tmp Bon: $fakturanr</td></tr>\n";
-		print "<tr><td colspan=\"6\" align=\"right\">Kasse: $kasse | $fakturadato kl. $tidspkt</td></tr>\n";
+		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td></tr>\n";
+		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato - $tidspkt</td></tr>\n";
 	}
-	setItemHeaderTxt($lagerantal, $fokus);
+	print "<tr><td style='width:20%;height:25px;' valign='bottom'>". findtekst('320|Varenummer',$sprog_id) ."</td>";
+	print "<td style='width:7%' valign='bottom'>". findtekst('916|Antal',$sprog_id) ."</td>";
+	if ($lagerantal) {
+		print "<td style='width:7%'valign='bottom'>". findtekst('608|Lager',$sprog_id) ."</td>";
+	}
+	print "<td valign='bottom'>". findtekst('967|Varenavn',$sprog_id) ."</td>";
+	print "<td style='width:10%' align='right' valign='bottom'>". findtekst('915|Pris',$sprog_id) ."</td>";
+	print "<td style='width:10%' align='right' valign='bottom'>Sum</td><td style='width:50px'><br></td></tr>";
+	print "<tr><td colspan='7'><hr></td></tr>";
+	#setItemHeaderTxt($lagerantal, $fokus); //pos_ordre_includes/frontpage/itemTxt.php 	Varenavn etc.
 	if ($status < 3) {
 	$qtxt = "select var_value from settings where var_name = 'jump2price'";
 	($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$jump2price = $r['var_value']:$jump2price = 0;
@@ -411,6 +417,7 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 		print "<input type=\"hidden\" name = \"antal\" value=\"$antal_old\">\n";
 		print "<input type=\"hidden\" name = \"lager\" value=\"$lager_ny\">\n";
 		print "<input type=\"hidden\" name = \"tilfravalgNy\" value=\"$tilfravalgNy\">\n"; # 20220614
+		print "<input type=\"hidden\" name = \"timestamp\" value=".date("i:s").">\n"; # 20220614
 		if ($fokus=='pris_ny') print "<input type=\"hidden\" name = \"pris\" value=\"$pris_old\">\n";
 		if ($fokus=='pris_ny' || $fokus=='rabat_ny') { #20210902
 #			print "<input type='hidden' name = 'beskrivelse_ny' value=\"$beskrivelse_ny\">\n"; #20210829
@@ -418,19 +425,58 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 #		if ($textNew) print "<input type=\"hidden\" name = \"itemText\" value=\"$beskrivelse[0]\">\n"; 
 		#if ($textNew) print "<input type=\"hidden\" name = \"beskrivelse_ny\" value=\"$beskrivelse[0]\">\n"; #20210811 
 		#if ($fokus == 'beskrivelse_ny') print "<input type=\"hidden\" name = \"beskrivelse_ny\" value=\"$beskrivelse_ny\">\n"; #20210811 commented out
-		print "<tr><td width=\"30px\">";
-		print "<input class=\"inputbox\" type=\"text\" style=\"width:120px;font-size:$ifs;\" name = \"varenr_ny\" value=\"$varenr_ny\">";
+		print "<tr><td width=\"19%\">";
+		print "<input class=\"inputbox\" disableMobilePrompt='true' type=\"text\" style=\"width:120px;font-size:$ifs;\" name = \"varenr_ny\" value=\"$varenr_ny\">";
 		print "</td>\n"; 	
 		if ($varenr_ny) {
 			if (!$antal_old && $antal_old!='0') $antal_old='1,00'; #20140814 
-			print "<td width=\"7px\" title = '$qtyTitle'>";
-			print "<input class=\"inputbox\" type=\"text\" style=\"background-color:$bgColor;text-align:right;font-size:$ifs;width:40px\" ";
-			print "name=\"antal_ny\" placeholder=\"$antal_old\" value=\"$antal_ny\"></td>";
+			print "<td width=\"7%\" title = '$qtyTitle'>";
+
+			# Check for mobile agents
+			$useragent=$_SERVER['HTTP_USER_AGENT'];
+			if(preg_match('/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows (ce|phone)|xda|xiino/i',$useragent)||preg_match('/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i',substr($useragent,0,4))) {
+
+				print "<input class=\"inputbox\" onfocus='blur();' type=\"text\" style=\"background-color:$bgColor;text-align:right;font-size:$ifs;width:40px;";
+				if ($_GET["fokus"] == "antal_ny" || true) {
+					print " border: 2px #3a8eab solid;";
+				}
+				print "\" name=\"antal_ny\" placeholder=\"$antal_old\" value=\"$antal_ny\"";
+				print ">";
+			} else {
+				print "<input class=\"inputbox\" type=\"text\" style=\"background-color:$bgColor;text-align:right;font-size:$ifs;width:40px\" ";
+				print "name=\"antal_ny\" placeholder=\"$antal_old\" value=\"$antal_ny\">";
+			}
+
+			$lagerbeh = get_settings_value("show_stock", "POS", 0);
+			if ($lagerbeh == "on") {
+				$qtxt = "select varer.id,varer.gruppe,grupper.box8 from varer,grupper ";
+				$qtxt.= "where varer.varenr = '$varenr_ny' and grupper.kodenr = varer.gruppe";
+				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+
+				# This will pass if the item is a normal item, if it is a variant it will fail
+				if ($r['box8']) {
+					$qtxt = "select sum(beholdning) from lagerstatus where vare_id = '$r[id]'";
+					$beh = dkdecimal(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))["sum"]);
+					if ($beh) {
+						print "($beh)";
+					}
+				} else {
+					$qtxt = "select id, vare_id from variant_varer where variant_stregkode = '$varenr_ny'";
+					$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					if ($r) {
+						$qtxt = "select sum(beholdning) from lagerstatus where variant_id = '$r[id]' and vare_id = '$r[vare_id]'";
+						$beh = dkdecimal(db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))["sum"]);
+						print "($beh)";
+					}
+				}
+			}
+			print "</td>";
+
 			if ($lagerantal>1) {
 				for ($l=0;$l<count($lagernr);$l++){
 					if ($lagernr[$l]==$lager_ny && strlen($lagernavn[$l])==1) $lager_ny=$lagernavn[$l]; 
 				}
-				print "<td align=\"center\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right;font-size:$ifs;width:40px\" name=\"lager_ny\" placeholder=\"$lager_ny\" value=\"$lager_ny\"></td>\n";
+				print "<td align=\"center\" style=\"width: 7%\"><input class=\"inputbox\" type=\"text\" style=\"text-align:right;font-size:$ifs;width:40px\" name=\"lager_ny\" placeholder=\"$lager_ny\" value=\"$lager_ny\"></td>\n";
 			}
 			if ($jump2price && $pris[0] == 0) {
 				$antal_ny = 1;
@@ -439,15 +485,15 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 			}
 			if ($antal_ny) {
 				if ($textNew) {
-					print "<td align=\"right\" title='".findtekst(1873, $sprog_id)."'>"; #20210820
+					print "<td style='width: 10%' align=\"right\" title='".findtekst(1873, $sprog_id)."'>"; #20210820
 					print "<input class=\"inputbox\" type=\"text\" style=\"text-align:right;font-size:$ifs;width:80px\" ";
 					#print "name=\"textNew\" placeholder=\"$beskrivelse[0]\" value=\"\"></td>\n";
 					print "name=\"beskrivelse_ny\" value=\"$beskrivelse[0]\"></td>\n"; #20210810 + 20210812 + 20210829
 				} else print "<td>".$beskrivelse[0]."</td>\n";
 if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 				$txt = "<input type=hidden name=\"pris_old\" value=\"$pris_old\">\n" ; #20140702
-				$txt.= "<td align=\"right\" title=\"".findtekst(1874, $sprog_id).": ".dkdecimal($kostpris[0],2)."\">";
-				$txt.= "<input class=\"inputbox\" type=\"text\" style=\"text-align:right;font-size:$ifs;width:60px\" ";
+				$txt.= "<td style='width: 10%' align=\"right\" title=\"".findtekst(1874, $sprog_id).": ".dkdecimal($kostpris[0],2)."\">";
+				$txt.= "<input class=\"inputbox\" disableMobilePrompt='true' type=\"text\" style=\"text-align:right;font-size:$ifs;width:60px\" ";
 				$txt.= "name = \"pris_ny\"  placeholder=\"$pris_old\" value=\"\"></td>\n";
 				print $txt;
 			} else {
@@ -472,13 +518,17 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 				if ($rabat_old && $rabat_old!='0,00') print "<td colspan=\"2\" align=\"right\">$rabat_old% $credit_type</td>\n"; #20210813 This not fully implemented
 			}
 		}
+		print "<td style='width: 10%'></td>";
+		print "<td style='width: 50px'></td>";
 		print "</tr>\n";
 	}
+	if (!$moms)  $moms  = 0;
+	if (!$saldo) $saldo = 0;
 	if ($tracelog) fwrite ($tracelog, __file__." ".__line__." Calls vis_pos_linjer($id,$momssats,$status,$pris[0],1))\n");
 	list($sum,$rest,$afrundet,$kostsum)=explode(chr(32),vis_pos_linjer($id,$momssats,$status,$pris[0],1));
 	if ($konto_id && $kreditmax != 0 && $sum+$moms > $kreditmax - $saldo && $status < '3') {
 		$ny_saldo=$saldo+$sum+$moms;
-		$txt = "Kreditmax: ".dkdecimal($kreditmax,2)."<br>Gl. saldo :  ".dkdecimal($saldo,2)."<br>Ny saldo :  ".dkdecimal($ny_saldo,2);
+		$txt = findtekst('381|Kreditmax', $sprog_id).": ".dkdecimal($kreditmax,2).'\n'.findtekst('2297|Gl. saldo', $sprog_id).": ".dkdecimal($saldo,2).'\n'.findtekst('2298|Ny saldo', $sprog_id).": ".dkdecimal($ny_saldo,2);
 		#print "<BODY onLoad=\"javascript:alert('$txt')\">\n";
 		alert("$txt");
 	}
@@ -498,8 +548,8 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 // 			else $tmp=dkdecimal($modtaget-$afrundet);
 			$tmp=dkdecimal(pos_afrund($rest*-1,$difkto,''),2);
 			if ($betaling != "Konto" || $betalingsbet=='Kontant') {
-				print "<tr><td><b>Retur";
-				if ($betvaluta!= 'DKK') print " DKK";
+				print "<tr><td><b>".findtekst('2296|Retur', $sprog_id);
+				if ($betvaluta!= '$baseCurrency') print " $baseCurrency";
 				print "</b></td><td colspan=\"4\" align=\"right\"><b>$tmp</b></td></tr>\n";
 				if ($kundedisplay) {
 					kundedisplay('Modtaget',$modtaget+$modtaget2,0);
@@ -509,27 +559,27 @@ if (!$pris_old && $myPr) $pris_old = dkdecimal($myPr);
 		}
 	} elseif ($status >= 3) {
 		$r=db_fetch_array($q = db_select("select * from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
-		print "<tr><td>Saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal((float)$r['felt_3'],2)."</td></tr>\n";
+		print "<tr><td>".findtekst('1073|Saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal((float)$r['felt_3'],2)."</td></tr>\n";
 		$indbetaling=($r['felt_4']-$r['felt_3'])*-1;
-		print "<tr><td colspan=\"3\">Indbetaling - (Det beløb der skal indsættes på kontoen!)</td><td rowspan=\"2\" colspan=\"1\" align=\"right\">".dkdecimal($indbetaling,2)."</td></tr>\n";
-		print "<tr><td colspan=\"3\">Indbetaling - (Det beløb der skal indsættes på kontoen!)</td>";
+		print "<tr><td colspan=\"3\">".findtekst('2299|Indbetaling - (Det beløb der skal indsættes på kontoen!)', $sprog_id)."</td><td rowspan=\"2\" colspan=\"1\" align=\"right\">".dkdecimal($indbetaling,2)."</td></tr>\n";
+		print "<tr><td colspan=\"3\">".findtekst('2299|Indbetaling - (Det beløb der skal indsættes på kontoen!)', $sprog_id)."</td>";
 		print "<tr><td>$r[felt_1]</td><td colspan=\"4\" align=\"right\">".dkdecimal($r['felt_2'],2)."</td></tr>\n";
 		$ny_saldo=$r['felt_4'];
-		print "<tr><td>Ny saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2)."</td></tr>\n";
+		print "<tr><td>".findtekst('2298|Ny saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2)."</td></tr>\n";
 		$retur=pos_afrund($r['felt_2']+$r['felt_4']-$r['felt_3'],$difkto,'');
-		print "<tr><td>Retur</td><td  colspan=\"4\" align=\"right\">".dkdecimal($retur,2)."</td></tr>\n";
+		print "<tr><td>".findtekst('2296|Retur', $sprog_id)."</td><td  colspan=\"4\" align=\"right\">".dkdecimal($retur,2)."</td></tr>\n";
 	}
 	print "<tr><td colspan=\"6\" align=\"right\"><button STYLE=\"width: 100%;height: 0.01em;\" ";
 	print "onClick=\"this.form.submit(); this.disabled=true;\"></button></td></tr>\n"; #20220427
 #	print "<tr><td colspan=\"6\" align=\"right\"><input  STYLE=\"width: 100%;height: 0.01em;\" type=submit name=\"OK\" value=\"\"></td></tr>\n";
 	if ($kontonr && $status<3 && ($betalingsbet!='Kontant' || $saldo)) { #20161001
-		print "<tr><td>Gl. saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($saldo,2)."</td></tr>\n";
+		print "<tr><td>".findtekst('2297|Gl. saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($saldo,2)."</td></tr>\n";
 		$ny_saldo=(float)$saldo+(float)$sum;
-		print "<tr><td>Ny saldo</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2);
+		print "<tr><td>".findtekst('2298|Ny saldo', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($ny_saldo,2);
 		if ($pris[0]) print "<br>(".dkdecimal($ny_saldo+$pris[0],2).")";
 		print "</td></tr>\n";
 		if ($kreditmax) {
-			print "<tr><td>Kreditmax</td><td colspan=\"4\" align=\"right\">".dkdecimal($kreditmax,2)."</td></tr>\n";
+			print "<tr><td>".findtekst('381|Kreditmax', $sprog_id)."</td><td colspan=\"4\" align=\"right\">".dkdecimal($kreditmax,2)."</td></tr>\n";
 		}
 	}
 	print "\n<!-- Function varescan (slut)-->\n";

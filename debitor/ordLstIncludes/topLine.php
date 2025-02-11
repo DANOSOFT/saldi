@@ -1,12 +1,6 @@
 <?php
 	include("../includes/oldDesign/header.php");
-
-	$topCol = '#114691';
-	$butDownCol = '#2b66ba';
-	$butUpCol = '#1a55a9';
-	$topStyle = "border:0;border-color:$topCol;color:#fff;border-radius:5px;height:100%;background-color:$topCol;";
-	$butDownStyle = "border:0;border-color:$butDownCol;color:#fff;border-radius:5px;background-color:$butDownCol;";
-	$butUpStyle = "border:0;border-color:$butUpCol;color:#fff;border-radius:5px;background-color:$butUpCol;";
+	include("../includes/topline_settings.php");
 
 	$border = 'border:1px';
 	$TableBG = "bgcolor=$bgcolor";
@@ -14,9 +8,9 @@
 	print "<tr><td height = '25' align = 'center' valign = 'top'>";
 
 	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>"; # Tabel 1.1 ->
-	print "<td width=10% style=$butUpStyle>
+	print "<td width=10% style=$buttonStyle>
 		   <a href=$returside accesskey='L'>
-		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 		   .findtekst(30, $sprog_id)."</button></a></td>";
 
 	print "<td width=80% style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
@@ -80,19 +74,19 @@
 		include("pbsliste.php");
 		exit;
 	} else {
-		print "<td width=5% style=$butUpStyle>
+		print "<td width=5% style=$buttonStyle>
 			   <a accesskey=V href=ordrevisning.php?valg=$valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(813, $sprog_id)."</button></a></td>\n";
 		if ($popup) {
-			print "<td width=5% style=$butUpStyle onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
+			print "<td width=5% style=$buttonStyle onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
 				   <a accesskey=N href='".$_SERVER['PHP_SELF']."'>
-				   <button style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 				   .findtekst(39, $sprog_id)."</button></a></td>\n";
 		} else {
-			print "<td width=5% style=$butUpStyle>
+			print "<td width=5% style=$buttonStyle>
 				   <a href=ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id>
-				   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 				   .findtekst(39, $sprog_id)."</button></a></td>\n";
 		}
 		print "</tbody></table></td></tr>\n"; # <- Tabel 1.1.1

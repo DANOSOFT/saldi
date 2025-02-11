@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2013.03.20 Tilføjet mulighed for fravalg af logo på udskrift. Søg "PDF-tekst"
 // 2013.12.02	Efter udskrivning af kreditorordre, åbnes ordre som debitorordre. Tilføjer $art. Søg $art.
@@ -279,17 +279,42 @@ if ($valg) {
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=../debitor/ordreliste.php?gem_id=$id&gem=../temp/$ps_fil.pdf&download=$r[kundeordnr]_$r[firmanavn].pdf\">";
 				exit;
 			}
-			print "<table width=100% height=100%><tbody>";
-			if ($returside) $href="\"$returside\" accesskey=\"L\"";
-			else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-			print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal Luk</a></td>";
-			print "<td width=\"80%\" $top_bund align=\"center\" title=\"Klik her for at &aring;bne filen i nyt vindue, h&oslash;jreklik her for at gemme.\">";
-			print "<a href=../temp/$ps_fil.pdf target=blank>Vis PDF udskrift</a>";
-			print "</td>";
-  		print "<td width=\"10%\" $top_bund align = \"right\"></td>";
-			print "<tr><td width=100% height=99% align=\"center\" valign=\"middle\" colspan=\"3\"><iframe frameborder=\"0\" width=\"100%\" height=\"100%\" scrolling=\"auto\" src=\"../temp/$ps_fil.pdf\"></iframe></td></tr>";
-			print "</tbody></table>";
+
+			global $menu;
+
+			include("../includes/topline_settings.php");
+
+			if ($menu == 'S') {
+				print "<table width=100% height=100%><tbody>";
+
+				if ($returside) $href="\"$returside\" accesskey=\"L\"";
+				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
+
+				print "<td width='10%'><a href=$href>
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal Luk</button></a></td>";
+
+				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
+					   <a href=../temp/$ps_fil.pdf target=blank>
+					   <button style='$topStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2180|Vis PDF udskrift', $sprog_id)."</button></a></td>";
+
+				print "<td width='10%' align='right' style='$topStyle'></td>";
+				print "<tr><td width=100% height=99% align='center' valign='middle' colspan='3'><iframe frameborder='0' width='100%' height='100%' scrolling='auto' src='../temp/$ps_fil.pdf'></iframe></td></tr>";
+				print "</tbody></table>";
+
+			} else {
+				print "<table width=100% height=100%><tbody>";
+				if ($returside) $href="\"$returside\" accesskey=\"L\"";
+				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
+				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal Luk</a></td>";
+				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
+				print "<a href=../temp/$ps_fil.pdf target=blank>".findtekst('2180|Vis PDF udskrift', $sprog_id)."</a>";
+				print "</td>";
+				print "<td width=\"10%\" $top_bund align = \"right\"></td>";
+				print "<tr><td width=100% height=99% align=\"center\" valign=\"middle\" colspan=\"3\"><iframe frameborder=\"0\" width=\"100%\" height=\"100%\" scrolling=\"auto\" src=\"../temp/$ps_fil.pdf\"></iframe></td></tr>";
+				print "</tbody></table>";
+			}
 			print exit;
+
 		} else print "<BODY onLoad=\"javascript:alert('PDF-fil ikke fundet - er PS2PDF installeret?')\">";
 	}
   if ($valg=="printer") {
@@ -310,20 +335,54 @@ if ($valg) {
   fclose ($log);
   #xit;
 }
-print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">Luk</a></td>";
-print "<td width=\"80%\" $top_bund align=\"center\">Udskriftsvalg</td>";
-print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
-print "<tr><td height=\"99%\" align = center valign = middle>";
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-print "<tr><td align=center> <a href='udskriv.php?valg=pdf&ps_fil=$ps_fil'>PDF</a></td></tr>";
-print "<tr><td align=center> <a href='udskriv.php?valg=printer&ps_fil=$ps_fil'>Printer</a></td></tr>";
-print "</tbody></table></td>";
-print "</tbody></table>";
+
+global $menu;
+
+include ("../includes/topline_settings.php");
+
+if ($menu == 'S') {
+	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
+
+	print "<td width=\"10%\"><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">
+		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
+
+	print "<td width=\"80%\" align=\"center\" style='$topStyle'>Udskriftsvalg</td>";
+
+	print "<td width=\"10%\" align = \"right\" style='$topStyle'><br></td>";
+
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<tr><td height=\"99%\" align = center valign = middle>";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+
+	print "<tr><td align=center><a href='udskriv.php?valg=pdf&ps_fil=$ps_fil'>
+		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">PDF</button></a></td></tr>";
+
+	print "<tr><td align=center><a href='udskriv.php?valg=printer&ps_fil=$ps_fil'>
+		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Printer</button></a></td></tr>";
+
+	print "</tbody></table></td>";
+	print "</tbody></table>";
+
+} else {
+	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">Luk</a></td>";
+	print "<td width=\"80%\" $top_bund align=\"center\">Udskriftsvalg</td>";
+	print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<tr><td height=\"99%\" align = center valign = middle>";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	print "<tr><td align=center> <a href='udskriv.php?valg=pdf&ps_fil=$ps_fil'>PDF</a></td></tr>";
+	print "<tr><td align=center> <a href='udskriv.php?valg=printer&ps_fil=$ps_fil'>Printer</a></td></tr>";
+	print "</tbody></table></td>";
+	print "</tbody></table>";
+}
+
 exit;
 
 function historik($id,$filnavn) {

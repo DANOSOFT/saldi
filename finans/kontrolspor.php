@@ -236,7 +236,7 @@ print "<tr>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Id</b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=transdate&sort=$sort&valg=$valg$hreftext'>".findtekst(635,$sprog_id)."</a></b></td>"; #20210708
 print "<td align=right><b><a href='kontrolspor.php?nysort=logdate&sort=$sort&valg=$valg$hreftext'>".findtekst(1202,$sprog_id).". ".findtekst(635,$sprog_id)."</a></b></td>";
-print "<td align=right><b>Tidspkt.</a></b></td>";
+print "<td align=right><b>".findtekst('930|Tidspkt.', $sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kladde_id&sort=$sort&valg=$valg$hreftext'>".findtekst(1087,$sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=bilag&sort=$sort&valg=$valg$hreftext'>".findtekst(671,$sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kontonr&sort=$sort&valg=$valg$hreftext'>".findtekst(592,$sprog_id)."</b></td>";
@@ -248,8 +248,8 @@ if($vis_projekt) {
 		print "<a href='kontrolspor.php?nysort=projekt&sort=$sort&valg=$valg$hreftext'>".findtekst(533,$sprog_id)."";
 		print "</a></b></td>";
 }
-print "<td align=right><b>Valuta</b></td>";
-print "<td align=right><b>Valutakurs</b></td>";
+print "<td align=right><b>".findtekst('776|Valuta', $sprog_id)."</b></td>";
+print "<td align=right><b>".findtekst('2214|Valutakurs', $sprog_id)."</b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kasse&sort=$sort&valg=$valg$hreftext'>".findtekst(931,$sprog_id)."</a></b></td>";
 print "<td align=center><b><a href='kontrolspor.php?nysort=beskrivelse&sort=$sort&valg=$valg$hreftext'>".findtekst(1203,$sprog_id)."</a></b></td>";
 print "</tr>\n";

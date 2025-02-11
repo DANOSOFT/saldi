@@ -1621,84 +1621,84 @@ if ($menu != 'T') {
 	print "<td width=\"170px\" valign=\"top\">";
 	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
 	if ($menu == 'S') {
-		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; Tilbage</b></button></a></td></tr>\n"; // 200240428
+		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
 
 		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(783,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=provision>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(784,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=personlige_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(785,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=ordre_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(786,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=productOptions>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(787,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=variant_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(788,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=shop_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(789,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=api_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   API</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(791,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=prislister>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(792,$sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=rykker_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(793,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=div_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(794,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=tjekliste>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(796,$sprog_id)."</button></a></td></tr>\n";
 
 		if ($docubizz) print "<tr><td align=left><a href=diverse.php?sektion=docubizz>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(796,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=bilag>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(797,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(170,$sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=massefakt>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(200,$sprog_id)."</button></a><!--tekst 200--></td></tr>\n";
 
-		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left><a href=diverse.php?sektion=posOptions><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(271,$sprog_id)."</button></a></td></tr>\n";
+		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left><a href=diverse.php?sektion=posOptions><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(271,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=sprog>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(801,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=div_io>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(802,$sprog_id)."</button></a></td></tr>\n";
 
 		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";

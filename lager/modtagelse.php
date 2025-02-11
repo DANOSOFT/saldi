@@ -29,6 +29,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 $returside=(if_isset($_GET['returside']));
 if (!$returside) {
@@ -164,23 +165,58 @@ echo "Skriv $skriv<br>";
 }
 ############################
 $tekst=findtekst(154,$sprog_id);
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=\"$returside\" accesskey=L>Luk</a></td>";
-print "<td width=\"80%\" $top_bund align=\"center\"> varekort</td>";
-if ($liste_id) print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"modtagelse.php\" accesskey=N>Ny</a>";
-print "</td></tbody></table>";
-print "</td></tr>";
-print "<td align = center valign = center>";
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\" valign=\"top\"><tbody>";
+
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\"><a href=$returside accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerTxt\">$title</div>";
+	if ($liste_id) {
+		print "<div class=\"headerbtnRght headLink\"><a accesskey=N href='modtagelse.php' title='Klik her for at love en ny varemodtagelse'><i class='fa fa-plus-square fa-lg'></i></a></div>";
+	} else {
+		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	}
+	print "</div>";
+	print "<div class='content-noside'>";
+	print "<center><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" valign=\"top\" class='dataTableSmall'><tbody>";
+} elseif ($menu=='S') {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	print "<td width=\"10%\"><a href=\"$returside\" accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+	print "<td width=\"80%\" style='$topStyle' align=\"center\"> ".findtekst('566|Varekort', $sprog_id)."</td>";
+
+	print "<td width=\"10%\" style='$topStyle'></td>";
+
+	if ($liste_id) print "<td width=\"10%\" style='$topStyle' align=\"right\"><a href=\"modtagelse.php\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";
+
+	print "</td></tbody></table>";
+	print "</td></tr>";
+	print "<td align = center valign = center>";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\" valign=\"top\"><tbody>";
+} else {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><a href=\"$returside\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>"; #20210707
+	print "<td width=\"80%\" $top_bund align=\"center\"> ".findtekst('566|Varekort', $sprog_id)."</td>";
+	if ($liste_id) print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"modtagelse.php\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>";
+	print "</td></tbody></table>";
+	print "</td></tr>";
+	print "<td align = center valign = center>";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\" valign=\"top\"><tbody>";
+}
 
 if ($r=db_fetch_array(db_select("select modtaget from modtageliste where id='$liste_id'",__FILE__ . " linje " . __LINE__))) $modtaget=$r['modtaget'];
 else $modtaget='-';
 print "<form name=modtagelse action=modtagelse.php?liste_id=$liste_id&id=$id method=post>";
 print "<input type=\"hidden\" name=\"antal\" value=\"$antal\">";
 #print "<table border=1><tbody>";
-print "<tr><td align=center>Varenr</td><td align=center>Antal</td><td align=center>Beskrivelse</td><td align=center>Leveres</td><td align=center>Lager</td><td></tr>";
+print "<tr><td align=center>".findtekst('917|Varenr.', $sprog_id)."</td><td align=center>".findtekst('916|Antal', $sprog_id)."</td><td align=center>".findtekst('914|Beskrivelse', $sprog_id)."</td><td align=center>".findtekst('1190|Leveres', $sprog_id)."</td><td align=center>".findtekst('608|Lager', $sprog_id)."</td><td></tr>";
 $x=0;
 $q = db_select("select * from modtagelser where liste_id=$liste_id and id!=$id",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {

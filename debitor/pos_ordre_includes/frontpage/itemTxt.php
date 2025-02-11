@@ -52,13 +52,13 @@ function setItemHeaderTxt($lagerantal, $fokus)
     $txt = $txtArray['itemName'];
 	print "<td valign=\"bottom\">$txt</td>\n";
     $txt = $txtArray['price'];
-	print "<td style=\"width:13%\" align=\"right\" valign=\"bottom\">$txt</td>\n";
+	print "<td style=\"width:10%\" align=\"right\" valign=\"bottom\">$txt</td>\n";
  	if ($fokus=="rabat_ny") {
         $txt = $txtArray['discount'];
         print "<td colspan=\"2\" align=\"right\" valign=\"bottom\">$txt</td></tr>\n";
     }
     $txt = $txtArray['sum'];
- 	print "<td style=\"width:13%\" align=\"right\" valign=\"bottom\">$txt</td><td style=\"width:80px\"><br></td></tr>\n";
+ 	print "<td style=\"width:10%\" align=\"right\" valign=\"bottom\">$txt</td><td style=\"width:50px\"><br></td></tr>\n";
 	print "<tr><td colspan=\"7\"><hr></td></tr>\n";
 }
 

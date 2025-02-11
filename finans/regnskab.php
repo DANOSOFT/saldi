@@ -72,28 +72,28 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
-		print "<center>";
-		print "<table width='100%' height='20' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-	
-		print "<td width='10%' align='center'><a href='../index/menu.php' accesskey='L'>";
-		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
-	
-		print "<td width='80%' align='center' style='$topStyle'>".findtekst(849,$sprog_id)."</td>";
-	
-		print "<td width='10%' align='center'><a href=\"budget.php\" accesskey=\"B\">";
-		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Budget</button></a></td>";
-	
-		print "</tbody></table> ";
-		print "</td></tr> ";
+	print "<center>";
+	print "<table width='100%' height='20' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+	print "<td width='10%' align='center'><a href='../index/menu.php' accesskey='L'>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst('849|Regnskab',$sprog_id)."</td>";
+
+	print "<td width='10%' align='center'><a href=\"budget.php\" accesskey=\"B\">";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Budget</button></a></td>";
+
+	print "</tbody></table> ";
+	print "</td></tr> ";
 } else {
 	print "<center>";
 #	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print "	<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width='100%' height='20' align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
-	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";//20210225
-	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund> ".findtekst(849,$sprog_id)."</td>";
+	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst('30|Tilbage',$sprog_id)."</a></td>";//20210225
+	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst('30|Tilbage',$sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund> ".findtekst('849|Regnskab',$sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund><a href=\"budget.php\" accesskey=\"B\">Budget</a></td> ";
 	print "</tbody></table> ";
 	print "</td></tr> ";
@@ -318,15 +318,15 @@ print "<tbody>";
 
 if ($vis_medtag_lager) {
 	$title= findtekst(1624, $sprog_id); 
-	print  "<tr>";
+	print "<tr>";
 	print "<td colspan='$cols' align='center'>";
 	print "<form name='stockvalue' method='post' action='regnskab.php'>";
 	print "&nbsp;<input type='submit' title='$title' name='beregn_lager' value='".findtekst(595,$sprog_id)." ".findtekst(596,$sprog_id)."'>";
 	print "</form></td></tr>";
 }
 
-print "<tr style='background: white;position: sticky;top: 0;'><td style='padding-top: 5px;padding-bottom: 5px'><b> ".findtekst(804, $sprog_id)."</b></td> "; #20210721
-print "<td><b> ".findtekst(805, $sprog_id)."</b></td> ";
+print "<tr><td width='8%'><b>".findtekst('804|Kontonr', $sprog_id)."</b></td>"; #20210721
+print "<td><b> ".findtekst('805|Kontonavn', $sprog_id)."</b></td> ";
 fwrite($csv,"Kontonr;Kontonavn");
 if ($vis_valuta) {
 	print "<td align=\"center\"><b>".findtekst(776, $sprog_id)."</b></td>";

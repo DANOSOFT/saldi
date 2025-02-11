@@ -13,7 +13,7 @@ echo __line__."<br>";
 	if (!$reportNumber) $reportNumber = 0;
 	$kortnavn = $optval = array();
 	
-	$qtxt = "select box6,box12 from grupper where art = 'POS' and kodenr = '2'";
+	$qtxt = "select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$div_kort_kto=$r['box6'];
 	$vis_saet=trim($r['box12']);
@@ -41,7 +41,7 @@ echo __line__."<br>";
 	$qtxt = "select var_value from settings where var_name = 'change_cardvalue' limit 1";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$change_cardvalue = if_isset($r['var_value'],NULL);
-	$qtxt = "select * from grupper where art = 'POS' and kodenr = '2'";
+	$qtxt = "select * from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$byttepenge=$r['box1'];
 	$optalassist=$r['box2'];

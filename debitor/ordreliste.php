@@ -480,7 +480,7 @@ for ($x=0;$x<$vis_feltantal;$x++) {
 			// If the search value contains a range (e.g., a:b)
 			if ($vis_felt[$x]=='sum_m_moms' && strpos($find[$x],':')) {
 				// Split the range into two values and create the serarch pattern
-			list($a,$b) = explode(':',$find[$x]);
+				list($a,$b) = explode(':',$find[$x]);
 				$udvaelg=$udvaelg." and ordrer.sum+ordrer.moms >= '". usdecimal($a) ."' and ordrer.sum+ordrer.moms <= '". usdecimal($b) ."'";
 			} else $udvaelg=$udvaelg." and ordrer.sum+ordrer.moms='". usdecimal($find[$x]). "'";
 

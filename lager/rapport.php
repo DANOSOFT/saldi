@@ -63,20 +63,20 @@
 // 20240404 PHR - $date_to is only used if different from dd
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
-	@session_start();
-	$s_id=session_id();
-	$css="../css/standard.css";
- 
-	$title="Varerapport";
-	$modulnr=15;
+@session_start();
+$s_id=session_id();
+$css="../css/standard.css";
 
-	$vk_kost=NULL;
-	
-	include("../includes/connect.php");
-	include("../includes/online.php");
-	include("../includes/std_func.php");
-	include("../includes/forfaldsdag.php");
-	include("../includes/ordrefunc.php");
+$title="Varerapport";
+$modulnr=15;
+
+$vk_kost=NULL;
+
+include("../includes/connect.php");
+include("../includes/online.php");
+include("../includes/std_func.php");
+include("../includes/forfaldsdag.php");
+include("../includes/ordrefunc.php");
 #	include("../includes/db_query.php");
 
 if (!isset ($_GET['detaljer'])) $_GET['detaljer'] = NULL;
@@ -177,6 +177,9 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 #		if ($regnaar==$row['kodenr']){$aktiv=$x;}
 #	}
 #	$antal_regnaar=$x;
+
+	include("../includes/topline_settings.php");
+
 	if ($menu=='T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
@@ -186,13 +189,27 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		print "<div class=\"headerbtnRght\"></div>";       
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
+	} elseif ($menu=='S') {
+		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
+		print "<tr><td width=100%>";
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+
+		print "<td width=\"10%\"><a href=$returside accesskey=L>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+		print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('964|Varerapport - forside', $sprog_id)."</td>";
+
+		print "<td width=\"10%\" align='center' style='$topStyle'></td></tr>\n";
+
+		print "</tbody></table></td></tr>\n"; #B slut
+		print "</tr>\n<tr><td height=\"60%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
 	} else {
 		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
 		print "<tr><td width=100%>";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-		print "<td width=\"80%\" $top_bund>".findtekst(964,$sprog_id)."</td>";
-		print "<td width=\"10%\" $top_bund><a href='../utils/batch_salg_rabat.php?bogfor=0&md=8' target='blank'>|</a></td></tr>\n";
+		print "<td width=\"10%\" $top_bund><a href=$returside accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+		print "<td width=\"80%\" $top_bund>".findtekst('964|Varerapport - forside', $sprog_id)."</td>";
+		print "<td width=\"10%\" $top_bund><a href='../utils/batch_salg_rabat.php?bogfor=0&md=8' target='blank'></a></td></tr>\n";
 		print "</tbody></table></td></tr>\n"; #B slut
 		print "</tr>\n<tr><td height=\"60%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
 	}
@@ -282,7 +299,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	print "</td></tr>\n";
 	if (count($lev_id)>1) {
 		($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-		print "<tr bgcolor='$trbg'><td> Leverandør </td><td colspan=\"2\"><select class=\"inputbox\" name=\"lev\" style=\"width:200px;\">";
+		print "<tr bgcolor='$trbg'><td>".findtekst('966|Leverandør', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"lev\" style=\"width:200px;\">";
 		for ($x=0;$x<count($lev_id);$x++) {
 			if ($lev == $lev_id[$x]) print "<option value='$lev_id[$x]'>$lev_navn[$x]</option>";
 		}
@@ -330,7 +347,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 	print "<tr bgcolor='$trbg'><td>".findtekst(969,$sprog_id)."</td><td colspan=\"2\"><input type=\"checkbox\" name=\"kun_salg\"$kun_salg></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
-	print "<tr bgcolor='$trbg'><td>".findtekst(970,$sprog_id)."./værdi</td><td colspan=\"2\"><input type=\"checkbox\" name=\"lagertal\" $lagertal></td></tr>\n";
+	print "<tr bgcolor='$trbg'><td>".findtekst(970,$sprog_id)."./".strtolower(findtekst('476|Værdi', $sprog_id))."</td><td colspan=\"2\"><input type=\"checkbox\" name=\"lagertal\" $lagertal></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 	print "<tr bgcolor='$trbg'><td colspan='3' align=center><input class='button green medium' type=submit value=\"  OK  \" name=\"submit\"></td></tr>\n";
 	print "</tbody></table>";
