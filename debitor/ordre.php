@@ -253,7 +253,7 @@ if (isset($_POST['create_debtor'])) {
 	$addr1=if_isset($_POST['addr1']);
 	$addr2=if_isset($_POST['addr2']);
 	$postnr=if_isset($_POST['postnr']);
-	$bynavn=if_isset($_POST['bynavn']);
+	$bynavn=if_isset($_POST['tlf']);
 	$email=if_isset($_POST['email']);
 	if (substr($email, 0, 11 ) == "debitoripad") {
 		$q = db_select("select email from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
