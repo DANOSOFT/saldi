@@ -39,20 +39,16 @@ function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori) {
 				$udskrives[$y]=0;
 				for ($x=0;$x<count($linje_id);$x++) {
 // Hvis der er bestilling på varen OG (der er flere køkkener og varen har køkkenet som kategori ELLER der ikke er defineret køkken kategorier);
-#cho "$cat_id[$y]<br>";
 					if ($bestil[$x] && (in_array ($cat_id[$y],$kategori[$x]) || count($cat_id)<1)) $udskrives[$y]=1;
 				}
 				$kp[$y]=strtolower($kp[$y]);
-#cho "$kp[$y]<br>";				
 				if (trim($kp[$y])=='box') {
 					$z=$y+1;
 					$filnavn="http://saldi.dk/kasse/K".$z."_".$_SERVER['REMOTE_ADDR'].".ip";
-#cho __line__." $filnavn<br>";
 					if ($fp=fopen($filnavn,'r')) {
 						$kp[$y]=trim(fgets($fp));
 						fclose ($fp);
 					}
-#cho __line__." $kp[$y]<br>";						
 					if ($kp[$y]=='box') {
 						Print tekstboks('Køkkenprinter '.$z.' kan ikke findes');
 						exit;					
@@ -126,7 +122,6 @@ function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori) {
 						}
 					}
 			fwrite($fp,"\n\n\n");
-			#cho "$bestil[$x]=$tmp<br>";
 #		else $bestil[$x]=$antal[$x]; 
 				}
 				fclose($fp);

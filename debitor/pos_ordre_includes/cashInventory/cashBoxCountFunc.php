@@ -67,10 +67,8 @@ function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,
 	$kortsum=explode(chr(9),$svar[6]);
 	$kontosum=$svar[7];
 #	$kontosalg=$svar[8];
-#cho "$svar[5] $svar[6]<br>";
 	$omsatning=$tilgang+$kontosum;
 
-#cho "DKK TG $tilgang Om $omsatning<br>"; 	
 	$r=db_fetch_array(db_select("select box8,box9,box14 from grupper where art = 'POS' and kodenr = '2'",__FILE__ . " linje " . __LINE__));
 	$mellemkonti=explode(chr(9),$r['box8']);
 	$mellemkonto=$mellemkonti[$kasse-1];
@@ -126,17 +124,13 @@ function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,
 	if (!$optalt) {
 		$optalt=$ore_50*0.5+$kr_1+$kr_2*2+$kr_5*5+$kr_10*10+$kr_20*20+$kr_50*50+$kr_100*100+$kr_200*200+$kr_500*500+$kr_1000*1000+$kr_andet + $fiveRappen*0.05 + $tenRappen*0.1 + $twentyRappen*0.2;
 	}
-#cho __line__." $optalt != $tidl_optalt || $udtages -> $tilgang<br>";
 	if ((!$optalt && $optalt!='0')  || $optalt != $tidl_optalt) {
 		($udtag0)?$udtages=0:$udtages=$tilgang+$kassediff;
 	}
-#cho __line__." $udtages -> $tilgang<br>";
 #	if (!$udtag0 && !$udtages && ($optalt || $optalt=='0')) {
 #		if ($optplusbyt!=$optalt-$byttepenge) $udtages=afrund($optalt-$byttepenge,3); #20170314
 #	}
 
-#cho __line__." $udtages<br>";
-	
 	$forventet=$byttepenge+$tilgang+$kortdiff;
 	($optalt)?$ny_morgen=$optalt-$udtages:$ny_morgen=0;
 
@@ -159,7 +153,6 @@ function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,
 				$tilgang=$svar[1]*100/$valutakurs[$x];
 				$diff=$svar[2]*100/$valutakurs[$x];
 				$ValutaKasseDiff[$x]=$optval[$x]-($byttepenge+$tilgang);
-#cho "$valuta[$x] TG $tilgang Om $omsatning<br>"; 	
 				print "<tr><td colspan=\"3\" align=\"center\">";
 				print "<input type=\"hidden\" name=\"kontosum\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"valuta[$x]\" value=\"$valuta[$x]\">\n";

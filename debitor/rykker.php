@@ -51,8 +51,6 @@ $rykker_id=if_isset($_GET['rykker_id']);
 if ($rykker_id && $inkasso) {
 	db_modify("update ordrer set felt_5 = 'inkasso' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
 	$felt_5='inkasso';
-	#cho "update ordrer set felt_5 = 'inkasso' where id = '$rykker_id'<br>";
-	#xit;
 }
 if ($submit || $inkasso) {
 	$linjeantal=if_isset($_POST['linjeantal']);
@@ -122,7 +120,6 @@ if ($submit || $inkasso) {
 			}
 		}
 		if ($slettet==$linjeantal) {
-#		#cho "delete from ordrer where id=$rykker_id<br>";
 			db_modify("delete from ordrer where id=$rykker_id",__FILE__ . " linje " . __LINE__);
 			$rykker_id=0;
 		} 
@@ -375,7 +372,6 @@ if ($menu=='T') {
 	$x=0;
 	$sum=0;
 	$ialt=0;
-#cho "select * from ordrelinjer where ordre_id = '$rykker_id' order by posnr<br>";
 	$q = db_select("select * from ordrelinjer where ordre_id = '$rykker_id' order by serienr, posnr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;

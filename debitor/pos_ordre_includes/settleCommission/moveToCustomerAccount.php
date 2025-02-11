@@ -236,16 +236,12 @@ for ($co=0;$co<count($coAc);$co++) {
 			$qtxt.=" values ";
 			$qtxt.="('0','$dd','Kommisionsafregning','$cusCoAc[$co]','0','$debet','$kredit',0,'$afd','$dd','$logtime',";
 			$qtxt.="'','$ansat_id','0','0','$reportNumber','0')";
-#cho __line__." $qtxt<br>";	
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			for ($oid=0;$oid<count($orderId);$oid++) {
 				$qtxt = "update ordrer set settletime = '$settletime' where id = $orderId[$oid]";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
-#cho __line__." $db<br>";	
 	}
-#cho __line__."<br>";	
 }
 ?> 

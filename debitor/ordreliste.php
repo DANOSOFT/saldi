@@ -89,6 +89,7 @@
 // 20240815 PHR- $title 
 // 20250828 PHR error in translation of 'tilbud'
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
+// 06-01-2024 PBLM Added box5 on line 1187 for the extra api client
 #ob_start();
 @session_start();
 $s_id=session_id();
@@ -245,7 +246,6 @@ $box3 = select_valg("$valg", "box3");
 $box4 = select_valg("$valg", "box4");
 $box6 = select_valg("$valg", "box6");
 
-#cho __line__." $box3<br>";
 
 $qtxt = "select id from grupper where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'";
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -276,7 +276,6 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	}
 	$linjeantal=$r['box7'];
 	if (!$sort) $sort=$r['box8'];
-#cho "$r[box9]<br>";
 	$find=explode("\n",$r['box9']);
 }
 if (!$returside) {
@@ -287,11 +286,9 @@ if (!$returside) {
 	else $returside= "../index/menu.php";
 } elseif (!$popup && $returside=="../includes/luk.php") $returside="../index/menu.php";
 $qtxt = "update grupper set box2 = '$returside', box8 = '$sort' where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'"; 
-#cho __line__."$qtxt<br>";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 if (!$popup) {
 	$qtxt = "update ordrer set hvem='', tidspkt='' where hvem='$brugernavn' and art like 'D%' and status < '3'";
-#cho __line__."$qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__); #20150308
 }		
 $tidspkt=date("U");
@@ -562,7 +559,6 @@ $slut=$start+$linjeantal;
 $ordreantal=0;
 
 if ($konto_id) $udvaelg=$udvaelg."and konto_id=$konto_id";
-#cho "select count(id) as antal from ordrer where (art = 'DO' or art = 'DK') and $status $udvaelg<br>";
 $qtxt="select count(ordrer.id) as antal from ordrer";
 if (strstr($udvaelg,'adresser')) $qtxt.=",adresser";
 $qtxt.=" where (ordrer.art = 'DO' or ordrer.art = 'DK' or (ordrer.art = 'PO' and ordrer.konto_id > '0')) and $status $udvaelg";
@@ -630,7 +626,6 @@ print "<tr><td></td>";
 
 		# Print the input fields
 		print "<td align=$justering[$x]><span title= '$span'>";
-#cho "$konto_id && ($vis_felt[$x]==\"kontonr\" || $vis_felt[$x]==\"firmanavn\"<br>";		
 		if ($konto_id && ($vis_felt[$x]=="kontonr" || $vis_felt[$x]=="firmanavn")) {
 			$r=db_fetch_array(db_select("select $vis_felt[$x] as tmp from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
 			print "<label class='checkContainerOrdreliste'><input class=\"inputbox\" type=text readonly=$readonly style=\"text-align:$justering[$x];$width;\" name=find[$x] value=\"$r[tmp]\"><span class='checkmarkOrdreliste'></span></label>";
@@ -1017,9 +1012,8 @@ while ($r0=db_fetch_array($q0)) {
 			<?php
 		}
 
-		$q3=db_select("select sum(V.kostpris) as sum_kostpris
-					  from ordrelinjer O 
-					  join varer V on O.vare_id = V.id 
+		$q3=db_select("select sum(kostpris * antal) as sum_kostpris
+					  from ordrelinjer
 				  	  where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
 		$r3=db_fetch_array($q3);
 		$kostpris_fetch = $r3["sum_kostpris"];
@@ -1076,7 +1070,6 @@ if ($valg) {
 				for ($i=1;$i<=count($vis_felt);$i++) {
 					if 	(isset($vis_felt[$i]) && $vis_felt[$i]=='udskriv_til') $z=$i;
 				}
-#cho "fins $find[$z]<br>";		
 				if ($find[$z]=='email') {
 					$confirm = findtekst(1444, $sprog_id); 
 					print "<span title=\"".findtekst(1435, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"Send mails\" name=\"submit\" onclick=\"return confirm('$confirm $valg pr mail?')\"></span><br>";
@@ -1130,7 +1123,6 @@ print "</form></tr>\n";
 $qtxt = "select id from grupper where art = 'OLV' and kode = '$valg' and kodenr = '$bruger_id'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$qtxt = "update grupper set box1='$ordreliste' where id='$r[id]'";
-#cho "$qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 } #else db_modify("insert into grupper (beskrivelse,kode,kodenr,art,box1) values ('Ordrelistevisning','$valg','$bruger_id','OLV','$ordreliste')",__FILE__ . " linje " . __LINE__);
 
@@ -1181,9 +1173,8 @@ if ($valg=="ordrer") {
 		}
 	}
 }	
-#cho "select box4 from grupper where art='API'<br>";
 
-if ($r=db_fetch_array(db_select("select box4 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
+if ($r=db_fetch_array(db_select("select box4, box5 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
 	$api_fil=trim($r['box4']);
 	if (file_exists("../temp/$db/shoptidspkt.txt")) {
 		$fp=fopen("../temp/$db/shoptidspkt.txt","r");
@@ -1202,6 +1193,14 @@ if ($r=db_fetch_array(db_select("select box4 from grupper where art='API' and bo
 		if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
 		elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
 		exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		if($r["box5"]){
+			$api_txt="$r[box5]?put_new_orders=1";
+	//		$api_encode='utf-8';
+			if ($api_encode) $api_txt.="&encode=$api_encode";
+			if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+			elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+			exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		}
 	} elseif ($hent_nu) alert("vent 30 sekunder");
 	print "<tr><td><a href=\"$_SERVER[PHP_SELF]?sort=$sort&hent_nu=1\">".findtekst(879,$sprog_id)."</td></tr>";
 }
@@ -1350,7 +1349,6 @@ if ($menu=='T') {
 	include_once '../includes/oldDesign/footer.php';
 }
 function select_valg( $valg, $box ){  #20210623
-#cho __line__."  $valg, $box <br>";
 	global $bruger_id, $sprog_id, $firmanavn1;
 	global $beskrivelse,$ordrenr1,$kontonr1,$fakturanr1,$fakturadate1,$nextfakt1 ;
   
@@ -1374,7 +1372,6 @@ function select_valg( $valg, $box ){  #20210623
 		}
 	} elseif ($valg=="ordrer") {
 		$qtxt = "select * from grupper where art = 'OLV' and kode = 'ordrer' and kodenr = '$bruger_id'";
-#cho __line__." $qtxt<br>";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			return $r[$box];
 		} else {

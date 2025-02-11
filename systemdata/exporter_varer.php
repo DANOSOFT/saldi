@@ -30,6 +30,7 @@
 // 20161124 erstattet <tab> med ; som skilletegn
 // 20170509 Tilføjet varemærke (trademark);
 // 20210714 LOE - Translated some text.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 @session_start();
@@ -48,7 +49,7 @@ $filnavn="../temp/$db/varer.csv";
 $fp=fopen($filnavn,"w");
 
 $overskrift='"varenr";"stregkode";"varemærke";"beskrivelse";"kostpris";"salgspris";"vejl_pris";"notes";"enhed";"udgået";"gruppe";"min_lager";"max_lager";"lokation"';
-if ($charset=="UTF-8") $overskrift=utf8_decode($overskrift);
+if ($charset=="UTF-8") $overskrift=mb_convert_encoding($overskrift, 'ISO-8859-1', 'UTF-8');
 
 if (fwrite($fp, "$overskrift\r\n")) {
 	$q=db_select("select varenr,stregkode,trademark,beskrivelse,kostpris,salgspris,retail_price,notes,enhed,lukket,gruppe,min_lager,max_lager,location from varer order by varenr",__FILE__ . " linje " . __LINE__);
@@ -65,7 +66,7 @@ if (fwrite($fp, "$overskrift\r\n")) {
 
 		$linje='"'.$varenr.'";"'.$stregkode.'";"'.$r['trademark'].'";"'.$beskrivelse.'"'.';'.$kostpris.';'.$salgspris.';'.$retail_price.';'.'"'.$r['notes'].'";"'.$r['enhed'].'"'.';"'.$r['lukket'].'"'.';'.$r['gruppe'].';'.$min_lager.';'.$max_lager.';'.'"'.$r['location'].'"';
 		$linje=str_replace("\n","",$linje);
-		if ($charset=="UTF-8") $linje=utf8_decode($linje);
+		if ($charset=="UTF-8") $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 		fwrite($fp, $linje."\r\n");
 	} 
 } 

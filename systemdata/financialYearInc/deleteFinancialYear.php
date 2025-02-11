@@ -31,7 +31,6 @@ function deleteFinancialYear($year) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "update batch_salg set variant_id = 0 where variant_id is NULL";  
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#cho __line__." Sletter år $year<br>";
 	// Finds financial year start & end date 
 	$qtxt = "select * from grupper where art = 'RA' and kodenr = '$year'";
 	if ($r = db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__))) {
@@ -80,11 +79,9 @@ function deleteFinancialYear($year) {
 	
 /*	
 	$qtxt = "select distinct(konto_id) from openpost where transdate < '$yearEnd'";
-#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$accountId[$i] = $r['konto_id'];
-#cho __line__." $accountId[$i]<br>";	
 		$i++;
 	}
 */
@@ -117,22 +114,17 @@ echo __line__." $qtxt<br>";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$orderId[$y] = $r['id'];
-#cho "OrderId $orderId[$y]<br>";	
 				$y++;
 			}
 			for ($y = 0; $y < count($orderId); $y++) {
 				$qtxt = "delete from ordrelinjer where ordre_id = '$orderId[$y]'";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt = "delete from ordrer where id = '$orderId[$y]'";
-#cho __line__." $qtxt<br>";
 	  		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt = "delete from pos_betalinger where ordre_id = '$orderId[$y]'";
-#cho __line__." $qtxt<br>";
  			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 			$qtxt = "delete from report where date <= '$yearEnd'";
-#cho __line__." $qtxt<br>";
  			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			
 			$deleteAccount = 1;
@@ -154,7 +146,6 @@ echo __line__." $qtxt<br>";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$itemId[$y] = $r['vare_id'];
-#cho __line__." $itemId[$y]<br>";	
 				$y++;
 			}
 			$qtxt = "select distinct vare_id from batch_salg where (fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
@@ -163,12 +154,10 @@ echo __line__." $qtxt<br>";
 			while ($r = db_fetch_array($q)) {
 				if (!in_array($r['vare_id'],$itemId)) {
 					$itemId[$y] = $r['vare_id'];
-#cho __line__." $itemId[$y]<br>";	
 					$y++;
 				}
 			}
 			for ($y = 0; $y < count($itemId); $y++) {
-#cho __line__." $itemId[$y]<br>";	
 				$qty[$y]  = $avgPrice[$y] = 0;
 				$stockId[$y] = $variantId[$y] = array();
 				$qtxt = "select gruppe from varer where id = '$itemId[$y]'";
@@ -178,7 +167,6 @@ echo __line__." $qtxt<br>";
 					$qtxt = "select box8 from grupper where art = 'VG' and kodenr = '$itemGroup[$y]'";
 					($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$stockItem[$y] = $r['box8']:$stockItem[$y] = 0;
 				}
-#cho __line__." $itemId[$y]<br>";	
 				if ($stockItem[$y]) {
 					$qtxt = "select distinct(variant_id) as variant_id from variant_varer where vare_id = '$itemId[$y]'";
 					$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -207,19 +195,16 @@ echo __line__." $qtxt<br>";
 						$qtxt = "delete from batch_kob where vare_id = $itemId[$y] and variant_id = '$variantId[$v]' ";
 						$qty.= " and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
 						$qtxt.= "or (fakturadate is NULL and kobsdate  >= '2000-01-01' and kobsdate <= '$yearEnd'))";
-#cho __line__." $qtxt<br>";
 					db_modify(qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt = "delete from batch_salg where  vare_id = $itemId[$y] and variant_id = '$variantId[$v]' ";
 						$qty.= " and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
 						$qtxt.= "or (fakturadate is NULL and salgsdate  >= '2000-01-01' and salgsdate <= '$yearEnd')";
-#cho __line__." $qtxt<br>";
 						db_modify(qtxt,__FILE__ . " linje " . __LINE__);
 						if ($qty[$v] > 0) {
 							$qtxt = "insert into batch_kob ";
 							$qtxt.= "(kobsdate,fakturadate,vare_id,variant_id,linje_id,ordre_id,pris,antal,rest,lager) values";
 							$qtxt.= "('$yearEnd','$yearEnd','$vareId[$y]','$variantId[$v]',";
 							$qtxt.= "'0','0','$avgPrice[$v]',$qty[$v],$left[$v],$stockId[$l])";
-#cho __line__." $qtxt<br>";
 						db_modify(qtxt,__FILE__ . " linje " . __LINE__);
 							}
 						}
@@ -228,7 +213,6 @@ echo __line__." $qtxt<br>";
 				$qtxt = "delete from batch_salg where  vare_id = '$itemId[$y]' ";
 				$qtxt.= "and ((fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";
 				$qtxt.= "or (fakturadate is NULL and salgsdate  >= '2000-01-01' and salgsdate <= '$yearEnd')";
-#cho __line__." $qtxt<br>";
 #			db_modify(qtxt,__FILE__ . " linje " . __LINE__);
 			} 
 	}
@@ -238,39 +222,30 @@ echo __line__." $qtxt<br>";
 	$i=0;
 	$deleteLedgerId = array();
 	$qtxt = "select distinct(kladde_id) as kladde_id from kassekladde where transdate <= '$yearEnd' ";
-#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$deleteLedgerId[$i] = $r['kladde_id'];
-#cho __line__." $deleteLedgerId[$i]<br>";
 		$i++;
 	}
 	for ($i=0; $i<count($deleteLedgerId); $i++) {
 		$qtxt = "select id from kassekladde where kladde_id = $deleteLedgerId[$i] and transdate > '$yearEnd' limit 1";
 		if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$qtxt = "delete from kassekladde where kladde_id = '$deleteLedgerId[$i]' and transdate <= '$yearEnd'";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else {
 			$qtxt = "delete from kladdeliste where id = '$deleteLedgerId[$i]'";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt = "delete from kassekladde where kladde_id = '$deleteLedgerId[$i]'";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
 	$qtxt = "delete from kassekladde where transdate <='$yearEnd'";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from transaktioner where transdate <='$yearEnd'";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from kontoplan where regnskabsaar ='$year'";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "update grupper set box10 = 'on' where art = 'RA' and kodenr ='$year'";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	transaktion('commit');	
 

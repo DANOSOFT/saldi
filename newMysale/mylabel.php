@@ -131,7 +131,6 @@ if ($mySale) {
 	$printIds=$Lp= '';
 	$productLimit = if_isset($_POST['productLimit'],NULL);
 	($medlem)?$rows = $productLimit/5:$rows=13;
-  #cho "$medlem $productLimit $rows";
 	for ($a=1;$a<=$rows;$a++) {
 		for ($b=1;$b<=$cols;$b++) {
 			$price[$a][$b]     = if_isset($price[$a][$b],0);
@@ -152,9 +151,7 @@ if ($mySale) {
 #echo print __line__." $db ". $new ."<br>\n";
 			#}
 #			$labelName[$a][$b] = db_escape_string($new);
-#cho $labelId[$a][$b] ." || ". $labelName[$a][$b] ."||". $price[$a][$b] ."<br>";
 			if ($labelId[$a][$b]) {
-#cho $labelId[$a][$b]."<br>";
 				$barcode[$a][$b]=dechex($price[$a][$b]*100);
 				while(strlen($barcode[$a][$b])<6) $barcode[$a][$b]='0'.$barcode[$a][$b];
 				$barcode[$a][$b]=$labelId[$a][$b].$barcode[$a][$b];
@@ -196,11 +193,9 @@ if ($mySale) {
 				$qtxt = "select id from mylabel where account_id = '$accountId' and page =  '$page' and condition = '$condition'";
 				$qtxt.= " and row = '$a' and col ='$b' and hidden = false";
 				if ($medlem) $qtxt.= " and sold ='0'";
-#cho $qtxt ."<br>";
 				if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 					$qtxt = "insert into mylabel (account_id,page,condition,row,col,description,price,hidden,sold,created) values ";
 					$qtxt.= "('$accountId','$page','$condition','$a','$b','". $labelName[$a][$b] ."','" .$price[$a][$b]. "',FALSE,0,".date('U').")";
-#cho $db." ".$qtxt ."<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$qtxt = "select max(id) as id from mylabel where account_id = '$accountId' and page='$page' ";
 					$qtxt.= "and description = '". $labelName[$a][$b] ."' and price = '". $price[$a][$b] ."' ";
@@ -273,7 +268,6 @@ $itemId=$r['id'];
 $itemNo=$r['varenr'];
 
 if (strlen($itemNo) != 9) {
-	#cho "fejl i varenr ". strlen($itemNo);
 	exit;
 }
 
@@ -308,7 +302,6 @@ $qtxt.= "where account_id = '$accountId' and page='$page' and condition='$condit
 if ($medlem) $qtxt.= " and sold ='0'";
 $qtxt.= " order by row,col";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-#cho "R $rows<br>";
 while ($r=db_fetch_array($q)) {
 	for ($a=1;$a<=$rows;$a++) {
 		for ($b=1;$b<=5;$b++) {

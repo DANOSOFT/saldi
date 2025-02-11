@@ -25,7 +25,6 @@ $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$variantTypeId[$x] = $r['id'];
 	$variantTypeText[$x] = $r['beskrivelse'];
-#cho ">$variantTypeText[$x]<<br>";
 	$x++;
 }
 transaktion('begin');
@@ -39,13 +38,9 @@ echo __line__." Renset navn: $nettoName[$x]<br>";
 echo __line__." Array size $t<br>";
 	if ($t > 1) {
 		$tmpV[$x] = trim($tmpA[$t]);
-#cho __line__." Variant >$tmpV[$x]<<br>";
 		$tmpV1[$x] = str_replace('/','-',$tmpV[$x]);
-#cho __line__." Variant >$tmpV1[$x]<<br>";
 		$tmpV1[$x] = trim(str_replace('Str.','',$tmpV1[$x]));
-#cho __line__." Variant >$tmpV1[$x]<<br>";
 		$tmpV1[$x] = str_replace(' ','-',$tmpV1[$x]);
-#cho __line__." Variant >$tmpV1[$x]<<br>";
 		$vaInFrShVariant[$x] = trim($tmpV1[$x]);
 echo __line__." Renset variant >$vaInFrShVariant[$x]<<br>";
 		$nettoName[$x] = trim(str_replace("- $tmpV[$x]",'',$nettoName[$x]));
@@ -66,7 +61,6 @@ echo "<hr>$qtxt<br>";
 echo __line__." NewId $newId[$x]<br>";
 		$newVariantId[$x] = 0;
 		for ($v=0;$v<count($variantTypeText);$v++) {
-#cho "$tmpV1[$x] == $variantTypeText[$v]<br>";
 				if (!$newVariantId[$x] && 
 					($vaInFrShVariant[$x] == $variantTypeText[$v] || 
 						strtolower($vaInFrShVariant[$x]) == strtolower($variantTypeText[$v]) ||

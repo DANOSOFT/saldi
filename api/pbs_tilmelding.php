@@ -38,7 +38,6 @@ $regnskab=if_isset($_GET['regnskab']);
 #$password=if_isset($_POST['password']);
 
 $svar=logon($s_id,$regnskab,$brugernavn,$password,$sqhost,$squser,$sqpass,$sqdb);
-#cho "Svar: ".$svar."<br>";
 
 print "<html><head>
 					<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />
@@ -94,17 +93,13 @@ if ($tilmeld=(if_isset($_POST['tilmeld']))) {
 		}
 		$art='D';
 		$qtxt="insert into adresser(kontonr,firmanavn,addr1,addr2,postnr,bynavn,email,cvrnr,tlf,kontakt,gruppe,kontotype,art,bank_navn,bank_reg,bank_konto,pbs,pbs_nr) values ('$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$email','$cvrnr','$tlf','$kontakt','$gruppe','$kontotype','$art','$bank_navn','$bank_reg','$bank_konto','on','')";
-		#cho "$qtxt<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt="select id from adresser where kontonr='$kontonr' and art = 'D'";
-		#cho "$qtxt<br>";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$konto_id=$r['id'];
-	#cho "konto_id $konto_id<br>";
 		if ($konto_id) {
 			if ($kontakt) {
 				$qtxt="insert into ansatte(konto_id, navn) values ('$konto_id', '$kontakt')";
-				#cho "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
 			}
 			$qtxt="select max(ordrenr) as ordrenr from ordrer where art='DO'";
@@ -114,23 +109,17 @@ if ($tilmeld=(if_isset($_POST['tilmeld']))) {
 			$status=0;
 			$art='DO';
 			$qtxt="insert into ordrer(konto_id,kontonr,ordrenr,firmanavn,addr1,addr2,postnr,bynavn,email,kontakt,art,status,udskriv_til,ordredate) values ('$konto_id','$kontonr','$ordrenr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$email','$kontakt','$art','$status','PBS','$ordredate')";
-#cho "$qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
 			$r=db_fetch_array(db_select("select max(id) as id from ordrer where konto_id='$konto_id' and art = '$art'",__FILE__ . " linje " . __LINE__));
 			$ordre_id=$r['id'];
 			$txt="Tilmeldt PBS, betalingsinterval: $interval, beløb: $belob";
 			$txt=db_escape_string($txt);
-#cho "$txt<br>";
 			$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr) values ('$ordre_id','$txt','1')";
-#cho "$qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
-#cho "vare_id $vare_id<br>";
 			if ($vare_id) {
 				$amount=usdecimal($belob);
 				$qtxt="select * from varer where id = '$vare_id'";
-#cho "$qtxt<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#cho "opret_ordrelinje($ordre_id,$r[varenr],$r[antal],$r[beskrivelse],$amount,'0',100,'DO',$r[momsfri],'2','0','0','','','')<br>";
 				opret_ordrelinje($ordre_id,$r['varenr'],1,$r['beskrivelse'],$amount,'0',100,'DO',$r['momsfri'],'2','0','0','','','');
 			}
 		
@@ -200,12 +189,10 @@ function logon($s_id,$regnskab,$brugernavn,$password,$sqhost,$squser,$sqpass,$sq
 	include("../includes/db_query.php");
 	include ("../includes/connect.php");
 #	db_modify("delete from online where  session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-#cho "select * from regnskab where regnskab = '$regnskab'";
 	if ($r=db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))) {
 		if ($db = trim($r['db'])) {
 			$connection = db_connect ($sqhost,$squser,$sqpass,$db);
 			if ($connection) {
-#cho "select id from brugere where brugernavn='PBS_TILMELDING'<br>";
 				$r=db_fetch_array(db_select("select id from brugere where brugernavn='PBS_TILMELDING'",__FILE__ . " linje " . __LINE__));
 				if ($r['id']) {
 				#				db_modify("insert into online (session_id, brugernavn, db, dbuser) values ('$s_id', '$brugernavn', '$db', '$squser')",__FILE__ . " linje " . __LINE__);

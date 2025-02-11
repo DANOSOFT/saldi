@@ -121,7 +121,6 @@ if ($_POST) {
 
 	$bankReconcile  = if_isset($_POST['bankReconcile']);
 	
-	#cho "prj_navn_fra $prj_navn_fra -> $projekt_fra<br>";
 	if (stristr($rapportart, "Listeangivelse")) {
 		$listeperiode = preg_replace('/[^0-9.]*/', '', $rapportart); # 20140729 afsnit 1
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=listeangivelse.php?listeperiode=$listeperiode\">";

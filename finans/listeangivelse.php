@@ -131,7 +131,6 @@ while ($row = db_fetch_array($query)) {
 	$debughtml.="<p>Debitor: ".$row[id]."</p>\n";
 	$debughtml.= "\n<table>\n";
 	$debughtml.= "<tr><th>Dato</th><th>Cvrnr.</th><th>Bel&oslash;b</th><th>Valuta</th></tr>\n";
-#cho "select id, fakturadate, kontonr, sum, cvrnr, valuta, valutakurs from ordrer where konto_id = '$row[id]' and fakturadate >= '$kvartal_startdato' and fakturadate <= '$kvartal_slutdato' and status = '4' order by cvrnr<br>";
 	$q=db_select("select id, fakturadate, kontonr,firmanavn, sum, cvrnr, valuta, valutakurs from ordrer where konto_id = '$row[id]' and fakturadate >= '$liste_startdato' and fakturadate <= '$liste_slutdato' and status = '4' order by cvrnr",__FILE__ . " linje " . __LINE__); # 20140729 afsnit 2
 	while ($r = db_fetch_array($q)) {
 		$fakturaer++;

@@ -26,6 +26,7 @@
 // 20181204 Valg gemmes i cookie
 // 20210713 LOE - Translated some texts
 // 20220404	PHR function vis_data & overfoer_data: Inserted trim($felt[$y],'"');	
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -383,7 +384,7 @@ if ($fp) {
 		if ($linje=trim(fgets($fp))) {
 			$x++;
 			$skriv_linje=1;
-#			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+#			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			if ($file_charset!=$charset) $linje=iconv($file_charset, $charset, $linje);
 
 			$felt=array();

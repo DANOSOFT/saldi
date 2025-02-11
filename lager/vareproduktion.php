@@ -58,8 +58,6 @@ $ny_beholdning[0]=if_isset($_GET['ny_beholdning']);
 $samlevare=if_isset($_GET['samlevare']);
 $lager=if_isset($_GET['lager']);
 
-#cho  __line__." Ny beh: $ny_beholdning[0]<br>";
-#cho __line__." Antal $antal<br>";
 if (!$lager) $lager=1;
 
 if(isset($_POST['cancel'])) {
@@ -78,33 +76,24 @@ if ($_POST['OK']) {
 	}
 }
 
-#cho __line__." ID $id[0]<br>";
 
 if ($_POST['OK']) {
-#cho __line__." Antal $antal<br>";
 #	if ($bilag || $bilag=='0') {
 #		$bilag=$bilag*1;
 		if ($samlevare) {
-#cho __line__." Antal $antal<br>";
-#cho __line__." ID $id[0] NY $ny_beholdning[0]<br>";
 		list($antal,$id,$stk_antal,$ny_beholdning)=samlevare($id[0],$ny_beholdning[0]);
 			$kontonr=array();
 		}
-#cho __line__." Antal $antal<br>";
 		transaktion('begin');
 		$l=0;
 		$afgangsum=0;
 
-#cho __line__." Antal $antal<br>";
 
 		for($x=0;$x<$antal;$x++) {
-#cho "L $lager<br>";
 #xit;
-#cho __line__." Antal: $antal[$x], ID: $id[$x], Stk ant: $stk_antal[$x], Ny beh: $ny_beholdning[$x]<br>";
 			$id[$x]*=1;
 			$ny_beholdning[$x]*=1;
 			$qtxt="select varenr,kostpris,beholdning,gruppe from varer where id = '$id[$x]'";
-#cho __line__." $qtxt<br>";			
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$varenr[$x]=db_escape_string($r['varenr']);
 				$beholdning[$x]=$r['beholdning'];
@@ -112,20 +101,14 @@ if ($_POST['OK']) {
 				$gruppe[$x]=$r['gruppe'];
 
 				$qtxt="select id,beholdning from lagerstatus where vare_id = '$id[$x]' and lager='$lager' and variant_id='0'";
-#cho __line__." $qtxt<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$ls_id[$x]=$r['id'];
 				$ls_beholdning[$x]=$r['beholdning'];
-#cho "$ls_id[$x] -> $ls_beholdning[$x]<br>";
 				if (!$x) {
-#cho __line__." Gl beh $r[beholdning] Ny beh $ny_beholdning[$x]<br>";
 					$regulering[$x]=$ny_beholdning[$x]-$r['beholdning'];
 				} else {
-#cho __line__." X $x<br>";
 					$regulering[$x]=$stk_antal[$x]*$regulering[0];
-#cho __line__." Gl beh $r[beholdning] Ny beh ".$r['beholdning']." - $regulering[$x]<br>";
 				}
-#cho __line__." $x $id[$x] -> $regulering[$x]=$stk_antal[$x]*$stk_antal[0]<br>";
 				$qtxt="select * from grupper where art = 'VG' and kodenr = '$gruppe[$x]'";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$lagerfort[$x]=trim($r['box8']);
@@ -135,31 +118,25 @@ if ($_POST['OK']) {
 					$qtxt="insert into batch_kob(kobsdate,fakturadate,vare_id,linje_id,ordre_id,pris,antal,rest,lager,variant_id)";
 					$qtxt.=" values ";
 					$qtxt.="('$transdate','$transdate',$id[$x],'0','0','$kostpris[$x]','$regulering[$x]','$regulering[$x]','$lager','0')";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$tilgangsum=$kostpris[$x]*$regulering[$x];
-#cho __line__." $id[$x] $tilgangsum<br>";
 				} else {
 					if (!in_array($r['box4'],$kontonr)) {
 						$kontonr[$l]=$r['box4'];
 						$amount[$l]=$kostpris[$x]*$regulering[$x];
-#cho __line__." Vare: $id[$x] Kto $kontonr[$l] Amount $amount[$l]<br>";								
 						$l++;
 					} else {
 						for ($i=0;$i<$l;$i++) {
 							if ($kontonr[$i]==$r['box4']) {
 								$amount[$i]+=$kostpris[$x]*$regulering[$x];
-#cho __line__." Vare: $id[$x] Kto $kontonr[$i] Amount $amount[$i]<br>";								
 							}
 						}
 					}
 					$afgangsum+=$kostpris[$x]*$regulering[$x];
-#cho __line__." No: $x Vare: $id[$x] -> $afgangsum | $kostpris[$x]*$regulering[$x]<br>";								
 					$tmp=$regulering[$x]*-1;
 					$qtxt="insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,fakturadate,ordre_id,antal,pris,lev_nr,variant_id)";
 					$qtxt.=" values ";
 					$qtxt.="('0','$id[$x]','0','$transdate','$transdate','0','$regulering[$x]','$kostpris[$x]','1','0')";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 				if ($lagerfort[$x]) {
@@ -175,12 +152,10 @@ if ($_POST['OK']) {
 						if ($x) $qtxt.="('$id[$x]',$regulering[$x]*-1,'$lager','0')";
 						else $qtxt.="('$id[$x]','$regulering[$x]','$lager','0')";
 					}
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					if ($x) $ny_beh=$beholdning[$x]-$regulering[$x];
 					else $ny_beh=$beholdning[$x]+$regulering[$x];
 					$qtxt="update varer set beholdning='$ny_beh' where id='$id[$x]'";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -234,7 +209,6 @@ if ($_POST['OK']) {
 
 function samlevare ($v_id,$ny_v_beholdning) {
 	include ("../includes/fuld_stykliste.php");	
-#cho __line__." $v_id, '', 'basisvarer'<br>";
 	list($vare_id, $stk_antal, $antal) = fuld_stykliste($v_id, '', 'basisvarer');
 	$id[0]=$v_id;
 	$ny_beholdning[0]=$ny_v_beholdning;

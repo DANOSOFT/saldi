@@ -28,7 +28,6 @@ if ($nextId == 1) {
 }
 $lagerantal=1;
 $qtxt="select box4 from grupper where art='API'";
-#cho __line__." $qtxt<br>";
 $z=0;
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $api_fil=trim($r['box4']);

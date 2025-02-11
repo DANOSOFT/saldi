@@ -125,7 +125,6 @@ for ($i=0;$i<count($varelager_u);$i++) {
 
 $x=0;
 $qtxt="select * from kontoplan where regnskabsaar='$regnaar' order by kontonr";
-#cho "$qtxt<br>";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($q)){
 	if (in_array($row['kontonr'],$ktonr)) {
@@ -195,14 +194,12 @@ for ($x=0;$x<count($kontonr);$x++){
 			$transvaluta[$tr]=$row['valuta'];
 			if ($kontovaluta[$x]) {
 				for ($y=0;$y<=count($valkode);$y++){
-#cho "$valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]<br>";
 					if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]) {
 						$transkurs[$tr]=$valkurs[$y];
 						break 1;
 					}
 				}
 			} else $transkurs[$tr]=100; 
-#cho "TK1 $transkurs[$tr]<br>";
 			$tr++;
 		}
 */

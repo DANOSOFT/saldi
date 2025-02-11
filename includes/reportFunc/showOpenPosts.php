@@ -139,7 +139,6 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 			print "<input type=hidden name='konto_id[$x]' value='$konto_id[$x]'>";
 			$kontonr[$x]=trim($r['kontonr']);
 			$firmanavn[$x]=stripslashes($r['firmanavn']);
-#cho "$x $firmanavn[$x]<br>";	
 			$addr1[$x]=stripslashes($r['addr1']);
 			$addr2[$x]=stripslashes($r['addr2']);
 			$postnr[$x]=trim($r['postnr']);
@@ -192,7 +191,6 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 					$f++;
 					$faktnr[$f]=$r['faktnr'];
 					$forfaldsdag=$r['forfaldsdate'];
-#cho __line__." $r[udlignet] $r[transdate] $r[amount]<br>";
 				} 
 				elseif (!$r['faktnr']) $forfaldsdag=$r['transdate'];
 */				
@@ -321,7 +319,6 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				print "<td align=right title=\"Klik her for at udligne &aring;bne poster\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&udlign=$konto_id[$x]\">$tmp</a></td>";
 			}
 			else {print "<td align=right>$tmp</td>";}
-#cho "<td align='right'>($y) $sum</td>";
 			if (($kontoudtog[$x]=='on')&&($kontoart=="D")) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$x] checked><span class='checkmarkOrdreliste'></span></label>";
 			elseif($kontoart=="D")  print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=kontoudtog[$x]><span class='checkmarkOrdreliste'></span></label>";
 			print "</tr>\n";

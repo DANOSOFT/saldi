@@ -105,7 +105,6 @@ function opdat_loen_enheder ($id) {
 				$tmp=$listevalg."|Transport"; 
 				db_modify("insert into loen_enheder (loen_id,vare_id,op,ned,op_25,ned_25,op_40,ned_40,op_60,ned_60,op_30m,ned_30m,pris_op,pris_ned,tekst,procent) values ('$id','-1','$tr_antal','0','0','0','0','0','0','0','0','0','$tr_pris','0','$tmp','0')",__FILE__ . " linje " . __LINE__);
 			}
-#cho "kategori $listevalg<br>";
 			if ($listevalg=='7') {
 				if ($telt_id && $telt_antal) { 
 					db_modify("update loen_enheder set op='$telt_antal',pris_op='$telt_pris' where id='$telt_id'",__FILE__ . " linje " . __LINE__);
@@ -139,10 +138,8 @@ function opdat_loen_enheder ($id) {
 				$linjesum[$x]+=$ned[$x]*$pris_ned[$x]+$ned_25[$x]*$pris_ned[$x]*0.25+$ned_40[$x]*$pris_ned[$x]*0.4+$ned_60[$x]*$pris_ned[$x]*0.6;
 				$akksum+=$linjesum[$x];
 				
-#cho "$vare_tekst[$x] -> List >".substr($vare_tekst[$x],0,1)."<<br>";
 				if (substr($vare_tekst[$x],0,1)=='7'){
 					$teltsum+=$op[$x]*$pris_op[$x];
-					#cho "$vare_id[$x] $vare_nr[$x] $op[$x]*$pris_op[$x] -> TS $teltsum<br>";
 				}
 				
 				if (isset($enhed_id[$x]) && $enhed_id[$x] && !$afvist) {
@@ -153,7 +150,6 @@ function opdat_loen_enheder ($id) {
 						$qtxt.="pris_op='$pris_op[$x]',pris_ned='$pris_ned[$x]',tekst='$vare_tekst[$x]',procent='0' where id='$enhed_id[$x]'";
 					}	else $qtxt="delete from loen_enheder where id='$enhed_id[$x]'";
 
-#cho "$qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif (($op[$x] || $ned[$x]) && (!$afvist || $afvist_pga)) {
 					if (is_numeric($vare_id[$x])) db_modify("insert into loen_enheder (loen_id,vare_id,op,ned,op_25,ned_25,op_40,ned_40,op_60,ned_60,op_30m,ned_30m,pris_op,pris_ned,tekst,procent,varenr) values ('$id','$vare_id[$x]','$op[$x]','$ned[$x]','$op_25[$x]','$ned_25[$x]','$op_40[$x]','$ned_40[$x]','$op_60[$x]','$ned_60[$x]','$op_30m[$x]','$ned_30m[$x]','$pris_op[$x]','$pris_ned[$x]','$vare_tekst[$x]','0','$vare_nr[$x]')",__FILE__ . " linje " . __LINE__);
@@ -243,7 +239,6 @@ function opdat_loen_enheder ($id) {
 					} else {
 						$qtxt="delete from loen_enheder where id='$a_id[$x]'";
 					}
-					#cho "$qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				} elseif ($a_stk[$x]) {
 					db_modify("insert into loen_enheder (loen_id,vare_id,op,ned,pris_op,pris_ned,tekst,procent) values ('$id','0','$a_stk[$x]','0','$a_pris[$x]','0','$a_txt[$x]','$a_pct[$x]')",__FILE__ . " linje " . __LINE__);

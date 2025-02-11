@@ -29,6 +29,7 @@
 // 20210107 PHR Corrected error in 'deferred financial year'.
 // 20210125 PHR Added csv option.
 // 20210211 PHR some cleanup
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til,$simulering,$lagerbev) {
 
@@ -253,7 +254,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	$qtxt = "select kontonr,projekt from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' order by transdate,bilag,id";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)){
-#cho "$row[projekt]<br>";
 		if (!in_array($r['kontonr'],$ktonr)) {
 			$x++;
 			$ktonr[$x]=$r['kontonr'];
@@ -275,13 +275,13 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 	print "<tr><td width=\"100px\">Dato</td><td width=\"60px\">Bilag</td><td>Tekst</td>";
 	print "<td width=\"100px\" align=\"right\">Bel&oslash;b</td><td width=\"80px\" align=\"right\"> Moms</td>";
 	print "<td width=\"100px\" align=\"right\">Incl. moms</td></tr>";
-	fwrite($csv, "\"Dato\";\"Bilag\";\"Tekst\";\"". utf8_decode('Beløb') ."\";\"Moms\";\"Incl. moms\"\n");
+	fwrite($csv, "\"Dato\";\"Bilag\";\"Tekst\";\"". mb_convert_encoding('Beløb', 'ISO-8859-1', 'UTF-8') ."\";\"Moms\";\"Incl. moms\"\n");
 	for ($x=1; $x<=$kontoantal; $x++){
 		$linjebg=$bgcolor5;
 		if (in_array($kontonr[$x],$ktonr) || $primo[$x]){
 			print "<tr><td colspan=6><hr></td></tr>";
 			print "<tr bgcolor=\"$bgcolor5\"><td></td><td></td><td colspan=4>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</tr>";
-			fwrite($csv, "\"\";\"\";\"". utf8_decode("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]") ."\";\"\";\"\"\n");
+			fwrite($csv, "\"\";\"\";\"". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') ."\";\"\";\"\"\n");
 			print "<tr><td colspan=6><hr></td></tr>";
 			$kontosum=$primo[$x];
 			$xMomsSum=$momsSum=0;
@@ -312,7 +312,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 				$sim++;
 				if ($kontovaluta[$x]) {
 					for ($y=0;$y<=count($valkode);$y++){
-#cho "$valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $transdate[$tr]<br>";
 						if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $sim_transdate[$tr]) {
 							$sim_transkurs[$tr]=$valkurs[$y];
 							break 1;
@@ -400,7 +399,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 					print "'kassekladde','$jsvars')\">$bilag[$tr]</td>";
 				} else print "<td></td>";
 				print "<td>$kontonr[$x] : $beskrivelse[$tr]</td>";
-				fwrite($csv, "\"". dkdato($transdate[$tr]) ."\";\"\";\"". utf8_decode("$kontonr[$x] : $beskrivelse[$tr]"). "\";");
+				fwrite($csv, "\"". dkdato($transdate[$tr]) ."\";\"\";\"". mb_convert_encoding("$kontonr[$x] : $beskrivelse[$tr]", 'ISO-8859-1', 'UTF-8'). "\";");
 				$xmoms=$debet[$tr]-$kredit[$tr];
 				$xMomsSum+=$xmoms;
 				print "<td align=right>".dkdecimal($xmoms,2)."</td>";
@@ -413,7 +412,6 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 						$amount=$r2['debet']-$r2['kredit'];
 						for ($i=1;$i<=$momsantal;$i++) {
 							$tmp=round(abs($xmoms-$amount*100/$momssats[$i]),2);
-#cho "$r2[kontonr] == $momskonto[$i] && $tmp<0.1<br>";
 							if ($r2['kontonr'] == $momskonto[$i] && $tmp<0.1) $moms=$amount; 
 						}
 					}
@@ -463,7 +461,7 @@ function kontokort_moms($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, 
 				}
 			}
 			print "<tr><td colspan='2'></td><td><b>$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]</b></td>";
-			fwrite($csv, "\"Sum\";\"\";\"". utf8_decode("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]") ."\";");
+			fwrite($csv, "\"Sum\";\"\";\"". mb_convert_encoding("$kontonr[$x] : $kontobeskrivelse[$x] : $kontomoms[$x]", 'ISO-8859-1', 'UTF-8') ."\";");
 			print "<td align='right'><b>". dkdecimal($xMomsSum,2) ."</b></td>";
 			fwrite($csv, "\"".dkdecimal($xMomsSum,2)."\";");
 			print "<td align='right'><b>". dkdecimal($momsSum,2) ."</b></td>";

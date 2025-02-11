@@ -28,6 +28,7 @@
 // 20230908 PHR Expanded debitor recognition character from 13 to 19 in above
 // 20231003 PHR Reversed above.
 // 20231023 PHR Combined recognition with invoice nummer for use with and without.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 //
 @session_start();
 $s_id=session_id();
@@ -58,7 +59,6 @@ if(($_GET)||($_POST)) {
 #		$kontonr=$_POST['kontonr'];
 		$bilag    = $_POST['bilag']*1; #*1 tilfojet 06.07.12
 #		$datoformat=$_POST['datoformat'];
-#cho "$submit $bilag $modkonto<br>"; 
 	}
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
@@ -84,7 +84,6 @@ if(($_GET)||($_POST)) {
 			$fileTemp = $_FILES['uploadedfile']['tmp_name'][$key];
 			$fileType = $_FILES['uploadedfile']['type'][$key];  
 			move_uploaded_file($fileTemp,$path.$fileName);
-			#cho "Processed $fileName <br>";
 		}
 	/*
 	if (basename($_FILES['uploadedfile']['name'])) {
@@ -128,9 +127,8 @@ function vis_data($kladde_id, $bilag, $modkonto){
 		if ($fp) {
 			while ($linje[$i]=fgets($fp)) {
 				if (trim($linje[$i])) {
-					$linje[$i]=trim(utf8_encode($linje[$i]));
+					$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
 					$fn[$i]=$fileName; 
-#cho "$fileName | $linje[$i]<br>";
 					$i++;
 				}
 			}
@@ -142,7 +140,6 @@ function vis_data($kladde_id, $bilag, $modkonto){
 	for ($i=0;$i<count($linje);$i++) {
 	#	$beskrivelse[$y] = $date[$y] = $dato[$y] = $debitor[$y] = $amount[$y] = $belob[$y] = NULL;
 		$addToPBS[$y] = $deleteFromPBS[$y] = $debitor[$y] = 0;
-#cho substr($linje[$i],0,5)." || ".substr($linje[$i],16,4)."<br>";
 		if (substr($linje[$i],0,5)=='BS002' && substr($linje[$i],16,4)=='0603') {
 			if (!$BS002) $BS002=1;
 			else $BS002=0;
@@ -150,7 +147,6 @@ function vis_data($kladde_id, $bilag, $modkonto){
 		if ($BS002) {
 			if (substr($linje[$i],0,5)=='BS012') {
 				$date[$y] = usdate(substr($linje[$i],49,6));
-				#cho __line__." Date $date[$y]<br>";
 				if (!$BS012) $BS012=1;
 				else $BS012=0;
 			}
@@ -164,19 +160,15 @@ function vis_data($kladde_id, $bilag, $modkonto){
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			} else {
 				$qtxt = "select id from adresser where kontonr = '$debitor[$y]' and art = 'D'";
-#cho __line__." $qtxt<br>";
 				if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 					$accountId[$y] = $r['id'];
 					$qtxt = "update adresser set pbs='on',pbs_nr='$pbsnr[$y]' where id = '$accountId[$y]'";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$qtxt = "insert into pbs_kunder(konto_id,kontonr,pbs_nr) values "; 
 					$qtxt = "('$accountId[$y]','$debitor[$y]','$pbsnr[$y]')";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__); #20121024
 					$qtxt = "update ordrer set pbs='FI',udskriv_til='PBS' ";
 					$qtxt = "where kontonr = '$debitor[$x]' and art = 'DO' and nextfakt >= '$dd'";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$addToPBS[$y]=1;
 				}		
@@ -188,10 +180,8 @@ function vis_data($kladde_id, $bilag, $modkonto){
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$accountId[$y] = $r['konto_id'];
 				$qtxt = "update adresser set pbs='',pbs_nr='' where id = '$accountId[$x]'";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt = "delete from pbs_kunder where kontonr = '$debitor[$y]'";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$deleteFromPBS[$y]=1;
 				$y++;
@@ -199,36 +189,29 @@ function vis_data($kladde_id, $bilag, $modkonto){
 		} elseif ($BS002 && substr($linje[$i],0,5)=='BS042' && substr($linje[$i],13,3)=='023') {
 			$date[$y]=$date[$y-1];
 			$dato[$y]=dkdato($date[$y]);
-#cho __line__." Date $date[$y] = ". $date[$y-1] ."<br>";
 			
 			$debitor[$y]=substr($linje[$i],25,15)*1;
-#cho __line__." $fn[$i] >$debitor[$y]<<br>";
 			$pbsnr[$y]=substr($linje[$i],40,9);
 			$tilfra[$y]=substr($linje[$i],13,4); 
 			$qtxt = "select id, firmanavn from adresser where kontonr='$debitor[$y]'";
-#cho __line__." $qtxt<br>";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$accountId[$y] = $r['id'];
 			$firmanavn[$y] = $r['firmanavn'];
 			if ($tilfra[$y]=='0231') {	
 				$beskrivelse[$y] = "$firmanavn[$y] Tilmeldt";
 				$qtxt = "update adresser set pbs='on',pbs_nr='$pbsnr[$y]' where kontonr = '$debitor[$y]' and art = 'D'";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt = "update ordrer set pbs='FI',udskriv_til='PBS' ";
 				$qtxt.= "where kontonr = '$debitor[$y]' and art = 'DO' and nextfakt >= '$dd'";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			} elseif ($tilfra[$y]=='0232' || $tilfra[$y]=='0233' || $tilfra[$y]=='0234') {
 				if ($tilfra[$y]=='0232') $beskrivelse[$y] = "$firmanavn[$y] Afmeldt af debitors pengeinstitut";
 				if ($tilfra[$y]=='0233') $beskrivelse[$y] = "$firmanavn[$y] Afmeldt af kreditor pengeinstitut";
 				if ($tilfra[$y]=='0234') $beskrivelse[$y] = "$firmanavn[$y] Afmeldt af PBS";
 				$qtxt = "update adresser set pbs='',pbs_nr='' where kontonr = '$debitor[$y]' and art = 'D'";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt = "update ordrer set pbs='',udskriv_til='email' where ";
 				$qtxt.= "kontonr = '$debitor[$y]' and art = 'DO' and nextfakt >= '$dd'";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			} elseif (!$accountId[$y]) $beskrivelse[$y] = "$fn[$i] $kundenr[$y] Ikke fundet i adresseliste</td></tr>";
 #			$BS002 = $BS012 = 0;
@@ -288,10 +271,8 @@ function vis_data($kladde_id, $bilag, $modkonto){
 				$y++;
 			} #else echo __line__." ".substr($linje[$i],0,5)."$linje[$i]<br>";
 		} #	else echo __line__." ".substr($linje[$i],0,5)."$linje[$i]<br>";
-#cho "$y | $beskrivelse[$y] | $skriv_linje[$y]<br>"; 
 	}
 	$linjeantal=$y;
-#cho "$linjeantal KLID $kladde_id<br>";
 	print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
 	print "<form enctype=\"multipart/form-data\" action=\"pbsm602import.php\" method=\"POST\">";
 	#print "<tr><td colspan=6 width=100% align=center> $filnavn</td></tr>";
@@ -304,21 +285,14 @@ function vis_data($kladde_id, $bilag, $modkonto){
 	print "<td><b>Kundenr</b></td><td><b>Tekst</b></td><td><b>Dato</b></td><td><b>Bel&oslash;b</b></td></tr>";
 	print "</form>";
 	
-	#cho count($date)."<br>";
-	#cho count($dato)."<br>";
-	#cho count($debitor)."<br>";
-	#cho count($beskrivelse)."<br>";
-	#cho count($belob)."<br>";
 
 	
 #	array_multisort($date,$dato,$debitor,$beskrivelse,$belob);	
 	$linjebg=$bgcolor;
 	$d = $date[0];
 	for ($x=0;$x<$linjeantal;$x++) {
-#cho "$x | $beskrivelse[$x] | $skriv_linje[$x]<br>";
 		($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 		if ($skriv_linje[$x]==1) {
-#cho "$d != $date[$x]<br>";
 			if ($d != $date[$x]) $bilag++;
 			$txtcolor="0,0,0";
 		} else {
@@ -333,21 +307,18 @@ function vis_data($kladde_id, $bilag, $modkonto){
 
 function flyt_data($kladde_id, $bilag, $modkonto){
 	global $charset,$db;
-#cho __line__." $kladde_id, $bilag, $modkonto<br>";		
 
 	$feltantal = $linjeantal = $i = $y = 0;
 	$linje = array();
 	$path = "../temp/$db/m602/";
 #	if (file_exists($path)) {
-#cho "$path<br>";
 	$files = glob($path.'/*');
 	foreach($files as $fileName) {
-#cho __line__." $fileName<br>";		
 		$fp=fopen("$fileName","r");
 		if ($fp) {
 			while ($linje[$i]=fgets($fp)) {
 				if (trim($linje[$i])) {
-					$linje[$i]=trim(utf8_encode($linje[$i]));
+					$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
 					$i++;
 				}
 			}
@@ -356,10 +327,9 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 	}
 	transaktion('begin');
 	for ($i=0;$i<count($linje);$i++) {
-#			$linje[$i]=trim(utf8_encode($linje[$i]));
+#			$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
 			if ($linje[$i] && substr($linje[$i],0,5)=='BS042') {
 				if (substr($linje[$i],13,4)=='0297') {
-#cho "$linje[$i]<br>";
 					$skriv_linje[$y]=1;
 					$amount[$y]=substr($linje[$i],115,13)/100;
 					$invoice[$y]=substr($linje[$i],38,5);
@@ -396,9 +366,7 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 					if (checkdate($maaned,$dag,$aar)) $dato[$y]=dkdato($date[$y]);
 					else $skriv_linje[$y]=0;
 					if ($skriv_linje[$y]) $y++;
-#cho __line__." $y $skriv_linje[$y]<br>";
 				} elseif ($linje[$i] && substr($linje[$i],13,4)=='0236') {
-#cho "$linje[$i]<br>";
 					$skriv_linje[$y]=1;
 					$debitor[$y]=substr($linje[$i],25,15)*1;
 					$beskrivelse[$y]="Indbetaling via BS. Kunde $debitor[$y]";
@@ -410,7 +378,6 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 					if (checkdate($maaned,$dag,$aar)) $dato[$y]=dkdato($date[$y]);
 					else $skriv_linje[$y]=0;
 					if ($skriv_linje[$y]) $y++;
-#cho __line__." $y $skriv_linje[$y]<br>";
 				}
 			}
 		}
@@ -427,11 +394,9 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$faktura=$r['faktnr'];
 				$qtxt = "insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,faktura) values ('$bilag','$date[$x]','$beskrivelse[$x]','F','0','D','$debitor[$x]','$amount[$x]','$kladde_id','$faktura')";
-#cho __line__." $qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				if (!isset($date[$x+1]) || $date[$x] != $date[$x+1]) {
 					$qtxt = "insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,faktura) values ('$bilag','$date[$x]','PBS Samlet betaling','F','$modkonto','F','0','$sum','$kladde_id','')";
-#cho __line__." $qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$bilag++;
 					$d = $date[$x];
@@ -441,14 +406,12 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 		}
 /*
 		$qtxt = "insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,faktura) values ('$bilag','$d','PBS Samlet betaling','F','$modkonto','F','0','$sum','$kladde_id','')";
-#cho __line__." $qtxt<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 */
 	} elseif ($skriv_linje[$linjeantal]==1) {
 		$r=db_fetch_array(db_select("select faktnr from openpost where amount = '$amount[$linjeantal]' and konto_nr = '$debitor[$linjeantal]' order by transdate desc",__FILE__ . " linje " . __LINE__));
 		$faktura=$r['faktnr'];
 		$qtxt = "insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,faktura) values ('$bilag','$date[$linjeantal]','$beskrivelse[$linjeantal]','F','$modkonto','D','$debitor[$linjeantal]','$amount[$linjeantal]','$kladde_id','$faktura')";
-#cho __line__." $qtxt<br>";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 #xit;

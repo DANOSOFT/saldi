@@ -231,8 +231,6 @@ if ($kladde_id) {
 			if ($row['valuta'] && $row['amount'] && ($row['debet']||$row['kredit']))  {
 				$valutaposter++;
 				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=valutaopslag($amount[$posteringer],$row['valuta'],$row['transdate']);
-#cho "V $valutaposter eur $amount[$posteringer] dkk  $dkkamount[$posteringer]<br>";
-				#cho "VS1 $valutadiff<br>";		
 #				if ($row['debet']) $valutadiff=$valutadiff+$dkkamount[$posteringer];
 #				if ($row['kredit']) $valutadiff=$valutadiff-$dkkamount[$posteringer];
 #				$valutadiff=round($valutadiff+0.0001,3);
@@ -252,7 +250,6 @@ if ($kladde_id) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
 	exit;
 }
-#cho "$debetsum || $kreditsum<br>";
 
 $x=0;
 $debitor=array();
@@ -291,7 +288,6 @@ for ($y=1;$y<=$posteringer;$y++) {
 			$kreditor[$x]=$kredit[$y];
 			$kreditoramount[$x]=0;
 		}
-#cho "$kreditor[$x] $kreditoramount[$x]<br>";
 	}
 }
 $kreditorantal=$x;
@@ -316,11 +312,9 @@ for ($y=1; $y<=$posteringer; $y++) {
 	if ($kredit[$y]>0) $k_amount[$y]=$dkkamount[$y];
 	if ((!$momsfri[$y])&&($debet[$y]>0)&&($d_amount[$y]>0)) {
 	list ($d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y])=momsberegning($debet[$y], $d_amount[$y], $d_momsart[$y], $k_momsart[$y]);
-#cho "$d_amount[$y], $d_moms[$y], $d_momskto[$y], $d_modkto[$y]<br>";	
 	}
 	if ((!$momsfri[$y])&&($kredit[$y]>0)&&($k_amount[$y]>0)){
 		list ($k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y])=momsberegning($kredit[$y], $k_amount[$y], $k_momsart[$y], $d_momsart[$y]);
-#cho "$k_amount[$y], $k_moms[$y], $k_momskto[$y], $k_modkto[$y]<br>";	
 	}
 }
 /*
@@ -405,7 +399,6 @@ print "<tr><td colspan=\"6\" class='tableHeader'><b>".findtekst(1088,$sprog_id).
 for ($y=0; $y<$kontoantal; $y++) {
 	$d_sum=$d_sum+afrund($kontodebet[$y],2);
 	$k_sum=$k_sum+afrund($kontokredit[$y],2);
-#cho "<tr><td><br></td><td><br></td><td><br></td><td>$kontodebet[$y]</td><td>$kontokredit[$y]</td></tr>";
 
 	$query = db_select("select * from kontoplan where kontonr='$kontoliste[$y]' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
@@ -422,11 +415,8 @@ for ($y=0; $y<$kontoantal; $y++) {
 		$fejltext = "OBS:Kontonr: $kontoliste[$y] FINDES IKKE !!";
 	}
 }
-#cho "$debetsum || $kreditsum<br>";
 #valutadiff=round($valutadiff+0.0001,3);
 $diff=afrund($debetsum-$kreditsum,3);
-#cho "Diff $diff<br>";
-#cho "VD $valutadiff<br>";
 if (abs($diff) < $valutaposter/100) {
 	$valutadiff=$diff;
 } 
@@ -462,11 +452,8 @@ if ($valutadiff && abs($valutadiff) < $valutaposter/100) {
 		$fejltext = "OBS:Kontonr: $kontoliste[$y] FINDES IKKE !!";
 	}
 }
-#cho "$d_sum | $k_sum | $valutadiff<br>";
 $b=dkdecimal($d_sum);
 $c=dkdecimal($k_sum);
-#cho "VD $valutadiff<br>";
-#cho "($diff==abs($valutadiff))<br>";
 print "<tr><td><br></td><td>$font ".findtekst(1084,$sprog_id)."</td><td align=right><br></td><td align=right>$font $b</td><td align=right>$font $c</td><td align=right><br></td></tr>";
 
 # 20131115 ->
@@ -514,7 +501,6 @@ if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
 	#$fejl=1;
 	if (abs($diff)>=0.01) $fejl=1;
 } elseif ($b!=$c) {
-#cho "$b!=$c<br>";
 	$message=$db." | Uoverensstemmelse i posteringssum | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
 	$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 	mail('fejl@saldi.dk', 'SALDI Fejl', $message, $headers);
@@ -756,7 +742,6 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 #				if ($row['debet'])  $b_sum[$b_antal]+=$dkkamount[$y];
 #				if ($row['kredit']) $b_sum[$b_antal]-=$dkkamount[$y];
 			}
-#cho "B tjek $b_diff ".afrund($b_diff,2)."<br>";		
 			if (((strstr($d_type[$y],'D'))||(strstr($d_type[$y],'K'))) && $debet[$y]>0) {
 				if (!$simuler) openpost($d_type[$y], $debet[$y], $bilag[$y], $faktura[$y], $amount[$y], $beskrivelse[$y], $transdate[$y], $postid[$y], $valuta[$y], $valutakurs[$y], $forfaldsdate[$y], $betal_id[$y],$projekt[$y]);
 				list ($debet[$y], $d_momsart[$y]) =gruppeopslag($d_type[$y], $debet[$y]);

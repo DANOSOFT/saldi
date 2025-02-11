@@ -154,7 +154,6 @@ if ($status>=1) {
   print "<td>($dk_tidl_lev[$x])</td>";
   }
 }
-#cho "LP $labelprint";
 if ($omlev) {
   $txt = "<input class='inputbox' type='checkbox' style='background: none repeat scroll 0 0 #e4e4ee' ";
   $txt.= "name='omvbet[$x]' onchange='javascript:docChange = true;' $omvbet[$x]>";

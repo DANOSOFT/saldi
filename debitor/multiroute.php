@@ -29,6 +29,7 @@
 // 2017.04.07 Tilrettet jf. mail fra Rasmus / Multiflash
 // 2019.02.12 MSC - Rettet isset fejl
 // 2019.02.18 MSC - Rettet topmenu design
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -113,23 +114,23 @@ if ($qtxt) {
 
 	if (!file_exists("../temp/$db/multiroute.csv")) {
 		$fp=fopen("../temp/$db/multiroute.csv","w");
-		$linje="Faktura nr;Navn;Vej;Post nr;By;Land;Brd.gr.;".utf8_decode('Lng.gr.').";Enh.;Start;Stop;Stoptid;Ress.;Res.Grp;Bemrk.;Kontakt;Tlf;Email;SMS";
+		$linje="Faktura nr;Navn;Vej;Post nr;By;Land;Brd.gr.;".mb_convert_encoding('Lng.gr.', 'ISO-8859-1', 'UTF-8').";Enh.;Start;Stop;Stoptid;Ress.;Res.Grp;Bemrk.;Kontakt;Tlf;Email;SMS";
 		fwrite($fp,"$linje\n"); # Bredegrad;Længdegrad;Enheder;Start tidsvindue;Slut tidsvindue;Stop længde\n");
 		fclose($fp);
 	}
 	$fp=fopen("../temp/$db/multiroute.csv","a");
 	$linje=$fakturanr.";";
-	$linje.=utf8_decode($navn).";";
-	$linje.=utf8_decode($vej).";";
+	$linje.=mb_convert_encoding($navn, 'ISO-8859-1', 'UTF-8').";";
+	$linje.=mb_convert_encoding($vej, 'ISO-8859-1', 'UTF-8').";";
 	$linje.=$postnr.";";
-	$linje.=utf8_decode($bynavn).";";
+	$linje.=mb_convert_encoding($bynavn, 'ISO-8859-1', 'UTF-8').";";
 	$linje.=$land.";";
 	$linje.=";;;;;";
 	$linje.="10";
 	$linje.=";;;;";
-	$linje.=utf8_decode($kontakt).";";
+	$linje.=mb_convert_encoding($kontakt, 'ISO-8859-1', 'UTF-8').";";
 	$linje.=$tlf.";";
-	$linje.=utf8_decode($email).";";
+	$linje.=mb_convert_encoding($email, 'ISO-8859-1', 'UTF-8').";";
 	$linje.=$tlf;
 	fwrite($fp,$linje."\n"); 
 	fclose($fp);	
@@ -175,7 +176,7 @@ if (file_exists("../temp/$db/multiroute.csv")) {
 		$felt=explode(";",$line);
 		print "<tr>";
 		for ($x=0;$x<count($felt);$x++) {
-			print "<td style=\"border:1px solid $bgcolor2;\">".utf8_encode($felt[$x])."</td>";
+			print "<td style=\"border:1px solid $bgcolor2;\">".mb_convert_encoding($felt[$x], 'UTF-8', 'ISO-8859-1')."</td>";
 		}
 		print "</tr>";
 	}

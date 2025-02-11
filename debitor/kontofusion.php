@@ -42,11 +42,9 @@ $id=if_isset($_GET['id']);
 $kontonr=if_isset($_GET['kontonr']);
 
 if ($fusion == "Fortryd") {
-#cho "fortryd<br>";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus\">\n";
 	exit;
 }
-#cho "select id from adresser where art='D' and kontonr='$kontonr' and id != '$id'<br>";
 $r=db_fetch_array(db_select("select id,lukket from adresser where art='D' and kontonr='$kontonr' and id != '$id'",__FILE__ . " linje " . __LINE__));
 ($r['lukket'])?$ny_id=NULL:$ny_id=$r['id'];
 

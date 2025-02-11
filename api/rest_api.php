@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/rest_api.php --- lap 4.0.5 --- 2022-06-16 ---
+// --- api/rest_api.php --- lap 4.0.5 --- 2024-12-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2022 saldi.dk aps
+// Copyright (c) 2016-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20180307 Tilføjet 'pos_betaling' i 'fakturer_ordre' 
 // 20180316 Tilføjet 'lagerstatus' i '$allowed_tables' i funktion 'fetch_from_table'
@@ -42,12 +42,18 @@
 // 20211027 PHR Added $notes to insert_shop_order.
 // 20220215 PHR function insert_shop_order now accepts 0 as shopOrderId. If so table shop_ordrer id left unchanged.
 // 20220215 PHR function insert_shop_orderline now returns line id instead of sum.'
-// 20220309 PHR Fortgot 'as id' in above. :|
+// 20220309 PHR Forgot 'as id' in above. :|
 // 20220324 PHR	Added call to functon delete order.
 // 20220615 PHR function insert_shop_orderline - If item does not exist it will no longer be created
 // 20220616 PHR function insert_shop_orderline - added 'saldi_id' as it was missing from query
 // 20220711 PHR function insert_shop_orderline - trimming $shop_varenr as unwanted space may occur.
 // 20240423 PHR +45 is now removed from saldi_kontonr
+// 20241014 PBLM removed fakturadate from insert_shop_order
+// 20241203 PHR	added baseCurrency
+// 08/01/2025 PBLM change the search criteria for adresser so it no longer search for addr and firmanavn but only uses tlf in insert_shop_order
+// 08/01/2025 PBLM change some *1 to (int)
+// 04-02-2025 PBLM added discountType to insert_shop_orderline
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -250,8 +256,9 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$tlf=str_replace(" ","",$tlf);
 	$num_tlf=(int)str_replace("+","",$tlf);
 
-	$shopOrderId*=1;
-	$shop_addr_id*=1;
+	// Convert to integers
+    $shopOrderId = (int)$shopOrderId;
+    $shop_addr_id = (int)$shop_addr_id;
 
 	if (!$shopOrderId || !is_integer($shopOrderId)) {
 		fwrite($log,__line__." Illegal order id ($shopOrderId)\n");
@@ -259,12 +266,14 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		return "Illegal order id ($shopOrderId)";
 		exit;
 	}
+
 #	if (!$shop_addr_id || !is_integer($shop_addr_id)) {
 #		fwrite($log,__line__." Illegal customer id ($shop_addr_id)\n");
 #		fclose ($log);
 #		return "Illegal customer id ($shop_addr_id)";
 #		exit;
 #	}
+
 	$art='DO';
 	if (!$firmanavn) {
 		$firmanavn=$kontakt;
@@ -293,7 +302,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	fwrite($log,__line__." saldi_addr_id='$saldi_addr_id'\n");
 	if (!$saldi_addr_id) {
 		if ($saldi_kontonr) {
-			$qtxt="select id from adresser where kontonr='$saldi_kontonr'";
+			$qtxt="select id, kontonr from adresser where kontonr='$saldi_kontonr'";
 			fwrite($log,__line__." $qtxt\n");
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$saldi_addr_id=$r['id'];
@@ -303,9 +312,8 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			} else $kontonr=$saldi_kontonr;
 			fwrite($log,__line__." Kontonr $kontonr=$saldi_kontonr\n");
 		} elseif ($tlf) {
-			$qtxt="select id,kontonr from adresser where art = 'D' and ";
-			$qtxt.="(lower(firmanavn)='".db_escape_string(strtolower($firmanavn))."' or lower(addr1)='".db_escape_string(strtolower($addr1))."') and "; 
-			$qtxt.="(tlf='$tlf')";
+			$qtxt="select id,kontonr from adresser where art = 'D' and "; 
+			$qtxt.="tlf='$tlf'";
 			fwrite($log,__line__." $qtxt\n");
 			$qtxt=chk4utf8($qtxt);
 			if ($r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -320,54 +328,53 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
 		} elseif (!$saldi_addr_id) { #if ($shop_addr_id) {
-			$qtxt="select id from adresser where art = 'D' and kontonr='$num_tlf'";
-			fwrite($log,__line__." $qtxt\n");
-			if ($tlf && !$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				if (!$kontonr) $kontonr=$num_tlf;
-				fwrite($log,__line__." kontonr $kontonr\n");
-			} elseif (!$kontonr) {
-				$x=0;
-				$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
+				$qtxt="select id from adresser where art = 'D' and kontonr='$num_tlf'";
 				fwrite($log,__line__." $qtxt\n");
-				$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-				while($r=db_fetch_array($q)) {
-					$ktonr[$x]=$r['kontonr'];
+				if ($tlf && !$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					if (!$kontonr) $kontonr=$num_tlf;
+					fwrite($log,__line__." kontonr $kontonr\n");
+				} elseif (!$kontonr) { 
+					$x=0;
+					$qtxt="select kontonr from adresser where art = 'D' order by kontonr";
+					fwrite($log,__line__." $qtxt\n");
+					$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+					while($r=db_fetch_array($q)) {
+						$ktonr[$x]=$r['kontonr'];
 #						fwrite($log,__line__." kontonr $kontonr\n");
-					$x++;
+						$x++;
+					}
+					$kontonr=1000;
+					while(in_array($kontonr,$ktonr)) $kontonr++;
 				}
-				$kontonr=1000;
-				while(in_array($kontonr,$ktonr)) $kontonr++;
-			}
-			fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
-			$qtxt = "insert into adresser";
-			$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
-			$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
-			$qtxt.= "gruppe,art,betalingsbet,betalingsdage,kontakt,";
-			$qtxt.= "lev_firmanavn,lev_addr1,lev_addr2,";
-			$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
-			$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
-			$qtxt.= " values ";
-			$qtxt.="('$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
-			$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
-			$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
-			$qtxt.="'$gruppe','D','$betalingsbet','$betalingsdage','".db_escape_string($kontakt)."',";
-			$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
-			$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
-			$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
-			fwrite($log,__line__." $qtxt\n");
-			$qtxt=chk4utf8($qtxt);
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
-			$saldi_addr_id=$r['id'];
+				fwrite($log,__line__." ". date("H:i:s") ." kontonr $kontonr\n");
+				$qtxt = "insert into adresser";
+				$qtxt.= "(kontonr,firmanavn,addr1,addr2,";
+				$qtxt.= "postnr,bynavn,land,cvrnr,ean,email,tlf,";
+				$qtxt.= "gruppe,art,betalingsbet,betalingsdage,kontakt,";
+				$qtxt.= "lev_firmanavn,lev_addr1,lev_addr2,";
+				$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
+				$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
+				$qtxt.= " values ";
+				$qtxt.="('$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
+				$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
+				$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
+				$qtxt.="'$gruppe','D','$betalingsbet','$betalingsdage','".db_escape_string($kontakt)."',";
+				$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
+				$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
+				$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
+				fwrite($log,__line__." $qtxt\n");
+				$qtxt=chk4utf8($qtxt);
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				$r=db_fetch_array(db_select("select id from adresser where kontonr='$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
+				$saldi_addr_id=$r['id'];
+			} 
 			if ($shop_addr_id) {
 				fwrite($log,__line__." insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')\n");
-				db_modify("insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')",__FILE__ . " linje " . __LINE__);
+				db_modify("insert into shop_adresser(saldi_id,shop_id)values('$saldi_addr_id','$shop_addr_id')",__FILE__ . " linje " . __LINE__);  
 			}
-		}
 	} else {
-		$qtxt = "select kontonr from adresser where id = '$saldi_addr_id'";
-		fwrite($log,__line__." $qtxt\n");
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		fwrite($log,__line__." select kontonr from adresser where id = '$saldi_addr_id'\n");
+		$r=db_fetch_array(db_select("select kontonr from adresser where id = '$saldi_addr_id'",__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['kontonr'];
 		fwrite($log,__line__." kontonr $kontonr\n");
 	}
@@ -403,22 +410,22 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,";
 	$qtxt.= "addr2,postnr,bynavn,land,";
 	$qtxt.= "kontakt,email,udskriv_til,art,projekt,momssats,betalingsbet,";
-	$qtxt.= "betalingsdage,betalings_id,status,ordredate,fakturadate,valuta,valutakurs,afd,ref,hvem,";
+	$qtxt.= "betalingsdage,betalings_id,status,ordredate,valuta,valutakurs,afd,ref,hvem,";
 	$qtxt.= "felt_1,felt_2,felt_3,felt_4,felt_5,kundeordnr,cvrnr,ean,sum,moms,"; 
 	$qtxt.= "lev_navn,lev_addr1,lev_addr2,";
 	$qtxt.= "lev_postnr,lev_bynavn,lev_kontakt,";
-	$qtxt.= "tidspkt,phone,shop_status,shop_id,notes)";
-	$qtxt.= " values "; 
+	$qtxt.= "tidspkt,phone,shop_status,shop_id,notes,fakturadate)";
+	$qtxt.= " values ";
 	$qtxt.= "('$ordrenr','$saldi_addr_id','$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
 	$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
 	$qtxt.= "'".db_escape_string($land)."','".db_escape_string($kontakt)."','".db_escape_string($email)."',";
 	$qtxt.= "'$udskriv_til','$art','$projektnr','$momssats','$betalingsbet','$betalingsdage','$betalings_id','0',";
-	$qtxt.= "'$ordredate','$ordredate','$valuta','$valutakurs','$afd','$ref','','$ekstra1','$ekstra2','$ekstra3',";
+	$qtxt.= "'$ordredate','$valuta','$valutakurs','$afd','$ref','','$ekstra1','$ekstra2','$ekstra3',";
 	$qtxt.= "'$ekstra4','$ekstra5','$shop_fakturanr','$cvrnr','$ean','$nettosum','$momssum',";
 	$qtxt.= "'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
 	$qtxt.= "'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_kontakt)."',";
 	$qtxt.= "'".db_escape_string($tidspkt)."','".db_escape_string($tlf)."','$shop_status',";
-	$qtxt.= "'$shopOrderId','".db_escape_string($notes)."')";
+	$qtxt.= "'$shopOrderId','".db_escape_string($notes)."', '$ordredate')";
 	fwrite($log,__line__." $qtxt\n");
 	$qtxt=chk4utf8 ($qtxt);
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -434,7 +441,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	return $saldi_ordre_id;
 }
 
-function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$varegruppe) {
+function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$varegruppe,$discountType) {
 
 	global $db,$db_skriv_id;
 	global $brugernavn;
@@ -445,12 +452,12 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$varenr = NULL;
 	$linje_id = $ordresum = 0;
 	$shop_varenr = trim($shop_varenr);
-	
+
 	list($master,$db_skriv_id)=explode('_',$db);
 	$lager*=1;
 	$log=fopen("../temp/$db/rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
-	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant)\n");
+	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
 	if ($ordre_id && is_numeric($ordre_id)) {
 		$qtxt="select status,momssats from ordrer where id='$ordre_id'";
 		fwrite($log,__line__." ".$qtxt."\n");
@@ -614,7 +621,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		fwrite ($log,__line__." Vnr: $varenr\n");
 		
 		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','','','0','','','','','',$lager,".__line__.")\n");
-		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','','','0','','','','','',$lager,__LINE__);
+		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','','','','',$lager,__LINE__);
 		
 		fwrite($log,__line__." LineSum =  $lineSum\n");
 		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '$vare_id'"; 
@@ -647,7 +654,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	global $db,$db_skriv_id;
-	global $brugernavn;
+	global $baseCurrency,$brugernavn;
 	global $webservice;
 	global $regnaar;
 	#return "$nettosum,$momssum";
@@ -656,6 +663,14 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	
 	$log=fopen("../temp/$db/rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
+
+	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$baseCurrency = $r['var_value'];
+	} else $baseCurrency = 'DKK';
+	if (!$baseCurrency) $baseCurrency = 'DKK';
+
+	fwrite($log,__line__." base currency: $baseCurrency \n");
 
 	$qtxt="select * from ordrelinjer where ordre_id='$saldi_id'";
 	fwrite($log,__line__." $qtxt\n");
@@ -741,6 +756,58 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	return($saldi_id); 
 }
 
+function get_sold_labels() {
+    $data = array();
+    $result = db_select("SELECT 
+    SUBSTR(ol.varenr, 6) AS kontonr, 
+    ol.varenr, 
+    ol.beskrivelse, 
+    ol.pris, 
+    ol.antal, 
+    o.fakturadate AS date, 
+    o.tidspkt, 
+    a.firmanavn, 
+    a.email, 
+    v.kostpris AS sats
+FROM 
+    ordrelinjer ol
+LEFT JOIN 
+    ordrer o ON o.id = ol.ordre_id
+LEFT JOIN 
+    adresser a ON a.kontonr = SUBSTR(ol.varenr, 6)
+LEFT JOIN 
+    varer v ON v.varenr = ol.varenr
+WHERE 
+    (ol.varenr LIKE 'kb%' OR ol.varenr LIKE 'kn%')
+    AND o.status >= 3", __FILE__ . " linje " . __LINE__);
+
+    while ($r = db_fetch_array($result)) {
+        $data[] = $r;
+    }
+
+    return $data;
+}
+
+function get_all_labels() {
+    $data = array();
+    $result = db_select("SELECT 
+    ml.description, 
+    ml.price, 
+    ml.sold, 
+    ml.hidden,
+    a.firmanavn, 
+    a.email
+FROM mylabel ml
+LEFT JOIN adresser a ON a.id = ml.account_id
+", __FILE__ . " linje " . __LINE__);
+
+    while ($r = db_fetch_array($result)) {
+        $data[] = $r;
+    }
+
+    return $data;
+}
+
 function access_check(){
 	global $sqhost;
 	global $squser;
@@ -761,7 +828,6 @@ function access_check(){
 		fwrite($log,__line__." Missing db\n");
 		fclose($log);
 		return 'missing db';
-		exit;
 	}
 	$qtxt="select id,lukket from regnskab where db='$db'"; #20201223
 	fwrite($log,__line__." $qtxt\n");
@@ -771,13 +837,11 @@ function access_check(){
 			fwrite($log,__line__." Account $db closed\n");
 			fclose($log);
 			return( "Account $db closed");
-			exit;
 		} 
 	} else {
 		fwrite($log,__line__." Non existing account $db\n");
 		fclose($log);
 		return( "Non existing account $db");
-		exit;
 	}
 	
 	$ip=$_SERVER['REMOTE_ADDR'];
@@ -802,7 +866,6 @@ function access_check(){
 		fwrite($log,__line__." Missing saldiuser\n");
 		fclose($log);
 		return 'Missing saldiuser';
-		exit;
 	}
 	if ($db != $master) {
 		$year=date("Y"); #20190318 --->
@@ -819,7 +882,6 @@ function access_check(){
 			fwrite($log,__line__." Missing year in ledger\n");
 			fclose($log);
 			return 'Missing ledger';
-			exit;
 		} #<---
 		$q=db_select("select * from grupper where art = 'API' and kodenr = '1'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'",__FILE__ . " linje " . __LINE__));
@@ -859,6 +921,14 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$order_by  = if_isset($_GET['order_by']);
 			$limit     = if_isset($_GET['limit']);
 			if ($select && $from) $value = fetch_from_table($select,$from,$where,$order_by,$limit);
+##############################################
+		} elseif ($action=='get_sold_labels') {
+			fclose ($log);
+			$value = get_sold_labels();
+##############################################
+		} elseif ($action=='get_all_labels') {
+			fclose ($log);
+			$value = get_all_labels();
 ##############################################
 		} elseif ($action=='update_table') {
 			fclose ($log);
@@ -1008,7 +1078,7 @@ function chk4utf8 ($text) {
 	}
 	$text=trim($text);
 	if ($enc=='IS0-8859') {
-		$text=utf8_encode($text);
+		$text=mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1');
 		fwrite ($fil,"UTF: $text\n");
 		$text=trim($text);
 	}

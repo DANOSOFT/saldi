@@ -22,6 +22,7 @@
 // ----------------------------------------------------------------------
 
 // 2012-08-23 Indregner rabat i stykpris og 'remmet' rabatafsnit
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 $oioxmlubl="OIOXML";
 
@@ -49,16 +50,16 @@ global $db_encode;
 	$query = db_select("select * from ordrer where id = $l_ordreid",__FILE__ . " linje " . __LINE__);
 	$r_faktura = db_fetch_array($query);
 	if ($db_encode!="UTF8") {
-		$firmanavn=utf8_encode($r_faktura['firmanavn']);
-		$addr_1=utf8_encode($r_faktura['addr1']);
-		$addr_2=utf8_encode($r_faktura['addr2']);
-		$postnr=utf8_encode($r_faktura['postnr']);
-		$bynavn=utf8_encode($r_faktura['bynavn']);
-		$land=utf8_encode($r_faktura['land']);
-		$kontakt=utf8_encode($r_faktura['kontakt']);
-		$bank_navn=utf8_encode($r_faktura['bank_navn']);
-		$kundeordnr=utf8_encode($r_faktura['kundeordnr']);
-		$cvrnr=utf8_encode($r_faktura['cvrnr']);
+		$firmanavn=mb_convert_encoding($r_faktura['firmanavn'], 'UTF-8', 'ISO-8859-1');
+		$addr_1=mb_convert_encoding($r_faktura['addr1'], 'UTF-8', 'ISO-8859-1');
+		$addr_2=mb_convert_encoding($r_faktura['addr2'], 'UTF-8', 'ISO-8859-1');
+		$postnr=mb_convert_encoding($r_faktura['postnr'], 'UTF-8', 'ISO-8859-1');
+		$bynavn=mb_convert_encoding($r_faktura['bynavn'], 'UTF-8', 'ISO-8859-1');
+		$land=mb_convert_encoding($r_faktura['land'], 'UTF-8', 'ISO-8859-1');
+		$kontakt=mb_convert_encoding($r_faktura['kontakt'], 'UTF-8', 'ISO-8859-1');
+		$bank_navn=mb_convert_encoding($r_faktura['bank_navn'], 'UTF-8', 'ISO-8859-1');
+		$kundeordnr=mb_convert_encoding($r_faktura['kundeordnr'], 'UTF-8', 'ISO-8859-1');
+		$cvrnr=mb_convert_encoding($r_faktura['cvrnr'], 'UTF-8', 'ISO-8859-1');
 	} else {
 		$firmanavn=$r_faktura['firmanavn'];
 		$addr_1=$r_faktura['addr1'];
@@ -138,14 +139,14 @@ global $db_encode;
 	$query = db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__);
 	$r_egen = db_fetch_array($query);
 	if ($db_encode!="UTF8") {
-		$egen_firmanavn=utf8_encode($r_egen['firmanavn']);
-		$egen_addr_1=utf8_encode($r_egen['addr1']);
-		$egen_addr_2=utf8_encode($r_egen['addr2']);
-		$egen_postnr=utf8_encode($r_egen['postnr']);
-		$egen_bynavn=utf8_encode($r_egen['bynavn']);
-		$egen_land=utf8_encode($r_egen['land']);
-		$egen_kontakt=utf8_encode($r_egen['kontakt']);
-		$egen_bank_navn=utf8_encode($r_egen['bank_navn']);
+		$egen_firmanavn=mb_convert_encoding($r_egen['firmanavn'], 'UTF-8', 'ISO-8859-1');
+		$egen_addr_1=mb_convert_encoding($r_egen['addr1'], 'UTF-8', 'ISO-8859-1');
+		$egen_addr_2=mb_convert_encoding($r_egen['addr2'], 'UTF-8', 'ISO-8859-1');
+		$egen_postnr=mb_convert_encoding($r_egen['postnr'], 'UTF-8', 'ISO-8859-1');
+		$egen_bynavn=mb_convert_encoding($r_egen['bynavn'], 'UTF-8', 'ISO-8859-1');
+		$egen_land=mb_convert_encoding($r_egen['land'], 'UTF-8', 'ISO-8859-1');
+		$egen_kontakt=mb_convert_encoding($r_egen['kontakt'], 'UTF-8', 'ISO-8859-1');
+		$egen_bank_navn=mb_convert_encoding($r_egen['bank_navn'], 'UTF-8', 'ISO-8859-1');
 	} else {
 		$egen_firmanavn=$r_egen['firmanavn'];
 		$egen_addr_1=$r_egen['addr1'];
@@ -286,9 +287,9 @@ global $db_encode;
 	while ($r_linje = db_fetch_array($query)) {
 		
 		if ($db_encode!="UTF8") {
-			$varenr=utf8_encode($r_linje['varenr']);
-			$enhed=utf8_encode($r_linje['enhed']);
-			$beskrivelse=utf8_encode($r_linje['beskrivelse']);
+			$varenr=mb_convert_encoding($r_linje['varenr'], 'UTF-8', 'ISO-8859-1');
+			$enhed=mb_convert_encoding($r_linje['enhed'], 'UTF-8', 'ISO-8859-1');
+			$beskrivelse=mb_convert_encoding($r_linje['beskrivelse'], 'UTF-8', 'ISO-8859-1');
 		} else {
 			$varenr=$r_linje['varenr'];
 			$enhed=$r_linje['enhed'];

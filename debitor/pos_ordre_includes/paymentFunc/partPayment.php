@@ -40,7 +40,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 	global $regnaar, $retur;
 	global $tracelog;
 
-	#cho __line__." $fokus . $afslut . $betaling . $delbetaling . $modtaget . $sum<br>";
 	include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
 	voucherPay($id, $betaling, $modtaget);
 	if (!isset($_COOKIE['giftcard']) || $_COOKIE['giftcard'] == true) {
@@ -50,7 +49,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
 		exit(0);
 	}
-	#cho __line__." $fokus . $afslut . $betaling . $delbetaling . $modtaget . $sum<br>";
 
 	$tmp = array();
 	$betalingskort = array();
@@ -227,9 +225,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 				exit;
 			}
 	} elseif ($kortnavn) { #20140129
-#cho "$kortnavn Amount $amount<br>\n";
-#xit;
-#cho "select box3,box4,box5,box6,box11 from grupper where art = 'POS' and kodenr='2'<br>\n";
 		$r = db_fetch_array(db_select("select box3,box4,box5,box6,box11 from grupper where art = 'POS' and kodenr='2' order by fiscal_year desc limit 1 ", __FILE__ . " linje " . __LINE__));
 		$x = $kasse - 1;
 		$tmp = explode(chr(9), $r['box3']);

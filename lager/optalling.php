@@ -43,6 +43,7 @@
 // 20200905 PHR varenr not found wher seraching for barcode. Inserted: or stregkode = '$varenr'
 // 20200905 PHR Updating api now witten to apilog and & removed from  exec command as call was interrupted?
 // 20230224 CA  Case insensitive and 'like' search using % and _. Searching for _vd% gets DVD, Vd, dvd-player
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
  
 @session_start();
 $s_id=session_id();
@@ -91,7 +92,6 @@ if ($bogfor) {
 	$dato=if_isset($_GET['dato']); 
 	if (isset($_POST['dato'])) $dato=$_POST['dato'];
 	$godkend_regdif=if_isset($_GET['godkend_regdif']);
-#cho __line__." bogfor $bogfor<br>";
 } else $bogfor=0;
 $vis_ej_optalt=if_isset($_GET['vis_ej_optalt']);
 $vis_ej_exist=if_isset($_GET['vis_ej_exist']);
@@ -206,7 +206,6 @@ if ($vare_id && ($optalt || $optalt=='0')) {
 		$beholdning*=1;
 		$lager*=1;
 		$variant_id*=1;
-#cho "select id from regulering where vare_id='$vare_id' and optalt='$optalt' and beholdning='$beholdning' and tidspkt='$tidspkt'<br>";
 		$qtxt="select id from regulering where vare_id='$vare_id' and variant_id='$variant_id' and optalt='$optalt' and lager= '$lager' and beholdning='$beholdning' and tidspkt='$tidspkt' and bogfort='0'";
 		if(!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$qtxt="insert into regulering (vare_id,variant_id,optalt,beholdning,bogfort,tidspkt,lager)";
@@ -289,20 +288,16 @@ if ($varenr=trim($varenr)) {
 		$beholdning-=$r2['antal'];
 		
 		$l=0;
-#cho "select id from lagerstatus where vare_id='$r[id]' and lager='$lager' order by id<br>";
 		$q2=db_select("select id from lagerstatus where vare_id='$r[id]' and lager='$lager' order by id",__FILE__ . " linje " . __LINE__);
 		while($r2=db_fetch_array($q2)) {
 			$ls_id[$l]=$r2['id'];
-#cho __line__." $l $ls_id[$l]<br>";
 			$l++; 
 		}
 		for($l=1;$l<count($ls_id);$l++) {
-#cho __line__."delete from lagerstatus where id = '$ls_id[$l]'<br>";
 			db_modify("delete from lagerstatus where id = '$ls_id[$l]'",__FILE__ . " linje " . __LINE__);
 		}
 		if ($ls_id[0]) $qtxt="update lagerstatus set beholdning='$beholdning' where id='$ls_id[0]'";
 		else $qtxt="insert into lagerstatus (vare_id,variant_id,beholdning,lager) values ('$r[id]','0','$beholdning','$lager')";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		
 		# <-20140625
@@ -327,9 +322,7 @@ if ($varenr=trim($varenr)) {
 	if (count($lagernr)) print "<td align=\"center\">".findtekst('608|Lager', $sprog_id)."</td>";
 	print "<td align=\"center\">".findtekst('2193|Varenummer / Stregkode', $sprog_id)."</td></tr>";
 	print "<tr><td align=\"center\"><input style=\"width:100px;text-align:left;\" type=\"text\" name=\"dato\" value=\"".dkdato($date)."\"></td><td align=\"center\">";
-#cho count($lagernr)."<br>";
 	if (count($lagernr)) {
-#cho count($lagernr)."<br>";
 		print "<td align=\"center\"><select style=\"width:100px;text-align:left;\" name=\"lager\">";
 		for ($i=0;$i<count($lagernr);$i++) {
 			if ($lager==$lagernr[$i]) print "<option value=\"$lagernr[$i]\">$lagernr[$i]:$lagernavn[$i]</option>";
@@ -353,7 +346,6 @@ print "</tbody></table  name=\"tabel_1.2\"></td></tr>\n"; # <- tabel 1.2
 print "<tr><td align=\"center\" width=\"100%\"><hr></td></tr>";
 print "<tr><td align=\"center\" width=\"100%\"><table name=\"tabel_1.3\" width=\"800px\" cellspacing=\"2\" border=\"0\"><tbody>\n"; # tabel 1.3 ->
 if ($gentael) gentael($lager);
-#cho __line__." bogfor $bogfor<br>";
 if ($bogfor) bogfor($lager,$nulstil_ej_optalt,$dato,$bogfor,$godkend_regdif);
 elseif($vis_ej_optalt) {
 $optalt=vis_ej_optalt($lager);
@@ -394,7 +386,6 @@ function vis_optalling($lager,$vnr,$gentael) {
 	else $qtxt="select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id,regulering.lager from regulering,varer where varer.id=regulering.vare_id and regulering.lager='$lager' and regulering.bogfort = '0' order by varer.varenr,regulering.tidspkt";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while($r=db_fetch_array($q)) {
-##cho "$r[id] -> $r[variant_id] -> $r[optalt] -> $r[beholdning]<br>"; 
 		$beholddiff[$x]=0;
 		if ($vnr && $x && $vare_id[$x]==$r['id'] && $variant_id[$x] && $variant_id[$x]==$r['variant_id']) {
 			$optalt[$x]+=$r['optalt'];
@@ -1202,11 +1193,10 @@ function importer($lager,$dato){
 				$fp2=fopen("../temp/$db/optael_ej_exist.txt","w");
 				while ($linje=trim(fgets($fp))) {
 					list($varenr,$antal)=explode($splitter,$linje);
-#cho "$varenr,$antal<br>";
 					if (substr($varenr,0,1)=='"' && substr($varenr,-1,1)=='"') $varenr=substr($varenr,1,strlen($varenr)-2);
 #					$varenr=strtolower($varenr);
 					if (substr($antal,0,1)=='"' && substr($antal,-1,1)=='"') $antal=substr($antal,1,strlen($antal)-2);
-					$tmp=utf8_encode($varenr);
+					$tmp=mb_convert_encoding($varenr, 'UTF-8', 'ISO-8859-1');
 					if (strpos($tmp,'æ') || strpos($tmp,'ø') || strpos($tmp,'å') || strpos($tmp,'Æ') || strpos($tmp,'Ø') || strpos($tmp,'Å')) {
 						$varenr=$tmp;
 					}
@@ -1218,7 +1208,6 @@ function importer($lager,$dato){
 							if ($v_str[$x]==$varenr)	{
 								$vare_id=$v_id[$x];
 								$variant_id=0;
-#cho __line__." $vare_id -> $variant_id<br>";
 							}
 						}
 						if (!$vare_id) {
@@ -1226,7 +1215,6 @@ function importer($lager,$dato){
 								if ($v_nr[$x]==$varenr) {
 									$vare_id=$v_id[$x];
 									$variant_id=0;
-#cho __line__." $vare_id -> $variant_id<br>";
 								}
 							}
 						}
@@ -1235,7 +1223,6 @@ function importer($lager,$dato){
 								if (strtolower($v_nr[$x])==strtolower($varenr))	{
 									$vare_id=$v_id[$x];
 									$variant_id=0;
-#cho __line__." $vare_id -> $variant_id<br>";
 								}
 							}
 						}
@@ -1244,7 +1231,6 @@ function importer($lager,$dato){
 								if (is_numeric($v_nr[$x]) && $v_nr[$x]*1==$varenr*1) {
 									$vare_id=$v_id[$x];
 									$variant_id=0;
-#cho __line__." $vare_id -> $variant_id<br>";
 								}
 							}
 						}
@@ -1253,37 +1239,28 @@ function importer($lager,$dato){
 								if (strtolower($var_str[$x])==strtolower($varenr)) {
 									$vare_id=$var_v_id[$x];
 									$variant_id=$var_id[$x];
-#cho __line__." $vare_id -> $variant_id<br>";
 								}
 							}
 						}
 						#						if ($r=db_fetch_array(db_select("select id from varer where varenr='$varenr'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
 #						elseif ($r=db_fetch_array(db_select("select id from varer where lower(varenr)='".strtolower($varenr)."' or lower(stregkode)='".strtolower($varenr)."' or upper(varenr)='".strtoupper($varenr)."' or upper(stregkode)='".strtoupper($varenr)."'",__FILE__ . " linje " . __LINE__))) $vare_id=$r['id']*1;
-#cho __line__." $vare_id -> $variant_id<br>";
 						if ($vare_id) {
 							$beholdning=0;
 							$qtxt="select sum(antal) as antal from batch_kob where vare_id='$vare_id' and variant_id='$variant_id' and kobsdate<='$transdate'"; 
 							if ($lager <= 1) $qtxt.=" and lager<='1'";
 							else $qtxt.=" and lager='$lager'";
-							#cho __line__." $qtxt<br>";							
-#cho __line__." $qtxt<br>";							
 							$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 							$beholdning+=$r['antal'];
-#cho __line__." $vare_id -> $variant_id B $beholdning+=$r[antal]<br>";
 							$qtxt="select sum(antal) as antal from batch_salg where vare_id='$vare_id' and variant_id='$variant_id' and salgsdate<='$transdate'";
 							if ($lager <= 1) $qtxt.=" and lager<='1'";
 							else $qtxt.=" and lager='$lager'";
-#cho __line__." $qtxt<br>";							
 							$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 							$beholdning-=$r['antal'];
 #							cho "*";
-#cho __line__." $vare_id -> $variant_id B $beholdning-=$r[antal]<br>";
 							$qtxt="insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ";
 							$qtxt.="('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id',$lager)";
-#cho __line__." $qtxt<br>"; 
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 							$qtxt="update lagerstatus set beholdning = '$beholdning' where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id'";
-#cho __line__." $qtxt<br>"; 
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 							$indsat++;
 						} elseif ($r=db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='". db_escape_string($varenr) ."'",__FILE__ . " linje " . __LINE__))) {
@@ -1302,7 +1279,6 @@ function importer($lager,$dato){
 #							cho "*";
 						}
 					}
-#cho __line__." $vare_id -> $variant_id<br>";
 if (is_array($variant_id)) exit;
 				}
 				fclose($fp2);

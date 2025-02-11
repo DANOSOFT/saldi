@@ -78,7 +78,7 @@ include "header.php";
       </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary close-modal" data-bs-dismiss="modal">Luk</button>
+        <a href="index.php?vare"><button type="button" class="btn btn-secondary close-modal" data-bs-dismiss="modal">Luk</button></a>
         <button type="button" class="btn btn-primary find-available">Find stande</button>
       </div>
     </div>

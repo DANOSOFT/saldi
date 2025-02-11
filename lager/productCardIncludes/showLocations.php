@@ -69,13 +69,11 @@
 				$l=0;
 				$lsId = array();
 				$qtxt="select id from lagerstatus where vare_id = '$id' and lager = '$x' order by id";
-#cho "$qtxt<br>";
 				$q2=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r2=db_fetch_array($q2)) {
 					$lsId[$l] = $r2['id'];
 					if ($l>=1) {
 						$qtxt="delete from lagerstatus where id ='$lsId[$l]' and  vare_id = '$id' and lager = '$x'";
-#cho "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 					$l++;
@@ -85,7 +83,6 @@
 				} else {
 					$qtxt = "insert into lagerstatus (vare_id,lager,beholdning) values ('$id','$x','$b_antal[$x]')";
 				}
-#cho "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$lagerbeh[$x]=$b_antal[$x];
 			}

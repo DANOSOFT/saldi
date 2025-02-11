@@ -17,7 +17,6 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 		print tekstboks($fejl);
 	}
 	if ($bilagsnr && !$fejl) {
-#cho "$kladde_id,$bilagsnr,$ny_dato,$vend_fortegn<br>";
 		$gl_bilag=0;
 		$bilag=0;
 		$query = db_select("select kladdenote from kladdeliste where id = '$kladde_id' and bogfort='V'",__FILE__ . " linje " . __LINE__);

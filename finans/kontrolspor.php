@@ -33,6 +33,7 @@
 // 20210708 LOE - Translated some of these texts from Danish to English and Norsk
 // 20210709 LOE - Bug fixed findtekst function wasn't working here
 // 20210721 LOE - Did translations on title tags
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 ob_start();
@@ -212,9 +213,7 @@ print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0 class
 
 print "<form name=transaktionsliste action=kontrolspor.php method=post>";
 if (!$linjeantal) $linjeantal=50;
-#cho "A next $next start $start | linjeantal $linjeantal<br>"; 
 $next=udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre, $kontonumre, $transdatoer, $logdatoer, $debetbelob, $kreditbelob, $logtid, $beskrivelse, $sort, $start+50,'',$projektnumre,$kassenumre);
-#cho "B next $next start $start | linjeantal $linjeantal<br>"; 
 if ($start>=$linjeantal) {
 	$tmp=$start-$linjeantal;
 	print "<td width=10%><a href='kontrolspor.php?sort=$sort&start=$tmp'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
@@ -334,7 +333,6 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 	if ($beskrivelse) $udvaelg.=udvaelg($beskrivelse, 'transaktioner.beskrivelse', 'TEXT');
 	
 	$udvaelg=trim($udvaelg);
-#cho __line__." $udvaelg<br>";
 	if (substr($udvaelg,0,3)=='and') $udvaelg="where".substr($udvaelg, 3);
 	elseif (substr($udvaelg,0,2)=='((') $udvaelg="where ".$udvaelg;
 	if ($sort=="logdate") $sort = $sort.", logtime";
@@ -349,10 +347,8 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 	}
 	if ($b_strlen=strlen($beskrivelse)) {
 	}
-#cho __line__." $udvaelg<br>";
 	if (!$udvaelg) $udvaelg="where";
 	else $udvaelg=$udvaelg." and";
-#cho __line__." $udvaelg<br>";
 	
 	$z=0;
 	
@@ -395,7 +391,6 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 	}
 	if (!isset ($id)) $id = NULL;
 	$x=0;
-#cho "select transaktioner.*, kontoplan.beskrivelse as kontonavn from transaktioner, kontoplan $udvaelg kontoplan.regnskabsaar='$regnaar' and kontoplan.kontonr = transaktioner.kontonr order by $sort<br>";
 	if(isset($id)){
 		for ($z=0;$z<count($id);$z++) {
 		/*
@@ -482,7 +477,7 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 							}
 						}
 						if ($csv) {
-							fwrite($fp,"\"".$id[$z]."\";\"".$transdato."\";\"".$logdato."\";\"".substr($logtime[$z],0,5)."\";\"".$kladde_id[$z]."\";\"".$bilag[$x]."\";\"".$kontonr[$z]."\";\"".utf8_decode(stripslashes($kontonavn[$z]))."\";\"".$row['faktura']."\";\"".dkdecimal($debet[$z],2)."\";\"".dkdecimal($kredit[$z],2)."\";\"".$row['projekt']."\";\"".utf8_decode(stripslashes($transtxt[$z]))."\"\n");
+							fwrite($fp,"\"".$id[$z]."\";\"".$transdato."\";\"".$logdato."\";\"".substr($logtime[$z],0,5)."\";\"".$kladde_id[$z]."\";\"".$bilag[$x]."\";\"".$kontonr[$z]."\";\"".mb_convert_encoding(stripslashes($kontonavn[$z]), 'ISO-8859-1', 'UTF-8')."\";\"".$row['faktura']."\";\"".dkdecimal($debet[$z],2)."\";\"".dkdecimal($kredit[$z],2)."\";\"".$row['projekt']."\";\"".mb_convert_encoding(stripslashes($transtxt[$z]), 'ISO-8859-1', 'UTF-8')."\"\n");
 						}
 					}
 				}

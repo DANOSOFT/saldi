@@ -25,6 +25,7 @@
 //
 // Copyright (c) 2003-2017 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 @session_start();
@@ -156,26 +157,20 @@ $q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r2 = db_fetch_array($q2)) {
 	$rykkersum=$r2['sum'];
 	$qtxt="select enhed from ordrelinjer where ordre_id = '$r2[id]' and enhed != '' order by id";
-#cho $qtxt."<br>\n";		
 	$q3=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r3 = db_fetch_array($q3)) {
 		$qtxt="select amount as sum from openpost where id = '$r3[enhed]'";
-#cho $qtxt."<br>\n";
 		$r4 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#cho "Sum $r4[sum]<br>\n";
 		$rykkersum+=$r4['sum'];
-#cho __line__." $rykkersum Sum $r4[sum]<br>\n";
 	}	
 	$txt.="<hr>";
 	$ry_nr=$x+1;
 	$txt.="<b><big>Rykker $ry_nr</big></b><br><br>\n";
-#cho $txt;	
 	$formular=$x+5;
 	$txt.="Bel&oslash;b<span style=\"position:absolute;left:150px;\">".dkdecimal($rykkersum)."</span><br>\n";
 	$txt.="Dato udstedt<span style=\"position:absolute;left:150px;\">".dkdato($r2['fakturadate'])."</span><br>\n";
 /*
 	$qtxt="select beskrivelse from formularer where formular = '$formular' and art = '2' and sprog = 'Dansk' order by ya desc";
-#cho "$qtxt<br>\n";
 	$q3 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r3 = db_fetch_array($q3)) {
 		if (strlen($r3['beskrivelse'])>20) {
@@ -190,37 +185,23 @@ while ($r2 = db_fetch_array($q2)) {
 	$x++;
 }
 
-##cho __line__." $txt<br>\n";
-#xit;
-#$qtxt="select box9 from grupper where art = 'DIV' and kodenr = '4'";
-##cho "$qtxt<br>\n";
-#$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#$inkasso_id=$r['box_9'];
 $qtxt="select email from adresser where id = '$inkasso'";
-#cho "$qtxt<br>\n";
 $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $email=$r['email'];
 #$mailsprog=strtolower($r['sprog']);
 #fwrite($fp,$initext);
 #$formularsprog=strtolower($r['sprog']);
-#cho __line__."<br>\n";
 if(!class_exists('phpmailer')) {
 	ini_set("include_path","../phpmailer");
 	require("class.phpmailer.php");
 }
 if (!isset($exec_path)) $exec_path="/usr/bin";
 #print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?rapportart=openpost\">";
-#exit;
-#cho __line__."<br>\n";
-
-#cho __line__."<br>\n";
 	
 $tmpmappe="../temp/$db/".str_replace(" ","_",$brugernavn);
 mkdir($tmpmappe);
 mkdir("$tmpmappe/inkasso.txt");
-#cho __line__."<br>\n";
 if ($email && strpos($email, '@')) {	
-#cho __line__."<br>\n";
 	$mailtext = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTMP 4.01 Transitional//EN\">\n";
 	$mailtext .= "<html><head><meta content=\"text/html; charset=ISO-8859-15\" http-equiv=\"content-type\">\n";
 	$row = db_fetch_array(db_select("select firmanavn from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
@@ -233,14 +214,11 @@ if ($email && strpos($email, '@')) {
 			$afsendermail=$r['email'];
 			$afsendernavn=$r['firmanavn'];
 
-#cho "AFSM $afsendermail<br>\n";
-			
 			if ($charset=="UTF-8") {
-				$subjekt=utf8_decode("Ny sag fra $eget_firma");
-				$mailtext=utf8_decode($mailtext);
-				$afsendernavn=utf8_decode($afsendernavn);
-				$afsendermail=utf8_decode($afsendermail);
-##cho "MM $mailtext<br>\n";
+				$subjekt=mb_convert_encoding("Ny sag fra $eget_firma", 'ISO-8859-1', 'UTF-8');
+				$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
+				$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
+				$afsendermail=mb_convert_encoding($afsendermail, 'ISO-8859-1', 'UTF-8');
 			}
 
 			$fp=fopen("$tmpmappe/inkasso.html","w");
@@ -248,7 +226,6 @@ if ($email && strpos($email, '@')) {
 			fclose ($fp);
 
 			$mail = new PHPMailer();
-#cho __line__."<br>\n";
 			$mail->IsSMTP();                                   // send via SMTP
 			$mail->Host  = "localhost"; // SMTP servers
 			$mail->SMTPAuth = false;     // turn on SMTP authentication
@@ -263,48 +240,35 @@ if ($email && strpos($email, '@')) {
 				$mail->From = $afsendermail;
 				$mail->FromName = $afsendernavn;
 			}
-#cho __line__."<br>\n";
 			$mail->AddAddress($email); 
 			$mail->AddBCC($afsendermail); 
 			$mail->AddReplyTo($afsendermail,$afsendernavn);
-#cho __line__."<br>\n";
 
 			$mail->WordWrap = 50;                              // set word wrap
-#cho __line__."<br>\n";
 			$mail->AddAttachment("$tmpmappe/inkasso.html");      // attachment
-#cho __line__."<br>\n";
 			for ($x=0;$x<count($faktfil);$x++) {
-				#cho "$faktfil[$x]<br>\n";
 				$mail->AddAttachment("$faktfil[$x]");      // attachment
 			}
-#cho __line__."<br>\n";
 			for ($x=0;$x<count($rykkerfil);$x++) {
-				#cho __line__." $rykkerfil[$x]<br>\n";
 				$mail->AddAttachment("$rykkerfil[$x]");      // attachment
 			}
 			$mail->IsHTML(true);                               // send as HTML
 
 			$mail->Subject  =  "ny inkasso sag fra $afsendernavn";
 			
-#cho __line__."<br>\n";
 			$mailbody = $txt;
-#cho __line__."<br>\n";
 
 			$mailaltbody = "Hermed fremsendes inkassosag fra ".$afsendernavn.".\n\n";
                         $mailaltbody .= "Den vedlagte fil er en HTML-fil og kan ses i din webbrowser eksempelvis \n";
 			$mailaltbody .= "ved at dobbeltklikke på den.\n";
 			if ($charset=="UTF-8"){
-				$mailbody=utf8_decode($mailbody);
-				$mailaltbody=utf8_decode($mailaltbody);
+				$mailbody=mb_convert_encoding($mailbody, 'ISO-8859-1', 'UTF-8');
+				$mailaltbody=mb_convert_encoding($mailaltbody, 'ISO-8859-1', 'UTF-8');
 			}
-
 
 			$mail->Body     =  $mailbody;
 			$mail->AltBody  =  $mailaltbody;
 
-##cho "ZZZ";
-#xit;
-			
 			if(!$mail->Send()){
  				 echo "Fejl i afsendelse til $email<p>";
    				echo "Mailer Error: " . $mail->ErrorInfo;

@@ -137,7 +137,6 @@ if ($bynavn) $qtxt.="and ordrer.bynavn like '".str_replace('*','%',strtolower($b
 if ($varenr) $qtxt.="and ordrelinjer.varenr like '".str_replace('*','%',strtolower($varenr))."' ";
 if ($varetekst) $qtxt.="and ordrelinjer.beskrivelse like '".str_replace('*','%',strtolower($varetekst))."' ";
 $qtxt.="order by ordrer.kontonr,ordrelinjer.varenr";
-#cho $qtxt."<br>";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while($r=db_fetch_array($q)){
 	if (isset($q_konto_id) && $q_konto_id[$x] && $q_konto_id[$x]!=$r['konto_id']) {

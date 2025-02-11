@@ -54,8 +54,6 @@ else {
 }
 if (!$variant_id) $variant_id = '0';
 
-#cho "O ".$_POST['opdater']."<br>";
-#cho "P ".$_POST['antal']."<br>";
 if (isset($_POST['opdater']) && $_POST['antal']>=1) {
 	$opdater=$_POST['opdater'];
 	$vare_id=$_POST['vare_id'];
@@ -74,42 +72,34 @@ transaktion("begin");
 		$nyt_antal=$antal;
 		$dd=date("Y-m-d");
 		$qtxt="select * from batch_kob where vare_id = '$vare_id' and lager = '$lager' and rest > '0' order by id";
-#cho __line__." $qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-#cho __line__." $nyt_antal<br>";
 		if ($nyt_antal*1){
 				$bk_pris[$x]=(float)$r['pris'];
 				$bk_rest[$x]=(float)$r['rest'];
 				$bk_id[$x]=(int)$r['id'];
 				if ($nyt_antal>=$bk_rest[$x]) {
 					$qtxt="update batch_kob set  rest = '0' where id='$bk_id[$x]'";
-#cho __line__." $qtxt<br>";					
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$qtxt = "insert into batch_salg ";
 					$qtxt.= "(salgsdate,fakturadate,batch_kob_id,vare_id,linje_id,ordre_id,pris,antal,lev_nr,lager,variant_id)";
 					$qtxt.= " values ";
 					$qtxt.= "('$dd','$dd','$bk_id[$x]','$vare_id','0','0','$bk_pris[$x]','$bk_rest[$x]','1','$lager','$variant_id')";
-#cho __line__." $qtxt<br>";					
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$sum+=$bk_pris[$x]*$bk_rest[$x];
 					$nyt_antal-=$bk_rest[$x];
 				} else {
 					$ny_rest=$bk_rest[$x]-$nyt_antal;
-#cho "$ny_rest=$bk_rest[$x]-$nyt_antal<br>";
 					$qtxt="update batch_kob set  rest = '$ny_rest' where id='$bk_id[$x]'";
-#cho __line__." $qtxt<br>";					
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$qtxt = "insert into batch_salg ";
 					$qtxt.= "(salgsdate,fakturadate,batch_kob_id,vare_id,linje_id,ordre_id,pris,antal,lev_nr,lager,variant_id)";
 					$qtxt.= " values ";
 					$qtxt.= "('$dd','$dd','$bk_id[$x]','$vare_id','0','0','$bk_pris[$x]','$nyt_antal','1','$lager','$variant_id')";
-#cho __line__." $qtxt<br>";					
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$sum+=$bk_pris[$x]*$nyt_antal;
 					$nyt_antal=0;
 					$qtxt=NULL;
-#cho __line__." $nyt_antal<br>";
 				}
 				$x++;
 			}
@@ -120,24 +110,20 @@ transaktion("begin");
 /*
 		$bk_id=array();
 		$qtxt="select * from batch_kob where vare_id = '$vare_id' and kobsdate is NULL and antal='0' and lager = '$nyt_lager' and rest < '0' order by id";
-#cho __line__." $qtxt<br>";					
 		while ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			if ($nyt_antal){
 				$bk_pris[$x]=$r['pris'];
 				$bk_rest[$x]=$r['rest'];
 				$bk_id[$x]=$r['id']*1;
-#cho __line__." $bk_id[$x] -> $bk_pris[$x] -> $bk_rest[$x]<br>";				
 				if ($nyt_antal >= $bk_rest[$x]) {
 					if ($x+1==count($bk_id)) {
 						$bk_antal[$x]=$bk_rest[$x]*-1;
 						$qtxt="update batch_kob set kobsdate='$dd',fakturadate='$dd',pris='$stkpris',antal=$bk_antal[$x],rest='0' where id='$bk_id[$x]'";
-#cho __line__." $qtxt<br>";					
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$nyt_antal-=$bk_antal[$x];
 					} else {
 						$ny_rest=$nyt_antal+$bk_rest[$x];
 						$qtxt="update batch_kob set kobsdate='$dd',fakturadate='$dd',pris='$stkpris',antal=$nyt_antal,rest='$ny_rest' where id='$bk_id[$x]'";
-#cho __line__." $qtxt<br>";					
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$nyt_antal=0;		
 					}
@@ -149,28 +135,22 @@ transaktion("begin");
 			$qtxt="insert into batch_kob (kobsdate,fakturadate,vare_id,linje_id,ordre_id,pris,antal,lager,rest,variant_id)";
 			$qtxt.=" values ";
 			$qtxt.="('$dd','$dd','$vare_id','0','0','$stkpris','$nyt_antal','$nyt_lager','$nyt_antal','$variant_id')";
-#cho __line__." $qtxt<br>";					
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 		$qtxt="select beholdning from lagerstatus where vare_id=$vare_id and lager=$lager and variant_id = '$variant_id'";
-#cho __line__." $qtxt<br>";					
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$qtxt = "update lagerstatus set beholdning = $r[beholdning]-$antal ";
 		$qtxt.= "where vare_id=$vare_id and lager=$lager and variant_id = '$variant_id'";
-#cho __line__." $qtxt<br>";					
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$qtxt="select beholdning from lagerstatus where vare_id=$vare_id and lager=$nyt_lager and variant_id = '$variant_id'";
-#cho __line__." $qtxt<br>";					
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		if ($r=db_fetch_array($q)) {
 			$qtxt = "update lagerstatus set beholdning = $r[beholdning]+$antal ";
 			$qtxt.= "where vare_id=$vare_id and lager=$nyt_lager and variant_id = '$variant_id'";
-#cho __line__." $qtxt<br>";					
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else {
 		$qtxt = "insert into lagerstatus (vare_id, beholdning, lager,variant_id) ";
 		$qtxt.= "values ('$vare_id', '$antal',$nyt_lager,'$variant_id')";
-#cho __line__." $qtxt<br>";					
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -187,7 +167,6 @@ while ($r = db_fetch_array($q)) {
 $lagerantal=$x;
 
 $qtxt="select varenr from varer where id=$vare_id";
-#cho __line__." $qtxt<br>";
 $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $varenr=$r['varenr'];
 $qtxt="select beholdning from lagerstatus where vare_id=$vare_id and lager=$lager and variant_id = '$variant_id'";

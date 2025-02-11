@@ -20,13 +20,13 @@
 //
 // Copyright (c) 2004-2012 DANOSOFT ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 $vare_id=$_GET['vare_id'];
 $shop_id=$_GET['shop_id'];
 $varenr=$_GET['varenr'];
 $beskrivelse=$_GET['beskrivelse'];
-#cho "$beskrivelse<br>";
 $notes=$_GET['notes'];
 $kat_id=explode(chr(9),$_GET['kat_id']);
 $parent_kat_id==explode(chr(9),$_GET['parent_kat_id']);
@@ -39,20 +39,16 @@ $salgspris=$_GET['salgspris'];
 $beholdning=$_GET['beholdning'];
 $datotid=date("Y-m-d H:i:s");
 
-#cho count($shop_kat_id)."<br>";
 for($i=0;$i<=count($shop_kat_id);$i++) {
-	#cho $shop_kat_id[$i]."<br>";
 }
 
 ($publiceret)?$status=1:$status=0;
-$beskrivelse=utf8_decode($beskrivelse);
+$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 # $beskrivelse=htmlkod($beskrivelse);
 # $notes=htmlkod($notes);
 
-#cho "ID: $vare_id<br>Varenr: $varenr<br>Beskrivelse: $beskrivelse<br>Shop ID: $shop_id<br>";
 
 for ($i=0;$i<count($kategori);$i++) {
-	#cho "Kategori: $kategori[$i]<br>Shop kat ID: $shop_kat_id[$i]<br>";
 }
 if ($vare_id&&$varenr&&$beskrivelse) {
 	include("shop_connect.php");
@@ -70,7 +66,6 @@ if ($vare_id&&$varenr&&$beskrivelse) {
 
 	if ($shop_id && $r=mysql_fetch_array(mysql_query("select products_model from products where products_id = '$shop_id'"))){
 		$products_id=$shop_id;
-#cho "produkt_id<br>";
 	} else {
 		if (!$r=mysql_fetch_array(mysql_query("select products_id from products where products_model = '$varenr'"))){
 			mysql_query("insert into products(products_model,products_date_added,products_status) values ('$varenr','$datotid','1')");
@@ -89,29 +84,21 @@ if ($vare_id&&$varenr&&$beskrivelse) {
 	fwrite($fp,"update products set products_model='$varenr', products_price='$salgspris',products_quantity='$beholdning',products_tax_class_id='$products_tax_class_id',products_status='$status' where products_id='$products_id'\r\n");
 	fwrite($fp,"update products_description set products_name='$beskrivelse',products_description,='$notes' where products_id='$products_id' and language_id='$language_id'\r\n");
 	fclose($fp); 
-#cho "update products set products_model='$varenr',products_price='$salgspris',products_quantity='$beholdning',products_tax_class_id='$products_tax_class_id' where products_id='$products_id'<br>";
 	$tmp=mysql_query("update products set products_model='$varenr', products_price='$salgspris',products_quantity='$beholdning',products_tax_class_id='$products_tax_class_id',products_status='$status' where products_id='$products_id'");
 	if (!$tmp) die('Fejl 1: ' . mysql_error());
-#cho "update products_description set products_name='$beskrivelse',products_description,='$notes' where products_id='$products_id' and language_id='$language_id'<br>"; 
 	$tmp=mysql_query("update products_description set products_name='$beskrivelse' where products_id='$products_id' and language_id='$language_id'");
 	if (!$tmp) die('Fejl 2: ' . mysql_error());
 	for($i=0;$i<count($shop_kat_id);$i++) {
 		$shop_kat_id[$i]*=1;
-#cho "i = $i $shop_kat_id[$i]<br>";
 		if (!$r=mysql_fetch_array(mysql_query("select * from products_to_categories where categories_id='$shop_kat_id[$i]' and products_id='$products_id'"))){
-#cho "insert into products_to_categories(categories_id,products_id) values ('$shop_kat_id[$i]','$products_id')";
 			$tmp=mysql_query("insert into products_to_categories(categories_id,products_id) values ('$shop_kat_id[$i]','$products_id')");
 			if (!$tmp) die('Fejl 3: ' . mysql_error());
 		}
 	}	
-#cho "update products_description(products_id='$products_id',products_name='$beskrivelse',products_description,='$notes') where products_id='$products_id' and language_id='$language_id'";
-#cho "select * from products_description where products_id = '$products_id' and language_id='$language_id'<br>";
 	if (!$r=mysql_fetch_array(mysql_query("select * from products_description where products_id = '$products_id' and language_id='$language_id'"))) {
-		#cho "insert into products_description(products_id,products_viewed) values ('$products_id','0')<br>";
 		$tmp=mysql_query("insert into products_description (products_id,language_id,products_viewed) values ('$products_id','$language_id','0')");
 		if (!$tmp) die('Fejl 4: ' . mysql_error());
 	}
-#cho "update products_description set products_id='$products_id',products_name='$beskrivelse',products_description,='$notes' where products_id='$products_id' and language_id='$language_id'";
 	$tmp=mysql_query("update products_description set products_id='$products_id',products_name='$beskrivelse' where products_id='$products_id' and language_id='$language_id'");
 	if (!$tmp) die('Fejl 5: ' . mysql_error());
 	

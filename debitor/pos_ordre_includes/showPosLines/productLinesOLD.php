@@ -196,9 +196,7 @@
 					}
 				}
 				if ($posnr[$x] && $r['varenr'] && $show) print "<tr bgcolor=\"$linjebg\"><td>$r[varenr]</td><td align=\"right\">".dkdecimal($antal[$x],2)."</td><td>".stripslashes($r['beskrivelse'])."</td><td align=\"right\">".dkdecimal($f_pris,2)."</td><td align=\"right\">".dkdecimal($antal[$x]*$f_pris,2)."</td>";
-#cho __line__." S $sum<br>";
 				$sum+=afrund($antal[$x]*$f_pris,2);
-#cho __line__." S $sum<br>";
 				}
 			}
 			if ($rabatantal[$x]) {
@@ -210,9 +208,7 @@
 						print "<td align=\"right\">".dkdecimal($grupperabat,2)."</td>";
 						print "<td align=\"right\">".dkdecimal($grupperabat*$rabatantal[$x],2)."</td>\n";
 					}
-#cho __line__." S $sum<br>";
 					$sum+=afrund($grupperabat*$rabatantal[$x],2);
-#cho __line__." S $sum<br>";
 				}
 			} elseif ($m_rabat[$x] && !$rabatgruppe[$x]) {
 				if ($posnr[$x] && $show) {

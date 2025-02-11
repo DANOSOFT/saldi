@@ -53,6 +53,7 @@
 // 2019.10.31 PHR	- Minor design update look for '$trbg'
 // 2020.03.15 PHR - Added minmaxrepport (execlusive for bizsys_49)
 // 2020.04.08 PHR	- Added Vat to summary repport
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 	@session_start();
 	$s_id=session_id();
@@ -119,12 +120,10 @@ if (isset($_POST['submit']) && $_POST['submit']) {
 #$md[1]="januar"; $md[2]="februar"; $md[3]="marts"; $md[4]="april"; $md[5]="maj"; $md[6]="juni"; $md[7]="juli"; $md[8]="august"; $md[9]="september"; $md[10]="oktober"; $md[11]="november"; $md[12]="december";
 
 #if (strstr($varegruppe, "ben post")) {$varegruppe="openpost";}
-#cho "$date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer<br>";
 if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref); 
 elseif ($submit == 'lagerstatus') print print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
 elseif (strpos($submit,'ageropt')) print print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
-#cho "$submit($regnaar, $date_from, $date_to, $varenr, $varenavn, $varegruppe)";
 
 #############################################################################################################
 function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref) {
@@ -484,7 +483,6 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$vare_id[$x]=$r['id'];
 			}
 		}
-#cho "A $vare_id[$x]<br>";
 	}
 	$v_id=array();
 	$x=0;
@@ -496,7 +494,6 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 	if ($ref) $qtxt.=" and batch_salg.ordre_id = ordrer.id and (ordrer.ref='$ref_navn' or ordrer.ref='$ref_brugernavn')";
 	if ($lagertal) $qtxt.=" order by varer.gruppe,varer.beskrivelse";
 	else $qtxt.=" and batch_salg.fakturadate>='$date_from' order by varer.beskrivelse";
-#cho "$qtxt<br>";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		if ((in_array(trim($row['vare_id']),$vare_id))&&(!in_array(trim($row['vare_id']), $v_id))) {
@@ -506,12 +503,10 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
 		}
 	}
- #cho "select vare_id, pris from batch_kob where fakturadate>='$date_from' and fakturadate<='$date_to' order by vare_id<br>";	
 	$qtxt="select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
 	$qtxt.="from batch_kob,varer where batch_kob.fakturadate<='$date_to' and batch_kob.vare_id = varer.id "; #20181003
 	if ($lagertal) $qtxt.="order by gruppe,varer.beskrivelse";
 	else $qtxt.=" and batch_kob.fakturadate>='$date_from' order by varer.beskrivelse";
-#cho "$qtxt<br>";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__); 
 	while ($row = db_fetch_array($query)) {
 		if ((in_array(trim($row['vare_id']), $vare_id))&&(!in_array(trim($row['vare_id']), $v_id))) {
@@ -642,7 +637,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 			print "<tr><td><br></td></tr>";
 			print "<tr><td><br></td></tr>";
 			print "<tr><td colspan=\"3\"><b>$varenr[$x] $beskrivelse[$x]</b></td></tr>";
-			fwrite($csvfile,";;;\"$varenr[$x] ".utf8_decode($beskrivelse[$x])."\"\r\n");
+			fwrite($csvfile,";;;\"$varenr[$x] ".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
 #			if ($enhed[$x]) print "<tr><td colspan=\"3\">$enhed[$x]</td></tr>";
 #			print "<tr><td colspan=\"3\"><b>$beskrivelse[$x]</b></td></tr>";
 			print "<tr><td></td></tr>";
@@ -817,7 +812,6 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					}
 				}
 			}
-#cho "$t_kobt+$t_regul-$t_solgt<br>";
 			if (!$kun_salg) {	
 				print "<tr><td colspan=\"$cols\"><hr></td></tr>";
 				fwrite($csvfile, "-----------\r\n");
@@ -836,12 +830,12 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$qtxt="select beskrivelse from grupper where art='VG' and kodenr='".$v_gr[$x]."'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				print "<tr><td colspan='2'><b><big>$r[beskrivelse]</big></b></tr>";
-				fwrite($csvfile, utf8_decode($r['beskrivelse'])."\r\n");
+				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8')."\r\n");
 			}
 			print "<tr><td>$varenr[$x]</td>";
 			print "<td>$enhed[$x]</td>";
 			print "<td>$beskrivelse[$x]</td>";
-			fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".utf8_decode($beskrivelse[$x])."\";");
+			fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\";");
 			if ($kun_salg) {
 				print "<td align=right>".dkdecimal($t_solgt,2)."</td>";
 				fwrite($csvfile, dkdecimal($t_solgt,2).";");
@@ -892,7 +886,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 				$qtxt="select beskrivelse from grupper where art='VG' and kodenr='$vg'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				print "<tr><td><b>$r[beskrivelse]</b></td>";
-				fwrite($csvfile, utf8_decode($r['beskrivelse']).";");
+				fwrite($csvfile, mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8').";");
 				if (!$kun_salg) print "<td colspan='2'>";
 				print "<td colspan='2'></td><td align='right'><b>". dkdecimal($g_solgt[$vg],2) ."</b></td>";
 				fwrite($csvfile, ";". dkdecimal($g_solgt[$vg],2) .";");
@@ -949,7 +943,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 		print "<tr><td>$varenr[$x]</td>";
 		print "<td>$enhed[$x]</td>";
 		print "<td>$beskrivelse[$x]</td>";
-		fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".utf8_decode($beskrivelse[$x])."\"\r\n");
+		fwrite($csvfile, "\"$varenr[$x]\";\"$enhed[$x]\";\"".mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8')."\"\r\n");
 		if (!$kun_salg) {
 			print "<td align=right> <b>".dkdecimal($tt_kobt,2)."</b></td>";
 			fwrite($csvfile, dkdecimal($tt_kobt,2).";");

@@ -250,7 +250,6 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 		} else {
 #				if ($admin || in_array($r['id'],$adgang_til)) {
 #					if ($beregn) echo "update regnskab set posteret='$posteringer[$x]' sidst='$sidst[$x]' where id='$id[$x]'<br>";
-#cho "update regnskab set posteret='$posteringer[$x]',sidst='$sidst[$x]' where id='$id[$x]'<br>";
 					if ($beregn) {
 						$qtxt = "update regnskab set posteret='$posteringer[$x]',sidst='$sidst[$x]' where id='$id[$x]'";
 						echo "$qtxt<br>";

@@ -81,7 +81,6 @@ if ($dan_liste) {
 	exit;
 }
 if (isset($_POST['slet_ugyldige']) || isset($_POST['gem']) || isset($_POST['udskriv'])) {
-#cho "Gem $_POST[gem]<br>";
 	$id = $erh = array();
 	$slet_ugyldige = if_isset($_POST['slet_ugyldige'],NULL);
 #	$liste_id      = if_isset($_POST['liste_id']);
@@ -108,7 +107,6 @@ if (isset($_POST['slet_ugyldige']) || isset($_POST['gem']) || isset($_POST['udsk
 		if ($slet_ugyldige && $ugyldig[$x] == $id[$x]) $slet[$x] = 'on';
 		elseif (!isset($slet[$x])) $slet[$x] = NULL;
 		if ($slet[$x]=='on') {
-			#cho "delete from betalinger where id='$id[$x]'<br>";
 			db_modify("delete from betalinger where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
 		} else {
 			$qtxt = "update betalinger set bet_type='$erh[$x]',fra_kto='$fra_kto[$x]',egen_ref='$egen_ref[$x]',til_kto='$til_kto[$x]',";
@@ -201,13 +199,11 @@ if ($find) {
 	$bilag_id_list=array();
 	$ordre_id_list=array();
 	$x=0; $y=0;
-#cho "select bank_reg, bank_konto from adresser where art = 'S'<br>";
 
 	while (strlen($myBank)<10) {
 		$myBank='0'.$myBank; # kontonumre skal vaere paa 10 cifre
 	}
 	$myBank = $myReg.$myBank;
-	#cho "select ordre_id, bilag_id from betalinger<br>";
 	if ($find == 'saldo') {
 		$qtxt = "select * from adresser where art = 'D' and lukket != 'on'";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -261,11 +257,9 @@ if ($find) {
 		$qtxt.= "adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser";
 		$qtxt.= " where openpost.udlignet != '1' and openpost.amount < 0 and openpost.beskrivelse like 'Afr:%'";
 		$qtxt.= " and openpost.konto_id = adresser.id and adresser.art = 'D'";
-#cho "qtxt $qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)){
 			$ordre_id=0;
-#cho "$ordre_id<br>";		
 			$medtag=1;
 			$egen_ref=$r['egen_ref'];
 			if (substr($egen_ref,0,9)=='Afregning' && $r['kontonr'] && $r['kladde_id']) {

@@ -347,7 +347,6 @@ if ($saveItem || $submit = trim($submit)) {
     if (!$variant_vare_id) $variant_vare_id = array(); 
 ######### Kategorier #########
     for ($x=0;$x<=count($kat_id);$x++) {
-#cho "KV $kat_valg[$x]<br>";
         if (isset ($kat_valg[$x]) && $kat_valg[$x]) {
             ($kategori)?$kategori.=chr(9).$kat_id[$x]:$kategori=$kat_id[$x];
         }
@@ -402,7 +401,6 @@ if ($saveItem || $submit = trim($submit)) {
         }       $r=db_fetch_array(db_select("select box4 from grupper where art='API'",__FILE__ . " linje " . __LINE__));
         if ($shopurl && $shopurl!="!") {
             $url=$shopurl."/opdat_shop_kat.php";
-#cho $url;
 #           print "<body onload=\"javascript:window.open('$url','opdat:kat');\">";
         }
     }
@@ -476,10 +474,7 @@ if ($saveItem || $submit = trim($submit)) {
         $kategorier=explode(chr(9),$kategori);
         $shop_kat_id='';
         for ($x=0;$x<count($kategorier);$x++){
-#cho "select box3 from grupper where id='$kategorier[$x]'<br>";
-#cho "select box3 from grupper where id='$kategorier[$x]'<br>";
             if($kategorier[$x] && $r=db_fetch_array($q=db_select("select box3 from grupper where id='$kategorier[$x]'",__FILE__ . " linje " . __LINE__))){
-#cho "ZZZZZZZZ $r[box3]<br>";
                 ($shop_kat_id)?$shop_kat_id.=chr(9).$r['box3']:$shop_kat_id=$r['box3'];
             }
         }
@@ -1559,18 +1554,15 @@ print "</tr></tbody></table></td></tr>";
 function prisopdat($id, $diff) {
     $x=0;
     $y=0;
-#cho "select * from styklister where vare_id =$id<br>";
     $q1 = db_select("select * from styklister where vare_id =$id",__FILE__ . " linje " . __LINE__);
     while ($r1 = db_fetch_array($q1)) {
         $x++;
         $indgaar_i[$x]=$r1['indgaar_i'];
         $belob=$r1['antal']*$diff;
-#cho "update varer set kostpris=kostpris+$belob where id=$indgaar_i[$x]<br>";
         db_modify("update varer set kostpris=kostpris+$belob where id=$indgaar_i[$x]",__FILE__ . " linje " . __LINE__);
     }
     $y=$x;
     for ($y=1; $y<=$x; $y++) {
-#cho "select * from styklister where vare_id=$indgaar_i[$y]<br>";
         $q1 = db_select("select * from styklister where vare_id=$indgaar_i[$y]",__FILE__ . " linje " . __LINE__);
         while ($r1 = db_fetch_array($q1)) {
             if ($row['indgaar_i']!=$id) {
@@ -1578,7 +1570,6 @@ function prisopdat($id, $diff) {
                 $vare_id[$x]=$r1['id'];
                 $indgaar_i[$x]=$r1['indgaar_i'];
                 $antal[$x]=$r1['antal'];
-#cho "update varer set kostpris=kostpris+$diff*$antal[$x] where id=$vare_id[$x]<br>";
                 db_modify("update varer set kostpris=kostpris+$diff*$antal[$x] where id=$vare_id[$x]",__FILE__ . " linje " . __LINE__);
             } else {
                 $r2 = db_fetch_array(db_select("select varenr from varer where id=$vare_id[$y]",__FILE__ . " linje " . __LINE__));

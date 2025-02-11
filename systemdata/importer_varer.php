@@ -40,6 +40,7 @@
 // 20221004 MLH added filterOption, salesPriceFromPurchasePrice, salesPriceRoundingMethod, salesPriceMethod, tierPriceFromPurchasePrice, tierPriceRoundingMethod, tierPriceMethod
 // 20221025 MLH fixed a programming issue regarding the value of POST variable "submit"
 // 20230523 PHR php8
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -174,7 +175,6 @@ global $charset,$sprog_id;
 
 $feltnavn = if_isset($feltnavn,array());
 $komma = $semikolon = $tabulator = 0;
-#cho "$charset<br>";
 
 $fp=fopen("$filnavn","r");
 if ($fp) {
@@ -182,8 +182,8 @@ if ($fp) {
 		$tmp=fgets($fp);
 		if($tmp) $linje=$tmp;
 	}
-	if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-	elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+	if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+	elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	$tmp=$linje;
 	while ($tmp=substr(strstr($tmp,";"),1)) {$semikolon++;}
 	$tmp=$linje;
@@ -376,8 +376,8 @@ if ($fp) {
 			$colNum=1;
 			$preLine='';
 			$skriv_linje=1;
-			if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-			elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+			if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+			elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$felt=array();
 			$felt = opdel($splitter, $linje);
 			for ($y=0; $y<=$feltantal; $y++) {
@@ -560,7 +560,6 @@ if ($fp) {
 	$lokation=0;
 	$varenr="";
 	$salgspris_isset=$tier_price_isset=$retail_price_isset=false;
-#cho "$splitter<br>";	
 	while (!feof($fp)) {
 		$skriv_linje=0;
  		if ($linje=fgets($fp)) {
@@ -577,13 +576,9 @@ if ($fp) {
 			}
 			if ($colNum && $cols) { # 20220628 '>=' changed to '&&'
 #				$preLine.= $linje;
-#cho __line__." $x $colNum < $cols<br>";
 				
-#cho __line__." $x $linje<br>";
 #			}	else {
 				$x++;
-#cho __line__." $x $colNum > $cols<br>";
-#cho __line__." $x $linje<br>";
 				if ($preLine) {
 					$preLine.= $linje;
 					$linje = $preLine;
@@ -591,20 +586,18 @@ if ($fp) {
 				$colNum=1;
 				$preLine='';
 				$skriv_linje=1;
-				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 				$vare_id=0;
 				$felt=array();
 				$felt = opdel($splitter, $linje);
 				for ($y=0; $y<count($felt); $y++) {
-#cho __line__." $x $y $feltnavn[$y] | $felt[$y]<br>";
 					$medtag_felt[$y]=1;
 					if (!trim($feltnavn[$y])) $medtag_felt[$y]=0;
 					$felt[$y]=trim($felt[$y]);
 					$feltnavn[$y]=strtolower($feltnavn[$y]);
 					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
 					if ($feltnavn[$y]=='varenr') {
-#cho "$feltnavn[$y] | $varenr | $felt[$y]<br>";
 					$varenr = $felt[$y];
 #					if ($varenr != $felt[$y]) $skriv_linje=0;
 				}

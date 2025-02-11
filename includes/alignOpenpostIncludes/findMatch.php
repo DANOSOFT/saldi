@@ -26,7 +26,6 @@
 echo "<!- includes/alignOpenpostIncludes/findMatch.php -->";
 $match[0] = 0;
 $arraySum = array_sum($amount);
-#cho "$arraySum  | $amount[0] ".abs($arraySum)."<br>";
 if (abs($arraySum) < 0.005) {
 	for ($i=0; $i<count($amount);$i++) $match[$i]	= 1;
 }
@@ -61,7 +60,6 @@ for ($i=1;$i<count($amount);$i++) { # find matching pairs
 		if (!isset($match[$a])) $match[$a] = 0;
 		if ($match[$i] == 0 && $match[$a] == 0) { // amount is not matched
 			if (abs($amount[$i] + $amount[$a]) < 0.005) {
-#cho "$amount[$i] matcher  $amount[$a]<br>";
 				$match[$i] = $match[$a] = 1; // amount is matched;
 			}
 		}
@@ -103,7 +101,6 @@ if (!$match[0]) {
 /*
 													} else {
 														for ($i8=$i7+1;$i8<count($amount);$i8++) {
-#cho 	count($amount) ." $i8 - $amount[$i8]<br>";
 if (!isset($i8)) exit;
 															if (abs($amount[0] + $amount[$i] + $amount[$i2] + $amount[$i3] + $amount[$i4] + 
 																$amount[$i5] + $amount[$i6] + $amount[$i7] + $amount[$i8]) < 0.005) {
@@ -129,7 +126,6 @@ if (!isset($i8)) exit;
 }
 
 for ($i=1;$i<count($amount);$i++) {
-#cho "$i $amount[$i]	$match[$i]<br>"; 
 	if ($match[$i] == 1) $udlign[$i] = 'on';
 }
 
@@ -139,9 +135,7 @@ function findMatching($amount, $n) {
 		$chksum=0;
 		for ($ia=0;$ia<=$n;$ia++) {
 			$chksum+= $amount[$ia];
-#cho "$amount[$ia] +";
 		}
-#cho "<br>";
 		if (abs($chksum) < 0.005) { 
 			for ($ia=0;$ia<$n;$ia++) $match[$ia] = 1;
 			return 1;

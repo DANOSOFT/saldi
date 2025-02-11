@@ -164,7 +164,6 @@ if ($signup=(if_isset($_POST['signup']))) {
 			$korttxt=$txt;
 			$qtxt="insert into ordrelinjer(ordre_id,beskrivelse,posnr,vare_id) values ('$ordre_id','$txt','1','0')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
-			#cho "vare_id $vare_id<br>";
 			if ($selectedItemId) {
 				$qtxt="select * from varer where id = '$selectedItemId'";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -332,7 +331,6 @@ function kortbetaling($regnskab,$ordernumber,$ordre_id,$sum,$kontakt,$cvrnr,$fir
 	$language='da';
 #	$ordernumber = $arr_klub."-".$ordrenr;
 	$amount=round($sum*100,2);
-#cho "mer $merchant amount $amount<br>";
 	$currency='DKK';
 	$filnavn="$merchant.$ordre_id"."_ok.php";
 	$fp=fopen("$filnavn","w");
@@ -353,16 +351,12 @@ function kortbetaling($regnskab,$ordernumber,$ordre_id,$sum,$kontakt,$cvrnr,$fir
 	else $ht_prot='http';
 	list($tmp,$mappe,$tmp)=explode("/",$_SERVER['PHP_SELF']);
 	$continueurl="$ht_prot://".$_SERVER['SERVER_NAME']."/$mappe/api/$filnavn";
-#cho "$continueurl<br>";
 	$cancelurl="$ht_prot://".$_SERVER['SERVER_NAME']."/$mappe/api/fejl.htm";
 	$callbackurl="$ht_prot://".$_SERVER['SERVER_NAME']."/$mappe/api/callback.php"; //see http://quickpay.dk/clients/callback-quickpay.php.txt
 #	$md5secret ='29p61DveBZ79c3144LW61lVz1qrwk2gfAFCxPyi5sn49m3Y3IRK5M6SN5d8a68u7';
 #	$md5secret ='489e8edc32d5aa33191f81638bfdd160e4ce67ce9b5417ad3f40c73dbd6de9ed';
-#cho "$callbackurl<br>";
 #xit;
-#cho "$md5secret<br>";
 	$md5check = md5($protocol.$msgtype.$merchant.$language.$ordre_id.$amount.$currency.$continueurl.$cancelurl.$callbackurl.$md5secret);
-#cho $md5check;
 	print "<table><tbody>
 	<form action=\"https://secure.quickpay.dk/form/\" onsubmit=\"return Form_Validator(this)\" method=\"post\">
 	<input type=\"hidden\" name=\"protocol\" value=\"$protocol\" />
@@ -385,7 +379,6 @@ function kortbetaling($regnskab,$ordernumber,$ordre_id,$sum,$kontakt,$cvrnr,$fir
 	print "<tr><td style=\"width:200px\">Navn</td><td style=\"width:200px\">$eget_firmanavn</td></tr>";
 	print "<tr><td style=\"width:200px\">Adresse</td><td style=\"width:200px\">$egen_addr1</td></tr>";
 	print "<tr><td style=\"width:200px\"></td><td style=\"width:200px\">$eget_postnr $eget_bynavn</td></tr>";
-	#cho "ECV $eget_cvrnr<br>";
 	if ($eget_cvrnr) print "<tr><td style=\"width:200px;\">CVR:&nbsp;</td><td style=\"width:200px\">$eget_cvrnr</td></tr>";
 	print "<tr><td colspan=\"2\"><hr></td></tr>";
 	print "<tr><td style=\"width:200px\"><b>Afsender<b></td><td style=\"width:200px\"></td></tr>";
@@ -501,7 +494,6 @@ function quickpay($regnskab,$ordernumber,$ordre_id,$sum,$kontakt,$cvrnr,$firmana
 	else $ht_prot='http';
 	list($tmp,$mappe,$tmp)=explode("/",$_SERVER['PHP_SELF']);
 	$continueurl="$ht_prot://".$_SERVER['SERVER_NAME']."/$mappe/api/$filnavn";
-#cho "$continueurl<br>";
 	$cancelurl="$ht_prot://".$_SERVER['SERVER_NAME']."/$mappe/api/signup.php?regnskab=$regnskab&ordre_id=$ordre_id";
 	$callbackurl="$ht_prot://".$_SERVER['SERVER_NAME']."/$mappe/api/callback.php"; //see http://quickpay.dk/clients/callback-quickpay.php.txt
 	
@@ -549,7 +541,6 @@ function quickpay($regnskab,$ordernumber,$ordre_id,$sum,$kontakt,$cvrnr,$firmana
 	print "<tr><td style=\"width:200px\">Navn</td><td style=\"width:200px\">$eget_firmanavn</td></tr>";
 	print "<tr><td style=\"width:200px\">Adresse</td><td style=\"width:200px\">$egen_addr1</td></tr>";
 	print "<tr><td style=\"width:200px\"></td><td style=\"width:200px\">$eget_postnr $eget_bynavn</td></tr>";
-	#cho "ECV $eget_cvrnr<br>";
 	if ($eget_cvrnr) print "<tr><td style=\"width:200px;\">CVR:&nbsp;</td><td style=\"width:200px\">$eget_cvrnr</td></tr>";
 	print "<tr><td colspan=\"2\"><hr></td></tr>";
 	print "<tr><td style=\"width:200px\"><b>Afsender<b></td><td style=\"width:200px\"></td></tr>";

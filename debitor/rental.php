@@ -119,8 +119,6 @@ if ($newRt)                       include ("rentalIncludes/rtItem.php");
 elseif ($modRt && !$newRtName)    include ("rentalIncludes/rtItem.php");
 if ($rtPeriodFrom && $rtPeriodTo) include ("rentalIncludes/rtPeriod.php");
 
- #cho __file__." ".__line__." $thisRpId<br>";
-
 if ($cancel) $rtPeriodCustomer = NULL;
 if ($rtPeriodCustomer && $newRtFrom && $newRtTo) {
 	$rtPeriodFrom=strtotime(usdate($newRtFrom));

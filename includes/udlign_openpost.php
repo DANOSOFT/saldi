@@ -77,7 +77,6 @@ if (isset($_POST['submit'])) {
 	$dkkdiff=$_POST['dkkdiff'];
 	$maxdiff=$_POST['maxdiff'];
 	$diffkto=$_POST['diffkto'];
-#cho "Diff ".round($diff,3)." DkkDiff ".round($dkkdiff,3)."<br>";
 	$diffdato=if_isset($_POST['diffdato']);
 	($diffdato)?$diffDate=usdate($diffdato):$diffDate=NULL;
 	$diffbilag=$_POST['diffbilag'];
@@ -166,20 +165,16 @@ $r2=db_fetch_array(db_select("select box2 from grupper where art ='VK' and box1=
 $basiskurs=str_replace(",",".",$r2['box2']); #Valutaen kan være i dansk talformat (BUG).
 #	cho "$valuta[0] basisvaluta $basisvaluta basiskurs $basiskurs<br>";
 if ($basisvaluta=='DKK') $basiskurs=100; 
-#cho "$basisvaluta != $valuta[0] | $basiskurs = 100<br>";
 if ($basisvaluta != $valuta[0]) {
-#cho "$basisvaluta != $valuta[0]<br>";
 	if ($valuta[0]=='DKK') {
 		$qtxt="select kodenr from grupper where box1 = '$basisvaluta' and art='VK'<br>";
 		$r2=db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
 		$qtxt="select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate desc limit 1"; #20160426-2
-#cho "$db - $qtxt<br>";
 		$r3=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			if ($r3['kurs']) $omregningskurs[0]=100/$r3['kurs'];
 			$amount[0]=afrund($amount[0]*$omregningskurs[0],2); #20140527
 			$sum=$amount[0];
 	} elseif ($valuta[0] != $basisvaluta && $basisvaluta!='DKK') {
-#cho "$valuta[0] != $basisvaluta && $basisvaluta!='DKK'<br>";
 		$r2=db_fetch_array(db_select("select kodenr from grupper where box1 = '$basisvaluta' and art='VK'",__FILE__ . " linje " . __LINE__));
 		$r2=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r2[kodenr]' and valdate <= '$transdate[0]' order by valdate desc",__FILE__ . " linje " . __LINE__));
 		$dagskurs=$r2['kurs']*1;
@@ -187,7 +182,6 @@ if ($basisvaluta != $valuta[0]) {
 		$amount[0]*=$valutakurs[0]/$dagskurs;
 		$dkkamount[0]=$amount[0]*$valutakurs[0]/100;
 	} elseif ($basisvaluta=='DKK') {
-#cho "$basisvaluta=='DKK'<br>";
 		$omregningskurs[0]=$valutakurs[0]/100;
 		$amount[0]=$dkkamount[0];
 		$sum=$amount[0];
@@ -203,7 +197,6 @@ $konto_id[0]*=1;
 $udlign_date="$transdate[0]";
 $x=0;
 $qtxt="select * from openpost where id!='$post_id[0]' and konto_id='$konto_id[0]' and udlignet != '1' order by transdate";
-#cho "$qtxt<br>";
 $query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)){
 	$x++;
@@ -268,7 +261,6 @@ $maxdiff=$r['box1']*1;
 $diffkto=$r['box2']*1;
 if (!$diffkto) $maxdiff=0;
 
-#cho __line__." SUB $submit<br>";
 if (!isset($submit)) include ("../includes/alignOpenpostIncludes/findMatch.php");
 
 if ($menu=='S') {
@@ -313,7 +305,6 @@ else {
 	print "<td>$faktnr[0]</td>";
 	print "<input type=\"hidden\" name=\"faktnr[0]\" value = \"$faktnr[0]\">";
 }
-#cho "amount $amount[0] dkkamount $dkkamount[0]<br>";
 $spantekst="Hvis der skrives et andet bel&oslash;b i dette felt, kan posteringen splittes i 2. Kr&aelig;ver at der er påf&oslash;rt fakturanummer";
 print "<td>$beskrivelse[0]</td><td align=right  title='$spantekst'><span style='color: rgb(0, 0, 0);'>";
 if (($art=='DG' && $amount[0] < 0) || ($art=='KG' && $amount[0] > 0))	print "<input  class=\"inputbox\" type = \"text\" style=\"text-align:right;width:90px;\" name=belob value =\"".dkdecimal($amount[0])."\"></td></tr>";
@@ -384,7 +375,6 @@ print "<tr><td colspan=10 align=center>";
 
 $onclick='';
 
-#cho round($diff,3)." != ".round($dkkdiff,3)." $diffDate<br>";
 
 if ($diff != $dkkdiff && $bogfor!='OK' && $dkkdiff >= 0.005) {
 	$txt="Der vil blive bogført en valutadifference på dkk ".dkdecimal($dkkdiff)."\\nKlik OK for at godkende, eller klik Cancel for at afbryde ";

@@ -111,7 +111,6 @@ function udskriv_nordea($db_id,$bruger_id,$liste_id) {
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
 			$x++;
 #			if ($betalingsdato<$dd)$betalingsdato=$dd;
-#cho __LINE__."<br>";
 			$linje='"0","45","","","","","","","","","","'; #felt 1-11
 			$linje.=$r['modt_navn']; #felt 12 Modtager
 			$linje.='","","","","","'; # felt 13-16 
@@ -170,7 +169,6 @@ function udskriv_danskebank($db_id,$bruger_id,$liste_id) {
 #		if (substr($r['bet_type'], 0, 3)=="ERH") {
 			$x++;
 #			if ($betalingsdato<$dd)$betalingsdato=$dd;
-#cho __LINE__."<br>";
 			$linje='"CMBO",'; #felt 1
 			$linje.='"'.$r['fra_kto'].'",'; # Felt 2 Fra-reg+ktonr
 			$linje.='"'.$r['til_kto'].'",'; # Felt 3 Til-reg+ktonr
@@ -227,7 +225,6 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 		$kort_ref = $r['kort_ref'];
 		if (substr($r['bet_type'], 0, 3)=="ERH") {
 			$x++;
-#cho __LINE__."<br>";		
 			$linje='"';
 			$linje.="IB030202000005"; #1 Trans-type 
 			$linje.='","';
@@ -308,7 +305,6 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 			#			if ($r['bet_type']=="ERH351") $kort_ref="71".$kort_ref;
 #			$linje="\"$r[bet_type]\",\"$r[fra_kto]\",\"$r[egen_ref]\",\"$r[til_kto]\",\"$r[modt_navn]\",\"00\",\"0\",,\"".str_replace(".", "", $r['belob'])."\",\"".substr($r['betalingsdato'],0,4).substr($r['betalingsdato'],-2)."\",\"$kort_ref\",,,,,,,,,\"N\"\r\n";
 		} elseif ($r['bet_type']=="SDCK020") { # SDC betalingstype K020 - FI-kort 71 
-#cho __LINE__."<br>";		
 			$bet_type=substr($r['bet_type'], 3);
 			$linje=$bet_type.$r['fra_kto'].$r['betalingsdato'];
 			$linje.=sprintf("%015.2f", str_replace(",", ".", str_replace(".", "", $r['belob'])))."N";
@@ -319,7 +315,6 @@ function udskriv_bankdata($db_id,$bruger_id,$liste_id){
 			echo "\n<!-- SDCK020 linjelængde er ".strlen($linje)." (skal være 87) -->\n"; # Linjelængden skal være på 87 tegn ifølge specifikationen - kan testes for senere
 			$linje.="\r\n";
 		} elseif ($r['bet_type']=="SDC3") { # SDC betalingstype 3 - bankovf. med kort advisering
-#cho __LINE__."<br>";		
 			$linje="3".$r['fra_kto'].substr($r['betalingsdato'],0,4).substr($r['betalingsdato'],-2);
 			$linje.=sprintf("%015.2f", str_replace(",", ".", str_replace(".", "", $r['belob'])))."N";
 			$linje.=sprintf("%-20s", substr(iconv("UTF-8", "Windows-1252//IGNORE", $r['egen_ref']),0,20));

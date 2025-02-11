@@ -32,8 +32,6 @@
 	if ($telt_antal=='0.6') $telt60='checked';
 	//else $telt35='checked';
 	$sum+=$telt_antal*$sum1;
-	#cho "telt35 $telt35<br>telt40 $telt40<br>telt55 $telt55<br>telt60 $telt60<br>";
-#cho "<tr><td colspan='5'>update loen_enheder set pris_op=$sum1 WHERE loen_id = '$id' and vare_id='-2</td></tr>";
 	#20140810 indsat linje herunder.
 #	db_modify("update loen_enheder set pris_op=$sum1 WHERE loen_id = '$id' and vare_id='-2'",__FILE__ . " linje " . __LINE__);
 	print "<tr>

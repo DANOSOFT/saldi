@@ -70,7 +70,6 @@ for ($i=0;$i<count($vgAccount);$i++) {
 		and ordrer.art = 'PO' 
 		and ordrer.status > '3' 
 		and ordrer.felt_5 = '$accountBox[$i]'";
-#cho "$qtxt<br>";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 	if ($r['rabat'] && $r['rabatart'] == 'amount') {
@@ -90,7 +89,6 @@ for ($i=0;$i<count($vgAccount);$i++) {
 for ($i=0;$i<count($vgAccount);$i++) {
 	$qtxt = "select * from transaktioner where transdate = '$fakturadate' 
 		and kasse_nr = '$accountBox[$i]' and kontonr = '$vgAccount[$i]' and beskrivelse like '%afslutning%' ";
-#cho "$qtxt<br>";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$trSum[$i]+= $r['kredit'] - $r['debet'];

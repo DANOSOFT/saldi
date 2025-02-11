@@ -27,6 +27,7 @@
 // ----------------------------------------------------------------------
 // 20190312 LN Make receipt functions to print the different parts of the report
 // 20190319 LN Print the new unique box id correct
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 function fiveSpace() {
     return $fiveSpace = str_repeat(' ', 5);
@@ -83,7 +84,7 @@ function printProductDescription($fp, $groupArray) {
 			} else {
 				$value = number_format($value, 2, ',', '.');
 				$text .= str_pad($value, 13, ' ', STR_PAD_LEFT);
-				$text = utf8_encode($text);
+				$text = mb_convert_encoding($text, 'UTF-8', 'ISO-8859-1');
 				fwrite($fp, $text);
 				fwrite($fp, "\n");
 				$temp = 1;

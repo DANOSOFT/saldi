@@ -33,6 +33,7 @@
 // 20221010 PHR Zero stock was omitted in CSV
 // 20221124 PHR	Added select between levdate (deelvery date) and fakturadate (invoicedate). 
 // 20240910 PHR 'lagervalg' was omitted in CSV
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
  
 @session_start();
 $s_id=session_id();
@@ -226,7 +227,7 @@ print "<tr><td width=8%>".findtekst(917, $sprog_id).".</td><td width=5%>".findte
 if ($csv) {
 	$fp=fopen("../temp/$db/lagerstatus.csv","w");
 	$linje="Varenr".";"."Enhed".";"."Beskrivelse".";"."Købt".";"."Solgt".";"."Antal".";"."Købspris".";"."Kostpris".";"."Salgspris";
-	$linje=utf8_decode($linje);
+	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	fwrite($fp,"$linje\n");
 }
  
@@ -313,20 +314,14 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		($dateType == 'levdate')?$dt = 'kobsdate':$dt = $dateType;
 		if ($date!=$dd) $qtxt.=" and $dt <= '$date'";
 		$qtxt.=" order by kobsdate desc";
-#if ($vare_id[$x]=='454') #cho __line__." $qtxt<br>";		
 		$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while($r1=db_fetch_array($q1)) {
 			if ($antal+$r1['antal'] <= $batch_t_antal[$x]) {
-#if ($vare_id[$x]=='454') #cho __line__." $antal+$r1[antal] <= $batch_t_antal[$x]<br>";
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris<br>";
 				$antal+=$r1['antal'];
 				$pris+=$r1['antal']*$r1['pris'];
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris+=$r1[antal]*$r1[pris]<br>";
 			} elseif ($antal < $batch_t_antal[$x] && $antal+$r1['antal'] > $batch_t_antal[$x]) {
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris<br>";
 				$pris+=$r1['pris']*($batch_t_antal[$x]-$antal);
 				$antal=$batch_t_antal[$x];
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris<br>";
 			}
 		}
 		($antal)?$batch_pris[$x]=$pris:$batch_pris[$x]=0;
@@ -358,12 +353,10 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		print	"<td>$enhed[$x]<br></td><td>$beskrivelse[$x]<br></td>
 		<td align=right>".str_replace(".",",",$batch_k_antal[$x]*1)."<br></td><td align=right>".str_replace(".",",",$batch_s_antal[$x]*1)."<br></td>";
 		if ($date==$dd && afrund($batch_t_antal[$x],1)!=afrund($beholdning[$x],1) && !$lagervalg) {
-#cho __line__." $vare_id[$x] | $varenr[$x] | $beholdning[$x]<br>";
 			if ($ret_behold==2 || ($opdater && $vare_id[$x]==$opdater)) {
 				if (count($lager) >= 1) {
 					$ny_beholdning[$x]=0;
 					for ($y=1;$y<count($lager);$y++) {
-#cho "select sum(antal) as antal from batch_kob where vare_id='$vare_id[$x]' and lager='$lager[$y]'<br>";
 						$r2=db_fetch_array(db_select("select sum(antal) as antal from batch_kob where vare_id='$vare_id[$x]' and lager='$lager[$y]'",__FILE__ . " linje " . __LINE__));
 						$lagerbeh[$y]=$r2['antal'];
 						$r2=db_fetch_array(db_select("select sum(antal) as antal from batch_salg where vare_id='$vare_id[$x]' and lager='$lager[$y]'",__FILE__ . " linje " . __LINE__));
@@ -405,7 +398,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		<td align=right>".dkdecimal($salgspris[$x]*$batch_t_antal[$x])."<br></td></tr>";
 		if ($csv) {
 			$linje="$varenr[$x]".";"."$enhed[$x]".";"."$beskrivelse[$x]".";"."$batch_k_antal[$x]".";"."$batch_s_antal[$x]".";".$batch_t_antal[$x].";".dkdecimal($batch_pris[$x]).";".dkdecimal($kostpris[$x]*$batch_t_antal[$x]).";".dkdecimal($salgspris[$x]*$batch_t_antal[$x]);
-			$linje=utf8_decode($linje);
+			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			fwrite($fp,"$linje\n");
 		}
 		$lagervalue=$lagervalue+$batch_pris[$x];$kostvalue=$kostvalue+$kostpris[$x]*$batch_t_antal[$x]; $salgsvalue=$salgsvalue+($salgspris[$x]*$batch_t_antal[$x]);

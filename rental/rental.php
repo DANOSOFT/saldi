@@ -291,31 +291,24 @@
 
     if(isset($_GET["updateBooking"])){
         $data = json_decode(file_get_contents('php://input'), true);
-        if($data["from"] === "" || $data["to"] === "" || $data["id"] === ""){
-            echo json_encode("Udfyld alle felter");
+        if($data["from"] === "" || $data["to"] === "" || $data["booking_id"] === ""){
+            echo json_encode(["msg" => "Der gik noget galt!"]);
             exit();
         }
-        $id = db_escape_string($data["id"]);
+        $id = db_escape_string($data["booking_id"]);
         $from = db_escape_string($data["from"]);
         $to = db_escape_string($data["to"]);
-        $data["booking_id"] = $id;
         $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
         $res = db_fetch_array($query);
         $data["item_id"] = $res["item_id"];
         $order_id = $res["order_id"];
         $res = db_select("SELECT status FROM ordrer WHERE id = $order_id", __FILE__ . " linje " . __LINE__);
         if($res["status"] >= 3){
-            $query = db_select("SELECT id FROM ordrer WHERE kred_ord_id = $order_id", __FILE__ . " linje " . __LINE__);
-            if(db_num_rows($query) > 0){
-                $query = db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
-                echo json_encode("Booking opdateret");
-                exit();
-            }
-            echo json_encode("Booking kan ikke opdateres, da den er faktureret");
-            exit();
+            $query = db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
+            echo json_encode(["msg" => "Booking opdateret", "status" => 2]);
         }else{
             db_modify("UPDATE rentalperiod SET rt_from = $from, rt_to = $to WHERE id = $id", __FILE__ . " linje " . __LINE__);
-            echo json_encode("Booking opdateret");
+            echo json_encode(["msg" => "Booking opdateret", "booking_id" => $id, "status" => 1]);
         }
     }
 
@@ -444,10 +437,10 @@
     if(isset($_GET["deleteItem"])){
         $id = db_escape_string($_GET["deleteItem"]);
         $query = db_modify("DELETE FROM rentalitems WHERE id = $id", __FILE__ . " linje " . __LINE__);
-        $query = db_select("SELECT * FROM rentalperiod WHERE item_id = $id", __FILE__ . " linje " . __LINE__);
+        /* $query = db_select("SELECT * FROM rentalperiod WHERE item_id = $id", __FILE__ . " linje " . __LINE__);
         while($row = db_fetch_array($query)){
             $query2 = db_modify("DELETE FROM rentalperiod WHERE item_id = $id", __FILE__ . " linje " . __LINE__);
-        }
+        } */
         if($query){
             echo json_encode("Varen er nu fjernet fra udlejning");
         }else{
@@ -483,28 +476,35 @@
 
     if(isset($_GET["getBookingsByCust"])){
         $id = db_escape_string($_GET["getBookingsByCust"]);
-        $query = db_select("
-            SELECT rp.*, ri.item_name, a.firmanavn, a.kontonr 
-            FROM rentalperiod rp 
-            JOIN rentalitems ri ON rp.item_id = ri.id 
-            JOIN adresser a ON rp.cust_id = a.id 
-            WHERE rp.cust_id = $id
-        ", __FILE__ . " linje " . __LINE__);
+        // make id to int 
+        $id = intval($id);
+        // check if id is not empty
+        if($id != "" && $id != null){
+            $query = db_select("
+                SELECT rp.*, ri.item_name, a.firmanavn, a.kontonr 
+                FROM rentalperiod rp 
+                JOIN rentalitems ri ON rp.item_id = ri.id 
+                JOIN adresser a ON rp.cust_id = a.id 
+                WHERE rp.cust_id = $id
+            ", __FILE__ . " linje " . __LINE__);
 
-        $i = 0;
-        while($res = db_fetch_array($query)){
-            $bookings[$i]["id"] = $res["id"];
-            $bookings[$i]["item_id"] = $res["item_id"];
-            $bookings[$i]["customer_id"] = $res["cust_id"];
-            $bookings[$i]["from"] = $res["rt_from"];
-            $bookings[$i]["to"] = $res["rt_to"];
-            $bookings[$i]["item_name"] = $res["item_name"];
-            $bookings[$i]["name"] = $res["firmanavn"];
-            $bookings[$i]["account_number"] = $res["kontonr"];
-            $bookings[$i]["order_id"] = $res["order_id"];
-            $i++;
+            $i = 0;
+            while($res = db_fetch_array($query)){
+                $bookings[$i]["id"] = $res["id"];
+                $bookings[$i]["item_id"] = $res["item_id"];
+                $bookings[$i]["customer_id"] = $res["cust_id"];
+                $bookings[$i]["from"] = $res["rt_from"];
+                $bookings[$i]["to"] = $res["rt_to"];
+                $bookings[$i]["item_name"] = $res["item_name"];
+                $bookings[$i]["name"] = $res["firmanavn"];
+                $bookings[$i]["account_number"] = $res["kontonr"];
+                $bookings[$i]["order_id"] = $res["order_id"];
+                $i++;
+            }
+            echo json_encode($bookings);
+        }else{
+            echo null;
         }
-        echo json_encode($bookings);
     }
 
     /* if(isset($_GET["productInfo"])){
@@ -683,6 +683,26 @@
         $data = json_decode(file_get_contents('php://input'), true);
         CreateOrder($data);
         echo json_encode("Ordren er nu oprettet");
+    }
+
+    if(isset($_GET["updateOrder"])){
+        $data = json_decode(file_get_contents('php://input'), true);
+        $query = db_select("SELECT order_id, item_id FROM rentalperiod WHERE id = $data[booking_id]", __FILE__ . " linje " . __LINE__);
+        $res = db_fetch_array($query);
+        $data["item_id"] = $res["item_id"];
+        $order_id = $res["order_id"];
+        $query = db_select("SELECT status FROM ordrer WHERE id = $order_id", __FILE__ . " linje " . __LINE__);
+        $res = db_fetch_array($query);
+        $status = $res["status"];
+        if($status >= 3){
+            echo json_encode(["status" => false]);
+            exit();
+        }else{
+            db_modify("DELETE FROM ordrelinjer WHERE ordre_id = $order_id", __FILE__ . " linje " . __LINE__);
+            db_modify("DELETE FROM ordrer WHERE id = $order_id", __FILE__ . " linje " . __LINE__);
+            CreateOrder($data);
+            echo json_encode(["status" => true]);
+        }
     }
 
     if(isset($_GET["getItemBookings"])){
@@ -1662,7 +1682,7 @@
         $query = db_select("SELECT * FROM adresser WHERE id = $data[customer_id]", __FILE__ . " linje " . __LINE__);
         $res2 = db_fetch_array($query);
         $customer["id"] = $res2["id"];
-        $customer["name"] = $res2["firmanavn"];
+        $customer["name"] = pg_escape_string($res2["firmanavn"]);
         $customer["account_number"] = $res2["kontonr"];
         $customer["phone"] = $res2["tlf"];
         $customer["email"] = $res2["email"];

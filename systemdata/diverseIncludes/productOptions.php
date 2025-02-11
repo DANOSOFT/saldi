@@ -159,7 +159,6 @@ function productOptions($defaultProvision) {
 	$title=findtekst(1280, $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='checkbox' class='inputbox' name='DisItemIfNeg' $DisItemIfNeg></td></tr>";
-	#chooseProvisionForProductGroup($defaultProvision);
 	$text=findtekst(1281, $sprog_id);
 	$title=findtekst(1282, $sprog_id);
 	print "<tr><td title='$title'>$text</td>";

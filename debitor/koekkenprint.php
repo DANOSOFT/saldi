@@ -62,9 +62,7 @@ $url="http".$url;
 if ($next) {
 	$bon='';
 	$pfnavn="../temp/".$db."/".abs($bruger_id).".$next";
-#cho "$pfnavn<br>";
 	if (file_exists($pfnavn)) {
-#cho "den findes<br>";
 		$x=0;
 		$fp=fopen("$pfnavn","r");
 		while($linje=fgets($fp)) {
@@ -236,7 +234,6 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 				$linje_id[$x]=$r['id'];
 				($r['antal'])?$antal[$x]=$r['antal']*1:$antal[$x]=0;
 				$varenr[$x]=$r['varenr'];
-#cho "$i,$varenr[$x]<br>";
 				($r['leveres'])?$leveres[$x]=$r['leveres']*1:$leveres[$x]=0;
 				($r['leveret'])?$leveret[$x]=$r['leveret']*1:$leveret[$x]=0;
 				$beskrivelse[$x]=$r['beskrivelse'];
@@ -262,7 +259,6 @@ if (isset($_POST['linje_id']) && $linje_id=$_POST['linje_id']) {
 			$varenr[$x]=$r['varenr'];
 			$leveres[$x]=$r['leveres']*1;
 			$leveret[$x]=$r['leveret']*1;
-#cho "L $leveret[$x]<br>";			
 			$beskrivelse[$x]=$r['beskrivelse'];
 			$tilfravalg[$x]=$r['tilfravalg'];
 			$notes[$x]=$r['notes'];
@@ -366,7 +362,6 @@ if (!$fokus) $fokus='besked';
 document.koekkenprint.<?php echo $fokus?>.focus();
 </script>
 <?php
-#cho $fokus;
 
 print "</tbody></table>";
 #####################################################################################################

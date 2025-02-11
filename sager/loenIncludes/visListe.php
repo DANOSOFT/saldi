@@ -149,13 +149,10 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 		$x=0;
 		$tr_sum=0;
 		$tmp=array();
-#cho "SELECT * FROM varer WHERE id > '0' AND gruppe = '$listevalg' ORDER BY varenr ASC<br>";
 		#		$q = db_select("SELECT * FROM varer WHERE id > '0' AND kategori LIKE '%$listevalg%' ORDER BY varenr ASC",__FILE__ . " linje " . __LINE__);
 		$qtxt = "SELECT * FROM varer WHERE id > '0' AND gruppe = '$listevalg' ORDER BY varenr ASC";
-#cho "<tr><td colspan = '8'>$qtxt</td></tr>";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-#cho "<tr><td colspan = '8'>$r[beskrivelse]</td></tr>";
 			$tmp=explode(chr(9),$r['kategori']);
 			$kategori[$x]=NULL;
 			if (in_array($transport_nr,$tmp)) { #fjernes 20200701 
@@ -243,7 +240,6 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 			$vare_beskrivelse[$y] = "$l_tekst[$y]";
 			list($kategori[$y]) = explode(".",$vare_beskrivelse[$y],2); #Skal bruges til at finde kat 03. telt
 			$kategori[$y] = (int)$kategori[$y];
-#cho "Besk $kategori[$y] $l_liste[$y]<br>";
 		}
 	}
 	$sum=0;
@@ -380,7 +376,6 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 						$sum+=$tr_antal[$tr]*$tr_pris[$tr];
 					}
 				}
-#cho "$telt_antal*$sum1<br>";
 				if ($l_liste[$x]=='7' || $l_liste[$x]=='11') {
 					print "<tr class=\"akkordListeTrans\">
 						<td colspan=\"1\" style=\"text-align:right;\">1</td>
@@ -467,7 +462,6 @@ function vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal) {
 				$l_linjesum[$x]+= $l_ned_160[$x] * $l_pris_ned[$x] * 1.6;
 				$sum+=$l_linjesum[$x];
 				$c_sum+=$l_linjesum[$x];
-				#cho "Sum $sum<br>";
 				($l_op[$x])?$l_op[$x]=str_replace(".",",",$l_op[$x]):$l_op[$x]=NULL;
 				($l_ned[$x])?$l_ned[$x]=str_replace(".",",",$l_ned[$x]):$l_ned[$x]=NULL;
 				print "<input type=\"hidden\" name=\"vare_id[$z]\" value=\"$l_vare_id[$x]\">";

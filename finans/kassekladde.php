@@ -89,8 +89,8 @@
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240804	PHR - Removed (float) from belob
 // 20240807 PHR	- Minor correction.
+// 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
 
-ini_set('display_errors', 1);
 ob_start(); //Starter output buffering
 
 @session_start();
@@ -1179,6 +1179,38 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../includes/luk.php?tabel=kladdeliste&id=$kladde_id'>";
 	else
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
+
+	print "<script>
+	document.addEventListener('DOMContentLoaded', function() { 
+		console.log('CONTENT LOAD');
+		var element = document.body;
+		var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
+		if (scrollpos && element) {
+			element.scrollTo(0, parseInt(scrollpos, 10));
+		}
+	});
+
+	function saveScrollPosition() {
+		var element = document.body;
+		if (element) {
+			var scrollKey = 'kassekladde-$kladde_id';
+			localStorage.setItem(scrollKey, element.scrollTop);
+			console.log('Scroll position saved:', element.scrollTop);
+		}
+	}
+	
+	document.addEventListener('visibilitychange', function() {
+		if (document.visibilityState === 'hidden') {
+			saveScrollPosition();
+		}
+	});
+	
+	window.addEventListener('beforeunload', function() {
+		saveScrollPosition();
+	});
+	
+	</script>";
+
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) {
@@ -1394,8 +1426,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 #			$kontrolsaldo = $r['primo'];
 			if ($r['moms']) {
 				$r2 = db_fetch_array(db_select("select box2 from grupper where
-						kode='" . substr($r[moms], 0, 1) . "' and
-						kodenr='" . substr($r[moms], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
+						kode='" . substr($r['moms'], 0, 1) . "' and
+						kodenr='" . substr($r['moms'], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
 				$kontrolmoms = $r['box2'] * 1;
 			}
 		}
@@ -2062,7 +2094,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$debet = $findarray[0];
 				} elseif ($i > 1) {
 					include('kassekladde_includes/financeLookup.php');
-					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $opslag_id);
+					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			} elseif (($k_type == "F") && (strlen($kredit) > 1) && (!is_numeric($kredit))) {
 				$i = 0;
@@ -2084,7 +2116,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($i == 1) $kredit = $findarray[0]; //20240523
 				elseif ($i > 1) {
 					include('kassekladde_includes/financeLookup.php');
-					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $opslag_id);
+					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			}
 			if (!$fejl && $k_type == "F" && strlen($kredit) == 1 && !is_numeric($kredit) && $kredit != '0') {

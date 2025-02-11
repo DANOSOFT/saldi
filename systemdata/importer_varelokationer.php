@@ -25,6 +25,7 @@
 //
 // Copyright (c) 2003-2016 DANOSOFT ApS
 // ----------------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -144,7 +145,6 @@ function overfoer_data($filnavn,$lager,$charset) {
 	while($r=db_fetch_array($q)){
 		$l_id[$l]=$r['id'];
 		$l_vid[$l]=$r['vare_id'];
-#cho __line__." $l_id[$l] -> $l_vid[$l]<br>";		
 		$l++;
 	}
 
@@ -156,10 +156,8 @@ function overfoer_data($filnavn,$lager,$charset) {
 		$vl_id[$v]=NULL;
 		if (in_array($v_id[$v],$l_vid)) {
 			for ($l=0;$l<count($l_id);$l++){
-#cho __line__." if ($l_vid[$l]==$v_id[$v])<br>"; 
 					if ($l_vid[$l]==$v_id[$v]) {
 					$vl_id[$v]=$l_id[$l];
-#cho __line__." if $vl_id[$v]=$l_vid[$l];<br>"; 
 					break 1;
 				}
 			}
@@ -176,8 +174,8 @@ function overfoer_data($filnavn,$lager,$charset) {
 			$skriv_linje=0;
 			if ($linje=fgets($fp)) {
 				$x++;
-				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+				if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+				elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 				list($varenr,$lokation)=explode($splitter,$linje);
 				$vare_id=NULL;
 				$lok_id=NULL;
@@ -185,14 +183,12 @@ function overfoer_data($filnavn,$lager,$charset) {
 					if ($v_nr[$v]==$varenr)	{
 						$vare_id=$v_id[$v];
 						$lok_id=$vl_id[$v];
-#cho __line__." $vare_id $lok_id<br>";
 						}
 					if (!$vare_id) {
 						for ($v=0;$v<count($v_id);$v++) {
 							if (strtolower($v_nr[$v])==strtolower($varenr)) {
 								$vare_id=$v_id[$v];
 								$lok_id=$vl_id[$v];
-#cho __line__." $vare_id $lok_id<br>";
 							}
 						}
 					}
@@ -201,7 +197,6 @@ function overfoer_data($filnavn,$lager,$charset) {
 							if (is_numeric($v_nr[$v]) && $v_nr[$v]*1==$varenr*1) {
 								$vare_id=$v_id[$v];
 								$lok_id=$vl_id[$v];
-#cho __line__." $vare_id $lok_id<br>";
 							}
 						}
 					}
@@ -217,9 +212,7 @@ function overfoer_data($filnavn,$lager,$charset) {
 						$qtxt.= "('$vare_id','0','$lager','".db_escape_string($lokation)."')";
 						$imp++;
 					}
-					#cho "$qtxt<br>";
 					if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					#cho "$vare_id har ingen lokation<br>";
 				}
 			}
 		}

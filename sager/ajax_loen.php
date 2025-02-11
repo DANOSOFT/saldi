@@ -11,7 +11,6 @@
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 	
-	ini_set("display_errors", "1");
 	$id=if_isset($_GET['akkordlistevalg']);
 #$akkordlistevalg=45;
 #$id=45;	

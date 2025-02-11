@@ -65,7 +65,6 @@ function opdat_3_3($under_nr, $lap_nr){
 		$q=db_select("select id from kladdeliste where bogfort='V' and bogforingsdate > '2013-06-01'",__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			$k_id[$x]=$r['id'];
-#cho "$x :: $k_id[$x]<br>";				
 			$x++;
 		}
 		$x=0;
@@ -74,14 +73,12 @@ function opdat_3_3($under_nr, $lap_nr){
 			$message=NULL;
 			$logtime=NULL;
 			$logdate=NULL;
-#cho "select logdate,logtime from transaktioner where kladde_id='$k_id[$x]'<br>";
 			$q=db_select("select logdate,logtime from transaktioner where kladde_id='$k_id[$x]'",__FILE__ . " linje " . __LINE__);
 			while($r=db_fetch_array($q)) {
 				if (!$logdate) {
 					$logdate=$r['logdate'];
 					$logtime=$r['logtime'];
 				} elseif ($logdate!=$r['logdate'] || $logtime!=$r['logtime']) {
-				#cho "$x :: Logdate	$logdate, logtime $logtime <--> $r[logdate] $r[logtime]<br>";				
 					if (!$message) {
 						$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | Dobbelt bogføring af kladde $k_id[$x]";
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();

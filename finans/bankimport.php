@@ -61,6 +61,7 @@
 // 20230615	PHR php8
 // 20230822 MSC - Copy pasted new design into code
 // 20231030	PHR Added 'Saldo'
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 ini_set("auto_detect_line_endings", true);
 
@@ -279,10 +280,10 @@ if ($fp) {
 		if ($linje) {
 			$y++;
 			$ny_linje[$y]='';
-			if ($tegnsaet=='UTF-8') $linje=utf8_decode($linje);
+			if ($tegnsaet=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$linje=trim($linje);
 			$linje=trim($linje,"?");
-			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$anftegn=0;
 				$felt=array();
 				$z=0;
@@ -622,11 +623,9 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 					elseif ($feltnavn[$y]=='saldo') $saldo = usdecimal($felt[$y]);
 
 				}
-#cho __line__." K $kundenr<br>";
 				$qtxt=NULL;
 				$saldo = (float)$saldo;
 				if ($amount>0) {
-#cho __line__." K $kundenr<br>";
 					if (strlen($beskrivelse)==22 && substr($beskrivelse,0,3)=='IK ' && is_numeric(substr($beskrivelse,3,19))) { # ?
 						$kredit=(int)substr($beskrivelse,3,13);
 						$faktura=(int)substr($beskrivelse,16,5);
@@ -674,7 +673,6 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$ordrenr=(int)substr($c,7);
 						if ($ordrenr) $qtxt="select fakturanr,kontonr from ordrer where ordrenr = '$ordrenr' and sum = '$amount'";
 					}
-#cho __line__." $kundenr - $qtxt<br>";
 					if ($qtxt) {
 						 $qtxt.=" and (betalt = '' or betalt is NULL) order by fakturadate limit 1"; #20180314
 						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -712,14 +710,12 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$qtxt.= "  values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','F','0','$faktura','$amount',";
 						$qtxt.= "'$kladde_id','$valuta_kode','$afd','$saldo')";
-#cho "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt = "insert into kassekladde ";
 						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
 						$qtxt.= "  values ";
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','0','$k_type','$kredit','$faktura','$fakturasum',";
 						$qtxt.= "'$kladde_id','$valuta_kode','$afd','$saldo')";
-#cho "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt= "insert into kassekladde ";
 						$qtxt.= "(bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta,afd,saldo)";
@@ -737,8 +733,6 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 					}
 					$bilag++;
 				} elseif ($amount < 0) {
-#cho substr($beskrivelse,0,4) ." | ". substr($beskrivelse,5,4) ."<br>";
-#cho __line__." $kundenr<br>";
 						$dtype=$ktype='F';
 						$debet=0;
 						$amount=(float)$amount;
