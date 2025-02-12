@@ -87,7 +87,7 @@ if ($menu=='T') {
 	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 
 	if(isset($_POST['digital'])) {
-		$apiKey = "6c772607-988c-4435-8d78-3670f4a0629d&d5610b95-e39d-4894-8a11-22eb350ed84e";
+		$apiKey = "";
 
 		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
 		$companyID = db_fetch_array($query)["var_value"];
