@@ -42,6 +42,7 @@
 // 20210721 LOE translated some texts here and also updated title texts with translated ones.
 // 20220624 CA  rolled back retrieving data from kontoplan.txt DA and EN cause it overwrites existing accounting plans.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250207 Decrease arguments in call to periodeoverskrifter
 
 @session_start();
 $s_id=session_id();
@@ -337,7 +338,7 @@ fwrite($csv,";Primo");
 #for ($z=1; $z<=$maanedantal; $z++) {
 #	print "<td title=\"$z. regnskabsm&aring;ned\" align=right><b> MD_$z<b><br></td>";
 #}
-$tmp=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
+$tmp=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, $regnskabsaar);
 fwrite($csv,";". str_replace('"','',$tmp) ."I alt\n");
 #$cols+=count(explode(";",$tmp));
 
