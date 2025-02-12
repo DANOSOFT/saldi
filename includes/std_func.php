@@ -1611,7 +1611,7 @@ if (!function_exists('hent_shop_ordrer')) {
 	  global $db;
 	  $qtxt = "select box4, box5 from grupper where art='API'";
 	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	  ($r['box4']) ? $api_fil = trim($r['box4']) : $api_fil = 0;
+	  $api_fil = isset($r['box4']) ? trim($r['box4']) : 0;
 	  if ($api_fil) {
 		file_put_contents("../temp/$db/ny_shop.txt", $r["box5"]);
 		if (file_exists("../temp/$db/shoptidspkt.txt")) {
