@@ -1981,13 +1981,13 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
     <script>
       
       if(confirm("ved at sende faktura/kreditnote digitalt, vil du blive oprettet i nemhandel") == true)
-        window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+        window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
     </script>
     <?php
     }else{
     ?>
     <script>
-      window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+      window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
     </script>
     <?php
     }
@@ -1997,13 +1997,13 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
     ?>
     <script>
       if(confirm("ved at sende faktura/kreditnote digitalt, vil du blive oprettet i nemhandel") == true)
-        window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+        window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
     </script>
     <?php
     }else{
     ?>
     <script>
-      window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+      window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
     </script>
     <?php
     }
