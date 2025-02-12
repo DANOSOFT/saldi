@@ -25,6 +25,7 @@
 // 20220627 MSC - Implementing new design
 // 20220930 MSC - Changed new button text to a plus icon, if the design is topmenu
 // 20230708 LOE - A minor modification
+// 12/02/2025 PBLM - Added a new button to open the digital approver
 
 @session_start();
 $s_id=session_id();
@@ -34,8 +35,10 @@ $modulnr=2;
 $title="kladdeliste";	
 		
 include("../includes/connect.php");
-include("../includes/online.php");
 include("../includes/std_func.php");
+$query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+$apiKey = db_fetch_array($query)["var_value"];
+include("../includes/online.php");
 include("../includes/topline_settings.php");
 
 if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
@@ -76,11 +79,36 @@ if ($menu=='T') {
 	print "<td width='10%'  title='".findtekst(1599, $sprog_id)."'>"; #20210721
 	print "<a href='../index/menu.php' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
 
-	print "<td width=80% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
-
+	print "<td width=70% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
+	print "<td width='10%'><form method='post' name='digital'>";
+	print "<button type='submit' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" name='digital' value='digital'>";
+	print "Digital";
+	print "</button>";
+	print "</form></td>";
 	print "<td width='10%' title='".findtekst(1600, $sprog_id)."'>";
 	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
 	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
+
+	if(isset($_POST['digital'])) {
+
+		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
+		$companyID = db_fetch_array($query)["var_value"];
+		
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		$res = curl_exec($ch);
+		curl_close($ch);
+		?>
+		<script>
+			window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
+			// Optionally close the current window or redirect it
+			// window.location.href = 'your-return-url.php'; // redirect current window
+			// window.close(); // close current window
+    	</script>
+		<?php
+	}
 } else {
 #	if ($menu=='S') {
 #		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
