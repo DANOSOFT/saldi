@@ -25,7 +25,8 @@
 // 20220627 MSC - Implementing new design
 // 20220930 MSC - Changed new button text to a plus icon, if the design is topmenu
 // 20230708 LOE - A minor modification
-// 12/02/2025 PBLM - added apporver list for recieving digital invoice
+// 12/02/2025 PBLM - Added a new button to open the digital approver
+
 @session_start();
 $s_id=session_id();
 	
@@ -34,8 +35,10 @@ $modulnr=2;
 $title="kladdeliste";	
 		
 include("../includes/connect.php");
-include("../includes/online.php");
 include("../includes/std_func.php");
+$query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+$apiKey = db_fetch_array($query)["var_value"];
+include("../includes/online.php");
 include("../includes/topline_settings.php");
 
 if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
@@ -87,7 +90,6 @@ if ($menu=='T') {
 	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 
 	if(isset($_POST['digital'])) {
-		$apiKey = "";
 
 		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
 		$companyID = db_fetch_array($query)["var_value"];
