@@ -36,8 +36,13 @@ $title="kladdeliste";
 		
 include("../includes/connect.php");
 include("../includes/std_func.php");
-$query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
-$apiKey = db_fetch_array($query)["var_value"];
+$query = "SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'";
+if ($r=db_fetch_array(db_select($query, __FILE__ . " linje " . __LINE__))) {
+	$apiKey = $r["var_value"];
+	unset($r);
+} else {
+	$apiKey = "";
+}
 include("../includes/online.php");
 include("../includes/topline_settings.php");
 
