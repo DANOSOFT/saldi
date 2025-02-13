@@ -672,6 +672,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option>forfalden_sum</option>";
 		print "<option>rykker_gebyr</option>";
 	}	
+	print "<option>afdeling_note</option>";
 	if (($form_nr>1 && $form_nr<6) || $form_nr>11) print "<option value = \"kopier_alt|1\">Kopier alt fra tilbud</option>";
 	if (($form_nr!=2 && $form_nr<6) || $form_nr>11) print "<option value = \"kopier_alt|2\">Kopier alt fra ordrebrkræftelse</option>";
 	if (($form_nr!=4 && $form_nr<6) || $form_nr>11) print "<option value = \"kopier_alt|4\">Kopier alt fra faktura</option>";

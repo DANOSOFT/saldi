@@ -3756,7 +3756,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 				(isset($felt_2))?$felt_2=(float)$felt_2:$felt_2=0;
 				(isset($felt_4))?$felt_4=(float)$felt_4:$felt_4=0;
 				if ($fakturadate) {
-					if ($terminal_ip[$felt_5-1] && !$felt_2) {
+					if ($terminal_ip[(int)$felt_5-1] && !$felt_2) {
 						$felt_2=$betalt;
 					} else {	
 						if (!$felt_2) $felt_2=$sum+$moms;
@@ -3765,7 +3765,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 				}
 				
 				if ($felt_1 == 'Konto') $felt_4=0;
-				if (isset($terminal_ip[$felt_5-1]) && !$betalt) $felt_2=$sum+$moms-$felt_4;
+				if (isset($terminal_ip[(int)$felt_5-1]) && !$betalt) $felt_2=$sum+$moms-$felt_4;
 				$dkfelt_2=dkdecimal($felt_2,2);
 				$dkfelt_4=dkdecimal($felt_4,2);
 				if (if_isset($_GET['godkendt'])=='OK' && usdecimal(if_isset($_GET['modtaget']),2)==usdecimal($dkfelt_2,2)) {
@@ -3791,7 +3791,7 @@ $kundeordre = findtekst(1092,$sprog_id);
           }
 #          if (!in_array($felt_1,$korttyper) && $felt_1 != 'Betalingskort' && $terminal_ip[$felt_5-1]) $felt_1=NULL;
 #          elseif (!in_array($felt_1,$korttyper) && !$terminal_ip[$felt_5-1]) $felt_1=NULL;
-					if ($terminal_ip[$felt_5-1]) {
+					if ($terminal_ip[(int)$felt_5-1]) {
 // #            if ($felt_1) print "<option value='$felt_1'>$felt_1</option>";
             if ($felt_1!='Betalingskort') print "<option value='Betalingskort'>Betalingskort</option>";
 						for($x=0;$x<$kortantal;$x++) {
@@ -3833,22 +3833,22 @@ $kundeordre = findtekst(1092,$sprog_id);
 					if ($disabled) print "<input type=\"hidden\" name=\"felt_4\" value=\"$dkfelt_4\">";
 					print "</td></tr>\n\n";
 				}
-				if (isset($terminal_ip[$felt_5-1])) {
-					if ($felt_1=='Konto' || $felt_1=='Kontant') $terminal_ip[$felt_5-1]=NULL;
+				if (isset($terminal_ip[(int)$felt_5-1])) {
+					if ($felt_1=='Konto' || $felt_1=='Kontant') $terminal_ip[(int)$felt_5-1]=NULL;
 				}
 				if ($disabled) {
 				print "<input type='hidden' name='felt_1' value='$felt_1'>\n";
 				print "<input type='hidden' name='felt_2' value='$dkfelt_2'>\n";
 				}
-				if (isset($terminal_ip[$felt_5-1])) {
+				if (isset($terminal_ip[(int)$felt_5-1])) {
 					if ($_SERVER['HTTPS']) $url='https://';
 					else $url='http://';
 					$url.=$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF'];
-					if (isset($_COOKIE['salditerm'])) $terminal_ip[$felt_5-1]=$_COOKIE['salditerm'];
-					if ($terminal_ip[$felt_5-1]=='box' || $terminal_ip[$felt_5-1]=='saldibox') {
+					if (isset($_COOKIE['salditerm'])) $terminal_ip[(int)$felt_5-1]=$_COOKIE['salditerm'];
+					if ($terminal_ip[(int)$felt_5-1]=='box' || $terminal_ip[(int)$felt_5-1]=='saldibox') {
 						$filnavn="http://saldi.dk/kasse/".$_SERVER['REMOTE_ADDR'].".ip";
 						if ($fp=fopen($filnavn,'r')) {
-							$terminal_ip[$felt_5-1]=trim(fgets($fp));
+							$terminal_ip[(int)$felt_5-1]=trim(fgets($fp));
 							fclose ($fp);
 						}
 					}
@@ -3859,7 +3859,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 						if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
 					}
 					if ($vis_betalingslink==1) {
-						$href="http://".$terminal_ip[$felt_5-1]."/pointd/kvittering.php?url=$url&id=$id&&kommando=kortbetaling&";
+						$href="http://".$terminal_ip[(int)$felt_5-1]."/pointd/kvittering.php?url=$url&id=$id&&kommando=kortbetaling&";
 						$href.="belob=$dkfelt_2&betaling=&modtaget=$dkfelt_2&modtaget2=0&indbetaling=&tidspkt=".date("U");
 						print "<tr><td><br></td></tr><tr><td colspan='2' align='center'>";
             print "<input type='button' style='width:100%' onclick=\"window.location.href='$href'\" value='Kortbetaling'>";
@@ -4425,7 +4425,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 							$disabled='disabled';
 							$titletext="$tiltext ($felt_2+$felt_4 - $sum+$moms = $diff)";
 						}	
-						if ($terminal_ip[$felt_5-1] && !$betalt && $vis_betalingslink) $disabled='disabled';
+						if ($terminal_ip[(int)$felt_5-1] && !$betalt && $vis_betalingslink) $disabled='disabled';
 					} 
 					$txt = findtekst('3073|Fakturér',$sprog_id); 
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";

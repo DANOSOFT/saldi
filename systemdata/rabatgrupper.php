@@ -91,13 +91,13 @@ if(isset($_POST['gem'])) {
 	if ($drgnavn[$drg_antal]) {
 		$kodenr=0;
 		$x=0;
-		$q=db_select("select * from grupper where art = 'DRG' order by ".nr_cast(kodenr)."",__FILE__ . " linje " . __LINE__);
+		$q=db_select("select * from grupper where art = 'DRG' AND fiscal_year='$regnaar' order by ".nr_cast($kodenr)."",__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			$x++;
-			if ($x!=$r['kodenr']*1) $kodenr=$x;
+			if ($x!=(int)$r['kodenr']) $kodenr=$x;
 		}	
-		if (!$kodenr) $kodenr=$x+1;
-		db_modify("insert into grupper (beskrivelse,art,kodenr,box1) values ('Debitorrabatgrupper','DRG','$kodenr','$drgnavn[$drg_antal]')",__FILE__ . " linje " . __LINE__);
+		if (!$kodenr) $kodenr=(int)$x+1;
+		db_modify("insert into grupper (beskrivelse,art,kodenr,box1, fiscal_year) values ('Debitorrabatgrupper','DRG','$kodenr','$drgnavn[$drg_antal]', '$regnaar')",__FILE__ . " linje " . __LINE__);
 	}
 /*	
 	for ($x=1;$x<=$drg_antal;$x++) {
@@ -121,14 +121,14 @@ if(isset($_POST['gem'])) {
 	for ($x=1;$x<=$dg_antal;$x++) {
 		for ($y=1;$y<=$vg_antal;$y++){
 			$ny_rabat[$x][$y]=usdecimal($ny_rabat[$x][$y])*1;
-			$rabat[$x][$y]=$rabat[$x][$y]*1;
+			$rabat[$x][$y]=(float)$rabat[$x][$y];
 			if ($ny_rabat[$x][$y]<0) $ny_rabat[$x][$y]=0;
 			if ($ny_rabat[$x][$y]>100 && $ny_rabatart[$x]=='%') $ny_rabat[$x][$y]=100;
 			if ($ny_rabat[$x][$y] != $rabat[$x][$y] || $ny_rabatart[$x] != $rabatart[$x]) {
 				if ($id[$x][$y]) {
 					if ($ny_rabat[$x][$y]) db_modify("update rabat set rabat = '".$ny_rabat[$x][$y]."',rabatart = '".$ny_rabatart[$x]."' where id = '".$id[$x][$y]."'",__FILE__ . " linje " . __LINE__);
 					else db_modify("delete from rabat where id = '".$id[$x][$y]."'",__FILE__ . " linje " . __LINE__);
-				} elseif ($ny_rabat[$x][$y]) db_modify("insert into rabat (rabat,debitorart,debitor,vareart,vare,rabatart) values ('".$ny_rabat[$x][$y]."','DG','$x','VG',$y,'".$ny_rabatart[$x]."')");
+				} elseif ($ny_rabat[$x][$y]) db_modify("insert into rabat (rabat,debitorart,debitor,vareart,vare,rabatart) values ('".$ny_rabat[$x][$y]."','DG','$x','VG',$y,'".$ny_rabatart[$x]."')",__FILE__ . " linje " . __LINE__);
  			}
 		}
 	}
@@ -137,7 +137,7 @@ if(isset($_POST['gem'])) {
 $id=array();$dg=array();$dgnavn=array();$rabat=array();$vg=array();$vgnavn=array();
 
 $x=0;$y=0;
-$q=db_select("select * from grupper where art = 'DRG' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+$q=db_select("select * from grupper where art = 'DRG' AND fiscal_year='$regnaar' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$x++;
 	$dg_id[$x][0]=$r['id'];
@@ -147,7 +147,7 @@ while ($r=db_fetch_array($q)) {
 $drg_antal=$x;
 if ($drg_antal || $dgselfdef) $drg_antal++;
 if (!$drg_antal) {
-	$q=db_select("select * from grupper where art = 'DG' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select * from grupper where art = 'DG' AND fiscal_year='$regnaar' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$x++;
 		$dg[$x][0]=$r['kodenr'];
@@ -156,7 +156,7 @@ if (!$drg_antal) {
 	$dg_antal=$x;
 } else $dg_antal=$drg_antal;
 $x=0;$y=0;
-$q=db_select("select * from grupper where art = 'DVRG' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+$q=db_select("select * from grupper where art = 'DVRG' AND fiscal_year='$regnaar' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 		$y++;
 		$vg_id[0][$y]=$r['id'];
@@ -166,7 +166,7 @@ while ($r=db_fetch_array($q)) {
 $vrg_antal=$y;
 #if ($vrg_antal || $vgselfdef) $vrg_antal++;
 if (!$vrg_antal) {
-	$q=db_select("select * from grupper where art = 'VG' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select * from grupper where art = 'VG' AND fiscal_year='$regnaar' order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$y++;
 		$vg[0][$y]=$r['kodenr'];

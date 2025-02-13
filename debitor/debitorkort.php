@@ -905,7 +905,7 @@ if ($gruppe) {
 	$r = db_fetch_array(db_select("select beskrivelse from grupper where art='DG' and kodenr='$gruppe' and fiscal_year='$regnaar'",__FILE__ . " linje " . __LINE__));
 	print "<option>$gruppe:$r[beskrivelse]</option>\n";
 }
-$q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' order by kodenr",__FILE__ . " linje " . __LINE__);
+$q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' AND fiscal_year='$regnaar' order by kodenr",__FILE__ . " linje " . __LINE__);
 
 while ($r = db_fetch_array($q)){
  print "<option>$r[kodenr]:$r[beskrivelse]</option>\n";

@@ -28,10 +28,10 @@
 // 20-09-2024 PBLM added betalingsLink functionality
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 	
-if(!class_exists('phpmailer')) {
+/*if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
 	require_once("class.phpmailer.php");
-}
+}*/
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
