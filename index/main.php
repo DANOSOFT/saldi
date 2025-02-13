@@ -275,13 +275,13 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 
   <ul class="nav-links">
     <li>
-      <!-- update the file below with your email setup -->
-      <a href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');">
+      <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
         <i class='bx bx-envelope'></i>
         <span class="link_name"><?php print findtekst(398, $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick="update_iframe('/systemdata/feedbackmail2.php');"><?php print findtekst(398, $sprog_id); ?></a></li>
+        <li><a class="" href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">Kontakt</a>
+        </li>
       </ul>
     </li>
 
@@ -291,13 +291,16 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <span class="link_name"><?php print findtekst(93, $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst(93, $sprog_id); ?></a></li>
+        <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst(93, $sprog_id); ?></a>
+        </li>
       </ul>
     </li>
 
   </ul>
 
   <div id="desc-line">
+    <a href="#" onclick="window.frames['iframe_a'].focus();
+                           window.frames['iframe_a'].print();">Print</a>
     <p><a href="menu.php?useMain=off">Gl. design</a></p>
     <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
   </div>
