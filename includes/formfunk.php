@@ -1263,6 +1263,11 @@ if (!function_exists('formularprint')) {
 								if (!$momsfri[$x] && !$varemomssats[$x]) $varemomssats[$x] = $momssats;
 								if ($varemomssats[$x] > $momssats) $varemomssats[$x] = $momssats;
 
+								# Get trademark
+								$qtxt_varer="select * from varer where id = '$vare_id[$x]' limit 1";
+								$r_varer = db_fetch_array(db_select($qtxt_varer,__FILE__ . " linje " . __LINE__));
+								$trademark[$x] = ($r_varer["trademark"]);
+
 								(isset($dkantal[$x]) && strpos($dkantal[$x], ",")) ? list($a, $b) = explode(",", $dkantal[$x]) : $b = 0;
 								#						list($a,$b)=explode(",",$dkantal[$x]);
 								if ($b) {
@@ -1404,6 +1409,7 @@ if (!function_exists('formularprint')) {
 						$projekt[$x] = $projekt[$y];
 						#				$beskrivelse[$x]=findtekst(366,$sprog_id);
 						$dkantal[$x] = $dkantal[$y];
+						$trademark[$x] = $trademark[$y];
 						$lev_antal[$x] = $lev_antal[$y];
 						$leveres[$x] = $leveres[$y];
 						$tidl_lev[$x] = $tidl_lev[$y];
@@ -1514,6 +1520,7 @@ if (!function_exists('formularprint')) {
 							elseif ($variabel[$z] == "projekt") $svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$projekt[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __line__);
 							elseif ($variabel[$z] == "antal") $svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$dkantal[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __line__); #ellers kommer antal ikke med paa 1. linje paa side 2 . og 3
 							elseif ($variabel[$z] == "lev_antal") $svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$lev_antal[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __line__);
+							elseif ($variabel[$z] == "trademark") $svar=skriv($id,"$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$trademark[$x]", "ordrelinjer_".$Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]","$formular",__line__ );
 							elseif ($variabel[$z] == "tidl_lev") $svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$tidl_lev[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __line__);
 							elseif ($variabel[$z] == "lev_rest") $svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$rest[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __line__);
 							elseif ($variabel[$z] == "pris") $svar = skriv($id, "$str[$z]", "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$pris[$x]", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __line__);

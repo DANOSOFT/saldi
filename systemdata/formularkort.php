@@ -790,6 +790,7 @@ $x=0;
 		print "<option>projekt</option>\n";
 		print "<option>procent</option>\n"; #20140709
 		print "<option>lokation</option>\n";
+		print "<option value = 'trademark'>trademark</option>\n";
 		if ($form_nr==3) {
 			print "<option>lev_tidl_lev</option>\n";
 			print "<option>lev_antal</option>\n";
