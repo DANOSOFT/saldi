@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -- ---------finans/regnskab.php ----------- patch 4.1.0 --- 2024.05.01 ---
-//                           LICENSE
+// ---finans/regnskab.php --- patch 4.1.1 --- 2025.01.13 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -17,10 +17,10 @@
 // or other proprietor of the program without prior written agreement.
 //
 // The program is published with the hope that it will be beneficial,
-// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // --------------------------------------------------------------------------
 
 // 20121011 Indsat "and (lukket != 'on' or saldo != 0)" søg 20121011
@@ -34,7 +34,7 @@
 // 20180209	PHR Tilføjet ,2 i alle forekomster af dkdecimal.
 // 20181028 CA Tilføjet manglende / forrest i linje 27
 // 21081121 PHR Oprydning udefinerede variabler.
-// 20181122 PHR Knap for Beregn lagerværdi.  
+// 20181122 PHR Knap for Beregn lagerværdi.
 // 20181214 MS Topmenu
 // 20210225 LOE replaced the text with value from findtekst function
 // 20210225 LOE tranlated kontoplan.txt to English and implemented activeLanguage where Danish is the default
@@ -42,17 +42,18 @@
 // 20210721 LOE translated some texts here and also updated title texts with translated ones.
 // 20220624 CA  rolled back retrieving data from kontoplan.txt DA and EN cause it overwrites existing accounting plans.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250113 PHR Syncronized with saldiupdates
 
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
-		
-$modulnr=3;	
+
+$modulnr=3;
 $title="Regnskabsoversigt";
 
 $linjebg=NULL;
 $varelager_i=$varelager_u=$varekob=array();
-		
+
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
@@ -65,10 +66,10 @@ $beregn_lager=if_isset($_POST['beregn_lager']);
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft\">&nbsp;&nbsp;&nbsp;</div>";     
-	print "<div class=\"headerTxt\">".findtekst(322, $sprog_id)."</div>";     
-	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft\">&nbsp;&nbsp;&nbsp;</div>";
+	print "<div class=\"headerTxt\">".findtekst(322, $sprog_id)."</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
@@ -125,7 +126,7 @@ if ($aut_lager) {
 		}
 	}
 }
-#if (!$vis_medtag_lager) $aut_lager=NULL;
+if (!$vis_medtag_lager) $aut_lager=NULL;
 if (!$beregn_lager) $aut_lager=NULL;
 
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
@@ -140,7 +141,7 @@ $valdate=array();
 $valkode=array();
 $q=db_select("select * from valuta order by gruppe,valdate desc",__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
-	$y=$x-1;	
+	$y=$x-1;
 	if ((!$x) || $r['gruppe']!=$valkode[$x] || $valdate[$x]>=$regnstart) {
 		$valkode[$x]=$r['gruppe'];
 		$valkurs[$x]=$r['kurs'];
@@ -165,7 +166,7 @@ while ($md[$x][1]<$regnslut) {
 	}
 	if ($md[$x][0]<10) $tmp="0".$md[$x][0];
 	else $tmp=$md[$x][0];
-	$md[$x][1]=$tmpaar. "-" .$tmp."-01"; 
+	$md[$x][1]=$tmpaar. "-" .$tmp."-01";
 	$md[$x][2]=0;
 }
 $vis_valuta=0;
@@ -221,7 +222,7 @@ while ($row = db_fetch_array($query)) {
 					$l_m_sum[$x]=find_lagervaerdi($kontonr[$x],$md[$y+1][1],'start');
 					$l_m_primo[$x]=find_lagervaerdi($kontonr[$x],$md[$y][1],'start');
 	#				$l_p_primo[$x]=find_lagervaerdi($kontonr[$x],$regnaarstart);
-					$ultimo[$x]+=$l_m_primo[$x]-$l_m_sum[$x];		
+					$ultimo[$x]+=$l_m_primo[$x]-$l_m_sum[$x];
 					$md[$y][2]+=$l_m_primo[$x]-$l_m_sum[$x];
 					$belob[$x][$y]+=$l_m_primo[$x]-$l_m_sum[$x];
 					}
@@ -230,7 +231,7 @@ while ($row = db_fetch_array($query)) {
 		if (in_array($kontonr[$x],$varelager_i) || in_array($kontonr[$x],$varelager_u)) {
 		 	for ($y=1; $y<=$maanedantal; $y++) {
 				if (!isset($belob[$x][$y])) $belob[$x][$y]=0;
-				if ($md[$y][1]<=date("Y-m-d")) {	
+				if ($md[$y][1]<=date("Y-m-d")) {
 					$l_m_primo[$x]=find_lagervaerdi($kontonr[$x],$md[$y][1],'start');
 					$l_m_sum[$x]=find_lagervaerdi($kontonr[$x],$md[$y+1][1],'start');
 					$ultimo[$x]-=$l_m_primo[$x]-$l_m_sum[$x]; #20150125 + næste 3 linjer
@@ -257,7 +258,7 @@ for ($x=1; $x<=$kontoantal; $x++) {
 						$ultimo[$x]+=$belob[$z][$y];
 					}
 				}
-			} 		
+			}
  		}
 		if ($kontotype[$x]=='R') { #20121106
 			$primo[$x]=0;
@@ -270,7 +271,7 @@ for ($x=1; $x<=$kontoantal; $x++) {
 						$ultimo[$x]+=$belob[$z][$y];
 					}
 				}
-			} 		
+			}
  		}
  	}
 }
@@ -297,7 +298,7 @@ $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 // if($t == 'English'){
 // 	echo "this is English";
 // }else{
-	
+
 // }
 
 ########
@@ -317,7 +318,7 @@ print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" vali
 print "<tbody>";
 
 if ($vis_medtag_lager) {
-	$title= findtekst(1624, $sprog_id); 
+	$title= findtekst(1624, $sprog_id);
 	print "<tr>";
 	print "<td colspan='$cols' align='center'>";
 	print "<form name='stockvalue' method='post' action='regnskab.php'>";
@@ -370,7 +371,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 
 		if ($kontotype[$x] == "Z") $text = "Sumkonti $fra_kto[$x] - $til_kto[$x]";
 		else $text = "";
-		print "<td title='$text'>$beskrivelse[$x]<br></td>";       
+		print "<td title='$text'>$beskrivelse[$x]<br></td>";
 		fwrite($csv,"$kontonr[$x];". mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8') ."");
 
 		$konti_total = array();
@@ -431,10 +432,10 @@ for ($x=1; $x<=$kontoantal; $x++){
 			print "<td colspan=3></td>";
 			print "<td colspan=12>";
 			display_chart(
-				$x, 
+				$x,
 				$beskrivelse[$x],
 				$konti_total,
-				$kontotype[$x] == "Z" ? $fra_kto[$x] : $kontonr[$x], 
+				$kontotype[$x] == "Z" ? $fra_kto[$x] : $kontonr[$x],
 				$kontotype[$x] == "Z" ? $til_kto[$x] : 0
 			);
 			print "<td colspan=1></td>";
@@ -443,7 +444,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 	}
 	if (isset($row['kontotype']) && $row['kontotype']=='H') {$linjebg='#ffffff'; $color='#ffffff';}
 }
-if ($menu=='T') print "</div>";	
+if ($menu=='T') print "</div>";
 ####################################################################################################
 fclose($csv);
 print "<tr><td colspan='20'><center><input type='button' style='width: 200px' onclick=\"document.location='../temp/$db/regnskab.csv'\" value='Regnskab.CSV'></input></center></td></tr>";
@@ -477,20 +478,20 @@ function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 		// Calculate the current month and year
 		$currentMonth = ($startmaaned + $i - 1) % 12 + 1;
 		$currentYear = $startaar + floor(($startmaaned + $i - 1) / 12);
-		
+
 		// Format the month and year as "M'yy"
 		$monthName = ucfirst(strtolower(date("M", mktime(0, 0, 0, $currentMonth, 1, $currentYear))));
 		$monthYear = $monthName . "'" . substr($currentYear, 2, 2);
-		
+
 		// Add the formatted month-year to the array
 		$months[] = $monthYear;
 	}
 
 	# Create the database query fetching all 12 months with the budget data
-	$qtxt = "SELECT 
+	$qtxt = "SELECT
 			m.md AS month,
 			COALESCE(SUM(b.amount), 0) AS amount
-		FROM 
+		FROM
 			(SELECT 1 AS md UNION ALL
 			SELECT 2 UNION ALL
 			SELECT 3 UNION ALL
@@ -503,11 +504,11 @@ function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
 			SELECT 10 UNION ALL
 			SELECT 11 UNION ALL
 			SELECT 12) m
-		LEFT JOIN 
-			budget b 
-		ON 
-			m.md = b.md 
-			AND b.regnaar = $regnaar 
+		LEFT JOIN
+			budget b
+		ON
+			m.md = b.md
+			AND b.regnaar = $regnaar
 			";
 	# If it is a sumkonto calculate budget by the sum
 	if ($til_kto) $qtxt .= "AND b.kontonr >= $fra_kto AND b.kontonr <= $til_kto";
