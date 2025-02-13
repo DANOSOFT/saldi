@@ -43,9 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
             } else if (!empty($beskrivelse)) {
                 // Insert new record if description is not empty
                 $qtxt = "INSERT INTO grupper ";
-                $qtxt .= "(kodenr, beskrivelse, box1, box2, art, fiscal_year) ";
+                $qtxt .= "(kodenr, beskrivelse, box1, box2, art) ";
                 $qtxt .= "VALUES ";
-                $qtxt .= "('$kodenr', '$beskrivelse', '$box1', '$box2', 'AFD', '$regnaar')";
+                $qtxt .= "('$kodenr', '$beskrivelse', '$box1', '$box2', 'AFD')";
                 db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             }
         } else if ($id != "NULL") {
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 <?php
 
-$qtxt = "SELECT * FROM grupper WHERE art='AFD' AND fiscal_year='$regnaar' ORDER BY kodenr";
+$qtxt = "SELECT * FROM grupper WHERE art='AFD' ORDER BY kodenr";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 $i = 0;
 while ($row = db_fetch_array($q)) {
