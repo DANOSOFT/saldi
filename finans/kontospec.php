@@ -1,5 +1,10 @@
 <?php
-// --- finans/kontospec.php --- rev 3.9.9 --- 2021.02.11 ---
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- finans/kontospec.php --- rev 4.1.1 --- 2025.01.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,10 +20,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk ApS
+// Copyright (c) 2003-2025 saldi.dk ApS
 // ----------------------------------------------------------------------
-// 2015.02.18 Tilføjet funktion lagerbev.
-// 2021.02.11 PHR some cleanup
+// 20150218 Tilføjet funktion lagerbev.
+// 20210211 PHR some cleanup
+// 20210708 LOE - Translated some of these texts from Danish to English and Norsk
+// 20250113 PHR fiscal_year
 
 $fakturanr = array();
 $ordrenr   = array();
@@ -79,7 +86,8 @@ if ($row = db_fetch_array($query)) {
 if ($aut_lager) {
 	$x=0;
 	$varekob=array();
-	$q=db_select("select box1,box2,box3 from grupper where art = 'VG' and box8 = 'on'",__FILE__ . " linje " . __LINE__);
+	$qtxt = "select box1,box2,box3 from grupper where art = 'VG' and box8 = 'on' and fiscal_year = '$regnaar'";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		if ($r['box1'] && $r['box2'] && !in_array($r['box3'],$varekob)) {
 			$varelager_i[$x]=$r['box1'];
@@ -122,8 +130,8 @@ if ($menu=='T') {
 } else {
 	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=regnskab.php accesskey= title='Klik for at komme tilbage til regnskab'>".findtekst('30|Tilbage',$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund>".findtekst('1196|Specifikation for', $sprog_id)." ";
+	print "<td width=\"10%\" $top_bund><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>".findtekst(30,$sprog_id)."</a></td>"; #20210708
+	print "<td width=\"80%\" $top_bund>".findtekst(1196,$sprog_id)." ";
 	if($kontonr) print "$txt2131: $kontonr";
 	if($bilag) print "$txt2132: $bilag";
 	print " </td><td width=\"10%\" $top_bund><br></td>";
@@ -135,18 +143,17 @@ if ($menu=='T') {
 	print "<table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\" class='dataTable'>";
 	print "<tbody>";
 	print "<tr>";
-	print "<td><b> ".findtekst(671,$sprog_id)."</a></b></td>";
+	print " <td><b> ".findtekst(671,$sprog_id)."</a></b></td>";
 	print "<td><b> ".findtekst(635,$sprog_id)."</a></b></td>";
-	print "<td><b> ".findtekst(1068,$sprog_id)."</a></b></td>";
-	print "<td align=right><b> ".findtekst(804,$sprog_id)."</a></b></td>";
+	print " <td><b> ".findtekst(1068,$sprog_id)."</a></b></td>";
+	print " <td align=right><b> ".findtekst(804,$sprog_id)."</a></b></td>";
 	print "<td align=right><b> ".findtekst(1000,$sprog_id)."</a></b></td>";
 	print "<td align=right><b> ".findtekst(1001,$sprog_id)."</a></b></td>";
 	print "<td align=right><b> ".findtekst(828,$sprog_id)."</a></b></td>";
-	print "<td align=right><b> ".findtekst(1197,$sprog_id)."</a></b></td>";
-	print "<td align=right><b> ".findtekst(1198,$sprog_id)."</a></b></td>";
-	print "<td align=right><b> ".findtekst(1199,$sprog_id)."</a></b></td>";
+	print " <td align=right><b> ".findtekst(1197,$sprog_id)."</a></b></td>";
+	print " <td align=right><b> ".findtekst(1198,$sprog_id)."</a></b></td>";
+	print " <td align=right><b> ".findtekst(1199,$sprog_id)."</a></b></td>";
 	print "</tr>";
-	print "<tr><td colspan=11><hr></td></tr>";
 
 
 if ($kontonr) {
@@ -200,7 +207,8 @@ for ($x=0;$x<count($transdate);$x++){
 }
 
 function lagerbev ($kontonr,$varekob,$varelager_i,$varelager_u,$regnstart,$regnslut) {
-	
+	global $regnaar;
+
 	$beskrivelse = $bilag = $debet = $fakturanr = $kredit = $ordrenr = $transdate = array();
 	
 	$r=db_fetch_array(db_select("select kontotype from kontoplan where kontonr='$kontonr' order by regnskabsaar desc limit 1",__FILE__ . " linje " . __LINE__));
@@ -209,7 +217,9 @@ function lagerbev ($kontonr,$varekob,$varelager_i,$varelager_u,$regnstart,$regns
 		$z=0;
 		$lager=array();
 		$gruppe=array();
-		$q=db_select("select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and (box1 = '$kontonr' or box2 = '$kontonr' or box3 = '$kontonr')",__FILE__ . " linje " . __LINE__);
+		$qtxt = "select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and ";
+		$qtxt.= "(box1 = '$kontonr' or box2 = '$kontonr' or box3 = '$kontonr') and fiscal_year = $regnaar";
+		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			if ($r['box1']) {
 				$gruppe[$z]=$r['kodenr'];
@@ -396,10 +406,16 @@ function lagerbev ($kontonr,$varekob,$varelager_i,$varelager_u,$regnstart,$regns
 	return array($transdate,$fakturanr,$ordrenr,$bilag,$beskrivelse,$debet,$kredit);
 }
 
-?>
-</tbody>
+print "</tbody>
 </table>
 	</td></tr>
 </tbody></table>
+";
 
-</body></html>
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+#} else {
+#	include_once '../includes/oldDesign/footer.php';
+}
+
+?>
