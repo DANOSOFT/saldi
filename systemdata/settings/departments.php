@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 <?php
 
-$qtxt = "SELECT * FROM grupper WHERE art='AFD' ORDER BY kodenr";
+$qtxt = "SELECT * FROM grupper WHERE art='AFD' AND fiscal_year='$regnaar' ORDER BY kodenr";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 $i = 0;
 while ($row = db_fetch_array($q)) {
