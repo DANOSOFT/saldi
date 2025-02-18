@@ -180,6 +180,10 @@ function create_tutorial($id, $steps) {
             }
 
             showStep(index) {
+                if (index >= this.steps.length) {
+                    this.endTutorial();
+                    return;
+                }
                 if (index < 0 || index >= this.steps.length) return;
                 this.currentStep = index;
 
@@ -188,6 +192,7 @@ function create_tutorial($id, $steps) {
 
                 if (!elements.length) {
                     console.error(`!!! No elements found for selector: ${step.selector}`);
+                    this.showStep(this.currentStep + 1);
                     return;
                 }
 
