@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2024-11-26 ---
-//							 LICENSE
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-02-13 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20120822 Tilrettet til NETS leverandørservice - søg 20120822
@@ -189,6 +189,7 @@
 // 18102024 PBLM-fixed del ordre
 // 13112024 MMK - added warning to delete line
 // 20241220 LOE - Ensured some variables are set before using them
+// 20250213 PHR Vat rate defined by department(afd)
 
 @session_start();
 $s_id=session_id();
@@ -879,10 +880,10 @@ if ($b_submit) {
 	$omdan_t_fakt = if_isset($_POST['omdan_t_fakt']);
 	$kreditnota = if_isset($_POST['kreditnota']);
 	$ref = trim(if_isset($_POST['ref']));
-	$afd = if_isset($_POST['afd'])*1;
+	$extAfd = if_isset($_POST['extAfd'],NULL);
+	$afd = if_isset($_POST['afd'],NULL);
 	$afd_lager = if_isset($_POST['afd_lager']);
 	$fakturanr = trim(if_isset($_POST['fakturanr']));
-#  $momssats = trim($_POST['momssats']);
 	$momssats = usdecimal($_POST['momssats'],2);
 	$procenttillag = usdecimal(if_isset($_POST['procenttillag']),2);
 	$mail_subj = db_escape_string(trim(if_isset($_POST['mail_subj'])));
@@ -919,7 +920,20 @@ if ($b_submit) {
 		alert ("".findtekst(1825, $sprog_id)."");
 		$phone = substr($phone,0,15);
 	}
-	
+  if ($extAfd && $afd && $extAfd != $afd) {
+    $qtxt = "select var_value from settings where var_name = 'maxDepVatRate_". $afd ."'";
+    if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+      db_modify("update ordrelinjer set vare_id = '0' where vare_id is NULL and ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
+      $qtxt = "select box1,box2 from grupper where fiscal_year = '$regnaar' and kodenr = '$afd' and art = 'SM'";
+      if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+        $momssats = $r['box2'];
+        $qtxt = "update ordrer set momssats='$momssats' where id='$id'";
+        db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+        $qtxt = "update ordrelinjer set momssats='$momssats', vat_account = '$r[box1]' where vare_id != '0' and ordre_id = '$id'";
+        db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+      }
+    }
+  }
 	if (!isset($momsfri[0])) $momsfri[0]='';
 	if (strstr($b_submit,"Kred") && $status < 3) $b_submit="doInvoice";
 	if (strstr($b_submit,'Modtag')) $b_submit="Lever";
@@ -3651,6 +3665,7 @@ $kundeordre = findtekst(1092,$sprog_id);
 			$afd_navn[$x]=$r['beskrivelse'];
 			$x++;
 		}
+		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr)>1) {
 			print "</td><td></td>\n";
       		print "<td>Afd</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
