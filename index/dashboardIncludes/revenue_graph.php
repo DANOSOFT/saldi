@@ -2,6 +2,7 @@
 function revenue_graph($startDate, $endDate) {
     global $kontomin;
     global $kontomaks;
+    global $regnaar;
 
     echo '
 <div style="
@@ -21,6 +22,17 @@ function revenue_graph($startDate, $endDate) {
     </div>
     </div>
     ';
+
+
+    $qtxt = "SELECT beskrivelse FROM grupper WHERE kodenr='$regnaar' AND art='RA'";
+    $startLabel = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))["beskrivelse"];
+    $qtxt = "SELECT beskrivelse FROM grupper WHERE kodenr='".($regnaar-1)."' AND art='RA'";
+    $r = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    if ($r) {
+        $slutLabel = db_fetch_array($r)["beskrivelse"];
+    } else {
+        $slutLabel = "";
+    }
 
     // Parse start and end dates
     $startYear = date('Y', strtotime($startDate));
@@ -85,12 +97,12 @@ function revenue_graph($startDate, $endDate) {
         data: {
           labels: ['".implode("','", $monthLabels)."'],
           datasets: [{
-            label: 'Omsætning ".($startYear - 1)."',
+            label: 'Omsætning $slutLabel',
             data: ['".implode("','", $revenue_last)."'],
             borderWidth: 1
           },
           {
-            label: 'Omsætning $startYear',
+            label: 'Omsætning $startLabel',
             data: ['".implode("','", $revenue_now)."'],
             borderWidth: 1
           }]

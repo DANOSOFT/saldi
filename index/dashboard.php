@@ -28,7 +28,7 @@
 $s_id = session_id();
 
 
-$css = "../css/dashboard.css";
+$css = "../css/dashboard.css?v=1";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");

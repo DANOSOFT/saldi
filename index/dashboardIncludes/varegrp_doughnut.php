@@ -36,6 +36,7 @@ function varegrp_doughnut($startDate, $endDate) {
     WHERE O.fakturadate >= '$startDate'
     AND O.fakturadate <= '$endDate'
     AND O.status = 4
+    AND O.art NOT IN ('KK', 'KO')
     GROUP BY V.gruppe, G.beskrivelse";
     $result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
