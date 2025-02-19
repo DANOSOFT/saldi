@@ -41,21 +41,23 @@ $apiKey = db_fetch_array($query)["var_value"];
 include("../includes/online.php");
 include("../includes/topline_settings.php");
 
-if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
-
-$sort=isset($_GET['sort'])? $_GET['sort']:Null;
-$rf=isset($_GET['rf'])? $_GET['rf']:Null;
-$vis=isset($_GET['vis'])? $_GET['vis']:Null;
-print "<meta http-equiv=\"refresh\" content=\"150;URL=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis\">";
-
-if (isset($_GET['sort'])) {
+list($sort,$rf,$vis) = [
+	isset($_GET['sort']) ? $_GET['sort'] : NULL,
+	isset($_GET['rf']) ? $_GET['rf']: NULL,
+	isset($_GET['vis']) ? $_GET['vis']: NULL
+];
+if (isset($sort)) {
 	$cookievalue="$sort;$rf;$vis";
 	setcookie("saldi_kladdeliste", $cookievalue, strtotime('+30 days'));
-} else list ($sort,$rf,$vis) = array_pad(explode(";", $_COOKIE['saldi_kladdeliste']), 3, null);
-if (!$sort) {
+} elseif (isset($_COOKIE['saldi_kladdeliste'])) {
+	list($sort,$rf,$vis) = array_pad(explode(";", $_COOKIE['saldi_kladdeliste']), 3, NULL);
+}
+else {
 	$sort = "id";
 	$rf = "desc";
 }
+print "<meta http-equiv=\"refresh\" content=\"150;URL=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis\">";
+
 if (strpos(findtekst(639,$sprog_id),'undtrykke')) {
 	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
