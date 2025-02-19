@@ -286,7 +286,7 @@ if ($restore=='OK') {
 		$connection = db_connect ("$sqhost", "$squser", "$sqpass", "$sqdb");
 		mysqli_select_db($connection, $sqdb);
 	} else {
-		/* db_close($connection); */
+		db_close($connection);
 		if ($connection = db_connect ("$sqhost","$squser","$sqpass","$sqdb"))  echo __line__."connection OK<br>	";
 		else echo __line__." connection failed<br>";
 	}
