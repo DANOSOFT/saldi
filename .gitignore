@@ -46,3 +46,6 @@ bilag/
 # Python stuff
 __pycache__/
 .pytest_cache
+
+# VS Code
+.vscode/
