@@ -36,33 +36,26 @@ $title="kladdeliste";
 		
 include("../includes/connect.php");
 include("../includes/std_func.php");
-$query = "SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'";
-if ($r=db_fetch_array(db_select($query, __FILE__ . " linje " . __LINE__))) {
-	$apiKey = $r["var_value"];
-	unset($r);
-} else {
-	$apiKey = "";
-}
+$query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+$apiKey = db_fetch_array($query)["var_value"];
 include("../includes/online.php");
 include("../includes/topline_settings.php");
 
-list($sort,$rf,$vis) = [
-	isset($_GET['sort']) ? $_GET['sort'] : NULL,
-	isset($_GET['rf']) ? $_GET['rf']: NULL,
-	isset($_GET['vis']) ? $_GET['vis']: NULL
-];
-if (isset($sort)) {
+if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
+
+$sort=isset($_GET['sort'])? $_GET['sort']:Null;
+$rf=isset($_GET['rf'])? $_GET['rf']:Null;
+$vis=isset($_GET['vis'])? $_GET['vis']:Null;
+print "<meta http-equiv=\"refresh\" content=\"150;URL=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis\">";
+
+if (isset($_GET['sort'])) {
 	$cookievalue="$sort;$rf;$vis";
 	setcookie("saldi_kladdeliste", $cookievalue, strtotime('+30 days'));
-} elseif (isset($_COOKIE['saldi_kladdeliste'])) {
-	list($sort,$rf,$vis) = array_pad(explode(";", $_COOKIE['saldi_kladdeliste']), 3, NULL);
-}
-else {
+} else list ($sort,$rf,$vis) = array_pad(explode(";", $_COOKIE['saldi_kladdeliste']), 3, null);
+if (!$sort) {
 	$sort = "id";
 	$rf = "desc";
 }
-print "<meta http-equiv=\"refresh\" content=\"150;URL=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis\">";
-
 if (strpos(findtekst(639,$sprog_id),'undtrykke')) {
 	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -85,7 +78,6 @@ if ($menu=='T') {
 
 	print "<td width='10%'  title='".findtekst(1599, $sprog_id)."'>"; #20210721
 	print "<a href='../index/menu.php' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
-
 	print "<td width=70% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
 	print "<td width='10%'><form method='post' name='digital'>";
 	print "<button type='submit' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" name='digital' value='digital'>";
@@ -97,24 +89,30 @@ if ($menu=='T') {
 	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 
 	if(isset($_POST['digital'])) {
-
 		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
-		$companyID = db_fetch_array($query)["var_value"];
-		
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
-		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		$res = curl_exec($ch);
-		curl_close($ch);
-		?>
-		<script>
-			window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
-			// Optionally close the current window or redirect it
-			// window.location.href = 'your-return-url.php'; // redirect current window
-			// window.close(); // close current window
-    	</script>
-		<?php
+		if(db_num_rows($query) > 0){
+			$companyID = db_fetch_array($query)["var_value"];
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			$res = curl_exec($ch);
+			curl_close($ch);
+			?>
+			<script>
+				window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
+				// Optionally close the current window or redirect it
+				// window.location.href = 'your-return-url.php'; // redirect current window
+				// window.close(); // close current window
+			</script>
+			<?php
+		}else{
+			?>
+			<script>
+				alert('Du er ikke oprettet i nemhandel');
+			</script>
+			<?php
+		}
 	}
 } else {
 #	if ($menu=='S') {
