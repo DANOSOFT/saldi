@@ -539,7 +539,6 @@ if ($bruger_id == '-1') echo $_GET['flyt_til'];
 #			$qtxt="select * from ordrelinjer where id=df_linje_id[$x]";
 #			if ($antal[$x]==$df[$x]) $qtxt="delete from ordrelinjer where id='$linje_id[$x]'";
 		}
-#xit;		
 	transaktion('commit');
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$ny_id\">\n";
 	} else {

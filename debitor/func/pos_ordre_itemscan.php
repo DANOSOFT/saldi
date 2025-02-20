@@ -72,7 +72,7 @@
 function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny) {
 	print "\n<!-- Function varescan (start)-->\n";
 	global $afd_navn,$afslut;
-	global $barcode,$beskrivelse_old,$betalingsbet,$betvaluta,$bordnr,$brugernavn;
+	global $barcode,$baseCurrency,$beskrivelse_old,$betalingsbet,$betvaluta,$bordnr,$brugernavn;
 	global $db,$difkto;
 	global $credit_type; #20210813
 	global $fokus;
