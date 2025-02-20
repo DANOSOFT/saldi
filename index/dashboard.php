@@ -295,7 +295,14 @@ if ($ordercount === "on") {
 	$currentDate->sub(new DateInterval('P30D'));
 	$thirtyDaysAgo = $currentDate->format('Y-m-d');
 
-	$q=db_select("SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status = 2 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'",__FILE__ . " linje " . __LINE__);
+  # Check hurtigfakt
+  if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'",__FILE__ . " linje " . __LINE__))) {
+    $qtxt = "SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status <= 3 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'";
+  } else {
+    $qtxt = "SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status = 2 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'";
+  }
+
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
