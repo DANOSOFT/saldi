@@ -30,6 +30,9 @@
 // 20241108 PHR PHP8
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20222706 MSC - Implementing new design
+// 20250201 Add hostname to psql
+// 20250201 removed init of $uploadedfile which was never used
+// 20250201 $brugernavn is never set near the end of the restore function
 
 @session_start();
 $s_id=session_id();
@@ -51,7 +54,7 @@ else
 $title="SALDI - genindlæs sikkerhedskopi";
 $modulnr=11;
 $css="../css/standard.css";
-$backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=$uploadedfile=NULL;
+$backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=NULL;
 
 include("../includes/connect.php");
 if (isset($_GET['db']) && $_GET['db']) {
@@ -129,14 +132,19 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 			unlink($filnavn);
 		} 
 	}
-	$fejl = $_FILES['uploadedfile']['error'];
+	// if_isset cannot be used here since 'error' will be 0 on succes. But if_isset would return it as false
+	if (isset($_FILES['uploadedfile']['error'])) {
+		$fejl = $_FILES['uploadedfile']['error'];
+	} else {
+			$fejl = false;
+	}
 	if ($fejl) {
 		switch ($fejl) {
 			case 1: print "<BODY onLoad=\"javascript:alert('Filen er for stor - Kontroller upload_max_filesize i php.ini')\">";
 			case 2: print "<BODY onLoad=\"javascript:alert('Filen er for stor - er det en SALDI-sikkerhedskopi?')\">";
 		}
 	}
-	if (basename($_FILES['uploadedfile']['name'])) {
+	if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."/restore.gz";
 		$tmp=$_FILES['uploadedfile']['tmp_name'];
 		system ("rm -rf ../temp/".$db."/*");
@@ -215,7 +223,6 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 
 global $connection;
 global $s_id;
-global $brugernavn;
 global $regnskab;
 global $db;
 global $sqdb;
@@ -280,6 +287,8 @@ if ($restore=='OK') {
 		mysqli_select_db($connection, $sqdb);
 	} else {
 		db_close($connection);
+		if ($connection = db_connect ("$sqhost","$squser","$sqpass","$sqdb"))  echo __line__."connection OK<br>	";
+		else echo __line__." connection failed<br>";
 	}
 	db_modify("delete from online where db='$db'",__FILE__ . " linje " . __LINE__);
 	db_modify("update regnskab set version = '' where db='$db'",__FILE__ . " linje " . __LINE__);
@@ -291,12 +300,12 @@ if ($restore=='OK') {
 		if (file_exists("/usr/bin/mysql")) $mysql = "/usr/bin/mysql";
 		elseif (file_exists("/bin/mysql")) $mysql = "/usr/mysql";
 		else echo "mysql not found<br>";
-		if ($mysql) system("$mysql -u $squser --password=$sqpass $db < $filnavn2");
+		if ($mysql) system("$mysql -u $squser --password=$sqpass -h $sqhost $db < $filnavn2");
 	} else {
 		if (file_exists("/usr/bin/psql")) $psql = "/usr/bin/psql";
 		elseif (file_exists("/bin/psql")) $psql = "/usr/psql";
 		else echo "psql not found<br>";
-		if ($psql) system("export PGPASSWORD=$sqpass\n$psql -U $squser $db < $filnavn2");
+		if ($psql) system("export PGPASSWORD=$sqpass\n$psql -h $sqhost -U $squser $db < $filnavn2");
 	}
 	db_close($connection);
 	print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
@@ -306,7 +315,7 @@ if ($restore=='OK') {
 	if ($popup) {
 		print "<BODY ONLOAD=\"JavaScript:opener.location.reload();\"";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-	} else print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
+	} else print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."\">";
  
 } else {
 	unlink($filnavn);

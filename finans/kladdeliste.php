@@ -78,7 +78,6 @@ if ($menu=='T') {
 
 	print "<td width='10%'  title='".findtekst(1599, $sprog_id)."'>"; #20210721
 	print "<a href='../index/menu.php' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
-
 	print "<td width=70% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
 	print "<td width='10%'><form method='post' name='digital'>";
 	print "<button type='submit' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" name='digital' value='digital'>";
@@ -90,24 +89,30 @@ if ($menu=='T') {
 	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 
 	if(isset($_POST['digital'])) {
-
 		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
-		$companyID = db_fetch_array($query)["var_value"];
-		
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
-		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		$res = curl_exec($ch);
-		curl_close($ch);
-		?>
-		<script>
-			window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
-			// Optionally close the current window or redirect it
-			// window.location.href = 'your-return-url.php'; // redirect current window
-			// window.close(); // close current window
-    	</script>
-		<?php
+		if(db_num_rows($query) > 0){
+			$companyID = db_fetch_array($query)["var_value"];
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			$res = curl_exec($ch);
+			curl_close($ch);
+			?>
+			<script>
+				window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
+				// Optionally close the current window or redirect it
+				// window.location.href = 'your-return-url.php'; // redirect current window
+				// window.close(); // close current window
+			</script>
+			<?php
+		}else{
+			?>
+			<script>
+				alert('Du er ikke oprettet i nemhandel');
+			</script>
+			<?php
+		}
 	}
 } else {
 #	if ($menu=='S') {
