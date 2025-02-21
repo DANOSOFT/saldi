@@ -33,9 +33,9 @@
 33	Skriv nyt tekstforslag	Write new text suggestion	Skriv nytt tekstforslag
 34	Debitorliste	Debtor List	Gjeldeliste
 35	Kunde	Customer	Kunde
-36	Postnr.	ZIP code.	Post kode.
+36	Postnr.	ZIP code	Post nr.
 37	Telefon	Telephone	Telefon
-38	Stillingsliste	Job List	Stillingsliste
+38	Stillingsliste	Job ist	Stillingsliste
 39	Ny	New	Ny
 40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
 41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Write a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
@@ -353,7 +353,7 @@
 353	Privat	Private	Privat
 354	Erhverv	profession	yrke
 355	Vis leveringsadresse	Show delivery address	Vis leveringsadresse
-356	Debitorkort	Debtor Card	Debitor kort
+356	Debitorkort	Debtor card	Debitor kort
 357	Kundenr.	Customer no.	Kundenr.
 358	Fornavn	First name	Fornavn
 359	Efternavn	Last name	Etternavn
@@ -371,7 +371,7 @@
 371	Efterkrav	Cash on delivery	Kontantbetaling ved levering
 372	Netto	Net	Nett
 373	Lb. md.	EOM.	Løp. md.
-374	Debitorgruppe	Debtor group	Gjeldsgruppe
+374	Debitorgruppe	Debtor group	Debitorgruppe
 375	Rabatgruppe	Discount group	Rabattgruppe
 376	CVR-nr.	VAT no.	MVA-nr.
 377	Telefon	Telephone	Telefon
@@ -547,7 +547,7 @@
 547	Leverandørordre	Supplier order	Leverandørbestilling
 548	Vælg om lukkede kreditorer skal være synlige på oversigten.	Choose whether closed creditors should be visible on the overview.	Velg om lukkede kreditorer skal være synlige i oversikten.
 549	Postnr, by	Zipcode, City	Postnummer, by
-550	Lev.dato	Delivery Date	Deveringsdato
+550	Lev.dato	Delivery Date	Leveringsdato
 551	Modtagelse	Receipt	Kvittering
 552	Valuta / Kurs	Currency / Exchange Rate	Valutakurs
 553	Projekt	Project	Prosjekt
@@ -1005,12 +1005,12 @@
 1005	Printkommando	Print command	Skriv ut kommando
 1006	Rabatgrupper	Discount groups	Rabattgrupper
 1007	Salgs	Sales	Salg
-1008	Debitorgrupper	Debtor groups	Gjeldsgrupper
+1008	Debitorgrupper	Debtor groups	Debitorgrupper
 1009	Momsrapport (konti som skal indgå i momsrapport)	VAT report (accounts to be included in VAT report)	Mva-rapport (kontoer skal inkluderes i mva-rapport)
-1010	Det sprog der skal anvendes ved fakturering	The language to be used for invoicing	Språket som skal brukes til fakturering
+1010	Det sprog, der skal anvendes ved fakturering	The language to be used for invoicing	Språket som skal brukes til fakturering
 1011	Momsgrp	VATgrp	Momsgrp
 1012	Køb	Purchase	Kjøp
-1013	Modkonto	Contra account	Motkonto
+1013	Modkonto	Offset account	Motkonto
 1014	ClientID til API	ClientID for API	ClientID for API
 1015	Skriv det ClientID som benyttestil bestilling af fragt via API hos Danske Fragtmænd. Kontakt Saldi.DK på telefon 4690 2208 og hør om hvordan.	Write the ClientID as the style for ordering freight via API at Danske Fragtmænd. Contact Saldi.DK on telephone 4690 2208 and hear about how.	Skriv ClientID som stil for bestilling av frakt via API hos Danske Fragtmænd. Kontakt Saldi.DK på telefon 4690 2208 og hør om hvordan.
 1016	API-brugernavn	API username	API brukernavn
@@ -1092,7 +1092,7 @@
 1092	Kundeordre	Sales order	Salgsordre
 1093	Bogførte kladder	Posted drafts	Skrevet utkast
 1094	Fakturadato	Invoice date	Fakturadato
-1095	Momssats	VAT rate	Moms
+1095	Momssats	VAT rate	MMVA-sats
 1096	Ordredato	Order date	Bestillingsdato
 1097	Vor ref.	Our ref.	Vår ref.
 1098	Jobkort	Job card	Jobbkort
@@ -1180,8 +1180,8 @@
 1180	Udenlandsk overførsel	International transfer	Internasjonal overføring
 1181	Bankoverf. med straks advisering	Bank transfer. with immediate notice	Bankoverføring. med øyeblikkelig varsel
 1182	Bankoverf. med normal advisering	Bank transfer. with normal advice	Bankoverføring. med vanlig råd
-1183	Kreditorgruppe	Creditor Group	Kreditorgruppe
-1184	Kreditorkort	Creditor Card	Kreditorkort
+1183	Kreditorgruppe	Creditor group	Kreditorgruppe
+1184	Kreditorkort	Creditor card	Kreditorkort
 1185	Skjul lukkede kreditorer	Hide closed creditors	Skjul lukkede kreditorer
 1186	Leverandørgrupper	Supplier groups	Leverandørgrupper
 1187	Antal linjer på Kreditoroversigten	Number of lines on the Creditor Overview	Antall linjer på kreditoroversikten
@@ -1198,7 +1198,7 @@
 1198	Afd. nr	Dept. no	Gjeld. Nei
 1199	Projekt. nr	Project. no	Prosjekt. Nei
 1200	Næste	Next	Neste
-1201	Ordreliste • Kunder       	Order list • Customers 	 Bestillingsliste • Kunder
+1201	Ordreliste • Kunder	Order list • Customers	Bestillingsliste • Kunder
 1202	Log	Log	Løk
 1203	Søgetekst	Search text	Søgetekst
 1204	Klik for at åbne, højreklik for at gemme	Click to open, right-click to save	Klikk for å åpne, høyreklikk for å lagre
@@ -1825,7 +1825,7 @@
 1825	telefonummer må maks være på 15 cifre	telephone number must not exceed 15 digits	telefonnummeret må ikke overstige 15 sifre
 1826	e-mail ikke gyldig\\nFaktura kan ikke sendes som e-mail	e-mail not valid \\nInvoice can not be sent as e-mail	e-post ikke gyldig \\nFaktura kan ikke sendes som e-post
 1827	EAN-nr. ikke gyldigt\\nIkke	EAN no. not valid\\ nNot	EAN -nr. ikke gyldig\\ nIkke
-1828	men 13 cifre i alt .\\nDer kan ikke udskrives til	but 13 digits in total. \\nNot to print to	men totalt 13 sifre. \\nIkke å skrive ut til
+1828	men 13 cifre i alt.\\nDer kan ikke udskrives til	but 13 digits in total. \\nNot to print to	men totalt 13 sifre. \\nIkke å skrive ut til
 1829	Leveringsdato sat til dags dato.	Delivery date set to today's date.	Leveringsdato er satt til dagens dato.
 1830	er lukket	is closed	er stengt
 1831	Debitorgrupper forkert opsat	Debtor groups incorrectly set up	Debitorgrupper er feil satt opp
@@ -1840,13 +1840,13 @@
 1840	Du kan ikke slette en varelinje, når der ér leveret varer fra linjen.	You cannot delete an item line when items have been delivered from the line.	You cannot delete an item line when items have been delivered from the line.
 1841	Hint! Du skal sætte tegnet - (minus) i feltet 'Pos' for at slette en varelinje.	Hint! You must put the character - (minus) in the field 'Pos' to delete an item line.	Hint! Du må sette tegnet - (minus) i feltet 'Pos' for å slette en varelinje.
 1842	er for stort, reducer antal	is too large, reduce number	er for stor, reduser antallet
-1843	Orderen er overtaget af	The order has been taken over by	Ordren er overtatt av
+1843	Ordren er overtaget af	The order has been taken over by	Ordren er overtatt av
 1844	Intet varenummer til kontering af øredifferencer ved rabat	No item number for posting ear differences at a discount	Ingen varenummer for å legge ut øreforskjeller med rabatt
 1845	Der er oprettet en ny ordre med samme ordrenr	A new order has been created with the same order number	En ny ordre er opprettet med samme ordrenummer
 1846	Du kan ikke fakturere uden ordrelinjer	You cannot invoice without line items	Du kan ikke fakturere uten ordrelinjer
 1847	Du kan ikke levere uden ordrelinjer	You can not deliver without order lines	Du kan ikke levere uten bestillingslinjer
 1848	Kontroller CVR nr	Check VAT no	Sjekk MVA -nr
-1849	Husk at opdatere ved at klikke på  [OK] til højre for feltet du har ændret!	Remember to update by clicking [OK] to the right of the field you have changed!	Husk å oppdatere ved å klikke [OK] til høyre for feltet du har endret!
+1849	Husk at opdatere ved at klikke på [OK] til højre for feltet du har ændret!	Remember to update by clicking [OK] to the right of the field you have changed!	Husk å oppdatere ved å klikke [OK] til høyre for feltet du har endret!
 1850	Ingen valutakurs for faktura	No exchange rate for invoice	Ingen valutakurs for faktura
 1851	Kreditloft overskrides med	Credit ceiling exceeded by	Kredittgrensen overskrides med
 1852	Der er uafsluttede bestillinger	There are unfinished orders	Det er uferdige bestillinger
@@ -2313,32 +2313,32 @@
 2313	Kontonummer for samlet ydelsessalg i EU	Account number for total service sales in the EU	Kontonummer for samlet tjenestesalg i EU
 2314	Kontonummer for samlet vare- og ydelsessalg uden for EU	Account number for total goods and service sales outside the EU	Kontonummer for samlet vare- og tjenestesalg utenfor EU
 2315	Rubrik	Box	Rubrikk
-2316
-2317
-2318
-2319
-2320
-2321
-2322
-2323
-2324
-2325
-2326
-2327
-2328
-2329
-2330
-2331
-2332
-2333
-2334
-2335
-2336
-2337
-2338
-2339
-2340
-2341
+2316	Ved ydelseskøb i udlandet, skal der betales lokal moms sats på vegne af sælgeren.	When purchasing services abroad, the local VAT rate must be paid on behalf of the seller.	Ved kjøp av tjenester i utlandet, må lokal MVA betales på vegne av selgeren.
+2317	Ved varekøb i udlandet, skal der betales lokal moms sats på vegne af sælgeren.	When purchasing goods abroad, the local VAT rate must be paid on behalf of the seller.	Ved kjøp av varer i utlandet, må lokal MVA'en betales på vegne av selgeren.
+2318	Samtidig kan købsmomsen trækkes fra, så resultatet bliver 0.	At the same time, the purchase VAT can be deducted, so the result becomes 0.	Samtidig kan kjøps-MVA'en trekkes fra, slik at resultatet blir 0.
+2319	Momsgruppe som debitorgruppen skal tilknyttes	VAT group to which the debtor group should be assigned	MVA-gruppe som debitorgruppen skal knyttes til
+2320	Samlekt.	Coll. acc.	Samlekt.
+2321	Samlekonto for debitorgruppen	Collective account for the debtor group	Samlekonto for debitorgruppen
+2322	Valuta styres af samlekontoen	Currency is set by the collective account	Valuta styres av samlekontoen
+2323	Modkonto ved udligning af åbne poster	Offset account for reconciling open items	Motkonto ved utligning av åpne poster
+2324	Provisionsprocent	Commission rate	Provisjonsprosent
+2325	Her angives hvor stor en procentdel af dækningsbidraget det medgår ved beregning af provision.	This indicates what percentage of the contribution margin is used in the calculation of the commission.	Her angis hvilken prosentandel av dekningsbidraget som medgår ved beregning av provisjon.
+2326	Afmærk her, hvis der skal anvendes B2B priser ved salg til denne kundegruppe	Check here to apply B2B prices when selling to this customer group	Merk av her hvis B2B-priser skal anvendes ved salg til denne kundegruppen
+2327	Omvendt betalingspligt	Reverse charge	Omvendt betalingsplikt
+2328	Afmærk her, hvis denne kundegruppe er omfattet af omvendt betalingspligt	Check here if this customer group is subject to reverse charge	Merk av her hvis denne kundegruppen er omfattet av omvendt betalingsplikt
+2329	OB	RC	OB
+2330	Kreditorgrupper	Creditor groups	Kreditorgrupper
+2331	Momsgruppe som kreditorgruppen skal tilknyttes	VAT group to which the creditor group should be assigned	MVA-gruppe som kreditorgruppen skal knyttes til
+2332	Samlekonto for kreditorgruppen	Collective account for the creditor group	Samlekonto for kreditorgruppen
+2333	Det sprog, der skal anvendes ved kommunikation med kreditoren	The language to be used when communicating with the creditor	Språket som skal brukes ved kommunikasjon med kreditoren
+2334	Momsgruppe for salgsmoms ved omvendt betalingspligt	VAT group for sales VAT under reverse charge	"MVA-gruppe for salgs-MVA ved omvendt betalingsplikt
+2335	S.moms grp.	S.VAT grp.	S.MVA grp.
+2336	Afd.	Dept.	Avd.
+2337	Afmærk her, hvis denne leverandørgruppe er omfattet af omvendt betalingspligt	Check here if this supplier group is subject to reverse charge	Merk av her hvis denne leverandørgruppen er omfattet av omvendt betalingsplikt
+2338	Afmærk her, hvis denne varegruppe er omfattet af omvendt betalingspligt	Check here if this product group is subject to reverse charge	Merk av her hvis denne varegruppen er omfattet av omvendt betalingsplikt
+2339	Klik her for at rette i projektopsætningen	Click here to edit the project setup	Klikk her for å endre prosjektoppsettet
+2340	Salg	Sale	Salg
+2341	Klik her for at rette navn	Click here to edit name	Klikk her for å rette navn
 2342
 2343
 2344
@@ -3071,7 +3071,7 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3071	Nettosum	Net sum	Nettosum
 3072	I alt	Total	Totalt
 3073	Fakturér	Invoice	Fakturer
-3074	Sæt	Set	Sett
+3074	Sæt	Sets	Sett
 3075	Dagens omsætning	Today's turnover	Dagens omsetning
 3076	System	System
 3077	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days

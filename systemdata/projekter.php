@@ -109,12 +109,13 @@ print "</tbody></table>";
 print "</body></html>";
 
 function tilpas($id,$cfg) {
-	print "<tr><td colspan=\"2\" align=center><b>".findtekst(1249, $sprog_id)."</td></tr>\n";
-	$tekst=findtekst(1250, $sprog_id);
+	global $sprog_id;
+	print "<tr><td colspan=\"2\" align=center><b>".findtekst('1249|Tilpas projekt opsætning', $sprog_id)."</td></tr>\n";
+	$tekst=findtekst('1250|Skriv syntaks for projektnummereringen for at lette søgning. Hvis du f.eks skriver 4|2|3|4 bliver projektnummeret opdelt i 4 grupper med hhv. 4,2,3,4 tegn i hvert felt. Dette kan lette søgning, hvis du anvender lange og komplekse projektnumre.', $sprog_id);
 	print "<tr><td colspan=\"2\">$tekst</td>";
 	print "<form name=\"projekter\" action=\"projekter.php?tilpas=1&id=$id\"  method=\"post\">";
-	print "<tr><td>".findtekst(1251, $sprog_id).": <input type=\"text\" name=\"cfg\" style=\"width:200px\" value=\"$cfg\"></td>
-	<td align=\"right\"><input type=submit accesskey=\"g\" value=\"".findtekst(3, $sprog_id)."\" name=\"submit\"></td></tr>";
+	print "<tr><td>".findtekst('1251|Projektopdeling', $sprog_id).": <input type=\"text\" name=\"cfg\" style=\"width:200px\" value=\"$cfg\"></td>
+	<td align=\"right\"><input type=submit accesskey=\"g\" value=\"".findtekst('3|Projektopdeling', $sprog_id)."\" name=\"submit\"></td></tr>";
 	print "</form>";
 }
 
@@ -131,14 +132,14 @@ function rediger($id) {
 		$projektnr=$r['kodenr'];
 		$beskrivelse=$r['beskrivelse'];
 	}
-	$rettekst="Klik her for at rette nr enner navn på projektet";
+	$rettekst="Klik her for at rette nr eller navn på projektet";
 	$slettekst="Klik her for at slette projektet";
 	$prcfg=explode("|",$cfg);
 	$cols=count($prcfg);
 	$colspan=$cols+3;
-	$spantekst="klik her for at rette i projektopsætningen";
-	print "<tr><td colspan=\"$colspan\" align=\"center\"><span title=\"$spantekst\"><b><a href=\"projekter.php?tilpas=1\">".findtekst(773, $sprog_id)."</a></b></span></td></tr>\n";
-	print "<tr><td colspan=\"$cols\">Nr.</td><td>Beskrivelse</td></tr>\n";
+	$spantekst=findtekst('2339|Klik her for at rette i projektopsætningen', $sprog_id);
+	print "<tr><td colspan=\"$colspan\" align=\"center\"><span title=\"$spantekst\"><b><a href=\"projekter.php?tilpas=1\">".findtekst('773|Projekter', $sprog_id)."</a></b></span></td></tr>\n";
+	print "<tr><td colspan=\"$cols\">".findtekst('2248|Nr.', $sprog_id)."</td><td>".findtekst('914|Beskrivelse', $sprog_id)."</td></tr>\n";
 
 	print "<form name=\"projekter\" action=\"projekter.php?id=$id&cfg=$cfg\"  method=\"post\">";
 	print "<tr>";
@@ -151,7 +152,7 @@ function rediger($id) {
 	}
 	$new_beskrivelse = if_isset($beskrivelse, 0);
 	print "<td><input class=\"inputbox\" type=\"text\" name=\"beskrivelse\" style=\"width:200px\" value=\"$new_beskrivelse\"></td>
-					<td colspan=\"2\"><input type=submit accesskey=\"g\" value=\"".findtekst(3, $sprog_id)."\" name=\"submit\"></td>
+					<td colspan=\"2\"><input type=submit accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"submit\"></td>
 				</tr>\n";
 	print "</form>";
 	$x=0;

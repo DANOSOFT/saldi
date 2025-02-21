@@ -193,19 +193,19 @@ print "<input type=hidden name=vg_antal value=\"".$vg_antal."\">";
 print "<table class='dataTable2' id='dataTable' cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border:solid 1px $bgcolor5\"><tbody>"; #tabel 1.1.3 ->
 if (!$drg_antal && !$rabatantal && !$dgselfdef) {
 #	echo "valgmulighed"
-	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a class='button blue medium' href=\"rabatgrupper.php?dgselfdef=1\">Definer selv debitorrabatgrupper</a></td></tr>";
+	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a class='button blue medium' href=\"rabatgrupper.php?dgselfdef=1\">".findtekst('1252|Definer selv debitorrabatgrupper', $sprog_id)."</a></td></tr>";
 	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><hr></td></tr>";
 }
 if (!$vrg_antal && !$rabatantal && !$vgselfdef) {
 #	echo "valgmulighed"
-	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a href=\"rabatgrupper.php?vgselfdef=1\">Definer selv varerabatgrupper</a></td></tr>";
+	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a href=\"rabatgrupper.php?vgselfdef=1\">".findtekst('1253|Definer selv varerabatgrupper', $sprog_id)."</a></td></tr>";
 	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><hr></td></tr>";
 }
-print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"2\" align=\"center\">Debitorgrp \ Varegrp</td>";
+print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"2\" align=\"center\">".findtekst('1254|Debitorgrp \ Varegrp', $sprog_id)."</td>";
 print "<td align=\"center\">Type</td>";
 #if ($vrg_antal || $vgselfdef) $vg_antal=$vrg_antal+1;
 for ($y=1;$y<=$vg_antal;$y++) {
-	if ($vrg_antal) print "<td title=\"".$vgnavn[0][$y]." | Klik for at rette navn\"><a href=\"rabatgrupper.php?ret_vrgnavn=$y\">&nbsp;VG$y</a></td>";
+	if ($vrg_antal) print "<td title=\"".$vgnavn[0][$y]." | ".findtekst('2341|Klik her for at rette navn', $sprog_id)."\"><a href=\"rabatgrupper.php?ret_vrgnavn=$y\">&nbsp;VG$y</a></td>";
 	else print "<td title=\"".$vgnavn[0][$y]."\">&nbsp;VG$y</td>";
 }
 #$y++;

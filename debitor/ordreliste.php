@@ -114,7 +114,7 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script
 $css="../css/std.css";
 global $sprog_id;
 $modulnr=5;
-$title='txt1201';
+#$title='txt1201';
 $api_encode=NULL;
 $check_all=$checked=$cols=NULL;
 $dk_dg=NULL; 
@@ -140,6 +140,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
+$title=findtekst('1201|Ordreliste • Kunder', $sprog_id);
 # >> Date picker scripts <<
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
