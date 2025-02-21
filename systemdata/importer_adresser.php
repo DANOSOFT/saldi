@@ -32,6 +32,7 @@
 // 2021.07.14 LOE Translated some text.
 // 20230702 PHR php8
 // 20231214 PHR Correceted text error and recognition of Lb.Md.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -121,7 +122,7 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal){
 		if ($fp) {
 		$komma = $semikolon = $tabulator = 0;
 		for ($y=1; $y<4; $y++) $linje=fgets($fp);#korer frem til linje nr. 4.
-		if ($charset=='UTF-8') $linje=utf8_encode($linje);
+		if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 		$tmp=$linje;
 		while ($tmp=substr(strstr($tmp,";"),1)) {$semikolon++;}
 		$tmp=$linje;
@@ -243,7 +244,7 @@ if ($fp) {
 		if ($linje=fgets($fp)) {
 			$x++;
 			$skriv_linje=1;
-			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$felt=array();
 			$felt = opdel($splitter, $linje);
 			for ($y=0; $y<=$feltantal; $y++) {
@@ -355,7 +356,7 @@ if ($fp) {
 		if ($linje=fgets($fp)) {
 			$x++;
 			$skriv_linje=1;
-			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$felt=array();
 			$felt = opdel($splitter, $linje);
 #			if ($ryd_firmanavn) $felt[$ryd_firmanavn]='';
@@ -451,7 +452,6 @@ if ($fp) {
 						}
 					}
 				}
-#cho "$feltnavn[$y]<br>";
 				if ($feltnavn[$y] && $feltnavn[$y]!='husnr'  && $feltnavn[$y]!='etage' ) {
 					$felt[$y]=trim(db_escape_string($felt[$y]));
 					if ($feltnavn[$y]=='betalingsdage') $felt[$y]*=1;
@@ -491,9 +491,7 @@ if ($fp) {
 					$konto_id=$r['id'];
 					$imp_antal++;
 					db_modify("update adresser set $upd where id='$konto_id'",__FILE__ . " linje " . __LINE__);
-#cho "kontonr=$kontonr opdateret<br>";
 				} else {
-#cho "kontonr=$kontonr ikke opdateret<br>";
 					$konto_id=0;
 				}
 			} else {
@@ -574,16 +572,11 @@ function opdel ($splitter,$linje){
 	}
 	$var=explode(chr(9),$ny_linje);
 	for($i=0;$i<$feltantal;$i++) {
-#cho "$var[$i] - ";
 		$var[$i]=trim($var[$i]);
-#cho substr($var[$i],0,1);
-#cho " - ";
-#cho substr($var[$i],-1);
 
 		if (substr($var[$i],0,1)==chr(34) && substr($var[$i],-1)==chr(34)) {
 			$var[$i]=substr($var[$i],1,strlen($var[$i])-2);
 		}
-#cho " - $var[$i]<br>";
 	}
 	return $var;
 }

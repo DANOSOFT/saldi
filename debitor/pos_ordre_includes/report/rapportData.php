@@ -45,10 +45,8 @@ function productGroupDescription($kasse,$date) { # LN 20190212 Make varegrupper 
 			$productId = $product['id'];
 			$qtxt = "select ordrelinjer.momssats from ordrelinjer,ordrer where varenr = '$productNumber'";
 			$qtxt.= "and ordrer.id=ordrelinjer.ordre_id and ordrer.fakturadate = '$date'";
-#cho "$qtxt<br>";		
 			$vat = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))['momssats'];
 			$qtxt = "select beskrivelse from grupper where kodenr = '$productGroup' and art = 'VG'";
-#cho "$qtxt<br>";		
 			$description = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))['beskrivelse'];
 
 			if (!empty($description)) {

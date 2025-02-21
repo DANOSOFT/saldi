@@ -65,7 +65,8 @@ function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$bes
 		$kredit  = $r['kredit'];
 		$belob   = dkdecimal($r['amount'],2);
 	} else $alignThis = array();
-
+print "<center>";
+include("../includes/topline_settings.php");
 #	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	$lnktxt = "&funktion=openpost&x=$x&fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&";
@@ -76,10 +77,22 @@ function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$bes
 		include_once '../includes/top_header.php';
 		print "<div id=\"header\"><div class=\"headerbtnLft\">";
 		print "<a href='../finans/kassekladde.php?$lnktxt' class=\"button red small left\" accesskey=L>Luk</a></div>";
-		print "<span class=\"headerTxt\">Åbenposter</span>";
+		print "<span class=\"headerTxt\">".findtekst('441|Åbne poster', $sprog_id)."</span>";
 		print "<div class=\"headerbtnRght\"></div>";
 		print "</div><!-- end of header --><div class=\"maincontentLargeHolder\">\n";
 		print  "<table class='dataTable2' border='0' cellspacing='1' align='center';>";
+	} elseif ($menu=='S') {
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+		print "<td width=\"10%\"><a href='../finans/kassekladde.php?$lnktxt' accesskey=L>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
+		print "<td width=\"80%\" style=$topStyle align='center'>&Aring;benposter</td>";
+		print "<td width=\"10%\" style=$topStyle align='center' align='right'><br></td>";
+
+		print "</tbody></table>";
+		print "</td></tr>\n";
+		print "<tr><td valign=\"top\">";
+		print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0	\" width=\"800px\" valign = \"top\">";
 	} else {
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 		print "<td width=\"10%\" $top_bund><a href='../finans/kassekladde.php?$lnktxt' accesskey=L>Luk</a></td>";
@@ -92,11 +105,11 @@ function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$bes
 }
 	print "<tbody >";
 	print "<tr>";
-	print "<td><b><a href='../finans/kassekladde.php?sort=konto_nr".$lnktxt."'>Kontonr</a></b></td>";
-	print "<td><b><a href='../finans/kassekladde.php?sort=firmanavn".$lnktxt."'>Navn</a></b></td>";
-	print "<td><b><a href='../finans/kassekladde.php?sort=faktnr".$lnktxt."'>Fakturanr</a></b></td>";
-	print "<td><b><a href='../finans/kassekladde.php?sort=transdate".$lnktxt."'>Dato</a></b></td>";
-	print "<td style = 'width:20px'><b><a href='../finans/kassekladde.php?sort=amount".$lnktxt."'>Bel&oslash;b</a></b></td>";
+	print "<td><b><a href='../finans/kassekladde.php?sort=konto_nr".$lnktxt."'>".findtekst('43|Kontonr.', $sprog_id)."</a></b></td>";
+	print "<td><b><a href='../finans/kassekladde.php?sort=firmanavn".$lnktxt."'>".findtekst('138|Navn', $sprog_id)."</a></b></td>";
+	print "<td><b><a href='../finans/kassekladde.php?sort=faktnr".$lnktxt."'>".findtekst('828|Fakturanr.', $sprog_id)."</a></b></td>";
+	print "<td><b><a href='../finans/kassekladde.php?sort=transdate".$lnktxt."'>".findtekst('438|Dato', $sprog_id)."</a></b></td>";
+	print "<td style = 'width:20px'><b><a href='../finans/kassekladde.php?sort=amount".$lnktxt."'>".findtekst('934|Beløb', $sprog_id)."</a></b></td>";
 	print " </tr>\n";
 	print "<tr>";
 	print "<td></td><td>$beskrivelse</td>";
@@ -278,11 +291,11 @@ function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$bes
 		print "<input type = 'hidden' name = 'kladde_id' value = '$kladde_id'>\n";
 		print "<tr><td colspan = '4'></td><td style='text-align:right'><b>". dkdecimal($oppSum). "</b></td>";
 		print "<td style='text-align:center'>(". dkdecimal($checkedSum,2). ")</td><br>";
-		print "<tr><td colspan = '4'><b>Difference</b></td><td style='text-align:right'><b>". dkdecimal($diff). "</b></td><br>";
+		print "<tr><td colspan = '4'><b>".findtekst('3095|Difference', $sprog_id)."</b></td><td style='text-align:right'><b>". dkdecimal($diff). "</b></td><br>";
 
 		print "<td style='text-align:center'>";
-		if ($diff) print "<input type = 'submit' name = 'calculateOpenPost' value = 'Beregn'>";
-		else       print "<input type = 'submit' name = 'updateInvoiceField' value = 'Indsæt'>";
+		if ($diff) print "<input type = 'submit' name = 'calculateOpenPost' value = '".findtekst('3089|Beregn', $sprog_id)."'>";
+		else       print "<input type = 'submit' name = 'updateInvoiceField' value = '".findtekst('1415|Indsæt', $sprog_id)."'>";
 		print "</td></tr>\n";
 	}
 	print "</tbody></table></td></tr></tbody></table>";

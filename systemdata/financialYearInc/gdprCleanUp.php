@@ -50,16 +50,12 @@ print "</FORM>";
 /*
 if ($deleteAccount[$i]) {
 	$qtxt = "delete from adresser where id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from historik where konto_id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from ansatte where konto_id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from jobkort where konto_id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 */

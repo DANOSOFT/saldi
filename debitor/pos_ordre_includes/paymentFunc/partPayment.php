@@ -40,7 +40,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 	global $regnaar, $retur;
 	global $tracelog;
 
-	#cho __line__." $fokus . $afslut . $betaling . $delbetaling . $modtaget . $sum<br>";
 	include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
 	voucherPay($id, $betaling, $modtaget);
 	if (!isset($_COOKIE['giftcard']) || $_COOKIE['giftcard'] == true) {
@@ -50,7 +49,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
 		exit(0);
 	}
-	#cho __line__." $fokus . $afslut . $betaling . $delbetaling . $modtaget . $sum<br>";
 
 	$tmp = array();
 	$betalingskort = array();
@@ -197,6 +195,16 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
+					} else if ($r[0] == "Lane3000") {
+						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling";
+						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
+						exit;
+					} else if ($r[0] == "Move3500") {
+						$tmp="payments/move3500.php?amount=$belob&id=$id&indbetaling=$indbetaling";
+						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
+						exit;
 					} else if ("Vibrant:" == substr($r[0], 0, 8)) {
 						$tmp="payments/vibrant.php?amount=$belob&id=$id&indbetaling=$indbetaling";
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
@@ -217,9 +225,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 				exit;
 			}
 	} elseif ($kortnavn) { #20140129
-#cho "$kortnavn Amount $amount<br>\n";
-#xit;
-#cho "select box3,box4,box5,box6,box11 from grupper where art = 'POS' and kodenr='2'<br>\n";
 		$r = db_fetch_array(db_select("select box3,box4,box5,box6,box11 from grupper where art = 'POS' and kodenr='2' order by fiscal_year desc limit 1 ", __FILE__ . " linje " . __LINE__));
 		$x = $kasse - 1;
 		$tmp = explode(chr(9), $r['box3']);

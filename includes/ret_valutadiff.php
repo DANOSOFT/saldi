@@ -111,13 +111,11 @@ if (substr($art,0,1)=='D') $art='DG';
 else $art='KG';
 $qtxt="select box2 from grupper where art='$art' and kodenr='$gruppe'";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#cho "$samlekonto=$r[box2]<br>";
 $samlekonto=$r['box2'];
 $dkkdiff=afrund($dkkdiff,2);
 $qtxt="select sum(debet) as debet, sum(kredit) as kredit from transaktioner where kontonr='$samlekonto'";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $tmp=$r['debet']-$r['kredit'];
-#cho "saldo $tmp<br>";
 	if ($godkend) {
 	transaktion('begin');
 		if ($dkkdiff >= 0.01) {
@@ -139,7 +137,6 @@ $tmp=$r['debet']-$r['kredit'];
 	$qtxt="insert into openpost (konto_id,konto_nr,amount,beskrivelse,udlignet,transdate,kladde_id,refnr,valuta,valutakurs,udlign_id,udlign_date) ";
 	$qtxt.="values ";
 	$qtxt.="('$konto_id','$kontonr','$dkkdiff','$beskrivelse','1','$bfdate','0','0','-','0','0','$bfdate')";
-#cho "$qtxt<br>";
 #xit;
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #exit;

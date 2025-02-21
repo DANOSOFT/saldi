@@ -12,13 +12,16 @@ function varegrp_doughnut($startDate, $endDate) {
       border-radius: 5px;
       box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
       padding: 1.4em 2em;
+      height: 350px;
     ">
       <h4 style="margin: 0; color: #999">
-        Salg baseret på varegrupper i det gældene regnskabsår
+        Omsætning baseret på varegrupper i det gældene regnskabsår
       </h4>
+      <div style="padding-top: 22.4px"></div>
       <div style="flex: 1; width: 100%">
-        <canvas id="varegrp_doughnut"></canvas>
+        <canvas id="varegrp_doughnut" height="260px"></canvas>
       </div>
+
     </div>
     <?php
 
@@ -33,6 +36,7 @@ function varegrp_doughnut($startDate, $endDate) {
     WHERE O.fakturadate >= '$startDate'
     AND O.fakturadate <= '$endDate'
     AND O.status = 4
+    AND O.art NOT IN ('KK', 'KO')
     GROUP BY V.gruppe, G.beskrivelse";
     $result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -69,7 +73,7 @@ function varegrp_doughnut($startDate, $endDate) {
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              position: 'top',
+					    display: false // Hides the legend
             },
           }
         },

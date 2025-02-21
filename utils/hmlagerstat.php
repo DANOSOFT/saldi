@@ -83,7 +83,6 @@ for ($x=0;$x<count($id);$x++) {
 		}
 		if(!$fundet) {
 			fwrite ($csv, "\"0\";\"\";");
-			#cho "\"0\";\"\";";
 		}
 	}
 	fwrite ($csv, "\"".dkdecimal($ialt[$x])."\";\"".dkdecimal($kostpris[$x])."\";\"".dkdecimal($salgspris[$x])."\"\n\r");

@@ -103,7 +103,6 @@ if (isset($_POST['submit'])) {
 		print "<BODY onLoad=\"javascript:alert('$alert $difkto $alert1')\">";
 		$difkto='';$kodenr=-1;
 	}	
-#cho "$difkto && is_numeric($kodenr) && $dato && $kurs && $dato!=\"-\" && $kurs!=\"-\"<br>";
 	if ($difkto && is_numeric($kodenr) && $dato && $kurs && $dato!="-" && $kurs!="-") {
 		if ($id) {
 			$r = db_fetch_array(db_select("select kurs from valuta where id = '$id'",__FILE__ . " linje " . __LINE__));
@@ -115,12 +114,9 @@ if (isset($_POST['submit'])) {
 			$r = db_fetch_array(db_select("select kurs from valuta where gruppe = '$kodenr' order by valdate desc limit 1",__FILE__ . " linje " . __LINE__));
 			$gl_kurs=$r['kurs'];
 		}
-#cho  "$ny_kurs && $gl_kurs<br>";	
-#cho "RA $regnaar<br>";
 		$x=0;
 		$konto_id = array();
 		$qtxt="select id,kontonr,saldo from kontoplan where valuta = '$kodenr' and regnskabsaar='$regnaar'";
-#cho "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
 			$konto_id[$x]=$r['id'];
@@ -148,23 +144,17 @@ if (isset($_POST['submit'])) {
 				$ny_saldo=$valutasaldo*$ny_kurs/100;
 #				$ny_value=$saldo[$x]*$kurs/100;
 				$diff=afrund($ny_saldo-$saldo[$x],3);
-#cho $saldo[$x]*$kurs/100."<br>";
-#cho $saldo[$x]*$gl_kurs/100."<br>";
-#cho "$diff=afrund($saldo[$x]*$kurs-$saldo[$x]*$gl_kurs,3)<br>";
 #				$diff=afrund($saldo[$x]*$kurs/100-$saldo[$x]*$gl_kurs/100,3);
 				if ($diff>0) $debkred='kredit';
 				elseif($diff<0)  $debkred='debet';
 				$diff=abs($diff);
 				$qtxt="insert into transaktioner (kontonr,bilag,transdate,logdate,logtime,beskrivelse,$debkred,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)values('$difkto','0','$ny_valdate','".date("Y-m-d")."','".date("H:i")."','$posttekst','$diff','0','0','0','0','','-1','100','0','0')";
-#cho "$qtxt<br>";
 				if ($diff) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				($debkred=='debet')?$debkred='kredit':$debkred='debet';
 				$qtxt="insert into transaktioner (kontonr,bilag,transdate,logdate,logtime,beskrivelse,$debkred,faktura,kladde_id,afd,ansat,projekt,valuta,valutakurs,ordre_id,moms)
 				values
 				('$kontonr[$x]','0','$ny_valdate','".date("Y-m-d")."','".date("H:i")."','$posttekst','$diff','0','0','0','0','','-1','100','0','0')";
-#cho "$qtxt<br>";
 				if ($diff) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#cho "update kontoplan set valutakurs='$ny_kurs' where kontonr='$kontonr[$x]' and regnskabsaar='$regnaar'<br>";
 				db_modify("update kontoplan set valutakurs='$ny_kurs' where kontonr='$kontonr[$x]' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
 				$y=0;	
 				$q=db_select("select kodenr from grupper where (art = 'DG' or art = 'KG') and box2='$kontonr[$x]'",__FILE__ . " linje " . __LINE__);
@@ -182,7 +172,6 @@ if (isset($_POST['submit'])) {
 					}
 					for ($z=0;$z<count($adr_konto_id);$z++){
 						$dkksum[$z]=0;
-#cho "select amount,valutakurs from openpost where udlignet='0' and konto_id='$adr_konto_id[$z]'<br>";
 						$q=db_select("select amount,valutakurs from openpost where udlignet='0' and konto_id='$adr_konto_id[$z]'",__FILE__ . " linje " . __LINE__);
 						while($r=db_fetch_array($q)){
 							$dkksum[$z]+=$r['amount']*100/$r['valutakurs'];		
@@ -192,7 +181,6 @@ if (isset($_POST['submit'])) {
 						$diff=afrund($ny_saldo-$dkksum[$z],3);
 						if ($diff) {
 							$qtxt="insert into openpost (konto_id, konto_nr, amount, beskrivelse, udlignet, transdate, kladde_id, refnr,valuta,valutakurs,udlign_id,udlign_date) values ('$adr_konto_id[$z]', '$adr_kontonr[$z]', '$diff', '$posttekst', '1', '".date("Y-m-d")."', '0', '0','-','0','0','".date("Y-m-d")."')";
-#cho "$qtxt<br>";
 							db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						}
 					}

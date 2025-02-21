@@ -9,6 +9,9 @@ function customer_graph() {
 	border-radius: 5px;
 	box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
 	padding: 1.4em 2em;
+    display: flex;
+    flex-direction: column;
+    height: 350px;
 ">
 	<h4 style="margin: 0; color: #999">Antal kunder per tidspunkt gennesnit de sidste 30 dage</h4>
 	<div style="flex: 1; width: 100%">

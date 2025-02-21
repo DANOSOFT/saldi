@@ -78,14 +78,12 @@ if (!function_exists('fuld_stykliste')) {
 	for ($a=1; $a<=$b; $a++) {
 		if ($udvalg=='grundvare') $qtxt = "select * from varer where id='$v_id[$a]' and samlevare!='on'"; 
 		else $qtxt = "select * from varer where id='$v_id[$a]'"; 
-#cho "$qtxt<br>";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__); 
 		$row = db_fetch_array($query);
 		$varenr[$a]=htmlentities(stripslashes($row['varenr']),ENT_COMPAT,$charset);
 		$beskrivelse[$a]=htmlentities(stripslashes($row['beskrivelse']),ENT_COMPAT,$charset);
 		if ($row[samlevare]!='on') {
 			$sum=$row['kostpris']*$v_antal[$a];
-#cho "sum $sum V $v_antal[$a]<br>";
 			$ialt=$ialt+$sum;
 			$x++;
 			$vare_id[$x]=$row['id'];
@@ -103,7 +101,6 @@ if (!function_exists('fuld_stykliste')) {
 		print "<tbody></table>";
 	}
 	$ialt=$ialt*1;
-#cho "update varer set kostpris=$ialt where id='$id'<br>";
 	db_modify("update varer set kostpris=$ialt where id='$id'",__FILE__ . " linje " . __LINE__);
 	if (!$udvalg) return $ialt;
 	else return array($vare_id, $antal, $x);

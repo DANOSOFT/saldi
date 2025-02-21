@@ -29,7 +29,6 @@ while ($r=db_fetch_array ($q)) {
 	if (substr($r['box1'],0,1)=='K' && strlen($r['box1'])=='2') {
 		$cat_id[$x]=$r['id'];
 		$cat[$x]=$r['box1'];
-#cho "$cat_id[$x] $cat[$x]<br>"; 
 		$x++;
 	}
 }
@@ -104,7 +103,6 @@ if (count($koekkennr)) {
 	$url="http://$kpr/saldiprint.php?printfil=&url=$url&bruger_id=$bruger_id&bon=$bon&bonantal=$bonantal&id=$id&gem=0";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$url\">\n";
 } else print  "<body onload=\"javascript:window.close();\">";
-#cho $url; 
 exit;
 ?>
 

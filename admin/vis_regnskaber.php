@@ -22,6 +22,7 @@ $s_id=session_id();
 // ----------------------------------------------------------------------
 // 20210328 PHR Some cleanup.
 // 20210916 LOE Translated some texts
+// 20250201 Add hostname to psql
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -171,7 +172,7 @@ if ($beregn) {
 	$fp=fopen("../temp/$sqdb/tmp.sh","w");
 	fwrite($fp,"#!/bin/sh\n");
 	fwrite($fp,"export PGPASSWORD='$sqpass'\n");
-	fwrite($fp,"psql --username=$squser -l > ../temp/dbliste.txt\n");
+	fwrite($fp,"psql --host=$sqhost --username=$squser -l > ../temp/dbliste.txt\n");
 	fclose($fp);
 	system("/bin/sh '../temp/$sqdb/tmp.sh'");
 	unlink ("../temp/$sqdb/tmp.sh");
@@ -250,7 +251,6 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 		} else {
 #				if ($admin || in_array($r['id'],$adgang_til)) {
 #					if ($beregn) echo "update regnskab set posteret='$posteringer[$x]' sidst='$sidst[$x]' where id='$id[$x]'<br>";
-#cho "update regnskab set posteret='$posteringer[$x]',sidst='$sidst[$x]' where id='$id[$x]'<br>";
 					if ($beregn) {
 						$qtxt = "update regnskab set posteret='$posteringer[$x]',sidst='$sidst[$x]' where id='$id[$x]'";
 						echo "$qtxt<br>";

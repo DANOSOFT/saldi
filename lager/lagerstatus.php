@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/lagerstatus.php--- lap 4.0.7 --- 2022-11-24 ----
+// -----------------lager/lagerstatus.php--- lap 4.1.1 --- 2024-09-10 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2024 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20140128 Ved søgning på modtaget / leveret tjekkes ikke for dato hvis angivet dato = dags dato da det gav forkert lagerantal for 
 //          leverancer med leveringsdato > dd. Søg 20140128   
@@ -32,6 +32,8 @@
 // 20210728 LOE Translated some texts here
 // 20221010 PHR Zero stock was omitted in CSV
 // 20221124 PHR	Added select between levdate (deelvery date) and fakturadate (invoicedate). 
+// 20240910 PHR 'lagervalg' was omitted in CSV
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
  
 @session_start();
 $s_id=session_id();
@@ -46,6 +48,7 @@ $dateType = 'levdate';
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 # if ($popup) $returside="../includes/luk.php";
 # else $returside="rapport.php";
@@ -152,19 +155,37 @@ while ($r2=db_fetch_array($q2)){
 	}
 }
 $vareantal=$x;
+global $menu;
 
-print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
-print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-print "<tr>";
-print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210708
-print "<td width=80% $top_bund align=center>".ucfirst(findtekst(992, $sprog_id))."</td>";
-print "<td width=10% $top_bund><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock' "; 
-print "title=\"".findtekst(1655, $sprog_id)."\">CSV</a></td>";
-print "</tr></td></tbody></table>\n";
+if ($menu=='S') {
+	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
+	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
+	print "<tr>";
+
+	print "<td width='10%'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst(992, $sprog_id))."</td>";
+
+	print "<td width='10%'><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&lagervalg=$lagervalg' title=\"".findtekst(1655, $sprog_id)."\">
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+
+	print "</tr></td></tbody></table>\n";
+} else {
+	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
+	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
+	print "<tr>";
+	print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210708
+	print "<td width=80% $top_bund align=center>".ucfirst(findtekst(992, $sprog_id))."</td>";
+	print "<td width=10% $top_bund><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&lagervalg=$lagervalg' ";
+	print "title=\"".findtekst(1655, $sprog_id)."\">CSV</a></td>";
+	print "</tr></td></tbody></table>\n";
+}
+
 print "<form action=lagerstatus.php method=post>";
 print "<tr><td colspan=\"7\" align=\"center\">";
 if (count($lager)) {
-	print " Lager: <select class=\"inputbox\" name=\"lagervalg\">";
+	print findtekst('608|Lager', $sprog_id).": <select class=\"inputbox\" name=\"lagervalg\">";
 	for ($x=0;$x<=count($lager);$x++){
 		if ($lagervalg==$lager[$x]) print "<option value='$lager[$x]'>$lagernavn[$x]</option>";
 	}
@@ -173,7 +194,7 @@ if (count($lager)) {
 	}
 	print "</select>";
 }
-print "&nbsp;Varegruppe: <select class=\"inputbox\" name=\"varegruppe\">";
+print "&nbsp;".findtekst('429|Varegruppe', $sprog_id).": <select class=\"inputbox\" name=\"varegruppe\">";
 if ($varegruppe) print "<option>$varegruppe</option>";
 if ($varegruppe!="0:Alle") print "<option>0:Alle</option>";
 $q = db_select("select * from grupper where art = 'VG' order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -181,8 +202,8 @@ while ($row = db_fetch_array($q)){
 	if ($varegruppe!=$row['kodenr'].":".$row['beskrivelse']) {print "<option>$row[kodenr]:$row[beskrivelse]</option>";}
 }
 print "</select>";
-print "&nbsp;".findtekst(438, $sprog_id).":<input class=\"inputbox\" type=\"text\" name=\"dato\" value=\"$dato\" size=\"10\">";
-print "&nbsp;".findtekst(2094, $sprog_id).":<select class=\"inputbox\" type=\"text\" name=\"dateType\">";
+print "&nbsp;".findtekst('438|Dato', $sprog_id).":<input class=\"inputbox\" type=\"text\" name=\"dato\" value=\"$dato\" size=\"10\">";
+print "&nbsp;".findtekst('2094|Dato', $sprog_id).":<select class=\"inputbox\" type=\"text\" name=\"dateType\">";
 if ($dateType == 'levdate') {
 	print "<option value='levdate'>Leveringsdato</option>";
 	print "<option value='fakturadate'>Fakturadato</option>";
@@ -192,7 +213,7 @@ if ($dateType == 'levdate') {
 }
 print "</select>";
 ($zStock)?$zStock="checked='checked'":$zStock=NULL;
-print "&nbsp;<span title='".findtekst(1656, $sprog_id)."'>0 lager:<input type=\"checkbox\" name=\"zStock\" $zStock></span></td>";
+print "&nbsp;<span title='".findtekst(1656, $sprog_id)."'>0 ".strtolower(findtekst('608|Lager', $sprog_id)).":<input type=\"checkbox\" name=\"zStock\" $zStock></span></td>";
 print "<td  colspan=6 align=right><input type=submit value=OK></form></td></tr>";
 print "<tr><td colspan=9><hr></td></tr>";
 print "<tr><td width=8%>".findtekst(917, $sprog_id).".</td><td width=5%>".findtekst(945, $sprog_id)."</td><td width=48%>".findtekst(914, $sprog_id)."</td>
@@ -206,7 +227,7 @@ print "<tr><td width=8%>".findtekst(917, $sprog_id).".</td><td width=5%>".findte
 if ($csv) {
 	$fp=fopen("../temp/$db/lagerstatus.csv","w");
 	$linje="Varenr".";"."Enhed".";"."Beskrivelse".";"."Købt".";"."Solgt".";"."Antal".";"."Købspris".";"."Kostpris".";"."Salgspris";
-	$linje=utf8_decode($linje);
+	$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	fwrite($fp,"$linje\n");
 }
  
@@ -293,20 +314,14 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		($dateType == 'levdate')?$dt = 'kobsdate':$dt = $dateType;
 		if ($date!=$dd) $qtxt.=" and $dt <= '$date'";
 		$qtxt.=" order by kobsdate desc";
-#if ($vare_id[$x]=='454') #cho __line__." $qtxt<br>";		
 		$q1=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while($r1=db_fetch_array($q1)) {
 			if ($antal+$r1['antal'] <= $batch_t_antal[$x]) {
-#if ($vare_id[$x]=='454') #cho __line__." $antal+$r1[antal] <= $batch_t_antal[$x]<br>";
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris<br>";
 				$antal+=$r1['antal'];
 				$pris+=$r1['antal']*$r1['pris'];
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris+=$r1[antal]*$r1[pris]<br>";
 			} elseif ($antal < $batch_t_antal[$x] && $antal+$r1['antal'] > $batch_t_antal[$x]) {
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris<br>";
 				$pris+=$r1['pris']*($batch_t_antal[$x]-$antal);
 				$antal=$batch_t_antal[$x];
-#if ($vare_id[$x]=='454') #cho __line__." Pris=$pris<br>";
 			}
 		}
 		($antal)?$batch_pris[$x]=$pris:$batch_pris[$x]=0;
@@ -338,12 +353,10 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		print	"<td>$enhed[$x]<br></td><td>$beskrivelse[$x]<br></td>
 		<td align=right>".str_replace(".",",",$batch_k_antal[$x]*1)."<br></td><td align=right>".str_replace(".",",",$batch_s_antal[$x]*1)."<br></td>";
 		if ($date==$dd && afrund($batch_t_antal[$x],1)!=afrund($beholdning[$x],1) && !$lagervalg) {
-#cho __line__." $vare_id[$x] | $varenr[$x] | $beholdning[$x]<br>";
 			if ($ret_behold==2 || ($opdater && $vare_id[$x]==$opdater)) {
 				if (count($lager) >= 1) {
 					$ny_beholdning[$x]=0;
 					for ($y=1;$y<count($lager);$y++) {
-#cho "select sum(antal) as antal from batch_kob where vare_id='$vare_id[$x]' and lager='$lager[$y]'<br>";
 						$r2=db_fetch_array(db_select("select sum(antal) as antal from batch_kob where vare_id='$vare_id[$x]' and lager='$lager[$y]'",__FILE__ . " linje " . __LINE__));
 						$lagerbeh[$y]=$r2['antal'];
 						$r2=db_fetch_array(db_select("select sum(antal) as antal from batch_salg where vare_id='$vare_id[$x]' and lager='$lager[$y]'",__FILE__ . " linje " . __LINE__));
@@ -385,7 +398,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 		<td align=right>".dkdecimal($salgspris[$x]*$batch_t_antal[$x])."<br></td></tr>";
 		if ($csv) {
 			$linje="$varenr[$x]".";"."$enhed[$x]".";"."$beskrivelse[$x]".";"."$batch_k_antal[$x]".";"."$batch_s_antal[$x]".";".$batch_t_antal[$x].";".dkdecimal($batch_pris[$x]).";".dkdecimal($kostpris[$x]*$batch_t_antal[$x]).";".dkdecimal($salgspris[$x]*$batch_t_antal[$x]);
-			$linje=utf8_decode($linje);
+			$linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			fwrite($fp,"$linje\n");
 		}
 		$lagervalue=$lagervalue+$batch_pris[$x];$kostvalue=$kostvalue+$kostpris[$x]*$batch_t_antal[$x]; $salgsvalue=$salgsvalue+($salgspris[$x]*$batch_t_antal[$x]);
@@ -396,7 +409,7 @@ if ($csv){
 	print "<BODY onLoad=\"JavaScript:window.open('../temp/$db/lagerstatus.csv' ,'' ,'$jsvars');\">\n";
 }
 print "<tr><td colspan=9><hr></td></tr>";
-print "<tr><td colspan=2><br></td><td>Samlet lagerv&aelig;rdi pr. $dato<br></td><td align=right><br></td><td align=right><br></td>
+print "<tr><td colspan=2><br></td><td>".findtekst('2235|Samlet lagerværdi pr.', $sprog_id)." $dato<br></td><td align=right><br></td><td align=right><br></td>
 <td align=right><br></td><td align=right>".dkdecimal($lagervalue)."<br></td>
 <td align=right>".dkdecimal($kostvalue)."<br></td>
 <td align=right>".dkdecimal($salgsvalue)."<br></td></tr>";

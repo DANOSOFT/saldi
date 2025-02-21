@@ -271,21 +271,17 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 /*
 $qtxt = "select sum(amount*valutakurs/100) as amount, udlign_id from openpost ";
 $qtxt.= "where valuta = 'DKK' and udlignet = '1' group by udlign_id";
-#cho "$qtxt<br>";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	if (abs($r['amount']) >= 0.01 && $r['udlign_id']) {
-#cho $r['amount']." <br>";
 		$udlignId = $r['udlign_id'];
 		$qtxt = "select konto_id from openpost where udlign_id = '$udlignId'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$kontoId=$r['konto_id'];
 		$qtxt = "select sum(amount*valutakurs/100) as amount from openpost where konto_id = '$kontoId'";
-#cho "$qtxt<br>";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if (abs($r['amount']) >= 0.01) {
 			$qtxt = "update openpost set udlignet = 0, udlign_id = 0 where konto_id = '$kontoId' and udlign_id = '$udlignId'";
-#cho "$qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else {
 			$qtxt = "update openpost set udlignet = 1, udlign_id = '$udlignId' where konto_id = '$kontoId' and udlign_id = '0'";
@@ -300,24 +296,20 @@ while ($r = db_fetch_array($q)) {
 	if ($r['numbers'] == 1) {
 		$udlignId = $r['udlign_id'];
 		$qtxt = "select konto_id from openpost where udlign_id = '$udlignId'";
-#cho "$qtxt<br>";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$kontoId=$r['konto_id'];
 		$qtxt = "select sum(amount*valutakurs/100) as amount from openpost where ";
 		$qtxt.= "udlign_id = '$udlignId' and konto_id = '$kontoId'";
-#cho "$qtxt<br>";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$amount  = $r['amount'];
 		
 		if (abs($amount) > 0.01) {
-#cho "A $amount<br>";
 			$qtxt = "select id from openpost where konto_id = '$kontoId' and amount*valutakurs/100 = '". $amount*-1 ."'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && $id = $r['id']) {
 				$qtxt = "update openpost set udlignet = 1, udlign_id = '$udlignId' where id = '$id'";
 			} else {
 				$qtxt = "update openpost set udlignet = 0, udlign_id = 0 where udlign_id = '$udlignId' and konto_id = '$kontoId'";
 			}
-#cho "$qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}

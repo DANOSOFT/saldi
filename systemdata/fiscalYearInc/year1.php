@@ -82,7 +82,6 @@ function year1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	$kreditsum=0;
 	$qtxt = "select id, kontonr, primo, beskrivelse from kontoplan ";
 	$qtxt.= "where kontotype='S' and regnskabsaar='$kodenr' order by kontonr";
-#cho "$qtxt<br>";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$y++;

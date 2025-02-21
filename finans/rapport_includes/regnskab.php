@@ -74,7 +74,6 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		}
 	}
 
-	#cho "942 $projekt_fra $prj_navn_fra - $projekt_til $prj_navn_til<br>"; 
 
 	if ($rapportart == 'budget') {
 		$budget = 1;
@@ -210,7 +209,6 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		if ($slutdato < 28)
 			break 1;
 	}
-	#cho "1008 $projekt_fra $prj_navn_fra - $projekt_til $prj_navn_til<br>"; 
 
 	$regnstart = $aar_fra . "-" . $startmaaned . "-" . $startdato;
 	$regnslut = $aar_til . "-" . $slutmaaned . "-" . $slutdato;
@@ -597,7 +595,6 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 						$lastYearPeriodSum[$x] += $lastYearPeriod[$y];
 					}
 				}
-				#cho "$kontonr[$x] lYPS $lastYearYearSum[$x] $lastYearPeriodSum[$x]<br>";						
 
 			}
 		}
@@ -637,7 +634,6 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					$tmp = $periodesum[$x];
 					$title = NULL;
 				}
-				#cho $aarsum[$x]."<br>";
 				print "<td align=\"right\" title=\"$title\"><b>" . dkdecimal($tmp, 2) . "</b></td>";
 				fwrite($csv, "\"" . dkdecimal($tmp, 2) . "\";");
 				if ($kontovaluta[$x]) {

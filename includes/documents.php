@@ -93,7 +93,6 @@ print "</tbody></table>";
 print "</td></tr><tr><td width = '20%'>";
 // ---------- Left table start ---------
 print "<table width=\"100%\" height=\"98%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-#cho "$openPool || $poolFile<br>";
 if ($openPool) {
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);

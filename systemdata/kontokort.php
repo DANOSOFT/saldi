@@ -57,6 +57,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
+include("../includes/topline_settings.php");
 
 $genvej = $kontotype = NULL; # ellers hentes typen fra connect.php  
 /*
@@ -283,7 +284,6 @@ if ($id > 0) {
 		if (!$valutakurs)
 			$valutakurs = 100;
 		if ($valutakode) {
-			#cho "select box1 from grupper where art='VK' and kodenr = '$valutakode'<br>";
 			$r = db_fetch_array(db_select("select box1 from grupper where art='VK' and kodenr = '$valutakode'", __FILE__ . " linje " . __LINE__));
 			$valuta = $r['box1'];
 		} else
@@ -349,6 +349,31 @@ if ($menu == 'T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 	print "<center><table class='dataTableSmall' border='0' cellspacing='1' align='center' style='width:700px;'>";
+} elseif ($menu == 'S') {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"center\"  height=1% valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	print "<tr><td width=\"10%\"><a href=kontoplan.php accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+
+	print "<td width=\"80%\" align='center' style='$topStyle'> ". findtekst(443, $sprog_id)."</td>";
+
+	print "<td width=\"10%\"><a href=kontokort.php accesskey=N>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39, $sprog_id)."</button></a><br></td></tr>";
+
+	if ($previousPage)
+		print "<tr><td colspan=2><a href='kontokort.php?id=$previousPage'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
+	else
+		print "<tr><td colspan=2></td>";
+	if ($nextPage)
+		print "<td align=\"right\"><a href='kontokort.php?id=$nextPage'><img src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
+	else
+		print "<td></td></tr>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<td align = center valign = center height=99%>";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\"  height=1% valign=\"top\">";
@@ -535,12 +560,12 @@ print "</tbody>";
 print "</table>";
 print "</td></tr>";
 print "<tr><td align = 'center' valign = 'bottom'>";
-if ($menu == 'T') {
+if ($menu == 'T' || $menu == 'S') {
 
 } else {
-	print "		<table width='100%' align='center' border='1' cellspacing='0' cellpadding='0'><tbody>";
-	print "			<td width='100%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></td>";
-	print "		</tbody></table>";
+	print "<table width='100%' align='center' border='1' cellspacing='0' cellpadding='0'><tbody>";
+	print "<td width='100%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></td>";
+	print "</tbody></table>";
 }
 print "</td></tr>";
 print "</tbody></table>";

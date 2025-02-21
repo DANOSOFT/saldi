@@ -111,6 +111,7 @@
 // 20240416 LOE Converted some strings to int before maths operation and also Initialized $bynavn = null 
 // 20240726 PHR function findtekst now accepts textstring as first argument
 // 20240815 PHR function findtekst moved to stdFunc/findTxt.php
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -424,7 +425,7 @@ if (!function_exists('bynavn')) {
 		if ($fp) {
 			while ($linje = trim(fgets($fp))) {
 				if ($db_encode == "UTF8")
-					$linje = utf8_encode($linje);
+					$linje = mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				list($a, $b) = explode(chr(9), $linje);
 				if ($a == $postnr) {
 					$bynavn = str_replace('"', '', $b);
@@ -1481,7 +1482,6 @@ if (!function_exists('lagerreguler')) {
 			}
 		}
     $qtxt="select id from styklister where vare_id='$vare_id' limit 1";
-#cho "$db $qtxt<br>";
 #		if (db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 #			$diff = $ny_beholdning - $existingStock;
 #			include_once('productCardIncludes/updateParentStock.php');
@@ -1493,7 +1493,6 @@ echo "sync_shop_vare($vare_id, $variant_id, $lager)";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$beholdning = $r['beholdning'] * 1;
 		$qtxt = "update varer set beholdning='$beholdning' where id='$vare_id'";
-#cho "$db $qtxt<br>";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#
 	}
@@ -1609,39 +1608,39 @@ if (!function_exists('find_beholdning')) {
 if (!function_exists('hent_shop_ordrer')) {
 	function hent_shop_ordrer($shop_ordre_id, $from_date)
 	{
-		/**
-		 * Fetches new orders from the shop API and updates the order information.
-		 * This function checks the time of the last API request and triggers a new request 
-		 * if it's been more than 5 minutes since the last call or if a specific order ID is provided.
-		 * 
-		 * @param int $shop_ordre_id - The specific order ID to fetch (optional). If provided, only this order will be fetched.
-		 * @param string $from_date - The starting date from which to fetch orders (optional).
-		 * 
-		 * @return void - This function does not return a value; it triggers an external API request.
-		 */
-
-		global $db;
-		$qtxt = "select box4 from grupper where art='API'";
-		($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $api_fil = trim($r['box4']) : $api_fil = 0;
-		if ($api_fil) {
-			if (file_exists("../temp/$db/shoptidspkt.txt")) {
-				$tidspkt = trim(file_get_contents("../temp/$db/shoptidspkt.txt"));
-			} else
-				$tidspkt = 0;
-			if ($tidspkt < date("U") - 300 || $shop_ordre_id) {
-				file_put_contents("../temp/$db/shoptidspkt.txt", date("U"));
-				#			$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-#cho 	"/usr/bin/wget --spider --no-check-certificate --header='$header' $api_fil?put_new_orders=1 \n<br>";
-				$api_txt = "$api_fil?put_new_orders=1";
-				if ($shop_ordre_id)
-					$api_txt .= "&ordre_id=$shop_ordre_id";
-				if ($from_date)
-					$api_txt .= "&from_date=$from_date";
-				exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-			}
+	  global $db;
+	  $qtxt = "select box4, box5 from grupper where art='API'";
+	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	  $api_fil = isset($r['box4']) ? trim($r['box4']) : 0;
+	  if ($api_fil) {
+		file_put_contents("../temp/$db/ny_shop.txt", $r["box5"]);
+		if (file_exists("../temp/$db/shoptidspkt.txt")) {
+		  $tidspkt = trim(file_get_contents("../temp/$db/shoptidspkt.txt"));
+		} else
+		  $tidspkt = 0;
+		if ($tidspkt < date("U") - 300 || $shop_ordre_id) {
+		  file_put_contents("../temp/$db/shoptidspkt.txt", date("U"));
+		  #      $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+		  $api_txt = "$api_fil?put_new_orders=1";
+		  if ($shop_ordre_id)
+			$api_txt .= "&ordre_id=$shop_ordre_id";
+		  if ($from_date)
+			$api_txt .= "&from_date=$from_date";
+		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		  
+		  if($r["box5"]){
+			$api_txt = "$r[box5]?put_new_orders=1";
+		  if ($shop_ordre_id)
+			$api_txt .= "&ordre_id=$shop_ordre_id";
+		  if ($from_date)
+			$api_txt .= "&from_date=$from_date";
+		  exec("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		  }
 		}
+	  }
 	}
-} #endfunc hent_shop_ordrer()
+  } #endfunc hent_shop_ordrer()
+  
 
 if (!function_exists('alert')) {
 	function alert($msg)
@@ -1658,137 +1657,46 @@ if (!function_exists('alert')) {
 		echo "<script type='text/javascript'>alert('$msg');</script>";
 	}
 }
-if (!function_exists('sync_shop_vare')) {
-	function sync_shop_vare($vare_id, $variant_id, $lager) {
-		/**
-		 * Synchronizes product data (stock, price, etc.) with an external shop system.
-		 * This function updates stock levels, prices, and related information for a given product 
-		 * and its variants in an external shop system through an API.
-		 * It handles both individual product synchronization and variant synchronization.
-		 * 
-		 * @param int $vare_id - The ID of the main product (vare) to synchronize.
-		 * @param int $variant_id - The ID of the product variant to synchronize (optional).
-		 * @param string $lager - The stock number (lager) to check the availability in.
-		 * 
-		 * @return string - Returns 'OK' on successful synchronization or error messages 
-		 *                  like 'no api' or 'no stock' if an issue is encountered.
-		 */
 
-		global $db;
-		$costPrice = 0;
-		$log = fopen("../temp/$db/rest_api.log", "a");
-		$qtxt = "select box4 from grupper where art='API'";
-		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
-		if (!$api_fil) {
-			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
-			fclose($log);
-			return ('no api');
+if(!function_exists("sync_shop_price")){
+	function sync_shop_price($vare_id){
+	  global $bruger_id,$db;
+	  $costPrice = 0;
+	  $log = fopen("../temp/$db/rest_api.log", "a");
+	  $qtxt = "select box4, box5 from grupper where art='API'";
+	  fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
+	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	  $api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
+	  $api_fil2 = trim($r["box5"]);
+	  if (!$api_fil) {
+		fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
+		fclose($log);
+		return ('no api');
+	  }
+	  $qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
+	  if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$salesPrice = $r['salgspris'];
+		$discountType = $r['m_type'];
+		$discount = $r['m_rabat'];
+		$itemNo = $r['varenr'];
+		$costPrice = $r['kostpris'];
+		$retailPrice = $r["retail_price"];
+		$webFragt = $r["colli_webfragt"];
+		$stregkode = $r["stregkode"];
+		$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+		fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+		shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+		if($api_fil2){
+		  $txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+		  fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+		  shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 		}
-		$qtxt = "select delvare,gruppe from varer where id='$vare_id'"; #20220110
-		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$itemGroup = (int) $r['gruppe'];
-		$partOfItem = $r['delvare'];
-		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";  	
-		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG'";
-		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if (!$r['box8']) {
-			fwrite($log, __FILE__ . " " . __LINE__ . " no stock\n");
-			fclose($log);
-			return ('no stock');
-		}
-		$header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-		if ($variant_id) {
-			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$shop_id = $r['shop_variant'];
-			$qtxt = "select beholdning from lagerstatus where variant_id='$variant_id'";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$variant_beholdning = $r['beholdning']; #-$antal;
-			if (!$shop_id) {
-				$qtxt = "select variant_stregkode from variant_varer where id='$variant_id'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$shop_id = str_replace("EAN", "", $r['variant_stregkode']);
-			}
-			if ($vare_id) {
-				$qtxt = "select kostpris from varer where id='$vare_id'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$costPrice = $r['kostpris'];
-			}
-			$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil?update_stock=$shop_id";
-			$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-			fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-			exec("nohup $txt > /dev/null 2>&1 &\n");
-		} else {
-			$qtxt = "select varer.varenr, varer.kostpris, lagerstatus.beholdning as stock from lagerstatus,varer ";
-			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$stock = $r['stock'];
-				$itemNo = $r['varenr'];
-				$costPrice = $r['kostpris'];
-			} #$stock=$itemNo=NULL; #20210225
-			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$totalStock = $r['total_stock'];
-			}
-			$qtxt = "select shop_id from shop_varer where saldi_id='$vare_id'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-				$shop_id = $r['shop_id'];
-			elseif (is_integer($itemNo))
-				$shop_id = $r['itemNo'];
-			else
-				$shop_id = 0;
-			if (($shop_id || $itemNo) && is_numeric($stock)) {
-				$rand = rand();
-				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-				$txt .= "&stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$itemNo") . "&rand=$rand";
-				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
-				if ($partOfItem) {
-					$x = 0;
-					$partOf = array();
-					$qtxt = "select * from styklister where vare_id = '$vare_id'";
-					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-					while ($r = db_fetch_array($q)) {
-						$partOf[$x] = $r['indgaar_i'];
-						$x++;
-					}
-					$y = $x;
-					for ($x = 0; $x < count($partOf); $x++) { #20220603
-						$qtxt = "select * from styklister where vare_id = '$partOf[$x]'";
-						$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-						while ($r = db_fetch_array($q)) {
-							$PartOf[$y] = $r['indgaar_i'];
-							$y++;
-						}
-					}
-					for ($x = 0; $x < count($partOf); $x++) {
-						$shop_id = 0;
-						$qtxt = "select varenr from varer where id = $partOf[$x]";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-							$itemNo = $r['varenr'];
-						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
-						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-							$shop_id = $r['shop_id'];
-						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
-						$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil?update_stock=$shop_id";
-						$txt .= "&stock=$stock&totalStock=$totalStock&stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$itemNo");
-						$txt .= "&file=" . __FILE__ . "&line=" . __LINE__ . "'";
-						fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
-						exec("/usr/bin/nohup $txt > /dev/null 2>&1 &\n");
-					}
-				}
-			}
-		}
-		return ('OK');
+	  }
 	}
-} #endfunc sync_shop_vare()
+  }
+  
+
+
 if (!function_exists('getAvailable')) {
 	function getAvailable($itemId, $stockNo)
 	{

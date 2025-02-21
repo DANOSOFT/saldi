@@ -1,4 +1,3 @@
-
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
@@ -89,8 +88,8 @@
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240804	PHR - Removed (float) from belob
 // 20240807 PHR	- Minor correction.
+// 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
 
-ini_set('display_errors', 1);
 ob_start(); //Starter output buffering
 
 @session_start();
@@ -240,22 +239,22 @@ if ($_GET) {
 	$kredit[$x] = if_isset($_GET['kredit']);
 	$faktura[$x] = if_isset($_GET['faktura']);
 	$belob[$x] = if_isset($_GET['belob']);
-	$momsfri[$x] = if_isset($_GET['momsfri']);
-	$afd[$x] = if_isset($_GET['afd']);
-	$projekt[$x] = if_isset($_GET['projekt']);
-	$ansat[$x] = if_isset($_GET['ansat']);
-	$valuta[$x] = if_isset($_GET['valuta']);
-	$find = if_isset($_GET['find']);
-	$beskrivelse[$x] = trim($beskrivelse[$x]);
-	$d_type[$x] = trim($d_type[$x]);
-	$debet[$x] = trim($debet[$x]);
-	$k_type[$x] = trim($k_type[$x]);
-	$kredit[$x] = trim($kredit[$x]);
-	$faktura[$x] = trim($faktura[$x]);
-	$belob[$x] = trim($belob[$x]);
+	$momsfri[$x] = if_isset($_GET['momsfri'], '');
+	$afd[$x] = if_isset($_GET['afd'], '');
+	$projekt[$x] = if_isset($_GET['projekt'], '');
+	$ansat[$x] = if_isset($_GET['ansat'], '');
+	$valuta[$x] = if_isset($_GET['valuta'], '');
+	$find = if_isset($_GET['find'], '');
+	$beskrivelse[$x] = trim(if_isset($beskrivelse[$x], ''));
+	$d_type[$x] = trim(if_isset($d_type[$x], ''));
+	$debet[$x] = trim(if_isset($debet[$x], ''));
+	$k_type[$x] = trim(if_isset($k_type[$x], ''));
+	$kredit[$x] = trim(if_isset($kredit[$x], ''));
+	$faktura[$x] = trim(if_isset($faktura[$x], ''));
+	$belob[$x] = trim(if_isset($belob[$x], ''));
 
 	if (!isset($forfaldsdato[$x]))
-		$forfaldsdato[$x] = NULL;
+		$forfaldsdato[$x] = '';
 	if (!isset($betal_id[$x]))
 		$betal_id[$x] = '';
 
@@ -294,7 +293,7 @@ if ($_GET) {
 				$qtxt .= "betal_id='$betal_id[$x]' where lobenr='$x' and kladde_id='$kladde_id'";
 			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kontonr[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+			kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 		}
 		if ($fejl)
 			$submit = 'save';
@@ -315,15 +314,15 @@ if ($_POST) {
 	elseif (isset($_POST['save']) && $_POST['save'])         $submit = 'save';
 	elseif (isset($_POST['simulate']) && $_POST['simulate']) $submit = 'simulate';
 	elseif (isset($_POST['upload']) && $_POST['upload'])     $submit = 'upload';
-	else $submit   = trim(if_isset($_POST['submit']));  
+	else $submit   = trim(if_isset($_POST['submit'], ''));  
 	$tidspkt       = if_isset($_POST['tidspkt']);
 	$kladde_id     = if_isset($_POST['kladde_id']);
 	$ny_dato       = if_isset($_POST['ny_dato']);
 	$vend_fortegn  = if_isset($_POST['vend_fortegn']);
-	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto']));
+	$kontrolkonto  = trim(if_isset($_POST['kontrolkonto'], ''));
 	$bilagsnr      = if_isset($_POST['bilagsnr']);
-	$kladdenote    = db_escape_string(trim(if_isset($_POST['kladdenote'])));
-	$ny_kladdenote = db_escape_string(trim(if_isset($_POST['ny_kladdenote'])));
+	$kladdenote    = db_escape_string(trim(if_isset($_POST['kladdenote'], '')));
+	$ny_kladdenote = db_escape_string(trim(if_isset($_POST['ny_kladdenote'], '')));
 	$antal_ny      = if_isset($_POST['antal_ny']);
 	$antal_ex      = if_isset($_POST['antal_ex']);
 	$fokus         = if_isset($_POST['fokus']);
@@ -355,45 +354,45 @@ if ($_POST) {
 		$belob[$x] = $momsfri[$x] = $afd[$x] = $projekt[$x] = $ansat[$x] = $valuta[$x] = $forfaldsdato[$x] = $betal_id[$x] = NULL;
 
 		$y = "bila" . $x;
-		$bilag[$x] = trim(if_isset($_POST[$y]));
+		$bilag[$x] = trim(if_isset($_POST[$y], ''));
 		if (!$bilag[$x])
 			$bilag[$x] = '0'; # PHR 02.09.06
 		$y = "dato" . $x;
-		$dato[$x] = trim(if_isset($_POST[$y]));
+		$dato[$x] = trim(if_isset($_POST[$y], ''));
 		if (substr($dato[$x], 4, 1) == '-' && substr($dato[$x], 7, 1) == '-') {
 			$dato[$x] = dkdato($dato[$x]);
 		}
 		$y = "besk" . $x;
-		$beskrivelse[$x] = trim(if_isset($_POST[$y])); #20130731
+		$beskrivelse[$x] = trim(if_isset($_POST[$y], '')); #20130731
 		while (strpos($beskrivelse[$x], "  "))
 			$beskrivelse[$x] = str_replace("  ", " ", $beskrivelse[$x]);
 		#		while (strpos($beskrivelse[$x],"''")) $beskrivelse[$x]=str_replace("''","'",$beskrivelse[$x]); #20130731
 		$y = "d_ty" . $x;
-		$d_type[$x] = substr(strtoupper(if_isset($_POST[$y])), 0, 1);
+		$d_type[$x] = substr(strtoupper(if_isset($_POST[$y], '')), 0, 1);
 		$y = "debe" . $x;
-		$debet[$x] = trim(if_isset($_POST[$y]));
+		$debet[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "k_ty" . $x;
-		$k_type[$x] = substr(strtoupper(if_isset($_POST[$y])), 0, 1);
+		$k_type[$x] = substr(strtoupper(if_isset($_POST[$y], '')), 0, 1);
 		$y = "kred" . $x;
-		$kredit[$x] = trim(if_isset($_POST[$y]));
+		$kredit[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "fakt" . $x;
-		$faktura[$x] = trim(if_isset($_POST[$y])); #20130731
+		$faktura[$x] = trim(if_isset($_POST[$y], '')); #20130731
 		$y = "belo" . $x;
 		$belob[$x] = if_isset($_POST[$y]);
 		$y = "dkka" . $x;
 		$dkkamount[$x] = if_isset($_POST[$y]);
 		$y = "afd_" . $x;
-		$afd[$x] = trim(if_isset($_POST[$y]));
+		$afd[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "proj" . $x;
-		$projekt[$x] = trim(if_isset($_POST[$y]));
+		$projekt[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "meda" . $x;
-		$ansat[$x] = trim(if_isset($_POST[$y]));
+		$ansat[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "valu" . $x;
-		$valuta[$x] = strtoupper(if_isset($_POST[$y]));
+		$valuta[$x] = strtoupper(if_isset($_POST[$y], ''));
 		$y = "forf" . $x;
-		$forfaldsdato[$x] = trim(if_isset($_POST[$y]));
+		$forfaldsdato[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "b_id" . $x;
-		$betal_id[$x] = trim(if_isset($_POST[$y]));
+		$betal_id[$x] = trim(if_isset($_POST[$y], ''));
 		$y = "moms" . $x;
 		$momsfri[$x] = if_isset($_POST[$y]);
 		if (is_numeric($bilag[$x])) { #20230302 - you can't subtract 1 from a string
@@ -765,22 +764,22 @@ if ($_POST) {
 			$tidspkt = microtime();
 		}
 		if ($kladde_id) {
-			$bilag[$x] = db_escape_string($bilag[$x]);
-			$dato[$x] = db_escape_string($dato[$x]);
+			$bilag[$x] = db_escape_string(if_isset($bilag[$x], ''));
+			$dato[$x] = db_escape_string(if_isset($dato[$x], ''));
 			#cho __line__." dato[$x] $dato[$x]<br>";
-			$beskrivelse[$x] = db_escape_string($beskrivelse[$x]);
-			$d_type[$x] = db_escape_string($d_type[$x]);
-			$debet[$x] = db_escape_string($debet[$x]);
-			$k_type[$x] = db_escape_string($k_type[$x]);
-			$kredit[$x] = db_escape_string($kredit[$x]);
-			$faktura[$x] = db_escape_string($faktura[$x]);
-			$belob[$x] = db_escape_string($belob[$x]);
-			$momsfri[$x] = db_escape_string($momsfri[$x]);
-			$afd[$x] = db_escape_string($afd[$x]);
-			$projekt[$x] = db_escape_string($projekt[$x]);
-			$ansat[$x] = db_escape_string($ansat[$x]);
-			$valuta[$x] = db_escape_string($valuta[$x]);
-			$forfaldsdato[$x] = db_escape_string($forfaldsdato[$x]);
+			$beskrivelse[$x] = db_escape_string(if_isset($beskrivelse[$x], ''));
+			$d_type[$x] = db_escape_string(if_isset($d_type[$x], ''));
+			$debet[$x] = db_escape_string(if_isset($debet[$x], ''));
+			$k_type[$x] = db_escape_string(if_isset($k_type[$x], ''));
+			$kredit[$x] = db_escape_string(if_isset($kredit[$x], ''));
+			$faktura[$x] = db_escape_string(if_isset($faktura[$x], ''));
+			$belob[$x] = db_escape_string(if_isset($belob[$x], ''));
+			$momsfri[$x] = db_escape_string(if_isset($momsfri[$x], ''));
+			$afd[$x] = db_escape_string(if_isset($afd[$x], ''));
+			$projekt[$x] = db_escape_string(if_isset($projekt[$x], ''));
+			$ansat[$x] = db_escape_string(if_isset($ansat[$x], ''));
+			$valuta[$x] = db_escape_string(if_isset($valuta[$x], ''));
+			$forfaldsdato[$x] = db_escape_string(if_isset($forfaldsdato[$x], ''));
 			$qtxt = "insert into tmpkassekl ";
 			$qtxt .= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,";
 			$qtxt .= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
@@ -820,7 +819,7 @@ if ($_POST) {
 				$query = db_select("select kontonr from kontoplan where kontotype != 'H' and kontotype != 'Z' and regnskabsaar=$regnaar", __FILE__ . " linje " . __LINE__);
 				while ($row = db_fetch_array($query)) {
 					$x++;
-					$kontonr[$x] = trim($row[kontonr]);
+					$kontonr[$x] = trim($row["kontonr"]);
 				}
 				$acc_ant = $x;
 			}
@@ -853,9 +852,9 @@ if ($_POST) {
 						if (!isset($afd[$x]))
 							$afd[$x] = NULL;
 						if ((!$fejl) && ($x != $opslag_id) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) {
-							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kontonr, $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						} elseif ((!$fejl) && ($x != $opslag_id) && ($bilag[$x] == "-")) {
-							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kontonr, $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
+							kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
 						}
 					}
 					#cho __line__." $submit $debet[$x] $fokus $x<br>";
@@ -1025,9 +1024,9 @@ if (!$simuler) {
 			include_once '../includes/top_header.php';
 			include_once '../includes/top_menu.php';
 
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<div id='header'>";
-			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
 			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\"' title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
 			print "</div>";
@@ -1038,10 +1037,10 @@ if (!$simuler) {
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 
 			print "<td width='10%'>";
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			.findtekst(30, $sprog_id)."</button></a></td>";
+			.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 			print "<td width='80%' style='$topStyle' align='center'> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
 
@@ -1053,11 +1052,11 @@ if (!$simuler) {
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 			if ($popup) print "<td onClick='JavaScript:opener.location.reload();' width='10%' $top_bund>";
 			else print "<td $top_bund>";
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
 				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst(30, $sprog_id) . "</a></td>";
 			} else {
-				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst(30, $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
 			print "<td width='80%' $top_bund> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
 			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>$ny</a></td></tr>";
@@ -1179,6 +1178,38 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../includes/luk.php?tabel=kladdeliste&id=$kladde_id'>";
 	else
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
+
+	print "<script>
+	document.addEventListener('DOMContentLoaded', function() { 
+		console.log('CONTENT LOAD');
+		var element = document.body;
+		var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
+		if (scrollpos && element) {
+			element.scrollTo(0, parseInt(scrollpos, 10));
+		}
+	});
+
+	function saveScrollPosition() {
+		var element = document.body;
+		if (element) {
+			var scrollKey = 'kassekladde-$kladde_id';
+			localStorage.setItem(scrollKey, element.scrollTop);
+			console.log('Scroll position saved:', element.scrollTop);
+		}
+	}
+	
+	document.addEventListener('visibilitychange', function() {
+		if (document.visibilityState === 'hidden') {
+			saveScrollPosition();
+		}
+	});
+	
+	window.addEventListener('beforeunload', function() {
+		saveScrollPosition();
+	});
+	
+	</script>";
+
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) {
@@ -1394,8 +1425,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 #			$kontrolsaldo = $r['primo'];
 			if ($r['moms']) {
 				$r2 = db_fetch_array(db_select("select box2 from grupper where
-						kode='" . substr($r[moms], 0, 1) . "' and
-						kodenr='" . substr($r[moms], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
+						kode='" . substr($r['moms'], 0, 1) . "' and
+						kodenr='" . substr($r['moms'], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
 				$kontrolmoms = $r['box2'] * 1;
 			}
 		}
@@ -1595,7 +1626,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		} elseif ($kontrolkonto && $kontrolsaldo) {
 			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
 		}
-		if ($kontrolkonto && abs($saldo[$y]) > 0) {
+		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
 			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
 			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
 			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
@@ -1917,7 +1948,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	
 	}
 	#############################################################################################################################
-	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $kontonr, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
+	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {
 		global $baseCurrency,$bilagscount,$bilagsrenum;
 		global $connection;
 		global $debitornr;
@@ -2031,7 +2062,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$debet = strtoupper($debet);
 				$query = db_select("select kontonr from kontoplan where genvej='$debet' and regnskabsaar='$regnaar'", __FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query))
-					$debet = $row[kontonr];
+					$debet = $row["kontonr"];
 				else {
 					$txt1 = findtekst(1585, $sprog_id); // er ikke defineret som genvejstast (Bilag nr
 					$txt2 = findtekst(1586, $sprog_id); // ) Kladden en IKKE gemt!
@@ -2062,7 +2093,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					$debet = $findarray[0];
 				} elseif ($i > 1) {
 					include('kassekladde_includes/financeLookup.php');
-					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $opslag_id);
+					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			} elseif (($k_type == "F") && (strlen($kredit) > 1) && (!is_numeric($kredit))) {
 				$i = 0;
@@ -2084,7 +2115,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($i == 1) $kredit = $findarray[0]; //20240523
 				elseif ($i > 1) {
 					include('kassekladde_includes/financeLookup.php');
-					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $opslag_id);
+					financeLookup($findarray, 'firmanavn', $fokus, $opslag_id, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr);
 				}
 			}
 			if (!$fejl && $k_type == "F" && strlen($kredit) == 1 && !is_numeric($kredit) && $kredit != '0') {
@@ -2331,7 +2362,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$afd = trim($r['afd']);
 				(!$afd) ? $afd = 0 : $afd *= 1;
 				$ansat = strtolower($r['ansat']);
-				$faktura = db_escape_string($r['faktura']);
+				$faktura = db_escape_string(if_isset($r['faktura'], ''));
 				if ($egen_kto_id && $ansat) {
 					$r2 = db_fetch_array(db_select("select id from ansatte where lower(initialer) = '$ansat' and konto_id = '$egen_kto_id'", __FILE__ . " linje " . __LINE__));
 					$ansat_id = $r2['id'] * 1;
@@ -2347,7 +2378,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				} else
 					$valutakode = 0; #Valutakode 0 er altid $baseCurrency
 				$betal_id = $r['betal_id'];
-				$beskrivelse = db_escape_string($r['beskrivelse']);
+				$beskrivelse = db_escape_string(if_isset($r['beskrivelse'], ''));
 				if ($amount < 0) { # Hvis beloebet er negativt, byttes om paa debet og kredit.
 					$tmp = $kredit;
 					$kredit = $debet;
@@ -2376,7 +2407,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					($r['transdate'] || $transdate)
 					&& (($transdate && $transdate != date("Y-m-d")) || $r['beskrivelse'] || $debet | $kredit || $r['faktura'])
 				) {
-					#				$beskrivelse=db_escape_string($r['beskrivelse']);
+					#				$beskrivelse=db_escape_string(if_isset($r['beskrivelse'], ''));
 					$qtxt = NULL;
 					if ($forfaldsdate) {
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
@@ -2495,7 +2526,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$qtxt = "insert into kassekladde ";
 			$qtxt .= "(bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,";
 			$qtxt .= "faktura,amount,afd,ansat,projekt,valuta,forfaldsdate,betal_id,momsfri) values ";
-			$qtxt .= "('$bilag','$kladde_id','$date','" . db_escape_string($beskrivelse) . "','$d_type','$debet','$k_type','$kredit',";
+			$qtxt .= "('$bilag','$kladde_id','$date','" . db_escape_string(if_isset($beskrivelse, '')) . "','$d_type','$debet','$k_type','$kredit',";
 			$qtxt .= "'$faktura','$amount','$afd','$ansat_id','$projekt','$valutakode','$forfaldsdate','$betal_id','$momsfri')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
@@ -2534,7 +2565,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$projekt = $r['projekt'];
 			$valutakode = $r['valutakode'] * 1;
 			#20140718
-			db_modify("insert into kassekladde (bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,ansat,projekt,valuta) values ('$r[bilag]','$ompost_til','$r[transdate]','" . db_escape_string($r['beskrivelse']) . "','$r[k_type]','$r[kredit]','$r[d_type]','$r[debet]','$r[faktura]','$r[amount]','$r[momsfri]','$afd','$ansat','$projekt','$valutakode')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into kassekladde (bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,ansat,projekt,valuta) values ('$r[bilag]','$ompost_til','$r[transdate]','" . db_escape_string(if_isset($r['beskrivelse'], '')) . "','$r[k_type]','$r[kredit]','$r[d_type]','$r[debet]','$r[faktura]','$r[amount]','$r[momsfri]','$afd','$ansat','$projekt','$valutakode')", __FILE__ . " linje " . __LINE__);
 			print "<body onLoad=\"javascript:alert('Posteringen er tilbagef&oslash;rt p&aring; kladde $ompost_til')\">";
 		}
 	} # endfunc ompost
@@ -2563,7 +2594,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	function find_kontonr($fokus, $art, $kontonr, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $opslag_id)
 	{
 
-		$tmp = db_escape_string(strtolower($kontonr));
+		$tmp = db_escape_string(strtolower(if_isset($kontonr, '')));
 		$specChar = "À,Á,Â,Ã,Ä,Å,Æ,Ç,È,É,Ê,Ë,Ì,Í,Î,Ï,Ð,Ñ,Ò,Ó,Ô,Õ,Ö,Ø,Ù,Ú,Û,Ü,Ý,Þ,"; #20190503
 		$specChar .= "ß,à,á,â,ã,ä,å,æ,ç,è,é,ê,ë,ì,í,î,ï,ð,ñ,ò,ó,ô,õ,ö,ø,ù,ú,û,ü,ý,þ,ÿ";
 		$chkstr = explode(',', $specChar);

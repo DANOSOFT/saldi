@@ -130,8 +130,6 @@ if ($fakturanr) {
 				$y++;
 				$tmp.=" ";	
 				$txt=trim($betalingstype[$x].$tmp.$dkkamount[$x]);
-#cho strlen($txt)."<br>";
-#cho ">$txt<<br>";
 			}
 			fwrite($fp,"$txt\n");
 			if ($retur*1) {

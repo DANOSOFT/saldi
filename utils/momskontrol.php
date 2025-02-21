@@ -18,12 +18,10 @@ echo "$qtxt<br>";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$dbName[$i] = $r['db'];
-#cho "db $dbName[$i]<br>";
 	$i++;
 }
 for ($i=0;$i<count($dbName);$i++) {
 	$qtxt = "update online set db='$dbName[$i]' where session_id = '$s_id'";
-#cho "$qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	include("../includes/online.php");
 	$j=0;

@@ -25,6 +25,7 @@
 //
 // Copyright (c) 2003-2017 saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -120,7 +121,6 @@ unlink($lockfil);
 #unlink($filnavn);
 $alerttxt=count($ordreliste)." ordrer importeret fra shop";
 if ($shopurl && $opdat_status=='1') {
-#cho "opdaterer";
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=$shopurl&prefix=$prefix&ordreliste=$nye_ordrer&status=2\">";
 }
 print "<body onload=\"javascript:window.close();\">";
@@ -141,7 +141,6 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	global $ref;
 
 	$filnavn=trim($shopurl)."/".$prefix."_".trim($shop_ordre_id);
-#cho __line__." $filnavn<br>";
 	$betalingsbet='Kontant';
 	$betalingsdage=0;
 	if (!$fp=fopen($filnavn,'r')) {
@@ -162,9 +161,8 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	$y=0;
 	$ordresum=0;
 	while($linje=fgets($fp)) {
-#cho __line__." $linje<br>";
 		fwrite($fp2,$linje."\n"); 
-		if ($encoding!='UTF-8') $linje=utf8_encode($linje);
+		if ($encoding!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 		$linje=db_escape_string($linje);
 		if ($x==0) {
 			list($date,$ordre_fornavn,$ordre_efternavn,$ordre_email,$ordresum,$forsendelse,$vaegt,$valuta,$betaling,$korttype)=explode(chr(9),$linje);
@@ -178,7 +176,6 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		}
 		$x++;
 	}
-#cho __line__."<br>";	
 	fclose($fp);
 	fclose($fp2);
 	$shop_konto_id*=1;
@@ -214,7 +211,6 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
 	$lev_tlf=str_replace(" ","",$lev_tlf);
 #echo "$shop_konto_id -> $firmanavn -> $fornavn -> $efternavn -> $adresse -> $postnr -> $bynavn -> $land -> $korttype<br>";
-#cho "$tlf -> $cvrnr -> $email -> $fornavn -> $efternavn -> $ordre_email -> $firmanavn<br>";
 	if ($tlf || $email) {
 		$fortsaet='OK';
 	} else {
@@ -227,11 +223,9 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		return(0);
 		exit;
 	}
-#cho __line__."<br>";	
 	$r=db_fetch_array (db_select("select saldi_id from shop_adresser where shop_id='$shop_konto_id'",__FILE__ . " linje " . __LINE__));
 	$saldi_id=$r['saldi_id'];
 	$qtxt="select id from shop_ordrer where shop_id='$shop_ordre_id'";
-#cho __line__." $qtxt<br>";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['id']) {
 		
@@ -274,10 +268,8 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		$kontonr=$r['kontonr'];
 	}
 	$qtxt="select max(ordrenr) as ordrenr from ordrer where art='DO'";
-#cho "$qtxt<br>";
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 	$ordrenr=$r['ordrenr']+1;
-#cho "ONR: $ordrenr<br>";
 	$projektnr=0;
 	$qtxt="select box1 from grupper where art='DG' and kodenr = '$gruppe'";
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
@@ -363,7 +355,6 @@ function overfoer_data($shopurl,$shop_ordre_id){
 		}
 		db_modify("update varer set publiceret='on' where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
 		if ($samlevare[$x]=='on') {
-#cho "$ordre_id,$vare_id[$x],$pris[$x]*1.25,'25',$antal[$x],'on'<br>";
 
 			opret_saet($ordre_id,$vare_id[$x],$pris[$x]*1.25,25,$antal[$x],on);
 		} else opret_ordrelinje($ordre_id,$vare_id[$x],$varenr[$x],$antal[$x],$beskrivelse[$x],$pris[$x],0,100,'DO','',$posnr,'0','','','','0');
@@ -372,7 +363,6 @@ function overfoer_data($shopurl,$shop_ordre_id){
 	$ordresum*=1;
 	$momssum=$ordresum/4;
 	$qtxt="update ordrer set sum='$ordresum',moms='$momssum' where id='$ordre_id'";
-#cho $qtxt."	<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	return("$ordre_id");
 }
@@ -405,11 +395,8 @@ function fakturer_ordre($saldi_id){
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	$qtxt="update ordrelinjer set leveres = antal where ordre_id='$saldi_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
-	#cho "bogfører $ordre_id<br>";
 	$svar=levering($saldi_id,'on');
 	if ($svar=='OK') $svar=bogfor($saldi_id,'on');
-	#cho "bogført $svar<br>";
-#cho "insert into pos_betalinger(ordre_id,betalingstype,amount) values ('$saldi_id','betalingskort','$betalt')<br>";
 	db_modify("insert into pos_betalinger(ordre_id,betalingstype,amount) values ('$saldi_id','$korttype','$betalt')",__FILE__ . " linje " . __LINE__);
 	if ($svar=='OK') return("$saldi_id"); 
 	else print "<body onload=\"javascript:alert('$svar');window.close();\">";

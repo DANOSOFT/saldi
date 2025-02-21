@@ -114,7 +114,6 @@ function importData($fileName) {
 		$account[0]=(int)$account[0];
 		$account[1]=(int)$account[1];
 		$qtxt = "update kontoplan set map_to = '$account[1]' where kontonr = '$account[0]' and regnskabsaar = '$regnaar'";
-#cho "$qtxt<br>";
 		db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	alert("Mapping fil importeret og kontoplan opdateret");

@@ -21,6 +21,8 @@
 // See GNU General Public License for more details.
 //
 // Copyright (c) 2003-2021 saldi.dk aps
+//
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // ----------------------------------------------------------------------
 $dd   = date('U');
 $H24  = 60*60*24;
@@ -113,9 +115,9 @@ for($x=0;$x<$dgcount;$x++) {
 				$linjebg=linjefarve($linjebg,$bgcolor,$bgcolor5,'0','0');
 				print "<tr bgcolor='$linjebg'>";
 				print "<td><a href='rental.php?customerId=$rpCustId[$x]'>$rpCustNo[$x]</a></td>";
-				if (strlen($rpCustName[$x]) > 10) $tmp=substr(utf8_decode($rpCustName[$x]),0,10)."..";
-				else $tmp = utf8_decode($rpCustName[$x]);
-				print "<td title='$rpCustName[$x]'>". utf8_encode($tmp) ."</td>";
+				if (strlen($rpCustName[$x]) > 10) $tmp=substr(mb_convert_encoding($rpCustName[$x], 'ISO-8859-1', 'UTF-8'),0,10)."..";
+				else $tmp = mb_convert_encoding($rpCustName[$x], 'ISO-8859-1', 'UTF-8');
+				print "<td title='$rpCustName[$x]'>". mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1') ."</td>";
 				for ($d=$dd;$d<$dd60;$d+=$H24) {
 					$title   = "Ingen booking";
 					$tdcolor = 'green';

@@ -1,4 +1,5 @@
- <?php
+<?php
+ // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		
@@ -99,7 +100,7 @@ if (!function_exists('findtekst')) {
 		}
 		if ($db != $sqdb && $newTxt && $newTxt != '-') {
 			if ($db_encode != "UTF8")
-				$newTxt = utf8_decode($newTxt);
+				$newTxt = mb_convert_encoding($newTxt, 'ISO-8859-1', 'UTF-8');
 			$newTxt = str_replace('\n\n', "\n\n", $newTxt);
 			$tmp = db_escape_string($newTxt); #20140505
 			if ($id)

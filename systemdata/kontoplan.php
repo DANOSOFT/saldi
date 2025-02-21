@@ -34,6 +34,7 @@ $linjebg='';
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if ($popup) $returside="../includes/luk.php";
 else $returside="../index/menu.php";
@@ -53,6 +54,25 @@ if ($menu=='T') {
 	print "</div><!-- end of leftmenuholder -->\n";
 	print "<div class=\"rightContent\">\n";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\" style='width:100%'><tbody>\n"; # -> 1
+} elseif ($menu=='S') {
+	print "<div align=\"center\">";
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height=\"25\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	print "<td width=\"10%\" align=\"left\"><a href=$returside accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
+
+	print "<td width=\"80%\" style='$topStyle' align=\"center\">".findtekst(113, $sprog_id)."</td>";
+
+	print "<td width=\"10%\" align=\"right\"><a href=kontokort.php accesskey=N>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
+
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<tr><td valign=\"top\">";
+	print "<table cellpadding=\"0\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
+	print "<tbody>";
 } else {
 	print "<div align=\"center\">";
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
@@ -78,16 +98,16 @@ print "<td align=\"center\"><b>".findtekst(1191,$sprog_id)."</b></td>\n";
 print "<td align=\"center\"><b>Map til</b></td>\n";
 print "</tr>\n";
 
-	$valutakode[0]=0;
-	$valutanavn[0]='DKK';
-	$x=1;	
-	$q=db_select("select kodenr,box1 from grupper where art='VK' order by kodenr",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)){
-		$valutakode[$x]=$r['kodenr'];
-		$valutanavn[$x]=$r['box1'];
-		$x++;
-	}
-	if (!$regnaar) {$regnaar=1;} 
+$valutakode[0] = 0;
+$valutanavn[0] = 'DKK';
+$x=1;	
+$q=db_select("select kodenr,box1 from grupper where art='VK' order by kodenr",__FILE__ . " linje " . __LINE__);
+while ($r=db_fetch_array($q)){
+	$valutakode[$x]=$r['kodenr'];
+	$valutanavn[$x]=$r['box1'];
+	$x++;
+}
+if (!$regnaar) {$regnaar=1;} 
 	$query = db_select("select * from kontoplan where regnskabsaar='$regnaar' order by kontonr",__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)){
 		$valuta=$row['valuta'];

@@ -34,6 +34,7 @@ include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 global $db;
 global $bruger_id;
@@ -1090,15 +1091,17 @@ if ($startDatePeriod) {
     $endMonth = monthName(date_format($dateTo, "m"));
     $endYear = date_format($dateTo, "Y");
 }
+$txt2136 = findtekst('2136|Fra', $sprog_id);
+$txt2137 = findtekst('2137|Til', $sprog_id);
 
-$periodDateFrom = 'Fra ' . $startDay . '. ' . $startMonth . ' ' . $startYear;
-$periodDateTo = 'Til ' . $endDay . '. ' . $endMonth . ' ' . $endYear;
+$periodDateFrom = $txt2136 . ' ' . $startDay . '. ' . $startMonth . ' ' . $startYear;
+$periodDateTo = $txt2137 . ' ' . $endDay . '. ' . $endMonth . ' ' . $endYear;
 
 /***************************************************************************************************** */
 
-$newTitle = "SAF-T Cash Register";
+$newTitle = findtekst('3019|SAF-T', $sprog_id)." ".findtekst('2226|Kasse', $sprog_id);
 if ($menu == 'T') {
-    $title = "Rapport • $newTitle";
+    $title = findtekst('1142|Rapport', $sprog_id)." • $newTitle";
 
     include_once '../includes/top_header.php';
     include_once '../includes/top_menu.php';
@@ -1110,13 +1113,24 @@ if ($menu == 'T') {
     print "<div class='content-noside'>";
     print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 } elseif ($menu == 'S') {
-    include("../includes/sidemenu.php");
+    print "<table width=100% cellpadding='0' cellspacing='1px' border='0' valign='top' align='center'> ";
+    print "<tr><td height='8' colspan='2'>";
+    print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
+
+    print "<td width='10%'><a accesskey=L href='rapport.php'>
+           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+
+    print "<td width='80%' align='center' style='$topStyle'>".findtekst('1142|Rapport', $sprog_id)." - $newTitle </td>";
+    print "<td width='10%' align='center' style='$topStyle'></td>";
+    print "</tbody></table>";
+
+    print "</td></tr>";;
 } else {
     print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
     print "<tr><td height=\"8\" colspan=\"2\">";
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
-    print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php\">Luk</a></td>";
-    print "<td width=\"80%\" $top_bund> Rapport - $newTitle </td>";
+    print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
+    print "<td width=\"80%\" $top_bund>".findtekst('1142|Rapport', $sprog_id)." - $newTitle </td>";
     print "<td width=\"10%\" $top_bund></td>";
     print "</tbody></table>";
     print "</td></tr>";
@@ -1127,9 +1141,13 @@ if ($menu == 'T') {
  */
 print "<div class=\"popup\"><span class=\"popuptext\" id=\"createMessage\">$fileCreatedMessage</span><span class=\"popuptext\" id=\"downloadMessage\"></span></div>";
 
+$txt778 = findtekst('778|Regnskabsår', $sprog_id);
+$txt899 = findtekst('899|Periode', $sprog_id);
+$txt2135 = findtekst('2135|Der er ingen data i den valgte periode', $sprog_id);
+
 print "<table class=\"saftHeader\">\n";
-print "<tr><td rowspan=\"3\" class=\"saftTitle\">$newTitle</td><td>Regnskabsår</td><td>$regnaar.</td></tr>\n";
-print "<tr><td rowspan=\"2\">Periode</td><td>$periodDateFrom</td></tr>\n";
+print "<tr><td rowspan=\"3\" class=\"saftTitle\">$newTitle</td><td>$txt778</td><td>$regnaar.</td></tr>\n";
+print "<tr><td rowspan=\"2\">$txt899</td><td>$periodDateFrom</td></tr>\n";
 print "<tr><td>$periodDateTo</td></tr>";
 print "<tr><td colspan=\"3\" class=\"saftFirmName\">$companyName</td>\n";
 print "</table>\n";
@@ -1222,7 +1240,7 @@ if ($startTimePeriod && $endTimePeriod) {
     print "</td><td>&nbsp;</td><td>&nbsp;</td>";
     print "<td>&nbsp;</td></tr>\n";
 } else {
-    print "<tr><th colspan=\"4\" style=\"text-align: center;\"><i>Der er ingen data i den valgte periode</i></th></tr>";
+    print "<tr><th colspan=\"4\" style=\"text-align: center;\"><i>$txt2135</i></th></tr>";
 }
 print "</table>\n";
 print "<hr>";

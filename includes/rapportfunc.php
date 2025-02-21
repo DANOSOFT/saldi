@@ -194,7 +194,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
+		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
 		print "<div class=\"headerTxt\">$title</div>";
 		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "</div>";
@@ -205,28 +205,28 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
 
 		print "<td width='10%'><a accesskey=l href=\"rapport.php\">
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
 
-		print "<td width='80%' align='center' style='$topStyle'>".findtekst(1142,$sprog_id)." - $rapportart</td>\n";
+		print "<td width='80%' align='center' style='$topStyle'>".findtekst('1142|Rapport', $sprog_id)." - $rapportart</td>\n";
 
 		print "<td width='10%' align='center' style='$topStyle'>\n";
 	} else {
 		print "<tr><td width=100% height=\"8\">\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
-		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">".findtekst(30,$sprog_id)."</a></td>\n";
-		print "<td width=\"80%\" $top_bund>".findtekst(1142,$sprog_id)." - $rapportart</td>\n";
+		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
+		print "<td width=\"80%\" $top_bund>".findtekst('1142|Rapport', $sprog_id)." - $rapportart</td>\n";
 		print "<td width=\"10%\" $top_bund>\n";
 	}
 		print "<div style='padding:5px;height:12px;'><center><select name=\"aabenpostmode\"
 		onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\"></div>\n";
-		if ($kun_debet=='on') print "<option>".findtekst(925,$sprog_id)."</option>\n";
-		elseif ($kun_kredit=='on') print "<option>".findtekst(926,$sprog_id)."</option>\n";
-		elseif ($vis_aabenpost=='on') print "<option>".findtekst(924,$sprog_id)."</option>\n";
-		else print "<option>".findtekst(927,$sprog_id)."</option>\n";
-		if ($vis_aabenpost!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">".findtekst(924,$sprog_id)."</option>\n"; #20210701
-		if ($kun_debet!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">".findtekst(925,$sprog_id)."</option>\n";
-		if ($kun_kredit!='on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">".findtekst(926,$sprog_id)."</option>\n";
-		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">".findtekst(927,$sprog_id)."</option>\n";
+		if ($kun_debet=='on') print "<option>".findtekst('925|Kun konti i debet', $sprog_id)."</option>\n";
+		elseif ($kun_kredit=='on') print "<option>".findtekst('926|Kun konti i kredit', $sprog_id)."</option>\n";
+		elseif ($vis_aabenpost=='on') print "<option>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
+		else print "<option>".findtekst('927|Skjul åbne poster', $sprog_id)."</option>\n";
+		if ($vis_aabenpost!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n"; #20210701
+		if ($kun_debet!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">".findtekst('925|Kun konti i debet', $sprog_id)."</option>\n";
+		if ($kun_kredit!='on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">".findtekst('926|Kun konti i kredit', $sprog_id)."</option>\n";
+		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">".findtekst('927|Skjul åbne poster', $sprog_id)."</option>\n";
 		print "</select></center>\n";
 		if ($menu) print "<td>\n";
 		else print "</div>\n";
@@ -757,11 +757,9 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 
 	$email = $forfaldsum = $fromdate = $kto_fra = $kto_til = $returside = $todate = NULL;
 
-	#cho "$_GET[unAlign]<br>";
 	$unAlign = if_isset($_GET['unAlign'], NULL);
 	$unAlignAccount = if_isset($_GET['unAlignAccount'], 0);
 	$unAlignId = if_isset($_GET['oppId'], 0);
-	#cho "UA $unAlign | $unAlignAccount<br>";
 	if ($unAlign || $unAlignId) {
 		$qtxt = "update openpost set udlignet='0',udlign_id='0' where konto_id = '$unAlignAccount'";
 		if ($unAlign)
@@ -918,7 +916,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' and transdate<='$todate' order by transdate,id,faktnr,refnr"; //20160414
 		else
 			$qtxt = "select * from openpost where konto_id='$kto_id[$x]' order by transdate,id,faktnr,refnr"; //20160414
-#cho "$qtxt<br>";
 		$q2 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
 			$y++;
@@ -1551,7 +1548,6 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 				$amount = $amount * $oppkurs / 100;
 			}
 			$kontosum[$x] += afrund($amount, 2);
-			#cho "$kontosum[$x]+= $amount<br>";
 		}
 		$totalsum = $totalsum + $kontosum[$x];
 		if (afrund($kontosum[$x], 2)) {

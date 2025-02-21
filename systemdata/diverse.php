@@ -80,6 +80,8 @@
 // 20221231 PHR	sektion 'bilag' box3 (ftp passwd) is now urlencoded as it failed with special characters in password. 
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240126 PBLM Added nemhandel (diverse valg)
+// 05-01-2025 PBLM Added a second file to api_valg
+// 20241220 LOE Initialized tenantID and $key to null if not set
 
 @session_start();
 $s_id=session_id();
@@ -91,24 +93,6 @@ $css="../css/standard.css";
 $diffkto=NULL;
 
 include("../includes/connect.php");
-
-
-////////////////// nemhandel ///////////////////////
- // Getting the api key and tenant id from the database
- $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
- while($res = db_fetch_array($query)){
-     if($res["var_value"] !== ""){
-         if($res["var_name"] == "apiKey"){
-             $key = $res["var_value"];
-         }elseif($res["var_name"] == "tenantId"){
-             $tenantId = $res["var_value"];
-         }
-     }
- }
- $apiKey = $tenantId . "&" . $key;
-////////////////// nemhandel end ///////////////////////
-
-
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("sys_div_func.php"); # 20150424a
@@ -267,135 +251,6 @@ if ($_POST) {
 			update_settings_value("MSN",             "mobilepay", $mobilepay_msn,           "The Merchant-Serial-Number provided for the mobilepay intergreation");
 		}
 
-	// Nemhandel
-	if($nemhandel){
-		function createCompany(){
-			$query = db_select("SELECT * FROM adresser WHERE art = 'S'", __FILE__ . " linje " . __LINE__);
-			$res = db_fetch_array($query);
-			// check if there is alraedy "DK" before the cvr number
-			if(substr($res["cvrnr"], 0, 2) == "DK"){
-				$res["cvrnr"] = substr($res["cvrnr"], 2);
-			}
-	
-			$domain = "https://".$_SERVER['SERVER_NAME'];
-			if($domain == "https://ssl8.saldi.dk"){
-				$webhookUrl = "$domain/laja/debitor/easyUBL.php";
-			}else if($domain == "https://ssl5.saldi.dk"){
-				$webhookUrl = "$domain/finans/debitor/easyUBL.php";
-			}else{
-				$webhookUrl = "$domain/pos/debitor/easyUBL.php";
-			}
-			$data = [
-				"name" => $res["firmanavn"],
-				"cvr" => "DK".$res["cvrnr"],
-				"currency" => "DKK",
-				"country" => "DK",
-				"webhookUrl" => $webhookUrl,
-				"defaultEndpoint" => [
-					"endpointType" => "DK:CVR",
-					"endpointIdentifier" => "DK".$res["cvrnr"],
-					"registerAsRecipient" => true
-				],
-				"defaultAddress" => [
-					"name" => $res["firmanavn"],
-					"department" => "",
-					"streetName" => explode(" ",$res["addr1"])[0],
-					"additionalStreetName" => $res["addr2"],
-					"buildingNumber" => end(explode(" ", $res["addr1"])),
-					"inhouseMail" => $res["email"],
-					"cityName" => $res["bynavn"],
-					"postalCode" => $res["postnr"],
-					"countrySubentity" => "",
-					"countryCode" => "DK"
-				],
-				"defaultContact" => [
-					"id" => "",
-					"name" => $res["firmanavn"],
-					"email" => $res["email"],
-					"sms" => $res["tlf"]
-				],
-				"payment" => [
-					"bankName" => $res["bank_navn"],
-					"bankRegNo" => $res["bank_reg"],
-					"bankAccount" => $res["bank_konto"],
-					"bic" => "",
-					"iban" => "",
-					"creditorIdentifier" => ""
-				],
-				"doNotReceiveUBL" => false,
-			];
-	
-			/* echo json_encode($data, JSON_PRETTY_PRINT); */
-			return $data;
-		}
-
-		$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
-		if(db_num_rows($query) === 0){
-			// If the company id is not in the database, create it
-			$timestamp = date("Y-m-d-H-i-s");
-			$guid = "00000000-0000-0000-0000-000000000000";
-			$data = createCompany();
-			file_put_contents("../temp/$db/query-$timestamp.json", ["data" => json_encode($data)]);
-			$ch = curl_init();
-			curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Company/Update/$guid");
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "Authorization: ".$apiKey));
-			curl_setopt($ch, CURLOPT_POST, 1);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-			curl_setopt($ch, CURLOPT_HEADER, true); // Enable header in the response
-			$response = curl_exec($ch);
-			$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-			$requestHeaders = curl_getinfo($ch, CURLINFO_HEADER_OUT);
-			file_put_contents("../temp/$db/requestHeaders-$timestamp.txt", $requestHeaders);
-			curl_close($ch);
-			file_put_contents("../temp/$db/ApiKey-$timestamp.json", $apiKey);
-			$response = json_decode($response, true);
-			if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
-				// An error occurred
-				$errorNumber = curl_errno($ch);
-				$errorMessage = curl_error($ch);
-				$error = ['error' => $errorNumber, 'message' => $errorMessage, 'response' => $response];
-				json_encode($error, JSON_PRETTY_PRINT);
-				// save response in file in temp folder
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($error));
-				file_put_contents("../temp/$db/nemhandel-http-code-$timestamp.json", $httpcode);
-				?>
-				<script>
-					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support.");
-				</script>
-				<?php
-				exit;
-			} elseif(isset($response["companyID"]) && $response["companyID"] === "00000000-0000-0000-0000-000000000000") {
-				file_put_contents("../temp/$db/Create-in-nemhandel-error-$timestamp.json", json_encode($response));
-				?>
-				<script>
-					alert("Der opstod en fejl under oprettelsen (Nemhandel). Prøv igen senere eller kontakt support");
-				</script>
-				<?php
-				exit;
-			}else{
-				// Request successful
-				file_put_contents("../temp/$db/companyId-$timestamp.json", $response);
-				$query = db_select("SELECT * FROM settings WHERE var_name = 'globalId'", __FILE__ . " linje " . __LINE__);
-				$globalid = db_fetch_array($query)["var_value"];
-				$companyId = $response["companyID"];
-				$query = db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('companyID', 'easyUBL', '$companyId')", __FILE__ . " linje " . __LINE__);
-				file_put_contents("../temp/$db/create-in-ssl2-$timestamp.json", ["globalid" => $globalid, "companyId" => $companyId]);
-				
-				// Send the company id to ssl2.saldi.dk for storage
-				$ch = curl_init();
-				curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=insertCompanyId&companyId=$companyId&globalId=$globalid");
-				curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-				curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: application/json"));
-				$res = curl_exec($ch);
-	
-				// save response in file in temp folder
-				$timestamp = date("Y-m-d-H-i-s");
-				file_put_contents("../temp/$db/Create-in-nemhandel-$timestamp.json", $res);
-				curl_close($ch);
-			}
-		}
-	}
 
     # Copayone API save
     if ($copay_api) {
@@ -923,13 +778,14 @@ if ($_POST) {
 		$box2=db_escape_string(if_isset($_POST['ip_list']));
 		$box3=db_escape_string(if_isset($_POST['api_bruger']));
 		$box4=db_escape_string(if_isset($_POST['api_fil']));
+		$box5=db_escape_string(if_isset($_POST["api_fil2"]));
 
 		$qtxt=NULL;
 		if  ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'API' and kodenr='1'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
 		if (!$id) {
-			$qtxt="insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4) values ('API valg','1','API','$box1','$box2','$box3','$box4')";
+			$qtxt="insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ('API valg','1','API','$box1','$box2','$box3','$box4', '$box5')";
 		} elseif ($id > 0) {
-			$qtxt="update grupper set box1='$box1',box2='$box2',box3='$box3',box4='$box4' WHERE id = '$id'";
+			$qtxt="update grupper set box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5' WHERE id = '$id'";
 		}
 		if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	#######################################################################################
@@ -1275,7 +1131,6 @@ if ($_POST) {
 				$box13_2.=chr(9).$bordvalg[$x];	 #20161116
 				$box2_3.=chr(9).$pfs[$x];	 #20161116
 				$poEaSa.=chr(9).$postEachSale[$x];
-#cho "$x $bordvalg[$x]<br>";
 				for ($y=0;$y<count($ValutaKode);$y++) {
 					$VKbox4[$y].=chr(9).$ValutaKonti[$x][$y];
 					$VKbox5[$y].=chr(9).$ValutaMlKonti[$x][$y];
@@ -1293,7 +1148,6 @@ if ($_POST) {
 				$box13_2=$bordvalg[$x];	 #20161116
 				$box2_3=$pfs[$x];
 				$poEaSa=$postEachSale[$x];
-			#cho "$x $bordvalg[$x]<br>";
 				for ($y=0;$y<count($ValutaKode);$y++) {
 					$VKbox4[$y]=$ValutaKonti[$x][$y];
 					$VKbox5[$y]=$ValutaMlKonti[$x][$y];
@@ -1382,7 +1236,6 @@ if ($_POST) {
 		} elseif ($id1 > 0) {
 			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',box14='$box14' WHERE id = '$id1'",__FILE__ . " linje " . __LINE__);
 		}
-#cho __line__." $box13_2<br>";
 		if ($id2) {
 			$qtxt = "update grupper set box1 = '$kasseprimo',box2='$optalassist',box3='$box3_2',box4='$box4_2',";
 			$qtxt.= "box5='$box5_2',box6='$div_kort_kto',box7='$box7_2',box8='$box8_2',box9='$box9_2',box10='$box10_2',";
@@ -1731,7 +1584,6 @@ if ($_POST) {
 		if ($ny_tjekliste=$_POST['ny_tjekliste']) {
 			$r = db_fetch_array($q = db_select("select max(fase) as fase from tjekliste WHERE assign_to = 'sager'",__FILE__ . " linje " . __LINE__));
 			$nf=$r['fase']+1;
-#cho "A insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekliste','0','sager','$ny_fase')<br>";
 			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekliste','0','sager','$nf')",__FILE__ . " linje " . __LINE__);
 		}
 		for ($x=1;$x<=$tjekantal;$x++) {
@@ -1739,11 +1591,9 @@ if ($_POST) {
 			if ($fase[$x]!=$nf) db_modify("update tjekliste set fase='$nf' WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
 			if ($ret && $ret==$id[$x] && $tjekpunkt[$x]) db_modify("update tjekliste set tjekpunkt='$tjekpunkt[$x]' WHERE id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
 			if (isset($ny_tjekgruppe[$x]) && $ny_tjekgruppe[$x]) {
-#cho "B insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe[$x]','$liste_id[$x]','sager','$fase[$x]')";
 				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe[$x]','$liste_id[$x]','sager','$fase[$x]')",__FILE__ . " linje " . __LINE__);
 			}
 			if (isset($nyt_tjekpunkt[$x]) && $nyt_tjekpunkt[$x]) {
-#cho "B insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$nyt_tjekpunkt[$x]','$gruppe_id[$x]','sager','$fase[$x]')";
 				db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$nyt_tjekpunkt[$x]','$gruppe_id[$x]','sager','$fase[$x]')",__FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -1754,7 +1604,6 @@ if ($_POST) {
 			($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && isset($r['fase']))?$ny_fase=$r['fase']:$ny_fase=NULL;
 			if ($ny_fase || $ny_fase=='0') $ny_fase++;
 			else $ny_fase=0;
-#cho "B insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe','0','sager','$ny_fase')";
 #			db_modify("insert into tjekliste (tjekpunkt,assign_id,assign_to,fase) values ('$ny_tjekgruppe','0','sager','$ny_fase')",__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -1772,84 +1621,84 @@ if ($menu != 'T') {
 	print "<td width=\"170px\" valign=\"top\">";
 	print "<table cellpadding=\"2\" cellspacing=\"2\" border=\"0\" width=\"100%\"><tbody>";
 	if ($menu == 'S') {
-		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; Tilbage</b></button></a></td></tr>\n"; // 200240428
+		print "<tr><td align=left>&nbsp;<a href=syssetup.php><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\"><b>&#9668; ".findtekst('30|Tilbage', $sprog_id)."</b></button></a></td></tr>\n"; // 200240428
 
 		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(783,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=provision>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(784,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=personlige_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(785,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=ordre_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(786,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=productOptions>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(787,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=variant_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(788,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=shop_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(789,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=api_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			   API</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(791,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=prislister>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(792,$sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=rykker_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(793,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=div_valg>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(794,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=tjekliste>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(796,$sprog_id)."</button></a></td></tr>\n";
 
 		if ($docubizz) print "<tr><td align=left><a href=diverse.php?sektion=docubizz>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(796,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=bilag>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(797,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(170,$sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=massefakt>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(200,$sprog_id)."</button></a><!--tekst 200--></td></tr>\n";
 
-		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left><a href=diverse.php?sektion=posOptions><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(271,$sprog_id)."</button></a></td></tr>\n";
+		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left><a href=diverse.php?sektion=posOptions><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(271,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=sprog>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(801,$sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=div_io>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			   .findtekst(802,$sprog_id)."</button></a></td></tr>\n";
 
 		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
@@ -1883,7 +1732,6 @@ if ($menu != 'T') {
 		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
 	}
 } 
-#cho "SWK $sektion<br>";
 if (!$sektion) print "<td><br></td>";
 if ($sektion=="kontoindstillinger") kontoindstillinger($regnskab,$skiftnavn);
 if ($sektion=="provision") provision();

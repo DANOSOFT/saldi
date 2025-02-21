@@ -206,7 +206,6 @@ if (!function_exists('saldi_update')) {
 				$delivery_company=$delivery_name;
 				$delivery_name='';
 			}
-#cho "ordrer (konto_id,kontonr,firmanavn,kontakt,addr1,bynavn,postnr,land,email,lev_kontakt,lev_navn,lev_addr1,lev_bynavn,lev_postnr,art) values ('$konto_id','$kontonr','$billing_company','$billing_name','$billing_street_address','$billing_city','$billing_postcode','$billing_country','$customers_email_address','$delivery_name','$delivery_company','$delivery_street_address','$delivery_city','$delivery_postcode','DO')";
 			list($fejl,$svar)=explode(chr(9),singleselect($s_id,"box2 as momssats from grupper where art='SM' and kodenr='$debitorgruppe'"));
 			fwrite($fp,__LINE__." - fejl $fejl, svar $svar\n");
 			if ($fejl) return ($fejl.chr(9).$svar);

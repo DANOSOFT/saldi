@@ -21,6 +21,7 @@
 // Copyright (c) 2003-2013 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 2013.02.10 Break ændret til break 1
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -205,8 +206,8 @@ if ($fp) {
 			$pakningsrabat=substr($linje,101,3);
 			$dato=substr($linje,104,6);
 #    if ($charset=="UTF-8") 
-			$beskrivelse=utf8_encode($beskrivelse);
-			$enhed=utf8_encode($enhed);
+			$beskrivelse=mb_convert_encoding($beskrivelse, 'UTF-8', 'ISO-8859-1');
+			$enhed=mb_convert_encoding($enhed, 'UTF-8', 'ISO-8859-1');
 			$salgspris=$salgspris/100;
 			$kostpris=$salgspris-($salgspris*$rabat/100);
 			print "<tr>";
@@ -279,8 +280,8 @@ if ($fp) {
 				$pakningsrabat=substr($linje,101,3);
 				$dato=substr($linje,104,6);
 #    if ($charset=="UTF-8") 
-				$beskrivelse=utf8_encode($beskrivelse);
-				$enhed=utf8_encode($enhed);
+				$beskrivelse=mb_convert_encoding($beskrivelse, 'UTF-8', 'ISO-8859-1');
+				$enhed=mb_convert_encoding($enhed, 'UTF-8', 'ISO-8859-1');
 				$salgspris=$salgspris/100;
 				$kostpris=$salgspris-($salgspris*$rabat/100);
 /*			

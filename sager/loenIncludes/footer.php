@@ -286,12 +286,10 @@ function fod_indsaml_data($periode) {
 	for ($d = 0;$d<count($pre_d);$d++) {
 		$predatoer.=$pre_d[$d];
 		$datoliste[$d] = $pre_d[$d];
-#cho "D1 $datoliste[$d]<br>";
 	}
 	$tmp = $periode;
 	for ($d = count($pre_d);$d<14+count($pre_d);$d++) {
 		$datoliste[$d] = date("Y-m-d",$tmp);
-#cho "D2 $datoliste[$d]<br>";
 		$tmp += 86400;
 	}
 	
@@ -300,7 +298,6 @@ function fod_indsaml_data($periode) {
 	for ($d = $a;$d<$b;$d++) {
 		$postdatoer.=$post_d[$d-$a];
 		$datoliste[$d] = $post_d[$d-$a];
-#cho "D3 $datoliste[$d]<br>";
 	}
 
 	$foddage = $loen_id = $sag_id = array();
@@ -364,7 +361,6 @@ function fod_indsaml_data($periode) {
 		$afregnet_af = $r['afregnet_af'];
 		$loen_id[$x] = $r['id'];
 		$loen_nr[$x] = $r['nummer']*1;
-#cho "No: $loen_nr[$x]<br>";
 		$loen_tekst[$x] = $r['tekst'];
 		$fordeling[$x] = $r['fordeling'];
 		$loen_art[$x] = $r['art'];
@@ -379,7 +375,6 @@ function fod_indsaml_data($periode) {
 		($r['afsluttet'])?$afsluttet[$x] = $r['afsluttet']:$afsluttet[$x] = '';
 		($r['godkendt'])?$godkendt[$x] = $r['godkendt']:$godkendt[$x] = '';
 		($r['afvist'])?$afvist[$x] = $r['afvist']:$afvist[$x] = '';
-#cho "GS $godkendt[$x] $sag_nr[$x]<br>";
 		$sum[$x] = $r['sum'];
 		$ansatte[$x] = $r['ansatte'];
 		$fordeling[$x] = $r['fordeling'];
@@ -388,20 +383,15 @@ function fod_indsaml_data($periode) {
 		$datoer[$x] = $r['datoer'];
 		$ans = explode(chr(9),$ansatte[$x]);
 		//print_r($ans);
-#cho "ansatte: $ansatte[$x]<br>";
 		
 		
-#cho "ans $ans[0] $ansatte[$x]<br>";
 		$aa = explode(chr(9),$r['loen']);
 		$ad = explode(chr(9),$datoer[$x]);
 #	for ($d = 0;$d<count($ad);$d++) {
-#cho ", $ad[$d]";
 #	}
-#cho "<br>";
 		$at = explode(chr(9),$r['timer']);
 		$af = explode(chr(9),$fordeling[$x]);
 		$am = explode(chr(9),$mentor[$x]);
-		#cho "AT".$r['timer']."<br>";
 		$a50=explode(chr(9),$r['t50pct']);
 		$a100=explode(chr(9),$r['t100pct']);
 		$loentimer[$x] = 0;

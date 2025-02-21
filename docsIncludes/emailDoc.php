@@ -69,7 +69,6 @@ $relativeP1 = "../../".$docFolder;
 	global $db,$exec_path;
 	global $sprog_id;
 	
-#cho "$sourceId,$source,$bilag_id,$bilag<br>";
 
 	$afd =  $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 
@@ -218,7 +217,6 @@ $relativeP1 = "../../".$docFolder;
 	print "<tr><td width=15% height=\"70%\" align=center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid rgb(180, 180, 255); padding: 0pt 0pt 1px;\"><tbody>\n";
 	print "<tr><td width=100% align=center>\n";
 	$fil_nr=0;
-#cho "$bilag_id<br>";
 		if (is_dir($dir)) {
 			$files = scandir($dir);
 			sort($files);
@@ -628,7 +626,6 @@ $relativeP1 = "../../".$docFolder;
 					}
 				}
 				$qt1.= "dokument='".db_escape_string($filnavn)."' where id = '$bilag_id'";
-	#cho __line__." $qt1<br>";
 	#xit;			
 				db_modify($qt1,__FILE__ . " linje " . __LINE__);
 			} else { #Egen FTP'
@@ -649,7 +646,6 @@ $relativeP1 = "../../".$docFolder;
 					fwrite ($fp, "mkdir $mappe\ncd $mappe\nmkdir $undermappe\ncd $undermappe\nput $bilagfilnavn\nbye\n");
 				}
 				fclose($fp);
-	#cho "$bilagfilnavn<br>\n";			
 				$fp=fopen("../temp/$db/ftplog","w");
 				fwrite ($fp, "cd ../temp/$db\n\rmv \"$filnavn\" \"$bilagfilnavn\"\n\r$exec_path/ncftp ftp://$box2:$box3@$box1\n\rrm $bilagfilnavn\n\r");
 				fclose($fp);

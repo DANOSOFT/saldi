@@ -61,7 +61,6 @@ function opdat_loen ($listevalg,$sum,$gem,$afslut,$afvis) {
 		$medarb_navn=if_isset($_POST['medarb_navn']);
 #		$sum=if_isset($_POST['sum'])*1;
 		$a_sum=if_isset($_POST['a_sum'])*1;
-#cho "A $a_sum<br>";
 		$dksum=if_isset($_POST['dksum']);
 		$feriefra=if_isset($_POST['feriefra']); // indsat 20140627
 		$ferietil=if_isset($_POST['ferietil']); // indsat 20140627

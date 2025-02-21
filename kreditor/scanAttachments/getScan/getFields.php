@@ -81,14 +81,11 @@ foreach ($ga as $gb) {
 												}
 											} else { 
 												if ($a==0 && $b==0 && $c!=0 && $d==0 && $f==0 && $h==0) {
-#cho __line__." a $a b $b c $c e $e f $f g $g h $h | $gg<br>";
 													if ($e==1 && $g==0) {
 														$gVarName[$gx]=$gg;
-#cho __line__." $gg<br>";
 													}
 													if ($e==1 && $g==3) {
 														$gVarValue[$gx]=$gg;
-#cho __line__." $gg<br>";
 														$gx++;
 													}
 												}
@@ -101,14 +98,11 @@ foreach ($ga as $gb) {
 								}
 							} else { 
 								if ($a==0 && $b==0 && $c!=0 && $d==0 && $f==0 && $g==0 && $h==0) {
-#cho __line__." a $a b $b c $c e $e f $f g $g h $h | $ge<br>";
 									if ($e==0) {
 										$eVarName[$ex]=$ge;
-#cho __line__." $ge<br>";
 									}
 									if ($e==3 || $e==4) { #20211217 Added  '$e==3 ||' as value is there now?? 
 										$eVarValue[$ex]=$ge;
-#cho __line__." $ge<br>";
 										$ex++;
 									}
 								}
@@ -130,7 +124,6 @@ foreach ($ga as $gb) {
 }
 $qtxt = "";
 for ($e=0;$e<count($eVarName);$e++) {
-#cho __line__." $eVarName[$e] $eVarValue[$e]<br>";
 	if ($eVarName[$e]=='company_vat_reg_no' && $eVarValue[$e]) {
 		$qtxt.= "cvrnr = '$eVarValue[$e]',";
 	} elseif ($eVarName[$e]=='company_name' && $eVarValue[$e]) {
@@ -168,14 +161,11 @@ if ($totalVat) {
 if ($qtxt) {
 	$qtxt = trim($qtxt,',');
 	$qtxt = "update ordrer set ".$qtxt." where id = '$id[$x]'";
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "update paperflow set lines = '". count($gVarName) ."' where id = '$scanId[$x]'"; 
-#cho __line__." $qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$z=0;
 	$qtxt = "select * from ordrelinjer where ordre_id = '$id[$x]'";
-#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$lineId[$x][$z]      = $r['id'];
@@ -189,7 +179,6 @@ if ($qtxt) {
 	$a=$b=$c=$d=0;
 	$article_number = array();
 	for ($g=0;$g<count($gVarName);$g++) {
-#cho __line__. " $gVarName[$g] $gVarValue[$g]<br>";
 		if ($gVarName[$g]=='article_number') {
 			$article_number[$a] = db_escape_string($gVarValue[$g]);
 			$a++;
@@ -216,29 +205,24 @@ if ($qtxt) {
 	if ($c > $b) $lineCount = $c;
 	if ($d > $c) $lineCount = $d;
 	for ($a=0;$a<$lineCount;$a++) {
-#cho "A $article_number[$a] ". $lineId[$x][$a] ." ". $levVarenr[$x][$a] ." ". $description[$a]."<br>";
 		if ($ScanLineSum == $totalAmountInclVat) $unit_price[$a] = $unit_price[$a] * 100 / (100+$vatPercent);
 		(isset($quantity[$a]))?$quantity[$a]*=1:$quantity[$a]=0;
 		(isset($unit_price[$a]))?$unit_price[$a]*=1:$unit_price[$a]=0;
 		if ($lineId[$x][$a]) {
 			if (!$levVarenr[$x][$a]) {
 				$qtxt = "update ordrelinjer set lev_varenr = '$article_number[$a]' where id = '". $lineId[$x][$a] ."'";
-#cho "$qtxt<br>";
 				db_modify ($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if (!$antal[$x][$a]) {
 				$qtxt = "update ordrelinjer set antal = '$quantity[$a]' where id = '". $lineId[$x][$a]."'";
-#cho "$qtxt<br>";
 				db_modify ($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if (!$beskrivelse[$x][$a]) {
 				$qtxt = "update ordrelinjer set beskrivelse = '$description[$a]' where id = '". $lineId[$x][$a] ."'";
-#cho "$qtxt<br>";
 				db_modify ($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if (!$pris[$x][$a]) {
 				$qtxt = "update ordrelinjer set pris = '$unit_price[$a]' where id = '". $lineId[$x][$a] ."'";
-#cho "$qtxt<br>";
 				db_modify ($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			$posnr=$a+1;
@@ -247,7 +231,6 @@ if ($qtxt) {
 		} else {
 			$qtxt = "insert into ordrelinjer (ordre_id,lev_varenr,antal,beskrivelse,pris) values ";
 			$qtxt.= "('$id[$x]','$article_number[$a]','$quantity[$a]','$description[$a]','$unit_price[$a]')";
-#cho "$qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 	}

@@ -100,6 +100,7 @@
 // 20220628 PHR Function usdate. Corrected type $slutaar was $slutadaar ???
 // 20220716 PHR Function tekster. Texts is not fetched from 'inportfiler/egne_tekster.csv' if file exists
 // 20220716 PHR Function usdecimal. $tal (number) is now trimmed as it returned 0 if space in either end.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 if (!function_exists('nr_cast')) {
 	function nr_cast($tekst)
@@ -317,7 +318,7 @@ if (!function_exists('findtekst')) {
 			}
 			}
 		if ($db != $sqdb && $newTxt && $newTxt!='-') {
-			if ($db_encode!="UTF8") $newTxt=utf8_decode($newTxt);
+			if ($db_encode!="UTF8") $newTxt=mb_convert_encoding($newTxt, 'ISO-8859-1', 'UTF-8');
 			$newTxt=str_replace('\n\n',"\n\n",$newTxt);
 			$tmp=db_escape_string($newTxt); #20140505
 			if ($id) $qtxt="update tekster set tekst='$tmp' where id=$id";
@@ -370,7 +371,7 @@ if (!function_exists('bynavn')) {
 		$fp=fopen("../importfiler/postnr.csv","r");
 		if ($fp) {
 			while ($linje=trim(fgets($fp))) {
-				if ($db_encode=="UTF8") $linje=utf8_encode($linje);
+				if ($db_encode=="UTF8") $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				list($a,$b)=explode(chr(9),$linje);
 					if ($a==$postnr) {
 						$bynavn=str_replace('"','',$b);
@@ -537,7 +538,6 @@ if (!function_exists('transtjek')) {
 	function transtjek () {
 		global $db;
 		$r=db_fetch_array(db_select("select sum(debet) as debet,sum(kredit) as kredit from transaktioner",__FILE__ . " linje " . __LINE__));
-#cho __line__." ".$r['debet']."-".$r['kredit']."<br>";
 		$diff=abs(afrund($r['debet']-$r['kredit'],2));
 		if ($diff >= 1) { 
 			$message=$db." | Ubalance i regnskab: kr: $diff";
@@ -1157,7 +1157,6 @@ function hent_shop_ordrer($shop_ordre_id,$from_date) {
 			fwrite($fp,date("U"));
 			fclose ($fp);
 			$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-#cho 	"/usr/bin/wget --spider --no-check-certificate --header='$header' $api_fil?put_new_orders=1 \n<br>";
 			$api_txt="$api_fil?put_new_orders=1";
 			if ($shop_ordre_id) $api_txt.="&ordre_id=$shop_ordre_id";
 			if ($from_date) $api_txt.="&from_date=$from_date";

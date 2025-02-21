@@ -218,7 +218,6 @@
 @session_start();
 $s_id = session_id();
 ob_start();
-#cho "<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js\"></script>";
 $modulnr = 5;
 $title = "POS_ordre";
 $css = "../css/pos.css";
@@ -259,6 +258,7 @@ include("pos_ordre_includes/boxCountMethods/boxCountText.php"); #20190219
 include("pos_ordre_includes/frontpage/itemTxt.php"); #20190219 
 
 #include("pos_ordre_includes/voucherFunc/setup.php"); # 20181220
+include("pos_ordre_includes/voucherFunc/checkVoucher.php"); # 13-11-2024
 #include("pos_ordre_includes/divFuncs/takeAway/setup.php");
 include("pos_ordre_includes/report/reportSetup.php");
 
@@ -270,6 +270,12 @@ include("pos_ordre_includes/posTxtPrint/posTxtPrintFunc.php"); #20190503
 include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510 
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
+
+if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi_pos"]) == "on") {
+	$width = get_settings_value("mobilwidth", "POS", "510", null, $_COOKIE["saldi_pos"]);
+	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
+	print "<meta name='viewport' content='width=$width, initial-scale=$zoom, maximum-scale=$zoom, user-scalable=0'>";
+}
 
 if ($menu=='T') {
 	if (!$bgcolor) $bgcolor="#000000";
@@ -360,7 +366,6 @@ include("pos_ordre_includes/divFuncs/drawer/drawerStatusFunc.php");
 preDrawerCheck();
 global $initial_price; #from debitor/pos_ordre_includes/showPosLines/productLines.php
 
-ini_set('display_errors', '0');
 
 // Projekt kan knytttes til menu, f.eks dag og aften så man kan trække en rapport på hvor man har sin indtjening. 
 // Projektet knyttes til varen så det både kan være dag og aften på samme bon. 
@@ -443,7 +448,8 @@ if (isset($_POST['kasse']) && $_POST['kasse']) {
 	setcookie('saldi_pos',$kasse,time()+60*60*24*30,'/');
 	if (isset($pfs) && $pfs) setcookie('saldi_pfs',$pfs,time()-60,'/');
 } elseif (!$kasse && isset($_COOKIE['saldi_pos'])) $kasse = $_COOKIE['saldi_pos'];
-$r = db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__)); 
+$qtxt = "select box7 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
+$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 if ($r['box7']) $bord=explode(chr(9),$r['box7']); #20140508
 #if ($bruger_id == '-1') echo $_GET['bordnr'];
 if (isset($_GET['bordnr'])) $bordnr=$_GET['bordnr'];
@@ -470,7 +476,6 @@ if ($bruger_id == '-1') echo $_GET['flyt_til'];
 	$kasse=$r['felt_5']; #20210429
 	$delflyt=if_isset($_GET['delflyt']);
 	if ($delflyt) {
-#cho "$delflyt<br>";	
 		if($r=db_fetch_array(db_select("select id from ordrer where art='PO' and status < '3' and nr = '$bordnr'",__FILE__ . " linje " . __LINE__))){
 			$ny_id=$r['id'];
 		} else {
@@ -478,17 +483,14 @@ if ($bruger_id == '-1') echo $_GET['flyt_til'];
 		}
 		$a=array();
 		$a=explode("|",$delflyt);
-#cho "for($x=0;$x<". count($a) ."$x++)<br>";
 		for($x=0;$x<count($a);$x++) {
 			
 			list($df_linje_id[$x],$df_vare_id[$x],$df[$x])=explode(":",$a[$x]);
-#cho "$df_linje_id[$x],$df_vare_id[$x],$df[$x]<br>";	
 		}
 		$a=NULL;
 		$ny_vare_id=array();
 		$x=0;
 		$qtxt="select id,vare_id from ordrelinjer where ordre_id = '$ny_id'";
-#cho "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
 			if (!in_array($r['vare_id'],$ny_vare_id)) {
@@ -512,22 +514,16 @@ if ($bruger_id == '-1') echo $_GET['flyt_til'];
 		}
 	*/
 	transaktion('begin');
-#cho "for ($x=0;$x<".count($df_vare_id).";$x++)<br>";	
 		for ($x=0;$x<count($df_vare_id);$x++) {
-#cho "if ($df[$x] && ". in_array($df_vare_id[$x],$ny_vare_id) .")<br>";				
 			if ($df[$x] && in_array($df_vare_id[$x],$ny_vare_id)) {
-#cho "for ($n=0;$n<".count($ny_vare_id).";$n++)";			
 				for ($n=0;$n<count($ny_vare_id);$n++) {
-#cho "if ($ny_vare_id[$n]==$df_vare_id[$x])<br>";				
 					if ($ny_vare_id[$n]==$df_vare_id[$x]) { 
 						$qtxt="update ordrelinjer set antal=antal+$df[$x] where id='$ny_linje_id[$n]'";
-#cho "$qtxt<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} 
 				} 
 			} elseif($df[$x]) {
 				$qtxt="select * from ordrelinjer where id=$df_linje_id[$x]";
-#cho "$qtxt<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				opret_ordrelinje($ny_id,$r['vare_id'],$r['varenr'],$df[$x],'',$r['pris'],$r['rabat'],100,'PO' ,'','','0','','','','0','0','','',$r['lager'],__LINE__);
 			}
@@ -535,17 +531,14 @@ if ($bruger_id == '-1') echo $_GET['flyt_til'];
 		for ($x=0;$x<count($df_vare_id);$x++) {
 			if ($df[$x]) {
 				$qtxt="select * from ordrelinjer where id=$df_linje_id[$x]";
-#cho "$qtxt<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				if ($r['antal']==$df[$x]) $qtxt="delete from ordrelinjer where id='$df_linje_id[$x]'";
 				else $qtxt="update ordrelinjer set antal=antal-$df[$x] where id='$df_linje_id[$x]'";
-#cho "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 #			$qtxt="select * from ordrelinjer where id=df_linje_id[$x]";
 #			if ($antal[$x]==$df[$x]) $qtxt="delete from ordrelinjer where id='$linje_id[$x]'";
 		}
-#xit;		
 	transaktion('commit');
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$ny_id\">\n";
 	} else {
@@ -630,7 +623,6 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 	}
 } if (!$bordnr && $bordnr != '0') $bordnr=$_COOKIE['saldi_bordnr']; #20150505-2
 */
-#cho __LINE__." $id | $bordnr<br>";
 if (!$id && !$bordnr && $bordnr != '0' && count($bord)) { #20141210 + #20150305
 	if (!$kasse) $kasse=if_isset($_POST['kasse']);
 	if (!$kasse) $kasse=find_kasse(0);
@@ -641,21 +633,30 @@ if (!$id && !$bordnr && $bordnr != '0' && count($bord)) { #20141210 + #20150305
 	$bordnr=$r['nr']; #20140822
 	if ($id && !$r['felt_5']) db_modify("update ordrer set felt_5='$kasse' where id='$id'",__FILE__ . " linje " . __LINE__);
 }
-if (strlen($bordnr) == 0 && count($bord)) { #20150323
-	$x=0;
-	$q=db_select("select id,nr,hvem from ordrer where art = 'PO' and status < 3 order by nr",__FILE__ . " linje " . __LINE__);
-  $optaget = array();
-	while ($r=db_fetch_array($q)) {
-		if ($r['hvem'] && is_numeric($r['nr'])) {
-			$optaget[$x]=$r['nr'];
-			$x++;
-		} 
+
+
+if (strlen($bordnr) == 0 && count($bord) && $id) { #20150323
+// This means tables is enables but this order does not have a table assigned why it is assignet to the first free table.
+	$qtxt = "select nr from ordrer where id = '$id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	if ($r['nr'] || $r['nr'] == '0') $bordnr = $r['nr'];
+	else {
+		$x=0;
+		$qtxt = "select id,nr,hvem from ordrer where art = 'PO' and status < 3 order by nr";
+		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		$optaget = array();
+		while ($r=db_fetch_array($q)) {
+			if ($r['hvem'] && is_numeric($r['nr'])) {
+				$optaget[$x]=$r['nr'];
+				$x++;
+			} 
+		}
+		$bordnr=0;
+		while (in_array($bordnr,$optaget)) $bordnr++;
+		if ($id) db_modify("update ordrer set nr='$bordnr' where id='$id'",__FILE__ . " linje " . __LINE__);	
+	#	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id&bordnr=$bordnr\">\n";
+	#	exit;
 	}
-	$bordnr=0;
-	while (in_array($bordnr,$optaget)) $bordnr++;
-	if ($id) db_modify("update ordrer set nr='$bordnr' where id='$id'",__FILE__ . " linje " . __LINE__);
-#	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id&bordnr=$bordnr\">\n";
-#	exit;
 }
 
 $l=0;
@@ -966,7 +967,7 @@ if ($delflyt && $flyt) {
   }
 }
 if (!$id && $kasse && !isset($_GET['bordnr'])) {
-	$qtxt="select box13 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+	$qtxt="select box13 from grupper where art='POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['box13']) {
 		$tmparray=explode(chr(9),$r['box13']);
@@ -974,7 +975,6 @@ if (!$id && $kasse && !isset($_GET['bordnr'])) {
 	}
 }
 #$del_bord=if_isset($_POST['del_bord']);
-#cho "del_bord $del_bord<br>\n";
 # <- 20140508
 $kontonr = if_isset($_POST['kontonr']);
 if (!$kontonr) $kontonr='0'; 
@@ -991,7 +991,6 @@ if ($konto_id || $kontonr) {
 #	if ($modtaget <= $sum) $id=afslut($id,'konto',$modtaget);
 #	else $betaling='ukendt';
 }
-#cho "PS $printserver<br>\n";
 if (if_isset($_POST['koekken'])) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=koekkenprint.php?id=$id&bordnr=$bordnr&bordnavn=$bordnavn\">\n";
 } elseif (if_isset($_POST['send_koekken'])) {
@@ -1023,7 +1022,6 @@ if ($vare_id) {
 	} else $indbetaling=if_isset($_POST['indbetaling']);
 	$sum=if_isset($_POST['sum']);
 	$afrundet=if_isset($_POST['afrundet']);
-#cho "sum $sum<br>\n";
 	$betaling=if_isset($_POST['betaling']);
 	if (substr($betaling,0,9)=="Betalings" && !strpos($betaling,'på beløb')) $betaling='Betalingskort'; #20170914
 	elseif (substr($betaling,0,8)=="Bet.kort") $betaling='Betalingskort på beløb';
@@ -1087,7 +1085,6 @@ if ($vare_id) {
 	$barcodeNew=db_escape_string(trim(if_isset($_POST['barcodeNew'])));
 	$momssats=(if_isset($_POST['momssats']));
 	$rabat_ny=if_isset($_POST['rabat_ny']);
-#cho __line__." $beskrivelse_ny<br>";
 	if (!$rabat_ny && $rabat_ny!='0' && if_isset($_POST['rabat_old'])) $rabat_ny=$_POST['rabat_old']; 
 	if (strpos($betaling,'på beløb') && strlen($varenr_ny) > 1) { #20201029
 		$priceNew=(float)usdecimal($pris_ny);
@@ -1120,10 +1117,8 @@ if ($vare_id) {
 		$afslut=NULL;
 	}
 	$sum*=1;
-	#cho "update ordrer set kundeordnr = '$kundeordnr',sum='$sum', betalt='$betalt',felt_1='$betaling',felt_2='$modtaget',felt_3='$betaling2',felt_4='$modtaget2',felt_5='$kasse' where id='$id'<br>\n";
 	if ($kundeordnr && $id) db_modify("update ordrer set kundeordnr = '$kundeordnr' where id='$id'",__FILE__ . " linje " . __LINE__);
 
-#cho "betalt=$betalt fok $fokus<br>\n";
 	if (strstr($pris_ny,",")) { #Skaerer orebelob ned til 2 cifre.
 		list($kr,$ore)=explode(",",$pris_ny);
 		$ore=substr($ore,0,2);
@@ -1226,7 +1221,6 @@ if ($vare_id) {
 		}		
 	}
 
-#cho __line__." F $fokus<br>";	
 	if ($fokus=="pris_ny" && substr($pris_ny,-1)=='r') {
 		$pris_ny=substr($pris_ny,0,strlen($pris_ny)-1);
 		$fokus="rabat_ny";
@@ -1254,7 +1248,8 @@ if ($vare_id) {
 		$r=db_fetch_array(db_select("select status from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
 		$status=$r['status'];
 		if ($status < 3) {
-			$r=db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
+			$qtxt = "select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year ='$regnaar'";
+			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$moms=explode(chr(9),$r['box7']);
 			$x=$kasse-1;
 			if ($moms[$x]){
@@ -1294,7 +1289,6 @@ if ($vare_id) {
 		voucherstatus($id,$konto_id);
 	} 
 	
-#cho "F $fokus<br>";	
 	if ($indbetaling) {
 			$indbetaling=str_replace("a","",$indbetaling);
 			if ($fokus=='indbetaling') { #20160220-2
@@ -1379,7 +1373,6 @@ if ($vare_id) {
 		$indbetaling=$indbetal;
 		#exit;
 	}	elseif ($betaling && ($betaling!='ukendt' || substr($modtaget,0,1)=='/')) { #20160817
-#cho __LINE__." $modtaget<br>";			
 		if (substr($modtaget,0,1)=='/') { #Delbetaling
 			$modtaget=substr($modtaget,1);
 			if (!is_numeric(substr($modtaget,-1))) {
@@ -1396,8 +1389,6 @@ if ($vare_id) {
 		elseif (strlen($modtaget)==1 && !is_numeric($modtaget)) $modtaget='';
 		elseif (!is_numeric(substr($modtaget,-1))) $modtaget=usdecimal(substr($modtaget,0,strlen($modtaget)-1),2);
 		else $modtaget=usdecimal($modtaget,2);
-#cho __LINE__." $modtaget<br>";			
-#cho __LINE__." $modtaget<br>";			
 		if (!$modtaget) {
 			$modtaget=$sum;
 			$r=db_fetch_array(db_select("select sum(amount) as amount from pos_betalinger where ordre_id='$id'",__FILE__ . " linje " . __LINE__));
@@ -1409,9 +1400,6 @@ if ($vare_id) {
 				$rest=$modtaget;
 			}
 		} #else $modtaget*=100/$betvalkurs;
-#cho "$betvaluta: ".$modtaget."<br>";
-#cho __LINE__." $modtaget ($betvalkurs)<br>";
-#xit;
 		if (substr($modtaget2,0,1)=='+') $modtaget2=$sum+usdecimal(substr($modtaget2,1,strlen($modtaget2)-1),2);
 		elseif (!is_numeric(substr($modtaget2,-1))) $modtaget2=usdecimal(substr($modtaget2,0,strlen($modtaget2)-1),2);
 		else $modtaget2=usdecimal($modtaget2,2);
@@ -1483,7 +1471,6 @@ if ($vare_id) {
 		} elseif ($antal_ny=="0" && if_isset($_POST['antal'])) $varenr_ny = NULL; #20140623
  		#if ($varenr_ny && $antal_ny && $fokus!="pris_ny" && $fokus!="rabat_ny") {
 			if ($varenr_ny && $antal_ny && $fokus!="pris_ny" && $fokus!="rabat_ny" && $fokus!="beskrivelse_ny") {# 20210811 beskrivelse_ny added 
-#cho __line__." $beskrivelse_ny<br>";
 			if (!$id || $id == 0) {
 				$id=opret_posordre(NULL,$kasse);
 			}
@@ -1499,7 +1486,6 @@ if ($vare_id) {
 				if ($r['samlevare']) opret_saet($id,$r['id'],usdecimal($pris_ny,2),$momssats,$antal_ny,'on',$lager_ny);
 				else { 
 				($beskrivelse_ny)?$textNew = $beskrivelse_ny:$textNew = $beskrivelse_old; #20210906
-#cho __line__." $textNew<br>";
 				$svar=opret_ordrelinje($id,'',$varenr_ny,$antal_ny,$textNew,usdecimal($pris_ny,2),usdecimal($rabat_ny,2),100,'PO','','','0','on','','','','','','0',$lager_ny,__LINE__); #20140226 + 20140814 + 20200603
 				}
 				if (usdecimal($pris_ny,2) == 0.00) $obstxt="Obs, vare $varenr_ny sælges til kr 0,00";
@@ -1547,7 +1533,7 @@ if ($id && $gem) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php\">\n";
 }
 if (!$id || $id == 0) {
-	$r = db_fetch_array(db_select("select box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__)); 
+	$r = db_fetch_array(db_select("select box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	if ($r['box7'])  $bord=explode(chr(9),$r['box7']); #20140508
 	if ($r['box10']) $koekkenprinter=explode(chr(9),$r['box10']); #20140820 + 20140925
 	$dd=date("Y-m-d");
@@ -1566,11 +1552,8 @@ if (!$id || $id == 0) {
 #exit;
 
 if ($id) { 
-	#cho "G $godkendt<br>";
 	$qtxt="select * from pos_betalinger where ordre_id = '$id' and betalingstype='!'";
-#cho "$qtxt<br>";
 	if (!$godkendt && $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {	
-#cho "registrer_betaling($r[id],$r[ordre_id],$r[betalingstype],$r[amount],$r[valuta],$r[valutakurs])<br>";
 		registrer_betaling($r['id'],$r['ordre_id'],$r['betalingstype'],$r['amount'],$r['valuta'],$r['valutakurs'],$terminal_ip); #ordrefunc
 		exit;
 	}
@@ -1613,7 +1596,6 @@ print "<table width=\"100%\" border=\"0\"><tbody>\n"; # Tabel 1.2 ->
 if ($id && isset($_GET['betaling']) && $_GET['betaling']=='ukendt') $betaling='ukendt';
 # if ($id && $betaling) $sum=betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kasse);
 #/*
-#cho __line__." $id && $betaling <br>";	
 if ($id && $betaling) {
 	include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
 	voucherPay($id, $betaling,$modtaget);
@@ -1641,7 +1623,6 @@ if ($id && $betaling) {
 	}
 }	elseif (!$indbetaling) {
    list($varenr_ny,$pris_ny,$status)=explode(chr(9),varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$rabat_ny,$lager_ny));#20210811
- #cho __line__." $beskrivelse_ny<br>";
 } else indbetaling($id,$indbetaling,$modtaget,$modtaget2,$betaling);
 if (strpos($betaling, onAmount())) {
 	if (substr($betaling,0,7) == "Kontant" || substr($betaling,0,7) == "Cash") $betaling='Kontant';
@@ -1725,10 +1706,11 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 	global $kontonr;
 	global $db,$difkto;
 	global $delbetaling;
-	global $pfs;
+	global $pfs,$regnaar;
 	global $sprog_id;
 	global $vis_saet;
 	global $tracelog;
+	global $sprog_id;
 
 	$retur=NULL;
 	
@@ -1774,7 +1756,7 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 		}
 		if ($konto_id) {
 			print "<tr><td><b>$kontonr</b>\n";
-			if ($kundeordnr) print "&nbsp;&nbsp;&nbsp; Rekv.nr: $kundeordnr";
+			if ($kundeordnr) print "&nbsp;&nbsp;&nbsp; ".findtekst('2129|Rekv. nr.', $sprog_id).": $kundeordnr";
 			print "</td></tr>\n";
 			print "<tr><td colspan=\"2\"><b>D $firmanavn</b></td></tr>\n";
 			if (!$vis_saet) {
@@ -1789,7 +1771,7 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 		if ($show) {
 			print "<tr><td><table border=\"0\" width=\"100%\"><tbody>\n";
 #		print "<tr><td colspan='6'>Gavenr $vouherNumber</td></tr>";
-			print "<tr><td>Varenummer</td><td align=\"right\">Antal</td><td>Varenavn</td><td align=\"right\">Pris</td><td align=\"right\">Sum</td></tr>\n";
+			print "<tr><td>".findtekst('320|Varenummer', $sprog_id)."</td><td align=\"right\">".findtekst('916|Antal', $sprog_id)."</td><td>".findtekst('967|Varenavn', $sprog_id)."</td><td align=\"right\">".findtekst('915|Pris', $sprog_id)."</td><td align=\"right\">Sum</td></tr>\n";
 			print "<tr><td colspan=\"6\"><hr></td></tr>\n";
 		}
 		if ($tracelog) fwrite ($tracelog, __file__." ".__line__." Calls vis_pos_linjer($id,$momssats,$status,NULL,$show)\n");
@@ -1809,14 +1791,11 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 	print "<input type=\"hidden\" name=\"delbetaling\" value=\"$delbetaling\" />\n";
 	print "<input type=\"hidden\" name=\"rest\" value=\"$rest\" />\n";
 
-#cho __LINE__." ".$modtaget."<br>";
-#cho "$modtaget *= $prevalkurs/$betvalkurs<br>";
 #	elseif ($prevalkurs && $prevalkurs!=$betvalkurs) $modtaget*=$sum*100/$betvalkurs; 
 	if ($valmodt) $tmp=$valmodt;
 	elseif ($modtaget && $betvalkurs!='100') $tmp=$modtaget*100/$betvalkurs;
 	elseif ($modtaget) $tmp=$modtaget;
 	else $tmp="";
-	#cho __LINE__." ".$tmp."<br>";
 
 	if ($betalingsbet && $betalingsbet != 'Kontant') { 
 		if ($tmp) print "<input type=\"hidden\" name=\"modtaget\" value=\"".dkdecimal($tmp,2)."\">\n";
@@ -1863,7 +1842,6 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 #			$retur=pos_afrund($retur*$betvalkurs/100);
 		}
 #		if ($retur >= 0) {
-#cho __LINE__." <br>";			
 			print "<tr><td>Retur";
 			if ($betvaluta!='DKK') print " (DKK)<br>";
 			$retur=pos_afrund($retur,$difkto,'');
@@ -1882,6 +1860,7 @@ function skift_bruger($ny_bruger,$kode,$pwtjek) {
 	global $s_id;
 	global $db;
 	global $ifs;
+	global $sprog_id;
 	
 	if (!$ny_bruger && !$kode) {
 		$x=0;
@@ -1892,11 +1871,11 @@ function skift_bruger($ny_bruger,$kode,$pwtjek) {
 		}
 		print "<table><tbody>\n";
 		print "<tr><td colspan=\"2\" align=\"center\">\n";
-		print 	"<form name=pos_ordre action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
-		Print 	"<big><b>Vælg brugernavn og angiv adgangskode</b></big>\n";
+		print "<form name=pos_ordre action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
+		Print "<big><b>".findtekst('2251|Vælg brugernavn og angiv adgangskode', $sprog_id)."</b></big>\n";
 		print "</td></tr>\n";
 		$stil=find_stil('select',2,0);
-		print "<tr><td><big>Ekspedient : </big><select class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" NAME=\"ny_bruger\">\n";
+		print "<tr><td><big>".findtekst('2252|Ekspedient', $sprog_id).": </big><select class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" NAME=\"ny_bruger\">\n";
 		print "<option>$brugernavn</option>\n";
 		for ($x=0;$x<count($loginnavn);$x++) {
 			if ($loginnavn[$x] != $brugernavn) print "<option>$loginnavn[$x]</option>\n";
@@ -1950,6 +1929,7 @@ function skift_bruger($ny_bruger,$kode,$pwtjek) {
 
 function find_bon($bon) {
 	global $db;
+	global $sprog_id;
 	
 	if ($bon) {
 		$bon=strtoupper($bon);
@@ -1977,8 +1957,8 @@ function find_bon($bon) {
 	} else {
 		print "<table><tbody>\n";
 		print "<tr><td colspan=\"2\" alingn=\"center\">\n";
-		print 	"<form name=find_bon action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
-		Print 	"<big><b>Skriv bon nummer eller 'S' for sidste bon:</b></big>\n";
+		print "<form name=find_bon action=\"pos_ordre.php\" method=\"post\" autocomplete=\"off\">\n";
+		Print "<big><b>".findtekst('2249|Skriv bonnummer eller S for sidste bon', $sprog_id).":</b></big>\n";
 		print "</td></tr>\n";
 #	if ($status>=3 && !$bon && $id) { #20140708
 #		$r=db_fetch_array($q=db_select("select fakturanr from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
@@ -1986,10 +1966,10 @@ function find_bon($bon) {
 #	}
 #	else $tmp=$bon;
 		$stil=find_stil('select',2,0);
-		print "<td><span title=\"".findtekst(1861, $sprog_id)."\"><big>Bon : </big><input class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" type=\"text\" name=\"bon\" size=\"6\" value=\"$tmp\"></span>\n";
+		print "<td><span title=\"".findtekst(1861, $sprog_id)."\"><big>".findtekst('2250|Bon', $sprog_id).": </big><input class=\"inputbox\" style=\"width:100px;font-size:$ifs;\" type=\"text\" name=\"bon\" size=\"6\" value=\"$tmp\"></span>\n";
 		$stil=find_stil('knap',1,0);
-		print 	"<input type=\"submit\" $stil name=\"find_bon\" value=\"OK\">\n";
-		print 	"</form>\n";
+		print "<input type=\"submit\" $stil name=\"find_bon\" value=\"OK\">\n";
+		print "</form>\n";
 		print "</td></tr>\n";
 		print "</tbody></table>\n";
 		print "<script language=\"javascript\">\n";
@@ -2018,7 +1998,7 @@ function opret_posordre($konto_id,$kasse){
 	
 	hent_shop_ordrer('','');	
 	
-	$r = db_fetch_array(db_select("select box4 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__)); 
+	$r = db_fetch_array(db_select("select box4 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$x=$kasse-1;
 		$tmp=explode(chr(9),$r['box4']);
 		$terminal_ip=trim($tmp[$x]);
@@ -2034,7 +2014,7 @@ function opret_posordre($konto_id,$kasse){
 		setcookie("salditerm",$terminal_ip,time()+3600,'/');
 	}
 	if ($kasse && !$_GET['bordnr'] && !isset($_GET['flyt_til'])) {
-		$qtxt="select box13 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+		$qtxt="select box13 from grupper where art='POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if ($r['box13']) {
 			$tmparray=explode(chr(9),$r['box13']);
@@ -2222,7 +2202,7 @@ function opdater_konto($konto_id,$kontonr,$id) {
 
 
 function find_kasse($kasse) {
-	global $afd,$db,$id,$regnaar;
+	global $afd,$db,$id,$regnaar,$sprog_id;
 	
 	$id*=1;
 	
@@ -2265,22 +2245,33 @@ function find_kasse($kasse) {
 		print "<center><table><tbody>";
 #		print "<tr><td title='".findtekst(766,$sprog_id)."'>".findtekst(765,$sprog_id)."</td>";
 #		print "<td><input class='inputbox' type='text' style='text-align:right;font-size:$ifs;width:25px' name='pfs' value='$pfs'></td></tr>";
-		print "<tr><td>V&aelig;lg kasse</td><td><SELECT $stil NAME=\"kasse\">\n";
-		for($x=0;$x<count($afd);$x++) {
-			$kasse=$x+1;
-			if (!count($afd_nr) && $kasse==$nuv_kasse) print "<option value=\"$kasse\">$kasse</option>\n";
-			for($y=0;$y<count($afd_nr);$y++) {
-				if ($kasse==$nuv_kasse && $afd[$x]==$afd_nr[$y]) print "<option value=\"$kasse\">$kasse: $afd_navn[$y]</option>\n";
+	if ($db == 'pos_73') {
+		for ($x = 0; $x < count($afd); $x++) {
+			$kasse = $x + 1;
+			print "<tr><td><input type = 'submit' style = 'width:200px;height:50px;' name = 'kasse' value='$kasse'></td></tr>";
+		}
+	}	else {
+		print "<tr><td>".findtekst('2253|Vælg kasse', $sprog_id)."</td><td><SELECT $stil NAME=\"kasse\">\n";
+		for ($x = 0; $x < count($afd); $x++) {
+			$kasse = $x + 1;
+			if (!count($afd_nr) && $kasse == $nuv_kasse)
+				print "<option value=\"$kasse\">$kasse</option>\n";
+			for ($y = 0; $y < count($afd_nr); $y++) {
+				if ($kasse == $nuv_kasse && $afd[$x] == $afd_nr[$y])
+					print "<option value=\"$kasse\">$kasse: $afd_navn[$y]</option>\n";
 			}
 		}
-		for($x=0;$x<count($afd);$x++) {
-			$kasse=$x+1;
-			if (!count($afd_nr) && $kasse!=$nuv_kasse) print "<option value=\"$kasse\">$kasse: $afd_navn[$y]</option>\n";
-			for($y=0;$y<count($afd_nr);$y++) {
-				if ($kasse!=$nuv_kasse && $afd[$x]==$afd_nr[$y]) print "<option value=\"$kasse\">$kasse: $afd_navn[$y]</option>\n";
+		for ($x = 0; $x < count($afd); $x++) {
+			$kasse = $x + 1;
+			if (!count($afd_nr) && $kasse != $nuv_kasse)
+				print "<option value=\"$kasse\">$kasse: $afd_navn[$y]</option>\n";
+			for ($y = 0; $y < count($afd_nr); $y++) {
+				if ($kasse != $nuv_kasse && $afd[$x] == $afd_nr[$y])
+					print "<option value=\"$kasse\">$kasse: $afd_navn[$y]</option>\n";
 			}
 		}
 		print "</SELECT></td></tr>\n";
+}
 /*
   if (!$kasse || $kasse=="?") {
 		print "<form name=pos_ordre action=\"pos_ordre.php?kasse=opdat&del_bord=$del_bord\" method=\"post\" autocomplete=\"off\">\n";
@@ -2300,7 +2291,6 @@ function find_kasse($kasse) {
 			$r=db_fetch_array(db_select("select felt_5,afd from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
 			$nuv_kasse=$r['felt_5'];
 			$nuv_afd=$r['afd'];
-#cho "Kasse $nuv_kasse $nuv_afd<br>";
 		} elseif (isset($_COOKIE['saldi_pos'])) {
 			$nuv_kasse=stripslashes($_COOKIE['saldi_pos']);
 		}
@@ -2314,7 +2304,6 @@ function find_kasse($kasse) {
 			}
 			print	"<option value=\"$nuv_kasse\">$nuv_kasse $afd_navn</option>\n";
 			for($x=1;$x<=count($afd);$x++) {
-#cho "X $x<br>";
 				for($y=0;$y<count($afdnr);$y++) {
 					if ($afd[$x-1]==$afdnr[$y]) $afd_navn=$afdnavn[$y];
 				}
@@ -2400,7 +2389,6 @@ function posbogfor ($kasse,$regnstart,$reportNumber) {
 	$ownCommissionAccountUsedId=$r['id'];
 	$ownCommissionAccountUsed=$r['var_value'];
 	
-		#cho "select ansat_id from brugere where brugernavn = '$brugernavn'<br>\n";
 	$r=db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
 	$ansat_id=(int)$r['ansat_id'];
 
@@ -2451,7 +2439,7 @@ function posbogfor ($kasse,$regnstart,$reportNumber) {
 		}
 	}
 	
-	for ($x=0;$x<count($fakturadate);$x++) {#cho __line__." $fakturadate[$x]<br>"; 
+	for ($x=0;$x<count($fakturadate);$x++) { 
 		$y=0;
 		$betaling[$x] = array();
 		$qtxt = "select distinct(pos_betalinger.betalingstype) as betaling from pos_betalinger,ordrer where ";
@@ -2554,12 +2542,11 @@ function posbogfor ($kasse,$regnstart,$reportNumber) {
 #					$kto_id[$k]=$r['konto_id'];
 #					$k++;
 				}
-				$qtxt="select box9 from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
+				$qtxt="select box9 from grupper where art='POS' and kodenr='1' and fiscal_year = '$regnaar'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				if($id) {
 		#				$svar='OK';
 					$svar=bogfor_nu("$id","Dagsafslutning");
-#cho "bogfor_nu('$id','Dagsafslutning')<br>";
 					if ($svar=='OK') {
 						echo '';
 					} else { $alert1 = findtekst(1869, $sprog_id);
@@ -2579,7 +2566,6 @@ function posbogfor ($kasse,$regnstart,$reportNumber) {
 			$k_oid=explode(',',$ko_id);
 			for ($k=0;$k<count($k_oid);$k++) {
 				if ($k_oid[$k]) {
-#cho "bogfor_nu($k_oid[$k],'')<br>";
 					$svar=bogfor_nu($k_oid[$k],'');
 					if ($svar!='OK') {
 						echo $svar."<br>";
@@ -2640,7 +2626,7 @@ function posbogfor ($kasse,$regnstart,$reportNumber) {
 					$qtxt.= "0,'$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
-			} #else #cho __line__." Ikke her<br>";
+			} 
 		} else {
 			if ($ValutaKonti[$z] && $ValutaTilgang[$z]) {
 				if ($ValutaTilgang[$z]>0) {$debet=$ValutaTilgang[$z];$kredit=0;}
@@ -2866,7 +2852,6 @@ function kasseoptalling (
 	$accountPayment = $svar[12];
 	$omsatning      = $tilgang+$kontosum;
 
-#cho "DKK TG $tilgang Om $omsatning<br>"; 	
 	$r=db_fetch_array(db_select("select box8,box9,box14 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$mellemkonti=explode(chr(9),$r['box8']);
 	$mellemkonto=$mellemkonti[$kasse-1];
@@ -2958,7 +2943,6 @@ function kasseoptalling (
 				$tilgang=$svar[1]*100/$valutakurs[$x];
 				$diff=$svar[2]*100/$valutakurs[$x];
 				$ValutaKasseDiff[$x]=$optval[$x]-($byttepenge+$tilgang);
-#cho "$valuta[$x] TG $tilgang Om $omsatning<br>"; 	
 				print "<tr><td colspan=\"3\" align=\"center\">";
 				print "<input type=\"hidden\" name=\"kontosum\" value=\"$valuta[$x]\">\n";
 				print "<input type=\"hidden\" name=\"valuta[$x]\" value=\"$valuta[$x]\">\n";
@@ -3053,7 +3037,6 @@ function flyt_bord($id,$bordnr,$delflyt) { #20140508
 	global $s_id;
 	global $db;
 
-	#cho "Klik på et af nedenstående borde for at flytte gæsterne fra $bordnr:<br>\n";
 	print "<a href=\"pos_ordre.php?id=$id&bordnr=$bordnr\">Fortryd</a><br>\n";
 	
 	$x=0;
@@ -3062,7 +3045,6 @@ function flyt_bord($id,$bordnr,$delflyt) { #20140508
 	while($r=db_fetch_array($q)){
 		if($r['nr'] && $r2=db_fetch_array(db_select("select id from ordrelinjer where ordre_id='$r[id]'",__FILE__ . " linje " . __LINE__))){ 
 			$optaget[$x]=$r['nr'];
-#cho "$r[id] Optaget $x -> $optaget[$x]<br>\n";
 			$x++;
 		}
 	}
@@ -3082,7 +3064,6 @@ function flyt_bord($id,$bordnr,$delflyt) { #20140508
 
 
 function kundedisplay($beskrivelse,$pris,$ryd){
-#cho "Incl $incl_moms<br>\n";
 	global $db,$fast_morgen,$kasse;
 	global $printserver,$regnaar;
 	global $kundedisplay;
@@ -3193,14 +3174,12 @@ function udskriv_kasseopg($id,$kasse,$pfnavn) {
 	global $regnaar,$tracelog;
 	
 	$bon='';
-#cho "udskriv_kasseopg(ID $id, Kasse $kasse, PF $pfnavn)<br>";
 	$fp=fopen("$pfnavn","r");
   while($linje=fgets($fp)) {
 		$bon.=$linje;
 	}
 	$bon=urlencode($bon);
-	$qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 	$x=$kasse-1;
 	$tmp=explode(chr(9),$r['box3']);
 	$printserver=trim($tmp[$x]);
@@ -3259,7 +3238,6 @@ function posvaluta($modtaget) {
 
 	
 if (!$varenr_ny && $fokus!='modtaget' && $fokus!='modtaget2' && $fokus!='indbetaling' && $fokus!='delflyt') $fokus="varenr_ny";
-#cho $fokus;
 if ($obstxt) alert($obstxt);
 
 ?>

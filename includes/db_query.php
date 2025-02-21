@@ -35,6 +35,7 @@
 // 20200308 PHR addded function db_create, db_exists & tbl_exists.
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20230730 LOE - Minor modification, abolute path to std_func
+// 20250121 connection as first parameter in pg_*
 
 
 if (!function_exists('get_relative')) {
@@ -104,7 +105,7 @@ if (!function_exists('db_error')) {
 	function db_error() {
 		if ($db_type=='mysqli') echo mysqli_error(). "\n";
 		else if ($db_type=='mysql') echo mysql_error(). "\n";
-		else  echo pg_last_error(). "\n";
+		else  echo pg_last_error($connection). "\n";
 	}
 }
 
@@ -136,13 +137,12 @@ if (!function_exists('db_modify')) {
 			$db_query=mysqli_query($connection, $qtext); 
 		} 
 		else {
-			$db_query="pg_query";
 			$qtext=str_replace(' like ',' ilike ',$qtext);
-			$db_query=$db_query($qtext);
+			$db_query=pg_query($connection, $qtext);
 		}
 #20190704 END
 		
-		$db=trim($db);
+		$db=trim(if_isset($db, ''));
 		if ($db_skriv_id>1) {
 				$fp=fopen("$temp/.ht_modify.log","a");
 				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n");
@@ -152,7 +152,7 @@ if (!function_exists('db_modify')) {
 		if (!$db_query) { #20190704
 			if ($db_type=="mysql")       $errtxt = mysql_error($connection);
 			else if ($db_type=="mysqli") $errtxt = mysqli_error($connection); #20190704
-			else $errtxt=pg_last_error();
+			else $errtxt=pg_last_error($connection);
 			$fp=fopen("$temp/.ht_modify.log","a");
 			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
 			fwrite($fp,"-- Fejl!! ".$qtext." | $errtxt;\n");
@@ -229,8 +229,8 @@ if (!function_exists('db_select')) {
 			$errtxt=mysqli_error($connection); #20190704
 		} else {
 			$qtext=str_replace(' like ',' ilike ',$qtext);
-			$query=pg_query($qtext);
-			$errtxt=pg_last_error();
+			$query=pg_query($connection, $qtext);
+			$errtxt=pg_last_error($connection);
 		}
 		if ($errtxt)	{		
 			$db=trim($db);
@@ -287,10 +287,10 @@ if (!function_exists('db_select')) {
 	}
 }
 
-if (!function_exists('db_catalog_setval')) {
+if (!function_exists('db_catalog_setval')) { // <-- Never used
 	function db_catalog_setval($seq, $val, $bool) {
 		global $db_type;
-		return pg_catalog.setval($seq, $val, $bool);
+		return pg_catalog.setval($seq, $val, $bool); // <-- invalid function
 	}
 }
 
@@ -363,7 +363,7 @@ if (!function_exists('transaktion')) {
 		fwrite($fp,$qtext.";\n");
 		if ($db_type=="mysql") mysql_query($qtext);
 		elseif ($db_type=="mysqli") mysqli_query($connection, $qtext); #20190704
-		else pg_query($qtext);
+		else pg_query($connection, $qtext);
 	}
 }
 
@@ -374,7 +374,7 @@ if (!function_exists('db_escape_string')) {
 		
 		if ($db_type=="mysql") return mysql_real_escape_string($qtext);
 		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, $qtext); #20190704
-		else return pg_escape_string($qtext);
+		else return pg_escape_string($connection, $qtext);
 	}
 }
 

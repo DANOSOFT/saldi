@@ -103,7 +103,6 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if ($unlinkFile) unlink($unlinkFile);
 		elseif (isset($_POST['poolFile'])) {
 			$poolFile=if_isset($_POST['poolFile']);
-#cho "slettter ../".$docFolder."/$db/pulje/$poolFile<br>";
 			if ($poolFile) unlink("../".$docFolder."/$db/pulje/$poolFile");
 		}
 #exit;
@@ -154,7 +153,6 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<tr><td width=15% height=\"70%\" align=center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid rgb(180, 180, 255); padding: 0pt 0pt 1px;\"><tbody>\n";
 	print "<tr><td width=100% align=center>\n";
 	$fil_nr=0;
-#cho "$sourceId<br>";
 		if (is_dir($dir)) {
 			$files = scandir($dir);
 			sort($files);

@@ -159,7 +159,6 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		$query = db_select("select konto_id, kontonr, status,omvbet from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
 		$omlev=$row['omvbet'];
-#cho "$omlev=$row[omvbet]<br>";
 		if ($row['status']>2) {
 			print "Hmmm - har du brugt browserens opdater eller tilbageknap???";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">";
@@ -469,7 +468,6 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 			$query = db_select("select box1,box3,box9 from grupper where art='KG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__);
 			$row = db_fetch_array($query);
 			$omlev=$row['box9'];
-#cho "omlev $omlev<br>";				
 			if (substr($row['box1'],0,1)=='K') {
  				$tmp= substr($row['box1'],1,1)*1;
 				$valuta=$r['box3'];
@@ -679,7 +677,6 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 							$tidl_lev[$x]=0;
 							$query = db_select("select * from batch_kob where linje_id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
 							while($row = db_fetch_array($query)) $tidl_lev[$x]+=$row['antal'];
-#cho __LINE__." $tidl_lev[$x]<br>"; 								
 							if ($antal[$x]>$tidl_lev[$x]) {
 								print "<BODY onLoad=\"javascript:alert('Varenr. $varenr[$x]: antal &aelig;ndret fra $antal[$x] til $tidl_lev[$x]!')\">";
 								$antal[$x]=$tidl_lev[$x]; $submit = 'save'; $status=1;
@@ -1730,19 +1727,15 @@ function samlevare($id,$art,$v_id,$leveres) {
 	} 
 /*
 else {
-#cho "select antal,posnr from ordrelinjer where id='$linje_id'<br>";
 		$r=db_fetch_array(db_select("select antal,posnr,kred_linje_id from ordrelinjer where id='$linje_id'",__FILE__ . " linje " . __LINE__));
 		$antal=$r['antal']*1;
 		$posnr=$r['posnr']*1;
 		$kred_linje_id=$r['kred_linje_id']*1;
-#cho "$antal select id,antal from ordrelinjer where id='$kred_linje_id'<br>";
 		if ($antal && $r=db_fetch_array(db_select("select id,antal from ordrelinjer where id='$kred_linje_id'",__FILE__ . " linje " . __LINE__))) {
 			$org_antal=$r['antal'];
-#cho "select * from ordrelinjer where samlevare='$r[id]'<br>";
 			$q=db_select("select * from ordrelinjer where samlevare='$r[id]'",__FILE__ . " linje " . __LINE__);
 			while ($r=db_fetch_array($q)) {
 				$ny_antal=afrund($r['antal']*$org_antal/$antal,2);
-#cho "insert into ordrelinjer (ordre_id, varenr, vare_id, beskrivelse, antal, leveres, pris, posnr) 
 					values 
 				('$id', '$r[varenr]', '$r[vare_id]', '$r[beskrivelse]', '$ny_antal', '$ny_antal', '$r[pris]', '$r[posnr]' )<br>";
 				db_modify("insert into ordrelinjer (ordre_id, varenr, vare_id, beskrivelse, antal, leveres, pris, posnr) 

@@ -4,7 +4,7 @@
   const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
   const firstFolder = pathSegments[0]
   // Dynamically import the module
-  const { getBooking, updateBooking, updateItem, getAllItemsFromId ,deleteItem, createItem, getClosedDays, getItemBookings, getSettings } = await import(`/${firstFolder}/rental/api/api.js`)
+  const { getBooking, updateBooking, updateItem, getAllItemsFromId ,deleteItem, createItem, getClosedDays, getItemBookings, getSettings, updateOrder } = await import(`/${firstFolder}/rental/api/api.js`)
 
 const settings = await getSettings()
 
@@ -114,81 +114,68 @@ const editBooking = async (id) => {
     const name = document.querySelector(".name")
     name.textContent = customer.item_name + " - " + customer.name
 
-    // get bookings for selected item
-    const bookings = await getItemBookings(customer.item_id)
-    const dates = []
-    if(bookings !== "Der er ingen bookinger"){
-        bookings.forEach(b => {
-            if(b.id == id) return
-            const fromDate = new Date(b.from * 1000)
-            const fromDateFormattad = fromDate.getFullYear() + "-" + ("0" + (fromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + fromDate.getDate()).slice(-2)
-            const toDate = new Date(b.to * 1000)
-            const toDateFormattad = toDate.getFullYear() + "-" + ("0" + (toDate.getMonth() + 1)).slice(-2) + "-" + ("0" + toDate.getDate()).slice(-2)
-            dates.push([fromDateFormattad, toDateFormattad])
-        })
-    }
+    // Create elements for the calendar view
+    const inputFrom = createInputElement("text", "fromDate", "form-control from", fromDate)
+    const div = createLabelAndDivElement("form-group col-6", "from", inputFrom)
+    const inputTo = createInputElement("text", "toDate", "form-control to", toDate)
+    const div2 = createLabelAndDivElement("form-group col-6", "to", inputTo)
+    const button = createButtonElement("submit", "btn btn-primary col-1", "Opdater")
+    appendToFormGroup(row, [div, div2])
+    appendToFormGroup(form, [button])
 
-    // get disabled dates from closed days
-    const closedDays = await getClosedDays()
-    const closedDates = []
-    if(closedDays.success !== false){
-        closedDays.forEach(i => {
-        const date = new Date(i.date * 1000)
-        const year = date.getFullYear()
-        const month = (date.getMonth() + 1 < 10) ? "0" + (date.getMonth() + 1) : date.getMonth() + 1
-        const day = (date.getDate() < 10) ? "0" + date.getDate() : date.getDate()
-        const formattedDate = year + "-" + month + "-" + day
-        closedDates.push(formattedDate)
-        })
-    }
-
-    // get disabled dates from bookings 
-    const allDatesWithoutEnds = []
-    const allDatesWithoutStarts = []
-    if(dates){
-        dates.forEach(d => {
-        const [fromDate, toDate] = d
-        const fromDateObj = new Date(fromDate)
-        const toDateObj = new Date(toDate)
-        
-        // Exclude the end date and add it to the allDatesWithoutEnds array
-        toDateObj.setDate(toDateObj.getDate() - 1)
-        const endDates = generateDates(fromDateObj, toDateObj)
-        allDatesWithoutEnds.push(...endDates)
-        
-        // Exclude the start date and add it to the allDatesWithoutStarts array
-        const startDates = generateDates(new Date(fromDate), new Date(toDate))
-        startDates.shift() // Remove the first element (start date)
-        allDatesWithoutStarts.push(...startDates)
-        })
-  }
-
-    // Helper function to generate dates between two dates
-    function generateDates(startDate, endDate) {
-        const dates = []
-        const currentDate = new Date(startDate)
-
-        while (currentDate <= endDate) {
-            const year = currentDate.getFullYear()
-            const month = (currentDate.getMonth() + 1 < 10) ? "0" + (currentDate.getMonth() + 1) : currentDate.getMonth() + 1
-            const day = (currentDate.getDate() < 10) ? "0" + currentDate.getDate() : currentDate.getDate()
-            const formattedDate = year + "-" + month + "-" + day
-            dates.push(formattedDate)
-            
-            // Move to the next day
-            currentDate.setDate(currentDate.getDate() + 1)
-        }
-
-        return dates
-    }
-
-  if(closedDates){
-    closedDates.forEach(c => {
-      allDatesWithoutEnds.push(c)
-      allDatesWithoutStarts.push(c)
+  // get bookings for selected item
+  const bookings = await getItemBookings(customer.item_id)
+  const dates = []
+  if(bookings.msg !== "Der er ingen bookinger"){
+    bookings.forEach(b => {
+      if(b.id == id) return
+      const fromDate = new Date(b.from * 1000)
+      const fromDateFormattad = fromDate.getFullYear() + "-" + ("0" + (fromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + fromDate.getDate()).slice(-2)
+      const toDate = new Date(b.to * 1000)
+      const toDateFormattad = toDate.getFullYear() + "-" + ("0" + (toDate.getMonth() + 1)).slice(-2) + "-" + ("0" + toDate.getDate()).slice(-2)
+      dates.push([fromDateFormattad, toDateFormattad])
     })
   }
 
+  // get disabled dates from closed days
+  const closedDays = await getClosedDays()
+  const closedDates = []
+  if(closedDays.success !== false){
+    closedDays.forEach(i => {
+      const date = new Date(i.date * 1000)
+      const year = date.getFullYear()
+      const month = (date.getMonth() + 1 < 10) ? "0" + (date.getMonth() + 1) : date.getMonth() + 1
+      const day = (date.getDate() < 10) ? "0" + date.getDate() : date.getDate()
+      const formattedDate = year + "-" + month + "-" + day
+      closedDates.push(formattedDate)
+    })
+  }
+
+  // Helper function to generate dates between two dates
+  function generateDates(startDate, endDate) {
+    const dates = []
+    const currentDate = new Date(startDate)
+    const end = new Date(endDate)
+
+    // Normalize the time component to midnight for both dates
+    currentDate.setHours(0, 0, 0, 0)
+    end.setHours(0, 0, 0, 0)
+    
+    while (currentDate <= endDate) {
+      const year = currentDate.getFullYear()
+      const month = (currentDate.getMonth() + 1 < 10) ? "0" + (currentDate.getMonth() + 1) : currentDate.getMonth() + 1
+      const day = (currentDate.getDate() < 10) ? "0" + currentDate.getDate() : currentDate.getDate()
+      const formattedDate = year + "-" + month + "-" + day
+      dates.push(formattedDate)
+      
+      // Move to the next day
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+    
+    return dates
+  }
+
+  // get already booked dates
   const bookedDates = []
   if(dates){
     dates.forEach(d => {
@@ -200,265 +187,195 @@ const editBooking = async (id) => {
     })
   }
 
-    /* if(fromDate != toDate){ */
-    const inputFrom = createInputElement("text", "fromDate", "form-control from", fromDate)
-    const div = createLabelAndDivElement("form-group col-6", "from", inputFrom)
-    const inputTo = createInputElement("text", "toDate", "form-control to", toDate)
-    const div2 = createLabelAndDivElement("form-group col-6", "to", inputTo)
-    const button = createButtonElement("submit", "btn btn-primary col-1", "Opdater")
-    appendToFormGroup(row, [div, div2])
-    appendToFormGroup(form, [button])
+  // draw form
+  const fromDatePicker = document.querySelector('[name=fromDate]')
+  const toDatePicker = document.querySelector('[name=toDate]')
+  let fromDateData, toDateData, addedDays, lastDay
+  const addedDaysArray = []
+  closedDates.push(...bookedDates)
+  const today = new Date();
 
-    let fromDateData = document.querySelector(".from").value
-    let toDateData = document.querySelector(".to").value
-    // draw form
-    let fromDateCal, addedDays, lastDay
-    const addedDaysArray = []
-    closedDates.push(...bookedDates)
+  console.log(dates)
 
-
-/*     const datePick = flatpickr(inputFrom, {
-        dateFormat: 'Y-m-d',
-        theme: "dark",
-        locale: "da",
-        disable: closedDates,
-        onDayCreate: function(dObj, dStr, fp, dayElem) {
-          // Sort bookings in descending order based on the 'to' property
-          if(bookings.msg === "Der er ingen bookinger"){
-            return
-          }
-          bookings.sort((a, b) => b.to - a.to)
-    
-          // Get the last booking
-          const lastBooking = bookings[0]
-        
-          const date = new Date(dayElem.dateObj)
-          const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
-    
-          if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
-            addedDaysArray.push(dateStr)
-          }
-          const daysToAdd = addedDaysArray.filter(d => d >= fromDateData && d <= dateStr)
-          addedDays = daysToAdd.length
-    
-          // Calculate the difference between dayElem.dateObj and the last day of the last booking
-          const lastBookingDate = new Date(lastBooking.to * 1000)
-          // add 1 day to the from date to avoid conflicts with the end date of the previous booking
-          lastBookingDate.setDate(lastBookingDate.getDate() + 2)
-          const diffInDays = Math.ceil((dayElem.dateObj - lastBookingDate) / (1000 * 60 * 60 * 24))
-    
-          const timeDifference = Math.abs(date - lastBookingDate)
-          const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
-          console.log(daysDifference)
-          // Check if the difference is equal to or greater than 7 and there is no booking on dayElem.dateObj
-          if (date > lastBookingDate && daysDifference % 7 === 0 && !bookings.some(booking => new Date(booking.from * 1000).toDateString() === dayElem.dateObj.toDateString()) && !closedDates.includes(dateStr)) {
-            // Add class to dayElem
-            dayElem.className += " has-action"
-          }
-        },
-        onChange: (selectedDates, dateStr, instance) => {
-          fromDateData = dateStr
-          const [year, month, day] = dateStr.split('-').map(Number)
-          fromDate =  new Date(year, month - 1, day)
-          // if from date is before a date in bookedDates then disable all dates after that date
-          if(bookedDates){
-            bookedDates.some(d => {
-              const [year, month, day] = d.split('-').map(Number)
-              const bookedDate = new Date(year, month - 1, day)
-              if(fromDate < bookedDate){
-                lastDay = bookedDate
-                return true
-              }
-            })
-          }
-          flatpickr(inputTo, {
-            dateFormat: 'Y-m-d',
-            minDate: fromDate,
-            maxDate: lastDay,
-            theme: "dark",
-            locale: "da",
-            disable: closedDates,
-            onDayCreate: function(dObj, dStr, fp, dayElem) {
-              if (settings.find_weeks === "1" && fromDate != undefined && fromDate != "" && fromDate != "Invalid Date") {
-                const date = new Date(dayElem.dateObj)
-                const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
-                if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
-                  addedDaysArray.push(dateStr)
-                }
-                const daysToAdd = addedDaysArray.filter(d => d >= fromDateData && d <= dateStr)
-                addedDays = daysToAdd.length
-                const timeDifference = Math.abs(date - fromDate)
-                const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
-                if(daysDifference % 7 === 0 && daysDifference !== 0 && daysDifference !== 1 && closedDates.includes(dateStr) === false){
-                    dayElem.className += " has-action"
-                }
-              }
-            },
-            onChange: (selectedDates, dateStr, instance) => {
-              toDateData = dateStr
-              if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
-                return
-              }
-            }
-          })
-          if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
-            return
-          }
-
-        }
-      }) */
-      
-
-
-    const datePick = flatpickr(inputFrom, {
+  const datePick = flatpickr(fromDatePicker, {
     dateFormat: 'Y-m-d',
     theme: "dark",
     locale: "da",
     disable: closedDates,
+    onDayCreate: function(dObj, dStr, fp, dayElem) {
+      // Sort bookings in descending order based on the 'to' property
+      if(bookings.msg === "Der er ingen bookinger"){
+        return
+      }
+
+      bookings.sort((a, b) => b.to - a.to)
+
+      // Get the last booking
+      const lastBooking = bookings[0]
+    
+      const date = new Date(dayElem.dateObj)
+      const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+
+      if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
+        addedDaysArray.push(dateStr)
+      }
+      const daysToAdd = addedDaysArray.filter(d => d >= fromDateData && d <= dateStr)
+      addedDays = daysToAdd.length
+
+      // Calculate the difference between dayElem.dateObj and the last day of the last booking
+      const lastBookingDate = new Date(lastBooking.to * 1000)
+      // add 1 day to the from date to avoid conflicts with the end date of the previous booking
+      lastBookingDate.setDate(lastBookingDate.getDate() + 2)
+      const diffInDays = Math.ceil((dayElem.dateObj - lastBookingDate) / (1000 * 60 * 60 * 24))
+
+      const timeDifference = Math.abs(date - lastBookingDate)
+      const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
+
+      // Check if the difference is equal to or greater than 7 and there is no booking on dayElem.dateObj
+      if (date > lastBookingDate && daysDifference % 7 === 0 && !bookings.some(booking => new Date(booking.from * 1000).toDateString() === dayElem.dateObj.toDateString()) && !closedDates.includes(dateStr)) {
+        // Add class to dayElem
+        dayElem.className += " has-action"
+      }
+    },
     onChange: (selectedDates, dateStr, instance) => {
-        fromDateData = dateStr
-        const [year, month, day] = dateStr.split('-').map(Number)
-        fromDateCal =  new Date(year, month - 1, day)
-        // if from date is before a date in bookedDates then disable all dates after that date
-        if(bookedDates){
-            bookedDates.some(d => {
-                const [year, month, day] = d.split('-').map(Number)
-                const bookedDate = new Date(year, month - 1, day)
-                if(fromDateCal < bookedDate){
-                    lastDay = bookedDate
-                    return true
-                }
-            })
-        }
-        flatpickr(inputTo, {
+      fromDateData = dateStr
+      const [year, month, day] = dateStr.split('-').map(Number)
+      fromDate =  new Date(year, month - 1, day)
+      // if from date is before a date in bookedDates then disable all dates after that date
+      if(bookedDates){
+        bookedDates.some(d => {
+          const [year, month, day] = d.split('-').map(Number)
+          const bookedDate = new Date(year, month - 1, day)
+          if(fromDate < bookedDate){
+            lastDay = bookedDate
+            return true
+          }
+        })
+      }
+      flatpickr(toDatePicker, {
         dateFormat: 'Y-m-d',
-        minDate: fromDateCal,
-        maxDate: lastDay,
+        minDate: today,
         theme: "dark",
         locale: "da",
         disable: closedDates,
         onDayCreate: function(dObj, dStr, fp, dayElem) {
-            if (settings.find_weeks === "1" && fromDateCal != undefined && fromDateCal != "" && fromDateCal != "Invalid Date") {
+          if (settings.find_weeks === "1" && fromDate != undefined && fromDate != "" && fromDate != "Invalid Date") {
             const date = new Date(dayElem.dateObj)
             const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
             if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
-                addedDaysArray.push(dateStr)
+              addedDaysArray.push(dateStr)
             }
             const daysToAdd = addedDaysArray.filter(d => d >= fromDateData && d <= dateStr)
             addedDays = daysToAdd.length
-            const timeDifference = Math.abs(date - fromDateCal)
-            const daysDifference = Math.floor(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
+            const timeDifference = Math.abs(date - fromDate)
+            const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
             if(daysDifference % 7 === 0 && daysDifference !== 0 && daysDifference !== 1 && closedDates.includes(dateStr) === false){
-                dayElem.className += " has-action";
+              dayElem.className += " has-action"
             }
-            }
+          }
         },
         onChange: (selectedDates, dateStr, instance) => {
-            toDateData = dateStr
-            }
-            })
+          toDateData = dateStr
+          if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
+            return
+          }
+        }
+      })
+      if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
+        return
+      }
     }
-    })
+  })
 
-    // Trigger the onChange event to set the initial value of the toDateData variable
-    datePick.config.onChange[0](datePick.selectedDates, datePick.input.value, datePick)
-    console.log(datePick.input.value)
-    button.addEventListener("click", async (e) => {
-        e.preventDefault() // Prevent the form submission
-        e.stopPropagation()
-        if (fromDateData > toDateData) {
-            alert("Du kan ikke vælge en til dato som er før fra dato")
-            return
-        }
-        if (fromDateData === undefined || toDateData === undefined || fromDateData === "" || toDateData === "") {
-            alert("Du skal vælge en dato")
-            return
-        }
-        if (fromDateData === undefined || toDateData === undefined) {
-            alert("Du skal vælge en dato")
-            return
-        }
+  // Trigger the onChange event to set the initial value of the toDateData variable
+  datePick.config.onChange[0](datePick.selectedDates, datePick.input.value, datePick)
+  
+  button.addEventListener("click", async (e) => {
+    e.preventDefault() // Prevent the form submission
+    e.stopPropagation()
+    if (fromDateData > toDateData) {
+        alert("Du kan ikke vælge en til dato som er før fra dato")
+        return
+    }
+    if (fromDateData === undefined || toDateData === undefined || fromDateData === "" || toDateData === "") {
+        alert("Du skal vælge en dato")
+        return
+    }
+    if (fromDateData === undefined || toDateData === undefined) {
+        alert("Du skal vælge en dato")
+        return
+    }
 
-        // Check if the order has been invoiced
-        if (customer.status === "1" || customer.status === 1) {
-            if(confirm("Er du sikker på du vil ændre en faktureret booking?") === false) return
-        }else{
-            if(confirm("Er du sikker på du vil ændre denne booking?") === false) return
-        }
-        
-        toDateData = await adjustBookingEndDateIfNeeded(fromDateData, toDateData)
-        
-        // make sure there is no booking in the range of the selected dates 
-        if (dates.length > 0) {
-            let hasBookingConflict = false // Flag to track conflicts
-            for (const [fromDate, toDate] of dates) {
-            // add 1 day to the from date to avoid conflicts with the end date of the previous booking
-            let newFromDate = new Date(fromDate)
-            newFromDate.setDate(newFromDate.getDate() + 1)
-            newFromDate = newFromDate.getFullYear() + "-" + ("0" + (newFromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + newFromDate.getDate()).slice(-2)
+    // Check if the order has been invoiced
+    if (customer.status === "1" || customer.status === 1) {
+        if(confirm("Er du sikker på du vil ændre en faktureret booking?") === false) return
+    }else{
+        if(confirm("Er du sikker på du vil ændre denne booking?") === false) return
+    }
     
-            // remove 1 day from the to date to avoid conflicts with the start date of the next booking
-            let newToDate = new Date(toDate)
-            newToDate.setDate(newToDate.getDate() - 1)
-            newToDate = newToDate.getFullYear() + "-" + ("0" + (newToDate.getMonth() + 1)).slice(-2) + "-" + ("0" + newToDate.getDate()).slice(-2)
+    /* toDateData = await adjustBookingEndDateIfNeeded(fromDateData, toDateData) */
     
-            if (
-                (fromDateData <= newToDate && fromDateData >= newFromDate) ||
-                (toDateData >= newFromDate && toDateData <= newToDate) ||
-                (fromDateData <= newFromDate && toDateData >= newToDate)
-            ) {
-                alert("Der er allerede en booking i det valgte tidsrum")
-                hasBookingConflict = true // Set the flag to true
-                break // Exit the loop when there's a conflict
-            }
-            }
-        
-            // If there's a booking conflict, prevent the form submission
-            if (hasBookingConflict) {
-            return
-            }
+    // make sure there is no booking in the range of the selected dates 
+    if (dates.length > 0) {
+        let hasBookingConflict = false // Flag to track conflicts
+        for (const [fromDate, toDate] of dates) {
+          
+        // add 1 day to the from date to avoid conflicts with the end date of the previous booking
+        let newFromDate = new Date(fromDate)
+        newFromDate.setDate(newFromDate.getDate())
+        newFromDate = newFromDate.getFullYear() + "-" + ("0" + (newFromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + newFromDate.getDate()).slice(-2)
+
+        // remove 1 day from the to date to avoid conflicts with the start date of the next booking
+        let newToDate = new Date(toDate)
+        newToDate.setDate(newToDate.getDate())
+        newToDate = newToDate.getFullYear() + "-" + ("0" + (newToDate.getMonth() + 1)).slice(-2) + "-" + ("0" + newToDate.getDate()).slice(-2)
+
+        if (
+            (fromDateData <= newToDate && fromDateData >= newFromDate) ||
+            (toDateData >= newFromDate && toDateData <= newToDate) ||
+            (fromDateData <= newFromDate && toDateData >= newToDate)
+        ) {
+            console.log("picked dates: \n From: " + fromDateData + "\n To: " + toDateData)
+            console.log("conflict dates: \n From: " + newFromDate + "\n To: " + newToDate)
+            alert("Der er allerede en booking i det valgte tidsrum")
+            hasBookingConflict = true // Set the flag to true
+            break // Exit the loop when there's a conflict
         }
-        const diffTime = Math.abs(new Date(toDateData) - new Date(fromDateData))
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
-        const fromDate = new Date(fromDateData)/1000
-        const toDate = new Date(toDateData)/1000
-        const data = {
-            id: id,
-            from: fromDate,
-            to: toDate,
-            fromDate: fromDateData,
-            toDate: toDateData,
-            days: diffDays,
-            customer_id: customer.customer_id,
         }
-        const res = await updateBooking(data)
     
+        // If there's a booking conflict, prevent the form submission
+        if (hasBookingConflict) {
+          return
+        }
+    }
+    const diffTime = Math.abs(new Date(toDateData) - new Date(fromDateData))
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+    const fromDate = new Date(fromDateData)/1000
+    const toDate = new Date(toDateData)/1000
+    const data = {
+        booking_id: id,
+        from: fromDate,
+        to: toDate,
+        fromDate: fromDateData,
+        toDate: toDateData,
+        days: diffDays,
+        customer_id: customer.customer_id,
+    }
 
-        window.location.href = "/pos/rental/index.php?vare"
-    })
-    /* }else{
-        const inputFrom = createInputElement("date", "fromDate", "form-control", fromDate)
-        const div = createLabelAndDivElement("form-group", "Dato", inputFrom)
-        const inputFromTime = createInputElement("time", "fromTime", "form-control", fromTime)
-        const div2 = createLabelAndDivElement("form-group col-6", "Fra", inputFromTime)
-        const inputToTime = createInputElement("time", "toTime", "form-control", toTime)
-        const div3 = createLabelAndDivElement("form-group col-6", "Til", inputToTime)
-        const button = createButtonElement("submit", "btn btn-primary", "Opdater")
-        appendToFormGroup(form, [div, button])
-        appendToFormGroup(row, [div2, div3])
+    const res = await updateBooking(data)
+    if(res.status == 1){
+      const order = await updateOrder(data)
+      if(order.status == false){
+        alert("booking updateret men kunne ikke opdatere ordre")
+      }else{
+        alert(res.msg)
+      }
+    }else{
+      alert(res.msg)
+    }
 
-        button.addEventListener("click", async (e) => {
-            e.preventDefault()
-            const data = {
-                id: id,
-                from: new Date(document.querySelector("[name=fromDate]").value + "T" + document.querySelector("[name=fromTime]").value).getTime() / 1000,
-                to: new Date(document.querySelector("[name=fromDate]").value + "T" + document.querySelector("[name=toTime]").value).getTime() / 1000
-            }
-            const response = await updateBooking(data)
-            alert(response)
-            window.location.href = "index.php"
-        })
-    } */
+    window.location.href = "/pos/rental/index.php?vare"
+})
 }
 
 const editItem = async id => {

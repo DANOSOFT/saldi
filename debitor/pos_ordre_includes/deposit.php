@@ -105,9 +105,7 @@
 		}
 	} elseif ($indbetal) {
         $indbetaling=$indbetal;
-		#exit;
 	}	elseif ($betaling && ($betaling!='ukendt' || substr($modtaget,0,1)=='/')) { #20160817
-#cho __LINE__." $modtaget<br>";
 		if (substr($modtaget,0,1)=='/') { #Delbetaling
 			$modtaget=substr($modtaget,1);
 			if (!is_numeric(substr($modtaget,-1))) {

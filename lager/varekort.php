@@ -1,4 +1,4 @@
-<?php 
+<?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
@@ -347,7 +347,6 @@ if ($saveItem || $submit = trim($submit)) {
     if (!$variant_vare_id) $variant_vare_id = array(); 
 ######### Kategorier #########
     for ($x=0;$x<=count($kat_id);$x++) {
-#cho "KV $kat_valg[$x]<br>";
         if (isset ($kat_valg[$x]) && $kat_valg[$x]) {
             ($kategori)?$kategori.=chr(9).$kat_id[$x]:$kategori=$kat_id[$x];
         }
@@ -402,7 +401,6 @@ if ($saveItem || $submit = trim($submit)) {
         }       $r=db_fetch_array(db_select("select box4 from grupper where art='API'",__FILE__ . " linje " . __LINE__));
         if ($shopurl && $shopurl!="!") {
             $url=$shopurl."/opdat_shop_kat.php";
-#cho $url;
 #           print "<body onload=\"javascript:window.open('$url','opdat:kat');\">";
         }
     }
@@ -476,10 +474,7 @@ if ($saveItem || $submit = trim($submit)) {
         $kategorier=explode(chr(9),$kategori);
         $shop_kat_id='';
         for ($x=0;$x<count($kategorier);$x++){
-#cho "select box3 from grupper where id='$kategorier[$x]'<br>";
-#cho "select box3 from grupper where id='$kategorier[$x]'<br>";
             if($kategorier[$x] && $r=db_fetch_array($q=db_select("select box3 from grupper where id='$kategorier[$x]'",__FILE__ . " linje " . __LINE__))){
-#cho "ZZZZZZZZ $r[box3]<br>";
                 ($shop_kat_id)?$shop_kat_id.=chr(9).$r['box3']:$shop_kat_id=$r['box3'];
             }
         }
@@ -922,6 +917,8 @@ if ($saveItem && $beskrivelse[0] != $oldDescription) {
 }
 ################################################## OUTPUT ####################################################
 
+include("../includes/topline_settings.php");
+
 print "<center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 if ($menu=='T') {
     include_once '../includes/top_menu.php';
@@ -933,6 +930,38 @@ if ($menu=='T') {
     print "</div><!-- end of header -->
         <div class=\"maincontentLargeHolder\">\n";
     print  "<center><table border='0' cellspacing='1' width='75%' align='center';>";
+} elseif ($menu=='S') {
+    print "<tr><td align=\"center\" valign=\"top\">\n";
+    print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
+
+    $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
+    if ($opener!='varer.php') {
+        print "<td width=\"10%\">
+               <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=". addslashes($varenr) ."&vare_id=$id','$tekst')\" accesskey=L>
+               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>\n";
+    } else {
+        print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
+               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
+    }
+    print "<td align='center' style='$topStyle'>".findtekst(566,$sprog_id)."</td>\n";
+    print "<td width='10%' align='center' style='$topStyle'><br></td>\n";
+
+    # Open pos menus
+    if ($id) {
+      if ($usePos) {
+        print "<td width='10%' align='right'>
+        <a href=\"javascript:console.log(getCookie('pos_menu_location'));confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>
+        <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"."POS menuer"."</button></a></td>\n";
+      }
+      # Create new item
+       print "<td width='10%' align='right'>
+         <a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>
+         <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(39,$sprog_id)."</button></a><td>\n";
+    }
+    print "</td></tbody></table>\n";
+    print "</td></tr>\n";
+    print "<td align = center valign = center>\n";
+    print "<table cellpadding='1' cellspacing='1' border='0' width='80%'><tbody>\n";
 } else {
     print "<tr><td align=\"center\" valign=\"top\">\n";
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
@@ -1525,18 +1554,15 @@ print "</tr></tbody></table></td></tr>";
 function prisopdat($id, $diff) {
     $x=0;
     $y=0;
-#cho "select * from styklister where vare_id =$id<br>";
     $q1 = db_select("select * from styklister where vare_id =$id",__FILE__ . " linje " . __LINE__);
     while ($r1 = db_fetch_array($q1)) {
         $x++;
         $indgaar_i[$x]=$r1['indgaar_i'];
         $belob=$r1['antal']*$diff;
-#cho "update varer set kostpris=kostpris+$belob where id=$indgaar_i[$x]<br>";
         db_modify("update varer set kostpris=kostpris+$belob where id=$indgaar_i[$x]",__FILE__ . " linje " . __LINE__);
     }
     $y=$x;
     for ($y=1; $y<=$x; $y++) {
-#cho "select * from styklister where vare_id=$indgaar_i[$y]<br>";
         $q1 = db_select("select * from styklister where vare_id=$indgaar_i[$y]",__FILE__ . " linje " . __LINE__);
         while ($r1 = db_fetch_array($q1)) {
             if ($row['indgaar_i']!=$id) {
@@ -1544,7 +1570,6 @@ function prisopdat($id, $diff) {
                 $vare_id[$x]=$r1['id'];
                 $indgaar_i[$x]=$r1['indgaar_i'];
                 $antal[$x]=$r1['antal'];
-#cho "update varer set kostpris=kostpris+$diff*$antal[$x] where id=$vare_id[$x]<br>";
                 db_modify("update varer set kostpris=kostpris+$diff*$antal[$x] where id=$vare_id[$x]",__FILE__ . " linje " . __LINE__);
             } else {
                 $r2 = db_fetch_array(db_select("select varenr from varer where id=$vare_id[$y]",__FILE__ . " linje " . __LINE__));
@@ -1705,13 +1730,28 @@ function kontoopslag($sort, $fokus, $id)
             <div class=\"maincontentLargeHolder\">\n";
     print"<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0  \" width=\"100%\" valign = \"top\">";
     print"<tbody><tr><td colspan=8>";
-    print "     <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+    print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+} elseif ($menu=='S') {
+    print "<table width='100%'><tbody>";
+
+    print "<td width=\"10%\">
+           <a href=varekort.php?opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>
+           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
+
+    print "<td width=\"80%\" align='center' style='$topStyle'>Varekort</td>";
+
+    print "<td width=\"10%\" align=\"right\" onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\">
+           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Ny</button></td>";
+
+    print "</tbody></table></td></tr>";
+
 } else {
     print "<table width='100%'><tbody>";
-    print "         <td width=\"10%\" $top_bund><a href=varekort.php?opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
-    print "         <td width=\"80%\" $top_bund align=\"center\">Varekort</td>";
+    print "<td width=\"10%\" $top_bund><a href=varekort.php?opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
+    print "<td width=\"80%\" $top_bund align=\"center\">Varekort</td>";
     print "<td width=\"10%\" $top_bund align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\"><u>Ny</u></td>";
-    print "     </tbody></table></td></tr>";
+    print "</tbody></table></td></tr>";
     }
     print "<table width='100%'><tbody>";
     print"<td><b><a href=varekort.php?opener=$opener&sort=kontonr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontonr</b></td>";
@@ -1756,6 +1796,12 @@ if ($menu=='T') {
             <table width=\"75%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
                 <td width=\"75%\"><br></td>
             </tbody></table>
+    </td></tr>
+    </tbody></table></body></html>
+    ";
+} elseif ($menu=='S') {
+    print "</tbody>
+    </table>
     </td></tr>
     </tbody></table></body></html>
     ";

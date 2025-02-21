@@ -66,7 +66,6 @@ echo __line__." $i -> $qtxt<br>";
 	}
 	for ($i=0; $i<count($accountId); $i++) {
 		$qtxt = "select id from ordrer where konto_id = '$accountId[$i]' limit 1";
-#cho __line__." $qtxt<br>";
 		if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $deleteAccount[$i] = 0;
 		if ($deleteAccount[$i]) {
 			$qtxt = "select id from openpost where konto_id = '$accountId[$i]' limit 1";
@@ -85,16 +84,12 @@ echo __line__." $i -> $qtxt<br>";
 /*
 	if ($deleteAccount[$i]) {
 #			$qtxt = "delete from adresser where id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #			$qtxt = "delete from historik where konto_id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #			$qtxt = "delete from ansatte where konto_id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #			$qtxt = "delete from jobkort where konto_id = $accountId[$i]";
-#cho __line__." $qtxt<br>";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}

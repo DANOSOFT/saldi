@@ -38,7 +38,6 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-ini_set("display_errors", "1");
 	print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
 	<html>
 		<head>
@@ -62,20 +61,15 @@ print "<center>$vare_id</center>";
 
 if ($metode=='1') {
 	$qtxt="select id,beholdning from varer where id > '$vare_id' and beholdning > '0' and samlevare != 'on' and lukket !='on' $grptxt order by id limit 1";
-#cho "$qtxt<br>";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$beholdning=$r['beholdning'];
 		$vare_id=$r['id'];
-#cho "$vare_id=$r[id]<br>";
 		$kobt=0;
 		$kobssum=0;
 		$pris=0;
 		$qtxt="select id,vare_id,pris,antal,kobsdate from batch_kob where vare_id = '$vare_id' and linje_id != '0' and antal > '0' order by vare_id,kobsdate desc";
-#cho "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-#cho "$kobt <= $beholdning ($r[id])<br>";
 			while ($kobt <= $beholdning && $r=db_fetch_array($q)) {
-#cho "$kobssum+=$r[antal]*$r[pris]<br>";
 			if ($kobt+$r['antal']<=$beholdning) {
 					$kobssum+=$r['antal']*$r['pris'];
 					$kobt+=$r['antal'];
@@ -87,7 +81,6 @@ if ($metode=='1') {
 					$kobsdate=$r['kobsdate'];
 				}
 			}
-#cho "$kobt <= $beholdning<br>";
 			if ($kobt) $pris=$kobssum/$kobt;
 			if ($pris && $kobt) {
 			if ($r=db_fetch_array(db_select("select id,kostpris,transdate from kostpriser where vare_id='$vare_id' order by transdate desc limit 1",__FILE__ . " linje " . __LINE__))) {	
@@ -108,12 +101,10 @@ if ($metode=='1') {
 	}
 } elseif ($metode=='2') {
 	$qtxt="select id from varer where id > '$vare_id' and samlevare != 'on' and lukket !='on' $grptxt order by id limit 1";
-#cho "$qtxt<br>";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$vare_id=$r['id'];
 		$qtxt="select id,vare_id,pris,kobsdate from batch_kob where vare_id = '$vare_id' and linje_id != '0' and antal > '0'";
 		$qtxt.="order by kobsdate desc limit 1";
-#cho "$qtxt<br>";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$id=$r['id'];
 			$vare_id=$r['vare_id']; # Den er go nok- skal være næste varenr
@@ -128,7 +119,6 @@ if ($metode=='1') {
 			} else $qtxt="insert into kostpriser (vare_id,kostpris,transdate) values ('$vare_id','$pris','$kobsdate')";
 			if ($qtxt) db_modify("$qtxt",__FILE__ . " linje " . __LINE__);
 			$qtxt="update varer set kostpris='$pris' where id='$vare_id' and samlevare !='on' and lukket !='on'";
-#cho "$qtxt<br>";
 			if ($pris > 0) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/opdat_kostpriser.php?vare_id=$vare_id&metode=$metode\">";
 			exit;
@@ -148,7 +138,6 @@ function stklst() {
 		$vare_id=$r['id'];
 		$pris=stykliste($r['id'],'','');
 		$qtxt="update varer set kostpris='$pris' where id='$vare_id'";
-#cho "$qtxt<br>";
 		if ($pris > 0) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	print "<body onload=\"javascript:window.close();\">";

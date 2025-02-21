@@ -127,7 +127,6 @@ echo "$bestil[$x]  $beskrivelse[$x]<br>";
 						}
 					}
 			fwrite($fp,"\n\n\n");
-			#cho "$bestil[$x]=$tmp<br>";
 #		else $bestil[$x]=$antal[$x]; 
 				}
 				fclose($fp);

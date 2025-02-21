@@ -88,9 +88,11 @@
 // 20220413 PHR Renamed pos_valg til posOptions and moved function to diverse/posOptions.php
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240130 PBLM Added Nemhandel (diverse valg)
+// 06-01-2025 PBLM Added a second file to api_valg
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+
 	include("sys_div_func_includes/chooseProvision.php");
 
-ini_set('display_errors','0');
 
 function kontoindstillinger($regnskab,$skiftnavn) {
 	global $bgcolor,$bgcolor5,$sprog_id,$timezone;
@@ -481,8 +483,6 @@ if ($sqlstreng=trim($sqlstreng)) {
 			exit;
 		}
 	}
-#cho "del 1 $del1<br>";
-#cho "del2 $del2<br>";
 
 	for($x=0;$x<strlen($del2);$x++){
 		$t=substr($del2,$x,1);
@@ -500,11 +500,8 @@ if ($sqlstreng=trim($sqlstreng)) {
 
 
 	}
-#cho "$sqlstreng<br>";
 	$qtxt="select ".db_escape_string($del1);
-#cho "$qtxt<br>";
 	$qtxt="select ".$sqlstreng;
-	#cho "$qtxt<br>";
 
 	$r=0;
 	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__ . " funktion sqlquery_io");
@@ -524,7 +521,7 @@ if ($sqlstreng=trim($sqlstreng)) {
 		$arraysize=count($r);
 		for ($x=0;$x<$arraysize;$x++) {
 			if (isset($fieldType[$x]) && $fieldType[$x]=='numeric') $r[$x]=dkdecimal($r[$x]);
-			elseif(isset($r[$x])) $r[$x]=utf8_decode($r[$x]);
+			elseif(isset($r[$x])) $r[$x]=mb_convert_encoding($r[$x], 'ISO-8859-1', 'UTF-8');
 			if (!isset($r[$x])) $r[$x] = '';
 			($linje)?$linje.='";"'.$r[$x]:$linje='"'.$r[$x];
 		}
@@ -1422,14 +1419,6 @@ if ($client_id) {
 #
 # #########################################################
 
-// Nemhandel
-$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
-if(db_num_rows($query) <= 0) {
-	echo "<tr><td><label>Opret i nemhandel (for at modtage/afsende electronisk fakture)</label></td>\n<td><input type='checkbox' name='nemhandel'></td></tr>\n";
-} else {
-	echo "<tr><td>Du er oprettet i nemhandel</td></tr>\n";
-}
-
   # API key for copayone
   $qtxt = "SELECT var_value FROM settings WHERE var_name='copayone_auth'";
   $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -1778,6 +1767,7 @@ function api_valg() {
 	$ip_list=trim($r['box2']);
 	$api_bruger=trim($r['box3']);
 	$api_fil=trim($r['box4']);
+	$api_fil2=trim($r['box5']);
 
 	$x=0;
 	$q=db_select("select * from brugere order by brugernavn",__FILE__ . " linje " . __LINE__);
@@ -1806,10 +1796,12 @@ function api_valg() {
 			print "<tr><td title='".findtekst(820,$sprog_id)."'><!--tekst 820-->".findtekst(819,$sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst(819,$sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key'></td></tr>";
 			print "<tr><td title='".findtekst(822,$sprog_id)."'><!--tekst 822-->".findtekst(821,$sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst(822,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst(830,$sprog_id)."'><!--tekst 830-->".findtekst(829,$sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
+			print "<tr><td title='".findtekst(830,$sprog_id)."'><!--tekst 830-->".findtekst(829,$sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
 		} else {
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_key' value = '$api_key'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'>";
+			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil2' value= '$api_fil2'>";
 		}
 		print "<tr><td title='".findtekst(824,$sprog_id)."'><!--tekst 824-->".findtekst(823,$sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst(824,$sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
 		if ($api_bruger) {
@@ -2000,7 +1992,6 @@ function prislister()
 
         print "<tr bgcolor='$bgcolor5'><td colspan='10'><b><u>".findtekst(792,$sprog_id)."</u></b></td></tr>\n";
         print "<tr><td colspan='10'>\n";
-#cho $q;
 	print "<p>".findtekst(1318,$sprog_id)."</p>\n";
 	print "</td></tr>\n";
 
@@ -2297,7 +2288,6 @@ function tjekliste() {
 			$punkt_id[$x]=0;
 			$gruppe_id[$x]=$id[$x];
 			$liste_id[$x]=$liste_id[$x-1];
-#cho "select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by tjekpunkt<br>\n";
 			$q3 = db_select("select * from tjekliste where id !=$id[$x] and assign_to = 'sager' and assign_id = '$id[$x]' order by tjekpunkt",__FILE__ . " linje " . __LINE__);
 			while ($r3 = db_fetch_array($q3)) {
 				$x++;

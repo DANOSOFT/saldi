@@ -8,12 +8,10 @@ include("../includes/std_func.php");
 #$sum=array();
 $i=0;
 $qtxt = "select id,db,email from regnskab where lukket != 'on' and id > '1' order by id";
-#cho "$qtxt<br>";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r=db_fetch_array($q)) {
 	$dbEmail[$i]	= $r['email'];
 	$dbName[$i] = $r['db'];
-#cho "db $dbName[$i]<br>";
 	$i++;
 }
 for ($i=0;$i<count($dbName);$i++) {

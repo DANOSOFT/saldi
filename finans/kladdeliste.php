@@ -25,6 +25,7 @@
 // 20220627 MSC - Implementing new design
 // 20220930 MSC - Changed new button text to a plus icon, if the design is topmenu
 // 20230708 LOE - A minor modification
+// 12/02/2025 PBLM - Added a new button to open the digital approver
 
 @session_start();
 $s_id=session_id();
@@ -34,8 +35,11 @@ $modulnr=2;
 $title="kladdeliste";	
 		
 include("../includes/connect.php");
-include("../includes/online.php");
 include("../includes/std_func.php");
+$query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+$apiKey = db_fetch_array($query)["var_value"];
+include("../includes/online.php");
+include("../includes/topline_settings.php");
 
 if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
 
@@ -56,6 +60,7 @@ if (strpos(findtekst(639,$sprog_id),'undtrykke')) {
 	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
+
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
@@ -66,6 +71,49 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 	print  "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
+} elseif ($menu=='S') {
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>
+		   <tr><td height = '25' align='center' valign='top'>
+		   <table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+	print "<td width='10%'  title='".findtekst(1599, $sprog_id)."'>"; #20210721
+	print "<a href='../index/menu.php' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
+	print "<td width=70% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
+	print "<td width='10%'><form method='post' name='digital'>";
+	print "<button type='submit' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" name='digital' value='digital'>";
+	print "Digital";
+	print "</button>";
+	print "</form></td>";
+	print "<td width='10%' title='".findtekst(1600, $sprog_id)."'>";
+	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
+	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
+
+	if(isset($_POST['digital'])) {
+		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
+		if(db_num_rows($query) > 0){
+			$companyID = db_fetch_array($query)["var_value"];
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			$res = curl_exec($ch);
+			curl_close($ch);
+			?>
+			<script>
+				window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
+				// Optionally close the current window or redirect it
+				// window.location.href = 'your-return-url.php'; // redirect current window
+				// window.close(); // close current window
+			</script>
+			<?php
+		}else{
+			?>
+			<script>
+				alert('Du er ikke oprettet i nemhandel');
+			</script>
+			<?php
+		}
+	}
 } else {
 #	if ($menu=='S') {
 #		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -73,15 +121,15 @@ if ($menu=='T') {
 #		include ('../includes/sidemenu.php');
 #		print "</td><td><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 #	}
-		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
-		<tr><td height = \"25\" align=\"center\" valign=\"top\">
-		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-		print "<td width=\"10%\"  title=\"".findtekst(1599, $sprog_id)."\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">"; #20210721
-		if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-		else print "<a href=../index/menu.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-		print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst(639,$sprog_id)."</td>";
-		if ($popup) print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund onClick=\"javascript:kladde=window.open('kassekladde.php?returside=kladdeliste.php&tjek=-1','kladde','$jsvars');kladde.focus();\"><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
-		else print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund><a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N>".findtekst(39,$sprog_id)."</a></td>";	
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
+	<tr><td height = \"25\" align=\"center\" valign=\"top\">
+	<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\"  title=\"".findtekst(1599, $sprog_id)."\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">"; #20210721
+	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
+	else print "<a href=../index/menu.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst(639,$sprog_id)."</td>";
+	if ($popup) print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund onClick=\"javascript:kladde=window.open('kassekladde.php?returside=kladdeliste.php&tjek=-1','kladde','$jsvars');kladde.focus();\"><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
+	else print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund><a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
 	print "</tbody></table></td></tr><tr><td valign=\"top\"><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 }
 if ($vis=='alle') {
@@ -216,13 +264,13 @@ $tjek=0;
 	if ($menu=='T') {
 		$newbutton= "<i class='fa fa-plus-square fa-lg'></i>";
 	} else {
-		$newbutton= "<u>".findtekst(39,$sprog_id)."</u>";
+		$newbutton= "<u>".findtekst('39|Ny', $sprog_id)."</u>";
 	}
 	if (!$tjek) {
 		print "<tr><td colspan=5 height=25> </td></tr>"; 
-		print "<tr><td colspan=3 align=right>TIP 1: </td><td>".findtekst(640,$sprog_id)."; $newbutton ".findtekst(642,$sprog_id).".</td></tr>"; 
+		print "<tr><td colspan=3 align=right>TIP 1: </td><td>".findtekst('640|Du opretter en ny kassekladde ved at klikke på', $sprog_id)." $newbutton ".findtekst('642|øverst til højre', $sprog_id).".</td></tr>"; 
 		if (db_fetch_array(db_select("select * from kladdeliste",__FILE__ . " linje " . __LINE__))) {
-			print "<tr><td colspan=3 align=right>TIP 2: </td><td>".findtekst(597,$sprog_id)." <u>".findtekst(636,$sprog_id)."</u>.</td></tr>"; 
+			print "<tr><td colspan=3 align=right>TIP 2: </td><td>".findtekst('597|Du kan se dine kollegers kladder ved at klikke på', $sprog_id)." <u>".findtekst('636|Vis alle', $sprog_id)."</u>.</td></tr>"; 
 		}
 	}
 if ($menu=='T') {

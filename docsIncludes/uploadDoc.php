@@ -35,7 +35,6 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name'])) {
 	$fileTypes = array('jpg','jpeg','pdf','png');
 	$fileName = basename($_FILES['uploadedFile']['name']);
 	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
-#cho "$fileType<br>";
 	if (!in_array(strtolower($fileType),$fileTypes)) {
 		alert ("File must be either pdf or jpg, not $fileType");
 		$fileType = NULL;

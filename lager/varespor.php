@@ -28,14 +28,18 @@
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
-$title="Varespor";
 $modulnr=12;
+
+global $menu;
  
 $kobsantal=0;$kobssum=0;
  
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
+
+$title=findtekst('2236|Varespor', $sprog_id);
 
 if ($popup) $returside="../includes/luk.php";
 else $returside="lagerstatus.php";
@@ -44,25 +48,50 @@ $vare_id=$_GET['vare_id'];
 
 $query = db_select("select * from varer where id=$vare_id",__FILE__ . " linje " . __LINE__);
 $row = db_fetch_array($query);
-print "<table width=100% cellspacing=2><tbody>";
-print "<tr><td colspan=5>";
-print "<table width=100% cellspacing=2><tbody>";
-print "<td width=10% $top_bund><a href=$returside accesskey=L>Luk</a></td>";
-print "<td width=80% $top_bund>$title</td>";
-print "<td width=10% $top_bund><br></td>";
-print "</tbody></table>";
+
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\"><a href=$returside accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+	print "<table width=100% cellspacing=2><tbody>";
+} elseif ($menu=='S') {
+	print "<table width=100% cellspacing=2><tbody>";
+	print "<tr><td colspan=5>";
+	print "<table width=100% cellspacing=2><tbody>";
+
+	print "<td width=10%><a href=$returside accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+	print "<td width=80% align='center' style='$topStyle'>$title</td>";
+	print "<td width=10% align='center' style='$topStyle'><br></td>";
+
+	print "</tbody></table>";
+} else {
+	print "<table width=100% cellspacing=2><tbody>";
+	print "<tr><td colspan=5>";
+	print "<table width=100% cellspacing=2><tbody>";
+	print "<td width=10% $top_bund><a href=$returside accesskey=L>Luk</a></td>";
+	print "<td width=80% $top_bund>$title</td>";
+	print "<td width=10% $top_bund><br></td>";
+	print "</tbody></table>";
+}
 print "<tr><td><br></td></tr>";
 print "<tr><td colspan=5><b>$row[varenr] : $row[enhed] : $row[beskrivelse]</b></td></tr>";
 print "<tr><td><br></td></tr>";
 
 ########################################################################################
 
-print "<tr><td colspan=5 align=center><b>=== K&Oslash;BT ===</b></td></tr>";
-print "<tr><td>Dato</td>
-	<td align=right>Antal
-	<td align=right>Firmanavn</td>
-	<td align=right>K&oslash;bsordre</td>
-	<td align=right>K&oslash;bspris</td></tr>";
+print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('977|Købt', $sprog_id))." ===</b></td></tr>";
+print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
+	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
+	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>
+	<td align=right>".findtekst('1515|Købsordre', $sprog_id)."</td>
+	<td align=right>".findtekst('978|Købspris', $sprog_id)."</td></tr>";
 
 print "<tr><td colspan=5><hr></td></tr>";
 
@@ -78,7 +107,7 @@ while ($row = db_fetch_array($query)) {
 	print "<tr><td>".dkdato($row['fakturadate'])."</td>
 		<td align=right>".dkdecimal($row['antal'])."</td>";
 		if ($r1['firmanavn']) print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>";
-		else print "<td align=\"right\">Lagerreguleret</td>";
+		else print "<td align=\"right\">".findtekst('2237|Lagerreguleret', $sprog_id)."</td>";
 		print "<td align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:k_ordre=window.open('../kreditor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','k_ordre','$jsvars')\"><u>$r1[ordrenr]</u></td>";
 	$kobsantal=$kobsantal+$row['antal'];
 	$kobspris=$row['pris']*$row['antal'];	 
@@ -88,7 +117,7 @@ while ($row = db_fetch_array($query)) {
 }
 $tmp=dkdecimal($kobssum);
 print "<tr><td colspan=5><hr></td></tr>";
-print "<tr><td>K&oslash;bt i alt</td>
+print "<tr><td>".findtekst('2238|Købt i alt', $sprog_id)."</td>
 		<td align=right>".dkdecimal($kobsantal)."</td>
 		<td align=right colspan=3>$tmp</td>";
 		
@@ -97,12 +126,12 @@ print "<tr><td colspan=5><br></td></tr>";
 print "<tr><td colspan=5><br></td></tr>";
 
 ########################################################################################
-print "<tr><td colspan=5 align=center><b>=== BESTILT ===</b></td></tr>";
-print "<tr><td>Dato</td>
-	<td align=right>Antal</td>
-	<td align=right>Firmanavn</td>
-	<td align=right>Ordre</td>
-	<td align=right>K&oslash;bspris</td></tr>";
+print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('976|Bestilt', $sprog_id))." ===</b></td></tr>";
+print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
+	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
+	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>
+	<td align=right>".findtekst('605|Ordre', $sprog_id)."</td>
+	<td align=right>".findtekst('978|Købspris', $sprog_id)."</td></tr>";
 
 $kobssum=0;$kobsantal=0;
 $q = db_select("select id, firmanavn, levdate, ordrenr, art from ordrer where status > 0 and status < 3 and (art = 'KO' or art = 'KK') order by levdate,ordrenr",__FILE__ . " linje " . __LINE__);
@@ -132,7 +161,7 @@ while ($r = db_fetch_array($q)) {
 }
 $tmp=dkdecimal($kobssum);
 print "<tr><td colspan=5><hr></td></tr>";
-print "<tr><td>Bestilt i alt</td>
+print "<tr><td>".findtekst('2239|Bestilt i alt', $sprog_id)."</td>
 	<td align=right>".dkdecimal($kobsantal)."</td>
 	<td align=right colspan=3>$tmp</td>";
 
@@ -142,12 +171,12 @@ print "<tr><td colspan=5><br></td></tr>";
 
 
 ########################################################################################
-print "<tr><td colspan=5 align=center><b>=== SOLGT ===</b></td></tr>";
-print "<tr><td>Dato</td>
-	<td align=right>Antal</td>
-	<td align=right>Firmanavn</td>
-	<td align=right>Faktura</td>
-	<td align=right>Salgspris</td></tr>";
+print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('974|Solgt', $sprog_id))." ===</b></td></tr>";
+print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
+	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
+	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>
+	<td align=right>".findtekst('643|Faktura', $sprog_id)."</td>
+	<td align=right>".findtekst('949|Salgspris', $sprog_id)."</td></tr>";
 print "<tr><td colspan=5><hr></td></tr>";
 
 $salgssum=0;
@@ -165,7 +194,7 @@ while ($row = db_fetch_array($query)) {
 		print "<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:d_ordre=window.open('../debitor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','d_ordre','$jsvars')\"><u>$r1[firmanavn]</u></td>
 		<td align=right onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:d_ordre=window.open('../debitor/ordre.php?id=$row[ordre_id]&returside=../includes/luk.php','d_ordre','$jsvars')\"><u>$r1[fakturanr]</u></td>";
 	} else {
-		print "<td align=\"right\">Lagerregulering</td><td></td>";
+		print "<td align=\"right\">".findtekst('2237|Lagerreguleret', $sprog_id)."</td><td></td>";
 	}
 	$salgsantal=$salgsantal+$row['antal'];
 	$salgspris=$row['pris']*$row['antal'];	 
@@ -177,7 +206,7 @@ while ($row = db_fetch_array($query)) {
 }
 $tmp=dkdecimal($salgssum);
 print "<tr><td colspan=5><hr></td></tr>";
-print "<tr><td>Solgt i alt</td>
+print "<tr><td>".findtekst('2241|Solgt i alt', $sprog_id)."</td>
 	<td align=right>".dkdecimal($salgsantal)."</td>
 	<td align=right colspan=3>$tmp</td>";
 
@@ -187,12 +216,12 @@ print "<tr><td colspan=5><br></td></tr>";
 
 ########################################################################################
 
-print "<tr><td colspan=5 align=center><b>=== ORDREBEHOLDNING ===</b></td></tr>";
-print "<tr><td>Dato</td>
-	<td align=right>Antal</td>
-	<td align=right>Firmanavn</td>
-	<td align=right>Ordre</td>
-	<td align=right>Salgspris</td></tr>";
+print "<tr><td colspan=5 align=center><b>=== ".strtoupper(findtekst('2240|Ordrebeholdning', $sprog_id))." ===</b></td></tr>";
+print "<tr><td>".findtekst('438|Dato', $sprog_id)."</td>
+	<td align=right>".findtekst('916|Antal', $sprog_id)."</td>
+	<td align=right>".findtekst('28|Firmanavn', $sprog_id)."</td>
+	<td align=right>".findtekst('605|Ordre', $sprog_id)."</td>
+	<td align=right>".findtekst('949|Salgspris', $sprog_id)."</td></tr>";
 
 $salgssum=0;$salgsantal=0;
 $q = db_select("select id, firmanavn, levdate, ordrenr, art from ordrer where status > 0 and status < 3 and (art = 'DO' or art = 'DK') order by levdate",__FILE__ . " linje " . __LINE__);
@@ -222,7 +251,7 @@ while ($r = db_fetch_array($q)) {
 }
 $tmp=dkdecimal($salgssum);
 print "<tr><td colspan=5><hr></td></tr>";
-print "<tr><td>Ordrebeh. i alt</td>
+print "<tr><td>".findtekst('2242|Ordrebeh. i alt', $sprog_id)."</td>
 	<td align=right>".dkdecimal($salgsantal)."</td>
 	<td align=right colspan=3>$tmp</td>";
 

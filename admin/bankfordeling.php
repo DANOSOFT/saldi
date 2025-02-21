@@ -37,6 +37,7 @@
 // 2016.09.09 Tilføjet felt for gebyr kontonr samt ny version af SparNord. 20160909	
 // 2016.11.01 Genkendelse af kortgebyr for Danske Bank. 20161101
 // 2019.10.22 PHR Added 'DK3DSF' where 'DKSSL' is present as format has changed 20191022
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 ini_set("auto_detect_line_endings", true);
 
@@ -152,11 +153,9 @@ if ($_POST) {
 		}
 	}
 	elseif($submit=='Vis'){
-	#cho __line__." F $feltnavn[0]<br>";
 		vis_data($filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valutakode);
 	}
 	elseif($submit=='Flyt'){
-	#cho "flyt_data($filnavn,$regnskab_id,$regnskab_navn,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$valutakode[0])";
 		if ($filnavn && count($kontonr)) flyt_data($filnavn,$regnskab_id,$regnskab_navn,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$valutakode[0]);
 		else vis_data($filnavn, $splitter, $feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valutakode);
 	}
@@ -182,7 +181,6 @@ print "</td></tr>";
 }
 
 function vis_data($filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valutakode){
-#cho __line__." F $feltnavn[0]<br>";
 global $charset;
 global $bruger_id;
 global $sqhost;
@@ -190,17 +188,14 @@ global $squser;
 global $sqpass;
 
 include("../includes/connect.php");
-#cho __line__." $filnavn<br>";
 if ($_COOKIE['saldi_bnkfd'] && !count($feltnavn)){
 		list($a,$b,$c)=explode("|",$_COOKIE['saldi_bnkfd']);
-#cho "a $a,b $b, $c<br>";
 		$kontonr=explode(chr(9),$a);
 		$gebyrkonto=explode(chr(9),$b);
 		$feltnavn=explode(chr(9),$c);
 	}
 
 
-#cho __line__." F $feltnavn[0], $feltnavn[1], $feltnavn[2], $feltnavn[3], $feltnavn[4],s $feltnavn[5]<br>";
 
 /*
 $x=0;
@@ -213,7 +208,6 @@ while ($r = db_fetch_array($q)) {
 		}
 }
 */
-#cho __line__." F $filnavn<br>";
 $semikolon=0;
 $komma=0;
 $tabulator=0;
@@ -235,7 +229,6 @@ if ($fp) {
 	elseif ($splitter==chr(9)) $feltantal=$tabulator;
 }
 fclose($fp);
-#cho $linje[1]." ".$splitter."<br>";
 $feltantal=substr_count($linje[1],$splitter)+1;
 $cols=$feltantal+1;
 	$i=0;	
@@ -261,7 +254,6 @@ $cols=$feltantal+1;
 								$regnskab_id[$i]=$tmp;
 								$regnskab_navn[$i]=$r['db'];
 								$regnskab_titel[$i]=$r['regnskab'];
-#cho "R $regnskab_titel[$i]<br>";								
 								$i++;
 							}
 						}
@@ -290,12 +282,10 @@ for ($i=0;$i<count($regnskab_id);$i++){
 			$feltnavn[7]=if_isset($r['box10']);
 		}
 	} else {
-		#cho "insert into grupper (beskrivelse,art,kode,kodenr) values ('bankfordeling','KASKL','3','0')";
 		db_modify ("insert into grupper (beskrivelse,art,kode,kodenr) values ('bankfordeling','KASKL','3','0')",__FILE__ . " linje " . __LINE__);
 	}
 }
 */
-#cho "RId ".count($regnskab_id)."<br>";
 $fp=fopen("$filnavn","r");
 if ($fp) {
 	$y=0;
@@ -305,7 +295,7 @@ if ($fp) {
 		$linje=trim($linje);
 		if ($linje) {
 			$y++;
-			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$anftegn=0;
 				$felt=array();
 				$z=0;
@@ -339,7 +329,6 @@ if ($fp) {
 $linjeantal=$y;
 #$cols=$feltantal;
 fclose ($fp);
-#cho __line__." ".$filnavn."2<br>";
 $fp=fopen($filnavn."2","w");
 if ($vend) {
  for ($y=$linjeantal;$y>=1;$y--) fwrite($fp,$ny_linje[$y]);
@@ -378,15 +367,12 @@ if ($v_ant=count($valuta)) {
 }
 print "</td></tr>";
 for ($i=0;$i<count($regnskab_id);$i++) {
-#cho "I $i $regnskab_id[$i] $kontonr[$i]<br>";
 	print "<tr><td>$regnskab_titel[$i]<input type='hidden' name='regnskab_id[$i]' value='$regnskab_id[$i]'><input type='hidden' name='regnskab_navn[$i]' value='$regnskab_navn[$i]'></td>\n";
 	print "<td><span title='Angiv hvilket kontonummer der skal anvendes til posteringer'>Posteringskonto</td><td><input type=text size=8 name=kontonr[$i] value=$kontonr[$i]></span>&nbsp;</td>\n";
 	print "<td><span title='Angiv hvilket kontonummer der skal anvendes til kortgebyr'>Gebyrkonto&nbsp;</td><td><input type=text size=8 name=gebyrkonto[$i] value=$gebyrkonto[$i]></span>&nbsp;</td></tr>\n";
-	#cho "I $i $regnskab_id[$i] $kontonr[$i]<br>";
 	if (!$kontonr[$i]) print "<BODY onLoad=\"javascript:alert('Der skal angives et kontonummer til den bankkonto hvor posteringer skal f&oslash;res for regnskab: $regnskab_titel[$i]')\">\n";
 }
 $i--;
-#cho count($regnskab_id)." $i $filnavn && $splitter && ".$kontonr[$i]."<br>";
 print "<tr><td colspan='5' align='center'><input type=\"hidden\" name=\"filnavn\" value=$filnavn>\n";
 print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>\n";
 print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Vis\" />\n";
@@ -521,44 +507,33 @@ function flyt_data($filnavn,$regnskab_id,$regnskab_navn,$feltnavn,$feltantal,$ko
 	global $brugernavn;
 
 #	transaktion('begin');
-	#cho "splitter $splitter<br>";
 	
-	#cho "RID ".count($regnskab_id)."<br>";
 	
 	for ($i=0;$i<count($regnskab_id);$i++) {
 	include("../includes/connect.php");
-#cho "$sqhost, $squser, $sqpass, $regnskab_navn[$i]<br>";
 	db_connect ("$sqhost", "$squser", "$sqpass", "$regnskab_navn[$i]", __FILE__ . " linje " . __LINE__);
 	if ($r=db_fetch_array(db_select("select max(kodenr) as regnaar from grupper where art='RA'",__FILE__ . " linje " . __LINE__))) $regnaar=$r['regnaar'];
-#cho __line__." $regnskab_navn[$i] $regnaar<br>";
 	$qtxt="select max(id) as kladde_id from kladdeliste";
-#cho $qtxt."<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$kladde_id=$r['kladde_id']+1;
 	$qtxt="insert into kladdeliste(id,kladdedate,kladdenote,bogfort,oprettet_af) values ('$kladde_id','".date("Y-m-d")."','import af kortbetalinger','-','$brugernavn')";
-#cho "$kladde_id<br>$qtxt<br>";
 #xit;
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #	$qtxt="select max(id) as kladde_id from kladdeliste";
 #	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 #	$kladde_id=$r['kladde_id'];
-#cho "$kladde_id<br>";
-#cho $filnavn."2<br>";
 	$fp=fopen($filnavn.'2','r');
-#cho "$fp<br>";
 	if ($fp) {
 		$x=0;
 		while (!feof($fp)) {
 			$kortgebyr=0;
 			$skriv_linje=0;
 			if ($linje=trim(fgets($fp))) {
-#cho __line__." $linje<br>";			
 				$x++;
 				$skriv_linje=1;
 				$felt=array();
 				$felt = explode(chr(9), $linje);
-#cho __line__." felt = explode(chr(9), $linje)<br>";
 				for ($y=0; $y<=$feltantal; $y++) {
 					$felt[$y]=trim($felt[$y]);
 					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
@@ -578,37 +553,28 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$felt[$y]=str_replace(".","-",$felt[$y]);
 					}
 					if ($feltnavn[$y]=='belob') {
-#cho "$felt[$y] NT ".nummertjek($felt[$y])." $skriv_linje<br>.";
 						$felt[$y]=str_replace(" ","",$felt[$y]);
-#cho "$felt[$y] NT ".nummertjek($felt[$y])." $skriv_linje<br>.";
 						if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
 						elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;		
-#cho "$felt[$y] NT ".nummertjek($felt[$y])." $skriv_linje<br>.";
 					}
 				}
  			}	
-#cho __line__.' '.$skriv_linje."<br>"; 			
 			if ($skriv_linje==1){
-#cho "feltantal	$feltantal<br>";	
 				for ($y=0; $y<=$feltantal; $y++) {
 					$bilag=$bilag*1;
 					if ($feltnavn[$y]=='belob') $amount=usdecimal($felt[$y]);
 					elseif ($feltnavn[$y]=="dato" && $felt[$y]) $transdate=usdate($felt[$y]);
 					elseif ($feltnavn[$y]=="beskrivelse") $beskrivelse=db_escape_string($felt[$y]);
-#cho __line__.' '.$beskrivelse."<br>";
 				}
-#cho __line__.' '.substr($beskrivelse,-4)*1 ."==$regnskab_id[$i]<br>";
 				if (substr($beskrivelse,-4)*1==$regnskab_id[$i]) {
 				$qtxt=NULL;
 				if ($amount>0) {
 				if (strlen($beskrivelse)==30 && (substr($beskrivelse,0,5)=='DKSSL' || substr($beskrivelse,0,6)=='DK3DSF') && is_numeric(substr($beskrivelse,6,4)) && is_numeric(substr($beskrivelse,11,7)) && is_numeric(substr($beskrivelse,19,11))) { # SparNord Ny 20160909 
 						$tmp=$amount-3;
 						$betalings_id="%".substr($beskrivelse,21,11);
-#cho __line__.' '.$betalings_id."<br>";						
 						$qtxt="select fakturanr,kontonr,sum,moms from ordrer where betalings_id LIKE '$betalings_id' and sum >= '$tmp' and sum <='$amount'";
 					}	
 					if ($qtxt) {
-#cho __line__." $qtxt<br>";					
 						if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 							$faktura=$r['fakturanr'];
 							$fakturasum=$r['sum']+$r['moms'];
@@ -622,7 +588,6 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 							$kredit='0';
 							$k_type='';
 						}
-#cho "$faktura | $kortgebyr | $fakturasum | $kredit | $k_type<br>";
 					} else {
 						$kredit='0';
 						$faktura='';
@@ -633,17 +598,14 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta)";
 						$qtxt.="  values ";
 						$qtxt.="('$bilag','$transdate','$beskrivelse','F','$kontonr[$i]','F','0','$faktura','$amount','$kladde_id','$valutakode')";
-#cho __line__.' '.$qtxt."<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta)";
 						$qtxt.="  values ";
 						$qtxt.="('$bilag','$transdate','$beskrivelse','F','0','$k_type','$kredit','$faktura','$fakturasum','$kladde_id','$valutakode')";
-#cho __line__.' '.$qtxt."<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta)";
 						$qtxt.="  values ";
 						$qtxt.="('$bilag','$transdate','$beskrivelse','F','0','F','$gebyrkonto[$i]','$faktura','$kortgebyr','$kladde_id','$valutakode')";
-#cho __line__.' '.$qtxt."<br>";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} else {
 						$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta)";
@@ -651,7 +613,6 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 						$qtxt.="('$bilag','$transdate','$beskrivelse','F','$kontonr[$i]','$k_type','$kredit','$faktura','$amount','$kladde_id','$valutakode')";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
-#cho $qtxt."<br>";
 					$bilag++;
 				} elseif ($amount<0) {
 					$amount=$amount*-1;
@@ -664,7 +625,6 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} else {
 					$dtype='F';
 					$debet=0;
-#cho "insert into kassekladde (bilag, transdate, beskrivelse, k_type, kredit, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr[$i]', '$amount', '$kladde_id')<br>";
 						db_modify("insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,amount,kladde_id,valuta) values ('$bilag','$transdate','$beskrivelse','$d_type','$debet','F','$kontonr[$i]','$amount','$kladde_id','$valutakode')",__FILE__ . " linje " . __LINE__);
 					}
 					$bilag++;
@@ -686,12 +646,12 @@ function nummertjek ($nummer){
 	$retur=1;
 	$nummerliste=array("1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",", ".", "-");
 	for ($x=0; $x<strlen($nummer); $x++) {
-		if (!in_array($nummer{$x}, $nummerliste)) $retur=0;
+		if (!in_array($nummer[$x], $nummerliste)) $retur=0;
 	}
 	if ($retur) {
 		for ($x=0; $x<strlen($nummer); $x++) {
-			if ($nummer{$x}==',') $komma++;
-			elseif ($nummer{$x}=='.') $punktum++;		
+			if ($nummer[$x]==',') $komma++;
+			elseif ($nummer[$x]=='.') $punktum++;		
 		}
 		if ((!$komma)&&(!$punktum)) $retur='US';
 		elseif (($komma==1)&&(substr($nummer,-3,1)==',')) $retur='DK';

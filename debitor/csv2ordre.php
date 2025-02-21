@@ -25,6 +25,7 @@
 // 20160502 PHR Sat returnconfirm på [Hent] for at hindre dobbeltimport ved dobbeltklik.
 // 20190812 PHR	More information from address is imported.
 // 20220713 phr '$pris' is now trimmed.  
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -126,7 +127,7 @@ function overfoer_data($filnavn){
 				$skriv_linje=0;
 				if ($linje=fgets($fp)) {
 				$skriv_linje=1;
-				if ($charset=='UTF-8') $linje=utf8_encode($linje);
+				if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 				if ($x) $pre_kontonr=$kontonr;
 				if (strpos($linje,chr(9))) list($kontonr,$ordrenr,$dato,$projekt,$telefon,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$email,$varenr,$varenavn,$antal,$pris)=explode(chr(9),$linje);
 				elseif (strpos($linje,';')) list($kontonr,$ordrenr,$dato,$projekt,$telefon,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$email,$varenr,$varenavn,$antal,$pris)=explode(';',$linje);
@@ -244,12 +245,12 @@ function nummertjek ($nummer){
 	$retur=1;
 	$nummerliste=array("1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",", ".", "-");
 	for ($x=0; $x<strlen($nummer); $x++) {
-		if (!in_array($nummer{$x}, $nummerliste)) $retur=0;
+		if (!in_array($nummer[$x], $nummerliste)) $retur=0;
 	}
 	if ($retur) {
 		for ($x=0; $x<strlen($nummer); $x++) {
-			if ($nummer{$x}==',') $komma++;
-			elseif ($nummer{$x}=='.') $punktum++;
+			if ($nummer[$x]==',') $komma++;
+			elseif ($nummer[$x]=='.') $punktum++;
 		}
 		if ((!$komma)&&(!$punktum)) $retur='US';
 		elseif (($komma==1)&&(substr($nummer,-3,1)==',')) $retur='DK';

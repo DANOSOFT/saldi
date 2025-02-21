@@ -36,6 +36,7 @@
 // 2017.01.02	Ved betalingsbet Kontant røg man i evig løkke 20170102
 // 2017.04.20 Indsat db_escape_string. Søg db_escape_string
 // 2018.01.17 Tjekker ordrestatus - hvis ikke faktureret slettes filen fra listen. 20180117
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 @session_start();
@@ -257,7 +258,7 @@ if (!$afsendt) {
 		$fp=fopen("$filnavn","w");
 		$q=db_select("select linje from pbs_linjer where liste_id = $id order by id",__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)){
-			if ($charset=="UTF-8") $linje=utf8_decode(stripslashes($r['linje']));
+			if ($charset=="UTF-8") $linje=mb_convert_encoding(stripslashes($r['linje']), 'ISO-8859-1', 'UTF-8');
 			else $linje=$r['linje'];
 #			$linje=$r['linje'];
 			fwrite($fp,$linje);
@@ -275,7 +276,7 @@ if (!$afsendt) {
 	$fp=fopen("$filnavn","w");
 	$q=db_select("select linje from pbs_linjer where liste_id = $id order by id",__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)){
-			if ($charset=="UTF-8") $linje=utf8_decode(stripslashes($r['linje']));
+			if ($charset=="UTF-8") $linje=mb_convert_encoding(stripslashes($r['linje']), 'ISO-8859-1', 'UTF-8');
 			else $linje=$r['linje'];
 #			$linje=$r['linje'];
 			fwrite($fp,$linje);
@@ -460,7 +461,6 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 			$fx++;
 			$forfaldsdage[$fx]=$forfaldsdag;
 			$o_id[$fx]=$ordre_id[$x];
-#cho "FF $forfaldsdage[$fx]<br>";
 		} else {
 			for ($y=1;$y<=$fx;$y++) {
 				if ($forfaldsdage[$y]==$forfaldsdage[$fx]) $o_id[$fx].=",".$ordre_id[$x]; 
@@ -470,13 +470,12 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 	$fx=1;
 	$k_id=array();
 	while($forfaldsdage[$fx]){
-#CHO "IOD $o_id[$fx]<br>";
 		$tjek=array();
 		$tjek=explode(",",$o_id[$fx]);
 		$lnr++;
 		$linje[$lnr]="001".$pbs_nr[0].filler(15,"0").$forfaldsdage[$fx].filler(14,"0").filler(37," ")."\n";
 		if ($afslut) {
-			if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+			if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 			db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 		}
 		$x=0;
@@ -486,18 +485,14 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		$q=db_select("select * from ordrer order by konto_id",__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
 			if (in_array($r['id'],$tjek)) {
-#cho "A kontonr $r[kontonr]<br>";
 				if (!in_array($r['kontonr'],$kontonr)) {
 					$x++;
 					$kontonr[$x]=$r['kontonr'];
 					$belob[$x]=round(($r['sum']+$r['moms'])*100,0);
-#cho "B kontonr $r[kontonr] : $belob[$x]<br>";
 				} else {
 					$belob[$x]+=round(($r['sum']+$r['moms'])*100,0);
-#cho "C kontonr $r[kontonr] : $belob[$x]<br>";
 				}
 				$total[$fx]+=round(($r['sum']+$r['moms'])*100,0);
-#cho "total $total[$fx]<br>";
 			}
 		}
 		$kontoantal=0;		
@@ -510,7 +505,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 			if ($belob[$x]>0) $linje[$lnr]="580".$pbs_nr[0].$kontonr[$x].filler(22,"0").$belob[$x].filler(24," ")."\n";
 			else $linje[$lnr]="585".$pbs_nr[0].$kontonr[$x].filler(22,"0").$belob[$x].filler(24," ")."\n";
 			if ($afslut) {
-				if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
 			$x++;
@@ -524,7 +519,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 			$linje[$lnr]="999".$pbs_nr[0].filler(15,"9").$kontoantal.filler(13,"0").$total[$fx].filler(13,"0").filler(24," ")."\n";
 		}
 		if ($afslut) {
-			if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+			if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 			db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 		}
 		$fx++;
@@ -553,9 +548,9 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 			$firmanavn='';$adresse='';$postnr='';$ean='';$institution='';
 		}
 		if ($charset=="UTF-8") {
-			$firmanavn=utf8_decode($firmanavn);
-			$adresse=utf8_decode($adresse);
-			$institution=utf8_decode($institution);
+			$firmanavn=mb_convert_encoding($firmanavn, 'ISO-8859-1', 'UTF-8');
+			$adresse=mb_convert_encoding($adresse, 'ISO-8859-1', 'UTF-8');
+			$institution=mb_convert_encoding($institution, 'ISO-8859-1', 'UTF-8');
 		}
 		while(strlen($belob)<11) $belob="0".$belob;
 		while(strlen($kontonr)<15) $kontonr="0".$kontonr;
@@ -571,21 +566,21 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		$lnr++;
 		$linje[$lnr]="001".$pbs_nr[0].filler(15,"0").$forfaldsdag.filler(14,"0").filler(37," ")."\n";
 		if ($afslut) {
-			if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+			if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 			db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 		}
 		$lnr++;
 		if ($belob>0) $linje[$lnr]="580".$pbs_nr[0].$kontonr.filler(22,"0").$belob.filler(24," ")."\n";
 		else $linje[$lnr]="585".$pbs_nr[0].$kontonr.filler(22,"0").$belob.filler(24," ")."\n";
 		if ($afslut) {
-			if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+			if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 			db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 		}
 		$lnr++;
 		if ($belob>0) $linje[$lnr]="999".$pbs_nr[0].filler(15,"9")."000000100".$belob.filler(13,"0").filler(24," ")."\n";
 		else $linje[$lnr]="999".$pbs_nr[0].filler(15,"9")."000000100".filler(13,"0").$belob.filler(13,"0").filler(24," ")."\n";
 		if ($afslut) {
-			if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+			if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 			db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -644,9 +639,9 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$firmanavn='';$adresse='';$postnr='';$ean='';$institution='';
 		} else { #else indsat 20140121
 			if ($charset=="UTF-8") {
-				$firmanavn=utf8_decode($firmanavn);
-				$adresse=utf8_decode($adresse);
-				$institution=utf8_decode($institution);
+				$firmanavn=mb_convert_encoding($firmanavn, 'ISO-8859-1', 'UTF-8');
+				$adresse=mb_convert_encoding($adresse, 'ISO-8859-1', 'UTF-8');
+				$institution=mb_convert_encoding($institution, 'ISO-8859-1', 'UTF-8');
 			}
 			if ($udskriv_til=='PBS_FI') $pbs_nr[$x]='000000000'; # tilfoejet 20.03.2011 # rettet til '000000000' 20140207
 			$r022lin++;
@@ -654,7 +649,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$linje[$lnr]="BS022".$pbs_nr[0]."0240"."00001".$debitorgruppe.$kontonr.$pbs_nr[$x].addslashes($firmanavn)."\n";
 			$linjeoid[$lnr]="$ordre_id[$x]";
 			if ($afslut) {
-				if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
 			if ($ean) {
@@ -670,7 +665,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$linje[$lnr]="BS022".$pbs_nr[0]."0240".$linjenr.$debitorgruppe.$kontonr.$pbs_nr[$x].$adresse."\n";
 			$linjeoid[$lnr]="$ordre_id[$x]";
 			if ($afslut) {
-				if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
 			$r022lin++;
@@ -695,15 +690,15 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 		$recordnr="00001";
 		$beskrivelse="Fakturadato ".dkdato($fakturadate)."     Fakturanr: $fakturanr ";
 		if ($charset=="UTF-8") {
-			$belob=utf8_decode($belob);
-			$beskrivelse=utf8_decode($beskrivelse);
+			$belob=mb_convert_encoding($belob, 'ISO-8859-1', 'UTF-8');
+			$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 		}
 		while(strlen($beskrivelse)<65) $beskrivelse=$beskrivelse." ";
 		$lnr++;
 		$linje[$lnr]="BS052".$pbs_nr[0]."0241".$recordnr.$debitorgruppe.$kontonr.$pbs_nr[$x]." ".addslashes($beskrivelse)."\n";
 		$linjeoid[$lnr]="$ordre_id[$x]";
 		if ($afslut) {
-			if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+			if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 			db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 		}
 
@@ -714,8 +709,8 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 		$pris="Pris";
 		$belob="Beløb";
 		if ($charset=="UTF-8") {
-			$belob=utf8_decode($belob);
-			$beskrivelse=utf8_decode($beskrivelse);
+			$belob=mb_convert_encoding($belob, 'ISO-8859-1', 'UTF-8');
+			$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 		}
 		while(strlen($recordnr)<5) $recordnr="0".$recordnr;
 		while(strlen($beskrivelse)<35) $beskrivelse=$beskrivelse." ";
@@ -726,7 +721,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 		$linje[$lnr]="BS052".$pbs_nr[0]."0241".$recordnr.$debitorgruppe.$kontonr.$pbs_nr[$x]." ".addslashes($beskrivelse).$antal.$pris.$belob."\n";
 		$linjeoid[$lnr]="$ordre_id[$x]";
 		if ($afslut) {
-			if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+			if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 			db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 		}
 
@@ -741,7 +736,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$belob=dkdecimal($r['pris']*$r['antal']);
 			$recordnr++;
 			if ($charset=="UTF-8") {
-				$beskrivelse=utf8_decode($beskrivelse);
+				$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 			}
 			while(strlen($recordnr)<5) $recordnr="0".$recordnr;
 			if (strlen($beskrivelse)>35) $beskrivelse=substr($beskrivelse,0,35);
@@ -753,7 +748,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$linje[$lnr]="BS052".$pbs_nr[0]."0241".$recordnr.$debitorgruppe.$kontonr.$pbs_nr[$x]." ".addslashes(addslashes($beskrivelse)).$antal.$pris.$belob."\n";
 			$linjeoid[$lnr]="$ordre_id[$x]";
 			if ($afslut) {
-				if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
 		}		
@@ -763,7 +758,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$beskrivelse="Netto Beløb";
 			$dksum=dkdecimal($sum);
 			if ($charset=="UTF-8") {
-				$beskrivelse=utf8_decode($beskrivelse);
+				$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 			}
 			while(strlen($recordnr)<5) $recordnr="0".$recordnr;
 			while(strlen($beskrivelse)<50) $beskrivelse=$beskrivelse." ";
@@ -772,7 +767,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$linje[$lnr]="BS052".$pbs_nr[0]."0241".$recordnr.$debitorgruppe.$kontonr.$pbs_nr[$x]." ".addslashes($beskrivelse).$dksum."\n";
 			$linjeoid[$lnr]="$ordre_id[$x]";
 			if ($afslut) {
-				if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -782,7 +777,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$beskrivelse="Moms";
 			$dkmoms=dkdecimal($moms);
 			if ($charset=="UTF-8") {
-				$beskrivelse=utf8_decode($beskrivelse);
+				$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 			}
 			while(strlen($recordnr)<5) $recordnr="0".$recordnr;
 			while(strlen($beskrivelse)<50) $beskrivelse=$beskrivelse." ";
@@ -791,7 +786,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$linje[$lnr]="BS052".$pbs_nr[0]."0241".$recordnr.$debitorgruppe.$kontonr.$pbs_nr[$x]." ".addslashes($beskrivelse).$dkmoms."\n";
 			$linjeoid[$lnr]="$ordre_id[$x]";
 			if ($afslut) {
-				if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -801,7 +796,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$beskrivelse="Total Beløb";
 			$ialt=dkdecimal($sum+$moms);
 			if ($charset=="UTF-8") {
-				$beskrivelse=utf8_decode($beskrivelse);
+				$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
 			}
 			while(strlen($recordnr)<5) $recordnr="0".$recordnr;
 			while(strlen($beskrivelse)<50) $beskrivelse=$beskrivelse." ";
@@ -810,7 +805,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$linjeoid[$lnr]="$ordre_id[$x]";
 			$linje[$lnr]="BS052".$pbs_nr[0]."0241".$recordnr.$debitorgruppe.$kontonr.$pbs_nr[$x]." ".addslashes($beskrivelse).$ialt."\n";
 			if ($afslut) {
-				if ($charset=="UTF-8") $linje[$lnr]=utf8_encode($linje[$lnr]);
+				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
 		}

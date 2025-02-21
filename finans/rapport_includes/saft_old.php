@@ -312,7 +312,6 @@ function saft($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra,
 		if ($slutdato < 28)
 			break 1;
 	}
-	#cho "1008 $projekt_fra $prj_navn_fra - $projekt_til $prj_navn_til<br>"; 
 
 	// $regnstart = $aar_fra . "-" . $startmaaned . "-" . $startdato;
 	// $regnslut = $aar_til . "-" . $slutmaaned . "-" . $slutdato;

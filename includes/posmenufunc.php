@@ -72,6 +72,7 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 	global $url;
 	global $varenr_ny,$vare_id,$vare_id_ny;
 	global $beskrivelse_ny, $beskrivelse_old; #20210812 
+	global $sprog_id;
 
 	if (!$id) $id = 0; #20210824
 	$b=$m=NULL;
@@ -81,7 +82,7 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 	if ($returside=='kassespor.php') {
 		print "<tr><td width='50%' align='center'><a href=kassespor.php>";
 		print "<button type='button' style='font-size:25px;background-color:blue;color:yellow;width:200px;height:75px;'>";
-		print "Retur til<br>kassespor</button>";
+		print findtekst('2256|Retur til kassespor', $sprog_id)."</button>";
 		print "</a></td></tr>";
 		exit;
 	}
@@ -162,8 +163,22 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 	if (!$fontsize) $fontsize=$height*$width/200;
 
 #	$stil="style=\"width:".$width."px;height:".$height."px;text-align:center;font-size:".$fontsize."px; background-color:#$b;\"";
-	$stil="STYLE=\"display: table-cell;moz-border-radius:".$radius."px;-webkit-border-radius:".$radius."px;width:".$width."px;height:".$height."px;";
-	$stil.="text-align:center;vertical-align:middle;font-size:".$fontsize."px;border: 1px solid $bgcolor2;white-space: normal;background-color: $b;\"";
+  $stil="STYLE=\"
+    display: table-cell;
+    border-radius:".$radius."px;
+    moz-border-radius:".$radius."px;
+    -webkit-border-radius:".$radius."px;
+    -webkit-appearance: none;
+    width:".$width."px;
+    height:".$height."px;";
+  $stil.="
+    text-align:center;
+    vertical-align:middle;
+    font-size:".$fontsize."px;
+    border: 1px solid $bgcolor2;
+    white-space: normal;
+    background-color: $b;
+    setcolor: ;\"";
 	$nostil="STYLE=\"display: table-cell;moz-border-radius:0px;-webkit-border-radius:0px;width:".$width."px;height:".$height."px;text-align:center;";
 	$nostil.="vertical-align:middle;font-size:".$fontsize."px;white-space: normal;border: 0px solid $bgcolor;\"";
 #		background-color: $bgcolor;\"";
@@ -181,6 +196,12 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 				$b=$r['color'];
 				$c=$r['vare_id']*1;			
 				$d=$r['funktion']*1;
+				if ($r['fontcolor'] !== NULL) {
+					$font = "color: #$r[fontcolor]; ";
+				} else {
+					$font = "";
+				}
+			
 			}
 			if ($a=='--') {
 				print "<td><input type=\"button\" $stil value= \"\"></td>";
@@ -198,7 +219,7 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 					}
 */
 					$knap="<input type=\"button\" $stil value= \"$a\">";
-					$knap=str_replace("background-color: ;","background-color: $b;",$knap); 
+					$knap=str_replace("background-color: ;","background-color: #$b;$font",$knap); 
 
 				}
 				if (!$d || $d==1) {
@@ -261,7 +282,7 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 
             # Old system
             if (count($bord) != 0) {
-              $txt = $buttonTextArr['table'];
+              $txt = findtekst('932|Bord', $sprog_id);
               for ($z=0;$z<count($bord);$z++) {
                 if ($bordnr==$z) $txt=$bord[$z];
               }
@@ -276,39 +297,43 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
                 $bordnr = $r[0];
               }
               $r=db_fetch_array(db_select("select name from table_plan where id = $bordnr",__FILE__ . " linje " . __LINE__));
-              $txt = $r[0];
+	      if ($r) {
+                $txt = $r[0];
+	      } else {
+                $txt = t('2267|Vælg bord', $sprog_id);
+}
             }
 
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"bordvalg\" VALUE=\"$txt\"><!-- arr = $regnaar -->";
 					} elseif ($c=='2') {
-						$txt=str_replace('$brugernavn',$buttonTextArr['user'],$a);
+						$txt=str_replace('$brugernavn',findtekst('990|Bruger', $sprog_id),$a);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT $disabled onclick=\"window.location.href='pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr'\" type=\"button\" $tmp value= \"$txt\">\n";
 					} elseif ($c=='3') {
-						$txt = $buttonTextArr['splitTable'];
+						$txt = findtekst('2259|Del bord', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"del_bord\" VALUE=\"$txt\">";
 					} elseif ($c=='4') {
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT $tmp TYPE=\"submit\" NAME=\"OK\" VALUE=\"Enter\">";
 					} elseif ($c=='5') {
-						$txt = $buttonTextArr['findReceipt'];
+						$txt = findtekst('2258|Find bon', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?id=$id&find_bon=1'\" $tmp value=\"$txt\">\n";
 #						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 #						print "<td>".$knap;
 					} elseif ($c=='6') {
-						$txt = $buttonTextArr['moveTable'];
+						$txt = findtekst('2260|Flyt bord', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"flyt_bord\" VALUE=\"$txt\">";
 					} elseif ($c=='7') {
-						$txt = $buttonTextArr['boxCount'];
+						$txt = findtekst('2261|Kasseoptælling', $sprog_id);
 						$knap="<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?id=$id&kasse=$kasse&kassebeholdning=on&bordnr=$bordnr'\" $stil value=\"$txt\">\n";
 						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
 					} elseif ($c=='8') {
-						$knap="<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?id=$id&kasse=?&bordnr=$bordnr'\" $stil value=\"Kasse $kasse\">\n";
+						$knap="<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php?id=$id&kasse=?&bordnr=$bordnr'\" $stil value=\"".findtekst('931|Kasse', $sprog_id)." $kasse\">\n";
 						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
 					} elseif ($c=='9' || $c=='23') {
@@ -319,33 +344,33 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 						if ($r['iordre']>$r['bestilt']) $kstil=str_replace($b,'#ff0000',$kstil);
 						if ($c==9) print "<td><INPUT $disabled $kstil TYPE=\"submit\" NAME=\"koekken\"VALUE=\"$a\">";
 						else {
-							$txt = $buttonTextArr['sendToKitchen'];
+							$txt = findtekst('2268|Send til køkken', $sprog_id);
 							print "<td><INPUT $disabled $kstil TYPE=\"submit\" NAME=\"send_koekken\"VALUE=\"$txt\">";
 						}
 					} elseif ($c=='10') { #Luk
-						$txt = $buttonTextArr['close'];
+						$txt = findtekst('2172|Luk', $sprog_id);
 						$knap="<input $disabled type=\"button\" onclick=\"window.location.href='../index/menu.php'\" $stil value=\"$txt\">\n";
 						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
 					} elseif ($c=='11') {
-						$txt = $buttonTextArr["draw"];
+						$txt = findtekst('3090|Skuffe', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"skuffe\" VALUE=\"$txt\">";
 					} elseif ($c=='12') {
-						$txt = $buttonTextArr['print'];
+						$txt = findtekst('880|Udskriv', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"udskriv\" VALUE=\"$txt\">";
 					} elseif ($c=='13') {
-						$txt = $buttonTextArr['start'];
+						$txt = findtekst('2116|Forfra', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
-						print "<td onclick=\"return confirm('Slet alt og start forfra')\"><INPUT TYPE=\"submit\" $tmp NAME=\"forfra\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'f';pos_ordre.$fokus.focus();\">\n";
+						print "<td onclick=\"return confirm('".findtekst('3097|Slet alt og start forfra', $sprog_id)."')\"><INPUT TYPE=\"submit\" $tmp NAME=\"forfra\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'f';pos_ordre.$fokus.focus();\">\n";
 					} elseif ($c=='14') {
 						$knap="<input $disabled onclick=\"window.location.href='pos_ordre.php?id=$id&skift_bruger=2&brugernavn=$a&bordnr=$bordnr&$menu=$menu_id'\" type=\"button\" $stil value= \"$a\">\n";
 						if (strtolower($brugernavn)==strtolower($a)) $knap=str_replace("background-color: ;","background-color: #00ff00;",$knap);
 						else $knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
 					} elseif ($c=='15') {
-						$txt = $buttonTextArr['clear'];
+						$txt = findtekst('2117|Ryd', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT TYPE=\"button\" $tmp NAME=\"clear\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value = '';pos_ordre.$fokus.focus();\">";
 					} elseif ($c=='16') {
@@ -361,12 +386,12 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<td><INPUT TYPE=\"submit\" $tmp $dis NAME=\"$a\" VALUE=\"$a\" OnClick=\"pos_ordre.$fokus.value += 'r';pos_ordre.$fokus.focus();\">\n";
 					} elseif ($c=='19') {
-            $txt = $buttonTextArr['back'];
+            			$txt = findtekst('30|Tilbage', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<TD><INPUT TYPE=\"submit\" $stil NAME=\"tilbage\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 't';pos_ordre.$fokus.focus();\">\n";
 #						print "<TD onclick=\"return confirm('Tilbage til varescanning')\"><INPUT TYPE=\"submit\" $stil NAME=\"tilbage\" VALUE=\"Tilbage\" OnClick=\"pos_ordre.$fokus.value += 't';pos_ordre.$fokus.focus();\">\n";
 					} elseif ($c=='20') {
-						$txt = $buttonTextArr['newCustomer'];
+						$txt = findtekst('2262|Ny kunde', $sprog_id);
 						$knap="<input $disabled type=\"button\" onclick=\"window.location.href='pos_ordre.php'\" $stil value=\"$txt\">\n";
 						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
@@ -386,12 +411,12 @@ function menubuttons($id,$menu_id,$vare_id,$plads) {
 							} else print "<meta http-equiv=\"refresh\" content=\"$timeout;URL=pos_ordre.php?id=0\">\n";
 						}
 					} elseif ($c=='21') {
-						$txt = $buttonTextArr['correction'];
+						$txt = findtekst('2263|Korrektion', $sprog_id);
 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 						print "<TD align=\"center\"><INPUT TYPE=\"submit\" $tmp NAME=\"krediter\" VALUE=\"$txt\">\n";
 					} elseif ($c=='22') { #Kortterminal
 						$dis=$disabled;
-if (!$terminal_ip) $terminal_ip='localhost';
+					if (!$terminal_ip) $terminal_ip='localhost';
 						if ($terminal_ip) { #20171210
 							$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
 							if ($terminal_ip=='box' && isset($_COOKIE['salditerm'])) $terminal_ip=$_COOKIE['salditerm'];
@@ -475,24 +500,39 @@ if (!$terminal_ip) $terminal_ip='localhost';
  						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"proforma\" VALUE=\"$a\">";
                             ### LN
 					} elseif ($c=='41') {
+						$txt = findtekst('2269|X-Rapport', $sprog_id);
  						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
- 						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"xRapport\" VALUE=\"X-Rapport\">";
+ 						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"xRapport\" VALUE=\"$txt\">";
                             ### LN
 					} elseif ($c=='42') {
                         handleZreportClick($tmp, $b, $stil, $disabled);
                             ### LN
 					} elseif ($c=='43') {
-                        $txt = $buttonTextArr['copy'];
+                        $txt = findtekst('1100|Kopier', $sprog_id);
  						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
  						print "<td><INPUT $disabled $tmp TYPE=\"submit\" NAME=\"kopi\" VALUE=\"$txt\">";
 					} elseif ($c=='44') {
-						$txt = "Hent bestilling";
+						$txt = findtekst('2264|Hent bestilling', $sprog_id);
 						$knap="<input type=\"submit\" name=\"getOrder\" onclick=\"window.location.href='pos_ordre.php?id=$id&getOrder=true\" $disabled $tmp value=\"$txt\">\n";
 						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
 					} elseif ($c=='45') {
-						$txt = "Gem bestilling";
+						$txt = findtekst('2265|Gem bestilling', $sprog_id);
 						$knap="<input type=\"submit\" name=\"saveOrder\" onclick=\"window.location.href='pos_ordre.php?id=$id&saveOrder=true\" $disabled $tmp value=\"$txt\">\n";
+						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
+						print "<td>".$knap;
+					} elseif ($c=='46') {
+						$txt = findtekst('2266|Åbn scanner', $sprog_id);
+ 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
+						$knap="<input type=\"button\" name=\"scanner\" onclick=\"window.location.href='barcode_scan.php?id=$id'\" $disabled $tmp value=\"$txt\">\n";
+					  $knap=str_replace("setcolor: ;","color: $b_font;",$knap); 
+						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
+						print "<td>".$knap;
+					} elseif ($c=='47') {
+						$txt = findtekst('2257|Afstemning', $sprog_id);
+ 						$tmp=str_replace("background-color: ;","background-color: $b;",$stil);
+						$knap="<input type=\"button\" name=\"scanner\" onclick=\"window.location.href='payments/lane3000_afstemning.php'\" $disabled $tmp value=\"$txt\">\n";
+					  $knap=str_replace("setcolor: ;","color: $b_font;",$knap); 
 						$knap=str_replace("background-color: ;","background-color: $b;",$knap);
 						print "<td>".$knap;
 					} else {
@@ -515,11 +555,11 @@ if (!$terminal_ip) $terminal_ip='localhost';
 						($betalingsbet=='Kontant' || !$sum)?$tmp2="disabled=disabled ".$tmp:$tmp2=$tmp;
 						print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"$a\" OnClick=\"pos_ordre.$fokus.value += 'c';pos_ordre.$fokus.focus();\">\n";
 					} elseif ($a=='Betalingskort') {
-						print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"Betalings \nkort\" OnClick=\"pos_ordre.$fokus.value += 'c';pos_ordre.$fokus.focus();\">\n";
+						print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"".findtekst('2270|Betalings-\nkort', $sprog_id)." OnClick=\"pos_ordre.$fokus.value += 'c';pos_ordre.$fokus.focus();\">\n";
 					} elseif ($a=='Gem som tilbud') {
-						print "<TD onclick=\"return confirm('Gem ordre som tilbud?')\"><INPUT TYPE=\"submit\" $tmp NAME=\"gem\" VALUE=\"Gem som tilbud\">\n";
+						print "<TD onclick=\"return confirm('Gem ordre som tilbud?')\"><INPUT TYPE=\"submit\" $tmp NAME=\"gem\" VALUE=\"".findtekst('2271|Gem som tilbud', $sprog_id)."\">\n";
 					} elseif ($a=='Gavekort') {
-						print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"Gavekort\" OnClick=\"pos_ordre.$fokus.value += 'q';pos_ordre.$fokus.focus();\">\n";
+						print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"".findtekst('2272|Gavekort', $sprog_id)."\" OnClick=\"pos_ordre.$fokus.value += 'q';pos_ordre.$fokus.focus();\">\n";
 					} else {
 						#if ($betvaluta && $betvaluta!='DKK') $tmp2="disabled=\"disabled\" ".$tmp;
 						print "<TD><INPUT TYPE=\"submit\" $tmp2 NAME='betaling' VALUE=\"$a\" OnClick=\"pos_ordre.$fokus.value += 'd';pos_ordre.$fokus.focus();\">\n"; #20160418
@@ -543,6 +583,7 @@ function systemknap($system_id) {
 	global $kasse;
 	global $bord;
 	global $bordnr;
+	global $sprog_id;
 
 	if ($system_id==2) {
 		$href="pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr";
@@ -561,10 +602,10 @@ function systemknap($system_id) {
 		$href="../index/menu.php";
 		$return="onclick=\"window.location.href='$href'\"";
 	} elseif ($system_id==11) {
-        $txt = $buttonTextArr["draw"];
+        $txt = findtekst('3090|Skuffe', $sprog_id);
 		$return="TYPE=\"submit\" NAME=\"skuffe\"VALUE=\"$txt\"";
 	} elseif ($system_id==13) {
-        $txt = $buttonTextArr["draw"];
+        $txt = findtekst('3090|Skuffe', $sprog_id);
         $return="TYPE=\"submit\" NAME=\"skuffe\"VALUE=\"$txt\"";
 	}
 
@@ -591,6 +632,7 @@ function tastatur($kasse,$status) {
 	global $terminal_ip;
 	global $vare_id,$vare_id_ny,$varelinjer,$varenr_ny,$vis_saet;
 	global $width;
+	global $sprog_id;
 
 	if ($kasse=="?") find_kasse($kasse);
 	if (!$id) $id = 0; #20210824
@@ -617,7 +659,7 @@ function tastatur($kasse,$status) {
 	if (!strpos($url,$_SERVER['PHP_SELF'])) $url.=$_SERVER['PHP_SELF'];
 	print "<tr>\n";
 	$href="pos_ordre.php?id=$id&kasse=?&bordnr=$bordnr";
-	print "<td width=\"$width\"><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"Kasse: $kasse\"></td>\n";
+	print "<td width=\"$width\"><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"".findtekst('931|Kasse', $sprog_id).": $kasse\"></td>\n";
 	$href="pos_ordre.php?id=$id&skift_bruger=1&bordnr=$bordnr";
 	print "<td width=\"$width\"><input $disabled type=\"button\" onclick=\"window.location.href='$href'\" $stil value=\"$brugernavn\"></td>\n";
 	print "<td width=\"$width\">\n";
@@ -696,9 +738,7 @@ function tastatur($kasse,$status) {
 
 	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1'",__FILE__ . " linje " . __LINE__));
 	$kortantal=$r['box4']*1;
-#cho "kortantal	$kortantal<br>\n";
 	$korttyper=explode(chr(9),$r['box5']);
-#cho "korttyper ".count($korttyper),"<br>\n";
 #for ($i=0;$i<count($korttyper);$i++) #cho "$korttyper[$i]<br>\n";
 	$vis_kontoopslag=$r['box11'];
 	$vis_hurtigknap=$r['box12'];
@@ -722,7 +762,7 @@ function tastatur($kasse,$status) {
 		print "<TD><INPUT TYPE=\"button\" $stil NAME=\"plus\"  VALUE=\"+\" OnClick=\"pos_ordre.$fokus.value += '+';pos_ordre.$fokus.focus();\"></TD>\n";
 		if ($vis_saet) print "<td><INPUT $disabled ".find_stil('knap',1,0.7)." TYPE=\"submit\" NAME=\"saet\"VALUE=\"Sæt\"></td>\n";
 		elseif ($db=='bizsys_48') {
-            $txt = $buttonTextArr["draw"];
+            $txt = findtekst('3090|Skuffe', $sprog_id);
             print "<td><INPUT $disabled $stil TYPE=\"submit\" NAME=\"skuffe\"VALUE=$txt></td>\n";
         }
 	print "</tr>\n";
@@ -768,14 +808,14 @@ function tastatur($kasse,$status) {
 	    } elseif ($fokus=='antal_ny' || $fokus=='pris_ny' || $fokus == 'beskrivelse_ny') { #20130310 Tilføjet: || $fokus=='pris_ny' 20210811 added beskrivelse_ny
 	    
 			if ($fokus=='antal_ny') {
-			$txt = $buttonTextArr['price'];
+			$txt = findtekst('915|Pris', $sprog_id);
 			print "<TD COLSPAN=\"1\"><INPUT TYPE=\"submit\" $stil NAME=\"pris\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'p';pos_ordre.$fokus.focus();\"></TD>\n";
 		}elseif($fokus=='beskrivelse_ny'){#20210811
 			#Beskrivelse input goes here #20210811 the block of code above is an older form of this
-			$txt = $buttonTextArr['beskrivelse_ny'];
+			$txt = findtekst('915|Pris', $sprog_id);
 			print "<TD COLSPAN=\"1\"><INPUT TYPE=\"submit\" $stil NAME=\"beskrivelse_ny\" VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 't';pos_ordre.$fokus.focus();\"></TD>\n";
 		} else print "<TD COLSPAN=\"1\"></TD>\n";
-		$txt = $buttonTextArr['discount'];
+		$txt = findtekst('428|Rabat', $sprog_id);
 		print "<TD COLSPAN=\"1\"><INPUT TYPE=\"submit\" $stil NAME=\"rabat\"VALUE=\"$txt\" OnClick=\"pos_ordre.$fokus.value += 'r';pos_ordre.$fokus.focus();\"></TD>\n";
 		} elseif ($fokus=='modtaget' && ($modtaget>=$sum || !$modtaget==0.00) && !$indbetaling && $betalingsbet) {
 			print "<TR><TD></TD><TD COLSPAN=\"2\"><INPUT TYPE=\"submit\" $stil2 NAME=\"betaling\" VALUE=\"Konto\" OnClick=\"pos_ordre.$fokus.value += 'k';pos_ordre.$fokus.focus();\"></TD>\n";

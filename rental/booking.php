@@ -52,7 +52,7 @@
                 <div class="product">
                 </div><br>
                 <div class="form-group mt-4">
-                    <label for="items">Vælg stand til udlejning</label>
+                    <label for="items">Stand til udlejning</label>
                     <select id="inputItems" name="item" class="form-control items" required>
                     </select>
                     <!-- <p class="row mt-4 mx-3"><span class="bg-success col-1"></span><span class="ml-1 col-3">Har hele uger/uge i mellem</span><span class="bg-warning col-1 ml-1"></span><span class="ml-1 col-3">Har ikke hele uger/uge i mellem</span></p> -->

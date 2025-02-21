@@ -32,6 +32,7 @@
 // 20160107 Har fjernet alle medarbejdere som ikke har en email og aftrådte i 'find person'. Søg #20160107
 // 20190910 PHR '$notat' will not be saved if $status > 0. 
 // 20190910 PHR Button 'bilag' removed by # as it doesn't work. 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -63,7 +64,6 @@ $mine_notater=if_isset($_GET['mine_notater']);
 
 if (isset($_POST['find_person']) && ($_POST['find_person']=='Find person')) $funktion="find_person"; 
 if (isset($_POST['find_sag']) && ($_POST['find_sag']=='Find sag')) {
-#cho $_POST['submit']." | ".$_POST['find_sag']." /sager/sager.php?notat_id=$id&funktion=sagsliste<br>";
 #	exit;
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/notat.php?notat_id=$id&funktion=findsag\">";
 }
@@ -111,7 +111,6 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		<div id=\"leftmenuholder\">";
 			include("leftmenu.php");
 			print "</div><!-- end of leftmenuholder -->";
-#cho "$funktion -> $id || $sag_id<br>";
 
 			if ($funktion) $funktion($id,$sag_id,$sag_fase);
 			elseif ($id || $sag_id) ret_note($id,$sag_id,$sag_fase);
@@ -429,7 +428,6 @@ function find_person($id,$sag_id,$sag_fase) {
 } # end of function find_person
 	
 function ret_note($id,$sag_id,$sag_fase) {
-	#cho "ID = $id";
 	global $brugernavn;
 	global $ansat_id;
 	global $db;
@@ -558,8 +556,8 @@ function ret_note($id,$sag_id,$sag_fase) {
 				if ($sag_id) $message.=", vedrørende $sag_tekst\r\n";
 				$message.=".<br><br> \r\nBeskeden kan ses under \"Dagbog\" i vores sagssystem.\r\n";
 				$message.="<br><br>\r\nVenlig hilsen $stam_firmanavn.\r\n";
-				$subject=utf8_decode($subject);
-				$message=utf8_decode($message);
+				$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+				$message=mb_convert_encoding($message, 'ISO-8859-1', 'UTF-8');
 				if (mail ($to, $subject, $message, $headers)) {
 					print "<BODY onLoad=\"javascript:alert('Besked sendt')\">";
 				}
@@ -610,9 +608,9 @@ function ret_note($id,$sag_id,$sag_fase) {
 		ini_set("include_path", ".:../phpmailer");
 		require("class.phpmailer.php");
 		
-		$beskrivelse=utf8_decode($beskrivelse);
-		$notat=utf8_decode($notat);
-		$sag_tekst=utf8_decode(", vedrørende $sag_tekst");
+		$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
+		$notat=mb_convert_encoding($notat, 'ISO-8859-1', 'UTF-8');
+		$sag_tekst=mb_convert_encoding(", vedrørende $sag_tekst", 'ISO-8859-1', 'UTF-8');
 		
 		$mail = new PHPMailer();
 
@@ -670,16 +668,14 @@ function ret_note($id,$sag_id,$sag_fase) {
 		if ($sag_id) $message.=", vedrørende $sag_tekst\r\n";
 		$message.=".<br>$notat\r\n";
 		$message.="<br>\r\nVenlig hilsen $stam_firmanavn.\r\n";
-		$subject=utf8_decode($subject);
-		$message=utf8_decode($message);
+		$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+		$message=mb_convert_encoding($message, 'ISO-8859-1', 'UTF-8');
 		if (mail ($to, $subject, $message, $headers)) {
 			print "<BODY onLoad=\"javascript:alert('Besked sendt')\">";
 		}
 			} 
 			*/
 		}
-		#cho "Sag id $sag_id<br>";
-	#cho "select * from noter where id='$id'<br>";
 	#exit;
 		$r = db_fetch_array(db_select("select * from noter where id='$id'",__FILE__ . " linje " . __LINE__));
 		$hvem=$r['hvem'];
@@ -724,7 +720,6 @@ function ret_note($id,$sag_id,$sag_fase) {
 			//echo "status: $status";
 			//exit;
 	#			(isset($_POST['notat']))?$status=1:$status=0; 
-#cho "insert into noter(notat,beskrivelse,status,hvem,assign_to,assign_id,fase,datotid) values ('$notat','$beskrivelse','$status','$brugernavn','sager','$sag_id','$sag_fase','$datotid')";
 #exit;
 			db_modify("insert into noter(notat,beskrivelse,status,hvem,assign_to,assign_id,fase,datotid,notat_fase,kategori,nr,sagsnr) values ('$notat','$beskrivelse','$status','$brugernavn','sager','$sag_id','$sag_fase','$datotid','$notat_fase','$kategori','$notat_nr','$sagsnr')",__FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select max (id) as id from noter where hvem='$brugernavn' and status = '$status'",__FILE__ . " linje " . __LINE__));

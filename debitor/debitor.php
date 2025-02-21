@@ -54,6 +54,7 @@
 // 20230611 PHP - Fixed missing pre & nextpil 
 // 20230717 PBLM - Added link to booking on line 375
 // 20231128 MSC - Copy pasted new design into code
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 #ob_start();
 @session_start();
@@ -200,11 +201,11 @@ if ((isset($_POST['kommission']) || isset($_POST['historik'])) && $_POST['debId'
 			}
 /*
 			if ($charset=="UTF-8") {
-				$subject=utf8_decode($subject);
-				$mailText=utf8_decode($mailText);
-				$afsendernavn=utf8_decode($afsendernavn);
+				$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
+				$mailText=mb_convert_encoding($mailText, 'ISO-8859-1', 'UTF-8');
+				$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
 			}
-*/			
+*/		
 			$mail = new PHPMailer();
 			$mail->IsSMTP(); // send via SMTP
 			$mail->CharSet = "$charset";
@@ -332,7 +333,7 @@ if ($popup) $returside= "../includes/luk.php";
 else $returside= "../index/menu.php";
 
 db_modify("update grupper set box9='$sort' where art = 'DLV' and kode='$valg' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__);
-		
+
 $tidspkt=date("U");
  
 if ($search=if_isset($_POST['search'])) {
@@ -353,13 +354,13 @@ $sortering=$sort;
 if ($menu=='T') {
 	if ($valg=='debitor') {
 		$title = "".findtekst(117,$sprog_id)."";
-	} if ($valg=='historik') {
+		} if ($valg=='historik') {
 			$title= "".findtekst(907,$sprog_id)."";
 		} if ($valg=='kommission') {
 			$title= "".findtekst(909,$sprog_id)."";
 		} if ($valg=='rental') {
 			$title= "".findtekst(1116,$sprog_id)."";
-	}
+		}
 } else {
 	$title="Debitorliste";
 }
@@ -382,6 +383,7 @@ if ($menu=='T') {
 } elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
 else include_once 'debLstIncludes/oldTopLine.php';
 
+
 $r = db_fetch_array(db_select("select box3,box4,box5,box6,box8,box11 from grupper where art = 'DLV' and kodenr = '$bruger_id' and kode='$valg'",__FILE__ . " linje " . __LINE__));
 $vis_felt=explode(chr(9),$r['box3']);
 $feltbredde=explode(chr(9),$r['box4']);
@@ -389,6 +391,7 @@ $justering=explode(chr(9),$r['box5']);
 $feltnavn=explode(chr(9),$r['box6']);
 $vis_feltantal=count($vis_felt);
 $select=explode(chr(9),$r['box8']);
+
 $y=0;
 for ($x=0;$x<=$vis_feltantal;$x++) {
 	if (isset($select[$x]) && isset($vis_felt[$x]) && $select[$x] && $vis_felt[$x]) {
@@ -508,6 +511,8 @@ print "</tr>\n";
 if ($dg_antal || $cat_antal) $linjeantal=0;
 #################################### Sogefelter ##########################################
 
+
+
 print "<tr><td width=10px></td>"; #giver plase til venstrepil v. flere sider
 if (!$start) {
 	print "<form name=debitorliste action=debitor.php method=post>\n";	
@@ -589,7 +594,7 @@ if (!$start) {
 	}
 	print "</td>\n";
 	if ($valg=='kommission') print "<td colspan='1'></td><td colspan='1'></td>";
-	print "<td colspan='1' align=right style='width:10px;'><input class='button blue medium' type='submit' value=\"Søg\" name=\"search\"></td>";
+	print "<td colspan='1' align=right style='width:10px;'><input class='button blue medium' type='submit' value=".findtekst('913|Søg', $sprog_id)." name=\"search\"></td>";
 
 	print "</form></tr>\n";
 }
@@ -640,22 +645,22 @@ $colspan++;
 #print "<tr><td colspan=$colspan><hr></td></tr>\n";
 
 if ($menu=='T') {
-		print "
-	</tfoot>
-	</table>
-	</td></tr>
+	print "
+</tfoot>
+</table>
+</td></tr>
 </tbody></table>
-	";
+";
 include_once '../includes/topmenu/footer.php';
 } else {
-		print "
-	</tbody>
-	</table>
-	</td></tr>
-	</tbody></table>
-	";
+	print "
+</tbody>
+</table>
+</td></tr>
+</tbody></table>
+";
 
-	include_once '../includes/oldDesign/footer.php';
+include_once '../includes/oldDesign/footer.php';
 }
 
 

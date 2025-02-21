@@ -9,7 +9,6 @@ include("../includes/db_query.php");
 include("../includes/std_func.php");
  
 	$x=0;
-#cho "select * from regnskab where lukket != 'on' order by id<br>";
 	$q=db_select("select * from regnskab where id > 1 and (lukket != 'on' or lukket is  NULL) order by id",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$db_id[$x]=$r['id'];
@@ -26,27 +25,20 @@ include("../includes/std_func.php");
 	$startdate=$y."-".$m."-".$d;
 	for ($x=0;$x<count($db_id);$x++){
 		if ($db) {
-#cho "$sqhost | $squser | $sqpass | $db[$x]<br>";
 			if (db_connect ("$sqhost", "$squser", "$sqpass", "$db[$x]")) {
 				if (db_fetch_array(db_select("select * from pg_tables where tablename='transaktioner'"))) {
 					$qtxt="select count(id) as posteringer from transaktioner where logdate > '$startdate'";
-#cho "$qtxt<br>";
 					$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 					$posteringer[$x]=$r['posteringer']*1;
-				#cho "$posteringer[$x]<br>";
 					$qtxt="select logdate from transaktioner order by logdate desc";
-#cho "$qtxt<br>";
 					$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 					$sidste[$x]=$r['logdate'];
-#cho "Sidste $sidste[$x]<br>";		
-#cho "$sqhost | $squser | $sqpass | $sqdb<br>";
 				} else echo "Transaktioner eksisterer ikke i $regnskab[$x]<br>";
 			} else echo "$regnskab[$x] eksisterer ikke<br>";
 			db_connect ("$sqhost", "$squser", "$sqpass", "$sqdb");
 			$sidst=strtotime($sidste[$x]);
 			if (!$sidst)$sidst=0;
 			$qtxt="update regnskab set sidst='$sidst' posteringer = '$posteringer[$x]' where id = '$db_id[$x]'";
-#cho "$qtxt<br>";
 			#		db_modify("$qtxt",__FILE__ . " linje " . __LINE__);
 		}
 	}

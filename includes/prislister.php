@@ -22,6 +22,7 @@
 // ---------------------------------------------------------------------------
 
 // 2013.02.10 break ændret til break 1
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -109,8 +110,8 @@ if ($fp) {
 	#		$pakningsrabat[$x]=substr($linje,101,3);
 	#		$dato[$x]=substr($linje,104,6);
 	#    		if ($charset=="UTF-8")
-			$beskrivelse[$x]=utf8_encode($beskrivelse[$x]);
-			$enhed[$x]=utf8_encode($enhed[$x]);
+			$beskrivelse[$x]=mb_convert_encoding($beskrivelse[$x], 'UTF-8', 'ISO-8859-1');
+			$enhed[$x]=mb_convert_encoding($enhed[$x], 'UTF-8', 'ISO-8859-1');
 			$salgspris[$x]=$salgspris[$x]/100;
 			if (strstr($rabatter,$prisgruppe[$x])) {
 				$rabat[$x]=-1;
@@ -157,8 +158,8 @@ if ($fp) {
 		} elseif  ( stristr($prisfil, "maxmc") ) {
 			$x++;
 			$splitter=",";
-                        if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-                        elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+                        if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+                        elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
                         $felt=array();
                         $felt = opdel($splitter, $linje);
 			$varenr[$x]=$felt['1'];
@@ -343,8 +344,8 @@ $std_varegruppe=$r['box8'];
 				$beskrivelse=substr($linje,50,32);
 				$enhed=substr($linje,83,3);
 				$prisgruppe=substr($linje,86,4);
-				$beskrivelse=utf8_encode($beskrivelse);
-				$enhed=utf8_encode($enhed);
+				$beskrivelse=mb_convert_encoding($beskrivelse, 'UTF-8', 'ISO-8859-1');
+				$enhed=mb_convert_encoding($enhed, 'UTF-8', 'ISO-8859-1');
 				$salgspris=$salgspris/100;
 				if (strstr($prisgruppe,$rabatter)) {
 					$rabat=-1;

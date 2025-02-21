@@ -42,7 +42,6 @@ $docName = $toUpload['name'];
 $tmpName = $toUpload['tmp_name'];
 
 //print_r($file);
-#cho $_SESSION['content'];
 $content = if_isset($_SESSION['content']);
 
 $qtxt="select var_value from settings where var_grp='creditor' and var_name='paperflowId'";
@@ -105,16 +104,12 @@ if(  $content && isset($_POST['docName'])) {
 	if(http_response_code()!=200 ) {
 		echo "<meta http-equiv=\"refresh\" content=\"180\" >";
 	}
-#cho "Copy this voucher Id: $voucher_id </br>";
 #	print "And click the link below to get the voucher information</br>";
-#cho "<a href=\"$Addr?voucher_id=$voucher_id\"target=\"new window\">$mytxt</a> </br>";
 $qtxt = "insert into paperflow";
 $qtxt.= "(voucher_id,upload_user_id,upload_time,document) values ";
 $qtxt.= "('$voucher_id','$bruger_id','". date('U') ."','".db_escape_string("$docName")."')";
-#cho "$qtxt<br>";
 db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 $qtxt = "select id from paperflow where voucher_id = '$voucher_id'";
-#cho "$qtxt<br>";
 $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $paperflowId = $r['id'];
 $qtxt = "insert into ordrer";
