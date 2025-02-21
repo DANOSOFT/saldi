@@ -218,11 +218,30 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		$tmp=date("U");
 		if ($masterversion > "1.1.3") db_modify("update regnskab set sidst='$tmp' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
 	}	else {
-		$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&dbAlias=". urlencode($regnskab);
-		$result = json_decode(file_get_contents($url));
-		if (strpos($result,chr(9))) {
-			list ($regnskab,$url) = explode(chr(9),$result);
-			$url = "$url/index/login.php";
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=getLocation&dbAlias=" . urlencode($regnskab));
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
+
+		// Execute curl request
+		$result = curl_exec($ch);
+
+		// Check for curl errors
+		if(curl_errno($ch)) {
+			die('Curl error: ' . curl_error($ch));
+		}
+
+		curl_close($ch);
+
+		// Debug raw response
+		error_log("Raw response: " . $result);
+
+		// Decode JSON
+		$decoded = json_decode($result, true);
+
+		if ($decoded["status"] == "success") {
+			$url = 'https://' . preg_replace('#^https?://#', '', $decoded['location']) . '/index/login.php';
 			print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$url\" onSubmit=\"return handleLogin(this);\">\n";
 			print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
 			print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
@@ -233,7 +252,12 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 			print "<input type=\"hidden\" name=\"vent\"  value=\"$_POST[vent]\">\n";
 			print "<body onload=\"document.login.submit()\">";
 			print "</form>";
-			exit;
+			?>
+			<script>
+				document.forms['login'].submit();
+			</script>
+		<?php
+		exit();
 		}
 		if ($regnskab) $fejltxt="Regnskab $regnskab findes ikke";
 		login(htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset),$fejltxt);
