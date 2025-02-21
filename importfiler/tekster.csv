@@ -1010,7 +1010,7 @@
 1010	Det sprog der skal anvendes ved fakturering	The language to be used for invoicing	Språket som skal brukes til fakturering
 1011	Momsgrp	VATgrp	Momsgrp
 1012	Køb	Purchase	Kjøp
-1013	Modkonto	Mod account	Mod-konto
+1013	Modkonto	Contra account	Motkonto
 1014	ClientID til API	ClientID for API	ClientID for API
 1015	Skriv det ClientID som benyttestil bestilling af fragt via API hos Danske Fragtmænd. Kontakt Saldi.DK på telefon 4690 2208 og hør om hvordan.	Write the ClientID as the style for ordering freight via API at Danske Fragtmænd. Contact Saldi.DK on telephone 4690 2208 and hear about how.	Skriv ClientID som stil for bestilling av frakt via API hos Danske Fragtmænd. Kontakt Saldi.DK på telefon 4690 2208 og hør om hvordan.
 1016	API-brugernavn	API username	API brukernavn
@@ -2301,18 +2301,18 @@
 2301	Vil du slette konto	Do you want to delete account	Vil du slette konto
 2302	Det nummer i kontoplanen som købsmomsen skal konteres på	The number in the chart of accounts to which the purchase tax should be posted	Det nummeret i kontoplanen som inngående MVA skal bokføres på
 2303	Den moms du skal have retur fra SKAT	The VAT you are owed by the tax authorities	Den MVA du skal ha tilbake fra Skatteetaten
-2304	Konto til postering af salgsmoms for ydelseskøb i udlandet	Account for posting of sales VAT for service purchases abroad	Konto for postering av utgående MVA for tjenestekjøp i utlandet
-2305	Konto til postering af købsmoms for ydelseskøb i udlandet	Account for posting of purchase VAT for service purchases abroad	Konto for postering av inngående MVA for tjenestekjøp i utlandet
-2306
-2307
-2308
-2309
-2310
-2311
-2312
-2313
-2314
-2315
+2304	Konto til postering af salgsmoms for ydelseskøb i udlandet	Account for posting of sales VAT for service purchases abroad	Konto for postering av salgs-MVA for tjenestekjøp i utlandet
+2305	Konto til postering af købsmoms for ydelseskøb i udlandet	Account for posting of purchase VAT for service purchases abroad	Konto for postering av kjøps-MVA for tjenestekjøp i utlandet
+2306	Konto til postering af salgsmoms for køb i udlandet	Account for posting of sales VAT for purchases abroad	Konto for postering av salgs-MVA for kjøp i utlandet
+2307	Konto til postering af købsmoms for køb i udlandet	Account for posting of purchase VAT for purchases abroad	Konto for postering av kjøps-MVA for kjøp i utlandet
+2308	Første kontonummer som skal indgå i rapporten	First account number to be included in the report	Første kontonummer som skal inngå i rapporten
+2309	Sidste kontonummer som skal indgå i rapporten	Last account number to be included in the report	Siste kontonummer som skal inngå i rapporten
+2310	Kontonummer for samlet varekøb i EU	Account number for total goods purchases in the EU	Kontonummer for samlet varekjøp i EU
+2311	Kontonummer for samlet ydelseskøb i EU	Account number for total service purchases in the EU	Kontonummer for samlet tjenestekjøp i EU
+2312	Kontonummer for samlet varesalg i EU	Account number for total goods sales in the EU	Kontonummer for samlet varesalg i EU
+2313	Kontonummer for samlet ydelsessalg i EU	Account number for total service sales in the EU	Kontonummer for samlet tjenestesalg i EU
+2314	Kontonummer for samlet vare- og ydelsessalg uden for EU	Account number for total goods and service sales outside the EU	Kontonummer for samlet vare- og tjenestesalg utenfor EU
+2315	Rubrik	Box	Rubrikk
 2316
 2317
 2318
