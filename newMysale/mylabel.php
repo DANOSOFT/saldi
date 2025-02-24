@@ -293,7 +293,7 @@ while ($r=db_fetch_array($q)) {
 	$c=$r['col'];
 	$d=$r['page'];
 }
-($medlem)?$rows = $productLimit/5:$rows=13;
+($productLimit)?$rows = $productLimit/5:$rows=13;
 # <-- 20210426
 $a = $b = 0;
 $freeLabels = $productLimit;
