@@ -114,6 +114,6 @@ while($linje=fgets($fp))$bon.=$linje;
 $bon=urlencode($bon);
 
 
-print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?printfil=&url=$url&bon=$bon&returside=$returside\">\n";
+print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=&url=$url&bon=$bon&returside=$returside\">\n";
 
 ?>

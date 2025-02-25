@@ -40,7 +40,7 @@ function getDrawerStatus() {
 	$url="http".$url;
 	$returside=$url."/debitor/pos_ordre.php";
 	print "<meta http-equiv=\"refresh\" ";
-	print "content=\"0;URL=http://$printserver/drawerstatus.php?bg=$bg&returside=$returside\">\n";
+	print "content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/drawerstatus.php?bg=$bg&returside=$returside\">\n";
 	exit;	#usleep(10000);
 }
 

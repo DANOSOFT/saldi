@@ -88,6 +88,6 @@ $url=str_replace("/debitor/pos_ordre.php","",$url);
 if ($_SERVER[HTTPS]) $url="s".$url;
 $url="http".$url;
 
-print "<BODY onLoad=\"JavaScript:window.open('http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=$bonantal' , '' , '$jsvars');\">";
+print "<BODY onLoad=\"JavaScript:window.open('" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=$bonantal' , '' , '$jsvars');\">";
 #	system("lpr -P srp350plus $pfnavn");
 ?>
