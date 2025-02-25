@@ -27,12 +27,14 @@ function varegrp_doughnut($startDate, $endDate) {
 
     // SQL query to fetch the data
     $qtxt = "
-    SELECT
-      sum(OL.pris) as pris, V.gruppe as gruppe, G.beskrivelse
+    SELECT 
+      sum(OL.pris * OL.antal * (1 - coalesce(OL.rabat, 0)/100)) as pris, 
+    V.gruppe as gruppe, 
+    G.beskrivelse
     FROM ordrelinjer OL
     JOIN ordrer O ON O.id = OL.ordre_id
-    JOIN varer V ON  V.varenr = OL.varenr
-    JOIN grupper G ON G.art = 'VG' AND G.fiscal_year = '$regnaar' AND G.kodenr = V.gruppe 
+    JOIN varer V ON V.varenr = OL.varenr
+    JOIN grupper G ON G.art = 'VG' AND G.fiscal_year = '$regnaar' AND G.kodenr = V.gruppe
     WHERE O.fakturadate >= '$startDate'
     AND O.fakturadate <= '$endDate'
     AND O.status = 4
