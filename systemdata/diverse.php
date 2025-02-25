@@ -1028,6 +1028,10 @@ if ($_POST) {
 		$pfs=if_isset($_POST['pfs']);
 		$box3_3=if_isset($_POST['kundedisplay']);
 		$postEachSale=if_isset($_POST['postEachSale']);
+		$mobilpos=if_isset($_POST['mobilpos']);
+		$mobilwidth=if_isset($_POST['mobilwidth']);
+		$mobilzoom=if_isset($_POST['mobilzoom']);
+		$omv_menu = if_isset($_POST['omv_menu']);
 		$box2=NULL;
 		$box3=NULL;
 		$box7=NULL;
@@ -1038,6 +1042,9 @@ if ($_POST) {
 		for ($x=0;$x<$box1;$x++) {
 			if (!isset($bordvalg[$x]))     $bordvalg[$x]     = NULL;
 			if (!isset($postEachSale[$x])) $postEachSale[$x] = NULL;
+			if (!isset($mobilpos[$x])) $mobilpos[$x] = NULL;
+			if (!isset($mobilwidth[$x])) $mobilwidth[$x] = NULL;
+			if (!isset($mobilzoom[$x])) $mobilzoom[$x] = NULL;
 		
 			$qtxt="select id from kontoplan WHERE kontonr = '$kassekonti[$x]'";
 			if (($kassekonti[$x] && is_numeric($kassekonti[$x]) && db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))));
@@ -1091,6 +1098,19 @@ if ($_POST) {
                  VALUES ('terminal_type', 'POS', '$termtype', 'What the main payment system should be.', $kasse_id)";
 			  db_modify($qtxt,__FILE__ . " linje " . __LINE__);
       }
+	  
+	  
+	  	# ################
+	  	# Mobilpos gem
+	  	# ################
+		update_settings_value("mobilepos", "POS", $mobilpos[$x], "Use the mobile pos system?", null, $x+1);
+	  	if ($mobilpos[$x] == "on") {
+			update_settings_value("mobilwidth", "POS", $mobilwidth[$x], "The width of the mobile device", null, $x+1);
+			update_settings_value("mobilzoom", "POS", $mobilzoom[$x], "The zoom of the mobile device", null, $x+1);
+		}
+		update_settings_value("omv_menu", "POS", $omv_menu[$x], "If the system should swap main and sub main menus", null, $x+1);
+
+
 
       # Vibrant setup
       $termtype = $terminal_type[$x];
