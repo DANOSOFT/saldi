@@ -417,9 +417,10 @@ const formatTimeAndDate = (date) => {
     return `${date.getDate()}/${month}/${date.getFullYear()} ${formatTime(date)}`
 }
 
-const formatDate = (date) => {
-    const month = date.getMonth() + 1
-    return `${date.getDate()}/${month}/${date.getFullYear()}`
+const formatDate = (date) => { 
+    const month = String(date.getMonth() + 1).padStart(2, '0') 
+    const day = String(date.getDate()).padStart(2, '0') 
+    return `${day}-${month}-${date.getFullYear()}`
 }
 
 const createReservationList = async (year, month, day, value) => {
@@ -485,8 +486,8 @@ const createReservationList = async (year, month, day, value) => {
         return {
             name: customer.name,
             account_number: customer.account_number,
-            fromDate: fromDate.getFullYear() + "-" + ("0" + (fromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + fromDate.getDate()).slice(-2),
-            toDate: toDate.getFullYear() + "-" + ("0" + (toDate.getMonth() + 1)).slice(-2) + "-" + ("0" + toDate.getDate()).slice(-2),
+            fromDate: formatDate(fromDate),
+            toDate: formatDate(toDate),
             id: customer.id,
             booking_id: customer.booking_id,
             item_name: customer.item_name,
@@ -541,12 +542,12 @@ const createReservationList = async (year, month, day, value) => {
         customerDates = mergedCustomerDates;
     }
  */
-    let selectedDate = year + "-" + ("0" + month).slice(-2) + "-" + ("0" + day).slice(-2)
-    let startSelectedDate = year + "-" + ("0" + month).slice(-2) + "-" + ("0" + day).slice(-2)
+    let selectedDate = ("0" + day).slice(-2) + "-" + ("0" + month).slice(-2) + "-" + year
+    let startSelectedDate = ("0" + day).slice(-2) + "-" + ("0" + month).slice(-2) + "-" + year
     if(settings.start_day == 1){
         const date = new Date(selectedDate)
         date.setDate(date.getDate() + 1)
-        startSelectedDate = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+        startSelectedDate = formatDate(date)
     }
 
     let check = false
@@ -673,8 +674,8 @@ const createReservationList = async (year, month, day, value) => {
                         if(!reserved.success){
                             reserved.from = new Date(reserved.from * 1000)
                             reserved.to = new Date(reserved.to * 1000)
-                            reserved.from = reserved.from.getFullYear() + "-" + ("0" + (reserved.from.getMonth() + 1)).slice(-2) + "-" + ("0" + reserved.from.getDate()).slice(-2)
-                            reserved.to = reserved.to.getFullYear() + "-" + ("0" + (reserved.to.getMonth() + 1)).slice(-2) + "-" + ("0" + reserved.to.getDate()).slice(-2)
+                            reserved.from = formatDate(reserved.from)
+                            reserved.to = formatDate(reserved.to)
                             // if booking is inbetween reserved dates or it starts the day after booking ends
                             if((date.fromDate >= reserved.from && date.fromDate <= reserved.to) ||
                                 (date.toDate >= reserved.from && date.toDate <= reserved.to) ||
@@ -722,19 +723,19 @@ const createReservationList = async (year, month, day, value) => {
                         const dateOne = new Date(date.toDate)
                         let oneDayAfter = new Date(dateOne)
                         oneDayAfter.setDate(dateOne.getDate() + 1)
-                        oneDayAfter = oneDayAfter.getFullYear() + "-" + ("0" + (oneDayAfter.getMonth() + 1)).slice(-2) + "-" + ("0" + oneDayAfter.getDate()).slice(-2)
+                        oneDayAfter = formatDate(oneDayAfter)
                         if(reserved.success != false){
                             reserved.some(res => {
                                 res.from = new Date(res.from * 1000)
                                 res.to = new Date(res.to * 1000)
-                                res.from = res.from.getFullYear() + "-" + ("0" + (res.from.getMonth() + 1)).slice(-2) + "-" + ("0" + res.from.getDate()).slice(-2)
-                                res.to = res.to.getFullYear() + "-" + ("0" + (res.to.getMonth() + 1)).slice(-2) + "-" + ("0" + res.to.getDate()).slice(-2)
+                                res.from = formatDate(res.from)
+                                res.to = formatDate(res.to)
                             
                                 // Convert date[0], date[1], and oneDayAfter to date strings in the same format as res.from and res.to
                                 let date0 = new Date(date.fromDate)
-                                date0 = date0.getFullYear() + "-" + ("0" + (date0.getMonth() + 1)).slice(-2) + "-" + ("0" + date0.getDate()).slice(-2)
+                                date0 = formatDate(date0)
                                 let date1 = new Date(date.toDate)
-                                date1 = date1.getFullYear() + "-" + ("0" + (date1.getMonth() + 1)).slice(-2) + "-" + ("0" + date1.getDate()).slice(-2)
+                                date1 = formatDate(date1)
 
                                 // if booking is inbetween reserved dates or it starts the day after booking ends
                                 if((date0 >= res.from && date0 <= res.to) ||
@@ -822,19 +823,19 @@ const createReservationList = async (year, month, day, value) => {
                         const dateOne = new Date(date.toDate)
                         let oneDayAfter = new Date(dateOne)
                         oneDayAfter.setDate(dateOne.getDate() + 1)
-                        oneDayAfter = oneDayAfter.getFullYear() + "-" + ("0" + (oneDayAfter.getMonth() + 1)).slice(-2) + "-" + ("0" + oneDayAfter.getDate()).slice(-2)
+                        oneDayAfter = formatDate(oneDayAfter)
                         if(reserved.success != false){
                             reserved.some(res => {
                                 res.from = new Date(res.from * 1000)
                                 res.to = new Date(res.to * 1000)
-                                res.from = res.from.getFullYear() + "-" + ("0" + (res.from.getMonth() + 1)).slice(-2) + "-" + ("0" + res.from.getDate()).slice(-2)
-                                res.to = res.to.getFullYear() + "-" + ("0" + (res.to.getMonth() + 1)).slice(-2) + "-" + ("0" + res.to.getDate()).slice(-2)
+                                res.from = formatDate(res.from)
+                                res.to = formatDate(res.to)
                             
                                 // Convert date[0], date[1], and oneDayAfter to date strings in the same format as res.from and res.to
                                 let date0 = new Date(date.fromDate)
-                                date0 = date0.getFullYear() + "-" + ("0" + (date0.getMonth() + 1)).slice(-2) + "-" + ("0" + date0.getDate()).slice(-2)
+                                date0 = formatDate(date0)
                                 let date1 = new Date(date.toDate)
-                                date1 = date1.getFullYear() + "-" + ("0" + (date1.getMonth() + 1)).slice(-2) + "-" + ("0" + date1.getDate()).slice(-2)
+                                date1 = formatDate(date1)
 
                                 // if booking is inbetween reserved dates or it starts the day after booking ends
                                 if((date0 >= res.from && date0 <= res.to) ||
@@ -898,7 +899,7 @@ const createReservationList = async (year, month, day, value) => {
         // add one day to selectedDate
         const date = new Date(selectedDate)
         date.setDate(date.getDate() + 1)
-        selectedDate = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+        selectedDate = formatDate(date)
         const dates = customerInfo.filter(date => date.toDate == selectedDate)
         if(dates != ""){
             if(check == false){
@@ -934,19 +935,19 @@ const createReservationList = async (year, month, day, value) => {
                         const dateOne = new Date(date.toDate)
                         let oneDayAfter = new Date(dateOne)
                         oneDayAfter.setDate(dateOne.getDate() + 1)
-                        oneDayAfter = oneDayAfter.getFullYear() + "-" + ("0" + (oneDayAfter.getMonth() + 1)).slice(-2) + "-" + ("0" + oneDayAfter.getDate()).slice(-2)
+                        oneDayAfter = formatDate(oneDayAfter)
                         if(reserved.success != false){
                             reserved.some(res => {
                                 res.from = new Date(res.from * 1000)
                                 res.to = new Date(res.to * 1000)
-                                res.from = res.from.getFullYear() + "-" + ("0" + (res.from.getMonth() + 1)).slice(-2) + "-" + ("0" + res.from.getDate()).slice(-2)
-                                res.to = res.to.getFullYear() + "-" + ("0" + (res.to.getMonth() + 1)).slice(-2) + "-" + ("0" + res.to.getDate()).slice(-2)
+                                res.from = formatDate(res.from)
+                                res.to = formatDate(res.to)
                             
                                 // Convert date[0], date[1], and oneDayAfter to date strings in the same format as res.from and res.to
                                 let date0 = new Date(date.fromDate)
-                                date0 = date0.getFullYear() + "-" + ("0" + (date0.getMonth() + 1)).slice(-2) + "-" + ("0" + date0.getDate()).slice(-2)
+                                date0 = formatDate(date0)
                                 let date1 = new Date(date.toDate)
-                                date1 = date1.getFullYear() + "-" + ("0" + (date1.getMonth() + 1)).slice(-2) + "-" + ("0" + date1.getDate()).slice(-2)
+                                date1 = formatDate(date1)
 
                                 // if booking is inbetween reserved dates or it starts the day after booking ends
                                 if((date0 >= res.from && date0 <= res.to) ||
@@ -1171,8 +1172,8 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     let productInfo = product.map((product) => ({
         product_name: product.product_name,
         item_name: product.item_name,
-        fromDate: new Date(product.from * 1000).getFullYear() + "-" + ("0" + (new Date(product.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(product.from * 1000).getDate()).slice(-2),
-        toDate: new Date(product.to * 1000).getFullYear() + "-" + ("0" + (new Date(product.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(product.to * 1000).getDate()).slice(-2),
+        fromDate: formatDate(new Date(product.from * 1000)),
+        toDate: formatDate(new Date(product.to * 1000)),
         product_id: product.product_id,
         cust_id: product.cust_id,
         rental_id: product.rental_id,
@@ -1199,6 +1200,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
 
     let screenWidth = screen.width;
 
+   /*  const currentDate = formatDate(new Date()) */
     const currentDate = new Date(new Date().getFullYear() + "-" + ("0" + (new Date().getMonth() + 1)).slice(-2) + "-" + ("0" + new Date().getDate()).slice(-2))
     days.forEach(day => {
         let firstDate = new Date(currentYear+"-"+(currentMonth+1)+"-"+day)
@@ -1217,7 +1219,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     const eraseTable = document.querySelector(".eraseTable")
 
     const getClosedDates = await getClosedDays()
-    const closedDates = getClosedDates.map(date => new Date(date.date * 1000).getFullYear() + "-" + ("0" + (new Date(date.date * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(date.date * 1000).getDate()).slice(-2))
+    const closedDates = getClosedDates.map(date => formatDate(new Date(date.date * 1000)))
     // Constructing data for the table
     const initialTable = () => {
         // Creating a list of unique products
@@ -1396,7 +1398,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
 
         uniqueCustomers.forEach(customer => {
             const custDates = productInfo.filter(cust => cust.rental_id === customer)
-            const lastDateInMonth = currentYear + "-" + ("0" + (currentMonth + 1)).slice(-2) + "-" + new Date(currentYear, currentMonth + 1, 0).getDate()
+            const lastDateInMonth = new Date(currentYear, currentMonth + 1, 0).getDate() + "-" + ("0" + (currentMonth + 1)).slice(-2) + "-" + currentYear
             if(custDates[0].fromDate > lastDateInMonth) return
             if(searchItems.length > 0){
                 if(!searchItems.includes(custDates[0].cust_name + " " + custDates[0].kontonr)){
@@ -1546,7 +1548,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
 
             let i = 0
             days.forEach(day => {
-                const currentDate = currentYear + "-" + ("0" + (currentMonth + 1)).slice(-2) + "-" + ("0" + day).slice(-2)
+                const currentDate =  ("0" + day).slice(-2) + "-" + ("0" + (currentMonth + 1)).slice(-2) + "-" + currentYear
                 i = 0
                 productDates.forEach((date) => {
                     if (currentDate >= date.fromDate && currentDate <= date.toDate && i == 0) {
@@ -1601,7 +1603,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
             showModal.click()
             flatpickr(".from", {
                 altInput: true,
-                altFormat: "j F Y",
+                altFormat: "d-m-Y",
                 dateFormat: "Y-m-d",
                 theme: "dark",
                 locale: "da",
@@ -1620,7 +1622,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
             })
             const toPicker = flatpickr(".to", {
                 altInput: true,
-                altFormat: "j F Y",
+                altFormat: "d-m-Y",
                 dateFormat: "Y-m-d",
                 theme: "dark",
                 locale: "da",
@@ -1649,8 +1651,8 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     itemsInfo = items.map((item) => ({
                         product_name: item.product_name,
                         item_name: item.item_name,
-                        fromDate: new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2),
-                        toDate: new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2),
+                        fromDate: formatDate(new Date(item.from * 1000)),
+                        toDate: formatDate(new Date(item.to * 1000)),
                         product_id: item.product_id,
                         cust_id: item.cust_id,
                         rental_id: item.rental_id,
@@ -1676,8 +1678,8 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     itemsInfo = items.map((item) => ({
                         product_name: item.product_name,
                         item_name: item.item_name,
-                        fromDate: new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2),
-                        toDate: new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2),
+                        fromDate: formatDate(new Date(item.from * 1000)),
+                        toDate: formatDate(new Date(item.to * 1000)),
                         product_id: item.product_id,
                         cust_id: item.cust_id,
                         rental_id: item.rental_id,
@@ -1695,8 +1697,8 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                         if (!reservations.success) {
                             hasReservationDuringPeriod = reservations.some(reservation => {
                                 if (parseInt(reservation.item_id) === parseInt(item.item_id)) {
-                                    const from = new Date(reservation.from * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.from * 1000).getDate()).slice(-2)
-                                    const to = new Date(reservation.to * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.to * 1000).getDate()).slice(-2)
+                                    const from = formatDate(new Date(reservation.from * 1000))
+                                    const to = formatDate(new Date(reservation.to * 1000))
                                     // Check if the reservation overlap wit the given period
                                     return from <= toDate && to >= fromDate
                                 }
@@ -2235,8 +2237,8 @@ const showBooking = async () => {
     const bookingInfo = {
         name: booking.name,
         account_number: booking.account_number,
-        fromDate: new Date(booking.from * 1000).getFullYear() + "-" + ("0" + (new Date(booking.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.from * 1000).getDate()).slice(-2),
-        toDate: new Date(booking.to * 1000).getFullYear() + "-" + ("0" + (new Date(booking.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.to * 1000).getDate()).slice(-2),
+        fromDate: formatDate(new Date(booking.from * 1000)),
+        toDate: formatDate(new Date(booking.to * 1000)),
         item_name: item.item_name,
         cust_id: booking.customer_id,
         rental_id: booking.id,
@@ -2386,8 +2388,8 @@ const singleProductOverview = async (id) => {
             id: booking.id,
             name: booking.name,
             account_number: booking.account_number,
-            fromDate: new Date(booking.from * 1000).getFullYear() + "-" + ("0" + (new Date(booking.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.from * 1000).getDate()).slice(-2),
-            toDate: new Date(booking.to * 1000).getFullYear() + "-" + ("0" + (new Date(booking.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.to * 1000).getDate()).slice(-2),
+            fromDate: formatDate(new Date(booking.from * 1000)),
+            toDate: formatDate(new Date(booking.to * 1000)),
         }))
         // Make the latest booking show first
         productInfo.sort((a, b) => -1 * (new Date(a.fromDate) - new Date(b.fromDate)));
@@ -2439,8 +2441,8 @@ const singleProductOverview = async (id) => {
         productDates = reservations.map((reservation) => ({
             id: reservation.id,
             text: reservation.text,
-            fromDate: new Date(reservation.from * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.from * 1000).getDate()).slice(-2),
-            toDate: new Date(reservation.to * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.to * 1000).getDate()).slice(-2),
+            fromDate: formatDate(new Date(reservation.from * 1000)),
+            toDate: formatDate(new Date(reservation.to * 1000)),
         }))
         const list = document.createElement("table")
         list.setAttribute("class", "table table-responsive-sm table-light table-striped mt-5")
@@ -2527,6 +2529,8 @@ const singleProductOverview = async (id) => {
             showModal.click()
             let fromDate, toDate
             flatpickr(from, {
+                altInput: true,
+                altFormat: "d-m-Y",
                 dateFormat: 'Y-m-d',
                 theme: "dark",
                 locale: "da",
@@ -2536,6 +2540,8 @@ const singleProductOverview = async (id) => {
                   fromDate =  new Date(year, month - 1, day)
                   // if from date is before a date in bookedDates then disable all dates after that date
                   flatpickr(to, {
+                    altInput: true,
+                    altFormat: "d-m-Y",
                     dateFormat: 'Y-m-d',
                     minDate: fromDate,
                     theme: "dark",
@@ -2543,7 +2549,6 @@ const singleProductOverview = async (id) => {
                     onDayCreate: function(dObj, dStr, fp, dayElem) {
                       if (settings.find_weeks === "1" && fromDate != undefined && fromDate != "" && fromDate != "Invalid Date") {
                         const date = new Date(dayElem.dateObj)
-                        const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
                         const timeDifference = Math.abs(date - fromDate)
                         const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1
                         if(daysDifference % 7 === 0 && daysDifference !== 0 && daysDifference !== 1){
@@ -2649,6 +2654,8 @@ const singleProductOverview = async (id) => {
     let fromDate, toDate
     // set fromDate to todays date
     const datePick = flatpickr(".from", {
+        altInput: true,
+        altFormat: "d-m-Y",
         dateFormat: 'Y-m-d',
         theme: "dark",
         locale: "da",
@@ -2658,6 +2665,8 @@ const singleProductOverview = async (id) => {
           fromDate =  new Date(year, month - 1, day)
           // if from date is before a date in bookedDates then disable all dates after that date
           flatpickr(".to", {
+            altInput: true,
+            altFormat: "d-m-Y",
             dateFormat: 'Y-m-d',
             minDate: fromDate,
             theme: "dark",
@@ -2665,7 +2674,6 @@ const singleProductOverview = async (id) => {
             onDayCreate: function(dObj, dStr, fp, dayElem) {
               if (settings.find_weeks === "1" && fromDate != undefined && fromDate != "" && fromDate != "Invalid Date") {
                 const date = new Date(dayElem.dateObj)
-                const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
                 const timeDifference = Math.abs(date - fromDate)
                 const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1
                 if(daysDifference % 7 === 0 && daysDifference !== 0 && daysDifference !== 1){
@@ -2756,8 +2764,8 @@ const showCustomer = async () => {
     const bookingInfo = booking.map((booking) => ({
         name: booking.name,
         account_number: booking.account_number,
-        fromDate: new Date(booking.from * 1000).getFullYear() + "-" + ("0" + (new Date(booking.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.from * 1000).getDate()).slice(-2),
-        toDate: new Date(booking.to * 1000).getFullYear() + "-" + ("0" + (new Date(booking.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.to * 1000).getDate()).slice(-2),
+        fromDate: formatDate(new Date(booking.from * 1000)),
+        toDate: formatDate(new Date(booking.to * 1000)),
         item_name: booking.item_name,
         cust_id: booking.customer_id,
         rental_id: booking.id,
