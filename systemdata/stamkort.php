@@ -162,23 +162,23 @@ print "<form name=stamkort action=stamkort.php method=post>";
 print "<tr><td valign=\"top\">\n"; # 20150331
 print "<table border=\"0\" cellspacing=\"0\" class=\"dataTable\"><tbody>"; # 20150331
 print "<input type=hidden name=id value='$id'><input type=\"hidden\" name=\"kontonr\" value=\"0\"><input type=hidden name=email value='$email'>";
-print "<tr><td>".findtekst(28,$sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"firmanavn\" value=\"$firmanavn\"></td></tr>";
-print "<tr><td>Adresse</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr1\" value=\"$addr1\"></td></tr>";
-print "<tr><td>Adresse2</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr2\" value=\"$addr2\"></td></tr>";
-print "<tr><td>".findtekst(363, $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" size=\"3\" name=\"postnr\" value=\"$postnr\"><input class=\"inputbox\" type=\"text\" size=19 name=bynavn value=\"$bynavn\"></td></tr>";
+print "<tr><td>".findtekst('28|Firmanavn', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"firmanavn\" value=\"$firmanavn\"></td></tr>";
+print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr1\" value=\"$addr1\"></td></tr>";
+print "<tr><td>".findtekst('649|Adresse 2', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"addr2\" value=\"$addr2\"></td></tr>";
+print "<tr><td>".findtekst('363|Postnr./By', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" size=\"3\" name=\"postnr\" value=\"$postnr\"><input class=\"inputbox\" type=\"text\" size=19 name=bynavn value=\"$bynavn\"></td></tr>";
 if(isset($id) & $id != NULL){
 	
 	if(db_fetch_array(db_select("select id from ansatte where konto_id = '$id' and lukket != 'on'",__FILE__ . " linje " . __LINE__))) {
-		$tekst=findtekst(1880, $sprog_id); #20210820
-		print "<tr><td title = \"".$tekst."\">e-mail/kopi til ref</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"><input  title = \"$tekst\" type=\"checkbox\" name=\"mailfakt\" $mailfakt></td></tr>";
+		$tekst=findtekst('1880|Sæt flueben, hvis det skal sendes ordrekopi til sælger v. udskriv til mail', $sprog_id); #20210820
+		print "<tr><td title = \"".$tekst."\">".findtekst('2355|E-mail/kopi til ref.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"><input  title = \"$tekst\" type=\"checkbox\" name=\"mailfakt\" $mailfakt></td></tr>";
 	} else {
-		print "<tr><td>e-mail</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"></td></tr>";
+		print "<tr><td>".findtekst('52|E-mail', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"></td></tr>";
 	}
 } else {
-	print "<tr><td>e-mail</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"></td></tr>";
+	print "<tr><td>".findtekst('52|E-mail', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"></td></tr>";
 }
 print "<tr><td>Bank</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"bank_navn\" value=\"$bank_navn\"></td></tr>\n";
-print "<tr><td>Email ".findtekst(594, $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"kontakt\" value=\"$kontakt\"></td></tr>";
+print "<tr><td>Email ".findtekst('594|dataansvarlig', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"kontakt\" value=\"$kontakt\"></td></tr>";
 if (in_array($_SERVER["SERVER_NAME"],$saldinames)) {
 #	if (substr($db,0,6)=='bizsys' || substr($db,0,7)=='grillbar') {
 #		$href='https://bizsys.dk/wp-content/uploads/2018/05/Bizsys-databehandleraftale.pdf';
@@ -190,18 +190,18 @@ print "</tbody></table>\n"; # 20150331
 print "</td>\n"; # 20150331
 print "<td valign=\"top\">\n"; # 20150331
 print "<table border=\"0\" cellspacing=\"0\" class=\"dataTable\"><tbody>"; # 20150331
-print "<tr><td>".findtekst(376, $sprog_id).".</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"cvrnr\" value=\"$cvrnr\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erh
+print "<tr><td>".findtekst('376|CVR-nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"cvrnr\" value=\"$cvrnr\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erh
 vervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
-print "<tr><td>Telefon</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"tlf\" value=\"$tlf\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
-print "<tr><td>Telefax</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fax\" value=\"$fax\"></td></tr>";
-print "<tr><td>".findtekst(385, $sprog_id)." ".findtekst(591, $sprog_id).".</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"pbs_nr\" value=\"$pbs_nr\">";
+print "<tr><td>".findtekst('37|Telefon', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"tlf\" value=\"$tlf\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
+print "<tr><td>".findtekst('378|Telefax', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fax\" value=\"$fax\"></td></tr>";
+print "<tr><td>".findtekst('385|PBS', $sprog_id)." ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"pbs_nr\" value=\"$pbs_nr\">";
 if ($pbs_nr) {
 	print "<select class=\"inputbox\" name=\"pbs\">";
 	if ($pbs=='B') print "<option value=\"B\">Basis løsning</option><option value=\"\">Total løsning</option><option value=\"L\">Lev. Service</option>";
 	elseif ($pbs=='L') print "<option value=\"L\">Lev. Service</option><option value=\"B\">Basis løsning</option><option value=\"\">Total løsning</option>";
 	else print "<option value=\"\">Total løsning</option><option value=\"B\">Basis løsning</option><option value=\"L\">Lev. Service</option>";
 	print "</select></td></tr>";
-	print "<tr><td>PBS Debitorgruppe</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"gruppe\" value=\"$gruppe\">";
+	print "<tr><td>".findtekst('385|PBS', $sprog_id)." ".findtekst('374|Debitorgruppe', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"gruppe\" value=\"$gruppe\">";
 }
 if (!isset ($returside)) $returside = NULL;
 if (!isset ($ordre_id)) $ordre_id = NULL;
@@ -211,8 +211,8 @@ if (!isset ($vis_lukket)) $vis_lukket = NULL;
 
 print "</td></tr>";
 #print "<input class=\"inputbox\" type=\"checkbox\" size=10 name=\"pbs\" value=\"$pbs\"></td></tr>";
-print "<tr><td>FI ".findtekst(591, $sprog_id).".</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fi_nr\" value=\"$fi_nr\"></td></tr>";
-print "<td>Reg./".findtekst(592, $sprog_id).".</td><td><input class=\"inputbox\" type=\"text\" style='width:50;' name=\"bank_reg\" value=\"$bank_reg\">";
+print "<tr><td>FI ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fi_nr\" value=\"$fi_nr\"></td></tr>";
+print "<td>Reg./".findtekst('592|Konto', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:50;' name=\"bank_reg\" value=\"$bank_reg\">";
 print "<input class=\"inputbox\" type=\"text\" style='width:100;' name=\"bank_konto\" value=\"$bank_konto\"></td></tr>";
 
 checkUserAndSetCountryConfig($countryConfig, $superUserPermission);
@@ -221,7 +221,7 @@ print "<tbody></table></td></tr>";
 if ($id) {
 	if (! $menu=='T') print "<tr><td colspan=2><hr></td></tr>";  # 20150331
 	print "<tr><td colspan=2 align=center><table><tbody>";
-	print "<tr><td> ".findtekst(588, $sprog_id)."</td><td> ".findtekst(654, $sprog_id).". / mobil</td><td> E-mail</td><td></td><td align=right><a href=\"ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id\">".findtekst(39,$sprog_id)." ".findtekst(589,$sprog_id)."</a></td></tr>"; #20210628
+	print "<tr><td> ".findtekst('588|Pos. Kontakt', $sprog_id)."</td><td> ".findtekst('654|Lokalnr.', $sprog_id).". / mobil</td><td> E-mail</td><td></td><td align=right><a href=\"ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id\">".findtekst('39|Ny', $sprog_id)." ".findtekst('589|Ansat', $sprog_id)."</a></td></tr>"; #20210628
 	if (! $menu=='T') print "<tr><td colspan='5'><hr></td></tr>";  # 20150331
 			
 	$taeller=0;
@@ -251,7 +251,7 @@ if ($id) {
 		}	
 		if ($taeller>0) {
 			if (! $menu=='T') print "<tr><td colspan='5'><hr></td></tr>";  # 20150331
-			print "<tr><td> ".findtekst(590, $sprog_id)."<input class=\"inputbox\" type=\"checkbox\" name=\"vis_lukket\" \"$vis_lukket\"></td></tr>";
+			print "<tr><td> ".findtekst('590|Vis fratrådte', $sprog_id)."<input class=\"inputbox\" type=\"checkbox\" name=\"vis_lukket\" \"$vis_lukket\"></td></tr>";
 		}
 	}
 	print "<tbody></table></td></tr>";
@@ -261,7 +261,7 @@ if ($id) {
 }
 
 if (! $menu=='T') print "<tr><td colspan=2><br></td></tr>\n";  # 20150331
-print "<tr><td colspan=2 align=center><input type=\"submit\" accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\" name=\"submit\"></td>";
+print "<tr><td colspan=2 align=center><input type=\"submit\" accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"submit\"></td>";
 ?>
 </tbody>
 </table>

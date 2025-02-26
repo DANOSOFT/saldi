@@ -315,7 +315,7 @@ elseif($valg=='varer'){
 			$y=skriv_formtabel('VG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,'-','','-','',$box3,'4',$box4,'4','-','',$box6,'checkbox',$box7,'checkbox',$box8,'checkbox',$box9,'checkbox',$box10,'checkbox',$box11,'4',$box12,'4',$box13,'4',$box14,'4');
 		}
 	}
-	print "<tr><td colspan=20 align='center'><hr><b>Prisgrupper</td></tr><tr><td colspan=20><hr></td></tr>\n";
+	print "<tr><td colspan=20 align='center'><hr><b>".findtekst('2343|Prisgrupper', $sprog_id)."</td></tr><tr><td colspan=20><hr></td></tr>\n";
 	print "<tr><td colspan=20><table width='100%' align='center'><tbody><tr><td align='center'></td><td></td><td></td>";
 	print "<td align='center'>Kost-</td>";
 	print "<td align='center'>".findtekst('1007|Salgs', $sprog_id)."-</td>";
@@ -329,7 +329,7 @@ elseif($valg=='varer'){
 	print "<td align='center'>pris</td></tr>\n";
 	$y=skriv_formtabel('VPG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'4',$box2,'4',$box3,'4',$box4,'4','-','6','-','2','-','0','-','0','-','0','-','0','-','0','-','0','-','0','-','0');
 	print "</tbody></table></td></tr>";
-	print "<tr><td colspan=20 align='center'><hr><b>Tilbudsgrupper</td></tr><tr><td colspan=20><hr></td></tr>\n";
+	print "<tr><td colspan=20 align='center'><hr><b>".findtekst('2344|Tilbudsgrupper', $sprog_id)."</td></tr><tr><td colspan=20><hr></td></tr>\n";
 	print "<tr><td colspan=20><table width='100%'><tbody>";
 	print "<tr><td align='center'></td><td></td><td></td>";
 	print "<td align='center'>Kost-</td>";
@@ -349,8 +349,8 @@ elseif($valg=='varer'){
 	print "<tr><td></td><td>".findtekst('2248|Nr.', $sprog_id)."</td>";
 	print "<td>".findtekst('914|Beskrivelse', $sprog_id)."</td>";
 	print "<td align='center'>Type</td>";
-	print "<td align='center'>Stk. rabat</td>";
-	print "<td align='center'>v. antal</td></tr>\n";
+	print "<td align='center'>".findtekst('2345|Stk. rabat', $sprog_id)."</td>";
+	print "<td align='center'>".findtekst('2346|V. antal', $sprog_id)."</td></tr>\n";
 	$y=skriv_formtabel('VRG',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'2',$box2,'20',$box3,'20','-','2','-','4','-','2','-','4','-','2','-','7','-','7','-','0','-','0','-','0','-','0');
 	print "</tbody></table></td></tr>";
 }

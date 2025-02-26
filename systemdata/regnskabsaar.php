@@ -93,11 +93,11 @@ if ($menu=='T') {  # 20150327 start
 print "<tbody>";
 print "<tr bgcolor='$bgcolor1'>";
 print "<td width = 8%><b>ID</b></td>";
-print "<td width = 40%><b>".findtekst(914,$sprog_id)."</a></b></td>"; #20210709
-print "<td width = 9%><b>".findtekst(1208,$sprog_id)."</a></b></td>";
-print "<td width = 9%><b>".findtekst(1209,$sprog_id)."</a></b></td>";
-print "<td width = 9%><b>".findtekst(1210,$sprog_id)."</a></b></td>";
-print "<td width = 9%><b>".findtekst(1211,$sprog_id)."</a></b></td>";
+print "<td width = 40%><b>".findtekst('914|Beskrivelse', $sprog_id)."</a></b></td>"; #20210709
+print "<td width = 9%><b>".findtekst('1208|Start md.', $sprog_id)."</a></b></td>";
+print "<td width = 9%><b>".findtekst('1209|Start år', $sprog_id)."</a></b></td>";
+print "<td width = 9%><b>".findtekst('1210|Slut md.', $sprog_id)."</a></b></td>";
+print "<td width = 9%><b>".findtekst('1211|Slut år', $sprog_id)."</a></b></td>";
 print "<td width = 8%><b><br></a></b></td>";
 print "<td width = 8%><b><br></a></b></td>";
 print "<tr>";
@@ -118,7 +118,7 @@ while ($row = db_fetch_array($query)) {
 	($row['box10'] == 'on')?$deleted[$x] = 1:$deleted[$x] = 0; 
 	($bgcolor1!=$bgcolor)?$bgcolor1=$bgcolor:$bgcolor1=$bgcolor5;
 	print "<tr bgcolor=\"$bgcolor1\">";
-	$title="".findtekst(1793, $sprog_id)." $row[kodenr]";  #20210805
+	$title="".findtekst('1793|Klik her for at redigere/opdatere regnskabsår', $sprog_id)." $row[kodenr]";  #20210805
 	print "<td>";
 	if ($row['box10'] !='on') print "<a href='regnskabskort.php?id=$row[id]' title=\"$title\"> $row[kodenr]</a>";
 	else print $row['kodenr'];
@@ -131,25 +131,25 @@ while ($row = db_fetch_array($query)) {
 	if ($row['box10'] =='on') {
 		print "<td> Slettet<br></td><td></td>";
 	} elseif ( $row['kodenr']!=$regnaar && $row['box5']=='on' ) {
-		print "<td><a href='regnskabsaar.php?aktiver=$row[kodenr]'> ".findtekst(1213,$sprog_id)."</a><br></td><td></td>";
+		print "<td><a href='regnskabsaar.php?aktiver=$row[kodenr]'> ".findtekst('1213|Sæt aktivt', $sprog_id)."</a><br></td><td></td>";
 	}
 	elseif ($row['kodenr']!=$regnaar) {
-		print "<td>".findtekst(387,$sprog_id)."</td><td>";
+		print "<td>".findtekst('387|Lukket', $sprog_id)."</td><td>";
 		if (($x==1 || $deleted[$x-1] == '1') && $row['box5']!='on') {
 			$txt1 = "Sletter transaktioner med tilhørende bilag, ordrer og fakturaer fra regnskabsåret, ";
 			$txt1.= "varer er oprettet i regnskabsåret og ikke har været handlet siden ";
 			$txt1.= "samt kunder og leverandører som er urørte i efterfølgende år";
 			$txt2 = "Vil du slette dette regnskabsår ?";
 			print "<a href='regnskabsaar.php?deleteYear=$row[kodenr]' title='$txt1' onclick=\"return confirm('$txt2')\">";
-			print findtekst(3064,$sprog_id)."</a>";
+			print findtekst('1099|Slet', $sprog_id)."</a>";
 		}
 		print "</td>";
 	} else {
-		print "<td><font color=#ff0000>".findtekst(1214,$sprog_id)."</font></td><td>";
+		print "<td><font color=#ff0000>".findtekst('1214|Aktivt', $sprog_id)."</font></td><td>";
 		if ($set_alle) {
-			$title="".findtekst(1794, $sprog_id)." $regnaar ".findtekst(1795, $sprog_id)."";
-			$title2="".findtekst(1796, $sprog_id)." $regnaar ".findtekst(1795, $sprog_id)."?";
-			print "<a href=\"regnskabsaar.php?set_alle=$regnaar\" title=\"$title\" onclick=\"return confirm('$title2')\"> ".findtekst(1212,$sprog_id)."</a>";
+			$title="".findtekst('1794|Klik for at sætte regnskabsår', $sprog_id)." $regnaar ".findtekst('1795|aktivt for alle brugere', $sprog_id)."";
+			$title2="".findtekst('1796|Sæt regnskabsår', $sprog_id)." $regnaar ".findtekst('1795|aktivt for alle brugere', $sprog_id)."?";
+			print "<a href=\"regnskabsaar.php?set_alle=$regnaar\" title=\"$title\" onclick=\"return confirm('$title2')\"> ".findtekst('1212|Sæt alle', $sprog_id)."</a>";
 		}
 		print "</td>";
 	}
@@ -157,7 +157,7 @@ while ($row = db_fetch_array($query)) {
 }
 ($bgcolor1!=$bgcolor)?$bgcolor1=$bgcolor:$bgcolor1=$bgcolor5;
 print "<td  bgcolor='$bgcolor1' colspan='8'><br></td>";
-print "<tr><td colspan=\"8\" style=\"text-align:center\"><a href=\"regnskabskort.php\"  title=\"".findtekst(507,$sprog_id)."\"><button class='button green medium'>".findtekst(508,$sprog_id)."</button></a></td></tr>";
+print "<tr><td colspan=\"8\" style=\"text-align:center\"><a href=\"regnskabskort.php\"  title=\"".findtekst('507|Klik her for at oprette nyt regnskabsår.', $sprog_id)."\"><button class='button green medium'>".findtekst('508|Opret nyt regnskabsår', $sprog_id)."</button></a></td></tr>";
 if ($x<1) print "<meta http-equiv=refresh content=0;url=regnskabskort.php>";
 ?>
 </tbody>

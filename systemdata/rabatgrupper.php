@@ -34,6 +34,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if (!isset ($_POST['id'])) $_POST['id'] = null;
 if (!isset ($_POST['rabat'])) $_POST['rabat'] = null;
@@ -209,7 +210,7 @@ for ($y=1;$y<=$vg_antal;$y++) {
 	else print "<td title=\"".$vgnavn[0][$y]."\">&nbsp;VG$y</td>";
 }
 #$y++;
-if ($vrg_antal) print "<td title=\"Opret ny vare-rabatgruppe\"><a href=\"rabatgrupper.php?vgselfdef=$y\">Ny</a></td>";
+if ($vrg_antal) print "<td title=\"".findtekst('2342|Opret ny vare-rabatgruppe', $sprog_id)."\"><a href=\"rabatgrupper.php?vgselfdef=$y\">".findtekst('39|Ny', $sprog_id)."</a></td>";
 $linjebg=$bgcolor;
 print "</tr>";
 print "<tr><td colspan=\"$colspan\"><hr></td></tr>";
@@ -254,10 +255,12 @@ print "<tr><td colspan=\"$colspan\"><hr></td></tr>";
 #}
 if ($menu=='T'){
 	$style = "class='button green medium'";
+} elseif ($menu=='S') {
+	$style = "STYLE = '$buttonStyle; width: 20%'";
 } else {
 	$style = "STYLE=\"width: 100%;height: 1.5em;margin-bottom:1px;padding: 1px 1px;border: 1px solid #DDDDDD;background:url('../img/knap_bg.gif');\"";
 }
-print "<tr><td colspan=\"$colspan\" align = \"center\"><input $style type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+print "<tr><td colspan='$colspan' align='center'><input $style type=submit accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"gem\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
 print "</form>";
 
 print "</tbody></table></td></tr>"; # <- tabel 1.1.3

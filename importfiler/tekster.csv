@@ -49,7 +49,7 @@
 49	Tlf	Phone	Tlf
 50	Fax	Fax	Faks
 51	Web	Web	Internett
-52	Email	Email	E-post
+52	E-mail	Email	E-post
 53	Erh	IsH	Er H
 54	Ean	Ean	Ean
 55	Institution	Institution	Institusjon
@@ -319,13 +319,13 @@
 319	Bogføringskonto ikke sat for varegruppe:	Posting account not set for item group:	Postingskonto ikke angitt for varegruppe:
 320	Varenummer	Item number	Artikkelnummer
 321	er ikke tilknyttet en varegruppe!	is not affiliated with an item group!	er ikke tilknyttet en varegruppe!
-322	Regnskab	Financial_Accounting	Finansregnskap
+322	Regnskab	Financial Accounting	Finansregnskap
 323	Brugernavn	Username	Brukernavn
 324	Adgangskode	Password	Passord
 325	-	-	-
 326	Skriv - (minus) som brugernavn for at slette bruger	Type - (minus) as the username to delete user	Skriv - (minus) som brukernavn for å slette bruker
 327	Adgangskode	Password	Passord
-328	Gentag kode	Repeat code	Gjenta koden
+328	Gentag adgangskode	Repeat password	Gjenta passord
 329	Adgang til	Access to	Tilgang til
 330	Administrator	Administrator	Administrator
 331	Kan oprette regnskaber	Can create accounts	Kan opprette kontoer
@@ -505,7 +505,7 @@
 505	Klik her for at eksportere valgte transaktioner til CSV-fil for import i andet program	eg. spreadsheet.	Klikk her for å eksportere valgte transaksjoner til CSV-fil for import til annet program
 506	Fejl ved overførsel til FTP - Dokument ikke gemt!	Error transferring to FTP - Document not saved!	Feil ved overføring til FTP - Dokument ikke lagret!
 507	Klik her for at oprette nyt regnskabsår.	Click here to create new fiscal year.	Klikk her for å lage et nytt regnskapsår.
-508	Opret nyt regnskabsaar	Create new fiscal year	Lag et nytt regnskapsår
+508	Opret nyt regnskabsår	Create new fiscal year	Lag et nytt regnskapsår
 509	Kontospecifikation alle valgte konti i valgt periode	Account specification all selected accounts in selected period	Kontospesifikasjon alle valgte kontoer i valgt periode
 510	Kontospecifikation fra valgte momsbelagte konti i valgt periode. Viser moms for posteringer hvor momsen er trukket automatisk.	Account specification from selected VAT-charged accounts in selected period. Displays VAT for postings where VAT is deducted automatically.	Kontospesifikasjon fra utvalgte merverdiavgiftskontoer i valgt periode. Viser merverdiavgift for poster der merverdiavgift trekkes automatisk.
 511	Saldo for statuskonti og summering af disse for valgte konti i valgt periode.	Balance of balance accounts and summation of these for selected accounts in selected period.	Balanse mellom saldokontoer og summering av disse for utvalgte kontoer i valgt periode.
@@ -588,7 +588,7 @@
 588	Pos. Kontakt	Pos. Contact	Pos. Ta kontakt med
 589	Ansat	Employee	Ansatt
 590	Vis fratrådte	Show resigned	Show trakk seg
-591	Kreditornr	Creditor number	Kreditornummer
+591	Kreditornr.	Creditor number	Kreditornummer
 592	Konto	Account	Konto
 593	Lande	Countries	Land
 594	dataansvarlig	data controller	dataansvarlig
@@ -2339,20 +2339,20 @@
 2339	Klik her for at rette i projektopsætningen	Click here to edit the project setup	Klikk her for å endre prosjektoppsettet
 2340	Salg	Sale	Salg
 2341	Klik her for at rette navn	Click here to edit name	Klikk her for å rette navn
-2342
-2343
-2344
-2345
-2346
-2347
-2348
-2349
-2350
-2351
-2352
-2353
-2354
-2355
+2342	Opret ny vare-rabatgruppe	Create new item discount group	Opprett ny vare-rabattgruppe
+2343	Prisgrupper	Price groups	Prisgrupper
+2344	Tilbudsgrupper	Offer groups	Tilbudsgrupper
+2345	Stk. rabat	Unit discount	Stk. rabatt
+2346	V. antal	Per quantity	V. antall
+2347	Kun se	View only	Kun se
+2348	Startmåned Start month	Startmåned
+2349	Slutmåned	End month	Slutmåned
+2350	Startår	Start year	Startår
+2351	Slutår	End year	Slutår
+2352	Skal være mellem	Must be between	Må være mellom
+2353	Og	And	Og
+2354	Regnskabsår skal slutte senere end det starter	The fiscal year must end later than it starts	Regnskapsår må slutte senere enn det starter
+2355	E-mail/kopi til ref.	Email/copy for ref.	E-post/kopi til ref.
 2356
 2357
 2358
