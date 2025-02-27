@@ -195,9 +195,40 @@ const editBooking = async (id) => {
   closedDates.push(...bookedDates)
   const today = new Date();
 
-  console.log(dates)
+  const toPickr = flatpickr(toDatePicker, {
+    altInput: true,
+    altFormat: "d-m-Y",
+    dateFormat: 'Y-m-d',
+    minDate: today,
+    theme: "dark",
+    locale: "da",
+    disable: closedDates,
+    defaultDate: toDate, // Add this line to set initial value
+    onDayCreate: function(dObj, dStr, fp, dayElem) {
+      if (settings.find_weeks === "1" && fromDate != undefined && fromDate != "" && fromDate != "Invalid Date") {
+        const date = new Date(dayElem.dateObj)
+        const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+        if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
+          addedDaysArray.push(dateStr)
+        }
+        const daysToAdd = addedDaysArray.filter(d => d >= fromDateData && d <= dateStr)
+        addedDays = daysToAdd.length
+        const timeDifference = Math.abs(date - fromDate)
+        const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
+        if(daysDifference % 7 === 0 && daysDifference !== 0 && daysDifference !== 1 && closedDates.includes(dateStr) === false){
+          dayElem.className += " has-action"
+        }
+      }
+    },
+    onChange: (selectedDates, dateStr, instance) => {
+      toDateData = dateStr
+    }
+  })
+  
 
   const datePick = flatpickr(fromDatePicker, {
+    altInput: true,
+    altFormat: "d-m-Y",
     dateFormat: 'Y-m-d',
     theme: "dark",
     locale: "da",
@@ -241,6 +272,7 @@ const editBooking = async (id) => {
       fromDateData = dateStr
       const [year, month, day] = dateStr.split('-').map(Number)
       fromDate =  new Date(year, month - 1, day)
+      toPickr.set('minDate', dateStr)
       // if from date is before a date in bookedDates then disable all dates after that date
       if(bookedDates){
         bookedDates.some(d => {
@@ -252,44 +284,13 @@ const editBooking = async (id) => {
           }
         })
       }
-      flatpickr(toDatePicker, {
-        dateFormat: 'Y-m-d',
-        minDate: today,
-        theme: "dark",
-        locale: "da",
-        disable: closedDates,
-        onDayCreate: function(dObj, dStr, fp, dayElem) {
-          if (settings.find_weeks === "1" && fromDate != undefined && fromDate != "" && fromDate != "Invalid Date") {
-            const date = new Date(dayElem.dateObj)
-            const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
-            if(closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)){
-              addedDaysArray.push(dateStr)
-            }
-            const daysToAdd = addedDaysArray.filter(d => d >= fromDateData && d <= dateStr)
-            addedDays = daysToAdd.length
-            const timeDifference = Math.abs(date - fromDate)
-            const daysDifference = Math.round(timeDifference / (1000 * 60 * 60 * 24)) + 1 - addedDays
-            if(daysDifference % 7 === 0 && daysDifference !== 0 && daysDifference !== 1 && closedDates.includes(dateStr) === false){
-              dayElem.className += " has-action"
-            }
-          }
-        },
-        onChange: (selectedDates, dateStr, instance) => {
-          toDateData = dateStr
-          if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
-            return
-          }
-        }
-      })
-      if(toDateData === undefined || toDateData === "" || fromDateData === undefined || fromDateData === "" || toDateData === "Invalid Date" || fromDateData === "Invalid Date"){
-        return
-      }
     }
   })
 
   // Trigger the onChange event to set the initial value of the toDateData variable
   datePick.config.onChange[0](datePick.selectedDates, datePick.input.value, datePick)
-  
+  toPickr.setDate(toDate)
+
   button.addEventListener("click", async (e) => {
     e.preventDefault() // Prevent the form submission
     e.stopPropagation()
