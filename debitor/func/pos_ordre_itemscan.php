@@ -86,7 +86,6 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 	global $varenr_ny,$vatrate,$vis_saet,$voucherNumber;
 
 	# Check for mobile agents
-	#$useragent = $_SERVER['HTTP_USER_AGENT'];
 	$isMobile = (bool) (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi_pos"]) == "on");
 
   $barcodeNew = NULL;

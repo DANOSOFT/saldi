@@ -45,6 +45,7 @@ div.vindue  {
 	left: 0px;
 	height: 100%;
 	width: 100%;
+  min-height: 150px;
 	overflow: auto;
 }
 div.ffvindue  {

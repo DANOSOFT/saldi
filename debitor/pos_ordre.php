@@ -1745,7 +1745,7 @@ print "&del_bord=$del_bord&tilfravalgNy=" . str_replace(chr(9), '|', $tilfravalg
 print "<table width=\"100%\" height=\"100%\" bordercolor=\"#ffffff\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tbody>\n"; # Tabel 1 ->
 # 1 kvadrat.
 print "<tr><td valign=\"bottom\"><table width=\"100%\" height=\"100%\" border=\"0\"><tbody>\n"; # Tabel 1.1a -> 
-print "<tr><td width=\"100%\" height=\"10%\" valign=\"top\">\n";
+print "<tr><td width=\"100%\" style='min-height: 200px; height: 10%;' valign=\"top\">\n";
 # inputfelter til varenr mm. i 1 kvadrat
 print "<table width=\"100%\" border=\"0\"><tbody>\n"; # Tabel 1.2 -> 
 if ($id && isset($_GET['betaling']) && $_GET['betaling'] == 'ukendt')

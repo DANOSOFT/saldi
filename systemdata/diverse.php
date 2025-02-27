@@ -462,6 +462,7 @@ if ($_POST) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 
+		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 
 	#######################################################################################
 	} elseif ($sektion=='productOptions') {
@@ -496,6 +497,13 @@ if ($_POST) {
 		$confirmDescriptionChange        = if_isset($_POST['confirmDescriptionChange']);
 		$confirmStockChange_id           = if_isset($_POST['confirmStockChange_id']);
 		$confirmStockChange              = if_isset($_POST['confirmStockChange']);
+		$statusmail                      = if_isset($_POST['statusmail']);
+		$lagertrigger                    = if_isset($_POST['lagertrigger']);
+		$lagertime                       = if_isset($_POST['lagertime']);
+		
+		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
+		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
+		update_settings_value("time", "lagerstatus", $lagertime, "The amount of time between each statusmail in hours");
 
 		if ($vatOnItemCard_id) $qtxt="update settings set var_value='$vatOnItemCard' where id='$vatOnItemCard_id'";
 		else {
@@ -975,7 +983,27 @@ if ($_POST) {
 
 		$box14_2            = if_isset($_POST['udtag0']);
 
+		$kdscolorindex      = if_isset($_POST['kdscolorindex']);
+		$kdscolor           = if_isset($_POST['kdscolor']);
+
+		update_settings_value("show_big_sum", "POS", if_isset($_POST['show_big_sum'], "off"), "Shows a big sum ");
 		update_settings_value("show_stock", "POS", if_isset($_POST['lagerbeh'], "0"), "Weather or not to show the stock level on sale in the POS system");
+
+		update_settings_value("activated", "KDS", if_isset($_POST['kdsactive'], "off"), "The KDS system is activated");
+		update_settings_value("activated", "kitchen-print", if_isset($_POST['printactive'], "off"), "The physical kitchen print is acitaved");
+
+		update_settings_value("columns", "KDS", if_isset($_POST['kdscolumns'], "5"), "The amount of columns in the KDS system");
+		update_settings_value("height", "KDS", if_isset($_POST['kdsheight'], "20"), "The lineheight of each element in the KDS system");
+
+		# KDS Color setup
+		db_modify("DELETE FROM settings WHERE var_name='color' AND var_grp='KDS'",__FILE__ . " linje " . __LINE__);
+		for ($i = 0; $i < count($kdscolorindex); $i++) {
+			if ($kdscolorindex[$i] != "") {
+				db_modify("INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('color', 'KDS', '$kdscolorindex[$i]-$kdscolor[$i]', 'The color of KDS header at set minute interval')",__FILE__ . " linje " . __LINE__);
+			}
+		}
+
+
 
     # Table plan logic
     # Get the amount of tables currently in the system

@@ -611,6 +611,9 @@ if ($saveItem || $submit = trim($submit)) {
         else $min_lager=usdecimal($min_lager,2);
         if (!$max_lager) $max_lager='0';
         else $max_lager=usdecimal($max_lager,2);
+        if (!$volume_lager) $volume_lager='0';
+        else $volume_lager=usdecimal($volume_lager, 2);
+
         if (!$lukket) $lukket='0';
         else $lukket='1';
          if (count($indg_i_ant) && strlen(trim($indg_i_ant[0]))>1) {
@@ -653,8 +656,8 @@ if ($saveItem || $submit = trim($submit)) {
                 $qtxt="select id,var_value from settings where var_name = 'defaultCommission' and var_grp = 'items'";
                 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
                     $provision = $r['var_value'];
-                    $kostpris = 1 - $provision/100;
-                    $qtxt = "update varer set kostpris = '$kostpris', provision = '$provision' where id = '$id'";
+                    $kostpris[0] = 1 - $provision/100;
+                    $qtxt = "update varer set kostpris = '$kostpris[0]', provision = '$provision' where id = '$id'";
                     db_modify($qtxt,__FILE__ . " linje " . __LINE__);
                 }
             } else print "<BODY onLoad=\"javascript:alert('Skriv et varenummer i feltet og pr&oslash;v igen!')\">";
@@ -837,7 +840,7 @@ if ($saveItem || $submit = trim($submit)) {
                         $find="'".$be_af_beskrivelse[0]."'";
                     }
                 }
-                $kostpris[0]=stykliste($id,0,'')*1;
+                $kostpris[0]=(float)stykliste($id,0,'');
                 db_modify("update varer set kostpris = '$kostpris[0]' where id = '$id'",__FILE__ . " linje " . __LINE__);
 
             }
@@ -1001,10 +1004,12 @@ if ($id > 0) {
     $serienr                = $row['serienr'];
     $lukket                 = $row['lukket'];
     $notes                  = $row['notes'];
+    $notesInternal          = $row['notesinternal'];
     $delvare                = $row['delvare'];
     $samlevare              = $row['samlevare'];
     $min_lager              = $row['min_lager'];
     $max_lager              = $row['max_lager'];
+    $volume_lager           = $row['volume_lager'];
     $beholdning             = $row['beholdning']*1;
     $operation              = $row['operation']*1;
     $trademark              = $row['trademark'];
@@ -1020,6 +1025,7 @@ if ($id > 0) {
     $retail_price           = $row['retail_price'];
     $tier_price             = $row['tier_price'];
     $colli                  = $row['colli'];
+    $colli_webfragt         = $row['colli_webfragt'];
     $outer_colli            = $row['outer_colli'];
     $open_colli_price       = $row['open_colli_price'];
     $outer_colli_price      = $row['outer_colli_price'];
@@ -1185,9 +1191,11 @@ if ($id > 0) {
 }
 if (!isset ($min_lager)) $min_lager = NULL;
 if (!isset ($max_lager)) $max_lager = NULL;
+if (!isset ($volume_lager)) $volume_lager = NULL;
 
 if (!$min_lager) $min_lager=0;
 if (!$max_lager) $max_lager=0;
+if (!$volume_lager) $volume_lager=0;
 
 $x=0;
 $q=db_select("select * from grupper where art = 'VSPR' order by kodenr",__FILE__ . " linje " . __LINE__);
@@ -1376,10 +1384,10 @@ if ($samlevare!='on') {
         }
         $lev_ant=$x;
         if ($lev_ant) {
-            print "<input type=hidden name=lev_antal value=$lev_ant>";
+            print "<input type = 'hidden' name=lev_antal value=$lev_ant>";
             print "<tr><td colspan=3><table border=0 width=100%><tbody>";
-            print "<tr><td> Pos.</td><td> Leverand&oslash;r</td><td> Varenr.</td><td> Kostpris ($enhed)</td>";
-            if (($enhed2)&&($forhold>0)) {print "<td> Kostpris ($enhed2)</td>";}
+            print "<tr><td> Pos.</td><td> Leverand&oslash;r</td><td> Varenr.</td><td align='right'> Indkøbspris ($enhed)</td>";
+            if (($enhed2)&&($forhold>0)) {print "<td align='right'> Indkøbspris ($enhed2)</td>";}
             print "</tr>";
             for ($x=1; $x<=$lev_ant; $x++) {
                 $query = db_select("select kontonr, firmanavn from adresser where id='$lev_id[$x]'",__FILE__ . " linje " . __LINE__);
@@ -1415,10 +1423,10 @@ if ($samlevare=='on') {
         $be_af_id[$x]=$row2['id'];
         $be_af_kostpris[$x]=$row2['kostpris'];
         $be_af_sum+=$be_af_kostpris[$x]*$be_af_ant[$x];
-        print "<input type=hidden name=be_af_id[$x] value='$row[id]'>";
-        print "<input type=hidden name=be_af_vare_id[$x] value='$row[vare_id]'>";
-        print "<input type=hidden name=be_af_vnr[$x] value='$be_af_vnr[$x]'>";
-        print "<input type=hidden name=be_af_beskrivelse[$x] value='$be_af_beskrivelse[$x]'>";
+        print "<input type = 'hidden' name=be_af_id[$x] value='$row[id]'>";
+        print "<input type = 'hidden' name=be_af_vare_id[$x] value='$row[vare_id]'>";
+        print "<input type = 'hidden' name=be_af_vnr[$x] value='$be_af_vnr[$x]'>";
+        print "<input type = 'hidden' name=be_af_beskrivelse[$x] value='$be_af_beskrivelse[$x]'>";
     }
     $ant_be_af=$x;
 }
@@ -1443,20 +1451,21 @@ if ($delvare=='on') {
             $indg_i_enhed[$x]=$row2['enhed'];
             $indg_i_ant[$x]=$row['antal'];
             $indg_i_id[$x]=$row2['id'];
-            print "<input type=hidden name=indg_i_id[$x] value='$row[id]'>";
+            print "<input type = 'hidden' name=indg_i_id[$x] value='$row[id]'>";
         }
     }
     if ($x==0) {
-        print "<input type=hidden name=delvare value=''>";
+        print "<input type = 'hidden' name=delvare value=''>";
         $delvare='';
     }
     $ant_indg_i=$x;
 }
+
+# Vises hvis varen er en stykliste
 if ($samlevare=='on') {
     $be_af_pos[0]=0;
     ($beholdning)?$readonly='readonly':$readonly='';
     print "<tr><td valign=top><table width=20%><tbody><tr><td> <a href=stykliste.php?id=$id>Stykliste</a></td></tr>";
-#   print "<tr><td> <a href=fuld_stykliste.php?id=$id>Komplet</a></td></tr>";
     print "</tbody></table></td>";
     print "<td></td><td><table border=0 width=80%><tbody>";
     print "<tr><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
