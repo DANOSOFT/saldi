@@ -34,11 +34,11 @@ $s_id = session_id();
 
 $css = "../../css/flatpay.css";
 
-include ("../../includes/connect.php");
-include ("../../includes/online.php");
-include ("../../includes/std_func.php");
-include ("../../includes/stdFunc/dkDecimal.php");
-include ("../../includes/stdFunc/usDecimal.php");
+include("../../includes/connect.php");
+include("../../includes/online.php");
+include("../../includes/std_func.php");
+include("../../includes/stdFunc/dkDecimal.php");
+include("../../includes/stdFunc/usDecimal.php");
 
 $raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
 $pretty_amount = dkdecimal($raw_amount, 2);
@@ -48,10 +48,10 @@ $indbetaling = if_isset($_GET['indbetaling'], 0);
 
 # Get printserver
 $qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
-$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
-$x=$kasse-1;
-$tmp=explode(chr(9),$r['box3']);
-$printserver=trim($tmp[$x]);
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
 
 print "<div id='container'>";
 print "<span>Vibrant terminal startet, afventer kort.</span>";
@@ -68,27 +68,28 @@ $type = ($raw_amount < 0) ? "process_refund" : "process_payment_intent";
 $amount = abs($raw_amount) * 100;
 
 # Get settings
-$q=db_select("select var_value from settings where var_name = 'vibrant_auth'",__FILE__ . " linje " . __LINE__);
+$q = db_select("select var_value from settings where var_name = 'vibrant_auth'", __FILE__ . " linje " . __LINE__);
 $APIKEY = db_fetch_array($q)[0];
 
 # $q=db_select("SELECT name, terminal_id FROM vibrant_terms WHERE pos_id=$kasse",__FILE__ . " linje " . __LINE__);
-$q=db_select("SELECT var_value FROM settings WHERE pos_id=$kasse AND var_grp='vibrant_terms'",__FILE__ . " linje " . __LINE__);
+$q = db_select("SELECT var_value FROM settings WHERE pos_id=$kasse AND var_grp='vibrant_terms'", __FILE__ . " linje " . __LINE__);
 $terminal_id = db_fetch_array($q)["var_value"];
 
 if (!$terminal_id) {
-	$qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	$terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
+  $qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
+  $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+  $terminal_id = explode(chr(9), db_fetch_array($q)[0])[$kasse - 1];
 }
 
-if (file_exists("../../temp/$db/receipt_$kasse.txt")) unlink("../../temp/$db/receipt_$kasse.txt");
-$printfile = 'https://'.$_SERVER['SERVER_NAME'];
-$printfile.= str_replace('debitor/payments/vibrant.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
+if (file_exists("../../temp/$db/receipt_$kasse.txt"))
+  unlink("../../temp/$db/receipt_$kasse.txt");
+$printfile = 'https://' . $_SERVER['SERVER_NAME'];
+$printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kasse.txt", $_SERVER['PHP_SELF']);
 
 ?>
 
 <script>
-  var count = 40-1;
+  var count = 40 - 1;
   var paused = false;
   var receipt_id = 'None';
 
@@ -108,27 +109,27 @@ $printfile.= str_replace('debitor/payments/vibrant.php',"temp/$db/receipt_$kasse
       if (i == 0) {
         successed(null);
       } else {
-        countdown(i-1);
+        countdown(i - 1);
       }
     }, 1000)
   }
-  
+
   function count_down() {
     setTimeout(() => {
       if (paused) {
         count_down();
         return;
       }
-      document.getElementById('timestatus').innerText = count;  
+      document.getElementById('timestatus').innerText = count;
       count--;
       if (count == 0) {
         setTimeout(() => {
           documentgetElementById('continue').style.display = 'none';
           var elm = document.getElementById('continue-error');
           elm.style.display = 'block';
-	  var elm = document.getElementById('status');
-	  elm.style.backgroundColor = '#ea3a3a';
-	  elm.innerText = `Fejl: Intet svar fra terminalen, timeout`;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#ea3a3a';
+          elm.innerText = `Fejl: Intet svar fra terminalen, timeout`;
           document.getElementById('bg').style.backgroundColor = '#fb9389';
         }, 5000);
       }
@@ -171,149 +172,149 @@ $printfile.= str_replace('debitor/payments/vibrant.php',"temp/$db/receipt_$kasse
       }
     }
 
-  var cardScheme = 'unkowen';
-  var payment_id = 'null'
+    var cardScheme = 'unkowen';
+    var payment_id = 'null'
 
 
-  async function get_payment_update(pid) {
-    setTimeout(async () => {
-      var res = await fetch(
-        `https://pos.api.vibrant.app/pos/v1/payment_intents/${pid}`,
-        {
-          method: 'get',
-          headers: {
-            'apikey': '<?php print $APIKEY; ?>'
-          }
-        }
-      )
-
-      if (!res.ok){
-        paused = true;
-        var elm = document.getElementById('status');
-        elm.style.backgroundColor = '#ea3a3a';
-        elm.innerText = `Fejl: ${res.error}`;
-        document.getElementById('bg').style.backgroundColor = '#fb9389';
-        document.getElementById('continue').style.display = 'block';
-        document.getElementById('continue').disabled = false;
-        return;
-      }
-
-      var json_data = await res.json();
-      if (json_data['status'] == 'succeeded') {
-
-        // Get the cardtype
-        var charge = await fetch(
-          `https://pos.api.vibrant.app/pos/v1/charges/${json_data['latestCharge']}`,
+    async function get_payment_update(pid) {
+      setTimeout(async () => {
+        var res = await fetch(
+          `https://pos.api.vibrant.app/pos/v1/payment_intents/${pid}`,
           {
             method: 'get',
             headers: {
               'apikey': '<?php print $APIKEY; ?>'
             }
           }
-        );
-        var charge_json = await charge.json();
+        )
 
-        await fetch(
-          'save_receipt.php',
-          {
-            method: 'POST',
-	    headers: {
-	      'Content-Type': 'application/json',
-	    },
-	    body: JSON.stringify({
-	      data: charge_json, 
-	      id: '<?php print $ordre_id; ?>',
-	      type: 'vibrant'
-	    })
-          }
-        );
-        window.open("<?php print ($printserver == 'android' ? "saldiprint://" : "http://$printserver"); ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100")
-        receipt_id = `${charge_json.id}-${charge_json.paymentIntent}`;
-
-        cardScheme = charge_json['paymentMethodDetails']['cardPresent']['brand']
-
-        paused = true;
-
-        var elm = document.getElementById('status');
-        elm.style.backgroundColor = '#51e87d';
-        elm.innerText = 'Success';
-
-        countdown(1);
-
-        document.getElementById('continue-success').style.display = 'block';
-        document.getElementById('continue').style.display = 'none';
-        return;
-      } else if (json_data['lastPaymentError'] != null) {
-        paused = true;
-        var elm = document.getElementById('status');
-        elm.style.backgroundColor = '#ea3a3a';
-        elm.innerText = `Fejl: ${json_data['lastPaymentError']['message']}`;
-        document.getElementById('bg').style.backgroundColor = '#fb9389';
-        document.getElementById('continue').style.display = 'block';
-        document.getElementById('continue').disabled = false;
-        return;
-      } else if (json_data['status'] == 'canceled') {
-        paused = true;
-        var elm = document.getElementById('status');
-        elm.style.backgroundColor = '#ea3a3a';
-        elm.innerText = 'Fejl: Betalingen blev anuleret';
-        document.getElementById('bg').style.backgroundColor = '#fb9389';
-        document.getElementById('continue').style.display = 'block';
-        document.getElementById('continue').disabled = false;
-        return;
-      }
-
-      get_payment_update(pid);
-
-    }, 3000)
-  }
-
-  var idx = 0;
-  async function get_pos() {
-    try {
-      var res = await fetch(
-        'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/<?php print $type; ?>',
-        {
-          method: 'post',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': '<?php print $APIKEY; ?>'
-          },
-          body: JSON.stringify(data),
+        if (!res.ok) {
+          paused = true;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#ea3a3a';
+          elm.innerText = `Fejl: ${res.error}`;
+          document.getElementById('bg').style.backgroundColor = '#fb9389';
+          document.getElementById('continue').style.display = 'block';
+          document.getElementById('continue').disabled = false;
+          return;
         }
-      )
-      console.log(res);
-      if (!res.ok){
-        paused = true;
-        var elm = document.getElementById('status');
-        elm.style.backgroundColor = '#ea3a3a';
-        elm.innerText = `Fejl: ${res.statusText}`;
-        document.getElementById('bg').style.backgroundColor = '#fb9389';
-        document.getElementById('continue').style.display = 'block';
-        document.getElementById('continue').disabled = false;
-        return;
-      }
 
-      if (res.status == 201) {
         var json_data = await res.json();
-        payment_id = json_data['objectIdToProcess'];
-        get_payment_update(payment_id);
-        <?php 
-        if ($printserver == "android") {
-          print "window.location.href = 'vibrantio://a2a?callbackUrl=<?php print $_SERVER[REQUEST_URI]'; ?>";
+        if (json_data['status'] == 'succeeded') {
+
+          // Get the cardtype
+          var charge = await fetch(
+            `https://pos.api.vibrant.app/pos/v1/charges/${json_data['latestCharge']}`,
+            {
+              method: 'get',
+              headers: {
+                'apikey': '<?php print $APIKEY; ?>'
+              }
+            }
+          );
+          var charge_json = await charge.json();
+
+          await fetch(
+            'save_receipt.php',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                data: charge_json,
+                id: '<?php print $ordre_id; ?>',
+                type: 'vibrant'
+              })
+            }
+          );
+          window.open("<?php print ($printserver == 'android' ? "saldiprint://" : "http://$printserver"); ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100")
+          receipt_id = `${charge_json.id}-${charge_json.paymentIntent}`;
+
+          cardScheme = charge_json['paymentMethodDetails']['cardPresent']['brand']
+
+          paused = true;
+
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#51e87d';
+          elm.innerText = 'Success';
+
+          countdown(1);
+
+          document.getElementById('continue-success').style.display = 'block';
+          document.getElementById('continue').style.display = 'none';
+          return;
+        } else if (json_data['lastPaymentError'] != null) {
+          paused = true;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#ea3a3a';
+          elm.innerText = `Fejl: ${json_data['lastPaymentError']['message']}`;
+          document.getElementById('bg').style.backgroundColor = '#fb9389';
+          document.getElementById('continue').style.display = 'block';
+          document.getElementById('continue').disabled = false;
+          return;
+        } else if (json_data['status'] == 'canceled') {
+          paused = true;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#ea3a3a';
+          elm.innerText = 'Fejl: Betalingen blev anuleret';
+          document.getElementById('bg').style.backgroundColor = '#fb9389';
+          document.getElementById('continue').style.display = 'block';
+          document.getElementById('continue').disabled = false;
+          return;
         }
-        ?>
-      }
 
-    } catch (error) {
-      console.log(error);
-      //console.log('Retrying');
-      //await get_pos();
+        get_payment_update(pid);
+
+      }, 3000)
     }
+
+    var idx = 0;
+    async function get_pos() {
+      try {
+        var res = await fetch(
+          'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/<?php print $type; ?>',
+          {
+            method: 'post',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': '<?php print $APIKEY; ?>'
+            },
+            body: JSON.stringify(data),
+          }
+        )
+        console.log(res);
+        if (!res.ok) {
+          paused = true;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#ea3a3a';
+          elm.innerText = `Fejl: ${res.statusText}`;
+          document.getElementById('bg').style.backgroundColor = '#fb9389';
+          document.getElementById('continue').style.display = 'block';
+          document.getElementById('continue').disabled = false;
+          return;
+        }
+
+        if (res.status == 201) {
+          var json_data = await res.json();
+          payment_id = json_data['objectIdToProcess'];
+          get_payment_update(payment_id);
+          <?php
+          if ($printserver == "android") {
+            print "window.location.href = 'vibrantio://a2a?callbackUrl=<?php print $_SERVER[REQUEST_URI]'; ?>";
+          }
+          ?>
+        }
+
+      } catch (error) {
+        console.log(error);
+        //console.log('Retrying');
+        //await get_pos();
+      }
+    }
+
+    get_pos();
   }
 
-  get_pos();
-  }
-  
   count_down();
 </script>
