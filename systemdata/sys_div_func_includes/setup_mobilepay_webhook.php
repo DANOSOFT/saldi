@@ -206,7 +206,7 @@ $headers = array(
 );
 
 $data = json_encode(array(
-    'url' => 'https://ssl9.saldi.dk/pos/debitor/payments/mobilepay/webhook_recive.php?db=' . $db,
+    'url' => "https://$_SERVER[SERVER_NAME]/pos/debitor/payments/mobilepay/webhook_recive.php?db=" . $db,
     'events' => ['epayments.payment.authorized.v1', 'user.checked-in.v1', 'epayments.payment.cancelled.v1', 'epayments.payment.aborted.v1', 'epayments.payment.expired.v1', 'epayments.payment.terminated.v1']
 ));
 
