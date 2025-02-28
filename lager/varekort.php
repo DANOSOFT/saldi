@@ -502,7 +502,7 @@ if ($saveItem || $submit = trim($submit)) {
         if (!isset($variantVarerQty[$x]))
             $variantVarerQty[$x] = array();
         for ($l = 1; $l <= count($variantVarerQty[$x]); $l++) {
-            $variantVarerQty[$x][$l] = usdecimal($variantVarerQty[$x][$l], 2) * 1;
+            $variantVarerQty[$x][$l] = (float)usdecimal($variantVarerQty[$x][$l], 2);
             if ($variant_vare_stregkode[$x]) {
                 $qtxt = "select vare_id from variant_varer where variant_stregkode='$variant_vare_stregkode[$x]' and id !='$variant_vare_id[$x]'";
                 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -518,31 +518,59 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt = "select id,beholdning from lagerstatus where vare_id='$id' and variant_id='$variant_vare_id[$x]' and lager='$l'";
             $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
             transaktion('begin');
+            $lager = $l;
             lagerreguler($id, $variantVarerQty[$x][$l], $kostpris[0], $lager, date('Y-m-d'), $variant_vare_id[$x]);
             transaktion('commit');
         }
     }
-    if ($var_type_beh || $var_type_stregk) {
-        $ny_variant_type = NULL;
-        for ($x = 0; $x < count($var_type); $x++) {
-            ($ny_variant_type) ? $ny_variant_type .= chr(9) . $var_type[$x] : $ny_variant_type = $var_type[$x];
+    // When processing the form submission:
+    if (isset($_POST['var_type']) && isset($_POST['var_type_stregk'])) {
+        // Initialize empty array to store selected variant types
+        $selected_types = array();
+
+        // Process each variant type selection
+        for ($x = 0; $x < count($_POST['var_type']); $x++) {
+            // Only include non-empty selections
+            if (!empty($_POST['var_type'][$x])) {
+                $selected_types[] = $_POST['var_type'][$x];
+            }
         }
-        $qtxt = "select id from variant_varer where vare_id='$id' and (variant_type='$ny_variant_type' or variant_stregkode='$var_type_stregk')";
-        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-            alert("stregkode $var_type_stregk eller variant allerde allerede i brug.");
-        } else {
-            ($variantsum) ? $var_type_beh = 0 : $var_type_beh = $beholdning * 1; # 20201020 disabled as it made mismatch in qty's
-            if (!$ny_variant_type)
-                $ny_variant_type = 1;
-            $qtxt = "insert into variant_varer(vare_id,variant_type,variant_stregkode,variant_beholdning) values ('$id','$ny_variant_type','$var_type_stregk','0')";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            $qtxt = "select id from variant_varer where vare_id='$id' and variant_type='$ny_variant_type' and variant_stregkode = '$var_type_stregk'";
-            $r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__));
-            $ny_variant_id = $r['id'];
-            $qtxt = "insert into lagerstatus (vare_id,variant_id,lager,beholdning) values ('$id','$ny_variant_id','1','0')";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+        // Create tab-separated string of selected variant types
+        $ny_variant_type = implode(chr(9), $selected_types);
+
+        // Get the barcode
+        $var_type_stregk = $_POST['var_type_stregk'];
+
+        // Only proceed if we have at least one variant type selected and a barcode
+        if (!empty($ny_variant_type) && !empty($var_type_stregk)) {
+            // Check if this variant or barcode already exists
+            $qtxt = "select id from variant_varer where vare_id='$id' and (variant_type='$ny_variant_type' or variant_stregkode='$var_type_stregk')";
+            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                alert("stregkode $var_type_stregk eller variant allerde allerede i brug.");
+            } else {
+                // Set initial inventory for this variant
+                ($variantsum) ? $var_type_beh = 0 : $var_type_beh = $beholdning * 1;
+
+                // Insert the new variant
+                $qtxt = "insert into variant_varer(vare_id,variant_type,variant_stregkode,variant_beholdning) values ('$id','$ny_variant_type','$var_type_stregk','0')";
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+                // Get the newly created variant ID
+                $qtxt = "select id from variant_varer where vare_id='$id' and variant_type='$ny_variant_type' and variant_stregkode = '$var_type_stregk'";
+                $r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__));
+                $ny_variant_id = $r['id'];
+
+                // Initialize inventory status for this variant
+                $qtxt = "insert into lagerstatus (vare_id,variant_id,lager,beholdning) values ('$id','$ny_variant_id','1','0')";
+                db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            }
+        } else if (!empty($var_type_stregk)) {
+            alert("Vælg mindst én variant type.");
         }
     }
+
+
     if (($publ_pre || $publiceret) && $shopurl) {
         $kategorier = explode(chr(9), $kategori);
         $shop_kat_id = '';
@@ -1766,13 +1794,14 @@ function prisopdatx2($id, $diff)
     for ($y = 1; $y <= $x; $y++) {
         $q1 = db_select("select * from styklister where vare_id=$indgaar_i[$y]", __FILE__ . " linje " . __LINE__);
         while ($r1 = db_fetch_array($q1)) {
-            if ($row['indgaar_i'] != $id) {
+            if ($r1['indgaar_i'] != $id) {
                 $x++;
                 $vare_id[$x] = $r1['id'];
                 $indgaar_i[$x] = $r1['indgaar_i'];
                 $antal[$x] = $r1['antal'];
                 db_modify("update varer set kostpris=kostpris+$diff*$antal[$x] where id=$vare_id[$x]", __FILE__ . " linje " . __LINE__);
             } else {
+                $vare_id[$x] = $r1['id'];
                 $r2 = db_fetch_array(db_select("select varenr from varer where id=$vare_id[$y]", __FILE__ . " linje " . __LINE__));
                 db_modify("delete from styklister where id=$r1[id]", __FILE__ . " linje " . __LINE__);
                 print "<BODY onLoad=\"javascript:alert('Cirkul&aelig;r reference registreret varenr.: $r2[varenr] fjernet fra styklisten')\">";
@@ -1864,12 +1893,12 @@ function samletjek($id)
     $query = db_select("select vare_id, indgaar_i from styklister where vare_id != $id", __FILE__ . " linje " . __LINE__);
     while ($row = db_fetch_array($query)) {
         $x++;
-        $indgaar_i[$x] = $row[indgaar_i];
-        $vare_id[$x] = $row[vare_id];
+        $indgaar_i[$x] = $row['indgaar_i'];
+        $vare_id[$x] = $row['vare_id'];
     }
     $query = db_select("select id from varer where id != $id and samlevare='on'", __FILE__ . " linje " . __LINE__);
     while ($row = db_fetch_array($query)) {
-        if (!in_array($row[id], $indgaar_i)) {
+        if (!in_array($row['id'], $indgaar_i)) {
             db_modify("update varer set samlevare = '' where id=$row[id]", __FILE__ . " linje " . __LINE__);
         } else {
             db_modify("delete from vare_lev where vare_id=$row[id]", __FILE__ . " linje " . __LINE__);
@@ -1877,7 +1906,7 @@ function samletjek($id)
     }
     $query = db_select("select id from varer where id != $id and delvare='on'", __FILE__ . " linje " . __LINE__);
     while ($row = db_fetch_array($query)) {
-        if (!in_array($row[id], $vare_id)) {
+        if (!in_array($row['id'], $vare_id)) {
             db_modify("update varer set delvare = '' where id=$row[id]", __FILE__ . " linje " . __LINE__);
         }
     }
@@ -1890,7 +1919,7 @@ function cirkeltjek($vare_id)
     $fejl = 0;
     $query = db_select("select styklister.vare_id as vare_id, varer.samlevare as samlevare from styklister, varer where indgaar_i=$vare_id and varer.id=$vare_id", __FILE__ . " linje " . __LINE__);
     while ($row = db_fetch_array($query)) {
-        if ($id == $row[vare_id]) {
+        if ($id == $row['vare_id']) {
             print "<BODY onLoad=\"javascript:alert('Cirkulær reference registreret')\">";
             $x = 0;
             $fejl = 1;
@@ -1904,14 +1933,14 @@ function cirkeltjek($vare_id)
         $query = db_select("select styklister.vare_id as vare_id, varer.samlevare as samlevare from styklister, varer where indgaar_i=$s_vare_id[$a] and varer.id=$s_vare_id[$a]", __FILE__ . " linje " . __LINE__);
 
         while ($row = db_fetch_array($query)) {
-            if ($id == $row[vare_id]) {
+            if ($id == $row['vare_id']) {
                 print "<BODY onLoad=\"javascript:alert('Cirkulær reference registreret')\">";
                 $a = $x;
                 $fejl = 1;
                 break 1;
             } elseif (($row['samlevare'] == 'on') && ($fejl != 1)) {
                 $x++;
-                $s_vare_id[$x] = $row[vare_id];
+                $s_vare_id[$x] = $row['vare_id'];
             }
         }
     }

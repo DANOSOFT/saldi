@@ -23,60 +23,56 @@
 // Copyright (c) 2003-2023 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2023.10.06 PHR - Created this file from 2. variant section of ../varekort.php
-
 // varianter_id & $varianter_beskrivelse is the is and name of the variant group, eg 'size', 'color' etc.
-    print "<tr><td valign=\"top\"><b>".findtekst(472,$sprog_id)."<!--tekst 472--></b></td></tr>\n";
-    for ($x=0;$x<count($varianter_id);$x++) {
-        (isset($variantVarerBarcode) && count($variantVarerBarcode))?$checked[$x]='checked':$checked[$x]='';
-#       (in_array($variantVarerVariantId[$x],$vare_varianter))?$checked[$x]='checked':$checked[$x]='';
-        if ($useVariants[$x]) $checked[$x] = 'checked';
-        print "<input type=\"hidden\" name=\"varianter_id[$x]\" value=\"$varianter_id[$x]\">";
-        $title=findtekst(487,$sprog_id); // Afmærk her hvis varen indeholder denne type varianter
-        print "<tr title='$title'><!--tekst 487 --><td>$varianter_beskrivelse[$x]</td><td>";
-#       if (count($varianter)) $checked[$x]='checked';
-        print "<input type=\"hidden\" name=\"vare_varianter[$x]\" value=\"$checked[$x]\">";
-        if ($beholdning) {# 20180118
-            $readonly='disabled';
-            $title='Kan ikke ændres når der er varer på lager';
-        } else $readonly=NULL;
-        print "<input title='$title' $readonly class='inputbox' type='checkbox' name=\"vare_varianter[$x]\" $checked[$x]>";
-        print "</td></tr>\n";  
-				if ($checked[$x]) {
-					print "<tr><td colspan = '2'>Tilføj Variant type</td></tr>";
-					print "<tr><td><select name='var_type[$x]'>";
-				$qtxt = "select * from variant_typer where variant_id = '$varianter_id[$x]' order by beskrivelse";
-				$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-        while ($r=db_fetch_array($q)) {
-            print "<option value='$r[id]'>$r[beskrivelse]</option>";
-					}
-					print "</select></td>";
-					print "<td>Stregkode</td><td><input type=\"text\" style=\"width:250px\" name=\"var_type_stregk\"></td></tr>";
-				}
-			
-				
-				
-		}
-/*
-    print "<tr><td colspan=\"2\"><table border=0><tbody><tr>";
-    for ($x=0;$x<count($vare_varianter);$x++) {
-				$qtxt = "select beskrivelse from varianter where id = '$vare_varianter[$x]'";
-echo __line__."$qtxt<br>";
-        $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-        print "<td align=\"center\">$r[beskrivelse]</td>";
-    }
-    print "</tr><tr>";
-    for ($x=0;$x<count($vare_varianter);$x++) {
-        print "<td><select name=var_type[$x]>";
-				$qtxt = "select * from variant_typer where variant_id = '$vare_varianter[$x]' order by beskrivelse";
-echo __line__."$qtxt<br>";
-				$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-        while ($r=db_fetch_array($q)) {
-            print "<option value='$r[id]'>$r[beskrivelse]</option>";
+
+    // Display variant group header
+    echo "<tr><td valign=\"top\"><b>" . findtekst(472, $sprog_id) . "</b></td></tr>\n";
+    
+    // Create table for variant selections
+    echo "<tr><td colspan='2'>";
+    echo "<table class='variant-table' width='100%'>";
+    echo "<tr><th>Variant</th><th>Vælg type</th></tr>";
+    
+    // Process each variant type
+    for ($x = 0; $x < count($varianter_id); $x++) {
+        echo "<tr>";
+        echo "<td>$varianter_beskrivelse[$x]</td>";
+        echo "<td>";
+        echo "<input type=\"hidden\" name=\"varianter_id[$x]\" value=\"$varianter_id[$x]\">";
+        
+        // Create dropdown for this variant type
+        echo "<select name='var_type[$x]'>";
+        
+        // Add default "not selected" option
+        echo "<option value=''>- Ikke valgt -</option>";
+        
+        // Get variant types from database
+        $qtxt = "select * from variant_typer where variant_id = '$varianter_id[$x]' order by beskrivelse";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        
+        // Display variant type options
+        while ($r = db_fetch_array($q)) {
+            echo "<option value='$r[id]'>$r[beskrivelse]</option>";
         }
-        print "</select></td>";
+        
+        echo "</select>";
+        echo "</td>";
+        echo "</tr>";
     }
-    print "</tr></tbody></table></td></tr>";
-*/
-		#print "<tr><td>Antal</td><td><input type=\"text\" style=\"width:50px\" name=\"var_type_beh\"></td></tr>";
-    if (count($vare_varianter)) print "<tr><td>Stregkode</td><td><input type=\"text\" style=\"width:250px\" name=\"var_type_stregk\"></td></tr>";
-?>
+    
+    echo "</table>";
+    echo "</td></tr>";
+    
+    // Single barcode input for all selected variants
+    echo "<tr>";
+    echo "<td><b>Stregkode</b></td>";
+    echo "<td><input type=\"text\" style=\"width:250px\" name=\"var_type_stregk\" placeholder=\"Stregkode for valgte varianter\"></td>";
+    echo "</tr>";
+    
+    // Add help text to explain how variants work
+    echo "<tr>";
+    echo "<td colspan='2' class='help-text'>";
+    echo "<small><i>Vælg variant typer for at kombinere dem med en enkelt stregkode. Hvis en variant er markeret som '- Ikke valgt -', vil den ikke blive inkluderet.</i></small>";
+    echo "</td>";
+    echo "</tr>";
+    ?>

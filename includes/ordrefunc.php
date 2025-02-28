@@ -3035,43 +3035,43 @@ function bogfor_nu($id, $kilde)
 		}
 */
 	/*
-			if ($momskode) {
-				$query = db_select("select box1 from grupper where art='SM' and kodenr='$momskode'",__FILE__ . " linje " . __LINE__);
-				$row = db_fetch_array($query);
-				if ($box1=trim($row['box1'])) {# 20150522 
-					if ($moms > 0) {$kredit=$moms; $debet='0';}
-					else {$kredit='0'; $debet=$moms*-1;}
-					if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKR.
-					$kredit=afrund($kredit,3);$debet=afrund($debet,3);
-					$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
-					$diff=afrund($d_kontrol-$k_kontrol,3);
-					$absdiff=abs($diff);
-					if ($moms && $valutakurs && $valutakurs!=100 && $absdiff>=0.01 && $absdiff<=0.05) {
-						if ($debet > 0) {
-							$debet=$debet+$diff;
-							$d_kontrol=$d_kontrol+$diff;
-						} elseif ($kredit > 0) {
-							$kredit=$kredit+$diff;
-							$k_kontrol=$k_kontrol+$diff;
-						}
-					}
-					$moms=afrund($moms,2);
-					if ($moms) {
-						if (is_numeric($id)) {
-							$qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id, afd, logdate, logtime, projekt, ansat, ordre_id,kasse_nr) values ('0', '$transdate', '$beskrivelse', '$box1', '$fakturanr', '$debet', '$kredit', '0', '$afd', '$logdate', '$logtime', '$projekt[0]', '$ansat', '$id','$kasse')";
-						} else {
-							$qtxt="insert into transaktioner (bilag, transdate, beskrivelse, kontonr, faktura, debet, kredit, kladde_id, afd, logdate, logtime, projekt, ansat, ordre_id,kasse_nr) values ('0', '$transdate', '$beskrivelse', '$box1', '0', '$debet', '$kredit', '0', '$afd', '$logdate', '$logtime', '$projekt[0]', '$ansat', '0','$kasse')";
-						}
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$tmp=$debet-$kredit;
-						$qtxt="update kontoplan set saldo=saldo+'$tmp' where kontonr='$box1' and regnskabsaar='$regnaar'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					}
-					$valutakurs=$valutakurs*1;
-				} elseif ($moms) return ("Fejl i momsopsætning");
-	 
-			}
-	*/
+				  if ($momskode) {
+					  $query = db_select("select box1 from grupper where art='SM' and kodenr='$momskode'",__FILE__ . " linje " . __LINE__);
+					  $row = db_fetch_array($query);
+					  if ($box1=trim($row['box1'])) {# 20150522 
+						  if ($moms > 0) {$kredit=$moms; $debet='0';}
+						  else {$kredit='0'; $debet=$moms*-1;}
+						  if ($valutakurs) {$kredit=afrund($kredit*$valutakurs/100,3);$debet=afrund($debet*$valutakurs/100,3);} # Omregning til DKR.
+						  $kredit=afrund($kredit,3);$debet=afrund($debet,3);
+						  $d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
+						  $diff=afrund($d_kontrol-$k_kontrol,3);
+						  $absdiff=abs($diff);
+						  if ($moms && $valutakurs && $valutakurs!=100 && $absdiff>=0.01 && $absdiff<=0.05) {
+							  if ($debet > 0) {
+								  $debet=$debet+$diff;
+								  $d_kontrol=$d_kontrol+$diff;
+							  } elseif ($kredit > 0) {
+								  $kredit=$kredit+$diff;
+								  $k_kontrol=$k_kontrol+$diff;
+							  }
+						  }
+						  $moms=afrund($moms,2);
+						  if ($moms) {
+							  if (is_numeric($id)) {
+								  $qtxt="insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id, afd, logdate, logtime, projekt, ansat, ordre_id,kasse_nr) values ('0', '$transdate', '$beskrivelse', '$box1', '$fakturanr', '$debet', '$kredit', '0', '$afd', '$logdate', '$logtime', '$projekt[0]', '$ansat', '$id','$kasse')";
+							  } else {
+								  $qtxt="insert into transaktioner (bilag, transdate, beskrivelse, kontonr, faktura, debet, kredit, kladde_id, afd, logdate, logtime, projekt, ansat, ordre_id,kasse_nr) values ('0', '$transdate', '$beskrivelse', '$box1', '0', '$debet', '$kredit', '0', '$afd', '$logdate', '$logtime', '$projekt[0]', '$ansat', '0','$kasse')";
+							  }
+							  db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+							  $tmp=$debet-$kredit;
+							  $qtxt="update kontoplan set saldo=saldo+'$tmp' where kontonr='$box1' and regnskabsaar='$regnaar'";
+							  db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						  }
+						  $valutakurs=$valutakurs*1;
+					  } elseif ($moms) return ("Fejl i momsopsætning");
+		   
+				  }
+		  */
 	if (is_numeric($id)) {
 		$tmp = "id = '" . $id . "'";
 	} else {
@@ -3930,16 +3930,35 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$x++;
 	}
 
-	$qtxt = "SELECT id,vare_id,variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
-	if (strlen($varenr) == 12 && is_numeric($varenr))
+	$qtxt = "SELECT id, vare_id, variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
+	if (strlen($varenr) == 12 && is_numeric($varenr)) {
 		$qtxt .= " or variant_stregkode='0$varenr'";
+	}
+
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$vare_id = $r['vare_id'];
-		$variant_type = $r['variant_type'] * 1;
 		$variant_id = $r['id'];
-		$qtxt = "SELECT beskrivelse FROM variant_typer WHERE id = '$variant_type'";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		$variantText = $r['beskrivelse'];
+		$variant_type = $r['variant_type'];
+		$variant_type_array = explode(chr(9), $variant_type);
+		$variant_descriptions = array();
+
+		// Get description for each variant type
+		foreach ($variant_type_array as $type_id) {
+			// Skip empty values
+			if (empty($type_id))
+				continue;
+
+			$qtxt = "SELECT beskrivelse FROM variant_typer WHERE id = '$type_id'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+
+			// Add description to array if found
+			if ($r && isset($r['beskrivelse'])) {
+				$variant_descriptions[] = $r['beskrivelse'];
+			}
+		}
+
+		$variantText = implode(' ', $variant_descriptions);
+
 	} else {
 		$variant_id = 0;
 		$variant_type = $variantText = NULL;
@@ -4691,14 +4710,14 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 		});
    </script>";
 	/*
-	  print "<script type=\"text/javascript\">
-			var TableBackgroundNormalColor = \"$bgcolor\";
-			var TableBackgroundMouseoverColor = \"$bgcolor5\";
-		// These two functions need no customization.	
-			function ChangeBackgroundColor(row) { row.style.backgroundColor = TableBackgroundMouseoverColor; }
-			function RestoreBackgroundColor(row) { row.style.backgroundColor = TableBackgroundNormalColor; }
-		</script>";
-	*/
+			print "<script type=\"text/javascript\">
+				  var TableBackgroundNormalColor = \"$bgcolor\";
+				  var TableBackgroundMouseoverColor = \"$bgcolor5\";
+			  // These two functions need no customization.	
+				  function ChangeBackgroundColor(row) { row.style.backgroundColor = TableBackgroundMouseoverColor; }
+				  function RestoreBackgroundColor(row) { row.style.backgroundColor = TableBackgroundNormalColor; }
+			  </script>";
+		  */
 	print "<table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\"><tbody>";
 	$linjebg = $bgcolor;
 	$color = '#000000';
@@ -4814,16 +4833,16 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 		$vare_id = $row['id'] * 1;
 		$beholdning = $row['beholdning'] * 1;
 		/*
-				if ($lager) {
-					for ($l=0;$l<count($ls_id);$l++) {
-						if ($ls_id[$l]==$vare_id) {
-							$beholdning=$ls_behold[$l];
-							
-							break 1;
-						}
-					}
-				}
-		*/
+							if ($lager) {
+								for ($l=0;$l<count($ls_id);$l++) {
+									if ($ls_id[$l]==$vare_id) {
+										$beholdning=$ls_behold[$l];
+										
+										break 1;
+									}
+								}
+							}
+					*/
 		$x++;
 		$onclick = "onclick=\"window.document.location='$href?id=$id&vare_id=$row[id]&lager=$afd_lager&bordnr=$bordnr';\"";
 		if ($linjebg != $bgcolor) {
@@ -5142,15 +5161,15 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		print "</td></tr>\n";
 	} else {
 		/* 20140502 -> Bliver også sat i online.php
-			print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
-			print "<html><head>\n";
-			print "<title>Kundeordre</title>\n";
-			print "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n";
-			if($meta_returside) print "$meta_returside";
-			print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>";
-			print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
-			print "</head>\n";
-		*/
+						print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
+						print "<html><head>\n";
+						print "<title>Kundeordre</title>\n";
+						print "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n";
+						if($meta_returside) print "$meta_returside";
+						print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>";
+						print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
+						print "</head>\n";
+					*/
 		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
 		print "<div align=\"center\">";
 
@@ -5575,11 +5594,11 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	//$tid=date("H:i",$r['tidspkt']);
 	//$status=$r['status'];
 	/*
-	   cho "konto_id: $konto_id<br>"; #exit();
-	   cho "kontakt: $kontakt<br>"; #exit();
-	   cho "sag_kontakt: $sag_kontakt<br>"; #exit();
-	   cho "kontakt_tlf: $kontakt_tlf<br>"; exit();
-	   */
+			 cho "konto_id: $konto_id<br>"; #exit();
+			 cho "kontakt: $kontakt<br>"; #exit();
+			 cho "sag_kontakt: $sag_kontakt<br>"; #exit();
+			 cho "kontakt_tlf: $kontakt_tlf<br>"; exit();
+			 */
 	if ((!$id) && ($firmanavn)) {
 		$r = db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc", __FILE__ . " linje " . __LINE__));
 		$ordrenr = $r['ordrenr'] + 1;
@@ -6180,24 +6199,24 @@ if (!function_exists('registrer_betaling')) {
 				print "<tr><td align='center'><br></td></tr>";
 				print "<tr><td align='center'><a href='pos_ordre.php?id=$ordre_id&godkendt=afvist'onclick=\"return confirm('$txt')\"><button style=\"height:100px;width:300px;\">" . findtekst(1106, $sprog_id) . "</button></a></td></tr>";
 				/*
-							print "<tr><td align='center'><hr style=\"width:250px;\"></td></tr>";
-							print "<tr><td align='center'>B<a href='pos_ordre.php?id=$ordre_id&godkendt=afvist'><button style=\"width:250px;\">".findtekst(1105,$sprog_id)."</button></a></td></tr>";
-							print "<tr><td align='center'><hr style=\"width:250px;\"></td></tr>";
-							print "<tr><td align='center'>C<a href='pos_ordre.php?id=$ordre_id&godkendt=afvist'><button style=\"width:250px;\">".findtekst(1104,$sprog_id)."</button></a></td></tr>";
-							if ($_SERVER['HTTPS']) $url='https://';
-							else $url='http://';
-							$url.=$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF'];
-							if (isset($_COOKIE['salditerm']) && $_COOKIE['salditerm']) $terminal_ip=$_COOKIE['salditerm'];
-							if ($terminal_ip=='box' || $terminal_ip=='saldibox') {
-								$filnavn="http://saldi.dk/kasse/".$_SERVER['REMOTE_ADDR'].".ip";
-								if ($fp=fopen($filnavn,'r')) {
-									$terminal_ip=trim(fgets($fp));
-									fclose ($fp);
-								}
-							} # else $terminal_ip=$printserver;
-							print "<tr><td align='center'><hr style=\"width:250px;\"></td></tr>";
-							print "<tr><td align='center'>D<a href='http://$terminal_ip/pointd/point.php?url=$url&id=$ordre_id'><button style=\"width:250px;\">".findtekst(1103,$sprog_id)."</button></td></tr>";
-				*/
+													print "<tr><td align='center'><hr style=\"width:250px;\"></td></tr>";
+													print "<tr><td align='center'>B<a href='pos_ordre.php?id=$ordre_id&godkendt=afvist'><button style=\"width:250px;\">".findtekst(1105,$sprog_id)."</button></a></td></tr>";
+													print "<tr><td align='center'><hr style=\"width:250px;\"></td></tr>";
+													print "<tr><td align='center'>C<a href='pos_ordre.php?id=$ordre_id&godkendt=afvist'><button style=\"width:250px;\">".findtekst(1104,$sprog_id)."</button></a></td></tr>";
+													if ($_SERVER['HTTPS']) $url='https://';
+													else $url='http://';
+													$url.=$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF'];
+													if (isset($_COOKIE['salditerm']) && $_COOKIE['salditerm']) $terminal_ip=$_COOKIE['salditerm'];
+													if ($terminal_ip=='box' || $terminal_ip=='saldibox') {
+														$filnavn="http://saldi.dk/kasse/".$_SERVER['REMOTE_ADDR'].".ip";
+														if ($fp=fopen($filnavn,'r')) {
+															$terminal_ip=trim(fgets($fp));
+															fclose ($fp);
+														}
+													} # else $terminal_ip=$printserver;
+													print "<tr><td align='center'><hr style=\"width:250px;\"></td></tr>";
+													print "<tr><td align='center'>D<a href='http://$terminal_ip/pointd/point.php?url=$url&id=$ordre_id'><button style=\"width:250px;\">".findtekst(1103,$sprog_id)."</button></td></tr>";
+										*/
 				print "</tbody></table>";
 			}
 		}
