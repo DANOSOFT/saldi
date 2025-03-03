@@ -658,7 +658,7 @@ print "<tr><td></td>";
 		} else print "<input class='inputboks' class=\"inputbox\" type=text style=\"text-align:$justering[$x];$width;\" name=find[$x] value=\"$find[$x]\">";
 	}
 	print "</td>\n";  
-print "<td align=center><input class='button blue small ' type=submit value=\"OK\" name=\"submit\"></td>";
+print "<td align=center><input class='button blue small ok' type=submit value=\"OK\" name=\"submit\"></td>";
 print "<td align=center><input class='button blue small ' type=submit value=\"Ryd\" name=\"clear\"></td>";
 print "</form></tr>\n";
 
@@ -1431,5 +1431,7 @@ clearButton.addEventListener("click", (e) => {
 			}
 		})
     }
+	const submitButton = document.querySelector(".ok")
+	submitButton.click()
 })
 </script>
