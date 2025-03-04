@@ -194,7 +194,7 @@
 @session_start();
 $s_id=session_id();
 
-$antal=$beskrivelse=$enhed=$lagernr=$ordreliste=$pris=$reserveret=$varenr=array();
+$antal = $beskrivelse = $enhed = $lagernr = $ordreliste = $pris = $reserveret = $varenr = array();
 $afd_lager=$antal[0]=$art=NULL;
 $brugernavn=NULL;
 $default_procenttillag=NULL;
@@ -1450,24 +1450,22 @@ if ($status<3 && $b_submit) {
     $r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$brugervalg=$r['box1']; # 20170419
 		if ($brugervalg) $ref='';
-    $qtext="
-INSERT INTO ordrer (
-    ordrenr, konto_id, kontonr, kundeordnr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, 
-    lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, lev_land, lev_email, betalingsdage, betalingsbet, 
-    cvrnr, ean, institution, email, mail_fakt, phone, notes, art, ordredate, momssats, status, ref, 
-    lev_adr, valuta, projekt, sprog, pbs, afd, restordre, felt_1, felt_2, felt_3, felt_4, felt_5, 
-    vis_lev_addr
-) 
-VALUES (
-    $ordrenr, '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', 
-    '$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', 
-    '$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', '$cvrnr', '$ean', '$institution', 
-    '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', '$momssats', $status, '$ref', 
-    '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', '0', '$felt_1', 
-    '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr'
-)
-";#20131017 
-		db_modify($qtext,__FILE__ . " linje " . __LINE__);
+		$afd = (int)$afd;
+    $qtxt = "INSERT INTO ordrer (";
+    $qtxt.= "ordrenr, konto_id, kontonr, kundeordnr, firmanavn, addr1, addr2, postnr, ";
+		$qtxt.= "bynavn, land, kontakt, lev_navn, lev_addr1, lev_addr2, lev_postnr, ";
+		$qtxt.= "lev_bynavn, lev_kontakt, lev_land, lev_email, betalingsdage, betalingsbet, ";
+    $qtxt.= "cvrnr, ean, institution, email, mail_fakt, phone, notes, art, ordredate,";
+		$qtxt.= " momssats, status, ref, lev_adr, valuta, projekt, sprog, pbs, afd, restordre, " ;
+		$qtxt.= "felt_1, felt_2, felt_3, felt_4, felt_5, vis_lev_addr";
+		$qtxt.= ") VALUES (";
+    $qtxt.= "'$ordrenr', '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', ";
+    $qtxt.= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
+    $qtxt.= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
+		$qtxt.= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
+		$qtxt.= "'$momssats', $status, '$ref', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
+		$qtxt.= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
+		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 		# Porto vare system
 		## Create a new order line on creation from the specified sku
@@ -3312,19 +3310,11 @@ $kundeordre = findtekst(1092,$sprog_id);
 		print "</td></tr>\n";
 		if ($firmanavn==$k_firmanavn) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
-   		$debitoripad = get_settings_value("debitoripad", "ordre", "off");
-		if ($debitoripad === "on") {
-			print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" disabled></td></tr>\n";
-		}else{
-			print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-		}
+    print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+		if ($addr1==$k_addr1 && $addr2==$k_addr2) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
     $txt140 = findtekst('140|Adresse', $sprog_id);
-    if ($debitoripad === "on") {
-		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" disabled></td></tr>\n";
-	}else{
-		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-	}
+    print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
     print "<tr><td></td><td colspan=\"2\" style=\"color:$tekstcolor;\" ><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr2\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr2\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if ($postnr==$k_postnr) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
@@ -3386,13 +3376,8 @@ $kundeordre = findtekst(1092,$sprog_id);
 		($ean==$k_ean)?$tekstcolor="#444444":$tekstcolor="#ff0000";
     	print "<td>&nbsp;</td><td style=\"color:$tekstcolor;\">".findtekst(379,$sprog_id)."</td><td><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"ean\" value=\"$ean\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		print "<tr><td>".findtekst(49,$sprog_id)."</td>";
-		if ($debitoripad === "on") {
-			print "<td><input class='inputbox' style='text-align:left;width:130px' type='text' name='phone' ";
-			print "value=\"$phone\" onchange='javascript:docChange = true;' disabled></td>\n";
-		}else{
-			print "<td><input class='inputbox' style='text-align:left;width:130px' type='text' name='phone' ";
-			print "value=\"$phone\" onchange='javascript:docChange = true;' $disabled></td>\n";
-		}
+		print "<td><input class='inputbox' style='text-align:left;width:130px' type='text' name='phone' ";
+		print "value=\"$phone\" onchange='javascript:docChange = true;' $disabled></td>\n";
 		($institution==$k_institution)?$tekstcolor="#444444":$tekstcolor="#ff0000";
     	print "<td></td><td style=\"color:$tekstcolor;\" title=\"$k_institution\">Institution</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"institution\" value=\"$institution\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		($email==$k_email)?$tekstcolor="#444444":$tekstcolor="#ff0000";
