@@ -3312,11 +3312,19 @@ $kundeordre = findtekst(1092,$sprog_id);
 		print "</td></tr>\n";
 		if ($firmanavn==$k_firmanavn) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
-    print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
-		if ($addr1==$k_addr1 && $addr2==$k_addr2) $tekstcolor="#444444";
+   		$debitoripad = get_settings_value("debitoripad", "ordre", "off");
+		if ($debitoripad === "on") {
+			print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" disabled></td></tr>\n";
+		}else{
+			print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+		}
 		else {$tekstcolor="#ff0000";$ret=1;};
     $txt140 = findtekst('140|Adresse', $sprog_id);
-    print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+    if ($debitoripad === "on") {
+		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" disabled></td></tr>\n";
+	}else{
+		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+	}
     print "<tr><td></td><td colspan=\"2\" style=\"color:$tekstcolor;\" ><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr2\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr2\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if ($postnr==$k_postnr) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
@@ -3378,8 +3386,13 @@ $kundeordre = findtekst(1092,$sprog_id);
 		($ean==$k_ean)?$tekstcolor="#444444":$tekstcolor="#ff0000";
     	print "<td>&nbsp;</td><td style=\"color:$tekstcolor;\">".findtekst(379,$sprog_id)."</td><td><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"ean\" value=\"$ean\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		print "<tr><td>".findtekst(49,$sprog_id)."</td>";
-		print "<td><input class='inputbox' style='text-align:left;width:130px' type='text' name='phone' ";
-		print "value=\"$phone\" onchange='javascript:docChange = true;' $disabled></td>\n";
+		if ($debitoripad === "on") {
+			print "<td><input class='inputbox' style='text-align:left;width:130px' type='text' name='phone' ";
+			print "value=\"$phone\" onchange='javascript:docChange = true;' disabled></td>\n";
+		}else{
+			print "<td><input class='inputbox' style='text-align:left;width:130px' type='text' name='phone' ";
+			print "value=\"$phone\" onchange='javascript:docChange = true;' $disabled></td>\n";
+		}
 		($institution==$k_institution)?$tekstcolor="#444444":$tekstcolor="#ff0000";
     	print "<td></td><td style=\"color:$tekstcolor;\" title=\"$k_institution\">Institution</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"institution\" value=\"$institution\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		($email==$k_email)?$tekstcolor="#444444":$tekstcolor="#ff0000";
