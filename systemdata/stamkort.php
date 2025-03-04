@@ -177,31 +177,30 @@ if(isset($id) & $id != NULL){
 } else {
 	print "<tr><td>".findtekst('52|E-mail', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:180;' name=\"ny_email\" value=\"$email\"></td></tr>";
 }
-print "<tr><td>Bank</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"bank_navn\" value=\"$bank_navn\"></td></tr>\n";
-print "<tr><td>Email ".findtekst('594|dataansvarlig', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"kontakt\" value=\"$kontakt\"></td></tr>";
+print "<tr><td>".findtekst('662|Bank', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"bank_navn\" value=\"$bank_navn\"></td></tr>\n";
+print "<tr><td>".findtekst('52|E-mail', $sprog_id)." ".findtekst('594|dataansvarlig', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:200;' name=\"kontakt\" value=\"$kontakt\"></td></tr>";
 if (in_array($_SERVER["SERVER_NAME"],$saldinames)) {
 #	if (substr($db,0,6)=='bizsys' || substr($db,0,7)=='grillbar') {
 #		$href='https://bizsys.dk/wp-content/uploads/2018/05/Bizsys-databehandleraftale.pdf';
 #	} else 
 	$href='http://saldi.dk/dok/saldi_gdpr_20180525.pdf';
-	print "<tr><td>Databehandleraftale</td><td><a href=\"$href\" target=\"blank\"><button type='button' style='width:200px;'>Databehandleraftale</button></a></td></tr>";
+	print "<tr><td>".findtekst('2356|Databehandleraftale', $sprog_id)."</td><td><a href=\"$href\" target=\"blank\"><button type='button' style='width:200px;'>".findtekst('2356|Databehandleraftale', $sprog_id)."</button></a></td></tr>";
 }
 print "</tbody></table>\n"; # 20150331
 print "</td>\n"; # 20150331
 print "<td valign=\"top\">\n"; # 20150331
 print "<table border=\"0\" cellspacing=\"0\" class=\"dataTable\"><tbody>"; # 20150331
-print "<tr><td>".findtekst('376|CVR-nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"cvrnr\" value=\"$cvrnr\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erh
-vervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
-print "<tr><td>".findtekst('37|Telefon', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"tlf\" value=\"$tlf\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
+print "<tr><td>".findtekst('376|CVR-nr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"cvrnr\" value=\"$cvrnr\" title=\"".findtekst('2360|Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)', $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
+print "<tr><td>".findtekst('37|Telefon', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"tlf\" value=\"$tlf\" title=\"".findtekst('2361|Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)', $sprog_id)."\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>";
 print "<tr><td>".findtekst('378|Telefax', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"fax\" value=\"$fax\"></td></tr>";
-print "<tr><td>".findtekst('385|PBS', $sprog_id)." ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"pbs_nr\" value=\"$pbs_nr\">";
+print "<tr><td>".findtekst('385|BS', $sprog_id)." ".findtekst('591|Kreditornr.', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"pbs_nr\" value=\"$pbs_nr\">";
 if ($pbs_nr) {
 	print "<select class=\"inputbox\" name=\"pbs\">";
-	if ($pbs=='B') print "<option value=\"B\">Basis løsning</option><option value=\"\">Total løsning</option><option value=\"L\">Lev. Service</option>";
-	elseif ($pbs=='L') print "<option value=\"L\">Lev. Service</option><option value=\"B\">Basis løsning</option><option value=\"\">Total løsning</option>";
-	else print "<option value=\"\">Total løsning</option><option value=\"B\">Basis løsning</option><option value=\"L\">Lev. Service</option>";
+	if ($pbs=='B') print "<option value=\"B\">".findtekst('2357|Basisløsning', $sprog_id)."</option><option value=\"\">".findtekst('2358|Totalløsning', $sprog_id)."</option><option value=\"L\">".findtekst('2359|Lev. service', $sprog_id)."</option>";
+	elseif ($pbs=='L') print "<option value=\"L\">".findtekst('2359|Lev. service', $sprog_id)."</option><option value=\"B\">".findtekst('2357|Basisløsning', $sprog_id)."</option><option value=\"\">".findtekst('2358|Totalløsning', $sprog_id)."</option>";
+	else print "<option value=\"\">".findtekst('2358|Totalløsning', $sprog_id)."</option><option value=\"B\">".findtekst('2357|Basisløsning', $sprog_id)."</option><option value=\"L\">".findtekst('2359|Lev. service', $sprog_id)."</option>";
 	print "</select></td></tr>";
-	print "<tr><td>".findtekst('385|PBS', $sprog_id)." ".findtekst('374|Debitorgruppe', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"gruppe\" value=\"$gruppe\">";
+	print "<tr><td>".findtekst('385|BS', $sprog_id)." ".findtekst('374|Debitorgruppe', $sprog_id)."</td><td><input class=\"inputbox\" type=\"text\" style='width:150;' name=\"gruppe\" value=\"$gruppe\">";
 }
 if (!isset ($returside)) $returside = NULL;
 if (!isset ($ordre_id)) $ordre_id = NULL;
@@ -221,7 +220,7 @@ print "<tbody></table></td></tr>";
 if ($id) {
 	if (! $menu=='T') print "<tr><td colspan=2><hr></td></tr>";  # 20150331
 	print "<tr><td colspan=2 align=center><table><tbody>";
-	print "<tr><td> ".findtekst('588|Pos. Kontakt', $sprog_id)."</td><td> ".findtekst('654|Lokalnr.', $sprog_id).". / mobil</td><td> E-mail</td><td></td><td align=right><a href=\"ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id\">".findtekst('39|Ny', $sprog_id)." ".findtekst('589|Ansat', $sprog_id)."</a></td></tr>"; #20210628
+	print "<tr><td> ".findtekst('588|Pos. Kontakt', $sprog_id)."</td><td> ".findtekst('654|Lokalnr.', $sprog_id)." / ".findtekst('401|Mobil', $sprog_id)."</td><td> ".findtekst('52|E-mail', $sprog_id)."</td><td></td><td align=right><a href=\"ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id\">".findtekst('39|Ny', $sprog_id)." ".findtekst('589|Ansat', $sprog_id)."</a></td></tr>"; #20210628
 	if (! $menu=='T') print "<tr><td colspan='5'><hr></td></tr>";  # 20150331
 			
 	$taeller=0;
@@ -255,9 +254,9 @@ if ($id) {
 		}
 	}
 	print "<tbody></table></td></tr>";
-}else{
+} else {
 	$href='http://saldi.dk/dok/saldi_gdpr_20180525.pdf';
-	print "<tr><td>Databehandleraftale</td><td><a href=\"$href\" target=\"blank\"><button type='button' style='width:200px;'>Databehandleraftale</button></a></td></tr>";
+	print "<tr><td>".findtekst('2356|Databehandleraftale', $sprog_id)."</td><td><a href=\"$href\" target=\"blank\"><button type='button' style='width:200px;'>".findtekst('2356|Databehandleraftale', $sprog_id)."</button></a></td></tr>";
 }
 
 if (! $menu=='T') print "<tr><td colspan=2><br></td></tr>\n";  # 20150331

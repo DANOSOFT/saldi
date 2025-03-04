@@ -381,8 +381,8 @@
 381	Kreditmax	Max credit	Kreditmax
 382	Bank reg.	Bank reg.	Bankreg.
 383	Bank konto	Bank account	bankkonto
-384	PBS-nr.	PBS number.	PBS-nummer.
-385	PBS	PBS	PBS
+384	BS-nr.	BS number.	BS-nummer.
+385	BS	BS	BS
 386	Kundeansvarlig	Customer manager	Kundesjef
 387	Lukket	Closed	Lukket
 388	Kategorier	Categories	Kategorier
@@ -398,7 +398,7 @@
 398	Kontakt	Contact	Kontakt
 399	Direkte telefonnummer eller lokalnummer	Direct telephone number or extension number	Direkte telefonnummer eller lokalnummer
 400	Direkte/lokal	Direct / local	Direkte / lokal
-401	Mobil	Mobile phone	Mobiltelefon
+401	Mobil	Mobile phone	Mobil
 402	E-mail	Email	E-post
 403	Kontakt navn	Contact name	Kontakt navn
 404	Kontakt adresse	Contact address	Kontakt adresse
@@ -411,7 +411,7 @@
 411	Kontakt bemærkning	Contact note	Kontaktnotat
 412	Husnr.	House no.	Husnr.
 413	Etage	Floor	Gulv
-414	PBS-nr.	PBS number.	PBS-nummer.
+414	BS-nr.	BS number.	BS-nummer.
 415	Fremhævning	Highlight	Fremheve
 416	Fremhæver eksempelvis ordre med den angivne farvenuance	where delivery or receipt is missing	For eksempel fremhever ordrer med den angitte fargenyansen
 417	Vælg farvenuance til fremhævning	Select color hue for highlighting	Velg fargetone for utheving
@@ -1078,7 +1078,7 @@
 1078	Hent	Fetch	Hente
 1079	Import fra Danløn	Import from Danløn	Import fra Danløn
 1080	Import fra Dataløn	Import from Dataløn	Import fra Dataløn
-1081	Import af pbs betalinger	Import of pbs payments	Import av pbs-betalinger
+1081	Import af BS betalinger	Import of BS payments	Import av BS-betalinger
 1082	Import af andre data	Import of other data	Import av andre data
 1083	Afregning Kommisionssalg	Settlement Commission sales	Salg av forlikskommisjonen
 1084	Kontrolsum	Checksum	Sjekksum
@@ -1449,7 +1449,7 @@
 1449	PDF-tekst	PDF text	PDF-tekst
 1450	Sendes som PDF via e-mail	Sent as PDF via email	Sendt som PDF via e-post
 1451	Kun ved fakturering/kreditering.	Only for invoicing/crediting.	Bare for fakturering/kreditering.
-1452	Opkræves via PBS betalingsservice	Charged via PBS payment service	Charged via PBS payment service
+1452	Opkræves via betalingsservice	Charged via BS payment service	Charged via BS payment service
 1453	Gem en kopi og vedhæft kundens historik	Save a copy and attach the customer's history	Lagre en kopi og legg ved kundens historie
 1454	klik her for at åbne bilaget	click here to open the attachment	Klikk her for å åpne vedlegget
 1455	klik her for at vedhæfte et bilag	click here to add an attachment	Klikk her for å legge ved et vedlegg
@@ -1522,7 +1522,7 @@
 1522	Fortsæt med at redigere ordren	Continue to edit order	Fortsett å redigere bestillingen
 1523	Dokumentet sendes som email til	The document will be sent as an email to	Dokumentet sendes på epost til
 1524	Faktura sendes som email til	Invoice will be sent as an email to	Faktura sendes på epost til
-1525	Faktura tilføjes PBS/Nets liste!	Invoice added to PBS / Net's list!	Faktura lagt til PBS / Nets liste!
+1525	Faktura tilføjes BS/Nets liste!	Invoice added to BS / Net's list!	Faktura lagt til BS / Nets liste!
 1526	Faktura genereres som OIOUBL fil!	Invoice is generated as an OIOUBL file!	Faktura genereres som en OIOUBL-fil!
 1527	Fakturadato sættes til	Invoice date is set for	Fakturadato er satt til
 1528	Betalingsbetingelser er sat til	Payment terms are set to	Betalingsvilkår er satt til
@@ -1640,7 +1640,7 @@
 1640	Dette felt skal kun udfyldes,hvis der er tale om et abonnement eller \nlign som skal faktureres igen på et senere tidspunkt.\nSkriv datoen for næste fakturering	This field should only be filled in if it is a subscription or \nlike that needs to be billed again at a later date. \nWrite the date of the next billing	Dette feltet skal bare fylles ut hvis det er et abonnement eller \n som må faktureres på et senere tidspunkt. \nW Skriv datoen for neste fakturering
 1641	Hvis hele ordren skal registreres på et projekt,vælg projektet her. Ellers anvendes projektfeltet på ordrelinjen	If the entire order is to be registered on a project, select the project here. Otherwise, the project field on the order line is used	Hvis hele bestillingen skal registreres på et prosjekt, velg prosjektet her. Ellers brukes prosjektfeltet på ordrelinjen
 1642	Vis stykliste	Choose from purchase order	Velg fra innkjøpsordre
-1643	Import af pbs betalinger fra web	Import of pbs payments from web	Import af pbs betalinger fra web
+1643	Import af BS betalinger fra web	Import of BS payments from web	Import af BS betalinger fra web
 1644	Filen skal vre af typen &apos;udenopkrævningsarter.csv&apos;	The file must be of the type &apos;outsidecollectiontypes.csv&apos;	Filen skal være af typen &apos;udenopkrævningsarter.csv&apos;								
 1645	Angiv hvilket skilletegn der anvendes til opdeling af kolonne	Specify which delimiter is used for column division	Angiv hvilket skilletegn der anvendes til opdatering af kolonne
 1646	Max antal kladdelinjer nået!	Max number of draft lines reached!	Maks antall trekklinjer nådd!
@@ -1742,7 +1742,7 @@
 1742	Der findes allerede et regnskab med navnet	An account with the name already exists	En konto med navnet eksisterer allerede
 1743	Navn ikke ændret	Name not changed	Navnet ble ikke endret
 1744	For at slette dit regnskab skal du afmærke feltet ved	To delete your accounts, check the box next to	Merk av i boksen ved siden av for å slette kontoene dine
-1745	Indlæs Fil	Load File	Last inn fil
+1745	Indlæs fil	Load file	Last inn fil
 1746	Desværre - dit logo er alt for stort. Der acceptereres kun op til 100 kb	Sorry - your logo is too large. Only up to 100 kb is accepted	Beklager - logoen din er for stor. Bare opptil 100 kb godtas
 1747	Desværre - din PDF er for stor. Der acceptereres kun op til 10 MB, og den fylder	Sorry - your PDF is too large. Only up to 10 MB is accepted and it takes up space	Beklager - PDF -filen din er for stor. Bare opptil 10 MB godtas, og det tar opp plass
 1748	Filformatet skal være PDF	The file format must be PDF	Filformatet må være PDF
@@ -1784,9 +1784,9 @@
 1784	Skriv det varenummer og rentesatsen som bruges ved renteberegning. Rentesatsen gælder pr påbegyndt måned	Write the item number and interest rate used in calculating interest. The interest rate applies per commenced month	Skriv varenummeret og renten som brukes ved beregning av renter. Renten gjelder per påbegynt måned
 1785	Varenummer/sats for rente	Item number/rate for interest	Varenummer/rente for renter
 1786	Farve	Colour	Farge
-1787	Justering - H: Højrestillet\n C: Centreret\n V: Venstrestillet	Adjustment - H: Right position\n C: Centered\n V: Left position	Justering - H: Høyre posisjon\n C: Sentrert\n V: Venstre posisjon
+1787	Justering - H: Højrestillet\n C: Centreret\n V: Venstrestillet	Alignment - H: Right position\n C: Centered\n V: Left position	Justering - H: Høyre posisjon\n C: Sentrert\n V: Venstre posisjon
 1788	1: Kun side 1\n!1: Alle foruden side 1\nS: Sidste side\n!S: Alle foruden sidste side\nA: Alle sider	1: Page 1 only \n!1: All except page 1 \nS: Last page \n!S: All except last page \nA: All pages	1: Bare side 1\n! 1: Alle unntatt side 1\nS: Siste side\n!S: Alle unntatt siste side\nA: Alle sider
-1789	Kursiv	Italics	Kursiv
+1789	Kursiv	Italic	Kursiv
 1790	Højde	Height	Høyde
 1791	Der er ikke afmærket nogen konti til modtagelse af kontoudtog	No accounts for receipt of bank statements have been marked	Ingen kontoer for mottak av kontoutskrifter er merket
 1792	Der er ikke afmærket nogen konti til modtagelse af rykker eller beløbet er ikke forfaldent til betaling	No accounts have been marked for receipt of reminders or the amount is not due for payment	Ingen kontoer er merket for mottak av påminnelser, eller beløpet forfaller ikke til betaling
@@ -2353,20 +2353,20 @@
 2353	Og	And	Og
 2354	Regnskabsår skal slutte senere end det starter	The fiscal year must end later than it starts	Regnskapsår må slutte senere enn det starter
 2355	E-mail/kopi til ref.	Email/copy for ref.	E-post/kopi til ref.
-2356
-2357
-2358
-2359
-2360
-2361
-2362
-2363
-2364
-2365
-2366
-2367
-2368
-2369
+2356	Databehandleraftale	Data Processing Agreement	Databehandleravtale
+2357	Basisløsning	Basic solution	Basisløsning
+2358	Totalløsning	Complete solution	Totalløsning
+2359	Lev. service	Supplier service	Lev. service
+2360	Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)	Enter VAT number	Skriv inn MVA nummer
+2361	Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)	Enter phone number	Skriv inn telefonnummer
+2362	Skriv sprog der ønskes tilføjet	Enter a language you want to add	Skriv språk som ønskes lagt til
+2363	er oprettet	has been added	er oprettet
+2364	Slet det valgte sprog	Delete the selected language	Slett det valgte språket
+2365	Start	Start	Start
+2366	Slut	End	Slutt
+2367	Just.	Align	Just.
+2368	Side	Page	Side
+2369	Fed	Bold	Fet
 2370
 2371
 2372
@@ -3107,7 +3107,7 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3107	Vis ordres totalsum større i kassesystemet	Show the order sum larger in the point of sale system	Vis ordretotaler større i POS-systemet
 3108	Mobil	Mobile	Mobil
 3109	Aktivere den mobile kasseløsning	Activates the mobile POS system setup	Aktivering av den mobile kasseløsningen
-3110	Bredde	width	Bredde
+3110	Bredde	Width	Bredde
 3111	Skærmens bredde	Screen width	Skjerm bredde
 3112	Zoom	Zoom	Zoom
 3113	Grad af zoom	Degree of zoom	Grad av zoom
