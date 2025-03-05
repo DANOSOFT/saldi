@@ -727,10 +727,17 @@ if ($saveItem || $submit = trim($submit)) {
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
     }
 
-    if (!$min_lager)
-        $min_lager = '0';
-    else
-        $min_lager = usdecimal($min_lager, 2);
+    if (!$min_lager){
+    $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
+    if(db_num_rows($query) > 0){
+	$r = db_fetch_array($query);
+	$min_lager = (int)$r["var_value"];
+    }else{
+	$min_lager = 0;
+    }
+	}else{ 
+	    $min_lager=usdecimal($min_lager,2);
+	}
     if (!$max_lager)
         $max_lager = '0';
     else
@@ -778,7 +785,14 @@ if ($saveItem || $submit = trim($submit)) {
                 $varenr = '';
                 $id = 0;
             } elseif ($varenr) {
-                db_modify("insert into varer (varenr,lukket,salgspris,kostpris) values ('$varenr','0','0','0')", __FILE__ . " linje " . __LINE__);
+                $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+                if(db_num_rows($query) > 0){
+                    $r = db_fetch_array($query);
+                    $minBeholdning = (int)$r["var_value"];
+                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris,min_lager) values ('$varenr','0','0','0',$minBeholdning)",__FILE__ . " linje " . __LINE__);
+                }else{
+                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris) values ('$varenr','0','0','0')",__FILE__ . " linje " . __LINE__);
+                }
                 $query = db_select("select id from varer where varenr = '$varenr'", __FILE__ . " linje " . __LINE__);
                 $row = db_fetch_array($query);
                 $id = $row['id'];
