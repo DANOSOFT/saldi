@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- lap 4.0.8 --- 2023-05-16 ---
+// --- mysale/mylabel.php --- lap 4.1.1 --- 2025-02-21 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -34,24 +34,17 @@
 // 20210426 PHR Mobil dublets set to false and barcode created if not set
 // 20210429 PHR Check for passwd / seesion cookie mySalePw
 // 20211024 PHR if dechex is not rounded it sometimes reduses the result by 1 (eg. if price is 9.95)
-// 20211205 PHR Implemented language.
+// 20211205 PHR Implemented languate.
 // 20220921 DAPE added productlimit
 // 20230313 PHR Various updates according to PHP8 and added productLimit to mobileview
 // 20230325 PHR Added memberShip to query and corrected an error in labelView for members. 
 // 20230331 PHR Added $freeLabels to enhance procuctlimit functionality
 // 20230516 PHR Changed number of lines to $productLimit / 5 for members
-// 04/09/2024 PBLM added sidemenu
+// 20250221 PHR Added $setFirstPrint for speed optimizing
 
 @session_start();
 $s_id=session_id();
-?>
-<!DOCTYPE html>
-<html lang="da">
-<head>
-<script src='tailwind.js'></script>
-<link href='flowbite.min.css' rel='stylesheet' />
-</head>
-<?php
+
 if(isMobileDevice()) {
 	$mobile=1;
 	$css='../css/mysale_m.css';
@@ -76,10 +69,19 @@ if ($id) {
 	else $account=$kto;
 	include ('../includes/db_query.php');
 }
+
+if ($db == 'pos_76') $showForSale = 1;
+elseif ($db == 'pos_92') $showForSale = 1;
+elseif ($db == 'pos_111') $showForSale = 1;
+else $showForSale = 0;
+
+
 if (!is_numeric($account)) {
 	print "<center><br><br><br><br><b>Fejl i ID<br><br>Kontakt butikken for nyt ID</b>";
 	exit;
 }
+$accountId = (int)$accountId;
+$account   = (int)$account;
 
 setcookie("mylabel","$account|$db",0,"/");
 
@@ -94,12 +96,12 @@ include ('../includes/std_func.php');
 
 (substr($_SERVER['PHP_SELF'],0,4)=='/no/')?$sprog_id=3:$sprog_id=1;
 
+$labelsize = get_settings_value("labelsize", "mysale", 22);
+
 $qtxt = "select var_value from settings where var_name='medlemSetting' or var_name = 'memberShip'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $medlem = $r['var_value'];
 else $medlem = NULL;
-
-$labelsize = get_settings_value("labelsize", "mysale", 22);
-
+#if ($showForSale) $medlem = 1;
 if (isset($_GET['page'])) $page = $_GET['page']; 
 (isset($_GET['condition']))?$condition=$_GET['condition']:$condition='used';
 (isset($_POST['mySale']))?$mySale=$_POST['mySale']:$mySale=NULL; 
@@ -112,7 +114,6 @@ elseif (isset($_POST['printLabels'])) $print='Label';
 else $print=NULL;
 $pL = '';
 $lineColor=$bgcolor5;
-
 
 $cols=5;
 if ($mySale) {
@@ -131,6 +132,7 @@ if ($mySale) {
 	$printIds=$Lp= '';
 	$productLimit = if_isset($_POST['productLimit'],NULL);
 	($medlem)?$rows = $productLimit/5:$rows=13;
+  #cho "$medlem $productLimit $rows";
 	for ($a=1;$a<=$rows;$a++) {
 		for ($b=1;$b<=$cols;$b++) {
 			$price[$a][$b]     = if_isset($price[$a][$b],0);
@@ -144,14 +146,10 @@ if ($mySale) {
 			}
 			$price[$a][$b]=str_replace('|','',$price[$a][$b]);
 			$price[$a][$b] = usdecimal($price[$a][$b])*1;
-			$chk = $labelName[$a][$b];
-			$new='';
-			/* for ($i = 0; $i < strlen($chk); $i++) {
-				($i && $i-1 != ' ')?$new.= strtolower(mb_substr($chk[$i])):$new.=mb_substr($chk[$i]); */
-#echo print __line__." $db ". $new ."<br>\n";
-			#}
-#			$labelName[$a][$b] = db_escape_string($new);
+			$labelName[$a][$b] = db_escape_string(trim($labelName[$a][$b]));
+#cho $labelId[$a][$b] ." || ". $labelName[$a][$b] ."||". $price[$a][$b] ."<br>";
 			if ($labelId[$a][$b]) {
+#cho $labelId[$a][$b]."<br>";
 				$barcode[$a][$b]=dechex($price[$a][$b]*100);
 				while(strlen($barcode[$a][$b])<6) $barcode[$a][$b]='0'.$barcode[$a][$b];
 				$barcode[$a][$b]=$labelId[$a][$b].$barcode[$a][$b];
@@ -193,9 +191,11 @@ if ($mySale) {
 				$qtxt = "select id from mylabel where account_id = '$accountId' and page =  '$page' and condition = '$condition'";
 				$qtxt.= " and row = '$a' and col ='$b' and hidden = false";
 				if ($medlem) $qtxt.= " and sold ='0'";
+#cho $qtxt ."<br>";
 				if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 					$qtxt = "insert into mylabel (account_id,page,condition,row,col,description,price,hidden,sold,created) values ";
 					$qtxt.= "('$accountId','$page','$condition','$a','$b','". $labelName[$a][$b] ."','" .$price[$a][$b]. "',FALSE,0,".date('U').")";
+#cho $db." ".$qtxt ."<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$qtxt = "select max(id) as id from mylabel where account_id = '$accountId' and page='$page' ";
 					$qtxt.= "and description = '". $labelName[$a][$b] ."' and price = '". $price[$a][$b] ."' ";
@@ -213,8 +213,12 @@ if ($mySale) {
 			}
 		}
 	}
-	#if ($new) $page++;
+	if ($new) $page++;
 	if ($print) {
+		$setFirstPrint = 0;
+		$qtxt = "select id from mylabel where account_id = '$accountId' and page='$page' ";
+		$qtxt.= "and hidden is FALSE and firstprint is NULL";
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $setFirstPrint = 1;
 		if ($print=='Label') {
 			if (!$printIds) $printIds= $pL;
 			if (!$printIds) {
@@ -228,6 +232,11 @@ if ($mySale) {
 				if ($lockPrint[$x]) {
 					$qtxt = "update mylabel set lastprint = '". date('U') ."' where id = '$lockPrint[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					if ($setFirstPrint) {
+						$qtxt = "update mylabel set firstprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
+						$qtxt.= "and hidden is FALSE and firstprint is NULL";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					}
 				}
 			}
 			print "<BODY onload=\"javascript:";
@@ -236,6 +245,11 @@ if ($mySale) {
 			$qtxt = "update mylabel set lastprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
 			$qtxt.= "and hidden is FALSE";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			if ($setFirstPrint) {
+				$qtxt = "update mylabel set firstprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
+				$qtxt.= "and hidden is FALSE and firstprint is NULL";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
 			print "<BODY onload=\"javascript:";
 			print "window.open('../lager/labelprint.php?account=$account&condition=$condition&page=$page&print=$print');\">";
 		}
@@ -251,7 +265,7 @@ $account=$r['kontonr'];
 $productLimit=$r['productlimit'];
 $custName=$r['firmanavn'];
 $access=$r['mysale'];
-
+if ($productLimit) $medlem = 1;
 /*
 $qtxt = "select var_value from settings where var_name='medlemSetting'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $medlem=$r['var_value'];
@@ -268,6 +282,7 @@ $itemId=$r['id'];
 $itemNo=$r['varenr'];
 
 if (strlen($itemNo) != 9) {
+	#cho "fejl i varenr ". strlen($itemNo);
 	exit;
 }
 
@@ -302,6 +317,7 @@ $qtxt.= "where account_id = '$accountId' and page='$page' and condition='$condit
 if ($medlem) $qtxt.= " and sold ='0'";
 $qtxt.= " order by row,col";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+#cho "R $rows<br>";
 while ($r=db_fetch_array($q)) {
 	for ($a=1;$a<=$rows;$a++) {
 		for ($b=1;$b<=5;$b++) {
@@ -316,140 +332,10 @@ while ($r=db_fetch_array($q)) {
 	}
 }
 
-$urlPrefix = "https://ssl8.saldi.dk/laja/mysale/mysale.php?id=";
-if (strpos($id, $urlPrefix) === 0) {
-    // Remove the URL prefix
-    $newId = str_replace($urlPrefix, '', $id);
-}else{
-	$newId = $id;
-}
-?>
-<body class="dark:bg-gray-700">
-<?php
-include_once("sidemenu.php");
-?>
-<div class="p-4 lg:ml-64 h-screen">
-	<div class="w-full dark:text-white text-center">
-		<p class="text-5xl lg:text-xl"><?php echo $custName ?> • <?php if($condition == 'new'){ echo findtekst(1951, $sprog_id); }else{ echo findtekst(1952, $sprog_id);} ?></p>
-		<p class="text-5xl lg:text-xl"><?php echo findtekst(1948, $sprog_id) ?></p>
-		<p class="text-5xl lg:text-xl"><?php echo findtekst(1949, $sprog_id) ?></p>
-
-		<?php if ($medlem){
-			if($vareLimit <= 0) $vareLimit = 0;?>
-			<p>Du kan tilføje <b><?php echo $vareLimit ?></b> varer.</p>
-		<?php } ?>
-		<p><a href="https://saldi.dk/dok/myLabelPdf_<?php echo $sprog_id ?>.pdf" target="_blank" class='font-medium text-5xl lg:text-xl text-blue-600 dark:text-blue-500 hover:underline'><?php echo findtekst(1950, $sprog_id) ?></a></p>
-	</div>
-	<div class="flex flex-col items-center mb-3">
-			<label for="condition" class="mb-2 text-5xl lg:text-xl font-medium text-gray-900 dark:text-white">Vælg nyt hvis dit salg skal være med moms ellers vælg brugt</label>
-			<select name="condition" id="condition" onchange="javascript:this.form.submit()" class="w-96 lg:w-60 bg-gray-50 border border-gray-300 text-gray-900 text-5xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-				<option value="used" <?php echo ($condition == 'used') ? 'selected' : ''; ?>>Brugt</option>
-				<option value="new" <?php echo ($condition == 'new') ? 'selected' : ''; ?>>Nyt</option>
-			</select>
-	</div>
-	<script>
-		const condition = document.getElementById('condition')
-		condition.addEventListener('change', function() {
-			const url = `mylabel.php?id=<?php echo $newId ?>&condition=${condition.value}`;
-			window.location.href = url;
-		})
-	</script>
-	<form action="mylabel.php?id=<?php echo $newId ?>&condition=<?php echo $condition ?>" method="post" class='mt-4'>
-		<input type="hidden" name="page" value="<?php echo $page ?>">
-		<input type="hidden" name="itemNo" value="<?php echo $itemNo ?>">
-		<input type="hidden" name="itemId" value="<?php echo $itemId ?>">
-		<input type="hidden" name="productLimit" value="<?php echo $productLimit ?>">
-		<input type="hidden" name="update" value="1">
-		<?php if(!$medlem) { ?>
-				<div class="flex justify-center">
-				<label for="page" class="block mb-2 text-2xl lg:text-md font-medium text-gray-900 dark:text-white mr-2">Side </label>
-					<select name="page" id="page" onchange="javascript:this.form.submit()" class="w-44 lg:w-28 bg-gray-50 border border-gray-300 text-gray-900 text-5xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-						<option value="<?php echo $page ?>"><?php echo $page ?></option>
-						<?php for ($p=1;$p<=$pages;$p++) {
-							if ($p != $page) { ?>
-								<option value="<?php echo $p ?>"><?php echo $p ?></option>
-							<?php }
-						} ?>
-					</select>
-				</div>
-			<?php } $count = 0;?>
-			<?php print "<div class='w-full lg:w-1/2 grid grid-cols-1 lg:grid-cols-5 mx-auto mt-4'>";
-	($medlem)?$lines = $productLimit/5:$lines=13;
-	for ($a=1;$a<=$lines;$a++) {
-		($lineColor==$bgcolor)?$lineColor=$bgcolor5:$lineColor=$bgcolor;
-#		if (!$productLimit || $count <= $productLimit) {
-			print "<tr>";
-			for ($b=1;$b<=5;$b++) {
-				if (!isset ($barcode[$a][$b]))   $barcode[$a][$b]   = NULL;
-				if (!isset ($labelId[$a][$b]))   $labelId[$a][$b]   = NULL;
-				if (!isset ($labelName[$a][$b])) $labelName[$a][$b] = NULL;
-				if (!isset ($lastPrint[$a][$b])) $lastPrint[$a][$b] = NULL;
-				if (!isset ($price[$a][$b]))     $price[$a][$b]     = NULL;
-				($lastPrint[$a][$b] && $price[$a][$b])?$ro="readonly='readonly'":$ro=NULL;
-				($price[$a][$b])?$price[$a][$b]=dkdecimal($price[$a][$b]):$price[$a][$b]=NULL;
-				($lastPrint[$a][$b])?$title="title = 'Sidst udskrevet ". date("d.m.y H:i",$lastPrint[$a][$b]) ."'":$title=NULL;
-				$count++;
-				($freeLabels > 0)?$showLabel=1:$showLabel=0;
-				if ($labelId[$a][$b]) $showLabel=1;
-				if ($showLabel && !$labelId[$a][$b]) $freeLabels--;
-				print "<div $title class='". ($mobile ? 'grid grid-cols-9' : '') ."'>";
-				if (!$productLimit || $showLabel) {
-					print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-					print "<input type='text' $ro maxlength='$labelsize' name='labelName[$a][$b]' class='". ($mobile ? 'col-span-5' : '') ." bg-gray-50 border border-gray-300 text-gray-900 text-5xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500'";
-					print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
-					print "<input type='text' $ro name='price[$a][$b]' class='". ($mobile ? 'col-span-2' : '') ." bg-gray-50 border border-gray-300 text-gray-900 text-5xl lg:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500'";
-					print "value='". $price[$a][$b] ."' placeholder='Pris'>";
-					if ($labelId[$a][$b]) {
-						print "<div class='". ($mobile ? 'col-span-2' : '') ." flex items-center lg:mt-2 lg:mb-2 mt-4 mb-4'>";
-						print "<input type='checkbox' name='selectLabel[$a][$b]' $all class='w-14 h-14 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:border-gray-600 lg:w-4 lg:h-4 mr-2'>";
-						if ($labelId[$a][$b] && $barcode[$a][$b]) {
-							($lastPrint[$a][$b])?$title="title = 'Sidst udskrevet ". date('d.m.y H:i',$lastPrint[$a][$b]) ."'":$title=NULL;
-							#print "<span $title>";
-							print "<a href='../lager/labelprint.php?account=$account&condition=$condition&print=label&";
-							print "stregkode=". $barcode[$a][$b] ."&labelId=". $labelId[$a][$b] ."' target='_blank'>";
-							print "<img src=\"../ikoner/print.png\" style=\"border: 0px solid;\" class='w-14 h-14 lg:w-4 lg:h-4'></a>";
-							if ($lastPrint[$a][$b]) print "&nbsp;<img src=\"../ikoner/checkmrk.png\" style=\"border: 0px solid;\" class='w-14 h-14 lg:w-4 lg:h-4'>";
-							#print "</span>";
-						}
-						print "</div>";
-					} else {
-						print "<input type='hidden' name='selectLabel[$a][$b]' value=''>";
-					}
-				}
-				print "</div>";
-			}
-#		}
-	}
-	print "</div>";
-
-	print "<div class='text-center dark:text-white my-4 py-2 grid grid-cols-3 lg:grid-cols-6 gap-20 text-4xl lg:text-sm'>";
-	print "<input type='submit' name='update' value='". findtekst(3, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	$title = findtekst(1942, $sprog_id);
-	print "<td title = '$title'>";
-	print "<input type='submit' name='delete' value='". findtekst(1099, $sprog_id) ."'";
-	print "onclick=\"return confirm('". findtekst(1943, $sprog_id) ."')\" class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	$title = findtekst(1944, $sprog_id);
-	if(!$medlem){
-	print "<td title = '$title'>";
-	print "<input type='submit' name='new' value='". findtekst(1945, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	}
-	$title = findtekst(1946, $sprog_id);
-	print "<td title = '$title'>";
-	print "<input type='submit' name='all' value='". findtekst(89, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	print "<input type='submit' name='printSheet' value='". findtekst(1953, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	$title = findtekst(1954, $sprog_id);
-	print "<td title = '$title'>";
-	print "<input type='submit' name='printLabels' value='". findtekst(1955, $sprog_id) ."' class='text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>";
-	print "</form>";
-	print "</div>";
-				?>
-				<div class="h-14 lg:h-1"></div>		
-</div>
-<?php
-/* if ($medlem){
+if ($medlem){
 	$i = 0;
 	$tilsalgOprettet = array();
-	$qtxt = "SELECT id from mylabel where account_id = '$accountId' and sold = '0' and hidden = 'f'";
+	$qtxt = "select id from mylabel where account_id = '$accountId' and sold = '0' and hidden = 'f'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$tilsalgOprettet[$i]=$r['id'];
@@ -457,7 +343,10 @@ include_once("sidemenu.php");
 	}
 	$vareLimit = $productLimit - count($tilsalgOprettet);
 } else $vareLimit = $productLimit = 0;
-print "<div class='w-full lg:w-1/2 mx-auto'>";
+if ($showForSale) $vareLimit = 99999;
+print "<html lang='da-dk'><body>";
+print "<div class='flex-container'>";
+print "<div class='container'>";
 print "<div class='kundeNavn'>$custName • ";
 if ($condition == 'new') print findtekst(1951, $sprog_id) ."</div><br>";
 else print findtekst(1952, $sprog_id) ."</div>";
@@ -467,9 +356,9 @@ if ($mobile) {
 	print "<br>";
 	print "<div class='center'>". findtekst(1948, $sprog_id) ."<br>\n";
 	print findtekst(1949, $sprog_id) ." ";
-	if ($medlem){
+	if ($medlem) {
 		if($vareLimit <= 0) $vareLimit = 0;
-		print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
+			print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
 	}
 	print "<a href='https://saldi.dk/dok/myLabelPdf_$sprog_id.pdf' target='_blank'>". findtekst(1950, $sprog_id) ."</a></div>\n";
 }
@@ -514,8 +403,8 @@ for ($a=1;$a<=$rows;$a++) {
 				if ($mobile) print "<td class='tdLabel'; $title>";
 				else print "<td class='tdLabel'; $title>";
 				print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-				if ($mobile) print "<input type='text' $ro maxlength='22' class='inputLabel' name='labelName[$a][$b]' ";
-				else print "<input type='text' $ro maxlength='22' class='inputLabel' name='labelName[$a][$b]' ";
+				if ($mobile) print "<input type='text' $ro maxlength='$labelsize' class='inputLabel' name='labelName[$a][$b]' ";
+				else print "<input type='text' $ro maxlength='$labelsize' class='inputLabel' name='labelName[$a][$b]' ";
 				print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
 				($price[$a][$b])?$ta='text-align:right':$ta='text-align:center';
 				print "<input type='text' $ro style='$ta;' class='inputPris' 
@@ -556,10 +445,10 @@ for ($a=1;$a<=$rows;$a++) {
 	print "</form>";
 } else {
 	print "<table class='table' border = '1' valign='top'>\n";
-	($medlem)?$lines = $productLimit/5:$lines=13;
+	($medlem && $db != 'pos_76' && $db != 'pos_92' && $db != 'pos_111')?$lines = $productLimit/5:$lines=13;
 	for ($a=1;$a<=$lines;$a++) {
 		($lineColor==$bgcolor)?$lineColor=$bgcolor5:$lineColor=$bgcolor;
-#		if (!$productLimit || $count <= $productLimit) {
+		if (!$productLimit || $count <= $productLimit) {
 			print "<tr bgcolor='$lineColor'>";
 			for ($b=1;$b<=5;$b++) {
 				if (!isset ($barcode[$a][$b]))   $barcode[$a][$b]   = NULL;
@@ -577,7 +466,7 @@ for ($a=1;$a<=$rows;$a++) {
 				print "<td style='width:175px;height:40px'; $title>";
 				if (!$productLimit || $showLabel) {
 					print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-					print "<input type='text' $ro maxlength='22' style='width:150px;' name='labelName[$a][$b]' ";
+					print "<input type='text' $ro maxlength='$labelsize' style='width:150px;' name='labelName[$a][$b]' ";
 					print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
 					if ($labelId[$a][$b]) print "<input type='checkbox' name='selectLabel[$a][$b]' $all>"; 
 					else print "<input type='hidden' name='selectLabel[$a][$b]' value=''>";
@@ -595,7 +484,7 @@ for ($a=1;$a<=$rows;$a++) {
 				print "</td>";
 			}
 			print "</tr>\n";
-#		}
+		}
 	}
 	print "</td></tr></table>";
 	print "<div class='footer'>";
@@ -630,8 +519,8 @@ for ($a=1;$a<=$rows;$a++) {
 	print "</tr>\n";
 	print "</form>";
 	print "</div>\n";
-
-} */
+	print "</div>\n";
+}
 
 include ('../includes/connect.php');
 $qtxt = "delete from online where session_id='$s_id' and brugernavn='$account' and db='$db'";
@@ -640,4 +529,4 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 function isMobileDevice() {
     return preg_match("/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i", $_SERVER["HTTP_USER_AGENT"]);
 }
-print "<script src='flowbite.min.js'></script></body></html>";
+print "</body></html>";

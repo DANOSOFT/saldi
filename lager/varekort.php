@@ -2087,8 +2087,12 @@ document.varekort.$fokus.focus();
         kostpris.addEventListener("change", (e) => {
             if (confirm("Er du sikker på du vil ændre kostprisen?") == true) {
                 kostpris.value = e.target.value;
-            } else {
+                const form = document.querySelector("[name=saveItem]");
+                form.click()
+            }else{
                 kostpris.value = oldCost;
+                const form = document.querySelector("[name=saveItem]");
+                form.click()
             }
         })
     }

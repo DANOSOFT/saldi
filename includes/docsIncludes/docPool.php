@@ -103,6 +103,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if ($unlinkFile) unlink($unlinkFile);
 		elseif (isset($_POST['poolFile'])) {
 			$poolFile=if_isset($_POST['poolFile']);
+#cho "slettter ../".$docFolder."/$db/pulje/$poolFile<br>";
 			if ($poolFile) unlink("../".$docFolder."/$db/pulje/$poolFile");
 		}
 #exit;
@@ -153,10 +154,23 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<tr><td width=15% height=\"70%\" align=center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid rgb(180, 180, 255); padding: 0pt 0pt 1px;\"><tbody>\n";
 	print "<tr><td width=100% align=center>\n";
 	$fil_nr=0;
+#cho "$sourceId<br>";
 		if (is_dir($dir)) {
 			$files = scandir($dir);
-			sort($files);
+			$fileDates = array();
+			$i=0;
 			foreach ($files as $file) {
+				 if (strlen($file) > 2 && !in_array(date("Y-m-d",filemtime($dir . '/' . $file)),$fileDates)) {
+					$fileDates[$i] = date("Y-m-d",filemtime($dir . '/' . $file));
+					$i++;
+				 }
+			}
+			sort($fileDates);
+			sort($files);
+			for ($i=0;$i<count($fileDates);$i++) {
+				print "<tr><td align = 'center'><b>$fileDates[$i]</b></td></tr>";
+			foreach ($files as $file) {
+				if ($fileDates[$i] == date("Y-m-d",filemtime($dir . '/' . $file))) {
 				if ($file != '.' && $file != '..' && substr($file,-5)!='.desc') {
 # 				if (substr($file,0,1)!='.' && substr($file,-5)!='.desc') {
 					if (substr($file,0,7) == '__UTF-8') {
@@ -210,7 +224,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 #					$hreftxt.= "onfocus=\"document.forms[0].fokus.value=this.name;\" id=\"$fil_nr\"";
 					print "<tr><td bgcolor=\"$bgcolor\">";
 					print "<a href='$hreftxt' onfocus=\"document.forms[0].docFocus.value=this.name;\" id=\"$fil_nr\">$file</a></td></tr>\n";
-				}
+				}}}
 			}
 #			closedir($dh);
 		}

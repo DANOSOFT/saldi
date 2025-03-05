@@ -62,7 +62,7 @@
 // 20230822 MSC - Copy pasted new design into code
 // 20231030	PHR Added 'Saldo'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20250205 PHR Added "betalt = '0' or " and better recognition of FIK string
+// 20250205 PHR Added "betalt = '0' or "
 
 ini_set("auto_detect_line_endings", true);
 

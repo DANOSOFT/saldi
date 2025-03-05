@@ -658,7 +658,8 @@ print "<tr><td></td>";
 		} else print "<input class='inputboks' class=\"inputbox\" type=text style=\"text-align:$justering[$x];$width;\" name=find[$x] value=\"$find[$x]\">";
 	}
 	print "</td>\n";  
-print "<td align=center><input class='button blue small ' type=submit value=\"OK\" name=\"submit\"></td>";
+print "<td align=center><input class='button blue small ok' type=submit value=\"OK\" name=\"submit\"></td>";
+print "<td align=center><input class='button blue small ' type=submit value=\"Ryd\" name=\"clear\"></td>";
 print "</form></tr>\n";
 
 print "
@@ -1411,3 +1412,26 @@ function select_valg( $valg, $box ){  #20210623
 
 
 ?>
+
+<script>
+const clearButton = document.querySelector("[name=clear]");
+clearButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    
+    const form = document.querySelector('form[name="sogefelter"]')
+    if (form) {
+        const findInputs = document.querySelectorAll('[name^="find["]')
+        findInputs.forEach(input => {
+			console.log(input)
+			if (input.tagName.toLowerCase() === 'select') {
+                // For select elements, set to first option or empty
+                input.selectedIndex = 1;
+            }else{
+				input.value = ''
+			}
+		})
+    }
+	const submitButton = document.querySelector(".ok")
+	submitButton.click()
+})
+</script>

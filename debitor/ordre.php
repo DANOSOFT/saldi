@@ -256,12 +256,17 @@ if (isset($_POST['create_debtor'])) {
 	$postnr=if_isset($_POST['postnr']);
 	$bynavn=if_isset($_POST['tlf']);
 	$email=if_isset($_POST['email']);
+	$phone=if_isset($_POST['phone']);
 	if (substr($email, 0, 11 ) == "debitoripad") {
-		$q = db_select("select email from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
+		$phone = $r["phone"];
+		$firmanavn = $r["firmanavn"];
+		$addr1 = $r["addr1"];
+		$postnr = $r["postnr"];
+		$bynavn = $r["bynavn"];
 	}
-	$phone=if_isset($_POST['phone']);
 	$cvrnr=if_isset($_POST['cvrnr']);
 	$grp=if_isset($_POST['grp']);
 	$ean=if_isset($_POST['ean']);
@@ -685,9 +690,14 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$email=str_replace(' ','',$email);
 	$email = db_escape_string($email);
 	if (substr($email, 0, 11 ) == "debitoripad") {
-		$q = db_select("select email from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
+		$phone = $r["phone"];
+		$firmanavn = $r["firmanavn"];
+		$addr1 = $r["addr1"];
+		$postnr = $r["postnr"];
+		$bynavn = $r["bynavn"];
 	}
 
 	if (strpos($phone,'@') && !$email) {
@@ -812,10 +822,25 @@ if ($b_submit) {
 	$postnr = db_escape_string($postnr);
 	$land = db_escape_string(trim($_POST['land']));
 	$email = db_escape_string(trim($_POST['email']));
+	$phone=if_isset($_POST['phone']);
+
+	if (strpos($phone,'@') && !$email) {
+		$email = $phone;
+		$phone = '';
+	} 
+	if (strlen($phone) > 15) {
+		alert ("".findtekst(1825, $sprog_id)."");
+		$phone = substr($phone,0,15);
+	}
 	if (substr($email, 0, 11 ) == "debitoripad") {
-		$q = db_select("select email from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
+		$q = db_select("select email, firmanavn, phone, addr1, postnr, bynavn from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 		$email = $r["email"];
+		$phone = $r["phone"];
+		$firmanavn = $r["firmanavn"];
+		$addr1 = $r["addr1"];
+		$postnr = $r["postnr"];
+		$bynavn = $r["bynavn"];
 	}
 
 	$ean = isset($_POST['ean']) ? db_escape_string(trim($_POST['ean'])) : ''; // Default value if not set
@@ -910,16 +935,7 @@ if ($b_submit) {
 	$bruttosum=if_isset($_POST['bruttosum']);
 	$ordresum=if_isset($_POST['ordresum']);
 	$lager=if_isset($_POST['lager']);
-	$phone=if_isset($_POST['phone']);
-
-	if (strpos($phone,'@') && !$email) {
-		$email = $phone;
-		$phone = '';
-	} 
-	if (strlen($phone) > 15) {
-		alert ("".findtekst(1825, $sprog_id)."");
-		$phone = substr($phone,0,15);
-	}
+	
   if ($extAfd && $afd && $extAfd != $afd) {
     $qtxt = "select var_value from settings where var_name = 'maxDepVatRate_". $afd ."'";
     if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -3312,11 +3328,11 @@ $kundeordre = findtekst(1092,$sprog_id);
 		print "</td></tr>\n";
 		if ($firmanavn==$k_firmanavn) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
-    print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_firmanavn\">".findtekst(28,$sprog_id)."</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"firmanavn\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$firmanavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if ($addr1==$k_addr1 && $addr2==$k_addr2) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
     $txt140 = findtekst('140|Adresse', $sprog_id);
-    print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
+	print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_addr1,$k_addr2\">$txt140</td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr1\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr1\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
     print "<tr><td></td><td colspan=\"2\" style=\"color:$tekstcolor;\" ><input class = 'inputbox' type = 'text' style=\"width:200px\" name=\"addr2\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$addr2\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if ($postnr==$k_postnr) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
