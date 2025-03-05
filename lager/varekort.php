@@ -928,7 +928,14 @@ if ($saveItem || $submit = trim($submit)) {
                 if ($r['id'])
                     alert("ret varenr på kopi af `$varenr` først");
                 else {
-                    $qtxt = "insert into varer (varenr,beskrivelse) values ('$copyItemNo','" . db_escape_string($beskrivelse[0]) . "')";
+                   $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+                    if(db_num_rows($query) > 0){
+                        $r = db_fetch_array($query);
+                        $minBeholdning = (int)$r["var_value"];
+                        $qtxt="insert into varer (varenr,beskrivelse,min_lager) values ('$copyItemNo','". db_escape_string($beskrivelse[0], $minBeholdning) ."')";
+                    }else{
+                        $qtxt="insert into varer (varenr,beskrivelse) values ('$copyItemNo','". db_escape_string($beskrivelse[0]) ."')";
+                    }
                     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
                     $r = db_fetch_array(db_select("select id from varer where varenr='$copyItemNo'", __FILE__ . " linje " . __LINE__));
                     $copyId = $r['id'];
