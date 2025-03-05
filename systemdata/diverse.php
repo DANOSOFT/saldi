@@ -577,6 +577,7 @@ if ($_POST) {
 		$statusmail = if_isset($_POST['statusmail']);
 		$lagertrigger = if_isset($_POST['lagertrigger']);
 		$lagertime = if_isset($_POST['lagertime']);
+		$minBeholdning = if_isset($_POST["minBeholdning"]);
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
@@ -826,6 +827,18 @@ if ($_POST) {
 			}
 			sleep(10);
 			alert("$x " . findtekst(1737, $sprog_id) . "");
+		}
+		if($minBeholdning){
+			$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
+			if(db_num_rows($query) > 0){
+				if(is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning){
+					db_modify("UPDATE settings SET var_value = '$minBeholdning' WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
+				}
+			}else{
+				if(is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning){
+					db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('min_beholdning', 'productOptions', '$minBeholdning')",  __FILE__ . " linje " . __LINE__);
+				}
+			}
 		}
 		# varevalg slut
 		#######################################################################################
