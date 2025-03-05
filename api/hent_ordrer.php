@@ -345,7 +345,14 @@ function overfoer_data($shopurl,$shop_ordre_id){
 */			
 			if (!$vare_id[$x] && $varenr[$x] && $beskrivelse) {
 				$kostpris[$x]=$pris[$x]-$pris[$x]/100*$dg;
-				db_modify("insert into varer(varenr,beskrivelse,salgspris,kostpris,gruppe)values('$varenr[$x]','$beskrivelse[$x] (INDSAT FRA SHOP)','$pris[$x]','$kostpris[$x]','1')",__FILE__ . " linje " . __LINE__);
+				$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+				if(db_num_rows($query) > 0){
+					$r = db_fetch_array($query);
+					$minBeholdning = (int)$r["var_value"]; 
+					db_modify("insert into varer(varenr,beskrivelse,salgspris,kostpris,gruppe,min_lager)values('$varenr[$x]','$beskrivelse[$x] (INDSAT FRA SHOP)','$pris[$x]','$kostpris[$x]','1',$minBeholdning)",__FILE__ . " linje " . __LINE__);
+				}else{
+					db_modify("insert into varer(varenr,beskrivelse,salgspris,kostpris,gruppe)values('$varenr[$x]','$beskrivelse[$x] (INDSAT FRA SHOP)','$pris[$x]','$kostpris[$x]','1')",__FILE__ . " linje " . __LINE__);
+				}
 				$r=db_fetch_array(db_select("select id,samlevare from varer where varenr='$varenr[$x]'",__FILE__ . " linje " . __LINE__));
 				$vare_id[$x]=$r['id'];
 				$samlevare[$x]=$r['samlevare'];
