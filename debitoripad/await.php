@@ -57,13 +57,15 @@ if ($r) {
 		$name = $_GET["name"];
 		$addr = $_GET["addr"];
 		$tlf = $_GET["tlf"];
+		$zip = $_GET["zip"];
+		$city = $_GET["city"];
 		/* db_modify("INSERT INTO adresser (firmanavn, addr1, tlf, email) VALUES ('$name', '$addr', '$tlf', '$email')", __FILE__ . " linje " . __LINE__);
 		$query = db_select("SELECT id, kontonr FROM adresser ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
 		$id = $row["id"];
 		$kontonr = $row["kontonr"];
 		echo $id; */
-		db_modify("UPDATE ordrer SET email='$email', firmanavn = '$name', addr1 = '$addr', phone = '$tlf' WHERE email='$brugernavn'", __FILE__ . " linje " . __LINE__);
+		db_modify("UPDATE ordrer SET email='$email', firmanavn = '$name', addr1 = '$addr', phone = '$tlf', postnr = '$zip', bynavn = '$city' WHERE email='$brugernavn'", __FILE__ . " linje " . __LINE__);
 		header('Location: ./await.php');
 		die();
 	}
@@ -81,7 +83,13 @@ if ($r) {
 				<input name="addr" placeholder="Adresse" type="text" required>
 			</div>
 			<div class="input-wrapper">
-				<input name="tlf" placeholder="Tlf" type="text" pattern="(?:(?:00|\+)?45)?\d{8}" required>
+				<input name="tlf" placeholder="Tlf" type="text" required>
+			</div>
+			<div class="input-wrapper">
+				<input name="zip" placeholder="postNr" type="text" required>
+			</div>
+			<div class="input-wrapper">
+				<input name="city" placeholder="By" type="text" required>
 			</div>
 				<button>Gem</button>
 				<span id="cancel" onclick="document.location.href = '?email='">Anuller</span>
