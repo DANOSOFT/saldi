@@ -477,6 +477,7 @@ $data = array(
         beholdning,       
         SUM(beholdning) OVER (PARTITION BY vare_id) AS lager_total  
     FROM lagerstatus
+    GROUP BY vare_id, lager, beholdning
 ),
 levs AS (
     SELECT 
