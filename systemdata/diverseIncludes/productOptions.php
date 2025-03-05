@@ -155,6 +155,26 @@ function productOptions($defaultProvision) {
 	print "<td title='$title'><input type='checkbox' class='inputbox' name='confirmStockChange' $confirmStockChange></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td>";
 
+	# Lager status opsætning
+	$text="Mail til lagerstatusrapproter";
+	$title="Den mail der skal bruges til at modtage lagerstatusrapporter";
+	$statusmail = get_settings_value("mail", "lagerstatus", "");
+	print "<tr><td title='$title'>$text</td>";
+	print "<td title='$title'><input type='text' class='inputbox' name='statusmail' value='$statusmail'></td></tr>";
+
+	$text="Lagerstatus hyppighed (timer)";
+	$title="Hvor ofte lagerstatus mails skal sendes i timer";
+	$lagertime = get_settings_value("time", "lagerstatus", "");
+	print "<tr><td title='$title'>$text</td>";
+	print "<td title='$title'><input type='text' class='inputbox' name='lagertime' value='$lagertime'></td></tr>";
+
+	$text="Lagerstatus beholdnings grænse";
+	$title="Hvornår systemet skal sende beholdnignsmails, altså hvor lavt en beholdning skal komme før der bliver sendt en beholdingsmail";
+	$lagertrigger = get_settings_value("trigger", "lagerstatus", "");
+	print "<tr><td title='$title'>$text</td>";
+	print "<td title='$title'><input type='text' class='inputbox' name='lagertrigger' value='$lagertrigger'></td></tr>";
+	print "<td><br></td><td><br></td><td><br></td>";
+
 	$text=findtekst(1279, $sprog_id);
 	$title=findtekst(1280, $sprog_id);
 	print "<tr><td title='$title'>$text</td>";

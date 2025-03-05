@@ -514,7 +514,12 @@ echo __line__."<br>";
 #echo __line__."<br>";
 #			if (substr($rettigheder,5,1)=='1') include("../debitor/rykkertjek.php");
 #echo __line__."<br>";
-#		transtjek();
+		# Lager status mail
+		if (file_exists("../lager/lagerstatusmail.php")) {
+			$email = get_settings_value("mail", "lagerstatus", "");
+			if ($email) include("../lager/lagerstatusmail.php");
+		}
+		transtjek();
 		}
 		if (file_exists("../utils/rotary_addrsync.php") && is_numeric($regnskab) && !file_exists("../temp/$db/rotary_addrsync.txt")) {
 			include("../utils/rotary_addrsync.php");
