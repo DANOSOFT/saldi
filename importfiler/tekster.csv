@@ -3114,3 +3114,5 @@
 3115	Anvend omvendte primær og sekundær menuer (primærmenu i bunden)	Flip the primary and secondarry menus (primary on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
 3116	Decimaler på rabat	Decimals for discount values	Decimaler på rabatt
 3117	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt
+3118	Minimums beholdning på varer	Minimum inventory of goods	Minimum varelager
+3119	Standard minimums beholdning	Standard minimum stock	Standard minstelager
