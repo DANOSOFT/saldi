@@ -103,6 +103,8 @@ function productOptions($defaultProvision) {
 	}
 	$qtxt="select var_value from settings where var_name = 'numberFormat' and var_grp = 'localization'";
 	($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$numberFormat = $r['var_value']:$numberFormat = '.|,';
+	$qtxt = "SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'";
+	($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$minBeholdning = (int)$r["var_value"]:$minBeholdning = 0;
 	print "<form name='productOptions' action='diverse.php?sektion=productOptions' method='post'>";
 	print "<tr><td colspan='6'><hr></td></tr>";
 	$text=findtekst(470,$sprog_id);
@@ -254,6 +256,11 @@ function productOptions($defaultProvision) {
 		print "<td title='$title'><input type='text' class='inputbox' style='width:75px;' name='comissionFromDate' ";
 		print "value='$commissionFromDate' placeholder='01-01-2020'></td></tr>";
 	}
+	print "<tr><td><br></td><td><br></td><td><br></td></tr>";
+	$text=findtekst(3119, $sprog_id);
+	$title=findtekst(3118, $sprog_id);
+	print "<tr><td title='$title'>$text</td>";
+	print "<td title='$title'><input type='text' class='inputbox' name='minBeholdning' value='$minBeholdning'></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td>";
 	$text=findtekst(471,$sprog_id);
 	print "<td align = center><input class='button green medium' type=submit accesskey='g' value='$text' name='submit'><!--tekst 471--></td>";
