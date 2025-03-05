@@ -129,8 +129,8 @@
 129	Vis fakturaliste.	Show invoice list.	Vis fakturaliste.
 130	Vis historik.	View history.	Vis historie.
 131	Historik	History	Historie
-132	Vis Kontokort.	View General Ledger.	Vis kontokort.
-133	Kontokort	General Ledger	Kontokort
+132	Vis Kontokort.	View General ledger.	Vis kontokort.
+133	Kontokort	General ledger	Kontokort
 134	Fakturaliste	Invoice list	Fakturaliste
 135	Klik her for at sortere på kontonummer.	Click here to sort by account number.	Klikk her for å sortere etter kontonummer.
 136	Kontonummer	Account number	Kontonummer
@@ -440,7 +440,7 @@
 440	Konto	Account	Regnskap
 441	Åbne poster	Open Items	Åpne poster
 442	Kontosaldo	Account balance	Saldo
-443	Kontokort	General Ledger	Kontokort
+443	Kontokort	General ledger	Kontokort
 444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per. the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
 445	Viser en liste over saldi på valgte konti pr. den angivne dato 	Displays a list of balances on selected accounts per. the specified date	Viser en liste over saldoer på valgte kontoer pr. angitt dato
 446	Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.	Displays a specification of account movements on selected accounts in the specified date range.	Viser en spesifikasjon av kontotransaksjoner på valgte kontoer i det angitte datoperioden.
@@ -512,8 +512,8 @@
 512	Saldo for driftkonti og summering af disse for valgte konti i valgt periode.	Balance of current accounts and summation of these for selected accounts in selected period.	Balanse over løpende kontoer og summering av disse for utvalgte kontoer i valgt periode.
 513	Saldo for driftkonti + budgettal og summering af disse for valgte konti i valgt periode.	Balance for operating accounts + budget figures and summation of these for selected accounts in selected period.	Balanse for driftskontoer + budsjettall og summering av disse for utvalgte kontoer i valgt periode.
 514	Saldo for momskonti og summering i valgt periode.	Balance for VAT accounts and summary in selected period.	Saldo for merverdiavgiftskontoer og sammendrag i valgt periode.
-515	Kontokort	General Ledger	Kontokort
-516	Kontokort med moms	General Ledger with VAT	Kontokort med MVA
+515	Kontokort	General ledger	Kontokort
+516	Kontokort med moms	General ledger with VAT	Kontokort med MVA
 517	Balance	Balance	Balanse
 518	Resultat	Result	Resultat
 519	Resultat/budget	Result / budget	Resultat / budsjett
@@ -2170,9 +2170,9 @@
 2170	Finansopslag	Finance Lookup	Finansoppslag
 2171	Afstem bank	Reconcile Bank	Avstem bank
 2172	Luk	Close	Lukk
-2173	Rapport - kontokort	Report - General Ledger	Rapport - Kontokort
+2173	Rapport - kontokort	Report - General ledger	Rapport - Kontokort
 2174	Antal kunder pr. time i gennemsnit over de sidste 30 dage	Average number of customers per hour in the last 30 days	Gjennomsnittlig antall kunder per time de siste 30 dagene
-2175	Simuleret kontokort	Simulated General Ledger	Simulert kontokort
+2175	Simuleret kontokort	Simulated General ledger	Simulert kontokort
 2176	CVR	VAT	MVA
 2177	Simulering	Simulation	Simulering
 2178	Pos nr.	Item no.	Varenr.
@@ -2367,10 +2367,10 @@
 2367	Just.	Align	Just.
 2368	Side	Page	Side
 2369	Fed	Bold	Fet
-2370
-2371
-2372
-2373
+2370	Alle	All	Alle
+2371	Her har du mulighed for at flytte centreringen på formularen	Here you have the option to move the centering of the form	Her har du mulighet til å flytte sentreringen på skjemaet
+2372	Angiv blot det antal mm der skal flyttes hhv. op og til højre	Simply specify the number of mm to move upwards and to the right respectively	Angi bare antall mm som skal flyttes hhv. opp og til høyre
+2373	Anvend negativt fortegn, hvis der skal rykkes ned eller til venstre	Use a negative sign if it should be moved downwards or to the left	Bruk negativt fortegn hvis det skal flyttes ned eller til venstre
 2374
 2375
 2376
