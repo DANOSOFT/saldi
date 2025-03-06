@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- lap 4.1.1 --- 2025-02-21 ---
+// --- mysale/mylabel.php --- lap 4.1.1 --- 2025-03-06 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2020 - 2023 saldi.dk aps
+// Copyright (c) 2020 - 2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20200617 PHR Support for more pages.
 // 20200702 PHR Support for single label.
@@ -41,6 +41,7 @@
 // 20230331 PHR Added $freeLabels to enhance procuctlimit functionality
 // 20230516 PHR Changed number of lines to $productLimit / 5 for members
 // 20250221 PHR Added $setFirstPrint for speed optimizing
+// 20250306 PHR inserted ceil after '$rows = ' as last row was not saved if rows was not divisible by 5
 
 @session_start();
 $s_id=session_id();
@@ -129,10 +130,9 @@ if ($mySale) {
 	$itemNo      = $_POST['itemNo'];
 	$itemId      = $_POST['itemId'];
 	$selectLabel = if_isset($_POST['selectLabel'],NULL);
-	$printIds=$Lp= '';
+	$printIds = $Lp = '';
 	$productLimit = if_isset($_POST['productLimit'],NULL);
-	($medlem)?$rows = $productLimit/5:$rows=13;
-  #cho "$medlem $productLimit $rows";
+	($productLimit) ? $rows = ceil($productLimit / 5) : $rows = 13; # 20250306;
 	for ($a=1;$a<=$rows;$a++) {
 		for ($b=1;$b<=$cols;$b++) {
 			$price[$a][$b]     = if_isset($price[$a][$b],0);
