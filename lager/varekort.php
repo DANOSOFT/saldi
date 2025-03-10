@@ -1811,6 +1811,7 @@ print "value=\"" . findtekst(3, $sprog_id) . "\" name=\"saveItem\" onclick=\"jav
 
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
 if ($varenr && $samlevare == 'on') {
+	$txt1100 = findtekst(1100, $sprog_id);
 		print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey=\"k\" value=\"".findtekst(1100,$sprog_id)."\" name=\"submit\"></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
 } elseif ($varenr) {
