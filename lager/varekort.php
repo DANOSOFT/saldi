@@ -928,23 +928,54 @@ if ($saveItem || $submit = trim($submit)) {
                 if ($r['id'])
                     alert("ret varenr på kopi af `$varenr` først");
                 else {
-                    $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
-                    if (db_num_rows($query) > 0) {
-                        $r = db_fetch_array($query);
-                        $minBeholdning = (int) $r["var_value"];
-                        $qtxt = "insert into varer (varenr,beskrivelse,min_lager) values ('$copyItemNo','" . db_escape_string($beskrivelse[0], $minBeholdning) . "')";
-                    } else {
-                        $qtxt = "insert into varer (varenr,beskrivelse) values ('$copyItemNo','" . db_escape_string($beskrivelse[0]) . "')";
-                    }
+                   $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
+                    string_agg(column_name, ', ') AS dest_columns,
+                    string_agg(CASE WHEN column_name = 'varenr' THEN 'varenr || ''_copy''' ELSE column_name END, ', ') AS source_columns
+                    FROM information_schema.columns 
+                    WHERE table_name = 'varer' AND column_name != 'id'", __FILE__ . " linje " . __LINE__);
+                    $row = db_fetch_array($query);
+                    $dest_columns = $row['dest_columns'];
+                    $source_columns = $row['source_columns'];
+                    $copyNr = $varenr."_copy";
+                    // Next, build the INSERT query
+                    $qtxt = "INSERT INTO varer ($dest_columns) SELECT $source_columns FROM varer WHERE id = $id";
+                    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+                    $r=db_fetch_array(db_select("select id from varer where varenr='$copyNr'",__FILE__ . " linje " . __LINE__));
+                    $copyId=$r['id'];
+
+                    $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
+                    string_agg(CASE WHEN column_name = 'vare_id' THEN 'vare_id' ELSE column_name END, ', ') AS dest_columns,
+                    string_agg(CASE WHEN column_name = 'vare_id' THEN '$copyId' ELSE column_name END, ', ') AS source_columns
+                    FROM information_schema.columns 
+                    WHERE table_name = 'vare_lev' AND column_name != 'id'", __FILE__ . " linje " . __LINE__);
+
+                    $row = db_fetch_array($query);
+                    $dest_columns = $row['dest_columns'];
+                    $source_columns = $row['source_columns'];
+
+                    // Next, build the INSERT query using those columns
+                    $qtxt = "INSERT INTO vare_lev ($dest_columns) SELECT $source_columns FROM vare_lev WHERE vare_id = $id";
+
+                    // Execute the INSERT query
                     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-                    $r = db_fetch_array(db_select("select id from varer where varenr='$copyItemNo'", __FILE__ . " linje " . __LINE__));
-                    $copyId = $r['id'];
-                    #                   $qtxt=str_replace("where id = '$id'","where id = '$copyId'",$qtxt);
-#                   db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-#                   $id=$copyId;
-#                   transaktion('commit');
-#                   print "<meta http-equiv=\"refresh\" content=\"0;URL=ret_varenr.php?id=$copyId\">";
-#                   exit;
+
+                    if($samlevare == "on"){
+                        $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
+                        string_agg(CASE WHEN column_name = 'indgaar_i' THEN 'indgaar_i' ELSE column_name END, ', ') AS dest_columns,
+                        string_agg(CASE WHEN column_name = 'indgaar_i' THEN '$copyId' ELSE column_name END, ', ') AS source_columns
+                        FROM information_schema.columns 
+                        WHERE table_name = 'styklister' AND column_name != 'id'", __FILE__ . " linje " . __LINE__);
+
+                        $row = db_fetch_array($query);
+                        $dest_columns = $row['dest_columns'];
+                        $source_columns = $row['source_columns'];
+
+                        // Next, build the INSERT query using those columns
+                        $qtxt = "INSERT INTO styklister ($dest_columns) SELECT $source_columns FROM styklister WHERE indgaar_i = $id";
+
+                        // Execute the INSERT query
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    }
                 }
             }
             $dd = date("Y-m-d");
@@ -1780,6 +1811,7 @@ print "value=\"" . findtekst(3, $sprog_id) . "\" name=\"saveItem\" onclick=\"jav
 
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
 if ($varenr && $samlevare == 'on') {
+		print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey=\"k\" value=\"".findtekst(1100,$sprog_id)."\" name=\"submit\"></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
 } elseif ($varenr) {
     $txt1100 = findtekst(1100, $sprog_id); //Kopier
