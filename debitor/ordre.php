@@ -4459,7 +4459,17 @@ $kundeordre = findtekst(1092,$sprog_id);
 							$disabled='disabled';
 							$titletext="$tiltext ($felt_2+$felt_4 - $sum+$moms = $diff)";
 						}	
-						if ($terminal_ip[(int)$felt_5-1] && !$betalt && $vis_betalingslink) $disabled='disabled';
+						$query = db_select("SELECT * FROM settings WHERE var_name = 'showPaymentLink' AND var_grp = 'deb_ordre' AND var_value = 'on'",__FILE__ . " linje " . __LINE__);
+						if($r = db_fetch_array($query)){
+							$vis_betalingslink = 1;
+						}else{
+							$vis_betalingslink = 0;
+						}
+						if (!$betalt1 && $vis_betalingslink) $disabled='disabled';
+					} 
+					// Made for Havemøbelshoppen
+					if($ref == "Magento"){
+						$disabled='';
 					} 
 					$txt = findtekst('3073|Fakturér',$sprog_id); 
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
