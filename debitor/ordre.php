@@ -3885,6 +3885,9 @@ $kundeordre = findtekst(1092,$sprog_id);
 					}
 					$tidspkt=date('U');
 					$dkfelt_2=str_replace('.','',$dkfelt_2);
+					if($felt_1 == ""){
+						$felt_1 = "Betalingskort";
+					}
 					($felt_1=='Betalingskort')?$vis_betalingslink=1:$vis_betalingslink=0;
 					for($x=0;$x<$kortantal;$x++) {
 						if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;

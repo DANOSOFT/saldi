@@ -26,9 +26,14 @@
 		print "<h3> Produkt beskrivelse: $product</h3>";
 		print "<h3> Kost pris til indsættelse i varer og vare_lev: $price</h3>";
 
-		db_modify("insert into varer (varenr, beskrivelse, kostpris) values 
-				  ('$productNumber', '$product', '$price')",__FILE__." linje ".__LINE__);
-
+		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+		if(db_num_rows($query) > 0){
+			$r = db_fetch_array($query);
+			$minBeholdning = (int)$r["var_value"];
+			db_modify("insert into varer (varenr, beskrivelse, kostpris, min_lager) values ('$productNumber', '$product', '$price', $minBeholdning)",__FILE__." linje ".__LINE__);
+		}else{
+			db_modify("insert into varer (varenr, beskrivelse, kostpris) values ('$productNumber', '$product', '$price')",__FILE__." linje ".__LINE__);
+		}
 		$itemId = db_fetch_array(db_select("select id from varer where beskrivelse = '$product'", __FILE__ . " linje " . __LINE__))['id'];
 
 		db_modify("insert into vare_lev (vare_id, lev_varenr , kostpris) values 

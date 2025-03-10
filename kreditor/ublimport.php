@@ -255,7 +255,14 @@ function importer($filnavn,$opret_lev,$opret_vare,$nfs_mappe){
 					if ($r=db_fetch_array(db_select("select id,beskrivelse from varer where varenr='$opret_varenr' or lower(varenr)= '$low' or upper(varenr)='$up' or lower(stregkode)= '$low' or upper(stregkode)='$up'",__FILE__ . " linje " . __LINE__))) {
 						$vare_id[$x]=$r['id'];
 					} else {
-						db_modify("insert into varer (varenr,kostpris,salgspris,beskrivelse,gruppe,lukket) values ('$opret_varenr','$l_pris[$x]','$salgspris','$l_tekst[$x]','$opret_vare','0')",__FILE__ . " linje " . __LINE__);
+						$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+						if(db_num_rows($query) > 0){
+							$r = db_fetch_array($query);
+							$minBeholdning = (int)$r["var_value"];
+							db_modify("insert into varer (varenr,kostpris,salgspris,beskrivelse,gruppe,lukket) values ('$opret_varenr','$l_pris[$x]','$salgspris','$l_tekst[$x]','$opret_vare','0')",__FILE__ . " linje " . __LINE__);
+						}else{
+							db_modify("insert into varer (varenr,kostpris,salgspris,beskrivelse,gruppe,lukket) values ('$opret_varenr','$l_pris[$x]','$salgspris','$l_tekst[$x]','$opret_vare','0')",__FILE__ . " linje " . __LINE__);
+						}
 						$r = db_fetch_array(db_select("select id,beskrivelse from varer where varenr='$opret_varenr'",__FILE__ . " linje " . __LINE__));
 						$vare_id[$x]=$r['id'];
 					}

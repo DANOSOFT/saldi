@@ -740,6 +740,13 @@ if ($fp) {
 			} elseif ($varenr) {// create new product
 				if (($filterOption=='all_products')||($filterOption!='only_existing_product')){
 					$imp_antal++;
+					$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+					if(db_num_rows($query) > 0){
+						$r = db_fetch_array($query);
+						$minBeholdning = (int)$r["var_value"];
+						$vare_a .= ",min_lager";
+						$vare_b .= ",".$minBeholdning;
+					}
 					$qtxt="insert into varer($vare_a) values ($vare_b)";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	 				$qtxt = "select id from varer where varenr='". db_escape_string($varenr) ."'";

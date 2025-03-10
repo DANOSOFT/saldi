@@ -377,7 +377,14 @@ $std_varegruppe=$r['box8'];
 		if ($r=db_fetch_array(db_select("select id from varer where varenr='$indset'",__FILE__ . " linje " . __LINE__))) {
 			$vare_id=$r['id'];
 		} else {
-			db_modify("insert into varer (varenr,stregkode,beskrivelse,salgspris,kostpris,enhed,gruppe) values ('$indset','$ean','$beskrivelse','$salgspris','$kostpris','$enhed','$varegruppe')",__FILE__ . " linje " . __LINE__);	
+			$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+			if(db_num_rows($query) > 0){
+				$r = db_fetch_array($query);
+				$minBeholdning = (int)$r["var_value"];
+				db_modify("insert into varer (varenr,stregkode,beskrivelse,salgspris,kostpris,enhed,gruppe,min_lager) values ('$indset','$ean','$beskrivelse','$salgspris','$kostpris','$enhed','$varegruppe',$minBeholdning)",__FILE__ . " linje " . __LINE__);	
+			}else{
+				db_modify("insert into varer (varenr,stregkode,beskrivelse,salgspris,kostpris,enhed,gruppe) values ('$indset','$ean','$beskrivelse','$salgspris','$kostpris','$enhed','$varegruppe')",__FILE__ . " linje " . __LINE__);	
+			}
 			$r=db_fetch_array(db_select("select id from varer where varenr='$indset'",__FILE__ . " linje " . __LINE__));
 			$vare_id=$r['id'];
 		}	
