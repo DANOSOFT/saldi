@@ -181,6 +181,7 @@ for ($l=0;$l<count($labels);$l++) {
 			$labelTxt=str_replace('$varenr',$r['varenr'],$labelTxt);
 			$labelTxt=str_replace('$trademark',$r['trademark'],$labelTxt);
 			$labelTxt=str_replace('$barcode',$barcode[$a][$b],$labelTxt);
+			$labelTxt=str_replace('$urlbarcode',urlencode($barcode[$a][$b]),$labelTxt);
 			$labelTxt=str_replace('$createdate',if_isset($createdate[$a][$b],NULL),$labelTxt);
 			$labelTxt=str_replace('$firstprint',if_isset($firstprint[$a][$b],NULL),$labelTxt);
 			$labelTxt=str_replace('$lastprint',if_isset($lastprint[$a][$b],NULL),$labelTxt);
