@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 // 2023.10.06 PHR - Created this file from 2. variant section of ../varekort.php
 // varianter_id & $varianter_beskrivelse is the is and name of the variant group, eg 'size', 'color' etc.
+// 2025.03.05 MMK - Updated variant setup
 
     // Display variant group header
     echo "<tr><td valign=\"top\"><b>" . findtekst(472, $sprog_id) . "</b></td></tr>\n";

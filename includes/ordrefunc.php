@@ -2975,7 +2975,6 @@ if ($vat_account[$y] == '1') exit;
 			} elseif ($moms) return ("Fejl i momsopsætning");
  
 		}
-*/
 		if (is_numeric($id)) {
 			$tmp="id = '".$id."'";
 		}

@@ -461,7 +461,7 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 		}
 	}
 } 
-if (!$bordnr && $bordnr != '0') $bordnr=$_COOKIE['saldi_bordnr']; #20150505-2
+if (!isset($_COOKIE['saldi_bordnr'])) $bordnr=$_COOKIE['saldi_bordnr']; #20150505-2
 if (isset($_GET['flyt_til']) && $id ) { #20140508
 	$bordnr=$_GET['flyt_til'];
 	$r=db_fetch_array(db_select("select momssats,felt_5 from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));

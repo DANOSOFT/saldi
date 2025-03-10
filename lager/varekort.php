@@ -727,17 +727,17 @@ if ($saveItem || $submit = trim($submit)) {
             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
     }
 
-    if (!$min_lager){
-    $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
-    if(db_num_rows($query) > 0){
-	$r = db_fetch_array($query);
-	$min_lager = (int)$r["var_value"];
-    }else{
-	$min_lager = 0;
+    if (!$min_lager) {
+        $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+        if (db_num_rows($query) > 0) {
+            $r = db_fetch_array($query);
+            $min_lager = (int) $r["var_value"];
+        } else {
+            $min_lager = 0;
+        }
+    } else {
+        $min_lager = usdecimal($min_lager, 2);
     }
-	}else{ 
-	    $min_lager=usdecimal($min_lager,2);
-	}
     if (!$max_lager)
         $max_lager = '0';
     else
@@ -786,12 +786,12 @@ if ($saveItem || $submit = trim($submit)) {
                 $id = 0;
             } elseif ($varenr) {
                 $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
-                if(db_num_rows($query) > 0){
+                if (db_num_rows($query) > 0) {
                     $r = db_fetch_array($query);
-                    $minBeholdning = (int)$r["var_value"];
-                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris,min_lager) values ('$varenr','0','0','0',$minBeholdning)",__FILE__ . " linje " . __LINE__);
-                }else{
-                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris) values ('$varenr','0','0','0')",__FILE__ . " linje " . __LINE__);
+                    $minBeholdning = (int) $r["var_value"];
+                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris,min_lager) values ('$varenr','0','0','0',$minBeholdning)", __FILE__ . " linje " . __LINE__);
+                } else {
+                    db_modify("insert into varer (varenr,lukket,salgspris,kostpris) values ('$varenr','0','0','0')", __FILE__ . " linje " . __LINE__);
                 }
                 $query = db_select("select id from varer where varenr = '$varenr'", __FILE__ . " linje " . __LINE__);
                 $row = db_fetch_array($query);
@@ -928,13 +928,13 @@ if ($saveItem || $submit = trim($submit)) {
                 if ($r['id'])
                     alert("ret varenr på kopi af `$varenr` først");
                 else {
-                   $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
-                    if(db_num_rows($query) > 0){
+                    $query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+                    if (db_num_rows($query) > 0) {
                         $r = db_fetch_array($query);
-                        $minBeholdning = (int)$r["var_value"];
-                        $qtxt="insert into varer (varenr,beskrivelse,min_lager) values ('$copyItemNo','". db_escape_string($beskrivelse[0], $minBeholdning) ."')";
-                    }else{
-                        $qtxt="insert into varer (varenr,beskrivelse) values ('$copyItemNo','". db_escape_string($beskrivelse[0]) ."')";
+                        $minBeholdning = (int) $r["var_value"];
+                        $qtxt = "insert into varer (varenr,beskrivelse,min_lager) values ('$copyItemNo','" . db_escape_string($beskrivelse[0], $minBeholdning) . "')";
+                    } else {
+                        $qtxt = "insert into varer (varenr,beskrivelse) values ('$copyItemNo','" . db_escape_string($beskrivelse[0]) . "')";
                     }
                     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
                     $r = db_fetch_array(db_select("select id from varer where varenr='$copyItemNo'", __FILE__ . " linje " . __LINE__));
@@ -2110,7 +2110,7 @@ document.varekort.$fokus.focus();
                 kostpris.value = e.target.value;
                 const form = document.querySelector("[name=saveItem]");
                 form.click()
-            }else{
+            } else {
                 kostpris.value = oldCost;
                 const form = document.querySelector("[name=saveItem]");
                 form.click()
