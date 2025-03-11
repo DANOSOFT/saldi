@@ -34,7 +34,7 @@ form {
     display: grid;
     grid-template-columns: 1fr;
     gap: 20px;
-    width: 50%;
+    width: 75%;
     position: absolute;
     left: 50%;
     top: 50%;
@@ -57,9 +57,10 @@ form.ease {
     border-radius: 5em;
     box-shadow: 0 0.125em 0.3125em rgba(0, 0, 0, 0.1);
     position: relative;
-    width: 50%; /* Changed from 50% to 100% to fit form width */
+    width: 75%; /* Changed from 50% to 100% to fit form width */
     box-sizing: border-box;
     margin: 0 auto;
+    margin-top: 1rem;
 }
 
 .input-wrapper * {
@@ -78,7 +79,12 @@ form.ease {
     border: none;
     outline: none;
 }
-
+.cityZip{
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    width: 75%;
+}
 /* Button styling */
 button {
     border: none;
@@ -91,6 +97,7 @@ button {
     max-width: 300px;
     margin: 0 auto;
     display: block;
+    margin-top: 1rem;
 }
 
 #cancel {
