@@ -145,8 +145,8 @@ if (!function_exists('dkdato')) {
 	{
 		if ($dato) {
 			list($year, $month, $day) = explode('-', $dato, 3);
-			$month = $month * 1;
-			$day = $day * 1;
+			$month = (int)$month;
+			$day = (int)$day;
 			if ($month < 10) {
 				$month = '0' . $month;
 			}
