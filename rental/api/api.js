@@ -397,3 +397,11 @@ export const updateOrder = async (data) => {
     body: JSON.stringify(data)
   })
 }
+
+export const getBookingsFromPeriod = async (fromDate, toDate) => {
+  const url = `${apiUrl}getBookingsFromPeriod&from_date=${fromDate}&to_date=${toDate}`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" }
+  })
+}
