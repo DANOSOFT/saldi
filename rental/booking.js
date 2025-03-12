@@ -27,7 +27,7 @@
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
-    return `${day}-${month}-${year}`
+    return `${year}-${month}-${day}`
   }
 
   // Function to find closed dates within a given range
@@ -72,9 +72,9 @@
     }
     return data.map(i => {
       const fromDate = new Date(i.from * 1000)
-      const fromDateFormattad = formatDate(fromDate)
+      const fromDateFormattad = fromDate.getFullYear() + "-" + ("0" + (fromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + fromDate.getDate()).slice(-2)
       const toDate = new Date(i.to * 1000)
-      const toDateFormattad = formatDate(toDate)
+      const toDateFormattad = toDate.getFullYear() + "-" + ("0" + (toDate.getMonth() + 1)).slice(-2) + "-" + ("0" + toDate.getDate()).slice(-2)
       const id = i.item_id
 
       return [fromDateFormattad, toDateFormattad, id]
@@ -156,9 +156,9 @@
     if (bookings.msg !== "Der er ingen bookinger") {
       bookings.forEach(b => {
         const fromDate = new Date(b.from * 1000)
-        const fromDateFormattad = formatDate(fromDate)
+        const fromDateFormattad = fromDate.getFullYear() + "-" + ("0" + (fromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + fromDate.getDate()).slice(-2)
         const toDate = new Date(b.to * 1000)
-        const toDateFormattad = formatDate(toDate)
+        const toDateFormattad = toDate.getFullYear() + "-" + ("0" + (toDate.getMonth() + 1)).slice(-2) + "-" + ("0" + toDate.getDate()).slice(-2)
         dates.push([fromDateFormattad, toDateFormattad])
       })
     }
@@ -252,8 +252,6 @@
     closedDates.push(...bookedDates)
 
     const datePick = flatpickr(fromCalendar, {
-      altInput: true,
-      altFormat: "d-m-Y",
       dateFormat: 'Y-m-d',
       theme: "dark",
       locale: "da",
@@ -323,8 +321,6 @@
           })
         }
         flatpickr(toCalendar, {
-          altInput: true,
-          altFormat: "d-m-Y",
           dateFormat: 'Y-m-d',
           minDate: fromDate,
           maxDate: lastDay,
@@ -334,7 +330,7 @@
           onDayCreate: function (dObj, dStr, fp, dayElem) {
             if (settings.find_weeks === "1" && fromDate != undefined && fromDate != "" && fromDate != "Invalid Date") {
               const date = new Date(dayElem.dateObj)
-              const dateStr = formatDate(date)
+              const dateStr = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
               if (closedDates.includes(dateStr) && !addedDaysArray.includes(dateStr)) {
                 addedDaysArray.push(dateStr)
               }
@@ -410,9 +406,9 @@
         reservations.forEach(r => {
           if (r.item_id == item) {
             const fromDate = new Date(r.from * 1000)
-            const fromDateFormattad = formatDate(fromDate)
+            const fromDateFormattad = fromDate.getFullYear() + "-" + ("0" + (fromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + fromDate.getDate()).slice(-2)
             const toDate = new Date(r.to * 1000)
-            const toDateFormattad = formatDate(toDate)
+            const toDateFormattad = toDate.getFullYear() + "-" + ("0" + (toDate.getMonth() + 1)).slice(-2) + "-" + ("0" + toDate.getDate()).slice(-2)
             // check if the selected dates are within the reserved dates
             if ((fromDateFormattad <= toDateData && fromDateFormattad >= fromDateData) ||
               (toDateFormattad >= fromDateData && toDateFormattad <= toDateData) ||
@@ -438,11 +434,11 @@
         for (const [fromDate, toDate] of dates) {
           // add 1 day to the from date to avoid conflicts with the end date of the previous booking
           let newFromDate = new Date(fromDate)
-          newFromDate = formatDate(newFromDate)
+          newFromDate = newFromDate.getFullYear() + "-" + ("0" + (newFromDate.getMonth() + 1)).slice(-2) + "-" + ("0" + newFromDate.getDate()).slice(-2)
 
           // remove 1 day from the to date to avoid conflicts with the start date of the next booking
           let newToDate = new Date(toDate)
-          newToDate = formatDate(newToDate)
+          newToDate = newToDate.getFullYear() + "-" + ("0" + (newToDate.getMonth() + 1)).slice(-2) + "-" + ("0" + newToDate.getDate()).slice(-2)
 
           if (
             (fromDateData <= newToDate && fromDateData >= newFromDate) ||
@@ -504,7 +500,9 @@
       const res = await createBooking(data)
       data.booking_id = res.id
 
-      await createOrder(data)
+      if(settings.toggle_order == 1){
+        await createOrder(data)
+      }
       /* loading.style.display = "none" */
       alert(res.msg)
       window.location.href = "index.php?singleItem=" + item
