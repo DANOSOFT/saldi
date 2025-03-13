@@ -506,7 +506,7 @@ $filters[] = array(
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
-            "sqlOff" => "v.lukket = '0'",
+            "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",
         )
     )
 );
@@ -692,7 +692,7 @@ LEFT JOIN grupper sm
 LEFT JOIN levs ON v.id = levs.vare_id
 LEFT JOIN sales_summary ss ON v.id = ss.vare_id
 LEFT JOIN order_summary os ON v.id = os.vare_id
-WHERE {{WHERE}} AND levs.lev IS NOT NULL
+WHERE {{WHERE}} AND levs.lev IS NOT NULL AND v.samlevare != 'on' AND vg.box8 = 'on'
 ORDER BY {{SORT}}
 
 ",

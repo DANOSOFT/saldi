@@ -133,6 +133,9 @@ while ($row = db_fetch_array($q)) {
         "width" => "0.2",
         "sqlOverride" => "COALESCE(ls$row[kodenr].beholdning, 0)",
         "render" => function ($value, $row, $column) {
+            if ($row["samlevare"] == "on") {
+                return "<td></td>";
+            } 
             if (!$value) {
                 return "<td align='$column[align]'>0,00</td>";
             }
@@ -155,6 +158,9 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "COALESCE(ls.lager_total, 0)",
     "render" => function ($value, $row, $column) {
+        if ($row["samlevare"] == "on") {
+            return "<td></td>";
+        } 
         if (!$value) {
             return "<td align='$column[align]'>0,00</td>";
         }
@@ -267,7 +273,7 @@ $filters[] = array(
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
-            "sqlOff" => "v.lukket = '0'",
+            "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",
         )
     )
 );
@@ -307,6 +313,7 @@ SELECT
     v.trademark AS trademark,       
     v.stregkode AS stregkode,       
     v.enhed AS enhed,               
+    v.samlevare AS samlevare,
     $SQLLagerFetch
     COALESCE(ls.lager_total, 0) AS lager_total,  
     v.salgspris AS salgspris,       
