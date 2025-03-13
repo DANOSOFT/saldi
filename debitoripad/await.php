@@ -50,9 +50,11 @@ $q = db_select("select id from ordrer where email='$brugernavn'",__FILE__ . " li
 $r = db_fetch_array($q);
 # Check if there is a pending order that needs filling out by this tablet, the email field will be called the same as the user
 if ($r) {
-
+	if(isset($_GET["email"]) && $_GET["email"] == "") {
+		db_modify("UPDATE ordrer SET email='' WHERE email='$brugernavn'", __FILE__ . " linje " . __LINE__);
+	}
 	# Check if input form has been filled out
-	if (isset($_GET["email"]) && isset($_GET["name"]) && isset($_GET["addr"]) && isset($_GET["tlf"])) {
+	if (isset($_GET["email"]) && isset($_GET["name"]) && isset($_GET["addr"]) && isset($_GET["tlf"]) && isset($_GET["zip"]) && isset($_GET["city"])) {
 		$email = $_GET["email"];
 		$name = $_GET["name"];
 		$addr = $_GET["addr"];
@@ -74,22 +76,24 @@ if ($r) {
 	?>
 			<form class="form">
 			<div class="input-wrapper">
-				<input name="email" placeholder="E-mail" type="email" pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{1,63}$" required>
-			</div>
-			<div class="input-wrapper">
 				<input name="name" placeholder="Navn" type="text" required>
 			</div>
 			<div class="input-wrapper">
-				<input name="addr" placeholder="Adresse" type="text" required>
+				<input name="email" placeholder="E-mail" type="email" pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{1,63}$" required>
 			</div>
 			<div class="input-wrapper">
 				<input name="tlf" placeholder="Tlf" type="text" required>
 			</div>
 			<div class="input-wrapper">
-				<input name="zip" placeholder="postNr" type="text" required>
+				<input name="addr" placeholder="Adresse" type="text" required>
 			</div>
-			<div class="input-wrapper">
-				<input name="city" placeholder="By" type="text" required>
+			<div class='cityZip'>
+				<div class="input-wrapper">
+					<input name="zip" placeholder="postNr" type="text" required>
+				</div>
+				<div class="input-wrapper">
+					<input name="city" placeholder="By" type="text" required>
+				</div>
 			</div>
 				<button>Gem</button>
 				<span id="cancel" onclick="document.location.href = '?email='">Anuller</span>

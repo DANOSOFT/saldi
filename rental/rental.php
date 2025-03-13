@@ -80,6 +80,12 @@
         echo json_encode($customers);
     } */
 
+    $query = db_select("SELECT column_name FROM information_schema.columns WHERE table_name = 'rentalsettings' AND column_name = 'toggle_order'", __FILE__ . " linje " . __LINE__);
+    if(db_num_rows($query) < 1){
+        db_modify("ALTER TABLE rentalsettings ADD COLUMN toggle_order INTEGER", __FILE__ . " linje " . __LINE__);
+        db_modify("UPDATE rentalsettings SET toggle_order = 1", __FILE__ . " linje " . __LINE__);
+    }
+
     // This function is for external booking only "IT IS NOT FOR DELETING BOOKINGS THAT ARE OLD"
     function cleanUpExpiredBookings(){
         $currentTime = time();
@@ -549,19 +555,19 @@
     } */
 
     if(isset($_GET["productInfo"])){
-        $month = $_GET["month"]; // The month you want to filter by
-        $year = $_GET["year"]; // The year you want to filter by
-
+        $from_date = $_GET["from_date"]; // Start date in format YYYY-MM-DD
+        $to_date = $_GET["to_date"];     // End date in format YYYY-MM-DD
+        
         $query = db_select("SELECT 
-            rp.id as rental_id, 
-            rp.rt_from, 
-            rp.rt_to, 
-            rp.cust_id, 
-            ri.id as item_id, 
-            ri.item_name, 
-            ri.product_id, 
-            v.beskrivelse as product_name, 
-            a.firmanavn, 
+            rp.id as rental_id,
+            rp.rt_from,
+            rp.rt_to,
+            rp.cust_id,
+            ri.id as item_id,
+            ri.item_name,
+            ri.product_id,
+            v.beskrivelse as product_name,
+            a.firmanavn,
             a.kontonr 
         FROM 
             rentalitems ri
@@ -569,20 +575,23 @@
             varer v ON ri.product_id = v.id
         LEFT JOIN 
             rentalperiod rp ON rp.item_id = ri.id AND 
-            ((EXTRACT(YEAR FROM to_timestamp(rp.rt_from)) < $year) OR 
-            (EXTRACT(YEAR FROM to_timestamp(rp.rt_from)) = $year AND EXTRACT(MONTH FROM to_timestamp(rp.rt_from)) <= $month)) AND 
-            ((EXTRACT(YEAR FROM to_timestamp(rp.rt_to)) > $year) OR 
-            (EXTRACT(YEAR FROM to_timestamp(rp.rt_to)) = $year AND EXTRACT(MONTH FROM to_timestamp(rp.rt_to)) >= $month))
+            (
+                -- Rental period overlaps with the specified date range
+                (to_timestamp(rp.rt_from) <= to_timestamp('$to_date')) AND 
+                (to_timestamp(rp.rt_to) >= to_timestamp('$from_date'))
+            )
         LEFT JOIN 
             adresser a ON rp.cust_id = a.id 
         ORDER BY 
             length(ri.item_name), 
             ri.item_name ASC", __FILE__ . " linje " . __LINE__);
+        
         $i = 0;
         if(db_num_rows($query) === 0){
-            echo json_encode(["msg" => "Der er ingen bookinger", "success" => false]);
+            echo json_encode(["msg" => "Der er ingen bookinger i dette tidsrum", "success" => false]);
             exit();
         }
+        
         while($res = db_fetch_array($query)){
             $productInfo[$i]["product_name"] = $res["product_name"];
             $productInfo[$i]["reservation_id"] = $res["rental_id"];
@@ -595,6 +604,61 @@
             $productInfo[$i]["cust_id"] = $res["cust_id"];
             $productInfo[$i]["cust_name"] = str_replace("'", "´", $res["firmanavn"]);
             $productInfo[$i]["kontonr"] = $res["kontonr"];
+            $i++;
+        }
+        echo json_encode($productInfo);
+    }
+
+    if(isset($_GET["getBookingsFromPeriod"])){
+        $from_date = $_GET["from_date"]; // Start date in format YYYY-MM-DD
+        $to_date = $_GET["to_date"];     // End date in format YYYY-MM-DD
+        $query = db_select("SELECT 
+            rp.id as rental_id,
+            rp.rt_from,
+            rp.rt_to,
+            rp.cust_id,
+            ri.id as item_id,
+            ri.item_name,
+            ri.product_id,
+            v.beskrivelse as product_name,
+            a.firmanavn,
+            a.tlf,
+            a.kontonr 
+        FROM 
+            rentalperiod rp
+        LEFT JOIN 
+            rentalitems ri ON rp.item_id = ri.id
+        LEFT JOIN 
+            varer v ON ri.product_id = v.id
+        LEFT JOIN 
+            adresser a ON rp.cust_id = a.id 
+        WHERE
+            -- Date range filter
+            (to_timestamp(rp.rt_from) <= to_date('$to_date', 'YYYY-MM-DD')) AND 
+            (to_timestamp(rp.rt_to) >= to_date('$from_date', 'YYYY-MM-DD'))
+        ORDER BY 
+            length(ri.item_name), 
+            ri.item_name ASC", __FILE__ . " linje " . __LINE__);
+
+        $i = 0;
+        if(db_num_rows($query) === 0){
+            echo json_encode(["msg" => "Der er ingen bookinger i dette tidsrum", "success" => false]);
+            exit();
+        }
+
+        while($res = db_fetch_array($query)){
+            $productInfo[$i]["product_name"] = $res["product_name"];
+            $productInfo[$i]["reservation_id"] = $res["rental_id"];
+            $productInfo[$i]["product_id"] = $res["product_id"];
+            $productInfo[$i]["item_name"] = $res["item_name"];
+            $productInfo[$i]["item_id"] = $res["item_id"];
+            $productInfo[$i]["rental_id"] = $res["rental_id"];
+            $productInfo[$i]["from"] = $res["rt_from"];
+            $productInfo[$i]["to"] = $res["rt_to"];
+            $productInfo[$i]["cust_id"] = $res["cust_id"];
+            $productInfo[$i]["cust_name"] = str_replace("'", "´", $res["firmanavn"]);
+            $productInfo[$i]["kontonr"] = $res["kontonr"];
+            $productInfo[$i]["tlf"] = $res["tlf"];
             $i++;
         }
         echo json_encode($productInfo);
@@ -1032,10 +1096,14 @@
         $res = [];
         while ($row = db_fetch_array($query)) {
             // Filter out numeric keys
-            $row = array_filter($row, function($key) {
-                return !is_numeric($key);
-            }, ARRAY_FILTER_USE_KEY);
-        
+            $filtered = array();
+            foreach($row as $key => $value) {
+                if (!is_numeric($key)) {
+                    $filtered[$key] = $value;
+                }
+            }
+            $row = $filtered;
+            
             $productId = $row['product_id'];
         
             // Fetch product details
@@ -1050,11 +1118,14 @@
             $row["periods"] = [];
             if ($periodsQuery) {
                 while ($res3 = db_fetch_array($periodsQuery)) {
-                    // Filter out numeric keys
-                    $res3 = array_filter($res3, function($key) {
-                        return !is_numeric($key);
-                    }, ARRAY_FILTER_USE_KEY);
-                    $row["periods"][] = $res3;
+                    // Create new array without numeric keys
+                    $filtered = array();
+                    foreach($res3 as $key => $value) {
+                        if (!is_numeric($key)) {
+                            $filtered[$key] = $value;
+                        }
+                    }
+                    $row["periods"][] = $filtered;
                 }
             }
             $res[] = $row;
