@@ -147,12 +147,6 @@ function sanitize_input($input) {
 
 if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	if ($regnskab = trim($_POST['regnskab'])){
-		// $brugernavn = trim($_POST['brugernavn']);
-		// $password = trim($_POST['password']); // password i formatet uppercase( md5( timestamp + uppercase( md5(original_password) ) ) )
-		// (isset($_POST['timestamp']))?$timestamp = trim($_POST['timestamp']):$timestamp=NULL;
-		// #(isset($_POST['timestamp']))?$timestamp = trim($_POST['timestamp']):$timestamp = date('Y-m-d'); #20211001 latr
-		// if (isset($_POST['fortsaet'])) $fortsaet = $_POST['fortsaet'];
-		// if (isset($_POST['afbryd'])) $afbryd = $_POST['afbryd'];
 		#	}	else {
 		#		 $regnskab = "test";
 		#		 $brugernavn = "test";
