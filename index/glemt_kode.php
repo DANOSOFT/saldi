@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/glemt_kode.php ---  patch 4.0.7 --- 2023.03.04 ---
+// --- index/glemt_kode.php ---  patch 4.1.0 --- 2025.03.14 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20150127 tilføjet $bruger_id da man eller får en tom mail hvis brugernavnet ikke er en 
 //		mailadresse og der ikke er tilknyttet en mailadresse 20150137 
 // 20220226 PHR Added 	$mail->CharSet = '$charset';
-// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250312 LOE Added a Content Security Policy (CSP) header snippet to mitigate DOM-based XSS attacks.
+// 20250313 LOE // converts any special HTML characters (like <, >, &, etc.) into their corresponding HTML entities for $regnskab and $brugernavn and updated some others 
+$nonce = base64_encode(random_bytes(16));
+header("Content-Security-Policy: script-src 'self' 'nonce-$nonce'; object-src 'none';");
+
 
 $css="../css/standard.css";
 
@@ -45,15 +49,43 @@ $firmamail=NULL;
 $brugernavn=NULL;
 $regnskab=NULL;
 $regnskaber=NULL;
+$navn=NULL;
 
 if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
 if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
-		
+
+#Sanitize Inputs with Strict Type Checking 20250313
+if (isset($_GET['regnskab']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_GET['regnskab'])) {
+    $regnskab = htmlspecialchars($_GET['regnskab'], ENT_QUOTES, 'UTF-8');
+} else {
+    $regnskab = '';
+}
+
+if (isset($_GET['navn']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_GET['navn'])) {
+    $brugernavn = htmlspecialchars($_GET['navn'], ENT_QUOTES, 'UTF-8');
+} else {
+    $brugernavn = '';
+}
+	
+
 if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 	print "<meta http-equiv=\"refresh\" content=\"0;url=index.php\">\n";
 } elseif (isset($_POST['send']) && $_POST['send']=='Send') {
-	if (isset ($_POST['regnskab'])) $regnskab = db_escape_string($_POST['regnskab']);
-	if (isset ($_POST['navn'])) $brugernavn = db_escape_string($_POST['navn']);
+	// if (isset ($_POST['regnskab'])) $regnskab = db_escape_string($_POST['regnskab']);
+	// if (isset ($_POST['navn'])) $brugernavn = db_escape_string($_POST['navn']);
+	if (isset($_POST['regnskab']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_POST['regnskab'])) {
+		$regnskab = db_escape_string($_POST['regnskab']);
+	} else {
+		$regnskab = '';
+	}
+	
+	if (isset($_POST['navn']) && preg_match('/^[a-zA-Z0-9_-]+$/', $_POST['navn'])) {
+		$brugernavn = db_escape_string($_POST['navn']);
+	} else {
+		$brugernavn = '';
+	}
+	
+
 
 	if ($regnskab) {
 		if ($r = db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))){
@@ -63,6 +95,7 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			$regnskab=$r['regnskab'];
 		}
 	}
+
 	if ($db) {
 		if ($db!=$sqdb) {
 			$connection = db_connect ("'$sqhost'", "'$squser'", "'$sqpass'", "'$db'");
@@ -89,12 +122,19 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			}
 		} elseif (strpos($brugernavn,'@')) $email=strtolower($brugernavn);
 		
-		if ($db!=$sqdb && $r = db_fetch_array(db_select("select email from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))){
-			$firmanavn=$row['firmanavn'];
-			$firmamail=$r['email'];
-			($row['felt_1'])?$smtp=$row['felt_1']:$smtp='localhost';
-			($row['felt_2'])?$smtp_user=$row['felt_2']:$smtp_user=NULL;
-			($row['felt_3'])?$smtp_pwd=$row['felt_3']:$smtp_pwd=NULL;
+		if ($db!=$sqdb && $row = db_fetch_array(db_select("select email from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))){
+			// $firmanavn=$row['firmanavn'];
+			// $firmamail=$row['email'];
+			$firmanavn = isset($row['firmanavn']) ? $row['firmanavn'] : null;
+			$firmamail = isset($row['email']) ? $row['email'] : null;
+
+			// ($row['felt_1'])?$smtp=$row['felt_1']:$smtp='localhost';
+			// ($row['felt_2'])?$smtp_user=$row['felt_2']:$smtp_user=NULL;
+			// ($row['felt_3'])?$smtp_pwd=$row['felt_3']:$smtp_pwd=NULL;
+			$smtp = isset($row['felt_1']) ? $row['felt_1'] : 'localhost';
+			$smtp_user = isset($row['felt_2']) ? $row['felt_2'] : NULL;
+			$smtp_pwd = isset($row['felt_3']) ? $row['felt_3'] : NULL;
+
 		}
 	} elseif ($brugernavn && strpos($brugernavn,'@')) {
 		$regnskaber=NULL;
@@ -104,17 +144,19 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			$firmamail=$brugernavn;
 			$firmanavn="saldi.dk";
 		}
-	} else $email=
-
+	} else $email=  $firmamail;
+	
+	
 	$alerttxt=NULL;
 	if ($regnskab && !$db) $alerttxt="Regnskab $regnskab ikke fundet\\\n";
 	elseif ($regnskab && !$db && !$email && $ansat_id && $firmamail) $alerttxt="$brugernavn ikke fundet tilnkyttet email i $regnskab\\n Midlertidig adgangskode sendt til $firmamail\\n";	
 	elseif (!$email  && !$firmamail) $alerttxt="Hverken bruger $brugernavn eller regnskab $regnskab er tilknyttet en mailadresse";
 	elseif ($brugernavn && !$bruger_id && $db) $alerttxt="Brugernavnet $brugernavn findes ikke i regnskabet $regnskab!\\n Lad feltet være tomt for at få sendt en liste over oprettede brugere";
-	
-	if ($alerttxt) print "<BODY onLoad=\"javascript:alert('$alerttxt')\">";
+	else $alerttxt=NULL;
+	#if ($alerttxt) print "<BODY onLoad=\"javascript:alert('$alerttxt')\">";
+	if ($alerttxt) print "<script nonce=\"$nonce\">window.onload = function() { alert('$alerttxt'); }</script>"; # 20250313
 	else {
-
+		
 	#		if (!file_exists ("../temp/$db")) system ("mkdir ../temp/$db\n");
 #		$filnavn="../temp/$db/pw.txt";
 		$tidspunkt=date("U");
@@ -142,6 +184,7 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			$mailtext.="Indtil den $dd kl. $tp kan anvendes adgangskoden: $tmp_kode<br><br>";
 			$mailtext.="Efter login kan adgangskoden ændres under \"Indstillinger -> Brugere\"<br><br>";
 			$tmp_kode=$tidspunkt."|".$tmp_kode;
+			#$tmp_kode=$tidspunkt."_".$tmp_kode;
 			$i = 0;
 			$feltnavne=array();
 			$q = db_select("select * from brugere",__FILE__ . " linje " . __LINE__);
@@ -152,7 +195,8 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 			if (!in_array('tmp_kode',$feltnavne)) {
 				db_modify("ALTER TABLE brugere ADD tmp_kode text",__FILE__ . " linje " . __LINE__);
 			}
-			db_modify("update brugere set tmp_kode='$tmp_kode' where id='$bruger_id'");
+			#var_dump($tmp_kode.':'.$bruger_id); exit;
+			db_modify("update brugere set tmp_kode='$tmp_kode' where id='$bruger_id'",__LINE__);
 		} elseif (!$ansat_id && !$regnskaber && $db) {
 			$subjekt="Brugerliste til regnskabet $regnskab";
 			$mailtext.="I dag den $dd kl. $tp er der blevet rekvireret en brugerliste til regnskabet $regnskab <br><br>Brugerne er: $brugere.	<br><br>";
@@ -166,9 +210,9 @@ if (isset($_POST['retur']) && $_POST['retur']=='Retur') {
 		ini_set("include_path", ".:../phpmailer");
 		require("class.phpmailer.php");
 		if ($charset=="UTF-8" || $webservice) {
-#			$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
-#			$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
-#			$firmanavn=mb_convert_encoding($firmanavn, 'ISO-8859-1', 'UTF-8');
+#			$subjekt=utf8_decode($subjekt);
+#			$mailtext=utf8_decode($mailtext);
+#			$firmanavn=utf8_decode($firmanavn);
 		}
 		$mail = new PHPMailer();
 		$mail->IsSMTP();                                   // send via SMTP
@@ -215,7 +259,8 @@ echo "Mailer Error: " . $mail->ErrorInfo;
 		if ($email && $firmamail) $tekst="Mail sendt til $email\\nBCC til $firmamail.";
 		elseif ($email) $tekst="Mail sendt til $email.";
 		elseif ($firmamail) $tekst="Mail sendt til $firmamail.";
-		print "<BODY onLoad=\"javascript:alert('$tekst')\">";
+#		print "<BODY onLoad=\"javascript:alert('$tekst')\">";
+		print "<script nonce=\"$nonce\">window.onload = function() { alert('$tekst'); }</script>"; 
 	}
 }
 PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
@@ -261,14 +306,14 @@ print "<tr><td width=\"10%\"></td><td width=\"80%\">Skriv navn på regnskab, dit
 print	"</tbody></table></td></tr>\n"; # <- tabel 1.3
 print "<tr><td align=\"center\" valign=\"bottom\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.3 ->
-print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2014&nbsp;DANOSOFT&nbsp;ApS</td>";
+print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2025&nbsp;DANOSOFT&nbsp;ApS</td>";
 print "<td width=\"60%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"center\">Et <a href=\"http://www.saldi.dk\" target=\"blank\">SALDI</a> regnskab</td>";
 print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\"><br></td>";
 print "</tr></tbody></table>"; # <- tabel 1.3
 print "</td></tr>\n";
 print "</tbody></table>"; # <- tabel 1
 if (!isset($_COOKIE['saldi_std'])) {
-	print "<script language=\"javascript\" type=\"text/javascript\">";
+	print "<script language=\"javascript\" type=\"text/javascript\">";  
 	print "document.login.regnskab.focus();";
 	print "</script>";
 } else {

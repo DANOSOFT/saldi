@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----patch 4.0.8 ----2023-08-02--------------
+// --- index/index.php -----patch 4.1.0 ----2025-03-14--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20140321	Tilføjet link til glemt kode
 // 20161104	Div ændringer relateret til bedre sikkerhed
@@ -34,11 +34,21 @@
 // 20220426 DAPE Fixed language select, made language selector dynamic to take new languages whenever they're implemented in tekster.csv
 // 20220618 PHR Changed 'language' and 'language_id' to 'languageId'
 // 20230726 LOE Minor modification
-// 20250125 Fix broken huskmig cookie
+// 20250313 LOE Sanitized some inputs to mitigate against XSS attack CWE-79
+// 20250413 Updated the  document.login.submit with $nonce variable to work witht the enforced CSP 
+@session_start();
+
+if (!isset($_SESSION['nonce'])) {
+    $_SESSION['nonce'] = bin2hex(random_bytes(16));  // Generate a random 16-byte nonce
+}
+
+$nonce = $_SESSION['nonce']; 
+
+header("Content-Security-Policy: script-src 'self' 'nonce-$nonce';");
 
 
 $regnskab=''; $brugernavn=''; $kode=''; $languageId=''; 
-$css="../css/login.css?v=2";
+$css="../css/login.css?cssver=1";
 if(file_exists("../includes/connect.php")){
 	if (filesize("../includes/connect.php") < 10) unlink ("../includes/connect.php"); 
 }
@@ -51,6 +61,7 @@ if (!file_exists("../includes/connect.php")) {
 	exit;
 }
 
+#cho $_SERVER['HTTP_USER_AGENT'];
 if (!isset($timezone)) $timezone='Europe/Copenhagen';
 
 include("../includes/connect.php");
@@ -61,12 +72,12 @@ $hm=$rs=$bn=null; #20211007
 
 print "
 <script>
-if(window.self !== window.top) {
-//run this code if in an iframe
-// alert('in frame');
-parent.location.href = \"../index/index.php\";
-} 
+	if(window.self !== window.top) {
+		//run this code if in an iframe
+		parent.location.href = \"../index/index.php\";
+	} 
 </script>";
+
 
 
 if(isset($_POST['languageId'])){
@@ -76,36 +87,69 @@ if(isset($_POST['languageId'])){
 }
 if ($languageId) setcookie('languageId',$languageId, time() + (10 * 365 * 24 * 60 * 60) );
 
-if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
+ if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
 
 if (!isset($_POST['fejltxt']) && isset($_POST['regnskab']) && isset($_POST['brugernavn']) && isset($_POST['password']) && isset($_POST['languageId'])) {
-	if ( isset ($_POST['regnskab'])  )   $regnskab    = $_POST['regnskab'] ;#20211007
-	if ( isset($_POST['brugernavn']) )   $brugernavn  = $_POST['brugernavn'];
-	if (isset($_POST['languageId'])	 )	 $lang 		  = $_POST['languageId']; #20220330
+	// if ( isset ($_POST['regnskab'])  )   $regnskab    = $_POST['regnskab'] ;#20211007
+	// if ( isset($_POST['brugernavn']) )   $brugernavn  = $_POST['brugernavn'];
+	// if (isset($_POST['languageId'])	 )	 $lang 		  = $_POST['languageId']; #20220330
+	
+	
+	// Function to check the length and sanitize the input
+		function check_and_sanitize_input($input_name, $message, $nonce) {
+			if (isset($_POST[$input_name])) {
+				if (strlen($_POST[$input_name]) > 80) {
+					// Sanitize the message by encoding any special characters
+					$sanitized_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+					echo "<script nonce='{$nonce}'>alert('$sanitized_message');</script>";
+					echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
+					exit;
+				}
+				return htmlspecialchars($_POST[$input_name], ENT_QUOTES, 'UTF-8');
+			}
+			return null;
+		}
+
+		// Use the function for each input
+		$regnskab = check_and_sanitize_input('regnskab', 'Input for regnskab is too long.', $nonce);
+		$brugernavn = check_and_sanitize_input('brugernavn', 'Input for brugernavn is too long.', $nonce);
+		$lang = check_and_sanitize_input('languageId', 'Input for languageId is too long.', $nonce);
+		$vent = check_and_sanitize_input('vent', 'Input for vent is too long.', $nonce);
+
+			
+		
 
 	if (file_exists("redirect.php")) include ("redirect.php"); 
 	else $action="login.php";
 	if(isset($_POST['huskmig'])){ #20211007
-		$cookievalue = "huskmig" . chr(9) . $_POST['regnskab'] . chr(9) . $_POST['brugernavn'];
+	$cookievalue = $huskmig . chr(9) . $_POST['regnskab'] . chr(9) . $_POST['brugernavn'];
 	}
-	if (isset($_POST['huskmig'])){ 
-		setcookie ('saldi_huskmig', $cookievalue, time() + (86400 * 30));
-	} #20211007
-	elseif ($rs == $regnskab && $bn == $brugernavn) {	
-		setcookie ('saldi_huskmig', "", time() - 3600);
+	if (isset($_POST['huskmig'])){ setcookie ('saldi_huskmig', $cookievalue, time() + (86400 * 30));} #20211007
+	#elseif ($rs == $_POST['regnskab'] && $bn == $_POST['brugernavn']) {
+elseif ($rs == $regnskab && $bn == $brugernavn) {	
+		setcookie ('saldi_huskmig', $cookievalue, time() - 3600);
 	}
 	print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$action\" onSubmit=\"return handleLogin(this);\">\n";
 	print "<input type=\"hidden\" name=\"regnskab\" value=\"$_POST[regnskab]\">\n";
 	print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
 	print "<input type=\"hidden\" name=\"password\"  value=\"$_POST[password]\">\n";
 	if(isset($_COOKIE['languageId'])){
-		print "<input type=\"hidden\" name=\"languageId\"  value=\"$_COOKIE[languageId]\">\n"; #20220330
+	print "<input type=\"hidden\" name=\"languageId\"  value=\"$_COOKIE[languageId]\">\n"; #20220330
 	}
-	print "<input type=\"hidden\" name=\"vent\"  value=\"$_POST[vent]\">\n";
-	print "<body onload=\"document.login.submit()\">";
+	//print "<input type=\"hidden\" name=\"vent\"  value=\"$_POST[vent]\">\n";
+	print "<input type=\"hidden\" name=\"vent\"  value=\"$vent\">\n";
+	// print "<body onload=\"document.login.submit()\">";
+	print "<body>";
+	print "<script nonce=\"$nonce\">\n";
+		print "window.onload = function() {\n";
+		print "    document.login.submit();\n";
+		print "};\n";
+	print "</script>\n";
 	print "</form>";
 	exit;
 }
+
+
 if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
 if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
 if (isset ($_GET['tlf'])) $kode = stripslashes($_GET['tlf']);
@@ -159,34 +203,34 @@ if (file_exists("bg.php")) include ("bg.php");
 
 else $style=''; 
 print "<body>\n";
-print " <div id=\"main\">\n";
-print "         <div class=\"loginHolder\">\n";
-print "                 <div class=\"loginBox\">\n";
-print "                         <div class=\"loginForm\">\n";
-print "                         <a href='https://saldi.dk'><img class=\"logoimg\" src='../img/Saldi_Main_Logo.png' width='100px'></a>\n";
-print "                         <form method=\"POST\" action=\"index.php\">\n";
-print "                         <div class='loginAction'>\n";
-print "                                 <h2>Login</h2>\n";
-print "                                 <select id=\"languageId\" name=\"languageId\" onchange=\"this.form.submit();\" >\n";
+print "	<div id=\"main\">\n";    				
+print "		<div class=\"loginHolder\">\n";
+print "			<div class=\"loginBox\">\n";
+print "				<div class=\"loginForm\">\n";    
+print "				<a href='https://saldi.dk'><img class=\"logoimg\" src='../img/Saldi_Main_Logo.png' width='100px'></a>\n";    
+print "				<form method=\"POST\" action=\"index.php\">\n";
+print "				<div class='loginAction'>\n";    
+print "					<h2>Login</h2>\n";    
+print "					<select id=\"languageId\" name=\"languageId\" onchange=\"this.form.submit();\" >\n";
 
 
 $fp = fopen("../importfiler/tekster.csv","r");
 if ($linje=trim(fgets($fp))) {
-	$a = explode("\t",$linje);
+$a = explode("\t",$linje);
 }
 fclose($fp);
 
 if (!is_numeric($languageId)) $languageId = 1;
 for ($x=1; $x<count($a); $x++){
-	if ($x == $languageId){
-		print "<option selected value=\"$x\">". findtekst(1,$x) ."</option>\n";
-	}
-	else {
-		print "<option value=\"$x\">". findtekst(1,$x) ."</option>\n";
-	}
+if ($x == $languageId){
+print "<option selected value=\"$x\">". findtekst(1,$x) ."</option>\n";
+}
+else {
+print "<option value=\"$x\">". findtekst(1,$x) ."</option>\n";
+}
 }
 print "</select>\n";
-print "                         </div>\n";
+print "				</div>\n";    
 print "</form>\n";
 
 print "					<form name=\"login1\" METHOD=\"POST\" ACTION=\"index.php\" onSubmit=\"return handleLogin(this);\">\n";
@@ -200,11 +244,11 @@ if ($fejltxt) {
 }
 
 print " <input type=\"hidden\" value=\"$languageId\" name=\"languageId\" >";
-print "						<label for=\"Regnskab\">". findtekst(115,$languageId) .":</label>\n";
+print "						<label for=\"Regnskab\">". findtekst(115,$languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"regnskab\" name=\"regnskab\" value=\"$regnskab\" tabindex=\"1\">\n";
-print "						<label for=\"login\">". findtekst(225,$languageId) .":</label>\n";
+print "						<label for=\"login\">". findtekst(225,$languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"login\" name=\"brugernavn\" value=\"$brugernavn\" tabindex=\"2\">\n";
-print "						<label for=\"password\">". findtekst(324,$languageId) .":</label>\n";
+print "						<label for=\"password\">". findtekst(324,$languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"password\" id=\"password\" name=\"password\"  value=\"$kode\" tabindex=\"3\">\n";
 print "						<div class=\"loginAction\">\n";
 print "							<div class=\"flleft\">\n";
@@ -214,20 +258,19 @@ print "								". findtekst(2006,$languageId) ."</label>\n";
 print "								<a class=\"forgotpass\" href=\"glemt_kode.php\" tabindex=\"5\">". findtekst(2007,$languageId) ."</a>\n";
 print "							</div><!-- end of flleft -->\n";
 print "							<input class=\"button blue flright\" type=\"submit\" value=\"Login\" alt=\"Login\" title=\"Login\" tabindex=\"6\">\n";
-print "							<div class=\"clearfix\"></div>\n";
+# print "							<div class=\"clearfix\"></div>\n"; #25042024
 print "						</div><!-- end of loginAction -->\n";
 if (strtolower($sqdb)=='rotary') {
 	print "<label style=\"text-align:center;font-size:12px;\">".findtekst(325,$sprog_id)."</label>\n";
 }
 
-print "                                 </form>\n";
-print "                         </div><!-- end of loginForm -->\n";
-print " <div id=\"footer\"><p>Copyright&nbsp;&copy;&nbsp; - $copyright</p></div>\n";
-print "                 </div><!-- end of loginBox -->\n";
-print   "               </div><!-- end of loginHolder -->\n";
-print " </div><!-- end of main -->\n";
-include ("../includes/version.php");
+print "					</form>\n";
+print "				</div><!-- end of loginForm -->\n";
 print "	<div id=\"footer\"><p>Copyright&nbsp;&copy;&nbsp; - $copyright</p></div>\n";
+print "			</div><!-- end of loginBox -->\n";
+print	"		</div><!-- end of loginHolder -->\n";
+print "	</div><!-- end of main -->\n";
+include ("../includes/version.php");
 
 if (!isset($_COOKIE['saldi_std'])) {
 	print "<script language=\"javascript\" type=\"text/javascript\">\n";
