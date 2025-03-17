@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.0 --- 2024.05.22 ---
+// ---- index/dashboard.php --- lap 4.1.0 --- 2025.03.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2025 saldi.dk aps
 // ----------------------------------------------------------------------
-// MMK 241004 
-
+//20241004 MMK  
+//20241018 LOE checks that some variables are set before using. 
 @session_start();
 $s_id = session_id();
 
@@ -230,7 +230,7 @@ $name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
 
 # Newsbar
-if ($closed_newssnippet != $newssnippet && $newssnippet != '') {
+if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) && $newssnippet != '') {
 	print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
 }
 
