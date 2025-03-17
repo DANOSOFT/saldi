@@ -30,21 +30,23 @@ $s_id = session_id();
 
 $css = "../../css/standard.css?v=20";
 
-include ("../../includes/std_func.php");
-include ("../../includes/connect.php");
-include ("../../includes/online.php");
-include ("../../includes/stdFunc/dkDecimal.php");
+include("../../includes/std_func.php");
+include("../../includes/connect.php");
+include("../../includes/online.php");
+include("../../includes/stdFunc/dkDecimal.php");
 
 $valg = "Vareliste";
-include ("topLineVarer.php");
+include("topLineVarer.php");
 
-include (get_relative()."includes/grid.php");
+include(get_relative() . "includes/grid.php");
+$vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
+    ? true : false;
 
 // Columnconfig
 
 $columns = array();
 
-$columns[] =    array(
+$columns[] = array(
     "field" => "varenr",
     "headerName" => "Vare Nr.",
     "render" => function ($value, $row, $column) {
@@ -53,7 +55,7 @@ $columns[] =    array(
     },
     "sqlOverride" => "v.varenr"
 );
-$columns[] =    array(
+$columns[] = array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
     "width" => "3",
@@ -63,26 +65,26 @@ $columns[] =    array(
     },
     "sqlOverride" => "v.beskrivelse"
 );
-$columns[] =    array(
+$columns[] = array(
     "field" => "trademark",
     "headerName" => "Varemærke",
     "hidden" => false,
     "sqlOverride" => "v.trademark"
 );
-$columns[] =    array(
+$columns[] = array(
     "field" => "varegruppe",
     "headerName" => "Varegruppe",
     "sqlOverride" => "vg.beskrivelse",
     "hidden" => false,
 );
-$columns[] =    array(
+$columns[] = array(
     "field" => "momssats",
     "headerName" => "Momssats",
     "width" => "0.5",
     "sqlOverride" => "sm.box2",
     "hidden" => true,
 );
-$columns[] =    array(
+$columns[] = array(
     "field" => "stregkode",
     "headerName" => "Stregkode",
     "sqlOverride" => "v.stregkode"
@@ -113,20 +115,20 @@ $columns[] = array(
 );
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
-$query = "SELECT * FROM grupper WHERE art='LG' ORDER BY kodenr";
+$query = "SELECT kodenr FROM grupper WHERE art='LG' GROUP BY kodenr ORDER BY kodenr";
 $SQLLagerFetch = "";
-$SQLLagerJoin  = "";
+$SQLLagerJoin = "";
 $lagere = array();
-     
+
 $q = db_select($query, __FILE__ . " line " . __LINE__);
 while ($row = db_fetch_array($q)) {
     $SQLLagerFetch .= "COALESCE(ls$row[kodenr].beholdning, 0) AS lager$row[kodenr],\n";
-    $SQLLagerJoin  .= "LEFT JOIN LagerSummary ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
+    $SQLLagerJoin .= "LEFT JOIN LagerSummary ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
     $lagere[] = "lager" . $row['kodenr'];
 
     $columns[] = array(
         "field" => "lager" . $row['kodenr'],
-        "headerName" => (string)$row['beskrivelse'],
+        "headerName" => (string) $row['beskrivelse'],
         "type" => "number",
         "align" => "right",
         "lagerId" => $row['kodenr'],
@@ -135,7 +137,7 @@ while ($row = db_fetch_array($q)) {
         "render" => function ($value, $row, $column) {
             if ($row["samlevare"] == "on") {
                 return "<td></td>";
-            } 
+            }
             if (!$value) {
                 return "<td align='$column[align]'>0,00</td>";
             }
@@ -160,7 +162,7 @@ $columns[] = array(
     "render" => function ($value, $row, $column) {
         if ($row["samlevare"] == "on") {
             return "<td></td>";
-        } 
+        }
         if (!$value) {
             return "<td align='$column[align]'>0,00</td>";
         }
@@ -171,11 +173,12 @@ $columns[] = array(
 // Continue adding other fields if needed
 $columns[] = array(
     "field" => "salgspris",
-    "headerName" => "Salgspris u.m",
+    "headerName" => "Salgspris",
+    "description" => "(excl.moms)",
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
-    "hidden" => true,
+    "hidden" => (!$vatOnItemCard),
     "sqlOverride" => "v.salgspris"
 );
 $columns[] = array(
@@ -185,6 +188,7 @@ $columns[] = array(
     "type" => "number",
     "align" => "right",
     "width" => "0.5",
+    "hidden" => $vatOnItemCard,
     "sqlOverride" => "CASE 
         WHEN vg.box7 = 'on' THEN v.salgspris
         ELSE (100+sm.box2::float)/100*v.salgspris
@@ -213,7 +217,7 @@ $columns[] = array(
            END, 2)",
     "width" => "0.5",
     "valueGetter" => function ($value, $row, $column) {
-        return dkdecimal($value, 1)."%";
+        return dkdecimal($value, 1) . "%";
     },
     "decimalPrecision" => 1,
 );
@@ -374,7 +378,7 @@ ORDER BY {{SORT}}
 
 
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
-create_datagrid("test", $data);
+create_datagrid("varelst$vatOnItemCard", $data);
 print "</div>";
 
 $steps = array();
@@ -392,7 +396,7 @@ $steps[] = array(
 );
 if ($lagere) {
     $steps[] = array(
-        "selector" => ".".implode(",.", $lagere),
+        "selector" => "." . implode(",.", $lagere),
         "content" => "Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerværdier"
     );
 }
@@ -407,5 +411,5 @@ $steps[] = array(
 
 
 
-include (get_relative()."includes/tutorial.php");
-create_tutorial("vareliste",$steps);
+include(get_relative() . "includes/tutorial.php");
+create_tutorial("vareliste", $steps);
