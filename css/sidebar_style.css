@@ -45,16 +45,15 @@
 
 .sidebar .logo i {
     font-size: 25px;
-    /*position: absolute;*/
     top: 0;
     right: 0;
-    /*transform: translateX(15px) rotate(0deg);*/
     transition: 0.5s ease;
     color: #fff;
+    transform: rotate(0deg);
 }
 
 .sidebar.closed .logo i {
-    transform: translateX(-109px);
+    transform: translateX(-109px) rotate(180deg);
 }
 
 .sidebar .logo-img {
