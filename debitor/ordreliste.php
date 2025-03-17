@@ -374,6 +374,21 @@ if ($submit==findtekst(880, $sprog_id) || $submit=="Send mails"){ #20210817 Adde
 	
 	else print "<BODY onLoad=\"javascript:alert('$alert1')\">";
 }
+if ($submit==findtekst(576, $sprog_id)){ #20210817 Added translated variable 
+	for ($x=0; $x<count($ordre_id); $x++){
+		$c=$ordre_id[$x];
+		if ($checked[$c]=="on") {
+			$y++;
+			if (!$udskriv) $udskriv=$ordre_id[$x];  
+			else $udskriv=$udskriv.",".$ordre_id[$x];
+		}
+	}
+	if ($y>0) {
+		print "<script>window.open('formularprint.php?id=-1&ordre_antal=$y&skriv=$udskriv&formular=3&udskriv_til=PDF&returside=../includes/luk.php')</script>";
+	}
+	
+	else print "<BODY onLoad=\"javascript:alert('$alert1')\">";
+}
 if (isset($_POST['check'])||isset($_POST['uncheck'])) {
 	if (isset($_POST['check'])) $check_all='on';
 	else $uncheck_all='on';
@@ -1027,6 +1042,7 @@ while ($r0=db_fetch_array($q0)) {
 		print "</tr>\n";
 	}# endif ($lnr>=$start && $lnr<$slut)
 }# endwhile
+$colspan=$vis_feltantal+2;
 if (!$l && $udvaelg) {
 	$colspan=$vis_feltantal+2;
 	print "<tr><td align='center' colspan='$colspan'>";
@@ -1036,9 +1052,8 @@ if (!$l && $udvaelg) {
 if ($menu=='T') {
 	print "</tbody><tfoot>\n";
 } else {
-	print "<tr><td colspan=11><hr></td></tr>\n";
+	print "<tr><td colspan='$colspan'><hr></td></tr>\n";
 }
-$colspan=$vis_feltantal+2;
 if ($valg) {		
 	if ($vis_projekt) $colspan++;
 	if ($check_all) {
@@ -1076,9 +1091,9 @@ if ($valg) {
 					print "<span title=\"".findtekst(1435, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"Send mails\" name=\"submit\" onclick=\"return confirm('$confirm $valg pr mail?')\"></span><br>";
 				} 
 			}
-			$confirm1= findtekst(1445, $sprog_id);  
-			print "<span title=\"".findtekst(1436, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td>";
-			
+			$confirm1= findtekst(1445, $sprog_id);
+			print "<span title=\"".findtekst(1436, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td></tr>";
+			print "<tr><td colspan='$colspan' align='right'><span title='Udskriv følgesedler for valgte fakturaer'><input type=submit style=\"width:100px\"; value=\"".findtekst(576,$sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td></tr>";
 		} else {
 			print "<input type=submit value=\"".findteskt(880, $sprog_id)."\" name=\"submit\" style=\"width:100px\"; disabled=\"disabled\"></td>";
 			
@@ -1128,9 +1143,9 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 } #else db_modify("insert into grupper (beskrivelse,kode,kodenr,art,box1) values ('Ordrelistevisning','$valg','$bruger_id','OLV','$ordreliste')",__FILE__ . " linje " . __LINE__);
 
 if ($menu=='T') {
-	print "<tr><td colspan=11 class='border-hr-top'></td></tr>\n";
+	print "<tr><td colspan='$colspan' class='border-hr-top'></td></tr>\n";
 } else {
-	print "<tr><td colspan=11><hr></td></tr>\n";
+	print "<tr><td colspan='$colspan'><hr></td></tr>\n";
 }
 
 # Calcualte db / dg and total price
