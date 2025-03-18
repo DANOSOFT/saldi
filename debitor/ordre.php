@@ -3783,7 +3783,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 						}
 					}
 					if ($felt_1 != 'Kontant') print "<option value='Kontant'>$txt370</option>";
-					if ($felt_1 != 'Konto') print "<option value='Konto'>Konto</option>";
+					if ($felt_1 != 'Konto') print "<option value='Konto'>".findtekst('440|Konto', $sprog_id)."</option>";
 			#        } else {
 			#          ($betalingsbet=='Kontant')?$felt_1='Kontant':$felt_1='Konto';
 			#          print "<option value='$felt_1'>$felt_1</option>";

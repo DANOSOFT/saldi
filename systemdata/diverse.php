@@ -405,11 +405,11 @@ if ($_POST) {
 		if ($box2 && $r=db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'",__FILE__ . " linje " . __LINE__))) {
 			$box2=$r['id'];
 		} elseif ($box2) {
-				$txt = str_replace('XXXXX',$box2,findtekst(289,$sprog_id));
+				$txt = str_replace('XXXXX',$box2,findtekst('289|Varenr. XXXXX eksisterer ikke.', $sprog_id));
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 		}
 		if ($box14 && !$box2) {
-			$txt=findtekst(1875, $sprog_id); #20210820
+			$txt = findtekst('1875|Samlet pris forudsætter at der er et varenr. til rabat', $sprog_id); #20210820
 			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 			$box14='';
 		}
@@ -418,13 +418,13 @@ if ($_POST) {
 		$qtxt = "select id from varer WHERE varenr = '$saetvarenr'";
 		if ($saetvarenr && $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $saetvareid=$r['id'];
 		if ($saetvarenr && !$saetvareid) {
-			$txt= findtekst(1876, $sprog_id);
+			$txt = findtekst('1876|Varenummer for sæt eksisterer ikke', $sprog_id);
 			print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 		}
 /*
 		if ($kostmetode) {
 			if ($r=db_fetch_array(db_select("select id from grupper WHERE art = 'VG' and box1 != box2",__FILE__ . " linje " . __LINE__))) {
-				$txt = findtekst(733,$sprog_id);
+				$txt = findtekst(733, $sprog_id);
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=../systemdata/konv_lager.php\">\n"; # 20140424b
 				exit;
@@ -551,7 +551,7 @@ if ($_POST) {
 					$qtxt.="'Account for commisionsale, new items. If set, commmision sale income of new items, is accounted in this account','0')";
 				}
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} else alert ("".findtekst(1709, $sprog_id)." $commissionAccountNew ".findtekst(1735, $sprog_id)." ($regnaar)");
+			} else alert ("".findtekst('1709|Driftkonto', $sprog_id)." $commissionAccountNew ".findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id)." ($regnaar)");
 		} elseif ($commissionAccountNewId) {
 			$qtxt="update settings set var_value='' ";
 			$qtxt.="where id='$commissionAccountNewId'";
@@ -571,7 +571,7 @@ if ($_POST) {
 					$qtxt.="commmision sale income of used items, is accounted in this account','0')";
 				}
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					} else alert ("".findtekst(1709, $sprog_id)." $commissionAccountUsed ".findtekst(1735, $sprog_id)." ($regnaar)"); #20210802
+					} else alert ("".findtekst('1709|Driftkonto', $sprog_id)." $commissionAccountUsed ".findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id)." ($regnaar)"); #20210802
 		} elseif ($commissionAccountUsedId) {
 			$qtxt="update settings set var_value='' ";
 			$qtxt.="where id='$commissionAccountUsedId'";
@@ -591,7 +591,7 @@ if ($_POST) {
 					$qtxt.= "If set, customers part of commmision sale of new items, is taken from this account','0')";
 				}
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		} else alert ("".findtekst(1736, $sprog_id)." $customerCommissionAccountNew ".findtekst(1735, $sprog_id)." ($regnaar)");
+		} else alert ("".findtekst('1736|Statuskonto', $sprog_id)." $customerCommissionAccountNew ".findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id)." ($regnaar)");
 		} elseif ($customerCommissionAccountNewId) {
 			$qtxt="update settings set var_value='' ";
 			$qtxt.="where id='$customerCommissionAccountNewId'";
@@ -612,7 +612,7 @@ if ($_POST) {
 					$qtxt.= "If set, customers part of commmision sale of used items, is taken from this account','0')";
 				}
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} else alert ("".findtekst(1736, $sprog_id)." $customerCommissionAccountUsed ".findtekst(1735, $sprog_id)." ($regnaar)");
+			} else alert ("".findtekst('1736|Statuskonto', $sprog_id)." $customerCommissionAccountUsed ".findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id)." ($regnaar)");
 		} elseif ($customerCommissionAccountUsedId) {
 			$qtxt="update settings set var_value='' ";
 			$qtxt.="where id='$customerCommissionAccountUsedId'";
@@ -656,7 +656,7 @@ if ($_POST) {
 					$qtxt.= "If set, customers part of commmision sale of new items, is taken from this account','0')";
 				}
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} else alert ("".findtekst(1736, $sprog_id)." $ownCommissionAccountNew ".findtekst(1735, $sprog_id)." ($regnaar)");
+			} else alert ("".findtekst('1736|Statuskonto', $sprog_id)." $ownCommissionAccountNew ".findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id)." ($regnaar)");
 		} elseif ($ownCommissionAccountNewId) {
 			$qtxt="update settings set var_value='' ";
 			$qtxt.="where id='$ownCommissionAccountNewId'";
@@ -677,7 +677,7 @@ if ($_POST) {
 					$qtxt.= "If set, customers part of commmision sale of used items, is taken from this account','0')";
 				}
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} else alert ("".findtekst(1736, $sprog_id)." $ownCommissionAccountUsed ".findtekst(1735, $sprog_id)." ($regnaar)");
+			} else alert ("".findtekst('1736|Statuskonto', $sprog_id)." $ownCommissionAccountUsed ".findtekst('1735|ikke fundet i kontoplan i aktivt år', $sprog_id)." ($regnaar)");
 		} elseif ($ownCommissionAccountUsedId) {
 			$qtxt="update settings set var_value='' ";
 			$qtxt.="where id='$ownCommissionAccountUsedId'";
@@ -728,7 +728,7 @@ if ($_POST) {
 				}
 			}
 			sleep (10);
-			alert ("$x ".findtekst(1737, $sprog_id)."");
+			alert ("$x ".findtekst('1737|varer konvereteret', $sprog_id)."");
 		}
 	# varevalg slut
 	#######################################################################################
@@ -805,12 +805,12 @@ if ($_POST) {
 		for ($x=0;$x<count($noGo);$x++) {
 			if (strstr($labelText,$noGo[$x])) {
 				$labelText=str_replace($noGo[$x],'',$labelText);
-				$alert = findtekst(1738, $sprog_id);
+				$alert = findtekst('1738|Illegal værdi i labeltekst', $sprog_id);
 				print "<BODY onLoad=\"JavaScript:alert('$alert')\">";
 			}
 		}
 		if ($createNewLabel && !$newLabelName) {
-			$alert1 = findtekst(1739, $sprog_id); #20210802
+			$alert1 = findtekst('1739|Beskrivelse mangler, label ikke oprettet', $sprog_id); #20210802
 			if ($labelTemplate) $newLabelName=str_replace('.txt','',$labelTemplate);
 			else alert($alert1);
 		}
@@ -1042,23 +1042,23 @@ if ($_POST) {
 			$qtxt="select id from kontoplan WHERE kontonr = '$kassekonti[$x]'";
 			if (($kassekonti[$x] && is_numeric($kassekonti[$x]) && db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))));
 			else {
-				if ($kassekonti[$x]) $txt=str_replace("<variable>",$kassekonti[$x],findtekst(277,$sprog_id));
-				else $txt = findtekst(278,$sprog_id);
+				if ($kassekonti[$x]) $txt=str_replace("<variable>",$kassekonti[$x],findtekst('277|Kontonr. <variable> eksisterer ikke', $sprog_id));
+				else $txt = findtekst('278|Kontonr. skal udfyldes for alle kasser', $sprog_id);
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 			}
 			$txt='';
 			$qtxt="select id from kontoplan WHERE kontonr = '$mellemkonti[$x]'";
 			if (($mellemkonti[$x] && is_numeric($mellemkonti[$x]) && db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))));
 			else {
-				if ($mellemkonti[$x]) $txt=str_replace("<variable>",$mellemkonti[$x],findtekst(717,$sprog_id));
-				else $txt = findtekst(718,$sprog_id);
+				if ($mellemkonti[$x]) $txt=str_replace("<variable>",$mellemkonti[$x],findtekst('717|Mellemkonto <variable> eksisterer ikke', $sprog_id));
+				else $txt = findtekst('718|Mellemkonto skal udfyldes for alle kasser', $sprog_id);
 				if ($txt) print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 			}
 			$qtxt="select id from kontoplan WHERE kontonr = '$diffkonti[$x]'";
 			if (($diffkonti[$x] && is_numeric($diffkonti[$x]) && db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))));
 			else {
-				if ($mellemkonti[$x]) $txt=str_replace("<variable>",$diffkonti[$x],findtekst(723,$sprog_id));
-				else $txt = findtekst(718,$sprog_id);
+				if ($mellemkonti[$x]) $txt=str_replace("<variable>",$diffkonti[$x],findtekst('723|Difference konto <variable> eksisterer ikke', $sprog_id));
+				else $txt = findtekst('718|Mellemkonto skal udfyldes for alle kasser', $sprog_id);
 				if ($txt) print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 			}
 
@@ -1174,8 +1174,8 @@ if ($_POST) {
 			if ($korttyper[$x]) {
 				$kortkonti[$x]*=1;
 				if (!db_fetch_array(db_select("select id from kontoplan WHERE kontonr = '$kortkonti[$x]'",__FILE__ . " linje " . __LINE__))) {
-					if ($kortkonti[$x]) $txt=str_replace("<variable>",$kortkonti[$x],findtekst(277,$sprog_id));
-					else $txt = findtekst(278,$sprog_id);
+					if ($kortkonti[$x]) $txt=str_replace("<variable>",$kortkonti[$x],findtekst('277|Kontonr. <variable> eksisterer ikke', $sprog_id));
+					else $txt = findtekst('278|Kontonr. skal udfyldes for alle kasser', $sprog_id);
 					print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 				}
 				if (isset($voucherItemNo[$x])) {
@@ -1184,7 +1184,7 @@ if ($_POST) {
 					if ($r['id']) $voucherItemId[$x]=$r['id'];
 					else {
 						$voucherItemId[$x]='0';
-						$alerttxt="".findtekst(320, $sprog_id)." $voucherItemNo[$x] ".findtekst(1740, $sprog_id)."";
+						$alerttxt="".findtekst('320|Varenummer', $sprog_id)." $voucherItemNo[$x] ".findtekst('1740|ikke fundet', $sprog_id)."";
 						alert ($alerttxt);
 					}
 				} else $voucherItemId[$x]='0';
@@ -1220,13 +1220,13 @@ if ($_POST) {
 		if ($varenr && $r=db_fetch_array(db_select("select id from varer WHERE varenr = '$varenr'",__FILE__ . " linje " . __LINE__))) {
 			$box11_2=$r['id'];
 		} elseif ($varenr) {
-				$txt = str_replace('XXXXX',$varenr,findtekst(289,$sprog_id));
+				$txt = str_replace('XXXXX',$varenr,findtekst('289|Varenr. XXXXX eksisterer ikke.', $sprog_id));
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 		}
 		if ($rabatvarenr && $r=db_fetch_array(db_select("select id from varer WHERE varenr = '$rabatvarenr'",__FILE__ . " linje " . __LINE__))) {
 			$box8=$r['id'];
 		} elseif ($rabatvarenr) {
-				$txt = str_replace('XXXXX',$rabatvarenr,findtekst(289,$sprog_id));
+				$txt = str_replace('XXXXX',$rabatvarenr,findtekst('289|Varenr. XXXXX eksisterer ikke.', $sprog_id));
 				print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 		}
 		$qtxt = "select id from grupper WHERE art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'";
@@ -1331,7 +1331,7 @@ if ($_POST) {
 		$r = db_fetch_array(db_select("select * from grupper WHERE art = 'DocBiz'",__FILE__ . " linje " . __LINE__));
 		$kommando="cd ../temp/$db\n$exec_path/ncftp ftp://".$r['box2'].":".$r['box3']."@".$r['box1']."/".$r['box5']." < ftpscript > NULL ";
 		system ($kommando);
-		$alert= findtekst(1741, $sprog_id);
+		$alert= findtekst('1741|Data sendt til DocuBizz', $sprog_id);
 		print "<BODY onLoad=\"JavaScript:alert('$alert')\">";
 #######################################################################################
 	} elseif ($sektion=='bilag') {
@@ -1409,7 +1409,7 @@ if ($_POST) {
 		$box2=$_POST['box2']*1;
 		if ($box1) $box1=usdecimal($box1);
 		if ($box2 && !db_fetch_array(db_select("select id from kontoplan WHERE kontonr = '$box2' and kontotype = 'D' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__))){
-			$tekst=findtekst(175,$sprog_id);
+			$tekst=findtekst('175|Kontonummer for øredifferencer findes ikke i kontoplanen', $sprog_id);
 			print "<BODY onLoad=\"JavaScript:alert('$tekst')\">";
 			$diffkto=$box2;
 			$box2='';
@@ -1485,8 +1485,8 @@ if ($_POST) {
 			$nyt_navn=trim(db_escape_string($_POST['nyt_navn']));
 			include("../includes/connect.php");
 			if (db_fetch_array(db_select("select id from regnskab WHERE regnskab = '$nyt_navn'",__FILE__ . " linje " . __LINE__))) {
-				$alert1 = findtekst(1742, $sprog_id);
-				$alert2 = findtekst(1743, $sprog_id);
+				$alert1 = findtekst('1742|Der findes allerede et regnskab med navnet', $sprog_id);
+				$alert2 = findtekst('1743|Navn ikke ændret', $sprog_id);
 				print "<BODY onLoad=\"JavaScript:alert('$alert1 $nyt_navn! $alert2')\">";
 			} else {
 				$r=db_fetch_array(db_select("select id from kundedata WHERE regnskab_id = '$db_id'",__FILE__ . " linje " . __LINE__));
@@ -1555,8 +1555,8 @@ if ($_POST) {
 				include("../includes/online.php");
 				print "Sletter";
 			} else {
-				$tekst1=findtekst(852,$sprog_id);
-				$alert = findtekst(1744, $sprog_id);
+				$tekst1=findtekst('852|Slet regnskab', $sprog_id);
+				$alert = findtekst('1744|For at slette dit regnskab skal du afmærke feltet ved', $sprog_id);
 				alert("$alert $tekst1: $regnskab");
 			}
 		}
@@ -1625,31 +1625,31 @@ if ($menu != 'T') {
 
 		print "<tr><td align=left><a href=diverse.php?sektion=kontoindstillinger>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(783,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('783|Kontoindstillinger', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=provision>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(784,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('784|Provisionsberegning', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=personlige_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(785,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('785|Personlige valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=ordre_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(786,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('786|Ordrerelaterede valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=productOptions>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(787,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('787|Varerelaterede valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=variant_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(788,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('788|Variantrelaterede valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=shop_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(789,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('789|Shoprelaterede valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=api_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
@@ -1657,78 +1657,78 @@ if ($menu != 'T') {
 
 		print "<tr><td align=left><a href=diverse.php?sektion=labels>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(791,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('791|Mærkater', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=prislister>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(792,$sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
+			   .findtekst('792|Prislister', $sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=rykker_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(793,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('793|Rykkerrelaterede valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=div_valg>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(794,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('794|Diverse valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=tjekliste>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(796,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('796|Tjeklister', $sprog_id)."</button></a></td></tr>\n";
 
 		if ($docubizz) print "<tr><td align=left><a href=diverse.php?sektion=docubizz>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(796,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('796|Tjeklister', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=bilag>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(797,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('797|Bilagshåndtering', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=orediff>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(170,$sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
+			   .findtekst('170|Øredifferencer', $sprog_id)."</button></a><!--tekst 170--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=massefakt>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(200,$sprog_id)."</button></a><!--tekst 200--></td></tr>\n";
+			   .findtekst('200|Massefakturering', $sprog_id)."</button></a><!--tekst 200--></td></tr>\n";
 
-		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left><a href=diverse.php?sektion=posOptions><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(271,$sprog_id)."</button></a></td></tr>\n";
+		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left><a href=diverse.php?sektion=posOptions><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('271|PoS-valg', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=sprog>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(801,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('801|Sprog', $sprog_id)."</button></a></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=div_io>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(802,$sprog_id)."</button></a></td></tr>\n";
+			   .findtekst('802|Import & eksport', $sprog_id)."</button></a></td></tr>\n";
 
 		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
 		print "<script>document.getElementById('sidebar-base').style.display = 'none';</script>";
 
 	} else { //Gammel menu
 		print "<tr><td align=\"center\" valign=\"top\"><br></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoindstillinger>".findtekst(783,$sprog_id)."</a></td></tr>\n"; // 20210513
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=provision>".findtekst(784,$sprog_id)."</a>&nbsp;</td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=personlige_valg>".findtekst(785,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ordre_valg>".findtekst(786,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=productOptions>".findtekst(787,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst(788,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst(789,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoindstillinger>".findtekst('783|Kontoindstillinger', $sprog_id)."</a></td></tr>\n"; // 20210513
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=provision>".findtekst('784|Provisionsberegning', $sprog_id)."</a>&nbsp;</td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=personlige_valg>".findtekst('785|Personlige valg', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=ordre_valg>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=productOptions>".findtekst('787|Varerelaterede valg', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>".findtekst('788|Variantrelaterede valg', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>".findtekst('789|Shoprelaterede valg', $sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst(791,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=prislister>".findtekst(792,$sprog_id)."</a><!--tekst 427--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst(793,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>".findtekst(794,$sprog_id)."</a></td></tr>\n";
-		# print "<tr><td align=left $top_bund>&nbsp;<a href=..\paperpdf/activatepaperflow.php>".findtekst(795,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>".findtekst(796,$sprog_id)."</a></td></tr>\n";
-		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>".findtekst(796,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>".findtekst(797,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>".findtekst(170,$sprog_id)."</a><!--tekst 170--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>".findtekst(200,$sprog_id)."</a><!--tekst 200--></td></tr>\n";
-		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>".findtekst(271,$sprog_id)."</a><!--tekst 271--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst('791|Mærkater', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=prislister>".findtekst('792|Prislister', $sprog_id)."</a><!--tekst 427--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst('793|Rykkerrelaterede valg', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>".findtekst('794|Diverse valg', $sprog_id)."</a></td></tr>\n";
+		# print "<tr><td align=left $top_bund>&nbsp;<a href=..\paperpdf/activatepaperflow.php>".findtekst(795, $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>".findtekst('796|Tjeklister', $sprog_id)."</a></td></tr>\n";
+		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>".findtekst('796|Tjeklister', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>".findtekst('797|Bilagshåndtering', $sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>".findtekst('170|Øredifferencer', $sprog_id)."</a><!--tekst 170--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>".findtekst('200|Massefakturering', $sprog_id)."</a><!--tekst 200--></td></tr>\n";
+		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>".findtekst('271|PoS-valg', $sprog_id)."</a><!--tekst 271--></td></tr>\n";
 		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=email>Mail indstillinger</a></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=sprog>".findtekst(801,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=sprog>".findtekst('801|Sprog', $sprog_id)."</a></td></tr>\n";
 		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoplan_io>Indl&aelig;s  / udl&aelig;s kontoplan</a></td></tr>";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_io>".findtekst(802,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_io>".findtekst('802|Import & eksport', $sprog_id)."</a></td></tr>\n";
 		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
 	}
 } 

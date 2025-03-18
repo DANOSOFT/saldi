@@ -55,11 +55,11 @@
 55	Institution	Institution	Institusjon
 56	Betalingsbet.	Pay.terms	Betalingsbet.
 57	Betalingsdage	Pay.days	Betalingsdager
-58	Bank_navn	Bank name	Bank navn
+58	Banknavn	Bank name	Banknavn
 59	Bank_reg	Bank_reg	Bank_reg
-60	Bank_konto	Bank_account	Bankkonto
+60	Bankkonto	Bank account	Bankkonto
 61	Bank_fi	Bank_fi	Bank_fi
-62	Swift	Swift	Fort
+62	Swift	Swift	Swift
 63	Gruppe	Group	Gruppe
 64	Kontoansvarlig	Account manager	Kontosjef
 65	Oprettet	Created	Laget
@@ -275,7 +275,7 @@
 275	Vælg det kontonummer hvor bevægelser skal konteres	Select the account number where movements are to be posted	Velg kontonummeret der transaksjoner skal bokføres
 276	Kontonr.	Account No.	Kontonr.
 277	Kontonr. <variable> eksisterer ikke	Account no. <variable> does not exist	Kontonr. <variable> eksisterer ikke
-278	Kontonr skal udfyldes for alle kasser	Account number must be filled in for all boxes	Kontonummer må fylles ut for alle boksene
+278	Kontonr. skal udfyldes for alle kasser	Account number must be filled in for all boxes	Kontonummer må fylles ut for alle boksene
 279	Skriv her hvor mange forskellige betalingskort og andre betalingsmuligheder der modtages	Write here how many different payment cards and other payment options are received	Skriv her hvor mange forskjellige betalingskort og andre betalingsalternativer som mottas
 280	Antal betalingsmåder	Number of payment methods	Antall betalingsmåter
 281	Type af betalingsmåde	eg Dankort	Type betalingsmåte
@@ -549,7 +549,7 @@
 549	Postnr, by	Zipcode, City	Postnummer, by
 550	Lev.dato	Delivery Date	Leveringsdato
 551	Modtagelse	Receipt	Kvittering
-552	Valuta / Kurs	Currency / Exchange Rate	Valutakurs
+552	Valuta / Kurs	Currency / Exchange Rate	Valuta / Kurs
 553	Projekt	Project	Prosjekt
 554	Leveringsadresse	Delivery Address	Leveringsadresse
 555	Godkend	Approve	Godkjen
@@ -799,7 +799,7 @@
 799	Mass invoicing	Mass invoicing	Massefakturering
 800	PoS selection	PoS selection	PoS-valg
 801	Sprog	Language	Språk
-802	Import & eksport	Import & export	Import Eksport
+802	Import & eksport	Import & export	Import & eksport
 803	Skabelon	Template	Mal
 804	Kontonr.	Account no.	Kontonr.
 805	Kontonavn	Account Name	Brukernavn
@@ -878,13 +878,13 @@
 878	Samlet omsætning / db / dg (excl. moms.)	Total turnover / db / dg (excl. VAT)	Total omsetning / db / dg (eks mva)
 879	Hent fra shop	Pick up from shop	Henting fra butikk
 880	Udskriv	Print	Skriv ut
-881	Ordredato	Order Date	Bestillingsdato
-882	Fakt.nr.	Invoice No.	Fakt.nr.
-883	Fakt.dato.	Invoice Date.	Fakt.Dato.
+881	Ordredato	Order date	Ordredato
+882	Fakt. nr.	Invoice no.	Fakt. nr.
+883	Fakt. dato.	Invoice date.	Fakt. dato.
 884	Sælger	Selling	Selger
 885	Fakturasum	Invoice_sum	Fakturasum
-886	Levdato	Delivery Date	Leveringsdato
-887	Ordresum	Order amount	Bestillingsbeløp
+886	Levdato	Delivery date	Leveringsdato
+887	Ordresum	Order amount	Ordresum
 888	Tilbudsnr.	Offer no.	Tilbud nr.
 889	Tilbudsdato	Offer date	Tilbudsdato
 890	Tilbudssum	Offer amount	Tilby sum
@@ -949,7 +949,7 @@
 949	Salgspris	Sales price	Salgspris
 950	Kostpris	Cost price	Kostpris
 951	Leverandør	Supplier	Leverandør
-952	Lev. varenr	Live. item no	Lev. varenr
+952	Lev. varenr.	Suppl. item no.	Lev. varenr.
 953	Ordrebeholdning	Order book	Ordrebeholdning
 954	Indkøbsforslag	Purchase suggestions	Kjøpsforslag
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
@@ -1092,7 +1092,7 @@
 1092	Kundeordre	Sales order	Salgsordre
 1093	Bogførte kladder	Posted drafts	Skrevet utkast
 1094	Fakturadato	Invoice date	Fakturadato
-1095	Momssats	VAT rate	MMVA-sats
+1095	Momssats	VAT rate	MVA-sats
 1096	Ordredato	Order date	Bestillingsdato
 1097	Vor ref.	Our ref.	Vår ref.
 1098	Jobkort	Job card	Jobbkort
@@ -1230,11 +1230,11 @@
 1230	Lås lagerværdi	Lock stock value	Lås aksjeverdi
 1231	Primotal for	Initial figures for	Primotal for
 1232	Opret	Create	Skape
-1233	Der er foretaget	It has been made	Det er laget
-1234	posteringer de sidste 12 mdr.	postings the last 12 months.	innlegg de siste 12 månedene.
+1233	Der er foretaget	There has been made	Det er laget
+1234	posteringer de sidste 12 mdr.	postings the last 12 months.	posteringer de siste 12 månedene.
 1235	Vælg den tidszone der skal gælde for dette regnskab	Select the time zone to apply to these accounts	Velg tidssonen som skal brukes på disse kontoene
 1236	Tidszone	Time zone	Tidssone
-1237	Dit regnskab hedder	Your accounts are called	Kontoer blir ringt opp
+1237	Dit regnskab hedder	Your account is called	Regnskapet ditt heter
 1238	for at ændre navnet.	to change the name.	for å endre navnet.
 1239	Nulstil	Reset	Nullstille
 1240	Klik	Click here to synchronize debtor cards with debtor information from the order	Klikk
@@ -1370,7 +1370,7 @@
 1370	Der er sket en fejl under hentningen, prøv venligst igen	An error occurred while retrieving, please try again	Valutabeskrivelse - f.eks. Amerikanske dollar
 1371	Importer_variantvarer	Import_variant items	Importer_variantvarer
 1372	Uploadet fil	Uploadedfile	Lastet opp fil
-1373	Formularkopi	Form copy	Formkopi
+1373	Formularkopi	Form copy	Skjemakopi
 1374	Eksporter formularer	Export forms	Eksporter skjemaer
 1375	Eksporter variantvarer	Export variant products	Eksporter varevarer
 1376	Tegnsæt	Character set	Tegnsett
@@ -1478,7 +1478,7 @@
 1478	Varenummer. Skriv hele varenumret eller klik på Opslag for at vælge. Hvis du vil vælge mellem varenumre startende med t, så skriv t* i feltet og klik på Opslag.	Item number. Enter the entire item number or click Lookup to select. If you want to choose between item numbers starting with t, type t* in the field and click Lookup.	Artikkelnummer. Skriv inn hele varenummeret, eller klikk på Oppslag for å velge. Hvis du vil velge mellom varenummer som begynner med t, skriver du t* i feltet og klikker på Oppslag.
 1479	Antal enheder. Timer og minutter kan angives med : som skilletegn. Eksempelvis 5:45 som bliver til 5,75.	Number of units. Hours and minutes can be specified with : as delimiter. For example, 5:45 which becomes 5.75.	Antall enheter. Timer og minutter kan spesifiseres med : som avgrenser. For eksempel 5:45 som blir 5,75.
 1480	Brug [Shift]+[Enter] for et indsætte et linjeskift i en beskrivelseslinje	Use [Shift] + [Enter] to insert a line break in a description line	Bruk [Skift] + [Enter] for å sette inn et linjeskift i en beskrivelseslinje
-1481	Procent	Percentage	Prosentdel
+1481	Procent	Percent	Prosent
 1482	'Kun denne ordre'. Afmærk dette felt hvis ordrelinjen ikke skal med ved genfakturering eller kopiering af ordren.	'Only this order'. Check this box if the order line should not be included when re-invoicing or copying the order.	'Bare denne bestillingen'. Merk av i denne boksen hvis ordrelinjen ikke skal inkluderes når du fakturerer eller kopierer ordren.
 1483	Levér	Deliver	Levere
 1484	Indtastningsfeltet herunder er det antal, som leveres ved klik på Levér. Antallet i parantes er det, som allerede er leveret.	The input field below is the number that is delivered by clicking on Deliver. The number in parentheses is what has already been delivered.	Inndatafeltet nedenfor er nummeret som leveres ved å klikke på Deliver. Antallet i parentes er det som allerede er levert.
@@ -1872,7 +1872,7 @@
 1872	kontroller aktivt regnskabsår	check active financial year	sjekk aktivt regnskapsår
 1873	Skriv ny varebeskrivelse	Write a new item description	Skriv en ny varebeskrivelse
 1874	Kostpris ex. moms	Cost price ex. VAT	Kostpris eks. Mva
-1875	Samlet pris forudsætter at der er et varenr til rabat	Total price assumes that there is an item number for a discount	Totalpris forutsetter at det er et varenummer for rabatt
+1875	Samlet pris forudsætter at der er et varenr. til rabat	Total price assumes that there is an item number for a discount	Totalpris forutsetter at det er et varenummer for rabatt
 1876	Varenummer for sæt eksisterer ikke	Set item number does not exist	Angitt varenummer eksisterer ikke
 1877	Vareimport	Import of products	Import av varer
 1878	Leverandør	Supplier	Leverandør
@@ -2175,7 +2175,7 @@
 2175	Simuleret kontokort	Simulated General ledger	Simulert kontokort
 2176	CVR	VAT	MVA
 2177	Simulering	Simulation	Simulering
-2178	Pos nr.	Item no.	Varenr.
+2178	Pos nr.	Pos. no.	Pos nr.
 2179	Klik her for at åbne filen i nyt vindue, højreklik her for at gemme	Click here to open the file in a new window, right-click to save	Klikk her for å åpne filen i et nytt vindu, høyreklikk her for å lagre
 2180	Vis PDF-udskrift	Show PDF Prin	Vis PDF-utskrift
 2181	Klik her for at lukke Top 100	Click here to close Top 100	Klikk her for å lukke Top 100
@@ -2371,28 +2371,28 @@
 2371	Her har du mulighed for at flytte centreringen på formularen	Here you have the option to move the centering of the form	Her har du mulighet til å flytte sentreringen på skjemaet
 2372	Angiv blot det antal mm der skal flyttes hhv. op og til højre	Simply specify the number of mm to move upwards and to the right respectively	Angi bare antall mm som skal flyttes hhv. opp og til høyre
 2373	Anvend negativt fortegn, hvis der skal rykkes ned eller til venstre	Use a negative sign if it should be moved downwards or to the left	Bruk negativt fortegn hvis det skal flyttes ned eller til venstre
-2374
-2375
-2376
-2377
-2378
-2379
-2380
-2381
-2382
-2383
-2384
-2385
-2386
-2387
-2388
-2389
-2390
-2391
-2392
-2393
-2394
-2395
+2374	Linjeantal	Line count	Linjeantall
+2375	Linjeafst.	Line sp.	Linjeafst.
+2376	Tekstlængde	Text length	Tekstlengde
+2377	Linjemoms	Line VAT	Linje-MVA
+2378	Varemomssats	Goods VAT rate	Vare-MVA-sats
+2379	Linjesum	Line total	Linjesum
+2380	Op	Up	Opp
+2381	Ned	Down	Ned
+2382	Højre	Right	Høyre
+2383	Venstre	Left	Venstre
+2384	er allerede oprettet. Oprettelse annulleret	already exists. Language setup canceled	er allerede opprettet. Opprettelse annullert
+2385	Sprogbenævnelse må ikke indeholde specialtegn.\\nOprettelse af	The language name must not contain special characters. \\n Setup of	Språkbetegnelse må ikke inneholde spesialtegn.\\nOpprettelsen av
+2386	er annulleret	has been canceled	er annullert
+2387	Toplinjer	Top lines	Topplinjer
+2388	Bundlinker	Bottom lines	Bunnlinjer
+2389	Egen	Own	Egen
+2390	Eget	Own	Eget
+2391	Kundeordrenummer	Customer order number	Kundeordrenummer
+2392	Formular	Form	Skjema
+2393	Transportsum Transport cost Transportsum
+2394	Der findes allerede en enhed med betegnelsen	A unit already exists with the designation	Det finnes allerede en enhet med betegnelsen
+2395	Der findes allerede et materiale med beskrivelsen	A material already exists with the description	Det finnes allerede et materiale med beskrivelsen
 2396
 2397
 2398

@@ -107,23 +107,23 @@ function kontoindstillinger($regnskab,$skiftnavn) {
 		}
 	}
 	print "<tr><td colspan='6'><hr></td></tr>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(783,$sprog_id)."</u></b></td></tr>\n";
+	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('783|Kontoindstillinger', $sprog_id)."</u></b></td></tr>\n";
 	print "<tr><td colspan='6'><br></td></tr>\n";
 	if (!$skiftnavn) {
-		$klik = findtekst(149, $sprog_id); $klik1= explode(" ", $klik);  #20210710
-		print "<tr><td colspan='6'>".findtekst(1237,$sprog_id)." <span style='font-weight:bold'>$regnskab</span>. ";
-		print "$klik1[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>her</a> ".findtekst(1238,$sprog_id)."</td></tr>\n";
+		$klik = findtekst('149|Klik her for at sortere på telefonnummer.', $sprog_id); $klik1= explode(" ", $klik);  #20210710
+		print "<tr><td colspan='6'>".findtekst('1237|Dit regnskab hedder', $sprog_id)." <span style='font-weight:bold'>$regnskab</span>. ";
+		print "$klik1[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>her</a> ".findtekst('1238|for at ændre navnet.', $sprog_id)."</td></tr>\n";
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		$tmp=date('U')-60*60*24*365;
 		$tmp=date("Y-m-d",$tmp);
 		$r=db_fetch_array(db_select("select count(id) as transantal from transaktioner where logdate>='$tmp'",__FILE__ . " linje " . __LINE__));
 		$transantal=$r['transantal']*1;
-		print "<tr><td>".findtekst(1233,$sprog_id)." $transantal ".findtekst(1234,$sprog_id)."</td></tr>";
+		print "<tr><td>".findtekst('1233|Der er foretaget', $sprog_id)." $transantal ".findtekst('1234|posteringer de sidste 12 mdr.', $sprog_id)."</td></tr>";
 		$r=db_fetch_array(db_select("select felt_1,felt_2,felt_3,felt_4 from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		print "<form name='timezone' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
-		$title=findtekst(1235,$sprog_id);
-		$text=findtekst(1236,$sprog_id);
+		$title=findtekst('1235|Vælg den tidszone der skal gælde for dette regnskab', $sprog_id);
+		$text=findtekst('1236|Tidszone', $sprog_id);
 		print "<tr><td title='$title'><!--tekst 434-->$text<!--tekst 435--></td>";
 		print "<td title='$title'><select class='inputbox' style='width:200px' name='timezone'>";
 		$tz=fopen("../importfiler/timezones.csv","r");
@@ -140,25 +140,25 @@ function kontoindstillinger($regnskab,$skiftnavn) {
 			if ($timezone!=$c[$x]) print "<option value='$c[$x]'>$b[$x] $c[$x]</option>";
 		}
 		print "</select></td></tr>";
-		$text= findtekst(1091,$sprog_id)." ".findtekst(1236,$sprog_id); 
+		$text= findtekst('898|Opdatér', $sprog_id)." ".findtekst('1236|Tidszone', $sprog_id); 
 		print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='$text' name='opdat_tidszone'><!--tekst 436--></td></tr>\n";
 		print "</form>";
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		print "<form name=diverse action='diverse.php?sektion=smtp' method='post'>\n";
-		$tekst1=findtekst(434,$sprog_id);
-		$tekst2=findtekst(435,$sprog_id);
+		$tekst1=findtekst('434|Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger anden port 25 skrives denne efter STMP navnet adskilt af :. F.eks. smtp.gmail.com:465', $sprog_id);
+		$tekst2=findtekst('435|Alternativ SMTP-server: port', $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 434-->$tekst2<!--tekst 435--></td>";
 		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtp' value='$r[felt_1]'></td></tr>";
-		$tekst1=findtekst(749,$sprog_id);
-		$tekst2=findtekst(746,$sprog_id);
+		$tekst1=findtekst(749, $sprog_id);
+		$tekst2=findtekst(746, $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 749-->$tekst2<!--tekst 746--></td>";
 		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtpuser' value='$r[felt_2]'></td></tr>";
-		$tekst1=findtekst(750,$sprog_id);
-		$tekst2=findtekst(747,$sprog_id);
+		$tekst1=findtekst(750, $sprog_id);
+		$tekst2=findtekst(747, $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 750-->$tekst2<!--tekst 747--></td>";
 		print "<td title='$tekst1'><input class='inputbox' type='text' style='width:200px' name='smtppass' value='$r[felt_3]'></td></tr>";
-		$tekst1=findtekst(751,$sprog_id);
-		$tekst2=findtekst(748,$sprog_id);
+		$tekst1=findtekst(751, $sprog_id);
+		$tekst2=findtekst(748, $sprog_id);
 		print "<tr><td title='$tekst1'><!--tekst 751-->$tekst2<!--tekst 748--></td>";
 		print "<td title='$tekst1'><select class='inputbox' style='width:200px' name='smtpcrypt'>";
 		print "<option value='$r[felt_4]'>$r[felt_4]</option>";
@@ -166,31 +166,31 @@ function kontoindstillinger($regnskab,$skiftnavn) {
 		if ($r['felt_4']!='ssl') print "<option value='ssl'>ssl</option>";
 		if ($r['felt_4']!='tls') print "<option value='tls'>tls</option>";
 		print "</select></td></tr>";
-		$tekst1=findtekst(436,$sprog_id);
+		$tekst1=findtekst(436, $sprog_id);
 		print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='$tekst1' name='submit'><!--tekst 436--></td></tr>\n";
 		print "</form>\n";
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		print "<tr><td colspan='6'><br></td></tr>\n";
 		print "<form name='nulstil_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>\n"; #20170731 ->
-		$tekst1=findtekst(756,$sprog_id);
-		$tekst2=findtekst(757,$sprog_id);
+		$tekst1=findtekst(756, $sprog_id);
+		$tekst2=findtekst(757, $sprog_id);
 		print "<tr><td title='$tekst2'><b>$tekst1</b></td></tr>";
-		$tekst1=findtekst(758,$sprog_id);
-		$tekst2=findtekst(759,$sprog_id);
+		$tekst1=findtekst(758, $sprog_id);
+		$tekst2=findtekst(759, $sprog_id);
 		print "<tr><td title='$tekst2'>$tekst1</td><td title='$tekst2'><input type='checkbox' name='behold_debkred'></td></tr>";
-		$tekst1=findtekst(760,$sprog_id);
-		$tekst2=findtekst(761,$sprog_id);
+		$tekst1=findtekst(760, $sprog_id);
+		$tekst2=findtekst(761, $sprog_id);
 		print "<tr><tr><td title='$tekst2'>$tekst1</td><td title='$tekst2'><input type='checkbox' name='behold_varer'></td></tr>";
-		$tekst1=findtekst(762,$sprog_id); $nulstil= findtekst(1239,$sprog_id);
+		$tekst1=findtekst(762, $sprog_id); $nulstil= findtekst(1239, $sprog_id);
 		print "<tr><td></td><td><input class='button gray medium' style='width:200px' type='submit' name='nulstil' value='$nulstil' onclick=\"return confirm('$tekst1')\"></td></tr>";
 		print "</form>\n"; # <- 20170731
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		print "<tr><td colspan='6'><br></td></tr>\n";
 		print "<form name='slet_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>\n"; #20170731 ->
-		$tekst1=findtekst(852,$sprog_id);
-		$tekst2=findtekst(853,$sprog_id);
+		$tekst1=findtekst(852, $sprog_id);
+		$tekst2=findtekst(853, $sprog_id);
 		print "<tr><td title='$tekst2'><b>$tekst1: $regnskab</b></td><td title='$tekst2'><input type='checkbox' name='slet_regnskab'></td></tr>";
-		$tekst1=findtekst(851,$sprog_id); $slet = findtekst(1099,$sprog_id);
+		$tekst1=findtekst(851, $sprog_id); $slet = findtekst(1099, $sprog_id);
 		print "<tr><td></td><td><input class='button gray medium' title='$tekst2' style='width:200px' type='submit' name='slet' value='$slet' onclick=\"return confirm('$tekst1')\"></td></tr>";
 		print "</form>\n"; # <- 20170731
 	} else  {
@@ -550,8 +550,8 @@ $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	print "<option value='$r[id]'>$r[query]</option>";
 }
-$slet = findtekst(1099,$sprog_id);
-print "</select>&nbsp;<input type='submit' name='query' value='".findtekst(1078,$sprog_id)."'>&nbsp;";
+$slet = findtekst(1099, $sprog_id);
+print "</select>&nbsp;<input type='submit' name='query' value='".findtekst(1078, $sprog_id)."'>&nbsp;";
 print "<input type='submit' name='deleteQuery' value='$slet' onclick=\"return confirm('Slet denne søgning?')\"></td></tr>";
 print "</form>";
 
@@ -582,8 +582,8 @@ function jobkort () {
 	print "<tr><td colspan='6'><hr></td></tr>";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>xSprog</b></u></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
-	$tekst1=findtekst(1,$sprog_id);
-	$tekst2=findtekst(2,$sprog_id);
+	$tekst1=findtekst(1, $sprog_id);
+	$tekst2=findtekst(2, $sprog_id);
 	print "<tr><td>	$tekst1</td><td><SELECT class='inputbox' NAME=sprog title='$tekst2'>";
 	if ($box3[$x]) print"<option>$box3[$x]</option>";
 	for ($x=1; $x<=$antal_sprog; $x++) {
@@ -591,7 +591,7 @@ function jobkort () {
 	}
 	print "</SELECT></td></tr>";
     print "<tr><td><br></td></tr>";
-	$tekst1=findtekst(3,$sprog_id);
+	$tekst1=findtekst(3, $sprog_id);
 	print "<tr><td align = right colspan='4'><input type=submit value='$tekst1' name='submit'></td></tr>";
 #	print "<td align = center><input type=submit value='$tekst2' name='submit'></td>";
 #	print "<td align = center><input type=submit value='$tekst3' name='submit'></td><tr>";
@@ -607,7 +607,7 @@ function jobkort () {
 function personlige_valg() {
 	global $bgcolor,$bgcolor5,$bruger_id,$db;
 	global $menu,$nuance;
-	global $popup,$sprog_id,$topmenu;
+	global $popup, $sprog_id,$topmenu;
 	
 	$gl_menu=NULL;$sidemenu=NULL;
 
@@ -621,35 +621,35 @@ function personlige_valg() {
 	($r['box4'])?$bgcolor=$r['box4']:$bgcolor=NULL;
 	($r['box5'])?$nuance=$r['box5']:$nuance=NULL;
 
-	$nuancefarver[0]=findtekst(418,$sprog_id); $nuancekoder[0]="+00-22-22";
-	$nuancefarver[1]=findtekst(419,$sprog_id); $nuancekoder[1]="-22+00-22";
-	$nuancefarver[2]=findtekst(420,$sprog_id); $nuancekoder[2]="-22-22+00";
-	$nuancefarver[3]=findtekst(421,$sprog_id); $nuancekoder[3]="+00+00-33";
-	$nuancefarver[4]=findtekst(422,$sprog_id); $nuancekoder[4]="+00-33+00";
-	$nuancefarver[5]=findtekst(423,$sprog_id); $nuancekoder[5]="-33+00+00";
+	$nuancefarver[0]=findtekst(418, $sprog_id); $nuancekoder[0]="+00-22-22";
+	$nuancefarver[1]=findtekst(419, $sprog_id); $nuancekoder[1]="-22+00-22";
+	$nuancefarver[2]=findtekst(420, $sprog_id); $nuancekoder[2]="-22-22+00";
+	$nuancefarver[3]=findtekst(421, $sprog_id); $nuancekoder[3]="+00+00-33";
+	$nuancefarver[4]=findtekst(422, $sprog_id); $nuancekoder[4]="+00-33+00";
+	$nuancefarver[5]=findtekst(423, $sprog_id); $nuancekoder[5]="-33+00+00";
 
 	print "<form name=personlige_valg action=diverse.php?sektion=personlige_valg&popup=$popup method=post>";
 	print "<tr><td colspan='6'><hr></td></tr>";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(785,$sprog_id)."</u></b></td></tr>";
+	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(785, $sprog_id)."</u></b></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
 	print "<input type=hidden name=id value='$id'>";
 #	print "<input type=hidden name=id value='$id'>";
 
-	print "<tr><td title='".findtekst(207,$sprog_id)."'>".findtekst(208,$sprog_id)."</td><td><input class='inputbox' type='checkbox' name='popup' $popup></td></tr>";
+	print "<tr><td title='".findtekst(207, $sprog_id)."'>".findtekst(208, $sprog_id)."</td><td><input class='inputbox' type='checkbox' name='popup' $popup></td></tr>";
 #	if (strpos($_SERVER['SERVER_NAME'],'dvikling') || strpos($_SERVER['SERVER_NAME'],'sl3')) {
-	#	print "<tr><td title='".findtekst(316,$sprog_id)."'><!--Tekst 523-->".findtekst(315,$sprog_id)."<!--Tekst 315--></td><td><input class='inputbox' type='radio' name='menu' value='sidemenu' $sidemenu></td></tr>";
+	#	print "<tr><td title='".findtekst(316, $sprog_id)."'><!--Tekst 523-->".findtekst(315, $sprog_id)."<!--Tekst 315--></td><td><input class='inputbox' type='radio' name='menu' value='sidemenu' $sidemenu></td></tr>";
 	if (substr($db,0,4) == 'laja') {
-		print "<tr><td title='".findtekst(523,$sprog_id)."'><!--Tekst 523-->".findtekst(522,$sprog_id)."<!--Tekst 522--></td><td><input class='inputbox' type='radio' name='menu' value='topmenu' $topmenu></td></tr>";
+		print "<tr><td title='".findtekst(523, $sprog_id)."'><!--Tekst 523-->".findtekst(522, $sprog_id)."<!--Tekst 522--></td><td><input class='inputbox' type='radio' name='menu' value='topmenu' $topmenu></td></tr>";
 #	}	else $gl_menu='checked';
-	print "<tr><td title='".findtekst(525,$sprog_id)."'><!--Tekst 525-->".findtekst(524,$sprog_id)."<!--Tekst 524--></td><td><input class='inputbox' type='radio' name='menu'  value='gl_menu' $gl_menu></td></tr>";
+	print "<tr><td title='".findtekst(525, $sprog_id)."'><!--Tekst 525-->".findtekst(524, $sprog_id)."<!--Tekst 524--></td><td><input class='inputbox' type='radio' name='menu'  value='gl_menu' $gl_menu></td></tr>";
 } else print "<input type = 'hidden' name = 'menu' value='gl_menu'>"; 
-	print "<tr><td title='".findtekst(209,$sprog_id)."'>".findtekst(210,$sprog_id)."</td><td colspan='4'><input class='inputbox' type='text' style='width:600px' name='jsvars' value='$jsvars'></td></tr>";
+	print "<tr><td title='".findtekst(209, $sprog_id)."'>".findtekst(210, $sprog_id)."</td><td colspan='4'><input class='inputbox' type='text' style='width:600px' name='jsvars' value='$jsvars'></td></tr>";
 	if ($menu=='T') {
 		print "<input type='hidden' name='bgcolor' value='".substr($bgcolor,1,6)."'>";
 		print "<input type='hidden' name='nuance' value='$nuance'>\n";
 	} else {
-		print "<tr><td title='".findtekst(318,$sprog_id)."'>".findtekst(317,$sprog_id)."</td><td colspan='4'><input class='inputbox' type='text' style='width:100px' name='bgcolor' value='".substr($bgcolor,1,6)."'></td></tr>";
-		print "<tr><td title='".findtekst(416,$sprog_id)."'>".findtekst(415,$sprog_id)."</td><td colspan='4'><select name='nuance' title='".findtekst(417,$sprog_id)."'>\n";
+		print "<tr><td title='".findtekst(318, $sprog_id)."'>".findtekst(317, $sprog_id)."</td><td colspan='4'><input class='inputbox' type='text' style='width:100px' name='bgcolor' value='".substr($bgcolor,1,6)."'></td></tr>";
+		print "<tr><td title='".findtekst(416, $sprog_id)."'>".findtekst(415, $sprog_id)."</td><td colspan='4'><select name='nuance' title='".findtekst(417, $sprog_id)."'>\n";
 	if ( ! $nuance ) {
 		$valgt = "selected='selected'";
 	} else {
@@ -780,51 +780,51 @@ function div_valg() {
 	$labelsize = get_settings_value("labelsize", "mysale", 22);
 
 	print "<form name='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
-	print "<tr style='background-color:$bgcolor5'><td colspan='6'><b>".findtekst(794,$sprog_id)."</b></td></tr>\n";
+	print "<tr style='background-color:$bgcolor5'><td colspan='6'><b>".findtekst(794, $sprog_id)."</b></td></tr>\n";
 	print "<tr><td colspan='2'>&nbsp;</td></tr>\n";
 	print "<input name='id' type='hidden' value='$id'>\n"; 
-	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(186,$sprog_id)."'>".findtekst(162,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(186,$sprog_id)."'>\n";
+	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(186, $sprog_id)."'>".findtekst(162, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(186, $sprog_id)."'>\n";
 	print "<!-- 162 : Tvungen valg af debitorgruppe på debitorkort -->";
 	print "<input name='box1' class='inputbox' type='checkbox' $gruppevalg>\n";
 	print "</td></tr>\n";
-	print "<tr>\n<td title='".findtekst(187,$sprog_id)."'>".findtekst(163,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(187,$sprog_id)."'>\n";
+	print "<tr>\n<td title='".findtekst(187, $sprog_id)."'>".findtekst(163, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(187, $sprog_id)."'>\n";
 	print "<!-- 163 : Tvungen valg af kundeansvarlig på debitorkort -->";
 	print "<input name='box2' class='inputbox' type='checkbox' $kuansvalg>\n";
 	print "</td></tr>\n";
-	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(615,$sprog_id)."'>".findtekst(616,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(615,$sprog_id)."'>\n";
+	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(615, $sprog_id)."'>".findtekst(616, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(615, $sprog_id)."'>\n";
 	print "<!-- 616 : Tilføj ekstra felter på ansatte -->";
 	print "<input name='box3' class='inputbox' type='checkbox' $extra_ansat>\n";
 	print "</td></tr>\n";
-	print "<tr>\n<td title='".findtekst(185,$sprog_id)."'>".findtekst(184,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(185,$sprog_id)."'>\n";
+	print "<tr>\n<td title='".findtekst(185, $sprog_id)."'>".findtekst(184, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(185, $sprog_id)."'>\n";
 	print "<!-- 184 : Brug betalingslister -->";
 	print "<input name='box10' class='inputbox' type='checkbox' $betalingsliste>\n";
 	print "</td></tr>\n";
-	print "<tr>\n<td title='".findtekst(1061,$sprog_id)."'>".findtekst(1060,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(1061,$sprog_id)."'>\n";
+	print "<tr>\n<td title='".findtekst(1061, $sprog_id)."'>".findtekst(1060, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(1061, $sprog_id)."'>\n";
 	print "<!-- 922  : Benyt debitors kontonummer som telefonnumer på ordre -->";
 	print "<input name='box5' class='inputbox' type='checkbox' $debtor2orderphone>\n";
 	print "</td></tr>\n";
-	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(193,$sprog_id)."'>".findtekst(167,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(193,$sprog_id)."'>\n";
+	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(193, $sprog_id)."'>".findtekst(167, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(193, $sprog_id)."'>\n";
 	print "<!-- 167 : Integration med DocuBizz -->";
 	print "<input name='box6' class='inputbox' type='checkbox' $docubizz>\n";
 	print "</td></tr>\n";
-	if (strpos(findtekst(768,$sprog_id),"'")) {
+	if (strpos(findtekst(768, $sprog_id),"'")) {
 		$qtxt="delete from tekster where tekst_id = '767' or tekst_id = '768'";
 		db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 	}
-	print "<tr>\n<td title='".findtekst(767,$sprog_id)."'>".findtekst(768,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(768,$sprog_id)."'>\n";
+	print "<tr>\n<td title='".findtekst(767, $sprog_id)."'>".findtekst(768, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(768, $sprog_id)."'>\n";
 	print "<!-- 768 : Brug 'Mit salg' -->";
 	print "<input name='mySale' class='inputbox' type='checkbox' $mySale>\n";
 	print "</td></tr>\n";
 
-	print "<tr>\n<td title='".findtekst(2450,$sprog_id)."'>Label maxlength</td>\n";
-	print "<td title='".findtekst(2450,$sprog_id)."'>\n";
+	print "<tr>\n<td title='".findtekst(2450, $sprog_id)."'>Label maxlength</td>\n";
+	print "<td title='".findtekst(2450, $sprog_id)."'>\n";
 	print "<!-- 768 : Brug 'Mit salg' -->";
 	print "<input name='labelsize' class='inputbox' type='text' value='$labelsize'>\n";
 	print "</td></tr>\n";
@@ -847,75 +847,75 @@ function div_valg() {
 
 
 
-	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(194,$sprog_id)."'>".findtekst(168,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(194,$sprog_id)."'>\n";
+	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(194, $sprog_id)."'>".findtekst(168, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(194, $sprog_id)."'>\n";
 	print "<!-- 168 : Brug jobkort -->";
 	print "<input name='box7' class='inputbox' type='checkbox' $jobkort>\n";
 	print "</td></tr>\n";
 	$externalContent = file_get_contents('http://checkip.dyndns.com/');
 	preg_match('/Current IP Address: \[?([:.0-9a-fA-F]+)\]?/', $externalContent, $m);
 	$externalIp = $m[1];
-	$txt=str_replace('$myip',$externalIp,findtekst(764,$sprog_id));
-	print "<tr>\n<td title='$txt'>".findtekst(763,$sprog_id)."</td>\n";
+	$txt=str_replace('$myip',$externalIp,findtekst(764, $sprog_id));
+	print "<tr>\n<td title='$txt'>".findtekst(763, $sprog_id)."</td>\n";
 	print "<td title='$txt'>\n";
 	print "<input name='pv_box1' class='inputbox' type='checkbox' $direkte_print>\n";
 	print "</td></tr>\n";
-	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(817,$sprog_id)."'>".findtekst(818,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(817,$sprog_id)."'>\n";
+	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(817, $sprog_id)."'>".findtekst(818, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(817, $sprog_id)."'>\n";
 	print "<input name='pv_box3' class='inputbox' type='checkbox' $formgen>\n";
 	print "</td></tr>\n";
-	print "<tr>\n<td title='".findtekst(709,$sprog_id)."'>".findtekst(708,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(709,$sprog_id)."'>\n";
+	print "<tr>\n<td title='".findtekst(709, $sprog_id)."'>".findtekst(708, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(709, $sprog_id)."'>\n";
 	print "<input name='box4' class='inputbox' type='checkbox' $forskellige_datoer></td></tr>\n"; #20131101
-		if (strpos(findtekst(841,$sprog_id),'kortet er et betalingskort')) {
+		if (strpos(findtekst(841, $sprog_id),'kortet er et betalingskort')) {
 		db_modify("delete from tekster where (tekst_id='841' or tekst_id='642') and sprog_id='$sprog_id'");
   }
 	print "</td></tr>\n";
 	print "<!-- 795 : Brug 'PaperFlow' -->";
-	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(1931,$sprog_id)."'>".findtekst(795,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(1931,$sprog_id)."'>\n";
+	print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(1931, $sprog_id)."'>".findtekst(795, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(1931, $sprog_id)."'>\n";
 	print "<input name='paperflow' class='inputbox' type='checkbox' $paperflow></td></tr>\n";
 	if ($paperflow) {
-		print "<tr bgcolor='$bgcolor'>\n<td title='".findtekst(1957,$sprog_id)."'>".findtekst(1957,$sprog_id)."</td>\n";
-		print "<td title='".findtekst(1957,$sprog_id)."'>\n";
+		print "<tr bgcolor='$bgcolor'>\n<td title='".findtekst(1957, $sprog_id)."'>".findtekst(1957, $sprog_id)."</td>\n";
+		print "<td title='".findtekst(1957, $sprog_id)."'>\n";
 		print "<input name='paperflowId' class='inputbox' type='text' value = '$paperflowId'></td></tr>\n";
-		print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(1958,$sprog_id)."'>".findtekst(1958,$sprog_id)."</td>\n";
-		print "<td title='".findtekst(1958,$sprog_id)."'>\n";
+		print "<tr bgcolor='$bgcolor5'>\n<td title='".findtekst(1958, $sprog_id)."'>".findtekst(1958, $sprog_id)."</td>\n";
+		print "<td title='".findtekst(1958, $sprog_id)."'>\n";
 		print "<input name='paperflowBearer' class='inputbox' type='text' value = '$paperflowBearer'></td></tr>\n";
 }
-#	print "<tr>\n<td title='".findtekst(642,$sprog_id)."'>".findtekst(841,$sprog_id)."</td>\n";
-#	print "<td title='".findtekst(642,$sprog_id)."'>\n";
+#	print "<tr>\n<td title='".findtekst(642, $sprog_id)."'>".findtekst(841, $sprog_id)."</td>\n";
+#	print "<td title='".findtekst(642, $sprog_id)."'>\n";
 #	print "    <input name='box5' class='inputbox' type='text' style='width:150px;' placeholder='' value=\"$box5\">\n";
 #	print "</td></tr>\n"; #20131101
-	print "<tr bgcolor='$bgcolor'>\n<td title='".findtekst(527,$sprog_id)."'>".findtekst(526,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(527,$sprog_id)."'>\n";
+	print "<tr bgcolor='$bgcolor'>\n<td title='".findtekst(527, $sprog_id)."'>".findtekst(526, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(527, $sprog_id)."'>\n";
 	print "<!-- 526 : Integration med ebConnect -->";
 	print "<input name='box8' class='inputbox' type='checkbox' $ebconnect>\n";
 	print "</td></tr>\n";
 	if ($box8) {
 		list($oiourl,$oiobruger,$oiokode)=explode(chr(9),$box8);
-		print "<tr bgcolor='$bgcolor'>\n<td title=''>".findtekst(528,$sprog_id)."</td>\n";
+		print "<tr bgcolor='$bgcolor'>\n<td title=''>".findtekst(528, $sprog_id)."</td>\n";
 		print "<td><input name='oiourl' class='inputbox' style='width:150px;' type='text' value='$oiourl'></td>\n</tr>\n";
-		print "<tr>\n<td title=''>".findtekst(529,$sprog_id)."</td>\n";
+		print "<tr>\n<td title=''>".findtekst(529, $sprog_id)."</td>\n";
 		print "<td><input name='oiobruger' class='inputbox' style='width:150px;' type='text' value='$oiobruger'></td>\n</tr>\n";
-		print "<tr>\n<td title=''>".findtekst(530,$sprog_id)."</td>\n";
+		print "<tr>\n<td title=''>".findtekst(530, $sprog_id)."</td>\n";
 		print "<td><input name='oiokode' class='inputbox' style='width:150px;' type='password' value='$oiokode'></td>\n</tr>\n";
 	}
-	$txt=findtekst(865,$sprog_id);
-	$title=findtekst(866,$sprog_id);
+	$txt=findtekst(865, $sprog_id);
+	$title=findtekst(866, $sprog_id);
 	if ($gls_id) {
 		print "<tr bgcolor='$bgcolor5'>\n<td style='font-weight:bold' title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='gls_id' class='inputbox' style='width:150px;' type='text' value='$gls_id'></td>\n</tr>\n";
-		$txt=findtekst(867,$sprog_id);
-		$title=findtekst(868,$sprog_id);
+		$txt=findtekst(867, $sprog_id);
+		$title=findtekst(868, $sprog_id);
 		print "<tr>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='gls_user' class='inputbox' style='width:150px;' type='text' value='$gls_user'></td>\n</tr>\n";
-		$txt=findtekst(873,$sprog_id);
-		$title=findtekst(874,$sprog_id);
+		$txt=findtekst(873, $sprog_id);
+		$title=findtekst(874, $sprog_id);
 		print "<tr>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='gls_ctId' class='inputbox' style='width:150px;' type='text' value='$gls_ctId'></td>\n</tr>\n";
-		$txt=findtekst(869,$sprog_id);
-		$title=findtekst(870,$sprog_id);
+		$txt=findtekst(869, $sprog_id);
+		$title=findtekst(870, $sprog_id);
 		print "<tr>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='gls_pass' class='inputbox' style='width:150px;' type='password' value='$gls_pass'></td>\n</tr>\n";
 	} else {
@@ -925,99 +925,99 @@ function div_valg() {
 		print "<input name='gls_ctId' type='hidden' value='$gls_ctId'>\n";
 		print "<input name='gls_pass' type='hidden' value='$gls_pass'>\n";
 	}
-	$txt=findtekst(1020,$sprog_id);
-	$title=findtekst(1021,$sprog_id);
-	$title.=" ".findtekst(1040,$sprog_id);
+	$txt=findtekst(1020, $sprog_id);
+	$title=findtekst(1021, $sprog_id);
+	$title.=" ".findtekst(1040, $sprog_id);
 	print "<!-- 1020 Danske Fragtmænd aftalenummer -->";
 	if ($dfm_agree) {
 		print "<tr bgcolor='$bgcolor5'>\n<td style='font-weight:bold' title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='dfm_agree' class='inputbox' style='width:150px;' type='text' value='$dfm_agree'></td>\n</tr>\n";
-		$txt=findtekst(1022,$sprog_id);
-		$title=findtekst(1023,$sprog_id);
+		$txt=findtekst(1022, $sprog_id);
+		$title=findtekst(1023, $sprog_id);
 		print "<!-- 1022 Hub -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_hub' class='inputbox' style='width:150px;' type='text' value='$dfm_hub'></td>\n</tr>\n";
-		$txt=findtekst(1020,$sprog_id);
-		$title=findtekst(1031,$sprog_id);
+		$txt=findtekst(1020, $sprog_id);
+		$title=findtekst(1031, $sprog_id);
 		print "<!-- 1020 API-URL -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_url' class='inputbox' style='width:150px;' type='text' value='$dfm_url'></td>\n</tr>\n";
-		$txt=findtekst(1014,$sprog_id);
-		$title=findtekst(1015,$sprog_id);
+		$txt=findtekst(1014, $sprog_id);
+		$title=findtekst(1015, $sprog_id);
 		print "<!-- 1014 ClientID til API -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_id' class='inputbox' style='width:150px;' type='text' value='$dfm_id'></td>\n</tr>\n";
-		$txt=findtekst(1016,$sprog_id);
-		$title=findtekst(1017,$sprog_id);
+		$txt=findtekst(1016, $sprog_id);
+		$title=findtekst(1017, $sprog_id);
 		print "<!-- 1016 API-brugernavn -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_user' class='inputbox' style='width:150px;' type='text' value='$dfm_user'></td>\n</tr>\n";
-		$txt=findtekst(1018,$sprog_id);
-		$title=findtekst(1019,$sprog_id);
+		$txt=findtekst(1018, $sprog_id);
+		$title=findtekst(1019, $sprog_id);
 		print "<!-- 1018 API-password -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_pass' class='inputbox' style='width:150px;' type='password' value='$dfm_pass'></td>\n</tr>\n";
-		$txt=findtekst(1024,$sprog_id);
-		$title=findtekst(1025,$sprog_id);
+		$txt=findtekst(1024, $sprog_id);
+		$title=findtekst(1025, $sprog_id);
 		print "<!-- 1024 Shippingtype som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_ship' class='inputbox' style='width:150px;' type='text' value='$dfm_ship'></td>\n</tr>\n";
-		$txt=findtekst(1026,$sprog_id);
-		$title=findtekst(1027,$sprog_id);
+		$txt=findtekst(1026, $sprog_id);
+		$title=findtekst(1027, $sprog_id);
 		print "<!-- 1026 Godstype som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_good' class='inputbox' style='width:150px;' type='text' value='$dfm_good'></td>\n</tr>\n";
-		$txt=findtekst(1028,$sprog_id);
-		$title=findtekst(1029,$sprog_id);
+		$txt=findtekst(1028, $sprog_id);
+		$title=findtekst(1029, $sprog_id);
 		print "<!-- 1028 Betalingmetode som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_pay' class='inputbox' style='width:150px;' type='text' value='$dfm_pay'></td>\n</tr>\n";
-		$txt=findtekst(1038,$sprog_id);
-		$title=findtekst(1039,$sprog_id);
+		$txt=findtekst(1038, $sprog_id);
+		$title=findtekst(1039, $sprog_id);
 		print "<!-- 1038 Beskrivelse af gods som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_gooddes' class='inputbox' style='width:150px;' type='text' value='$dfm_gooddes'></td>\n</tr>\n";
-		$txt=findtekst(1058,$sprog_id);
-		$title=findtekst(1059,$sprog_id);
+		$txt=findtekst(1058, $sprog_id);
+		$title=findtekst(1059, $sprog_id);
 		print "<!-- 1058 Leveringsmetode som standard -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_sercode' class='inputbox' style='width:150px;' type='text' value='$dfm_sercode'></td>\n</tr>\n";
 
-		$txt=findtekst(1043,$sprog_id);
-		$title=findtekst(1044,$sprog_id);
+		$txt=findtekst(1043, $sprog_id);
+		$title=findtekst(1044, $sprog_id);
 		print "<!-- 1043 Afhentningsadresse er en anden end hovedadressen -->";
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 
 		if ( $dfm_pickup_addr ) {
 			print "<td><input type='checkbox' name='dfm_pickup_addr' class='inputbox' checked value='dfm_pickup_addr'></td>\n</tr>\n";
-			$txt=findtekst(360,$sprog_id);
-			$title=findtekst(1046,$sprog_id);
+			$txt=findtekst(360, $sprog_id);
+			$title=findtekst(1046, $sprog_id);
 			print "<!-- 360 Firmanavn -->";
 			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
 			print "<td title='$title'><input name='dfm_pickup_name1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name1'></td>\n</tr>\n";
-			$txt=findtekst(1047,$sprog_id);
-			$title=findtekst(1048,$sprog_id);
+			$txt=findtekst(1047, $sprog_id);
+			$title=findtekst(1048, $sprog_id);
 			print "<!-- 1047 Eventuelt ekstra navn -->";
 			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
 			print "<td title='$title'><input name='dfm_pickup_name2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name2'></td>\n</tr>\n";
-			$txt=findtekst(1049,$sprog_id);
-			$title=findtekst(1050,$sprog_id);
+			$txt=findtekst(1049, $sprog_id);
+			$title=findtekst(1050, $sprog_id);
 			print "<!-- 1049 Adresse -->";
 			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
 			print "<td title='$title'><input name='dfm_pickup_street1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street1'></td>\n</tr>\n";
-			$txt=findtekst(1051,$sprog_id);
-			$title=findtekst(1052,$sprog_id);
+			$txt=findtekst(1051, $sprog_id);
+			$title=findtekst(1052, $sprog_id);
 			print "<!-- 1051 Eventuel ekstra adresselinje -->";
 			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
 			print "<td title='$title'><input name='dfm_pickup_street2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street2'></td>\n</tr>\n";
-			$txt=findtekst(1053,$sprog_id);
-			$title=findtekst(1054,$sprog_id);
+			$txt=findtekst(1053, $sprog_id);
+			$title=findtekst(1054, $sprog_id);
 			print "<!-- 1053 Postnummer -->";
 			print "<tr bgcolor='$bgcolor5'><td title='$title'>--- $txt</td><td title='$title'>";
 			print "<input name='dfm_pickup_zipcode' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_zipcode'>";
 			print "</td>\n</tr>\n";
-			$txt=findtekst(1055,$sprog_id);
-			$title=findtekst(1056,$sprog_id);
+			$txt=findtekst(1055, $sprog_id);
+			$title=findtekst(1056, $sprog_id);
 			print "<!-- 1055 Bynavn -->";
 			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
 			print "<td title='$title'><input name='dfm_pickup_town' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_town'></td>\n</tr>\n";
@@ -1086,8 +1086,8 @@ function div_valg() {
   # Guid form flatpay, looks like 9e802837-307b-48c3-9f0e-1b4cac291376
   $guid = $r ? str_split($r[0], 7)[0]."-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "";
 
-	$mtxt=findtekst(3014,$sprog_id);
-	$mtitle=findtekst(3013,$sprog_id);
+	$mtxt=findtekst(3014, $sprog_id);
+	$mtitle=findtekst(3013, $sprog_id);
   print "<tr>\n<td title='$mtitle'><!-- Tekst 3013 -->$mtxt <!-- Tekst 3014 --></td>\n";
   print "<td title='$mtitle'>
     <span style='position:relative;'>
@@ -1103,8 +1103,8 @@ function div_valg() {
   # Check if it exsists
   $APIKEY = $r ? $r[0] : "";
 
-	$mtxt=findtekst(3016,$sprog_id);
-	$mtitle=findtekst(3017,$sprog_id);
+	$mtxt=findtekst(3016, $sprog_id);
+	$mtitle=findtekst(3017, $sprog_id);
   print "<tr>\n<td title='$mtitle'><!-- Tekst 3013 -->$mtxt <!-- Tekst 3014 --></td>\n";
   print "<td title='$mtitle'>
     <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='$APIKEY'>
@@ -1114,19 +1114,19 @@ function div_valg() {
   $qtxt = "SELECT var_name, var_value FROM settings WHERE var_grp='vibrant_account'";
   $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 
-	$mtxt=findtekst(3021,$sprog_id);
-	$mtitle=findtekst(3022,$sprog_id);
+	$mtxt=findtekst(3021, $sprog_id);
+	$mtitle=findtekst(3022, $sprog_id);
   print "<tr>\n<td title='$mtitle'><!-- Tekst 3013 -->$mtxt <!-- Tekst 3014 --></td>\n";
 
   # If an account is already setup, show the "Show account" button
   if ($r) {
-	  $ntxt=findtekst(3024,$sprog_id); # Show account
+	  $ntxt=findtekst(3024, $sprog_id); # Show account
 
     print "<td title='$mtitle'>
       <button type='button' onclick='alert(\"Dit login til din vibrant terminalen: \\n\\n$r[var_name] \\n$r[var_value]\")'>$ntxt</button>
     </td>\n</tr>\n";
   } else { # No vibrant account in the system
-	  $ytxt=findtekst(3023,$sprog_id); # Create account
+	  $ytxt=findtekst(3023, $sprog_id); # Create account
 
     print "<td title='$mtitle'>
       <button type='button' onclick='show_popup_vibrant()'>$ytxt</button>
@@ -1426,8 +1426,8 @@ if ($client_id) {
   # Check if it exsists
   $APIKEY = $r ? $r[0] : "";
 
-	$mtxt=findtekst(2108,$sprog_id);
-	$mtitle=findtekst(2109,$sprog_id);
+	$mtxt=findtekst(2108, $sprog_id);
+	$mtitle=findtekst(2109, $sprog_id);
   print "<tr bgcolor='#e0e0f0'>\n<td title='$mtitle'><!-- Tekst 2108 -->$mtxt <!-- Tekst 2109 --></td>\n";
   print "<td title='$mtitle'>
     <input name='copay_id' class='inputbox' style='width:150px;' type='text' value='$APIKEY'>
@@ -1574,7 +1574,7 @@ function ordre_valg() {
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $rabatvarenr=$r['varenr'];
 	}
 	#	print "<tr><td colspan='6'><br></td></tr>";
-#	print "<tr><td title='".findtekst(732,$sprog_id)."'>".findtekst(731,$sprog_id)."</td><td title='".findtekst(732,$sprog_id)."'>
+#	print "<tr><td title='".findtekst(732, $sprog_id)."'>".findtekst(731, $sprog_id)."</td><td title='".findtekst(732, $sprog_id)."'>
 #		<input name='box6' type='checkbox' $box6></td></tr>";
 
 	$r=db_fetch_array(db_select("select box6,box8 from grupper where art = 'DIV' and kodenr = '5'",__FILE__ . " linje " . __LINE__));
@@ -1591,19 +1591,19 @@ function ordre_valg() {
 
 	print "<form name=diverse action=diverse.php?sektion=ordre_valg method=post>";
 	print "<tr><td colspan='6'><hr></td></tr>";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(786,$sprog_id)."</u></b></td></tr>";
+	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(786, $sprog_id)."</u></b></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
 	print "<input type=hidden name=id value='$id'>";
-	print "<tr><td title='".findtekst(197,$sprog_id)."'>".findtekst(196,$sprog_id)."</td><td><INPUT title='".findtekst(197,$sprog_id)."' class='inputbox' type='checkbox' name=box1 $incl_moms></td></tr>";
-	print "<tr><td title='".findtekst(188,$sprog_id)."'>".findtekst(164,$sprog_id)."</td><td><INPUT title='".findtekst(188,$sprog_id)."' class='inputbox' type='checkbox' name=box3 $folge_s_tekst></td></tr>";
-	print "<tr><td title='".findtekst(189,$sprog_id)."'>".findtekst(169,$sprog_id)."</td><td><INPUT title='".findtekst(189,$sprog_id)."' class='inputbox' type='checkbox' name=box8 $vis_nul_lev></td></tr>";
+	print "<tr><td title='".findtekst(197, $sprog_id)."'>".findtekst(196, $sprog_id)."</td><td><INPUT title='".findtekst(197, $sprog_id)."' class='inputbox' type='checkbox' name=box1 $incl_moms></td></tr>";
+	print "<tr><td title='".findtekst(188, $sprog_id)."'>".findtekst(164, $sprog_id)."</td><td><INPUT title='".findtekst(188, $sprog_id)."' class='inputbox' type='checkbox' name=box3 $folge_s_tekst></td></tr>";
+	print "<tr><td title='".findtekst(189, $sprog_id)."'>".findtekst(169, $sprog_id)."</td><td><INPUT title='".findtekst(189, $sprog_id)."' class='inputbox' type='checkbox' name=box8 $vis_nul_lev></td></tr>";
 	$qtxt = "select id from grupper where art = 'VG' and box9='on'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $hurtigfakt="onclick='return false'";
-	print "<tr><td title='".findtekst(190,$sprog_id)."'>".findtekst(165,$sprog_id)."</td><td><INPUT title='".findtekst(190,$sprog_id)."' class='inputbox' type='checkbox' name='box4' $hurtigfakt></td></tr>";
-	print "<tr><td title='".findtekst(191,$sprog_id)."'>".findtekst(166,$sprog_id)."</td><td><INPUT title='".findtekst(191,$sprog_id)."' class='inputbox' type='checkbox' name='straks_deb' $straks_deb></td></tr>";
-	print "<tr><td title='".findtekst(214,$sprog_id)."'>".findtekst(213,$sprog_id)."</td><td><INPUT title='".findtekst(214,$sprog_id)."' class='inputbox' type='checkbox' name='straks_kred' $straks_kred></td></tr>";
-	print "<tr><td title='".findtekst(313,$sprog_id)."'>".findtekst(314,$sprog_id)."</td><td><INPUT title='".findtekst(313,$sprog_id)."' class='inputbox' type='checkbox' name='box6' $fifo></td></tr>";
-	print "<tr><td title='".findtekst(732,$sprog_id)."'>".findtekst(731,$sprog_id)."</td><td colspan='1'><SELECT title='".findtekst(732,$sprog_id)."'class='inputbox' name='kostmetode'>";
+	print "<tr><td title='".findtekst(190, $sprog_id)."'>".findtekst(165, $sprog_id)."</td><td><INPUT title='".findtekst(190, $sprog_id)."' class='inputbox' type='checkbox' name='box4' $hurtigfakt></td></tr>";
+	print "<tr><td title='".findtekst(191, $sprog_id)."'>".findtekst(166, $sprog_id)."</td><td><INPUT title='".findtekst(191, $sprog_id)."' class='inputbox' type='checkbox' name='straks_deb' $straks_deb></td></tr>";
+	print "<tr><td title='".findtekst(214, $sprog_id)."'>".findtekst(213, $sprog_id)."</td><td><INPUT title='".findtekst(214, $sprog_id)."' class='inputbox' type='checkbox' name='straks_kred' $straks_kred></td></tr>";
+	print "<tr><td title='".findtekst(313, $sprog_id)."'>".findtekst(314, $sprog_id)."</td><td><INPUT title='".findtekst(313, $sprog_id)."' class='inputbox' type='checkbox' name='box6' $fifo></td></tr>";
+	print "<tr><td title='".findtekst(732, $sprog_id)."'>".findtekst(731, $sprog_id)."</td><td colspan='1'><SELECT title='".findtekst(732, $sprog_id)."'class='inputbox' name='kostmetode'>";
 	for($i=0;$i<3;$i++) {
 		if ($i==$kostmetode) print "<option value=$i>$kostbeskrivelse[$i]</option>";
 	}
@@ -1612,22 +1612,22 @@ function ordre_valg() {
 	}
 	print "</SELECT></td></tr>";
 	if ($kostmetode>=1) {
-		print "<tr><td></td><td colspan='2'><a href='../includes/opdat_kostpriser.php?metode=$kostmetode' target='blank'><INPUT title='".findtekst(738,$sprog_id)."' type='button' value='".findtekst(739,$sprog_id)."'></a></td>";
+		print "<tr><td></td><td colspan='2'><a href='../includes/opdat_kostpriser.php?metode=$kostmetode' target='blank'><INPUT title='".findtekst(738, $sprog_id)."' type='button' value='".findtekst(739, $sprog_id)."'></a></td>";
 	}
 	print "</tr>";
-	print "<tr><td title='".findtekst(192,$sprog_id)."'>".findtekst(183,$sprog_id)."</td><td><INPUT title='".findtekst(192,$sprog_id)."' class='inputbox' type='checkbox' name='box9' $negativt_lager></td></tr>";
-	print "<tr><td title='".findtekst(743,$sprog_id)."'>".findtekst(742,$sprog_id)."</td><td><INPUT title='".findtekst(743,$sprog_id)."' class='inputbox' type='checkbox' name='box14' $samlet_pris></td></tr>";
-	print "<tr><td title='".findtekst(680,$sprog_id)."'>".findtekst(714,$sprog_id)."</td><td><INPUT title='".findtekst(680,$sprog_id)."' class='inputbox' type='checkbox' name='box11' $advar_lav_beh></td></tr>";
-	print "<tr><td title='".findtekst(682,$sprog_id)."'>".findtekst(681,$sprog_id)."</td><td><INPUT title='".findtekst(682,$sprog_id)."' class='inputbox' type='checkbox' name='box12' $procentfakt></td></tr>";
-	print "<tr><td title='".findtekst(684,$sprog_id)."'>".findtekst(683,$sprog_id)."</td><td><INPUT title='".findtekst(684,$sprog_id)."' class='inputbox' type='text' style='width:35px;text-align:right;' name='procenttillag' value='$procenttillag'>%</td></tr>";
-	print "<tr><td title='".findtekst(686,$sprog_id)."'>".findtekst(685,$sprog_id)."</td><td><INPUT title='".findtekst(686,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='procentvare' value='$procentvare'></td></tr>";
-	print "<tr><td title='".findtekst(288,$sprog_id)."'>".findtekst(287,$sprog_id)."</td><td><INPUT title='".findtekst(288,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box2' value='$rabatvarenr'></td></tr>";
-	if ($samlet_pris) print "<tr><td title='".findtekst(745,$sprog_id)."'>".findtekst(744,$sprog_id)."</td><td><INPUT title='".findtekst(745,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='saetvarenr' value='$saetvarenr'></td></tr>";
-	print "<tr><td title='".findtekst(688,$sprog_id)."'>".findtekst(687,$sprog_id)."</td><td><INPUT title='".findtekst(688,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box7' value='$kontantkonto'></td></tr>";
-	print "<tr><td title='".findtekst(690,$sprog_id)."'>".findtekst(689,$sprog_id)."</td><td><INPUT title='".findtekst(690,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box10' value='$kortkonto'></td></tr>";
-	print "<tr><td title='".findtekst(1711,$sprog_id)."'>".findtekst(1714,$sprog_id)."</td><td><INPUT title='".findtekst(1712,$sprog_id)."' class='inputbox' type='checkbox' name='orderNoteEnabled' $orderNoteEnabled></td></tr>";
-	print "<tr><td title='".findtekst(3069,$sprog_id)."'>".findtekst(3068,$sprog_id)."</td><td><INPUT title='".findtekst(3069,$sprog_id)."' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
-	print "<tr><td title='".findtekst(690,$sprog_id)."'>".findtekst(2400,$sprog_id)."</td><td><INPUT title='".findtekst(2401,$sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='portovarenr' value='$portovarenr'></td></tr>";
+	print "<tr><td title='".findtekst(192, $sprog_id)."'>".findtekst(183, $sprog_id)."</td><td><INPUT title='".findtekst(192, $sprog_id)."' class='inputbox' type='checkbox' name='box9' $negativt_lager></td></tr>";
+	print "<tr><td title='".findtekst(743, $sprog_id)."'>".findtekst(742, $sprog_id)."</td><td><INPUT title='".findtekst(743, $sprog_id)."' class='inputbox' type='checkbox' name='box14' $samlet_pris></td></tr>";
+	print "<tr><td title='".findtekst(680, $sprog_id)."'>".findtekst(714, $sprog_id)."</td><td><INPUT title='".findtekst(680, $sprog_id)."' class='inputbox' type='checkbox' name='box11' $advar_lav_beh></td></tr>";
+	print "<tr><td title='".findtekst(682, $sprog_id)."'>".findtekst(681, $sprog_id)."</td><td><INPUT title='".findtekst(682, $sprog_id)."' class='inputbox' type='checkbox' name='box12' $procentfakt></td></tr>";
+	print "<tr><td title='".findtekst(684, $sprog_id)."'>".findtekst(683, $sprog_id)."</td><td><INPUT title='".findtekst(684, $sprog_id)."' class='inputbox' type='text' style='width:35px;text-align:right;' name='procenttillag' value='$procenttillag'>%</td></tr>";
+	print "<tr><td title='".findtekst(686, $sprog_id)."'>".findtekst(685, $sprog_id)."</td><td><INPUT title='".findtekst(686, $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='procentvare' value='$procentvare'></td></tr>";
+	print "<tr><td title='".findtekst(288, $sprog_id)."'>".findtekst(287, $sprog_id)."</td><td><INPUT title='".findtekst(288, $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box2' value='$rabatvarenr'></td></tr>";
+	if ($samlet_pris) print "<tr><td title='".findtekst(745, $sprog_id)."'>".findtekst(744, $sprog_id)."</td><td><INPUT title='".findtekst(745, $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='saetvarenr' value='$saetvarenr'></td></tr>";
+	print "<tr><td title='".findtekst(688, $sprog_id)."'>".findtekst(687, $sprog_id)."</td><td><INPUT title='".findtekst(688, $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box7' value='$kontantkonto'></td></tr>";
+	print "<tr><td title='".findtekst(690, $sprog_id)."'>".findtekst(689, $sprog_id)."</td><td><INPUT title='".findtekst(690, $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='box10' value='$kortkonto'></td></tr>";
+	print "<tr><td title='".findtekst(1711, $sprog_id)."'>".findtekst(1714, $sprog_id)."</td><td><INPUT title='".findtekst(1712, $sprog_id)."' class='inputbox' type='checkbox' name='orderNoteEnabled' $orderNoteEnabled></td></tr>";
+	print "<tr><td title='".findtekst(3069, $sprog_id)."'>".findtekst(3068, $sprog_id)."</td><td><INPUT title='".findtekst(3069, $sprog_id)."' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
+	print "<tr><td title='".findtekst(690, $sprog_id)."'>".findtekst(2400, $sprog_id)."</td><td><INPUT title='".findtekst(2401, $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='portovarenr' value='$portovarenr'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -1644,7 +1644,7 @@ function variant_valg() {
 	global $db;
 
 	print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".str_replace("php","html",findtekst(472,$sprog_id))."<!--tekst 472--></u></b></td></tr>";
+	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".str_replace("php","html",findtekst(472, $sprog_id))."<!--tekst 472--></u></b></td></tr>";
 	if ($delete_var_type=if_isset($_GET['delete_var_type'])) db_modify("delete from variant_typer where id = '$delete_var_type'",__FILE__ . " linje " . __LINE__);
 	if ($delete_variant=if_isset($_GET['delete_variant'])) {
 		db_modify("delete from variant_typer where variant_id = '$delete_variant'",__FILE__ . " linje " . __LINE__);
@@ -1653,11 +1653,11 @@ function variant_valg() {
 	if ($rename_var_type=if_isset($_GET['rename_var_type'])) {
 		$r=db_fetch_array(db_select("select beskrivelse from variant_typer where id=$rename_var_type",__FILE__ . " linje " . __LINE__));
 		print "<input type='hidden' name='rename_var_type' value='$rename_var_type'>";
-		print "<tr><td>".findtekst(473,$sprog_id)."<!--tekst 473--></td><td></td><td><input type='text' name='var_type_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
+		print "<tr><td>".findtekst(473, $sprog_id)."<!--tekst 473--></td><td></td><td><input type='text' name='var_type_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
 	}elseif ($rename_variant=if_isset($_GET['rename_variant'])) {
 		$r=db_fetch_array(db_select("select beskrivelse from varianter where id=$rename_variant",__FILE__ . " linje " . __LINE__));
 		print "<input type='hidden' name='rename_varianter' value='$rename_variant'>";
-		print "<tr><td>".findtekst(474,$sprog_id)."<!--tekst 474--></td><td></td><td><input type='text' name='variant_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
+		print "<tr><td>".findtekst(474, $sprog_id)."<!--tekst 474--></td><td></td><td><input type='text' name='variant_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
 	} else {
 		$x=0;
 		$q=db_select("select * from varianter order by beskrivelse",__FILE__ . " linje " . __LINE__);
@@ -1675,25 +1675,25 @@ function variant_valg() {
 			$var_type_antal[$x]=$y;
 		}
 		$variant_antal=$x;
-		print "<tr><td></td><td><b>".findtekst(475,$sprog_id)."<!--tekst 475--></b></td><td><b>".findtekst(476,$sprog_id)."<!--tekst 476--></b></td></tr>";
+		print "<tr><td></td><td><b>".findtekst(475, $sprog_id)."<!--tekst 475--></b></td><td><b>".findtekst(476, $sprog_id)."<!--tekst 476--></b></td></tr>";
 		for ($x=1;$x<=$variant_antal;$x++){
 			print "<tr><td></td><td>$variant_beskrivelse[$x]</td></td><td>";
-			print "<td><span title='".findtekst(477,$sprog_id)."'><!--tekst 477--><a href='diverse.php?sektion=variant_valg&rename_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst(483,$sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
-			print "<span title='".findtekst(478,$sprog_id)."'><!--tekst 478--><a href='diverse.php?sektion=variant_valg&delete_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst(481,$sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
+			print "<td><span title='".findtekst(477, $sprog_id)."'><!--tekst 477--><a href='diverse.php?sektion=variant_valg&rename_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst(483, $sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
+			print "<span title='".findtekst(478, $sprog_id)."'><!--tekst 478--><a href='diverse.php?sektion=variant_valg&delete_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst(481, $sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
 			for ($y=1;$y<=$var_type_antal[$x];$y++){
 #				if ($y>1)
 				print "<tr></td><td><td></td>";
 				print "<td>".$var_type_beskrivelse[$x][$y]."</td>";
-				print "<td><span title='".findtekst(479,$sprog_id)."'><!--tekst 479--><a href='diverse.php?sektion=variant_valg&rename_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst(484,$sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
-				print "<span title='".findtekst(480,$sprog_id)."'><!--tekst 480--><a href='diverse.php?sektion=variant_valg&delete_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst(482,$sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
+				print "<td><span title='".findtekst(479, $sprog_id)."'><!--tekst 479--><a href='diverse.php?sektion=variant_valg&rename_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst(484, $sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
+				print "<span title='".findtekst(480, $sprog_id)."'><!--tekst 480--><a href='diverse.php?sektion=variant_valg&delete_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst(482, $sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
 			}
 			print "<input type='hidden' name='variant_id[$x]' value='$variant_id[$x]'>";
-			print "<tr><td title='".findtekst(486,$sprog_id)."'><!--tekst 486-->".findtekst(473,$sprog_id)."<!--tekst 473--></td><td></td><td title='".findtekst(486,$sprog_id)."'><!--tekst 486--><input type='text' name='var_type_beskrivelse[$x]'</td></tr>";
+			print "<tr><td title='".findtekst(486, $sprog_id)."'><!--tekst 486-->".findtekst(473, $sprog_id)."<!--tekst 473--></td><td></td><td title='".findtekst(486, $sprog_id)."'><!--tekst 486--><input type='text' name='var_type_beskrivelse[$x]'</td></tr>";
 		}
 		print "<input type='hidden' name='variant_antal' value='$variant_antal'>";
-		print "<tr><td title='".findtekst(485,$sprog_id)."'><!--tekst 485-->".findtekst(474,$sprog_id)."<!--tekst 474--></td><td title='".findtekst(485,$sprog_id)."'><!--tekst 485--><input type='text' name='variant_beskrivelse'</td></tr>";
+		print "<tr><td title='".findtekst(485, $sprog_id)."'><!--tekst 485-->".findtekst(474, $sprog_id)."<!--tekst 474--></td><td title='".findtekst(485, $sprog_id)."'><!--tekst 485--><input type='text' name='variant_beskrivelse'</td></tr>";
 	}
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst(471,$sprog_id)."' name='submit'><!--tekst 471--></td>";
+	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'><!--tekst 471--></td>";
 	print "</form>";
 
 } # endfunc variant_valg
@@ -1718,17 +1718,17 @@ function shop_valg() {
 
 	if ($box2=='!') $box3='1';
 	print "<tr><td><br></td></tr>";
-	print "<tr><td title='".findtekst(695,$sprog_id)."'><!--tekst 826-->".findtekst(695,$sprog_id)."<!--tekst 826--></td><td colspan='3' title='".findtekst(695,$sprog_id)."'><select style='text-align:left;width:300px;' name='box3'>";
-	if (!$box3) print "<option value='0'>".findtekst(697,$sprog_id)."<!--tekst 697--></option>";
-	if ($box3=='1') print "<option value='1'>".findtekst(698,$sprog_id)."<!--tekst 698--></option>";
-	if ($box3=='2') print "<option value='2'>".findtekst(699,$sprog_id)."<!--tekst 829--></option>";
-	if ($box3) print "<option value='0'>".findtekst(697,$sprog_id)."<!--tekst 697--></option>";
-	if ($box3!='1') print "<option value='1'>".findtekst(698,$sprog_id)."<!--tekst 698--></option>";
-	if ($box3!='2') print "<option value='2'>".findtekst(699,$sprog_id)."<!--tekst 829--></option>";
+	print "<tr><td title='".findtekst(695, $sprog_id)."'><!--tekst 826-->".findtekst(695, $sprog_id)."<!--tekst 826--></td><td colspan='3' title='".findtekst(695, $sprog_id)."'><select style='text-align:left;width:300px;' name='box3'>";
+	if (!$box3) print "<option value='0'>".findtekst(697, $sprog_id)."<!--tekst 697--></option>";
+	if ($box3=='1') print "<option value='1'>".findtekst(698, $sprog_id)."<!--tekst 698--></option>";
+	if ($box3=='2') print "<option value='2'>".findtekst(699, $sprog_id)."<!--tekst 829--></option>";
+	if ($box3) print "<option value='0'>".findtekst(697, $sprog_id)."<!--tekst 697--></option>";
+	if ($box3!='1') print "<option value='1'>".findtekst(698, $sprog_id)."<!--tekst 698--></option>";
+	if ($box3!='2') print "<option value='2'>".findtekst(699, $sprog_id)."<!--tekst 829--></option>";
 	print "</select></td></tr>";
 	if ($box3=='2') {
-		print "<tr><td title='".findtekst(503,$sprog_id)."'><!--tekst 503-->".findtekst(504,$sprog_id)."<!--tekst 504--></td><td colspan='3' title='".findtekst(503,$sprog_id)."'><!--tekst 503--><input type='text' style='text-align:left;width:300px;' name='box2' value = '$box2'</td></tr>";
-		print "<tr><td title=''>".findtekst(733,$sprog_id)."<!--tekst 733--></td><td colspan='3' title='".findtekst(733,$sprog_id)."'><!--tekst 733--><select style='text-align:left;width:300px;' name='box7'>";
+		print "<tr><td title='".findtekst(503, $sprog_id)."'><!--tekst 503-->".findtekst(504, $sprog_id)."<!--tekst 504--></td><td colspan='3' title='".findtekst(503, $sprog_id)."'><!--tekst 503--><input type='text' style='text-align:left;width:300px;' name='box2' value = '$box2'</td></tr>";
+		print "<tr><td title=''>".findtekst(733, $sprog_id)."<!--tekst 733--></td><td colspan='3' title='".findtekst(733, $sprog_id)."'><!--tekst 733--><select style='text-align:left;width:300px;' name='box7'>";
 		if ($box7=='UTF-8') {
 			print "<option>UTF-8</option>";
 			print "<option>ISO-8859-1</option>";
@@ -1740,21 +1740,21 @@ function shop_valg() {
 		if ($apifil=$box2) {
 			$filnavn=mt_rand().".csv";
 			if (substr($apifil,0,4)=='http') { #20150608
-				print "<tr><td title='".findtekst(740,$sprog_id)."'><!--tekst 740-->".findtekst(741,$sprog_id)."<!--tekst 741--></td><td colspan='3'  title='".findtekst(740,$sprog_id)."'><!--tekst 740--><a href=../api/hent_varer.php target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(741,$sprog_id)."'><!--tekst 749--></a></td></tr>";
+				print "<tr><td title='".findtekst(740, $sprog_id)."'><!--tekst 740-->".findtekst(741, $sprog_id)."<!--tekst 741--></td><td colspan='3'  title='".findtekst(740, $sprog_id)."'><!--tekst 740--><a href=../api/hent_varer.php target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(741, $sprog_id)."'><!--tekst 749--></a></td></tr>";
 				$apifil=str_replace("/?","sync_saldi_kat.php?",$apifil);
 				$apifil=$apifil."&saldi_db=$db&filnavn=$filnavn";
-#				print "<tr><td title='".findtekst(678,$sprog_id)."'><!--tekst 678-->".findtekst(679,$sprog_id)."<!--tekst 679--></td><td colspan='3'  title='".findtekst(678,$sprog_id)."'><!--tekst 678--><a href=$apifil target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(679,$sprog_id)."'><!--tekst 679--></a></td></tr>";
+#				print "<tr><td title='".findtekst(678, $sprog_id)."'><!--tekst 678-->".findtekst(679, $sprog_id)."<!--tekst 679--></td><td colspan='3'  title='".findtekst(678, $sprog_id)."'><!--tekst 678--><a href=$apifil target='blank'><input style='text-align:center;width:300px;' type='button' value='".findtekst(679, $sprog_id)."'><!--tekst 679--></a></td></tr>";
 #				print "<tr><td colspan='3'><span title='Klik her for at hente nye ordrer fra shop'><a href=$apifil target='_blank'>SHOP import</a</span></td></tr>";
 			}
 		}
 	} elseif ($box3=='1') {
-		print "<tr><td title='".findtekst(691,$sprog_id)."'><!--tekst 821-->".findtekst(692,$sprog_id)."<!--tekst 822--></td><td colspan='3' title='".findtekst(691,$sprog_id)."'><!--tekst 621--><input type='text' style='text-align:left;width:300px;' name='box4' value = '$box4'</td></tr>";
-		print "<tr><td title='".findtekst(752,$sprog_id)."'><!--tekst 752-->".findtekst(753,$sprog_id)."<!--tekst 753--></td><td colspan='3' title='".findtekst(752,$sprog_id)."'><!--tekst 752--><input type='text' style='text-align:left;width:300px;' name='box9' value = '$box9'</td></tr>";
-		print "<tr><td title='".findtekst(693,$sprog_id)."'><!--tekst 823-->".findtekst(694,$sprog_id)."<!--tekst 824--></td><td colspan='3' title='".findtekst(693,$sprog_id)."'><!--tekst 823--><input type='text' style='text-align:left;width:300px;' name='box5' value = '$box5'</td></tr>";
+		print "<tr><td title='".findtekst(691, $sprog_id)."'><!--tekst 821-->".findtekst(692, $sprog_id)."<!--tekst 822--></td><td colspan='3' title='".findtekst(691, $sprog_id)."'><!--tekst 621--><input type='text' style='text-align:left;width:300px;' name='box4' value = '$box4'</td></tr>";
+		print "<tr><td title='".findtekst(752, $sprog_id)."'><!--tekst 752-->".findtekst(753, $sprog_id)."<!--tekst 753--></td><td colspan='3' title='".findtekst(752, $sprog_id)."'><!--tekst 752--><input type='text' style='text-align:left;width:300px;' name='box9' value = '$box9'</td></tr>";
+		print "<tr><td title='".findtekst(693, $sprog_id)."'><!--tekst 823-->".findtekst(694, $sprog_id)."<!--tekst 824--></td><td colspan='3' title='".findtekst(693, $sprog_id)."'><!--tekst 823--><input type='text' style='text-align:left;width:300px;' name='box5' value = '$box5'</td></tr>";
 	}
 	print "<tr><td>";
 	print "<br></td></tr>";
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst(471,$sprog_id)."' name='submit'><!--tekst 471--></td>";
+	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'><!--tekst 471--></td>";
 	print "</form>";
 	print "<tr><td colspan='6'><hr></td></tr>";
 } # endfunc shop_valg
@@ -1791,19 +1791,19 @@ function api_valg() {
 	$url = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]/$folder/api";
 	if (count($userId)) {
 		if ($api_bruger) {
-			print "<tr><td title='".findtekst(832,$sprog_id)."'><!--tekst 832-->".findtekst(831,$sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst(832,$sprog_id)."'><!--tekst 832-->$db</td></tr>";
-			print "<tr><td title='".findtekst(836,$sprog_id)."'><!--tekst 836-->".findtekst(835,$sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst(836,$sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td title='".findtekst(820,$sprog_id)."'><!--tekst 820-->".findtekst(819,$sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst(819,$sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key'></td></tr>";
-			print "<tr><td title='".findtekst(822,$sprog_id)."'><!--tekst 822-->".findtekst(821,$sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst(822,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
-			print "<tr><td title='".findtekst(830,$sprog_id)."'><!--tekst 830-->".findtekst(829,$sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
-			print "<tr><td title='".findtekst(830,$sprog_id)."'><!--tekst 830-->".findtekst(829,$sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830,$sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
+			print "<tr><td title='".findtekst(832, $sprog_id)."'><!--tekst 832-->".findtekst(831, $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst(832, $sprog_id)."'><!--tekst 832-->$db</td></tr>";
+			print "<tr><td title='".findtekst(836, $sprog_id)."'><!--tekst 836-->".findtekst(835, $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst(836, $sprog_id)."'><!--tekst 836-->$url</td></tr>";
+			print "<tr><td title='".findtekst(820, $sprog_id)."'><!--tekst 820-->".findtekst(819, $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst(819, $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key'></td></tr>";
+			print "<tr><td title='".findtekst(822, $sprog_id)."'><!--tekst 822-->".findtekst(821, $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst(822, $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
+			print "<tr><td title='".findtekst(830, $sprog_id)."'><!--tekst 830-->".findtekst(829, $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830, $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
+			print "<tr><td title='".findtekst(830, $sprog_id)."'><!--tekst 830-->".findtekst(829, $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst(830, $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
 		} else {
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_key' value = '$api_key'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil2' value= '$api_fil2'>";
 		}
-		print "<tr><td title='".findtekst(824,$sprog_id)."'><!--tekst 824-->".findtekst(823,$sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst(824,$sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
+		print "<tr><td title='".findtekst(824, $sprog_id)."'><!--tekst 824-->".findtekst(823, $sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst(824, $sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
 		if ($api_bruger) {
 			for ($x=0;$x<count($userId);$x++){
 				if ($api_bruger==$userId[$x]) print "<option value='$userId[$x]'>$userName[$x]</option>";
@@ -1815,12 +1815,12 @@ function api_valg() {
 		}
 		print "</select></td></tr>";
 		print "<tr><td><br></td></tr>";
-		print "<tr><td><br></td><td colspan='1'><input type=submit style='text-align:center;width:300px;' accesskey='g' value='".findtekst(471,$sprog_id)."' name='submit'><!--tekst 471--></td></tr>";
+		print "<tr><td><br></td><td colspan='1'><input type=submit style='text-align:center;width:300px;' accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'><!--tekst 471--></td></tr>";
 		print "</form>";
 		print "<tr><td colspan='6'><hr></td></tr>";
-		print "<tr><td title='".findtekst(740,$sprog_id)."'><!--tekst 740-->".findtekst(741,$sprog_id)."<!--tekst 741--></td><td colspan='3' title='".findtekst(740,$sprog_id)."'><!--tekst 740--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=1><input style='text-align:center;width:300px;' type='button' value='".findtekst(741,$sprog_id)."'><!--tekst 749--></a></td></tr>";
+		print "<tr><td title='".findtekst(740, $sprog_id)."'><!--tekst 740-->".findtekst(741, $sprog_id)."<!--tekst 741--></td><td colspan='3' title='".findtekst(740, $sprog_id)."'><!--tekst 740--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=1><input style='text-align:center;width:300px;' type='button' value='".findtekst(741, $sprog_id)."'><!--tekst 749--></a></td></tr>";
 		print "<tr><td title='".findtekst(1726, $sprog_id)."'><!--tekst 740-->Opdater fra shop<!--tekst 741--></td><td colspan='3' title='Opdaterer beskrivelse, stregkode og pris fra shop'><!--tekst 740--><a href=".$_SERVER['PHP_SELF']."?sektion=api_valg&varesync=2><input style='text-align:center;width:300px;' type='button' value='Opdater fra shop'><!--tekst 749--></a></td></tr>";
-	} else print "<tr><td colspan='2'>".findtekst(825,$sprog_id)."</td></tr>";
+	} else print "<tr><td colspan='2'>".findtekst(825, $sprog_id)."</td></tr>";
 	print "<tr><td colspan='6'><hr></td></tr>";
 	if (isset($_GET['varesync']) && $_GET['varesync']) {
 		include ("../api/varesync.php");
@@ -1843,25 +1843,25 @@ function labels($valg) {
 	($valg=='box1')?$txt='Vare':$txt='Adresse';
 	if (isset($_POST['newLabel'])) {
 		print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
-		print "<tr bgcolor='$bgcolor5'><td colspan='6' title='".findtekst(737,$sprog_id)."'><!--tekst 737-->";
-		print "<b><u>".findtekst(736,$sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
+		print "<tr bgcolor='$bgcolor5'><td colspan='6' title='".findtekst(737, $sprog_id)."'><!--tekst 737-->";
+		print "<b><u>".findtekst(736, $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
 		$qtxt="select $valg from grupper where art = 'LABEL'";
 		if($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $labelText=$r['box1'];
 		print "<tr><td><br><br></td></tr>";
-		print "<tr><td  valign='top' align='left' title='".findtekst(503,$sprog_id)."'><b>".findtekst(914,$sprog_id)."</b><br>";
+		print "<tr><td  valign='top' align='left' title='".findtekst(503, $sprog_id)."'><b>".findtekst(914, $sprog_id)."</b><br>";
 		print "<input type='text' style='width:200px' name='newLabelName' pattern='[a-zA-Z0-9+.-]+'><br>";
-		print "".findtekst(1309,$sprog_id)."</td>";
-		print "<td valign='top' align = 'left'><b>".findtekst(803,$sprog_id)."</b><br><select style='width:200px' name='labelTemplate'>";
+		print "".findtekst(1309, $sprog_id)."</td>";
+		print "<td valign='top' align = 'left'><b>".findtekst(803, $sprog_id)."</b><br><select style='width:200px' name='labelTemplate'>";
 		print "<option value=''></option>";
-		print "<option value='A4Label38x21_ens.txt'>".findtekst(1310,$sprog_id)."</option>";
-		print "<option value='A4Label38x21.txt'>".findtekst(1311,$sprog_id)."</option>";
-		print "<option value='BrotherLabel22606.txt'>".findtekst(1312,$sprog_id)."</option>";
-		print "<option value='BrotherLabel22606MS.txt'>".findtekst(1313,$sprog_id)."</option>";
+		print "<option value='A4Label38x21_ens.txt'>".findtekst(1310, $sprog_id)."</option>";
+		print "<option value='A4Label38x21.txt'>".findtekst(1311, $sprog_id)."</option>";
+		print "<option value='BrotherLabel22606.txt'>".findtekst(1312, $sprog_id)."</option>";
+		print "<option value='BrotherLabel22606MS.txt'>".findtekst(1313, $sprog_id)."</option>";
 		print "<option value='DymoLabelArt11354.txt'>Dymo 11354</option>";
-		print "<option value='DymoLabelArt11354MS.txt'>".findtekst(1314,$sprog_id)."</option>";
+		print "<option value='DymoLabelArt11354MS.txt'>".findtekst(1314, $sprog_id)."</option>";
 		print "</td></select></td>";
 		print "<td valign='top' align = 'center'>&nbsp<br>";
-		print "<input type='submit' style='width:200px' accesskey='s' value='".findtekst(1232,$sprog_id)."' name='createNewLabel'>";
+		print "<input type='submit' style='width:200px' accesskey='s' value='".findtekst(1232, $sprog_id)."' name='createNewLabel'>";
 		print "</td></tr></form>";
 	} elseif ($valg) {
 		$x=0;
@@ -1874,8 +1874,8 @@ function labels($valg) {
 		}
 		if (!$labelName) $labelName='Standard';
 		$txt.=" - $labelName";
-		print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst(737,$sprog_id)."'><!--tekst 737-->";
-		print "<b><u>".findtekst(736,$sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
+		print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst(737, $sprog_id)."'><!--tekst 737-->";
+		print "<b><u>".findtekst(736, $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
 		if ($valg=='box1') {
 			$qtxt="select id, labeltype, labeltext from labels where labelname = '$labelName' ";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -1904,28 +1904,28 @@ function labels($valg) {
 		}
 		print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
 		print "<input type='hidden' name='labelName' value='$labelName'></a></td></tr>";
-		print "<tr><td align='center' colspan='4' title='".findtekst(503,$sprog_id)."'><!--tekst 503-->";
+		print "<tr><td align='center' colspan='4' title='".findtekst(503, $sprog_id)."'><!--tekst 503-->";
 		print "<textarea style='width:100%;height:500px' name='labelText'>$labelText</textarea></td></tr>";
 		print "<td  align='center' colspan='4'>";
 		print "<select name='labelType' style='width:100px'>";
-		if ($labelType=='sheet') print "<option value='sheet'>A4 ark</option><option value='label'>".findtekst(1315,$sprog_id)."</option>";
-		else print "<option value='label'>".findtekst(1315,$sprog_id)."</option><option value='sheet'>A4 ark</option>";
+		if ($labelType=='sheet') print "<option value='sheet'>A4 ark</option><option value='label'>".findtekst(1315, $sprog_id)."</option>";
+		else print "<option value='label'>".findtekst(1315, $sprog_id)."</option><option value='sheet'>A4 ark</option>";
 		print "</select>";
-		print "<input type=submit style='width:200px' accesskey='g' value='".findtekst(471,$sprog_id)."' name='saveLabel'><!--tekst 471-->";
+		print "<input type=submit style='width:200px' accesskey='g' value='".findtekst(471, $sprog_id)."' name='saveLabel'><!--tekst 471-->";
 		if ($valg=='box1') {
-			print "&nbsp;<input type=submit style='width:200px' accesskey='n' value='".findtekst(39,$sprog_id)." ".lcfirst(findtekst(1316,$sprog_id))."' name='newLabel'>";
+			print "&nbsp;<input type=submit style='width:200px' accesskey='n' value='".findtekst(39, $sprog_id)." ".lcfirst(findtekst(1316, $sprog_id))."' name='newLabel'>";
 			if ($labelName!='Standard') {
-				$txt="".findtekst(1317,$sprog_id)." $labelName ?";
-				print "&nbsp;<input type=submit style='width:200px' value='".findtekst(1099,$sprog_id)." ".lcfirst(findtekst(1316,$sprog_id))."' name='deleteLabel' onclick=\"return confirm('$txt')\">";
+				$txt="".findtekst(1317, $sprog_id)." $labelName ?";
+				print "&nbsp;<input type=submit style='width:200px' value='".findtekst(1099, $sprog_id)." ".lcfirst(findtekst(1316, $sprog_id))."' name='deleteLabel' onclick=\"return confirm('$txt')\">";
 			}
 		}
 		print "</td></form>";
 	} else {
-		print "<tr><td>".findtekst(1308,$sprog_id)."</td><td>";
+		print "<tr><td>".findtekst(1308, $sprog_id)."</td><td>";
 		print "<a href='diverse.php?sektion=labels&valg=box1'>";
-		print "<input type='button'  style='width:100px' value='".findtekst(110,$sprog_id)."'></a></td></tr>";
+		print "<input type='button'  style='width:100px' value='".findtekst(110, $sprog_id)."'></a></td></tr>";
 		print "<tr><td></td><td><a href=diverse.php?sektion=labels&valg=box2>";
-		print "<input type='button' style='width:100px' value='".findtekst(1049,$sprog_id)."'></a></td></tr>";
+		print "<input type='button' style='width:100px' value='".findtekst(1049, $sprog_id)."'></a></td></tr>";
 	}
 } # endfunc labels
 
@@ -1990,24 +1990,24 @@ function prislister()
 #		$prisfil[$antal]="../prislister/solar.txt";
 #	}
 
-        print "<tr bgcolor='$bgcolor5'><td colspan='10'><b><u>".findtekst(792,$sprog_id)."</u></b></td></tr>\n";
+        print "<tr bgcolor='$bgcolor5'><td colspan='10'><b><u>".findtekst(792, $sprog_id)."</u></b></td></tr>\n";
         print "<tr><td colspan='10'>\n";
-	print "<p>".findtekst(1318,$sprog_id)."</p>\n";
+	print "<p>".findtekst(1318, $sprog_id)."</p>\n";
 	print "</td></tr>\n";
 
 	print "<form name='diverse' action='diverse.php?sektion=prislister' method='post'>\n";
 	print "<input type='hidden' name='antal' value='$antal'>\n";
 	print "<tr><td colspan='10'><hr></td></tr>\n";
 	print "<tr bgcolor='$bgcolor5'>\n";
-	print "<td><b>".str_replace('er','e',findtekst(427,$sprog_id))."<!--tekst 427--></b></td>\n";
-	print "<td><b></b>".findtekst(988,$sprog_id)."</td>\n";
-	print "<td><b></b>".findtekst(1319,$sprog_id)."</td>\n";
-	print "<td><b></b>".findtekst(1320,$sprog_id)."</td>\n";
-	print "<td><b>".findtekst(428,$sprog_id)."<!--tekst 428--></b></td>\n";
-	print "<td><b>".findtekst(429,$sprog_id)."<!--tekst 429--></b></td>\n";
-	print "<td><b>".findtekst(1321,$sprog_id)."</b></td>\n";
-	print "<td><b>".findtekst(430,$sprog_id)."<!--tekst 430--></b></td>\n"; # 20160226c start
-	$slet = findtekst(1099,$sprog_id);
+	print "<td><b>".str_replace('er','e',findtekst(427, $sprog_id))."<!--tekst 427--></b></td>\n";
+	print "<td><b></b>".findtekst(988, $sprog_id)."</td>\n";
+	print "<td><b></b>".findtekst(1319, $sprog_id)."</td>\n";
+	print "<td><b></b>".findtekst(1320, $sprog_id)."</td>\n";
+	print "<td><b>".findtekst(428, $sprog_id)."<!--tekst 428--></b></td>\n";
+	print "<td><b>".findtekst(429, $sprog_id)."<!--tekst 429--></b></td>\n";
+	print "<td><b>".findtekst(1321, $sprog_id)."</b></td>\n";
+	print "<td><b>".findtekst(430, $sprog_id)."<!--tekst 430--></b></td>\n"; # 20160226c start
+	$slet = findtekst(1099, $sprog_id);
 	print "<td><b>$slet</b></td>\n";
 	print "</tr>\n"; # 20160226c slut
 	for ($x=1;$x<=$antal;$x++) {
@@ -2015,9 +2015,9 @@ function prislister()
 		print "<input type='hidden' name='prisfil[$x]' value='$prisfil[$x]'>\n";
 		print "<input type='hidden' name='id[$x]' value='$id[$x]'>\n";
 		print "<tr>\n";
-		$title="".findtekst(1331,$sprog_id)." ".lcfirst(findtekst(646,$sprog_id)).".";
+		$title="".findtekst(1331, $sprog_id)." ".lcfirst(findtekst(646, $sprog_id)).".";
 		print "<td title='$title'><input class='inputbox' type='text' size='18' name='beskrivelse[$x]' value='".$beskrivelse[$x]."' /></td>\n";
-		$title="".findtekst(1331,$sprog_id)." ".findtekst(988,$sprog_id).".";
+		$title="".findtekst(1331, $sprog_id)." ".findtekst(988, $sprog_id).".";
 		print "<td title='$title'><select class='inputbox' type='text' name='lev_id[$x]' />\n"; # 20120226d start
 		$levvalg="";
 		$q1 = db_select("select id, kontonr, firmanavn from adresser where art = 'K' order by firmanavn",__FILE__ . " linje " . __LINE__);
@@ -2058,9 +2058,9 @@ function prislister()
 		print $levvalg;
 		print "</select></td>\n"; # 20160226d
 
-		$title=findtekst(1322,$sprog_id);
+		$title=findtekst(1322, $sprog_id);
 		print "<td title='$title'><input class='inputbox' type='text' size='24' name='prisfil[$x]' value='".$prisfil[$x]."' /></td>\n";
-		$title=findtekst(1323,$sprog_id);;
+		$title=findtekst(1323, $sprog_id);;
 		print "<td title='$title'><!--tekst 432--><select class='inputbox' name='filtype[$x]'>\n";
 		$filtypevalg="";
 		for ($y=1;$y<=$filtyperantal;$y++) { # 20150529
@@ -2075,9 +2075,9 @@ function prislister()
 		}
 		print $filtypevalg;
 		print "</select></td>\n";
-		$title=str_replace('$beskrivelse',$beskrivelse[$x],findtekst(431,$sprog_id));
+		$title=str_replace('$beskrivelse',$beskrivelse[$x],findtekst(431, $sprog_id));
 		print "<td title='$title'><!--tekst 431--><input class='inputbox' style='width:25px;text-align:right' type='text' name='rabat[$x]' value='$rabat[$x]'>%</td>\n";
-		$title=str_replace('$beskrivelse',$beskrivelse[$x],findtekst(432,$sprog_id));
+		$title=str_replace('$beskrivelse',$beskrivelse[$x],findtekst(432, $sprog_id));
 		print "<td title='$title'><!--tekst 432--><select class='inputbox' name='gruppe[$x]'>\n";
 		for ($y=1;$y<=$vgrpantal;$y++) {
 			if ($vgrp[$y]==$gruppe[$x]) print "<option value='$vgrp[$y]'>$vgrp[$y]: $vgbesk[$y]</option>\n";
@@ -2093,25 +2093,25 @@ function prislister()
 				$aktiv[$x]="disabled='disabled' ";
 			}
 			$slet[$x]="disabled";
-			$title=findtekst(426,$sprog_id);
-			print "<td title='$title'><!--tekst 426--><a href='lev_rabat.php?id=$id[$x]&amp;lev_id=$lev_id[$x]&amp;prisliste=$beskrivelse[$x]'>".findtekst(1321,$sprog_id)."</a></td>\n";
+			$title=findtekst(426, $sprog_id);
+			print "<td title='$title'><!--tekst 426--><a href='lev_rabat.php?id=$id[$x]&amp;lev_id=$lev_id[$x]&amp;prisliste=$beskrivelse[$x]'>".findtekst(1321, $sprog_id)."</a></td>\n";
 			print "<td>\n";
 			print "    <input class='inputbox' type='checkbox' name='aktiv[$x]' $aktiv[$x] \n"; # 20150424
-			print "        title='".str_replace('$beskrivelse',$beskrivelse[$x],findtekst(425,$sprog_id))."'><!--tekst 425-->&nbsp;\n";
+			print "        title='".str_replace('$beskrivelse',$beskrivelse[$x],findtekst(425, $sprog_id))."'><!--tekst 425-->&nbsp;\n";
 			print "</td>\n<td><input type='checkbox' value='0' name='slet[$x]' $slet[$x] \n";
-			print "        title='".findtekst(1324,$sprog_id)."'>\n";
+			print "        title='".findtekst(1324, $sprog_id)."'>\n";
 		} else {
 			print "<td>-</td>\n";
 			print "<td>\n";
 			print "    <input class='inputbox' type='checkbox' name='aktiv[$x]' "; # 20150424 20160226
 			if ( $lev_findes && $lev_id[$x] ) { # 20160226e start
-				print "\n        title='".str_replace('$beskrivelse',$beskrivelse[$x],findtekst(425,$sprog_id))."'><!--tekst 425-->&nbsp;\n"; # 20160226e slut
+				print "\n        title='".str_replace('$beskrivelse',$beskrivelse[$x],findtekst(425, $sprog_id))."'><!--tekst 425-->&nbsp;\n"; # 20160226e slut
 			} else {
 				print "disabled='disabled' \n";
-				print "\n        title='".findtekst(1325,$sprog_id)."'>\n"; # 20160226b slut
+				print "\n        title='".findtekst(1325, $sprog_id)."'>\n"; # 20160226b slut
 			}
 			print "</td>\n<td><input type='checkbox' value='Slet' name='slet[$x]' \n";
-			print "        title='".findtekst(1326,$sprog_id)."'>\n";
+			print "        title='".findtekst(1326, $sprog_id)."'>\n";
 		}
 		print "</td>\n</tr>\n";
 	}
@@ -2119,7 +2119,7 @@ function prislister()
 	print "<input type='hidden' name='antal' value='$x'>\n";
 	print "<tr>\n";
 	print "<td><input class='inputbox' type='text' size='20' name='beskrivelse[$x]' title='Nummer $x'></td>\n";
-	$title="".findtekst(1327,$sprog_id)."";
+	$title="".findtekst(1327, $sprog_id)."";
 	print "<td title='$title'><select class='inputbox' type='text' name='lev_id[$x]' />\n";
 	$levvalg="";
 	$q3 = db_select("select id, kontonr, firmanavn from adresser where art = 'K' order by firmanavn",__FILE__ . " linje " . __LINE__);
@@ -2136,7 +2136,7 @@ function prislister()
 	}
 
 	if ( strlen($levvalg) == 0 ) {
-		$levvalg="     <option disabled='disabled' title='".findtekst(1328,$sprog_id)."</option>\n";
+		$levvalg="     <option disabled='disabled' title='".findtekst(1328, $sprog_id)."</option>\n";
 		$lev_findes=0;
 	} else {
 		$lev_findes=1;
@@ -2145,7 +2145,7 @@ function prislister()
 	print "</select></td>\n";
 
 	print "<td><input class='inputbox' type='text' size='24' name='prisfil[$x]'></td>\n";
-	$title="".findtekst(1323,$sprog_id)."";
+	$title="".findtekst(1323, $sprog_id)."";
 	print "<td title='$title'><!--tekst 432--><select class='inputbox' name='filtype[$x]'>\n";
 	$filtypevalg="";
 	for ($y=1;$y<=$filtyperantal;$y++) { # 20150529
@@ -2160,9 +2160,9 @@ function prislister()
 	}
 	print $filtypevalg;
 	print "</select></td>\n";
-	print "<td title='".str_replace(' $beskrivelse','', findtekst(431,$sprog_id))." ".findtekst(1329,$sprog_id)."'><!--tekst 431-->\n";
+	print "<td title='".str_replace(' $beskrivelse','', findtekst(431, $sprog_id))." ".findtekst(1329, $sprog_id)."'><!--tekst 431-->\n";
 	print "    <input class='inputbox' style='width:25px;text-align:right' type='text' name='rabat[$x]' min='0' max='100' value='0'>%</td>\n";
-	print "<td title='".str_replace(' $beskrivelse','', findtekst(432,$sprog_id))." ".findtekst(1329,$sprog_id)."'><!--tekst 432-->\n";
+	print "<td title='".str_replace(' $beskrivelse','', findtekst(432, $sprog_id))." ".findtekst(1329, $sprog_id)."'><!--tekst 432-->\n";
 	print "    <select class='inputbox' name='gruppe[$x]'>\n";
 	for ($y=1;$y<=$vgrpantal;$y++) {
 		print "    <option value='$vgrp[$y]'";
@@ -2170,7 +2170,7 @@ function prislister()
 		print ">$vgrp[$y]: $vgbesk[$y]</option>\n";
 	}
 	print "<td \n";
-	print "    title='".findtekst(1330,$sprog_id)."'>\n";
+	print "    title='".findtekst(1330, $sprog_id)."'>\n";
 	print "    &nbsp;\n</td>\n";
 	print "</tr>\n";
 	print "<tr><td><br></td><td><br></td><td><br></td><td align='center'><input class='button green medium' type='submit' accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'></td></tr>\n";
@@ -2220,12 +2220,12 @@ function rykker_valg()
 	}
 */
 	print "<form name='diverse action=diverse.php?sektion=rykker_valg' method='post'>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst(793,$sprog_id)."</b></td></tr>\n";
+	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst(793, $sprog_id)."</b></td></tr>\n";
 	print "<input type='hidden' name=id value='$id'>\n";
 	#Box1 Brugernavn for "rykkeransvarlig - Naar bruger logger ind adviseres hvis der skal rykkes - Hvis navn ikke angives adviseres alle..
 	$title=""; # HERTIL
-	print "<tr><td title='".findtekst(224,$sprog_id)."'>".findtekst(225,$sprog_id)."</td>\n"; #20210713
-	print "<td title='".findtekst(224,$sprog_id)."'><select class='inputbox' name='box1' style='width:80px'>\n";
+	print "<tr><td title='".findtekst(224, $sprog_id)."'>".findtekst(225, $sprog_id)."</td>\n"; #20210713
+	print "<td title='".findtekst(224, $sprog_id)."'><select class='inputbox' name='box1' style='width:80px'>\n";
 	if ($box1) print "    <option>$box1</option>\n";
 	print "<option value=''>- Alle -</option>\n";
 	for ($x=1;$x<=$br_antal;$x++){
@@ -2233,25 +2233,25 @@ function rykker_valg()
 	}
 	print "</select></td></tr>\n";
 	#Box2 Mailadresse for rykkeransvarlig hvis angivet sendes email naar der skal rykkes. (Naar nogen logger ind - uanset hvem)
-	print "<tr><td title='".findtekst(226,$sprog_id)."'>".findtekst(227,$sprog_id)."</td>\n";
-	print "<td title='".findtekst(226,$sprog_id)."'><input class='inputbox' type='text' size='30' name='box2' value='$box2'></td></tr>\n"; # 20150625
+	print "<tr><td title='".findtekst(226, $sprog_id)."'>".findtekst(227, $sprog_id)."</td>\n";
+	print "<td title='".findtekst(226, $sprog_id)."'><input class='inputbox' type='text' size='30' name='box2' value='$box2'></td></tr>\n"; # 20150625
 	#Box4 Varenummer for rente
-#	print "<tr><td title='".findtekst(230,$sprog_id)."'>".findtekst(231,$sprog_id)."</td><td><input class='inputbox' type=text size=15 name=box4 value='$box4'></td></tr>";
+#	print "<tr><td title='".findtekst(230, $sprog_id)."'>".findtekst(231, $sprog_id)."</td><td><input class='inputbox' type=text size=15 name=box4 value='$box4'></td></tr>";
 	#Box3 Rentesats % pr paabegyndt md.
-#	print "<tr><td title='".findtekst(228,$sprog_id)."'>".findtekst(229,$sprog_id)."</td><td><input class='inputbox' type=text style='text-align:right' size=1 name=box3 value='$box3'> %</td></tr>";
+#	print "<tr><td title='".findtekst(228, $sprog_id)."'>".findtekst(229, $sprog_id)."</td><td><input class='inputbox' type=text style='text-align:right' size=1 name=box3 value='$box3'> %</td></tr>";
 	#Box5 Dage betalingsfrist skal vaere overskredet foer der rykkes.
-	print "<tr><td title='".findtekst(232,$sprog_id)."'>".findtekst(233,$sprog_id)."</td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box5' value='$box5'> ".findtekst(1332,$sprog_id)."</td></tr>\n";
+	print "<tr><td title='".findtekst(232, $sprog_id)."'>".findtekst(233, $sprog_id)."</td>\n";
+	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box5' value='$box5'> ".findtekst(1332, $sprog_id)."</td></tr>\n";
 	#Box6 Dage fra rykker 1 til rykker 2
-	print "<tr><td title='".findtekst(234,$sprog_id)."'>".findtekst(235,$sprog_id)." </td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box6' value='$box6'> ".findtekst(1332,$sprog_id)."</td></tr>\n";
+	print "<tr><td title='".findtekst(234, $sprog_id)."'>".findtekst(235, $sprog_id)." </td>\n";
+	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box6' value='$box6'> ".findtekst(1332, $sprog_id)."</td></tr>\n";
 	#Box7 Dage fra rykker 2 til rykker 3
-	print "<tr><td title='".findtekst(236,$sprog_id)."'>".findtekst(237,$sprog_id)." </td>\n";
-	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box7' value='$box7'> ".findtekst(1332,$sprog_id)."</td></tr>\n";
+	print "<tr><td title='".findtekst(236, $sprog_id)."'>".findtekst(237, $sprog_id)." </td>\n";
+	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box7' value='$box7'> ".findtekst(1332, $sprog_id)."</td></tr>\n";
 	print "<td colspan='3'>&nbsp;</td>\n";
-	if (!strpos(findtekst(833,$sprog_id),'inkasso')) db_modify("delete from tekster where tekst_id='833' and sprog_id='$sprog_id'",__FILE__ . " linje " . __LINE__); #20211019
-	if (!strpos(findtekst(834,$sprog_id),'udfylde')) db_modify("delete from tekster where tekst_id='834' and sprog_id='$sprog_id'",__FILE__ . " linje " . __LINE__);
-	print "<tr><td title='".findtekst(834,$sprog_id)."'>".findtekst(833,$sprog_id)." </td>\n";
+	if (!strpos(findtekst(833, $sprog_id),'inkasso')) db_modify("delete from tekster where tekst_id='833' and sprog_id='$sprog_id'",__FILE__ . " linje " . __LINE__); #20211019
+	if (!strpos(findtekst(834, $sprog_id),'udfylde')) db_modify("delete from tekster where tekst_id='834' and sprog_id='$sprog_id'",__FILE__ . " linje " . __LINE__);
+	print "<tr><td title='".findtekst(834, $sprog_id)."'>".findtekst(833, $sprog_id)." </td>\n";
 	print "<td><input class='inputbox' type='text' style='text-align:right;width=20px;' name='box9' value='$box9'></td></tr>\n";
 	print "<td colspan='3'>&nbsp;</td>\n";
 	print "<td align='center'><input class='button green medium' type='submit' accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'></td>\n";
@@ -2304,7 +2304,7 @@ function tjekliste() {
 	$fasenr=0;
 	print "<form name='diverse' action='diverse.php?sektion=tjekliste' method='post'>\n";
 	print "<tr><td colspan='6'><hr></td></tr>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(796,$sprog_id)."</u></b></td></tr>\n";
+	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst(796, $sprog_id)."</u></b></td></tr>\n";
 	for ($x=1;$x<=count($id);$x++) {
 		if (!isset($fase[$x-1]) || $fase[$x]!=$fase[$x-1]) $fasenr++;
 		print "<input type='hidden' name='tjekantal' value='".count($id)."'>\n";
@@ -2479,26 +2479,26 @@ function bilag() {
 	/*
 		if ($internFTP) $onclick=NULL;
 		else $onclick="onclick=\"return confirm('Intern bilagsopbevaring koster kr. 30,- pr. md. pr. GB.')\"";
-		print "<tr>\n<td title='".findtekst(212,$sprog_id)."'>".findtekst(211,$sprog_id)."</td>\n";
-		print "<td colspan='2' title='".findtekst(212,$sprog_id)."'>";
+		print "<tr>\n<td title='".findtekst(212, $sprog_id)."'>".findtekst(211, $sprog_id)."</td>\n";
+		print "<td colspan='2' title='".findtekst(212, $sprog_id)."'>";
 		print "<input $onclick class='inputbox' type='checkbox' name='box6' $internFTP></td>\n</tr>\n";
 	*/
-		print "<tr>\n<td title='".findtekst(720,$sprog_id)."'>".findtekst(719,$sprog_id)."</td>\n";
-		print "<td colspan='2' title='".findtekst(720,$sprog_id)."'>";
+		print "<tr>\n<td title='".findtekst(720, $sprog_id)."'>".findtekst(719, $sprog_id)."</td>\n";
+		print "<td colspan='2' title='".findtekst(720, $sprog_id)."'>";
 		print "<input $onclick class='inputbox' type='checkbox' name='box7' $google_docs></td>\n</tr>\n";
 	
 	if ($externFTP) {
-		print "<tr>\n<td>".findtekst(1346,$sprog_id)."</td>\n";
+		print "<tr>\n<td>".findtekst(1346, $sprog_id)."</td>\n";
 		print "<td colspan='2'><input class='inputbox' type='text' name='box1' size='25' value='$ftpsted'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst(1347,$sprog_id)."</td>\n";
+		print "<tr>\n<td>".findtekst(1347, $sprog_id)."</td>\n";
 		print "<td colspan='2'><input class='inputbox' type='text' name='box2' size='25' value='$ftplogin'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst(1348,$sprog_id)."</td>\n";
+		print "<tr>\n<td>".findtekst(1348, $sprog_id)."</td>\n";
 		print "<td colspan='2'><input class='inputbox' type='password' name='box3' size='25' value='$ftpkode'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst(1349,$sprog_id)."</td>\n";
+		print "<tr>\n<td>".findtekst(1349, $sprog_id)."</td>\n";
 		print "<td colspan='2'><input class='inputbox' type='password' name='pw2' size='25' value='$ftpkode'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst(1350,$sprog_id)."</td>";
+		print "<tr>\n<td>".findtekst(1350, $sprog_id)."</td>";
 		print "<td colspan='2'><input class='inputbox' type='text' name='box4' size='25' value='$ftp_bilag_mappe'></td>\n</tr>\n";
-		print "<tr>\n<td>".findtekst(1351,$sprog_id)."</td>\n";
+		print "<tr>\n<td>".findtekst(1351, $sprog_id)."</td>\n";
 		print "<td colspan='2'><input class='inputbox' type='text' name='box5' size='25' value='$ftp_dokument_mappe'></td>\n</tr>\n";
 		print "<tr><td>&nbsp;</td></tr>\n";
 	}
@@ -2519,14 +2519,14 @@ function orediff($diffkto)
 	$maxdiff=dkdecimal($r['box1']);
 	if (!$diffkto) $diffkto=$r['box2'];
 
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst(170,$sprog_id)."</b></td></tr>\n";
+	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b>".findtekst(170, $sprog_id)."</b></td></tr>\n";
 	print "<tr><td colspan='2'>&nbsp;</td></tr>\n";
 
 	print "<form name='orediff' action='diverse.php?sektion=orediff' method='post' onsubmit=\"return Form1_Validator(this)\">\n";
 	print "<input type='hidden' name='id' value='$id'>\n";
-	print "<tr>\n<td title='".findtekst(171,$sprog_id)."'>".findtekst(172,$sprog_id)."</td>\n";
+	print "<tr>\n<td title='".findtekst(171, $sprog_id)."'>".findtekst(172, $sprog_id)."</td>\n";
 	print "<td colspan='1'><input class='inputbox' type='text' style='text-align:right' name='box1' size='3' value='$maxdiff'></td>\n</tr>\n";
-	print "<tr>\n<td title='".findtekst(173,$sprog_id)."'>".findtekst(174,$sprog_id)."</td>\n";
+	print "<tr>\n<td title='".findtekst(173, $sprog_id)."'>".findtekst(174, $sprog_id)."</td>\n";
 	print "<td colspan='1'><input class='inputbox' type='text' style='text-align:right' name='box2' size='3' value='$diffkto'></td>\n</tr>\n";
 	print "<tr><td colspan='1'>&nbsp;</td>\n";
 	print "<td align='center'><input class='button green medium' style='width:8em' type='submit' accesskey='g' value='".findtekst(471, $sprog_id)."' name='submit'></td>\n<tr>\n";
@@ -2551,14 +2551,14 @@ function massefakt () {
 		if (!$levfrist) $levfrist = 0;
 	}
 	print "<form name='diverse' action='diverse.php?sektion=massefakt' method='post'>\n";
-	print "<tr bgcolor='$bgcolor5'><td colspan='2'><b>".findtekst(200,$sprog_id)."</b></td></tr>\n";
+	print "<tr bgcolor='$bgcolor5'><td colspan='2'><b>".findtekst(200, $sprog_id)."</b></td></tr>\n";
 	print "<tr><td colspan='6'>&nbsp;</td></tr>\n";
 	print "<input name='id' type='hidden' value='$id'>\n";
-	print "<tr>\n<td title='".findtekst(202,$sprog_id)."'>".findtekst(201,$sprog_id)."</td>\n";
+	print "<tr>\n<td title='".findtekst(202, $sprog_id)."'>".findtekst(201, $sprog_id)."</td>\n";
 	print "<td><input name='brug_mfakt' class='inputbox' type='checkbox' $brug_mfakt></td>\n</tr>\n";
-	print "<tr>\n<td title='".findtekst(204,$sprog_id)."'>".findtekst(203,$sprog_id)."</td>\n";
+	print "<tr>\n<td title='".findtekst(204, $sprog_id)."'>".findtekst(203, $sprog_id)."</td>\n";
 	print "<td><input name='brug_dellev' class='inputbox' type='checkbox' $brug_dellev></td>\n</tr>\n";
-	print "<tr>\n<td title='".findtekst(206,$sprog_id)."'>".findtekst(205,$sprog_id)."</td>\n";
+	print "<tr>\n<td title='".findtekst(206, $sprog_id)."'>".findtekst(205, $sprog_id)."</td>\n";
 	print "<td><input name='levfrist' class='inputbox' type='text' style='text-align:right' size='3' value='$levfrist'></td>\n</tr>\n";
 	print "<tr>\n<td>&nbsp;</td>\n";
 	print "<td style='text-align:center'><input class='button green medium' name='submit' type='submit' accesskey='g' value='".findtekst(471, $sprog_id)."'></td>\n</tr>\n";

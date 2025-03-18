@@ -484,8 +484,8 @@ $tmp = db_escape_string($formularsprog);
 	print "<tr><td colspan=2 align=center>".findtekst('2372|Angiv blot det antal mm der skal flyttes hhv. op og til højre', $sprog_id).".</td></tr>";
 	print "<tr><td colspan=2 align=center>".findtekst('2373|Anvend negativt fortegn, hvis der skal rykkes ned eller til venstre', $sprog_id).".</td></tr>";
 	print "<tr><td colspan=2 align=center></td></tr>";
-	print "<tr><td align=center>Op</td><td><input class='inputbox' type='text' style='text-align:right' size=2 name=op></td><tr>";
-	print "<tr><td align=center>Højre</td><td><input class='inputbox' type='text' style='text-align:right' size=2 name=hojre></td><tr>";
+	print "<tr><td align=center>".findtekst('2380|Op', $sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right' size=2 name=op></td><tr>";
+	print "<tr><td align=center>".findtekst('2382|Højre', $sprog_id)."</td><td><input class='inputbox' type='text' style='text-align:right' size=2 name=hojre></td><tr>";
 } elseif ($art_nr==5 && $form_nr!=3) {
 	print "<tr><td><br></td></tr>";
 	print "<tr><td align=\"center\" colspan=\"2\">".findtekst('215|Emne og tekst til brug ved udsendelse som e-mail', $sprog_id)."</td></tr><tr><td><br></td></tr>\n";
@@ -555,12 +555,12 @@ function sprog($nyt_sprog,$skabelon,$handling){
 global $sprog_id;
 $tmp=db_escape_string(htmlentities($nyt_sprog));
 if ($tmp!=$nyt_sprog) {
-	print "<BODY onLoad=\"javascript:alert('Sprog benævnelse må ikke indeholde specialtegn\\nOprettelse af $nyt_sprog er annulleret')\">";
+	print "<BODY onLoad=\"javascript:alert('".findtekst('2385|Sprogbenævnelse må ikke indeholde specialtegn. Oprettelse af', $sprog_id)." $nyt_sprog ".findtekst('2386|er annulleret', $sprog_id).".')\">";
 } elseif ($nyt_sprog && $handling=='gem' && $nyt_sprog!="yes") {
 
 	$tmp=strtolower($nyt_sprog);
 	if (db_fetch_array($q=db_select("select kodenr from grupper where lower(box1) = '$tmp' and art = 'VSPR' ",__FILE__ . " linje " . __LINE__))) {
-		print "<BODY onLoad=\"javascript:alert('$nyt_sprog er allerede oprettet. Oprettelse annulleret')\">";
+		print "<BODY onLoad=\"javascript:alert('$nyt_sprog ".findtekst('2384|er allerede oprettet. Oprettelse annulleret', $sprog_id).".')\">";
 	} elseif ($skabelon && $handling=='gem') {
 		$r=db_fetch_array($q=db_select("select max(kodenr) as kodenr from grupper where art = 'VSPR' ",__FILE__ . " linje " . __LINE__));
 		$kodenr=$r['kodenr']+1;
@@ -596,6 +596,7 @@ if ($tmp!=$nyt_sprog) {
 } # endfunc sprog
 
 function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$ya,$yb,$str,$color,$justering,$font,$fed,$kursiv,$side){
+	global $sprog_id;
 	
 /*
 	$options=array(print "<option>eget_firmanavn</option>";
@@ -617,100 +618,100 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 	print "<input type=hidden name=id[$x] value=$id>";
 	print "<td><SELECT class='inputbox' style='width:100px;' NAME='ny_beskrivelse[$x]'>";
 	print "<option></option>";
-	print "<option>eget_firmanavn</option>";
-	print "<option>egen_addr1</option>";
-	print "<option>egen_addr2</option>";
-	print "<option>eget_postnr</option>";
-	print "<option>eget_bynavn</option>";
-	print "<option>eget_land</option>";
-	print "<option>eget_cvrnr</option>";
-	print "<option>egen_tlf</option>";
-	print "<option>egen_fax</option>";
-	print "<option>egen_bank_navn</option>";
-	print "<option>egen_bank_reg</option>";
-	print "<option>egen_bank_konto</option>";
-	print "<option>egen_email</option>";
-	print "<option>egen_web</option>";
+	print "<option value = 'eget_firmanavn'>".findtekst('2390|Eget', $sprog_id)." ".strtolower(findtekst('28|Firmanavn', $sprog_id))."</option>";                                  #Eget firmanavn
+	print "<option value = 'egen_addr1'>".findtekst('2389|Egen', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                                      #Egen adresse 1
+	print "<option value = 'egen_addr2'>".findtekst('2389|Egen', $sprog_id)." ".strtolower(findtekst('45|Adresse 2', $sprog_id))."</option>";                                      #Egen adresse 2
+	print "<option value = 'eget_postnr'>".findtekst('2390|Eget', $sprog_id)." ".strtolower(findtekst('36|Postnr.', $sprog_id))."</option>";                                       #Eget postnr.
+	print "<option value = 'eget_bynavn'>".findtekst('2390|Eget', $sprog_id)." ".strtolower(findtekst('910|Bynavn', $sprog_id))."</option>";                                       #Eget bynavn
+	print "<option value = 'eget_land'>".findtekst('2390|Eget', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                            #Eget land
+	print "<option value = 'eget_cvrnr'>".findtekst('2390|Eget', $sprog_id)." ".strtolower(findtekst('48|Cvr nr.', $sprog_id))."</option>";                                        #Eget Cvr nr.
+	print "<option value = 'egen_tlf'>".findtekst('2389|Egen', $sprog_id)." ".strtolower(findtekst('9|Tlf', $sprog_id))."</option>";                                               #Egen tlf
+	print "<option value = 'egen_fax'>".findtekst('2389|Egen', $sprog_id)." ".strtolower(findtekst('10|Fax', $sprog_id))."</option>";                                              #Egen fax
+	print "<option value = 'egen_bank_navn'>".findtekst('2390|Eget', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                   #Eget banknavn
+	print "<option value = 'egen_bank_reg'>".findtekst('2389|Egen', $sprog_id)." bank_reg</option>";
+	print "<option value = 'egen_bank_konto'>".findtekst('2389|Egen', $sprog_id)." ".strtolower(findtekst('60|Bankkonto', $sprog_id))."</option>";                                 #Egen bankkonto
+	print "<option value = 'egen_email'>".findtekst('2389|Egen', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                         #Egen e-mail
+	print "<option value = 'egen_web'>".findtekst('2389|Egen', $sprog_id)." web</option>";                                                                                                 #Egen web
 	if ($form_nr<6  || $form_nr==10 || $form_nr>=12) {
-		print "<option>ansat_initialer</option>";
-		print "<option>ansat_navn</option>";
-		print "<option>ansat_addr1</option>";
-		print "<option>ansat_addr2</option>";
-		print "<option>ansat_postnr</option>";
-		print "<option>ansat_by</option>";
-		print "<option>ansat_email</option>";
-		print "<option>ansat_mobil</option>";
-		print "<option>ansat_tlf</option>";
-		print "<option>ansat_fax</option>";
-		print "<option>ansat_privattlf</option>";
+		print "<option value = 'ansat_initialer'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('647|Initialer', $sprog_id))."</option>";                            #Ansat initialer
+		print "<option value = 'ansat_navn'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('138|Navn', $sprog_id))."</option>";                                      #Ansat navn
+		print "<option value = 'ansat_addr1'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                                 #Ansat adresse 1
+		print "<option value = 'ansat_addr2'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('45|Adresse 2', $sprog_id))."</option>";                                 #Ansat adresse 2
+		print "<option value = 'ansat_postnr'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('36|Postnr.', $sprog_id))."</option>";                                  #Ansat postnr.
+		print "<option value = 'ansat_by'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('146|By', $sprog_id))."</option>";                                          #Ansat by
+		print "<option value = 'ansat_email'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('52|E-mail', $sprog_id))."</option>";                                    #Ansat e-mail
+		print "<option value = 'ansat_mobil'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('401|Mobil', $sprog_id))."</option>";                                    #Mobil
+		print "<option value = 'ansat_tlf'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('9|Tlf', $sprog_id))."</option>";                                          #Ansat tlf
+		print "<option value = 'ansat_fax'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('58|Banknavn', $sprog_id))."</option>";                                    #Ansat banknavn
+		print "<option value = 'ansat_privattlf'>".findtekst('589|Ansat', $sprog_id)." ".strtolower(findtekst('656|Privat tlf', $sprog_id))."</option>";                           #Ansat privat tlf
 	} elseif ($form_nr==11) {
-		print "<option value=\"konto_firmanavn\">konto_firmanavn</option>";
-		print "<option value=\"konto_addr1\">konto_addr1</option>";
-		print "<option value=\"konto_addr2\">konto_addr2</option>";
-		print "<option value=\"konto_postnr\">konto_postnr</option>";
-		print "<option value=\"konto_bynavn\">konto_bynavn</option>";
-		print "<option value=\"konto_land\">konto_land</option>";
-		print "<option value=\"konto_kontakt\">konto_kontakt</option>";
-		print "<option value=\"konto_cvrnr\">konto_cvrnr</option>";
-		print "<option value=\"konto_valuta\">konto_valuta</option>";
+		print "<option value = 'konto_firmanavn'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('28|Firmanavn', $sprog_id))."</option>";                             #Konto firmanavn
+		print "<option value = 'konto_addr1'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                                 #Konto adresse 1
+		print "<option value = 'konto_addr2'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('45|Adresse 2', $sprog_id))."</option>";                                 #Konto adresse 2
+		print "<option value = 'konto_postnr'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('36|Postnr.', $sprog_id))."</option>";                                  #Konto postnr.
+		print "<option value = 'konto_bynavn'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('910|Bynavn', $sprog_id))."</option>";                                  #Konto bynavn
+		print "<option value = 'konto_land'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                       #Konto land
+		print "<option value = 'konto_kontakt'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('398|Kontakt', $sprog_id))."</option>";                                #Konto kontakt
+		print "<option value = 'konto_cvrnr'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('48|Cvr nr.', $sprog_id))."</option>";                                   #Konto cvr nr.
+		print "<option value = 'konto_valuta'>".findtekst('440|Konto', $sprog_id)." ".strtolower(findtekst('776|Valuta', $sprog_id))."</option>";                                  #Konto valuta
 	}	
 	if ($form_nr!=11) {
-		print "<option value=\"ordre_firmanavn\">ordre_firmanavn</option>";
-		print "<option value=\"ordre_addr1\">ordre_addr1</option>";
-		print "<option value=\"ordre_addr2\">ordre_addr2</option>";
-		print "<option value=\"ordre_postnr\">ordre_postnr</option>";
-		print "<option value=\"ordre_bynavn\">ordre_bynavn</option>";
-		print "<option value=\"ordre_land\">ordre_land</option>";
-		print "<option value=\"ordre_kontakt\">ordre_kontakt</option>";
-		print "<option value=\"ordre_cvrnr\">ordre_cvrnr</option>";
+		print "<option value = 'ordre_firmanavn'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('28|Firmanavn', $sprog_id))."</option>";                             #Ordre firmanavn
+		print "<option value = 'ordre_addr1'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('44|Adresse 1', $sprog_id))."</option>";                                 #Ordre adresse 1
+		print "<option value = 'ordre_addr2'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('45|Adresse 2', $sprog_id))."</option>";                                 #Ordre adresse 2
+		print "<option value = 'ordre_postnr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('36|Postnr.', $sprog_id))."</option>";                                  #Ordre postnr.
+		print "<option value = 'ordre_bynavn'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('910|Bynavn', $sprog_id))."</option>";                                  #Ordre bynavn
+		print "<option value = 'ordre_land'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('47|Land', $sprog_id))."</option>";                                       #Ordre land
+		print "<option value = 'ordre_kontakt'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('398|Kontakt', $sprog_id))."</option>";                                #Ordre kontakt
+		print "<option value = 'ordre_cvrnr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('48|Cvr nr.', $sprog_id))."</option>";                                   #Ordre cvr nr.
 	}
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
-		print "<option>ordre_ean</option>";
-		print "<option>ordre_felt_1</option>";
-		print "<option>ordre_felt_2</option>";
-		print "<option>ordre_felt_3</option>";
-		print "<option>ordre_felt_4</option>";
-		print "<option>ordre_felt_5</option>";
-		print "<option>ordre_institution</option>";
-		print "<option>ordre_kundeordnr</option>";
-		print "<option>ordre_lev_navn</option>";
-		print "<option>ordre_lev_addr1</option>";
-		print "<option>ordre_lev_addr2</option>";
-		print "<option>ordre_lev_postnr</option>";
-		print "<option>ordre_lev_bynavn</option>";
-		print "<option>ordre_lev_kontakt</option>";
-		print "<option>ordre_levdate</option>";
-		print "<option>ordre_momssats</option>";
-		print "<option>ordre_notes</option>";
-		print "<option>ordre_ordredate</option>";
-		print "<option>ordre_ordrenr</option>";
-		print "<option>ordre_projekt</option>";
-		print "<option>ordre_valuta</option>";
+		print "<option value = 'ordre_ean'>".findtekst('605|Ordre', $sprog_id)." EAN</option>";                                                                                            #Ordre EAN
+		print "<option value = 'ordre_felt_1'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 1</option>";                                  #Ordre felt 1
+		print "<option value = 'ordre_felt_2'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 2</option>";                                  #Ordre felt 2
+		print "<option value = 'ordre_felt_3'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 3</option>";                                  #Ordre felt 3
+		print "<option value = 'ordre_felt_4'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 4</option>";                                  #Ordre felt 4
+		print "<option value = 'ordre_felt_5'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('543|Felt', $sprog_id))." 5</option>";                                  #Ordre felt 5
+		print "<option value = 'ordre_institution'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('55|Institution', $sprog_id))."</option>";                         #Ordre institution
+		print "<option value = 'ordre_kundeordnr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('2391|Kundeordrenummer', $sprog_id))."</option>";                   #Ordre kundeordrenummer
+		print "<option value = 'ordre_lev_navn'>".findtekst('605|Ordre', $sprog_id)."_lev_navn</option>";                                                                                  #Ordre 
+		print "<option value = 'ordre_lev_addr1'>".findtekst('605|Ordre', $sprog_id)."_lev_addr1</option>";                                                                                #Ordre 
+		print "<option value = 'ordre_lev_addr2'>".findtekst('605|Ordre', $sprog_id)."_lev_addr2</option>";                                                                                #Ordre 
+		print "<option value = 'ordre_lev_postnr'>".findtekst('605|Ordre', $sprog_id)."_lev_postnr</option>";                                                                              #Ordre 
+		print "<option value = 'ordre_lev_bynavn'>".findtekst('605|Ordre', $sprog_id)."_lev_bynavn</option>";                                                                              #Ordre 
+		print "<option value = 'ordre_lev_kontakt'>".findtekst('605|Ordre', $sprog_id)."_lev_kontakt</option>";                                                                            #Ordre 
+		print "<option value = 'ordre_levdate'>".findtekst('605|Ordre', $sprog_id)."_levdate</option>";                                                                                    #Ordre 
+		print "<option value = 'ordre_momssats'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('1095|Momssats', $sprog_id))."</option>";                             #Ordre momssats
+		print "<option value = 'ordre_notes'>".findtekst('605|Ordre', $sprog_id)." ".findtekst('1888|noter', $sprog_id)."</option>";                                                       #Ordre noter
+		print "<option value = 'ordre_ordredate'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('881|Ordredato', $sprog_id))."</option>";                            #Ordre ordredato
+		print "<option value = 'ordre_ordrenr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('500|Ordrenr.', $sprog_id))."</option>";                               #Ordre ordrenr.
+		print "<option value = 'ordre_projekt'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('553|Projekt', $sprog_id))."</option>";                                #Ordre projekt
+		print "<option value = 'ordre_valuta'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('776|Valuta', $sprog_id))."</option>";                                  #Ordre valuta
 	}	
 	if ($form_nr==4 || $form_nr==13) {
-		print "<option>ordre_fakturanr</option>";
-		print "<option>ordre_fakturadate</option>";
+		print "<option value = 'ordre_fakturanr'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('828|Fakturanr.', $sprog_id))."</option>";                           #Ordre fakturanr.
+		print "<option value = 'ordre_fakturadate'>".findtekst('605|Ordre', $sprog_id)." ".strtolower(findtekst('1094|Fakturadato', $sprog_id))."</option>";                       #Ordre fakturadato
 	}	
-	if ($form_nr==4) print "<option>formular_forfaldsdato</option>";
-	print "<option>formular_side</option>";
-	print "<option>formular_nextside</option>";
-	print "<option>formular_preside</option>";
-	print "<option>formular_transportsum</option>";
-	print "<option>formular_betalingsid(9,5)</option>";
+	if ($form_nr==4) print "<option value = 'formular_forfaldsdato'>".findtekst('2392|Formular', $sprog_id)." ".strtolower(findtekst('1164|Forfaldsdato', $sprog_id))."</option>"; #Formular forfaldsdato
+	print "<option value = 'formular_side'>".findtekst('2392|Formular', $sprog_id)." side</option>";
+	print "<option value = 'formular_nextside'>".findtekst('2392|Formular', $sprog_id)." nextside</option>";
+	print "<option value = 'formular_preside'>".findtekst('2392|Formular', $sprog_id)." preside</option>";
+	print "<option value = 'formular_transportsum'>".findtekst('2392|Formular', $sprog_id)." ".strtolower(findtekst('2393|Transportsum', $sprog_id))."</option>";                  #Formular transportsum
+	print "<option value = 'formular_betalingsid(9,5)'>".findtekst('2392|Formular', $sprog_id)." betalingsid(9,5)</option>";
 	if ($form_nr<6 || $form_nr==10 || $form_nr>=12) {
-		print "<option>formular_moms</option>";
-		print "<option>formular_momsgrundlag</option>";
+		print "<option value = 'formular_moms'>".findtekst('2392|Formular', $sprog_id)." moms</option>";
+		print "<option value = 'formular_momsgrundlag'>".findtekst('2392|Formular', $sprog_id)." momsgrundlag</option>";
 	}
-	print "<option>formular_ialt</option>";
+	print "<option value = 'formular_ialt'>".findtekst('2392|Formular', $sprog_id)." ialt</option>";
 	if ($form_nr==3) {
-		print "<option>levering_lev_nr</option>";
-		print "<option>levering_salgsdate</option>";
-		print "<option value='formular_grossWeight'>formular_bruttovægt</option>\n";
-		print "<option value='formular_netWeight'>formular_nettovægt</option>\n";
+		print "<option value = 'levering_lev_nr'>levering_lev_nr</option>";
+		print "<option value = 'levering_salgsdate'>levering_salgsdate</option>";
+		print "<option value = 'formular_grossWeight'>".findtekst('2392|Formular', $sprog_id)." bruttovægt</option>\n";
+		print "<option value = 'formular_netWeight'>".findtekst('2392|Formular', $sprog_id)." nettovægt</option>\n";
 	} 
 	if ($form_nr>=6) {
-		print "<option>forfalden_sum</option>";
-		print "<option>rykker_gebyr</option>";
+		print "<option value = 'forfalden_sum'>forfalden_sum</option>";
+		print "<option value = 'rykker_gebyr'>rykker_gebyr</option>";
 	}	
 	if (($form_nr>1 && $form_nr<6) || $form_nr>11) print "<option value = \"kopier_alt|1\">Kopier alt fra tilbud</option>";
 	if (($form_nr!=2 && $form_nr<6) || $form_nr>11) print "<option value = \"kopier_alt|2\">Kopier alt fra ordrebrkræftelse</option>";
@@ -776,10 +777,11 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 ##############################################################################################
 function ordrelinjer($form_nr,$art_nr,$formularsprog){
 	global $sprog_id;
+	global $procentfakt;
 	$x=1;
-	print "<tr><td></td><td></td><td align=center>Linjeantal</td>\n";
+	print "<tr><td></td><td></td><td align=center>".findtekst('2374|Linjeantal', $sprog_id)."</td>\n";
 	print "<td align=center>Y</td>\n";
-	print "<td align=center>Linafs.</td></tr>\n";
+	print "<td align=center>".findtekst('2375|Linjeafst.', $sprog_id)."</td></tr>\n";
 	#		print "<td align=center>Understr.</td></tr>";
 	$qtxt="select id from formularer where formular = $form_nr and art = $art_nr and beskrivelse = 'generelt' and sprog='$formularsprog' order by xa";
 	$x=0;
@@ -806,57 +808,56 @@ function ordrelinjer($form_nr,$art_nr,$formularsprog){
 	print "<td align=center><input class='inputbox' type='text' style='text-align:right' size=3 name=xb[$x] value=".round($row['xb'],1)."></td></tr>\n";
 	print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id)."</td>\n";
 	print "<td align=center>X</td>\n";
-	print "<td align=center>Højde</td><td align=center> Farve</td>\n";
-	print "<td align=center>Just.</td><td align=center>Font</td><td align=center> Fed</td>\n";
-	print "<td align=center> Kursiv</td><td align=center> Tekstlængde</td></tr>\n";
+	print "<td align=center>".findtekst('1790|Højde', $sprog_id)."</td><td align=center>".findtekst('1786|Farve', $sprog_id)."</td>\n";
+	print "<td align=center>".findtekst('2367|Just.', $sprog_id)."</td><td align=center>Font</td><td align=center>".findtekst('2369|Fed', $sprog_id)."</td>\n";
+	print "<td align=center>".findtekst('1789|Kursiv', $sprog_id)."</td><td align=center>".findtekst('2376|Tekstlængde', $sprog_id)."</td></tr>\n";
 
 $x=0;
 	print "<tr>\n";
 	print "<td><SELECT class='inputbox' NAME=beskrivelse[$x]>\n";
 	if ($form_nr<6 || $form_nr==9 || ($form_nr>=12 && $form_nr<=14)) {
-		print "<option value = 'posnr'>posnr</option>\n";
+		print "<option value = 'posnr'>".findtekst('2178|Pos nr.', $sprog_id)."</option>\n";
 		print "<option value = 'varenr'>".findtekst('917|Varenr.', $sprog_id)."</option>\n";
-		print "<option value = 'lev_varenr'>lev_varenr</option>\n";
+		print "<option value = 'lev_varenr'>".findtekst('952|Lev. varenr.', $sprog_id)."</option>\n";
 		print "<option value = 'antal'>".findtekst('916|Antal', $sprog_id)."</option>\n";
 		print "<option value = 'enhed'>".findtekst('945|Enhed', $sprog_id)."</option>\n";
 		print "<option value = 'beskrivelse'>".findtekst('914|Beskrivelse', $sprog_id)."</option>\n";
 		print "<option value = 'pris'>".findtekst('915|Pris', $sprog_id)."</option>\n";
 		print "<option value = 'rabat'>".findtekst('428|Rabat', $sprog_id)."</option>\n";
-		print "<option value = 'momssats'>momssats</option>\n";
-		if ($procentfakt) print "<option>procent</option>";
-		print "<option value=\"linjemoms\">moms</option>";
-		print "<option value=\"varemomssats\">momssats</option>";
-		print "<option>linjesum</option>\n";
-		print "<option>projekt</option>\n";
-		print "<option>procent</option>\n"; #20140709
-		print "<option>lokation</option>\n";
+		print "<option value = 'momssats'>".findtekst('1095|Momssats', $sprog_id)."</option>\n";
+		if ($procentfakt) print "<option value = 'procent'>".findtekst('1481|Procent', $sprog_id)."</option>";
+		print "<option value = 'linjemoms'>".findtekst('2377|Linjemoms', $sprog_id)."</option>";
+		print "<option value = 'varemomssats'>".findtekst('2378|Varemomssats', $sprog_id)."</option>";
+		print "<option value = 'linjesum'>".findtekst('2379|Linjesum', $sprog_id)."</option>\n";
+		print "<option value = 'projekt'>".findtekst('553|Projekt', $sprog_id)."</option>\n";
+		print "<option value = 'lokation'>".findtekst('2045|Lokation', $sprog_id)."</option>\n";
 		if ($form_nr==3) {
 			print "<option>lev_tidl_lev</option>\n";
 			print "<option>lev_antal</option>\n";
 			print "<option>lev_rest</option>\n";
-			print "<option>lokation</option>\n";
+			print "<option value = 'lokation'>".findtekst('2045|Lokation', $sprog_id)."</option>\n";
 			print "<option>vare_note</option>\n";
 		} 
 		if ($form_nr==9) {
 			print "<option>leveres</option>\n";
-			print "<option>lokation</option>\n";
+			print "<option value = 'lokation'>".findtekst('2045|Lokation', $sprog_id)."</option>\n";
 			print "<option>lev_antal</option>\n";
 			print "<option>lev_rest</option>\n";
 			print "<option>Fri tekst</option>\n";
 		} 
 	} elseif ($form_nr==11) {
-		print "<option>".findtekst('914|Beskrivelse', $sprog_id)."</option>";
-		print "<option>dato</option>";
-		print "<option>debet</option>";
-		print "<option>faktnr</option>";
-		print "<option>forfaldsdato</option>";
-		print "<option>kredit</option>";
-		print "<option>saldo</option>";
+		print "<option value = 'beskrivelse'>".findtekst('914|Beskrivelse', $sprog_id)."</option>";
+		print "<option value = 'dato'>".findtekst('438|Dato', $sprog_id)."</option>";
+		print "<option value = 'debet'>".findtekst('1000|Debet', $sprog_id)."</option>";
+		print "<option value = 'faktnr'>".findtekst('882|Fakt. nr.', $sprog_id)."</option>";
+		print "<option value = 'forfaldsdato'>".findtekst('1164|Forfaldsdato', $sprog_id)."</option>";
+		print "<option value = 'kredit'>".findtekst('1001|Kredit', $sprog_id)."</option>";
+		print "<option value = 'saldo'>".findtekst('1073|Saldo', $sprog_id)."</option>";
 	} else {
-		print "<option>dato</option>\n";
-		print "<option>faktnr</option>\n";
-		print "<option>".findtekst('914|Beskrivelse', $sprog_id)."</option>\n";
-		print "<option>beløb</option>\n";
+		print "<option value = 'dato'>".findtekst('438|Dato', $sprog_id)."</option>\n";
+		print "<option value = 'faktnr'>".findtekst('882|Fakt. nr.', $sprog_id)."</option>\n";
+		print "<option value = 'beskrivelse'>".findtekst('914|Beskrivelse', $sprog_id)."</option>\n";
+		print "<option value = 'beløb'>".findtekst('934|Beløb', $sprog_id)."</option>\n";
 	}
 	print "</SELECT></td>\n";
 		#		print "<td align=center><input class='inputbox' type='text' style='text-align:right;width:40px;' name=xa[$x]></td>";
@@ -950,9 +951,9 @@ function pos_linjer($form_nr,$art_nr,$formularsprog){
 	global $sprog_id;
 	global $menu;
 	$x=1;
-	print "<tr><td></td><td></td><td align=cente>Toplinjer</td>";
-	print "<td align=center>Bundlinjer</td>";
-	print "<td align=center>Linafs.</td></tr>";
+	print "<tr><td></td><td></td><td align=cente>".findtekst('2387|Toplinjer', $sprog_id)."</td>";
+	print "<td align=center>".findtekst('2388|Bundlinjer', $sprog_id)."</td>";
+	print "<td align=center>".findtekst('2375|Linjeafst.', $sprog_id)."</td></tr>";
 	#
 if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$form_nr' and art = '3' and beskrivelse = 'generelt' and sprog='$formularsprog'",__FILE__ . " linje " . __LINE__))) {
 		$q=db_modify ("insert into formularer (formular, art, beskrivelse, sprog, xa, ya, xb) values ('$form_nr','3','generelt','$formularsprog','4','2',4)",__FILE__ . " linje " . __LINE__);
@@ -980,10 +981,10 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 		print "<td align=center>X</td>";
 		print "<td align=center>".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."</td><td align=center> ".findtekst('1786|Farve', $sprog_id)."</td>";
 		$span=findtekst('1787|Justering - H: Højrestillet\n C: Centreret\n V: Venstrestillet', $sprog_id);
-		print "<td align=center><span title = \"$span\">Just.</span></td><td align=center>Font</td>";
+		print "<td align=center><span title = \"$span\">".findtekst('2367|Just.', $sprog_id)."</span></td><td align=center>Font</td>";
 		$span=$span=findtekst('1788|1: Kun side 1\n!1: Alle foruden side 1\nS: Sidste side\n!S: Alle foruden sidste side\nA: Alle sider', $sprog_id);	#20210804
-		print "<td align=center><span title = \"$span\">Side</span></td>";
-		print "<td align=center>Fed</td><td align=center>".findtekst('1789|Kursiv', $sprog_id)."</td>";
+		print "<td align=center><span title = \"$span\">".findtekst('2368|Side', $sprog_id)."</span></td>";
+		print "<td align=center>".findtekst('2369|Fed', $sprog_id)."</td><td align=center>".findtekst('1789|Kursiv', $sprog_id)."</td>";
 		$z=0;
 		for ($y=$x;$y<$header+$x;$y++) {
 			$z++;
@@ -1004,9 +1005,9 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 #	$x++;
 	print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id)."</td>";
 	print "<td align=center>X</td>";
-	print "<td align=center>Højde</td><td align=center> Farve</td>";
-	print "<td align=center>Just.</td><td align=center>Font</td><td align=center> Fed</td>";
-	print "<td align=center> Kursiv</td><td align=center> Tekstlængde</td></tr>";
+	print "<td align=center>".findtekst('1790|Højde', $sprog_id)."</td><td align=center> Farve</td>";
+	print "<td align=center>".findtekst('2367|Just.', $sprog_id)."</td><td align=center>Font</td><td align=center>".findtekst('2369|Fed', $sprog_id)."</td>";
+	print "<td align=center>".findtekst('1789|Kursiv', $sprog_id)."</td><td align=center> Tekstlængde</td></tr>";
 	#		print "<td align=center>Understr.</td></tr>";
 	print "<tr>";
 	print "<td><SELECT class='inputbox' NAME=beskrivelse[$x]>";
@@ -1017,12 +1018,12 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 	print "<option value = 'beskrivelse'>".findtekst('914|Beskrivelse', $sprog_id)."</option>\n";
 	print "<option value = 'pris'>".findtekst('915|Pris', $sprog_id)."</option>\n";
 	print "<option value = 'rabat'>".findtekst('428|Rabat', $sprog_id)."</option>\n";
-	print "<option value=\"linjemoms\">moms</option>";
-	print "<option value=\"varemomssats\">momssats</option>";
-	print "<option>linjesum</option>";
-	print "<option>projekt</option>";
+	print "<option value = 'linjemoms'>".findtekst('2377|Linjemoms', $sprog_id)."</option>";
+	print "<option value = 'varemomssats'>".findtekst('2378|Varemomssats', $sprog_id)."</option>";
+	print "<option value = 'linjesum'>".findtekst('2379|Linjesum', $sprog_id)."</option>";
+	print "<option value = 'projekt'>".findtekst('553|Projekt', $sprog_id)."</option>";
 	print "</SELECT></td>";
-	print "<input type=hidden style='text-align:right;width:40px;' name=ya[$x] value=\"0\">";
+	print "<input type=hidden style='text-align:right;width:40px;' name=ya[$x] value='0'>";
 	print "<td align=center><input class='inputbox' type	=text style='text-align:right;width:40px;' name=xa[$x]></td>";
 	print "<td align=center><input class='inputbox' type='text' style='text-align:right;width:40px;' name=str[$x]></td>";
 	print "<td align=center><input class='inputbox' type='text' style='text-align:right;width:40px;' name=color[$x]></td>";
@@ -1055,9 +1056,9 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 			print "<option value = 'beskrivelse'>".findtekst('914|Beskrivelse', $sprog_id)."</option>\n";
 			print "<option value = 'pris'>".findtekst('915|Pris', $sprog_id)."</option>\n";
 			print "<option value = 'rabat'>".findtekst('428|Rabat', $sprog_id)."</option>\n";
-			print "<option value=\"linjemoms\">moms</option>";
-			print "<option value=\"varemomssats\">momssats</option>";
-			print "<option>linjesum</option>";
+			print "<option value = 'linjemoms'>".findtekst('2377|Linjemoms', $sprog_id)."</option>";
+			print "<option value = 'varemomssats'>".findtekst('2378|Varemomssats', $sprog_id)."</option>";
+			print "<option value = 'linjesum'>".findtekst('2379|Linjesum', $sprog_id)."</option>";
 			if ($form_nr==3) {
 				print "<option>lev_tidl_lev</option>";
 				print "<option>lev_antal</option>";
@@ -1065,10 +1066,10 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 	 		} 
 		}
 		else {
-			print "<option>dato</option>";
-			print "<option>faktnr</option>";
-			print "<option>".findtekst('914|Beskrivelse', $sprog_id)."</option>";
-			print "<option>beløb</option>";
+			print "<option><option value = 'dato'>".findtekst('438|Dato', $sprog_id)."</option></option>";
+			print "<option><option value = 'faktnr'>".findtekst('882|Fakt. nr.', $sprog_id)."</option></option>";
+			print "<option value = 'beskrivelse'>".findtekst('914|Beskrivelse', $sprog_id)."</option>";
+			print "<option value = 'beløb'>".findtekst('934|Beløb', $sprog_id)."</option>";
 		}
 		print "</SELECT></td>";
 		print "<td align=center><input class='inputbox' type='text' style='text-align:right;width:40px;' name=xa[$x] value=".str_replace(".",",",round($r['xa'],1))."></td>";
@@ -1100,10 +1101,10 @@ if (!$r=db_fetch_array(db_select("select * from formularer where formular = '$fo
 		print "<td align=center>X</td>";
 		print "<td align=center>".findtekst('1790|Højde', $sprog_id)."</td><td align=center> ".findtekst('1786|Farve', $sprog_id)."</td>";
 		$span=findtekst('1787|Justering - H: Højrestillet\n C: Centreret\n V: Venstrestillet', $sprog_id);
-		print "<td align=center><span title = \"$span\">Just.</span></td><td align=center>Font</td>";
+		print "<td align=center><span title = \"$span\">".findtekst('2367|Just.', $sprog_id)."</span></td><td align=center>Font</td>";
 		$span=findtekst('1788|1: Kun side 1\n!1: Alle foruden side 1\nS: Sidste side\n!S: Alle foruden sidste side\nA: Alle sider', $sprog_id);	
-		print "<td align=center><span title = \"$span\">Side</span></td>";
-		print "<td align=center>Fed</td><td align=center>".findtekst('1789|Kursiv', $sprog_id)."</td>";
+		print "<td align=center><span title = \"$span\">".findtekst('2368|Side', $sprog_id)."</span></td>";
+		print "<td align=center>".findtekst('2369|Fed', $sprog_id)."</td><td align=center>".findtekst('1789|Kursiv', $sprog_id)."</td>";
 		$z=0;
 		for ($y=$x;$y<$x+$footer;$y++) {
 			$z++;
