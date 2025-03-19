@@ -6501,7 +6501,6 @@ if (!function_exists('registrer_betaling')) {
 			print "</tbody></table>";
 		}
 	}
-	exit;
 }
 if (!function_exists('settleCommision')) {
 	function settleCommision($idOrder)
@@ -6540,9 +6539,8 @@ if (!function_exists('settleCommision')) {
 if (strpos($_SERVER['REQUEST_URI'], 'rental') !== false || strpos($_SERVER['REQUEST_URI'], 'mysale' !== false)) {
 	// do nothing
 }else{
-} */
+} 
 
-?>
 else]<br>";
 # if (!in_array($tmp,$bogf_vat) && $r['bogf_konto']) {
 one;

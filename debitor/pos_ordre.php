@@ -257,7 +257,6 @@ if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi
 	print '<meta name="viewport" content="width=device-width, initial-scale=1">';
 }
 
-echo "loading...";
 include("../includes/ordrefunc.php");
 include("../includes/posmenufunc.php");
 include("../debitor/func/pos_ordre_itemscan.php"); # 20190215
