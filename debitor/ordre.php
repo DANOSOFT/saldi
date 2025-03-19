@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-02-13 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-03-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -190,6 +190,7 @@
 // 13112024 MMK - added warning to delete line
 // 20241220 LOE - Ensured some variables are set before using them
 // 20250213 PHR Vat rate defined by department(afd)
+// 20250319 LOE - $betalings_id initialized to Null and some other variables updated
 
 @session_start();
 $s_id=session_id();
@@ -2309,7 +2310,7 @@ function ordreside($id,$regnskab) {
 	$kobs_ordre_id[0] = $lager[0] = $pris[0] = 0;
 	if (!isset ($masterprojekt)) $masterprojekt = NULL;
 	
-	
+	$id = (int)$id; //ensure Id is numeric first.
 	$id*=1;
 
 	$r=db_fetch_array(db_select("select * from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
@@ -2337,7 +2338,7 @@ function ordreside($id,$regnskab) {
 	$status=NULL;
 	$tlf=$tidl_lev=NULL;
 	$udskriv_til=NULL;
-	$valutakurs=$vis_lev_addr=NULL;
+	$valutakurs=$vis_lev_addr=$betalings_id=NULL;
 	$y=NULL;
 	$ko_ant=$momsfri=array();
 	if (!$id) $fokus='kontonr';
