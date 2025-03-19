@@ -377,8 +377,9 @@ CREATE TABLE IF NOT EXISTS tutorials (
 )
 ", __FILE__ . " line " . __LINE__);
 
-$qtxt="SELECT data_type FROM information_schema.columns WHERE table_name='variant_varer' and column_name='variant_type' and data_type != 'character varying'";
-if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE variant_varer ALTER COLUMN variant_type TYPE VARCHAR(100)", __FILE__ . " linje " . __LINE__);
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name='variant_varer' AND column_name='variant_type' AND data_type != 'character varying'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    // Column exists and is NOT character varying, so alter it
+    db_modify("ALTER TABLE variant_varer ALTER COLUMN variant_type TYPE VARCHAR(100)", __FILE__ . " linje " . __LINE__);
 }
 ?>

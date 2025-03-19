@@ -1981,12 +1981,14 @@ if (!function_exists('input_ip')) { #20210908
 		}
 	}
 }
+
 if(!function_exists('get_settings_value')){
-	function get_settings_value($var_name, $var_grp, $default, $user=NULL) {
+	function get_settings_value($var_name, $var_grp, $default, $user=NULL, $kasse=NULL) {
 		$qtxt = "SELECT var_value FROM settings WHERE var_name='$var_name' AND var_grp = '$var_grp'";
-		if ($user !== NULL) {
-			$qtxt = $qtxt." AND user_id=$user";
-		}
+
+		if ($user !== NULL) $qtxt = $qtxt." AND user_id=$user";
+		if ($kasse !== NULL) $qtxt = $qtxt." AND pos_id=$kasse";
+
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r) {
 			return $r[0];
@@ -2023,6 +2025,30 @@ if(!function_exists('update_settings_value')){
 
                         db_modify($qtxt, __FILE__ . " linje " . __LINE__);
                 }
+        }
+}
+
+if (!function_exists('get_relative')) {
+    function get_relative() {
+		/**
+		 * Gets the relative path to navigate up the directory structure based on the current URL.
+		 * It calculates the number of directory levels in the current URL's path and returns a relative path 
+		 * consisting of `../` that allows you to move up in the directory structure.
+		 * Usefull for includes inside include files, as it returns a relative path to the project root.
+		 *
+		 * @return string - The relative path to go up to the desired directory level.
+		 */
+        $url = $_SERVER['REQUEST_URI'];
+        $questionMarkPos = strpos($url, '?');
+        if ($questionMarkPos !== false) {
+            $path = substr($url, 0, $questionMarkPos);
+        } else {
+            $path = $url;
+        }
+        $slashCount = substr_count($path, '/');
+        $relativePath = str_repeat('../', max(0, $slashCount - 2));
+
+        return $relativePath;
         }
 }
 ?>

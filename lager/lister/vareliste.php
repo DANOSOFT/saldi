@@ -209,7 +209,6 @@ $columns[] = array(
     "headerName" => "DG",
     "type" => "number",
     "align" => "right",
-    "searchable" => true,
     "sqlOverride" => "
     ROUND(CASE 
                WHEN v.salgspris = 0 THEN 0 

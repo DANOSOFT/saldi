@@ -110,9 +110,10 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	$varenr=array(); $vare_id=array(); $linje_id=array(); $antal=array(); $tidl_lev=array(); $rest=array();
 	$enhed=array(); $rabat=array(); $pris=array(); $l_sum=array(); $linjesum=array(); 
 	$sum='';$transportsum=0;
-	$query = db_select("select email,ordrenr,fakturanr,mail_fakt,pbs,art,ref,sprog from ordrer where id = '$ordre_id[$q]'",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select email,konto_id,ordrenr,fakturanr,mail_fakt,pbs,art,ref,sprog from ordrer where id = '$ordre_id[$q]'",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$ref=$row['ref'];
+	$konto_id = $row['konto_id'];
 	$ordrenr=$row['ordrenr'];
 	$fakturanr=$row['fakturanr'];
 	$mail_fakt=$row['mail_fakt'];
@@ -127,6 +128,11 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	$y=185;
 	$antal_ordrelinjer=25;
 	$x=0;
+
+	# Get acc number
+	$query = db_select("select kontonr from ordrer where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+	$row = db_fetch_array($query);
+	$kontonr = $row['kontonr'];
 	
 	$query = db_select("select * from formularer where formular = '$formular' and art = '1' and beskrivelse = 'LOGO' and lower(sprog)='$formularsprog'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {$logo_X=$row['xa']*2.86; 	$logo_Y=$row['ya']*2.86;}
@@ -176,10 +182,25 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	}
 	if ($mail_fakt && $formular!=3) {
 		$mailantal++;		
-		if ($formular<=1) $pfnavn="tilbud".$ordrenr;
-		if ($formular==2) $pfnavn="ordrebek".$ordrenr;
-		if ($formular==4) $pfnavn="fakt".$fakturanr;
-		if ($formular==5) $pfnavn="kn".$fakturanr;
+		$pfnavne = [
+			1 => "tilbud$ordrenr",
+			2 => "ordrebek$ordrenr",
+			4 => "fakt$fakturanr",
+			5 => "kn$fakturanr"
+		];
+		
+		if ($db == "saldi_1022") {
+			$dato = date('Y-m-d');
+			$pfnavne = [
+				1 => "$ordrenr-tilbud-$kontonr-$dato",
+				2 => "$ordrenr-ordrebek-$kontonr-$dato",
+				4 => "$fakturanr-fakt-$kontonr-$dato",
+				5 => "$fakturanr-kn-$kontonr-$dato"
+			];
+		}
+		
+		$pfnavn = $pfnavne[$formular] ?? $pfnavne[1]; // Default to "tilbud"
+		
 		$email[$mailantal]=$email[0];
 		$mailsprog[$mailantal]=$formularsprog;
 		$form_nr[$mailantal]=$formular;
@@ -192,11 +213,31 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	} else {
 		$nomailantal++;
 		if ($ordre_antal<=1) { #mere sige navn til udskrifter.
-			if ($formular<=1) $printfilnavn="tilbud".$ordrenr;
-			if ($formular==2) $printfilnavn="ordrebek".$ordrenr;
-			if ($formular==3) $printfilnavn="flgs".$ordrenr."_".$lev_nr;
-			if ($formular==4) $printfilnavn="fakt".$fakturanr;
-			if ($formular==5) $printfilnavn="kn".$fakturanr;
+			$filnavne = [
+				1 => "tilbud$ordrenr",
+				2 => "ordrebek$ordrenr",
+				3 => "flgs{$ordrenr}_{$lev_nr}",
+				4 => "fakt$fakturanr",
+				5 => "kn$fakturanr"
+			];
+			if ($db == "saldi_1022") {
+				$dato = date('Y-m-d');
+				$filnavne = [
+					1 => "$ordrenr-tilbud-$kontonr-$dato",
+					2 => "$ordrenr-ordrebek-$kontonr-$dato",
+					3 => "{$ordrenr}_{$lev_nr}-flgs-$kontonr-$dato",
+					4 => "$fakturanr-fakt-$kontonr-$dato",
+					5 => "$fakturanr-kn-$kontonr-$dato"
+				];
+			}
+			
+			$printfilnavn = $filnavne[$formular] ?? $filnavne[1]; // Default to "tilbud"
+
+			#if ($formular<=1) $printfilnavn="tilbud".$ordrenr;
+			#if ($formular==2) $printfilnavn="ordrebek".$ordrenr;
+			#if ($formular==3) $printfilnavn="flgs".$ordrenr."_".$lev_nr;
+			#if ($formular==4) $printfilnavn="fakt".$fakturanr;
+			#if ($formular==5) $printfilnavn="kn".$fakturanr;
 			$pfnavn="../temp/".$db."/".$printfilnavn;
 			if (!$fp=fopen("$pfnavn","w")) {
 				return ("kan ikke skrive til $pfnavn");
@@ -314,7 +355,7 @@ return($svar);
 	}
 }
 #if ($mailantal>0) include("mail_faktura.php");
-#if ($nomailantal>0) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$printfilnavn&id=$id\">";
+#if ($nomailantal>0) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$db/$p rintfilnavn&id=$id\">";
 #elseif ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 #else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 	return($svar);
