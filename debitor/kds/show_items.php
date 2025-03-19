@@ -36,7 +36,8 @@ if (!function_exists('get_settings_value')) {
     include ("../../includes/stdFunc/dkDecimal.php");
     include ("../../includes/stdFunc/usDecimal.php");
 }
-
+ 
+$move   = isset($_GET["move"]) ? $_GET["move"] : null;
 $active = isset($_GET["active"]) ? $_GET["active"] : -1;
 
 $row_height = get_settings_value("height", "KDS", 20);
@@ -61,7 +62,7 @@ while ($r = db_fetch_array($q)) {
 $orders = array();
 $ids = array();
 $rushes = array();
-$q = db_select("select id, data, rush from kds_records where bumped = false order by timestamp", __FILE__ . " linje " . __LINE__);
+$q = db_select("select id, data, rush from kds_records where bumped = false order by coalesce(sort_timestamp, timestamp)", __FILE__ . " linje " . __LINE__);
 while($r = db_fetch_array($q)) {
     array_push($orders, json_decode($r['data']));
     array_push($ids, $r['id']);
@@ -95,17 +96,43 @@ foreach ($orders as $index => $order) {
 
         $itemid = $ids[$index];
         $activated = "";
+        $move_button_style = "
+            background-color: #999;
+            padding: 10px;
+        ";
         
-        # Add data-itemid attribute for JavaScript selection
-        print "<div class='kds-item $activated' data-itemid='$itemid' data-timestamp='" . (time() - $time) . "'>";
+        if ($move == null || $itemid == $move) {
+            if ($itemid == $move) {
+                $timecolor = "#999";
+            }
+            # Add data-itemid attribute for JavaScript selection
+            print "<div class='kds-item $activated' data-itemid='$itemid' data-timestamp='" . (time() - $time) . "'>";
 
-        # Print header
-        print "    <div class='kds-header-time $rushed' style='background-color: $timecolor;$row_style'>";
-        print "        <span>" . $minutes . ":" . $seconds . "</span>";
-        print "    </div>";
-        print "    <div class='kds-header-user $rushed' style='background-color: $timecolor;$row_style'>";
-        print "        <span>" . $order->bruger . "</span> <span>" . $order->bord . "</span>";
-        print "    </div>";
+            # Print header
+            print "    <div class='kds-header-time $rushed' style='background-color: $timecolor;$row_style'>";
+            print "        <span>" . $minutes . ":" . $seconds . "</span>";
+            print "    </div>";
+            print "    <div class='kds-header-user $rushed' style='background-color: $timecolor;$row_style'>";
+            print "        <span>" . $order->bruger . "</span> <span>" . $order->bord . "</span>";
+            print "    </div>";
+        } else {
+            # Add data-itemid attribute for JavaScript selection
+            print "<div class='kds-item $activated' data-itemid='$itemid' data-timestamp='" . (time() - $time) . "'>";
+            print "<div style='display: flex;'>";
+            print "    <div class='move-btn' style='$move_button_style' data-itemid='$itemid' data-direction='left'>&lt</div>";
+
+            # Print header
+            print "    <div style='flex: 1'>";
+            print "        <div class='kds-header-time $rushed' style='background-color: $timecolor;$row_style'>";
+            print "            <span>" . $minutes . ":" . $seconds . "</span>";
+            print "        </div>";
+            print "        <div class='kds-header-user $rushed' style='background-color: $timecolor;$row_style'>";
+            print "            <span>" . $order->bruger . "</span> <span>" . $order->bord . "</span>";
+            print "        </div>";
+            print "    </div>";
+            print "    <div class='move-btn' style='$move_button_style' data-itemid='$itemid' data-direction='right'>&gt</div>";
+            print "</div>";
+        }
 
         $linjer = array();
 
