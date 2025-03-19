@@ -3718,6 +3718,13 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 		print "</form>";
 	}
 	$sort = $_GET['sort'];
+	if (!isset($sort) && $sort != "") {
+		$query = db_select("SELECT column_name FROM information_schema.columns 
+		WHERE table_name = 'adresser' AND column_name = '$sort'", __FILE__ . " linje " . __LINE__);
+		if(db_num_rows($query) > 0){
+			$sort = "firmanavn";
+		}
+	}
 	if (!$sort) {
 		$sort = "firmanavn";
 	}
@@ -4992,6 +4999,14 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 #		}
 #		$r=db_fetch_array(db_select("select kodenr from grupper where box1='$afd' and art='LG'",__FILE__ . " linje " . __LINE__));
 #		$lager=$r['kodenr']*1;
+	}
+
+	if (!isset($sort)) {
+		$query = db_select("SELECT column_name FROM information_schema.columns 
+		WHERE table_name = 'varer' AND column_name = '$sort'", __FILE__ . " linje " . __LINE__);
+		if(db_num_rows($query) > 0){
+			$sort = "id";
+		}
 	}
 	if (!$sort)
 		$sort = 'id';
