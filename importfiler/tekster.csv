@@ -222,7 +222,7 @@
 222	Genfaktureringsdato slettes fra gammel faktura	Re-invoicing date is deleted from old invoice	Dato for omfakturering slettes fra gammel faktura
 223	Genfaktureringsdato bibeholdes på gammel faktura	Re-invoicing date is maintained on old invoice	Dato for ny fakturering beholdes på gammel faktura
 224	Brugernavn for &apos;rykkeransvarlig&apos; - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.	Username for &apos;reminder manager&apos; - When the user logs in	Brukernavn for &apos;påminnelsesbehandling&apos; - Når brukeren logger på, får han beskjed hvis det skal være en påminnelse - Hvis navnet ikke er spesifisert, får alle beskjed.								
-225	Brugernavn	User name	Brukernavn
+225	Brugernavn	Username	Brukernavn
 226	Mailadresse for &apos;rykkeransvarlig&apos;. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)	Email address for &apos;reminder manager&apos;. If specified, email will be sent from this address	E-postadresse for &apos;påminnelsesbehandling&apos;. Hvis spesifisert, sendes en e-post fra denne adressen når det er på tide å flytte. (Når noen logger på - uansett hvem)								
 227	Mailadresse	Email address	Epostadresse
 228	Rentesats i % pr. påbegyndt måned	Interest rate in% pr. commenced month	Rente i% pr. startet måned
@@ -335,7 +335,7 @@
 335	Afmærk her hvis brugeren er skal have administratorrettigheder	Check here if the user is to have administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
 336	Afmærk her hvis brugeren er skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here if the user is to be able to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
 337	Afmærk her hvis brugeren er skal kunne slette de regnskaber	this has access to	Sjekk her om brukeren skal kunne slette disse kontoene
-338	Brugernavn	User name	Brukernavn
+338	Brugernavn	Username	Brukernavn
 339	Opret regnskab	Create accounts	Opprett kontoer
 340	Vis regnskaber	View accounts	Vis kontoer
 341	Slet regnskab	Delete accounts	Slett kontoer
@@ -412,14 +412,14 @@
 412	Husnr.	House no.	Husnr.
 413	Etage	Floor	Gulv
 414	BS-nr.	BS number.	BS-nummer.
-415	Fremhævning	Highlight	Fremheve
+415	Fremhævning	Highlight	Utheving
 416	Fremhæver eksempelvis ordre med den angivne farvenuance	where delivery or receipt is missing	For eksempel fremhever ordrer med den angitte fargenyansen
 417	Vælg farvenuance til fremhævning	Select color hue for highlighting	Velg fargetone for utheving
 418	Rød	Red	rød
 419	Grøn	Green	Grønn
 420	Blå	Blue	Blå
 421	Gul	Yellow	Gul
-422	Magenta (lyselilla)	Magenta (light purple)	Magenta (lys lilla)
+422	Magenta (lyselilla)	Magenta (light purple)	Magenta (lyselilla)
 423	Cyan (lyseblå)	Cyan (light blue)	Cyan (lyseblå)
 424	Intet	Nothing	Ingenting
 425	Afmærk her for at benytte VVS-prislisten fra $beskrivelse	Check here to use the plumbing price list from $beskrivelse	Sjekk her for å bruke rørleggerprislisten fra $beskrivelse
@@ -432,8 +432,8 @@
 432	Vælg den generelle varegruppe til varer fra $beskrivelse	Select the general item group for items from $beskrivelse	Velg den generelle varegruppen for varer fra $beskrivelse
 433	Ingen leverandør med kontonummer $kontonr	No vendor with account number $kontonr no	Ingen leverandør med kontonummer $kontonr
 434	Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger anden port 25 skrives denne efter STMP navnet adskilt af &apos;:&apos;. F.eks. smtp.gmail.com:465	An alternative SMTP server can be written here for use in sending orders etc. The specified server must allow forwarding of emails from ssl.saldi.dk. If the server uses another port 25, this is written after the STMP name separated by &apos;:&apos;. Eg. smtp.gmail.com:465	En alternativ SMTP-server kan skrives her for bruk i sending av ordrer etc. Den angitte serveren må tillate videresending av e-post fra ssl.saldi.dk. Hvis serveren bruker en annen port 25, skrives dette etter STMP-navnet atskilt med &apos;:&apos;. For eksempel. smtp.gmail.com:465								
-435	Alternativ SMTP-server:port	Alternative SMTP server: port	Alternativ SMTP-server: port
-436	Skift	Change	Skifte
+435	Alternativ SMTP-server: port	Alternative SMTP server: port	Alternativ SMTP-server: port
+436	Skift	Change	Skift
 437	Skriv en dato i formatet ddmmåå fx. 311221, for at se bevægelser indtil denne dato, eller skriv er datointerval fx. 010121:311221	Write a date in the format ddmmåå fx. 311222, to see movements up to this date, or type is date range e.g. 010122: 311222	Skriv en dato i formatet ddmmåå fx. 311222, for å se bevegelser frem til denne datoen, eller typen er datointervall, f.eks. 010122: 311222
 438	Dato	Date	Dato
 439	Skriv et kontonummer eller et interval adskilt af kolon. Listen vil blive sorteret efter kontonummer<br>Der kan også skrives et kontonavn,<br>f.eks<br>Skrives DANOSOFT aps vises kun bevægelser for DANOSOFT aps<br>DANO* vil vise bevægelser for alle hvor navnet starter med DANO<br>*aps vil vise alle hvor navnet slutter på aps<br>*SOFT* viser alle hvor navnet indeholder soft.	Enter an account number or range separated by a colon. The list will be sorted by account number <br> An account name can also be typed, for example <br> Typing DANOSOFT aps only shows movements for DANOSOFT aps <br> DANO * will show movements for everyone where the name starts with DANO < br> * aps will show all where the name ends in aps <br> * SOFT * shows all where the name contains soft.	Skriv inn et kontonummer eller område atskilt med kolon. Listen vil bli sortert etter kontonummer <br> Et kontonavn kan også skrives inn, for eksempel <br> Tast inn DANOSOFT aps viser kun bevegelser for DANOSOFT aps <br> DANO * vil vise bevegelser for alle der navnet starter med DANO < br> * aps vil vise alle hvor navnet slutter på aps <br> * SOFT * viser alle der navnet inneholder soft.
@@ -444,7 +444,7 @@
 444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per. the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
 445	Viser en liste over saldi på valgte konti pr. den angivne dato 	Displays a list of balances on selected accounts per. the specified date	Viser en liste over saldoer på valgte kontoer pr. angitt dato
 446	Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.	Displays a specification of account movements on selected accounts in the specified date range.	Viser en spesifikasjon av kontotransaksjoner på valgte kontoer i det angitte datoperioden.
-447	Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.	List of the 100 debtors with the highest turnover in the last 12 months.	Liste over de 100 skyldnere med høyest omsetning de siste 12 månedene.
+447	Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.	List of the 100 debtors with the highest turnover in the last 12 months.	Liste over de 100 debitorer med høyest omsetning de siste 12 månedene.
 448	Top 100	Top 100	Topp 100
 449	Debitorrapporter	Accounts receivable reports	Rapporter om kundefordringer
 450	Kreditorrapporter	Creditor Reports	Kreditorrapporter
@@ -477,7 +477,7 @@
 477	Klik her for at omdøbe denne variant	Click here to rename this variant	Klikk her for å gi nytt navn til denne varianten
 478	Klik her for at slette denne variant og tilhørende variant værdier.	Click here to delete this variant and associated variant values.	Klikk her for å slette denne varianten og tilhørende variantverdier.
 479	Klik her for at omdøbe denne værdi	Click here to rename this value	Klikk her for å gi nytt navn til denne verdien
-480	Klik her for at slette denne værdi.	Click here to delete this value.	Klikk her for å slette denne verdien.
+480	Klik her for at slette denne værdi	Click here to delete this value	Klikk her for å slette denne verdien
 481	Vil du slette denne variant og tilhørende variant værdier?	Do you want to delete this variant and associated variant values?	Vil du slette denne varianten og tilhørende variantverdier?
 482	Vil du slette denne værdi?	Do you want to delete this value?	Vil du slette denne verdien?
 483	Vil du omdøbe denne variant?	Do you want to rename this variant?	Vil du gi nytt navn til denne varianten?
@@ -519,7 +519,7 @@
 519	Resultat/budget	Result / budget	Resultat / budsjett
 520	Momsangivelse	VAT return	Mva-retur
 521	Sikkerhedskopi	Backup	Sikkerhetskopiering
-522	Anvend topmenu	Use top menu	Bruk toppmenyen
+522	Anvend topmenu	Use top menu	Bruk toppmeny
 523	Hvis dette felt afmærkes vil der fremkomme en menu i toppen af skærmen som letter navigationen	and reduces the working height	Hvis dette feltet er merket av, vil det vises en meny øverst på skjermen som letter navigering
 524	Klassisk udseende	Classic look	Klassisk utseende
 525	Hvis dette felt afmærkes vil hverken fremkomme menu i toppen eller siden og hele siden kan anvendes som arbejdsområde.	If this field is checked	Hvis dette feltet er merket av, vises verken menyen øverst eller siden, og hele siden kan brukes som arbeidsområde.
@@ -601,10 +601,10 @@
 601	Kassekladde	Cash journal	Kontantjournal
 602	Regnskab	Financial Accounting	Finansregnskap
 603	Rapporter	Reports	Rapporter
-604	Debitor	Debtor	Skyldneren
+604	Debitor	Debtor	Debitor
 605	Ordre	Order	Rekkefølge
 606	Konti	Accounts	Kontoer
-607	Kreditor	Creditors	Kreditorer
+607	Kreditor	Creditor	Kreditore
 608	Lager	Inventory	Lager
 609	Varer	Goods	Varer
 610	Varemodtagelse	Goods Receipt	Varemottak
@@ -743,9 +743,9 @@
 743	Afmærkes dette felt bliver det muligt at ændre prisen på bundlinjen i en salgsordre og der bliver givet en samlet rabat	 which, when posting, is distributed on the individual items.	Hvis dette feltet er merket av, vil det være mulig å endre bunnlinjeprisen i en salgsordre, og en total rabatt vil bli gitt.
 744	Varenr. for sæt	Item no. for set	Varenr. for sett
 745	Sættes der et varenummer her bliver det muligt at samle en gruppe varer i en salgsordre som et sæt og give en samlet pris for denne gruppe.	If an item number is set here	Hvis et varenummer er angitt her, vil det være mulig å samle en gruppe varer i en salgsordre som et sett og gi en totalpris for denne gruppen.
-746	Brugernavn.	User name.	Brukernavn.
-747	Adgangskode.	Password.	Passord.
-748	Krypering.	Crawling.	Krabbe.
+746	Brugernavn	Username	Brukernavn
+747	Adgangskode	Password	Passord
+748	Kryptering	Encryption	Kryptering
 749	Brugernavn til SMTP serveren	if required.	Brukernavn for SMTP-serveren
 750	Adgangskode til SMTP serveren	if required.	Passord for SMTP-serveren
 751	Krypteringsmetode til SMTP serveren	if required.	Krypteringsmetode for SMTP-serveren
@@ -755,10 +755,10 @@
 755	Ved valg af bord her	this table will be selected if no other table is selected.	Når du velger et bord her
 756	Nulstil regnskab	Reset accounts	Tilbakestill kontoer
 757	Hvis du klikker på `Nulstil` slettes alle ordrer	If you click on Reset, all orders will be deleted	Hvis du klikker på ``Tilbakestill'' vil alle bestillinger bli slettet	Tilbakestill&apos;, slettes alle bestillinger	
-758	Behold debitorer & kreditorer.	Keep debtors & creditors.	Behold skyldnere og kreditorer.
-759	Hvis du afmærker dette felt beholdes dine kunder & leverandører (debitorer & kreditorer).	If you check this box	Hvis du merker av i denne boksen, beholdes dine kunder og leverandører (skyldnere og kreditorer).
-760	Behold varer.	Keep products.	Behold varer.
-761	Hvis du afmærker dette felt beholdes dine varer.	If you check this box	Hvis du merker av i denne boksen, beholdes varene dine.
+758	Behold debitorer & kreditorer	Keep debtors & creditors	Behold debitorer og kreditorer
+759	Hvis du afmærker dette felt beholdes dine kunder & leverandører (debitorer & kreditorer)	If you check this box	Hvis du merker av i denne boksen, beholdes dine kunder og leverandører (debitorer og kreditorer)
+760	Behold varer	Keep products	Behold varer
+761	Hvis du afmærker dette felt beholdes dine varer	If you check this box	Hvis du merker av i denne boksen, beholdes varene dine
 762	Er du sikker på at du vil nulstille dit regnskab? Tag en sikkerhedskopi først!	Are you sure you want to reset your accounts? Make a backup first!	Er du sikker på at du vil tilbakestille kontoene dine? Ta en sikkerhetskopi først!
 763	Direkte print til lokal printer.	Direct printing to local printer.	Direkte utskrift til lokal skriver.
 764	Hvis du vil kunne udskrive direkte til en lokal printer skal din router redirrigere data på port 9100 fra $myip direkte til din lokale printer. Herudover skal din printer være oprettet på saldi serveren. Kontakt Saldi for uddybning. To print directly to a local printer, your router must redirect port 9100 from $myip to your local printer. Furthermore your printer must ms supported by the saldi server	For å skrive ut direkte til en lokal skriver, må ruteren din omdirigere data på port 9100 fra $myip direkte til din lokale skriver. I tillegg må skriveren være satt opp på Saldi serveren. Kontakt Saldi for utdyping.
@@ -820,7 +820,7 @@
 820	API nøglen er en unik nøgle til verificering af din adgang til regnskabet.	The API key is a unique key for verifying your access to the accounts.	API-nøkkelen er en unik nøkkel for å verifisere din tilgang til kontoene.
 821	Tilladte IP adresser	Allowed IP addresses	Tillatte IP-adresser
 822	Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator. 	Specify which IP addresses have access to use the API. Use comma as separator.	Spesifiser hvilke IP-adresser som har tilgang til å bruke API. Bruk komma som skilletegn.
-823	Brugernavn	User name	Brukernavn
+823	Brugernavn	Username	Brukernavn
 824	Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API	Select the user that is used as a reference for orders and logs etc. NOTE. The user must be specially created for the API	Velg brukeren som brukes som referanse for bestillinger og logger etc. MERK. Brukeren må være spesielt opprettet for API
 825	Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.	No users without rights. Create an unauthorized user and select it to enable the API.	Ingen brukere uten rettigheter. Opprett en uautorisert bruker og velg den for å aktivere API.
 826	Forslagssum	Suggested sum	Foreslått sum
@@ -849,7 +849,7 @@
 849	Regnskab	Financial Accounting	Finansregnskap
 850	Saldo for drift- og statuskonti samt summering af disse for valgte konti i valgt periode.	Balance for operating and status accounts and summation of these for selected accounts in the selected period.	Saldo for drifts- og statuskontoer og summering av disse for utvalgte kontoer i valgt periode.
 851	Er du sikker på at du vil slette dit regnskab? Denne handling kan ikke fortrydes! - Tag en sikkerhedskopi først!	Are you sure you want to delete your accounts? This action can not be undone! - Make a backup first!	Er du sikker på at du vil slette kontoene dine? Denne handlingen kan ikke angres! - Ta en sikkerhetskopi først!
-852	Slet regnskab	Delete accounts	Slett kontoer
+852	Slet regnskab	Delete accounts	Slett regnskap
 853	Hvis du sætter flueben i feltet og klikker på `Slet` slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven. 	If you check the box and click on `Delete`, the accounts will be deleted and your account will be closed. We keep a backup copy for 5 years, cf. the Accounting Act.	Hvis du merker av i boksen og klikker på `Slett`, vil kontoene bli slettet og kontoen din vil bli stengt. Vi oppbevarer en sikkerhetskopi i 5 år, jf. Regnskapsloven.
 854	Gavekortnumre	Gift card numbers	Gavekortnummer
 855	Afmærk hvis hvert gavekort eller tilgodebevis skal have eget nummer.	Check if each gift card or voucher must have its own number.	Sjekk om hvert gavekort eller tilgodelapp må ha sitt eget nummer.
@@ -870,8 +870,8 @@
 870	Skriv din adgangskode hos GLS	Enter your password at GLS	Skriv inn passordet ditt på GLS
 871	Saldo for driftkonti i valgt år og foregående år og summering af disse for valgte konti i valgt periode.	Balance sheet for current accounts in selected year and previous year and summation of these for selected accounts in selected period.	Balanse for løpende kontoer i valgt år og foregående år og sammendrag av disse for utvalgte kontoer i valgt periode.
 872	Resultat/Sidste år	Result / Last year	Resultat / I fjor
-873	GLS Kontakt Id	GLS Contact Id	GLS-kontakt-ID
-874	Skriv dit Kontakt Id hos GLS	Write your Contact Id at GLS	Skriv din kontakt-ID på GLS
+873	GLS Kontakt ID	GLS Contact ID	GLS-kontakt-ID
+874	Skriv dit Kontakt ID hos GLS	Write your Contact ID at GLS	Skriv din kontakt-ID på GLS
 875	Sidste faktura	Last invoice	Siste faktura
 876	Importer UBL til ordrer	Import UBL to orders	Importer UBL til bestillinger
 877	Samlet omsætning incl. moms.	Total turnover incl. VAT.	Total omsetning inkl. Mva.
@@ -905,11 +905,11 @@
 905	Kontrolspor	Control Track	Kontrollspor
 906	Provisionsrapport	Provisions report	Kommisjonens rapport
 907	Historik	History	Historie
-908	Debitorer 	Debtors	Skyldnere
+908	Debitorer 	Debtors	Debitorer
 909	Kommission	Commission	Kommisjon
 910	Bynavn	City Name	Bynavn
 911	Debitorlistevisning	Debtor List Display	Visning av skyldnerliste
-912	Ingen debitorer opfylder de angivne søgekriterier	No debtors meet the specified search criteria	Ingen skyldnere oppfyller de angitte søkekriteriene
+912	Ingen debitorer opfylder de angivne søgekriterier	No debtors meet the specified search criteria	Ingen debitorer oppfyller de angitte søkekriteriene
 913	Søg	Search	Søk
 914	Beskrivelse	Description	Beskrivelse
 915	Pris	Price	Pris
@@ -1075,7 +1075,7 @@
 1075	Tema	Theme	Tema
 1076	Bankposteringer	Bank entries	Bankoppføringer
 1077	datafil	data file	data fil
-1078	Hent	Fetch	Hente
+1078	Hent	Fetch	Hent
 1079	Import fra Danløn	Import from Danløn	Import fra Danløn
 1080	Import fra Dataløn	Import from Dataløn	Import fra Dataløn
 1081	Import af BS betalinger	Import of BS payments	Import av BS-betalinger
@@ -1356,9 +1356,9 @@
 1356	Importér	Import	Import
 1357	kontoplan (erstatter kontoplanen for nyeste regnskabsår)	chart of accounts (replaces chart of accounts for most recent financial year)	kontoplan (erstatter kontoplan for siste regnskapsår)
 1358	Dataudtræk	Data extraction	Datautvinning
-1359	Variantvarer	variant products	variantvarer
-1360	Indlæs	Load	Laste
-1361	Udlæs	Read out	Lese opp
+1359	Variantvarer	Variant products	Variantvarer
+1360	Indlæs	Load	Last inn
+1361	Udlæs	Unload	Last ut
 1362	Højreklik her	Right click here	Høyreklikk her
 1363	gem destination som	save destination as	lagre destinasjon som
 1364	Vælg datafil	Select data file	Velg datafil
@@ -1954,7 +1954,7 @@
 1954	Klik for at udskrive alle afmærkede labels	Click to print all marked labels	Klikk for å skrive ut alle merkede etiketter
 1955	Udskriv Labels	Print Labels	Skriv ut etiketter
 1956	Lageroptælling	Inventory Count	Lagertelling
-1957	Paperflow Id	Paperflow Id	Paperflow Id
+1957	Paperflow ID	Paperflow ID	Paperflow ID
 1958	Paperflow Bearer	Paperflow Bearer	Paperflow Bearer
 1959	Opdel	Spilt	Del opp
 1960	Flyt dele af ordren til anden eller ny ordre med samme ordrenummer.	Move parts of the order to another or a new order with the same order number 	Flytt deler av ordren til en annen eller ny ordre med samme ordrenummer
@@ -3010,7 +3010,7 @@
 3010	Terminal type	Terminal type	Terminaltype
 3011	Den type betalings terminal du har at gøre med på kassen	The type of payment terminal you're working	Terminal	Typen betalingsterminal du har å gjøre med på kassaen
 3014	Flatpay ID	Flatpay ID	Flatpay ID
-3013	Dit hemmelige 	, klik inputtet for at lave en ny	Your secret Flatpay ID, click the input to create a new one	Din hemmelige flatpay ID Klikk på feltet for å lage en ny
+3013	Dit hemmelige Flatpay ID, klik inputtet for at lave en ny	Your secret Flatpay ID, click the input to create a new one	Din hemmelige Flatpay ID, klikk på feltet for å lage en ny
 3015	Terminal IP/ID	Terminal IP/ID	Terminal IP/ID
 3016	Vibrant API nøjle	Virant API Key	Vibrant API Key
 3017	API nøjlen til din Vibrant APP	The API key for your vibrant APP	API-key for din Vibrant APP
