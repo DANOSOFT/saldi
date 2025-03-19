@@ -5090,11 +5090,29 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 		}
 		print "</tr>\n";
 
-		# Fetch varianter
-		$q2 = db_select("SELECT VV.*, VT.* FROM variant_varer VV
-					   JOIN variant_typer VT ON VV.variant_type = VT.id 
-					   WHERE vare_id=$row[id]", __FILE__ . " linje " . __LINE__);
+		$q2 = db_select("SELECT VV.*, VT.* 
+						FROM variant_varer VV
+						JOIN variant_typer VT ON VT.id = ANY(string_to_array(REPLACE(VV.variant_type, '\t', ','), ',')::int[])
+						WHERE vare_id=$row[id]", __FILE__ . " linje " . __LINE__);
+
+		// Create an array to store combined variant information
+		$combinedVariants = array();
+
+		// Process each variant row
 		while ($variantRow = db_fetch_array($q2)) {
+			$variantId = $variantRow['variant_stregkode']; // Using stregkode as the unique identifier
+			
+			// If this variant ID already exists in our combined array, append the description
+			if (isset($combinedVariants[$variantId])) {
+				$combinedVariants[$variantId]['beskrivelse'] .= ' ' . $variantRow['beskrivelse'];
+			} else {
+				// Otherwise, add it as a new entry
+				$combinedVariants[$variantId] = $variantRow;
+			}
+		}
+
+		// Output the combined variants
+		foreach ($combinedVariants as $variant) {
 			echo "<tr>
 					<td>L</td>
 					<td>$variantRow[variant_stregkode]</td>
