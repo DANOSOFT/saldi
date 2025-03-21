@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.0 ----2024-05-22------------
+// --- systemdata/diverse.php -----patch 4.1.0 ----2025-03-21------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2012.09.20 Tilføjet integration med ebconnect
 // 2013.01.19 funktioner lagt i selvstændig fil (../includes/sys_div_func.php)
@@ -80,8 +80,10 @@
 // 20221231 PHR	sektion 'bilag' box3 (ftp passwd) is now urlencoded as it failed with special characters in password. 
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240126 PBLM Added nemhandel (diverse valg)
-// 05-01-2025 PBLM Added a second file to api_valg
+// 20240827 LOE 'personlige_valg' readujsted to use userSettings.
 // 20241220 LOE Initialized tenantID and $key to null if not set
+// 20250105 PBLM Added a second file to api_valg
+
 
 @session_start();
 $s_id = session_id();
@@ -131,48 +133,42 @@ if ($menu == 'T') {
 	} 
 	</script>";
 	include("oldTop.php");
-}
+} 
 
-if (!isset($exec_path))
-	$exec_path = "/usr/bin";
-
-$sektion = if_isset($_GET['sektion']);
-#if ($sektion == 'personlige_valg') $sektion = 'userSettings';
-$skiftnavn = if_isset($_GET['skiftnavn']);
-if ($_POST) {
-	if ($sektion == 'provision') {
-		$id = $_POST['id'];
-		$box1 = $_POST['box1'];
-		$box2 = $_POST['box2'];
-		$box3 = $_POST['box3'];
-		$box4 = $_POST['box4'];
-		if (($id == 0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='1'", __FILE__ . " linje " . __LINE__))))
-			$id = $r['id'];
-		elseif ($id == 0) {
-			db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')", __FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0)
-			db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-		#######################################################################################
-	} elseif ($sektion == 'personlige_valg') {
+if (!isset($exec_path)) $exec_path="/usr/bin";
+$sektion=if_isset($_GET['sektion']);
+$pricelists = if_isset($_POST['pricelists'],NULL);
+if ($sektion == 'personlige_valg') $sektion = 'userSettings';
+$skiftnavn=if_isset($_GET['skiftnavn']);
+if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
+	if ($sektion=='provision') {
+		$id=$_POST['id'];
+		$box1=$_POST['box1'];
+		$box2=$_POST['box2'];
+		$box3=$_POST['box3'];
+		$box4=$_POST['box4'];
+		if (($id==0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='1'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
+		elseif ($id==0){
+		db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')",__FILE__ . " linje " . __LINE__);
+		} elseif ($id > 0) db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'",__FILE__ . " linje " . __LINE__);
+	#######################################################################################
+	} elseif ($sektion=='personlige_valg') {
 		$refresh_opener = NULL;
-		$id = $_POST['id'];
-		$jsvars = $_POST['jsvars'];
-		$popup = if_isset($_POST['popup']);
-		if ($popup && $_POST['popup'] == '')
-			$refresh_opener = "on";
-		$menu = $_POST['menu'];
-		if ($menu == "sidemenu")
-			$menu = 'S';
-		elseif ($menu == "topmenu")
-			$menu = 'T';
-		else
-			$menu = '';
-		$bgcolor = "#" . $_POST['bgcolor'];
-		$nuance = $_POST['nuance'];
+		$id             = $_POST['id'];
+		$jsvars         = $_POST['jsvars'];
+		$popup          = if_isset($_POST['popup']);
+		if ($popup && $_POST['popup']=='') $refresh_opener="on";
+		$menu           = $_POST['menu'];
+		if ($menu=="sidemenu") $menu='S';
+		elseif ($menu=="topmenu") $menu='T';
+		else $menu      = '';
+		$bgcolor        = "#".$_POST['bgcolor'];
+		$nuance         = $_POST['nuance'];
+
 		$qtxt = "select id from grupper WHERE art = 'USET' and kodenr='$bruger_id'";
-		if (($id == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
-			$id = $r['id'];
-		} elseif ($id == 0) {
+		if  (($id==0) && ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) {
+			$id=$r['id'];
+		} elseif ($id==0) {
 			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ";
 			$qtxt .= "('Personlige valg','$bruger_id','USET','$jsvars','$popup','$menu','$bgcolor','$nuance')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -974,24 +970,24 @@ if ($_POST) {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL='diverse.php?sektion=labels&valg=$valg'\">";
 		}
-		#######################################################################################
-	} elseif ($sektion == 'prislister') {
-		$id = $_POST['id'];
-		$beskrivelse = $_POST['beskrivelse'];
-		$box1 = $_POST['lev_id'];
-		$box2 = $_POST['prisfil'];
-		$box3 = $_POST['opdateret'];
-		$box4 = $_POST['aktiv'];
-		$box5 = $_POST['rabatter'];
-		$box6 = $_POST['rabat'];
-		$box7 = $_POST['grupper'];
-		$box8 = $_POST['gruppe'];
-		$box9 = $_POST['filtype'];
-		$slet = $_POST['slet'];
-		$antal = $_POST['antal'];
+	#######################################################################################
+	} elseif ($pricelists) {
+		$id=$_POST['id'];
+		$beskrivelse=$_POST['beskrivelse'];
+		$box1=$_POST['lev_id'];
+		$box2=$_POST['prisfil'];
+		$box3=$_POST['opdateret'];
+		$box4=$_POST['aktiv'];
+		$box5=$_POST['rabatter'];
+		$box6=$_POST['rabat'];
+		$box7=$_POST['grupper'];
+		$box8=$_POST['gruppe'];
+		$box9=$_POST['filtype'];
+		$slet=$_POST['slet'];
+		$antal=$_POST['antal'];
 
-		for ($x = 1; $x <= $antal; $x++) {
-			#			if (!$box4[$x]) $box1[$x]=''; # 20160225
+		for($x=0;$x < count($id);$x++) {
+#			if (!$box4[$x]) $box1[$x]=''; # 20160225
 
 			$id[$x] *= 1;
 			$qtxt = NULL;
@@ -1847,9 +1843,9 @@ if ($menu != 'T') {
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			. findtekst(791, $sprog_id) . "</button></a></td></tr>\n";
 
-		print "<tr><td align=left><a href=diverse.php?sektion=prislister>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			. findtekst(792, $sprog_id) . "</button></a><!--tekst 427--></td></tr>\n";
+		print "<tr><td align=left><a href=diverse.php?sektion=pricelists>
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   .findtekst(792,$sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=rykker_valg>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
@@ -1904,19 +1900,17 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>" . findtekst(788, $sprog_id) . "</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>" . findtekst(789, $sprog_id) . "</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>" . findtekst(791, $sprog_id) . "</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=prislister>" . findtekst(792, $sprog_id) . "</a><!--tekst 427--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>" . findtekst(793, $sprog_id) . "</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>" . findtekst(794, $sprog_id) . "</a></td></tr>\n";
-		# print "<tr><td align=left $top_bund>&nbsp;<a href=..\paperpdf/activatepaperflow.php>".findtekst(795,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>" . findtekst(796, $sprog_id) . "</a></td></tr>\n";
-		if ($docubizz)
-			print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>" . findtekst(796, $sprog_id) . "</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>" . findtekst(797, $sprog_id) . "</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>" . findtekst(170, $sprog_id) . "</a><!--tekst 170--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>" . findtekst(200, $sprog_id) . "</a><!--tekst 200--></td></tr>\n";
-		if (file_exists("../debitor/pos_ordre.php"))
-			print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>" . findtekst(271, $sprog_id) . "</a><!--tekst 271--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst(791,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst(792,$sprog_id)."</a><!--tekst 427--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst(793,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>".findtekst(794,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=..\barcodescan.php>App Barcode</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>".findtekst(796,$sprog_id)."</a></td></tr>\n";
+		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>".findtekst(796,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>".findtekst(797,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>".findtekst(170,$sprog_id)."</a><!--tekst 170--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>".findtekst(200,$sprog_id)."</a><!--tekst 200--></td></tr>\n";
+		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>".findtekst(271,$sprog_id)."</a><!--tekst 271--></td></tr>\n";
 		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=email>Mail indstillinger</a></td></tr>";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=sprog>" . findtekst(801, $sprog_id) . "</a></td></tr>\n";
 		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoplan_io>Indl&aelig;s  / udl&aelig;s kontoplan</a></td></tr>";
@@ -1942,31 +1936,23 @@ if ($sektion == "productOptions" || $sektion == "label") {
 	include("diverseIncludes/productOptions.php");
 	productOptions($defaultProvision);
 }
-if ($sektion == "variant_valg")
-	variant_valg();
-if ($sektion == "shop_valg")
-	shop_valg();
-if ($sektion == "api_valg")
-	api_valg();
-if ($sektion == "labels")
-	labels($valg);
-if ($sektion == "prislister")
-	prislister();
-if ($sektion == "rykker_valg")
-	rykker_valg();
-if ($sektion == "div_valg")
-	div_valg(); # Kalder sys_div_valg.php
-if ($sektion == "docubizz")
-	docubizz();
-if ($sektion == "bilag")
-	bilag();
-//if ($sektion=="paperflow") activatePaperflow();
-if ($sektion == "orediff")
-	orediff($diffkto);
-if ($sektion == "massefakt")
-	massefakt();
-if ($sektion == "posOptions") {
-	include("diverseIncludes/posOptions.php");
+if ($sektion=="variant_valg") variant_valg();
+if ($sektion=="shop_valg") shop_valg();
+if ($sektion=="api_valg") api_valg();
+if ($sektion=="labels") labels($valg);
+if ($sektion=="pricelists") {
+	include ("diverseIncludes/pricelists.php");
+	pricelists();
+}
+if ($sektion=="rykker_valg") rykker_valg();
+if ($sektion=="div_valg") div_valg(); # Kalder sys_div_valg.php
+if ($sektion=="docubizz") docubizz();
+if ($sektion=="bilag") bilag();
+//if ($sektion=="barcodescan") barcodescan();
+if ($sektion=="orediff") orediff($diffkto);
+if ($sektion=="massefakt") massefakt();
+if ($sektion=="posOptions") {
+	include ("diverseIncludes/posOptions.php");
 	posOptions();
 }
 if ($sektion == "sprog") {
