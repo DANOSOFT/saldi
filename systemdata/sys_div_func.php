@@ -112,7 +112,7 @@ function kontoindstillinger($regnskab,$skiftnavn) {
 	if (!$skiftnavn) {
 		$klik = findtekst('149|Klik her for at sortere på telefonnummer.', $sprog_id); $klik1= explode(" ", $klik);  #20210710
 		print "<tr><td colspan='6'>".findtekst('1237|Dit regnskab hedder', $sprog_id)." <span style='font-weight:bold'>$regnskab</span>. ";
-		print "$klik1[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>her</a> ".findtekst('1238|for at ændre navnet.', $sprog_id)."</td></tr>\n";
+		print "$klik1[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>".findtekst('2157|her', $sprog_id)."</a> ".findtekst('1238|for at ændre navnet.', $sprog_id)."</td></tr>\n";
 		print "<tr><td colspan='6'><hr></td></tr>\n";
 		$tmp=date('U')-60*60*24*365;
 		$tmp=date("Y-m-d",$tmp);
@@ -195,8 +195,8 @@ function kontoindstillinger($regnskab,$skiftnavn) {
 		print "</form>\n"; # <- 20170731
 	} else  {
 		print "<form name='diverse' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
-		print "<tr><td colspan='6'>Skriv nyt navn p&aring; regnskab <input class='inputbox' type='text' style='width:400px' name='nyt_navn' value='$regnskab'> ";
-		print "og klik <input class='button gray medium' style='width:75px' type='submit' value='Skift&nbsp;navn' name='submit'></td></tr>\n";
+		print "<tr><td colspan='6'>".findtekst('2396|Skriv nyt navn på regnskab', $sprog_id)." <input class='inputbox' type='text' style='width:400px' name='nyt_navn' value='$regnskab'> ";
+		print findtekst('2397|og klik', $sprog_id)." <input class='button gray medium' type='submit' value='".findtekst('2398|Skift navn', $sprog_id)."' name='submit'></td></tr>\n";
 		print "</form>\n";
 	}
 
@@ -239,7 +239,7 @@ function provision() {
 	print "<tr>\n<td>".findtekst('1269|Beregn provision på ordrer som er faktureret eller faktureret og betalt', $sprog_id)."</td>\n<td></td>\n<td align='center'>".findtekst('1264|Faktureret', $sprog_id)."</td>\n<td align='center'>".findtekst('1265|Betalt', $sprog_id)."</td></tr>\n";
 	print "<tr>\n<td></td>\n<td></td>\n<td align='center'><input class='inputbox' type='radio' name='box4' value='fak' title='".findtekst('1717|Provision beregnes på fakturerede ordrer', $sprog_id)."' $fak></td>\n"; #20210802
 	print "<td align='center'><input class='inputbox' type=radio name='box4' value='bet' title='".findtekst('1718|Provision beregnes på betalte ordrer', $sprog_id)."' $bet></td>\n</tr>\n";
-	print "<tr>\n<td>".findtekst('1268|Kilde for personinfo', $sprog_id)."</td>\n<td align='center'>Ref.</td>\n<td align='center'>".findtekst('1267|Kundeans', $sprog_id).".</td>\n<td align='center'>".findtekst('1266|Begge', $sprog_id)."</td>\n</tr>\n";
+	print "<tr>\n<td>".findtekst('1268|Kilde for personinfo', $sprog_id)."</td>\n<td align='center'>Ref.</td>\n<td align='center'>".findtekst('1267|Kundeans.', $sprog_id)."</td>\n<td align='center'>".findtekst('1266|Begge', $sprog_id)."</td>\n</tr>\n";
 	print "<tr>\n<td></td>\n";
 	print "<td align='center'><input class='inputbox' type='radio' name='box1' value='ref' \n";
 	print "    title='".findtekst('1719|Provision tilfalder den der er angivet som referenceperson på de enkelte ordrer', $sprog_id)."' $ref></td>\n";
@@ -251,8 +251,8 @@ function provision() {
 	print "<tr><td>".findtekst('1270|Kilde for kostpris', $sprog_id)."</td><td></td><td align='center'>".findtekst('1271|Provision tilfalder den kundeansvarlige såfremt der er tildelt en sådan, ellers til den som er referenceperson på de enkelte ordrer', $sprog_id)."</td><td align='center'>".findtekst('566|Varekort', $sprog_id)."</td></tr>\n";
 	print "<tr>\n<td></td>\n<td></td>\n";
 	print "<td align=center><input class='inputbox' type='radio' name='box2' value='batch' \n";
-	print "    title='".findtekst('1722|Anvend varens reelle indkøbspris som kostpris', $sprog_id).".' $batch></td>\n";
-	print "<td align='center'><input class='inputbox' type='radio' name='box2' value='kort' title='".findtekst('1723|Anvend kostpris fra varekort', $sprog_id).".' $kort></td>\n</tr>\n";
+	print "    title='".findtekst('1722|Anvend varens reelle indkøbspris som kostpris', $sprog_id)."' $batch></td>\n";
+	print "<td align='center'><input class='inputbox' type='radio' name='box2' value='kort' title='".findtekst('1723|Anvend kostpris fra varekort', $sprog_id)."' $kort></td>\n</tr>\n";
 	print "<tr>\n<td>".findtekst('1272|Skæringsdato for provisionsberegning', $sprog_id)."</td><td></td><td></td>\n";
 	print "<td align=center><select class='inputbox' name='box3' \n";
 	print "    title='".findtekst('1724|Når dette felt er afmærket bliver varen vist incl. moms på varekortet', $sprog_id)."'>";

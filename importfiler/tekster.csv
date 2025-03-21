@@ -93,7 +93,7 @@
 93	Log ud	Log out	Logg ut
 94	<big><big><big><b>= SALDI =</b></big></big></big>	<big><big> <big> <b> = SALDI = </b> </big> </big> </big>	<big><big> <big> <b> = SALDI = </b> </big> </big> </big>
 95	<b>FINANS</b>	<b> FINANCE </b>	<b> ØKONOMI </b>
-96	Her finder du det, som vedrører dine kunder	 Here you find what id about your customers.	Her finner du det som gjelder kunderne dine
+96	Her finder du det, som vedrører dine kunder	 Here you find what id about your 	Her finner du det som gjelder kunderne dine
 97	Her finder du det, som vedrører dine leverandører	 Here you will find what is about your suppliers.	Her finner du det som gjelder leverandørerne dine
 98	Klik her når du skal bogføre eller ompostere.	Click here to post or repost.	Klikk her for å legge ut eller legge om.
 99	<b>DEBITOR</b>	<b> DEBITOR </b>	<b> DEBITOR </b>
@@ -193,7 +193,7 @@
 193	Docubizz er en aplikation til håndtering af indscannede dokumenter. Se mere om denne funktion på www.docubizz.dk	Docubizz is an application for handling scanned documents. See more about this function at www.docubizz.dk	Docubizz er et program for håndtering av skannede dokumenter. Se mer om denne funksjonen på www.docubizz.dk
 194	Jobkort findes i debitorkonti. Her kan du definere opgavebeskrivelser til medarbejdere osv.	Job cards are available in debtor accounts. Here you can define job descriptions for employees	Jobbkort er tilgjengelig i debitorkontoer. Her kan du definere stillingsbeskrivelser for ansatte osv.
 195	Under enheder/materialer kan du tilføje og rette i de enhedsbetegnelser	 used in product cards <br> and in orders / invoices as well as material designations in the product card.	Under enheter / materialer kan du legge til og korrigere i enhetsbetegnelsene
-196	Vis priser inkl. moms på kundeordrer	Show prices incl. VAT on customer words	Vis priser inkl. MVA på salgsordrer
+196	Vis priser inkl. moms på kundeordrer	Show prices incl. VAT on customer orders	Vis priser inkl. MVA på salgsordrer
 197	Når dette felt er afmærket	display prices on sales orders	Når dette feltet er merket av
 198	Klik her for at skifte til forrige ordre på ordrelisten - husk at gemme eventuelle ændringer først.	Click here to switch to the previous order in the order list - remember to save any changes first.	Klikk her for å bytte til forrige ordre i ordrelisten - husk å lagre eventuelle endringer først.
 199	Klik her for at skifte til næste ordre på ordrelisten - husk at gemme eventuelle ændringer først.	Click here to switch to the next order in the order list - remember to save any changes first.	Klikk her for å bytte til neste ordre i ordrelisten - husk å lagre eventuelle endringer først.
@@ -206,7 +206,7 @@
 206	Her angiver du	how many days old an order should be	Her går du inn
 207	Hvis du afmærker dette felt	SALDI will work in pop-ups	Hvis du merker av i denne boksen
 208	Anvend popup-vinduer	Use pop-ups	Bruk popup-vinduer
-209	Her skriver du de parametrer	which best suits your browser's popup features	Her skriver du parametrene
+209	Her skriver du de parametrer, der passer bedst til din browsers pop-up funktioner	Enter the parameters that best suit your browser's pop-up features	Her skriver du inn de parameterne, som passer best til din nettlesers pop-up-funksjoner
 210	Popup-indstillinger	Pop-up settings	Pop-up-innstillinger
 211	Intern bilagsopbevaring (mod betaling).	Internal document storage (for a fee).	Intern dokumentlagring (mot avgift).
 212	Afmærk her hvis du vil anvende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 	Check here if you want to use document scanning and do not want to set up a server for document storage yourself. Same cost as an additional user per. GB.	Sjekk her hvis du vil bruke dokumentskanning og ikke ønsker å sette opp en server for dokumentlagring selv. Samme kostnad som en ekstra bruker pr. GB.
@@ -315,7 +315,7 @@
 315	Anvend sidemenu	Use side menu	Bruk sidemeny
 316	Hvis dette felt afmærkes vil der fremkomme en menu i venstre skærmside som letter navigationen	and reduces the working width	Hvis dette feltet er krysset av, vises en meny på venstre side av skjermen som letter navigering
 317	Baggrundsfarve	Background color	Bakgrunnsfarge
-318	Her skriver du hex-værdien for den ønskede baggrundsfarve eksempelvis ff9933 for orange. Se flere værdier på www.html.dk/dokumentation/farver 	Here you enter the hex value for the desired background color	Her angir du hexverdien for ønsket bakgrunnsfarge, for eksempel ff9933 for oransje. Se flere verdier på www.html.dk/dokumentation/farver
+318	Her skriver du hex-værdien for den ønskede baggrundsfarve, for eksempel ff9933 for orange. Se flere værdier på www.html.dk/snippets/farvekoder-i-html 	Enter the hex value for the desired background color	Her angir du hexverdien for ønsket bakgrunnsfarge, for eksempel ff9933 for oransje. Se flere verdier på www.html.dk/snippets/farvekoder-i-html
 319	Bogføringskonto ikke sat for varegruppe:	Posting account not set for item group:	Postingskonto ikke angitt for varegruppe:
 320	Varenummer	Item number	Artikkelnummer
 321	er ikke tilknyttet en varegruppe!	is not affiliated with an item group!	er ikke tilknyttet en varegruppe!
@@ -413,7 +413,7 @@
 413	Etage	Floor	Gulv
 414	BS-nr.	BS number.	BS-nummer.
 415	Fremhævning	Highlight	Utheving
-416	Fremhæver eksempelvis ordre med den angivne farvenuance	where delivery or receipt is missing	For eksempel fremhever ordrer med den angitte fargenyansen
+416	Fremhæver eksempelvis ordrer med den angivne farvenuance	Highlights, for example, orders with the specified color shade	Fremhever for eksempel ordrer med den angitte fargenyanse
 417	Vælg farvenuance til fremhævning	Select color hue for highlighting	Velg fargetone for utheving
 418	Rød	Red	rød
 419	Grøn	Green	Grønn
@@ -431,7 +431,7 @@
 431	Skriv den generelle rabat for varer fra $beskrivelse	Write the general discount for items from $beskrivelse	Skriv den generelle rabatten for varer fra $beskrivelse
 432	Vælg den generelle varegruppe til varer fra $beskrivelse	Select the general item group for items from $beskrivelse	Velg den generelle varegruppen for varer fra $beskrivelse
 433	Ingen leverandør med kontonummer $kontonr	No vendor with account number $kontonr no	Ingen leverandør med kontonummer $kontonr
-434	Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger anden port 25 skrives denne efter STMP navnet adskilt af &apos;:&apos;. F.eks. smtp.gmail.com:465	An alternative SMTP server can be written here for use in sending orders etc. The specified server must allow forwarding of emails from ssl.saldi.dk. If the server uses another port 25, this is written after the STMP name separated by &apos;:&apos;. Eg. smtp.gmail.com:465	En alternativ SMTP-server kan skrives her for bruk i sending av ordrer etc. Den angitte serveren må tillate videresending av e-post fra ssl.saldi.dk. Hvis serveren bruker en annen port 25, skrives dette etter STMP-navnet atskilt med &apos;:&apos;. For eksempel. smtp.gmail.com:465								
+434	Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger en anden port end 25 skrives denne efter STMP navnet adskilt af &apos;:&apos;. F.eks. smtp.gmail.com:465	An alternative SMTP server can be entered here for use in sending orders etc. The specified server must allow forwarding of emails from ssl.saldi.dk. If the server uses another port than 25, this is written after the STMP name separated by &apos;:&apos;. Eg. smtp.gmail.com:465	En alternativ SMTP-server kan skrives her for bruk i sending av ordrer etc. Den angitte serveren må tillate videresending av e-post fra ssl.saldi.dk. Hvis serveren bruker en annen port enn 25, skrives dette etter STMP-navnet atskilt med &apos;:&apos;. For eksempel. smtp.gmail.com:465				
 435	Alternativ SMTP-server: port	Alternative SMTP server: port	Alternativ SMTP-server: port
 436	Skift	Change	Skift
 437	Skriv en dato i formatet ddmmåå fx. 311221, for at se bevægelser indtil denne dato, eller skriv er datointerval fx. 010121:311221	Write a date in the format ddmmåå fx. 311222, to see movements up to this date, or type is date range e.g. 010122: 311222	Skriv en dato i formatet ddmmåå fx. 311222, for å se bevegelser frem til denne datoen, eller typen er datointervall, f.eks. 010122: 311222
@@ -746,19 +746,19 @@
 746	Brugernavn	Username	Brukernavn
 747	Adgangskode	Password	Passord
 748	Kryptering	Encryption	Kryptering
-749	Brugernavn til SMTP serveren	if required.	Brukernavn for SMTP-serveren
-750	Adgangskode til SMTP serveren	if required.	Passord for SMTP-serveren
-751	Krypteringsmetode til SMTP serveren	if required.	Krypteringsmetode for SMTP-serveren
+749	Brugernavn til SMTP serveren	Username for the SMTP server	Brukernavn for SMTP-serveren
+750	Adgangskode til SMTP serveren	Password for the SMTP server	Passord for SMTP-serveren
+751	Krypteringsmetode til SMTP serveren	Encryption method for the SMTP server	Krypteringsmetode for SMTP-serveren
 752	Agreement_id tildeles ved oprettelse af betalingsaftale hos Quickpay	Agreement_id is assigned when creating a payment agreement with Quickpay	Agreement_id tildeles når du oppretter en betalingsavtale med Quickpay
 753	Agreement_id	Agreement_id	Avtale_id
 754	Bordvalg	Table selection	Tabellvalg
 755	Ved valg af bord her	this table will be selected if no other table is selected.	Når du velger et bord her
 756	Nulstil regnskab	Reset accounts	Tilbakestill kontoer
-757	Hvis du klikker på `Nulstil` slettes alle ordrer	If you click on Reset, all orders will be deleted	Hvis du klikker på ``Tilbakestill'' vil alle bestillinger bli slettet	Tilbakestill&apos;, slettes alle bestillinger	
+757	Hvis du klikker på `Nulstil` slettes alle ordrer	If you click on Reset, all orders will be deleted	Hvis du klikker på `Tilbakestill` vil alle bestillinger bli slettet
 758	Behold debitorer & kreditorer	Keep debtors & creditors	Behold debitorer og kreditorer
-759	Hvis du afmærker dette felt beholdes dine kunder & leverandører (debitorer & kreditorer)	If you check this box	Hvis du merker av i denne boksen, beholdes dine kunder og leverandører (debitorer og kreditorer)
+759	Hvis du afmærker dette felt beholdes dine kunder & leverandører (debitorer & kreditorer)	If you check this box, your customers & suppliers (debtors & creditors) will be retained	Hvis du merker av i denne boksen, beholdes dine kunder og leverandører (debitorer og kreditorer)
 760	Behold varer	Keep products	Behold varer
-761	Hvis du afmærker dette felt beholdes dine varer	If you check this box	Hvis du merker av i denne boksen, beholdes varene dine
+761	Hvis du afmærker dette felt beholdes dine varer	If you check this box, your items will be retained	Hvis du merker av i denne boksen, beholdes varene dine
 762	Er du sikker på at du vil nulstille dit regnskab? Tag en sikkerhedskopi først!	Are you sure you want to reset your accounts? Make a backup first!	Er du sikker på at du vil tilbakestille kontoene dine? Ta en sikkerhetskopi først!
 763	Direkte print til lokal printer.	Direct printing to local printer.	Direkte utskrift til lokal skriver.
 764	Hvis du vil kunne udskrive direkte til en lokal printer skal din router redirrigere data på port 9100 fra $myip direkte til din lokale printer. Herudover skal din printer være oprettet på saldi serveren. Kontakt Saldi for uddybning. To print directly to a local printer, your router must redirect port 9100 from $myip to your local printer. Furthermore your printer must ms supported by the saldi server	For å skrive ut direkte til en lokal skriver, må ruteren din omdirigere data på port 9100 fra $myip direkte til din lokale skriver. I tillegg må skriveren være satt opp på Saldi serveren. Kontakt Saldi for utdyping.
@@ -1264,7 +1264,7 @@
 1264	Faktureret	Invoiced	Faktureret
 1265	Betalt	Paid	Betalt
 1266	Begge	Both	Både
-1267	Kundeans	Customers	Kundeans
+1267	Kundeans.	Customer Mgr.	Kundeans.
 1268	Kilde for personinfo	Source for personal information	Kilde for personlig informasjon
 1269	Beregn provision på ordrer som er faktureret eller faktureret og betalt	Calculate commission on orders that are invoiced or billed and paid	Beregn provisjon på ordrer som faktureres eller faktureres og betales
 1270	Kilde for kostpris	Source for cost price	Kilde for kostpris
@@ -1272,14 +1272,14 @@
 1272	Skæringsdato for provisionsberegning	Cut-off date for commission calculation	Kuttdato for beregning av provisjon
 1273	Vis priser med moms på varekort	Show prices with VAT on product cards	Vis priser med moms på produktkort
 1274	Når dette felt er afmærket bliver varen vist incl. moms på varekortet	When this field is marked, the item is displayed incl. VAT on the product card	Salg av forlikskommisjonen
-1275	Bekræft ændring af beskrivelse på varekort	Confirm change of description on item card	Bekreft endring av beskrivelse på varekortet
+1275	Bekræft ændring af beskrivelse på varekort	Confirm change of description on product card	Bekreft endring av beskrivelse på varekortet
 1276	Når dette felt er afmærket skal ændring af beskrivelse på varekort bekræftes	When this field is marked, the change of description on the product card must be confirmed	Når dette feltet er merket, må endringen av beskrivelse på produktkortet bekreftes
 1277	Kvittèr ved ændring af beholdning på varekort	Receipt when changing stock on product card	Kvittering når du bytter lager på produktkortet
 1278	Når dette felt er afmærket skal kvitteres ved ændring af beholdning på varekort	When this field is marked, it must be acknowledged by changing the stock on the product card	Når dette feltet er merket, må det bekreftes ved å endre lageret på produktkortet
 1279	Sæt vare til udgået, når beholdning bliver negativ	Set item to expire when inventory becomes negative	Angi at varen skal utløpe når beholdningen blir negativ
 1280	Når dette felt er afmærket bliver varen markeret som udgået når beholdningen bliver negativ	When this field is marked, the item is marked as discontinued when the stock becomes negative	Når dette feltet er merket, blir varen merket som avviklet når aksjen blir negativ
 1281	Kommisionsvarer.<br>Afmærk hvis der anvendes POS og der sælges varer i kommission	Commission products. <br> Check if POS is used and products are sold on commission	Provisjonsvarer. <br> Sjekk om POS brukes og varer selges på kommisjon
-1282	Når dette felt er afmærket vises 'Afregn kommission på kasseoptælling' og 'Kommissionsvare' på varekort	When this field is checked, 'Settle commission on cash count' and 'Commission item' will appear on item card	Når dette feltet er krysset av, vises 'Settle provision on cash count' og 'Commission provision' på varekortet
+1282	Når dette felt er afmærket vises 'Afregn kommission på kasseoptælling' og 'Kommissionsvare' på varekort	When this field is checked, 'Settle commission on cash count' and 'Commission item' will appear on product card	Når dette feltet er krysset av, vises 'Settle provision on cash count' og 'Commission provision' på varekortet
 1283	Standard kommissionssats	Standard commission rate	Standard provisjonsrente
 1284	Sættes en værdi her, anvendes denne sats som udgangspunkt ved oprettelse af kommissionsvarer.\n&apos;	If a value is set here, this rate is used as a starting point when creating commission items. \n &apos;	Hvis en verdi er satt her, brukes denne hastigheten som utgangspunkt når du oppretter kommisjonsposter. \n &apos;
 1285	Er feltet tomt beregnes kostprisen manuelt.	If the field is empty, the cost price is calculated manually.	Hvis feltet er tomt, beregnes kostprisen manuelt.
@@ -1658,8 +1658,8 @@
 1658	Antal enheder solgt før den	Number of units sold before	Antall enheter solgt før
 1659	Lagerbeholdning pr	Inventory per	Inventar pr
 1660	Købsværdi af lagerbeholdning (Reel købspris)	Purchase value of inventory (Real purchase price)	Kjøpsverdi av varelager (reell kjøpesum)
-1661	Kostpris af lagerbeholdning (fra varekort)	Cost of inventory (from item card)	Varekostnad (fra varekort)
-1662	Salgsværdi af lagerbeholdning (fra varekort)	Sales value of inventory (from item card)	Salgsverdi på lager (fra varekort)
+1661	Kostpris af lagerbeholdning (fra varekort)	Cost of inventory (from product card)	Varekostnad (fra varekort)
+1662	Salgsværdi af lagerbeholdning (fra varekort)	Sales value of inventory (from product card)	Salgsverdi på lager (fra varekort)
 1663	stemmer ikke med det antal som er købt og solgt. Klik her for at opdatere beholdning	does not match the number bought and sold. Click here to update inventory	samsvarer ikke med antall kjøpt og solgt. Klikk her for å oppdatere varelageret
 1664	Klik her for at skifte til joblisten	Click here to switch to the job list	Klikk her for å bytte til stillingslisten
 1665	Klik her for at synkronisere medlemsinfo	Click here to sync member info	Klikk her for å synkronisere medlemsinformasjon
@@ -1719,9 +1719,9 @@
 1719	Provision tilfalder den der er angivet som referenceperson på de enkelte ordrer	Commission accrues to the person specified as the reference person on the individual orders	Kommisjonen tilfaller personen som er angitt som referanseperson på de enkelte påleggene
 1720	Provision tilfalder den kundeansvarlige	Commission accrues to the customer manager	Provisjon tilfaller kundeansvarlig
 1721	Provision tilfalder den kundeansvarlige såfremt der er tildelt en sådan, ellers til den som er referenceperson på de enkelte ordrer	Commission accrues to the customer manager if one has been assigned, otherwise to the person who is the reference person on the individual orders	Kommisjonen tilfaller kundeansvarlig hvis slik er tildelt, ellers personen som er referansepersonen på de enkelte bestillingene
-1722	Anvend varens reelle indkøbspris som kostpris	Use the item's real purchase price as the cost price	Bruk varens reelle kjøpesum som kostpris
-1723	Anvend kostpris fra varekort	Apply cost price from item card	Påfør kostpris fra varekortet
-1724	Dato hvorfra og med (i foregående måned) til (dato i indeværende måned)provisionsberegning foretages	Date from and including (in previous month) to (date in current month) commission calculation is made	Dato fra og med (i forrige måned) til (dato i inneværende måned) beregnes provisjon
+1722	Anvend varens reelle indkøbspris som kostpris	Use the item&apos;s real purchase price as the cost price	Bruk varens reelle kjøpesum som kostpris
+1723	Anvend kostpris fra varekort	Apply cost price from product card	Påfør kostpris fra varekortet
+1724	Dato hvorfra og med (i foregående måned) til (dato i indeværende måned) provisionsberegning foretages	Date from and including (in previous month) to (date in current month) commission calculation is made	Dato fra og med (i forrige måned) til (dato i inneværende måned) beregnes provisjon
 1725	Skriv en SQL forespørgsel uden 'select'. F.eks: * from varer eller: varenr,salgspris from varer where lukket	Write an SQL query without 'select'. For example: * from products or: item no., Selling price from products where closed	Skriv en SQL -spørring uten 'velg'. For eksempel: * fra varer eller: varenr., Salgspris fra varer der de er lukket
 1726	Opdaterer beskrivelse, stregkode og pris fra shop	Updates description, barcode and price from shop	Oppdaterer beskrivelse, strekkode og pris fra butikk
 1727	Klik for at ændre navnet	Click to change the name	Klikk for å endre navnet
@@ -2393,9 +2393,9 @@
 2393	Transportsum Transport cost Transportsum
 2394	Der findes allerede en enhed med betegnelsen	A unit already exists with the designation	Det finnes allerede en enhet med betegnelsen
 2395	Der findes allerede et materiale med beskrivelsen	A material already exists with the description	Det finnes allerede et materiale med beskrivelsen
-2396
-2397
-2398
+2396	Skriv nyt navn på regnskab	Enter new name for the account	Skriv nytt navn på regnskap
+2397	og klik	and click	og klikk
+2398	Skift navn	Change name	Endre navn
 2399
 2400
 2401
