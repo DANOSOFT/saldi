@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-03-19 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-03-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -191,6 +191,7 @@
 // 20241222 LOE Added $_GET methods for some variables to query OPSLAG implementation directly+20241223 added formdata query to vareopslag function
 // 20241228 LOE Added a way to check if pricelist url is either GET method or from pricelist file.
 // 20241229 LOE Option to select between external and internal pricelist added, and isset($_GET['varenr']) is included to enable this
+// 20250213 PHR Vat rate defined by department(afd)
 // 20250228 LOE Casting of some variables to explicit int instead of using '*1'
 @session_start();
 $s_id=session_id();
@@ -1467,24 +1468,22 @@ if ($status<3 && $b_submit) {
     $r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$brugervalg=$r['box1']; # 20170419
 		if ($brugervalg) $ref='';
-    $qtext="
-INSERT INTO ordrer (
-    ordrenr, konto_id, kontonr, kundeordnr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, 
-    lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, lev_land, lev_email, betalingsdage, betalingsbet, 
-    cvrnr, ean, institution, email, mail_fakt, phone, notes, art, ordredate, momssats, status, ref, 
-    lev_adr, valuta, projekt, sprog, pbs, afd, restordre, felt_1, felt_2, felt_3, felt_4, felt_5, 
-    vis_lev_addr
-) 
-VALUES (
-    $ordrenr, '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', 
-    '$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', 
-    '$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', '$cvrnr', '$ean', '$institution', 
-    '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', '$momssats', $status, '$ref', 
-    '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', '0', '$felt_1', 
-    '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr'
-)
-";#20131017 
-		db_modify($qtext,__FILE__ . " linje " . __LINE__);
+		$afd = (int)$afd;
+		$qtxt = "INSERT INTO ordrer (";
+		$qtxt.= "ordrenr, konto_id, kontonr, kundeordnr, firmanavn, addr1, addr2, postnr, ";
+			$qtxt.= "bynavn, land, kontakt, lev_navn, lev_addr1, lev_addr2, lev_postnr, ";
+			$qtxt.= "lev_bynavn, lev_kontakt, lev_land, lev_email, betalingsdage, betalingsbet, ";
+		$qtxt.= "cvrnr, ean, institution, email, mail_fakt, phone, notes, art, ordredate,";
+			$qtxt.= " momssats, status, ref, lev_adr, valuta, projekt, sprog, pbs, afd, restordre, " ;
+			$qtxt.= "felt_1, felt_2, felt_3, felt_4, felt_5, vis_lev_addr";
+			$qtxt.= ") VALUES (";
+		$qtxt.= "'$ordrenr', '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', ";
+		$qtxt.= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
+		$qtxt.= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
+			$qtxt.= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
+			$qtxt.= "'$momssats', $status, '$ref', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
+			$qtxt.= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 
 		# Porto vare system
 		## Create a new order line on creation from the specified sku
