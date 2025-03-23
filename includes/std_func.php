@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-03-21 ---
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-03-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -113,7 +113,10 @@
 // 20240815 PHR function findtekst moved to stdFunc/findTxt.php
 // 20240925 PBLM we now send price to the api aswell
 // 20250113 PHR function find_lagervaerdi - fiscal_year
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250321 LOE Updated with various changes and new additions from multiple updates including comments
+// 20250323 LOE Checks if input is set, ensures it doesn't exceed 80 characters, and sanitizes it to prevent XSS attacks.
+
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
@@ -2504,6 +2507,41 @@ if(!function_exists('get_settings_value')){
 		} else {
 			return $default;
 		}
+	}
+}
+
+if(!function_exists('check_and_sanitize_input')){
+	function check_and_sanitize_input($input_name, $message, $nonce) {
+
+		/**
+		 * Checks the input length and sanitizes it.
+		 *
+		 * - If the input exceeds 80 characters, it sanitizes the message and shows an alert.
+		 * - If the input is valid, it returns the sanitized input.
+		 * - If the input is not found, it returns null.
+		 *
+		 * @param $input_name - The name of the input field to check.
+		 * @param $message - The message to display in case of invalid input.
+		 * @param $nonce - The nonce value to use in the scripts for security.
+		 *
+		 * @return string|null - The sanitized input if valid, or null if not found.
+		 */
+
+		if (isset($_POST[$input_name])) { 
+			if (strlen($_POST[$input_name]) > 80) { 
+				
+				$sanitized_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+				
+				echo "<script nonce='{$nonce}'>alert('$sanitized_message');</script>";
+			
+				echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
+				exit; 
+			}
+			
+			return htmlspecialchars($_POST[$input_name], ENT_QUOTES, 'UTF-8');
+		}
+		
+		return null;
 	}
 }
 
