@@ -39,7 +39,8 @@
 // 20240424 PHR Some issues regarding staggered financial years
 // 20241018 LOE Ensured some variables are set first like: $_POST['submit'] and $konto_beskrivelse etc.
 // 20241120 PHR	Rermoved  "target='	'" from <form ...
-// 20250324 LOE Updated konto_til value
+// 20250324 LOE Updated konto_til value and finans_forside.js created
+
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -489,6 +490,10 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		}
 	#for ($x=1; $x<=$antal_konti; $x++)  print "<option value='konto_til'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
 	print "</td></tr>\n";
+	#####################################################################
+	// JavaScript for validation
+	print '<script src="../javascript/finans_forside.js"></script>';
+	###################################################################
 	print "<input type=hidden name=regnaar value=$regnaar>\n";
 	if ($menu == 'T') {
 		print "<tr><td colspan=3 align=center><input class='button green medium' type=submit value=' OK ' name='submit'> &nbsp;•&nbsp; <span title='Vilk&aring;rlig s&oslash;gning i transaktioner'><input class='button orange medium' type=submit value=" . findtekst(905, $sprog_id) . " name='kontrolspor'></span></td></tr>\n";
@@ -527,6 +532,9 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	print "</tbody></table>\n"; #C slut
 	print "</td></tr>";
 	print "</tbody></table>\n"; #C slut
+
+
+
 
 	if ($menu == 'T') {
 		include_once '../includes/topmenu/footer.php';

@@ -212,12 +212,22 @@ if ($_POST) {
 		$projekt_fra = NULL;
 		$projekt_til = NULL;
 	}
+	
+	/**#+
+	 * Processes 'konto_fra', 'konto_til', and 'regnaar' from the POST data.
+	 * For each, if the value contains a delimiter (":" or " - "), it splits into two parts:
+	 *  - The first part is assigned to the respective variable.
+	 *  - The second part is assigned to `$beskrivelse`.
+	 */
 	$konto_fra = if_isset($_POST['konto_fra']);
-	if ($konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra);
+	if ($konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra) + [1 => null];
+
 	$konto_til = if_isset($_POST['konto_til']);
-	if ($konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til);
+	if ($konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til) + [1 => null];
+
 	$regnaar = if_isset($_POST['regnaar']);
-	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar);
+	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar) + [1 => null];
+	#+
 }
 
 if (isset($_GET['rapportart']))  $rapportart = $_GET['rapportart'];
