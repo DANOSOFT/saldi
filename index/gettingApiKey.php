@@ -1,4 +1,7 @@
 <?php
+$tenantId =null;
+$key = null;
+$apiKey=null;
 $query = db_select("SELECT var_value, var_name FROM settings WHERE var_grp = 'peppol'", __FILE__ . " linje " . __LINE__);
     while($res = db_fetch_array($query)){
         if($res["var_value"] !== ""){

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 4.1.1 --- 2025.02.05 ---
+// --- finans/bankimport.php --- patch 4.1.1 --- 2025.03.22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 
 // 20121110 Indsat mulighed for valutavalg ved import - søg: valuta
@@ -62,7 +62,7 @@
 // 20230822 MSC - Copy pasted new design into code
 // 20231030	PHR Added 'Saldo'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20250205 PHR Added "betalt = '0' or "
+// 20250205 PHR Added "betalt = '0' or " and better recognition of FIK string
 
 ini_set("auto_detect_line_endings", true);
 

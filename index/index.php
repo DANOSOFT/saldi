@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----patch 4.1.0 ----2025-03-14--------------
+// --- index/index.php -----patch 4.1.1 ----2025-03-23--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -69,7 +69,7 @@ include("../includes/db_query.php");
 #include("../includes/online.php"); #20210929
 include("../includes/std_func.php");
 $hm=$rs=$bn=null; #20211007
-
+$huskmig = null;
 print "
 <script>
 	if(window.self !== window.top) {
@@ -80,6 +80,14 @@ print "
 
 
 
+
+	$regnskab = check_and_sanitize_input('regnskab', 'Input for regnskab is too long.', $nonce);
+	$brugernavn = check_and_sanitize_input('brugernavn', 'Input for brugernavn is too long.', $nonce);
+	$lang = check_and_sanitize_input('languageId', 'Input for languageId is too long.', $nonce);
+	$vent = check_and_sanitize_input('vent', 'Input for vent is too long.', $nonce);
+	$password = check_and_sanitize_input('password', 'Input for password is too long.', $nonce);
+	$fejltxt = check_and_sanitize_input('fejltxt', 'Input for fejltxt is too long.', $nonce);
+
 if(isset($_POST['languageId'])){
 	$languageId = $_POST['languageId'];
 } elseif(isset($_COOKIE['languageId'])){
@@ -89,36 +97,10 @@ if ($languageId) setcookie('languageId',$languageId, time() + (10 * 365 * 24 * 6
 
  if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
 
-if (!isset($_POST['fejltxt']) && isset($_POST['regnskab']) && isset($_POST['brugernavn']) && isset($_POST['password']) && isset($_POST['languageId'])) {
-	// if ( isset ($_POST['regnskab'])  )   $regnskab    = $_POST['regnskab'] ;#20211007
-	// if ( isset($_POST['brugernavn']) )   $brugernavn  = $_POST['brugernavn'];
-	// if (isset($_POST['languageId'])	 )	 $lang 		  = $_POST['languageId']; #20220330
+
+
+if (!isset($fejltxt) && isset($regnskab) && isset($brugernavn) && isset($password) && isset($_POST['languageId'])) {
 	
-	
-	// Function to check the length and sanitize the input
-		function check_and_sanitize_input($input_name, $message, $nonce) {
-			if (isset($_POST[$input_name])) {
-				if (strlen($_POST[$input_name]) > 80) {
-					// Sanitize the message by encoding any special characters
-					$sanitized_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
-					echo "<script nonce='{$nonce}'>alert('$sanitized_message');</script>";
-					echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
-					exit;
-				}
-				return htmlspecialchars($_POST[$input_name], ENT_QUOTES, 'UTF-8');
-			}
-			return null;
-		}
-
-		// Use the function for each input
-		$regnskab = check_and_sanitize_input('regnskab', 'Input for regnskab is too long.', $nonce);
-		$brugernavn = check_and_sanitize_input('brugernavn', 'Input for brugernavn is too long.', $nonce);
-		$lang = check_and_sanitize_input('languageId', 'Input for languageId is too long.', $nonce);
-		$vent = check_and_sanitize_input('vent', 'Input for vent is too long.', $nonce);
-
-			
-		
-
 	if (file_exists("redirect.php")) include ("redirect.php"); 
 	else $action="login.php";
 	if(isset($_POST['huskmig'])){ #20211007
@@ -130,9 +112,12 @@ elseif ($rs == $regnskab && $bn == $brugernavn) {
 		setcookie ('saldi_huskmig', $cookievalue, time() - 3600);
 	}
 	print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$action\" onSubmit=\"return handleLogin(this);\">\n";
-	print "<input type=\"hidden\" name=\"regnskab\" value=\"$_POST[regnskab]\">\n";
-	print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
-	print "<input type=\"hidden\" name=\"password\"  value=\"$_POST[password]\">\n";
+	// print "<input type=\"hidden\" name=\"regnskab\" value=\"$_POST[regnskab]\">\n";
+	// print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
+	// print "<input type=\"hidden\" name=\"password\"  value=\"$_POST[password]\">\n";
+	print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
+	print "<input type=\"hidden\" name=\"brugernavn\" value=\"$brugernavn\">\n";
+	print "<input type=\"hidden\" name=\"password\"  value=\"$password\">\n";
 	if(isset($_COOKIE['languageId'])){
 	print "<input type=\"hidden\" name=\"languageId\"  value=\"$_COOKIE[languageId]\">\n"; #20220330
 	}
@@ -141,7 +126,7 @@ elseif ($rs == $regnskab && $bn == $brugernavn) {
 	// print "<body onload=\"document.login.submit()\">";
 	print "<body>";
 	print "<script nonce=\"$nonce\">\n";
-		print "window.onload = function() {\n";
+		print "window.onload = function() {\n"; 
 		print "    document.login.submit();\n";
 		print "};\n";
 	print "</script>\n";
@@ -153,11 +138,15 @@ elseif ($rs == $regnskab && $bn == $brugernavn) {
 if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
 if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
 if (isset ($_GET['tlf'])) $kode = stripslashes($_GET['tlf']);
-$fejltxt = if_isset($_POST['fejltxt']);
-$vent = if_isset($_POST['vent']);
+// $fejltxt = if_isset($_POST['fejltxt']);
+// $vent = if_isset($_POST['vent']);
+$fejltxt = check_and_sanitize_input('fejltxt', 'Input for fejltxt is too long.', $nonce);
+$vent = check_and_sanitize_input('vent', 'Input for vent is too long.', $nonce);
 if (!$regnskab && !$brugernavn) {
-	if (isset($_POST['regnskab'])) $regnskab = $_POST['regnskab'];
-	if (isset($_POST['brugernavn'])) $brugernavn = $_POST['brugernavn'];
+	// if (isset($_POST['regnskab'])) $regnskab = $_POST['regnskab'];
+	// if (isset($_POST['brugernavn'])) $brugernavn = $_POST['brugernavn'];
+	$regnskab = check_and_sanitize_input('regnskab', 'Input for regnskab is too long.', $nonce);
+	$brugernavn = check_and_sanitize_input('brugernavn', 'Input for brugernavn is too long.', $nonce);
 	if (isset($_COOKIE['saldi_huskmig'])) {
 		if ($hm) $huskmig="checked='checked'";
 		else $huskmig=''; 

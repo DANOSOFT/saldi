@@ -9,7 +9,6 @@
 		$tekst1 = findtekst(437, $sprog_id);
 		$tekst2 = findtekst(438, $sprog_id);
 		$tekst3 = findtekst(439, $sprog_id);
-		#			if (strpos($tekst3,'kundenr')) db_modify("update tekster set tekst = '' where tekst_id = 439",__FILE__ . " linje " . __LINE__);
 		$tekst4 = findtekst(440, $sprog_id);
 		$tekst5 = findtekst(451, $sprog_id);
 		$tekst6 = findtekst(452, $sprog_id);

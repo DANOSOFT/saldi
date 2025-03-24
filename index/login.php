@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.0 ----2025-03-14--------------
+// --- index/login.php -----patch 4.1.1 ----2025-03-23--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,7 +62,7 @@
 // 20240425 LOE - Made some modifications.
 // 20240502 LOE - Fixed some bugs concerning "PHP type juggling" and some variables checked for set or not
 // 20241202 LOE - Added session for retrieving globalId from other pages.
-// 20250314 LOE	- Sanitized some inputs to mitigate against XSS attack 
+// 20250314 LOE	- Sanitized some inputs to mitigate against XSS attack
 ob_start(); //Starter output buffering
 @session_start();
 session_unset();
@@ -90,6 +90,10 @@ list($timezone,$tmp) = explode("(",$timezone);
 $timezone = trim($timezone);
 if (!$timezone) $timezone = 'Europe/Copenhagen';
 date_default_timezone_set($timezone);
+
+$ansat_id=null;
+
+
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name = 'invoices'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -382,7 +386,7 @@ if (isset ($brug_timestamp)) {
 	if (!$userId) {
 		$qtxt = "select * from brugere where brugernavn='".db_escape_string($brugernavn)."'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		if ($r['tmp_kode']) {
+		if (isset($r['tmp_kode'])) {
 			list($tidspkt,$tmp_kode)=explode("|",$r['tmp_kode']);
 			if (date("U")<=$tidspkt) {
 				if ($tmp_kode==$password) {
@@ -702,7 +706,17 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 function login($regnskab,$brugernavn,$fejltxt) {
 
 	$timestamp = time(); //unix timestamp
+	
 	#if (isset($_POST['vent'])) $vent=$_POST['vent'];
+		// Define a function to sanitize input by removing special characters # 20250314
+	global	$charset;
+	
+	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset)) : null;
+	$brugernavn = isset($brugernavn) ? sanitize_input(htmlspecialchars($brugernavn, ENT_COMPAT, $charset)) : null;
+	$fejltxt = isset($fejltxt) ? sanitize_input(htmlspecialchars($fejltxt, ENT_COMPAT, 'UTF-8')) : null;
+
+
+
 	if (isset($_POST['vent'])) { #20250314
 		if (strlen($_POST['vent']) > 80) {
 			// Sanitize the message by encoding any special characters
@@ -718,12 +732,12 @@ function login($regnskab,$brugernavn,$fejltxt) {
 	sleep($vent);
 	$vent*=2;
 	if (!$vent) $vent=2;
-	print "<form NAME=\"login\" ACTION=\"index.php\" METHOD=\"POST\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"regnskab\" VALUE=\"$regnskab\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"brugernavn\" VALUE=\"$brugernavn\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"fejltxt\" VALUE=\"$fejltxt\">";
-	print "<INPUT TYPE=\"hidden\" NAME=\"timestamp\" VALUE=\"$timestamp\">\n";
-	print "<INPUT TYPE=\"hidden\" NAME=\"vent\" VALUE=\"$vent\">\n";
+	print "<form name=\"login\" action=\"index.php\" method=\"POST\">\n";
+	print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
+	print "<input type=\"hidden\" name=\"brugernavn\" value=\"$brugernavn\">\n";
+	print "<input type=\"hidden\" name=\"fejltxt\" value=\"$fejltxt\">\n";
+	print "<input type=\"hidden\" name=\"timestamp\" value=\"$timestamp\">\n";
+	print "<input type=\"hidden\" name=\"vent\" value=\"$vent\">\n";
 	print "</form>\n";
 #	exit;
 	print "<body onload=\"document.login.submit()\">\n";
@@ -734,20 +748,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 
 	include("../includes/std_func.php");
 
-		// Define a function to sanitize input by removing special characters # 20250314
-		function sanitize_input($input) {
-			// Trim the input to remove any leading/trailing whitespace
-			$input = trim($input);
-			
-			// Remove any special characters that might lead to SQL injection
-			$input = preg_replace('/[^\w\s\-]/', '', $input);
-			
-			if (strlen($input) > 80) {
-				return false;
-			}
-			
-			return $input;
-		}
+		
 
 		// Sanitize
 		if (isset($_GET['navn'])) {
