@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2024-11-20 ---
+// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2025-03-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20190820 PHR Option 'medtag lagerbevægelser' removed if stock is locked in actual year.
@@ -39,6 +39,7 @@
 // 20240424 PHR Some issues regarding staggered financial years
 // 20241018 LOE Ensured some variables are set first like: $_POST['submit'] and $konto_beskrivelse etc.
 // 20241120 PHR	Rermoved  "target='	'" from <form ...
+// 20250324 LOE Updated konto_til value
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -123,7 +124,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		if ($kontoType[$x] == 'S' && $minBalace > $kontonr[$x]) $minBalace = $kontonr[$x];
 		if ($kontoType[$x] == 'X') $sideskift = $kontonr[$x];
 		if (!$konto_fra) $konto_fra = $kontonr[0];
-		$konto_til = $kontonr[$x];
+		if (!$konto_til) $konto_til = $kontonr[0];
 		if ($kontonr[$x] == $konto_fra) {
 			$ktoNameFrom = $konto_beskrivelse[$x];
 		}
