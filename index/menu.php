@@ -51,7 +51,6 @@ if(!isset($regnskab)){
 }
 $modulnr=0;
 include("../includes/connect.php");
-include("gettingApiKey.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 if (isset($_GET['useMain']))	 {
