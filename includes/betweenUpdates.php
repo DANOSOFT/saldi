@@ -389,4 +389,15 @@ CREATE TABLE IF NOT EXISTS tutorials (
 	selector TEXT
 )
 ", __FILE__ . " line " . __LINE__);
+
+$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name='variant_varer' AND column_name='variant_type' AND data_type != 'character varying'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    // Column exists and is NOT character varying, so alter it
+    db_modify("ALTER TABLE variant_varer ALTER COLUMN variant_type TYPE VARCHAR(100)", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name='kds_records' ";
+$qtxt .= "and column_name='sort_timestamp'";
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE kds_records ADD column sort_timestamp integer default NULL", __FILE__ . " linje " . __LINE__);
+}
 ?>
