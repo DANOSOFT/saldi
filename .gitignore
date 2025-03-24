@@ -49,3 +49,4 @@ __pycache__/
 
 # VS Code
 .vscode/
+.htaccess
