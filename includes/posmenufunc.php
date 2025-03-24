@@ -560,6 +560,27 @@ if (!function_exists('menubuttons')) {
 							$knap = str_replace("setcolor: ;", "color: $b_font;", $knap);
 							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
 							print "<td>" . $knap;
+						} elseif ($c == '48') {
+							# Get from KDS system
+							$qtxt = "select data from kds_records where bumped='f'";
+							$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+
+							$total_items = 0;
+							while ($r = db_fetch_array($q)){
+								$data = json_decode($r["data"], true);
+								if ($data["køkken"] == $a) {
+									foreach ($data["varer"] as $key => $value) {
+										$total_items += $value["antal"];
+									}
+								}
+
+							}
+
+							$tmp = str_replace("background-color: ;", "background-color: $b;", $stil);
+							$knap = "<input type=\"button\" disabled=disabled $tmp value=\"$a: $total_items\">\n";
+							$knap = str_replace("setcolor: ;", "color: $b_font;", $knap);
+							$knap = str_replace("background-color: ;", "background-color: $b;", $knap);
+							print "<td>" . $knap;
 						} else {
 							$knap = str_replace('$kasse', $kasse, $knap);
 							$knap = str_replace('$brugernavn', $brugernavn, $knap);
