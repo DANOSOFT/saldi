@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-03-23--------------
+// --- index/login.php -----patch 4.1.1 ----2025-03-25--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -654,6 +654,17 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 
 	if (!$dbuser) $dbuser = $squser;
 	if (!$dbpass) $dbpass = $sqpass;
+	if (isset($_POST['vent'])) { #20250325
+		if (strlen($_POST['vent']) > 80) {
+			// Sanitize the message by encoding any special characters
+			$message = htmlspecialchars("Input for vent is too long.", ENT_QUOTES, 'UTF-8');
+			echo "<script nonce='{$nonce}'>alert('$message');</script>";
+		
+			echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
+        	exit;
+		}
+		$vent = htmlspecialchars($_POST['vent'], ENT_QUOTES, 'UTF-8'); 
+	}
 
 	if ($db_type=='mysql') {
 	if (!mysql_select_db("$db")) die( "Unable to connect to MySQL"); #20170911
