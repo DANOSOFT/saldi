@@ -63,6 +63,8 @@
 // 20240502 LOE - Fixed some bugs concerning "PHP type juggling" and some variables checked for set or not
 // 20241202 LOE - Added session for retrieving globalId from other pages.
 // 20250314 LOE	- Sanitized some inputs to mitigate against XSS attack
+// 20250325 LOE - Fixed 'ansat_id'  "Undefined array key" notice and checks that other variables are set before use if $userId exists
+
 ob_start(); //Starter output buffering
 @session_start();
 session_unset();
@@ -374,7 +376,7 @@ if (isset ($brug_timestamp)) {
 		$userId      = $r['id'];
 		$rettigheder = trim($r['rettigheder']);
 		$regnskabsaar = $r['regnskabsaar'];
-		($db != $sqdb)?$ansat_id=$r['ansat_id']*1:$ansat_id=NULL;
+		$ansat_id = isset($r['ansat_id']) ? ($db != $sqdb ? $r['ansat_id'] * 1 : NULL) : NULL; #20250325	
 	}
 	if ($ansat_id && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
@@ -407,15 +409,25 @@ if (!$dbMail && $db && $db != $sqdb) {
 # Check whether the user exsists
 if ($userId) {
 	$db_skriv_id=NULL;
-	if ($db_type=='mysql') {
-		if (!mysql_select_db("$sqdb")) die( "Unable to connect to MySQL");
-	} elseif ($db_type=='mysqli') {
-		if (!mysqli_select_db($connection,$sqdb)) die( "Unable to connect to MySQLi");
-	} else {
-		$connection = db_connect ("'$sqhost'", "'$dbuser'", "'$sqpass'", "'$sqdb'", __FILE__ . " linje " . __LINE__);
-		if (!$connection) die( "Unable to connect to PostgreSQL");
-	}
-	include("../includes/connect.php"); #20111105
+		if (!isset($sqhost) || !isset($dbuser) || !isset($sqpass) || !isset($sqdb)) {
+			$message = "Please check your credentials."; 
+			// Safely encode the message using json_encode to prevent XSS
+			echo "<script type='text/javascript'>
+				alert(" . json_encode($message) . ");
+					window.location.href = 'index.php';
+				</script>";
+    
+			exit;
+		}
+		if ($db_type=='mysql') {
+			if (!mysql_select_db("$sqdb")) die( "Unable to connect to MySQL");
+		} elseif ($db_type=='mysqli') {
+			if (!mysqli_select_db($connection,$sqdb)) die( "Unable to connect to MySQLi");
+		} else {
+			$connection = db_connect ("'$sqhost'", "'$dbuser'", "'$sqpass'", "'$sqdb'", __FILE__ . " linje " . __LINE__);
+			if (!$connection) die( "Unable to connect to PostgreSQL");
+		}	
+		include("../includes/connect.php"); #20111105
 
 	# Get 2fa keys for SMS
 	$qtxt = "SELECT var_value FROM settings WHERE var_name='nexmo_api_key' AND var_grp='2fa'";
@@ -717,9 +729,6 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 function login($regnskab,$brugernavn,$fejltxt) {
 
 	$timestamp = time(); //unix timestamp
-	
-	#if (isset($_POST['vent'])) $vent=$_POST['vent'];
-		// Define a function to sanitize input by removing special characters # 20250314
 	global	$charset;
 	
 	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset)) : null;
