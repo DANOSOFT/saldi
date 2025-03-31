@@ -6,9 +6,10 @@
         
         if (kontoFra !== '' && kontoTil !== '') {
             // If konto_fra is greater than  konto_til, show an alert
-            if (parseFloat(kontoFra) > parseFloat(kontoTil)) {
+            if (parseFloat(kontoFra) >= parseFloat(kontoTil)) {
                 alert('Konto (fra) cannot be greater than  Konto (til).');
                 document.getElementsByName('konto_fra')[0].value = ''; // Reset konto_fra selection
+                location.reload();
             }
         }
     }
@@ -20,9 +21,10 @@
         
         if (kontoFra !== '' && kontoTil !== '') {
             // If konto_til is less than  konto_fra, show an alert
-            if (parseFloat(kontoTil) < parseFloat(kontoFra)) {
+            if (parseFloat(kontoTil) <= parseFloat(kontoFra)) {
                 alert('Konto (til) cannot be less than  Konto (fra).');
                 document.getElementsByName('konto_til')[0].value = ''; // Reset konto_til selection
+                location.reload();
             }
         }
     }
