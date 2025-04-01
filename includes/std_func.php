@@ -347,7 +347,7 @@ if (!function_exists('usdate')) {
 		return $date;
 	}
 }
-if (!function_exists('findtekst')) include_once('../includes/stdFunc/findTxt.php');
+if (!function_exists('findtekst')) include_once(__DIR__.'/stdFunc/findTxt.php');
 
 if (!function_exists('javascript')) {
 	function javascript()
