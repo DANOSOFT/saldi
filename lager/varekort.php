@@ -1489,7 +1489,60 @@ for ($x = 1; $x <= $vare_sprogantal; $x++) {
 }
 
 ($noEdit) ? $href = NULL : $href = "ret_varenr.php?id=$id";
-print "<tr><td colspan=\"3\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b></td></tr>\n";
+
+if (substr($rettigheder,7,1) && $id) {
+    print "<tr><td colspan=\"1\"></td>\n";
+    print "<td colspan=\"1\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b></td>\n";
+
+    $query = db_select("select * from vare_lev where vare_id='$id'", __FILE__ . " linje " . __LINE__);
+    if (db_fetch_array($query)) {
+        print "<td colspan=\"1\" align=\"right\">
+        <input type='text' id='bestil-antal' placeholder='1,00' size=6 style='text-align: right'></input>
+        <button type='button' onclick=\"bestil('$id', document.getElementById('bestil-antal').value)\">Bestil</button>
+        </td>\n";
+
+        print '<script>
+        function bestil(varenr, antal) {
+            if (antal === "") {antal = 1;}
+            console.log(varenr, antal);
+            // Create form data for the POST request
+            const formData = new FormData();
+            formData.append("vare_id", varenr);
+            formData.append("antal", antal);
+        
+            // Send the fetch request with proper configuration
+            fetch("orderapi.php", {
+                method: "POST",
+                body: formData,
+                credentials: "include"  // Ensure cookies are sent with the request
+            })
+            .then(response => {
+                if (response.status === 200) {
+                    alert("Ordren blev gennemført!");
+                    console.log("Order successful:", response);
+                    window.location.reload()
+                } else {
+                    throw new Error("Server returned status: " + response.status);
+                }
+            })
+            .catch(error => {
+                alert("Fejl: " + error.message);
+                console.error("Order error:", error);
+            });
+        }
+        </script>';
+        
+    } else {
+        print "<td colspan=\"1\" align=\"right\">
+        <input type='text' disabled title='Bestilling ikke muligt, ingen leverandør fundet' placeholder='Bestilling ikke muligt, ingen leverandør fundet' size=10 style='text-align: right'></input>
+        <button type='button' disabled>Bestil</button>
+        </td>\n";
+    }
+} else {
+    print "<tr><td colspan=\"3\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b></td>\n";
+}
+
+print "</tr>";
 if (!$varenr) {
     ($db == 'saldi_735') ? $pattern = '[a-zA-Z0-9+._ -]+' : $pattern = '[a-zA-Z0-9+._-]+';
     $fokus = "varenr";
@@ -2123,6 +2176,8 @@ if (!$fokus)
 print "<script language=\"javascript\">
 document.varekort.$fokus.focus();
 </script>";
+
+
 ?>
 <script>
     const bool = "<?php echo $confirmDescriptionChange; ?>";
