@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2025-03-24 ---
+// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2025-03-31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,15 +125,18 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		if ($kontoType[$x] == 'S' && $minBalace > $kontonr[$x]) $minBalace = $kontonr[$x];
 		if ($kontoType[$x] == 'X') $sideskift = $kontonr[$x];
 		if (!$konto_fra) $konto_fra = $kontonr[0];
-		if (!$konto_til) $konto_til = $kontonr[0];
+		if (!$konto_til) $konto_til = $kontonr[1];
+
 		if ($kontonr[$x] == $konto_fra) {
 			$ktoNameFrom = $konto_beskrivelse[$x];
 		}
+		
 		if ($kontonr[$x] == $konto_til) {
 			$ktoNameTo = $konto_beskrivelse[$x];
 		}
 		$x++;
 	}
+	
 	$antal_konti = $x;
 	if (!$maaned_fra) {
 #		$maaned_fra = $md[$start_md[$aktiv]];
@@ -191,7 +194,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		$antal_ansatte = $x;
 	} else
 		$antal_ansatte = 0;
-
+		
 	include ("../includes/topline_settings.php");
 
 	if ($menu == 'T') {
@@ -457,6 +460,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 #	if (($start_md[$aktiv]>1)&&($slut_md[$aktiv]<12)) {
 #		for ($x=1; $x<=$slut_md[$aktiv]; $x++) print "<option>$slut_aar[$aktiv] $md[$x]</option>\n";
 #	}
+	
 	$kontrospor1 = explode(' ', findtekst(905, $sprog_id)); #20210722
 	print "</select> ";
 	if (!$dato_til)
@@ -491,8 +495,9 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	#for ($x=1; $x<=$antal_konti; $x++)  print "<option value='konto_til'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
 	print "</td></tr>\n";
 	#####################################################################
-	// JavaScript for validation
-	print '<script src="../javascript/finans_forside.js"></script>';
+	// JavaScript for validation [0],$konto_til[1]
+	
+	print '<script src="../javascript/finans_forside.js?v=1"></script>';
 	###################################################################
 	print "<input type=hidden name=regnaar value=$regnaar>\n";
 	if ($menu == 'T') {

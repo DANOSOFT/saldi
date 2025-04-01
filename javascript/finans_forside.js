@@ -5,10 +5,11 @@
         var kontoTil = document.getElementsByName('konto_til')[0].value;
         
         if (kontoFra !== '' && kontoTil !== '') {
-            // If konto_fra is greater than or equal to konto_til, show an alert
-            if (parseFloat(kontoFra) > parseFloat(kontoTil)) {
-                alert('Konto (fra) cannot be greater than or equal to Konto (til).');
+            // If konto_fra is greater than  konto_til, show an alert
+            if (parseFloat(kontoFra) >= parseFloat(kontoTil)) {
+                alert('Konto (fra) cannot be greater than  Konto (til).');
                 document.getElementsByName('konto_fra')[0].value = ''; // Reset konto_fra selection
+                location.reload();
             }
         }
     }
@@ -19,10 +20,11 @@
         var kontoTil = document.getElementsByName('konto_til')[0].value;
         
         if (kontoFra !== '' && kontoTil !== '') {
-            // If konto_til is less than or equal to konto_fra, show an alert
-            if (parseFloat(kontoTil) < parseFloat(kontoFra)) {
-                alert('Konto (til) cannot be less than or equal to Konto (fra).');
+            // If konto_til is less than  konto_fra, show an alert
+            if (parseFloat(kontoTil) <= parseFloat(kontoFra)) {
+                alert('Konto (til) cannot be less than  Konto (fra).');
                 document.getElementsByName('konto_til')[0].value = ''; // Reset konto_til selection
+                location.reload();
             }
         }
     }
