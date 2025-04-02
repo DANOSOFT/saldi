@@ -4651,9 +4651,9 @@ $kundeordre = findtekst(1092,$sprog_id);
 						if (!$betalt1 && $vis_betalingslink) $disabled='disabled';
 					} 
 					// Made for Havemøbelshoppen
-					if($ref == "Magento"){
+					if($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop"){
 						$disabled='';
-					} 
+					}
 					$txt = findtekst('3073|Fakturér',$sprog_id); 
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
 				} else {
