@@ -199,7 +199,7 @@ $s_id=session_id();
 $antal=$beskrivelse=$enhed=$lagernr=$ordreliste=$pris=$reserveret=$varenr=array();
 $afd_lager=$antal[0]=$art=NULL;
 $brugernavn=NULL;
-$default_procenttillag=NULL;
+$default_procenttillag=$digital=NULL;
 $fakturadate=$fakturadato=$felt_1=$felt_2=$felt_3=$felt_4=$felt_5=$firmanavn=$fglv=NULL;
 $genfakt=$gl_id=$gruppe=NULL;
 $konto_id=$kontonr=$kred_ord_id=$krediteret=$kundeordnr=0;
@@ -798,7 +798,6 @@ if (isset($_POST['newAccountNo']) && $newAccountNo = $_POST['newAccountNo']) {
 #    }
 	}
 }
-
 if ($b_submit) {
 	$fokus=if_isset($_POST['fokus']);
 	if (strstr($b_submit,"Del ordre")) $b_submit="del_ordre";
@@ -1282,7 +1281,7 @@ if ($b_submit) {
 	}
 }
 if ($status<3 && $b_submit) {
-	$rabatsats=0;
+		$rabatsats=0;
 	if(isset($kontonr)){
 		$qtxt = "select gruppe from adresser,grupper where kontonr='$kontonr' ";
 		$qtxt.= "and adresser.art='D'";
@@ -2323,6 +2322,10 @@ if ($swap_account) {
 			if($art=="DO") $oioubl='faktura';
 			else $oioubl='kreditnota';
 		} else $oioubl=NULL;
+		if($udskriv_til=="Digitalt") {
+			if($art=="DO") $digital='faktura';
+			else $digital='kreditnota';
+		} else $digital=NULL;
 		if ($hurtigfakt=='on') {
 			#20150424
 			$alert = findtekst(1846, $sprog_id);
@@ -2348,7 +2351,7 @@ if ($swap_account) {
 			$query = db_select("select * from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__);
 			if (!$row = db_fetch_array($query)) Print "Du kan ikke fakturere uden ordrelinjer";
 			else {
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=bogfor.php?id=$id&mail_fakt=$mail_fakt&pbs=$pbs&oioxml=$oioxml&oioubl=$oioubl\">\n";
+					print "<meta http-equiv=\"refresh\" content=\"0;URL=bogfor.php?id=$id&mail_fakt=$mail_fakt&pbs=$pbs&digital=$digital&oioubl=$oioubl\">\n";
 			}	
 		}
 	}
