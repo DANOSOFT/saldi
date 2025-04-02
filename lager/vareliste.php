@@ -32,7 +32,7 @@ include("../includes/dkdecimal.php");
 
 $vis_lev=$_GET['vis_lev'];
 $sort = $_GET['sort'];
-if (!$sort) {$sort = varenr;}
+if (!$sort) {$sort = "varenr";}
 
 
 
