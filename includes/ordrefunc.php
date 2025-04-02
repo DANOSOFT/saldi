@@ -5703,6 +5703,7 @@ function opret_ordre($sag_id, $konto_id)
 {
 	global $bruger_id, $brugernavn;
 	global $db, $db_skriv_id, $default_procenttillag;
+	global $sprog_id;
 	global $regnaar;
 
 	$sag_id = if_isset($_GET['sag_id']);
@@ -5897,6 +5898,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 { #20140730
 	global $brugernavn;
 	global $db, $db_skriv_id, $default_procenttillag;
+	global $sprog_id;
 	global $regnaar;
 
 	$konto_id = $_GET['konto_id'];
@@ -6388,7 +6390,7 @@ if (!function_exists('find_nextfakt')) {
 	function find_nextfakt($fakturadate, $nextfakt)
 	{
 		// Denne funktion finder diff mellem fakturadate & nextfakt, tillaegger diff til nextfakt og returnerer denne vaerdi. Hvis baade
-// fakturadate og netffaxt er sidste dag i de respektive maaneder vaelges ogsaa sidste dag i maaned i returvaerdien.
+		// fakturadate og netffaxt er sidste dag i de respektive maaneder vaelges ogsaa sidste dag i maaned i returvaerdien.
 		list($faktaar, $faktmd, $faktdag) = explode("-", $fakturadate);
 		list($nextfaktaar, $nextfaktmd, $nextfaktdag) = explode("-", $nextfakt);
 		if (!checkdate($faktmd, $faktdag, $faktaar)) {
