@@ -682,7 +682,7 @@ if (!function_exists('tastatur')) {
 		global $kontonr;
 		global $modtaget, $modtaget2;
 		global $popup;
-		global $regnskab, $returside;
+		global $regnaar, $regnskab, $returside;
 		global $sum;
 		global $terminal_ip;
 		global $vare_id, $vare_id_ny, $varelinjer, $varenr_ny, $vis_saet;
@@ -694,7 +694,8 @@ if (!function_exists('tastatur')) {
 		if (!$id)
 			$id = 0; #20210824
 
-		$r = db_fetch_array(db_select("select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2'", __FILE__ . " linje " . __LINE__));
+		$qtxt = "select box2,box3,box4,box7,box10 from grupper where art = 'POS' and kodenr='2' and fiscal_year='$regnaar'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$x = $kasse - 1;
 		$optalassist = $r['box2'];
 		$tmp = explode(chr(9), $r['box3']);
