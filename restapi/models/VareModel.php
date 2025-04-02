@@ -51,8 +51,8 @@ class VareModel
             $this->salgspris = (float)$r['salgspris'];
             $this->kostpris = (float)$r['kostpris'];
 
-            $this->lager = LagerModel::getAllItems($vare_id = $this->id);
-            $this->gruppe = new VareGruppeModel($id = NULL, $kodenr = $r['gruppe']);
+            $this->lager = LagerModel::getAllItems($this->id);
+            $this->gruppe = new VareGruppeModel(NULL, $r['gruppe']);
 
             return true;
         }
