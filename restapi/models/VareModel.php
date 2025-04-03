@@ -99,7 +99,6 @@ class VareModel
                 grossweight = " . $this->size->getGrossWeight() . ",
                 netweightunit = '" . $this->size->getNetWeightUnit() . "',
                 grossweightunit = '" . $this->size->getGrossWeightUnit() . "',
-                specialtype = " . ($this->size->getSpecialType() ? "'" . $this->size->getSpecialType() . "'" : "NULL") . ",
                 modtime = NOW()
                 WHERE id = $this->id";
 
@@ -132,7 +131,6 @@ class VareModel
                 " . $this->size->getGrossWeight() . ",
                 '" . $this->size->getNetWeightUnit() . "',
                 '" . $this->size->getGrossWeightUnit() . "',
-                " . ($this->size->getSpecialType() ? "'" . $this->size->getSpecialType() . "'" : "NULL") . ",
                 NOW()
             )";
 
