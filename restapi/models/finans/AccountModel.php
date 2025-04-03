@@ -1,6 +1,6 @@
 <?php
 
-include_once "VatModel.php";
+include_once __DIR__."/VatModel.php";
 
 class AccountModel {
     // Private properties matching database columns

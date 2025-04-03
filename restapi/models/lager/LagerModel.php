@@ -1,5 +1,5 @@
 <?php
-include_once "LagerStatusModel.php";
+include_once __DIR__."/LagerStatusModel.php";
 
 class LagerModel
 {
