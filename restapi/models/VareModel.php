@@ -3,6 +3,7 @@
 include_once __DIR__ . "/VareGruppeModel.php";
 include_once __DIR__ . "/LagerModel.php";
 include_once __DIR__ . "/SizeModel.php";
+include_once __DIR__ . "/VareReadDTO.php";
 
 class VareModel
 {
@@ -70,7 +71,6 @@ class VareModel
                 'grossWeight' => isset($r['grossweight']) ? $r['grossweight'] : 0,
                 'netWeightUnit' => isset($r['netweightunit']) ? $r['netweightunit'] : 'kg',
                 'grossWeightUnit' => isset($r['grossweightunit']) ? $r['grossweightunit'] : 'kg',
-                'specialType' => isset($r['specialtype']) ? $r['specialtype'] : null,
                 'modTime' => isset($r['modtime']) ? $r['modtime'] : null
             ]);
 
@@ -158,30 +158,33 @@ class VareModel
     }
 
     /**
-     * Class method to get all items
+     * Class method to get all items in a lighter DTO format
      * 
      * @param string $orderBy Column to order by (default: varenr)
      * @param string $orderDirection Sort direction (default: ASC)
-     * @return VareModel[] Array of Vare objects
+     * @return VareReadDTO[] Array of VareReadDTO objects
      */
     public static function getAllItems($orderBy = 'varenr', $orderDirection = 'ASC')
     {
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = [
-            'id', 'varenr', 'stregkode', 'beskrivelse', 
-            'width', 'height', 'length', 'netweight', 'grossweight'
+            'id', 'varenr', 'stregkode', 'beskrivelse', 'salgspris', 'kostpris', 'modtime'
         ];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'varenr';
 
         // Validate order direction
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
 
-        $qtxt = "SELECT id FROM varer ORDER BY $orderBy $orderDirection";
+        // Only select needed columns for VareReadDTO
+        $qtxt = "SELECT id, varenr, stregkode, beskrivelse, salgspris, kostpris, modtime 
+                FROM varer 
+                ORDER BY $orderBy $orderDirection";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
         while ($r = db_fetch_array($q)) {
-            $items[] = new VareModel($r['id']);
+            // Create DTO directly from DB row instead of loading full VareModel
+            $items[] = new VareReadDTO($r);
         }
 
         return $items;
@@ -280,6 +283,10 @@ class VareModel
         $priceWithVat = $this->salgspris * (1 + ($vatRate / 100));
         
         return $priceWithVat;
+    }
+    public function getKostPris()
+    {
+        return $this->kostpris;
     }
     
     /**
