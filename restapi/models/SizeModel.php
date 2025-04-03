@@ -18,10 +18,6 @@ class SizeModel
     private $netWeightUnit;
     private $grossWeightUnit;
     
-    // Additional properties
-    private $specialType;
-    private $modTime;
-
     /**
      * Constructor
      * 
@@ -37,8 +33,6 @@ class SizeModel
         $this->grossWeight = 0;
         $this->netWeightUnit = 'kg';
         $this->grossWeightUnit = 'kg';
-        $this->specialType = null;
-        $this->modTime = null;
         
         // Override with provided data
         if (!empty($data)) {
@@ -61,8 +55,6 @@ class SizeModel
         if (isset($data['grossWeight'])) $this->grossWeight = (float)$data['grossWeight'];
         if (isset($data['netWeightUnit'])) $this->netWeightUnit = $data['netWeightUnit'];
         if (isset($data['grossWeightUnit'])) $this->grossWeightUnit = $data['grossWeightUnit'];
-        if (isset($data['specialType'])) $this->specialType = $data['specialType'];
-        if (isset($data['modTime'])) $this->modTime = $data['modTime'];
         
         return $this;
     }
@@ -90,8 +82,6 @@ class SizeModel
                     'unit' => $this->grossWeightUnit
                 ]
             ],
-            'specialType' => $this->specialType,
-            'modTime' => $this->modTime
         ];
     }
     
@@ -113,8 +103,6 @@ class SizeModel
     public function getGrossWeight() { return $this->grossWeight; }
     public function getNetWeightUnit() { return $this->netWeightUnit; }
     public function getGrossWeightUnit() { return $this->grossWeightUnit; }
-    public function getSpecialType() { return $this->specialType; }
-    public function getModTime() { return $this->modTime; }
     
     // Setters
     public function setWidth($width) { $this->width = (float)$width; return $this; }
@@ -124,6 +112,4 @@ class SizeModel
     public function setGrossWeight($weight) { $this->grossWeight = (float)$weight; return $this; }
     public function setNetWeightUnit($unit) { $this->netWeightUnit = $unit; return $this; }
     public function setGrossWeightUnit($unit) { $this->grossWeightUnit = $unit; return $this; }
-    public function setSpecialType($type) { $this->specialType = $type; return $this; }
-    public function setModTime($time) { $this->modTime = $time; return $this; }
 }
