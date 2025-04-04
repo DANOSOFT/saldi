@@ -193,6 +193,8 @@
 // 20241229 LOE Option to select between external and internal pricelist added, and isset($_GET['varenr']) is included to enable this
 // 20250213 PHR Vat rate defined by department(afd)
 // 20250228 LOE Casting of some variables to explicit int instead of using '*1'
+// 20250404 PHR Added call to updateOrderCost
+
 @session_start();
 $s_id=session_id();
 
@@ -2427,6 +2429,11 @@ if ($swap_account) {
 			}
 		}
 	}
+	if ($status < 3 && isset($_GET['updateOrderCost']) && $_GET['updateOrderCost']) {
+		include ('orderIncludes/updateOrderCost.php');
+		updateOrderCost('$id'):
+	}
+
 ###########################################################################
 ordreside($id,$regnskab);
 function ordreside($id,$regnskab) {
