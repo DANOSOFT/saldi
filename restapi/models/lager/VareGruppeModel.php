@@ -1,5 +1,5 @@
 <?php
-include_once __DIR__ . "/AccountModel.php";
+include_once __DIR__ . "/../finans/AccountModel.php";
 
 class VareGruppeModel
 {

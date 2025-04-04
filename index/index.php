@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----patch 4.1.1 ----2025-03-23--------------
+// --- index/index.php -----patch 4.1.1 ----2025-04-02--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,7 +35,8 @@
 // 20220618 PHR Changed 'language' and 'language_id' to 'languageId'
 // 20230726 LOE Minor modification
 // 20250313 LOE Sanitized some inputs to mitigate against XSS attack CWE-79
-// 20250413 Updated the  document.login.submit with $nonce variable to work witht the enforced CSP 
+// 20250314 LOE Updated the  document.login.submit with $nonce variable to work witht the enforced CSP 
+// 20250402 LOE Applied $nonce to javascript handling languageId form and other clean up
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {
@@ -45,7 +46,6 @@ if (!isset($_SESSION['nonce'])) {
 $nonce = $_SESSION['nonce']; 
 
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce';");
-
 
 $regnskab=''; $brugernavn=''; $kode=''; $languageId=''; 
 $css="../css/login.css?cssver=1";
@@ -70,20 +70,18 @@ include("../includes/db_query.php");
 include("../includes/std_func.php");
 $hm=$rs=$bn=null; #20211007
 $huskmig = null;
-print "
-<script>
-	if(window.self !== window.top) {
-		//run this code if in an iframe
-		parent.location.href = \"../index/index.php\";
-	} 
-</script>";
+print "<script nonce=\"$nonce\">\n";
+print "window.onload = function() {\n"; 
+print "    document.login.submit();\n";
+print "};\n";
+print "</script>\n";
 
 
 
 
 	$regnskab = check_and_sanitize_input('regnskab', 'Input for regnskab is too long.', $nonce);
 	$brugernavn = check_and_sanitize_input('brugernavn', 'Input for brugernavn is too long.', $nonce);
-	$lang = check_and_sanitize_input('languageId', 'Input for languageId is too long.', $nonce);
+	$languageId = check_and_sanitize_input('languageId', 'Input for languageId is too long.', $nonce);
 	$vent = check_and_sanitize_input('vent', 'Input for vent is too long.', $nonce);
 	$password = check_and_sanitize_input('password', 'Input for password is too long.', $nonce);
 	$fejltxt = check_and_sanitize_input('fejltxt', 'Input for fejltxt is too long.', $nonce);
@@ -157,9 +155,9 @@ if (!$regnskab && !$brugernavn) {
 
 if (isset($brug_timestamp)) {
  	?>
-	<script language="javascript" type="text/javascript" src="../javascript/md5.js"></script>
+	<script language="javascript" type="text/javascript" src="../javascript/md5.js" nonce="<?php echo $nonce; ?>"></script>
 
-	<script language="javascript" type="text/javascript">
+	<script language="javascript" type="text/javascript" nonce="<?php echo $nonce; ?>">
 		function handleLogin (loginForm) {
 			var inputTimestamp = loginForm.timestamp.value;
 			var inputPassword = loginForm.password.value;
@@ -182,14 +180,13 @@ print "<html>\n";
 print "<head>\n";
 print "<title>$title</title>\n";
 if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
-print "<!--[if lt IE 9]>
-		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
-		<![endif]-->\n";
+// print "<!--[if lt IE 9]>
+// 		<script src=\"http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js\"></script>
+// 		<![endif]-->\n"; // Deprecated and non existent
 print "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\"></head>\n";
 if (strpos($_SERVER['PHP_SELF'],"beta")) $host="!!! BETA !!!";
 elseif (!file_exists("../sager/sager.php")) $host="SALDI";
 if (file_exists("bg.php")) include ("bg.php");
-
 else $style=''; 
 print "<body>\n";
 print "	<div id=\"main\">\n";    				
@@ -202,7 +199,11 @@ print "				<div class='loginAction'>\n";
 print "					<h2>Login</h2>\n";    
 print "					<select id=\"languageId\" name=\"languageId\" onchange=\"this.form.submit();\" >\n";
 
-
+print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
+print "    document.getElementById('languageId').onchange = function() {\n";
+print "        this.form.submit();\n";
+print "    };\n";
+print "</script>\n";
 $fp = fopen("../importfiler/tekster.csv","r");
 if ($linje=trim(fgets($fp))) {
 $a = explode("\t",$linje);
@@ -262,11 +263,11 @@ print "	</div><!-- end of main -->\n";
 include ("../includes/version.php");
 
 if (!isset($_COOKIE['saldi_std'])) {
-	print "<script language=\"javascript\" type=\"text/javascript\">\n";
+	print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
 	print "document.login.regnskab.focus();\n";
 	print "</script>\n";
 } else {
-	print "<script language=\"javascript\" type=\"text/javascript\">\n";
+	print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
 	print "document.login.login.focus();\n";
 	print "</script>\n";
 }

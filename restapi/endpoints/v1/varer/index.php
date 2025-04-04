@@ -1,6 +1,6 @@
 <?php
 
-require_once '../../../models/VareModel.php';
+require_once '../../../models/lager/VareModel.php';
 require_once '../../../core/BaseEndpoint.php';
 
 class VareEndpoint extends BaseEndpoint

@@ -2,6 +2,8 @@
 
 include_once __DIR__ . "/VareGruppeModel.php";
 include_once __DIR__ . "/LagerModel.php";
+include_once __DIR__ . "/SizeModel.php";
+include_once __DIR__ . "/VareReadDTO.php";
 
 class VareModel
 {
@@ -16,6 +18,9 @@ class VareModel
     private $kostpris;
     private $lager;
     private $gruppe;
+    
+    // New size object property
+    private $size;
 
     /**
      * Constructor - can create an empty Vare or load an existing one by ID
@@ -24,6 +29,9 @@ class VareModel
      */
     public function __construct($id = null)
     {
+        // Initialize empty size object
+        $this->size = new SizeModel();
+        
         if ($id !== null) {
             $this->loadFromId($id);
         }
@@ -51,8 +59,20 @@ class VareModel
             $this->salgspris = (float)$r['salgspris'];
             $this->kostpris = (float)$r['kostpris'];
 
-            $this->lager = LagerModel::getAllItems($vare_id = $this->id);
-            $this->gruppe = new VareGruppeModel($id = NULL, $kodenr = $r['gruppe']);
+            $this->lager = LagerModel::getAllItems($this->id);
+            $this->gruppe = new VareGruppeModel(NULL, $r['gruppe']);
+            
+            // Load size data into SizeModel
+            $this->size = new SizeModel([
+                'width' => isset($r['width']) ? $r['width'] : 0,
+                'height' => isset($r['height']) ? $r['height'] : 0,
+                'length' => isset($r['length']) ? $r['length'] : 0,
+                'netWeight' => isset($r['netweight']) ? $r['netweight'] : 0,
+                'grossWeight' => isset($r['grossweight']) ? $r['grossweight'] : 0,
+                'netWeightUnit' => isset($r['netweightunit']) ? $r['netweightunit'] : 'kg',
+                'grossWeightUnit' => isset($r['grossweightunit']) ? $r['grossweightunit'] : 'kg',
+                'modTime' => isset($r['modtime']) ? $r['modtime'] : null
+            ]);
 
             return true;
         }
@@ -68,15 +88,51 @@ class VareModel
     public function save()
     {
         if ($this->id) {
-            // Update existing item
-            $qtxt = "UPDATE varer SET stregkode = '$this->stregkode', beskrivelse = '$this->beskrivelse' WHERE id = $this->id";
+            // Update existing item with all properties including size
+            $qtxt = "UPDATE varer SET 
+                stregkode = '$this->stregkode', 
+                beskrivelse = '$this->beskrivelse',
+                width = " . $this->size->getWidth() . ",
+                height = " . $this->size->getHeight() . ",
+                length = " . $this->size->getLength() . ",
+                netweight = " . $this->size->getNetWeight() . ",
+                grossweight = " . $this->size->getGrossWeight() . ",
+                netweightunit = '" . $this->size->getNetWeightUnit() . "',
+                grossweightunit = '" . $this->size->getGrossWeightUnit() . "',
+                modtime = NOW()
+                WHERE id = $this->id";
 
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
             return explode("\t", $q)[0] == "0";
         } else {
-            // Insert new item
-            $qtxt = "INSERT INTO varer (varenr, stregkode, beskrivelse) VALUES ('$this->varenr', '$this->stregkode', '$this->beskrivelse')";
+            // Insert new item with size data
+            $qtxt = "INSERT INTO varer (
+                varenr, 
+                stregkode, 
+                beskrivelse, 
+                width, 
+                height, 
+                length, 
+                netweight, 
+                grossweight, 
+                netweightunit, 
+                grossweightunit, 
+                specialtype, 
+                modtime
+            ) VALUES (
+                '$this->varenr', 
+                '$this->stregkode', 
+                '$this->beskrivelse',
+                " . $this->size->getWidth() . ",
+                " . $this->size->getHeight() . ",
+                " . $this->size->getLength() . ",
+                " . $this->size->getNetWeight() . ",
+                " . $this->size->getGrossWeight() . ",
+                '" . $this->size->getNetWeightUnit() . "',
+                '" . $this->size->getGrossWeightUnit() . "',
+                NOW()
+            )";
 
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -102,27 +158,33 @@ class VareModel
     }
 
     /**
-     * Class method to get all items
+     * Class method to get all items in a lighter DTO format
      * 
      * @param string $orderBy Column to order by (default: varenr)
      * @param string $orderDirection Sort direction (default: ASC)
-     * @return VareModel[] Array of Vare objects
+     * @return VareReadDTO[] Array of VareReadDTO objects
      */
     public static function getAllItems($orderBy = 'varenr', $orderDirection = 'ASC')
     {
         // Whitelist allowed order by columns to prevent SQL injection
-        $allowedOrderBy = ['id', 'varenr', 'stregkode', 'beskrivelse'];
+        $allowedOrderBy = [
+            'id', 'varenr', 'stregkode', 'beskrivelse', 'salgspris', 'kostpris', 'modtime'
+        ];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'varenr';
 
         // Validate order direction
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
 
-        $qtxt = "SELECT id FROM varer ORDER BY $orderBy $orderDirection";
+        // Only select needed columns for VareReadDTO
+        $qtxt = "SELECT id, varenr, stregkode, beskrivelse, salgspris, kostpris, modtime 
+                FROM varer 
+                ORDER BY $orderBy $orderDirection";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
         while ($r = db_fetch_array($q)) {
-            $items[] = new VareModel($r['id']);
+            // Create DTO directly from DB row instead of loading full VareModel
+            $items[] = new VareReadDTO($r);
         }
 
         return $items;
@@ -138,7 +200,10 @@ class VareModel
     public static function findBy($field, $value)
     {
         // Whitelist allowed search fields
-        $allowedFields = ['id', 'varenr', 'stregkode', 'beskrivelse'];
+        $allowedFields = [
+            'id', 'varenr', 'stregkode', 'beskrivelse',
+            'width', 'height', 'length', 'netweight', 'grossweight', 'specialtype'
+        ];
         if (!in_array($field, $allowedFields)) {
             return [];
         }
@@ -181,6 +246,7 @@ class VareModel
                 'moms' => $this->getPrisInklMoms() - $this->salgspris,
                 'kostpris' => $this->kostpris,
             ),
+            'size' => $this->size->toArray(),
             'lager' => $lagere,
             'gruppe' => $this->gruppe->toArray(),
         );
@@ -218,6 +284,20 @@ class VareModel
         
         return $priceWithVat;
     }
+    public function getKostPris()
+    {
+        return $this->kostpris;
+    }
+    
+    /**
+     * Get size object
+     * 
+     * @return SizeModel
+     */
+    public function getSize()
+    {
+        return $this->size;
+    }
 
     // Setter methods
     public function setVarenr($varenr)
@@ -231,5 +311,17 @@ class VareModel
     public function setBeskrivelse($beskrivelse)
     {
         $this->beskrivelse = $beskrivelse;
+    }
+    
+    /**
+     * Set size object
+     * 
+     * @param SizeModel $size
+     * @return VareModel
+     */
+    public function setSize(SizeModel $size)
+    {
+        $this->size = $size;
+        return $this;
     }
 }
