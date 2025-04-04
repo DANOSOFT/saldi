@@ -1,5 +1,9 @@
 <?php
 
+include_once __DIR__."/AdressModel.php";
+include_once __DIR__."/OrdreLinjeModel.php";
+include_once __DIR__."/OrdreReadDTO.php";
+
 /**
  * OrdreModel - Model for handling orders in the system
  */
@@ -32,7 +36,9 @@ class OrdreModel
     private $fakturanr;
     private $kostpris;
     private $moms;
-    
+    private $adresse;
+    private $lev_adresse;
+
     // Order lines collection
     private $orderLines = [];
 
@@ -86,6 +92,25 @@ class OrdreModel
             $this->fakturanr = $r['fakturanr'];
             $this->kostpris = isset($r['kostpris']) ? (float)$r['kostpris'] : null;
             $this->moms = isset($r['moms']) ? (float)$r['moms'] : null;
+
+            $this->adresse = new AdresseModel(array(
+                'addr1' => isset($r['addr1']) ? $r['addr1'] : '',
+                'addr2' => isset($r['addr2']) ? $r['addr2'] : '',
+                'postnr' => isset($r['postnr']) ? $r['postnr'] : '',
+                'bynavn' => isset($r['bynavn']) ? $r['bynavn'] : '',
+                'land' => isset($r['land']) ? $r['land'] : '',
+                'kontakt' => isset($r['kontakt']) ? $r['kontakt'] : '',
+            ));
+            $this->lev_adresse = new AdresseModel(array(
+                'addr1' => isset($r['lev_addr1']) ? $r['lev_addr1'] : '',
+                'addr2' => isset($r['lev_addr2']) ? $r['lev_addr2'] : '',
+                'postnr' => isset($r['lev_postnr']) ? $r['lev_postnr'] : '',
+                'bynavn' => isset($r['lev_bynavn']) ? $r['lev_bynavn'] : '',
+                'land' => null,  // Not implemented
+                'kontakt' => isset($r['lev_kontakt']) ? $r['lev_kontakt'] : '',
+            ));
+
+            $this->orderLines = OrdreLinjeModel::loadLinesForOrder($this->id);
             
             return true;
         }
@@ -303,15 +328,16 @@ class OrdreModel
         // Validate order direction
         $orderDirection = strtoupper($orderDirection) === 'ASC' ? 'ASC' : 'DESC';
 
-        $qtxt = "SELECT id FROM ordrer ORDER BY $orderBy $orderDirection";
+        $qtxt = "SELECT * FROM ordrer ORDER BY $orderBy $orderDirection";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
-        $orders = [];
+        $orderDTOs = [];
         while ($r = db_fetch_array($q)) {
-            $orders[] = new OrdreModel($r['id']);
+            // Create DTO directly from database row to avoid creating full models
+            $orderDTOs[] = new OrderReadDTO($r);
         }
 
-        return $orders;
+        return $orderDTOs;
     }
     
     /**
@@ -429,7 +455,9 @@ class OrdreModel
                 'kontakt' => $this->kontakt,
                 'email' => $this->email,
                 'ean' => $this->ean,
+                'adresse' => $this->adresse->toArray(),
             ),
+            'lev_adresse' => $this->lev_adresse->toArray(),
             'mail_fakt' => $this->mail_fakt,
             'institution' => $this->institution,
             'valuta' => $this->valuta,
@@ -441,11 +469,11 @@ class OrdreModel
                 'fakturadate' => $this->fakturadate,
             ),
             'priser' => array(
-                'sum' => $this->sum,
+                'salgspris' => $this->sum,
+                'kostpris' => $this->kostpris,
                 'momssats' => $this->momssats,
                 'moms' => $this->moms,
-                'total' => $this->getTotalWithVAT(),
-                'kostpris' => $this->kostpris,
+                'momspris' => $this->getTotalWithVAT(),
             ),
             'notes' => $this->notes,
             'status' => $this->status,

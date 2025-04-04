@@ -1,6 +1,6 @@
 <?php
 
-require_once '../../../models/debitor/OrdreModel.php';
+require_once '../../../models/ordre/OrdreModel.php';
 require_once '../../../core/BaseEndpoint.php';
 
 class OrdreEndpoint extends BaseEndpoint

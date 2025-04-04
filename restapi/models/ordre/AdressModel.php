@@ -3,7 +3,7 @@
  * AdresseReadDTO - A lightweight Data Transfer Object for address information
  * Contains essential address fields without related entities
  */
-class AdresseReadDTO
+class AdresseModel
 {
     // Essential properties
     private $addr1;
@@ -12,7 +12,6 @@ class AdresseReadDTO
     private $bynavn;
     private $land;
     private $kontakt;
-    private $email;
 
     /**
      * Constructor - Create a DTO from database row or AdresseModel
@@ -39,7 +38,6 @@ class AdresseReadDTO
         $this->bynavn = isset($row['bynavn']) ? $row['bynavn'] : null;
         $this->land = isset($row['land']) ? $row['land'] : null;
         $this->kontakt = isset($row['kontakt']) ? $row['kontakt'] : null;
-        $this->email = isset($row['email']) ? $row['email'] : null;
     }
 
     /**
@@ -56,7 +54,6 @@ class AdresseReadDTO
             'bynavn' => $this->bynavn,
             'land' => $this->land,
             'kontakt' => $this->kontakt,
-            'email' => $this->email,
         ];
     }
 
@@ -67,5 +64,4 @@ class AdresseReadDTO
     public function getBynavn() { return $this->bynavn; }
     public function getLand() { return $this->land; }
     public function getKontakt() { return $this->kontakt; }
-    public function getEmail() { return $this->email; }
 }
