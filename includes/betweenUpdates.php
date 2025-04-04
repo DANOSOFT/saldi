@@ -180,19 +180,20 @@ $chklst = $delete = array();
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 
-	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and ";
-	$qtxt.= "column_name='variant_text'";
-	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		db_modify("ALTER table variant_varer ADD column variant_text character varying(25)",__FILE__ . " linje " . __LINE__);
-		$qtxt = "SELECT variant_varer.id as id, variant_typer.beskrivelse as beskrivelse from variant_varer,variant_typer ";
-		$qtxt.= "where variant_varer.variant_type = variant_typer.id order by variant_varer.id";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$qtxt = "UPDATE variant_varer set variant_text = '". db_escape_string($r['beskrivelse']) ."' where id = '$r[id]'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+if ($db_ver >= '4.0.9') {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and ";
+		$qtxt.= "column_name='variant_text'";
+		if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			db_modify("ALTER table variant_varer ADD column variant_text character varying(25)",__FILE__ . " linje " . __LINE__);
+			$qtxt = "SELECT variant_varer.id as id, variant_typer.beskrivelse as beskrivelse from variant_varer,variant_typer ";
+			$qtxt.= "where variant_varer.variant_type = variant_typer.id order by variant_varer.id";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$qtxt = "UPDATE variant_varer set variant_text = '". db_escape_string($r['beskrivelse']) ."' where id = '$r[id]'";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
 		}
 	}
-
 	$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'item_name' => 'varchar (255)', 'product_id' => 'INTEGER'];
 	ensureTableAndColumns($db, 'rentalitems', $expectedColumns);
 	
