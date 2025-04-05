@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-03-23 ---
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -116,6 +116,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250321 LOE Updated with various changes and new additions from multiple updates including comments
 // 20250323 LOE Checks if input is set, ensures it doesn't exceed 80 characters, and sanitizes it to prevent XSS attacks.
+// 20250405 LOE if_isset() updated
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -202,9 +203,9 @@ if (!function_exists('get_relative')) {
     }
 }
 
-if (!function_exists('if_isset')) {
-	function if_isset(&$var, $return = NULL)
-	{
+// if (!function_exists('if_isset')) {
+// 	function if_isset(&$var, $return = NULL)
+// 	{
 		/**
 		 * Checks if a variable is set and not empty.
 		 * If set and not empty, returns the value of the variable.
@@ -214,12 +215,45 @@ if (!function_exists('if_isset')) {
 		 * @param mixed $return - The value to return if the variable is not set or is empty (default: NULL).
 		 *
 		 * @return mixed - The value of the variable if set and not empty, otherwise the default value.
+		 * ######## Known Behaviour #######, 
+		 * This doesn't return True if $var === 0 as 0 is considered Falsy in PHP. But 0 can be set and retrieved as value in $return param.
+		 * Same thing for False value.
+		 * if_isset(false) //NULL
+		 * if_isset(0)     //NULL
+		 * #################
 		 */
-		if ($var)
-			return ($var);
-		else
-			return ($return);
-	}
+// 		if ($var)
+// 			return ($var);
+// 		else
+// 			return ($return);
+// 	}
+// }
+
+if (!function_exists('if_isset')) {
+    function if_isset($var, $default = NULL) {
+          /**
+         * Checks if a variable is set.
+         * If the variable is set (even if NULL), it returns the variable's value.
+         * Otherwise, returns the provided default value (default is NULL).
+         *
+         * Behavior with special values:
+         * - 0: The function returns 0 because 0 is considered set, but not NULL.
+         * - false: The function returns NULL explicitly defining it so.
+         * - NULL: The function returns NULL if the variable is explicitly set to NULL. #*This returns empty with print or echo. But var_dump()
+         * - Other values (e.g., empty strings, arrays, etc.): The function returns the value if set, even if it is empty.
+         *
+         * @param mixed $var - The variable to check.
+         * @param mixed $default - The value to return if the variable is not set (default: NULL).
+         * @return mixed - Returns the value of the variable if set, otherwise the default value.
+         */
+
+        // Check if the variable is explicitly false and return NULL
+        if ($var === false) {
+            return NULL;
+        }
+
+        return isset($var) ? $var : $default;
+    }
 }
 if (!function_exists('usdate')) {
 	function usdate($date)

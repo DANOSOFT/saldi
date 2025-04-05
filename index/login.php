@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-03-25--------------
+// --- index/login.php -----patch 4.1.1 ----2025-04-05--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,11 +59,13 @@
 // 20230718 LOE - Made some modifications + 20230725
 // 20240417 PHR - Unified login - redirets to correct server.
 // 20240417 PHR - 'regnskab' and 'brugernavn' is now case-insensitive
+// 20250129 Increase session_id length constraint from 30 to 32 on table online.
 // 20240425 LOE - Made some modifications.
 // 20240502 LOE - Fixed some bugs concerning "PHP type juggling" and some variables checked for set or not
 // 20241202 LOE - Added session for retrieving globalId from other pages.
 // 20250314 LOE	- Sanitized some inputs to mitigate against XSS attack
 // 20250325 LOE - Fixed 'ansat_id'  "Undefined array key" notice and checks that other variables are set before use if $userId exists
+// 20250405 LOE - Revised with several improvements
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -71,8 +73,6 @@ session_unset();
 session_destroy();
 
 @session_start();
-
-
 $s_id=session_id();
 $css="../css/std.css";
 $title="login";
@@ -84,13 +84,16 @@ include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 
-print "<!--";
-$timezone = system("timedatectl | grep \"Time zone\"");
-print "-->";
-list($tmp,$timezone) = explode(":",$timezone);
-list($timezone,$tmp) = explode("(",$timezone);
-$timezone = trim($timezone);
-if (!$timezone) $timezone = 'Europe/Copenhagen';
+#print "<!--";
+$timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
+#print "-->";
+if ($errcode === 0) {
+	list($tmp,$timezone) = explode(":",$timezone);
+	list($timezone,$tmp) = explode("(",$timezone);
+	$timezone = trim($timezone);
+} else {
+	$timezone = 'Europe/Copenhagen';
+}
 date_default_timezone_set($timezone);
 
 $ansat_id=null;
@@ -102,11 +105,18 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER table regnskab ADD column invoices int DEFAULT(0)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
+// Increase session_id length constraint to 32 on table online if needed.
+// Must be done before insertion of record in online, therefore not included in betweenUpdates.
+$qtxt="SELECT column_name, data_type, character_maximum_length FROM information_schema.columns 
+		WHERE table_name = 'online' AND column_name = 'session_id' AND character_maximum_length < 32";
+if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	$qtxt = "ALTER TABLE online ALTER COLUMN session_id TYPE varchar(32)";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+}
 
 
 #$_COOKIE['timezone'] = $timezone;#20210929
 
-#cho "select var_value from settings where var_name='alertText'<br>";
 $r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
 if (isset($r['var_value'])) $_SESSION['customAlertText']=$r['var_value'];
 $r=db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'",__FILE__ . " linje " . __LINE__)); #20211007
@@ -123,7 +133,6 @@ $r=db_fetch_array(db_select("select var_value from settings where var_name='zip'
 if (isset($r['var_value'])) $_SESSION['zip']=$r['var_value'];
 
 
-
 #$r=db_fetch_array(db_select("select var_value from settings where var_grp='localization'",__FILE__ . " linje " . __LINE__));#20211006
 #if ($r['var_value']) $_SESSION['lang2']=$r['var_value'];
 
@@ -133,7 +142,6 @@ PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 <html>\n
 <head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n";
 if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\" />";
-print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/login.css\" />";
 print "</head>";
 
 $dbMail=NULL;
@@ -195,11 +203,13 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	$low = str_replace('Æ','æ',$low);
 	$low = str_replace('Ø','ø',$low);
 	$low = str_replace('Å','å',$low);
+	$low = str_replace('É','é',$low);
 	$low = db_escape_string($low);
 	$up = strtoupper($regnskab);
 	$up = str_replace('æ','Æ',$up);
 	$up = str_replace('ø','Ø',$up);
 	$up = str_replace('å','Å',$up);
+	$up = str_replace('é','É',$up);
 	$up = db_escape_string($up);
 
 	$qtxt = "select * from regnskab where regnskab = '$asIs' or lower(regnskab) = '$low' or upper(regnskab) = '$up'";
@@ -208,14 +218,14 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
  # $qtxt.= " or upper(regnskab) = '".db_escape_string(strtoupper($regnskab))."'";
 
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
-		$dbuser = trim($r['dbuser']);
-		$dbver = trim($r['version']);
-		if (isset($r['dbpass'])) $dbpass = trim($r['dbpass']);
-		$db         = trim($r['db']);
-		$db_id      = trim($r['id']);
-		$post_max   = $r['posteringer']*1;
-		$bruger_max = $r['brugerantal']*1;	
-		$lukket     = trim($r['lukket']);
+		$dbuser = trim(if_isset($r['dbuser'], ''));
+		$dbver = trim(if_isset($r['version'], ''));
+		$dbpass = trim(if_isset($r['dbpass'], ''));
+		$db         = trim(if_isset($r['db'], ''));
+		$db_id      = trim(if_isset($r['id'], ''));
+		$post_max   = if_isset($r['posteringer'], 0)*1;
+		$bruger_max = if_isset($r['brugerantal'], 0)*1;	
+		$lukket     = trim(if_isset($r['lukket'], ''));
 		if(isset($r['email'] ))  $dbMail = $r['email'];
 		if(isset($r['global_id'])){
 			  $globalId = $r['global_id'];
@@ -238,12 +248,30 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		$tmp=date("U");
 		if ($masterversion > "1.1.3") db_modify("update regnskab set sidst='$tmp' where id = '$db_id'",__FILE__ . " linje " . __LINE__);
 	}	else {
-/*
-		$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&dbAlias=". urlencode($regnskab);
-		$result = json_decode(file_get_contents($url));
-		if (strpos($result,chr(9))) {
-			list ($regnskab,$url) = explode(chr(9),$result);
-			$url = "$url/index/login.php";
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, "https://saldi.dk/locator/locator.php?action=getLocation&dbAlias=" . urlencode($regnskab));
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
+
+		// Execute curl request
+		$result = curl_exec($ch);
+
+		// Check for curl errors
+		if(curl_errno($ch)) {
+			die('Curl error: ' . curl_error($ch));
+		}
+
+		curl_close($ch);
+
+		// Debug raw response
+		error_log("Raw response: " . $result);
+
+		// Decode JSON
+		$decoded = json_decode($result, true);
+
+		if ($decoded["status"] == "success") {
+			$url = 'https://' . preg_replace('#^https?://#', '', $decoded['location']) . '/index/login.php';
 			print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$url\" onSubmit=\"return handleLogin(this);\">\n";
 			print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
 			print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
@@ -254,11 +282,15 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 			print "<input type=\"hidden\" name=\"vent\"  value=\"$_POST[vent]\">\n";
 			print "<body onload=\"document.login.submit()\">";
 			print "</form>";
-			exit;
+			?>
+			<script>
+				document.forms['login'].submit();
+			</script>
+		<?php
+		exit();
 		}
 		if ($regnskab) $fejltxt="Regnskab $regnskab findes ikke";
 		login(htmlentities($regnskab,ENT_COMPAT,$charset),htmlentities($brugernavn,ENT_COMPAT,$charset),$fejltxt);
-*/
  	}
 } else {
 	
@@ -284,8 +316,18 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 	#		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
 	#	}
 	$asIs = db_escape_string($brugernavn);
-	$low  = mb_strtolower($asIs);
-	$up   = mb_strtoupper($asIs);
+	$low = strtolower($brugernavn);
+	$low = str_replace('Æ','æ',$low);
+	$low = str_replace('Ø','ø',$low);
+	$low = str_replace('Å','å',$low);
+	$low = str_replace('É','é',$low);
+	$low = db_escape_string($low);
+	$up = strtoupper($brugernavn);
+	$up = str_replace('æ','Æ',$up);
+	$up = str_replace('ø','Ø',$up);
+	$up = str_replace('å','Å',$up);
+	$up = str_replace('é','É',$up);
+	$up = db_escape_string($up);
 	$qtxt = "select * from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
 	$qtxt.= "and db = '$db' and session_id != '$s_id'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -358,25 +400,28 @@ if (isset ($brug_timestamp)) {
 	$userId=$r['id'];
 } else {
 	$asIs = db_escape_string($brugernavn);
-	$qtxt = "select * from brugere where brugernavn='$asIs'";
-	if ($r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$brugernavn = $r['brugernavn'];
-		$pw1  = md5($password);
-		$pw2  = saldikrypt($r['id'],$password);
-	} else {
-		$low  = mb_strtolower($asIs);
-		$up   = mb_strtoupper($asIs);
-		$qtxt = "select * from brugere where lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
-		$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$brugernavn = $r['brugernavn'];
-		$pw1  = md5($password);
-		$pw2  = saldikrypt($r['id'],$password);
-	}
+	$low = strtolower($brugernavn);
+	$low = str_replace('Æ','æ',$low);
+	$low = str_replace('Ø','ø',$low);
+	$low = str_replace('Å','å',$low);
+	$low = str_replace('É','é',$low);
+	$low = db_escape_string($low);
+	$up = strtoupper($brugernavn);
+	$up = str_replace('æ','Æ',$up);
+	$up = str_replace('ø','Ø',$up);
+	$up = str_replace('å','Å',$up);
+	$up = str_replace('é','É',$up);
+	$up = db_escape_string($up);
+	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
+	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$brugernavn = $r['brugernavn'];
+	$pw1  = md5($password);
+	$pw2  = saldikrypt($r['id'],$password);
 	if ($r['kode']==$pw1 || $r['kode']==$pw2) {
 		$userId      = $r['id'];
-		$rettigheder = trim($r['rettigheder']);
+		$rettigheder = trim(if_isset($r['rettigheder'], ''));
 		$regnskabsaar = $r['regnskabsaar'];
-		$ansat_id = isset($r['ansat_id']) ? ($db != $sqdb ? $r['ansat_id'] * 1 : NULL) : NULL; #20250325	
+		($db != $sqdb)?$ansat_id=$r['ansat_id']*1:$ansat_id=NULL;
 	}
 	if ($ansat_id && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
@@ -393,7 +438,7 @@ if (isset ($brug_timestamp)) {
 			if (date("U")<=$tidspkt) {
 				if ($tmp_kode==$password) {
 					$userId=$r['id'];
-					$rettigheder=trim($r['rettigheder']); #20150209 + næste 2
+					$rettigheder=trim(if_isset($r['rettigheder'], '')); #20150209 + næste 2
 					$regnskabsaar=$r['regnskabsaar'];
 					$ansat_id=$r['ansat_id']*1;
 				} 
@@ -401,7 +446,7 @@ if (isset ($brug_timestamp)) {
 		}
 	}
 }
-if (!$dbMail && $db && $db != $sqdb) {
+if (!$dbMail && $db != $sqdb) {
 	$qtxt = "select email from adresser where art = 'S'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$mainMail = $r['email'];
@@ -614,7 +659,7 @@ if(!isset($afbryd)){
 			$email = get_settings_value("mail", "lagerstatus", "");
 			if ($email) include("../lager/lagerstatusmail.php");
 		}
-#		transtjek();
+		transtjek();
 		}
 		if (file_exists("../utils/rotary_addrsync.php") && is_numeric($regnskab) && !file_exists("../temp/$db/rotary_addrsync.txt")) {
 			include("../utils/rotary_addrsync.php");
