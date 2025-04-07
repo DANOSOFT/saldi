@@ -259,10 +259,20 @@ function send_mail($subjekt,$mailtekst,$modtager,$afsendermail,$afsendernavn) {
 #		fwrite($fp,$mailtext);
 #		fclose ($fp);
 
-		$mail = new PHPMailer();
-		$mail->IsSMTP();                                   // send via SMTP
-		$mail->Host  = "localhost"; // SMTP servers
-		$mail->SMTPAuth = false;     // turn on SMTP authentication
+if (file_exists(".:../phpmailer")) { #20250407
+	ini_set("include_path", ".:../phpmailer");
+	require("class.phpmailer.php");
+} else {
+	require_once "../../vendor/autoload.php"; //PHPMailer Object
+	$mail = new  PHPMailer\PHPMailer\PHPMailer();
+	$mail->SMTPOptions = array(
+		'ssl' => array(
+			'verify_peer' => false,
+			'verify_peer_name' => false,
+			'allow_self_signed' => true
+		)
+	);
+}
 
 		if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121029
 			$from = $db."@".$_SERVER['SERVER_NAME']; #20220825 
