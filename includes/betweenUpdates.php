@@ -439,4 +439,9 @@ $qtxt .= "and column_name='sort_timestamp'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE kds_records ADD column sort_timestamp integer default NULL", __FILE__ . " linje " . __LINE__);
 }
+
+$qtxt = "SELECT tekst FROM tekster WHERE tekst_id = 607 AND sprog_id = 1 AND tekst = 'Kredtor' ";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("UPDATE tekster SET tekst = 'Kreditor' WHERE tekst_id = 607 AND sprog_id = 1", __FILE__ . " linje " . __LINE__);
+}
 ?>
