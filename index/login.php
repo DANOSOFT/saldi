@@ -142,6 +142,7 @@ PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 <html>\n
 <head><title>$title</title><meta http-equiv=\"content-type\" content=\"text/html; charset=$charset\">\n";
 if ($css) PRINT "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\" />";
+print "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/login.css\" />";
 print "</head>";
 
 $dbMail=NULL;
@@ -421,7 +422,7 @@ if (isset ($brug_timestamp)) {
 		$userId      = $r['id'];
 		$rettigheder = trim(if_isset($r['rettigheder'], ''));
 		$regnskabsaar = $r['regnskabsaar'];
-		($db != $sqdb)?$ansat_id=$r['ansat_id']*1:$ansat_id=NULL;
+		$ansat_id = isset($r['ansat_id']) ? ($db != $sqdb ? $r['ansat_id'] * 1 : NULL) : NULL; #20250325	
 	}
 	if ($ansat_id && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select * from ansatte where id='$ansat_id'",__FILE__ . " linje " . __LINE__));
@@ -708,7 +709,7 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 	global $charset;
 	global $sqhost,$squser,$sqpass;
 	global $dbuser,$dbpass,$db_type;
-
+    global $nonce;
 	if (!$dbuser) $dbuser = $squser;
 	if (!$dbpass) $dbpass = $sqpass;
 	if (isset($_POST['vent'])) { #20250325
@@ -775,7 +776,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 
 	$timestamp = time(); //unix timestamp
 	global	$charset;
-	
+	global 	$nonce;
 	$regnskab = isset($regnskab) ? sanitize_input(htmlspecialchars($regnskab, ENT_COMPAT, $charset)) : null;
 	$brugernavn = isset($brugernavn) ? sanitize_input(htmlspecialchars($brugernavn, ENT_COMPAT, $charset)) : null;
 	$fejltxt = isset($fejltxt) ? sanitize_input(htmlspecialchars($fejltxt, ENT_COMPAT, 'UTF-8')) : null;
