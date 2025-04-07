@@ -187,17 +187,24 @@ $renameColumns = [
 ensureTableAndColumns($db, 'rentalreserved', $expectedColumns, $renameColumns);
 
 if ($db_ver >= '4.0.9') {
+	// Check if the variant_text column exists and add it if it doesn't
 	$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and ";
 	$qtxt .= "column_name='variant_text'";
 	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		// Add the variant_text column if it doesn't exist
 		db_modify("ALTER table variant_varer ADD column variant_text character varying(25)", __FILE__ . " linje " . __LINE__);
+		
+		// Fix the type mismatch by casting variant_type to integer
 		$qtxt = "SELECT variant_varer.id as id, variant_typer.beskrivelse as beskrivelse from variant_varer,variant_typer ";
-		$qtxt .= "where variant_varer.variant_type = variant_typer.id order by variant_varer.id";
+		$qtxt .= "where variant_varer.variant_type::integer = variant_typer.id order by variant_varer.id";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$qtxt = "UPDATE variant_varer set variant_text = '" . db_escape_string($r['beskrivelse']) . "' where id = '$r[id]'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+		
+		// Optional: Fix the column type permanently (can be removed if you prefer to keep using the cast)
+		db_modify("ALTER TABLE variant_varer ALTER COLUMN variant_type TYPE integer USING variant_type::integer", __FILE__ . " linje " . __LINE__);
 	}
 }
 
