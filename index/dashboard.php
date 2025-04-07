@@ -121,6 +121,7 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 
 
 print '<script src="../javascript/chart.js"></script>';
+print '<script src="../javascript/apexcharts.js"></script>';
 
 function generateArray() {
     $result = array();
