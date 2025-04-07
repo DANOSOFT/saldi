@@ -235,9 +235,13 @@ if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) &
 }
 
 # Titlebar
-print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em'>";
+print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
 print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
-print "<div style='display: flex; gap: 2em'>";
+print "<div style='display: flex; gap: 2em;'>";
+
+# Regnaar selector
+include "dashboardIncludes/regnaar.php";
+
 print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".findtekst('2224|Oversigt', $sprog_id)."</button>";
 if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .findtekst('2224|Oversigt', $sprog_id). "</button>";
 
