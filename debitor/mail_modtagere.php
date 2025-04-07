@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_modtagere.php --- Patch 4.0.8 --- 2023.07.18 ---
+// --- debitor/mail_modtagere.php --- Patch 4.0.8 --- 2025.04.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2022-2023.dk ApS
+// Copyright (c) 2022-2025.dk ApS
 // -----------------------------------------------------------------------------------
 // 20170613 PHR Tilføjet flere variabler til mailteksten og rettet datoudtræk fra beskrivelse. 
 // 20180417 PHR	rettet ',$mailtekst)' til ',$mtxt)' i '$mtxt=str_replace('$kontonr',$kontonr[$x],$mtxt)'
@@ -32,6 +32,7 @@
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20230718 PHR Added $begin & $end to be used in no dates in 'beskrivelse'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250407 PHR will now use phpmailer from composer if old phpmailer is not present
 
 @session_start();
 $s_id=session_id();
@@ -65,9 +66,20 @@ if ($mailtekst) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 
-ini_set("include_path", ".:../phpmailer");
-require("class.phpmailer.php");
-
+if (file_exists(".:../phpmailer")) { #20250407
+	ini_set("include_path", ".:../phpmailer");
+	require("class.phpmailer.php");
+} else {
+	require_once "../../vendor/autoload.php"; //PHPMailer Object
+	$mail = new  PHPMailer\PHPMailer\PHPMailer();
+	$mail->SMTPOptions = array(
+		'ssl' => array(
+			'verify_peer' => false,
+			'verify_peer_name' => false,
+			'allow_self_signed' => true
+		)
+	);
+}
 $qtxt = "select count(bilag_id) as bilag_id from betalinger where liste_id='$liste_id' and bilag_id != 0";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 if ($r['bilag_id']) {
