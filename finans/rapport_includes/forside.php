@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2025-03-31 ---
+// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2025-04-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20241018 LOE Ensured some variables are set first like: $_POST['submit'] and $konto_beskrivelse etc.
 // 20241120 PHR	Rermoved  "target='	'" from <form ...
 // 20250324 LOE Updated konto_til value and finans_forside.js created
+// 20250407 LOE konto_til when not set and ktoNameTo default values moved from while loop.
 
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
@@ -116,6 +117,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	$query = db_select("select * from kontoplan where regnskabsaar='$regnaar' order by kontonr", __FILE__ . " linje " . __LINE__);
 	$maxResult = $x = 0;
 	$minBalace = 99999999;
+	$ar=array();
 	while ($row = db_fetch_array($query)) {
 		$konto_id[$x] = $row['id'];
 		$kontonr[$x] = $row['kontonr'];
@@ -125,16 +127,16 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		if ($kontoType[$x] == 'S' && $minBalace > $kontonr[$x]) $minBalace = $kontonr[$x];
 		if ($kontoType[$x] == 'X') $sideskift = $kontonr[$x];
 		if (!$konto_fra) $konto_fra = $kontonr[0];
-		if (!$konto_til) $konto_til = $kontonr[1];
-
+		
 		if ($kontonr[$x] == $konto_fra) {
 			$ktoNameFrom = $konto_beskrivelse[$x];
 		}
-		
-		if ($kontonr[$x] == $konto_til) {
-			$ktoNameTo = $konto_beskrivelse[$x];
-		}
+		$ar[$x]=$row;
 		$x++;
+	}
+	if (!$konto_til) {
+		$konto_til = $kontonr[count($kontonr) - 1];
+		$ktoNameTo = $konto_beskrivelse[count($konto_beskrivelse) - 1];
 	}
 	
 	$antal_konti = $x;

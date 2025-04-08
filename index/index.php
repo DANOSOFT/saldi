@@ -70,11 +70,12 @@ include("../includes/db_query.php");
 include("../includes/std_func.php");
 $hm=$rs=$bn=null; #20211007
 $huskmig = null;
-print "<script nonce=\"$nonce\">\n";
-print "window.onload = function() {\n"; 
-print "    document.login.submit();\n";
-print "};\n";
-print "</script>\n";
+print  "<script nonce='{$nonce}'>
+if(window.self !== window.top) {
+	// Run this code if in an iframe
+	parent.location.href = '../index/index.php';
+}
+</script>";
 
 
 
