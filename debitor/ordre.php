@@ -4782,8 +4782,8 @@ $kundeordre = findtekst(1092,$sprog_id);
 		$q=db_select("select gls_label, fedex_label from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
 		$r=db_fetch_array($q);
 
-		$gls_stil = $r["gls_label"] == "t" ? "color: gray" : "";
-		$fedex_stil = $r["fedex_label"] == "t" ? "color: gray" : "";
+		$gls_stil = $r["gls_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 3px;" : "";
+		$fedex_stil = $r["fedex_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 3px;" : "";
 
 		 //print "<form name=\"form\" action=\"http://api.gls.dk/ws/\"  method=\"POST\">".
 		print "<form name=\"GLS\"  method=\"POST\">";
