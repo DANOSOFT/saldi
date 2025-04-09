@@ -325,6 +325,7 @@
         $booking["id"] = $res["id"];
         $booking["item_id"] = $res["item_id"];
         $booking["customer_id"] = $res["cust_id"];
+        $booking["order_id"] = $res["order_id"];
         $query2 = db_select("SELECT firmanavn, kontonr FROM adresser WHERE id = $res[cust_id]", __FILE__ . " linje " . __LINE__);
         $res2 = db_fetch_array($query2);
         $booking["name"] = $res2["firmanavn"];
@@ -555,19 +556,19 @@
     } */
 
     if(isset($_GET["productInfo"])){
-        $from_date = $_GET["from_date"]; // Start date in format YYYY-MM-DD
-        $to_date = $_GET["to_date"];     // End date in format YYYY-MM-DD
-        
+        $month = $_GET["month"]; // The month you want to filter by
+        $year = $_GET["year"]; // The year you want to filter by
+
         $query = db_select("SELECT 
-            rp.id as rental_id,
-            rp.rt_from,
-            rp.rt_to,
-            rp.cust_id,
-            ri.id as item_id,
-            ri.item_name,
-            ri.product_id,
-            v.beskrivelse as product_name,
-            a.firmanavn,
+            rp.id as rental_id, 
+            rp.rt_from, 
+            rp.rt_to, 
+            rp.cust_id, 
+            ri.id as item_id, 
+            ri.item_name, 
+            ri.product_id, 
+            v.beskrivelse as product_name, 
+            a.firmanavn, 
             a.kontonr 
         FROM 
             rentalitems ri
@@ -575,23 +576,20 @@
             varer v ON ri.product_id = v.id
         LEFT JOIN 
             rentalperiod rp ON rp.item_id = ri.id AND 
-            (
-                -- Rental period overlaps with the specified date range
-                (to_timestamp(rp.rt_from) <= to_timestamp('$to_date')) AND 
-                (to_timestamp(rp.rt_to) >= to_timestamp('$from_date'))
-            )
+            ((EXTRACT(YEAR FROM to_timestamp(rp.rt_from)) < $year) OR 
+            (EXTRACT(YEAR FROM to_timestamp(rp.rt_from)) = $year AND EXTRACT(MONTH FROM to_timestamp(rp.rt_from)) <= $month)) AND 
+            ((EXTRACT(YEAR FROM to_timestamp(rp.rt_to)) > $year) OR 
+            (EXTRACT(YEAR FROM to_timestamp(rp.rt_to)) = $year AND EXTRACT(MONTH FROM to_timestamp(rp.rt_to)) >= $month))
         LEFT JOIN 
             adresser a ON rp.cust_id = a.id 
         ORDER BY 
             length(ri.item_name), 
             ri.item_name ASC", __FILE__ . " linje " . __LINE__);
-        
         $i = 0;
         if(db_num_rows($query) === 0){
-            echo json_encode(["msg" => "Der er ingen bookinger i dette tidsrum", "success" => false]);
+            echo json_encode(["msg" => "Der er ingen bookinger", "success" => false]);
             exit();
         }
-        
         while($res = db_fetch_array($query)){
             $productInfo[$i]["product_name"] = $res["product_name"];
             $productInfo[$i]["reservation_id"] = $res["rental_id"];
@@ -604,61 +602,6 @@
             $productInfo[$i]["cust_id"] = $res["cust_id"];
             $productInfo[$i]["cust_name"] = str_replace("'", "´", $res["firmanavn"]);
             $productInfo[$i]["kontonr"] = $res["kontonr"];
-            $i++;
-        }
-        echo json_encode($productInfo);
-    }
-
-    if(isset($_GET["getBookingsFromPeriod"])){
-        $from_date = $_GET["from_date"]; // Start date in format YYYY-MM-DD
-        $to_date = $_GET["to_date"];     // End date in format YYYY-MM-DD
-        $query = db_select("SELECT 
-            rp.id as rental_id,
-            rp.rt_from,
-            rp.rt_to,
-            rp.cust_id,
-            ri.id as item_id,
-            ri.item_name,
-            ri.product_id,
-            v.beskrivelse as product_name,
-            a.firmanavn,
-            a.tlf,
-            a.kontonr 
-        FROM 
-            rentalperiod rp
-        LEFT JOIN 
-            rentalitems ri ON rp.item_id = ri.id
-        LEFT JOIN 
-            varer v ON ri.product_id = v.id
-        LEFT JOIN 
-            adresser a ON rp.cust_id = a.id 
-        WHERE
-            -- Date range filter
-            (to_timestamp(rp.rt_from) <= to_date('$to_date', 'YYYY-MM-DD')) AND 
-            (to_timestamp(rp.rt_to) >= to_date('$from_date', 'YYYY-MM-DD'))
-        ORDER BY 
-            length(ri.item_name), 
-            ri.item_name ASC", __FILE__ . " linje " . __LINE__);
-
-        $i = 0;
-        if(db_num_rows($query) === 0){
-            echo json_encode(["msg" => "Der er ingen bookinger i dette tidsrum", "success" => false]);
-            exit();
-        }
-
-        while($res = db_fetch_array($query)){
-            $productInfo[$i]["product_name"] = $res["product_name"];
-            $productInfo[$i]["reservation_id"] = $res["rental_id"];
-            $productInfo[$i]["product_id"] = $res["product_id"];
-            $productInfo[$i]["item_name"] = $res["item_name"];
-            $productInfo[$i]["item_id"] = $res["item_id"];
-            $productInfo[$i]["rental_id"] = $res["rental_id"];
-            $productInfo[$i]["from"] = $res["rt_from"];
-            $productInfo[$i]["to"] = $res["rt_to"];
-            $productInfo[$i]["cust_id"] = $res["cust_id"];
-            $productInfo[$i]["cust_name"] = str_replace("'", "´", $res["firmanavn"]);
-            $productInfo[$i]["kontonr"] = $res["kontonr"];
-            $productInfo[$i]["tlf"] = $res["tlf"];
             $i++;
         }
         echo json_encode($productInfo);
@@ -818,9 +761,9 @@
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_select("SELECT * FROM rentalsettings", __FILE__ . " linje " . __LINE__);
         if(db_num_rows($query) <= 0)
-            $query = db_modify("INSERT INTO rentalsettings (booking_format, search_cust_name, search_cust_number, search_cust_tlf, start_day, deletion, find_weeks, end_day, put_together, pass, use_password, invoice_date) VALUES ('$data[booking_format]', '$data[search_cust_name]', '$data[search_cust_number]', '$data[search_cust_tlf]', '$data[start_day]', '$data[deletion]', '$data[find_weeks]', '$data[end_day]', '$data[put_together]', '$data[password]', '$data[use_password]', '$data[invoice_date]')", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("INSERT INTO rentalsettings (booking_format, search_cust_name, search_cust_number, search_cust_tlf, start_day, deletion, find_weeks, end_day, put_together, pass, use_password, invoice_date, toggle_order) VALUES ('$data[booking_format]', '$data[search_cust_name]', '$data[search_cust_number]', '$data[search_cust_tlf]', '$data[start_day]', '$data[deletion]', '$data[find_weeks]', '$data[end_day]', '$data[put_together]', '$data[password]', '$data[use_password]', '$data[invoice_date]', '$data[toggle_order]')", __FILE__ . " linje " . __LINE__);
         else
-            $query = db_modify("UPDATE rentalsettings SET booking_format = $data[booking_format], search_cust_name = $data[search_cust_name], search_cust_number = $data[search_cust_number], search_cust_tlf = $data[search_cust_tlf], start_day = $data[start_day], deletion = $data[deletion], find_weeks = $data[find_weeks], end_day = $data[end_day], put_together = $data[put_together], use_password = $data[use_password], pass = '$data[password]', invoice_date = $data[invoice_date]", __FILE__ . " linje " . __LINE__);
+            $query = db_modify("UPDATE rentalsettings SET booking_format = $data[booking_format], search_cust_name = $data[search_cust_name], search_cust_number = $data[search_cust_number], search_cust_tlf = $data[search_cust_tlf], start_day = $data[start_day], deletion = $data[deletion], find_weeks = $data[find_weeks], end_day = $data[end_day], put_together = $data[put_together], use_password = $data[use_password], pass = '$data[password]', invoice_date = $data[invoice_date], toggle_order = $data[toggle_order]", __FILE__ . " linje " . __LINE__);
             echo json_encode("Indstillingerne er nu opdateret");
     }
 
@@ -1072,6 +1015,61 @@
         }
         echo json_encode($productInfo);
     }
+
+    if(isset($_GET["getBookingsFromPeriod"])){
+        $from_date = $_GET["from_date"]; // Start date in format YYYY-MM-DD
+        $to_date = $_GET["to_date"];     // End date in format YYYY-MM-DD
+        $query = db_select("SELECT 
+            rp.id as rental_id,
+            rp.rt_from,
+            rp.rt_to,
+            rp.cust_id,
+            ri.id as item_id,
+            ri.item_name,
+            ri.product_id,
+            v.beskrivelse as product_name,
+            a.firmanavn,
+            tlf,
+            a.kontonr 
+        FROM 
+            rentalperiod rp
+        LEFT JOIN 
+            rentalitems ri ON rp.item_id = ri.id
+        LEFT JOIN 
+            varer v ON ri.product_id = v.id
+        LEFT JOIN 
+            adresser a ON rp.cust_id = a.id 
+        WHERE
+            -- Date range filter
+            (to_timestamp(rp.rt_from) <= to_date('$to_date', 'YYYY-MM-DD')) AND 
+            (to_timestamp(rp.rt_to) >= to_date('$from_date', 'YYYY-MM-DD'))
+        ORDER BY 
+            length(ri.item_name), 
+            ri.item_name ASC", __FILE__ . " linje " . __LINE__);
+
+        $i = 0;
+        if(db_num_rows($query) === 0){
+            echo json_encode(["msg" => "Der er ingen bookinger i dette tidsrum", "success" => false]);
+            exit();
+        }
+
+        while($res = db_fetch_array($query)){
+            $productInfo[$i]["product_name"] = $res["product_name"];
+            $productInfo[$i]["reservation_id"] = $res["rental_id"];
+            $productInfo[$i]["product_id"] = $res["product_id"];
+            $productInfo[$i]["item_name"] = $res["item_name"];
+            $productInfo[$i]["item_id"] = $res["item_id"];
+            $productInfo[$i]["rental_id"] = $res["rental_id"];
+            $productInfo[$i]["from"] = $res["rt_from"];
+            $productInfo[$i]["to"] = $res["rt_to"];
+            $productInfo[$i]["cust_id"] = $res["cust_id"];
+            $productInfo[$i]["cust_name"] = str_replace("'", "´", $res["firmanavn"]);
+            $productInfo[$i]["kontonr"] = $res["kontonr"];
+            $productInfo[$i]["tlf"] = $res["tlf"];
+            $i++;
+        }
+        echo json_encode($productInfo);
+    }
 /*     if(isset($_GET["getXCSRFToken"])){
         $data = json_decode(file_get_contents('php://input'), true);
         $query = db_select("SELECT * FROM settings", __FILE__ . " linje " . __LINE__);
@@ -1201,7 +1199,8 @@
 
     if(isset($_GET["getRemoteLink"])){
         $serverName = $_SERVER['SERVER_NAME'];
-        echo json_encode("https://".$serverName."/laja/remoteBooking/index.php?db=".$db);
+        $firstFolder = explode('/', trim($_SERVER['REQUEST_URI'], '/'))[0];
+        echo json_encode("https://".$serverName."/".$firstFolder."/remoteBooking/index.php?db=".$db);
     }
 
     function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_ny,$procent,$art,$momsfri,$posnr,$linje_id,$incl_moms,$kdo,$rabatart,$kopi,$saet,$fast_db,$lev_varenr,$lager,$linje) { #20140426
