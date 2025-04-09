@@ -23,10 +23,11 @@
 // Copyright (c) 2021-2021 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20210313 PHR Added logging 
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 if (!$ip) $ip = 'localhost';
 $txt=implode('', file($filename));
-$txt = utf8_decode($txt);
+$txt = mb_convert_encoding($txt, 'ISO-8859-1', 'UTF-8');
 $fp=fopen("../temp/$db/BrTD.txt",'a');
 fwrite ($fp, date("H:i:s")."\n$txt\n");
 $txt = urlencode($txt);

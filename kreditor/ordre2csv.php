@@ -17,6 +17,7 @@
 // Copyright (c) 2004-2009 DANOSOFT ApS
 // ----------------------------------------------------------------------
 // 03/02/2025 PBLM fixed lev_varenummer
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -51,9 +52,9 @@ while ($r=db_fetch_array($q)) {
 	$varenr=str_replace(chr(9)," ",$r['varenr']);
 	$lev_vnr=str_replace(chr(9)," ",$r['lev_varenr']);
 	if ($charset=='UTF-8') {
-		$beskrivelse=utf8_decode($beskrivelse); 
-	$varenr=utf8_decode($varenr);
-	$lev_vnr=utf8_decode($lev_vnr);
+		$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8'); 
+	$varenr=mb_convert_encoding($varenr, 'ISO-8859-1', 'UTF-8');
+	$lev_vnr=mb_convert_encoding($lev_vnr, 'ISO-8859-1', 'UTF-8');
 	}
 	$antal=dkdecimal($r['antal']);
 	$pris=dkdecimal($r['pris']);

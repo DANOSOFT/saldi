@@ -253,7 +253,7 @@ if (isset($_POST['create_debtor'])) {
 	$addr1=if_isset($_POST['addr1']);
 	$addr2=if_isset($_POST['addr2']);
 	$postnr=if_isset($_POST['postnr']);
-	$bynavn=if_isset($_POST['bynavn']);
+	$bynavn=if_isset($_POST['tlf']);
 	$email=if_isset($_POST['email']);
 	if (substr($email, 0, 11 ) == "debitoripad") {
 		$q = db_select("select email from ordrer where id='$_GET[id]'",__FILE__ . " linje " . __LINE__);
@@ -1177,7 +1177,7 @@ if ($b_submit) {
 #    if (!$x && !$varenr[$x])$y="vare_".$x;
 #    $varenr[$x]=db_escape_string(trim(if_isset($_POST[$y])));
 		$y="dkan".$x;
-		$dkantal[$x]=trim(if_isset($_POST[$y]));
+		$dkantal[$x]=trim(isset($_POST[$y]) ? $_POST[$y] : 0);
 		if ($x==0 && $dkantal[$x] == '') $antal[$x]=1; #20160913
 		if ($dkantal[$x] || $dkantal[$x]=='0'){
 			if ( strstr($dkantal[$x], ":") ) $dkantal[$x]=tid2decimal($dkantal[$x], "t");
@@ -1942,46 +1942,71 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
 			include("pbsfakt.php");
 			pbsfakt($id);
 	}elseif($udskriv_til=="Digitalt" && $status >=3 && $art=="DO"){
-		$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
-		if(db_num_rows($query) <= 0){
-		?>
-		<script>
+    $query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+    if(db_num_rows($query) <= 0){
+    ?>
+    <script>
       
-			if(confirm('Ved at sende fakture digitalt, vil du blive oprettet i nemhandel') == true)
-				window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
-		</script>
-		<?php
-		}else{
-		?>
-		<script>
-			window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
-		</script>
-		<?php
-		}
-	}/* elseif($udskriv_til=="Digitalt" && $art=="DO" && ($status==2 || $status==1)){
-		// Not done yet
-		?>
-		<script>
-			window.open('peppol.php?id=<?php echo $id;?>&type=order' ,'_blank')
-		</script>
-		<?php
-	} */elseif($udskriv_til=="Digitalt" && $art=="DK" && $status >=3){
-		$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
-		if(db_num_rows($query) <= 0){
-		?>
-		<script>
+      if(confirm('Ved at sende fakture digitalt, vil du blive oprettet i nemhandel') == true)
+        window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+    </script>
+    <?php
+    }else{
+    ?>
+    <script>
+      window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+    </script>
+    <?php
+    }
+  }elseif($udskriv_til=="Digitalt" && $art=="DO" && ($status==2 || $status==1)){
+    $query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+    if(db_num_rows($query) <= 0){
+    ?>
+    <script>
+      if(confirm('Ved at sende fakture digitalt, vil du blive oprettet i nemhandel') == true)
+      window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+    </script>
+    <?php
+    }else{
+    ?>
+    <script>
+      window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+    </script>
+    <?php
+    }
+  }elseif($udskriv_til=="Digitalt" && $art=="DK" && $status >=3){
+    $query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+    if(db_num_rows($query) <= 0){
+    ?>
+    <script>
       
-			if(confirm("ved at sende faktura/kreditnote digitalt, vil du blive oprettet i nemhandel") == true)
-				window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
-		</script>
-		<?php
-		}else{
-		?>
-		<script>
-			window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
-		</script>
-		<?php
-		}
+      if(confirm("ved at sende faktura/kreditnote digitalt, vil du blive oprettet i nemhandel") == true)
+        window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
+    </script>
+    <?php
+    }else{
+    ?>
+    <script>
+      window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
+    </script>
+    <?php
+    }
+  }elseif($udskriv_til=="Digitalt" && $art=="DK" && $status <=2){
+    $query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+    if(db_num_rows($query) <= 0){
+    ?>
+    <script>
+      if(confirm("ved at sende faktura/kreditnote digitalt, vil du blive oprettet i nemhandel") == true)
+        window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
+    </script>
+    <?php
+    }else{
+    ?>
+    <script>
+      window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
+    </script>
+    <?php
+    }
   }else{
 		$oioxml='';
 		$oioubl='';

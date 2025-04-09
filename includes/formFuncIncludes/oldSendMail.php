@@ -26,6 +26,7 @@
 // 20211028 PHR moved this function rom ../formfunc,php  
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20-09-2024 PBLM added betalingsLink functionality
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 	
 if(!class_exists('phpmailer')) {
 	ini_set("include_path", ".:../phpmailer");
@@ -213,10 +214,10 @@ print "<!--function send_mails start-->";
 	fclose($chkfil);	
 	
 	if ($charset=="UTF-8" || $webservice) {
-#		$subjekt=utf8_decode($subjekt);
-#		$mailtext=utf8_decode($mailtext);
-#		$bilagnavn=utf8_decode($bilagnavn);
-#		$afsendernavn=utf8_decode($afsendernavn);
+#		$subjekt=mb_convert_encoding($subjekt, 'ISO-8859-1', 'UTF-8');
+#		$mailtext=mb_convert_encoding($mailtext, 'ISO-8859-1', 'UTF-8');
+#		$bilagnavn=mb_convert_encoding($bilagnavn, 'ISO-8859-1', 'UTF-8');
+#		$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
 	}
 	if (file_exists ("../temp/$db/mailCheck.txt")) {
 		$fp=fopen("../temp/$db/mailCheck.txt","r");

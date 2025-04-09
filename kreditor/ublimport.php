@@ -5,7 +5,7 @@
 //                        |___/_/ \_|___|___/|_|
 //
 // -------------kreditor/ublimport.php----------lap 3.6.6-----2016-12-07----
-// LICENS
+//                           LICENSE
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
 // modificere det under betingelserne i GNU General Public License (GPL)
@@ -33,26 +33,62 @@
 $s_id=session_id();
 $css="../css/standard.css";
 
+global $menu;
+
 $title="OIOUBL import";
 	
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if (file_exists("../owncloud")) $nfs_mappe='owncloud';
 elseif (file_exists("../bilag")) $nfs_mappe='bilag';
 
-print "<div align=\"center\">";
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"3\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-#if ($popup) print "<td width=\"10%\" $top_bund><a href=../includes/luk.php accesskey=L>Luk</a></td>"; 
-if (isset($_POST['descfil']) || isset($_GET['funktion'])) print "<td width=\"10%\" $top_bund><a href=ordreliste.php accesskey=L>Luk</a></td>";
-else print "<td width=\"10%\" $top_bund><a href=ordre.php accesskey=L>Luk</a></td>";
-print "<td width=\"80%\" $top_bund>$title</td>";
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	if (isset($_POST['descfil']) || isset($_GET['funktion'])) print "<div class=\"headerbtnLft headLink\"><a href=ordreliste.php accesskey=L title='Klik her for at komme tilbage til forrige side'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
+	else print "<div class=\"headerbtnLft headLink\"><a href=ordre.php accesskey=L title='Klik her for at komme tilbage til forrige side'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>"; 
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+	print "<table width=\"100%\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class='dataTableSmall'><tbody>";
+
+} elseif ($menu=='S') {
+	print "<div align=\"center\">";
+	print "<table width=\"100%\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"3\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	if (isset($_POST['descfil']) || isset($_GET['funktion'])) {
+		print "<td width=\"10%\"><a href=ordreliste.php accesskey=L>
+			   <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+	} else {
+		print "<td width=\"10%\"><a href=ordre.php accesskey=L>
+			   <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+	}
+	print "<td width=\"80%\" align='center' style='$topStyle'>$title</td>";
+	print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
+
+	print "</tbody></table>";
+	print "</td></tr>";
+
+} else {
+	print "<div align=\"center\">";
+	print "<table width=\"100%\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"3\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	#if ($popup) print "<td width=\"10%\" $top_bund><a href=../includes/luk.php accesskey=L>Luk</a></td>"; 
+	if (isset($_POST['descfil']) || isset($_GET['funktion'])) print "<td width=\"10%\" $top_bund><a href=ordreliste.php accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></td>";
+	else print "<td width=\"10%\" $top_bund><a href=ordre.php accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund>$title</td>";
+	print "<td width=\"10%\" $top_bund><br></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+}
 
 $funktion=if_isset($_GET['funktion']);
 
@@ -87,6 +123,7 @@ print "</tbody></table>";
 #####################################################################################################
 function upload($filnavn,$nfs_mappe){
 
+global $sprog_id;
 print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 /*
 $r=db_fetch_array(db_select("select * from grupper where art='bilag'",__FILE__ . " linje " . __LINE__));
@@ -104,9 +141,9 @@ if($box6=$r['box6']) {
 print "<form enctype=\"multipart/form-data\" action=\"ublimport.php\" method=\"POST\">";
 print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"900000\">";
 print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
-print "<tr><td width=100% align=center> V&aelig;lg datafil: <input name=\"uploadedfile\" type=\"file\" /><br /></td></tr>";
+print "<tr><td width=100% align=center>".findtekst('1364|Vælg datafil', $sprog_id).": <input name=\"uploadedfile\" type=\"file\" /><br /></td></tr>";
 print "<tr><td><br></td></tr>";
-print "<tr><td align=center><input type=\"submit\" name=\"hent\" value=\"Hent\" /></td></tr>";
+print "<tr><td align=center><input type=\"submit\" name=\"hent\" value=".findtekst('1078|Hent', $sprog_id)."></td></tr>";
 print "<tr><td></form></td></tr>";
 print "</tbody></table>";
 print "</td></tr>";

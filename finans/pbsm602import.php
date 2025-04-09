@@ -28,6 +28,7 @@
 // 20230908 PHR Expanded debitor recognition character from 13 to 19 in above
 // 20231003 PHR Reversed above.
 // 20231023 PHR Combined recognition with invoice nummer for use with and without.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 //
 @session_start();
 $s_id=session_id();
@@ -126,7 +127,7 @@ function vis_data($kladde_id, $bilag, $modkonto){
 		if ($fp) {
 			while ($linje[$i]=fgets($fp)) {
 				if (trim($linje[$i])) {
-					$linje[$i]=trim(utf8_encode($linje[$i]));
+					$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
 					$fn[$i]=$fileName; 
 					$i++;
 				}
@@ -317,7 +318,7 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 		if ($fp) {
 			while ($linje[$i]=fgets($fp)) {
 				if (trim($linje[$i])) {
-					$linje[$i]=trim(utf8_encode($linje[$i]));
+					$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
 					$i++;
 				}
 			}
@@ -326,7 +327,7 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 	}
 	transaktion('begin');
 	for ($i=0;$i<count($linje);$i++) {
-#			$linje[$i]=trim(utf8_encode($linje[$i]));
+#			$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
 			if ($linje[$i] && substr($linje[$i],0,5)=='BS042') {
 				if (substr($linje[$i],13,4)=='0297') {
 					$skriv_linje[$y]=1;

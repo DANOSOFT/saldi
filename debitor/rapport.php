@@ -209,7 +209,7 @@ if (isset($_POST['submit']) || $rapportart) {
 			if ($submit == "mail kontoudtog") {
 				print "<BODY onLoad=\"javascript:alert('$alert')\">";
 			} else {
-				print "<BODY onLoad=\"javascript:alert('$alert2')\">";
+				print "<BODY onLoad=\"javascript:alert('$alert1')\">";
 			}
 		}
 		/*

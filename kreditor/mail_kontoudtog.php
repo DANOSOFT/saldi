@@ -40,6 +40,7 @@
 // 20220226 PHR function send_htmlmails, Added: $mail->CharSet = "$charset";
 // 20220809 PHR Changed if($charset=="UTF-8") to if($charset != "UTF-8") and utf8_decode to utf8_encode
 // 20221124 PHR Changed 'from' address to $db@$_SERVER_NAME  + added $mail->ReturnPath = $afsendermail;
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -465,10 +466,10 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			$afsendernavn=$r['firmanavn'];
 
 			if ($charset!="UTF-8") {
-				$subjekt=utf8_encode($subjekt);
-				$mailtext=utf8_encode($mailtext);
-				$afsendernavn=utf8_encode($afsendernavn);
-				$afsendermail=utf8_encode($afsendermail);
+				$subjekt=mb_convert_encoding($subjekt, 'UTF-8', 'ISO-8859-1');
+				$mailtext=mb_convert_encoding($mailtext, 'UTF-8', 'ISO-8859-1');
+				$afsendernavn=mb_convert_encoding($afsendernavn, 'UTF-8', 'ISO-8859-1');
+				$afsendermail=mb_convert_encoding($afsendermail, 'UTF-8', 'ISO-8859-1');
 			}
 			$from = $afsendermail;
 			$fp=fopen("$tmpmappe/$x/kontoudtog.html","w");
@@ -542,8 +543,8 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			if ( $r['cvrnr'] ) $mailaltbody .= " * cvr ".$r['cvrnr'];
 			
 			if ($charset!="UTF-8"){
-				$mailbody=utf8_encode($mailbody);
-				$mailaltbody=utf8_encode($mailaltbody);
+				$mailbody=mb_convert_encoding($mailbody, 'UTF-8', 'ISO-8859-1');
+				$mailaltbody=mb_convert_encoding($mailaltbody, 'UTF-8', 'ISO-8859-1');
 			}
 
 

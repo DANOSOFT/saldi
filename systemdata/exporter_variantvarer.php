@@ -23,6 +23,7 @@
 // 20140516 Indsat dkdecimal ved udskrivning af kost',salgs', og vejl.pris. 
 // 20140526 Rettet $varianter_id til $varianttype_id 
 // 20210714 LOE - Translated some text.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -78,7 +79,7 @@ $overskrift="varenr".chr(9)."beskrivelse".chr(9)."stregkode".chr(9)."kostpris".c
 for ($x=0;$x<count($varianter_id);$x++) {
 	$overskrift.=chr(9).$varianter_beskrivelse[$x];
 }
-if ($charset=="UTF-8") $overskrift=utf8_decode($overskrift);
+if ($charset=="UTF-8") $overskrift=mb_convert_encoding($overskrift, 'ISO-8859-1', 'UTF-8');
 
 if (fwrite($fp, "$overskrift\r\n")) {
 	$z=0;
@@ -103,7 +104,7 @@ if (fwrite($fp, "$overskrift\r\n")) {
 				$linje.=chr(9).'"'."$tmp".'"';
 			}
 			$linje=str_replace("\n","",$linje);
-			if ($charset=="UTF-8") $linje=utf8_decode($linje);
+			if ($charset=="UTF-8") $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			fwrite($fp, $linje."\r\n");
 		} elseif ($z>$slut) {
 			break(1);

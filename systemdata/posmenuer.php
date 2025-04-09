@@ -307,7 +307,7 @@ $r = db_fetch_array($q);
 $menu_id=$r['kodenr'];
 if (!$menu_id) {
 	$plads='H';
-	$beskrivelse="Tastatur";;
+	$beskrivelse=findtekst('2275|Tastatur', $sprog_id);
 	$menutype='';
 	$cols='3';
 	$rows='3';
@@ -342,7 +342,7 @@ print "<table border = '1'><tbody><tr><td>\n";
 print "<form name='posmenuer' action='posmenuer.php' method='post'>\n";
 // Vindue 1 - >
 print "<table border='0'><tbody>\n";
-print "<tr><td><a href=diverse.php?sektion=pos_valg>$buttonTextArr[close]</a></td></tr>\n";
+print "<tr><td><a href=diverse.php?sektion=pos_valg>".findtekst('2172|Luk', $sprog_id)."</a></td></tr>\n";
 if (($menu_id) && $ret_col && $ret_row) {
 	$qtxt="select * from pos_buttons where menu_id='$menu_id' and row='$ret_row' and col='$ret_col'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -357,22 +357,22 @@ if (($menu_id) && $ret_col && $ret_row) {
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
   $menu_navn = $r[0];
 
-	print "<tr><td colspan='2' align='center'>Menu $menu_id - $menu_navn</td></tr>\n";
-  print "<tr>
-    <td colspan='1' align='center'><a href='posmenuer.php?menu_id=$menu_id'>Skift menu</a></td>
-    <td colspan='1' align='center' id='choose-item' onclick='open_popup()'>Vælg</td>
-  </tr>\n";
+	print "<tr><td colspan='2' align='center'>".findtekst('2276|Menu', $sprog_id)." $menu_id - $menu_navn</td></tr>\n";
+  	print "<tr>
+    <td colspan='1' align='center'><a href='posmenuer.php?menu_id=$menu_id'>".findtekst('2287|Skift menu', $sprog_id)."</a></td>
+    <td colspan='1' align='center' id='choose-item' onclick='open_popup()'>".findtekst('586|Vælg', $sprog_id)."</td>
+  	</tr>\n";
 	print "<tr>\n";
 	print "<td style='width:140px;height:".$height."px;text-align:left'>\n
-	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Tekst'><br>\n";
-	if ($d == 1) print "<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Pris'><br>\n";
+	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('1163|Tekst', $sprog_id)."'><br>\n";
+	if ($d == 1) print "<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('915|Pris', $sprog_id)."'><br>\n";
 	print "<a href='../includes/farvekort.php?menu_id=$menu_id&ret_col=$ret_col&ret_row=$ret_row'>\n
-	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Farvekode'></a><br>\n
-	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Tekst Farvekode'></a><br>\n
-	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Vare-/menunr'><br>\n
+	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('2288|Farvekode', $sprog_id)."'></a><br>\n
+	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('2289|Tekst farvekode', $sprog_id)."'></a><br>\n
+	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('2290|Vare-/menunr', $sprog_id).".'><br>\n
 
   <div style='position: relative;'>
-    <INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Funktion'>\n
+    <INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('2291|Funktion', $sprog_id)."'>\n
     <div class='tooltip' id='funk-help'>
       <svg 
         fill='none' 
@@ -410,8 +410,8 @@ if (($menu_id) && $ret_col && $ret_row) {
     </div>
   </div>
 
-	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Byt med:'>\n
-	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='Kopi fra:'>\n
+	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('2292|Byt med', $sprog_id).":'>\n
+	<INPUT CLASS='inputbox' READONLY='readonly' style='width:140px;text-align:left' value='".findtekst('2293|Kopier fra', $sprog_id).":'>\n
 	<input type='hidden' name='menu_id' value='$menu_id'>\n
 	<input type='hidden' name='ret_col' value='$ret_col'>\n
 	<input type='hidden' name='ret_row' value='$ret_row'>\n
@@ -538,7 +538,7 @@ if (($menu_id) && $ret_col && $ret_row) {
 	if ($d!=6) print "<OPTION value='6'>Systemknap</OPTION>\n";
 	if ($d!=7) print "<OPTION value='7'>Betalingsknap</OPTION>\n";
 	if ($d!=8) print "<OPTION value='8'>Valutaknap</OPTION>\n";
-	print	"</SELECT><br>\n";
+	print "</SELECT><br>\n";
 	print "<input style='width:100px;' type='text' name='byt'>\n";
 	print "<input style='width:33px;' type='text' name='copyFromMenu' placeholder = 'Menu'>";
 	print "<input style='width:33px;' type='text' name='copyFromCol' placeholder = 'Col'>";
@@ -550,7 +550,7 @@ if (($menu_id) && $ret_col && $ret_row) {
     <input type=button value='Slet Knap' name='SletKnap' onclick='delete_btn();'>
   ";
 } else {
-	print "<tr><td>Menu (ID)</td><td><select CLASS='inputbox' name='menuvalg'>\n";
+	print "<tr><td>".findtekst('2276|Menu', $sprog_id)." (ID)</td><td><select CLASS='inputbox' name='menuvalg'>\n";
 	if (($menu_id || $menu_id=='0') && $beskrivelse) $menuvalg=$menu_id.":".$beskrivelse;
 	else $menuvalg=NULL;
 	$menu_id=$menu_id*1;
@@ -563,33 +563,33 @@ if (($menu_id) && $ret_col && $ret_row) {
 		$tmp2=$r['box1'];
 		if ($tmp!=$menuvalg) print "<option value='$tmp1'>$tmp2</option>\n";
 	}
-	print "<option value='ny'>Opret ny</option>\n";
+	print "<option value='ny'>".findtekst('2277|Opret ny', $sprog_id)."</option>\n";
 	print "</select></td>\n";
 	print "<td><input type=submit value='OK' name='OK'></td></tr>\n";
 	print "<input type='hidden' name='menu_id' value='$menu_id'>\n";
-	print "<tr><td>Beskrivelse</td><td><INPUT CLASS='inputbox' TYPE='text' name='beskrivelse' value=\"$beskrivelse\"></td></tr>\n";
+	print "<tr><td>".findtekst('914|Beskrivelse', $sprog_id)."</td><td><INPUT CLASS='inputbox' TYPE='text' name='beskrivelse' value=\"$beskrivelse\"></td></tr>\n";
 	#
 	# Hvis der er en aktiv menu valgt
 	if ($beskrivelse) {
-		print "<tr><td>Menytype</td><td><SELECT CLASS='inputbox' $disabled name='menutype'>\n";
-		if ($menutype=='H') print "<option value='H'>Hovedmenu</option>\n";
-		elseif ($menutype=='B') print "<option value='B'>Bogført</option>\n";
-		elseif ($menutype=='A') print "<option value='A'>Afslutning</option>\n";
-		elseif ($menutype=='U') print "<option value='U'>$buttonTextArr[user]</option>\n";
-		else print "<option value=''>Undermenu</option>\n";
-		if ($menutype!='H') print "<option value='H'>Hovedmenu</option>\n";
-		if ($menutype!='A') print "<option value='A'>Afslutning</option>\n";
-		if ($menutype!='B') print "<option value='B'>Bogført</option>\n";
-		if ($menutype!='U') print "<option value='U'>$buttonTextArr[user]</option>\n";
-		if ($menutype) print "<option value=''>Undermenu</option>\n";
+		print "<tr><td>".findtekst('2280|Menutype', $sprog_id)."</td><td><SELECT CLASS='inputbox' $disabled name='menutype'>\n";
+		if ($menutype=='H') print "<option value='H'>".findtekst('2273|Hovedmenu', $sprog_id)."</option>\n";
+		elseif ($menutype=='B') print "<option value='B'>".findtekst('637|Bogført', $sprog_id)."</option>\n";
+		elseif ($menutype=='A') print "<option value='A'>".findtekst('2270|Afslutning', $sprog_id)."</option>\n";
+		elseif ($menutype=='U') print "<option value='U'>".findtekst('990|Bruger', $sprog_id)."</option>\n";
+		else print "<option value=''>".findtekst('2274|Undermenu', $sprog_id)."</option>\n";
+		if ($menutype!='H') print "<option value='H'>".findtekst('2273|Hovedmenu', $sprog_id)."</option>\n";
+		if ($menutype!='A') print "<option value='A'>".findtekst('2270|Afslutning', $sprog_id)."</option>\n";
+		if ($menutype!='B') print "<option value='B'>".findtekst('637|Bogført', $sprog_id)."</option>\n";
+		if ($menutype!='U') print "<option value='U'>".findtekst('990|Bruger', $sprog_id)."</option>\n";
+		if ($menutype) print "<option value=''>".findtekst('2274|Undermenu', $sprog_id)."</option>\n";
 		print "</select></td></tr>\n";
 
 		# Hvis det er en hoved menu
 		if ($menutype=='H') {
-			print "<tr><td>Aktiv fra</td><td><INPUT CLASS='inputbox' TYPE='text' 
+			print "<tr><td>".findtekst('2286|Aktiv fra', $sprog_id)."</td><td><INPUT CLASS='inputbox' TYPE='text' 
 			style='width:50px;text-align:right' name='begin' value='$begin'> - <INPUT CLASS='inputbox' TYPE='text' 
 			style='width:50px;text-align:right' name='end' value='$end'></td></tr>";
-			print "<tr><td>Afdeling</td><td><SELECT CLASS='inputbox' $disabled name='projekt'>";
+			print "<tr><td>".findtekst('274|Afdeling', $sprog_id)."</td><td><SELECT CLASS='inputbox' $disabled name='projekt'>";
 		        $projekt = (int)$projekt;
 		        $qtxt = "select * from grupper where art='PRJ' and kodenr='$projekt'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -616,31 +616,31 @@ if (($menu_id) && $ret_col && $ret_row) {
 			if ($afd!='') print "<option value=''></option>";
 		}
 	if ($menu_id || $menu_id=='0') {
-			print "<tr><td>Menustørrelse</td><td><INPUT CLASS='inputbox' $disabled TYPE='text' 
+			print "<tr><td>".findtekst('2281|Menustørrelse', $sprog_id)."</td><td><INPUT CLASS='inputbox' $disabled TYPE='text' 
 			style='width:50px;text-align:right' title='Kolonner' name='rows' value='$rows'> x <INPUT CLASS='inputbox' $disabled TYPE='text' 
 			style='width:50px;text-align:right' title='Rækker' name='cols' value='$cols'></td></tr>";
 		} else {
 			print "<INPUT TYPE='hidden' name='rows' value='$rows'></td></tr>";
 			print "<INPUT TYPE='hidden' name='cols' value='$cols'></td></tr>";
 		}
-		print "<tr><td>Knap størrelse</td><td><INPUT CLASS='inputbox' TYPE='text' 
+		print "<tr><td>".findtekst('2282|Knapstørrelse', $sprog_id)."</td><td><INPUT CLASS='inputbox' TYPE='text' 
 		style='width:50px;text-align:right' name='height' value='$height'> x <INPUT CLASS='inputbox' TYPE='text' 
 		style='width:50px;text-align:right' name='width' value='$width'></td></tr>";
 		print "<tr><td>Radius</td><td><INPUT CLASS='inputbox' TYPE='text' 
 		style='width:50px;text-align:right' name='radius' value='$radius'></td></tr>";
-		print "<tr><td>Tekst st&oslash;rrelse</td><td><INPUT CLASS='inputbox' TYPE='text' 
+		print "<tr><td>".findtekst('2283|Tekststørrelse', $sprog_id)."</td><td><INPUT CLASS='inputbox' TYPE='text' 
 		style='width:50px;text-align:right' name='fontsize' value='$fontsize'></td></tr>";
-		print "<tr><td>Plads</td><td><SELECT CLASS='inputbox' $disabled name='plads'>";
+		print "<tr><td>".findtekst('2284|Plads', $sprog_id)."</td><td><SELECT CLASS='inputbox' $disabled name='plads'>";
 		if ($plads=='H') {
-			print "<option value='H'>Højre side</option>";
-			print "<option value='B'>Bund</option>";
+			print "<option value='H'>".findtekst('2278|Højre side', $sprog_id)."</option>";
+			print "<option value='B'>".findtekst('2279|Bund', $sprog_id)."</option>";
 		} else {
-			print "<option value='B'>Bund</option>";
-			print "<option value='H'>Højre side</option>";
+			print "<option value='B'>".findtekst('2279|Bund', $sprog_id)."</option>";
+			print "<option value='H'>".findtekst('2278|Højre side', $sprog_id)."</option>";
 		}
 		print "</select></td></tr>";
 		if ($rows=='3' && $cols=='3') {
-			print "<tr><td>Kopier fra menu nr:</td><td><input type='text' 
+			print "<tr><td>".findtekst('2285|Kopier fra menu nr.', $sprog_id).":</td><td><input type='text' 
 			CLASS='inputbox' $disabled style='width:25px;text-align:right' name='kopier_menu'></td></tr>";
 		}
 	}
@@ -676,12 +676,12 @@ print "<table border='0' cellspacing='5' cellpadding='5'><tbody>";
 print "</tbody></table>";
 print "</td><tr><td colspan='2\ width='100%'><tr><td>";
 print "<table>\n"; #20211124
-print "<tr><th>".findtekst(1941, $sprog_id)."</th></tr>\n"; # Import and export POS menues
+print "<tr><th>".findtekst('1941|Import og eksport af POS-menuer', $sprog_id)."</th></tr>\n"; # Import and export POS menues
 print "<tr><td><form name='import_posmenu' action='importer_posmenu.php' method='post'>";
-print "<input class='button blue medium' type='submit' style='width: 16em' value='".findtekst(1934, $sprog_id)."'>"; # Import POS menus
+print "<input class='button blue medium' type='submit' style='width: 16em' value='".findtekst('1934|Importér POS-menuer', $sprog_id)."'>"; # Import POS menus
 print "</form></td></tr>\n";
 print "<tr><td><form name='export_posmenu' action='exporter_posmenu.php' method='post'>";
-print "<input class='button blue medium' type='submit' style='width: 16em' value='".findtekst(1932, $sprog_id)."'>"; # Export POS menus
+print "<input class='button blue medium' type='submit' style='width: 16em' value='".findtekst('1932|Eksportér POS-menuer', $sprog_id)."'>"; # Export POS menus
 print "</form></td></tr>\n";
 print "</table>";
 
@@ -894,7 +894,7 @@ print "<div id='modal-bg' onclick='close_menu_popup()'></div>";
 print "<div id='menu-popup' class='posmenu-popup'>";
 print "<input type='text' id='search-menu' placeholder='Søg efter en menu' onkeyup='filter_table(\"search-menu\", \"menu-table\")'>";
 print "<table id='menu-table' class='search-table'>";
-print "<tr><th>ID</th><th>Beskrivelse</th></tr>
+print "<tr><th>ID</th><th>".findtekst('914|Beskrivelse', $sprog_id)."</th></tr>
        <tbody>";
 $q=db_select("select kodenr, box1 from grupper where art='POSBUT' order by box1",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
@@ -916,7 +916,7 @@ print "</div>";
 print "<div id='vare-popup' class='posmenu-popup'>";
 print "<input type='text' id='search-vare' placeholder='Søg efter en vare' onkeyup='filter_table(\"search-vare\", \"vare-table\")'>";
 print "<table id='vare-table' class='search-table'>";
-print "<tr><th>ID</th><th>Beskrivelse</th></tr>
+print "<tr><th>ID</th><th>".findtekst('914|Beskrivelse', $sprog_id)."</th></tr>
        <tbody>";
 $q=db_select("select varenr, beskrivelse, salgspris from varer where NOT beskrivelse = '' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {

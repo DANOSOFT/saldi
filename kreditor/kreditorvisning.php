@@ -106,7 +106,7 @@ print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>"; #Tabel 1.1 ->
 sektion_1();
 print "</tbody></table>"; #  <- Tabel 1.1
-print "	</td></tr><tr><td valign=\"top\"><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\"><tbody>"; # Tabel 1.2 -> 
+print "</td></tr><tr><td valign=\"top\"><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\"><tbody>"; # Tabel 1.2 -> 
 print "</tbody></table></td></tr><tr></tr>"; # <- tabel 1.2
 print "<tr><td width=100%><table border=0><tbody><tr><td>"; #tabel 1.3 ->
 # sektion_2();
@@ -131,11 +131,32 @@ global $sort;
 global $title;
 global $felter;	
 global $feltantal;	
-	
-print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=kreditor.php?sort=$sort accesskey=L>Luk</a></div></td>
-			<td width=\"80%\" align=center><div class=\"top_bund\">$title</a></div></td>
-			<td width=\"10%\" align=center><div class=\"top_bund\"><br></div></td>
-			 </tr>";
+global $menu;
+global $sprog_id;
+
+include("../includes/topline_settings.php");
+
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\"><a href=kreditor.php?sort=$sort accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";     
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	print "<td width='10%' align=center><a href=kreditor.php?sort=$sort accesskey=L>
+		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	print "<td width='80%' align=center style='$topStyle'>".findtekst('1189|Kreditorvisning', $sprog_id)."</a></td>
+		   <td width='10%' align=center style=$topStyle><br></div></td>
+		   </tr>";
+} else {
+print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=kreditor.php?sort=$sort accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div></td>
+	   <td width=\"80%\" align=center><div class=\"top_bund\">".findtekst('1189|Kreditorvisning', $sprog_id)."</a></div></td>
+	   <td width=\"10%\" align=center><div class=\"top_bund\"><br></div></td>
+	   </tr>";
+}
 }
 
 function sektion_2($sort,$title) {
@@ -150,6 +171,7 @@ global $vis_linjeantal;
 global $vis_feltantal;
 global $select;
 global $bruger_id;
+global $sprog_id;
 
 $r = db_fetch_array(db_select("select box3,box4,box5,box6,box7,box8 from grupper where art = 'KLV' and kode ='kreditor' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__));
 $vis_felt=explode(chr(9),$r['box3']);
@@ -165,8 +187,8 @@ $select=explode(chr(9),$r['box8']);
 #print "<td width=50%><table border=1><tbody>"; # tabel 1.2.2 ->
 
 print "<form name=sektion_2 action=kreditorvisning.php?sort=$sort&side=$side&sektion=2 method=post>";
-print "<tr width=\"500px\"><td>Antal felter p&aring; kreditoroversigten</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
-print "<tr><td>Antal linjer p&aring; kreditoroversigten</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td>";
+print "<tr width=\"500px\"><td>".findtekst('1188|Antal felter på Kreditoroversigten', $sprog_id)."</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
+print "<tr><td>".findtekst('1187|Antal linjer på Kreditoroversigten', $sprog_id)."</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td>";
 print "<td><input type=submit value=\"OK\" name=\"submit\"></td></tr>\n";
 print "</form>";
 # print "</tbody><table>print"; # <- tabel 1.2.2
@@ -188,12 +210,14 @@ function sektion_3() {
 	global $vis_linjeantal;
 	global $vis_feltantal;
 	global $select;
+	global $menu;
+	global $sprog_id;
 
-	print "<tr><td colspan=3>V&aelig;lg om lukkede kreditorer skal v&aelig;re synlige p&aring; oversigten.</td></tr>";
+	print "<tr><td colspan=3>".findtekst('548|Vælg om lukkede kreditorer skal være synlige på oversigten.', $sprog_id)."</td></tr>";
 	
-	print "<tr><td colspan=3>Samt hvilke kundegrupper og kategorier der skal v&aelig;re synlige p&aring; oversigten.</td></tr>";
-	print "<tr><td colspan=3>Hvis intet er valgt, vil alt blive vist!</td></tr>";
-#	print "<tr><td colspan=3><hr></td></tr>";
+	print "<tr><td colspan=3>".findtekst('1122|Samt hvilke kundegrupper og kategorier der skal være synlige på oversigten.', $sprog_id)."</td></tr>"; #20210707
+	print "<tr><td colspan=3>".findtekst('1123|Hvis intet er valgt, vil alt blive vist!', $sprog_id)."</td></tr>";
+	print "<tr><td colspan=3>&nbsp;</td></tr>";
 	
 	$r = db_fetch_array(db_select("select id,box1,box2,box11 from grupper where art = 'KLV' and kode ='kreditor' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__));
 	$kg_liste=explode(chr(9),$r['box1']);
@@ -202,23 +226,23 @@ function sektion_3() {
 	
 	print "<form name=sektion_3 action=kreditorvisning.php?sort=$sort&sektion=3 method=post>";
 	print "<tr><td colspan=3><table border=1 width=100%><tbody>";
-	print "<tr><td>Skjul lukkede kreditorer</td><td><input name=\"skjul_lukkede\" type=\"checkbox\" $skjul_lukkede></td></tr>";
+	print "<tr><td style='padding:5px;'>".findtekst('1185|Skjul lukkede kreditorer', $sprog_id)."<input name=\"skjul_lukkede\" type=\"checkbox\" $skjul_lukkede></td></tr>";
 	print "<tr><td width=50%><table border=0 width=100%><tbody>";
-	print "<tr><td><b>Leverandørgrupper</b><br><hr></td></tr>";
+	print "<tr><td><br><b style='padding:5px;'>".findtekst('1186|Leverandørgrupper', $sprog_id)."</b><br><hr></td></tr>";
 	$q = db_select("select * from grupper where art = 'DG' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 	$x=-1;
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		if (in_array($r['id'],$kg_liste)) $tmp='checked';
 		else $tmp='';
-		print "<tr><td><input name=\"kg_liste[$x]\" type=\"checkbox\" $tmp>$r[beskrivelse]</td></tr>";
+		print "<tr><td style='padding:5px;'><input name=\"kg_liste[$x]\" type=\"checkbox\" $tmp> $r[beskrivelse]</td></tr>";
 		print "<input type=hidden name=kg_id[$x] value=$r[id]>";
 	}
 	print "<input type=hidden name=kg_antal value=$x>";
 	print "</tbody></table>";
-	print "</td><td valign=top><table border=0 width=100%><tbody>";
-	print "<tr><td><b>Kategorier</b><br><hr></td></tr>";
-	
+	print "</td><td valign=top>";
+	print "<table border=0 width=100%><tbody>";
+	print "<tr><td><b style='padding:5px;'><br>".findtekst('388|Kategorier', $sprog_id)."</b><br><hr></td></tr>";
 	$r=db_fetch_array(db_select("select box1,box2,box9 from grupper where art='KredInfo'",__FILE__ . " linje " . __LINE__));
 	if(!empty($r)){
 	$cat_id=explode(chr(9),$r['box1']);
@@ -230,7 +254,7 @@ function sektion_3() {
 		else $tmp='';
 		print "<tr><td><input name=\"cat_liste[$x]\" type=\"checkbox\" $tmp>$cat_beskrivelse[$x]</td></tr>";
 		print "<input type=hidden name=cat_id[$x] value=$cat_id[$x]>";
-	}
+		}
 	print "<input type=hidden name=cat_antal value=$x>";
 	
 	print "</td></tr></tbody></table>";
@@ -241,6 +265,7 @@ function sektion_3() {
 	print "</form>";
 }
 }
+
 function sektion_4() {
 
 	global $bruger_id;
@@ -253,6 +278,7 @@ function sektion_4() {
 	global $vis_felt;
 	global $felter;
 	global $sort;
+	global $sprog_id;
 	
 	$r = db_fetch_array(db_select("select box3,box4,box5,box6,box7,box8 from grupper where art = 'KLV' and kode ='kreditor' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__));
 	$vis_felt=explode(chr(9),$r['box3']);
@@ -265,21 +291,21 @@ function sektion_4() {
 	
 	print "<form name=sektion_4 action=kreditorvisning.php?sort=$sort&sektion=4 method=post>";
 	
-	print "<tr width=\"500px\"><td>Antal felter p&aring; Kreditoroversigten</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
-	print "<tr><td>Antal linjer p&aring; Kreditoroversigten</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td><tr>";
+	print "<tr width=\"500px\"><td>".findtekst('1188|Antal felter på Kreditoroversigten', $sprog_id)."</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
+	print "<tr width=\"500px\"><td>".findtekst('1187|Antal linjer på Kreditoroversigten', $sprog_id)."</td><td colspan=\"5\"><input type=text style=\"text-align:right\" size=2 name=vis_linjeantal value=$vis_linjeantal></td><tr>";
 	print "<tr><td colspan=\"5\"><hr></td><tr>";
 
 	$felter=array("firmanavn","addr1","addr2","postnr","bynavn","land","kontakt","tlf","fax","email","web","bank_navn","bank_reg","bank_konto","notes","rabat","momskonto","kreditmax","betalingsbet","betalingsdage","kontonr","cvrnr","ean","institution","art","gruppe","kontoansvarlig","oprettet","kontaktet","kontaktes","bank_fi","swift","erh","mailfakt","pbs","pbs_nr","pbs_date","felt_1","felt_2","felt_3","felt_4","felt_5","vis_lev_addr","kontotype","fornavn","efternavn","lev_firmanavn","lev_fornavn","lev_efternavn","lev_addr1","lev_addr2","lev_postnr","lev_bynavn","lev_land","lev_kontakt","lev_tlf","lev_email","lukket","status");
 
 	sort($felter);
 	$feltantal=count($felter);
-	print "<tr><td colspan=\"5\">V&aelig;lg hvilke felter der skal v&aelig;re synlige p&aring; oversigten.</td></tr>";
+	print "<tr><td colspan=\"5\">".findtekst('1117|Vælg hvilke felter der skal være synlige på oversigten.', $sprog_id)."</td></tr>";
 
-	print "<tr><td colspan=\"5\">Kontonr. kan ikke frav&aelig;lges.</td></tr>";
+	print "<tr><td colspan=\"5\">".findtekst('1118|Kontonr. kan ikke fravælges.', $sprog_id)."</td></tr>";
 	print "<tr><td colspan=\"5\"><hr></td></tr>";
-	print "<tr><td colspan=\"1\"><b>Felt</b></td><td align=\"center\"><b>Valgfri overskrift</b></td><td align=\"center\"><b>Feltbredde</b></td><td align=\"center\"><b>Justering</b></td><td align=\"center\" title=\"Angiver om feltets v&aelig;rdi skal kunne v&aelig;lges fra en liste\"><b>Valgbar</b></td></tr>";
+	print "<tr><td colspan=\"1\"><b>".findtekst('543|Felt', $sprog_id)."</b></td><td align=\"center\"><b>".findtekst('539|Valgfri overskrift', $sprog_id)."</b></td><td align=\"center\"><b>".findtekst('540|Feltbredde', $sprog_id)."</b></td><td align=\"center\"><b>".findtekst('541|Justering',$sprog_id)."</b></td><td align=\"center\" title=\"Angiver om feltets v&aelig;rdi skal kunne v&aelig;lges fra en liste\"><b>".findtekst('1119|Valgbar', $sprog_id)."</b></td></tr>";
 	if (!$feltnavn[0]) $feltnavn[0]="Kontonr";
-	print "<tr><td colspan=\"1\">Kontonr.</td>";
+	print "<tr><td colspan=\"1\">".findtekst('804|Kontonr.', $sprog_id)."</td>";
 	print "<td align=\"center\"><input name=feltnavn[0] size=20 value=$feltnavn[0]></td>";
 	print "<td align=\"center\"><input name=feltbredde[0] style=\"text-align:right\" size=2 value=$feltbredde[0]></td>";
 	print "<td align=\"center\"><SELECT NAME=justering[0]>";
@@ -315,5 +341,12 @@ function sektion_4() {
 	print "<tr><td colspan=6 align = center><input type=submit accesskey=\"a\" value=\"OK\" name=\"submit\"></td></tr>\n";
 	print "</form>";
 }
+
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
+
 
 ?>

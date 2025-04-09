@@ -25,6 +25,7 @@
 // 20210714 LOE - Translated some text.
 // 20220218 PHR - Variants is cow created if thet did not exist
 // 20230606 PHR - php8
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -97,8 +98,8 @@ global $charset;
 $fp=fopen("$filnavn","r");
 if ($fp) {
 	for ($y=1; $y<4; $y++) $linje=fgets($fp);#korer frem til linje nr. 4.
-	if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-	elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+	if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+	elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 	$tmp=$linje;
 	while ($tmp=substr(strstr($tmp,";"),1)) {$semikolon++;}
 	$tmp=$linje;
@@ -222,7 +223,7 @@ if ($fp) {
 		if ($linje=fgets($fp)) {
 			$x++;
 			$skriv_linje[$x]=1;
-			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$felt=array();
 			$felt = opdel($splitter, $linje);
 			for ($y=0; $y<=$feltantal; $y++) {
@@ -394,8 +395,8 @@ if ($fp) {
 		if ($linje=fgets($fp)) {
 			$x++;
 			$skriv_linje[$x]=1;
-			if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=utf8_encode($linje);
-			elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=utf8_decode($linje);
+			if ($charset=='UTF-8' && $tegnset!='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
+			elseif ($charset!='UTF-8' && $tegnset=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$variant_type=NULL;
 			$felt=array();
  			$felt = opdel($splitter, $linje);

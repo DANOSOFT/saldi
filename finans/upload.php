@@ -1,4 +1,5 @@
 <?php
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -63,7 +64,7 @@ function flyt_data($kladde_id, $filnavn, $bilag, $modkonto){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-			$linje=trim(utf8_encode($linje));
+			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 			if ($linje && substr($linje,0,5)=='BS042') {
 				if (substr($linje,13,4)=='0297') {
 					$y++;
@@ -136,7 +137,7 @@ function vis_data($kladde_id, $filnavn, $bilag, $modkonto, $id){
 		$feltantal=0;
 #	for ($y=1; $y<20; $y++) {
 		while ($linje=fgets($fp)) {
-			$linje=trim(utf8_encode($linje));
+			$linje=trim(mb_convert_encoding($linje), 'UTF-8', 'ISO-8859-1');
 			if ($linje && substr($linje,0,5)=='BS042') {
 				if (substr($linje,13,4)=='0297') {
 					$y++;

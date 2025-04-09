@@ -48,7 +48,6 @@ if (file_exists("../includes/connect.php")) {
 	exit;
 }
 $noskriv=NULL;
-ini_set('display_errors',0);
 $timezone='Europe/Copenhagen';
 
 include("../includes/db_query.php");

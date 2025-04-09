@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -- ---------finans/regnskab.php ----------- patch 4.0.7 --- 2023.03.04 ---
+// -- ---------finans/regnskab.php ----------- patch 4.1.0 --- 2024.05.01 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // --------------------------------------------------------------------------
 
 // 20121011 Indsat "and (lukket != 'on' or saldo != 0)" søg 20121011
@@ -41,6 +41,7 @@
 // 20210607 LOE updated the if function retrieving the data from kontoplan.txt file for Danish and English languages
 // 20210721 LOE translated some texts here and also updated title texts with translated ones.
 // 20220624 CA  rolled back retrieving data from kontoplan.txt DA and EN cause it overwrites existing accounting plans.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -56,6 +57,9 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
+include("../includes/topline_settings.php");
+
+print '<script src="../javascript/chart.js"></script>';
 
 $beregn_lager=if_isset($_POST['beregn_lager']);
 if ($menu=='T') {
@@ -67,15 +71,29 @@ if ($menu=='T') {
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	print "<center>";
+	print "<table width='100%' height='20' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+	print "<td width='10%' align='center'><a href='../index/menu.php' accesskey='L'>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst('849|Regnskab',$sprog_id)."</td>";
+
+	print "<td width='10%' align='center'><a href=\"budget.php\" accesskey=\"B\">";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">Budget</button></a></td>";
+
+	print "</tbody></table> ";
+	print "</td></tr> ";
 } else {
 	print "<center>";
 #	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print "	<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "		<table width='100%' height='20' align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "			<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
-	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";//20210225
-	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund> ".findtekst(849,$sprog_id)."</td> ";
+	print "<table width='100%' height='20' align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\">";
+	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst('30|Tilbage',$sprog_id)."</a></td>";//20210225
+	else print "<a href=\"../index/menu.php\" accesskey=\"L\">".findtekst('30|Tilbage',$sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund> ".findtekst('849|Regnskab',$sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund><a href=\"budget.php\" accesskey=\"B\">Budget</a></td> ";
 	print "</tbody></table> ";
 	print "</td></tr> ";
@@ -107,7 +125,7 @@ if ($aut_lager) {
 		}
 	}
 }
-if (!$vis_medtag_lager) $aut_lager=NULL;
+#if (!$vis_medtag_lager) $aut_lager=NULL;
 if (!$beregn_lager) $aut_lager=NULL;
 
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
@@ -161,6 +179,7 @@ while ($row = db_fetch_array($query)) {
 	$kontotype[$x]=$row['kontotype'];
 	$beskrivelse[$x]=$row['beskrivelse'];
 	$fra_kto[$x]=$row['fra_kto'];
+	$til_kto[$x]=$row['til_kto'];
 	$kontovaluta[$x]=$row['valuta'];
 	$kontokurs[$x]=$row['valutakurs'];
 	if ($kontotype[$x]=="S") $primo[$x]=afrund($row['primo'],2);
@@ -299,15 +318,15 @@ print "<tbody>";
 
 if ($vis_medtag_lager) {
 	$title= findtekst(1624, $sprog_id); 
-	print  "<tr>";
+	print "<tr>";
 	print "<td colspan='$cols' align='center'>";
 	print "<form name='stockvalue' method='post' action='regnskab.php'>";
 	print "&nbsp;<input type='submit' title='$title' name='beregn_lager' value='".findtekst(595,$sprog_id)." ".findtekst(596,$sprog_id)."'>";
 	print "</form></td></tr>";
 }
 
-print "<tr><td><b> ".findtekst(804, $sprog_id)."</b></td> "; #20210721
-print "<td><b> ".findtekst(805, $sprog_id)."</b></td> ";
+print "<tr><td width='8%'><b>".findtekst('804|Kontonr', $sprog_id)."</b></td>"; #20210721
+print "<td><b> ".findtekst('805|Kontonavn', $sprog_id)."</b></td> ";
 fwrite($csv,"Kontonr;Kontonavn");
 if ($vis_valuta) {
 	print "<td align=\"center\"><b>".findtekst(776, $sprog_id)."</b></td>";
@@ -321,32 +340,53 @@ fwrite($csv,";Primo");
 $tmp=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaaned", $regnskabsaar);
 fwrite($csv,";". str_replace('"','',$tmp) ."I alt\n");
 #$cols+=count(explode(";",$tmp));
-print "<td align=right><b> I alt</a></b></td> ";
+
+$txt3072 = findtekst('3072|I alt', $sprog_id);
+print "<td align=right><b>$txt3072</a></b></td> ";
 print "</tr>";
 $y='';
 for ($x=1; $x<=$kontoantal; $x++){
 	if (!isset($ultimo[$x])) $ultimo[$x]=0;
+
+	# Find the background color depending on the user defined colors
 	if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 	else {$linjebg=$bgcolor5; $color='#000000';}
-	print "<tr bgcolor=$linjebg>";
+
+	# Highlight sum lines
+	if ($kontotype[$x] == "Z") $linjebg_highlight = "#ffaaaa";
+	else $linjebg_highlight = $linjebg;
+
+	print "<tr bgcolor=$linjebg_highlight>";
 	if ($kontotype[$x]=='H' || $kontotype[$x]=='X') {
 		print "<td><b> $kontonr[$x]<br></b></td>";
-		fwrite($csv,"$kontonr[$x];". utf8_decode($beskrivelse[$x]) ."\n");
+		fwrite($csv,"$kontonr[$x];". mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8') ."\n");
 		print "<td colspan=\"$cols\"><b>$beskrivelse[$x]<br></b></td>";
 	}	else {
 #		if ($kontotype[$x]!='Z') {$link="<a href=kontospec.php?kontonr=$kontonr[$x]&month=";}
 #		else {$link='';}
-		print "<td>$kontonr[$x]<br></td>";
-		print "<td>$beskrivelse[$x]<br></td>";
-		fwrite($csv,"$kontonr[$x];". utf8_decode($beskrivelse[$x]) ."");
+		if ($ultimo[$x] != 0) $cursor = "pointer";
+		else $cursor = "no-drop";
+		print "<td onclick=\"click_row($x)\" style='cursor: $cursor'>$kontonr[$x]<br></td>";
+
+		if ($kontotype[$x] == "Z") $text = "Sumkonti $fra_kto[$x] - $til_kto[$x]";
+		else $text = "";
+		print "<td title='$text'>$beskrivelse[$x]<br></td>";       
+		fwrite($csv,"$kontonr[$x];". mb_convert_encoding($beskrivelse[$x], 'ISO-8859-1', 'UTF-8') ."");
+
+		$konti_total = array();
+
 		if ($vis_valuta) print "<td align=\"center\">$valutanavn[$x]</td>";
 		$title='';
 		if ($kontovaluta[$x]) {
 			$tal=dkdecimal($primo[$x]*100/$primokurs[$x],2);
 			$title="DKK: ".dkdecimal($primo[$x],2)." Kurs: $mdkurs";
 		} else $tal=dkdecimal($primo[$x],2);
+
+		# Primo
 		print "<td align=\"right\" title=\"$title\">$tal<br></td>";
 		fwrite($csv,";$tal");
+
+		# Each month
 		for ($z=1; $z<=$maanedantal; $z++) {
 			$title='';
 			if (!isset($belob[$x][$z])) $belob[$x][$z]=0;
@@ -364,6 +404,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 				print "<td align=\"right\" title=\"$title\"><a href=kontospec.php?kontonr=$kontonr[$x]&month=$z>$tal<br></a></td>";
 			} else print "<td align=\"right\" title=\"$title\">$tal<br></td>";
 			fwrite($csv,";$tal");
+			$konti_total[] = usdecimal($tal);
 		}
 		if ($kontotype[$x]=='Z') $ultimo[$x]=$ultimo[$x]+$primo[$x];  # if indsat 20.11.07 grundet fejl i sammentaeling paa statuskonti
 		$title='';
@@ -382,6 +423,23 @@ for ($x=1; $x<=$kontoantal; $x++){
 		fwrite($csv,";$tal\n");
 		$y='';
 		print "</tr>";
+
+		# Print barchart
+		## Check the sum to avoid zero division
+		if (array_sum($konti_total) != 0 && isset($_GET["graph_display"])) {
+			print "<tr class='tablerows' id='row-$x' bgcolor=$linjebg style='display: none; height: 200px'>";
+			print "<td colspan=3></td>";
+			print "<td colspan=12>";
+			display_chart(
+				$x, 
+				$beskrivelse[$x],
+				$konti_total,
+				$kontotype[$x] == "Z" ? $fra_kto[$x] : $kontonr[$x], 
+				$kontotype[$x] == "Z" ? $til_kto[$x] : 0
+			);
+			print "<td colspan=1></td>";
+			print "</tr>";
+		}
 	}
 	if (isset($row['kontotype']) && $row['kontotype']=='H') {$linjebg='#ffffff'; $color='#ffffff';}
 }
@@ -397,4 +455,171 @@ if ($menu=='T') {
 } else {
 	include_once '../includes/oldDesign/footer.php';
 }
+
+function display_chart($x, $beskrivelse, $konti_total, $fra_kto, $til_kto) {
+	/**
+	 * Displays a chart comparing actual data with a budget over the months.
+	 *
+	 * @param int $x The unique identifier for the chart (used to differentiate multiple charts).
+	 * @param string $beskrivelse A description label for the chart's actual data series.
+	 * @param array $konti_total An array containing the actual amounts for each month.
+	 * @param int $fra_kto The starting account number for the query.
+	 * @param int|null $til_kto The ending account number for the query. If `null`, the query uses only `$fra_kto`.
+	 */
+
+	global $regnaar, $regnskabsaar;
+	global $maanedantal;
+	global $startaar, $startmaaned;
+
+	// Generate the list of months starting from the input month
+	$months = [];
+	for ($i = 0; $i < 12; $i++) {
+		// Calculate the current month and year
+		$currentMonth = ($startmaaned + $i - 1) % 12 + 1;
+		$currentYear = $startaar + floor(($startmaaned + $i - 1) / 12);
+		
+		// Format the month and year as "M'yy"
+		$monthName = ucfirst(strtolower(date("M", mktime(0, 0, 0, $currentMonth, 1, $currentYear))));
+		$monthYear = $monthName . "'" . substr($currentYear, 2, 2);
+		
+		// Add the formatted month-year to the array
+		$months[] = $monthYear;
+	}
+
+	# Create the database query fetching all 12 months with the budget data
+	$qtxt = "SELECT 
+			m.md AS month,
+			COALESCE(SUM(b.amount), 0) AS amount
+		FROM 
+			(SELECT 1 AS md UNION ALL
+			SELECT 2 UNION ALL
+			SELECT 3 UNION ALL
+			SELECT 4 UNION ALL
+			SELECT 5 UNION ALL
+			SELECT 6 UNION ALL
+			SELECT 7 UNION ALL
+			SELECT 8 UNION ALL
+			SELECT 9 UNION ALL
+			SELECT 10 UNION ALL
+			SELECT 11 UNION ALL
+			SELECT 12) m
+		LEFT JOIN 
+			budget b 
+		ON 
+			m.md = b.md 
+			AND b.regnaar = $regnaar 
+			";
+	# If it is a sumkonto calculate budget by the sum
+	if ($til_kto) $qtxt .= "AND b.kontonr >= $fra_kto AND b.kontonr <= $til_kto";
+	else $qtxt .= "AND b.kontonr = $fra_kto";
+
+	$qtxt .= " GROUP BY m.md ORDER BY m.md";
+	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+
+	$budget = array();
+	while ($row = db_fetch_array($query)){
+		$budget[] = $row["amount"];
+	}
+
+	# Create the chart using chartJS
+	?>
+	<canvas id='mixedChart<?php print $x; ?>'></canvas>
+	<script>
+		var ctx = document.getElementById('mixedChart<?php print $x; ?>').getContext('2d');
+		var data = {
+			datasets: [
+				{
+					type: 'bar',
+					label: '<?php print $beskrivelse; ?>',
+					data: [<?php print implode(",", $konti_total); ?>].map((x) => (x*-1)),
+					borderWidth: 2
+				},
+				{
+					type: 'line',
+					label: 'Budget',
+					data: [<?php print implode(",", $budget); ?>].map((x) => (x*-1)),
+					borderColor: 'rgba(54, 162, 235, 1)',
+					borderWidth: 2,
+					fill: false,
+					tension: 0.4 // Smoother line
+				}
+			],
+			labels: ["<?php print implode("\",\"", $months); ?>"]
+		};
+
+		// Options for the chart
+		var options = {
+			responsive: true,
+			interaction: {
+				mode: 'index',
+				intersect: false,
+			},
+			maintainAspectRatio: false,
+			scales: {
+				y: {
+					beginAtZero: true,
+				}
+			},
+			plugins: {
+				legend: {
+					display: false // Hides the legend
+				}
+			}
+		};
+
+		// Initialize the chart
+		var mixedChart = new Chart(ctx, {
+			type: 'bar',
+			data: data,
+			options: options
+		});
+	</script>
+
+	<?php
+}
 ?>
+
+<script>
+	// Fetches a get parameter
+	function findGetParameter(parameterName) {
+		var result = null,
+			tmp = [];
+		location.search
+			.substr(1)
+			.split("&")
+			.forEach(function (item) {
+			tmp = item.split("=");
+			if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+			});
+		return result;
+	}
+
+	// Function to toggle row display and store clicked row in URL
+	function click_row(x) {
+		console.log("Checkrow");
+
+		if (!findGetParameter("graph_display")) {
+			window.location.href = `?graph_display=on&row=${x}`;
+		}
+
+		const row = document.getElementById(`row-${x}`);
+		if (!row) {
+			return 0;
+		}
+
+		if (row.style.display == "") {
+			row.style.display = "none";
+		} else {
+			row.style.display = "";
+		}
+	}
+
+	// On page load, check if a row was clicked and toggle it
+	window.onload = function() {
+		const clickedRow = findGetParameter("row");
+		if (clickedRow) {
+			// Call click_row with the clicked row value from the URL
+			click_row(clickedRow);
+		}
+	};
+</script>

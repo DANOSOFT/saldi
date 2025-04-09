@@ -91,7 +91,6 @@
 // 20240807 PHR	- Minor correction.
 // 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
 
-ini_set('display_errors', 1);
 ob_start(); //Starter output buffering
 
 @session_start();
@@ -1026,9 +1025,9 @@ if (!$simuler) {
 			include_once '../includes/top_header.php';
 			include_once '../includes/top_menu.php';
 
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<div id='header'>";
-			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+			print "<div class='headerbtnLft headLink'><a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 			print "<div class='headerTxt'>$title &nbsp;•&nbsp; $kladde_id</div>";
 			print "<div class='headerbtnRght headLink'><a accesskey=N href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\"' title='TEXTHERE'><i class='fa fa-plus-square fa-lg'></i></a></div>";
 			print "</div>";
@@ -1039,10 +1038,10 @@ if (!$simuler) {
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 
 			print "<td width='10%'>";
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			.findtekst(30, $sprog_id)."</button></a></td>";
+			.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 			print "<td width='80%' style='$topStyle' align='center'> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
 
@@ -1054,11 +1053,11 @@ if (!$simuler) {
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 			if ($popup) print "<td onClick='JavaScript:opener.location.reload();' width='10%' $top_bund>";
 			else print "<td $top_bund>";
-			$tekst = findtekst(154, $sprog_id);
+			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
 				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst(30, $sprog_id) . "</a></td>";
 			} else {
-				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst(30, $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
 			print "<td width='80%' $top_bund> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
 			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>$ny</a></td></tr>";
@@ -1180,6 +1179,38 @@ if ($kladde_id) {
 		print "<meta http-equiv='refresh' content='3600;URL=../includes/luk.php?tabel=kladdeliste&id=$kladde_id'>";
 	else
 		print "<meta http-equiv='refresh' content='3600;URL=../finans/kladdeliste.php?tabel=kladdeliste&id=$kladde_id'>";
+
+	print "<script>
+	document.addEventListener('DOMContentLoaded', function() { 
+		console.log('CONTENT LOAD');
+		var element = document.body;
+		var scrollpos = localStorage.getItem('kassekladde-$kladde_id');
+		if (scrollpos && element) {
+			element.scrollTo(0, parseInt(scrollpos, 10));
+		}
+	});
+
+	function saveScrollPosition() {
+		var element = document.body;
+		if (element) {
+			var scrollKey = 'kassekladde-$kladde_id';
+			localStorage.setItem(scrollKey, element.scrollTop);
+			console.log('Scroll position saved:', element.scrollTop);
+		}
+	}
+	
+	document.addEventListener('visibilitychange', function() {
+		if (document.visibilityState === 'hidden') {
+			saveScrollPosition();
+		}
+	});
+	
+	window.addEventListener('beforeunload', function() {
+		saveScrollPosition();
+	});
+	
+	</script>";
+
 	$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($q)) {
@@ -1395,8 +1426,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 #			$kontrolsaldo = $r['primo'];
 			if ($r['moms']) {
 				$r2 = db_fetch_array(db_select("select box2 from grupper where
-						kode='" . substr($r[moms], 0, 1) . "' and
-						kodenr='" . substr($r[moms], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
+						kode='" . substr($r['moms'], 0, 1) . "' and
+						kodenr='" . substr($r['moms'], 1, 1) . "'", __FILE__ . " linje " . __LINE__));
 				$kontrolmoms = $r['box2'] * 1;
 			}
 		}

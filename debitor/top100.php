@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 // ----------includes/top100.php-------lap 2.9.7------2020-11-21---
-// LICENSE
+//                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2020 saldi.dk aps
+// Copyright (c) 2003-2024 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20170201	PHR Fjernet fejltekst i bunden.
 // 20190205 PHR $sum=dkdecimal(!isset ($r['totalsum'])) ændret til $sum=if_isset ($r['totalsum']); 
@@ -29,7 +29,7 @@
 @session_start();
 $s_id=session_id();
 $modulnr=12;
-$title="Top 100 debitorer";
+$title="Top 100";
 
 $css="../css/standard.css";
 
@@ -38,6 +38,7 @@ include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 $periode=if_isset($_GET['periode'])? $_GET['periode']:Null;
 $ret=if_isset($_GET['ret'])? $_GET['ret']:Null;
@@ -75,28 +76,44 @@ if ($menu=='T') {
 	print "<div class=\"maincontentLargeHolder\">\n";
 	print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
+	print "<tr><td colspan=\"4\" height=\"8\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+
+	$tekst = findtekst('2181|Klik her for at lukke Top100', $sprog_id);
+	print "<td width=\"10%\"title='$tekst'><a href=../debitor/rapport.php accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>"; #20210702
+
+	print "<td width='80%' style=$topStyle align=center>".findtekst('2225|Top 100 i perioden', $sprog_id).": $fra ".findtekst('904|til', $sprog_id)." $til</td>";
+
+	$tekst = findtekst('1813|Klik her for at vælge en anden periode', $sprog_id);
+	print "<td width='10%' title='$tekst'><a href=top100.php?periode=$periode&ret=on accesskey=P>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .findtekst('899|Periode', $sprog_id)."</button><br></a></td>";
+
+	print "</tbody></table>";
+	print "</td></tr>\n";
 } else {
-print "<tr><td colspan=\"4\" height=\"8\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-$tekst="Klik her for at lukke \"Top100\"";
-print "<td width=\"10%\" $top_bund title='$tekst'><a href=../debitor/rapport.php accesskey=L>Luk</a></td>";
-print "<td width=\"80%\" $top_bund>Top 100 i perioden: $fra til $til</td>";
-$tekst="Klik her for at v&aelig;lge en anden periode";
-print "<td width=\"10%\" $top_bund title='$tekst'><a href=top100.php?periode=$periode&ret=on accesskey=P>Periode<br></a></td>";
-print "</tbody></table>";
-print "</td></tr>\n";
+	print "<tr><td colspan=\"4\" height=\"8\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+	$tekst = findtekst('2181|Klik her for at lukke Top100', $sprog_id);
+	print "<td width=\"10%\" $top_bund title='$tekst'><a href=../debitor/rapport.php accesskey=L>Luk</a></td>";
+	print "<td width=\"80%\" $top_bund>Top 100 i perioden: $fra til $til</td>";
+	$tekst="Klik her for at v&aelig;lge en anden periode";
+	print "<td width=\"10%\" $top_bund title='$tekst'><a href=top100.php?periode=$periode&ret=on accesskey=P>Periode<br></a></td>";
+	print "</tbody></table>";
+	print "</td></tr>\n";
 }
 if ($ret) {
-	$tekst="Skriv fra &amp; til dato som mmdd&aring;&aring;:mmdd&aring;&aring;. Hvis der kun skrives én dato, s&aelig;ttes dato til dags dato.";
+	$tekst="".findtekst(1167,$sprog_id)."";
 	print "<form name=omsaetning action=top100.php method=post>";
-	print "<tr><td colspan=4 align=center title=\"$tekst\">V&aelig;lg periode <input type=text name=periode value=\"$periode\">&nbsp;";	
+	print "<tr><td colspan=4 align=center title=\"$tekst\">".findtekst(1168,$sprog_id)." <input type=text name=periode value=\"$periode\">&nbsp;";	
 	print "<input type=submit accesskey=\"O\" value=\"OK\" name=\"submit\"></td></tr>";
 	print "<tr><td colspan=4><hr></td></tr>\n";
 	print "</form>";
 } else {
 	$x=0;
-	print "<tr><td>Nr.</td><td>Kontonr.</td><td>Firmanavn</td><td align=right>Oms&aelig;tning DKK</td><tr>\n";
+	print "<tr><td>Nr.</td><td>".findtekst(276,$sprog_id)."</td><td>".findtekst(360,$sprog_id)."</td><td align=right>".findtekst(1166,$sprog_id)." DKK</td><tr>\n";
 	print "<tr><td colspan=4><hr></td></tr>\n";
 	$q = db_select("select konto_id, sum(sum*valutakurs/100) as totalsum from ordrer where (art='DO' or art= 'DK') and fakturadate>='$from' and fakturadate<='$to' and status >= '3' group by konto_id order by sum(sum*valutakurs/100) desc limit 100",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -110,6 +127,6 @@ if ($ret) {
 			print "<td>$r2[kontonr]</td><td>$r2[firmanavn]</td><td align=right>".dkdecimal($sum,2)."</td></tr>\n";
 		}
 	}
-	  print "</tbody></table>";
+	print "</tbody></table>";
 }
 ?>

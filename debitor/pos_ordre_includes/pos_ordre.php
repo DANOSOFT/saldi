@@ -274,7 +274,6 @@ include("pos_ordre_includes/divFuncs/drawer/drawerStatusFunc.php");
 preDrawerCheck();
 global $initial_price; #from debitor/pos_ordre_includes/showPosLines/productLines.php
 
-ini_set('display_errors', '0');
 
 // Projekt kan knytttes til menu, f.eks dag og aften så man kan trække en rapport på hvor man har sin indtjening. 
 // Projektet knyttes til varen så det både kan være dag og aften på samme bon. 
@@ -1686,6 +1685,7 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 	global $pfs;
 	global $vis_saet;
 	global $tracelog;
+	global $sprog_id;
 
 	$retur=NULL;
 	
@@ -1731,7 +1731,7 @@ function betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kass
 		}
 		if ($konto_id) {
 			print "<tr><td><b>$kontonr</b>\n";
-			if ($kundeordnr) print "&nbsp;&nbsp;&nbsp; Rekv.nr: $kundeordnr";
+			if ($kundeordnr) print "&nbsp;&nbsp;&nbsp; ".findtekst('2129|Rekv. nr.', $sprog_id).": $kundeordnr";
 			print "</td></tr>\n";
 			print "<tr><td colspan=\"2\"><b>D $firmanavn</b></td></tr>\n";
 			if (!$vis_saet) {

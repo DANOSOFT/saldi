@@ -26,6 +26,7 @@
 //
 // 20170430 PHR  Tilføjet bank_reg og bank_konto
 // 20210714 LOE  Translated some text.
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
 $s_id=session_id();
@@ -103,13 +104,13 @@ function eksporter($art,$filnavn) {
 		$oprettet=dkdato($r['oprettet']);
 		$tmp1=str_replace("\n","\\n",chr(34).$r['kontonr'].chr(34).";".chr(34).$r['firmanavn'].chr(34).";".chr(34).$r['addr1'].chr(34).";".chr(34).$r['addr2'].chr(34).";".chr(34)." ".$r['postnr'].chr(34).";".chr(34).$r['bynavn'].chr(34).";".chr(34).$r['land'].chr(34).";".chr(34).$r['kontakt'].chr(34).";".chr(34)." ".$r['tlf'].chr(34).";".chr(34)." ".$r['fax'].chr(34).";".chr(34).$r['email'].chr(34).";".chr(34).$r['web'].chr(34).";".chr(34).$r['notes'].chr(34).";".chr(34).$kreditmax.chr(34).";".chr(34).$r['betalingsbet'].chr(34).";".chr(34).$r['betalingsdage'].chr(34).";".chr(34).$r['cvrnr'].chr(34).";".chr(34).$r['ean'].chr(34).";".chr(34).$r['institution'].chr(34).";".chr(34)." ".$r['bank_reg'].chr(34).";".chr(34)." ".$r['bank_konto'].chr(34).";".chr(34).$r['gruppe'].chr(34).";".chr(34).$kontoansvarlig.chr(34).";".chr(34).$oprettet).chr(34).";";
 			$tmp1=str_replace("\r","\\r",$tmp1);
-			if ($charset=='UTF-8') $tmp1=utf8_decode($tmp1);
+			if ($charset=='UTF-8') $tmp1=mb_convert_encoding($tmp1, 'ISO-8859-1', 'UTF-8');
 			$q2=db_select("select * from ansatte where konto_id='$r[id]' order by navn",__FILE__ . " linje " . __LINE__);
 			while ($r2=db_fetch_array($q2)) {
 				$ansatte++;
 				$tmp2=str_replace("\n","\\n",chr(34).$r2['navn'].chr(34).";".chr(34).$r2['addr1'].chr(34).";".chr(34).$r2['addr2'].chr(34).";".chr(34)." ".$r2['postnr'].chr(34).";".chr(34).$r2['bynavn'].chr(34).";".chr(34)." ".$r2['tlf'].chr(34).";".chr(34).$r2['fax'].chr(34).";".chr(34).$r2['email'].chr(34).";".chr(34).$r2['notes'].chr(34));
 				$tmp2=str_replace("\r","\\r",$tmp2);
-			if ($charset=='UTF-8') $tmp2=utf8_decode($tmp2);
+			if ($charset=='UTF-8') $tmp2=mb_convert_encoding($tmp2, 'ISO-8859-1', 'UTF-8');
 				$linje=$tmp1.$tmp2;
 #				fwrite($fp, $linje."\r\n");
 			}

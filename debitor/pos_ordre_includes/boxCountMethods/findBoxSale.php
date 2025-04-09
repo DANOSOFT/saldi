@@ -20,7 +20,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 #	}
 	$alert1 = findtekst(1872, $sprog_id);
 	if ($regnstart=='2000-01-01') alert($alert1);
-	$qtxt = "select * from grupper where art = 'POS' and kodenr = '1'";
+	$qtxt = "select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$kassekonti=explode(chr(9),$r['box2']);
 	$kortantal=(int)$r['box4'];
@@ -35,7 +35,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		$kortantal=0;
 		$kortnavn=array();
 	}
-	$qtxt = "select box1,box6 from grupper where art = 'POS' and kodenr = '2'";
+	$qtxt = "select box1,box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($byttepenge=$r['box1'])?$fast_morgen=1:$fast_morgen=0;
 	$otherCardsAccount = (int)$r['box6'];
@@ -273,7 +273,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 			$kortsummer.=chr(9).$kortsum[$x];
 		} else {
 			$kortnavne=$kortnavn[0];
-			$kortkonti=$kortkonti[0];
+			$kortkonti=$kortkonto[0];
 			$kortsummer=$kortsum[0];
 		}
 	}

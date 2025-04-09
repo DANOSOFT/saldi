@@ -32,10 +32,12 @@ $s_id=session_id();
 $title="Kontospecifikation";
 $css="../css/standard.css";
 
+global $menu;
 	
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 $kontonr=if_isset($_GET['kontonr']);
 $month=if_isset($_GET['month']);
@@ -88,32 +90,63 @@ if ($aut_lager) {
 	}
 }
 
+$txt2131 = findtekst('2131|konto', $sprog_id);
+$txt2132 = findtekst('2132|bilag', $sprog_id);
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\"><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerTxt\">".findtekst(1196,$sprog_id)." ";
+	if($kontonr) print "$txt2131: $kontonr";
+	if($bilag) print "$txt2132: $bilag";
+	print "</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 
-print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td height = \"25\" align=\"center\" valign=\"top\">";
-print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=regnskab.php accesskey=L>Luk</a></td>";
-print "<td width=\"80%\" $top_bund>Specifikation for ";
-if($kontonr) print "konto: $kontonr";
-if($bilag) print "bilag: $bilag";
-print " </td><td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
-print "<tr><td valign=\"top\">";
-print "<table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\">";
-print "<tbody>";
-print "<tr>";
-print " <td><b> Bilag</a></b></td>";
-print "<td><b> Dato</a></b></td>";
-print " <td><b> Bilagstekst</a></b></td>";
-print " <td align=right><b> Kontonr</a></b></td>";
-print "<td align=right><b> Debet</a></b></td>";
-print "<td align=right><b> Kredit</a></b></td>";
-print "<td align=right><b> Fakturanr</a></b></td>";
-print " <td align=right><b> Kladdenr</a></b></td>";
-print " <td align=right><b> Afd. nr</a></b></td>";
-print " <td align=right><b> Projekt. nr</a></b></td>";
-print "</tr>";
-print "<tr><td colspan=11><hr></td></tr>";
+	print "<td width='10%'><a href=regnskab.php accesskey=L title='Klik for at komme tilbage til regnskab'>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst(1196,$sprog_id)." ";
+	if($kontonr) print "$txt2131: $kontonr";
+	if($bilag) print "$txt2132: $bilag";
+
+	print " </td><td width='10%' align='center' style='$topStyle'><br></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<tr><td valign=\"top\">";
+} else {
+	print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=100% align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><a href=regnskab.php accesskey= title='Klik for at komme tilbage til regnskab'>".findtekst('30|Tilbage',$sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund>".findtekst('1196|Specifikation for', $sprog_id)." ";
+	if($kontonr) print "$txt2131: $kontonr";
+	if($bilag) print "$txt2132: $bilag";
+	print " </td><td width=\"10%\" $top_bund><br></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<tr><td valign=\"top\">";
+}
+
+	print "<table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\" class='dataTable'>";
+	print "<tbody>";
+	print "<tr>";
+	print "<td><b> ".findtekst(671,$sprog_id)."</a></b></td>";
+	print "<td><b> ".findtekst(635,$sprog_id)."</a></b></td>";
+	print "<td><b> ".findtekst(1068,$sprog_id)."</a></b></td>";
+	print "<td align=right><b> ".findtekst(804,$sprog_id)."</a></b></td>";
+	print "<td align=right><b> ".findtekst(1000,$sprog_id)."</a></b></td>";
+	print "<td align=right><b> ".findtekst(1001,$sprog_id)."</a></b></td>";
+	print "<td align=right><b> ".findtekst(828,$sprog_id)."</a></b></td>";
+	print "<td align=right><b> ".findtekst(1197,$sprog_id)."</a></b></td>";
+	print "<td align=right><b> ".findtekst(1198,$sprog_id)."</a></b></td>";
+	print "<td align=right><b> ".findtekst(1199,$sprog_id)."</a></b></td>";
+	print "</tr>";
+	print "<tr><td colspan=11><hr></td></tr>";
 
 
 if ($kontonr) {

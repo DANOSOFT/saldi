@@ -30,7 +30,7 @@
 // 20220824 MSC - Implementing new design
 // 20220813 MSC - Implementing new design
 // 20231128 MSC - Copy pasted new design into code
-// 20240216 PHR - Addad fiscal_year to sellect where art = 'DG'
+// 20240216 PHR - Added fiscal_year to sellect where art = 'DG'
 	
 @session_start();
 $s_id=session_id();
@@ -45,8 +45,9 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-if ($valg=="debitor") $title=findtekst(911,$sprog_id);
-else $title=findtekst(1129,$sprog_id);
+
+if ($valg=="debitor") $title=findtekst('911|Debitorlistevisning', $sprog_id);
+else $title=findtekst('1129|Historikvisning', $sprog_id);
 $sort=trim(if_isset($_GET['sort']));
 
 if ($popup) $returside="../includes/luk.php"; 
@@ -175,16 +176,20 @@ if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id='header'>";
-	print "<div class='headerbtnLft headLink'><a href=debitor.php?valg=$valg&sort=$sort accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
+	print "<div class='headerbtnLft headLink'><a href=debitor.php?valg=$valg&sort=$sort accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
 	print "<div class='headerTxt'>$title</div>";
 	print "<div class='headerbtnRght headLink'>&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
 	print "<div class='content-noside'>";
-} else {	
-print "<td width='10%' align=center><div class='top_bund'><a href=debitor.php?valg=$valg&sort=$sort accesskey=L>".findtekst(30,$sprog_id)."</a></div></td>
-			<td width='80%' align=center><div class='top_bund'>$title</a></div></td>
-			<td width='10%' align=center><div class='top_bund'><br></div></td>
-			 </tr>";
+} elseif ($menu=='S') {
+	print "<td width='10%' align=center><a href=debitor.php?valg=$valg&sort=$sort accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>
+		   <td width='80%' align=center style=$topStyle>$title</td>
+		   <td width='10%' align=center style=$topStyle><br></td></tr>";
+} else {
+	print "<td width='10%' align=center><div class='top_bund'><a href=debitor.php?valg=$valg&sort=$sort accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div></td>
+		   <td width='80%' align=center><div class='top_bund'>$title</a></div></td>
+		   <td width='10%' align=center><div class='top_bund'><br></div></td></tr>";
 }
 
 }
@@ -210,9 +215,9 @@ function sektion_2($valg,$sort,$title) {
 	$select=explode(chr(9),$r['box8']);
 
 	print "<form name=sektion_2 action=debitorvisning.php?sort=$sort&side=$side&sektion=2 method=post>";
-	print "<tr width='500px'><td>".findtekst(1126,$sprog_id)." ".$valg."".findtekst(1128,$sprog_id)."";
+	print "<tr width='500px'><td>".findtekst('1126|Antal felter på', $sprog_id)." ".$valg." ".findtekst('1128|oversigten', $sprog_id)."";
 	print "<td colspan='5'><input type=text style='text-align:right' size=2 name=vis_feltantal value=$vis_feltantal></td></tr>";
-	print "<tr><td>".findtekst(1127,$sprog_id)." ".$valg."".findtekst(1128,$sprog_id)."</td>";
+	print "<tr><td>".findtekst('1127|Antal linjer på', $sprog_id)." ".$valg." ".findtekst('1128|oversigten', $sprog_id)."</td>";
 	print "<td colspan='5'><input type=text style='text-align:right' size=2 name=vis_linjeantal value=$vis_linjeantal></td>";
 	print "<td><input type=submit value='OK' name='submit'></td></tr>\n";
 	print "</form>";
@@ -260,14 +265,14 @@ function sektion_3() {
 	print "<input type=hidden name=dg_antal value=$x>";
 	print "</tbody></table>";
 	print "</td><td valign=top><table border=0 width=100%><tbody>";
-	print "<tr><td><b>".findtekst(388,$sprog_id)."</b><br><hr></td></tr>";
+	print "<tr><td><b>".findtekst('388|Kategorier', $sprog_id)."</b><br><hr></td></tr>";
 	$qtxt = "select box1,box2,box9 from grupper where art='DebInfo'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($r['box1'])?$cat_id=explode(chr(9),$r['box1']):$cat_id=array();
 	($r['box2'])?$cat_name=explode(chr(9),$r['box2']):$cat_name=array();
 	
 	if (count($cat_id)) {
-	 print "<tr><td><b>".findtekst(388,$sprog_id)."</b><br><hr></td></tr>";
+	 print "<tr><td><b>".findtekst('388|Kategorier', $sprog_id)."</b><br><hr></td></tr>";
 	 for ($x=0;$x<count($cat_id);$x++) {
 		 if (in_array($cat_id[$x],$cat_liste)) $tmp='checked';
 	 	else $tmp='';
@@ -358,7 +363,7 @@ function sektion_4() {
 	print "<tr><td colspan='5'>".findtekst(1117,$sprog_id)."</td></tr>"; #20210701
 	print "<tr><td colspan='5'>".findtekst(1118,$sprog_id)."</td></tr>";
 	print "<tr><td colspan='5'><hr></td></tr>";
-	print "<tr><td colspan='1'><b>Felt</b></td><td align='center'><b>".findtekst(539,$sprog_id)."</b></td><td align='center'><b>".findtekst(540,$sprog_id)."</b></td><td align='center'><b>".findtekst(541,$sprog_id)."</b></td><td align='center' title='Angiver om feltets v&aelig;rdi skal kunne v&aelig;lges fra en liste'><b>".findtekst(1119,$sprog_id)."</b></td></tr>";
+	print "<tr><td colspan='1'><b>".findtekst('543|Felt', $sprog_id)."</b></td><td align='center'><b>".findtekst(539,$sprog_id)."</b></td><td align='center'><b>".findtekst(540,$sprog_id)."</b></td><td align='center'><b>".findtekst(541,$sprog_id)."</b></td><td align='center' title='Angiver om feltets v&aelig;rdi skal kunne v&aelig;lges fra en liste'><b>".findtekst(1119,$sprog_id)."</b></td></tr>";
 	if (!$feltnavn[0]) $feltnavn[0]="Kontonr";
 	print "<tr><td colspan='1'>".findtekst(804,$sprog_id)."</td>";
 	print "<td align='center'><input name=feltnavn[0] size=20 value=$feltnavn[0]></td>";

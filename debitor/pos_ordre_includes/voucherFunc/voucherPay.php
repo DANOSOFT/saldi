@@ -30,12 +30,12 @@
 if (!function_exists('voucherPay')) {
 function voucherPay($orderId, $betaling, $modtaget) {
 	global $betvaluta,$betvalkurs;
-	global $indbetaling;
+	global $indbetaling, $regnaar;
 	
 	$payCardNo = 0;
 	$vouchers[0] = 0;
 	
-	$qtxt = "select box5 from grupper where art = 'POS' and kodenr = '1'";
+	$qtxt = "select box5 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$payCards = explode(chr(9),$r['box5']);
 	for ($p=0;$p<count($payCards);$p++) {

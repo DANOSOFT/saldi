@@ -33,6 +33,7 @@
 // 20210708 LOE - Translated some of these texts from Danish to English and Norsk
 // 20210709 LOE - Bug fixed findtekst function wasn't working here
 // 20210721 LOE - Did translations on title tags
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 
 ob_start();
@@ -235,7 +236,7 @@ print "<tr>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Id</b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=transdate&sort=$sort&valg=$valg$hreftext'>".findtekst(635,$sprog_id)."</a></b></td>"; #20210708
 print "<td align=right><b><a href='kontrolspor.php?nysort=logdate&sort=$sort&valg=$valg$hreftext'>".findtekst(1202,$sprog_id).". ".findtekst(635,$sprog_id)."</a></b></td>";
-print "<td align=right><b>Tidspkt.</a></b></td>";
+print "<td align=right><b>".findtekst('930|Tidspkt.', $sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kladde_id&sort=$sort&valg=$valg$hreftext'>".findtekst(1087,$sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=bilag&sort=$sort&valg=$valg$hreftext'>".findtekst(671,$sprog_id)."</a></b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kontonr&sort=$sort&valg=$valg$hreftext'>".findtekst(592,$sprog_id)."</b></td>";
@@ -247,8 +248,8 @@ if($vis_projekt) {
 		print "<a href='kontrolspor.php?nysort=projekt&sort=$sort&valg=$valg$hreftext'>".findtekst(533,$sprog_id)."";
 		print "</a></b></td>";
 }
-print "<td align=right><b>Valuta</b></td>";
-print "<td align=right><b>Valutakurs</b></td>";
+print "<td align=right><b>".findtekst('776|Valuta', $sprog_id)."</b></td>";
+print "<td align=right><b>".findtekst('2214|Valutakurs', $sprog_id)."</b></td>";
 print "<td align=right><b><a href='kontrolspor.php?nysort=kasse&sort=$sort&valg=$valg$hreftext'>".findtekst(931,$sprog_id)."</a></b></td>";
 print "<td align=center><b><a href='kontrolspor.php?nysort=beskrivelse&sort=$sort&valg=$valg$hreftext'>".findtekst(1203,$sprog_id)."</a></b></td>";
 print "</tr>\n";
@@ -476,7 +477,7 @@ function udskriv($idnumre, $bilagsnumre, $kladdenumre, $fakturanumre,$kontonumre
 							}
 						}
 						if ($csv) {
-							fwrite($fp,"\"".$id[$z]."\";\"".$transdato."\";\"".$logdato."\";\"".substr($logtime[$z],0,5)."\";\"".$kladde_id[$z]."\";\"".$bilag[$x]."\";\"".$kontonr[$z]."\";\"".utf8_decode(stripslashes($kontonavn[$z]))."\";\"".$row['faktura']."\";\"".dkdecimal($debet[$z],2)."\";\"".dkdecimal($kredit[$z],2)."\";\"".$row['projekt']."\";\"".utf8_decode(stripslashes($transtxt[$z]))."\"\n");
+							fwrite($fp,"\"".$id[$z]."\";\"".$transdato."\";\"".$logdato."\";\"".substr($logtime[$z],0,5)."\";\"".$kladde_id[$z]."\";\"".$bilag[$x]."\";\"".$kontonr[$z]."\";\"".mb_convert_encoding(stripslashes($kontonavn[$z]), 'ISO-8859-1', 'UTF-8')."\";\"".$row['faktura']."\";\"".dkdecimal($debet[$z],2)."\";\"".dkdecimal($kredit[$z],2)."\";\"".$row['projekt']."\";\"".mb_convert_encoding(stripslashes($transtxt[$z]), 'ISO-8859-1', 'UTF-8')."\"\n");
 						}
 					}
 				}

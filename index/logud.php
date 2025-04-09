@@ -23,14 +23,11 @@ $s_id=session_id();
 // 20131010 Tilføjet sletning af lås fra kladdeliste.
 // 20150114 PK - Tilføjet session_unset,session_destroy, som tømmer alle sessions variabler
 // 20230804	LOE Minor modification
+// 20250211 Initialize $css to fix undefined variable in online.php
 
 $title="logud";
+$css = "";
 
-/*echo "Good bye";
-echo "<script>if (window !== window.parent) {
-	window.parent.postMessage('logud', '*');
-}</script>";
-exit; */
 include("../includes/connect.php");
 include("../includes/online.php");
 if ($db && $db!=$sqdb) {

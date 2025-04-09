@@ -61,6 +61,7 @@
 // 20230615	PHR php8
 // 20230822 MSC - Copy pasted new design into code
 // 20231030	PHR Added 'Saldo'
+// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 ini_set("auto_detect_line_endings", true);
 
@@ -279,10 +280,10 @@ if ($fp) {
 		if ($linje) {
 			$y++;
 			$ny_linje[$y]='';
-			if ($tegnsaet=='UTF-8') $linje=utf8_decode($linje);
+			if ($tegnsaet=='UTF-8') $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 			$linje=trim($linje);
 			$linje=trim($linje,"?");
-			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			if ($charset=='UTF-8') $linje=mb_convert_encoding($linje, 'UTF-8', 'ISO-8859-1');
 			$anftegn=0;
 				$felt=array();
 				$z=0;

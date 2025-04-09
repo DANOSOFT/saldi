@@ -1064,10 +1064,10 @@ if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	print "</td><td><input type='text' class='inputbox' name=\"Password\" size=\"25\" value=\"**********\"></td></tr>\n";
 }
 ($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
-print "<tr bgcolor=$bg><td>";
-$oLibTxt = "Sæt limit på hvor mange varer en kunde kan oprette";
-print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">Varelimit</span>";
-print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"". dkdecimal($productlimit,0) . "\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>";
+	$oLibTxt = findtekst('2217|Sæt grænse for, hvor mange varer en kunde kan oprette', $sprog_id);
+	print "<span onmouseover=\"return overlib('$oLibTxt', WIDTH=600);\" onmouseout=\"return nd();\">".findtekst('2215|Varegrænse', $sprog_id)."</span>";
+	print "</td><td><input type='text' class='inputbox' name=\"productlimit\" size=\"25\" value=\"". dkdecimal($productlimit,0) . "\"></td></tr>\n";
 
 
 print "</tbody></table></td></tr>"; # <- TABEL 1.2.3
@@ -1181,7 +1181,7 @@ else {
 	print "<input class='button green medium' 'style=width:200px' type=submit accesskey=\"g\" ";
 	print "value=\"".findtekst(471,$sprog_id)."\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>";
 	print "<td><br></td><td><input class='button rosy medium' type='submit' accesskey='s'"; 
-	print "value='Slet' name='submit' onclick='return confirm('Slet $firmanavn?')'></td>";}
+	print "value='".findtekst('1099|Slet', $sprog_id)."' name='submit' onclick='return confirm('".findtekst('1099|Slet', $sprog_id)." $firmanavn?')'></td>";}
 print "</form>\n";
 #print "<tr><td colspan=5><hr></td></tr>\n";
 print "</tbody></table></td></tr>";# <- TABEL 1.2.4.3
