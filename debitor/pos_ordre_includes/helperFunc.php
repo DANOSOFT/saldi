@@ -154,7 +154,7 @@ function getUniqueBoxId($kasse)
 		$uniqueShopId = "BI-";
 	}
 	$uniqueShopId .= "$db-";
-		$uniqueShopId = str_replace('bizsys','pos',$uniqueShopId)
+		$uniqueShopId = str_replace('bizsys','pos',$uniqueShopId);
 	if ($kasse < 10) {
 	 $uniqueShopId .= sprintf("%02d", $kasse);
 	} else {

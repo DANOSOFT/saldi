@@ -231,6 +231,8 @@
 // 20250106 LOE Added a way to compare varenr from .csv with values in varer table
 // 20250116 CA  Rounding 'Afrunding' is calculated totally wrong and should not be on a credit nota (kreditnota) 
 // 20250317 LOE Internal pricelist sets to default view.
+// 20250408 PHR Function vareopslag: Fix for wrong sort in search.
+
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
 #cho "$id,$hurtigfakt,$genfakt,$webservice<br>";
@@ -5083,7 +5085,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 		} else {
 			$qtxt = "SELECT * FROM varer WHERE lukket != '1' ORDER BY $sort LIMIT 50";
 		}
-		if (strpos($qtxt,'from varer') && strpos($qtxt,'by ordrenr')) {
+		if (strpos($qtxt,'from varer') && strpos($qtxt,'by ordrenr')) { #20250408
 			$qtxt = str_replace('by ordrenr','by varenr',$qtxt);
 		}
 		// Initial data fetch
