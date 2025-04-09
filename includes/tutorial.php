@@ -1,6 +1,7 @@
 <?php
 
-function create_tutorial($id, $steps) {
+function create_tutorial($id, $steps)
+{
     global $bruger_id;
 
     ?>
@@ -9,23 +10,32 @@ function create_tutorial($id, $steps) {
         <div id="tutorial-header">
             <span>Vejledning</span>
             <button id="tutorial-skip">
-                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#ffffff"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#ffffff">
+                    <path
+                        d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z" />
+                </svg>
             </button>
         </div>
         <div id="tutorial-content"></div>
         <div id="tutorial-controls">
             <button id="tutorial-prev">
-                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M384-96 0-480l384-384 68 68-316 316 316 316-68 68Z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+                    <path d="M384-96 0-480l384-384 68 68-316 316 316 316-68 68Z" />
+                </svg>
                 <span>Previous</span>
             </button>
             <span id="status-text"></span>
             <button id="tutorial-next">
                 <span>Next</span>
-                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="m288-96-68-68 316-316-316-316 68-68 384 384L288-96Z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+                    <path d="m288-96-68-68 316-316-316-316 68-68 384 384L288-96Z" />
+                </svg>
             </button>
             <button id="tutorial-finish">
                 <span>Finish</span>
-                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M389-267 195-460l51-52 143 143 325-324 51 51-376 375Z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+                    <path d="M389-267 195-460l51-52 143 143 325-324 51 51-376 375Z" />
+                </svg>
             </button>
         </div>
     </div>
@@ -59,6 +69,7 @@ function create_tutorial($id, $steps) {
             align-items: center;
             padding-left: 10px;
         }
+
         #tutorial-content {
             padding: 15px 10px 15px 10px;
         }
@@ -67,6 +78,7 @@ function create_tutorial($id, $steps) {
             display: flex;
             gap: 15px;
         }
+
         #tutorial-controls button {
             flex: 1;
             border: none;
@@ -77,6 +89,7 @@ function create_tutorial($id, $steps) {
             justify-content: center;
             padding: 5px 10px 5px 10px;
         }
+
         #tutorial-skip {
             border: none;
             background: none;
@@ -120,6 +133,29 @@ function create_tutorial($id, $steps) {
                     this.helpButton.addEventListener('click', () => {
                         this.restart();
                     })
+                }
+
+                // Add keyboard event listener
+                document.addEventListener('keydown', this.handleKeydown.bind(this));
+            }
+
+            // Handle keyboard navigation
+            handleKeydown(event) {
+                // Only process keyboard events when tutorial is active
+                if (this.overlay.style.display !== 'block') return;
+
+                switch (event.key) {
+                    case 'Escape':
+                        this.closeAll();
+                        this.endTutorial();
+                        break;
+                    case 'ArrowLeft':
+                        this.showStep(this.currentStep - 1);
+                        break;
+                    case 'ArrowRight':
+                        this.closeCard();
+                        this.showStep(this.currentStep + 1);
+                        break;
                 }
             }
 
@@ -258,29 +294,35 @@ function create_tutorial($id, $steps) {
                 this.overlay.style.display = 'none';
                 this.tooltip.style.display = 'none';
                 this.currentStep = 0;
+
+                // Remove keyboard event listener when tutorial ends
+                document.removeEventListener('keydown', this.handleKeydown.bind(this));
             }
         }
 
         // Example usage:
         const steps = [<?php
-            foreach ($steps as $step) {
-                $selector = db_escape_string($step['selector']);
+        foreach ($steps as $step) {
+            $selector = db_escape_string($step['selector']);
 
-                // Check if the selector exists in the database
-                $q = "SELECT 1 FROM tutorials WHERE user_id = $bruger_id AND tutorial_id = '$id' AND selector = '$selector' LIMIT 1";
-                $exists = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
-                if (!$exists) {
-                    echo "{ selector: '$step[selector]', content: '".addslashes($step['content'])."' },\n";
-                }
+            // Check if the selector exists in the database
+            $q = "SELECT 1 FROM tutorials WHERE user_id = $bruger_id AND tutorial_id = '$id' AND selector = '$selector' LIMIT 1";
+            $exists = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
+            if (!$exists) {
+                echo "{ selector: `$step[selector]`, content: '" . addslashes($step['content']) . "' },\n";
             }
+        }
         ?>];
 
-        const tutorial = new Tutorial(steps, '<?php echo $id; ?>');
-        if (steps.length) {
-            tutorial.startTutorial();
-        }
+        // Wait for the entire page to load before initializing the tutorial
+        window.addEventListener('load', function() {
+            const tutorial = new Tutorial(steps, '<?php echo $id; ?>');
+            if (steps.length) {
+                tutorial.startTutorial();
+            }
+        });
 
     </script>
-<?php
+    <?php
 }
 ?>
