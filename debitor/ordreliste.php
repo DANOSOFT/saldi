@@ -979,7 +979,7 @@ while ($r0=db_fetch_array($q0)) {
 		
 		if ($valg=="faktura" || ($valg=="ordrer" && $nextfakt)) {
 			$vis_ret_next=1;
-			print "<td align=left><label class='checkContainerOrdreliste'><input class=\"inputbox\" type=\"checkbox\" name=\"checked[$id]\" $checked[$id]><span class='checkmarkOrdreliste'></span></label></td>";
+			print "<td align=left><label class='checkContainerOrdreliste'><input class=\"inputbox deliveryNoteSelect\" type=\"checkbox\" name=\"checked[$id]\" id='$id' $checked[$id]><span class='checkmarkOrdreliste'></span></label></td>";
 			
 		} else {
 			if ($checked[$id]=='on' || $check_all) $checked[$id]='checked';
@@ -1091,9 +1091,20 @@ if ($valg) {
 					print "<span title=\"".findtekst(1435, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"Send mails\" name=\"submit\" onclick=\"return confirm('$confirm $valg pr mail?')\"></span><br>";
 				} 
 			}
-			$confirm1= findtekst(1445, $sprog_id);
+			$confirm1= findtekst(1445, $sprog_id);  
 			print "<span title=\"".findtekst(1436, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td></tr>";
-			print "<tr><td colspan='$colspan' align='right'><span title='Udskriv følgesedler for valgte fakturaer'><input type=submit style=\"width:100px\"; value=\"".findtekst(576,$sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td></tr>";
+			print "<tr><td colspan='13' align='right'><span title='Udskriv følgesedler'><input type='submit' style='width:100px' value='Følgesedler' name='deliveryNote')'></span></td></tr>";
+			?>
+			<script>
+				const button = document.querySelector("[name='deliveryNote']")
+				button.addEventListener("click", () => {
+					const checkedBoxes = Array.from(document.querySelectorAll(".deliveryNoteSelect")).filter(checkbox => checkbox.checked)
+					// fetch with post to a php file that creates the pdf files then download them 
+					
+				})
+
+			</script>
+			<?php
 		} else {
 			print "<input type=submit value=\"".findteskt(880, $sprog_id)."\" name=\"submit\" style=\"width:100px\"; disabled=\"disabled\"></td>";
 			
