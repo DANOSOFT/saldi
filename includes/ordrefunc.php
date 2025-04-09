@@ -5083,7 +5083,9 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 		} else {
 			$qtxt = "SELECT * FROM varer WHERE lukket != '1' ORDER BY $sort LIMIT 50";
 		}
-	
+		if (strpos($qtxt,'from varer') && strpos($qtxt,'by ordrenr')) {
+			$qtxt = str_replace('by ordrenr','by varenr',$qtxt);
+		}
 		// Initial data fetch
 		$result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($result)) {
