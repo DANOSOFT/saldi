@@ -88,7 +88,9 @@ if ($menu=='T') {
 }
 $valg=if_isset($_GET['valg']);
 
-include_once("syssetupIncludes/saveData.php");
+if ($valg!='afdelinger') {
+	include_once("syssetupIncludes/saveData.php");
+}
 
 ##############################################################################################################################
 if ($nopdat!=1) {
@@ -205,9 +207,7 @@ elseif($valg=='debitor'){
 	$y=skriv_formtabel('KG',$x,$y,$art,$id,'K',$kodenr,$beskrivelse,$box1,'6',$box2,'6',$box3,'10',$box4,'10',$box5,'10',$box6,'6','-','6','-','6',$box9,'checkbox','-','6','-','6','-','6','-','6','-','2');
 }
 elseif($valg=='afdelinger'){
-	print "<tr><td></td><td colspan=3 align=\"center\"><b>".findtekst(772, $sprog_id)."</td></tr>\n";
-	print "<tr><td></td><td>Nr.</td><td>".findtekst(914, $sprog_id)."</td><td>".findtekst(608, $sprog_id)."</td></tr>\n";
-	$y=skriv_formtabel('AFD',$x,$y,$art,$id,'&nbsp;',$kodenr,$beskrivelse,$box1,'10',"-",'2',"-",'2','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','6','-','2');
+	include("settings/departments.php");
 }
 elseif($valg=='projekter'){
 	print "<tr><td></td><td colspan=3 align=\"center\"><b>".findtekst(773, $sprog_id)."</td></tr>\n";

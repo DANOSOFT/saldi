@@ -3115,9 +3115,9 @@ function kassebeholdning ($kasse,$optalt,$godkendt,$cookievalue) {
 	$url="http".$url;
 	if ($tracelog) fwrite ($tracelog, __file__." ".__line__." Calls $printserver/saldiprint.php\n");
 	if ($printpopup) {
-		print "<BODY onLoad=\"JavaScript:window.open('http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=1&bon=$bon&skuffe=1&gem=1' , '' , '$jsvars');\">\n";
+		print "<BODY onLoad=\"JavaScript:window.open('" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=1&bon=$bon&skuffe=1&gem=1' , '' , '$jsvars');\">\n";
 	} else {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=$bonantal&id=$id&returside=$url/debitor/pos_ordre.php&bon=$bon&skuffe=1&gem=1\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=$bonantal&id=$id&returside=$url/debitor/pos_ordre.php&bon=$bon&skuffe=1&gem=1\">\n";
 	}
 */
 /*
@@ -3180,7 +3180,7 @@ function kundedisplay($beskrivelse,$pris,$ryd){
 		$printserver=$printer_ip[$tmp];
 		if (!$printserver)$printserver='localhost';
 	}
-	$tmp="http://$printserver/kundedisplay.php?tekst=".urlencode($beskrivelse)."&pris=".dkdecimal($pris,2)."&ryd=$ryd";
+	$tmp="" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/kundedisplay.php?tekst=".urlencode($beskrivelse)."&pris=".dkdecimal($pris,2)."&ryd=$ryd";
 	print "<script type=\"text/javascript\">window.open('$tmp');</script>";
 }
 
@@ -3468,7 +3468,7 @@ function aabn_skuffe($id,$kasse) {
 	$url="http".$url;
 	countDrawOpening($kasse);	
 	if ($tracelog) fwrite ($tracelog, __file__." ".__line__." Calls $printserver/saldiprint.php (openDrawer)\n");
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
 	exit;
 }
 
@@ -3501,10 +3501,10 @@ function udskriv_kasseopg($id,$kasse,$pfnavn) {
 	$url="http".$url;
 	if ($tracelog) fwrite ($tracelog, __file__." ".__line__." Calls $printserver/saldiprint.php\n");
 	if ($printpopup) {
-		print "<BODY onLoad=\"JavaScript:window.open('http://$printserver/saldiprint.php?";
+		print "<BODY onLoad=\"JavaScript:window.open('" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?";
 		print "printfil=$pfnavn&url=$url&bruger_id=$bruger_id&bonantal=1&bon=$bon&skuffe=1&gem=1' , '' , '$jsvars');\">\n";
 	} else {
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?printfil=$pfnavn&url=$url&";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=$pfnavn&url=$url&";
 		print "bruger_id=$bruger_id&bonantal=$bonantal&id=$id&returside=$url/debitor/pos_ordre.php&bon=$bon&skuffe=1&gem=1\">\n";
 		exit;
 	}

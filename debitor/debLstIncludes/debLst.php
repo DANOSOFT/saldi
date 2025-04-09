@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor(debLstIncludes/debLst.php --- lap 4.0.8 --- 2023-04-01 ----
+// --- debitor(debLstIncludes/debLst.php --- lap 4.1.1 --- 2025-02-23 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,15 +20,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20210812 MSC Implementing new top menu design 
 // 20211102 MSC Implementing new top menu design 
 // 20230401 PHR	Changed category viewing and fixed some errors
+// 20250223 PHR if groups were set in 'visning' and search for one ore more debitors it went into endless loop.
 
 include("../includes/pagination.php");
-
-$r = db_fetch_array(db_select("select id,box1,box2,box11 from grupper where art = 'DLV' and kode ='$valg' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__));
+$qtxt = "select id,box1,box2,box11 from grupper where art = 'DLV' and kode ='$valg' and kodenr = '$bruger_id'";
+$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $dg_liste=explode(chr(9),$r['box1']);
 ($r['box2'])?$cat_liste=explode(chr(9),$r['box2']):$cat_liste=array();
 
@@ -77,7 +78,7 @@ for($i=0;$i<$dgcount;$i++) {
 			}	
 		}
 		if (!count($cat_liste) || $cat_liste[0] == '') $udv2 = NULL;
-		$i=0;
+		if ($udv2) $i=0; #20250223 added: if ($udv2)
 		if (!$udv2) $udv2=$udv1;	
 		if (!$udv2) $udv2=$udvaelg;	
 		if (strpos($sortering,'kontaktet desc')) $udv2.=' and adresser.kontaktet is not NULL';

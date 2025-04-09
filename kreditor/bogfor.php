@@ -6,7 +6,7 @@ $s_id=session_id();
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/bogfor.php --- lap 4.1.0 --- 2024-06-26 ---
+// --- kreditor/bogfor.php --- lap 4.1.1 --- 2025-03-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@ $s_id=session_id();
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // -------------------------------------------------------------------------
 //
 // 2013.11.08 Fejl v. fifo og varetilgang på varekøb.Søg #20131108
@@ -40,7 +40,7 @@ $s_id=session_id();
 // 20230626 PHR - Outcommented section as it is overloading the system and I don't think it is neccesary.
 // 20230824	PHR - Added call to productsIncludes & updateProductPrice. 
 // 20240626 PHR Added 'fiscal_year' in queries
-
+// 20250206 PHR Removed obsolete section that inserted values in accounts for product purchase and sale!
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -205,7 +205,10 @@ if (!$row['levdate']){
 						while ($row = db_fetch_array($query)) { # if ændret til while grundet fejl ved meotagelse af flere omgange på samme ordrelinje 2012.04.18 saldi_2 ordre id 4226
 							$batch_id=$row['id']*1;
 						# Herunder IS NOT indsat 20100811 da lagerværdi kun skal reguleres hvis varen er solgt (faktureret).
-						$q2 = db_select("select linje_id from batch_salg where batch_kob_id=$batch_id and fakturadate is not NULL",__FILE__ . " linje " . __LINE__);
+#cho "B select linje_id from batch_salg where batch_kob_id=$batch_id and fakturadate is not NULL<br>";
+
+/* 20250206
+							$q2 = db_select("select linje_id from batch_salg where batch_kob_id=$batch_id and fakturadate is not NULL",__FILE__ . " linje " . __LINE__);
 							while ($r2 = db_fetch_array($q2)) { #Kun aktuel hvis batch_kontrol er aktiv.
 								$r3=db_fetch_array(db_select("select id,vare_id,ordre_id,antal,kostpris from ordrelinjer where id='$r2[linje_id]'",__FILE__ . " linje " . __LINE__));
 								if ($r3['antal']) {
@@ -228,15 +231,20 @@ if (!$row['levdate']){
 									}
 								}
 							}
+*/
 							#xit;
+#cho "F update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where linje_id=$linje_id[$x]<br>";
 							db_modify("update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 /* 20230626 Outcommented this as it is overloading the system and I don't think it is neccesary.
+#cho "G select id from batch_kob where linje_id=$linje_id[$x]<br>";
 							$q2 = db_select("select id from batch_kob where linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 							while ($r2 = db_fetch_array($q2)) {
 								($r2['id'])?$tmp=$r2['id']:$tmp=0;
 								if ($tmp) {
+#cho "H select linje_id from batch_salg where batch_kob_id=$tmp<br>";
 ##									$q3 = db_select("select linje_id from batch_salg where batch_kob_id=$tmp",__FILE__ . " linje " . __LINE__);
 									while ($r3 = db_fetch_array($q3)) {
+#cho "I update ordrelinjer set kostpris = '$dkpris[$x]' where id=$r3[linje_id]<br>";
 										db_modify("update ordrelinjer set kostpris = '$dkpris[$x]' where id=$r3[linje_id]",__FILE__ . " linje " . __LINE__);
 									}
 								}
@@ -252,13 +260,17 @@ if (!$row['levdate']){
 							if ($bogf_beh>0 && $kostmetode=='1') {
 								$ny_kostpris=($bogf_beh*$gl_kostpris[$x]+$antal[$x]*$snitpris[$x])/($bogf_beh+$antal[$x]);
 							} else $ny_kostpris=$snitpris[$x];
+							#cho "select id from batch_kob where vare_id=$vare_id[$x] and fakturadate>'$levdate'<br>";
 /*
 							if (!db_fetch_array(db_select("select id from batch_kob where vare_id=$vare_id[$x] and fakturadate>'$levdate'",__FILE__ . " linje " . __LINE__))){
+#cho "update varer set kostpris='$ny_kostpris' where id='$vare_id[$x]'<br>";
 								db_modify("update varer set kostpris='$ny_kostpris' where id='$vare_id[$x]'",__FILE__ . " linje " . __LINE__);
+#cho "update vare_lev set kostpris='$dkpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'<br>";
 								db_modify("update vare_lev set kostpris='$dkpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'",__FILE__ . " linje " . __LINE__);
 							}
-*/							
+*/
 							# Finder hvor mange som er leveret til kunder men ikke faktureret:	
+/*
 							if (!$box9 && !$aut_lager) { # Skal ikke gøres hvis batchkontrol er slået til
 								$r2=db_fetch_array(db_select("select sum(antal) as antal from batch_salg where vare_id=$vare_id[$x] and fakturadate is NULL",__FILE__ . " linje " . __LINE__));
 								if ($lev_ej_fakt[$x]=$r2['antal']) {
@@ -272,6 +284,7 @@ if (!$row['levdate']){
 									}	
 								}
 							}
+*/
 						} elseif ($beholdning[$x]>0 && $kostmetode=='1') $ny_kostpris=($beholdning[$x]*$gl_kostpris[$x]+$antal[$x]*$snitpris[$x])/($beholdning[$x]+$antal[$x]);
 						else $ny_kostpris=$snitpris[$x];
 						if ($kostmetode) {
@@ -283,6 +296,7 @@ if (!$row['levdate']){
 						$qtxt = "update vare_lev set kostpris='$snitpris[$x]' where vare_id='$vare_id[$x]' and lev_id='$konto_id'";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					} else {
+/*
 						$kred_linje_id[$x]=$kred_linje_id[$x]*1; # patch 2.0.2a
 						$query = db_select("select * from batch_kob where linje_id=$kred_linje_id[$x]",__FILE__ . " linje " . __LINE__);
 						if ($row = db_fetch_array($query)) {
@@ -294,7 +308,8 @@ if (!$row['levdate']){
 								db_modify("insert into ordrelinjer (posnr, antal, pris, rabat, ordre_id, bogf_konto,projekt) values ('-1', $antal[$x], '$diff', 0, $id, $box1,'$projekt[$x]')",__FILE__ . " linje " . __LINE__);
 							}
 						}
-						$batch_id=$batch_id*1;
+*/
+						$batch_id=(int)$batch_id;
 						$query = db_select("select * from batch_kob where vare_id=$vare_id[$x] and linje_id=$linje_id[$x]",__FILE__ . " linje " . __LINE__);
 						while ($row = db_fetch_array($query)) {
 						db_modify("update batch_kob set pris = '$dkpris[$x]', fakturadate='$levdate' where id=$row[id]",__FILE__ . " linje " . __LINE__);
@@ -470,7 +485,12 @@ function bogfor($id) {
 						$kredit=afrund($kredit,2);
 						$d_kontrol=$d_kontrol+$debet; $k_kontrol=$k_kontrol+$kredit;
 						$linjesum+=$debet-$kredit;
-						if ($pris[$y]) db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id) values ('$bilag','$transdate','$beskrivelse','$bogf_konto[$y]','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime','$projekt[$p]','$ansat','$id')",__FILE__ . " linje " . __LINE__);
+						$qtxt = "insert into transaktioner "; 
+						$qtxt.= "(bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,";
+						$qtxt.= "afd,logdate,logtime,projekt,ansat,ordre_id) values ";
+						$qtxt.= "('$bilag','$transdate','$beskrivelse','$bogf_konto[$y]','$fakturanr','$debet','$kredit','0',";
+						$qtxt.= "'$afd','$logdate','$logtime','$projekt[$p]','$ansat','$id')";
+						if ($pris[$y]) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					}
 				}
 			}

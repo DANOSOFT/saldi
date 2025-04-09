@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- lap 4.0.8 --- 2023-05-16 ---
+// --- mysale/mylabel.php --- lap 4.1.1 --- 2025-03-22 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2020 - 2023 saldi.dk aps
+// Copyright (c) 2020 - 2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20200617 PHR Support for more pages.
 // 20200702 PHR Support for single label.
@@ -40,7 +40,7 @@
 // 20230325 PHR Added memberShip to query and corrected an error in labelView for members. 
 // 20230331 PHR Added $freeLabels to enhance procuctlimit functionality
 // 20230516 PHR Changed number of lines to $productLimit / 5 for members
-// 04/09/2024 PBLM added sidemenu
+// 20250221 PHR Added $setFirstPrint for speed optimizing
 
 @session_start();
 $s_id=session_id();
@@ -76,10 +76,19 @@ if ($id) {
 	else $account=$kto;
 	include ('../includes/db_query.php');
 }
+
+if ($db == 'pos_76') $showForSale = 1;
+elseif ($db == 'pos_92') $showForSale = 1;
+elseif ($db == 'pos_111') $showForSale = 1;
+else $showForSale = 0;
+
+
 if (!is_numeric($account)) {
 	print "<center><br><br><br><br><b>Fejl i ID<br><br>Kontakt butikken for nyt ID</b>";
 	exit;
 }
+$accountId = (int)$accountId;
+$account   = (int)$account;
 
 setcookie("mylabel","$account|$db",0,"/");
 
@@ -94,11 +103,11 @@ include ('../includes/std_func.php');
 
 (substr($_SERVER['PHP_SELF'],0,4)=='/no/')?$sprog_id=3:$sprog_id=1;
 
+$labelsize = get_settings_value("labelsize", "mysale", 22);
+
 $qtxt = "select var_value from settings where var_name='medlemSetting' or var_name = 'memberShip'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $medlem = $r['var_value'];
 else $medlem = NULL;
-
-$labelsize = get_settings_value("labelsize", "mysale", 22);
 
 if (isset($_GET['page'])) $page = $_GET['page']; 
 (isset($_GET['condition']))?$condition=$_GET['condition']:$condition='used';
@@ -213,8 +222,12 @@ if ($mySale) {
 			}
 		}
 	}
-	#if ($new) $page++;
+	if ($new) $page++;
 	if ($print) {
+		$setFirstPrint = 0;
+		$qtxt = "select id from mylabel where account_id = '$accountId' and page='$page' ";
+		$qtxt.= "and hidden is FALSE and firstprint is NULL";
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $setFirstPrint = 1;
 		if ($print=='Label') {
 			if (!$printIds) $printIds= $pL;
 			if (!$printIds) {
@@ -228,6 +241,11 @@ if ($mySale) {
 				if ($lockPrint[$x]) {
 					$qtxt = "update mylabel set lastprint = '". date('U') ."' where id = '$lockPrint[$x]'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					if ($setFirstPrint) {
+						$qtxt = "update mylabel set firstprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
+						$qtxt.= "and hidden is FALSE and firstprint is NULL";
+						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					}
 				}
 			}
 			print "<BODY onload=\"javascript:";
@@ -236,6 +254,11 @@ if ($mySale) {
 			$qtxt = "update mylabel set lastprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
 			$qtxt.= "and hidden is FALSE";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			if ($setFirstPrint) {
+				$qtxt = "update mylabel set firstprint = '". date('U') ."' where account_id = '$accountId' and page='$page' ";
+				$qtxt.= "and hidden is FALSE and firstprint is NULL";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
 			print "<BODY onload=\"javascript:";
 			print "window.open('../lager/labelprint.php?account=$account&condition=$condition&page=$page&print=$print');\">";
 		}
@@ -251,7 +274,7 @@ $account=$r['kontonr'];
 $productLimit=$r['productlimit'];
 $custName=$r['firmanavn'];
 $access=$r['mysale'];
-
+if ($productLimit) $medlem = 1;
 /*
 $qtxt = "select var_value from settings where var_name='medlemSetting'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $medlem=$r['var_value'];
@@ -446,10 +469,10 @@ include_once("sidemenu.php");
 				<div class="h-14 lg:h-1"></div>		
 </div>
 <?php
-/* if ($medlem){
+ if ($medlem){
 	$i = 0;
 	$tilsalgOprettet = array();
-	$qtxt = "SELECT id from mylabel where account_id = '$accountId' and sold = '0' and hidden = 'f'";
+	$qtxt = "select id from mylabel where account_id = '$accountId' and sold = '0' and hidden = 'f'";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$tilsalgOprettet[$i]=$r['id'];
@@ -457,7 +480,10 @@ include_once("sidemenu.php");
 	}
 	$vareLimit = $productLimit - count($tilsalgOprettet);
 } else $vareLimit = $productLimit = 0;
-print "<div class='w-full lg:w-1/2 mx-auto'>";
+if ($showForSale) $vareLimit = 99999;
+print "<html lang='da-dk'><body>";
+print "<div class='flex-container'>";
+print "<div class='container'>";
 print "<div class='kundeNavn'>$custName • ";
 if ($condition == 'new') print findtekst(1951, $sprog_id) ."</div><br>";
 else print findtekst(1952, $sprog_id) ."</div>";
@@ -467,9 +493,9 @@ if ($mobile) {
 	print "<br>";
 	print "<div class='center'>". findtekst(1948, $sprog_id) ."<br>\n";
 	print findtekst(1949, $sprog_id) ." ";
-	if ($medlem){
+	if ($medlem) {
 		if($vareLimit <= 0) $vareLimit = 0;
-		print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
+			print "<br><br >Du kan tilføje <b>$vareLimit</b> varer.</br><br>";
 	}
 	print "<a href='https://saldi.dk/dok/myLabelPdf_$sprog_id.pdf' target='_blank'>". findtekst(1950, $sprog_id) ."</a></div>\n";
 }
@@ -514,8 +540,8 @@ for ($a=1;$a<=$rows;$a++) {
 				if ($mobile) print "<td class='tdLabel'; $title>";
 				else print "<td class='tdLabel'; $title>";
 				print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-				if ($mobile) print "<input type='text' $ro maxlength='22' class='inputLabel' name='labelName[$a][$b]' ";
-				else print "<input type='text' $ro maxlength='22' class='inputLabel' name='labelName[$a][$b]' ";
+				if ($mobile) print "<input type='text' $ro maxlength='$labelsize' class='inputLabel' name='labelName[$a][$b]' ";
+				else print "<input type='text' $ro maxlength='$labelsize' class='inputLabel' name='labelName[$a][$b]' ";
 				print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
 				($price[$a][$b])?$ta='text-align:right':$ta='text-align:center';
 				print "<input type='text' $ro style='$ta;' class='inputPris' 
@@ -556,10 +582,10 @@ for ($a=1;$a<=$rows;$a++) {
 	print "</form>";
 } else {
 	print "<table class='table' border = '1' valign='top'>\n";
-	($medlem)?$lines = $productLimit/5:$lines=13;
+	($medlem && $db != 'pos_76' && $db != 'pos_92' && $db != 'pos_111')?$lines = $productLimit/5:$lines=13;
 	for ($a=1;$a<=$lines;$a++) {
 		($lineColor==$bgcolor)?$lineColor=$bgcolor5:$lineColor=$bgcolor;
-#		if (!$productLimit || $count <= $productLimit) {
+		if (!$productLimit || $count <= $productLimit) {
 			print "<tr bgcolor='$lineColor'>";
 			for ($b=1;$b<=5;$b++) {
 				if (!isset ($barcode[$a][$b]))   $barcode[$a][$b]   = NULL;
@@ -577,7 +603,7 @@ for ($a=1;$a<=$rows;$a++) {
 				print "<td style='width:175px;height:40px'; $title>";
 				if (!$productLimit || $showLabel) {
 					print "<input type='hidden' name='labelId[$a][$b]' value='". $labelId[$a][$b] ."'>";
-					print "<input type='text' $ro maxlength='22' style='width:150px;' name='labelName[$a][$b]' ";
+					print "<input type='text' $ro maxlength='$labelsize' style='width:150px;' name='labelName[$a][$b]' ";
 					print "value='". htmlentities($labelName[$a][$b],ENT_QUOTES) ."' placeholder='Beskrivelse'>";
 					if ($labelId[$a][$b]) print "<input type='checkbox' name='selectLabel[$a][$b]' $all>"; 
 					else print "<input type='hidden' name='selectLabel[$a][$b]' value=''>";
@@ -595,7 +621,7 @@ for ($a=1;$a<=$rows;$a++) {
 				print "</td>";
 			}
 			print "</tr>\n";
-#		}
+		}
 	}
 	print "</td></tr></table>";
 	print "<div class='footer'>";
@@ -630,8 +656,8 @@ for ($a=1;$a<=$rows;$a++) {
 	print "</tr>\n";
 	print "</form>";
 	print "</div>\n";
-
-} */
+	print "</div>\n";
+}
 
 include ('../includes/connect.php');
 $qtxt = "delete from online where session_id='$s_id' and brugernavn='$account' and db='$db'";

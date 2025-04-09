@@ -195,12 +195,12 @@ if ($fp) {
 			$felt[4]=substr($linje,61,3);
 			$felt[5]=substr($linje,64,1);
 			$felt[6]=substr($linje,65,3);
-			$felt[1]=str_replace(chr(145),"æ",$felt[1]);
-			$felt[1]=str_replace(chr(155),"ø",$felt[1]);
-			$felt[1]=str_replace(chr(134),"å",$felt[1]);
-			$felt[1]=str_replace(chr(146),"Æ",$felt[1]);
-			$felt[1]=str_replace(chr(157),"Ø",$felt[1]);
-			$felt[1]=str_replace(chr(143),"Å",$felt[1]);
+			$felt[1]=str_replace(chr(145),"Ã¦",$felt[1]);
+			$felt[1]=str_replace(chr(155),"Ã¸",$felt[1]);
+			$felt[1]=str_replace(chr(134),"Ã¥",$felt[1]);
+			$felt[1]=str_replace(chr(146),"Ã†",$felt[1]);
+			$felt[1]=str_replace(chr(157),"Ã˜",$felt[1]);
+			$felt[1]=str_replace(chr(143),"Ã…",$felt[1]);
 		} else $felt = split($splitter, $linje);
 		for ($y=0; $y<$feltantal; $y++) {
 
@@ -225,7 +225,7 @@ if ($fp) {
 		}
 		print "</tr>";
 	}
-	if ($linjefarve) print "<BODY onLoad=\"javascript:alert('Røde linjer vil ikke blive importeret - varegruppe findes ikke')\">";
+	if ($linjefarve) print "<BODY onLoad=\"javascript:alert('RÃ¸de linjer vil ikke blive importeret - varegruppe findes ikke')\">";
 }
  fclose($fp);
 print "</tbody></table>";
@@ -269,12 +269,12 @@ if ($fp) {
 			$felt[4]=substr($linje,61,3);
 			$felt[5]=substr($linje,64,1);
 			$felt[6]=substr($linje,65,3);
-			$felt[1]=str_replace(chr(145),"æ",$felt[1]);
-			$felt[1]=str_replace(chr(155),"ø",$felt[1]);
-			$felt[1]=str_replace(chr(134),"å",$felt[1]);
-			$felt[1]=str_replace(chr(146),"Æ",$felt[1]);
-			$felt[1]=str_replace(chr(157),"Ø",$felt[1]);
-			$felt[1]=str_replace(chr(143),"Å",$felt[1]);
+			$felt[1]=str_replace(chr(145),"Ã¦",$felt[1]);
+			$felt[1]=str_replace(chr(155),"Ã¸",$felt[1]);
+			$felt[1]=str_replace(chr(134),"Ã¥",$felt[1]);
+			$felt[1]=str_replace(chr(146),"Ã†",$felt[1]);
+			$felt[1]=str_replace(chr(157),"Ã˜",$felt[1]);
+			$felt[1]=str_replace(chr(143),"Ã…",$felt[1]);
 		} else $felt = split($splitter, $linje);
 		for ($y=0; $y<$feltantal; $y++) 	if ($feltnavn[$y] == 'Varegrp.' && !in_array($felt[$y], $feltnavn)) $linjefarve[$x]='red';
 		for ($y=0; $y<$feltantal; $y++) {
@@ -301,7 +301,14 @@ if ($fp) {
 			if ($r2[id]) db_modify("update vare_lev set kostpris=$kostpris[$y], lev_varenr=$lev_varenr[$y] where id='$r2[id]'");
 			else db_modify("insert into vare_lev(vare_id, lev_id, lev_varenr, kostpris) values ('$r[id]', '$lev_id', '$lev_varenr', '$kostpris')");
 		} else {
-			db_modify("insert into varer (varenr, beskrivelse, salgspris, kostpris, enhed, gruppe) values ('$varenr', '$beskrivelse', '$salgspris', '$kostpris', '$enhed', '$gruppe')");
+			$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+			if(db_num_rows($query) > 0){
+				$r = db_fetch_array($query);
+				$minBeholdning = (int)$r["var_value"];
+				db_modify("insert into varer (varenr, beskrivelse, salgspris, kostpris, enhed, gruppe, min_lager) values ('$varenr', '$beskrivelse', '$salgspris', '$kostpris', '$enhed', '$gruppe', $minBeholdning)");
+			}else{
+				db_modify("insert into varer (varenr, beskrivelse, salgspris, kostpris, enhed, gruppe) values ('$varenr', '$beskrivelse', '$salgspris', '$kostpris', '$enhed', '$gruppe')");
+			}
 			$r=db_fetch_array(db_select("select id from varer where varenr='$varenr'"));
 			db_modify("insert into vare_lev(vare_id, lev_id, lev_varenr, kostpris) values ('$r[id]', '$lev_id', '$lev_varenr', '$kostpris')");
 		}	

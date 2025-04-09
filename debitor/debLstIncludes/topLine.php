@@ -42,11 +42,7 @@
 			   .findtekst(909, $sprog_id)."</button></a></td>";
 	}
 #		print "<td width = 20% align=center><a href='debitor.php?valg=rental&returside=$returside'>".findtekst(1116,$sprog_id)."</a></td>";
-	if ($valg=='rental') {
-		print "<td width = '100px' align=center>
-			   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(1116, $sprog_id)."</button></td>";
-	} elseif ($showRental) {
+	if ($menu != "S") {
 		print "<td width = '100px' align=center>
 			   <a href='../rental/index.php?vare'>
 			   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"

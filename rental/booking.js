@@ -500,7 +500,9 @@
       const res = await createBooking(data)
       data.booking_id = res.id
 
-      await createOrder(data)
+      if(settings.toggle_order == 1){
+        await createOrder(data)
+      }
       /* loading.style.display = "none" */
       alert(res.msg)
       window.location.href = "index.php?singleItem=" + item

@@ -113,6 +113,17 @@
             <label for="fakturadato">Sæt faktura dato til bookings startdato</label>
         </div>
         <hr>
+        <label>Automatisk ordre:</label>
+        <figure class="mt-3">
+            <figcaption class="blockquote-footer">
+                Hvis slået til laver systemet selv ordre på bookinger.
+            </figcaption>
+        </figure>
+        <div class="form-check form-switch">
+            <input type="checkbox" role="switch" class="form-check-input putTogether" id="toggleOrder">
+            <label for="toggleOrder">Slå ordre til og fra</label>
+        </div>
+        <hr>
         <label>Sæt adgangskode til indstillinger:</label>
         <figure class="mt-3">
             <figcaption class="blockquote-footer">

@@ -214,7 +214,14 @@ function varesync($valg) {
 			}
 		}	elseif ($valg=='1' && is_numeric($salgspris[$y]) && is_numeric($gruppe[$y])) {
 			echo "Opretter $varenr[$y]<br>"; 
-			$qtxt="insert into varer (varenr,stregkode,beskrivelse,salgspris,kostpris,gruppe,beholdning,lukket) values ('$varenr[$y]','$stregkode[$y]','$beskrivelse[$y]','$salgspris[$y]','$kostpris[$y]','$gruppe[$y]','0','')";
+			$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+			if(db_num_rows($query) > 0){
+				$r = db_fetch_array($query);
+				$minBeholdning = (int)$r["var_value"]; 
+				$qtxt="insert into varer (varenr,stregkode,beskrivelse,salgspris,kostpris,gruppe,beholdning,lukket,min_lager) values ('$varenr[$y]','$stregkode[$y]','$beskrivelse[$y]','$salgspris[$y]','$kostpris[$y]','$gruppe[$y]','0','',$minBeholdning)";
+			}else{
+				$qtxt="insert into varer (varenr,stregkode,beskrivelse,salgspris,kostpris,gruppe,beholdning,lukket) values ('$varenr[$y]','$stregkode[$y]','$beskrivelse[$y]','$salgspris[$y]','$kostpris[$y]','$gruppe[$y]','0','')";
+			}
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from varer where varenr='$varenr[$y]'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

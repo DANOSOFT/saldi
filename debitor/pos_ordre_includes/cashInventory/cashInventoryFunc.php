@@ -182,8 +182,8 @@ function kassebeholdning ($kasse,$optalt,$godkendt,$cookievalue) {
 	$url=str_replace("/debitor/pos_ordre.php","",$url);
 	if ($_SERVER['HTTPS']) $url="s".$url;
 	$url="http".$url;
-	if ($printpopup) print "<BODY onLoad=\"JavaScript:window.open('http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=1&bon=$bon&skuffe=1&gem=1' , '' , '$jsvars');\">\n";
-	else print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=$bonantal&id=$id&returside=$url/debitor/pos_ordre.php&bon=$bon&skuffe=1&gem=1\">\n";
+	if ($printpopup) print "<BODY onLoad=\"JavaScript:window.open('" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=1&bon=$bon&skuffe=1&gem=1' , '' , '$jsvars');\">\n";
+	else print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bonantal=$bonantal&id=$id&returside=$url/debitor/pos_ordre.php&bon=$bon&skuffe=1&gem=1\">\n";
 	$accept = setCashCountText()['accept'];
     if (isset($_POST['optael']) &&  $_POST['optael'] == $accept && getCountry() == "Norway") {
         $_SESSION['boxZreport'] = true;

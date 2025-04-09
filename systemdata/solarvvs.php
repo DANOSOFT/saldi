@@ -305,7 +305,14 @@ db_modify("update varer set beskrivelse='$beskrivelse', salgspris='$salgspris', 
 				else db_modify("insert into vare_lev(vare_id, lev_id, lev_varenr, kostpris) values ('$r[id]', '$lev_id', '$vvsnr', '$kostpris')",__FILE__ . " linje " . __LINE__);
 			} elseif ($vvsnr && $varegrp && $salgspris && $kostpris) {
 #echo "opretter varenr $vvsnr<br>";				
-				db_modify("insert into varer (varenr, beskrivelse, salgspris, kostpris, enhed, gruppe, lukket) values ('$vvsnr', '$beskrivelse', '$salgspris', '$kostpris', '$enhed', '$varegrp', '$lukket')",__FILE__ . " linje " . __LINE__);
+				$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'", __FILE__ . " linje " . __LINE__);
+				if(db_num_rows($query) > 0){
+					$r = db_fetch_array($query);
+					$minBeholdning = (int)$r["var_value"];
+					db_modify("insert into varer (varenr, beskrivelse, salgspris, kostpris, enhed, gruppe, lukket, min_lager) values ('$vvsnr', '$beskrivelse', '$salgspris', '$kostpris', '$enhed', '$varegrp', '$lukket', $minBeholdning)",__FILE__ . " linje " . __LINE__);	
+				}else{			
+					db_modify("insert into varer (varenr, beskrivelse, salgspris, kostpris, enhed, gruppe, lukket) values ('$vvsnr', '$beskrivelse', '$salgspris', '$kostpris', '$enhed', '$varegrp', '$lukket')",__FILE__ . " linje " . __LINE__);
+				}
 				$r=db_fetch_array(db_select("select id from varer where varenr='$vvsnr'",__FILE__ . " linje " . __LINE__));
 				db_modify("insert into vare_lev(vare_id, lev_id, lev_varenr, kostpris) values ('$r[id]', '$lev_id', '$vvsnr', '$kostpris')",__FILE__ . " linje " . __LINE__);
 			} else {

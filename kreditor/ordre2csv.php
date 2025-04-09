@@ -20,16 +20,17 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();
-$s_id=session_id();
-$title="Ordreeksport";
-$css="../css/standard.css";
+$s_id = session_id();
+$title = "Ordreeksport";
+$css = "../css/standard.css";
 
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$ordre_id=if_isset($_GET['id']);
-if (!$ordre_id) $ordre_id=0;
+$ordre_id = if_isset($_GET['id']);
+if (!$ordre_id)
+	$ordre_id = 0;
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #A
 print "<tr><td valign=top>";
@@ -41,33 +42,41 @@ print "</tbody></table></td></tr>"; #B1 slut
 print "<tr><td valign=top>";
 print "<table width=\"400\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; #B2
 
-$filnavn="../temp/".$db."/".$ordre_id.".csv";
+$filnavn = "../temp/" . $db . "/" . $ordre_id . ".csv";
 #echo "Filnavn $filnavn<br>";
-$fp=fopen($filnavn,"w");
+$fp = fopen($filnavn, "w");
 
-fwrite($fp,"Pos".chr(9)."Vores varenummer".chr(9)."Deres varenummer".chr(9)."Beskrivelse".chr(9)."Antal".chr(9)."Pris".chr(9)."Rabat".chr(9)."I alt".chr(9)."\n");
-$q=db_select("select * from ordrelinjer where ordre_id = $ordre_id order by posnr",__FILE__ . " linje " . __LINE__);
-while ($r=db_fetch_array($q)) {
-	$beskrivelse=str_replace(chr(9)," ",$r['beskrivelse']);
-	$varenr=str_replace(chr(9)," ",$r['varenr']);
-	$lev_vnr=str_replace(chr(9)," ",$r['lev_varenr']);
-	if ($charset=='UTF-8') {
-		$beskrivelse=mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8'); 
-	$varenr=mb_convert_encoding($varenr, 'ISO-8859-1', 'UTF-8');
-	$lev_vnr=mb_convert_encoding($lev_vnr, 'ISO-8859-1', 'UTF-8');
+fwrite($fp, "Pos" . chr(9) . "Vores varenummer" . chr(9) . "Deres varenummer" . chr(9) . "Beskrivelse" . chr(9) . "Antal" . chr(9) . "Pris" . chr(9) . "Rabat" . chr(9) . "I alt" . chr(9) . "\n");
+$q = db_select("select * from ordrelinjer where ordre_id = $ordre_id order by posnr", __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+	$beskrivelse = str_replace(chr(9), " ", $r['beskrivelse']);
+	$varenr = str_replace(chr(9), " ", $r['varenr']);
+	$lev_vnr = str_replace(chr(9), " ", $r['lev_varenr']);
+	if ($charset == 'UTF-8') {
+		$beskrivelse = mb_convert_encoding($beskrivelse, 'ISO-8859-1', 'UTF-8');
+		$varenr = mb_convert_encoding($varenr, 'ISO-8859-1', 'UTF-8');
+		$lev_vnr = mb_convert_encoding($lev_vnr, 'ISO-8859-1', 'UTF-8');
 	}
-	$antal=dkdecimal($r['antal']);
-	$pris=dkdecimal($r['pris']);
-	$rabat=dkdecimal($r['rabat']);
-	$ialt=dkdecimal($r['pris']*$r['antal']-($r['pris']*$r['antal']/100*$r['rabat']));
-	
-	fwrite($fp,$r["posnr"].chr(9).$varenr.chr(9).$lev_vnr.chr(9).$beskrivelse.chr(9).$antal.chr(9).$pris.chr(9).$rabat.chr(9).$ialt."\n");
+	$antal = dkdecimal($r['antal']);
+	$pris = dkdecimal($r['pris']);
+	$rabat = dkdecimal($r['rabat']);
+	$ialt = dkdecimal($r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] / 100 * $r['rabat']));
+
+	fwrite($fp, $r["posnr"] . chr(9) . $varenr . chr(9) . $lev_vnr . chr(9) . $beskrivelse . chr(9) . $antal . chr(9) . $pris . chr(9) . $rabat . chr(9) . $ialt . "\n");
+	# Get serialnumbers for export
+	$q2 = db_select("select serienr from serienr where kobslinje_id = '$r[id]'", __FILE__ . " linje " . __LINE__);
+	while ($r2 = db_fetch_array($q2)) {
+		$serienr = $r2["serienr"];
+		fwrite($fp,chr(9).$varenr.chr(9).$lev_vnr.chr(9).'sn:'.$serienr.chr(9).chr(9).chr(9).chr(9)."\n");
+	}
 }
 fclose($fp);
-	
+
 print "<tr><td align=center> Klik her: </td><td $top_bund title=\"&Aring;bner csv filen. H&oslash;jreklik for at gemme\"> <a href=\"$filnavn\">&Aring;ben ordrefil</a></td></tr>";
 
 print "</tbody></table></td></tr>"; #B2 slut
 print "</tbody></table>"; #A slut
 ?>
-</body></html>
+</body>
+
+</html>

@@ -9,7 +9,6 @@
 		$tekst1 = findtekst(437, $sprog_id);
 		$tekst2 = findtekst(438, $sprog_id);
 		$tekst3 = findtekst(439, $sprog_id);
-		#			if (strpos($tekst3,'kundenr')) db_modify("update tekster set tekst = '' where tekst_id = 439",__FILE__ . " linje " . __LINE__);
 		$tekst4 = findtekst(440, $sprog_id);
 		$tekst5 = findtekst(451, $sprog_id);
 		$tekst6 = findtekst(452, $sprog_id);
@@ -42,7 +41,7 @@
 			$tekst1 = findtekst(447, $sprog_id);
 			$tekst2 = findtekst(448, $sprog_id);
 			$tekst3 = findtekst(455, $sprog_id);
-			print "<td align='center'><span title='$tekst1' onClick='window.location.href='top100.php''><input style='width:115px' type='button' value='$tekst2' name='submit'></span></td>";
+			print "<td align='center'><span title='$tekst1' onClick=\"window.location.href='top100.php'\"><input style='width:115px' type='button' value='$tekst2' name='top100'></span></td>";
 			if (db_fetch_array(db_select("select id from grupper where art = 'POS' and box2 >= '1'", __FILE__ . " linje " . __LINE__))) {
 				print "<td align='center'><input title='" . findtekst(918, $sprog_id) . "' style='width:115px' type='submit' value='" . findtekst(918, $sprog_id) . "' name='salgsstat'></td>";
 				print "<td align=center><a href='kassespor.php'><input title='Oversigt over POS transaktioner' style='width:115px' type='button' value='$tekst3'></a></td>";

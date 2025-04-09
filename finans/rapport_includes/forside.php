@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2024-11-20 ---
+// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2025-04-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20190820 PHR Option 'medtag lagerbevægelser' removed if stock is locked in actual year.
@@ -39,6 +39,9 @@
 // 20240424 PHR Some issues regarding staggered financial years
 // 20241018 LOE Ensured some variables are set first like: $_POST['submit'] and $konto_beskrivelse etc.
 // 20241120 PHR	Rermoved  "target='	'" from <form ...
+// 20250324 LOE Updated konto_til value and finans_forside.js created
+// 20250407 LOE konto_til when not set and ktoNameTo default values moved from while loop.
+
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
@@ -114,6 +117,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	$query = db_select("select * from kontoplan where regnskabsaar='$regnaar' order by kontonr", __FILE__ . " linje " . __LINE__);
 	$maxResult = $x = 0;
 	$minBalace = 99999999;
+	$ar=array();
 	while ($row = db_fetch_array($query)) {
 		$konto_id[$x] = $row['id'];
 		$kontonr[$x] = $row['kontonr'];
@@ -123,15 +127,18 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		if ($kontoType[$x] == 'S' && $minBalace > $kontonr[$x]) $minBalace = $kontonr[$x];
 		if ($kontoType[$x] == 'X') $sideskift = $kontonr[$x];
 		if (!$konto_fra) $konto_fra = $kontonr[0];
-		$konto_til = $kontonr[$x];
+		
 		if ($kontonr[$x] == $konto_fra) {
 			$ktoNameFrom = $konto_beskrivelse[$x];
 		}
-		if ($kontonr[$x] == $konto_til) {
-			$ktoNameTo = $konto_beskrivelse[$x];
-		}
+		$ar[$x]=$row;
 		$x++;
 	}
+	if (!$konto_til) {
+		$konto_til = $kontonr[count($kontonr) - 1];
+		$ktoNameTo = $konto_beskrivelse[count($konto_beskrivelse) - 1];
+	}
+	
 	$antal_konti = $x;
 	if (!$maaned_fra) {
 #		$maaned_fra = $md[$start_md[$aktiv]];
@@ -189,7 +196,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		$antal_ansatte = $x;
 	} else
 		$antal_ansatte = 0;
-
+		
 	include ("../includes/topline_settings.php");
 
 	if ($menu == 'T') {
@@ -455,6 +462,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 #	if (($start_md[$aktiv]>1)&&($slut_md[$aktiv]<12)) {
 #		for ($x=1; $x<=$slut_md[$aktiv]; $x++) print "<option>$slut_aar[$aktiv] $md[$x]</option>\n";
 #	}
+	
 	$kontrospor1 = explode(' ', findtekst(905, $sprog_id)); #20210722
 	print "</select> ";
 	if (!$dato_til)
@@ -488,6 +496,11 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		}
 	#for ($x=1; $x<=$antal_konti; $x++)  print "<option value='konto_til'>$kontonr[$x] : $konto_beskrivelse[$x]</option>\n";
 	print "</td></tr>\n";
+	#####################################################################
+	// JavaScript for validation [0],$konto_til[1]
+	
+	print '<script src="../javascript/finans_forside.js?v=1"></script>';
+	###################################################################
 	print "<input type=hidden name=regnaar value=$regnaar>\n";
 	if ($menu == 'T') {
 		print "<tr><td colspan=3 align=center><input class='button green medium' type=submit value=' OK ' name='submit'> &nbsp;•&nbsp; <span title='Vilk&aring;rlig s&oslash;gning i transaktioner'><input class='button orange medium' type=submit value=" . findtekst(905, $sprog_id) . " name='kontrolspor'></span></td></tr>\n";
@@ -526,6 +539,9 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	print "</tbody></table>\n"; #C slut
 	print "</td></tr>";
 	print "</tbody></table>\n"; #C slut
+
+
+
 
 	if ($menu == 'T') {
 		include_once '../includes/topmenu/footer.php';

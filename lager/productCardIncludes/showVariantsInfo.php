@@ -25,7 +25,14 @@
 // 2023.08.30 PHR - Created this file from variant section of ../varekort.php
 // 2023.10.06 PHR - Added $variantVarerText[$x]
 
-print "<tr>";
+print "<tr><td></td><td>Stregkode</td>";
+$qtxt="select beskrivelse,kodenr from grupper where art='LG' order by kodenr";
+$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+while ($r=db_fetch_array($q)) {
+  print "<td>$r[beskrivelse]</td>";
+}
+print "</tr>";
+
 for ($x=0;$x<count($variantVarerId);$x++) {
   print "<tr>";
   print "<input type=\"hidden\" name=\"variant_vare_id[$x]\" value=\"$variantVarerId[$x]\">";

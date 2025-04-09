@@ -162,7 +162,7 @@ function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang
 	$curr = $txtArray['currency'];
     
 	print "<tr><td align=\"center\" colspan=\"3\">";
-	print "<span onclick='window.open(\"http://$printserver/saldiprint.php?skuffe=1\")'>";
+	print "<span onclick='window.open(\"" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?skuffe=1\")'>";
 	print "<button type='button' style='width:100px'>$drawer</button></span>&nbsp;";
 	print "<input type='submit' style='width:100px' name='optael' value=\"$calc\">&nbsp;";
 	print "<input type='submit' style='width:100px' name='optael' value=\"$cancel\">";

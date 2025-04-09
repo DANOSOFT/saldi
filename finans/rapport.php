@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 4.0.8 --- 2024-10-18 ---
+// --- finans/rapport.php --- lap 4.1.1 --- 2025-03-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk ApS
+// Copyright (c) 2003-2025 saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20120927 Hvis budgettal indsat og konto lukket blev konto alligevel vist under budget
@@ -212,12 +212,22 @@ if ($_POST) {
 		$projekt_fra = NULL;
 		$projekt_til = NULL;
 	}
+	
+	/**#+
+	 * Processes 'konto_fra', 'konto_til', and 'regnaar' from the POST data.
+	 * For each, if the value contains a delimiter (":" or " - "), it splits into two parts:
+	 *  - The first part is assigned to the respective variable.
+	 *  - The second part is assigned to `$beskrivelse`.
+	 */
 	$konto_fra = if_isset($_POST['konto_fra']);
-	if ($konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra);
+	if ($konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra) + [1 => null];
+
 	$konto_til = if_isset($_POST['konto_til']);
-	if ($konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til);
+	if ($konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til) + [1 => null];
+
 	$regnaar = if_isset($_POST['regnaar']);
-	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar);
+	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar) + [1 => null];
+	#+
 }
 
 if (isset($_GET['rapportart']))  $rapportart = $_GET['rapportart'];

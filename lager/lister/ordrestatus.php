@@ -225,6 +225,9 @@ while ($row = db_fetch_array($q)) {
         "width" => "0.2",
         "sqlOverride" => "COALESCE(ls$row[kodenr].beholdning, 0)",
         "render" => function ($value, $row, $column) {
+            if ($row["samlevare"] == "on" || $row["lagerfort"] != "on") {
+                return "<td></td>";
+            } 
             if (!$value) {
                 return "<td align='$column[align]'>0,00</td>";
             }
@@ -247,6 +250,9 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "COALESCE(ls.lager_total, 0)",
     "render" => function ($value, $row, $column) {
+        if ($row["samlevare"] == "on" || $row["lagerfort"] != "on") {
+            return "<td></td>";
+        } 
         if ($value == "0,00" || !$value) {
             return "<td align='$column[align]'>0,00</td>";
         }
@@ -263,6 +269,9 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "v.min_lager",
     "render" => function ($value, $row, $column) {
+        if ($row["samlevare"] == "on" || $row["lagerfort"] != "on") {
+            return "<td></td>";
+        } 
         if ($value == "0,00" || !$value) {
             return "<td align='$column[align]'>0,00</td>";
         }
@@ -278,6 +287,9 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "v.max_lager",
     "render" => function ($value, $row, $column) {
+        if ($row["samlevare"] == "on" || $row["lagerfort"] != "on") {
+            return "<td></td>";
+        } 
         if ($value == "0,00" || !$value) {
             return "<td align='$column[align]'>0,00</td>";
         }
@@ -293,6 +305,9 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "CAST(GREATEST(v.volume_lager, 1) AS NUMERIC)",
     "render" => function ($value, $row, $column) {
+        if ($row["samlevare"] == "on" || $row["lagerfort"] != "on") {
+            return "<td></td>";
+        } 
         if ($value == "1,00" || !$value) {
             return "<td align='$column[align]'>1,00</td>";
         }
@@ -319,6 +334,9 @@ $columns[] = array(
             ELSE 0
         END::numeric",
     "render" => function ($value, $row, $column) {
+        if ($row["samlevare"] == "on" || $row["lagerfort"] != "on") {
+            return "<td></td>";
+        } 
         if ($value == "0,00" || !$value) {
             return "<td align='$column[align]'>0,00</td>";
         }
@@ -461,7 +479,7 @@ $filters[] = array(
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
-            "sqlOff" => "v.lukket = '0'",
+            "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0')",
         )
     )
 );
@@ -477,6 +495,7 @@ $data = array(
         beholdning,       
         SUM(beholdning) OVER (PARTITION BY vare_id) AS lager_total  
     FROM lagerstatus
+    GROUP BY vare_id, lager, beholdning
 ),
 levs AS (
     SELECT 
@@ -572,6 +591,8 @@ SELECT
     v.min_lager AS min_lager,
     v.max_lager AS max_lager,
     GREATEST(v.volume_lager, 1) AS volume_lager, -- Pakningsmængde
+    v.samlevare AS samlevare,
+    vg.box8 AS lagerfort,
     CASE 
         WHEN COALESCE(ls.lager_total, 0) - COALESCE(os.in_sales_order, 0) 
             + COALESCE(os.in_buy_proposal, 0) + COALESCE(os.in_buy_order, 0) < v.min_lager

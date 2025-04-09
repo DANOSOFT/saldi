@@ -48,7 +48,7 @@ function aabn_skuffe($id,$kasse) {
 	if ($_SERVER['HTTPS']) $url="s".$url;
 	$url="http".$url;
 	countDrawOpening($kasse);	
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=" . ($printserver == 'android' ? "saldiprint://" : "http://$printserver") . "/saldiprint.php?url=$url&bruger_id=$bruger_id&id=$id&skuffe=1&returside=$url/debitor/pos_ordre.php\">\n";
 	exit;
 }
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/modtag.php --- patch 4.1.0 --- 2024.06.26 ---
+// --- kreditor/modtag.php --- patch 4.1.1 --- 2025.03.22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2013.08.30 Fejl v. "interne shops" (Rotary) de der blev forsøgt kald til ikke eksisterende url.Søn 20130830
@@ -35,7 +35,7 @@
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20231025 PHR Added call to sync_shop_vare and log to stocklog.
 // 20240626 PHR Added 'fiscal_year' in queries
-
+// 20250207 PHR Corrected error in 'bogf_konto' as is used wrong account !
 
 @session_start();
 $s_id=session_id();
@@ -167,12 +167,13 @@ if ($fejl==0) {
 			$r = db_fetch_array($q);
 			$box1=trim($r['box1']); $box2=trim($r['box2']); $box3=trim($r['box3']); $box4=trim($r['box4']); $box8=trim($r['box8']); $box9=trim($r['box9']);
 			if ($box8!='on') { # Dvs varen er IKKE lagerfoert.
-				if (!$box4) {
+				if (!$box3) {
 					print "<BODY onLoad=\"javascript:alert('Varenr $varenr[$x] (Pos nr: $posnr[$x]) er ikke tilnykttet nogen varegruppe, modtagelse afbrudt')\">";
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 					exit;
 				}
-				db_modify("update ordrelinjer set bogf_konto='$box4' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+				$qtxt = "update ordrelinjer set bogf_konto='$box3' where id='$linje_id[$x]'";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 # PHR - Pris fjernet 06.04.08 - Prisen skal ikke saettes ved modtagelse
 				db_modify("insert into batch_kob(vare_id,variant_id,linje_id,kobsdate,ordre_id,antal,lager) values ('$vare_id[$x]','$variant_id[$x]','$linje_id[$x]','$levdate','$id','$leveres[$x]','$lager[$x]')",__FILE__ . " linje " . __LINE__);
 			} else { #hvis varen ER lagerfoert
@@ -201,7 +202,8 @@ if ($fejl==0) {
 					if ($leveres[$x]<0) returnering($id,$linje_id[$x],$leveres[$x],$vare_id[$x], $variant_id[$x],$pris[$x],$serienr[$x],$lager[$x],$kred_linje_id[$x],$levdate);#Varereturnering
 					else 	reservation($linje_id[$x],$leveres[$x],$vare_id[$x],$serienr[$x],$lager[$x]);
 				} else {
-					db_modify("update ordrelinjer set bogf_konto='$box4' where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+					$qtxt = "update ordrelinjer set bogf_konto='$box3' where id='$linje_id[$x]'";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 #					if ($fifo) {
 #						$rest=$leveres[$x]-($leveres[$x]-$beholdning);
 #						if ($rest<0) $rest=0;

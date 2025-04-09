@@ -2855,9 +2855,9 @@ function ret_sag() {
 	/* Query til ansatte (externe kontaktpersoner) */
 	// Query til stilladstype
 	$x=0;
-	$q=db_select("select * from grupper where art='V_CAT' order by box1",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$v_cat[$x]=htmlspecialchars($r['box1']);
+	$q=db_select("select * from grupper where art='VG' and box10 = 'on' order by box1",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+		$sTypes[$x]=htmlspecialchars($r['beskrivelse']);
 		$x++;
 	}
 	
@@ -3161,14 +3161,13 @@ function ret_sag() {
 				<div class=\"row\">
 						<div class=\"left\">Stilladstype</div>";
 							print "<div class=\"right\"><select style=\"width:194px;\" id=\"beskrivelse\" name=\"beskrivelse\" class=\"printSelect3\">\n";
-							for ($x=0;$x<count($v_cat);$x++) {
-								if ($beskrivelse==$v_cat[$x]) print "<option value=\"$v_cat[$x]\">$v_cat[$x]&nbsp;</option>\n";	
+							for ($x=0;$x<count($sTypes);$x++) {
+								if ($beskrivelse==$sTypes[$x]) print "<option value=\"$sTypes[$x]\">$sTypes[$x]&nbsp;</option>\n";
 							}
-							for ($x=0;$x<count($v_cat);$x++) {
-								if ($beskrivelse!=$v_cat[$x]) print "<option value=\"$v_cat[$x]\">$v_cat[$x]&nbsp;</option>\n";	
+							for ($x=0;$x<count($sTypes);$x++) {
+								if ($beskrivelse!=$sTypes[$x]) print "<option value=\"$sTypes[$x]\">$sTypes[$x]&nbsp;</option>\n";
 							}
 							print "</select></div>\n";
-
 						#<div class=\"right\"><input type=\"text\" class=\"text\" id=\"beskrivelse\" name=\"beskrivelse\" value=\"$beskrivelse\"/></div>
 						print "<div class=\"clear\"></div>
 				</div>

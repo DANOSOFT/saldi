@@ -50,30 +50,72 @@ $q = db_select("select id from ordrer where email='$brugernavn'",__FILE__ . " li
 $r = db_fetch_array($q);
 # Check if there is a pending order that needs filling out by this tablet, the email field will be called the same as the user
 if ($r) {
+	if(isset($_GET["email"]) && $_GET["email"] == "") {
+		db_modify("UPDATE ordrer SET email='' WHERE email='$brugernavn'", __FILE__ . " linje " . __LINE__);
+	}
 	# Check if input form has been filled out
-	$email = $_GET["email"];
-	if (isset($email)) {
-		db_modify("UPDATE ordrer SET email='$email' WHERE email='$brugernavn'",__FILE__ . " linje " . __LINE__);
+	if (isset($_GET["email"]) && isset($_GET["name"]) && isset($_GET["addr"]) && isset($_GET["tlf"]) && isset($_GET["zip"]) && isset($_GET["city"])) {
+		$email = $_GET["email"];
+		$name = $_GET["name"];
+		$addr = $_GET["addr"];
+		$tlf = $_GET["tlf"];
+		$zip = $_GET["zip"];
+		$city = $_GET["city"];
+		/* db_modify("INSERT INTO adresser (firmanavn, addr1, tlf, email) VALUES ('$name', '$addr', '$tlf', '$email')", __FILE__ . " linje " . __LINE__);
+		$query = db_select("SELECT id, kontonr FROM adresser ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+		$row = db_fetch_array($query);
+		$id = $row["id"];
+		$kontonr = $row["kontonr"];
+		echo $id; */
+		db_modify("UPDATE ordrer SET email='$email', firmanavn = '$name', addr1 = '$addr', phone = '$tlf', postnr = '$zip', bynavn = '$city' WHERE email='$brugernavn'", __FILE__ . " linje " . __LINE__);
 		header('Location: ./await.php');
 		die();
 	}
 
 	# Print input form
 	?>
-		<div id="form-wapper">
-			<form>
+			<form class="form">
+			<div class="input-wrapper">
+				<input name="name" placeholder="Navn" type="text" required>
+			</div>
+			<div class="input-wrapper">
 				<input name="email" placeholder="E-mail" type="email" pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{1,63}$" required>
+			</div>
+			<div class="input-wrapper">
+				<input name="tlf" placeholder="Tlf" type="text" required>
+			</div>
+			<div class="input-wrapper">
+				<input name="addr" placeholder="Adresse" type="text" required>
+			</div>
+			<div class='cityZip'>
+				<div class="input-wrapper">
+					<input name="zip" placeholder="postNr" type="text" required>
+				</div>
+				<div class="input-wrapper">
+					<input name="city" placeholder="By" type="text" required>
+				</div>
+			</div>
 				<button>Gem</button>
+				<span id="cancel" onclick="document.location.href = '?email='">Anuller</span>
 			</form>
-			<span id="cancel" onclick="document.location.href = '?email='">Anuller</span>
+
 		</div>
 		<script>
 			document.addEventListener("DOMContentLoaded", function() {
-				var element = document.querySelector('#form-wapper');
-				if(element){element.classList.add('ease')}
-				var element = document.querySelector('#statusline');
+		
+				// Force a reflow before adding the class
+				const form = document.querySelector('form')
+				
+				// Trigger reflow
+				void form.offsetWidth;
+				
+				// Apply the class with a small delay
+				setTimeout(() => {
+					form.classList.add('ease')
+				}, 50)
+				var element = document.querySelector('#statusline')
 				if(element){element.classList.add('dissapear')}
-			});
+			})
 		</script>
 	<?php
 	die();

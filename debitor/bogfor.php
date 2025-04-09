@@ -44,7 +44,7 @@ if ($id && $id>0) {
 
 	$genfakt=if_isset($_GET['genfakt']);
 	$pbs=if_isset($_GET['pbs']);
-	$oioxml=if_isset($_GET['oioxml']);
+	$digital=if_isset($_GET['digital']);
 	$oioubl=if_isset($_GET['oioubl']);
 	$mail_fakt=if_isset($_GET['mail_fakt']);
 	transaktion('begin');
@@ -58,7 +58,6 @@ if ($id && $id>0) {
 	} else {
 		transaktion('commit');
 	}
-#xit;	
 	if (!$genfakt) {
 		if ($pbs) {
 			pbsfakt($id);
@@ -69,11 +68,41 @@ if ($id && $id>0) {
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=oioubl_dok.php?id=$id&doktype=$oioubl\">";
 				exit;
 			}
-		} elseif ($oioxml) {
-			if ($popup) print "<BODY onLoad=\"JavaScript:window.open('oioxml_dok.php?id=$id&doktype=$oioxml' , '' , '$jsvars');\">";
-			else {
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=oioxml_dok.php?id=$id&doktype=$oioxml\">";
-				exit;
+		} elseif ($digital) {
+			if ($digital == 'faktura') {
+				$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+					if(db_num_rows($query) <= 0){
+					?>
+					<script>
+					
+					if(confirm('Ved at sende fakture digitalt, vil du blive oprettet i nemhandel') == true)
+						window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+					</script>
+					<?php
+					}else{
+					?>
+					<script>
+					window.open('peppol.php?id=<?php echo $id;?>&type=invoice' ,'_blank')
+					</script>
+					<?php
+					}
+			}else{
+				$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
+				if(db_num_rows($query) <= 0){
+				?>
+				<script>
+				
+				if(confirm("ved at sende faktura/kreditnote digitalt, vil du blive oprettet i nemhandel") == true)
+					window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
+				</script>
+				<?php
+				}else{
+				?>
+				<script>
+				window.open('peppol.php?id=<?php echo $id;?>&type=creditnote' ,'_blank')
+				</script>
+				<?php
+				}
 			}
 		} else {
 			if ($popup) print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=$id&formular=4' , '' , '$jsvars');\">";

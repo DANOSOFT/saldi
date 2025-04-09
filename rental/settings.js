@@ -19,6 +19,7 @@ const putTogether = document.querySelector('.putTogether')
 const invoiceDate = document.querySelector('#fakturadato')
 const use_password = document.querySelector('#use_password')
 const password = document.querySelector('#password')
+const toggleOrder = document.querySelector("#toggleOrder")
 const settings = await getSettings()
 
 if(settings.use_password == "1"){
@@ -46,6 +47,7 @@ putTogether.checked = (settings.put_together == 1) ? true : false
 invoiceDate.checked = (settings.invoice_date == 1) ? true : false
 use_password.checked = (settings.use_password == 1) ? true : false
 password.value = (settings.pass == null || settings.pass == undefined) ? "" : settings.pass
+toggleOrder.checked = (settings.toggle_order == 1) ? true : false
 
 save.addEventListener('click', async e => {
     e.preventDefault()
@@ -65,6 +67,7 @@ save.addEventListener('click', async e => {
         invoice_date: invoiceDate.checked ? 1 : 0,
         use_password: use_password.checked ? 1 : 0,
         password: password.value,
+        toggle_order: toggleOrder.checked ? 1: 0
     }
     const res = await updateSettings(data)
     alert(res)

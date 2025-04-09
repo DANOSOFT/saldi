@@ -5,7 +5,7 @@
     const pathSegments = url.pathname.split('/').filter(segment => segment !== '')
     const firstFolder = pathSegments[0]
     // Dynamically import the module
-    const { getCustomers, deleteBooking, createReservation, getProductInfos, getBooking, getReservations, getClosedDays, editReservationComment, getBookingsForItemsByType, getReservationsByItem, deleteReservation, getItem, getBookingByCustomer, getSettings, getItemBookings, updateSettings, editReservationDates, getBookingsForItems } = await import(`/${firstFolder}/rental/api/api.js`)
+    const { getCustomers, deleteBooking, createReservation, getProductInfos, getBooking, getReservations, getClosedDays, editReservationComment, getBookingsForItemsByType, getReservationsByItem, deleteReservation, getItem, getBookingByCustomer, getSettings, getItemBookings, updateSettings, editReservationDates, getBookingsForItems, getBookingsFromPeriod } = await import(`/${firstFolder}/rental/api/api.js`)
 
     //
 //
@@ -35,7 +35,8 @@ if(settings.success == false){
         put_together: 0,
         use_password: 0,
         password: "",
-        invoice_date: 0
+        invoice_date: 0,
+        toggle_order: 1
     }
     const res = await updateSettings(data)
 }
@@ -634,31 +635,34 @@ const createReservationList = async (year, month, day, value) => {
 
     // Sort customerInfo with numeric items first and items with letters last
     customerInfo.sort((a, b) => {
-        console.log(a.item_name)
-        const isNumeric = (str) => /^\d+$/.test(str);
-
-        const strippedA = stripParentheses(a.item_name);
-        const strippedB = stripParentheses(b.item_name);
-
-        const aIsNumeric = isNumeric(strippedA);
-        const bIsNumeric = isNumeric(strippedB);
-
-        // If both items are numeric, compare them numerically
-        if (aIsNumeric && bIsNumeric) {
-            return parseInt(strippedA, 10) - parseInt(strippedB, 10);
+        const isNumeric = (str) => /^\d+$/.test(str)
+        
+        // Helper function to extract number before hyphen
+        const getNumberBeforeHyphen = (str) => {
+            if (!str) return ''
+            const match = str.match(/^(\d+)/)
+            return match ? parseInt(match[0], 10) : str
+        };
+    
+        const strippedA = stripParentheses(a.item_name)
+        const strippedB = stripParentheses(b.item_name)
+    
+        // Get numbers before hyphen
+        const numA = getNumberBeforeHyphen(strippedA)
+        const numB = getNumberBeforeHyphen(strippedB)
+    
+        // If both items start with numbers, compare the numbers
+        if (typeof numA === 'number' && typeof numB === 'number') {
+            return numA - numB
         }
-
-        // If one item is numeric and the other isn't, the numeric one comes first
-        if (aIsNumeric) {
-            return -1;
-        }
-        if (bIsNumeric) {
-            return 1;
-        }
-
-        // If neither item is numeric, compare them as strings
-        return strippedA.localeCompare(strippedB);
-    });
+    
+        // If one item starts with a number and the other doesn't, number comes first
+        if (typeof numA === 'number') return -1
+        if (typeof numB === 'number') return 1
+    
+        // If neither starts with a number, compare as strings
+        return strippedA.localeCompare(strippedB)
+    })
 
     for (const date of customerInfo) {
         if (value == "one") {
@@ -1001,10 +1005,12 @@ const createReservationList = async (year, month, day, value) => {
             window.location.reload()
         })
     })
-
+    const printWeeks = document.createElement("button")
     const printButton = document.createElement("button")
     printButton.className = "btn btn-primary"
     printButton.textContent = "Print"
+    printWeeks.className = "btn btn-primary ml-1"
+    printWeeks.textContent = "Print x uger"
     printButton.addEventListener("click", () => {
         const printWindow = window.open('', '_blank')
         const tables = document.querySelectorAll('.table')
@@ -1040,11 +1046,84 @@ const createReservationList = async (year, month, day, value) => {
         printWindow.document.close()
         printWindow.print()
     })
+
+    printWeeks.addEventListener("click", async () => {
+        const amountOfWeeks = prompt("Vælg antal uger")
+        Number(amountOfWeeks)
+        if(!isNaN(amountOfWeeks)){
+            const xWeeksFromNow = new Date()
+            const currentDate = new Date(selectedDate)
+            xWeeksFromNow.setDate(currentDate.getDate() + amountOfWeeks * 7)
+            const from = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
+            const to = `${xWeeksFromNow.getFullYear()}-${String(xWeeksFromNow.getMonth() + 1).padStart(2, '0')}-${String(xWeeksFromNow.getDate()).padStart(2, '0')}`
+            const bookings = await getBookingsFromPeriod(from, to)
+            if(bookings.success && bookings.success == false){
+                alert("Der er ikke nogen bookinger i den valgte periode")
+                return
+            }
+            const table = document.createElement("table")
+            table.className = "hidden hiddenTable"
+            const tBody = document.createElement("tBody")
+            let tr = document.createElement("tr")
+            tr.innerHTML = "<th>Navn</th><th>tlf</th><th>Udlejnings produkt</th><th>Kundenr</th><th>Fra</th><th>Til</th><th></th><th></th>"
+            tBody.appendChild(tr)
+            bookings.forEach((booking) => {
+                tr = document.createElement("tr")
+                const from = new Date(booking.from * 1000)
+                const fromFormatted = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-${String(from.getDate()).padStart(2, '0')}`
+                const to = new Date(booking.to * 1000)
+                const toFormatted = `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, '0')}-${String(to.getDate()).padStart(2, '0')}`
+                tr.innerHTML = `<td>${booking.cust_name}</td><td>${booking.tlf}</td><td>${booking.item_name}</td><td>${booking.kontonr}</td><td>${fromFormatted}</td><td>${toFormatted}</td><td></td><td></td>`
+                tBody.appendChild(tr)
+            })
+            table.appendChild(tBody)
+            const body = document.querySelector("body")
+            body.appendChild(table)
+
+            const printWindow = window.open('', '_blank')
+            const tables = document.querySelectorAll('.hiddenTable')
+            // get the weekday of the selected date in like monday, tuesday etc.
+            const date = new Date(year, month - 1, day)
+            const days = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag']
+            const weekday = days[date.getDay()]
+            printWindow.document.write(`<html><head><title>Print</title></head><body><h1>${weekday + " " + day+"/"+month+"/"+year}</h1>`)
+            tables.forEach((table, index) => {
+                let header = table.previousElementSibling
+                while (header && header.tagName.toLowerCase() !== 'h3') {
+                    header = header.previousElementSibling
+                }
+                if (header) {
+                    printWindow.document.write(header.outerHTML)
+                }
+                let newTable = document.createElement('table')
+                newTable.style.borderCollapse = 'collapse'
+                for (let i = 0; i < table.rows.length; i++) {
+                    let newRow = document.createElement('tr')
+                    for (let j = 0; j < table.rows[i].cells.length - 2; j++) {
+                        let newCell = document.createElement('td')
+                        newCell.textContent = table.rows[i].cells[j].textContent
+                        newCell.style.border = '1px solid black'
+                        newCell.style.padding = '10px'
+                        newRow.appendChild(newCell)
+                    }
+                    newTable.appendChild(newRow)
+                }
+                printWindow.document.write(newTable.outerHTML)
+            })
+            printWindow.document.write('</body></html>')
+            printWindow.document.close()
+            printWindow.print()
+        }else{
+            alert("Du skal skrive et nummer")
+        }
+    })
+
     const calendar = document.querySelector(".calendar")
     if(calendar.lastChild && calendar.lastChild.tagName && calendar.lastChild.tagName.toLowerCase() === 'button') {
         calendar.removeChild(calendar.lastChild)
     }
     calendar.appendChild(printButton)
+    calendar.appendChild(printWeeks)
 
 }
 

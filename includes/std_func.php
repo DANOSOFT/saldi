@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php---patch 4.0.9 ----2024-08-15--------------
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20130210 Break ændret til break 1 Tastefejl rettet.
@@ -111,7 +111,12 @@
 // 20240416 LOE Converted some strings to int before maths operation and also Initialized $bynavn = null 
 // 20240726 PHR function findtekst now accepts textstring as first argument
 // 20240815 PHR function findtekst moved to stdFunc/findTxt.php
+// 20240925 PBLM we now send price to the api aswell
+// 20250113 PHR function find_lagervaerdi - fiscal_year
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250321 LOE Updated with various changes and new additions from multiple updates including comments
+// 20250323 LOE Checks if input is set, ensures it doesn't exceed 80 characters, and sanitizes it to prevent XSS attacks.
+// 20250405 LOE if_isset() updated
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -160,8 +165,8 @@ if (!function_exists('dkdato')) {
 		 */
 		if ($dato) {
 			list($year, $month, $day) = explode('-', $dato, 3);
-			$month = $month * 1;
-			$day = $day * 1;
+			$month = (int)$month;
+			$day = (int)$day;
 			if ($month < 10) {
 				$month = '0' . $month;
 			}
@@ -198,9 +203,9 @@ if (!function_exists('get_relative')) {
     }
 }
 
-if (!function_exists('if_isset')) {
-	function if_isset(&$var, $return = NULL)
-	{
+// if (!function_exists('if_isset')) {
+// 	function if_isset(&$var, $return = NULL)
+// 	{
 		/**
 		 * Checks if a variable is set and not empty.
 		 * If set and not empty, returns the value of the variable.
@@ -210,12 +215,45 @@ if (!function_exists('if_isset')) {
 		 * @param mixed $return - The value to return if the variable is not set or is empty (default: NULL).
 		 *
 		 * @return mixed - The value of the variable if set and not empty, otherwise the default value.
+		 * ######## Known Behaviour #######, 
+		 * This doesn't return True if $var === 0 as 0 is considered Falsy in PHP. But 0 can be set and retrieved as value in $return param.
+		 * Same thing for False value.
+		 * if_isset(false) //NULL
+		 * if_isset(0)     //NULL
+		 * #################
 		 */
-		if ($var)
-			return ($var);
-		else
-			return ($return);
-	}
+// 		if ($var)
+// 			return ($var);
+// 		else
+// 			return ($return);
+// 	}
+// }
+
+if (!function_exists('if_isset')) {
+    function if_isset($var, $default = NULL) {
+          /**
+         * Checks if a variable is set.
+         * If the variable is set (even if NULL), it returns the variable's value.
+         * Otherwise, returns the provided default value (default is NULL).
+         *
+         * Behavior with special values:
+         * - 0: The function returns 0 because 0 is considered set, but not NULL.
+         * - false: The function returns NULL explicitly defining it so.
+         * - NULL: The function returns NULL if the variable is explicitly set to NULL. #*This returns empty with print or echo. But var_dump()
+         * - Other values (e.g., empty strings, arrays, etc.): The function returns the value if set, even if it is empty.
+         *
+         * @param mixed $var - The variable to check.
+         * @param mixed $default - The value to return if the variable is not set (default: NULL).
+         * @return mixed - Returns the value of the variable if set, otherwise the default value.
+         */
+
+        // Check if the variable is explicitly false and return NULL
+        if ($var === false) {
+            return NULL;
+        }
+
+        return isset($var) ? $var : $default;
+    }
 }
 if (!function_exists('usdate')) {
 	function usdate($date)
@@ -343,7 +381,7 @@ if (!function_exists('usdate')) {
 		return $date;
 	}
 }
-if (!function_exists('findtekst')) include_once('../includes/stdFunc/findTxt.php');
+if (!function_exists('findtekst')) include_once(__DIR__.'/stdFunc/findTxt.php');
 
 if (!function_exists('javascript')) {
 	function javascript()
@@ -756,40 +794,94 @@ if (!function_exists('cvrnr_omr')) {
 		 */
 		$retur = "";
 		if (!$landekode) {
-			return $retur;
+			$retur = "";
 		} else {
-			$countryMap = [
-				"dk" => "DK",
-				"at" => "EU",
-				"be" => "EU",
-				"cy" => "EU",
-				"cz" => "EU",
-				"de" => "EU",
-				"ee" => "EU",
-				"gr" => "EU",
-				"es" => "EU",
-				"fi" => "EU",
-				"fr" => "EU",
-				"hu" => "EU",
-				"ie" => "EU",
-				"it" => "EU",
-				"lt" => "EU",
-				"lu" => "EU",
-				"lv" => "EU",
-				"mt" => "EU",
-				"nl" => "EU",
-				"pl" => "EU",
-				"pt" => "EU",
-				"ro" => "EU",
-				"se" => "EU",
-				"si" => "EU",
-				"sk" => "EU",
-				"gl" => "UD",
-			];
-	
-			// Return corresponding value from the map, or 'UD' if not found
-			return isset($countryMap[$landekode]) ? $countryMap[$landekode] : "UD";
+			switch ($landekode) {
+				case "dk":
+					$retur = "DK";
+					break 1;
+				case "at":
+					$retur = "EU";
+					break 1;
+				case "be":
+					$retur = "EU";
+					break 1;
+				case "cy":
+					$retur = "EU";
+					break 1;
+				case "cz":
+					$retur = "EU";
+					break 1;
+				case "de":
+					$retur = "EU";
+					break 1;
+				case "ee":
+					$retur = "EU";
+					break 1;
+				case "gr":
+					$retur = "EU";
+					break 1;
+				case "es":
+					$retur = "EU";
+					break 1;
+				case "fi":
+					$retur = "EU";
+					break 1;
+				case "fr":
+					$retur = "EU";
+					break 1;
+				#case "gb": $retur = "EU"; break 1;
+				case "hu":
+					$retur = "EU";
+					break 1;
+				case "ie":
+					$retur = "EU";
+					break 1;
+				case "it":
+					$retur = "EU";
+					break 1;
+				case "lt":
+					$retur = "EU";
+					break 1;
+				case "lu":
+					$retur = "EU";
+					break 1;
+				case "lv":
+					$retur = "EU";
+					break 1;
+				case "mt":
+					$retur = "EU";
+					break 1;
+				case "nl":
+					$retur = "EU";
+					break 1;
+				case "pl":
+					$retur = "EU";
+					break 1;
+				case "pt":
+					$retur = "EU";
+					break 1;
+				case "ro":
+					$retur = "EU";
+					break 1;
+				case "se":
+					$retur = "EU";
+					break 1;
+				case "si":
+					$retur = "EU";
+					break 1;
+				case "sk":
+					$retur = "EU";
+					break 1;
+				case "gl":
+					$retur = "UD";
+					break 1;
+				default:
+					$retur = "UD";
+					break 1;
+			}
 		}
+		return $retur;
 	}
 }
 if (!function_exists('cvrnr_land')) {
@@ -1148,7 +1240,9 @@ if (!function_exists('find_lagervaerdi')) {
 		if (!$slut) {
 			return ('stop');
 		}
-		$q = db_select("select kodenr,box1,box2,box3,box11,box13 from grupper where art = 'VG' and box8 = 'on' and (box1 = '$kontonr' or box2 = '$kontonr' or box3 = '$kontonr')", __FILE__ . " linje " . __LINE__);
+		$qtxt = "select kodenr,box1,box2,box3,box11,box13 from grupper where art = 'VG' and box8 = 'on' and ";
+		$qtxt.= "(box1 = '$kontonr' or box2 = '$kontonr' or box3 = '$kontonr') and fiscal_year = '$regnaar'";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($r['box1'] == $kontonr)
 				$kob = 1;
@@ -1235,6 +1329,7 @@ if (!function_exists('find_lagervaerdi')) {
 	}
 }
 
+// Funktion som laver uppercase på første bogstav i streng. Virker som php funktion 'ucfirst', men med æøå
 if (!function_exists('mb_ucfirst')) {
 	function mb_ucfirst($str, $encoding = 'UTF-8')
 	{
@@ -1696,6 +1791,188 @@ if(!function_exists("sync_shop_price")){
   }
   
 
+if (!function_exists('sync_shop_vare')) {
+	function sync_shop_vare($vare_id, $variant_id, $lager) {
+		global $bruger_id,$db;
+		$costPrice = 0;
+		$log = fopen("../temp/$db/rest_api.log", "a");
+		$qtxt = "select box4, box5 from grupper where art='API'";
+		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$api_fil = trim($r['box4']); #20211013 $api_fil was omitted loe
+		$api_fil2 = trim($r["box5"]);
+		if (!$api_fil) {
+			fwrite($log, __FILE__ . " " . __LINE__ . " no api\n");
+			fclose($log);
+			return ('no api');
+		}
+		$qtxt = "select delvare,gruppe from varer where id='$vare_id'"; #20220110
+		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$itemGroup = (int) $r['gruppe'];
+		$partOfItem = $r['delvare'];
+		#if ($partOfItem) echo __line__." Id $vare_id is part of another item<br>";  	
+		$qtxt = "select box8 from grupper where kodenr='$itemGroup' and art = 'VG'";
+		fwrite($log, __FILE__ . " " . __LINE__ . " $qtxt\n");
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if (!$r['box8']) {
+			fwrite($log, __FILE__ . " " . __LINE__ . " no stock\n");
+			fclose($log);
+			return ('no stock');
+		}
+		$header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+		if ($variant_id) {
+			$qtxt = "select shop_variant from shop_varer where saldi_variant='$variant_id'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$shop_id = $r['shop_variant'];
+			$qtxt = "select beholdning from lagerstatus where variant_id='$variant_id'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$variant_beholdning = $r['beholdning']; #-$antal;
+			if (!$shop_id) {
+				$qtxt = "select variant_stregkode from variant_varer where id='$variant_id'";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$shop_id = str_replace("EAN", "", $r['variant_stregkode']);
+			}
+			if ($vare_id) {
+				$qtxt = "select kostpris from varer where id='$vare_id'";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$costPrice = $r['kostpris'];
+			}
+			$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil?update_stock=$shop_id";
+			$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
+			fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
+			exec("nohup $txt > /dev/null 2>&1 &\n");
+			if($api_fil2){
+				$txt = "/usr/bin/wget --spider --no-check-certificate --header='$header' '$api_fil2?update_stock=$shop_id";
+				$txt .= "&stock=$variant_beholdning&stockno=$lager&stockvalue=$r[lagerbeh]&file=" . __FILE__ . "&line=" . __LINE__ . "'";
+				fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
+				exec("nohup $txt > /dev/null 2>&1 &\n");
+			}
+		} else {
+			$qtxt = "select varer.varenr, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
+			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$stock = $r['stock'];
+				$itemNo = $r['varenr'];
+				$costPrice = $r['kostpris'];
+			} #$stock=$itemNo=NULL; #20210225
+			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$totalStock = $r['total_stock'];
+			}
+			$qtxt = "select shop_id from shop_varer where saldi_id='$vare_id'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
+				$shop_id = $r['shop_id'];
+			elseif (is_integer($itemNo))
+				$shop_id = $r['itemNo'];
+			else
+				$shop_id = 0;
+
+			$qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$salesPrice = $r['salgspris'];
+				$discountType = $r['m_type'];
+				$discount = $r['m_rabat'];
+				$itemNo = $r['varenr'];
+				$costPrice = $r['kostpris'];
+				$retailPrice = $r["retail_price"];
+				$webFragt = $r["colli_webfragt"];
+				$stregkode = $r["stregkode"];
+				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+if ($bruger_id == '-1') echo "$txt<br>";
+				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				if($api_fil2){
+					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				}
+			}
+			$stock = (int)$stock;
+			if ($itemNo) {
+				#			if (($shop_id || $itemNo) && is_numeric($stock)) {
+				$rand = rand();
+				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
+#if ($vare_id == '5899') echo "$txt<br>";
+				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				if($api_fil2){
+					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
+#if ($vare_id == '5899') echo "$txt<br>";
+					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				}
+				$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
+				$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				if($api_fil2){
+					$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
+					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+if ($bruger_id == '-1') echo "$txt<br>";
+				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
+				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
+				}
+				if ($partOfItem) {
+					$x = 0;
+					$partOf = array();
+					$qtxt = "select * from styklister where vare_id = '$vare_id'";
+					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					while ($r = db_fetch_array($q)) {
+						$partOf[$x] = $r['indgaar_i'];
+						$x++;
+					}
+					$y = $x;
+					for ($x = 0; $x < count($partOf); $x++) { #20220603
+						$qtxt = "select * from styklister where vare_id = '$partOf[$x]'";
+						$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+						while ($r = db_fetch_array($q)) {
+							$PartOf[$y] = $r['indgaar_i'];
+							$y++;
+						}
+					}
+					for ($x = 0; $x < count($partOf); $x++) {
+						$shop_id = 0;
+						$qtxt = "select varenr,kostpris from varer where id = '$partOf[$x]'";
+#if ($bruger_id == '-1') echo __line__." $qtxt<br>";
+						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+							$costPrice = $r['kostpris'];
+							$productNo = $r['varenr'];
+						}
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
+						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
+						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
+						$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
+						$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+						$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
+if ($bruger_id == '-1') echo __line__." $txt<br>";
+						fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
+						exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						if($api_fil2){
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+							$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
+							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
+							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
+							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						}
+						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
+						shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						if($api_fil2){
+							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
+							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						}
+					}
+				}
+			}
+		}
+		return ('OK');
+	}
+} #endfunc sync_shop_vare()
 
 if (!function_exists('getAvailable')) {
 	function getAvailable($itemId, $stockNo)
@@ -2264,6 +2541,41 @@ if(!function_exists('get_settings_value')){
 		} else {
 			return $default;
 		}
+	}
+}
+
+if(!function_exists('check_and_sanitize_input')){
+	function check_and_sanitize_input($input_name, $message, $nonce) {
+
+		/**
+		 * Checks the input length and sanitizes it.
+		 *
+		 * - If the input exceeds 80 characters, it sanitizes the message and shows an alert.
+		 * - If the input is valid, it returns the sanitized input.
+		 * - If the input is not found, it returns null.
+		 *
+		 * @param $input_name - The name of the input field to check.
+		 * @param $message - The message to display in case of invalid input.
+		 * @param $nonce - The nonce value to use in the scripts for security.
+		 *
+		 * @return string|null - The sanitized input if valid, or null if not found.
+		 */
+
+		if (isset($_POST[$input_name])) { 
+			if (strlen($_POST[$input_name]) > 80) { 
+				
+				$sanitized_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+				
+				echo "<script nonce='{$nonce}'>alert('$sanitized_message');</script>";
+			
+				echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
+				exit; 
+			}
+			
+			return htmlspecialchars($_POST[$input_name], ENT_QUOTES, 'UTF-8');
+		}
+		
+		return null;
 	}
 }
 

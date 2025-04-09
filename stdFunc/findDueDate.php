@@ -3,7 +3,6 @@ if (!function_exists('findDueDate')) {
 function findDueDate($id) {
 print "<!--function findDueDate start-->";
 	$qtxt = "select fakturadate, betalingsbet, betalingsdage from ordrer where id = '$id'";
-echo "$qtxt<br>";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if ($r['fakturadate']) {
 	 $invoiceDate = $r['fakturadate'];

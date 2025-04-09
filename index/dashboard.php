@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.0 --- 2024.05.22 ---
+// ---- index/dashboard.php --- lap 4.1.0 --- 2025.03.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,15 +20,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2025 saldi.dk aps
 // ----------------------------------------------------------------------
-// MMK 241004 
-
+//20241004 MMK  
+//20241018 LOE checks that some variables are set before using. 
 @session_start();
 $s_id = session_id();
 
 
-$css = "../css/dashboard.css";
+$css = "../css/dashboard.css?v=1";
 print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
@@ -121,6 +121,7 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 
 
 print '<script src="../javascript/chart.js"></script>';
+print '<script src="../javascript/apexcharts.js"></script>';
 
 function generateArray() {
     $result = array();
@@ -230,14 +231,18 @@ $name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 print "<div style='display: flex; flex-direction: column; padding: 2em 1em; gap: 2em;' class='content'>";
 
 # Newsbar
-if ($closed_newssnippet != $newssnippet && $newssnippet != '') {
+if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) && $newssnippet != '') {
 	print "<div id='newsbar'><span><b>Nyt i saldi:</b> $newssnippet</span><span id='closebtn' onClick=\"document.location.href = 'dashboard.php?close_snippet=1'\">x</span></div>";
 }
 
 # Titlebar
-print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em'>";
+print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
 print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
-print "<div style='display: flex; gap: 2em'>";
+print "<div style='display: flex; gap: 2em;'>";
+
+# Regnaar selector
+include "dashboardIncludes/regnaar.php";
+
 print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".findtekst('2224|Oversigt', $sprog_id)."</button>";
 if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .findtekst('2224|Oversigt', $sprog_id). "</button>";
 
@@ -295,7 +300,14 @@ if ($ordercount === "on") {
 	$currentDate->sub(new DateInterval('P30D'));
 	$thirtyDaysAgo = $currentDate->format('Y-m-d');
 
-	$q=db_select("SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status = 2 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'",__FILE__ . " linje " . __LINE__);
+  # Check hurtigfakt
+  if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'",__FILE__ . " linje " . __LINE__))) {
+    $qtxt = "SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status <= 3 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'";
+  } else {
+    $qtxt = "SELECT count(*), COALESCE(sum(\"sum\"), 0) FROM ordrer WHERE status = 2 AND art = 'DO' AND ordredate > '$thirtyDaysAgo'";
+  }
+
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
