@@ -85,14 +85,20 @@
 			$nettopris[$x]=afrund($nettopris[$x],2);
 			$kostsum+=$kostpris[$x]*$antal[$x];
 			if ($rabatart[$x] == 'amount' && $rabat[$x]) { # 20230216 added && $rabat.
+				$tmp = afrund($antal[$x]*($nettopris[$x]-= $nettorabat[$x]),2);
 				$nettosum+=afrund($antal[$x]*($nettopris[$x]-= $nettorabat[$x]),2);
+echo __line__."\t$varenr[$x]\t$x\t$tmp\t$nettosum<br>";
 				$sum+=afrund($antal[$x]*($pris[$x]-$rabat[$x]),3);
 			}	else {
 				if ($m_rabat[$x] && !$rabatgruppe[$x]) { # 20231009 Discountgroup is handled in productlines.php
 					$sum+=$antal[$x]*($pris[$x]+$m_rabat[$x]);
+					$tmp = $antal[$x]*($nettopris[$x]+$m_rabat[$x]);
 					$nettosum+=$antal[$x]*($nettopris[$x]+$m_rabat[$x]); #20221123
+echo __line__."\t$varenr[$x]\t$x\t$tmp\t$nettosum<br>";
 				} else {
+					$tmp = afrund($antal[$x]*($nettopris[$x]-$nettopris[$x]/100*$rabat[$x]),2);
 					$nettosum+=afrund($antal[$x]*($nettopris[$x]-$nettopris[$x]/100*$rabat[$x]),2);
+echo __line__."\t$varenr[$x]\t$x\t$tmp\t$nettosum<br>";
 					$sum+=afrund($antal[$x]*($pris[$x]-($pris[$x]*$rabat[$x]/100)),3);
 				}
 			}
