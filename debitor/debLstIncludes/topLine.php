@@ -12,11 +12,11 @@
 	print "<td style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
 	if ($valg=='debitor') {
-		print "<td width = '100px' align=center>
+		print "<td id='debitore' width = '100px' align=center>
 			   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(908, $sprog_id)."</button></td>"; #20210701
 	} else {
-		print "<td width = '100px' align=center>
+		print "<td id='debitore' width = '100px' align=center>
 			   <a href='debitor.php?valg=debitor&returside=$returside'>
 			   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(908, $sprog_id)."</button></a></td>";
@@ -32,11 +32,11 @@
 			   .findtekst(907, $sprog_id)."</button></a></td>";
 	}
 	if ($valg=='kommission') {
-		print "<td width = '100px' align=center>
+		print "<td id='kommission' width = '100px' align=center>
 			   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(909, $sprog_id)."</button></td>";
 	} elseif ($showMySale) {
-		print "<td width = '100px' align=center>
+		print "<td id='kommission' width = '100px' align=center>
 			   <a href='debitor.php?valg=kommission&returside=$returside'>
 			   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(909, $sprog_id)."</button></a></td>";
@@ -56,6 +56,10 @@
 
 	print "</tbody></table></td>\n";
 
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			Hjælp  
+		</button></td>";
 	print "<td width=5% style=$buttonStyle><a accesskey=V href=debitorvisning.php?valg=$valg>
 		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		   .findtekst(813,$sprog_id)."</button></a></td>\n";
@@ -66,7 +70,7 @@
 			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(218,$sprog_id)."</button></a></td>\n";
 	} else {
-		print "<a href=debitorkort.php?returside=debitor.php>
+		print "<a id='opret-ny' href=debitorkort.php?returside=debitor.php>
 			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(39,$sprog_id)."</button></a></td>\n";
 	}

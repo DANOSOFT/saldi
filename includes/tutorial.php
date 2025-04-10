@@ -300,8 +300,16 @@ function create_tutorial($id, $steps)
             }
         }
 
-        // Example usage:
-        const steps = [<?php
+        // Pre-check for selectors existence before initialization
+        function checkSelectorsExist(selectors) {
+            return selectors.filter(step => {
+                const elements = document.querySelectorAll(step.selector);
+                return elements.length > 0;
+            });
+        }
+
+        // Generate the steps array with filter for completed steps
+        let initialSteps = [<?php
         foreach ($steps as $step) {
             $selector = db_escape_string($step['selector']);
 
@@ -319,21 +327,24 @@ function create_tutorial($id, $steps)
         if(id && id.includes('book-')){
             // if it is from booking system use renderComplete instead
             document.addEventListener("renderComplete", () => {
-                const tutorial = new Tutorial(steps, '<?php echo $id; ?>')
-                if (steps.length) {
+                // Check which selectors exist on the page
+                const validSteps = checkSelectorsExist(initialSteps);
+                const tutorial = new Tutorial(validSteps, '<?php echo $id; ?>')
+                if (validSteps.length) {
                     tutorial.startTutorial()
                 }
             })  
         }else{
             // Wait for the entire page to load before initializing the tutorial
             window.addEventListener('load', function() {
-                const tutorial = new Tutorial(steps, '<?php echo $id; ?>');
-                if (steps.length) {
+                // Check which selectors exist on the page
+                const validSteps = checkSelectorsExist(initialSteps);
+                const tutorial = new Tutorial(validSteps, '<?php echo $id; ?>');
+                if (validSteps.length) {
                     tutorial.startTutorial();
                 }
             });
         }
-
     </script>
     <?php
 }

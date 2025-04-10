@@ -737,6 +737,11 @@ if ($menu=='T') {
 
 	print "<td width='80%' style='$topStyle' align='center'>".findtekst(356,$sprog_id)."</td>\n";
 
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			Hjælp  
+		</button></td>";
+
 	print "<td width='10%'>
 		   <a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
@@ -1289,4 +1294,41 @@ if ($menu=='T') {
 } else {
 	include_once '../includes/oldDesign/footer.php';
 }
+
+$steps = array();
+$steps[] = array(
+    "selector" => 'select[name="kontotype"]',
+    "content" => "Vælg om det skal være privat eller erhverv her."
+);
+$steps[] = array(
+    "selector" => 'input[type="text"][name="ny_kontonr"]',
+    "content" => "Indsæt konto nr. eller lad systemet gøre det for dig ved at hoppe videre til næste felt."
+);
+$steps[] = array(
+    "selector" => 'input[type="text"][name="fornavn"], input[type="text"][name="efternavn"]',
+    "content" => "Angiv kundens navn."
+);
+$steps[] = array(
+    "selector" => 'input[type="text"][name="firmanavn"]',
+    "content" => "Angiv kundens firmanavn."
+);
+$steps[] = array(
+    "selector" => 'input[type="text"][name="email"], input[type="checkbox"][name="mailfakt"]',
+    "content" => "Kundens email tastes her, hvis du gerne vil have at systemet sender emails som standard når du fakturere ordre, kan du sætte hak i brug mail."
+);
+$steps[] = array(
+    "selector" => 'select[name="betalingsbet"], input[type="text"][name="betalingsdage"]',
+    "content" => "Du kan opstille kundens betalingsbetingelser her."
+);
+$steps[] = array(
+    "selector" => 'input[type="text"][name="cvrnr"]',
+    "content" => "Når du indtaster en ny kunde kan du lave et cvr opslag ved at sætte / før og efter cvrnummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>"
+);
+$steps[] = array(
+    "selector" => 'input[type="text"][name="felt_1"], input[type="text"][name="felt_5"]',
+    "content" => "Du kan lave 5 selvdefinerede felter, du kan kontakte salditeamet hvis du gerne vil have rette felternes tekst så det passter til indeholdet"
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("debkort", $steps);
 ?>

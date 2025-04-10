@@ -105,7 +105,7 @@ for($i=0;$i<$dgcount;$i++) {
 						$lnk=$myLink;
 						for ($x=0;$x<strlen($txt);$x++) {
 							$lnk.=dechex(ord(substr($txt,$x,1)));
-							$understreg="<a href='$lnk' target='blank' >";
+							$understreg="<a class='kommission-link' href='$lnk' target='blank' >";
 							$hrefslut="</a>";
 						}
 #						fwrite($myFile, $db.chr(9).$email[$i].chr(9).$lnk."\n");
@@ -179,8 +179,5 @@ for($i=0;$i<$dgcount;$i++) {
 }
 
 print "<td colspan='100' align=right>";
-$start = if_isset($start, 0);
-$linjeantal = if_isset($linjeantal, 100);
-pagination($start, $linjeantal, 1000);
 print  "</td></tr>"; 
 ?>

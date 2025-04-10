@@ -377,11 +377,41 @@ if ($menu=='T') {
 	} else {
 		print "<a accesskey=V href='debitorvisning.php?valg=$valg' title='Ændre visning'><i class='fa fa-gear fa-lg'></i></a> &nbsp; ";
 	}
+
 	print "<a accesskey=N href='ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id' title='Opret nyt kundekort'><i class='fa fa-plus-square fa-lg'></i></a></div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
 else include_once 'debLstIncludes/oldTopLine.php';
+
+$steps = array();
+$steps[] = array(
+    "selector" => "#debitore",
+    "content" => "Her ser du en liste af alle dine kunder."
+);
+$steps[] = array(
+    "selector" => "#opret-ny",
+    "content" => "For at oprette en ny kunde, klik her."
+);
+$steps[] = array(
+    "selector" => "#kommission",
+    "content" => "Tilmeld dine kunder til kommissionssalgssystemet her."
+);
+$steps[] = array(
+    "selector" => 'input[type="checkbox"][name^="mySale["], input[type="submit"][name="kommission"]',
+    "content" => "Før du kan invitere en kunde til mitsalg, skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK."
+);
+$steps[] = array(
+    "selector" => ".kommission-link",
+    "content" => "Når en kunde er aktiveret kan du åbne deres konto her."
+);
+$steps[] = array(
+    "selector" => 'input[type="checkbox"][name^="invite["], input[type="submit"][name="kommission"]',
+    "content" => "Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. <br><br>De vil her få et link til mitsalg og kan oprette deres labels derigennem. <br><br>Det er <b>kun</b> muligt at invitere en kunde, hvis de har en e-mail sat op på deres kontokort."
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("deblist", $steps);
 
 
 $r = db_fetch_array(db_select("select box3,box4,box5,box6,box8,box11 from grupper where art = 'DLV' and kodenr = '$bruger_id' and kode='$valg'",__FILE__ . " linje " . __LINE__));
