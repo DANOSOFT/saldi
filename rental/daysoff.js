@@ -137,4 +137,5 @@ const datePick = flatpickr("#calendar", {
         window.location.reload()
     }
 })
+document.dispatchEvent(new CustomEvent('renderComplete'))
 })()

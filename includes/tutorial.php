@@ -313,14 +313,26 @@ function create_tutorial($id, $steps)
             }
         }
         ?>];
-
-        // Wait for the entire page to load before initializing the tutorial
-        window.addEventListener('load', function() {
-            const tutorial = new Tutorial(steps, '<?php echo $id; ?>');
-            if (steps.length) {
-                tutorial.startTutorial();
-            }
-        });
+        
+        const id = "<?php echo $id; ?>";
+        
+        if(id && id.includes('book-')){
+            // if it is from booking system use renderComplete instead
+            document.addEventListener("renderComplete", () => {
+                const tutorial = new Tutorial(steps, '<?php echo $id; ?>')
+                if (steps.length) {
+                    tutorial.startTutorial()
+                }
+            })  
+        }else{
+            // Wait for the entire page to load before initializing the tutorial
+            window.addEventListener('load', function() {
+                const tutorial = new Tutorial(steps, '<?php echo $id; ?>');
+                if (steps.length) {
+                    tutorial.startTutorial();
+                }
+            });
+        }
 
     </script>
     <?php

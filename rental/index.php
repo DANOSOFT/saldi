@@ -23,6 +23,33 @@ if(isset($_GET["vare"]) || isset($_GET["singleItem"]) || isset($_GET["showBookin
   $side = "overview2";
 }
 include "header.php"; 
+
+$steps = array();
+$steps[] = array(
+    "selector" => "#search",
+    "content" => "Søg efter stand navne, seperer med komma for at søge efter flere."
+);
+$steps[] = array(
+    "selector" => ".th-link",
+    "content" => "Se dage, klik på dem for at se ledige stande på den valgte dag"
+);
+$steps[] = array(
+  "selector" => ".bg-success",
+  "content" => "De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag eller stand."
+);
+$steps[] = array(
+  "selector" => ".searchItem",
+  "content" => "Klik på et standnavn for at se bookinger, oprette nye eller spærre standen."
+);
+$steps[] = array(
+  "selector" => ".row",
+  "content" => "Her kan du oprette spærringer. En spærring er en slags 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret."
+);
+$steps[] = array(
+  "selector" => ".circle",
+  "content" => "Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato."
+);
+
 ?>
 <div class="modal fade" id="exampleModal2" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -108,5 +135,9 @@ include "header.php";
 </div>
     <script src="bootstrap.min.js"></script>
     <script src="index.js?<?php echo time(); ?>" type="module"></script>
+    <?php
+      include(__DIR__ . "/../includes/tutorial.php");
+      create_tutorial("book-view", $steps);
+    ?>
 </body>
 </html>

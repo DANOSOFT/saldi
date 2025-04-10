@@ -11,7 +11,13 @@
 <body>
     <?php 
     $side = "settings";
-    include "header.php" 
+    include "header.php";
+
+    $steps = array();
+    $steps[] = array(
+        "selector" => ".table",
+        "content" => "Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer."
+    );
     ?>
         <div class="width-80">
             <table class="table table-light table-striped">
@@ -31,5 +37,9 @@ Når du har fulgt disse trin, vil varen blive markeret som værende til udlejnin
 </div>
     <script src="bootstrap.min.js"></script>
     <script src="items.js?<?php echo time(); ?>" type="module"></script>
+    <?php
+      include(__DIR__ . "/../includes/tutorial.php");
+      create_tutorial("book-items", $steps);
+    ?>
 </body>
 </html>

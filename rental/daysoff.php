@@ -18,7 +18,14 @@
 <body>
 <?php 
 $side = "settings";
-include "header.php"; 
+include "header.php";
+
+$steps = array();
+$steps[] = array(
+    "selector" => ".flatpickr-calendar",
+    "content" => "Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen."
+);
+
 ?>   
     <p class="text-center">Vælg lukke dag</p>
     <div class="d-flex justify-content-center">
@@ -33,5 +40,9 @@ include "header.php";
 </div>
     <script src="bootstrap.min.js"></script>
     <script src="daysoff.js?<?php echo time(); ?>" type="module"></script>
+    <?php
+      include(__DIR__ . "/../includes/tutorial.php");
+      create_tutorial("book-cday", $steps);
+    ?>
 </body>
 </html>

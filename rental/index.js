@@ -406,6 +406,7 @@ const createCalendar = async () => {
     }
     newTable += "</tbody></table>"
     table.innerHTML = newTable
+    document.dispatchEvent(new CustomEvent('renderComplete'))
 }
 
 // Define reusable functions
@@ -1931,6 +1932,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
             window.location.href = `index.php?showCustomer=${id}`
         })
     })
+    document.dispatchEvent(new CustomEvent('renderComplete'))
 }
 
 const createSelect = (options, value) => {
@@ -2810,16 +2812,16 @@ const singleProductOverview = async (id) => {
     })
 
     const deleteRes = document.querySelectorAll(".delete-res")
-        deleteRes.forEach(button => {
-            button.addEventListener("click", async (e) => {
-                if(confirm ("Er du sikker på at du vil slette denne spærring?") == false) return
-                const id = e.target.id
-                const response = await deleteReservation(id)
-                alert(response)
-                window.location.href = "index.php?singleItem=" + item.id
-            })
+    deleteRes.forEach(button => {
+        button.addEventListener("click", async (e) => {
+            if(confirm ("Er du sikker på at du vil slette denne spærring?") == false) return
+            const id = e.target.id
+            const response = await deleteReservation(id)
+            alert(response)
+            window.location.href = "index.php?singleItem=" + item.id
         })
-
+    })
+    document.dispatchEvent(new CustomEvent('renderComplete'))
 }
 
 const showCustomer = async () => {

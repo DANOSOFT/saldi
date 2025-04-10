@@ -122,7 +122,7 @@ const createTable = async () => {
         })
     }) */
     
-
+    document.dispatchEvent(new CustomEvent('renderComplete'))
 }
 
 createTable()
