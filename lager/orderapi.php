@@ -6,7 +6,7 @@ $s_id=session_id();
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
+include("../includes/stdFunc/usDecimal.php");
 $vare_id = isset($_POST["vare_id"]) ? $_POST["vare_id"] : null;
 $antal = isset($_POST["antal"]) ? $_POST["antal"] : "1,00";
 
@@ -20,7 +20,6 @@ genbestil($vare_id, $antal);
 
 function genbestil($vare_id, $antal) {
 	global $brugernavn,$db,$regnaar,$sprog_id;
-	
 	# Hent ansant til ordre ref
 	$r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
 	if ($r) {
@@ -39,10 +38,13 @@ function genbestil($vare_id, $antal) {
 		$ordredate=date("Y-m-d");
 
 		# Se om der er et åben't forslag med ordredato i dag
-		$qtxt="select id, sum from ordrer where konto_id = $lev_id and art = 'KO' and status < 1 and ordredate = '$ordredate'";
+		$qtxt="select id, sum, valutakurs from ordrer where konto_id = $lev_id and art = 'KO' and status < 1 and ordredate = '$ordredate'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$sum=(int)$r['sum'];
 			$ordre_id=$r['id'];
+			// remove .000 from valutaKurs
+			$valutaKurs = $r['valutakurs'];
+			$pris = $pris / ($valutaKurs / 100);
 		} else {
 			# Get latest ordrenr
 			$qtxt="select ordrenr from ordrer where art='KO' or art='KK' order by ordrenr desc";
@@ -60,6 +62,11 @@ function genbestil($vare_id, $antal) {
 				# Fetch the momskode
 				$kode=substr($r1['box1'],0,1); 
                 $kodenr=substr($r1['box1'],1);
+				$qtxt = "SELECT box1, box2 FROM grupper WHERE art = 'VK' and kodenr = '$kodenr'";
+				$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+				$valuta = $r2['box1'];
+				$valutaKurs = usdecimal($r2['box2']);
+				$pris = $pris / ($valutaKurs/100);
 			}	else {
 				$qtxt="select varenr from varer where id = '$vare_id'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -78,12 +85,12 @@ function genbestil($vare_id, $antal) {
 
 			# Create the order
 			$qtxt="insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,"; #218180822
-			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref)";
+			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, valuta, valutakurs)";
 			$qtxt.=" values ";
 			$qtxt.="('$ordrenr','$r[id]','$r[kontonr]','".db_escape_string($r['firmanavn'])."','".db_escape_string($r['addr1'])."',";
 			$qtxt.= "'".db_escape_string($r['addr2'])."','".db_escape_string($r['postnr'])."','".db_escape_string($r['bynavn'])."',";
 			$qtxt.= "'".db_escape_string($r['land]'])."','$r[betalingsdage]','$r[betalingsbet]','$r[cvrnr]','".db_escape_string($r['notes'])."',";
-			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."')";
+			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."', '".db_escape_string($valuta)."', '".db_escape_string($valutaKurs)."')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 			# Fetch the dynamically generated ordrenr
