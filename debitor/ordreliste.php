@@ -1190,8 +1190,8 @@ if ($valg=="ordrer") {
 	if($r){ #20211018
 		if ($r['box1'] && $ialt!="0,00") {
 			$tekst="Faktur&eacute;r alt som kan leveres?";
-			print "<tr><td colspan=\"2\"><span title='".findtekst(1439, $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td><td colspan=\"".($colspan-3)."\" align=right><span title='".findtekst(1440, $sprog_id)."'><a href=massefakt.php?valg=$valg onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span></td></tr>";}
-		else { 
+			print "<tr><td colspan=\"2\"><span title='".findtekst(1439, $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td><td colspan=\"".($colspan-3)."\" align=right><span title='".findtekst(1440, $sprog_id)."'><a href=massefakt.php?valg=$valg onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span></td></tr>";
+		} else { 
 				if ($menu=='T') {
 					print "<tr><td colspan=\"3\">&nbsp;&nbsp;<span title='".findtekst(1439, $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td></tr>";
 				} else {
