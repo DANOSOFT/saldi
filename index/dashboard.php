@@ -34,6 +34,8 @@ print "<title>Overblik</title>";
 include ("../includes/std_func.php");
 include ("../includes/connect.php");
 
+$_SESSION['UserName'] = if_isset($_SESSION,$brugernavn,'UserName');
+
 # Get database name of current online user
 $qtxt = "SELECT db FROM online WHERE session_id='$s_id' limit 1";
 $db = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];

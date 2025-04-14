@@ -66,6 +66,7 @@ $dd=date("Y-m-d");
 
 if ($menu=='T') {
 	#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
+	$_SESSION['UserName'] = if_isset($_SESSION,$brugernavn,'UserName');
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
@@ -80,13 +81,14 @@ if ($menu=='T') {
 	print "<div class=\"maincontentLargeHolder\">\n";
 	print "<center><table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\" width='100%' height='350px'><tbody>";
 } elseif ($menu=='S') {
+	$_SESSION['UserName'] = if_isset($_SESSION,$brugernavn,'UserName');
 	include("top.php");
 	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
 } else {
 	include("oldTop.php");
 	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
 }
-$valg=if_isset($_GET['valg']);
+$valg=if_isset($_GET, null,'valg');
 
 if ($valg!='afdelinger') {
 	include_once("syssetupIncludes/saveData.php");
