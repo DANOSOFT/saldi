@@ -111,6 +111,7 @@ function MasseFakt(tekst)
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>";
 
 
+
 $css="../css/std.css";
 global $sprog_id;
 $modulnr=5;
@@ -413,6 +414,28 @@ if ($menu=='T') include_once 'ordLstIncludes/topMenu.php';
 elseif ($menu=='S') include_once 'ordLstIncludes/topLine.php';
 else include_once 'ordLstIncludes/oldTopLine.php';
 
+////// Tutorial //////
+
+$steps = array();
+$steps[] = array(
+	"selector" => "#ordrer",
+	"content" => "Her kan du se dine ordrer"
+);
+$steps[] = array(
+    "selector" => "#ny",
+    "content" => "For at oprette en ny ordre, klik her."
+);
+
+$steps[] = array(
+    "selector" => "#visning",
+    "content" => "For at ændre, hvad der vises i oversigten, klik her."
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("deblist", $steps);
+
+////// Tutorial end //////
+
 $qtxt="select box3,box4,box5,box6,box10 from grupper where art = 'OLV' and kodenr = '$bruger_id' and kode='$valg'";
 $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $vis_felt=explode(",",$r['box3']);
@@ -441,6 +464,7 @@ if (in_array('kundeordnr',$vis_felt)) {
 	}
 	if ($gem_fra && $gem_til && $gem_til-$gem_fra > 10) $gem_fra=$gem_til=NULL;
 }
+
 ####################################################################################
 $udvaelg=NULL;
 $tmp=trim($find[0]);

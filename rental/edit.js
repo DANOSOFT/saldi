@@ -493,6 +493,7 @@ const editItem = async id => {
         window.location.reload()
 
     })
+    document.dispatchEvent(new CustomEvent('renderComplete'))
 }
 const queryString = window.location.search
 if (queryString !== "") {

@@ -5591,7 +5591,10 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 				. findtekst(30, $sprog_id) . "</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
-
+		print "<td id='tutorial-help' width=5% style=$buttonStyle>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			Hjælp  
+		</button></td>";
 		print "<td width='10%'>
 			   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>
 			   <button type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(39, $sprog_id) . "</button></a></td>";
