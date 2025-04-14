@@ -13,7 +13,7 @@
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 		   .findtekst(30, $sprog_id)."</button></a></td>";
 
-	print "<td width=80% style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
+	print "<td width=75% style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
 	if ($valg=="$tilbud1" && !$hurtigfakt) {
 		print "<td width = '100px' align=center>
@@ -83,12 +83,12 @@
 			   <button style='$buttonStyle; width:100%' id='visning' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(813, $sprog_id)."</button></a></td>\n";
 		if ($popup) {
-			print "<td width=5% style=$buttonStyle onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
+			print "<td width=10% style=$buttonStyle onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
 				   <a accesskey=N href='".$_SERVER['PHP_SELF']."'>
 				   <button style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">"
 				   .findtekst(39, $sprog_id)."</button></a></td>\n";
 		} else {
-			print "<td width=5% style=$buttonStyle>
+			print "<td width=10% style=$buttonStyle>
 				   <a href=ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id>
 				   <button style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">"
 				   .findtekst(39, $sprog_id)."</button></a></td>\n";
