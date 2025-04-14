@@ -126,7 +126,7 @@
 		$qtxt.= "where ordrer.art = 'KO' and (ordrer.status='1' or ordrer.status='2') ";
 		$qtxt.= "and ordrelinjer.ordre_id=ordrer.id and (antal-leveret) > 0 and vare_id='$id'";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		$orderInOutput = "<table style 7= 'width:166px' border = '1' align = 'center' bordercolor = '#FFFFFF'><tr>";
+		$orderInOutput = "<table style = 'width:166px' border = '1' align = 'center' bordercolor = '#FFFFFF'><tr>";
 		$orderInOutput.= "<td>Nr</td><td align = 'center'>Antal</td><td align = 'center'>Dato</td></tr>\n";
 		while ($r=db_fetch_array($q)) {
 			$orderIdIn[$i]  = $r['id'];
@@ -164,12 +164,26 @@
 		}
 		$orderOutOutput.= "</table>\n";
 #		}
-		print "<tr><td>".findtekst(980,$sprog_id)."</td><td>Min:</td><td width=\"5%\" align='right'>";
-		print "<input class=\"inputbox\" type=\"text\" size=\"5\" style=\"text-align:right\" name=\"min_lager\" ";
-		print "value=\"". dkdecimal($min_lager,0). "\"></td>";
-		print "<td width=\"5%\">Max:</td><td colspan=\"2\" align='right' >";
-		print "<input class=\"inputbox\" type=\"text\" size=\"5\" style=\"text-align:right\" name=\"max_lager\" ";
-		print "value=\"". dkdecimal($max_lager,0) ."\"></td></tr>";
+		?>
+		<tr>
+			<td><?php print findtekst(980,$sprog_id); ?></td>
+			<td></td>
+			<td colspan='1' align="left">
+				<div style='display: flex;'>
+					<span style="padding-right: 9px;">Min:</span>
+					<input class="inputbox" type="text" size="5" style="text-align:right" name="min_lager" value='<?php print dkdecimal($min_lager,0); ?>'>
+					<span style="padding: 0 9px;">Max:</span>
+					<input class="inputbox" type="text" size="5" style="text-align:right" name="max_lager" value='<?php print dkdecimal($max_lager,0)?>'>
+				</div>
+					<span>Pakningsmængde:</span>
+					<input class="inputbox" type="text" size="5" style="text-align:right" name="volume_lager" value='<?php print dkdecimal($volume_lager,0); ?>'>
+			</td>
+		</tr>
+		<?php
+		$txt647  = findtekst(647,$sprog_id); // Initialer
+		$txt916  = findtekst(916,$sprog_id); // Antal
+		$txt930  = findtekst(930,$sprog_id); // Tidspkt
+		$txt990  = findtekst(990,$sprog_id); // Bruger
 		if (count($lagernavn)) {
 			if ($beholdning!=$lagersum) {
 				db_modify("update varer set beholdning='$lagersum' where id='$id'",__FILE__ . " linje " . __LINE__);
@@ -198,12 +212,12 @@
 						$init[$s]=$r['initials'];
 							$reas[$s]=db_escape_string($r['reason']);
 						$corr[$s]=dkdecimal($r['correction']);
-						$daTi[$s]=date("d-m-Y H:i",$r['logtime']);
+						$daTi[$s]=date("d-m-Y H:i",(int)$r['logtime']);
 						$s++;
 					}
 					if ($s) {
 						($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
-						$txt = "<table><tr $linjebg><td>Bruger</td><td>Initialer</td><td>Antal</td><td>Tidspkt</td></tr>";
+						$txt = "<table><tr $linjebg><td>$txt990</td><td>$txt647</td><td>$txt916</td><td>$txt930</td></tr>";
 						for ($s=0;$s<count($usNa);$s++) {
 							($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
 							$txt.= "<tr $linjebg><td>$usNa[$s]</td>";
