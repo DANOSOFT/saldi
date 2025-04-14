@@ -28,12 +28,12 @@
 
 	if ($valg=="$ordrer1") {
 		print "<td width = '100px' align=center>
-			   <button style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   <button style='$butDownStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(107, $sprog_id)."</button></td>";
 	} else {
 		print "<td width = '100px' align=center>
 			   <a href='ordreliste.php?valg=$ordrer1&konto_id=$konto_id&returside=$returside'>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   <button style='$butUpStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(107, $sprog_id)."</button></a></td>";
 	}
 
@@ -74,19 +74,23 @@
 		include("pbsliste.php");
 		exit;
 	} else {
+		print "<td id='tutorial-help' width=5% style=$buttonStyle>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			Hjælp  
+		</button></td>";
 		print "<td width=5% style=$buttonStyle>
 			   <a accesskey=V href=ordrevisning.php?valg=$valg>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			   <button style='$buttonStyle; width:100%' id='visning' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(813, $sprog_id)."</button></a></td>\n";
 		if ($popup) {
 			print "<td width=5% style=$buttonStyle onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
 				   <a accesskey=N href='".$_SERVER['PHP_SELF']."'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+				   <button style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">"
 				   .findtekst(39, $sprog_id)."</button></a></td>\n";
 		} else {
 			print "<td width=5% style=$buttonStyle>
 				   <a href=ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+				   <button style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">"
 				   .findtekst(39, $sprog_id)."</button></a></td>\n";
 		}
 		print "</tbody></table></td></tr>\n"; # <- Tabel 1.1.1
