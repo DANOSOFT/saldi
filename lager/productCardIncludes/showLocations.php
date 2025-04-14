@@ -126,7 +126,7 @@
 		$qtxt.= "where ordrer.art = 'KO' and (ordrer.status='1' or ordrer.status='2') ";
 		$qtxt.= "and ordrelinjer.ordre_id=ordrer.id and (antal-leveret) > 0 and vare_id='$id'";
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-		$orderInOutput = "<table style 7= 'width:166px' border = '1' align = 'center' bordercolor = '#FFFFFF'><tr>";
+		$orderInOutput = "<table style = 'width:166px' border = '1' align = 'center' bordercolor = '#FFFFFF'><tr>";
 		$orderInOutput.= "<td>Nr</td><td align = 'center'>Antal</td><td align = 'center'>Dato</td></tr>\n";
 		while ($r=db_fetch_array($q)) {
 			$orderIdIn[$i]  = $r['id'];
@@ -180,6 +180,10 @@
 			</td>
 		</tr>
 		<?php
+		$txt647  = findtekst(647,$sprog_id); // Initialer
+		$txt916  = findtekst(916,$sprog_id); // Antal
+		$txt930  = findtekst(930,$sprog_id); // Tidspkt
+		$txt990  = findtekst(990,$sprog_id); // Bruger
 		if (count($lagernavn)) {
 			if ($beholdning!=$lagersum) {
 				db_modify("update varer set beholdning='$lagersum' where id='$id'",__FILE__ . " linje " . __LINE__);
@@ -213,7 +217,7 @@
 					}
 					if ($s) {
 						($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
-						$txt = "<table><tr $linjebg><td>Bruger</td><td>Initialer</td><td>Antal</td><td>Tidspkt</td></tr>";
+						$txt = "<table><tr $linjebg><td>$txt990</td><td>$txt647</td><td>$txt916</td><td>$txt930</td></tr>";
 						for ($s=0;$s<count($usNa);$s++) {
 							($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
 							$txt.= "<tr $linjebg><td>$usNa[$s]</td>";
