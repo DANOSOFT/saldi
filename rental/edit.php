@@ -17,8 +17,19 @@
 </head>
 <body>
    <?php
-   $page = "overview"; 
-   include "header.php"; 
+    $page = "overview"; 
+    include "header.php"; 
+
+    $steps = array();
+    $steps[] = array(
+    "selector" => ".btn-success",
+    "content" => "Klik her for at tilføje nye stande."
+    );
+    $steps[] = array(
+    "selector" => ".btn-primary",
+    "content" => "Når du har ændret navn på en eller flere stand så klik her for at gemme."
+    );
+
    ?>
     <div id="loading">
     <img id="loading-image" src="https://upload.wikimedia.org/wikipedia/commons/c/c7/Loading_2.gif?20170503175831" alt="Loading..." />
@@ -38,5 +49,9 @@
 
     <script src="bootstrap.min.js"></script>
     <script src="edit.js?<?php echo time(); ?>" type="module"></script>
+    <?php
+      include(__DIR__ . "/../includes/tutorial.php");
+      create_tutorial("book-view", $steps);
+    ?>
 </body>
 </html>
