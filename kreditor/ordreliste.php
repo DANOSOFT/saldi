@@ -209,7 +209,7 @@ if ($menu=='T') {
 	print "<td width = 20% align=center ";
 	if ($valg=='ordrer') {
 		print "<td width = '100px' align=center>
-			   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('107|Ordrer', $sprog_id)."</button></td>";
+			   <button style='$butDownStyle; width: 100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('107|Ordrer', $sprog_id)."</button></td>";
 	} else {
 		print "<td width = 20% align=center><a href='ordreliste.php?sort=$sort&valg=ordrer$hreftext'>
 			   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
@@ -239,8 +239,12 @@ if ($menu=='T') {
 	print "</td>";
 	}
 	print "</tbody></table></td>";
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+			Hjælp  
+		</button></td>";
 	print "<td width=10% style='$buttonStyle'><a href=ordre.php?returside=ordreliste.php>
-		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a></td>";
+		   <button style='$buttonStyle; width: 100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a></td>";
 	print "</tbody></table>";
 
 } else {
@@ -281,6 +285,24 @@ if ($menu=='T') {
 	
 	print "</tbody></table>";
 }
+
+////// Tutorial //////
+
+$steps = array();
+$steps[] = array(
+	"selector" => "#ordrer",
+	"content" => "Her ser du en liste af alle dine ordrer."
+);
+$steps[] = array(
+    "selector" => "#ny",
+    "content" => "For at oprette en ny ordre, klik her."
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("kreOrdList", $steps);
+
+////// Tutorial end //////
+
 print " </td></tr>\n<tr><td align=center valign=top>";
 if ($valg != 'skanBilag') {
 print "<table cellpadding=1 cellspacing=1 border=0 width=100% valign = top class='dataTable'>";

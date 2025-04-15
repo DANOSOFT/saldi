@@ -419,7 +419,7 @@ else include_once 'ordLstIncludes/oldTopLine.php';
 $steps = array();
 $steps[] = array(
 	"selector" => "#ordrer",
-	"content" => "Her kan du se dine ordrer"
+	"content" => "Her ser du en liste af alle dine ordrer."
 );
 $steps[] = array(
     "selector" => "#ny",
@@ -432,7 +432,7 @@ $steps[] = array(
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
-create_tutorial("deblist", $steps);
+create_tutorial("order-list", $steps);
 
 ////// Tutorial end //////
 
