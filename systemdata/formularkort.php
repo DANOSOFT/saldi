@@ -647,7 +647,7 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 		print "<option>ordre_projekt</option>";
 		print "<option>ordre_valuta</option>";
 	}	
-	if ($form_nr==4 || $form_nr==13) {
+	if ($form_nr==4 || $form_nr==5 || $form_nr==13) {
 		print "<option>ordre_fakturanr</option>";
 		print "<option>ordre_fakturadate</option>";
 	}	
@@ -736,6 +736,8 @@ function drop_down($x,$form_nr,$art_nr,$formularsprog,$id,$beskrivelse,$xa,$xb,$
 } #endfunc drop_down		
 ##############################################################################################
 function ordrelinjer($form_nr,$art_nr,$formularsprog){
+	global $sprog_id;
+
 	$x=1;
 	print "<tr><td></td><td></td><td align=center>Linjeantal</td>\n";
 	print "<td align=center>Y</td>\n";
@@ -908,6 +910,8 @@ $x=0;
 } #endfunc ordrelinjer		
 ###############################################################################
 function pos_linjer($form_nr,$art_nr,$formularsprog){
+	global $sprog_id;
+
 	$x=1;
 	print "<tr><td></td><td></td><td align=cente>Toplinjer</td>";
 	print "<td align=center>Bundlinjer</td>";
