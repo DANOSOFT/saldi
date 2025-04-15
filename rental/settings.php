@@ -149,44 +149,36 @@
     <script src="bootstrap.min.js"></script>
     <script src="settings.js?<?php echo time(); ?>" type="module"></script>
     <?php 
-    create_tutorial('book-sett', []); 
+    create_tutorial('book-sett', [])
     ?>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const helpButton = document.getElementById('tutorial-help');
-            console.log('Found help button:', helpButton); // Debug log
+    const helpButton = document.getElementById('tutorial-help')
+
+    helpButton.addEventListener('click', async function(e) {
+        e.preventDefault()
+        console.log('Help button clicked') // Debug log
+        
+        try {
+            const response = await fetch('<?php echo get_relative(); ?>includes/tutorialAPI.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    function: 'restart',
+                    id: 'book-sett'
+                })
+            })
             
-            if (helpButton) {
-                helpButton.addEventListener('click', async function(e) {
-                    e.preventDefault();
-                    console.log('Help button clicked'); // Debug log
-                    
-                    try {
-                        const response = await fetch('<?php echo get_relative(); ?>includes/tutorialAPI.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                function: 'restart',
-                                id: 'book-sett'
-                            })
-                        });
-                        
-                        if (response.ok) {
-                            console.log('Restart successful'); // Debug log
-                            window.location.reload();
-                        } else {
-                            console.error('Restart failed:', await response.text()); // Debug log
-                        }
-                    } catch (error) {
-                        console.error('Error during restart:', error); // Debug log
-                    }
-                });
+            if (response.ok) {
+                console.log('Restart successful'); // Debug log
             } else {
-                console.error('Help button not found!'); // Debug log
+                console.error('Restart failed:', await response.text()) // Debug log
             }
-        });
+        } catch (error) {
+            console.error('Error during restart:', error) // Debug log
+        }
+    })
     </script>
 </body>
 </html>
