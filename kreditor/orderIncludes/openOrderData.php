@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrders.php --- lap 4.0.5 --- 2023.02.09 ---
+// --- kreditor/creditorIncludes/openOrders.php --- lap 4.0.5 --- 2025.04.15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,15 +20,24 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20221104 MLH added lookup function for the delivery address fields
 // 20221104 MLH added Rekv.nr. field
 // 20221104 MLH added email and udskriv_til
 // 20230105 MLH added mail_text and mail_subj
+// 20250415 LOE Some variables initialized and others checked before using.
 
-$attachId    = if_isset($attachId,array());
+$attachId    = null;
+$email       = null;
+$kundeordnr  = null;
+$projekt[0]  = null;
+$ref         = null;
+$udskriv_til = null;
+
+
+$attachId    = if_isset($attachId,NULL);
 $email       = if_isset($email,NULL);
 $kundeordnr  = if_isset($kundeordnr,NULL);
 $projekt[0]  = if_isset($projekt[0],NULL);
@@ -169,7 +178,7 @@ if ($id) {
 print "</td></tr>";
 if (!$ref) {
 	$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && $r['ansat_id']) {
+	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && if_isset($r,NULL,'ansat_id')) {
 		$r = db_fetch_array(db_select("select navn from ansatte where id = $r[ansat_id]",__FILE__ . " linje " . __LINE__));
 		if ($r['navn']) $ref=$r['navn'];
 	}

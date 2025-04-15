@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.0 --- 2025.03.14 ---
+// ---- index/dashboard.php --- lap 4.1.0 --- 2025.04.15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,7 +34,6 @@ print "<title>Overblik</title>";
 include ("../includes/std_func.php");
 include ("../includes/connect.php");
 
-$_SESSION['UserName'] = if_isset($_SESSION,$brugernavn,'UserName');
 
 # Get database name of current online user
 $qtxt = "SELECT db FROM online WHERE session_id='$s_id' limit 1";

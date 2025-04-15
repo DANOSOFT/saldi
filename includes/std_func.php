@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-14 ---
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,17 +47,17 @@
 // 20180123 PHR En del rettelser i funktion lagerreguler i forhold til varianter og flere lagre.
 // 20180518 PHR Tilføjet funktion alert.
 // 20181126 PHR Variabeldefiniton i div. funktioner. 
-// 20181220 MSC - Rettet fejl
-// 20190104 PHR	- " nye funktioner create_debtor & get_next_number
-// 20190221 MSC - Flytter $boksid="" til enden søg edit 2019.02.21 for kode
-// 20190423 PHR - 'bynavn' (city) was not inserted in 'adresser' if not set in function create_debtor. 20190423
-// 20190605 PHR - Added if_isset to aviod warning. 20190605
-// 20190704 RG (Rune Grysbæk) Mysqli implementation 
+// 20181220 MSC  Rettet fejl
+// 20190104 PHR	 " nye funktioner create_debtor & get_next_number
+// 20190221 MSC  Flytter $boksid="" til enden søg edit 2019.02.21 for kode
+// 20190423 PHR 'bynavn' (city) was not inserted in 'adresser' if not set in function create_debtor. 20190423
+// 20190605 PHR Added if_isset to avoid warning. 20190605
+// 20190704 RG  (Rune Grysbæk) Mysqli implementation 
 // 20200326 PHR Optimized function findtekst.
 // 20200327 PHR Moved function barcode form lager/varekort
 // 20200407 PHR Some minor changes to function barcode to work with kreditor/ordre.php
 // 20200907 PHR Function sync_shop_vare. Query parted in 2 to make it find varenr if no shop_id
-// 20200917 PHR	- Added missing email in create_debtor
+// 20200917 PHR	Added missing email in create_debtor
 // 20210225 LOE Added active language function
 // 20200917 PHR Added missing email in create_debtor
 // 20201119 PHR Some optimation in function lagerreguler an extended logging in function sync_shop_vare 
@@ -116,7 +116,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250321 LOE Updated with various changes and new additions from multiple updates including comments
 // 20250323 LOE Checks if input is set, ensures it doesn't exceed 80 characters, and sanitizes it to prevent XSS attacks.
-// 20250405 LOE if_isset() updated
+// 20250405 LOE if_isset() updated and to check explicitly if array keys exist if they are arrays.
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
@@ -2410,9 +2410,9 @@ if (!function_exists('get_ip')) { #20210830
 		 * @return string - The user's IP address.
 		 */
 
-		$ip_address = if_isset($_SERVER['REMOTE_ADDR']);
-		$proxy_ip = if_isset($_SERVER['HTTP_X_FORWARDED_FOR']);
-		$client_ip = if_isset($_SERVER['HTTP_CLIENT_IP']);
+		$ip_address = if_isset($_SERVER,NULL,'REMOTE_ADDR');
+		$proxy_ip = if_isset($_SERVER,NULL,'HTTP_X_FORWARDED_FOR');
+		$client_ip = if_isset($_SERVER,NULL,'HTTP_CLIENT_IP');
 
 		if ($client_ip) {
 			$ip = $client_ip;
