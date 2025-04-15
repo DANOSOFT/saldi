@@ -157,11 +157,11 @@ const getCustomerDates = async (month, year) => {
 //backward button function
 const backward = async () => {
     const backwardButton = document.querySelector(".backward")
-    backwardButton.disabled = true;
+    backwardButton.disabled = true
     setTimeout(() => {
-        backwardButton.disabled = false;
+        backwardButton.disabled = false
     }, 1500);
-    scrollPosition = window.scrollY || document.documentElement.scrollTop;
+    scrollPosition = window.scrollY || document.documentElement.scrollTop
     const urlParams = new URLSearchParams(queryString)
     if (urlParams.has("vare")) {
         /* if (urlParams.has("month") && urlParams.has("year")) { */
@@ -199,11 +199,11 @@ document.querySelector(".backward").addEventListener("click", backward)
 // forward button function
 const forward = async () => {
     const forwardButton = document.querySelector(".forward")
-    forwardButton.disabled = true;
+    forwardButton.disabled = true
     setTimeout(() => {
-        forwardButton.disabled = false;
+        forwardButton.disabled = false
     }, 1500);
-    scrollPosition = window.scrollY || document.documentElement.scrollTop;
+    scrollPosition = window.scrollY || document.documentElement.scrollTop
     const urlParams = new URLSearchParams(queryString)
     if (urlParams.has("vare")) {
         /* if (urlParams.has("month") && urlParams.has("year")) { */
@@ -311,21 +311,21 @@ const createCalendar = async () => {
     // check if a customer have booked the same item twice in a row dependent on date
     if(settings.put_together == "1"){
         // Sort the customerInfo array by customer id
-        let mergedCustomerDates = [];
+        let mergedCustomerDates = []
 
-        custDates.sort((a, b) => a[2] - b[2] || a[4].localeCompare(b[4]) || new Date(a[0]) - new Date(b[0]));
+        custDates.sort((a, b) => a[2] - b[2] || a[4].localeCompare(b[4]) || new Date(a[0]) - new Date(b[0]))
         for (let i = 0; i < custDates.length; i++) {
             if (i > 0 && 
                 custDates[i][2] === custDates[i-1][2] && 
                 custDates[i][4] === custDates[i-1][4] && 
                 Math.abs((new Date(custDates[i][0]) - new Date(custDates[i-1][1])) / (1000 * 60 * 60 * 24)) < 2) {
                 
-                mergedCustomerDates[mergedCustomerDates.length - 1][1] = custDates[i][1];
+                mergedCustomerDates[mergedCustomerDates.length - 1][1] = custDates[i][1]
             } else {
-                mergedCustomerDates.push(custDates  [i]);
+                mergedCustomerDates.push(custDates  [i])
             }
         }
-        custDates = mergedCustomerDates;
+        custDates = mergedCustomerDates
     }
     if(custDates.length == 0){
         table.innerHTML = "<p class='text-center'>Der er ingen bookinger</p>"
@@ -497,7 +497,7 @@ const createReservationList = async (year, month, day, value) => {
     // check if a customer have booked the same item twice in a row dependent on date
     if(settings.put_together == "1"){
         // Sort the customerInfo array by id and item_name
-        let mergedArray = [];
+        let mergedArray = []
 
         customerInfo.sort((a, b) => a.id - b.id || a.item_name.localeCompare(b.item_name) || new Date(a.fromDate) - new Date(b.fromDate))
 
@@ -567,9 +567,9 @@ const createReservationList = async (year, month, day, value) => {
     
     // Sort customerInfo nummeric based on item_name
     const stripParentheses = (str) => {
-        if (!str) return ''; // Return empty string if str is null/undefined
-        return str.replace(/\(.*?\)/g, '').trim();
-    };
+        if (!str) return '' // Return empty string if str is null/undefined
+        return str.replace(/\(.*?\)/g, '').trim()
+    }
 
     // Sort customerInfo with numeric items first and items with letters last
     customerInfo.sort((a, b) => {
@@ -579,7 +579,7 @@ const createReservationList = async (year, month, day, value) => {
             if (!str) return ''
             const match = str.match(/^(\d+)/)
             return match ? parseInt(match[0], 10) : str
-        };
+        }
     
         const strippedA = stripParentheses(a.item_name)
         const strippedB = stripParentheses(b.item_name)
@@ -895,11 +895,6 @@ const createReservationList = async (year, month, day, value) => {
         }
     }
         
-   /*  const button = document.createElement("a");
-    button.href = "booking.php?day=" + day + "&month=" + month + "&year=" + year + "&format=1";
-    button.className = "btn btn-primary";
-    button.textContent = "Opret Ny Booking";
-    tablePoint.appendChild(button) */
     // Add eventListener to delete buttons
     const deleteButtons = document.querySelectorAll(".delete")
     deleteButtons.forEach(button => {
@@ -1070,7 +1065,7 @@ const monthlyOverview = async (year, month) => {
     tBody.appendChild(tr)
 
     // Get customer data and process it
-    const customers = await getCustomers(month, year);
+    const customers = await getCustomers(month, year)
     const customerInfo = customers.map((customer) => ({
         name: customer.name,
         account_number: customer.account_number,
@@ -1188,7 +1183,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     let tableContent = ""
     //const month = months[currentMonth]
 
-    let screenWidth = screen.width;
+    let screenWidth = screen.width
 
     const currentDate = new Date(new Date().getFullYear() + "-" + ("0" + (new Date().getMonth() + 1)).slice(-2) + "-" + ("0" + new Date().getDate()).slice(-2))
     days.forEach(day => {
@@ -1686,7 +1681,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                         // Check if any of the bookings overlap with the given period
                         const hasBookingDuringPeriod = bookings.some(booking => {
                             return !(booking.toDate < fromDate || booking.fromDate > toDate)
-                        });
+                        })
                     
                         // Return true if there are no bookings during the given period
                         return !hasBookingDuringPeriod
@@ -1849,352 +1844,6 @@ const createSelect = (options, value) => {
     return select
 }
 
-/* const productOverview = async (value) => {
-    // Setting some styles
-    document.querySelector(".table-point").innerHTML = "<table class='table table-bordered table-responsive table-light'><tbody class='tBody'></tbody></table>"
-    if (document.querySelector(".calendar"))
-        document.querySelector(".calendar").setAttribute("class", "remove-margin")
-
-    const table = document.querySelector(".table")
-    const product = await getProductInfo()
-
-
-    // Setting the year label
-    const span = document.querySelector(".month")
-    span.innerHTML = ""
-    span.appendChild(document.createTextNode(currentYear))
-    let tableContent = ""
-
-    if(product.success == false){
-        table.innerHTML = "<p class='text-center'>Der er ingen bookinger</p>"
-        return
-    }
-
-    // Constructing the table headers
-    let tableHeader = `<thead class="sticky-top"><tr>
-    <th class='th-lg select'></th>`
-    months.forEach((month, index) => {
-        tableHeader += `<th><a href="index.php?month=${index}&year=${currentYear}&vare=${value}">${month}</a></th>`
-    })
-
-    tableHeader += "</tr></thead><tbody class='tBody'><div class='eraseTable'>"
-    table.innerHTML = tableHeader
-    const tBody = document.querySelector(".tBody")
-    const eraseTable = document.querySelector(".eraseTable")
-
-    // Constructing data for the table
-    const productInfo = product.map((product) => ({
-        product_name: product.product_name,
-        item_reserved: product.reserved,
-        reservation_id: product.reservation_id,
-        item_name: product.item_name,
-        fromDate: new Date(product.from * 1000).getFullYear() + "-" + ("0" + (new Date(product.from * 1000).getMonth() + 1)).slice(-2),
-        toDate: new Date(product.to * 1000).getFullYear() + "-" + ("0" + (new Date(product.to * 1000).getMonth() + 1)).slice(-2),
-        product_id: product.product_id,
-        cust_name: product.cust_name,
-        cust_id: product.cust_id,
-        item_id: product.item_id,
-        kontonr: product.kontonr
-    }))
-
-    // sort productInfo by item_name
-    productInfo.sort((a, b) => a.item_name.localeCompare(b.item_name));
-    
-    productInfo.sort((a, b) => parseInt(a.item_name) - parseInt(b.item_name))
-    // Constructing data for the table all products
-    const initialTable = () => {
-        eraseTable.innerHTML = ""
-        const uniqueItems = [...new Set(productInfo.map(item => item.item_id))]
-        uniqueItems.forEach((product) => {
-            const productDates = productInfo.filter(p => p.item_id === product)
-            tableContent += "<tr>"
-            tableContent += `<td>${(productDates[0].item_reserved == "1") ? "<a class='searchItem' href='index.php?singleItem=" + product + "'>" + productDates[0].item_name + " (reserveret)</a>" : "<a class='searchItem' href='index.php?singleItem=" + product + "'>" + productDates[0].item_name + "</a>"}</td>`
-            let i = 0
-            months.forEach((month, index) => {
-                i = 0
-                productDates.forEach((date) => {
-                    if (currentYear === new Date().getFullYear()) {
-                        const currentDate = currentYear + "-" + ("0" + (index + 1)).slice(-2)
-                        if (currentDate >= date.fromDate && currentDate <= date.toDate && i == 0) {
-                            if(date.item_reserved === "1"){
-                                tableContent += `<td class='bg-danger show-day' id='${date.product_id}.${index}'><span style="color:yellow; pointer-events: none;">*</span></td>`
-                            }else{
-                                tableContent += `<td class='bg-danger show-day' id='${date.product_id}.${index}'></td>`
-                            }
-                            i++
-                        }
-                    } else if (currentYear !== new Date().getFullYear()) {
-                        const currentDate = currentYear + "-" + ("0" + (index + 1)).slice(-2)
-                        if (currentDate >= date.fromDate && currentDate <= date.toDate) {
-                            if(date.item_reserved === "1"){
-                                tableContent += `<td class='bg-danger show-day' id='${date.product_id}'><span style="color:yellow; pointer-events: none;">*</span></td>`
-                            }else{
-                                tableContent += `<td class='bg-danger show-day' id='${date.product_id}'></td>`
-                            }
-                            i++
-                        }
-                    }
-                })
-                if (i == 0){
-                    if(productDates[0].item_reserved === "1"){
-                        tableContent += `<td class='bg-success'><span style="color:yellow">*</span></td>`
-                    }else{
-                        tableContent += `<td class='bg-success'></td>`
-                    }
-                }
-            })
-            tableContent += "</tr>"
-        })
-        tBody.innerHTML += tableContent + "</div></tbody>"
-    }
-
-    // Constructing data for all items with same product_id
-    const singleProduct = (value) => {
-        eraseTable.innerHTML = ""
-        const products = productInfo.filter(p => p.product_id === value)
-        // remove duplicates of same item_id
-        const uniqueProducts = [...new Set(products.map(item => item.item_id))]
-        uniqueProducts.forEach((product) => {
-            const productDates = productInfo.filter(p => p.item_id === product)
-            tableContent += "<tr>"
-            tableContent += `<td>${(productDates[0].item_reserved == "1") ? "<a class='searchItem' href='index.php?singleItem=" + product + "'>" + productDates[0].item_name + " (reserveret)</a>" : "<a class='searchItem' href='index.php?singleItem=" + product + "'>" + productDates[0].item_name + "</a>"}</td>`
-            let i = 0
-            months.forEach((month, index) => {
-                i = 0
-                productDates.forEach((date) => {
-                    if (currentYear === new Date().getFullYear()) {
-                        const currentDate = currentYear + "-" + ("0" + (index + 1)).slice(-2)
-                        if (currentDate >= date.fromDate && currentDate <= date.toDate && i == 0) {
-                            if(date.item_reserved === "1"){
-                                tableContent += `<td class='bg-danger show-product-day' id='${date.product_id}.${index}'><span style="color:yellow; pointer-events: none;">*</span></td>`
-                            }else{
-                                tableContent += `<td class='bg-danger show-product-day' id='${date.product_id}.${index}'></td>`
-                            }
-                            i++
-                        }
-                    } else if (currentYear !== new Date().getFullYear()) {
-                        const currentDate = currentYear + "-" + ("0" + (index + 1)).slice(-2)
-                        if (currentDate >= date.fromDate && currentDate <= date.toDate) {
-                            if(date.item_reserved === "1"){
-                                tableContent += `<td class='bg-danger show-product-day' id='${date.product_id}'><span style="color:yellow; pointer-events: none;">*</span></td>`
-                            }else{
-                                tableContent += `<td class='bg-danger show-product-day' id='${date.product_id}'></td>`
-                            }
-                            i++
-                        }
-                    }
-                })
-                if (i == 0){
-                    if(productDates[0].item_reserved === "1"){
-                        tableContent += `<td class='bg-success'><span style="color:yellow">*</span></td>`
-                    }else{
-                        tableContent += `<td class='bg-success'></td>`
-                    }
-                }
-            })
-            tableContent += "</tr>"
-        })
-        tBody.innerHTML += tableContent + "</div></tbody>"
-    }
-
-    
-
-
-    // Constructing data for the table with customers
-    const showCustomers = () => {
-        eraseTable.innerHTML = ""
-        const uniqueCustomers = [...new Set(productInfo.map(item => item.cust_id))]
-        uniqueCustomers.map((customer) => {
-            if (customer !== undefined) {
-                const custDates = productInfo.filter(item => item.cust_id === customer)
-                tableContent += "<tr>"
-                tableContent += `<td scope='row' class='cust-name' id='${custDates[0].cust_id}'><span class='searchItem' id='${custDates[0].cust_id}'>${custDates[0].cust_name} ${custDates[0].kontonr}</span></td>`
-                let i = 0
-                months.forEach((month, index) => {
-                    i = 0
-                    custDates.forEach((date) => {
-                        if (currentYear === new Date().getFullYear()) {
-                            const currentDate = currentYear + "-" + ("0" + (index + 1)).slice(-2)
-                            if (currentDate >= date.fromDate && currentDate <= date.toDate && i == 0) {
-                                if(date.item_reserved === "1"){
-                                    tableContent += `<td class='bg-danger show-cust-day' id='${date.product_id}.${index}'><span style="color:yellow; pointer-events: none;">*</span></td>`
-                                }else{
-                                    tableContent += `<td class='bg-danger show-cust-day' id='${date.product_id}.${index}'></td>`
-                                }
-                                i++
-                            }
-                        } else if (currentYear !== new Date().getFullYear()) {
-                            const currentDate = currentYear + "-" + ("0" + (index + 1)).slice(-2)
-                            if (currentDate >= date.fromDate && currentDate <= date.toDate) {
-                                if(date.item_reserved === "1"){
-                                    tableContent += `<td class='bg-danger show-cust-day' id='${date.product_id}'><span style="color:yellow; pointer-events: none;">*</span></td>`
-                                }else{
-                                    tableContent += `<td class='bg-danger show-cust-day' id='${date.product_id}'></td>`
-                                }
-                                i++
-                            }
-                        }
-                    })
-                    if (i == 0){
-                        if(custDates[0].item_reserved === "1"){
-                            tableContent += `<td class='bg-success'><span style="color:yellow">*</span></td>`
-                        }else{
-                            tableContent += `<td class='bg-success'></td>`
-                        }
-                    }
-                })
-                tableContent += "</tr>"
-            }
-        })
-        tBody.innerHTML += tableContent + "</div></tbody>"
-    }
-
-    // Choosing which table to show
-    if (value == "one") {
-        initialTable()
-    } else if (value == "two") {
-        showCustomers()
-    } else{
-        singleProduct(value)
-    }
-
-    // getting unique products
-    const uniqueProducts = [...new Set(productInfo.map(item => item.product_id))]
-    const extraOptions = []
-    uniqueProducts.forEach(product => {
-        const productDates = productInfo.filter(p => p.product_id === product)
-        extraOptions.push({ value: productDates[0].product_id, text: productDates[0].product_name })
-    })
-
-    // Creating the select element
-    const optionData = [
-        { value: "one", text: "Produkter" },
-        { value: "two", text: "Kunder" },
-        ...extraOptions
-    ]
-
-    // sort optionData by text
-    optionData.sort((a, b) => {
-        const textA = a.text.toUpperCase()
-        const textB = b.text.toUpperCase()
-        return (textA < textB) ? -1 : (textA > textB) ? 1 : 0
-    })
-
-    const select = createSelect(optionData, value)
-
-    // Adding eventListener to the select element
-    select.addEventListener("change", (e) => {
-        productOverview(e.target.value)
-    })
-
-    // Appending the select element to the DOM
-    const classSelector = document.querySelector(".select")
-    classSelector.appendChild(select)
-    const input = document.createElement("input")
-    input.setAttribute("type", "text")
-    input.setAttribute("class", "form-control")
-    input.setAttribute("placeholder", "Søg")
-    input.setAttribute("id", "search")
-    classSelector.appendChild(input)
-    
-    // Adding eventListener to the search input
-    const search = document.querySelector("#search")
-    search.addEventListener("keyup", (e) => {
-        const value = e.target.value.toLowerCase()
-        const searchItems = document.querySelectorAll(".searchItem")
-        searchItems.forEach(item => {
-            if(item.innerHTML.toLowerCase().indexOf(value) > -1){
-                item.parentElement.parentElement.style.display = ""
-            }else{
-                item.parentElement.parentElement.style.display = "none"
-            }
-        })
-    })
-
-    // Adding eventListener to the clickable tds
-    const clickableTds = document.querySelectorAll(".show-day")
-    clickableTds.forEach(button => {
-        button.addEventListener("click", async (e) => {
-            const id = e.target.id.split(".")
-            window.location.href = `index.php?month=${id[1]}&year=${currentYear}&vare=one`
-        })
-    })
-
-    // Adding eventlistener to the clickable tds within the product table
-    const clickableProductTds = document.querySelectorAll(".show-product-day")
-    clickableProductTds.forEach(button => {
-        button.addEventListener("click", async (e) => {
-            const id = e.target.id.split(".")
-            window.location.href = `index.php?month=${id[1]}&year=${currentYear}&vare=${id[0]}`
-        })
-    })
-
-    // Adding eventlistener to the clickable tds within the customer table
-    const clickableCustTds = document.querySelectorAll(".show-cust-day")
-    clickableCustTds.forEach(button => {
-        button.addEventListener("click", async (e) => {
-            const id = e.target.id.split(".")
-            window.location.href = `index.php?month=${id[1]}&year=${currentYear}&vare=2`
-        })
-    })
-    
-    // Adding eventListener to the clickable tds
-    const custName = document.querySelectorAll(".cust-name")
-    custName.forEach(name => {
-        name.addEventListener("click", async (e) => {
-            const id = e.target.id
-            window.location.href = `index.php?showCustomer=${id}`
-        })
-    })
-
-} */
-
-/* const showBookings = async () => {
-    // Hidding some elements
-    document.querySelector(".backward").hidden = true
-    document.querySelector(".forward").hidden = true
-
-    document.querySelector(".table-point").innerHTML = "<table class='table table-responsive-sm table-light'><tbody class='tBody'></tbody></table>"
-    const tBody = document.querySelector(".tBody")
-    const bookings = await getBookings()
-    const bookingInfo = bookings.map((booking) => ({
-        name: booking.name,
-        account_number: booking.account_number,
-        fromDate: new Date(booking.from * 1000).getFullYear() + "-" + ("0" + (new Date(booking.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.from * 1000).getDate()).slice(-2),
-        toDate: new Date(booking.to * 1000).getFullYear() + "-" + ("0" + (new Date(booking.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.to * 1000).getDate()).slice(-2),
-        item_name: booking.item_name,
-        cust_id: booking.customer_id,
-        rental_id: booking.id,
-        orderStatus: booking.status
-    }))
-    const table = document.querySelector(".table-point")
-
-    // Create the table
-    let newTable = "<tr><th>Udlejnings Product</th><th>Navn</th><th>Konto Nr</th><th>Fra</th><th>Til</th><th>Redigere</th><th>Slet</th></tr>"
-    bookingInfo.forEach((booking) => {
-        newTable += "<tr>"
-        newTable += `<td>${booking.item_name}</td>`
-        newTable += `<td>${booking.name}</td>`
-        newTable += `<td>${booking.account_number}</td>`
-        newTable += `<td>${booking.fromDate}</td>`
-        newTable += `<td>${booking.toDate}</td>`
-        newTable += `<td><a href="edit.php?id=${booking.rental_id}"><button class="btn btn-primary">${editIcon}</button></a></td>`
-        newTable += `<td><button class="btn btn-danger delete" id="${booking.rental_id}">${deleteIcon}</button></td>`
-        newTable += "</tr>"
-    })
-    newTable += "</tbody></table>"
-    tBody.innerHTML = newTable
-    const deleteButtons = document.querySelectorAll(".delete")
-    deleteButtons.forEach(button => {
-        button.addEventListener("click", async (e) => {
-            if(confirm ("Er du sikker på at du vil slette denne udlejning?") == false) return
-            const id = e.target.id
-            const response = await deleteBooking(id)
-            alert(response)
-            window.location.href = "index.php?vare"
-        })
-    })
-} */
 
 
 const showBooking = async () => {
@@ -2313,17 +1962,17 @@ const singleProductOverview = async (id) => {
                 // Sorting the table data by the selected header asc and desc
                 
                 if (id === "name") {
-                    sortNameAsc = !sortNameAsc;
-                    productInfo.sort((a, b) => (sortNameAsc ? 1 : -1) * a.name.localeCompare(b.name));
+                    sortNameAsc = !sortNameAsc
+                    productInfo.sort((a, b) => (sortNameAsc ? 1 : -1) * a.name.localeCompare(b.name))
                   } else if (id === "accountNr") {
-                    sortAccountAsc = !sortAccountAsc;
-                    productInfo.sort((a, b) => (sortAccountAsc ? 1 : -1) * a.account_number.localeCompare(b.account_number));
+                    sortAccountAsc = !sortAccountAsc
+                    productInfo.sort((a, b) => (sortAccountAsc ? 1 : -1) * a.account_number.localeCompare(b.account_number))
                   } else if (id === "from") {
-                    sortFromAsc = !sortFromAsc;
-                    productInfo.sort((a, b) => (sortFromAsc ? 1 : -1) * (new Date(a.fromDate) - new Date(b.fromDate)));
+                    sortFromAsc = !sortFromAsc
+                    productInfo.sort((a, b) => (sortFromAsc ? 1 : -1) * (new Date(a.fromDate) - new Date(b.fromDate)))
                   } else if (id === "to") {
-                    sortToAsc = !sortToAsc;
-                    productInfo.sort((a, b) => (sortToAsc ? 1 : -1) * (new Date(a.toDate) - new Date(b.toDate)));
+                    sortToAsc = !sortToAsc
+                    productInfo.sort((a, b) => (sortToAsc ? 1 : -1) * (new Date(a.toDate) - new Date(b.toDate)))
                   }
                 createTable(productInfo)
             })
@@ -2366,7 +2015,7 @@ const singleProductOverview = async (id) => {
             toDate: new Date(booking.to * 1000).getFullYear() + "-" + ("0" + (new Date(booking.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.to * 1000).getDate()).slice(-2),
         }))
         // Make the latest booking show first
-        productInfo.sort((a, b) => -1 * (new Date(a.fromDate) - new Date(b.fromDate)));
+        productInfo.sort((a, b) => -1 * (new Date(a.fromDate) - new Date(b.fromDate)))
         // reduce productInfo to 5 items
         fullProductInfo.push(...productInfo)
         if(productInfo.length > 5){
@@ -2466,31 +2115,31 @@ const singleProductOverview = async (id) => {
     })
 
     function isValidDate(dateString) {
-        const regex = /^\d{4}-\d{2}-\d{2}$/;
+        const regex = /^\d{4}-\d{2}-\d{2}$/
     
         if (!regex.test(dateString)) {
             // The date string is not in the correct format
-            return false;
+            return false
         }
     
         // Parse the date parts
-        const parts = dateString.split('-');
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10);
-        const day = parseInt(parts[2], 10);
+        const parts = dateString.split('-')
+        const year = parseInt(parts[0], 10)
+        const month = parseInt(parts[1], 10)
+        const day = parseInt(parts[2], 10)
     
         // Check the ranges of month and year
         if (month <= 0 || month > 12) {
-            return false;
+            return false
         }
     
-        const date = new Date(year, month - 1, day);
+        const date = new Date(year, month - 1, day)
         // Check it is a valid date and is the same value as the parts
         if (!(date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day)) {
-            return false;
+            return false
         }
     
-        return true;
+        return true
     }
 
     const editDates = document.querySelectorAll(".editDates")
@@ -2740,7 +2389,7 @@ const showCustomer = async () => {
         orderStatus: booking.status
     }))
     // sort bookingInfo by date descending
-    bookingInfo.sort((a, b) => (new Date(b.fromDate) - new Date(a.fromDate)));
+    bookingInfo.sort((a, b) => (new Date(b.fromDate) - new Date(a.fromDate)))
 
     const table = document.querySelector(".table-point")
 
