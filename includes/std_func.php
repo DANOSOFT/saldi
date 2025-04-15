@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-05 ---
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -230,31 +230,54 @@ if (!function_exists('get_relative')) {
 // }
 
 if (!function_exists('if_isset')) {
-    function if_isset($var, $default = NULL) {
-          /**
-         * Checks if a variable is set.
-         * If the variable is set (even if NULL), it returns the variable's value.
-         * Otherwise, returns the provided default value (default is NULL).
+    function if_isset($arrayOrVar, $default = null, $key = null) {
+        /**
+         * Custom function to safely check if a variable or an array key exists.
          *
-         * Behavior with special values:
-         * - 0: The function returns 0 because 0 is considered set, but not NULL.
-         * - false: The function returns NULL explicitly defining it so.
-         * - NULL: The function returns NULL if the variable is explicitly set to NULL. #*This returns empty with print or echo. But var_dump()
-         * - Other values (e.g., empty strings, arrays, etc.): The function returns the value if set, even if it is empty.
+         * - if_isset($var, $default)           // safely checks if $var is set, returns $default if not
+         * - if_isset($array, $default, $key)   // safely gets $array[$key] or returns $default
          *
-         * @param mixed $var - The variable to check.
-         * @param mixed $default - The value to return if the variable is not set (default: NULL).
-         * @return mixed - Returns the value of the variable if set, otherwise the default value.
+         * Behavior for special values:
+         * ----------------------------------------
+         * - `false`: Treated as "not set" and returns NULL . Explicitly set for single values
+         * - `null`: If the variable or array key is explicitly `null`
+         * - `0`: Considered a valid value, returned as-is (0 is treated as set).
+         * - `""` (empty string): Considered a valid value, returned as-is (empty string is set).
+         * - Arrays: If the key exists, it returns the value. If not, it returns the default value.
+         * #############USECASE####################
+		 * $sektion = if_isset($_GET,null,'sektion');
+		 * ########################################
+		 * 
+         * @param mixed $arrayOrVar The array or variable to check.
+         * @param mixed $default    The default value to return if the variable or key is not set.
+         * @param mixed $key        The key (if array is passed).
+         * @return mixed           The actual value or the default.
          */
 
-        // Check if the variable is explicitly false and return NULL
-        if ($var === false) {
-            return NULL;
+        // Case 1: One argument — treat as a single variable fallback
+        if ($key === null) {
+            // If key is not provided, we're dealing with just a single variable
+          
+			 // Check if the variable is explicitly false and return NULL
+			 if ($arrayOrVar === false) {
+				return NULL;
+			}
+	
+			return isset($arrayOrVar) ? $arrayOrVar : $default;
         }
 
-        return isset($var) ? $var : $default;
+        // Case 2: Two arguments — array + key
+        if (is_array($arrayOrVar) && array_key_exists($key, $arrayOrVar)) {
+            // If it's an array and the key exists, return the value or NULL if it's false
+            $value = $arrayOrVar[$key];
+            return $value === false ? null : $value;
+        }
+
+        // Default case: Return the default value
+        return $default;
     }
 }
+
 if (!function_exists('usdate')) {
 	function usdate($date)
 	{
