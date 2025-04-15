@@ -1,5 +1,5 @@
 <?php
-// --- systemdata/top.php --- ver 4.1.0 --- 2024-05-01 ---
+// --- systemdata/top.php --- ver 4.1.1 --- 2025-04-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,12 +15,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20181102 PHR Oprydning, udefinerede variabler.
 // 20210223 Loe Replaced the text values on the table data with dynamic data with findtekst().
 // 20220103 PHR Checks for error in text id 778 - can be removed in 2023
+// 20250414 LOE Barcode button added for app
 
 $small=NULL;
 if (!isset($css)) $css=NULL;

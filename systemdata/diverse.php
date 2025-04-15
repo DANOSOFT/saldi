@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.0 ----2025-03-21------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2025-04-14------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -83,6 +83,7 @@
 // 20240827 LOE 'personlige_valg' readujsted to use userSettings.
 // 20241220 LOE Initialized tenantID and $key to null if not set
 // 20250105 PBLM Added a second file to api_valg
+// 20250414 LOE Updated barcodescan location and updated some variables
 
 
 @session_start();
@@ -101,6 +102,10 @@ include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
 $defaultProvision = $sqlstreng = NULL;
+if(!isset($_SESSION['UserName']) && isset($brugernavn)){
+	$_SESSION['UserName'] = $brugernavn;
+}
+
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
@@ -136,8 +141,8 @@ if ($menu == 'T') {
 } 
 
 if (!isset($exec_path)) $exec_path="/usr/bin";
-$sektion=if_isset($_GET['sektion']);
-$pricelists = if_isset($_POST['pricelists'],NULL);
+$sektion=if_isset($_GET,null,'sektion');
+$pricelists = if_isset($_POST,null,'pricelists');
 if ($sektion == 'personlige_valg') $sektion = 'userSettings';
 $skiftnavn=if_isset($_GET['skiftnavn']);
 if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
@@ -1787,8 +1792,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	}
 } else {
 	$valg = if_isset($_GET['valg']);
-	$sektion = if_isset($_GET['sektion']);
+	// $sektion = if_isset($_GET['sektion']);
+	$sektion = if_isset($_GET,null,'sektion');
 	#	if ($sektion == 'personlige_valg') $sektion = 'userSettings';
+	
+	
 }
 $docubizz = NULL;
 if (db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr = '2' and box6='on'", __FILE__ . " linje " . __LINE__)))
@@ -1876,6 +1884,10 @@ if ($menu != 'T') {
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			. findtekst(200, $sprog_id) . "</button></a><!--tekst 200--></td></tr>\n";
 
+			print "<tr><td align=left><a href=diverse.php?sektion=barcodescan>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			. 'App Barcode' . "</button></a><!--tekst 200--></td></tr>\n";
+
 		if (file_exists("../debitor/pos_ordre.php"))
 			print "<tr><td align=left><a href=diverse.php?sektion=posOptions><button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(271, $sprog_id) . "</button></a></td></tr>\n";
 
@@ -1904,7 +1916,7 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst(792,$sprog_id)."</a><!--tekst 427--></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst(793,$sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>".findtekst(794,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=..\barcodescan.php>App Barcode</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=../systemdata\barcodescan.php>App Barcode</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>".findtekst(796,$sprog_id)."</a></td></tr>\n";
 		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>".findtekst(796,$sprog_id)."</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>".findtekst(797,$sprog_id)."</a></td></tr>\n";
@@ -1955,6 +1967,11 @@ if ($sektion=="posOptions") {
 	include ("diverseIncludes/posOptions.php");
 	posOptions();
 }
+if ($sektion=="barcodescan"){
+	header("Location: ../systemdata/barcodescan.php");
+	exit;
+}
+
 if ($sektion == "sprog") {
 	include("diverseIncludes/language.php");
 	language();
