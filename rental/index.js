@@ -1295,9 +1295,13 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     table.innerHTML = tableHeader
     const tBody = document.querySelector(".tBody")
     const eraseTable = document.querySelector(".eraseTable")
-
+    let closedDates
     const getClosedDates = await getClosedDays()
-    const closedDates = getClosedDates.map(date => new Date(date.date * 1000).getFullYear() + "-" + ("0" + (new Date(date.date * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(date.date * 1000).getDate()).slice(-2))
+    if(getClosedDates.success == false){
+        closedDates = []
+    }else{
+        closedDates = getClosedDates.map(date => new Date(date.date * 1000).getFullYear() + "-" + ("0" + (new Date(date.date * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(date.date * 1000).getDate()).slice(-2))
+    }
     // Constructing data for the table
     const initialTable = () => {
         // Creating a list of unique products
@@ -2713,7 +2717,7 @@ const singleProductOverview = async (id) => {
     })
 
     const div = document.createElement("div")
-    div.setAttribute("class", "row mt-5")
+    div.setAttribute("class", "row mt-5 spærring")
     div.innerHTML = `
         <h4 class="mt-4 mb-4">Opret Spærrings periode:</h4>
         <div class="form-group col-6 mt-4">

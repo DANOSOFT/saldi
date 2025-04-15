@@ -35,14 +35,14 @@ $steps[] = array(
 );
 $steps[] = array(
   "selector" => ".bg-success",
-  "content" => "De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag eller stand."
+  "content" => "De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag/stand."
 );
 $steps[] = array(
   "selector" => ".searchItem",
   "content" => "Klik på et standnavn for at se bookinger, oprette nye eller spærre standen."
 );
 $steps[] = array(
-  "selector" => ".row",
+  "selector" => ".spærring",
   "content" => "Her kan du oprette spærringer. En spærring er en slags 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret."
 );
 $steps[] = array(
