@@ -114,7 +114,7 @@ $steps[] = array(
 <button type="button" class="show-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" hidden></button>
         <div class="back-button"></div>
       <div class="calendar">
-        <div class="sticky-top w-100 " style="background-color: #fff; height: 4rem;">
+        <div class="w-100 header" style="background-color: #fff; height: 4rem;">
           <div class="d-flex justify-content-between flex-content width-50 mx-auto pt-1">
             <button class="btn btn-primary backward w-1/2" style="height: 50%;">
               <svg xmlns="http://www.w3.org/2000/svg" width="45" height="24" fill="currentColor" class="bi bi-arrow-left arrow" viewBox="0 0 16 16">

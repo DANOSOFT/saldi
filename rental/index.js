@@ -1220,6 +1220,8 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     // Setting some styles
     document.querySelector(".table-point").innerHTML = "<table class='table table-bordered table-responsive table-light'></table>"
     if (document.querySelector(".calendar")) document.querySelector(".calendar").setAttribute("class", "remove-margin sticky-container")
+    const header = document.querySelector(".header")
+    header.setAttribute("class", "sticky-top")
     // Setting Dates
     currentMonth = parseInt(thisMonth)
     currentYear = year
