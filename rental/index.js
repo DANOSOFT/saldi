@@ -123,9 +123,6 @@ window.availableOnDay = async (date, productInfo, value) => {
 
         // The item is available if it doesn't have any bookings during the given period
         return !hasBookingDuringPeriod && !hasReservationDuringPeriod
-
-        // The item is available if it doesn't have any bookings during the given period
-        return !hasBookingDuringPeriod
     })
 
     // Get the available items
