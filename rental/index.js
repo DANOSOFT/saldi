@@ -1,4 +1,3 @@
-
 // Make sure you're in an async context
 (async () => {
     const url = new URL(window.location.href)
@@ -518,31 +517,7 @@ const createReservationList = async (year, month, day, value) => {
         
         customerInfo = mergedArray
     }
-    // return [fromDateFormatted, toDateFormatted, i.account_number, i.booking_id, i.item_name, i.product_id, toDatePlus, i.item_id]
-    /* console.log(month, year)
-    let customerDates = await getCustomerDates(month, year)
 
-    // check if a customer have booked the same item twice in a row dependent on date
-    if(settings.put_together == "1"){
-        // Sort the customerInfo array by customer id
-        let mergedCustomerDates = [];
-
-        customerDates.sort((a, b) => a[2] - b[2] || a[4].localeCompare(b[4]) || new Date(a[0]) - new Date(b[0]));
-        
-        for (let i = 0; i < customerDates.length; i++) {
-            if (i > 0 && 
-                customerDates[i][2] === customerDates[i-1][2] && 
-                customerDates[i][4] === customerDates[i-1][4] && 
-                Math.abs((new Date(customerDates[i][0]) - new Date(customerDates[i-1][1])) / (1000 * 60 * 60 * 24)) < 2) {
-                
-                mergedCustomerDates[mergedCustomerDates.length - 1][1] = customerDates[i][1];
-            } else {
-                mergedCustomerDates.push(customerDates[i]);
-            }
-        }
-        customerDates = mergedCustomerDates;
-    }
- */
     let selectedDate = year + "-" + ("0" + month).slice(-2) + "-" + ("0" + day).slice(-2)
     let startSelectedDate = year + "-" + ("0" + month).slice(-2) + "-" + ("0" + day).slice(-2)
     if(settings.start_day == 1){
@@ -592,41 +567,6 @@ const createReservationList = async (year, month, day, value) => {
         tbodyTwo.appendChild(tr)
         tablePoint.appendChild(table)
     }
-        /* reservations.forEach(res => {
-            res.from = new Date(res.from * 1000)
-            res.to = new Date(res.to * 1000)
-            res.from = res.from.getFullYear() + "-" + ("0" + (res.from.getMonth() + 1)).slice(-2) + "-" + ("0" + res.from.getDate()).slice(-2)
-            res.to = res.to.getFullYear() + "-" + ("0" + (res.to.getMonth() + 1)).slice(-2) + "-" + ("0" + res.to.getDate()).slice(-2)
-            console.log("From: " + res.from + " To: " + res.to)
-        }) */
-        // Get the reserved items for the selected date
-        /* const reserved = customerDates.filter(date => {
-            let dateFrom = new Date(date[0])
-            let dateTo = new Date(date[1])
-            let oneDayAfter = new Date(date[1])
-            oneDayAfter.setDate(oneDayAfter.getDate() + 1)
-            return reservations.some(res => {
-                let resFrom = new Date(res.from * 1000)
-                let resTo = new Date(res.to * 1000)
-        
-                return (dateFrom >= resFrom && dateFrom <= resTo) || 
-                    (dateTo >= resFrom && dateTo <= resTo) || 
-                    (oneDayAfter.getTime() === resFrom.getTime()) &&
-                    (currentDate < resTo)
-            })
-        })
-        const reservedIds = reserved.map(booking => booking[3])
-        reservations.some(res => {
-            res.from = new Date(res.from * 1000)
-            res.to = new Date(res.to * 1000)
-            res.from = res.from.getFullYear() + "-" + ("0" + (res.from.getMonth() + 1)).slice(-2) + "-" + ("0" + res.from.getDate()).slice(-2)
-            res.to = res.to.getFullYear() + "-" + ("0" + (res.to.getMonth() + 1)).slice(-2) + "-" + ("0" + res.to.getDate()).slice(-2)
-            console.log("item_id " + res.item_id + " From: " + res.from + " To: " + res.to)
-        
-        })
-        console.log(reservations)
-    console.log(currentDate) */
-    // Populate the table'
     
     // Sort customerInfo nummeric based on item_name
     const stripParentheses = (str) => {
@@ -636,7 +576,6 @@ const createReservationList = async (year, month, day, value) => {
 
     // Sort customerInfo with numeric items first and items with letters last
     customerInfo.sort((a, b) => {
-        const isNumeric = (str) => /^\d+$/.test(str)
         
         // Helper function to extract number before hyphen
         const getNumberBeforeHyphen = (str) => {
@@ -774,33 +713,6 @@ const createReservationList = async (year, month, day, value) => {
                 if(startSelectedDate == date.fromDate){
                     const customer = date
                     if (customer) {
-                        /* const reserved = await getReservationsByItem(date[7])
-                        const dateOne = new Date(date[1])
-                        let oneDayAfter = new Date(dateOne)
-                        oneDayAfter.setDate(dateOne.getDate() + 1)
-                        oneDayAfter = oneDayAfter.getFullYear() + "-" + ("0" + (oneDayAfter.getMonth() + 1)).slice(-2) + "-" + ("0" + oneDayAfter.getDate()).slice(-2)
-                        if(reserved.success != false){
-                            reserved.some(res => {
-                                res.from = new Date(res.from * 1000)
-                                res.to = new Date(res.to * 1000)
-                                res.from = res.from.getFullYear() + "-" + ("0" + (res.from.getMonth() + 1)).slice(-2) + "-" + ("0" + res.from.getDate()).slice(-2)
-                                res.to = res.to.getFullYear() + "-" + ("0" + (res.to.getMonth() + 1)).slice(-2) + "-" + ("0" + res.to.getDate()).slice(-2)
-                            
-                                // Convert date[0], date[1], and oneDayAfter to date strings in the same format as res.from and res.to
-                                let date0 = new Date(date[0])
-                                date0 = date0.getFullYear() + "-" + ("0" + (date0.getMonth() + 1)).slice(-2) + "-" + ("0" + date0.getDate()).slice(-2)
-                                let date1 = new Date(date[1])
-                                date1 = date1.getFullYear() + "-" + ("0" + (date1.getMonth() + 1)).slice(-2) + "-" + ("0" + date1.getDate()).slice(-2)
-
-                                // if booking is inbetween reserved dates or it starts the day after booking ends
-                                if((date0 >= res.from && date0 <= res.to) ||
-                                    (date1 >= res.from && date1 <= res.to) ||
-                                    (oneDayAfter == res.from)){
-                                        customer.item_name += " (Spærret)"
-                                        return true
-                                }
-                            });
-                        } */
                         const tr = document.createElement("tr")
                         tr.innerHTML = `
                         <td>${customer.name}</td>
@@ -1600,26 +1512,6 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                         }
                     }
                 })
-                /* reservations.forEach(reservation => {
-                    if(reservation.item_id == productDates[0].item_id){
-                        const from = new Date(reservation.from * 1000)
-                        const to = new Date(reservation.to * 1000)
-                        let currentDate = new Date()
-                        // check if the reservation is in the current month or later months
-                        if(to > currentDate){
-                            // check if this month is in the reservation
-                            resBool = true
-                        }
-                        // check if this month is in the reservation
-                        if(from.getMonth() <= currentMonth && to.getMonth() >= currentMonth){
-                            // make array of each day in reservation
-                            while(from <= to){
-                                resDates.push(new Date(from))
-                                from.setDate(from.getDate() + 1)
-                            }
-                        }
-                    }
-                }) */
             }
             if(searchItems.length > 0){
                 if(!searchItems.includes(productDates[0].item_name) && !searchItems.includes(productDates[0].item_name + " (Spærret)")){
@@ -2920,3 +2812,4 @@ if (queryString !== "") {
     createCalendar()
 }
 })()
+
