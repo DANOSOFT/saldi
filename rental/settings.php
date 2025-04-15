@@ -156,7 +156,6 @@
 
     helpButton.addEventListener('click', async function(e) {
         e.preventDefault()
-        console.log('Help button clicked') // Debug log
         
         try {
             const response = await fetch('<?php echo get_relative(); ?>includes/tutorialAPI.php', {
@@ -169,7 +168,6 @@
                     id: 'book-sett'
                 })
             })
-            
             if (response.ok) {
                 console.log('Restart successful'); // Debug log
             } else {
