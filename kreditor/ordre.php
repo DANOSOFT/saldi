@@ -256,6 +256,40 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		}
 	}
 }
+
+////// Tutorial //////
+
+$steps = array();
+$steps[] = array(
+	"selector" => "[name=kontonr]",
+	"content" => "Indtast kontonummeret på kreditor, og klik 'Gem' for at hente kreditors oplysninger."
+);
+$steps[] = array(
+    "selector" => "[name=vare0]",
+    "content" => "Her kan du indtaste et varenummer for at tilføje en vare til ordren."
+);
+$steps[] = array(
+    "selector" => "[name=lookup]",
+    "content" => "Når et varenummerfelt er markeret, kan du foretage et opslag af alle dine varer ved at klikke her."
+);
+$steps[] = array(
+    "selector" => "[name=udskriv_til]",
+    "content" => "Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den."
+);
+$steps[] = array(
+    "selector" => "[name=betalingsbet]",
+    "content" => "Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning."
+);
+$steps[] = array(
+    "selector" => "[name=betalingsdage]",
+    "content" => "Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning."
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("kred-order", $steps);
+
+////// Tutorial end //////
+
 $status = null;
 if(isset($_POST['status'])) $status=$_POST['status'];
 	if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_POST['copy'])) { #20120816
@@ -1528,7 +1562,10 @@ if ($menu=='T') {
 					  .findtekst(30, $sprog_id)."</button></a></td>";
 
 	print "<td width=\"80%\" align='center' style='$topStyle'>$color$tekst</td>";
-
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>
+	<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+		Hjælp  
+	</button></td>";
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
 		print "<td width=\"10%\">$color
 			   <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>
