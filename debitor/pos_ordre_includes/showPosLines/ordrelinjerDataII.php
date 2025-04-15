@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/ordrelinjerDataII.php --- lap 4.0.8 --- 2023.10.09 ---
+// --- debitor/pos_ordre_includes/showPosLines/ordrelinjerDataII.php --- lap 4.1.1 --- 2025.04.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2019-2023 saldi.dk aps
+// Copyright (c) 2019-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // LN 20190508 Move function vis-pos_linjer here
@@ -28,6 +28,7 @@
 // 20221123 PHR - nettosum is reduced with m_rabat. See also showPosLinesFunc.php
 // 20230216 PHR - Nettosum was miscalculated as m_rabat was treaded as percent.
 // 20231009 PHR - Added && !$rabatrguppe as m_rabat was calculated twice
+// 20250409 PHR - Added 'if ($status < 3)' after else as discount was counted twice after invoicing
 
 	$linjebg=$bgcolor;
 	$x=0;
@@ -87,18 +88,15 @@
 			if ($rabatart[$x] == 'amount' && $rabat[$x]) { # 20230216 added && $rabat.
 				$tmp = afrund($antal[$x]*($nettopris[$x]-= $nettorabat[$x]),2);
 				$nettosum+=afrund($antal[$x]*($nettopris[$x]-= $nettorabat[$x]),2);
-echo __line__."\t$varenr[$x]\t$x\t$tmp\t$nettosum<br>";
 				$sum+=afrund($antal[$x]*($pris[$x]-$rabat[$x]),3);
 			}	else {
 				if ($m_rabat[$x] && !$rabatgruppe[$x]) { # 20231009 Discountgroup is handled in productlines.php
 					$sum+=$antal[$x]*($pris[$x]+$m_rabat[$x]);
 					$tmp = $antal[$x]*($nettopris[$x]+$m_rabat[$x]);
 					$nettosum+=$antal[$x]*($nettopris[$x]+$m_rabat[$x]); #20221123
-echo __line__."\t$varenr[$x]\t$x\t$tmp\t$nettosum<br>";
-				} else {
+				} elseif ($status < 3) {
 					$tmp = afrund($antal[$x]*($nettopris[$x]-$nettopris[$x]/100*$rabat[$x]),2);
 					$nettosum+=afrund($antal[$x]*($nettopris[$x]-$nettopris[$x]/100*$rabat[$x]),2);
-echo __line__."\t$varenr[$x]\t$x\t$tmp\t$nettosum<br>";
 					$sum+=afrund($antal[$x]*($pris[$x]-($pris[$x]*$rabat[$x]/100)),3);
 				}
 			}
