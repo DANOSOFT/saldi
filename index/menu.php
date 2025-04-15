@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------index/menu.php------ ver 4.0.8 --- 2024-01-08 ---
+// -----------index/menu.php------ ver 4.0.8 --- 2025-04-14 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20180807 Corrected query to check if'kasse' is activated 20180807
 // 20210223 LOE replaced string Sikkerhedskopi with findtekst value
@@ -31,10 +31,12 @@
 // 20230714 LOE Minor modification + 20230805
 // 11122023 PBLM 
 // 20240108 LOE Minor modification.
+// 20250414 LOE $_SESSION['UserName'] added to query barcode for app
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
 (isset($_COOKIE['saldi_std']))?$regnskab = $_COOKIE['saldi_std']:$regnskab = NULL;
+
 $title="$regnskab Oversigt";
 $css="../css/standard.css";
 $produktion=0; # Menucolumn PRODUKTION id disabled until module is reasy for use
@@ -57,8 +59,10 @@ if (isset($_GET['useMain']))	 {
 	($_GET['useMain'] == 'on')?$menu = 'S':$menu = '';
 	$qtxt = "update grupper set box3 ='$menu' where  art = 'USET' and kodenr = '$bruger_id'"; 
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$_SESSION['UserName'] = $brugernavn;
 }
 if ($menu == 'S') {
+	$_SESSION['UserName'] = $brugernavn;
 	print "<script>try {parent.location.href = '../index/main.php'} catch {window.location.href = '../index/main.php'}</script>";
 	die();
 } else {
@@ -91,7 +95,10 @@ if ($menu=='T') {
 	#{ 
 	#header('Location: ../mobile/menu.php');
 	#}
-
+	if(if_isset($_SESSION,null,'UserName') == null){
+		$_SESSION['UserName'] = $brugernavn;
+	}
+	
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
@@ -123,6 +130,7 @@ function oldmenu() {
 	global $stor_knap_bg,$sprog_id, $brugernavn; #20210721
 	global $textcolor;
 	global $vejledning,$version;
+	$_SESSION['UserName'] = $brugernavn;
 	
 	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	print "<tr><td align='center' valign='top'>\n";
