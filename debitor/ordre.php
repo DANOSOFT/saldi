@@ -454,44 +454,44 @@ if (($kontakt=if_isset($_GET['kontakt']))&&($id)) {
 }
 
 ////// Tutorial //////
+if($status < 3){
+	$steps = array();
+	$steps[] = array(
+		"selector" => "[name=kontonr]",
+		"content" => "Når feltet er markeret, kan du trykke Enter for at søge i kundekataloget. Alternativt kan du indtaste et nyt kontonummer for at oprette en ny kunde – dette bekræftes ligeledes med Enter."
+	);
+	$steps[] = array(
+		"selector" => "#debitorkort",
+		"content" => "Når du har oprettet en ordre, kan du klikke her for at se kundens stamdata."
+	);
+	$steps[] = array(
+		"selector" => "[name=vare0]",
+		"content" => "Her kan du indtaste et varenummer for at tilføje en vare til ordren."
+	);
+	$steps[] = array(
+		"selector" => "[name=lookUp]",
+		"content" => "Når et varenummerfelt er markeret, kan du foretage et opslag af alle dine varer ved at klikke her."
+	);
+	$steps[] = array(
+		"selector" => "[name=udskriv_til]",
+		"content" => "Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den – f.eks. til mail, som PDF eller sendt gennem NemHandel med digital fakturering."
+	);
+	$steps[] = array(
+		"selector" => "[name=betalingsbet]",
+		"content" => "Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kundens opsætning."
+	);
+	$steps[] = array(
+		"selector" => "[name=betalingsdage]",
+		"content" => "Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kundens opsætning."
+	);
+	$steps[] = array(
+		"selector" => "[name=ean]",
+		"content" => "Her kan du indtaste EAN-nummeret, hvis du handler med f.eks. kommuner. Hvis du bruger digital fakturering, kan du indtast et identifikationsnummer (som f.eks. GLN eller EAN) efterfulgt af det specifikke nummer, f.eks. 'GLN:123456789102'."
+	);
 
-$steps = array();
-$steps[] = array(
-	"selector" => "[name=kontonr]",
-	"content" => "Når feltet er markeret, kan du trykke Enter for at søge i kundekataloget. Alternativt kan du indtaste et nyt kontonummer for at oprette en ny kunde – dette bekræftes ligeledes med Enter."
-);
-$steps[] = array(
-    "selector" => "#debitorkort",
-    "content" => "Når du har oprettet en ordre, kan du klikke her for at se kundens stamdata."
-);
-$steps[] = array(
-    "selector" => "[name=vare0]",
-    "content" => "Her kan du indtaste et varenummer for at tilføje en vare til ordren."
-);
-$steps[] = array(
-    "selector" => "[name=lookUp]",
-    "content" => "Når et varenummerfelt er markeret, kan du foretage et opslag af alle dine varer ved at klikke her."
-);
-$steps[] = array(
-    "selector" => "[name=udskriv_til]",
-    "content" => "Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den – f.eks. til mail, som PDF eller sendt gennem NemHandel med digital fakturering."
-);
-$steps[] = array(
-    "selector" => "[name=betalingsbet]",
-    "content" => "Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kundens opsætning."
-);
-$steps[] = array(
-    "selector" => "[name=betalingsdage]",
-    "content" => "Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kundens opsætning."
-);
-$steps[] = array(
-    "selector" => "[name=ean]",
-    "content" => "Her kan du indtaste EAN-nummeret, hvis du handler med f.eks. kommuner. Hvis du bruger digital fakturering, kan du indtast et identifikationsnummer (som f.eks. GLN eller EAN) efterfulgt af det specifikke nummer, f.eks. 'GLN:123456789102'."
-);
-
-include(__DIR__ . "/../includes/tutorial.php");
-create_tutorial("deb-order", $steps);
-
+	include(__DIR__ . "/../includes/tutorial.php");
+	create_tutorial("deb-order", $steps);
+}
 ////// Tutorial end //////
 
 if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 2008.05.11  Bliver kaldt ved skift af kontonr for ordrern
