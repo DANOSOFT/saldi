@@ -34,7 +34,7 @@ $submit = if_isset($_POST['submit']);
 $vare_id = if_isset($_GET['vare_id']);
 
 if (isset($_POST['salgspris']) && $_POST['salgspris']) {
-	$id = $_POST['id'];
+	$id = if_isset($_POST['id'], array());
 	$startdato = $_POST['startdato'];
 	$slutdato = $_POST['slutdato'];
 	$starttid = $_POST['starttid'];
@@ -44,22 +44,32 @@ if (isset($_POST['salgspris']) && $_POST['salgspris']) {
 	$ugedag = $_POST['ugedag'];
 	$slet = $_POST['slet'];
 
+	$startdag = $startdato;
+	$slutdag = $slutdato;
+
+
 	for ($x = 0; $x <= count($id) + 1; $x++) {
-		if ($slet[$x] && $id[$x])
+		if ($slet[$x] && $id[$x]) {
 			db_modify("delete from varetilbud where id=$id[$x]", __FILE__ . " linje " . __LINE__);
-		else {
+		} else {
 			$startdag[$x] = strtotime(usdate($startdato[$x]));
 			$slutdag[$x] = strtotime(usdate($slutdato[$x]));
-			if (!$starttid[$x])
+
+			if (!$starttid[$x]) {
 				$starttid[$x] = "00:00:00";
-			else
+			} else {
 				$starttid[$x] = tjektid($starttid[$x]);
-			if (!$sluttid[$x])
+			}
+
+			if (!$sluttid[$x]) {
 				$sluttid[$x] = "24:00:00";
-			else
+			} else {
 				$sluttid[$x] = tjektid($sluttid[$x]);
-			$salgspris[$x] *= 0.8;
-			$kostpris[$x] *= 1;
+			}
+
+			$salgspris[$x] = (float)$salgspris[$x] * 0.8;
+			$kostpris[$x] = (float)$kostpris[$x];
+
 			if ($id[$x]) {
 				$qtxt = "update varetilbud set";
 				$qtxt .= " startdag='$startdag[$x]',slutdag='$slutdag[$x]',starttid='$starttid[$x]',sluttid='$sluttid[$x]',ugedag='$ugedag[$x]',";
@@ -122,7 +132,7 @@ print "<tr><td colspan=\"2\"></td><td colspan=\"2\" align=\"center\"><b><big>$va
 print "<tr><td colspan=\"2\"></td><td>Salgspris</td><td align=\"right\">" . dkdecimal($varepris, 2) . "</td></tr>";
 print "<tr><td colspan=\"2\"></td><td>Kostpris</td><td align=\"right\">" . dkdecimal($varekost, 2) . "</td></tr>";
 print "<tr><td colspan=\"7\"><hr></td></tr>";
-print "<tr><td align=\"center\">Aktiv fra</td><td align=\"center\">Aktiv til</td><td align=\"center\">Fra kl</td><td align=\"center\">Til kl.</td><td align=\"center\">Tilbudspris<br>(Incl. moms)</td><td align=\"center\">Kostpris<br>(Ex. moms)</td><td align=\"center\">Ugedag</td><td align=\"center\">Slet</td></tr>";
+print "<tr><td align=\"center\">Aktiv fra</td><td align=\"center\">Aktiv til</td><td align=\"center\" style=\"width:90px\">Fra kl</td><td align=\"center\" style=\"width:90px\">Til kl.</td><td align=\"center\">Tilbudspris<br>(Incl. moms)</td><td align=\"center\">Kostpris<br>(Ex. moms)</td><td align=\"center\">Ugedag</td><td align=\"center\">Slet</td></tr>";
 
 for ($x = 0; $x < count($id); $x++) {
 	print "<tr>";
@@ -131,11 +141,22 @@ for ($x = 0; $x < count($id); $x++) {
 	print "<input type=\"text\" style=\"width:90px\" name=\"startdato[$x]\" value=\"$startdato[$x]\">";
 	print "</td>";
 	print "<td><input type=\"text\" style=\"width:90px\" name=\"slutdato[$x]\" value=\"$slutdato[$x]\"></td>";
-	print "<td><input type=\"text\" style=\"width:60px\" name=\"starttid[$x]\" value=\"$starttid[$x]\"></td>";
-	print "<td><input type=\"text\" style=\"width:60px\" name=\"sluttid[$x]\" value=\"$sluttid[$x]\"></td>";
+	print "<td><input type=\"text\" style=\"width:90px\" name=\"starttid[$x]\" value=\"$starttid[$x]\"></td>";
+	print "<td><input type=\"text\" style=\"width:90px\" name=\"sluttid[$x]\" value=\"$sluttid[$x]\"></td>";
 	print "<td><input type=\"text\" style=\"width:80px;text-align:right\" name=\"salgspris[$x]\" value=\"$salgspris[$x]\"></td>";
 	print "<td><input type=\"text\" style=\"width:80px;text-align:right\" name=\"kostpris[$x]\" value=\"$kostpris[$x]\"></td>";
-	print "<td><input type=\"text\" style=\"width:50px;text-align:right\" name=\"ugedag[$x]\" value=\"$ugedag[$x]\"></td>";
+	print "
+    <td>
+        <select style=\"width:50px;text-align:right\" name=\"ugedag[$x]\">
+            <option value=\"1\"" . ($ugedag[$x] == 1 ? " selected" : "") . ">Mandag</option>
+            <option value=\"2\"" . ($ugedag[$x] == 2 ? " selected" : "") . ">Tirsdag</option>
+            <option value=\"3\"" . ($ugedag[$x] == 3 ? " selected" : "") . ">Onsdag</option>
+            <option value=\"4\"" . ($ugedag[$x] == 4 ? " selected" : "") . ">Torsdag</option>
+            <option value=\"5\"" . ($ugedag[$x] == 5 ? " selected" : "") . ">Fredag</option>
+            <option value=\"6\"" . ($ugedag[$x] == 6 ? " selected" : "") . ">Lørdag</option>
+            <option value=\"7\"" . ($ugedag[$x] == 7 ? " selected" : "") . ">Søndag</option>
+        </select>
+    </td>";
 	print "<td><input type=\"checkbox\" name=\"slet[$x]\"></td>";
 	print "</tr>";
 }
@@ -145,11 +166,22 @@ print "<td>";
 print "<input type=\"text\" style=\"width:90px\" name=\"startdato[$x]\" value=\"\">";
 print "</td>";
 print "<td><input type=\"text\" style=\"width:90px\" name=\"slutdato[$x]\" value=\"\"></td>";
-print "<td><input type=\"text\" style=\"width:60px\" name=\"starttid[$x]\" value=\"\"></td>";
-print "<td><input type=\"text\" style=\"width:60px\" name=\"sluttid[$x]\" value=\"\"></td>";
+print "<td><input type=\"text\" style=\"width:90px\" name=\"starttid[$x]\" value=\"\"></td>";
+print "<td><input type=\"text\" style=\"width:90px\" name=\"sluttid[$x]\" value=\"\"></td>";
 print "<td><input type=\"text\" style=\"width:80px;text-align:right\" name=\"salgspris[$x]\" value=\"\"</td>";
 print "<td><input type=\"text\" style=\"width:80px;text-align:right\" name=\"kostpris[$x]\" value=\"\"></td>";
-print "<td><input type=\"text\" style=\"width:50px;text-align:right\" name=\"ugedag[$x]\" value=\"\"></td>";
+print "
+<td>
+	<select style=\"width:50px;text-align:right\" name=\"ugedag[$x]\">
+		<option value=\"1\">Mandag</option>
+		<option value=\"2\">Tirsdag</option>
+		<option value=\"3\">Onsdag</option>
+		<option value=\"4\">Torsdag</option>
+		<option value=\"5\">Fredag</option>
+		<option value=\"6\">Lørdag</option>
+		<option value=\"7\">Søndag</option>
+	</select>
+</td>";
 print "</tr>";
 print "<tr><td colspan=\"8\" align=\"center\"><br></td></tr>";
 print "<tr><td colspan=\"8\" align=\"center\"><input type=\"submit\" name=\"opdater\" value=\"Opdater\"></td></tr>";
@@ -160,13 +192,13 @@ print "</form>";
 function tjektid($tid)
 {
 	list($h, $i, $s) = explode(":", $tid);
-	$h *= 1;
+	$h = (int)$h;
 	if ($h > 24)
 		$h = 24;
-	$i *= 1;
+	$i = (int)$i;
 	if ($i > 59)
 		$i = 59;
-	$h *= 1;
+	$s = (int)$s;
 	if ($s > 59)
 		$s = 59;
 	if ($h == 24) {
