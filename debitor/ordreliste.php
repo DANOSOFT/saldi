@@ -94,7 +94,6 @@
 #ob_start();
 @session_start();
 $s_id=session_id();
-
 print "
 <script LANGUAGE=\"JavaScript\">
 <!--
@@ -305,7 +304,28 @@ if ($submit=if_isset($_POST,NULL,'submit')) {
 	$firma=if_isset($_POST['firma']);
 	$kontoid=if_isset($_POST['kontoid']);
 	$firmanavn_ant=if_isset($_POST['firmanavn_antal']);
+} elseif (isset($_POST["clear"])) {
+    // Clear all search criteria
+    $find = array();
+    $konto_id = NULL;
+    $udvaelg = NULL;
+    $kontoid = NULL;
+    $firma = NULL;
+    $firmanavn_ant = NULL;
+    
+    // Clear the stored search criteria in the database
+    $qtxt = "update grupper set box9='' where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'";
+    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+    
+    // Also clear the settings for debitorId
+    $qtxt = "update settings set var_value = NULL where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+    
+    // Redirect to the same page with only the view type preserved
+    print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?valg=$valg\">";
+    exit;
 }
+
 
 /* 20141106
 if (($firma)&&($firmanavn_ant>0)) {
@@ -606,6 +626,7 @@ $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $antal=$r['antal'];
 	
 
+
 print " </td></tr>\n<tr><td align=center valign=top>";
 #print "<table border=0 valign='top' $class><tbody>\n<tr valign=top align=center>"; 
 if ($menu=='T') {
@@ -636,7 +657,6 @@ if ($antal>$slut) {
 print "</tr>\n";
 
 #################################### Sogefelter ##########################################
-
 
 print "<form name=\"sogefelter\" action=\"ordreliste.php?konto_id=$konto_id&sort=$sort\" method=\"post\">\n";
 print "<input type=hidden name=valg value=$valg>\n";
@@ -1463,26 +1483,3 @@ function select_valg( $valg, $box ){  #20210623
 
 
 ?>
-
-<script>
-const clearButton = document.querySelector("[name=clear]");
-clearButton.addEventListener("click", (e) => {
-    e.preventDefault();
-    
-    const form = document.querySelector('form[name="sogefelter"]')
-    if (form) {
-        const findInputs = document.querySelectorAll('[name^="find["]')
-        findInputs.forEach(input => {
-			console.log(input)
-			if (input.tagName.toLowerCase() === 'select') {
-                // For select elements, set to first option or empty
-                input.selectedIndex = 1;
-            }else{
-				input.value = ''
-			}
-		})
-    }
-	const submitButton = document.querySelector(".ok")
-	submitButton.click()
-})
-</script>
