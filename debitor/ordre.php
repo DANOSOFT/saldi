@@ -490,7 +490,7 @@ $steps[] = array(
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
-create_tutorial("deblist", $steps);
+create_tutorial("deb-order", $steps);
 
 ////// Tutorial end //////
 

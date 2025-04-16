@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitor.php -----patch 4.1.0 ----2024-05-01--------------
+// --- debitor/debitor.php -----patch 4.1.0 ----2025-04-15--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20160218 Udvælg fungerer nu også hvis debitor er med i flere kategorier. Søg 20160218
@@ -55,6 +55,7 @@
 // 20230717 PBLM - Added link to booking on line 375
 // 20231128 MSC - Copy pasted new design into code
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250415 LOE Updated some variables using if_isset and some clean up.
 
 #ob_start();
 @session_start();
@@ -88,12 +89,12 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
-$id = if_isset($_GET['id']);
-$returside=if_isset($_GET['returside']);
-$valg= strtolower(if_isset($_GET['valg']));
-$sort = if_isset($_GET['sort']);
-$start = if_isset($_GET['start']);
-$nysort = if_isset($_GET['nysort']);
+$id = if_isset($_GET,NULL,'id');
+$returside=if_isset($_GET,NULL,'returside');
+$valg= strtolower(if_isset($_GET,NULL,'valg'));
+$sort = if_isset($_GET, NULL, 'sort');
+$start = if_isset($_GET, NULL, 'start');
+$nysort = if_isset($_GET, NULL, 'nysort');
 $invite=$mailTo=$mySale=array();
 if ($valg == 'kommission') setcookie("mySalePw", $s_id,0,"/");
 if (!$valg) $valg="debitor";
@@ -336,13 +337,14 @@ db_modify("update grupper set box9='$sort' where art = 'DLV' and kode='$valg' an
 
 $tidspkt=date("U");
  
-if ($search=if_isset($_POST['search'])) {
-	$find=if_isset($_POST['find']);
-	$valg=if_isset($_POST['valg']);
-	$sort = if_isset($_POST['sort']);
-	$nysort = if_isset($_POST['nysort']);
-	$firma=if_isset($_POST['firma']);
+if ($search = if_isset($_POST, NULL, 'search')) {
+	$find = if_isset($_POST, NULL, 'find');
+	$valg = if_isset($_POST, NULL, 'valg');
+	$sort = if_isset($_POST, NULL, 'sort');
+	$nysort = if_isset($_POST, NULL, 'nysort');
+	$firma = if_isset($_POST, NULL, 'firma');
 }
+
 
 
 if (!$valg) $valg = "debitor";
