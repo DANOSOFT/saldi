@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 4.1.0 ----2024-05-08----------
+// --- kreditor/ordreliste.php -----patch 4.1.0 ----2025-04-15----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,7 +16,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2014.03.19 addslashes erstattet med db_escape_string
 // 2104.09.16	Tilføjet oioublimport i bunden
@@ -27,6 +27,7 @@
 // 20230525 PHR - php8
 // 20231017 PHR Fixed an error in account selection ($firma);
 // 20240510 LOE fixed Undefined array key 1...file. Added a condition to list call on $firma
+// 20250415 LOE Updated some variables using if_isset and some clean up
 
 ob_start();
 @session_start();
@@ -46,23 +47,23 @@ include("../includes/topline_settings.php");
 
 global $menu;
 
-$ordrenumre = if_isset($_GET['ordrenumre']);
-$kontonumre = if_isset($_GET['kontonumre']);
-$modtagelsesnumre = if_isset($_GET['modtagelsesnumre']);
-$fakturanumre = if_isset($_GET['fakturanumre']);
-$ordredatoer = if_isset($_GET['ordredatoer']);
-$lev_datoer = if_isset($_GET['lev_datoer']);
-$lev_navne = if_isset($_GET['lev_navne']);
-$fakturadatoer = if_isset($_GET['fakturadatoer']);
-$genfaktdatoer = if_isset($_GET['genfaktdatoer']);
-$summer = if_isset($_GET['summer']);
-$firma = if_isset($_GET['firma']);
-$ref[0] = if_isset($_GET['ref']);
-$projekt[0] = if_isset($_GET['projekt']);
-$valg= if_isset($_GET['valg']);
-$sort = if_isset($_GET['sort']);
-$nysort = if_isset($_GET['nysort']);
-$kontoid= if_isset($_GET['kontoid']);
+$ordrenumre = if_isset($_GET, NULL, 'ordrenumre');
+$kontonumre = if_isset($_GET, NULL, 'kontonumre');
+$modtagelsesnumre = if_isset($_GET, NULL, 'modtagelsesnumre');
+$fakturanumre = if_isset($_GET, NULL, 'fakturanumre');
+$ordredatoer = if_isset($_GET, NULL, 'ordredatoer');
+$lev_datoer = if_isset($_GET, NULL, 'lev_datoer');
+$lev_navne = if_isset($_GET, NULL, 'lev_navne');
+$fakturadatoer = if_isset($_GET, NULL, 'fakturadatoer');
+$genfaktdatoer = if_isset($_GET, NULL, 'genfaktdatoer');
+$summer = if_isset($_GET, NULL, 'summer');
+$firma = if_isset($_GET, NULL, 'firma');
+$ref[0] = if_isset($_GET, NULL, 'ref');
+$projekt[0] = if_isset($_GET, NULL, 'projekt');
+$valg = if_isset($_GET, NULL, 'valg');
+$sort = if_isset($_GET, NULL, 'sort');
+$nysort = if_isset($_GET, NULL, 'nysort');
+$kontoid = if_isset($_GET, NULL, 'kontoid');
 
 $tidspkt=date("U");
 
@@ -86,26 +87,26 @@ if (!$returside) {
 }
  
 #if (isset($_POST)) {
-if ($submit=if_isset($_POST['submit'])) {
-	$ordrenumre = if_isset($_POST['ordrenumre']);
-	$modtagelsesnumre = if_isset($_POST['modtagelsesnumre']);
-	$kontonumre = if_isset($_POST['kontonumre']);
-	$fakturanumre = if_isset($_POST['fakturanumre']);
-	$ordredatoer = if_isset($_POST['ordredatoer']);
-	$lev_datoer = if_isset($_POST['lev_datoer']);
-	$lev_navne = if_isset($_POST['lev_navne']);
-	$fakturadatoer = if_isset($_POST['fakturadatoer']);
-	$genfaktdatoer = if_isset($_POST['genfaktdatoer']);
-	$summer = if_isset($_POST['summer']);
-	$firma = if_isset($_POST['firma']);
-	$ref[0] = if_isset($_POST['ref']);
-	$projekt[0] = if_isset($_POST['projekt']);
-	$valg=if_isset($_POST['valg']);
-	$sort = if_isset($_POST['sort']);
-	$nysort = if_isset($_POST['nysort']);
-	$firma=if_isset($_POST['firma']);
-	$kontoid=if_isset($_POST['kontoid']);
-}
+	if ($submit = if_isset($_POST, NULL, 'submit')) {
+		$ordrenumre = if_isset($_POST, NULL, 'ordrenumre');
+		$modtagelsesnumre = if_isset($_POST, NULL, 'modtagelsesnumre');
+		$kontonumre = if_isset($_POST, NULL, 'kontonumre');
+		$fakturanumre = if_isset($_POST, NULL, 'fakturanumre');
+		$ordredatoer = if_isset($_POST, NULL, 'ordredatoer');
+		$lev_datoer = if_isset($_POST, NULL, 'lev_datoer');
+		$lev_navne = if_isset($_POST, NULL, 'lev_navne');
+		$fakturadatoer = if_isset($_POST, NULL, 'fakturadatoer');
+		$genfaktdatoer = if_isset($_POST, NULL, 'genfaktdatoer');
+		$summer = if_isset($_POST, NULL, 'summer');
+		$firma = if_isset($_POST, NULL, 'firma');
+		$ref[0] = if_isset($_POST, NULL, 'ref');
+		$projekt[0] = if_isset($_POST, NULL, 'projekt');
+		$valg = if_isset($_POST, NULL, 'valg');
+		$sort = if_isset($_POST, NULL, 'sort');
+		$nysort = if_isset($_POST, NULL, 'nysort');
+		$kontoid = if_isset($_POST, NULL, 'kontoid');
+	}
+	
 
 #list($kontoid,$firma) = explode('|',$firma,2);
 // Check if $firma is empty
@@ -400,7 +401,7 @@ $refantal=$x;
 print "<td><span title= '".findtekst('2187|Vælg en referanceperson)', $sprog_id)."'><SELECT NAME='ref' value='$ref[0]' style='width:100px'>";
 print "<option>$ref[0]</option>";
 for ($x=1;$x<=$refantal; $x++) {print "<option>$ref[$x]</option>";}
-if ($ref[0]!=if_isset($ref[$x])) {print "<option>$ref[$x]</option>";}
+if ($ref[0]!=if_isset($_GET, NULL, 'ref', $x)) {print "<option>$ref[$x]</option>";}
 if ($ref[0]) {print "</SELECT></td>";}
 
 if ($vis_projekt) {
