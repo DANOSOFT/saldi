@@ -13,7 +13,7 @@ function customer_graph() {
         flex-direction: column;
         height: 350px;
     ">
-        <h4 style="margin: 0; color: #999">Antal kunder per tidspunkt gennesnit de sidste 90 dage</h4>
+        <h4 style="margin: 0; color: #999">Antal kunder per tidspunkt gennemsnit de sidste 90 dage</h4>
         <div id="customerHeatmap" style="flex: 1; width: 100%; height: 100%;"></div>
     </div>
     ';
