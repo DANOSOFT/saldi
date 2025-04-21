@@ -154,7 +154,7 @@ function pricelists(){
             $csvData = @file_get_contents($csv_url);
             if ($csvData === FALSE) {
             
-                print "<script>alert('Unable to fetch the CSV file. Please check the URL.');</script>";
+                print "<script>alert('Unable to fetch the CSV file1. Please check the URL.');</script>";
             
                 print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
 
@@ -284,6 +284,24 @@ function pricelists(){
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
+        ##############Sample varer################
+        // Build the full URL including protocol (http or https), host, and request URI
+        $fullUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+        $fullUrl .= "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+
+        // Output the full URL
+        $pos = strpos($fullUrl, 'systemdata/');
+
+        if ($pos !== false) {
+            // Keep everything up to and including 'systemdata/'
+            $basePath = substr($fullUrl, 0, $pos + strlen('systemdata/'));
+
+            $sampleVarer = $basePath.'sample_varer.csv';
+        }
+        ############################
+
+
+
  //**************** begin  add list form */
                 // Add Pricelist button
                
@@ -374,6 +392,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     print '</tr>';
 
     for ($x = 0; $x < count($id); $x++) {
+        if(empty($prisfil[$x])){
+            $prisfil[$x]=$sampleVarer;
+        }
         print '<tr>';
         print "<input type='hidden' name='id[$x]' value='" . htmlspecialchars($id[$x]) . "'>\n";
         print "<input type='hidden' name='beskrivelse[$x]' value='" . htmlspecialchars($beskrivelse[$x]) . "'>\n";
@@ -400,7 +421,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Row for 'prisfil'
         print '<tr>';
         print '<td><strong>Prisfil:</strong></td>';
+       
         print '<td><input type="text" name="edit_prisfil[' . $x . ']" value="' . htmlspecialchars($prisfil[$x]) . '"></td>';
+        
         print '</tr>';
         
         // Row for 'delimiter'
@@ -497,11 +520,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         #///////////////////////////////////
         if (!empty($prisfil[$x])) {
-            $url = $url = 'https://'.$prisfil[$x];
+            // $url = 'https://'.$prisfil[$x];
+           
+            $url = (str_starts_with($prisfil[$x], 'http')) ? $prisfil[$x] : 'https://' . $prisfil[$x];
 
             $delimiter = $delimiter[$x] ?? ';';
             
             $csv_url = filter_var($url, FILTER_SANITIZE_URL);
+
             if (!filter_var($url, FILTER_VALIDATE_URL)) {  
                 print "<script>alert('Invalid URL format.');</script>";
                 
@@ -510,7 +536,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             }
             
             $csvData = @file_get_contents($csv_url);
-            #var_dump($csv_url); exit;
+        #  echo $csv_url;
             if ($csvData === FALSE) {
             
                 print "<script>alert('Unable to fetch the CSV file. Please check the URL.edit');</script>";

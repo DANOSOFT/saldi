@@ -194,6 +194,7 @@
 // 20250213 PHR Vat rate defined by department(afd)
 // 20250228 LOE Casting of some variables to explicit int instead of using '*1'
 // 20250404 PHR Added call to updateOrderCost
+// 20250421 LOE A lot of array values updated with if_isset function to prevent numerous undefined errors, and some clean ups.
 
 @session_start();
 $s_id=session_id();
@@ -237,17 +238,17 @@ $title=findtekst(1092,$sprog_id);
 $txt370 = findtekst('370|Kontant',$sprog_id);
 $txt283 = findtekst('283|Kreditkort',$sprog_id);
 
-$localPrint=if_isset($_COOKIE['localPrint']);
+$localPrint=if_isset($_COOKIE, NULL,'localPrint');
 #print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
 #print "<script type=\"text/javascript\" src=\"https://code.jquery.com/jquery-latest.min.js\"></script>\n";
 #print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/arrowkey.js\"></script>\n";
-$funktion=if_isset($_GET['funktion']);
+$funktion=if_isset($_GET,NULL,'funktion');
 $tidspkt=date("U"); #20210719
 
-$id=if_isset($_GET['id']);
-$funktion=if_isset($_GET['funktion']);
-$sag_id=if_isset($_GET['sag_id']); // 20241126
-$konto_id=if_isset($_GET['konto_id']);
+$id        = if_isset($_GET, NULL, 'id');
+$funktion  = if_isset($_GET, NULL, 'funktion');
+$sag_id    = if_isset($_GET, NULL, 'sag_id'); // 20241126
+$konto_id  = if_isset($_GET, NULL, 'konto_id');
 
 $showLocalPrint='';
 $qtxt="select box1 from grupper where art='PV'";
@@ -358,17 +359,17 @@ if (isset($_GET['kundeordnr']) && $_GET['kundeordnr']) { #20200407
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$id=$r['id'];
 }
-$returside=if_isset($_GET['returside']);
+$returside=if_isset($_GET,NULL,'returside');
 if (isset($sag_id)) { // Returside sættes til 'sager' fra sager.php #20210715
 #  $returside=urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id");
 	$returside="../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id";
 }
 if ($popup) $returside="../includes/luk.php?id=$id&tabel=ordrer";
 
-if (($ret_tekst=if_isset($_GET['ret_tekst'])) && ($id=if_isset($_GET['id']))) tekstopslag($sort,$id);
+if (($ret_tekst=if_isset($_GET,NULL,'ret_tekst')) && ($id=if_isset($_GET,NULL,'id'))) tekstopslag($sort,$id);
 
-if (($tekst_id=if_isset($_GET['tekst_id'])) && ($id=if_isset($_GET['id']))) {
-	if ($slet_tekst=if_isset($_GET['slet_tekst'])) {
+if (($tekst_id=if_isset($_GET,NULL,'tekst_id')) && ($id=if_isset($_GET,NULL,'id'))) {
+	if ($slet_tekst=if_isset($_GET,NULL,'slet_tekst')) {
 		db_modify("delete from ordretekster where id = '$slet_tekst'",__FILE__ . " linje " . __LINE__);
 		header("location:ordre.php?id=$id&ret_tekst=$id"); 
 		exit();
@@ -376,22 +377,22 @@ if (($tekst_id=if_isset($_GET['tekst_id'])) && ($id=if_isset($_GET['id']))) {
 		db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','".db_escape_string($r['tekst'])."','9999')",__FILE__ . " linje " . __LINE__);
 	}
 }
-if (($tekst_sag_id=if_isset($_GET['tekst_sag_id'])) && ($id=if_isset($_GET['id']))) {
+if (($tekst_sag_id=if_isset($_GET,NULL,'tekst_sag_id')) && ($id=if_isset($_GET,NULL,'id'))) {
 	$r=db_fetch_array(db_select("select omfang from sager where id = '$tekst_sag_id'",__FILE__ . " linje " . __LINE__));
 	db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','".db_escape_string($r['omfang'])."','9999')",__FILE__ . " linje " . __LINE__);
 }
-if ($ny_linjetekst=if_isset($_POST['ny_linjetekst'])) {
+if ($ny_linjetekst=if_isset($_POST,NULL,'ny_linjetekst')) {
 	$ny_linjetekst=db_escape_string($ny_linjetekst);	
 	if (!$r=db_fetch_array(db_select("select id from ordretekster where tekst = '$ny_linjetekst'",__FILE__ . " linje " . __LINE__))){
 		db_modify("insert into ordretekster (tekst) values ('$ny_linjetekst')",__FILE__ . " linje " . __LINE__);
 	}
-	if ($id=if_isset($_POST['id'])) {
+	if ($id=if_isset($_POST,NULL,'id')) {
 		db_modify("insert into ordrelinjer (ordre_id,beskrivelse,posnr) values ('$id','$ny_linjetekst','9999')",__FILE__ . " linje " . __LINE__);
 	}
 }
 // Her hentes flere linjetekster til tilbud
 $posnrstart=NULL;
-if((isset($_POST['linjetekster']))&& ($id=if_isset($_POST['id']))) {
+if((isset($_POST['linjetekster']))&& ($id=if_isset($_POST,NULL,'id'))) {
 	$r=db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__));
 	$posnrstart=$r['posnr']+100;
 	foreach($_POST['linjetekster'] as $linjetekster){
@@ -402,7 +403,7 @@ if((isset($_POST['linjetekster']))&& ($id=if_isset($_POST['id']))) {
 	} 
 }
 #$alert = findtekst(15)
-if ($tjek=if_isset($_GET['tjek'])){
+if ($tjek=if_isset($_GET,NULL,'tjek')){
 	$qtxt="select tidspkt,hvem from ordrer where status < 3 and id = $tjek and hvem != '$brugernavn'"; #20220301
   if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))  {
 		if ($r['tidspkt'] && $tidspkt-($r['tidspkt'])<3600 && $r['hvem']){
@@ -414,10 +415,10 @@ if ($tjek=if_isset($_GET['tjek'])){
 	}
 }
 if (!$id) $id=if_isset($_GET['ordre_id']);
-$sort=if_isset($_GET['sort']);
-$fokus=if_isset($_GET['fokus']);
-$b_submit=if_isset($_GET['funktion']);
-$vis_kost=if_isset($_GET['vis_kost']);
+$sort=if_isset($_GET,NULL,'sort');
+$fokus     = if_isset($_GET, NULL, 'fokus');
+$b_submit  = if_isset($_GET, NULL, 'funktion');
+$vis_kost  = if_isset($_GET, NULL, 'vis_kost');
 if ($sort && $fokus && $b_submit=='vareOpslag') {
 	$qtxt="update settings set var_value='$sort' where var_name='vareOpslag' and var_grp='deb_ordre' and user_id='$bruger_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -446,7 +447,7 @@ if (isset($_GET['vis_lev_addr']) && $id) {
   db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 
 }
-if (($kontakt=if_isset($_GET['kontakt']))&&($id)) {
+if (($kontakt=if_isset($_GET,NULL,'kontakt'))&&($id)) {
 	db_modify("update ordrer set kontakt='$kontakt' where id='$id'",__FILE__ . " linje " . __LINE__);
 	if (isset($_GET['email']) && $_GET['email']) {
 		db_modify("update ordrer set email='$_GET[email]' where id='$id'",__FILE__ . " linje " . __LINE__);
@@ -687,8 +688,8 @@ if (!$id && $konto_id && $kontonr) {
 	}
 }
 if ($id && $status<3 && isset($_GET['vare_id'])) {
-	$vare_id[0]=$_GET['vare_id']*1;
-	$lager[0]=if_isset($_GET['lager'])*1;
+	$vare_id[0]=if_isset($_GET,0,'vare_id');
+	$lager[0]=if_isset($_GET,NULL,'lager');
 	$query = db_select("select grupper.box6 as box6,ordrer.valuta as valuta,ordrer.ordredate as ordredate,ordrer.status as status from ordrer,adresser,grupper where ordrer.id='$id' and adresser.id=ordrer.konto_id and grupper.art='DG' and ".nr_cast("grupper.kodenr")."=adresser.gruppe",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	if ($row['status']>2) {
@@ -696,9 +697,12 @@ if ($id && $status<3 && isset($_GET['vare_id'])) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">\n";
 		exit;
 	} else {
-		if ($r=db_fetch_array(db_select("select id,varenr,samlevare,salgspris from varer where id = '$vare_id[0]'",__FILE__ . " linje " . __LINE__))) {
-			$varenr[0]=$r['varenr'];
-			gendan_saet($id);
+		// Check if $vare_id[0] is not an array and can be a valid database ID
+		if (!is_array($vare_id[0]) && (is_int($vare_id[0]) || is_numeric($vare_id[0]))) {
+			if ($r=db_fetch_array(db_select("select id,varenr,samlevare,salgspris from varer where id = '$vare_id[0]'",__FILE__ . " linje " . __LINE__))) {
+				$varenr[0]=$r['varenr'];
+				gendan_saet($id);
+			}
 		}
 	}
 }
@@ -722,11 +726,11 @@ elseif (isset($_POST['lookUp']) && $_POST['lookUp']) $b_submit = 'Opslag';
 elseif (isset($_POST['print']) && $_POST['print']) $b_submit = 'Udskriv';
 elseif (isset($_POST['save']) && $_POST['save']) $b_submit = 'Gem';
 elseif (isset($_POST['send']) && $_POST['send']) $b_submit = 'Send';
-else $b_submit  = if_isset($_POST['b_submit']);
+else $b_submit  = if_isset($_POST,NULL,'b_submit');
 if ($b_submit == 'Credit') $b_submit = 'Krediter';
 if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 	$id = $_POST['id'];
-	$sum=if_isset($_POST['sum']);
+	$sum=if_isset($_POST,NULL,'sum');
 
 	$phone=trim($_POST['phone']);
 	$phone=str_replace(' ','',$phone);
@@ -919,67 +923,70 @@ if ($b_submit) {
 	$ordredate = usdate(if_isset($_POST['ordredato']));
 	$levdato = trim(if_isset($_POST['levdato']));
 #  $genfakt = trim(if_isset($_POST['genfakt']));
-	$fakturadato = trim(if_isset($_POST['fakturadato']));
-	$cvrnr = db_escape_string(trim($_POST['cvrnr']));
-	$procenttillag=usdecimal($procenttillag,2);
-	$institution = db_escape_string(trim($_POST['institution']));
-	$moms = if_isset($_POST['moms'])*1;
-	$betalingsbet = $_POST['betalingsbet'];
-	$betalingsdage = if_isset($_POST['betalingsdage'])*1;
-	$valuta = if_isset($_POST['valuta']);
-	$ny_valuta = if_isset($_POST['ny_valuta']);
-	$projekt = if_isset($_POST['projekt']);
+	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
+	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
+	$procenttillag  = usdecimal($procenttillag, 2); 
+	$institution    = db_escape_string(trim(if_isset($_POST, NULL, 'institution')));
+	$moms           = if_isset($_POST, NULL, 'moms') * 1;
+	$betalingsbet   = if_isset($_POST, NULL, 'betalingsbet');
+	$betalingsdage  = if_isset($_POST, NULL, 'betalingsdage') * 1;
+	$valuta         = if_isset($_POST, NULL, 'valuta');
+	$ny_valuta      = if_isset($_POST, NULL, 'ny_valuta');
+	$projekt        = if_isset($_POST, NULL, 'projekt');
 	if (!isset($projekt[0])) $projekt[0]=0;
-	$formularsprog = if_isset($_POST['sprog']);
-	$lev_adr = trim(if_isset($_POST['lev_adr']));
-	$sum=if_isset($_POST['sum']);
-	$linjeantal = if_isset($_POST['linjeantal']);
-	$linje_id = if_isset($_POST['linje_id']);
-	$kred_linje_id = if_isset($_POST['kred_linje_id']);
-	$posnr = if_isset($_POST['posnr']);
-	$sag_id = if_isset($_POST['sag_id']);
-	$sagsnr = if_isset($_POST['sagsnr']);
-	$tilbudnr = if_isset($_POST['tilbudnr']);
-	$datotid = if_isset($_POST['datotid']);
-	$nr = if_isset($_POST['nr']);
+	$formularsprog   = if_isset($_POST, NULL, 'sprog');
+	$lev_adr         = trim(if_isset($_POST, NULL, 'lev_adr'));
+	$sum             = if_isset($_POST, NULL, 'sum');
+	$linjeantal      = if_isset($_POST, NULL, 'linjeantal');
+	$linje_id        = if_isset($_POST, NULL, 'linje_id');
+	$kred_linje_id   = if_isset($_POST, NULL, 'kred_linje_id');
+	$posnr           = if_isset($_POST, NULL, 'posnr');
+	$sag_id          = if_isset($_POST, NULL, 'sag_id');
+	$sagsnr          = if_isset($_POST, NULL, 'sagsnr');
+	$tilbudnr        = if_isset($_POST, NULL, 'tilbudnr');
+	$datotid         = if_isset($_POST, NULL, 'datotid');
+	$nr              = if_isset($_POST, NULL, 'nr');
+
 	$returside = if_isset($_POST['returside']);
 	if ($status<3) $status = $_POST['status'];
 	$godkend = if_isset($_POST['godkend']);
 	$restordre = if_isset($_POST['restordre']);
 	($restordre)? $restordre="1":$restordre="0";
-	$omdan_t_fakt = if_isset($_POST['omdan_t_fakt']);
-	$kreditnota = if_isset($_POST['kreditnota']);
-	$ref = trim(if_isset($_POST['ref']));
-	$extAfd = if_isset($_POST['extAfd'],NULL);
-	$afd = if_isset($_POST['afd'],NULL);
-	$afd_lager = if_isset($_POST['afd_lager']);
-	$fakturanr = trim(if_isset($_POST['fakturanr']));
+	$omdan_t_fakt = if_isset($_POST, NULL, 'omdan_t_fakt');
+	$kreditnota   = if_isset($_POST, NULL, 'kreditnota');
+	$ref          = trim(if_isset($_POST, NULL, 'ref'));
+	$extAfd       = if_isset($_POST, NULL, 'extAfd');
+	$afd          = if_isset($_POST, NULL, 'afd');
+	$afd_lager    = if_isset($_POST, NULL, 'afd_lager');
+	$fakturanr    = trim(if_isset($_POST, NULL, 'fakturanr'));
 	$momssats = usdecimal($_POST['momssats'],2);
-	$procenttillag = usdecimal(if_isset($_POST['procenttillag']),2);
-	$mail_subj = db_escape_string(trim(if_isset($_POST['mail_subj'])));
+	$procenttillag = usdecimal(if_isset($_POST,0,'procenttillag'),2);
+	$mail_subj = db_escape_string(trim(if_isset($_POST,NULL,'mail_subj')));
 	$mail_text=db_escape_string(str_replace("\n","<br>",if_isset($_POST['mail_text'])));
-	$enhed = if_isset($_POST['enhed']);
-	$vare_id = if_isset($_POST['vare_id']);
-	$antal = if_isset($_POST['antal']);
-	$serienr = if_isset($_POST['serienr']);
-	$samlevare = if_isset($_POST['samlevare']);
-	$folgevare = if_isset($_POST['folgevare']);
-	$momsfri = if_isset($_POST['momsfri']);
-	$tidl_lev = if_isset($_POST['tidl_lev']);
-	$kdo = if_isset($_POST['kdo']);
-	$rabatart = if_isset($_POST['rabatart']);
-	$varemomssats = if_isset($_POST['varemomssats']);
-	$omkunde = if_isset($_POST['omkunde']);
-	$omvbet = if_isset($_POST['omvbet']);
-	$lev_varenr = if_isset($_POST['lev_varenr']);
-	$kostpris = if_isset($_POST['kostpris']);
-	$saet = if_isset($_POST['saet']);
-	$fast_db = if_isset($_POST['fast_db']);
-	$samlet_pris=if_isset($_POST['samlet_pris']);
+	$enhed         = if_isset($_POST, NULL, 'enhed');
+	$vare_id       = if_isset($_POST, NULL, 'vare_id');
+	$antal         = if_isset($_POST, NULL, 'antal');
+	$serienr       = if_isset($_POST, NULL, 'serienr');
+	$samlevare     = if_isset($_POST, NULL, 'samlevare');
+	$folgevare     = if_isset($_POST, NULL, 'folgevare');
+	$momsfri       = if_isset($_POST, NULL, 'momsfri');
+	$tidl_lev      = if_isset($_POST, NULL, 'tidl_lev');
+	$kdo           = if_isset($_POST, NULL, 'kdo');
+	$rabatart      = if_isset($_POST, NULL, 'rabatart');
+	$varemomssats  = if_isset($_POST, NULL, 'varemomssats');
+	$omkunde       = if_isset($_POST, NULL, 'omkunde');
+	$omvbet        = if_isset($_POST, NULL, 'omvbet');
+	$lev_varenr    = if_isset($_POST, NULL, 'lev_varenr');
+	$kostpris      = if_isset($_POST, NULL, 'kostpris');
+	$saet          = if_isset($_POST, NULL, 'saet');
+	$fast_db       = if_isset($_POST, NULL, 'fast_db');
+	$samlet_pris   = if_isset($_POST, NULL, 'samlet_pris');
+
 	if ($samlet_pris!='-') $samlet_pris=usdecimal($samlet_pris,2); #20150317
-	$bruttosum=if_isset($_POST['bruttosum']);
-	$ordresum=if_isset($_POST['ordresum']);
-	$lager=if_isset($_POST['lager']);
+	$bruttosum = if_isset($_POST, NULL, 'bruttosum');
+	$ordresum  = if_isset($_POST, NULL, 'ordresum');
+	$lager     = if_isset($_POST, NULL, 'lager');
+
 	
   if ($extAfd && $afd && $extAfd != $afd) {
     $qtxt = "select var_value from settings where var_name = 'maxDepVatRate_". $afd ."'";
@@ -2165,7 +2172,10 @@ if ($Urlc === false || empty(trim($Urlc))) {
 
 $originalUrl = $Urlc;
 if (!filter_var($Urlc, FILTER_VALIDATE_URL)) {
-    $Urlc = 'https://' . $Urlc;
+    if (strpos($Urlc, 'https://') !== 0) {
+		// Add 'https://' to $Urlc only if it doesn't already start with it
+		$Urlc = 'https://' . $Urlc;
+	}
 }
 
 $parsedUrl = parse_url($Urlc);

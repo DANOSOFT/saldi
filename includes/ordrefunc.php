@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-03-17 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-04-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -232,6 +232,7 @@
 // 20250116 CA  Rounding 'Afrunding' is calculated totally wrong and should not be on a credit nota (kreditnota) 
 // 20250317 LOE Internal pricelist sets to default view.
 // 20250408 PHR Function vareopslag: Fix for wrong sort in search.
+// 20250421 LOE Delimeter now takes directly from database seteup and default set if not given.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -5177,21 +5178,18 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			}
 			
 				print '<table style="width: 100%; border-collapse: collapse;">';
-				
-			
-				$delimiter = ","; // Default delimiter (comma)
+				// Default delimiter (comma)
+			   
 				
 				// Loop through each CSV file URL in the $prisfil array
 				$idCount = count($id);
 				for ($x = 0; $x < $idCount; $x++) {
 					// Construct the full URL by prepending "https://" to each file URL
-					#$url = "https://" . $prisfil[$x];
+					$delimiter = if_isset($delimiter[$x],',');
 					
 					if (!empty($prisfil[$x])) {
 						$url = $url = 'https://'.$prisfil[$x];
 
-						//$delimiter = $delimiter[$x] ?? ';'; //use when multiple are available
-						$delimiter = ';';
 						
 						$csv_url = filter_var($url, FILTER_SANITIZE_URL);
 						if (!filter_var($csv_url, FILTER_VALIDATE_URL)) {  
@@ -5201,7 +5199,6 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						}
 						
 						$csvData = @file_get_contents($csv_url);
-						#var_dump($csv_url); exit;
 						if ($csvData === FALSE) {
 						
 							print "<script>alert('Unable to fetch the CSV file. Please check the URL.edit');</script>";
