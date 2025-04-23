@@ -19,7 +19,7 @@ if ($vare_id === null) {
 genbestil($vare_id, $antal);
 
 function genbestil($vare_id, $antal) {
-	global $brugernavn,$db,$regnaar,$sprog_id;
+	global $brugernavn,$db,$regnaar,$sprog_id,$baseCurrency;
 	# Hent ansant til ordre ref
 	$r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
 	if ($r) {
@@ -56,17 +56,24 @@ function genbestil($vare_id, $antal) {
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			# Check if the kreditor is part of a kreditor group to see what momssats should be used
 			if ($r['gruppe']) {
-				$qtxt = "select box1 from grupper ";
+				$qtxt = "select box1, box3 from grupper ";
 				$qtxt.= "where kode = 'K' and art = 'KG' and kodenr = '$r[gruppe]' and fiscal_year = '$regnaar'";
 				$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				# Fetch the momskode
 				$kode=substr($r1['box1'],0,1); 
                 $kodenr=substr($r1['box1'],1);
-				$qtxt = "SELECT box1, box2 FROM grupper WHERE art = 'VK' and kodenr = '$kodenr'";
-				$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$valuta = $r2['box1'];
-				$valutaKurs = usdecimal($r2['box2']);
-				$pris = $pris / ($valutaKurs/100);
+				$valuta = $r1["box3"];
+				if($valuta != $baseCurrency){
+					$qtxt = "SELECT kodenr FROM grupper WHERE art = 'VK' and box1 = '$valuta'";
+					$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					$gruppe = $r2["kodenr"];
+					$query = db_select("SELECT kurs FROM valuta WHERE gruppe = '$gruppe' ORDER BY valdate DESC LIMIT 1");
+					$r2 = db_fetch_array($query);
+					$valutaKurs = $r2["kurs"];
+					$pris = $pris / ($valutaKurs/100);
+				}else{
+					$valutaKurs = 100;
+				}
 			}	else {
 				$qtxt="select varenr from varer where id = '$vare_id'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

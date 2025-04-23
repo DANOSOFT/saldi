@@ -6470,6 +6470,7 @@ if (!function_exists('find_nextfakt')) {
 if (!function_exists('gls_label')) {
 	function gls_label($gls_username, $gls_password, $gls_customerid, $gls_ctId, $ordrenr, $kundeordnr, $firmanavn, $addr1, $postnr, $bynavn, $land, $email, $lev_navn, $lev_addr1, $lev_postnr, $lev_bynavn, $lev_land, $kontakt, $weight)
 	{
+		global $db;
 		$weight = ceil($weight);
 		if ($weight < 1)
 			$weight = 1;
@@ -6528,6 +6529,7 @@ if (!function_exists('gls_label')) {
 			]
 		];
 		$json = json_encode($ary);
+		file_put_contents("../temp/$db/pdf.json", $json);
 		$service_url = 'http://api.gls.dk/ws/DK/V1/CreateShipment/';
 		// jSON String for request
 		$json_string = $json;
@@ -6537,7 +6539,7 @@ if (!function_exists('gls_label')) {
 		$options = array(
 			CURLOPT_RETURNTRANSFER => true,
 			//CURLOPT_USERPWD => $username . ":" . $password,  // authentication
-//CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1') ,
+			//CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1') ,
 			CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1'),
 			CURLOPT_POSTFIELDS => $json_string
 		);
@@ -6547,18 +6549,38 @@ if (!function_exists('gls_label')) {
 
 		// Getting results
 		$result = curl_exec($ch); // Getting jSON result string
-		$res = (json_decode($result));
-		ob_clean();
+		if (curl_errno($ch)) {
+			// Handle curl error
+			die('Curl error: ' . curl_error($ch));
+		}
+		curl_close($ch);
 
-		/* GLS funktion slut */
+		file_put_contents("../temp/$db/pdf-res.json", $result);
+		$res = json_decode($result);
 
-		header('Content-Disposition: attachment; filename=' . $ordrenr . '.pdf');
-		header('Content-Type: text/html; charset: utf-8');
-		header('Content-Description: File Transfer');
+		if (!$res || !isset($res->PDF)) {
+			// Handle API error
+			die('Invalid response from GLS API');
+		}
+
+		// Clean all output buffers
+		while (ob_get_level()) {
+			ob_end_clean();
+		}
+
+		// Set headers for PDF download
+		header('Content-Type: application/pdf');
+		header('Content-Disposition: attachment; filename="' . $ordrenr . '.pdf"');
+		header('Content-Length: ' . strlen(base64_decode($res->PDF)));
+		header('Content-Transfer-Encoding: binary');
+		header('Cache-Control: private, no-cache, no-store, must-revalidate');
+		header('Pragma: no-cache');
 		header('Expires: 0');
-		header('Cache-Control: must-revalidate');
-		header('Pragma: public');
-		echo base64_decode($res->PDF); // this is essential
+
+		// Output PDF content
+		echo base64_decode($res->PDF);
+		exit();
+		/* GLS funktion slut */
 	}
 }
 
