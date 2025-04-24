@@ -211,7 +211,7 @@ if (!function_exists('db_select')) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_type;
-		global $sqdb;
+		global $s_id,$sqdb;
 
 		if (!function_exists('alert')) include('std_func.php'); #20230730
 
@@ -219,7 +219,12 @@ if (!function_exists('db_select')) {
 
 		$temp = get_relative() . 'temp/' . $db;
 
-		if (!file_exists($temp)) mkdir($temp, 0775);
+		if (!file_exists($temp)) {
+			mkdir($temp, 0777);
+			$onlineLog = get_relative() . 'temp/.ht_online.log';
+			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
+			file_put_contents($onlineLog, $onlineTxt, FILE_APPEND);
+		}
 		if ($db_type=="mysql") {
 			$query=mysql_query($qtext);
 			$errtxt=mysql_error();
