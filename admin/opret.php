@@ -329,7 +329,7 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	######## Grupper ########
 	$qtxt = "CREATE TABLE grupper ";
 	$qtxt.= "(id serial NOT NULL,beskrivelse text,kode text,kodenr integer,art text,box1 text,box2 text,box3 text,box4 text,box5 text,";
-	$qtxt.= "box6 text,box7 text,box8 text,box9 text,box10 text,box11 text,box12 text,box13 text,box14 text,fiscal_year integer,PRIMARY KEY (id))"
+	$qtxt.= "box6 text,box7 text,box8 text,box9 text,box10 text,box11 text,box12 text,box13 text,box14 text,fiscal_year integer,PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 	######## Kassekladde ########
@@ -628,7 +628,7 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	$qtxt .= "local_name varchar(100), PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, ofset INTEGER, sort TEXT)", __FILE__ . " line " . __LINE__);
+	db_modify("CREATE TABLE IF NOT EXISTS datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, \"sort\" TEXT)", __FILE__ . " line " . __LINE__);
 
 	db_modify("CREATE TABLE IF NOT EXISTS tutorials (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tutorial_id CHARACTER VARYING(10), selector TEXT)", __FILE__ . " line " . __LINE__);
 
