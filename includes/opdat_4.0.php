@@ -1219,7 +1219,7 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='datables'";
 				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$qtxt = "CREATE TABLE datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), ";
-					$qtxt.= "column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, ofset INTEGER, sort TEXT)";
+					$qtxt.= "column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, \"sort\" TEXT)";
 					db_modify($qtxt, __FILE__ . " line " . __LINE__);
 				}
 				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tutorials'";
