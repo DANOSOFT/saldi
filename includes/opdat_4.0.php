@@ -1102,7 +1102,7 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 			}
 			if ($db!=$sqdb){
 				include("../includes/online.php");
-				include('../includes/stdFunc/ensureTableAndColumns.php')
+				include('../includes/stdFunc/ensureTableAndColumns.php');
 				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'item_name' => 'varchar (255)', 'product_id' => 'INTEGER'];
 				ensureTableAndColumns($db, 'rentalitems', $expectedColumns);
 				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'order_id' => 'INTEGER', 'rt_from' => 'numeric(15,0)', 'rt_to' => 'numeric(15,0)', 'item_id' => 'INTEGER', 'cust_id' => 'INTEGER', "expiry_time" => 'TIMESTAMP'];
@@ -1219,13 +1219,13 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='datables'";
 				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$qtxt = "CREATE TABLE datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), ";
-					$qtxt.= "column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, offset INTEGER, sort TEXT)";
+					$qtxt.= "column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, ofset INTEGER, sort TEXT)";
 					db_modify($qtxt, __FILE__ . " line " . __LINE__);
 				}
 				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tutorials'";
 				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$qtxt = "CREATE TABLE tutorials (id SERIAL PRIMARY KEY,	user_id INTEGER NOT NULL, tutorial_id CHARACTER VARYING(10),selector TEXT)";
-					db_modify(, __FILE__ . " line " . __LINE__);
+					db_modify($qtxt, __FILE__ . " line " . __LINE__);
 				}
 				$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name='variant_varer' AND column_name='variant_type' AND data_type != 'character varying'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
