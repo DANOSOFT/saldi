@@ -23,7 +23,7 @@
 // Copyright (c) 2005-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
-if (!function_exists(ensureTableAndColumns)) {
+if (!function_exists("ensureTableAndColumns")) {
 	function ensureTableAndColumns($db, $tableName, $expectedColumns, $renameColumns = []) {
 		// Check if table exists
 		$qtxt = "SELECT table_name FROM information_schema.tables WHERE (table_schema = '$db' or table_catalog='$db') and table_name='$tableName'";
