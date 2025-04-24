@@ -35,14 +35,14 @@ $steps[] = array(
 );
 $steps[] = array(
   "selector" => ".bg-success",
-  "content" => "De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag eller stand."
+  "content" => "De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag/stand."
 );
 $steps[] = array(
   "selector" => ".searchItem",
   "content" => "Klik på et standnavn for at se bookinger, oprette nye eller spærre standen."
 );
 $steps[] = array(
-  "selector" => ".row",
+  "selector" => ".spærring",
   "content" => "Her kan du oprette spærringer. En spærring er en slags 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret."
 );
 $steps[] = array(
@@ -114,7 +114,7 @@ $steps[] = array(
 <button type="button" class="show-modal" data-bs-toggle="modal" data-bs-target="#exampleModal" hidden></button>
         <div class="back-button"></div>
       <div class="calendar">
-        <div class="sticky-top w-100 " style="background-color: #fff; height: 4rem;">
+        <div class="w-100 header" style="background-color: #fff; height: 4rem;">
           <div class="d-flex justify-content-between flex-content width-50 mx-auto pt-1">
             <button class="btn btn-primary backward w-1/2" style="height: 50%;">
               <svg xmlns="http://www.w3.org/2000/svg" width="45" height="24" fill="currentColor" class="bi bi-arrow-left arrow" viewBox="0 0 16 16">

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-03-17 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-04-21 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -232,6 +232,7 @@
 // 20250116 CA  Rounding 'Afrunding' is calculated totally wrong and should not be on a credit nota (kreditnota) 
 // 20250317 LOE Internal pricelist sets to default view.
 // 20250408 PHR Function vareopslag: Fix for wrong sort in search.
+// 20250421 LOE Delimeter now takes directly from database seteup and default set if not given.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -5177,21 +5178,18 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			}
 			
 				print '<table style="width: 100%; border-collapse: collapse;">';
-				
-			
-				$delimiter = ","; // Default delimiter (comma)
+				// Default delimiter (comma)
+			   
 				
 				// Loop through each CSV file URL in the $prisfil array
 				$idCount = count($id);
 				for ($x = 0; $x < $idCount; $x++) {
 					// Construct the full URL by prepending "https://" to each file URL
-					#$url = "https://" . $prisfil[$x];
+					$delimiter = if_isset($delimiter[$x],',');
 					
 					if (!empty($prisfil[$x])) {
 						$url = $url = 'https://'.$prisfil[$x];
 
-						//$delimiter = $delimiter[$x] ?? ';'; //use when multiple are available
-						$delimiter = ';';
 						
 						$csv_url = filter_var($url, FILTER_SANITIZE_URL);
 						if (!filter_var($csv_url, FILTER_VALIDATE_URL)) {  
@@ -5201,7 +5199,6 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						}
 						
 						$csvData = @file_get_contents($csv_url);
-						#var_dump($csv_url); exit;
 						if ($csvData === FALSE) {
 						
 							print "<script>alert('Unable to fetch the CSV file. Please check the URL.edit');</script>";
@@ -6473,6 +6470,7 @@ if (!function_exists('find_nextfakt')) {
 if (!function_exists('gls_label')) {
 	function gls_label($gls_username, $gls_password, $gls_customerid, $gls_ctId, $ordrenr, $kundeordnr, $firmanavn, $addr1, $postnr, $bynavn, $land, $email, $lev_navn, $lev_addr1, $lev_postnr, $lev_bynavn, $lev_land, $kontakt, $weight)
 	{
+		global $db;
 		$weight = ceil($weight);
 		if ($weight < 1)
 			$weight = 1;
@@ -6531,6 +6529,7 @@ if (!function_exists('gls_label')) {
 			]
 		];
 		$json = json_encode($ary);
+		file_put_contents("../temp/$db/pdf.json", $json);
 		$service_url = 'http://api.gls.dk/ws/DK/V1/CreateShipment/';
 		// jSON String for request
 		$json_string = $json;
@@ -6540,7 +6539,7 @@ if (!function_exists('gls_label')) {
 		$options = array(
 			CURLOPT_RETURNTRANSFER => true,
 			//CURLOPT_USERPWD => $username . ":" . $password,  // authentication
-//CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1') ,
+			//CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1') ,
 			CURLOPT_HTTPHEADER => array('Content-type: application/json; charset=ISO-8859-1'),
 			CURLOPT_POSTFIELDS => $json_string
 		);
@@ -6550,18 +6549,38 @@ if (!function_exists('gls_label')) {
 
 		// Getting results
 		$result = curl_exec($ch); // Getting jSON result string
-		$res = (json_decode($result));
-		ob_clean();
+		if (curl_errno($ch)) {
+			// Handle curl error
+			die('Curl error: ' . curl_error($ch));
+		}
+		curl_close($ch);
 
-		/* GLS funktion slut */
+		file_put_contents("../temp/$db/pdf-res.json", $result);
+		$res = json_decode($result);
 
-		header('Content-Disposition: attachment; filename=' . $ordrenr . '.pdf');
-		header('Content-Type: text/html; charset: utf-8');
-		header('Content-Description: File Transfer');
+		if (!$res || !isset($res->PDF)) {
+			// Handle API error
+			die('Invalid response from GLS API');
+		}
+
+		// Clean all output buffers
+		while (ob_get_level()) {
+			ob_end_clean();
+		}
+
+		// Set headers for PDF download
+		header('Content-Type: application/pdf');
+		header('Content-Disposition: attachment; filename="' . $ordrenr . '.pdf"');
+		header('Content-Length: ' . strlen(base64_decode($res->PDF)));
+		header('Content-Transfer-Encoding: binary');
+		header('Cache-Control: private, no-cache, no-store, must-revalidate');
+		header('Pragma: no-cache');
 		header('Expires: 0');
-		header('Cache-Control: must-revalidate');
-		header('Pragma: public');
-		echo base64_decode($res->PDF); // this is essential
+
+		// Output PDF content
+		echo base64_decode($res->PDF);
+		exit();
+		/* GLS funktion slut */
 	}
 }
 

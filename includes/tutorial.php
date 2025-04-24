@@ -1,4 +1,5 @@
 <?php
+ob_start();
 
 function create_tutorial($id, $steps)
 {

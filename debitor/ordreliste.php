@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.0 ----2024-09-06--------------
+// --- debitor/ordreliste.php -----patch 4.1.0 ----2025-04-15--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20121004 Fjernet email fra $selectfelter og indsat søgerutine til emails - søg 20121004
@@ -89,11 +89,11 @@
 // 20240815 PHR- $title 
 // 20250828 PHR error in translation of 'tilbud'
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
-// 06-01-2024 PBLM Added box5 on line 1187 for the extra api client
+// 20240106 PBLM Added box5 on line 1187 for the extra api client
+// 20250415 LOE Updated some variables using if_isset
 #ob_start();
 @session_start();
 $s_id=session_id();
-
 print "
 <script LANGUAGE=\"JavaScript\">
 <!--
@@ -183,8 +183,8 @@ $nextfakt1 = strtolower(str_replace(' ','_', $kk));
 
  #if($h1= db_fetch_array(db_select("select*from grupper where art='OLV' and kode='$valg' and kodenr = '$bruger_id' ",__FILE__ . " linje " . __LINE__))) $q =$h1['box3']; #2021/05/31
 
-$id = if_isset($_GET['id']);
-$konto_id = if_isset($_GET['konto_id']);
+ $id = if_isset($_GET, NULL, 'id');
+ $konto_id = if_isset($_GET, NULL, 'konto_id'); 
 if ($konto_id) {
 	$qtxt = "update settings set var_value = '$konto_id' where ";
 	$qtxt.= "var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
@@ -195,29 +195,29 @@ if ($konto_id) {
 #	(isset($_SESSION['debitorId']) && $_SESSION['debitorId']) $konto_id  = $_SESSION['debitorId'];
 }
 if ($konto_id) $returside = "../debitor/debitorkort.php?id=$konto_id";
-else $returside=if_isset($_GET['returside']);
+else $returside=if_isset($_GET,NULL,'returside');
 if (!$returside) $returside = '../index/menu.php';
-$valg= strtolower(if_isset($_GET['valg']));
-$sort = if_isset($_GET['sort']);
-$nysort = if_isset($_GET['nysort']);
-$kontoid= if_isset($_GET['kontoid']);
-$genberegn = if_isset($_GET['genberegn']);
-$start = if_isset($_GET['start']);
+$valg = strtolower(if_isset($_GET, NULL, 'valg'));
+$sort = if_isset($_GET, NULL, 'sort');
+$nysort = if_isset($_GET, NULL, 'nysort');
+$kontoid = if_isset($_GET, NULL, 'kontoid');
+$genberegn = if_isset($_GET, NULL, 'genberegn');
+$start = if_isset($_GET, NULL, 'start');
 if(empty($start)){$start=0;} #20210817
-$vis_lagerstatus = if_isset($_GET['vis_lagerstatus']);
-$gem=if_isset($_GET['gem']);
-$gem_id=if_isset($_GET['gem_id']);
-$download=if_isset($_GET['download']);
-$hent_nu=if_isset($_GET['hent_nu']);
-$shop_ordre_id=if_isset($_GET['shop_ordre_id']);
-$shop_faktura=if_isset($_GET['shop_faktura']);
+$vis_lagerstatus = if_isset($_GET, NULL, 'vis_lagerstatus');
+$gem = if_isset($_GET, NULL, 'gem');
+$gem_id = if_isset($_GET, NULL, 'gem_id');
+$download = if_isset($_GET, NULL, 'download');
+$hent_nu = if_isset($_GET, NULL, 'hent_nu');
+$shop_ordre_id = if_isset($_GET, NULL, 'shop_ordre_id');
+$shop_faktura = if_isset($_GET, NULL, 'shop_faktura');
 # if ($hent_nu && file_exists("../temp/$db/shoptidspkt.txt")) unlink ("../temp/$db/shoptidspkt.txt");
 
 if (!$returside && $konto_id && !$popup) {
 	$returside="debitorkort.php?id=$konto_id";
 }
 if (isset($_GET['valg'])) setcookie("saldi_ordreliste","$valg");
-else $valg = if_isset($_COOKIE['saldi_ordreliste']);
+else $valg = if_isset($_COOKIE,NULL,'saldi_ordreliste');
 
 $r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__));
 
@@ -295,7 +295,7 @@ if (!$popup) {
 $tidspkt=date("U");
  
 #if (isset($_POST)) {
-if ($submit=if_isset($_POST['submit'])) {
+if ($submit=if_isset($_POST,NULL,'submit')) {
 	if (strstr($submit, "Genfaktur")) $submit="Genfakturer";
 	$find=if_isset($_POST['find']);
 	$valg=if_isset($_POST['valg']);
@@ -304,7 +304,28 @@ if ($submit=if_isset($_POST['submit'])) {
 	$firma=if_isset($_POST['firma']);
 	$kontoid=if_isset($_POST['kontoid']);
 	$firmanavn_ant=if_isset($_POST['firmanavn_antal']);
+} elseif (isset($_POST["clear"])) {
+    // Clear all search criteria
+    $find = array();
+    $konto_id = NULL;
+    $udvaelg = NULL;
+    $kontoid = NULL;
+    $firma = NULL;
+    $firmanavn_ant = NULL;
+    
+    // Clear the stored search criteria in the database
+    $qtxt = "update grupper set box9='' where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'";
+    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+    
+    // Also clear the settings for debitorId
+    $qtxt = "update settings set var_value = NULL where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
+    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+    
+    // Redirect to the same page with only the view type preserved
+    print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?valg=$valg\">";
+    exit;
 }
+
 
 /* 20141106
 if (($firma)&&($firmanavn_ant>0)) {
@@ -336,13 +357,13 @@ else {$status="(ordrer.status = 1 or ordrer.status = 2)";}
 if ($r=db_fetch_array(db_select("select distinct id from ordrer where projekt > '0' and $status",__FILE__ . " linje " . __LINE__))) $vis_projekt='on';
 
 
-$ordre_id = if_isset($_POST['ordre_id']); 
-$checked = if_isset($_POST['checked']);
+$ordre_id = if_isset($_POST,NULL,'ordre_id'); 
+$checked = if_isset($_POST,NULL,'checked');
 
 
 
 
-$slet_valgte=if_isset($_POST['slet_valgte']); 
+$slet_valgte=if_isset($_POST,NULL,'slet_valgte'); 
 #if ($slet_valgte=='Slet') {
 if ($slet_valgte==findtekst(1099, $sprog_id)) { #20210817 applying the translated values for delete here
 	
@@ -419,7 +440,7 @@ else include_once 'ordLstIncludes/oldTopLine.php';
 $steps = array();
 $steps[] = array(
 	"selector" => "#ordrer",
-	"content" => "Her kan du se dine ordrer"
+	"content" => "Her ser du en liste af alle dine ordrer."
 );
 $steps[] = array(
     "selector" => "#ny",
@@ -432,7 +453,7 @@ $steps[] = array(
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
-create_tutorial("deblist", $steps);
+create_tutorial("order-list", $steps);
 
 ////// Tutorial end //////
 
@@ -605,6 +626,7 @@ $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $antal=$r['antal'];
 	
 
+
 print " </td></tr>\n<tr><td align=center valign=top>";
 #print "<table border=0 valign='top' $class><tbody>\n<tr valign=top align=center>"; 
 if ($menu=='T') {
@@ -635,7 +657,6 @@ if ($antal>$slut) {
 print "</tr>\n";
 
 #################################### Sogefelter ##########################################
-
 
 print "<form name=\"sogefelter\" action=\"ordreliste.php?konto_id=$konto_id&sort=$sort\" method=\"post\">\n";
 print "<input type=hidden name=valg value=$valg>\n";
@@ -1462,26 +1483,3 @@ function select_valg( $valg, $box ){  #20210623
 
 
 ?>
-
-<script>
-const clearButton = document.querySelector("[name=clear]");
-clearButton.addEventListener("click", (e) => {
-    e.preventDefault();
-    
-    const form = document.querySelector('form[name="sogefelter"]')
-    if (form) {
-        const findInputs = document.querySelectorAll('[name^="find["]')
-        findInputs.forEach(input => {
-			console.log(input)
-			if (input.tagName.toLowerCase() === 'select') {
-                // For select elements, set to first option or empty
-                input.selectedIndex = 1;
-            }else{
-				input.value = ''
-			}
-		})
-    }
-	const submitButton = document.querySelector(".ok")
-	submitButton.click()
-})
-</script>

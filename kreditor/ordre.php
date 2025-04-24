@@ -102,7 +102,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
-$returside = if_isset($_GET['returside']);
+$returside = if_isset($_GET,NULL,'returside');
 
 #if ($popup) $returside="../includes/luk.php";
 #elseif (!$returside) $returside="../kreditor/ordreliste.php";
@@ -133,26 +133,29 @@ if ($r=db_fetch_array(db_SELECT($qtxt,__FILE__ . " linje " . __LINE__))) $negati
 if($r=db_fetch_array(db_select("select id from labels limit 1",__FILE__ . " linje " . __LINE__))) $labelprint=1;
 else $labelprint=NULL;
 
-if(isset($_GET['id']))       $id=$_GET['id'];  #20210716 This is used to correct undefined index error on the former code
-if(isset($_GET['vis']))      $vis=$_GET['vis'];
-if(isset($_GET['sort']))     $_GET['sort'];
-if(isset($_GET['fokus']))    $fokus=$_GET['fokus'];
-if(isset($_GET['funktion'])) $submit=$_GET['funktion'];
-if(isset($_GET['kontakt']))  $kontakt=$_GET['kontakt'];
-
-if     (isset($_POST['copy']) && $_POST['copy'])       $submit = 'copy';
-elseif (isset($_POST['credit']) && $_POST['credit'])   $submit = 'credit';
-elseif (isset($_POST['lookup']) && $_POST['lookup'])   $submit = 'lookup';
-elseif (isset($_POST['postNow']) && $_POST['postNow']) $submit = 'postNow';
-elseif (isset($_POST['print']) && $_POST['print'])     $submit = 'print';
-elseif (isset($_POST['receive']) && $_POST['receive']) $submit = 'receive';
-elseif (isset($_POST['return']) && $_POST['return'])   $submit = 'receive';
-elseif (isset($_POST['save']) && $_POST['save'])       $submit = 'save';
-elseif (isset($_POST['split']) && $_POST['split'])     $submit = 'split';
+$id = if_isset($_GET, NULL, 'id');
+$vis = if_isset($_GET, NULL, 'vis');
+$sort = if_isset($_GET, NULL, 'sort');
+$fokus = if_isset($_GET, NULL, 'fokus');
+$submit = if_isset($_GET, NULL, 'funktion');
+$kontakt = if_isset($_GET, NULL, 'kontakt');
 
 
-$lager=if_isset($_GET['lager']);
-$konto_id=if_isset($_GET['konto_id']);
+if (if_isset($_POST, NULL, 'copy'))        $submit = 'copy';
+elseif (if_isset($_POST, NULL, 'credit'))  $submit = 'credit';
+elseif (if_isset($_POST, NULL, 'lookup'))  $submit = 'lookup';
+elseif (if_isset($_POST, NULL, 'postNow')) $submit = 'postNow';
+elseif (if_isset($_POST, NULL, 'print'))   $submit = 'print';
+elseif (if_isset($_POST, NULL, 'receive')) $submit = 'receive';
+elseif (if_isset($_POST, NULL, 'return'))  $submit = 'receive';
+elseif (if_isset($_POST, NULL, 'save'))    $submit = 'save';
+elseif (if_isset($_POST, NULL, 'split'))   $submit = 'split';
+
+
+
+$lager = if_isset($_GET, NULL, 'lager');
+$konto_id = if_isset($_GET, NULL, 'konto_id');
+
 if (!$id && $konto_id) {
 	include_once('orderIncludes/insertAccount.php');
 	$id = insertAccount(0, $konto_id);
@@ -256,65 +259,105 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 		}
 	}
 }
+
+////// Tutorial //////
+
+$steps = array();
+$steps[] = array(
+	"selector" => "[name=kontonr]",
+	"content" => "Indtast kontonummeret på kreditor, og klik 'Gem' for at hente kreditors oplysninger."
+);
+$steps[] = array(
+    "selector" => "[name=vare0]",
+    "content" => "Her kan du indtaste et varenummer for at tilføje en vare til ordren."
+);
+$steps[] = array(
+    "selector" => "[name=lookup]",
+    "content" => "Når et varenummerfelt er markeret, kan du foretage et opslag af alle dine varer ved at klikke her."
+);
+$steps[] = array(
+    "selector" => "[name=udskriv_til]",
+    "content" => "Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den."
+);
+$steps[] = array(
+    "selector" => "[name=betalingsbet]",
+    "content" => "Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning."
+);
+$steps[] = array(
+    "selector" => "[name=betalingsdage]",
+    "content" => "Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning."
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("kred-order", $steps);
+
+////// Tutorial end //////
+
 $status = null;
 if(isset($_POST['status'])) $status=$_POST['status'];
 	if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_POST['copy'])) { #20120816
- 		$fokus=$_POST['fokus'];
-		if (isset ($POST['credit']) && $POST['credit']) $submit = 'credit';
-		elseif (isset ($POST['copy']) && $POST['copy']) $submit = 'copy';
-		if (isset($_POST['id'])) $id = if_isset($_POST['id'],0);
-		$ordrenr     = if_isset($_POST['ordrenr']);
-		$kred_ord_id = if_isset($_POST['kred_ord_id']);
-		$art         = if_isset($_POST['art']);
-		$konto_id    = if_isset($_POST['konto_id']);
-		$kontonr     = if_isset($_POST['kontonr']);
-		$firmanavn   = db_escape_string(trim(if_isset($_POST['firmanavn'])));
-		$addr1       = db_escape_string(trim(if_isset($_POST['addr1'])));
-		$addr2       = db_escape_string(trim(if_isset($_POST['addr2'])));
-		$postnr      = trim(if_isset($_POST['postnr']));
-		$bynavn      = trim(if_isset($_POST['bynavn']));
-		if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
-		$land        = db_escape_string(trim(if_isset($_POST['land'])));
-		$kontakt     = db_escape_string(trim(if_isset($_POST['kontakt'])));
-		$lev_navn    = db_escape_string(trim(if_isset($_POST['lev_navn'])));
-		$lev_addr1   = db_escape_string(trim(if_isset($_POST['lev_addr1'])));
-		$lev_addr2   = db_escape_string(trim(if_isset($_POST['lev_addr2'])));
-		$lev_postnr  = if_isset($_POST['lev_postnr']);
-		$lev_bynavn  = trim(if_isset($_POST['lev_bynavn']));
-		if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
-		$lev_kontakt = db_escape_string(trim(if_isset($_POST['lev_kontakt'])));
-		$ordredate   = usdate(if_isset($_POST['ordredato']));
-		$levdate     = usdate(trim(if_isset($_POST['levdato'])));
-		$cvrnr       = trim(if_isset($_POST['cvrnr']));
-		$betalingsbet  = if_isset($_POST['betalingsbet']);
-		$betalingsdage = if_isset($_POST['betalingsdage']);
-		$valuta      = if_isset($_POST['valuta']);
-		$projekt     = if_isset($_POST['projekt']);
-		$lev_adr     = trim(if_isset($_POST['lev_adr']));
-		$sum         = if_isset($_POST['sum']);
-		$linjeantal  = if_isset($_POST['linjeantal']);
-		$linje_id    = if_isset($_POST['linje_id']);
-		$kred_linje_id = if_isset($_POST['kred_linje_id']);
-		$vare_id     = if_isset($_POST['vare_id']);
-		$posnr       = if_isset($_POST['posnr']);
-		$status      = if_isset($_POST['status']);
-		$godkend     = if_isset($_POST['godkend']);
-		$kreditnota  = if_isset($_POST['kreditnota']);
-		$ref         = trim(if_isset($_POST['ref']));
-		$afd         = trim(if_isset($_POST['afd'],0));
-		$lager       = trim(if_isset($_POST['lager'],0));
-		$fakturanr   = db_escape_string(trim(if_isset($_POST['fakturanr'])));
-		$momssats    = if_isset($_POST['momssats']);
-		$lev_varenr  = if_isset($_POST['lev_varenr']);
-		$momsfri     = if_isset($_POST['momsfri']);
-		$serienr     = if_isset($_POST['serienr']);
-		$omvbet      = if_isset($_POST['omvbet']);
-		$omlev      = if_isset($_POST['omlev']);
-		$email       = db_escape_string(trim(if_isset($_POST['email'])));
-		$udskriv_til = trim(if_isset($_POST['udskriv_til']));
-		$mail_subj   = db_escape_string(if_isset($_POST['mail_subj'])); #20230105
-		$mail_text   = db_escape_string(str_replace("\n","<br>",if_isset($_POST['mail_text']))); #20230105
-		$varemomssats= if_isset($_POST['$varemomssats']); #20141106
+		$fokus = if_isset($_POST, NULL, 'fokus');
+
+		if (if_isset($_POST, NULL, 'credit')) $submit = 'credit';
+		elseif (if_isset($_POST, NULL, 'copy')) $submit = 'copy';
+		
+		$id = if_isset($_POST, 0, 'id');
+		$ordrenr = if_isset($_POST, NULL, 'ordrenr');
+		$kred_ord_id = if_isset($_POST, NULL, 'kred_ord_id');
+		$art = if_isset($_POST, NULL, 'art');
+		$konto_id = if_isset($_POST, NULL, 'konto_id');
+		$kontonr = if_isset($_POST, NULL, 'kontonr');
+		$firmanavn = db_escape_string(trim(if_isset($_POST, NULL, 'firmanavn')));
+		$addr1 = db_escape_string(trim(if_isset($_POST, NULL, 'addr1')));
+		$addr2 = db_escape_string(trim(if_isset($_POST, NULL, 'addr2')));
+		$postnr = trim(if_isset($_POST, NULL, 'postnr'));
+		$bynavn = trim(if_isset($_POST, NULL, 'bynavn'));
+		
+			if ($postnr && !$bynavn) $bynavn = bynavn($postnr);
+			$land = db_escape_string(trim(if_isset($_POST, NULL, 'land')));
+			$kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'kontakt')));
+			$lev_navn = db_escape_string(trim(if_isset($_POST, NULL, 'lev_navn')));
+			$lev_addr1 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr1')));
+			$lev_addr2 = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr2')));
+			$lev_postnr = if_isset($_POST, NULL, 'lev_postnr');
+			$lev_bynavn = trim(if_isset($_POST, NULL, 'lev_bynavn'));
+
+			if ($lev_postnr && !$lev_bynavn) $lev_bynavn = bynavn($lev_postnr);
+
+			$lev_kontakt = db_escape_string(trim(if_isset($_POST, NULL, 'lev_kontakt')));
+			$ordredate = usdate(if_isset($_POST, NULL, 'ordredato'));
+			$levdate = usdate(trim(if_isset($_POST, NULL, 'levdato')));
+			$cvrnr = trim(if_isset($_POST, NULL, 'cvrnr'));
+			$betalingsbet = if_isset($_POST, NULL, 'betalingsbet');
+			$betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
+			$valuta = if_isset($_POST, NULL, 'valuta');
+			$projekt = if_isset($_POST, NULL, 'projekt');
+			$lev_adr = trim(if_isset($_POST, NULL, 'lev_adr'));
+			$sum = if_isset($_POST, NULL, 'sum');
+			$linjeantal = if_isset($_POST, NULL, 'linjeantal');
+			$linje_id = if_isset($_POST, NULL, 'linje_id');
+			$kred_linje_id = if_isset($_POST, NULL, 'kred_linje_id');
+			$vare_id = if_isset($_POST, NULL, 'vare_id');
+			$posnr = if_isset($_POST, NULL, 'posnr');
+			$status = if_isset($_POST, NULL, 'status');
+			$godkend = if_isset($_POST, NULL, 'godkend');
+			$kreditnota = if_isset($_POST, NULL, 'kreditnota');
+			$ref = trim(if_isset($_POST, NULL, 'ref'));
+			$afd = trim(if_isset($_POST, 0, 'afd'));
+			$lager = trim(if_isset($_POST, 0, 'lager'));
+			$fakturanr = db_escape_string(trim(if_isset($_POST, NULL, 'fakturanr')));
+			$momssats = if_isset($_POST, NULL, 'momssats');
+			$lev_varenr = if_isset($_POST, NULL, 'lev_varenr');
+			$momsfri = if_isset($_POST, NULL, 'momsfri');
+			$serienr = if_isset($_POST, NULL, 'serienr');
+			$omvbet = if_isset($_POST, NULL, 'omvbet');
+			$omlev = if_isset($_POST, NULL, 'omlev');
+			$email = db_escape_string(trim(if_isset($_POST, NULL, 'email')));
+			$udskriv_til = trim(if_isset($_POST, NULL, 'udskriv_til'));
+
+		$mail_subj   = db_escape_string(if_isset($_POST,NULL,'mail_subj')); #20230105
+		$mail_text   = db_escape_string(str_replace("\n","<br>",if_isset($_POST,NULL,'mail_text'))); #20230105
+		$varemomssats= if_isset($_POST,NULL,'$varemomssats'); #20141106
 		if (!$betalingsdage)  $betalingsdage = 0;
 		if (!$momssats)       $momssats = 0;
 		$momssats = usdecimal($momssats);
@@ -396,7 +439,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				if ($art=='KK') $antal[$x]=$antal[$x]*-1;
 			}
 			$y="leve".$x;
-			$leveres[$x]=if_isset($_POST[$y]);
+			$leveres[$x]=if_isset($_POST,NULL,$y);
 			if ($leveres[$x]){
 				$leveres[$x]=usdecimal($leveres[$x],2);
 				if ($art=='KK') $leveres[$x]=$leveres[$x]*-1;
@@ -413,7 +456,7 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			if ($godkend == "on" && $status==0) $leveres[$x]=$antal[$x];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
-			$projekt[$x] = if_isset($projekt[$x],NULL);
+			$projekt[$x] = if_isset($projekt, NULL,$x);
 		}
 		if ($sletstart && $sletslut && $sletstart<$sletslut) {
 			for ($x=$sletstart; $x<=$sletslut; $x++) {
@@ -1528,7 +1571,10 @@ if ($menu=='T') {
 					  .findtekst(30, $sprog_id)."</button></a></td>";
 
 	print "<td width=\"80%\" align='center' style='$topStyle'>$color$tekst</td>";
-
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>
+	<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+		Hjælp  
+	</button></td>";
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
 		print "<td width=\"10%\">$color
 			   <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>

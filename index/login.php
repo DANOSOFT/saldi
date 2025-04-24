@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-04-05--------------
+// --- index/login.php -----patch 4.1.1 ----2025-04-15--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -59,10 +59,10 @@
 // 20230718 LOE - Made some modifications + 20230725
 // 20240417 PHR - Unified login - redirets to correct server.
 // 20240417 PHR - 'regnskab' and 'brugernavn' is now case-insensitive
-// 20250129 Increase session_id length constraint from 30 to 32 on table online.
 // 20240425 LOE - Made some modifications.
 // 20240502 LOE - Fixed some bugs concerning "PHP type juggling" and some variables checked for set or not
 // 20241202 LOE - Added session for retrieving globalId from other pages.
+// 20250129 Increase session_id length constraint from 30 to 32 on table online.
 // 20250314 LOE	- Sanitized some inputs to mitigate against XSS attack
 // 20250325 LOE - Fixed 'ansat_id'  "Undefined array key" notice and checks that other variables are set before use if $userId exists
 // 20250405 LOE - Revised with several improvements
@@ -221,14 +221,15 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
 		$dbuser = trim(if_isset($r['dbuser'], ''));
 		$dbver = trim(if_isset($r['version'], ''));
-		$dbpass = trim(if_isset($r['dbpass'], ''));
-		$db         = trim(if_isset($r['db'], ''));
-		$db_id      = trim(if_isset($r['id'], ''));
-		$post_max   = if_isset($r['posteringer'], 0)*1;
-		$bruger_max = if_isset($r['brugerantal'], 0)*1;	
-		$lukket     = trim(if_isset($r['lukket'], ''));
-		if(isset($r['email'] ))  $dbMail = $r['email'];
-		if(isset($r['global_id'])){
+		// $dbpass = trim(if_isset($r['dbpass'], ''));
+		$dbpass = trim(if_isset($r,'','dbpass'));
+		$db         = trim(if_isset($r,'','db'));
+		$db_id      = trim(if_isset($r,'','id'));
+		$post_max   = if_isset($r,0,'posteringer')*1;
+		$bruger_max = if_isset($r,0,'brugerantal')*1;	
+		$lukket     = trim(if_isset($r,'','lukket'));
+		$dbMail = if_isset($r,null,'email');
+		if(if_isset($r,null,'global_id')){
 			  $globalId = $r['global_id'];
 			  $_SESSION['globalId']= $globalId; //20241202
 		}
@@ -613,7 +614,8 @@ ob_end_flush();	//Sender det "bufferede" output afsted...
 #################################################################### *XCK IER DWN 20211094
 if(!isset($afbryd)){
 	if (file_exists("$db.html")) print "<BODY onLoad=\"JavaScript:window.open('$db.html')\">";
-	$db_skriv_id=NULL;
+	$db_skriv_id=$dbLocation=$usermail=NULL;
+	
 	$fp=fopen("../temp/.ht_online.log","a");
 	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n"); #20210902
 	fclose($fp);

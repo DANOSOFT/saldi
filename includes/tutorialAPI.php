@@ -76,6 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = if_isset($post_data['id'], '');
         $id = db_escape_string($id);
 
-        db_modify("DELETE FROM tutorials WHERE user_id=$bruger_id AND tutorial_id='$id'", __FILE__ . " line " . __LINE__);
+        if ($id === 'book-sett') {
+            // Reset all tutorials that start with 'book-'
+            db_modify("DELETE FROM tutorials WHERE user_id=$bruger_id AND tutorial_id LIKE 'book-%'", __FILE__ . " line " . __LINE__);
+        } else {
+            // Reset specific tutorial
+            db_modify("DELETE FROM tutorials WHERE user_id=$bruger_id AND tutorial_id='$id'", __FILE__ . " line " . __LINE__);
+        }
     }
 }

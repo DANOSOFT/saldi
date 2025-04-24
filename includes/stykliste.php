@@ -33,7 +33,6 @@ function stykliste($id, $udskriv, $udvalg) {
 	$id = strtok($id, '?');
 	$ialt = $sum = $x = 0;
 	$qtxt = "select * from styklister where indgaar_i = '$id' order by posnr";
-echo __line__." $qtxt<br>";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -48,7 +47,7 @@ echo __line__." $qtxt<br>";
 
 	if ($udskriv) {
 		print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\" width=80% align=center><tbody>";
-		print "<tr><td colspan=6 align=center><big><b>Stykliste for <a href=varekort.php?id=$id>".htmlentities($r['varenr'],ENT_COMPAT,$charset)."</a></b></big></td></tr>";
+		print "<tr><td colspan=6 align=center><big><b>Stykliste for <a href=varekort.php?id=$id>".htmlentities($r['varenr'],ENT_COMPAT)."</a></b></big></td></tr>";
 		print "<tr><td align=center> Varenr:</td><td align=center> Beskrivelse</td><td align=center> Kostpris</td><td align=center> Antal</td><td align=center>Sum</td><td>Beholdning</td></tr>";
 	}
 	for ($x=1; $x<=$vareantal; $x++) {
@@ -63,7 +62,7 @@ echo __line__." $qtxt<br>";
 			$pris=dkdecimal($r2['kostpris'],2);
 		}
 		$sum=dkdecimal($sum,2);
-	if ($udskriv) print "<tr><td><a href='../lager/varekort.php?id=$r[id]&returside=".urlencode($_SERVER["REQUEST_URI"])."'>".htmlentities($r['varenr'],ENT_COMPAT,$charset)."</a></td><td>".htmlentities($r['beskrivelse'],ENT_COMPAT,$charset)."</td><td align=right> $pris</td><td align=right> ".dkdecimal($antal[$x],2)."</td><td align=right> $sum</td><td align=right>".dkdecimal($r['beholdning'])."</td></tr>";
+	if ($udskriv) print "<tr><td><a href='../lager/varekort.php?id=$r[id]&returside=".urlencode($_SERVER["REQUEST_URI"])."'>".htmlentities($r['varenr'],ENT_COMPAT)."</a></td><td>".htmlentities($r['beskrivelse'],ENT_COMPAT,$charset)."</td><td align=right> $pris</td><td align=right> ".dkdecimal($antal[$x],2)."</td><td align=right> $sum</td><td align=right>".dkdecimal($r['beholdning'])."</td></tr>";
 	}
 #	$ialt=dkdecimal($ialt,2);
 	if ($udskriv) {

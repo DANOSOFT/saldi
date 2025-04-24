@@ -11,7 +11,8 @@
 <body>
     <?php 
         $side = "settings";
-        include "header.php" 
+        include "header.php";
+        include(__DIR__ . "/../includes/tutorial.php");
     ?>
     <form class="form width-80">
         <h3>Indstillinger</h3>
@@ -139,10 +140,43 @@
             <input type="password" class="form-control password" id="password">
         </div>
         <button class="btn btn-primary save mt-3">Gem</button>
+        <button class='btn btn-primary mt-3' type='button' title="Vejledende meddelelser i systemet" id="tutorial-help">
+            Hjælp  
+        </button>
     </form>
 </div>
 </div>
     <script src="bootstrap.min.js"></script>
     <script src="settings.js?<?php echo time(); ?>" type="module"></script>
+    <?php 
+    create_tutorial('book-sett', [])
+    ?>
+    <script>
+    const helpButton = document.getElementById('tutorial-help')
+
+    helpButton.addEventListener('click', async function(e) {
+        e.preventDefault()
+        
+        try {
+            const response = await fetch('<?php echo get_relative(); ?>includes/tutorialAPI.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    function: 'restart',
+                    id: 'book-sett'
+                })
+            })
+            if (response.ok) {
+                console.log('Restart successful'); // Debug log
+            } else {
+                console.error('Restart failed:', await response.text()) // Debug log
+            }
+        } catch (error) {
+            console.error('Error during restart:', error) // Debug log
+        }
+    })
+    </script>
 </body>
 </html>
