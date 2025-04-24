@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 4.0.7---2022-11-06---
+//------------index/install.php----lap 4.1.1---2025-04-25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20140701 Tilføjet bilag til create regnskab
@@ -219,7 +219,7 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE regnskab (id serial NOT NULL,	regnskab varchar(25), dbhost varchar(25), dbuser varchar(25), ";
 	$qtxt.= "db varchar(25), version varchar(10), sidst varchar(16), brugerantal numeric(5,0), posteringer numeric(10,0), ";
 	$qtxt.= "posteret numeric(10,0), mysale numeric(1,0), lukket varchar(2),administrator varchar(2),lukkes date, ";
-	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0), PRIMARY KEY (id))";
+	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version,bilag) values ";
 	$qtxt.= "('$db_navn' ,'$db_host', '$db_bruger', '$db_navn', '$version','0')";
@@ -361,8 +361,8 @@ function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,
 	fwrite($fp,"//                        \__ \/ _ \| |_| | | | _ | |) |  <  \n");
 	fwrite($fp,"//                        |___/_/ \_|___|__/|_||_||___/|_\_\ \n");
 	fwrite($fp,"//\n");
-	fwrite($fp,"// ----/includes/connect.php---------------lap 4.0.5-----2022.02.07-----\n");
-	fwrite($fp,"// LICENS\n");
+	fwrite($fp,"// --- includes/connect.php --- ver 4.1.1 --- 2025.04.24 ---\n");
+	fwrite($fp,"// LICENSE\n");
 	fwrite($fp,"//\n");
 	fwrite($fp,"// This program is free software. You can redistribute it and / or\n");
 	fwrite($fp,"// modify it under the terms of the GNU General Public License (GPL)\n");
@@ -377,7 +377,7 @@ function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,
 	fwrite($fp,"// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.\n");
 	fwrite($fp,"// See GNU General Public License for more details.\n");
 	fwrite($fp,"//\n");
-	fwrite($fp,"// Copyright (c) 2003-2022 saldi.dk aps\n");
+	fwrite($fp,"// Copyright (c) 2003-2025 saldi.dk aps\n");
 	fwrite($fp,"// ----------------------------------------------------------------------\n");
 	fwrite($fp,"\n");
 	fwrite($fp,"if (!isset(\$bg)) \$bg='';\n");
