@@ -102,7 +102,7 @@ include("sys_div_func.php"); # 20150424a
 include("skriv_formtabel.inc.php"); # 20150424c
 
 $defaultProvision = $sqlstreng = NULL;
-if(!isset($_SESSION['UserName']) && isset($brugernavn)){
+if (!isset($_SESSION['UserName']) && isset($brugernavn)) {
 	$_SESSION['UserName'] = $brugernavn;
 }
 
@@ -112,7 +112,7 @@ if ($menu == 'T') {
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\"></div>\n";
 	#	print "<span class=\"headerTxt\">Systemsetup</span>\n";
-#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";
+	#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";
 	print "</div><!-- end of header -->";
 	print "<div id=\"leftmenuholder\">";
 	include_once 'left_div_menu.php';
@@ -127,7 +127,7 @@ if ($menu == 'T') {
 	   } 
 	   </script>";*/
 	#	print "<script>try {parent.location.href = '../index/main.php'} catch {window.location.href =	 '../index/main.php'}</script>";
-#	die();
+	#	die();
 	include("top.php");
 } else {
 	print "<script>
@@ -138,42 +138,42 @@ if ($menu == 'T') {
 	} 
 	</script>";
 	include("oldTop.php");
-} 
+}
 
-if (!isset($exec_path)) $exec_path="/usr/bin";
-$sektion=if_isset($_GET,null,'sektion');
-$pricelists = if_isset($_POST,null,'pricelists');
+if (!isset($exec_path)) $exec_path = "/usr/bin";
+$sektion = if_isset($_GET, null, 'sektion');
+$pricelists = if_isset($_POST, null, 'pricelists');
 if ($sektion == 'personlige_valg') $sektion = 'userSettings';
-$skiftnavn=if_isset($_GET['skiftnavn']);
+$skiftnavn = if_isset($_GET['skiftnavn']);
 if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
-	if ($sektion=='provision') {
-		$id=$_POST['id'];
-		$box1=$_POST['box1'];
-		$box2=$_POST['box2'];
-		$box3=$_POST['box3'];
-		$box4=$_POST['box4'];
-		if (($id==0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='1'",__FILE__ . " linje " . __LINE__)))) $id=$r['id'];
-		elseif ($id==0){
-		db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')",__FILE__ . " linje " . __LINE__);
-		} elseif ($id > 0) db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'",__FILE__ . " linje " . __LINE__);
-	#######################################################################################
-	} elseif ($sektion=='personlige_valg') {
+	if ($sektion == 'provision') {
+		$id = $_POST['id'];
+		$box1 = $_POST['box1'];
+		$box2 = $_POST['box2'];
+		$box3 = $_POST['box3'];
+		$box4 = $_POST['box4'];
+		if (($id == 0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='1'", __FILE__ . " linje " . __LINE__)))) $id = $r['id'];
+		elseif ($id == 0) {
+			db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')", __FILE__ . " linje " . __LINE__);
+		} elseif ($id > 0) db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+		#######################################################################################
+	} elseif ($sektion == 'personlige_valg') {
 		$refresh_opener = NULL;
 		$id             = $_POST['id'];
 		$jsvars         = $_POST['jsvars'];
 		$popup          = if_isset($_POST['popup']);
-		if ($popup && $_POST['popup']=='') $refresh_opener="on";
+		if ($popup && $_POST['popup'] == '') $refresh_opener = "on";
 		$menu           = $_POST['menu'];
-		if ($menu=="sidemenu") $menu='S';
-		elseif ($menu=="topmenu") $menu='T';
+		if ($menu == "sidemenu") $menu = 'S';
+		elseif ($menu == "topmenu") $menu = 'T';
 		else $menu      = '';
-		$bgcolor        = "#".$_POST['bgcolor'];
+		$bgcolor        = "#" . $_POST['bgcolor'];
 		$nuance         = $_POST['nuance'];
 
 		$qtxt = "select id from grupper WHERE art = 'USET' and kodenr='$bruger_id'";
-		if  (($id==0) && ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))) {
-			$id=$r['id'];
-		} elseif ($id==0) {
+		if (($id == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
+			$id = $r['id'];
+		} elseif ($id == 0) {
 			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ";
 			$qtxt .= "('Personlige valg','$bruger_id','USET','$jsvars','$popup','$menu','$bgcolor','$nuance')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -194,7 +194,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$box5 = $_POST['box5']; #debtor2orderphone
 		$box6 = $_POST['box6']; #docubizz
 		$box7 = $_POST['box7']; #jobkort
-		$box8 = $_POST['box8']; #ebconnect
+		// $box8 = $_POST['box8']; #ebconnect
+		$box8 = $_POST['box8']; #paymentdays
 		$box9 = $_POST['box9']; #ledig
 		$box10 = $_POST['box10']; #betalingsliste
 		$box12 = $_POST['box12'];
@@ -232,7 +233,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$qp_md5secret = if_isset($_POST['qp_md5secret']);
 		$qp_itemGrp = if_isset($_POST['qp_itemGrp']);
 		$vibrant_api = if_isset($_POST['vibrant_id']);
-
+		$paymentDays = if_isset($_POST['paymentDays']);
 		$mobilepay_client_id = if_isset($_POST['mobilepay_client_id'], "");
 		$mobilepay_client_secret = if_isset($_POST['mobilepay_client_secret'], "");
 		$mobilepay_subscription = if_isset($_POST['mobilepay_subscription'], "");
@@ -276,16 +277,27 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		}
 
-		if ($box8) {
-			ftptest($_POST['oiourl'], $_POST['oiobruger'], $_POST['oiokode']);
-			$box8 = $_POST['oiourl'] . chr(9) . $_POST['oiobruger'] . chr(9) . $_POST['oiokode'];
-		}
+		// if ($box8) {
+		// 	ftptest($_POST['oiourl'], $_POST['oiobruger'], $_POST['oiokode']);
+		// 	$box8 = $_POST['oiourl'] . chr(9) . $_POST['oiobruger'] . chr(9) . $_POST['oiokode'];
+		// }
 		if (($id == 0) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='2'", __FILE__ . " linje " . __LINE__))))
 			$id = $r['id'];
 		if ($id == 0) {
+			// db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12) values ('Div_valg','2','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')", __FILE__ . " linje " . __LINE__);
 			db_modify("insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12) values ('Div_valg','2','DIV','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')", __FILE__ . " linje " . __LINE__);
+			if ($box8 == 'on') {
+				update_settings_value("paymentDays", "payment", $paymentDays, "Number of days for payment");
+			}
 		} elseif ($id > 0) {
+			// db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($box8 == 'on') {
+				update_settings_value("paymentDays", "payment", $paymentDays, "Number of days for payment");
+			} else {
+				// If disabled, clear the value
+				update_settings_value("paymentDays", "payment", "", "Number of days for payment");
+			}
 		}
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'PV' and kodenr='1'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
@@ -455,18 +467,18 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'ordre_valg') {
-		$box1 = if_isset($_POST['box1']);#incl_moms
-		$box2 = if_isset($_POST['box2']);#Rabatvarenr
-		$box3 = if_isset($_POST['box3']);#folge_s_tekst
-		$box4 = if_isset($_POST['box4']);#hurtigfakt
-		$box5 = if_isset($_POST['straks_deb']) . ";" . if_isset($_POST['straks_kred']);#straks_bogf
-		$box6 = if_isset($_POST['box6']);#fifo
-		$box7 = if_isset($_POST['box7']);#
-		$box8 = if_isset($_POST['box8']);#vis_nul_lev
-		$box9 = if_isset($_POST['box9']);#negativt_lager
-		$box10 = if_isset($_POST['box10']);#
-		$box11 = if_isset($_POST['box11']);#advar_lav_beh
-		$box12 = if_isset($_POST['box12']);#$procentfakt
+		$box1 = if_isset($_POST['box1']); #incl_moms
+		$box2 = if_isset($_POST['box2']); #Rabatvarenr
+		$box3 = if_isset($_POST['box3']); #folge_s_tekst
+		$box4 = if_isset($_POST['box4']); #hurtigfakt
+		$box5 = if_isset($_POST['straks_deb']) . ";" . if_isset($_POST['straks_kred']); #straks_bogf
+		$box6 = if_isset($_POST['box6']); #fifo
+		$box7 = if_isset($_POST['box7']); #
+		$box8 = if_isset($_POST['box8']); #vis_nul_lev
+		$box9 = if_isset($_POST['box9']); #negativt_lager
+		$box10 = if_isset($_POST['box10']); #
+		$box11 = if_isset($_POST['box11']); #advar_lav_beh
+		$box12 = if_isset($_POST['box12']); #$procentfakt
 		$box13 = if_isset($_POST['procenttillag']) . chr(9) . if_isset($_POST['procentvare']);
 		$box14 = if_isset($_POST['box14']);
 		$rabatvarenr = if_isset($_POST['rabatvarenr']);
@@ -546,7 +558,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'productOptions') {
 
 		$id = $_POST['id'];
-		$box1 = if_isset($_POST['box1']);#incl_moms
+		$box1 = if_isset($_POST['box1']); #incl_moms
 		$DisItemIfNeg_id = if_isset($_POST['DisItemIfNeg_id']);
 		$DisItemIfNeg = if_isset($_POST['DisItemIfNeg']);
 		$vatOnItemCard_id = if_isset($_POST['vatOnItemCard_id']);
@@ -829,14 +841,14 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			sleep(10);
 			alert("$x " . findtekst(1737, $sprog_id) . "");
 		}
-		if($minBeholdning){
+		if ($minBeholdning) {
 			$query = db_select("SELECT var_value FROM settings WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
-			if(db_num_rows($query) > 0){
-				if(is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning){
+			if (db_num_rows($query) > 0) {
+				if (is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning) {
 					db_modify("UPDATE settings SET var_value = '$minBeholdning' WHERE var_name = 'min_beholdning' AND var_grp = 'productOptions'",  __FILE__ . " linje " . __LINE__);
 				}
-			}else{
-				if(is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning){
+			} else {
+				if (is_numeric($minBeholdning) && $minBeholdning == (int)$minBeholdning) {
 					db_modify("INSERT INTO settings (var_name, var_grp, var_value) VALUES ('min_beholdning', 'productOptions', '$minBeholdning')",  __FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -865,15 +877,15 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'shop_valg') {
 		$id = if_isset($_POST['id']);
 		#		$box1 = if_isset($_POST['box1']);#incl_moms
-		$box2 = if_isset($_POST['box2']);#Shop url
-		$box3 = if_isset($_POST['box3']);#shop valg
-		$box4 = if_isset($_POST['box4']);#merchant id
-		$box5 = if_isset($_POST['box5']);#md5 secret
-#		$box6 = if_isset($_POST['box6']);#Bruges ved productOptions
-		$box7 = if_isset($_POST['box7']);#Tegnsæt for webshop
-#		$box8 = if_isset($_POST['box8']);#Bruges ved ordre_valg
-		$box9 = if_isset($_POST['box9']);#Agreement ID
-		$box10 = if_isset($_POST['box10']);#ledig
+		$box2 = if_isset($_POST['box2']); #Shop url
+		$box3 = if_isset($_POST['box3']); #shop valg
+		$box4 = if_isset($_POST['box4']); #merchant id
+		$box5 = if_isset($_POST['box5']); #md5 secret
+		#		$box6 = if_isset($_POST['box6']);#Bruges ved productOptions
+		$box7 = if_isset($_POST['box7']); #Tegnsæt for webshop
+		#		$box8 = if_isset($_POST['box8']);#Bruges ved ordre_valg
+		$box9 = if_isset($_POST['box9']); #Agreement ID
+		$box10 = if_isset($_POST['box10']); #ledig
 
 		if ($box3 == '1')
 			$box2 = '!';
@@ -975,24 +987,24 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL='diverse.php?sektion=labels&valg=$valg'\">";
 		}
-	#######################################################################################
+		#######################################################################################
 	} elseif ($pricelists) {
-		$id=$_POST['id'];
-		$beskrivelse=$_POST['beskrivelse'];
-		$box1=$_POST['lev_id'];
-		$box2=$_POST['prisfil'];
-		$box3=$_POST['opdateret'];
-		$box4=$_POST['aktiv'];
-		$box5=$_POST['rabatter'];
-		$box6=$_POST['rabat'];
-		$box7=$_POST['grupper'];
-		$box8=$_POST['gruppe'];
-		$box9=$_POST['filtype'];
-		$slet=$_POST['slet'];
-		$antal=$_POST['antal'];
+		$id = $_POST['id'];
+		$beskrivelse = $_POST['beskrivelse'];
+		$box1 = $_POST['lev_id'];
+		$box2 = $_POST['prisfil'];
+		$box3 = $_POST['opdateret'];
+		$box4 = $_POST['aktiv'];
+		$box5 = $_POST['rabatter'];
+		$box6 = $_POST['rabat'];
+		$box7 = $_POST['grupper'];
+		$box8 = $_POST['gruppe'];
+		$box9 = $_POST['filtype'];
+		$slet = $_POST['slet'];
+		$antal = $_POST['antal'];
 
-		for($x=0;$x < count($id);$x++) {
-#			if (!$box4[$x]) $box1[$x]=''; # 20160225
+		for ($x = 0; $x < count($id); $x++) {
+			#			if (!$box4[$x]) $box1[$x]=''; # 20160225
 
 			$id[$x] *= 1;
 			$qtxt = NULL;
@@ -1201,8 +1213,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				$mobilzoom[$x] = NULL;
 
 			$qtxt = "select id from kontoplan WHERE kontonr = '$kassekonti[$x]'";
-			if (($kassekonti[$x] && is_numeric($kassekonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
-				;
+			if (($kassekonti[$x] && is_numeric($kassekonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))));
 			else {
 				if ($kassekonti[$x])
 					$txt = str_replace("<variable>", $kassekonti[$x], findtekst(277, $sprog_id));
@@ -1212,8 +1223,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 			$txt = '';
 			$qtxt = "select id from kontoplan WHERE kontonr = '$mellemkonti[$x]'";
-			if (($mellemkonti[$x] && is_numeric($mellemkonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
-				;
+			if (($mellemkonti[$x] && is_numeric($mellemkonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))));
 			else {
 				if ($mellemkonti[$x])
 					$txt = str_replace("<variable>", $mellemkonti[$x], findtekst(717, $sprog_id));
@@ -1223,8 +1233,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					print "<BODY onLoad=\"JavaScript:alert('$txt')\">";
 			}
 			$qtxt = "select id from kontoplan WHERE kontonr = '$diffkonti[$x]'";
-			if (($diffkonti[$x] && is_numeric($diffkonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
-				;
+			if (($diffkonti[$x] && is_numeric($diffkonti[$x]) && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))));
 			else {
 				if ($mellemkonti[$x])
 					$txt = str_replace("<variable>", $diffkonti[$x], findtekst(723, $sprog_id));
@@ -1301,7 +1310,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					$VKbox6[$y] = $ValutaDifKonti[$x][$y];
 				}
 			}
-
 		}
 		$box5 = NULL;
 		$box6 = NULL;
@@ -1359,10 +1367,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					$card_enabled = trim($enabled[$x]);	 #20181215
 				}
 			}
-
-
-
-
 		}
 		$box7_2 = NULL;
 		for ($x = 0; $x < $bordantal; $x++) { #20140508
@@ -1503,15 +1507,15 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		($storageType == 'internFTP') ? $box6 = 'on' : $box6 = NULL;
 		$box7 = if_isset($_POST['box7']);
 		#		if ($box6) {
-#			include("../includes/connect.php");
-#			$r=db_fetch_array(db_select("select * from diverse WHERE beskrivelse='FTP' and nr='1'"));
-#			$box1=$r['box1'];
-#			$box2=$r['box2'];
-#			$box3=$r['box3'];
-#			$box4=$r['box4'];
-#			$box5=$r['box5'];
-#			include("../includes/online.php");
-#		}
+		#			include("../includes/connect.php");
+		#			$r=db_fetch_array(db_select("select * from diverse WHERE beskrivelse='FTP' and nr='1'"));
+		#			$box1=$r['box1'];
+		#			$box2=$r['box2'];
+		#			$box3=$r['box3'];
+		#			$box4=$r['box4'];
+		#			$box5=$r['box5'];
+		#			include("../includes/online.php");
+		#		}
 		if ($box1 && substr($box1, -1) != "/")
 			$box1 .= "/";
 		if ($box6 && $box1 && !strpos($_SERVER['SERVER_NAME'], $box1))
@@ -1658,7 +1662,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 					db_modify("update kundedata set regnskab_id = '$db_id' WHERE regnskab='$tmp'", __FILE__ . " linje " . __LINE__);
 				}
 				db_modify("update regnskab set regnskab = '$nyt_navn' WHERE db='$db'", __FILE__ . " linje " . __LINE__);
-
 			}
 			include("../includes/online.php");
 		} elseif (isset($_POST['updateCurrency'])) {
@@ -1738,7 +1741,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				alert("$alert $tekst1: $regnskab");
 			}
 		}
-
 	} elseif ($sektion == 'smtp') {
 		$smtp = trim(db_escape_string($_POST['smtp']));
 		$smtpuser = trim(db_escape_string($_POST['smtpuser']));
@@ -1746,7 +1748,6 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$smtpcrypt = trim(db_escape_string($_POST['smtpcrypt']));
 		db_modify("update adresser set felt_1 = '$smtp',felt_2 = '$smtpuser',felt_3 = '$smtppass',felt_4 = '$smtpcrypt' WHERE art='S'", __FILE__ . " linje " . __LINE__);
 		$sektion = 'kontoindstillinger';
-
 	} elseif ($sektion == 'tjekliste') {
 		$id = if_isset($_POST['id']);
 		$tjekantal = if_isset($_POST['tjekantal']);
@@ -1793,10 +1794,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 } else {
 	$valg = if_isset($_GET['valg']);
 	// $sektion = if_isset($_GET['sektion']);
-	$sektion = if_isset($_GET,null,'sektion');
+	$sektion = if_isset($_GET, null, 'sektion');
 	#	if ($sektion == 'personlige_valg') $sektion = 'userSettings';
-	
-	
+
+
 }
 $docubizz = NULL;
 if (db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr = '2' and box6='on'", __FILE__ . " linje " . __LINE__)))
@@ -1853,7 +1854,7 @@ if ($menu != 'T') {
 
 		print "<tr><td align=left><a href=diverse.php?sektion=pricelists>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(792,$sprog_id)."</button></a><!--tekst 427--></td></tr>\n";
+			. findtekst(792, $sprog_id) . "</button></a><!--tekst 427--></td></tr>\n";
 
 		print "<tr><td align=left><a href=diverse.php?sektion=rykker_valg>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
@@ -1884,7 +1885,7 @@ if ($menu != 'T') {
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			. findtekst(200, $sprog_id) . "</button></a><!--tekst 200--></td></tr>\n";
 
-			print "<tr><td align=left><a href=diverse.php?sektion=barcodescan>
+		print "<tr><td align=left><a href=diverse.php?sektion=barcodescan>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 			. 'App Barcode' . "</button></a><!--tekst 200--></td></tr>\n";
 
@@ -1901,7 +1902,6 @@ if ($menu != 'T') {
 
 		print "</tbody></table></td><td valign=\"top\" align=\"left\"><table align=\"left\" valign=\"top\" border=\"0\" width=\"90%\"><tbody>\n";
 		print "<script>document.getElementById('sidebar-base').style.display = 'none';</script>";
-
 	} else { //Gammel menu
 		print "<tr><td align=\"center\" valign=\"top\"><br></td></tr>";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoindstillinger>" . findtekst(783, $sprog_id) . "</a></td></tr>\n"; // 20210513
@@ -1912,17 +1912,17 @@ if ($menu != 'T') {
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=variant_valg>" . findtekst(788, $sprog_id) . "</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=shop_valg>" . findtekst(789, $sprog_id) . "</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=api_valg>API</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>".findtekst(791,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>".findtekst(792,$sprog_id)."</a><!--tekst 427--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>".findtekst(793,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>".findtekst(794,$sprog_id)."</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=labels>" . findtekst(791, $sprog_id) . "</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=pricelists>" . findtekst(792, $sprog_id) . "</a><!--tekst 427--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=rykker_valg>" . findtekst(793, $sprog_id) . "</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=div_valg>" . findtekst(794, $sprog_id) . "</a></td></tr>\n";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=../systemdata\barcodescan.php>App Barcode</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>".findtekst(796,$sprog_id)."</a></td></tr>\n";
-		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>".findtekst(796,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>".findtekst(797,$sprog_id)."</a></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>".findtekst(170,$sprog_id)."</a><!--tekst 170--></td></tr>\n";
-		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>".findtekst(200,$sprog_id)."</a><!--tekst 200--></td></tr>\n";
-		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>".findtekst(271,$sprog_id)."</a><!--tekst 271--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=tjekliste>" . findtekst(796, $sprog_id) . "</a></td></tr>\n";
+		if ($docubizz) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=docubizz>" . findtekst(796, $sprog_id) . "</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=bilag>" . findtekst(797, $sprog_id) . "</a></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=orediff>" . findtekst(170, $sprog_id) . "</a><!--tekst 170--></td></tr>\n";
+		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=massefakt>" . findtekst(200, $sprog_id) . "</a><!--tekst 200--></td></tr>\n";
+		if (file_exists("../debitor/pos_ordre.php")) print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=posOptions>" . findtekst(271, $sprog_id) . "</a><!--tekst 271--></td></tr>\n";
 		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=email>Mail indstillinger</a></td></tr>";
 		print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=sprog>" . findtekst(801, $sprog_id) . "</a></td></tr>\n";
 		# print "<tr><td align=left $top_bund>&nbsp;<a href=diverse.php?sektion=kontoplan_io>Indl&aelig;s  / udl&aelig;s kontoplan</a></td></tr>";
@@ -1948,26 +1948,26 @@ if ($sektion == "productOptions" || $sektion == "label") {
 	include("diverseIncludes/productOptions.php");
 	productOptions($defaultProvision);
 }
-if ($sektion=="variant_valg") variant_valg();
-if ($sektion=="shop_valg") shop_valg();
-if ($sektion=="api_valg") api_valg();
-if ($sektion=="labels") labels($valg);
-if ($sektion=="pricelists") {
-	include ("diverseIncludes/pricelists.php");
+if ($sektion == "variant_valg") variant_valg();
+if ($sektion == "shop_valg") shop_valg();
+if ($sektion == "api_valg") api_valg();
+if ($sektion == "labels") labels($valg);
+if ($sektion == "pricelists") {
+	include("diverseIncludes/pricelists.php");
 	pricelists();
 }
-if ($sektion=="rykker_valg") rykker_valg();
-if ($sektion=="div_valg") div_valg(); # Kalder sys_div_valg.php
-if ($sektion=="docubizz") docubizz();
-if ($sektion=="bilag") bilag();
+if ($sektion == "rykker_valg") rykker_valg();
+if ($sektion == "div_valg") div_valg(); # Kalder sys_div_valg.php
+if ($sektion == "docubizz") docubizz();
+if ($sektion == "bilag") bilag();
 //if ($sektion=="barcodescan") barcodescan();
-if ($sektion=="orediff") orediff($diffkto);
-if ($sektion=="massefakt") massefakt();
-if ($sektion=="posOptions") {
-	include ("diverseIncludes/posOptions.php");
+if ($sektion == "orediff") orediff($diffkto);
+if ($sektion == "massefakt") massefakt();
+if ($sektion == "posOptions") {
+	include("diverseIncludes/posOptions.php");
 	posOptions();
 }
-if ($sektion=="barcodescan"){
+if ($sektion == "barcodescan") {
 	header("Location: ../systemdata/barcodescan.php");
 	exit;
 }
