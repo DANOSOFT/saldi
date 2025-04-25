@@ -584,7 +584,7 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	$qtxt.= "rt_to numeric(15,0), item_id int, cust_id int, order_id int, expiry_time TIMESTAMP, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
-	$qtxt = "CREATE TABLE rentalremote (id serial NOT NULL, product_id INT, descript text, is_active smallint, choose_periods smallint, max INT', PRIMARY KEY (id))";
+	$qtxt = "CREATE TABLE rentalremote (id serial NOT NULL, product_id INT, descript text, is_active smallint, choose_periods smallint, max INT, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . "linje" . __LINE__);
 
 	$qtxt = "CREATE TABLE rentalremoteperiods (id serial NOT NULL, rentalremote_id INT, amount INT, PRIMARY KEY (id))";
