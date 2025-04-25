@@ -623,7 +623,7 @@ SELECT
                 )
             ) * GREATEST(v.volume_lager, 1)
         ELSE 0
-    END AS genbestil
+    END AS genbestil,
 
     COALESCE(ls.lager_total, 0) AS lager_total,  
     v.salgspris AS salgspris,       

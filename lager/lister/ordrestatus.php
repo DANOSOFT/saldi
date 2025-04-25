@@ -596,10 +596,15 @@ SELECT
     CASE 
         WHEN COALESCE(ls.lager_total, 0) - COALESCE(os.in_sales_order, 0) 
             + COALESCE(os.in_buy_proposal, 0) + COALESCE(os.in_buy_order, 0) < v.min_lager
-            THEN CEIL((v.max_lager - 
+        THEN GREATEST(
+                1,
+                FLOOR(
+                    (v.max_lager - 
                     (COALESCE(ls.lager_total, 0) - COALESCE(os.in_sales_order, 0) 
-                        + COALESCE(os.in_buy_proposal, 0) + COALESCE(os.in_buy_order, 0))) 
-                    / GREATEST(v.volume_lager, 1)) * GREATEST(v.volume_lager, 1)
+                        + COALESCE(os.in_buy_proposal, 0) + COALESCE(os.in_buy_order, 0))
+                    ) / GREATEST(v.volume_lager, 1)
+                )
+            ) * GREATEST(v.volume_lager, 1)
         ELSE 0
     END AS genbestil,
 
