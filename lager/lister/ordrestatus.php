@@ -55,7 +55,9 @@ $columns[] =    array(
     "headerName" => "Vare Nr.",
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
-        return "<td align='$column[align]'><a href='$url'>$value</a></td>";
+
+        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]'><a href='$url'>$value</a></td>";
     },
     "sqlOverride" => "v.varenr"
 );
@@ -63,6 +65,12 @@ $columns[] =    array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
     "width" => "3",
+    "render" => function ($value, $row, $column) {
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+
+        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
+    },
     "sqlOverride" => "v.beskrivelse"
 );
 $columns[] =    array(
@@ -588,6 +596,8 @@ SELECT
     v.trademark AS trademark,       
     v.stregkode AS stregkode,       
     v.enhed AS enhed,               
+    v.notes as notes,
+    v.notesinternal as notes_internal,
     v.min_lager AS min_lager,
     v.max_lager AS max_lager,
     GREATEST(v.volume_lager, 1) AS volume_lager, -- Pakningsmængde
