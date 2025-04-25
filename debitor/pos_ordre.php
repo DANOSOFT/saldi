@@ -2326,7 +2326,7 @@ function indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling)
 
 	global $fokus;
 	global $ifs;
-	global $status;
+	global $sprog_id,$status;
 	if ($fokus == 'indbetaling')
 		$fokus = 'modtaget';
 	else
@@ -2390,25 +2390,36 @@ function indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling)
 	print "<tr><td><b>$postnr_by</b></td></tr>\n";
 	print "<tr><td colspan=2 width=400px><hr></td></tr>\n";
 	#	while (strlen($saldo) < 10) $saldo=" ".$saldo;
-	print "<tr><td>Saldo</td><td align=\"right\">$saldo</td></tr>\n";
+	$txt1073 = findtekst('1073|Saldo',$sprog_id);
+	print "<tr><td>$txt1073</td><td align=\"right\">$saldo</td></tr>\n";
 	print "<tr><td colspan=\"2\"><br></td></tr>";
 	print "<tr><td><b>Indbetaling</b>";
 	if ($status < 3) {
-		print " - Det beløb der skal indsættes på kontoen!</td><td rowspan=\"2\" align=\"right\"><input class=\"inputbox\" type=\"text\" style=\"width:80px;text-align:right;font-size:$ifs;background-color:$color\" name=\"indbetaling\" value=\"$indbetaling\"></td></tr>\n";
-		print "<td> Ved udbetaling skal beløbet være negativt!</td></tr>";
-	} else
+		$txt2300 = findtekst('2300|Det beløb der skal indsættes på kontoen!',$sprog_id);
+		print " - $txt2300</td><td rowspan=\"2\" align=\"right\">";
+		print "<input class=\"inputbox\" type=\"text\" style=\"width:80px;text-align:right;font-size:$ifs;background-color:$color\" ";
+		print "name=\"indbetaling\" value=\"$indbetaling\"></td></tr>\n";
+		$txt2301 = findtekst('2301|Ved udbetaling skal beløbet være negativt!',$sprog_id);
+		print "<td> $txt2301</td></tr>";
+	} else {
 		print "</td><td align=\"right\">$indbetaling</td></tr>\n";
+	}
 	if ($status < 3) {
 		print "<tr><td colspan=\"2\"><br></td></tr>";
-		print "<tr><td><b>Betalt</b> - Det beløb der betales f.eks. hvis der betales</td></tr><tr><td>med kort og kunden samtidig vil hæve kontant.</td>";
+		$txt1265 = findtekst('1265|Betalt',$sprog_id);
+		$txt2302 = findtekst('2302|Det beløb der betales f.eks. hvis der betales',$sprog_id);
+		$txt2303 = findtekst('2303|med kort og kunden samtidig vil hæve kontant.',$sprog_id);
+		print "<tr><td><b>Betalt</b> - $txt2302</td></tr><tr><td>$txt2303</td>";
 		print "<td rowspan=\"3\" valign=\"top\" align=\"right\">";
 		if (!$modtaget && $indbetaling && $fokus == 'modtaget') {
 			$placeholder = "placeholder=\"$betalt\"";
 		} else
 			$placeholder = NULL;
 		print "<input class=\"inputbox\" $placeholder type=\"text\" style=\"width:80px;text-align:right\" name=\"modtaget\" value=\"$modtaget\"></td></tr>\n";
-		print "<tr><td>Feltet kan efterlades tomt for ind/udbetaling på beløb.</td></tr>";
-		print "<tr><td>Ved udbetaling <b>skal</b> feltet efterlades tomt!</td></tr>";
+		$txt2304 = findtekst('2304|Feltet kan efterlades tomt for ind/udbetaling på beløb.',$sprog_id);
+		print "<tr><td>$txt2304</td></tr>";
+		$txt2305 = findtekst('2305|Ved udbetaling <b>skal</b> feltet efterlades tomt!',$sprog_id);
+		print "<tr><td>$txt2305</td></tr>";
 	} else
 		print "<tr><td>Betalt</td><td align=\"right\">$modtaget</td></tr>\n";
 	print "<tr><td colspan=\"2\"><br></td></tr>";
