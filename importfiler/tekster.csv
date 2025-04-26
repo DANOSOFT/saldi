@@ -1,4 +1,4 @@
-1	Dansk	English	Norsk
+	Dansk	English	Norsk
 2	Vælg aktivt sprog	Select active language	Velg aktivt språk
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
@@ -73,9 +73,9 @@
 73	Gennemfør komplet fakturering	Complete billing	Fullstendig fakturering
 74	Fakturaer kopieres til ny ordre	posted and printed.	Fakturaer kopieres til ny ordre
 75	Fakturaer kopieres til ny ordre og efterlades åbne.	Invoices are copied to new order and left open.	Fakturaer kopieres til ny ordre og blir åpne.
-76	Vælg om datoen skal hentes fra &apos;Nextfakt&apos;-feltet, eller dags dato skal anvendes	Select whether the date is to be retrieved from the &apos;Nextfakt&apos; field, or the day's date is to be used	Velg om datoen skal hentes fra &apos;Nextfakt&apos; -feltet, eller om dagsdatoen skal brukes
+76	;Vælg om datoen skal hentes fra &apos;;Nextfakt&apos;;-feltet, eller dags dato skal anvendes;	;Select whether the date is to be retrieved from the &apos;;Nextfakt&apos;; field, or the day's date is to be used;	;Velg om datoen skal hentes fra &apos;;Nextfakt&apos;; -feltet, eller om dagsdatoen skal brukes;
 77	Brug forvalgt fakturadato	Use default invoice date	Bruk standard fakturadato
-78	Fakturadato fra &apos;Nextfakt&apos;-felt anvendes	Invoice date from &apos;Nextfakt&apos; field is used	Fakturadato fra feltet &apos;Nextfakt&apos; brukes
+78	;Fakturadato fra &apos;;Nextfakt&apos;;-felt anvendes;	;Invoice date from &apos;;Nextfakt&apos;; field is used;	;Fakturadato fra feltet &apos;;Nextfakt&apos;; brukes;
 79	Dags dato anvendes som fakturadato	Today's date is used as the invoice date	Dagens dato brukes som fakturadato
 80	Ok	OK	OK
 81	Afbryd	Cancel	avbryt
@@ -221,9 +221,9 @@
 221	Ryd genfaktdato fra gl.fakt	Clear re-fact date from old fact	Tydelig re-faktum dato fra gamle faktum
 222	Genfaktureringsdato slettes fra gammel faktura	Re-invoicing date is deleted from old invoice	Dato for omfakturering slettes fra gammel faktura
 223	Genfaktureringsdato bibeholdes på gammel faktura	Re-invoicing date is maintained on old invoice	Dato for ny fakturering beholdes på gammel faktura
-224	Brugernavn for &apos;rykkeransvarlig&apos; - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.	Username for &apos;reminder manager&apos; - When the user logs in	Brukernavn for &apos;påminnelsesbehandling&apos; - Når brukeren logger på, får han beskjed hvis det skal være en påminnelse - Hvis navnet ikke er spesifisert, får alle beskjed.
+224	;Brugernavn for &apos;;rykkeransvarlig&apos;; - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.;	;Username for &apos;;reminder manager&apos;; - When the user logs in;	;Brukernavn for &apos;;påminnelsesbehandling&apos;; - Når brukeren logger på, får han beskjed hvis det skal være en påminnelse - Hvis navnet ikke er spesifisert, får alle beskjed.;
 225	Brugernavn	User name	Brukernavn
-226	Mailadresse for &apos;rykkeransvarlig&apos;. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)	Email address for &apos;reminder manager&apos;. If specified, email will be sent from this address	E-postadresse for &apos;påminnelsesbehandling&apos;. Hvis spesifisert, sendes en e-post fra denne adressen når det er på tide å flytte. (Når noen logger på - uansett hvem)
+226	;Mailadresse for &apos;;rykkeransvarlig&apos;;. Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem);	;Email address for &apos;;reminder manager&apos;;. If specified, email will be sent from this address;	;E-postadresse for &apos;;påminnelsesbehandling&apos;;. Hvis spesifisert, sendes en e-post fra denne adressen når det er på tide å flytte. (Når noen logger på - uansett hvem);
 227	Mailadresse	Email address	Epostadresse
 228	Rentesats i % pr. påbegyndt måned	Interest rate in% pr. commenced month	Rente i% pr. startet måned
 229	Rentesats	Interest rate	Rente
@@ -431,7 +431,7 @@
 431	Skriv den generelle rabat for varer fra $beskrivelse	Write the general discount for items from $beskrivelse	Skriv den generelle rabatten for varer fra $beskrivelse
 432	Vælg den generelle varegruppe til varer fra $beskrivelse	Select the general item group for items from $beskrivelse	Velg den generelle varegruppen for varer fra $beskrivelse
 433	Ingen leverandør med kontonummer $kontonr	No vendor with account number $kontonr no	Ingen leverandør med kontonummer $kontonr
-434	Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger anden port 25 skrives denne efter STMP navnet adskilt af &apos;:&apos;. F.eks. smtp.gmail.com:465	An alternative SMTP server can be written here for use in sending orders etc. The specified server must allow forwarding of emails from ssl.saldi.dk. If the server uses another port 25, this is written after the STMP name separated by &apos;:&apos;. Eg. smtp.gmail.com:465	En alternativ SMTP-server kan skrives her for bruk i sending av ordrer etc. Den angitte serveren må tillate videresending av e-post fra ssl.saldi.dk. Hvis serveren bruker en annen port 25, skrives dette etter STMP-navnet atskilt med &apos;:&apos;. For eksempel. smtp.gmail.com:465
+434	;Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk. Hvis serveren bruger anden port 25 skrives denne efter STMP navnet adskilt af &apos;;:&apos;;. F.eks. smtp.gmail.com:465;	;An alternative SMTP server can be written here for use in sending orders etc. The specified server must allow forwarding of emails from ssl.saldi.dk. If the server uses another port 25, this is written after the STMP name separated by &apos;;:&apos;;. Eg. smtp.gmail.com:465;	;En alternativ SMTP-server kan skrives her for bruk i sending av ordrer etc. Den angitte serveren må tillate videresending av e-post fra ssl.saldi.dk. Hvis serveren bruker en annen port 25, skrives dette etter STMP-navnet atskilt med &apos;;:&apos;;. For eksempel. smtp.gmail.com:465;
 435	Alternativ SMTP-server:port	Alternative SMTP server: port	Alternativ SMTP-server: port
 436	Skift	Change	Skifte
 437	Skriv en dato i formatet ddmmåå fx. 311221, for at se bevægelser indtil denne dato, eller skriv er datointerval fx. 010121:311221	Write a date in the format ddmmåå fx. 311222, to see movements up to this date, or type is date range e.g. 010122: 311222	Skriv en dato i formatet ddmmåå fx. 311222, for å se bevegelser frem til denne datoen, eller typen er datointervall, f.eks. 010122: 311222
@@ -493,7 +493,7 @@
 493	Vil du slette denne tekst?	Do you want to delete this text?	Vil du slette denne teksten?
 494	Status	Status	Status
 495	Ny status	New status	Ny status
-496	Vælg &apos;Ny Status&apos; for at tilføje en ny status	Select &apos;New Status&apos; to add a new status	Velg &apos;Ny status&apos; for å legge til en ny status
+496	;Vælg &apos;;Ny Status&apos;; for at tilføje en ny status;	;Select &apos;;New Status&apos;; to add a new status;	;Velg &apos;;Ny status&apos;; for å legge til en ny status;
 497	Navn på ny status.	Name of new status.	Navn på ny status.
 498	Kopi af faktura gemt kl. $time	Copy from invoice saved at $time	Kopi av faktura lagret kl $time
 499	Kopi af kreditnota gemt kl. $time	Copy from credit note saved at $time	Kopi av kreditnota lagret kl $time
@@ -765,7 +765,7 @@
 765	Font str.	Font size	Skriftstørrelse
 766	Fontstørrelse på tekster som ikke er knap tekster i POS	Font size for texts that are not scarce texts in POS	Skriftstørrelse for tekster som ikke er knappe tekster i POS
 767	`Mit salg` findes i debitorkonti. Anvendes til at give provisions kunder adgang til at se deres salg (loppemarkeder og lign.). 	My sales` can be found in debtor accounts. Used to give commission customers access to see their sales (flea markets and the like).	`Salget mitt 'finnes i debitorkontoer. Brukes for å gi kommisjonskunder tilgang til å se deres salg (loppemarkeder og lignende).
-768	Aktivér &apos;Mit salg&apos;	Activate &apos;My sales&apos;	Aktiver &apos;Mitt salg&apos;
+768	;Aktivér &apos;;Mit salg&apos;;;	;Activate &apos;;My sales&apos;;;	;Aktiver &apos;;Mitt salg&apos;;;
 769	Bank BIC	Bank BIC	Bank BIC
 770	Moms	VAT	MVA
 771	Debitor-/kreditorgrupper	Debtor / creditor groups	Gjeld / kreditorgrupper
@@ -805,7 +805,7 @@
 805	Kontonavn	Account Name	Brukernavn
 806	Udfyld med sidste års tal 	Fill in with last year's numbers	Fyll ut med tallene i fjor
 807	Hent budget som datafil ved at højreklikke på	Download budget as data file by right-clicking on	Last ned budsjett som datafil ved å høyreklikke
-808	og vælg &apos;Gem link som ..	and select &apos;Save link as ..	og velg &apos;Lagre lenke som ..
+808	;og vælg &apos;;Gem link som ..;	;and select &apos;;Save link as ..;	;og velg &apos;;Lagre lenke som ..;
 809	dette link	this link	denne lenken
 810	Vis lagerstatus	View stock status	Se lagerstatus
 811	Samlet omsætning incl./excl. Moms	Total turnover incl./excl. VAT	Total omsetning inkl. Ekskl. Mva
@@ -834,8 +834,8 @@
 834	Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)	By filling in this field with the account number of your debt collection lawyer (creditor)	Ved å fylle ut dette feltet med kontonummeret til din inkassoadvokat (kreditor)
 835	Saldi url:	Sold url:	Solgt url:
 836	Skal sættes som variablen $url i api klienten.	Must be set as the variable $url in the api client.	Må angis som variabelen $url i api-klienten.
-837	Hvis feltet er afmærket vil `udtages fra kasse` som default være 0	If the field is marked, `taken out of box` will by default be 0	Hvis feltet er merket, vil &apos;tas ut av boksen&apos; som standard 0
-838	Sæt `udtages fra kasse` til 0	Set `taken out of box` to 0	Sett &apos;tatt ut av esken&apos; til 0
+837	Hvis feltet er afmærket vil `udtages fra kasse` som default være 0	If the field is marked, `taken out of box` will by default be 0	;Hvis feltet er merket, vil &apos;;tas ut av boksen&apos;; som standard 0;
+838	Sæt `udtages fra kasse` til 0	Set `taken out of box` to 0	;Sett &apos;;tatt ut av esken&apos;; til 0;
 839	Er dette felt afmærket skal der foretages valg af bruger / ekspedient inden ekspedition.	If this field is marked, a choice of user / clerk must be made before dispatch.	Hvis dette feltet er merket, må du velge bruker / ekspeditør før utsendelse.
 840	Tvungen brugervalg	Forced user choice	Tvunget brukervalg
 841	Kreditor kontonummer til inkassoselskab 	Creditor account number for debt collection company	Kreditorens kontonummer for inkassoselskapet
@@ -1148,9 +1148,9 @@
 1148	Levering	Delivery	Leveranse
 1149	Kundetype	Customer type	Kundetype
 1150	Skriv emne og tekst til den mail der skal sendes.	Write subject and text for the email to be sent.	Skriv emne og tekst for e-posten som skal sendes.
-1151	Teksten &apos;$kunde&apos; bliver erstattet af kundens navn / firmanavn	The text &apos;$kunde&apos; will be replaced by customer&apos;s name / company name	Teksten &apos;$kunde&apos; vil bli erstattet av kundens navn / firmanavn
-1152	Skriv emne og tekst til den mail der skal bruges som invitation til &apos;Mit Salg&apos;	Write subject and text for the email to be used as an invitation to &apos;My Sales&apos;	Skriv emne og tekst for e-posten som skal brukes som en invitasjon til &apos;Mitt salg&apos
-1153	Teksterne &apos;$kunde&apos og &apos $link&apos bliver erstattet af hhv kundens navn og link til  kundens salg	The texts &apos;$kunde&apos; and &apos;$link&apos; are replaced by the customer&apos;s name and link for the customer&apos;s sales	Tekstene &apos $kunde&apos og &apos;$link&apos erstattes av kundens navn og lenke for kundens salg
+1151	;Teksten &apos;;$kunde&apos;; bliver erstattet af kundens navn / firmanavn;	;The text &apos;;$kunde&apos;; will be replaced by customer&apos;;s name / company name;	;Teksten &apos;;$kunde&apos;; vil bli erstattet av kundens navn / firmanavn;
+1152	;Skriv emne og tekst til den mail der skal bruges som invitation til &apos;;Mit Salg&apos;;;	;Write subject and text for the email to be used as an invitation to &apos;;My Sales&apos;;;	;Skriv emne og tekst for e-posten som skal brukes som en invitasjon til &apos;;Mitt salg&apos;
+1153	;Teksterne &apos;;$kunde&apos og &apos $link&apos bliver erstattet af hhv kundens navn og link til  kundens salg;	;The texts &apos;;$kunde&apos;; and &apos;;$link&apos;; are replaced by the customer&apos;;s name and link for the customer&apos;;s sales;	;Tekstene &apos $kunde&apos og &apos;;$link&apos erstattes av kundens navn og lenke for kundens salg;
 1154	Der kan anvendes HTML koder i teksten.	HTML codes can be used in the text.	HTML-koder kan brukes i teksten.
 1155	F.eks bliver <b>fed</b> vist som <b>fed</b>.	For example, <b> bold </b> is displayed as <b> bold </b>.	For eksempel vises <b> fet </b> som <b> fet </b>.
 1156	Eksempel	Example	Eksempel
@@ -1281,7 +1281,7 @@
 1281	Kommisionsvarer.<br>Afmærk hvis der anvendes POS og der sælges varer i kommission	Commission products. <br> Check if POS is used and products are sold on commission	Provisjonsvarer. <br> Sjekk om POS brukes og varer selges på kommisjon
 1282	Når dette felt er afmærket vises 'Afregn kommission på kasseoptælling' og 'Kommissionsvare' på varekort	When this field is checked, 'Settle commission on cash count' and 'Commission item' will appear on item card	Når dette feltet er krysset av, vises 'Settle provision on cash count' og 'Commission provision' på varekortet
 1283	Standard kommissionssats	Standard commission rate	Standard provisjonsrente
-1284	Sættes en værdi her, anvendes denne sats som udgangspunkt ved oprettelse af kommissionsvarer.\n&apos;	If a value is set here, this rate is used as a starting point when creating commission items. \n &apos;	Hvis en verdi er satt her, brukes denne hastigheten som utgangspunkt når du oppretter kommisjonsposter. \n &apos;
+1284	;Sættes en værdi her, anvendes denne sats som udgangspunkt ved oprettelse af kommissionsvarer.\n&apos;;;	;If a value is set here, this rate is used as a starting point when creating commission items. \n &apos;;;	;Hvis en verdi er satt her, brukes denne hastigheten som utgangspunkt når du oppretter kommisjonsposter. \n &apos;;;
 1285	Er feltet tomt beregnes kostprisen manuelt.	If the field is empty, the cost price is calculated manually.	Hvis feltet er tomt, beregnes kostprisen manuelt.
 1286	Indtægtskonto for kommisionssalg, nye varer	Revenue account for commission sales, new products	Inntektskonto for provisjonssalg, nye varer
 1287	Angiv den konto i kontoplanen hvor indtægter fra kommissionssalg af nye skal bogføres.\n	Indicate the account in the chart of accounts where income from commission sales of new ones is to be posted.\n	Angi kontoen i kontoplanen der inntekt fra provisjonssalg av nye skal bokføres.\n
@@ -1298,13 +1298,13 @@
 1298	Angiv den konto i kontoplanen hvorfra kommission af salg af brugte varer skal trækkes.\n	Specify the account in the chart of accounts from which the commission on the sale of second-hand products is to be deducted. \n	Spesifiser kontoen i kontoplanen som kommisjonen for salg av brukte varer skal trekkes fra. \n
 1299	Konverter eksisterende varer?	Convert existing items?	Konvertere eksisterende varer?
 1300	Denne funktion anvendes til konvertering af varer oprettet til brug med programmet Loppestatus hvor kostprisen	This feature is used to convert items created for use with the Flea Status application where the cost price	Denne funksjonen brukes til å konvertere elementer som er opprettet for bruk med Flea Status-applikasjonen der kostprisen
-1301	blev brugt som kommissions procent.\n&apos;	was used as commission percentage. \n	ble brukt som provisjonsprosent. \n
+1301	;blev brugt som kommissions procent.\n&apos;;;	was used as commission percentage. \n	ble brukt som provisjonsprosent. \n
 1302	Afmærkes dette felt ændres alle varer hvor salgspris er 0, kostpris er mellem 0,10 og 0,50 og vareummeret starter med	If this field is checked, all items are changed where the selling price is 0, the cost price is between 0.10 and 0.50 and the item number starts with	Hvis dette feltet er merket av, endres alle varer der salgsprisen er 0, kostprisen er mellom 0,10 og 0,50 og varenummeret starter med
-1303	'kb' eller 'kn'.\n&apos;	'kb' or 'kn'. \n &apos;	'kb' eller 'kn'. \n &apos;
+1303	;'kb' eller 'kn'.\n&apos;;;	;'kb' or 'kn'. \n &apos;;;	;'kb' eller 'kn'. \n &apos;;;
 1304	Hvis kostprisen f.eks. er 0,15 blive denne ændret til 0.85 og kommisionssatsen bliver sat til 15%	If the cost price e.g. is 0.15 this will be changed to 0.85 and the commission rate will be set at 15%	Hvis kostprisen f.eks. er 0,15, dette vil bli endret til 0,85 og provisjonsrenten vil bli satt til 15%
 1305	Kontakt os gerne for assistance - +45 4690 2208	Feel free to contact us for assistance - +45 4690 2208	Kontakt oss gjerne for hjelp - +45 4690 2208
 1306	Startdato for afregning til kommissionskunder?	Start date for settlement for commission customers?	Startdato for avregning til provisjonskunder?
-1307	Næste afregning til kommissionskunder vil vlive beregnet fra og med den dato der angives her.\n&apos;	The next settlement for commission customers will be calculated from the date specified here. \n	Neste oppgjør for provisjonskunder blir beregnet fra datoen som er angitt her. \n
+1307	;Næste afregning til kommissionskunder vil vlive beregnet fra og med den dato der angives her.\n&apos;;;	The next settlement for commission customers will be calculated from the date specified here. \n	Neste oppgjør for provisjonskunder blir beregnet fra datoen som er angitt her. \n
 1308	Klik på den labeltype du vil redigere	Click the label type you want to edit	Klikk på etikettypen du vil redigere
 1309	Tilladte tegn er: a-z A-Z 0-9	Permitted characters are: a-z A-Z 0-9	Tillatte tegn er: a-z A-Z 0-9
 1310	A4 38,1 x 21,2 mm, ens labels	A4 38.1 x 21.2 mm, etc. labels	A4 38,1 x 21,2 mm osv. Etiketter
@@ -1431,7 +1431,7 @@
 1431	Klar til levering (Varer vises ikke)	Ready for delivery (Items not shown)	Klar for levering (varer ikke vist)
 1432	Mangler varer, varer er bestilt	Missing items, items are ordered	Manglende gjenstander, varer bestilles
 1433	Mangler varer, varer ikke bestilt	Missing items, items not ordered	Mangler varer, varer som ikke er bestilt
-1434	Højreklik og vælg \&apos;gem som\&apos;	Right click and select \&apos;save as\&apos;	Høyreklikk og velg \&apos;lagre som\&apos;
+1434	;Højreklik og vælg \&apos;;gem som\&apos;;;	;Right click and select \&apos;;save as\&apos;;;	;Høyreklikk og velg \&apos;;lagre som\&apos;;;
 1435	Sender valgte fakturaer som e-mail	Sends selected invoices as e-mail	Sender utvalgte fakturaer som e-post
 1436	Udskriver valgte fakturaer som PDF	Prints selected invoices as PDF	Skriver ut valgte fakturaer som PDF
 1437	Klik her for at rette detaljer i abonnementsordrer	Click here to correct details in subscription orders	Klikk her for å korrigere detaljer i abonnementsbestillinger
@@ -1542,7 +1542,7 @@
 1542	Ordren er i brug af	The order is in use of	Bestillingen er i bruk av
 1543	Angiv belob - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
 1544	Klik her for at gemme	Click here to save	Klikk her for å lagre
-1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	Lookup - your cursor&apos;s location indicates which table the lookup is in	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i
+1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	;Lookup - your cursor&apos;;s location indicates which table the lookup is in;	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i
 1546	Simulering af bogføring viser bevægelser i kontoplanen	Posting simulation shows movements in the chart of accounts	Bokføringssimulering viser bevegelser i kontoplanen
 1547	Bogfør - der foretages først en simulering, som du skal bekræfte	Post - a simulation is performed first, which you must confirm	Bogfør - der foretages først en simulering, som du skal bekrefte
 1548	Henter afsluttede ordrer fra ordreliste	Retrieves completed orders from order list	Henter avsluttede ordrer fra ordreliste
@@ -1553,7 +1553,7 @@
 1553	Skriv 1. bilagsnr	Write 1st attachment no	Skriv 1. bilagsnr
 1554	Sættes et lighedstegn, anvendes orginal bilagsdato	If an equals sign is used, the original document date is used	Sette et lighedstegn, brukes orginal bilagsdato
 1555	Skriv dato for alle bilag 	Write the date for all documents	Skriv dato for alle bilag
-1556	Afmærkes her, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!	Marked here, debit and credit are exchanged. Used when returning the entire journal. Put &apos;=&apos; in both of the above fields!	Afmærkes henne, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!
+1556	;Afmærkes her, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;;=&apos;; i begge overstående felter!;	;Marked here, debit and credit are exchanged. Used when returning the entire journal. Put &apos;;=&apos;; in both of the above fields!;	;Afmærkes henne, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;;=&apos;; i begge overstående felter!;
 1557	Vend fortegn (tilbagefør)	Flip sign (reverse)	Vend fortegn (tilbagefør)
 1558	Klik her for at lukke kassekladden	Click here to close the checkout journal	Klikk her for at lukke kassekladden
 1559	Her kan skrives en bemærkning til kladden	A comment on the journal can be written here	Hennes kan skrives og bemærkning til kladden
@@ -1603,7 +1603,7 @@
 1603	Klik her for at sortere på dato	Click here to sort by date	Klikk her for å sortere etter dato
 1604	Klik her for at sortere på ejer (den der har oprettet kassekladden)	Click here to sort by owner (the one who created the cash journal)	Klikk her for å sortere etter eier (den som opprettet kontantjournalen)
 1605	Klik her for at sortere på bemårkning	Click here to sort by remark	Klikk her for å sortere etter kommentar
-1606	Klik her for at sortere på \&apos;bogført af	Click here to sort by \ &apos;posted by	Klikk her for å sortere etter \ &apos;skrevet av
+1606	;Klik her for at sortere på \&apos;;bogført af;	;Click here to sort by \ &apos;;posted by;	;Klikk her for å sortere etter \ &apos;;skrevet av;
 1607	Kladde er låst af	Draft is locked off	Utkast er låst av
 1608	Klik her for at komme til forsiden af rapporter	Click here to get to the front page of reports	Klikk her for å komme til forsiden av rapporter
 1609	Angiv maksimale antal linjer, som skal vises pr. side	Specify the maximum number of lines to be displayed per page	Angi maksimalt antall linjer som skal vises pr side
@@ -1641,7 +1641,7 @@
 1641	Hvis hele ordren skal registreres på et projekt,vælg projektet her. Ellers anvendes projektfeltet på ordrelinjen	If the entire order is to be registered on a project, select the project here. Otherwise, the project field on the order line is used	Hvis hele bestillingen skal registreres på et prosjekt, velg prosjektet her. Ellers brukes prosjektfeltet på ordrelinjen
 1642	Vis stykliste	Choose from purchase order	Velg fra innkjøpsordre
 1643	Import af pbs betalinger fra web	Import of pbs payments from web	Import af pbs betalinger fra web
-1644	Filen skal vre af typen &apos;udenopkrævningsarter.csv&apos;	The file must be of the type &apos;outsidecollectiontypes.csv&apos;	Filen skal være af typen &apos;udenopkrævningsarter.csv&apos;
+1644	;Filen skal vre af typen &apos;;udenopkrævningsarter.csv&apos;;;	;The file must be of the type &apos;;outsidecollectiontypes.csv&apos;;;	;Filen skal være af typen &apos;;udenopkrævningsarter.csv&apos;;;
 1645	Angiv hvilket skilletegn der anvendes til opdeling af kolonne	Specify which delimiter is used for column division	Angiv hvilket skilletegn der anvendes til opdatering af kolonne
 1646	Max antal kladdelinjer nået!	Max number of draft lines reached!	Maks antall trekklinjer nådd!
 1647	Flyt alle	Move all	Flytt alle
@@ -1796,8 +1796,8 @@
 1796	Sæt regnskabsår	Set fiscal year	Sett regnskapsår
 1797	Klik for at se ændringer i perioder eller mailadresser	Click to see changes in periods or email addresses	Klikk for å se endringer i perioder eller e -postadresser
 1798	Send som html. Emne og mailtekst kan ikke ændres.	Send as html. Subject and email text cannot be changed.	Send som html. Emne og e -posttekst kan ikke endres.
-1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen \&apos;Kontoudtog\&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form \ &apos;Account statement\&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet \ &apos;Kontoutskrift\&apos;
-1800	Emne og mailtekst ikke udfyldt for formularen \&apos;Kontoudtog\&apos;	Subject and email text not completed for the \ &apos;Bank Statement\&apos; form	Emne- og e -posttekst er ikke fullført for \ &apos;Kontoutskrift\&apos; -skjemaet
+1799	;Send som vedhæftet PDF. Emne og mailtekst jf. formularen \&apos;;Kontoudtog\&apos;;;	;Send as an attached PDF. Subject and e-mail text, cf. the form \ &apos;;Account statement\&apos;;;	;Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet \ &apos;;Kontoutskrift\&apos;;;
+1800	;Emne og mailtekst ikke udfyldt for formularen \&apos;;Kontoudtog\&apos;;;	;Subject and email text not completed for the \ &apos;;Bank Statement\&apos;; form;	;Emne- og e -posttekst er ikke fullført for \ &apos;;Kontoutskrift\&apos;; -skjemaet;
 1801	Klik for at lukke	Click to close	Klikk for å lukke
 1802	Kontoudtog fra	Account statement from	Kontoutskrift fra
 1803	Kontoudtog	account statement	kontoutskrift
@@ -1944,7 +1944,7 @@
 1944	Klik for at oprette nyt labelark	Click to create new label sheet	Klikk for å opprette et nytt etikettark
 1945	Nyt ark	Nyt ark	Nytt ark
 1946	Klik for at vælge alle labels til udskrift eller sletning	Click to select all labels for printing or deleting	Klikk for å velge alle etiketter for utskrift eller sletting
-1947	Klik for at komme til &apos;Mit salg&apos;	Click to get to &apos;My sales&apos;	Klikk for å komme til &apos;Mitt salg&apos;
+1947	;Klik for at komme til &apos;;Mit salg&apos;;;	;Click to get to &apos;;My sales&apos;;;	;Klikk for å komme til &apos;;Mitt salg&apos;;;
 1948	OBS - Du kan ikke rette en label når den er udskrevet	NOTE - You cannot correct a label once it is printed	MERK - Du kan ikke korrigere en etikett når den først er skrevet ut
 1949	Når en label er udskrevet kan den slettes. Informationerne ligger i stregkoden.	Once a label is printed, it can be deleted. The information is in the barcode. 	Når en etikett er skrevet ut, kan den slettes. Informasjonen er i strekkoden.
 1950	klik her for mere info	click here for more info	klikk her for mer info
@@ -2217,9 +2217,9 @@
 2217	Sæt grænse for, hvor mange varer en kunde kan oprette	Set a limit on how many items a customer can create	Sett grense for hvor mange varer en kunde kan opprette
 2218	Bestil	Order	Bestill
 2219	Skriv en søgetekst. Der søges efter varer, hvor teksten indgår.	Enter a search term. Products will be searched for where the term appears.	Skriv en søketekst. Det søkes etter varer hvor teksten inngår.
-2220	Skrives 2 eller flere ord adskilt af &apos;+&apos;, søges der efter varer, hvor alle ord indgår.	If two or more words are entered, separated by a &apos;+&apos;, products will be searched for where all the words appear.	Skrives 2 eller flere ord atskilt med &apos;+&apos;, søkes det etter varer hvor alle ordene inngår.
-2221	Skrives &apos;*&apos; før eller efter søgeteksten, søges der efter varer, som starter eller slutter med ordet.	If &apos;*&apos; is added before or after the search term, products will be searched for that start or end with that word.	Skrives &apos;*&apos; før eller etter søketeksten, søkes det etter varer som starter eller slutter med ordet.
-2222	Skrives &quot; før og efter søgeteksten, søges der efter varer, hvor beskrivelsen matcher præcist.	If a &quot; is added before or after the search term, products will be searched for where the description matches exactly.	Skrives &quot; før og etter søketeksten, søkes det etter varer hvor beskrivelsen stemmer nøyaktig.
+2220	;Skrives 2 eller flere ord adskilt af &apos;;+&apos;;, søges der efter varer, hvor alle ord indgår.;	;If two or more words are entered, separated by a &apos;;+&apos;;, products will be searched for where all the words appear.;	;Skrives 2 eller flere ord atskilt med &apos;;+&apos;;, søkes det etter varer hvor alle ordene inngår.;
+2221	;Skrives &apos;;*&apos;; før eller efter søgeteksten, søges der efter varer, som starter eller slutter med ordet.;	;If &apos;;*&apos;; is added before or after the search term, products will be searched for that start or end with that word.;	;Skrives &apos;;*&apos;; før eller etter søketeksten, søkes det etter varer som starter eller slutter med ordet.;
+2222	;Skrives &quot;; før og efter søgeteksten, søges der efter varer, hvor beskrivelsen matcher præcist.;	;If a &quot;; is added before or after the search term, products will be searched for where the description matches exactly.;	;Skrives &quot;; før og etter søketeksten, søkes det etter varer hvor beskrivelsen stemmer nøyaktig.;
 2223	Masse vare-scan	Bulk product scan	Masse vare-scan
 2224	Oversigt	Dashboard	Oversikt
 2225	Top 100 i perioden	Top 100 during the period	Topp 100 i perioden
@@ -2297,12 +2297,12 @@
 2297	Gl. saldo	Old balance	Gl. saldo
 2298	Ny saldo	New balance	Ny saldo
 2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
-2300	Det beløb der skal indsættes på kontoen!	The amount to be deposited into the account!	Beløpet som skal settes inn på kontoen!
-2301	Ved udbetaling skal beløbet være negativt!	When paying out, the amount must be negative!	Ved utbetaling må beløpet være negativt!
-2302	Det beløb der betales f.eks. hvis der betales	The amount paid, for example, if payment is made	Beløpet som er betalt, for eksempel. hvis betalt
-2303	med kort og kunden samtidig vil hæve kontant.	by card and the customer also wants to withdraw cash.	med kort og kunden ønsker å ta ut kontanter samtidig.
-2304	Feltet kan efterlades tomt for ind/udbetaling på beløb.	The field can be left blank for deposit/withdrawal of amounts.	Feltet kan stå tomt for innskudd/uttak av beløp.			
-2305	Ved udbetaling <b>skal</b> feltet efterlades tomt!	The field <b>must</b> be left blank for /withdrawal!	Ved utbetaling <b>må</b> feltet stå tomt!		
+2300			
+2301			
+2302			
+2303			
+2304			
+2305			
 2306			
 2307			
 2308			
@@ -3028,12 +3028,12 @@
 3029	For at udskrive en csv skal de	To print a csv, the	For å skrive ut en csv må de
 3030	nedenstående kontonumre mappes til <u>standard kontonumre</u>.	account numbers below must be mapped to <u>standard account numbers</u>.	kontonumrene nedenfor tilordnes <u>standard kontonumre</u>.
 3031	Inde i	Inside	Inne i
-3032	systemdata &#8658; diverse &#8658; Import & Export	system data &#8658; miscellaneous &#8658; Import & Export	systemdata &#8658; diverse &#8658; Import & Export
+3032	;systemdata &#8658;; diverse &#8658;; Import & Export;	;system data &#8658;; miscellaneous &#8658;; Import & Export;	;systemdata &#8658;; diverse &#8658;; Import & Export;
 3033	kan du under	you can under	kan du under
 3034	Indlæs/udlæs kontoplan	Load/Export chart of accounts	Laste/Eksportere kontoplan
 3035	Importer mappingfil til offentlig standard kontoplan	Import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
 3036	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
-3037	systemdata &#8658; kontoplan	system data &#8658; chart of accounts	systemdata &#8658; kontoplan
+3037	;systemdata &#8658;; kontoplan;	;system data &#8658;; chart of accounts;	;systemdata &#8658;; kontoplan;
 3038	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
 3039	Map til	Map to	Map til
 3040	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
@@ -3116,3 +3116,10 @@
 3117	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt
 3118	Minimums beholdning på varer	Minimum inventory of goods	Minimum varelager
 3119	Standard minimums beholdning	Standard minimum stock	Standard minstelager
+3120	Er det sikkert, at du vil overskrive dit regnskab med denne sikkerhedskopi?	Are you sure you want to overwrite your accounting with this backup?	Er du sikker på at du vil overskrive regnskapet ditt med denne sikkerhetskopien?
+3121	Du er ved at overskrive dit regnskab	You are overwriting your account.	Du overskriver kontoen din.
+3122	med en sikkerhedskopi af regnskabet	with a backup copy of the accounts	med en sikkerhetskopi av kontoene
+3123	fra den	from the	fra den
+3124	Bemærk at alle brugere skal være logget ud	Please note that all users must be logged out.	Vær oppmerksom på at alle brukere må være logget ut.
+3125	med en sikkerhedskopi fra den	with a backup copy from the	med en sikkerhetskopi fra
+3126	;Der er sket en fejl under hentningen - pr&oslash;;v venligst igen.;	An error occurred during the download - please try again.	Det oppsto en feil under nedlastingen – prøv på nytt.

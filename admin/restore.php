@@ -4,26 +4,24 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------admin/restore.php--------lap 3.8.9------2020-03-08-----------
-// LICENS
+// ---------------admin/restore.php--------lap 3.8.9------2025-04-26-----------
+//                           LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af "The Free Software Foundation", enten i version 2
-// af denne licens eller en senere version, efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk ApS eller anden rettighedshaver til programmet.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// En dansk oversaettelse af licensen kan laeses her:
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2020 saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20160609 PHR if ($POST) fungerer ikke mere, hvis ikke det angives hvad der postes.  
 // 20200308 PHR Varius changes related til Centos 8 / mariadb /postgresql 9x
@@ -31,6 +29,7 @@
 // 20250201 Add hostname to psql
 // 20250201 removed init of $uploadedfile which was never used
 // 20250201 $brugernavn is never set near the end of the restore function
+// 20250426 LOE Modified the javascript confirm function, added language cookie for the sprog_Id and used for updating some parts.
 
 @session_start();
 $s_id=session_id();
@@ -39,14 +38,13 @@ ini_set('display_errors',0);
 ?>
 <script LANGUAGE="JavaScript">
 <!--
-function confirmSubmit()
-{
-var agree=confirm("Er det sikkert, at du vil overskrive dit regnskab med denne sikkerhedskopi?");
-if (agree)
-        return true ;
-else
-        return false ;
+
+function confirmSubmit(messageProvider) {
+    var message = typeof messageProvider === 'function' ? messageProvider() : messageProvider;
+    var agree = confirm(message);
+    return agree;
 }
+
 // -->
 </script>
 <?php
@@ -74,6 +72,11 @@ if (isset($_GET['db']) && $_GET['db']) {
 	
 } else include("../includes/online.php");	
 include("../includes/std_func.php");
+if(isset($_COOKIE['languageId'])){
+	$sprog_id = $_COOKIE['languageId'];
+}
+ 
+ 
 
 if ($popup) $returside="../includes/luk.php";
 else $returside="../index/menu.php";
@@ -132,6 +135,7 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 	if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."/restore.gz";
 		$tmp=$_FILES['uploadedfile']['tmp_name'];
+		
 		system ("rm -rf ../temp/".$db."/*");
 		if(move_uploaded_file($tmp, $filnavn)) {
 			system ("gunzip $filnavn");
@@ -164,15 +168,15 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 			$backupnavn=trim($backupnavn);
 			$regnskab=trim($regnskab);
 			if ($backupnavn && $backupnavn!=$regnskab) {
-				print "<tr><td colspan=2>Du er ved at overskrive dit regnskab: $regnskab<br>med en sikkerhedskopi af regnskabet: $backupnavn fra den $backupdato kl. $backuptid.</td></tr>";	
+				print "<tr><td colspan=2>".findtekst(3121, $sprog_id).": $regnskab<br>".findtekst(3122, $sprog_id).": $backupnavn "."fra den"."$backupdato kl. $backuptid.</td></tr>";	
 				print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
 				print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
 			} elseif ($backupdate) {
-				print "<tr><td colspan=2>Du er ved at overskrive dit regnskab: $regnskab<br>med en sikkerhedskopi fra den $backupdato kl. $backuptid.</td></tr>";	
+				print "<tr><td colspan=2>".findtekst(3121, $sprog_id).": $regnskab<br>".findtekst(3125, $sprog_id)."$backupdato kl. $backuptid.</td></tr>";	
 				print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
 				print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
 			} else {
-				print "<tr><td colspan=2>Du er ved at overskrive dit regnskab: $regnskab.</td></tr>";	
+				print "<tr><td colspan=2>".findtekst(3121, $sprog_id).": $regnskab.</td></tr>";	
 				print "<input type=\"hidden\" name=\"filnavn\" value=\"$filnavn\">";
 			}
 			print "<tr><td colspan=2><hr></td></tr>";	
@@ -180,25 +184,26 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 			print "</tbody></table></td></tr>";
 			print "</form>";
 		} else {
-			echo "Der er sket en fejl under hentningen - pr&oslash;v venligst igen.";
+			echo findtekst(3126, $sprog_id); //an error occured
 		}
 	}	else upload($db);
 } else upload($db);
 print "</tbody></table></div>";
 ################################################################################################################
 function upload($db){
-
+	global $sprog_id;
+	$textup = findtekst(3120, $sprog_id);
 	print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<form enctype=\"multipart/form-data\" action=\"restore.php?db=$db\" method=\"POST\">";
 #	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"99999999\">";
 	print "<tr><td width=100% align=center><br></td></tr>";
-	print "<tr><td width=100% align=center>Bem&aelig;rk at alle brugere skal v&aelig;re logget ud</td></tr>";
+	print "<tr><td width=100% align=center>".findtekst(3124, $sprog_id)."</td></tr>";
 	print "<tr><td width=100% align=center><br></td></tr>";
 	print "<tr><td width=100% align=center><hr width=50%></td></tr>";
 	print "<tr><td width=100% align=center></td></tr>";
 	print "<tr><td width=100% align=center>V&aelig;lg datafil: <input class=\"inputbox\" NAME=\"uploadedfile\" type=\"file\"></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td align=center><input type=\"submit\" value=\"Indl&aelig;s\" onClick=\"return confirmSubmit()\"></td></tr>";
+	print "<tr><td align=center><input type=\"submit\" value=\"Indl&aelig;s\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
 	print "<tr><td></form></td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -217,6 +222,7 @@ global $sqhost;
 global $db_encode;
 global $db_type;
 global $charset;
+global $sprog_id;
 
 if (!$db_encode) $db_encode="LATIN9";
 if (!$backup_encode) $backup_encode="UTF8";
@@ -227,6 +233,7 @@ $filnavn2="../temp/$db/restore.sql";
 $restore="";
 $fp=fopen("$filnavn","r");
 $fp2=fopen("$filnavn2","w");
+
 
 if ($fp) {
 	while (!feof($fp)) {
@@ -292,6 +299,7 @@ if ($restore=='OK') {
 	}
 	db_close($connection);
 	print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
+
 	unlink($filnavn);
 	unlink($filnavn_2);
 	print "--> \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
