@@ -110,7 +110,19 @@ if ($menu=='T') {
 	print "</td></tr>";
 }
 if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160609
-	if ($restore=if_isset($_POST['restore'])) {
+	
+		############################# check for the file types first.
+		$filename = basename($_FILES['uploadedfile']['name']);
+		$extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+		if ($extension !== 'sdat' && $extension !== 'sql') {
+			echo "<script>alert('Only .sdat or .sql files are allowed.');</script>";
+			header("Refresh: 1; URL=" . $_SERVER['REQUEST_URI']);
+			exit;
+		}
+		###########################
+		
+	if ($restore=if_isset($_POST, NULL,'restore')) {
 		if ($restore=='OK') {
 			$backup_encode=if_isset($_POST['backup_encode']);
 			$backup_dbtype=if_isset($_GET['backup_dbtype']);
@@ -135,6 +147,7 @@ if(isset($_FILES['uploadedfile']['name']) || isset($_POST['filnavn'])) { # 20160
 	if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."/restore.gz";
 		$tmp=$_FILES['uploadedfile']['tmp_name'];
+
 		
 		system ("rm -rf ../temp/".$db."/*");
 		if(move_uploaded_file($tmp, $filnavn)) {
