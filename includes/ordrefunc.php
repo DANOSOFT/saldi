@@ -3636,7 +3636,7 @@ function kontoudtog($id)
 		$url = "http" . $url;
 		$returside = $url . "/debitor/pos_ordre.php";
 
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bon=$bon&bonantal=$bonantal&id=$id&skuffe=$skuffe&returside=$returside\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=".($printserver == 'android' ? "saldiprint://" : "http://$printserver")."/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bon=$bon&bonantal=$bonantal&id=$id&skuffe=$skuffe&returside=$returside\">\n";
 		exit;
 
 	}
