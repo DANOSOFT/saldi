@@ -342,6 +342,8 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 	db_modify("CREATE TABLE tmpkassekl (id integer,lobenr integer,bilag text,transdate text,beskrivelse text,d_type text,debet text,k_type text,kredit text,faktura text,amount text,kladde_id integer,momsfri text,afd text,projekt text,ansat text,valuta text,valutakurs text,forfaldsdate text,betal_id text,dokument text)",__FILE__ . " linje " . __LINE__);
+
+	######## kladdeliste ########
 	db_modify("CREATE TABLE kladdeliste (id serial NOT NULL,kladdedate date,bogforingsdate date,kladdenote text,bogfort varchar(2),oprettet_af text,bogfort_af text,hvem text,tidspkt text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 
 	######## kds_records ########
@@ -582,7 +584,7 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 	$qtxt.= "rt_to numeric(15,0), item_id int, cust_id int, order_id int, expiry_time TIMESTAMP, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
-	$qtxt = "CREATE TABLE rentalremote (id serial NOT NULL, product_id INT, descript text, is_active smallint, choose_periods smallint, max INT', PRIMARY KEY (id))";
+	$qtxt = "CREATE TABLE rentalremote (id serial NOT NULL, product_id INT, descript text, is_active smallint, choose_periods smallint, max INT, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . "linje" . __LINE__);
 
 	$qtxt = "CREATE TABLE rentalremoteperiods (id serial NOT NULL, rentalremote_id INT, amount INT, PRIMARY KEY (id))";
