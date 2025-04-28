@@ -26,7 +26,7 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/dkdecimal.php");
+include("../includes/stdFunc/dkDecimal.php");
 # include("../includes/db_query.php");
 
 $vis_lev = $_GET['vis_lev'];
@@ -36,18 +36,22 @@ if (!$sort) {
     $sort = "varenr";
 }
 
-$row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
-if ($row["ansat_id"]) {
-    $row = db_fetch_array(db_select("select navn from ansatte where id = $row[ansat_id]", __FILE__ . " linje " . __LINE__));
-    if ($row["navn"]) {
-        $ref = $row['navn'];
-        if ($row = db_fetch_array(db_select("select afd from ansatte where navn = '$ref'", __FILE__ . " linje " . __LINE__))) {
-            if ($row = db_fetch_array(db_select("select beskrivelse, kodenr from grupper where box1='$row[afd]' and art='LG'", __FILE__ . " linje " . __LINE__))) {
-                $lager = $row['kodenr'] * 1;
-                $lagernavn = $row['beskrivelse'];
+if (!isset($_GET["lager"])) {
+    $row = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'", __FILE__ . " linje " . __LINE__));
+    if ($row["ansat_id"]) {
+        $row = db_fetch_array(db_select("select navn from ansatte where id = $row[ansat_id]", __FILE__ . " linje " . __LINE__));
+        if ($row["navn"]) {
+            $ref = $row['navn'];
+            if ($row = db_fetch_array(db_select("select afd from ansatte where navn = '$ref'", __FILE__ . " linje " . __LINE__))) {
+                if ($row = db_fetch_array(db_select("select beskrivelse, kodenr from grupper where box1='$row[afd]' and art='LG'", __FILE__ . " linje " . __LINE__))) {
+                    $lager = $row['kodenr'] * 1;
+                    $lagernavn = $row['beskrivelse'];
+                }
             }
         }
     }
+} else {
+    $lager = $_GET["lager"];
 }
 if (!$lager) {
     print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/logud.php\">";
@@ -129,9 +133,9 @@ while ($row = db_fetch_array($query)) {
         }
         $linjetext = "<span title= 'Reserveret: $reserveret'>";
         if ($r2 = db_fetch_array(db_select("select beholdning from lagerstatus where vare_id=$row[id] and lager=$lager", __FILE__ . " linje " . __LINE__))) {
-            print "<td align=right>$linjetext<small>$font $r2[beholdning]</small></span></td>";
+            print "<td align=right>$linjetext<small>$font ".dkdecimal($r2['beholdning'])."</small></span></td>";
         } else {
-            print "<td align=right>$linjetext<small>$font 0</small></span></td>";
+            print "<td align=right>$linjetext<small>$font 0,00</small></span></td>";
         }
     } else {
         $q2 = db_select("select * from batch_kob where vare_id=$row[id] and rest > 0", __FILE__ . " linje " . __LINE__);
@@ -142,7 +146,7 @@ while ($row = db_fetch_array($query)) {
             }
         }
         $linjetext = "<span title= 'Reserveret: $reserveret'>";
-        print "<td align=right>$linjetext<small>$font $row[beholdning]</small></span></td>";
+        print "<td align=right>$linjetext<small>$font ".dkdecimal($row['beholdning'])."</small></span></td>";
     }
     print "</tr>\n";
 }
