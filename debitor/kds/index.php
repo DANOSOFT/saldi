@@ -27,7 +27,7 @@
 
 @session_start();
 $s_id = session_id();
-$css = "../../css/kds.css";
+$css = "../../css/kds.css?v=1";
 include("../../includes/connect.php");
 include("../../includes/online.php");
 include("../../includes/std_func.php");
@@ -206,7 +206,7 @@ if (isset($_GET["getData"])) {
         } else {
             ?>
             <div>
-                <button onclick="window.location = '../../index/main.php'">Luk</button>
+                <!--<button onclick="window.location = '../../index/main.php'">Luk</button>-->
                 <button onclick="window.location = 'kitchen.php'">Skift køkken
                     (<?php print $_COOKIE["kitchen"]; ?>)</button>
                 <?php
