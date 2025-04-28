@@ -348,6 +348,35 @@ if (isset($_GET["getData"])) {
             refreshInterval = setInterval(fetchKdsData, 5000);
         });
     </script>
+    <script>
+        // Store the current number of tickets
+        let currentTicketCount = 0;
+        
+        // Function to play notification sound
+        function playNotificationSound() {
+            const audio = new Audio("../../sound/notification.mp3");
+            audio.play();
+        }
+
+        // Function to update timers and check for new tickets
+        function updateTimers() {
+            const items = document.querySelectorAll(".kds-item");
+            const currentTime = Math.floor(Date.now() / 1000);
+            
+            // If ticket count has changed, play notification sound
+            if (items.length > currentTicketCount) {
+                playNotificationSound();
+                currentTicketCount = items.length;
+            }
+
+            currentTicketCount = items.length;
+        }
+
+        // Initial call and set interval
+        updateTimers();
+        // Schedule the timer update every second
+        setInterval(updateTimers, 1000);
+    </script>
 </body>
 
 </html>
