@@ -353,7 +353,6 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 	if (!$backup_dbtype) $backup_dbtype="postgresql";
 	
 	$filnavn2="../temp/$db/restore.sql";
-	var_dump($filnavn);
 	$restore="";
 	$fp=fopen("$filnavn","r");
 	$fp2=fopen("$filnavn2","w");
