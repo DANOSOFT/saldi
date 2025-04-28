@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 4.1.1---2025-04-25---
+//------------index/install.php----lap 4.1.1---2025-04-28---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,8 @@
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20250116 allow user specified hostname for database, ie. other than localhost.
 // 20250129 Increase session_id length constraint from 30 to 32 on table online.
+// 20250428 LOE Set default storage engine to InnoDB for MySQL 5.7+ (replaces 'storage_engine')+$current_year
+
 
 session_start();
 ob_start(); //Starter output buffering
@@ -355,6 +357,7 @@ if (isset($_POST['opret'])){
 
 
 function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,$db_type) {
+	$current_year = date("Y");
 	fwrite($fp,"<?php\n");
 	fwrite($fp,"//                         ___   _   _   __  _     ___  _ _  \n");
 	fwrite($fp,"//                        / __| / \ | | |  \| |   |   \| / / \n");
@@ -377,7 +380,7 @@ function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,
 	fwrite($fp,"// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.\n");
 	fwrite($fp,"// See GNU General Public License for more details.\n");
 	fwrite($fp,"//\n");
-	fwrite($fp,"// Copyright (c) 2003-2025 saldi.dk aps\n");
+	fwrite($fp,"// Copyright (c) 2003-$current_year saldi.dk aps\n");
 	fwrite($fp,"// ----------------------------------------------------------------------\n");
 	fwrite($fp,"\n");
 	fwrite($fp,"if (!isset(\$bg)) \$bg='';\n");
@@ -417,10 +420,16 @@ function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,
 		fwrite($fp,"else \$connection = db_connect (\"\$sqhost\", \"\$squser\", \"\$sqpass\", \"\$sqdb\");\n");
 	}
 	fwrite($fp,"if (!isset(\$connection)) die( \"Unable to connect to database\");\n");
-	if ($db_type=='mysqli') {
-		fwrite($fp,"elseif (!mysqli_select_db(\$connection,\$sqdb)) die( \"Unable to connect to MySQL\");\n");
-		fwrite($fp,"else mysqli_query(\$connection,\"SET storage_engine=INNODB\");\n");
-	}
+	// if ($db_type=='mysqli') {
+	// 	fwrite($fp,"elseif (!mysqli_select_db(\$connection,\$sqdb)) die( \"Unable to connect to MySQL\");\n");
+	// 	fwrite($fp,"else mysqli_query(\$connection,\"SET storage_engine=INNODB\");\n");
+	// }
+	if ($db_type == 'mysqli') {
+		fwrite($fp, "elseif (!mysqli_select_db(\$connection, \$sqdb)) die( \"Unable to connect to MySQL\");\n");
+		// fwrite($fp, "elseif (!mysqli_query(\$connection, \"SET storage_engine=INNODB\")) die(\"Failed to set storage engine: \" . mysqli_error(\$connection));\n");
+		fwrite($fp, "else mysqli_query(\$connection, \"SET SESSION default_storage_engine='InnoDB'\");\n"); // Set default storage engine to InnoDB for MySQL 5.7+ (replaces 'storage_engine') 
+
+	}	
 	fwrite($fp,"\n");
 	fwrite($fp,"?".">\n");
 }
