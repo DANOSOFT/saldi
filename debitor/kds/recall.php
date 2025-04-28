@@ -59,7 +59,7 @@ print "<tr>
 	<th style='width: 160px'>Vis varer</th>
 	<th style='width: 160px'>Recall</th>
        </tr>";
-$q=db_select("select id, data, rush, time_to_complete, time_to_complete - timestamp as time from kds_records where bumped = true order by time_to_complete desc",__FILE__ . " linje " . __LINE__);
+$q=db_select("select id, data, rush, time_to_complete, time_to_complete - timestamp as time from kds_records where bumped = true order by time_to_complete desc limit 250",__FILE__ . " linje " . __LINE__);
 while($r=db_fetch_array($q)) {
 	$order = json_decode($r["data"]);
 	$koekken = $order->køkken;
@@ -80,7 +80,17 @@ while($r=db_fetch_array($q)) {
 			array_push($linjer, array($vare->antal . "x ", $vare->navn, "#ffffff00"));
 			
 			for ($i = 0; $i < count($vare->tilfravalg); $i++) {
-				array_push($linjer, array("", $vare->tilfravalg[$i], "#13ff4e"));
+				array_push(
+					$linjer,
+					array(
+						"", 
+						$vare->tilfravalg[$i], 
+						!strstr(
+							$vare->tilfravalg[$i],
+							"Minus"
+						) ? "#13ff4e" : "#ff4f62"
+					)
+				);
 			}
 			if ($vare->note) {
 				array_push($linjer, array("", $order->note, "#f7ff12"));
