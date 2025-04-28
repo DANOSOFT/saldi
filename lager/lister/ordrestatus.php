@@ -40,6 +40,9 @@ include ("topLineVarer.php");
 
 include (get_relative()."includes/grid.php");
 
+$vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
+    ? true : false;
+
 ################################################################
 #
 # Datasetup
@@ -213,7 +216,7 @@ $columns[] = array(
 
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
-$query = "SELECT * FROM grupper WHERE art='LG' ORDER BY kodenr";
+$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' GROUP BY kodenr ORDER BY kodenr";
 $SQLLagerFetch = "";
 $SQLLagerJoin  = "";
 $lagere = array();
