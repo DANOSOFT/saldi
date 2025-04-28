@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------admin/restore.php--------lap 3.8.9------2025-04-27-----------
+// ---------------admin/restore.php--------lap 3.8.9------2025-04-28-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,7 @@
 // 20250201 $brugernavn is never set near the end of the restore function
 // 20250426 LOE Modified the javascript confirm function, added language cookie for the sprog_Id and used for updating some parts.
 // 20250427 LOE Now accepts .sql file if available.
-
+// 20250428 LOE When converting from mysql to postgres, users have the option to fill in the auth details.
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -101,7 +101,7 @@ if ($menu=='T') {
 	print "<div class='divSys'>";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
 } else {
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<table width=\"100%\" height=\"30%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"$returside\" accesskey=L>Luk</a></td>";
@@ -113,9 +113,9 @@ if ($menu=='T') {
     $upFn = if_isset($_FILES, NULL, 'uploadedfile') ? if_isset($_FILES['uploadedfile'], NULL, 'name') : NULL;
 
 	if($upFn || if_isset($_POST,NULL,'filnavn')) { # 20160609
-	
+		
 		############################# check for the file types first.
-		echo $upFn;
+		include("../includes/connect.php");
 		if($upFn)$filename = basename($_FILES['uploadedfile']['name']);
 		else $filename = NULL; 
 		if(!$filename && $filename = if_isset($_POST, NULL, 'filnavn') ); 
@@ -125,26 +125,29 @@ if ($menu=='T') {
 		
 		if ($extension !== 'sdat' && $extension !== 'sql') {
 			echo "<script>alert('Only .sdat or .sql files are allowed.');</script>";
-		echo $filename;
-			#header("Refresh: 1; URL=" . $_SERVER['REQUEST_URI']);
+			header("Refresh: 1; URL=" . $_SERVER['REQUEST_URI']);
 			exit;
 		}
+		
 		###########################
 		
 	if ($restore=if_isset($_POST, NULL,'restore')) {
-		include("../includes/connect.php");
+		
 		if ($restore=='OK') {
 			$backup_encode=if_isset($_POST, NULL, 'backup_encode');
 			$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
 			$filnavn=if_isset($_POST, NULL,'filnavn');
 			restore($filnavn,$backup_encode,$backup_dbtype);
 		} else {
-			unlink($filnavn);
+			if(isset($filnavn)){
+				unlink($filnavn);
+			}elseif(isset($filename))unlink($filename);
+			
 		} 
 	}
-	// if_isset cannot be used here since 'error' will be 0 on succes. But if_isset would return it as false
-	if (isset($_FILES['uploadedfile']['error'])) {
-		$fejl = $_FILES['uploadedfile']['error'];
+	$upFe = if_isset($_FILES, NULL, 'uploadedfile') ? if_isset($_FILES['uploadedfile'], NULL, 'error') : NULL;
+	if ($upFe) {
+		$fejl = $upFe ;
 	} else {
 			$fejl = false;
 	}
@@ -154,31 +157,105 @@ if ($menu=='T') {
 			case 2: print "<BODY onLoad=\"javascript:alert('Filen er for stor - er det en SALDI-sikkerhedskopi?')\">";
 		}
 	}
-	if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
+	
+	if (if_isset($_POST,NULL,'filnavn') && if_isset($_POST,NULL,'mysql_db')) {
+		if($extension=='sql'){
+
+			// Full path of file and its name
+			$backupfil = $_POST['filnavn'];
+			// Move the uploaded file from temporary storage to the desired location
+			if (isset($_POST['mysql_db']) && isset($_POST['mysql_pass']) && $db_type == "postgresql") {					
+				// Retrieve MySQL connection details from form
+				$mysqlDb = $_POST['mysql_db'];
+				$mysqlPass = $_POST['mysql_pass'];
+	
+				$mysqlHost = $sqhost;
+				$squser = $_POST['mysql_user'];
+	
+				// Call the migration function
+				migrateMySQLToPostgreSQL($sqhost, $squser, $sqpass, $sqdb, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb);
+			}
+		}
+	}
+	$upFn1 = if_isset($_FILES, NULL, 'uploadedfile') ? if_isset($_FILES['uploadedfile'], NULL, 'name') : NULL;
+	if ($upFn1 && basename($upFn1)) {
+		
 		$filnavn="../temp/".$db."/restore.gz";
 		$tmp=$_FILES['uploadedfile']['tmp_name'];
 		if($extension=='sql'){
-
 			$tmp = $_FILES['uploadedfile']['tmp_name'];
 			$target_file = "../temp/".$db."/";
 			// Define the full path where the file will be stored
 			$backupfil = $target_file . basename($_FILES['uploadedfile']['name']);
-		
 			// Move the uploaded file from temporary storage to the desired location
 			if (move_uploaded_file($tmp, $backupfil)) {
-				print "<form name=restore action=restore.php?db=$db method=post>";
-				print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
-				print "<tr><td colspan=2><hr></td></tr>";	
-				print "<tr><td align=center><input type=submit value=\"OK\" name=\"restore\"></td><td align=center><input type=submit value=\"Afbryd\" name=\"restore\"></td><tr>";
-				print "</tbody></table></td></tr>";
-				print "</form>";
+				
+				// Check if "MySQL Dump" is in the first line
+				$handle = fopen($backupfil, 'r');
+				if ($handle) {
+					// $firstLine = fgets($handle);
+					// fclose($handle);
+					$firstLine = fgets($handle); // Read the first line
+					$secondLine = fgets($handle); // Read the second line
+					$thirdLine = fgets($handle); // Read the third line
+
+					// Check each of the first three lines for the string "dump"
+					if (strpos($firstLine, 'dump') !== false) {
+						$result = $firstLine;
+					} elseif (strpos($secondLine, 'dump') !== false) {
+						$result = $secondLine;
+					} elseif (strpos($thirdLine, 'dump') !== false) {
+						$result = $thirdLine;
+					}
+					// Close the file after processing
+					fclose($handle);
+					if(stripos(trim($result), 'MySQL dump') !== false) {
+
+							$restoreV = 'Submit';	
+							###########
+							print "<form name='restore' action='restore.php?db=$db' method='post'>";
+							print "<input type='hidden' name='filnavn' value='$backupfil'>";
+							print "<table cellpadding='5' cellspacing='0' border='0' align='center'>";
+							print "<tr><td colspan='2'><hr></td></tr>";
+
+							print "<tr>";
+							print "<td><label for='mysql_db'>MySQL Database Name:</label></td>";
+							print "<td><input type='text' name='mysql_db' required></td>";
+							print "</tr>";
+
+							print "<tr>";
+							print "<td><label for='mysql_user'>MySQL Database User:</label></td>";
+							print "<td><input type='text' name='mysql_user' required></td>";
+							print "</tr>";
+
+							print "<tr>";
+							print "<td><label for='mysql_pass'>MySQL Password:</label></td>";
+							print "<td><input type='password' name='mysql_pass' required></td>";
+							print "</tr>";
+
+							print "<tr><td colspan='2'><hr></td></tr>";
+
+							print "<tr>";
+							print "<td align='center'><input type='submit' value='$restoreV' name='restore'></td>";
+							print "<td align='center'><input type='submit' value='Afbryd' name='restore'></td>";
+							print "</tr>";
+
+							print "</table>";
+							print "</form>";
+
+							###########
+					}elseif(stripos(trim($result), 'PostgreSQL') !== false){
+						$backup_encode=if_isset($_POST, NULL, 'backup_encode');
+						$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
+						restore($backupfil,$backup_encode,$backup_dbtype);
+					}
+				} else {
+					echo "Failed to open the file.";
+					exit;
+				}	
 			}else{
 				echo "Unable to move";
 			}
-
-			// echo "<script>alert(' .sql file selected.');</script>";
-			// header("Refresh: 1; URL=" . $_SERVER['REQUEST_URI']);
-			// exit;
 		}else{
 			system ("rm -rf ../temp/".$db."/*");
 			if(move_uploaded_file($tmp, $filnavn)) {
@@ -200,30 +277,10 @@ if ($menu=='T') {
 				fclose($fp);
 				unlink($infofil);
 			
-				if (($db_type=='mysql' or $db_type=='mysqli') && ($backup_dbtype!='mysql' and $backup_dbtype!='mysqli')) { #RG_mysqli
-					print "<BODY onLoad=\"javascript:alert('En PostgreSQL-sikkerhedskopi kan ikke indl&aelig;ses i et MySQL-baseret system')\">";
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=backup.php\">";
-					exit;
-				} elseif ( ($db_type!='mysql' && $db_type!='mysqli') && ($backup_dbtype=='mysql' or $backup_dbtype=='mysqli') ) { #RG_mysqli
+				########################
+			
 
-
-					// print "<BODY onLoad=\"javascript:alert('En MySQL-sikkerhedskopi kan ikke indl&aelig;ses i et PostgreSQL-baseret system')\">";
-					// print "<meta http-equiv=\"refresh\" content=\"0;URL=backup.php\">";
-					// exit;
-					/*
-					if ($db_type == 'postgresql' && $backup_dbtype == 'mysql') { 
-						// Handle PostgreSQL and MySQL backup conflict explicitly
-						
-
-					}
-					*/
-					if ($db_type == 'postgresql' ) { 
-						// Handle PostgreSQL and MySQL backup conflict explicitly
-						
-					   exit;
-					}
-
-				} 
+			    #######################
 			
 
 				print "<form name=restore action=restore.php?db=$db&backup_dbtype=$backup_dbtype method=post>";
@@ -250,6 +307,8 @@ if ($menu=='T') {
 				echo findtekst(3126, $sprog_id); //an error occured
 			}
 		}
+
+
 	}	else upload($db);
 } else upload($db);
 print "</tbody></table></div>";
@@ -294,6 +353,7 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 	if (!$backup_dbtype) $backup_dbtype="postgresql";
 	
 	$filnavn2="../temp/$db/restore.sql";
+	var_dump($filnavn);
 	$restore="";
 	$fp=fopen("$filnavn","r");
 	$fp2=fopen("$filnavn2","w");
