@@ -50,3 +50,4 @@ __pycache__/
 # VS Code
 .vscode/
 .htaccess
+converter/exitsound_5.sql
