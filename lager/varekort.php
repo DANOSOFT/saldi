@@ -936,12 +936,12 @@ if ($saveItem || $submit = trim($submit)) {
                     $row = db_fetch_array($query);
                     $dest_columns = $row['dest_columns'];
                     $source_columns = $row['source_columns'];
-                    $copyNr = $varenr."_copy";
+                    $copyNr = $varenr . "_copy";
                     // Next, build the INSERT query
                     $qtxt = "INSERT INTO varer ($dest_columns) SELECT $source_columns FROM varer WHERE id = $id";
-                    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-                    $r=db_fetch_array(db_select("select id from varer where varenr='$copyNr'",__FILE__ . " linje " . __LINE__));
-                    $copyId=$r['id'];
+                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    $r = db_fetch_array(db_select("select id from varer where varenr='$copyNr'", __FILE__ . " linje " . __LINE__));
+                    $copyId = $r['id'];
 
                     $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
                     string_agg(CASE WHEN column_name = 'vare_id' THEN 'vare_id' ELSE column_name END, ', ') AS dest_columns,
@@ -959,7 +959,7 @@ if ($saveItem || $submit = trim($submit)) {
                     // Execute the INSERT query
                     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-                    if($samlevare == "on"){
+                    if ($samlevare == "on"){
                         $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
                         string_agg(CASE WHEN column_name = 'indgaar_i' THEN 'indgaar_i' ELSE column_name END, ', ') AS dest_columns,
                         string_agg(CASE WHEN column_name = 'indgaar_i' THEN '$copyId' ELSE column_name END, ', ') AS source_columns
@@ -1107,6 +1107,8 @@ if ($stockItem) {
             sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above 
         }
     }
+} else {
+    sync_shop_price($id);
 }
 
 if ($popup && !$returside)
@@ -1864,8 +1866,8 @@ print "value=\"" . findtekst(3, $sprog_id) . "\" name=\"saveItem\" onclick=\"jav
 
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
 if ($varenr && $samlevare == 'on') {
-	$txt1100 = findtekst(1100, $sprog_id);
-		print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey=\"k\" value=\"".findtekst(1100,$sprog_id)."\" name=\"submit\"></td>";
+    $txt1100 = findtekst(1100, $sprog_id); //Kopier
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
 } elseif ($varenr) {
     $txt1100 = findtekst(1100, $sprog_id); //Kopier
@@ -2176,8 +2178,6 @@ if (!$fokus)
 print "<script language=\"javascript\">
 document.varekort.$fokus.focus();
 </script>";
-
-
 ?>
 <script>
     const bool = "<?php echo $confirmDescriptionChange; ?>";
@@ -2187,6 +2187,8 @@ document.varekort.$fokus.focus();
         salgspris.addEventListener("change", (e) => {
             if (confirm("Er du sikker på du vil ændre salgsprisen?") == true) {
                 salgspris.value = e.target.value;
+                const form = document.querySelector("[name=saveItem]");
+                form.click()
             } else {
                 salgspris.value = oldPrice;
             }
