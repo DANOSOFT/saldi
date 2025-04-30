@@ -1192,7 +1192,7 @@ print "</div>";
 		] = [
 				menu.slice(8, menu.length),
 				row.slice(8, row.length),
-				col.slice(8, row.length)
+				col.slice(8, col.length)
 			];
 
 		start_pos = { menu: menu, row: row, col: col };
@@ -1210,7 +1210,7 @@ print "</div>";
 		] = [
 				menu.slice(8, menu.length),
 				row.slice(8, row.length),
-				col.slice(8, row.length)
+				col.slice(8, col.length)
 			];
 
 		var end_pos = { menu: menu, row: row, col: col };
@@ -1331,13 +1331,12 @@ print "</div>";
 			'pos_del_btn.php',
 			{
 				method: 'POST',
-				body: JSON.stringify({ 'menu': '$menu_id', 'row': '$ret_row', 'col': '$ret_col' }),
+				body: JSON.stringify({ 'menu': '<?php print $menu_id; ?>', 'row': '<?php print $ret_row; ?>', 'col': '<?php print $ret_col; ?>' }),
 			}
 		)
 			.then((res) => res.text())
 			.then((res) => {
-				window.location.href = "?menu_id=$menu_id";
+				window.location.href = "?menu_id=<?php print $menu_id; ?>";
 			})
 	}
-</script>;
-?>
+</script>
