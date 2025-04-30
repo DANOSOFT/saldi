@@ -2243,13 +2243,13 @@ function rykker_valg()
 	#Box3 Rentesats % pr paabegyndt md.
 #	print "<tr><td title='".findtekst('228|Rentesats i % pr. påbegyndt måned', $sprog_id)."'>".findtekst(229, $sprog_id)."</td><td><input class='inputbox' type=text style='text-align:right' size=1 name=box3 value='$box3'> %</td></tr>";
 	#Box5 Dage betalingsfrist skal vaere overskredet foer der rykkes.
-	print "<tr><td title='".findtekst('232|Antal dage betalingsfrist skal være overskredet', $sprog_id)."'>".findtekst('233|Frist for rykker 1.', $sprog_id)."</td>\n";
+	print "<tr><td title='".findtekst('232|Antal dage betalingsfristen skal være overskredet, før der påmindes om 1. rykker', $sprog_id)."'>".findtekst('233|Frist for rykker 1', $sprog_id)."</td>\n";
 	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box5' value='$box5'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
 	#Box6 Dage fra rykker 1 til rykker 2
-	print "<tr><td title='".findtekst('234|Antal dage betalingsfrist for rykker 1 skal være overskredet', $sprog_id)."'>".findtekst('235|Frist for rykker 2.', $sprog_id)." </td>\n";
+	print "<tr><td title='".findtekst('234|Antal dage betalingsfristen for rykker 1 skal være overskredet, før der påmindes om 2. rykker', $sprog_id)."'>".findtekst('235|Frist for rykker 2', $sprog_id)." </td>\n";
 	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box6' value='$box6'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
 	#Box7 Dage fra rykker 2 til rykker 3
-	print "<tr><td title='".findtekst('236|Antal dage betalingsfrist for rykker 2 skal være overskredet', $sprog_id)."'>".findtekst('237|Frist for rykker 3.', $sprog_id)." </td>\n";
+	print "<tr><td title='".findtekst('236|Antal dage betalingsfristen for rykker 2 skal være overskredet, før der påmindes om 3. rykker', $sprog_id)."'>".findtekst('237|Frist for rykker 3', $sprog_id)." </td>\n";
 	print "<td><input class='inputbox' type='text' style='text-align:right' size='3' name='box7' value='$box7'> ".findtekst('1332|Dage', $sprog_id)."</td></tr>\n";
 	print "<td colspan='3'>&nbsp;</td>\n";
 	if (!strpos(findtekst('833|Kontonr for inkassoadvokat.', $sprog_id),'inkasso')) db_modify("delete from tekster where tekst_id='833' and sprog_id='$sprog_id'",__FILE__ . " linje " . __LINE__); #20211019
