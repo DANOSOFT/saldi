@@ -1065,7 +1065,10 @@ function output($menu_id, $rows, $cols, $radius, $width, $height, $fontsize, $bg
 				$d = 1;
 			}
 
-			$selected = ($_GET["ret_row"] == $x && $_GET["ret_col"] == $y) ? "box-shadow: 0 0 0 3px green;" : "";
+			$selected = (
+				(isset($_GET["ret_row"]) ? $_GET["ret_row"] : $_POST["ret_row"]) == $x && 
+				(isset($_GET["ret_col"]) ? $_GET["ret_col"] : $_POST["ret_col"]) == $y
+			) ? "box-shadow: 0 0 0 3px green;" : "";
 
 			#			$fontsize=$height*0.7;
 			$style = "
