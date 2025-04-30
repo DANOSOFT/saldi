@@ -4,29 +4,28 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/admin/backup.php---lap 3.8.9--2020-03-08---------------------
-// LICENS
+// ----------/admin/backup.php---lap 3.8.9--2025-04-27---------------------
+//                           LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af "The Free Software Foundation", enten i version 2
-// af denne licens eller en senere version, efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk ApS eller anden rettighedshaver til programmet.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// En dansk oversaettelse af licensen kan laeses her:
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2020 saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2019.07.04 RG (Rune Grysbæk) Mysqli implementation 
 // 2020.03.08 PHR SQL dump created on demand.
+// 20250427 LOE User can now delete backup file saved if they changed their minds.
 
 @session_start();
 $s_id=session_id();
@@ -123,34 +122,57 @@ if ($menu=='T' || $menu=='S') {
 	$buttonEnd = "";
 }
 
+########################Handle the cancel instruction
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel'])) {
+	$file_path = $_POST['file_path'];
+	
+	if (file_exists($file_path)) {
+		unlink($file_path);
+	} else {
+		error_log("Error: Attempted to delete a non-existing file: $file_path");
+	}
+}
+############################
 print "<td align='center' valign='middle'>";
 print "<table cellpadding='1' cellspacing='1' border='0'><tbody>";
+
 if (file_exists("../temp/$dat_filnavn")) {
-	print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td>";
-	print "<td $style title='".findtekst('1674|Her har du mulighed for danne en sikkerhedkopi som du kan gemme.', $sprog_id).".'>";
-	print "<a href='../temp/$dat_filnavn'> $buttonStart";
-	print findtekst('3|Gem', $sprog_id)." ".findtekst('614|Sikkerhedskopi', $sprog_id);
-	print "$buttonEnd </a></td></tr>";
-	print "<tr><td align=center colspan=2>".findtekst('1242|og gem sikkerhedskopien et passende sted.', $sprog_id)."</td></tr>";
-	print "<tr><td align=center colspan=2>".findtekst('1243|Hvis din browser forsøger at åbne filen', $sprog_id)."</td></tr>";
-	print "<tr><td align=center colspan=2>".findtekst('1244|skal du højreklikke og vælge gem som', $sprog_id)."</td></tr>";
+    print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td>";
+    print "<td $style title='".findtekst('1674|Her har du mulighed for danne en sikkerhedskopi som du kan gemme.', $sprog_id).".'>";
+    print "<a href='../temp/$dat_filnavn'> $buttonStart";
+    print findtekst('3|Gem', $sprog_id)." ".findtekst('614|Sikkerhedskopi', $sprog_id);
+    print "$buttonEnd </a></td></tr>";
+    print "<tr><td align=center colspan=2>".findtekst('1242|og gem sikkerhedskopien et passende sted.', $sprog_id)."</td></tr>";
+    print "<tr><td align=center colspan=2>".findtekst('1243|Hvis din browser forsøger at åbne filen', $sprog_id)."</td></tr>";
+    print "<tr><td align=center colspan=2>".findtekst('1244|skal du højreklikke og vælge gem som', $sprog_id)."</td></tr>";
+    
+    // Add Cancel button below
+
+    print "<tr><td align=center colspan=2>";
+    print "<form action='' method='post'>";
+    print "<input type='hidden' name='file_path' value='../temp/$dat_filnavn' />";
+    print "<input type='submit' name='cancel' value='Cancel' />";
+    print "</form>";
+    print "</td></tr>";
+	
 } else {
-	print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td><td $style  title='".findtekst('1675|Her har du mulighed for at gemme sikkerhedskopien på din computer', $sprog_id)."'>";
-	print "<a href='backup.php?backup=1'> $buttonStart";
-	print findtekst('1245|Dan sikkerhedskopi', $sprog_id);
-	print "$buttonEnd </a></td></tr>";
-	print "<tr><td align=center colspan=2>".findtekst('1246|for at danne en sikkerhedskopi', $sprog_id)."<br>".findtekst('1676|som du kan gemme på din computer', $sprog_id).".</td></tr>";
-	print "<tr><td colspan=2><hr></td></tr>";
-	print "<tr><td align=center> ".findtekst('1241|Klik her', $sprog_id).": </td>";
-	print "<td $style title='".findtekst('1677|Her har du mulighed for at genindlæse en tidligere gemt sikkerhedskopi', $sprog_id)."'>";
-	print "<a href=../admin/restore.php> $buttonStart";
-	print findtekst('1247|Indlæs sikkerhedskopi', $sprog_id);
-	print "$buttonEnd </a></td></tr>";
-	print "<tr><td align=center colspan=2>".findtekst('1248|for at indlæse en sikkerhedskopi<br>fra din computer.', $sprog_id)."</td></tr>";
+    print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td><td $style  title='".findtekst('1675|Her har du mulighed for at gemme sikkerhedskopien på din computer', $sprog_id)."'>";
+    print "<a href='backup.php?backup=1'> $buttonStart";
+    print findtekst('1245|Dan sikkerhedskopi', $sprog_id);
+    print "$buttonEnd </a></td></tr>";
+    print "<tr><td align=center colspan=2>".findtekst('1246|for at danne en sikkerhedskopi', $sprog_id)."<br>".findtekst('1676|som du kan gemme på din computer', $sprog_id).".</td></tr>";
+    print "<tr><td colspan=2><hr></td></tr>";
+    print "<tr><td align=center> ".findtekst('1241|Klik her', $sprog_id).": </td>";
+    print "<td $style title='".findtekst('1677|Her har du mulighed for at genindlæse en tidligere gemt sikkerhedskopi', $sprog_id)."'>";
+    print "<a href=../admin/restore.php> $buttonStart";
+    print findtekst('1247|Indlæs sikkerhedskopi', $sprog_id);
+    print "$buttonEnd </a></td></tr>";
+    print "<tr><td align=center colspan=2>".findtekst('1248|for at indlæse en sikkerhedskopi<br>fra din computer.', $sprog_id)."</td></tr>";
 }
 print "</tbody></table></tbody></table>";
 
 print "</div></div>";
+
 
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';

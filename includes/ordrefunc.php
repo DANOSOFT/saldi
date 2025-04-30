@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-04-21 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-04-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -232,7 +232,7 @@
 // 20250116 CA  Rounding 'Afrunding' is calculated totally wrong and should not be on a credit nota (kreditnota) 
 // 20250317 LOE Internal pricelist sets to default view.
 // 20250408 PHR Function vareopslag: Fix for wrong sort in search.
-// 20250421 LOE Delimeter now takes directly from database seteup and default set if not given.
+// 20250421 LOE Delimeter now takes directly from database seteup and default set if not given
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -3636,7 +3636,7 @@ function kontoudtog($id)
 		$url = "http" . $url;
 		$returside = $url . "/debitor/pos_ordre.php";
 
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=http://$printserver/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bon=$bon&bonantal=$bonantal&id=$id&skuffe=$skuffe&returside=$returside\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=".($printserver == 'android' ? "saldiprint://" : "http://$printserver")."/saldiprint.php?printfil=$tmp&url=$url&bruger_id=$bruger_id&bon=$bon&bonantal=$bonantal&id=$id&skuffe=$skuffe&returside=$returside\">\n";
 		exit;
 
 	}
@@ -4759,7 +4759,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 	} else {
 
 	}
-
+	
 	$priceListUrl="temp/$db/pricelisturl.txt"; #20241226
 	if (!file_exists($priceListUrl)) {
 			echo "Error: Could not locate the file.".$priceListUrl;	
@@ -4767,10 +4767,12 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 		file_put_contents($priceListUrl, $location);
 		$location = file_get_contents($priceListUrl);
 	}
-
-
+	
+	$option = explode(":", $option, 2);
+	list($option, $externalPricelist) = $option;
+	if($option == ''){$option = NULL;}
 	// HTML Form
-	if (!$option) {
+	if (!$option && $externalPricelist) { 
 		// Show the form only if there's no option in the URL
 		print '
 		<!-- HTML Form -->
@@ -4853,13 +4855,11 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 
 		file_put_contents("../temp/$db/vareopslag.log","vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find)\n",FILE_APPEND);
 		
-		
 	
 		// Display the corresponding content based on the selected option
 	if(isset($option) && $option==2 || !isset($option)){
 			if ($option == 2 || !isset($option)) {
 				print "<div id='hiddenContent' style='display: block;'>"; // Show internal content
-				print "Internal Pricelist Content";
 			} else {
 				print "<div id='hiddenContent' style='display: none;'>";	
 			}

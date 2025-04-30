@@ -27,7 +27,7 @@
 
 @session_start();
 $s_id = session_id();
-$css = "../../css/kds.css";
+$css = "../../css/kds.css?v=1";
 include("../../includes/connect.php");
 include("../../includes/online.php");
 include("../../includes/std_func.php");
@@ -206,7 +206,7 @@ if (isset($_GET["getData"])) {
         } else {
             ?>
             <div>
-                <button onclick="window.location = '../../index/main.php'">Luk</button>
+                <!--<button onclick="window.location = '../../index/main.php'">Luk</button>-->
                 <button onclick="window.location = 'kitchen.php'">Skift køkken
                     (<?php print $_COOKIE["kitchen"]; ?>)</button>
                 <?php
@@ -347,6 +347,35 @@ if (isset($_GET["getData"])) {
             // Set interval for periodic updates
             refreshInterval = setInterval(fetchKdsData, 5000);
         });
+    </script>
+    <script>
+        // Store the current number of tickets
+        let currentTicketCount = 0;
+        
+        // Function to play notification sound
+        function playNotificationSound() {
+            const audio = new Audio("../../sound/notification.mp3");
+            audio.play();
+        }
+
+        // Function to update timers and check for new tickets
+        function updateTimers() {
+            const items = document.querySelectorAll(".kds-item");
+            const currentTime = Math.floor(Date.now() / 1000);
+            
+            // If ticket count has changed, play notification sound
+            if (items.length > currentTicketCount) {
+                playNotificationSound();
+                currentTicketCount = items.length;
+            }
+
+            currentTicketCount = items.length;
+        }
+
+        // Initial call and set interval
+        updateTimers();
+        // Schedule the timer update every second
+        setInterval(updateTimers, 1000);
     </script>
 </body>
 

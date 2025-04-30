@@ -1062,9 +1062,187 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 				}
 				$qtxt = "update openpost set valutakurs = '100', valuta = 'DKK' where valutakurs is NULL or valutakurs = '0'";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and ";
+				$qtxt .= "column_name='variant_text'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					// Add the variant_text column if it doesn't exist
+					db_modify("ALTER table variant_varer ADD column variant_text character varying(25)", __FILE__ . " linje " . __LINE__);
+					// Fix the type mismatch by casting variant_type to integer
+					$qtxt = "SELECT variant_varer.id as id, variant_typer.beskrivelse as beskrivelse from variant_varer,variant_typer ";
+					$qtxt .= "where variant_varer.variant_type::integer = variant_typer.id order by variant_varer.id";
+					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					while ($r = db_fetch_array($q)) {
+						$qtxt = "UPDATE variant_varer set variant_text = '" . db_escape_string($r['beskrivelse']) . "' where id = '$r[id]'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
+					// Optional: Fix the column type permanently (can be removed if you prefer to keep using the cast)
+					db_modify("ALTER TABLE variant_varer ALTER COLUMN variant_type TYPE integer USING variant_type::integer", __FILE__ . " linje " . __LINE__);
+				}
+
 				$qtxt="UPDATE grupper set box1='$nextver' where art = 'VE'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				transaktion('commit');
+				include("../includes/connect.php");
+				$qtxt="UPDATE regnskab set version = '$nextver' where db = '$db'";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
+		}
+		$nextver='4.1.0';
+		if ($SubNo < '1'){
+		include("../includes/connect.php");
+			$r=db_fetch_array(db_select("select * from regnskab where id='1'",__FILE__ . " linje " . __LINE__));
+			$tmp=$r['version'];
+			if ($tmp<$nextver) {
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name='sms'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table regnskab ADD column sms int", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt="UPDATE regnskab set version = '$nextver' where id = '1'";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			}
+			if ($db!=$sqdb){
+				include("../includes/online.php");
+				include('../includes/stdFunc/ensureTableAndColumns.php');
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'item_name' => 'varchar (255)', 'product_id' => 'INTEGER'];
+				ensureTableAndColumns($db, 'rentalitems', $expectedColumns);
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'order_id' => 'INTEGER', 'rt_from' => 'numeric(15,0)', 'rt_to' => 'numeric(15,0)', 'item_id' => 'INTEGER', 'cust_id' => 'INTEGER', "expiry_time" => 'TIMESTAMP'];
+				ensureTableAndColumns($db, 'rentalperiod', $expectedColumns);
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'item_id' => 'INTEGER', "rr_from" => 'numeric(15,0)', "rr_to" => "numeric(15,0)", 'comment' => 'varchar (255)'];
+				$renameColumns = [
+					"from" => "rr_from",
+					"to" => "rr_to"
+				];
+				ensureTableAndColumns($db, 'rentalreserved', $expectedColumns, $renameColumns);
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'day' => 'INTEGER'];
+				ensureTableAndColumns($db, 'rentalclosed', $expectedColumns);
+
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'booking_format' => 'INTEGER', 'search_cust_name' => 'INTEGER', 'search_cust_number' => 'INTEGER', 'search_cust_tlf' => 'INTEGER', 'start_day' => 'INTEGER', 'deletion' => 'INTEGER', 'find_weeks' => 'INTEGER', 'end_day' => 'INTEGER', 'put_together' => 'INTEGER', 'pass' => 'varchar(255)', 'use_password' => 'INTEGER', 'invoice_date' => 'INTEGER'];
+				ensureTableAndColumns($db, 'rentalsettings', $expectedColumns);
+
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'host' => 'varchar(255)', 'username' => 'varchar(255)', 'password' => 'varchar(255)'];
+				ensureTableAndColumns($db, 'rentalmail', $expectedColumns);
+
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'product_id' => 'INTEGER', 'descript' => 'text', 'is_active' => 'smallint', 'choose_periods' => 'smallint', 'max' => 'INTEGER'];
+				ensureTableAndColumns($db, 'rentalremote', $expectedColumns);
+
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'rentalremote_id' => 'INTEGER', 'amount' => 'INTEGER'];
+				ensureTableAndColumns($db, 'rentalremoteperiods', $expectedColumns);
+
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'payment_intent_id' => 'varchar(255)', 'amount' => 'INTEGER', 'betalings_link' => 'varchar(255)', 'kontonr' => 'INTEGER', 'created_at' => 'TIMESTAMP'];
+				ensureTableAndColumns($db, 'betalingslink', $expectedColumns);
+
+				$expectedColumns = ['id' => 'SERIAL PRIMARY KEY', 'apikey' => 'varchar(255)', 'trade_conditions' => 'varchar(255)'];
+				ensureTableAndColumns($db, 'rentalpayment', $expectedColumns);
+
+
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='digital_status'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table ordrer ADD column digital_status character varying(255)", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='notifications'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$qtxt = "CREATE TABLE notifications (id SERIAL PRIMARY KEY, msg varchar(255), read_status int)";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='variant_varer' and ";
+				$qtxt .= "column_name='variant_text'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table variant_varer ADD column variant_text character varying(25)", __FILE__ . " linje " . __LINE__);
+					$qtxt = "SELECT variant_varer.id as id, variant_typer.beskrivelse as beskrivelse from variant_varer,variant_typer ";
+					$qtxt .= "where variant_varer.variant_type::integer = variant_typer.id order by variant_varer.id";
+					$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+					while ($r = db_fetch_array($q)) {
+						$qtxt = "UPDATE variant_varer set variant_text = '" . db_escape_string($r['beskrivelse']) . "' where id = '$r[id]'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					}
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='wolt_intergereted'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table varer ADD column wolt_intergereted bool default FALSE", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='notesinternal'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table varer ADD column notesinternal text", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='colli_webfragt'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='kds_records'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$qtxt = "CREATE TABLE kds_records (id SERIAL PRIMARY KEY NOT NULL, data text NOT NULL, bumped boolean NOT NULL, timestamp integer NOT NULL, ";
+					$qtxt.= "time_to_complete integer NOT NULL, rush boolean, last_undo boolean)";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='stockmovement'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$qtxt = "CREATE TABLE stockmovement (id SERIAL PRIMARY KEY NOT NULL, vareid integer NOT NULL, beholdning integer NOT NULL)";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='pos_buttons' and column_name='fontcolor' ";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$qtxt = "ALTER TABLE pos_buttons ADD COLUMN fontcolor character varying(6)";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='settings' and column_name='pos_id'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE settings ADD column pos_id int", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "update settings set pos_id = '0' where var_name = 'customerDisplay' and pos_id is NULL";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='volume_lager'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table varer ADD column volume_lager float default 1", __FILE__ . " linje " . __LINE__);
+				}
+
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='lev_land'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table ordrer ADD column lev_land VARCHAR(60)", __FILE__ . " linje " . __LINE__);
+				}
+
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='lev_email'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table ordrer ADD column lev_email VARCHAR(60)", __FILE__ . " linje " . __LINE__);
+				}
+
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='gls_label'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table ordrer ADD column gls_label bool default false", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='fedex_label'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER table ordrer ADD column fedex_label bool default false", __FILE__ . " linje " . __LINE__);
+				}
+# Access global db
+
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='datables'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$qtxt = "CREATE TABLE datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), ";
+					$qtxt.= "column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, \"sort\" TEXT)";
+					db_modify($qtxt, __FILE__ . " line " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tutorials'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$qtxt = "CREATE TABLE tutorials (id SERIAL PRIMARY KEY,	user_id INTEGER NOT NULL, tutorial_id CHARACTER VARYING(10),selector TEXT)";
+					db_modify($qtxt, __FILE__ . " line " . __LINE__);
+				}
+				$qtxt = "SELECT data_type FROM information_schema.columns WHERE table_name='variant_varer' AND column_name='variant_type' AND data_type != 'character varying'";
+				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					// Column exists and is NOT character varying, so alter it
+					db_modify("ALTER TABLE variant_varer ALTER COLUMN variant_type TYPE VARCHAR(100)", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT table_name FROM information_schema.columns WHERE table_name='kds_records' ";
+				$qtxt .= "and column_name='sort_timestamp'";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("ALTER TABLE kds_records ADD column sort_timestamp integer default NULL", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT tekst FROM tekster WHERE tekst_id = 607 AND sprog_id = 1 AND tekst = 'Kredtor' ";
+				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					db_modify("UPDATE tekster SET tekst = 'Kreditor' WHERE tekst_id = 607 AND sprog_id = 1", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt="UPDATE grupper SET box1='$nextver' where art = 'VE'";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				include("../includes/connect.php");
 				$qtxt="UPDATE regnskab set version = '$nextver' where db = '$db'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);

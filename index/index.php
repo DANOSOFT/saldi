@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----patch 4.1.1 ----2025-04-02--------------
+// --- index/index.php -----patch 4.1.1 ----2025-04-21--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 // 20250313 LOE Sanitized some inputs to mitigate against XSS attack CWE-79
 // 20250314 LOE Updated the  document.login.submit with $nonce variable to work witht the enforced CSP 
 // 20250402 LOE Applied $nonce to javascript handling languageId form and other clean up
+// 20250426 LOE Set cookie path to '/' for languageId to make it accessible across all pages on the site; as used in restore file
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {
@@ -92,7 +93,9 @@ if(isset($_POST['languageId'])){
 } elseif(isset($_COOKIE['languageId'])){
 	$languageId = $_COOKIE['languageId'];
 }
-if ($languageId) setcookie('languageId',$languageId, time() + (10 * 365 * 24 * 60 * 60) );
+if ($languageId) {
+    setcookie('languageId', $languageId, time() + (10 * 365 * 24 * 60 * 60), '/');
+}
 
  if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
 
@@ -212,7 +215,7 @@ $a = explode("\t",$linje);
 fclose($fp);
 
 if (!is_numeric($languageId)) $languageId = 1;
-for ($x=1; $x<count($a); $x++){
+for ($x=1; $x<=count($a); $x++){
 if ($x == $languageId){
 print "<option selected value=\"$x\">". findtekst(1,$x) ."</option>\n";
 }

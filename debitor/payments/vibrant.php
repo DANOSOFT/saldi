@@ -53,6 +53,8 @@ $x = $kasse - 1;
 $tmp = explode(chr(9), $r['box3']);
 $printserver = trim($tmp[$x]);
 
+print '<meta name="viewport" content="width=device-width, initial-scale=1">';
+
 print "<div id='container'>";
 print "<span>Vibrant terminal startet, afventer kort.</span>";
 print "<h3>$pretty_amount kr.</h3>";
@@ -271,6 +273,15 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
     var idx = 0;
     async function get_pos() {
+      if ("<?php print $printserver; ?>" == "dummy") {
+        cardScheme = "Dankort"
+        payment_id = "pi_dummy"
+        receipt_id = "pi_dummy-dummy"
+        successed();
+        return;
+      }
+
+
       try {
         var res = await fetch(
           'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/<?php print $type; ?>',
@@ -301,7 +312,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
           get_payment_update(payment_id);
           <?php
           if ($printserver == "android") {
-            print "window.location.href = 'vibrantio://a2a?callbackUrl=<?php print $_SERVER[REQUEST_URI]'; ?>";
+            print "window.location.href = 'vibrantio://a2a?callbackUrl=" . $_SERVER['REQUEST_URI'] . "&callback=hallo%20ther';";
           }
           ?>
         }

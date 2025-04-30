@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-03-22 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-04-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -2252,6 +2252,7 @@ $Urlc = $originalUrl;
 #+++++++++++++++++++++++++++++
 
 
+
 /*
 $swap_account = if_isset($_GET['swap_account']);
 if ($swap_account) {
@@ -2279,6 +2280,10 @@ if ($swap_account) {
 */
     if ((strstr($fokus,'lev_navn'))&&($id)) kontoopslag("$art","$sort","$fokus","$id","$lev_navn",'','','','','');
 #    elseif (strstr($fokus,'kontakt')) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
+	$q=db_select("select box2 from grupper where art = 'PL' order by beskrivelse",__FILE__ . " linje " . __LINE__);
+	if($s = db_fetch_array($q)){
+		$option= $option.':'.$s[0];
+	}	
 
     if ((strstr($fokus,'vare'))&&($art!='DK')) vareopslag($art,$sort,'varenr',$id,$vis_kost,$ref,$varenr[0],$Urlc,$option);
     if (strstr($fokus,'besk') && $beskrivelse[0] && $art!='DK') vareopslag($art,$sort,'beskrivelse',$id,$vis_kost,$ref,$beskrivelse[0]);

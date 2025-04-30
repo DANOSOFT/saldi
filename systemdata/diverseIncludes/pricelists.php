@@ -21,9 +21,6 @@ function pricelists(){
         ';
         //print '<button type="submit" name="edit_submit" style="margin-left: 10px;">Save</button>';
     }
-
-
-
 	global $bgcolor, $bgcolor5;
 	global $regnaar;
 	global $sprog_id;
@@ -87,8 +84,6 @@ function pricelists(){
         $beskrivelse1[$k]=$row['beskrivelse'];
         $k++;
     }
-
-
  //e.g  https://saldi.dk/Buchberg/varer.csv
  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handling submitted data for editing existing entries
@@ -116,8 +111,6 @@ function pricelists(){
                     print "<script>alert('Updated.');</script>";
                     print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
                     exit;
-
-
             
             }
             return; // Stop further processing after handling edit form
@@ -184,9 +177,6 @@ function pricelists(){
  
 
         #**********************
-
-
-
             ################################
               // Second step: displaying selected columns
         
@@ -471,8 +461,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             print '<option value="">...</option>';
         }
         
-        
-        
         foreach ($beskrivelse1 as $group) {
             // Skip the selected group if it already exists in the options
             if ($group !== $selectedGruppe) {
@@ -482,7 +470,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         
         print '</select></td>';
         print '</tr>';
-
 
         // Row for 'encoding'
         $encodingE = ['UTF'=>'UTF-8', 'ISO'=>'ISO-8859-1'];
@@ -565,18 +552,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     $delimiter = ';';
                 }else{
                     print "<script>alert('The provided file is not a valid CSV format.Check the delimiter');</script>";
-                    #print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
-                    #exit;
                    editForm($x);
                 
                 }
                 
          }
  
-
         #**********************
-
-
 
             ################################
              
@@ -646,24 +628,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
                 
         print "</table>"; //End of form handling csv data
-        // print "<button type='submit'>Save Data</button>";
-        // echo "</form>";  
         print '<button type="submit" name="edit_submit" style="margin-left: 10px;">Save</button>'; 
         #///////////////////////////////////
 
         print '</table>'; // Close the edit form table
 
-      #  print '<button type="button" onclick="toggleEditForm(' . $x . ')" style="margin-left: 10px;">Cancel</button>';
        // Add name to the button
         print '</td>';
         print '</tr>';
     }
-
-           
-
     print '</table>';
-
-
     // JavaScript to toggle the visibility of the edit form and add form
     print '
     <script>
@@ -689,23 +663,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
     </script>
     ';
-
-
-    
-
     return;
 }
-
-
-
-   
-
-
 }
 	# endfunc pricelists
-
-
-
 ?>
 
 

@@ -40,6 +40,9 @@ include ("topLineVarer.php");
 
 include (get_relative()."includes/grid.php");
 
+$vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
+    ? true : false;
+
 ################################################################
 #
 # Datasetup
@@ -55,7 +58,9 @@ $columns[] =    array(
     "headerName" => "Vare Nr.",
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
-        return "<td align='$column[align]'><a href='$url'>$value</a></td>";
+
+        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]'><a href='$url'>$value</a></td>";
     },
     "sqlOverride" => "v.varenr"
 );
@@ -63,6 +68,12 @@ $columns[] =    array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
     "width" => "3",
+    "render" => function ($value, $row, $column) {
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+
+        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
+    },
     "sqlOverride" => "v.beskrivelse"
 );
 $columns[] =    array(
@@ -205,7 +216,7 @@ $columns[] = array(
 
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
-$query = "SELECT * FROM grupper WHERE art='LG' ORDER BY kodenr";
+$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' GROUP BY kodenr ORDER BY kodenr";
 $SQLLagerFetch = "";
 $SQLLagerJoin  = "";
 $lagere = array();
@@ -588,6 +599,8 @@ SELECT
     v.trademark AS trademark,       
     v.stregkode AS stregkode,       
     v.enhed AS enhed,               
+    v.notes as notes,
+    v.notesinternal as notes_internal,
     v.min_lager AS min_lager,
     v.max_lager AS max_lager,
     GREATEST(v.volume_lager, 1) AS volume_lager, -- Pakningsmængde
@@ -596,10 +609,15 @@ SELECT
     CASE 
         WHEN COALESCE(ls.lager_total, 0) - COALESCE(os.in_sales_order, 0) 
             + COALESCE(os.in_buy_proposal, 0) + COALESCE(os.in_buy_order, 0) < v.min_lager
-            THEN CEIL((v.max_lager - 
+        THEN GREATEST(
+                1,
+                FLOOR(
+                    (v.max_lager - 
                     (COALESCE(ls.lager_total, 0) - COALESCE(os.in_sales_order, 0) 
-                        + COALESCE(os.in_buy_proposal, 0) + COALESCE(os.in_buy_order, 0))) 
-                    / GREATEST(v.volume_lager, 1)) * GREATEST(v.volume_lager, 1)
+                        + COALESCE(os.in_buy_proposal, 0) + COALESCE(os.in_buy_order, 0))
+                    ) / GREATEST(v.volume_lager, 1)
+                )
+            ) * GREATEST(v.volume_lager, 1)
         ELSE 0
     END AS genbestil,
 

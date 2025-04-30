@@ -52,7 +52,7 @@ for ($i = 0; $i < $columns; $i++) {
 $display_style = trim($display_style) . ";";
 
 $colors = array();
-$q = db_select("select var_value from settings where var_name='color' and var_grp='KDS'", __FILE__ . " linje " . __LINE__);
+$q = db_select("select var_value from settings where var_name='color' and var_grp='KDS' ORDER BY CAST(SPLIT_PART(var_value, '-', 1) AS INTEGER)", __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
     $row = explode("-", $r["var_value"]);
     array_push($colors, $row);
@@ -144,7 +144,17 @@ foreach ($orders as $index => $order) {
             array_push($linjer, array($vare->antal . "x ", $vare->navn, "#ffffff00"));
             
             for ($i = 0; $i < count($vare->tilfravalg); $i++) {
-                array_push($linjer, array("", $vare->tilfravalg[$i], "#13ff4e"));
+				array_push(
+					$linjer,
+					array(
+						"", 
+						$vare->tilfravalg[$i], 
+						!strstr(
+							$vare->tilfravalg[$i],
+							"Minus"
+						) ? "#13ff4e" : "#ff4f62"
+					)
+				);
             }
             if ($vare->note) {
                 array_push($linjer, array("", $order->note, "#f7ff12"));
