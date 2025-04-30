@@ -35,7 +35,7 @@
 35	Kunde	Customer	Kunde
 36	Postnr.	ZIP code	Post nr.
 37	Telefon	Telephone	Telefon
-38	Stillingsliste	Job ist	Stillingsliste
+38	Stillingsliste	Job list	Stillingsliste
 39	Ny	New	Ny
 40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
 41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Write a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
@@ -45,7 +45,7 @@
 45	Adresse 2	Address 2	adresse 2
 46	By	City	By
 47	Land	Country	Land
-48	Cvr nr.	Vat no.	MVA nr.
+48	CVR-nr.	VAT no.	MVA-nr.
 49	Tlf	Phone	Tlf
 50	Fax	Fax	Faks
 51	Web	Web	Internett
@@ -79,7 +79,7 @@
 79	Dags dato anvendes som fakturadato	Today's date is used as the invoice date	Dagens dato brukes som fakturadato
 80	Ok	OK	OK
 81	Afbryd	Cancel	avbryt
-82	Genfakturer	Next invoice	Neste faktura
+82	Genfakturer	Re-invoice	Gjenfakturer
 83	Ja	Yes	Ja
 84	Nej	No	Nei
 85	Vælg om priser skal opdateres fra varekort eller overføres uændrede.	Choose whether prices are to be updated from product cards or transferred unchanged.	Velg om prisene skal oppdateres fra produktkort eller overføres uendret.
@@ -104,7 +104,7 @@
 104	<b>SYSTEMDATA</b>	<b> SYSTEM DATA </b>	<b> SYSTEMDATA </b>
 105	Kassekladder	Cashbook	Kontantutkast
 106	Klik her når du skal oprette salgsordrer eller fakturaer til kunder.	Click here to create sales orders or invoices for customers.	Klikk her for å opprette salgsordrer eller fakturaer for kunder.
-107	Ordrer	Orders	Ordrene
+107	Ordrer	Orders	Ordrer
 108	Klik her når du skal oprette indkøbsordrer eller modtage varer til videresalg.	Click here to create purchase orders or receive items for resale.	Klikk her for å opprette innkjøpsordrer eller motta varer for videresalg.
 109	Klik her når du skal oprette varer eller generere indkøbsforslag.	Click here when you need to create items or generate purchase proposals.	Klikk her når du trenger å lage varer eller generere innkjøpsforslag.
 110	Varer	Goods	Varer
@@ -159,14 +159,14 @@
 159	Fortryd	Undo	Angre
 160	<- Klik her for at fortryde.	<- Click here to undo.	<- Klikk her for å angre.
 161	Klik her hvis du vil logge ud af SALDI	Click here to log out of SALDI	Klikk her for å logge av SALDI
-162	Tvungen valg af debitorgruppe på debitorkort	Forced selection of debtor group on debtor card	Tvunget utvalg av debitorgruppe på debitorkort
-163	Tvungen valg af kundeansvarlig på debitorkort	Forced choice of customer manager on debtor card	Tvunget valg av kundesjef på debitorkort
+162	Tvungen valg af debitorgruppe på debitorkort	Forced selection of debtor group on debtor card	Tvunget valg av debitorgruppe på debitorkort
+163	Tvungen valg af kundeansvarlig på debitorkort	Forced selection of customer manager on debtor card	Tvunget valg av kundeansvarlig på debitorkort
 164	Medtag kommentarer på følgesedler	Include comments on delivery notes	Inkluder kommentarer på følgesedler
-165	Anvend hurtigfakturering (ingen tilbud & automatisk levering ved fakturering)	Use fast invoicing (no offer & automatic delivery when invoicing)	Bruk rask fakturering (ingen tilbud og automatisk levering ved fakturering)
+165	Anvend hurtigfakturering (ingen tilbud & automatisk levering ved fakturering)	Use fast invoicing (no offers & automatic delivery when invoicing)	Bruk hurtigfakturering (ingen tilbud og automatisk levering ved fakturering)
 166	Omgående bogføring af salgsordrer	Immediate posting of sales orders	Umiddelbar postering av salgsordrer
 167	Integration med DocuBizz	Integration with DocuBizz	Integrasjon med DocuBizz
 168	Brug jobkort	Use job cards	Bruk jobbkort
-169	Medtag kun linjer med antal på følgeseddel	Only include lines with number on delivery note	Inkluder bare linjer med nummer på følgeseddelen
+169	Medtag kun linjer med antal på følgesedler	Only include lines with quantity on delivery notes	Ta med kun linjer med antall på følgesedler
 170	Øredifferencer	Annual differences	Øreforskjeller
 171	Skriv det maksimale beløb for øredifferencer angivet i kroner	which must be offset in open items	Skriv maksimalt beløp for øredifferanser oppgitt i kroner
 172	Maksimalt beløb for øredifferencer (i kroner)	Maximum amount for year differences (in kroner)	Maksimumsbeløp for øreforskjeller (i kroner)
@@ -183,18 +183,18 @@
 183	Tillad negativ lagerbeholdning	Allow negative inventory	Tillat negativ beholdning
 184	Brug betalingslister	Use payment lists	Bruk betalingslister
 185	Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervsformater). Hvis dette felt er afmærket	there will be extra fields on the cash journal for payment ID when posting creditor invoices	Med betalingslister kan du overføre betalinger til en bank via ERH (bankenes forretningsformater). Hvis dette feltet er merket av
-186	Hvis dette felt afmærkes	the user is forced to actively select the debtor group when creating debtors.	Hvis dette feltet er merket av
-187	Hvis dette felt afmærkes	the user is forced to actively choose the customer manager when creating debtors.	Hvis dette feltet er merket av
-188	Hvis dette felt afmærkes	Comment lines from offers / orders on delivery notes are included.	Hvis dette feltet er merket av
-189	Hvis dette felt afmærkes	only those products are included	Hvis dette feltet er merket av
-190	Hurtigfakturering anvendes	if you do not need to write offers / delivery notes	Rask fakturering brukes
-191	Hvis dette felt ikke er afmærket	sales invoices must be posted through the cash journal with the [Get Orders] function.	Hvis dette feltet ikke er merket av
-192	Afmærk dette felt for at tillade negativ lagerbeholdning.	Check this box to allow negative inventory.	Merk av i denne boksen for å tillate negativ beholdning.
+186	Hvis dette felt afmærkes, kræves det at brugeren vælger en debitorgruppe ved oprettelse af debitorer	If this field is checked, the user is forced to actively select a debtor group when creating debtors	Hvis dette felt merkes av, kreves det at brukeren velger en debitorgruppe ved opprettelse av debitorer
+187	Hvis dette felt afmærkes, kræves det at brugeren vælger en kundeansvarlig ved oprettelse af debitorer	If this field is checked, the user is forced to actively select a customer manager when creating debtors.	Hvis dette felt merkes av, kreves det at brukeren velger en kundeansvarlig ved opprettelse av debitorer
+188	Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler	If this field is checked, comment lines from offers/orders are included on delivery notes	Hvis dette feltet merkes, inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler
+189	Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler	If this field is checked, only lines with specified quantity will be included on delivery notes	Hvis dette feltet merkes inkluderes kun linjer med angitt antall på følgesedler
+190	Hurtigfakturering anvendes, hvis der ikke er behov for tilbud/følgesedler	Fast invoicing is used if offers/delivery notes are not needed	Hurtigfakturering brukes hvis det ikke er behov for tilbud/følgesedler
+191	Hvis dette felt ikke er afmærket, skal salgsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen	If this field is not checked, sales invoices must be posted through the cash journal with the [Get Orders]-function	Hvis dette feltet ikke er avmerket, skal salgsfakturaer bokføres via kassekladden med [Hent ordrer]-funksjonen
+192	Afmærk dette felt for at tillade negativ lagerbeholdning	Check this field to allow negative inventory	Merk av i denne boksen for å tillate negativ beholdning
 193	Docubizz er en aplikation til håndtering af indscannede dokumenter. Se mere om denne funktion på www.docubizz.dk	Docubizz is an application for handling scanned documents. See more about this function at www.docubizz.dk	Docubizz er et program for håndtering av skannede dokumenter. Se mer om denne funksjonen på www.docubizz.dk
 194	Jobkort findes i debitorkonti. Her kan du definere opgavebeskrivelser til medarbejdere osv.	Job cards are available in debtor accounts. Here you can define job descriptions for employees	Jobbkort er tilgjengelig i debitorkontoer. Her kan du definere stillingsbeskrivelser for ansatte osv.
 195	Under enheder/materialer kan du tilføje og rette i de enhedsbetegnelser	 used in product cards <br> and in orders / invoices as well as material designations in the product card.	Under enheter / materialer kan du legge til og korrigere i enhetsbetegnelsene
-196	Vis priser inkl. moms på kundeordrer	Show prices incl. VAT on customer orders	Vis priser inkl. MVA på salgsordrer
-197	Når dette felt er afmærket	display prices on sales orders	Når dette feltet er merket av
+196	Vis priser inkl. moms på kundeordrer	Show prices incl. VAT on customer orders	Vis priser inkl. MVA på kundeordrer
+197	Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer	If this field is checked, prices including VAT are displayed on sales orders	Hvis dette feltet er merket vises priser inkludert moms på salgsordrer
 198	Klik her for at skifte til forrige ordre på ordrelisten - husk at gemme eventuelle ændringer først.	Click here to switch to the previous order in the order list - remember to save any changes first.	Klikk her for å bytte til forrige ordre i ordrelisten - husk å lagre eventuelle endringer først.
 199	Klik her for at skifte til næste ordre på ordrelisten - husk at gemme eventuelle ændringer først.	Click here to switch to the next order in the order list - remember to save any changes first.	Klikk her for å bytte til neste ordre i ordrelisten - husk å lagre eventuelle endringer først.
 200	Massefakturering	Mass invoicing	Massefakturering
@@ -211,7 +211,7 @@
 211	Intern bilagsopbevaring (mod betaling).	Internal document storage (for a fee).	Intern dokumentlagring (mot avgift).
 212	Afmærk her hvis du vil anvende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 	Check here if you want to use document scanning and do not want to set up a server for document storage yourself. Same cost as an additional user per. GB.	Sjekk her hvis du vil bruke dokumentskanning og ikke ønsker å sette opp en server for dokumentlagring selv. Samme kostnad som en ekstra bruker pr. GB.
 213	Omgående bogføring af købsordrer	Immediate posting of purchase orders	Umiddelbar postering av innkjøpsordrer
-214	Hvis dette felt ikke er afmærket	If this field is not checked	Hvis dette feltet ikke er merket av
+214	Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen	If this field is not checked, purchase invoices must be posted through the cash journal with the [Get Orders]-function	Hvis dette feltet ikke er avmerket, skal kjøpsfakturaer bokføres via kassekladden med [Hent ordrer]-funksjonen
 215	Emne og tekst til brug ved udsendelse som e-mail	Subject and text for use when sending by e-mail	Emne og tekst for bruk ved sending via e-post
 216	Emne	Topic	Emne
 217	Skriv overskriften til den email som bruges	Write the title of the email used	Skriv tittelen på e-postmeldingen som brukes
@@ -229,18 +229,18 @@
 229	Rentesats	Interest rate	Rente
 230	Skriv det varenummer som bruges til renteopkrævning.	Write the item number used for interest collection.	Skriv varenummeret som ble brukt til interesseoppsamling.
 231	Varenummer for rente	Item number for interest	Varenummer for interesse
-232	Antal dage betalingsfrist skal være overskredet	before reminder 1 is generated.	Antall dager for betalingsfrist må overskrides
-233	Frist for rykker 1.	Deadline for reminders 1.	Frist for påminnelser 1.
-234	Antal dage betalingsfrist for rykker 1 skal være overskredet	before reminder 2 is generated.	Antall dager betalingsfrist for påminnelse 1 må overskrides
-235	Frist for rykker 2.	Deadline for reminders 2.	Frist for påminnelser 2.
-236	Antal dage betalingsfrist for rykker 2 skal være overskredet	before reminder 3 is generated.	Antall dager betalingsfrist for påminnelse 2 må overskrides
-237	Frist for rykker 3.	Deadline for reminders 3.	Frist for påminnelser 3.
-238	Rykkerpåmindelse	Reminder	Påminnelse påminnelse
+232	Antal dage betalingsfristen skal være overskredet, før der påmindes om 1. rykker	Number of days the payment deadline must be overdue before being reminded of the 1st payment notice	Antall dager betalingsfristen må være overskredet, før det gis en påminnelse om 1. purring
+233	Frist for rykker 1	Deadline for reminder 1	Frist for purring 1
+234	Antal dage betalingsfristen for rykker 1 skal være overskredet, før der påmindes om 2. rykker	Number of days the payment deadline for the 1st payment notice must be overdue before being reminded of the 2nd notice	Antall dager betalingsfristen for 1. purring må være overskredet, før det gis en påminnelse om 2. purring
+235	Frist for rykker 2	Deadline for reminder 2	Frist for purring 2
+236	Antal dage betalingsfristen for rykker 2 skal være overskredet, før der påmindes om 3. rykker	Number of days the payment deadline for the 2nd payment notice must be overdue before being reminded of the 3rd notice	Antall dager betalingsfristen for 2. purring må være overskredet, før det gis en påminnelse om 3. purring
+237	Frist for rykker 3	Deadline for reminder 3	Frist for purring 3
+238	Rykkerpåmindelse	Reminder	Purringspåminnelse
 239	Der er rykkere klar til udsendelse i SALDI.	There are reminders ready for broadcast in SALDI.	Det er påminnelser klare for sending i SALDI.
 240	Der er rykkere klar til udsendelse.	There are reminders ready for broadcast.	Det er påminnelser klare for sending.
 241	Rykkervalg	Reminder choice	Påminnelsesvalg
 242	<big>Denne funktion gør følgende:<UL><LI>udligner alle konti	<big>This feature does the following: <UL> <LI> settles all accounts	<big> Denne funksjonen gjør følgende: <UL> <LI> gjør opp alle kontoer
-243	Ekstrafelter	Extra fields	Ekstra felt
+243	Ekstrafelter	Extra fields	Ekstrafelter
 244	Ordrefelt 1	Order field 1	Bestillingsfelt 1
 245	Ordrefelt 2	Order field 2	Bestillingsfelt 2
 246	Ordrefelt 3	Order field 3	Bestillingsfelt 3
@@ -251,7 +251,7 @@
 251	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 246 & 251.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 246 & 251.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 246 & 251.
 252	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 247 & 252.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 247 & 252.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 247 & 252.
 253	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 248 & 253.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 248 & 253.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 248 & 253.
-254	Ekstrafelter	Extra fields	Ekstra felt
+254	Ekstrafelter	Extra fields	Ekstrafelter
 255	Ekstrafelt 1	Additional field 1	Tilleggsfelt 1
 256	Ekstrafelt 2	Additional field 2	Tilleggsfelt 2
 257	Ekstrafelt 3	Additional field 3	Tilleggsfelt 3
@@ -285,9 +285,9 @@
 285	Vælg momsgruppe for kontantkunder.	Select VAT group for cash customers.	Velg momsgruppe for kontantkunder.
 286	Momsgruppe	VAT group	Mva-gruppe
 287	Varenr. for rabat	Item no. for discount	Varenr. for rabatt
-288	For at kunne give rabat på kontantsalg	this field must be filled in with the item number of the item used for the purpose.	For å kunne gi rabatt på kontantsalg
+288	For at kunne give rabat på kontantsalg, skal dette felt udfyldes med varenummeret på den vare, der bruges til formålet	In order to give a discount on cash sales, this field must be filled in with the item number of the item used for the purpose	For å kunne gi rabatt på kontantsalg, må dette feltet fylles ut med varenummeret på varen som brukes til formålet
 289	Varenr. XXXXX eksisterer ikke.	Item no. XXXXX does not exist.	Varenr. XXXXX eksisterer ikke.
-290	Ekstrafelter	Extra fields	Ekstra felt
+290	Ekstrafelter	Extra fields	Ekstrafelter
 291	Ordrefelt 1	Order field 1	Bestillingsfelt 1
 292	Ordrefelt 2	Order field 2	Bestillingsfelt 2
 293	Ordrefelt 3	Order field 3	Bestillingsfelt 3
@@ -298,7 +298,7 @@
 298	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 293 & 298.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 293 & 298.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 293 og 298.
 299	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 294 & 299.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 294 & 299.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 294 & 299.
 300	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 295 & 300.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 295 & 300.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 295 & 300.
-301	Ekstrafelter	Extra fields	Ekstra felt
+301	Ekstrafelter	Extra fields	Ekstrafelter
 302	Ekstrafelt 1	Additional field 1	Tilleggsfelt 1
 303	Ekstrafelt 2	Additional field 2	Tilleggsfelt 2
 304	Ekstrafelt 3	Additional field 3	Tilleggsfelt 3
@@ -310,7 +310,7 @@
 310	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 305 & 310.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 305 & 310.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 305 & 310.
 311	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 306 & 311.	This text can be corrected under <i> Settings </i> -> <i> Miscellaneous </i> -> <i> Languages ​​</i> <br> Find Id 306 & 311.	Denne teksten kan rettes under <i> Innstillinger </i> -> <i> Diverse </i> -> <i> Språk </i> <br> Finn Id 306 & 311.
 312	Klik her for at åbne listen med arbejdskort.	Click here to open the list of work cards.	Klikk her for å åpne listen over arbeidskort.
-313	Hvis dette felt er afmærket styres lager efter FIFO (first in first out) princippet og kostprisen reguleres automatisk efter sidste varekøb.	If this field is marked	Hvis dette feltet er merket av, styres lageret i henhold til FIFO (først inn først ut) -prinsippet, og kostprisen justeres automatisk etter det siste varekjøpet.
+313	Hvis dette felt er afmærket styres lager efter FIFO (first in first out) princippet, og kostprisen reguleres automatisk efter sidste varekøb	If this field is checked, inventory is managed according to the FIFO (first in, first out) principle, and the cost price is automatically adjusted according to the last purchase	Hvis dette feltet er merket, styres lageret i henhold til FIFO (først inn først ut)-prinsippet, og kostprisen justeres automatisk etter det siste varekjøpet
 314	Anvend FIFO på lagervarer	Apply FIFO to stock items	Påfør FIFO på lagervarer
 315	Anvend sidemenu	Use side menu	Bruk sidemeny
 316	Hvis dette felt afmærkes vil der fremkomme en menu i venstre skærmside som letter navigationen	and reduces the working width	Hvis dette feltet er krysset av, vises en meny på venstre side av skjermen som letter navigering
@@ -369,7 +369,7 @@
 369	Forud	Prior	I forkant
 370	Kontant	Cash	Kontant
 371	Efterkrav	Cash on delivery	Kontantbetaling ved levering
-372	Netto	Net	Nett
+372	Netto	Net	Netto
 373	Lb. md.	EOM.	Løp. md.
 374	Debitorgruppe	Debtor group	Debitorgruppe
 375	Rabatgruppe	Discount group	Rabattgruppe
@@ -456,18 +456,18 @@
 456	Afmærk her for at for at udskrive bon automatisk. Hvis der ikke er afmærket	vouchers must be printed manually after each trade.	Merk av her for å skrive ut bilag automatisk. Hvis ikke merket
 457	Udskriv bon automatisk.	Print receipt automatically.	Skriv ut kvittering automatisk.
 458	Afmærk her for at vise knappen [Kontant på beløb]. Kan bruges ved kassesalg hvor der ikke skal beregnes returbeløb.	Check here to display the [Cash on Amount] button. Can be used at cash sales where no return amount needs to be calculated.	Sjekk her for å vise [Kontant på beløp] -knappen. Kan brukes ved kontantsalg der ingen returbeløp trenger å beregnes.
-459	Vis knap [Kontant på beløb]	Show button [Cash on amount]	Vis-knapp [Kontant på beløp]
+459	Vis knap [Kontant på beløb]	Show button [Cash on amount]	Vis knapp [Kontant på beløp]
 460	Afmærk her for at vise knappen [Kontoopslag]. Bruges ved kassesalg til kontokunder	Check here to display the [Account Lookup] button. Used for cash sales to account customers	Sjekk her for å vise [Kontooppslag] -knappen. Brukes til kontantsalg til kontokunder
-461	Vis knap [Kontoopslag]	Show button [Account Lookup]	Vis-knapp [Kontooppslag]
+461	Vis knap [Kontoopslag]	Show button [Account Lookup]	Vis knapp [Kontooppslag]
 462	Antal sekunder siden med [Udskriv] og [Ny kunde] skal blive stående før der skifter til ny ordre. Hvis tallet er 0 skiftes aldrig.	The number of seconds since [Print] and [New Customer] must remain before switching to a new order. If the number is 0	Antall sekunder siden [Skriv ut] og [Ny kunde] må være igjen før du bytter til en ny ordre. Hvis tallet er 0, må du aldri endre det.
 463	Tidsfrist for udskrift	Deadline for printing	Frist for utskrift
 464	Afmærk her for at vise knappen [Indbetaling]. Bruges til kontokunder som indbetaler til konto	Check here to display the [Deposit] button. Used for account customers who pay into an account	Sjekk her for å vise [Innskudd] -knappen. Brukes for kontokunder som betaler inn på en konto
-465	Vis knap [Indbetaling]	Show button [Deposit]	Vis-knapp [Innskudd]
+465	Vis knap [Indbetaling]	Show button [Deposit]	Vis knapp [Innskudd]
 466	Mængderabat	Volume discount	Volumrabatt
 467	Mængderabat $rabatpct %	Volume discount $rabatpct %	Volumrabatt $rabatpct %
 468	Momskode for salgspriser på varekort 	VAT code for sales prices on product cards	MVA-kode for salgspriser på produktkort
 469	Hvis dette felt er udfyldt	display sales prices on product cards incl. VAT.	Hvis dette feltet er fylt ut
-470	Varerelaterede valg	Item-related choices	Varerelaterte valg
+470	Varerelaterede valg	Product-related choices	Varerelaterte valg
 471	Gem/opdatér	Save / Update	Lagre / oppdater
 472	Varianter	Variants	Varianter
 473	Ny variant værdi	New variant value	Ny variantverdi
@@ -475,15 +475,15 @@
 475	Variant	Variant	Variant
 476	Værdi	Value	Verdi
 477	Klik her for at omdøbe denne variant	Click here to rename this variant	Klikk her for å gi nytt navn til denne varianten
-478	Klik her for at slette denne variant og tilhørende variant værdier.	Click here to delete this variant and associated variant values.	Klikk her for å slette denne varianten og tilhørende variantverdier.
+478	Klik her for at slette denne variant og tilhørende variantværdier	Click here to delete this variant and associated variant values	Klikk her for å slette denne varianten og tilhørende variantverdier
 479	Klik her for at omdøbe denne værdi	Click here to rename this value	Klikk her for å gi nytt navn til denne verdien
 480	Klik her for at slette denne værdi	Click here to delete this value	Klikk her for å slette denne verdien
-481	Vil du slette denne variant og tilhørende variant værdier?	Do you want to delete this variant and associated variant values?	Vil du slette denne varianten og tilhørende variantverdier?
+481	Vil du slette denne variant og tilhørende variantværdier?	Do you want to delete this variant and associated variant values?	Vil du slette denne varianten og tilhørende variantverdier?
 482	Vil du slette denne værdi?	Do you want to delete this value?	Vil du slette denne verdien?
 483	Vil du omdøbe denne variant?	Do you want to rename this variant?	Vil du gi nytt navn til denne varianten?
 484	Vil du omdøbe denne værdi?	Do you want to rename this value?	Vil du gi nytt navn til denne verdien?
-485	Varianter for varer	eg Color or Size.	Varianter for varer
-486	Værdi for variant 	eg Red or Small.	Verdi for variant
+485	Varianttype for varen, f.eks. &apos;farve&apos; eller &apos;størrelse&apos;	Variant type for the item, e.g. &apos;color&apos; or &apos;size&apos;	Varianttype for varen, f.eks. &apos;farge&apos; eller &apos;størrelse&apos;
+486	Værdi for varianten, f.eks. &apos;rød&apos; eller &apos;lille&apos;	Value of the variant, e.g. &apos;red&apos; or &apos;small&apos;	Verdi for varianten, f.eks. &apos;rød&apos; eller &apos;liten&apos;
 487	Afmærk her hvis varen indeholder denne type varianter.	Check here if the item contains this type of variant.	Sjekk her om varen inneholder denne typen variant.
 488	Kopi af tilbud gemt kl. $time	Copy from offer saved at $time	Kopi av tilbudet lagret kl $time
 489	Kopi af ordrebekræftelse gemt kl $time	Copy from oorder confirmation saved at $time	Kopi av ordrebekreftelse lagret i $time
@@ -500,7 +500,7 @@
 500	Ordrenr.	Order no.	Ordrenr.
 501	Opdatér feltet herunder med information fra ordren?	Update the field below with information from the order?	Oppdater feltet nedenfor med informasjon fra bestillingen?
 502	Kontakt	Contact	Ta kontakt med
-503	Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.	If the API for the webshop is used	Hvis API for nettbutikken brukes, skriv inn URL-en til butikkens funksjonsmappe her.
+503	Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her	If API is used for the webshop, enter the URL to the shop&apos;s function folder here	Hvis API benyttes for nettbutikken, skriv inn URL til butikkens funksjonsmappe her
 504	Webshop URL	Webshop URL	Nettbutikk-URL
 505	Klik her for at eksportere valgte transaktioner til CSV-fil for import i andet program	eg. spreadsheet.	Klikk her for å eksportere valgte transaksjoner til CSV-fil for import til annet program
 506	Fejl ved overførsel til FTP - Dokument ikke gemt!	Error transferring to FTP - Document not saved!	Feil ved overføring til FTP - Dokument ikke lagret!
@@ -547,9 +547,9 @@
 547	Leverandørordre	Supplier order	Leverandørbestilling
 548	Vælg om lukkede kreditorer skal være synlige på oversigten.	Choose whether closed creditors should be visible on the overview.	Velg om lukkede kreditorer skal være synlige i oversikten.
 549	Postnr, by	Zipcode, City	Postnummer, by
-550	Lev.dato	Delivery Date	Leveringsdato
+550	Lev. dato	Del. Date	Lev. dato
 551	Modtagelse	Receipt	Kvittering
-552	Valuta / Kurs	Currency / Exchange Rate	Valuta / Kurs
+552	Valuta / Kurs	Currency / Exchange rate	Valuta / Kurs
 553	Projekt	Project	Prosjekt
 554	Leveringsadresse	Delivery Address	Leveringsadresse
 555	Godkend	Approve	Godkjen
@@ -612,7 +612,7 @@
 612	Kontoplan	Chart of Accounts	Kontooversikt
 613	Indstillinger	Settings	Innstillinger
 614	Sikkerhedskopi	Backup	Sikkerhetskopiering
-615	Ved at afmærke her får du op til 14 ekstra felter på ansattes stamkort	for own employees.	Ved å krysse av her får du opptil 14 ekstra felt på ansattes hovedkort
+615	Ved at afmærke her får du op til 14 ekstra felter på egne ansattes stamkort	Checking this field enables up to 14 additional fields on the master cards of your own employees	Ved å merke av her får du opptil 14 ekstra felt på ansattes stamkort
 616	Tilføj ekstra felter på ansatte	Add extra fields on employees	Legg til ekstra felt på ansatte
 617	Kørekort Ja/nej	Driving license Yes / no	Førerkort Ja / nei
 618	Kørekort B	Driving license B	Førerkort B
@@ -635,7 +635,7 @@
 635	Dato	Date	Dato
 636	Vis alle	Show all	Vis alt
 637	Bogført	Posted	Bokført
-638	Af	Of	Av
+638	Af	By	Av
 639	Kladdeliste	Draft list	Utkastliste
 640	Du opretter en ny kassekladde ved at klikke på	Create a new cash journal by clicking	Du oppretter en ny kontantjournal ved å klikke
 641	Vis egne	Show own	Vis egne
@@ -649,7 +649,7 @@
 649	Adresse 2	Address 2	Adresse 2
 650	Postnr.	ZIP code	post kode
 651	By	City	By
-652	E-mail	E-mail	E-post
+652	E-mail	Email	E-post
 653	Mobil	Mobile phone	Mobiltelefon
 654	Lokalnr.	Local no.	Lokalt nr.
 655	Lokal fax	Local fax	Lokal faks
@@ -677,22 +677,22 @@
 677	Mailfakt	Mail fact	Mail faktum
 678	Klik her for at synkronisere kategorier i Saldi med kategorier fra shop.	Click here to sync categories in Saldi with categories from shop.	Klikk her for å synkronisere kategorier i Saldi med kategorier fra butikk.
 679	Synkroniser kategorier i Saldi med shop. 	Sync categories in Saldi with shop.	Synkroniser kategorier i Saldi med butikk.
-680	Afmærkes dette felt vil der komme en advarsel	If products are inserted	Hvis dette feltet er merket av, vises en advarsel
+680	Afmærkes dette felt, vil der komme en advarsel hvis lagerbeholdningen er for lav når et produkt indsættes	If this field is checked, a warning will appear if the stock level is too low when a product is added	Hvis dette feltet er merket, vil det komme en advarsel hvis lagerbeholdningen er for lav når et produkt legges inn
 681	Anvend procentfakturering	Use percentage invoicing	Bruk prosentvis fakturering
-682	Afmærkes her	comes an extra field on customer orders for percentage invoicing of the item value. Used, for example, when renting equipment.	Merket her
-683	Procenttillæg	Surcharge percentage	Prosentavgift
-684	Skrives en værdi her	it will appear an editable field on the order page with the specified value. The percentage surcharge is a supplement to the total invoice amount before VAT calculation.	Skriv en verdi her
+682	Afmærkes dette felt, vil et ekstra felt vises på kundebestillinger for procentfakturering af vareværdien. Dette bruges f.eks. ved udlejning af udstyr.	If this field is checked, an extra field will appear on customer orders for percentage invoicing of the item value. This is used, for example, when renting equipment.	Hvis dette feltet er merket, vil et ekstra felt vises på kundeordre for prosentfakturering av vareverdien. Dette brukes for eksempel ved utleie av utstyr.
+683	Procenttillæg	Percentage surcharge	Prosenttillegg
+684	Skrives en værdi her, vises et redigerbart felt på ordre-siden med den angivne værdi. Procenttillægget er et tillæg til det samlede fakturabeløb før momsberegning.	If a value is entered here, an editable field will appear on the order page with the specified value. The percentage surcharge is a supplement to the total invoice amount before VAT calculation.	Skrives en verdi her, vil et redigerbart felt vises på ordresiden med den angitte verdien. Prosentpåslaget er et tillegg til totalfakturabeløpet før momsberegning.
 685	Varenr. for procenttillæg	Item no. for percentage surcharge	Varenr. for prosentvis tilleggsavgift
-686	Angiv her hvilken konto i kontoplanen procenttillægget skal konteres på.	Specify here which account in the chart of accounts the percentage supplement is to be posted to.	Spesifiser her hvilken konto i kontoplanen prosenttillegget skal bokføres til.
-687	Kontonummer for kontantsalg.	Account number for cash sales.	Kontonummer for kontantsalg.
-688	Angiv hvilken konto betalingen skal konteres på ved kontantsalg. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.	Specify which account the payment is to be posted to for cash sales. If the field is empty	Spesifiser hvilken konto betalingen skal sendes til for kontantsalg. Hvis feltet er tomt, opprettes en åpen oppføring på beløpet i kundens konto.
-689	Kontonummer for salg på kreditkort.	Account number for credit card sales.	Kontonummer for kredittkortsalg.
-690	Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.	Specify which account the payment is to be posted to when selling by credit card. If the field is empty	Spesifiser hvilken konto betalingen skal sendes til når du selger med kredittkort. Hvis feltet er tomt, opprettes en åpen oppføring på beløpet i kundens konto.
+686	Angiv her hvilken konto i kontoplanen procenttillægget skal konteres på	Specify here which account in the chart of accounts the percentage supplement is to be posted to	Spesifiser her hvilken konto i kontoplanen prosenttillegget skal bokføres til
+687	Kontonummer for kontantsalg	Account number for cash sales	Kontonummer for kontantsalg
+688	Angiv hvilken konto betalingen skal konteres på ved kontantsalg. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.	Specify which account the payment is to be posted to for cash sales. If the field is empty, an open item for the amount will be created on the customer&apos;s account	Angi hvilken konto betalingen skal konteres på for kontantsalg. Hvis feltet er tomt, opprettes en åpen post på beløpet i kundens konto.
+689	Kontonummer for salg på kreditkort	Account number for credit card sales	Kontonummer for kredittkortsalg
+690	Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.	Specify which account the payment is to be posted to when selling by credit card. If the field is empty, an open item for the amount will be created on the customer&apos;s account	Angi hvilken konto betalingen skal konteres på, når du selger med kredittkort. Hvis feltet er tomt, opprettes en åpen post på beløpet i kundens konto.
 691	Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay	Merchant number is awarded when creating a payment agreement with Quickpay	Selgernummer tildeles når du oppretter en betalingsavtale med Quickpay
 692	Merchant nr:	Merchant no:	Handelsnr:
 693	Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay	Md5-secret is awarded upon creation of a payment agreement with Quickpay	Md5-secret tildeles ved oppretting av en betalingsavtale med Quickpay
 694	Md5-secret	Md5-secret	Md5-hemmelig
-695	Vælg her om du vil anvende Saldi´s interne shop eller en ekstern via API.  	Choose here whether you want to use Saldi´'s internal shop or an external one via API.	Velg her om du vil bruke Saldi’s interne butikk eller en ekstern butikk via API.
+695	Vælg her om du vil anvende Saldi&apos;s interne shop eller en ekstern via API.  	Choose here whether you want to use Saldi&apos;s internal shop or an external one via API.	Velg her om du vil bruke Saldi&apos;s interne butikk eller en ekstern butikk via API.
 696	Webshop valg	Webshop selection	Nettbutikkvalg
 697	Ingen webshop	No webshop	Ingen nettbutikk
 698	Intern webshop	Internal webshop	Intern nettbutikk
@@ -729,7 +729,7 @@
 729	Varenr. for delbetaling	Item no. for partial payment	Varenr. for delvis betaling
 730	For at kunne håndtere delbetalinger	This field must be filled in with the item number of the item used for the purpose.	For å kunne håndtere avdrag
 731	Aut. regulering af kostpriser	Aut. regulation of cost prices	Aut. regulering av kostpris
-732	Vælg om kostpriser skal reguleres til gennemsnitspris	replacement price or not to be adjusted	Velg om kostprisene skal justeres til gjennomsnittsprisen
+732	Vælg om kostpriser skal reguleres til gennemsnitspris, genanskaffelsespris eller ikke skal justeres	Select whether cost prices should be adjusted to average price, replacement price, or not be adjusted	Velg om kostpriser skal reguleres til gjennomsnittspris, erstatningspris eller ikke skal reguleres
 733	Tegn kodning for shop 	Draw coding for shop	Tegn koding for butikk
 734	Hvis dette felt er afmærket gives mulighed for at give en speciel pris på en gruppe af varer. Varene samles på bonnen uden pris på de enkelte varer og prisen vises som sætpris under varerne.    	If this field is checked	Hvis dette feltet er merket av, er det mulig å gi en spesialpris for en gruppe varer. Varene samles på kvitteringen uten prisen på de enkelte varene, og prisen vises som en fast pris under varene.
 735	Vis knap [Sæt]	Show button [Set]	Vis knapp [Set]
@@ -737,12 +737,12 @@
 737	Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.	Here you enter the html code for formatting the label print in product cards. You can find examples of <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159> Saldi forum </a> under tips and tricks.	Her skriver du inn html-koden for formatering av etikettutskrift i produktkort. Du kan finne eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159> Saldi forum </a> under tips og triks.
 738	Klik her for at opdatere kostprisen for alle lagervarer med pris på sidste køb.	Click here to update the cost price for all stock items with price on last purchase.	Klikk her for å oppdatere kostprisen for alle lagervarer med prisen ved siste kjøp.
 739	Opdater kostpriser	Update cost prices	Oppdater kostnadspriser
-740	Klik her for at hente nye varer fra shop til Saldi.	Click here to pick up new items from shop to Saldi.	Klikk her for å hente nye varer fra butikk til Saldi.
-741	Hent nye varer fra shop.	Get new items from the shop.	Få nye varer fra butikken.
+740	Klik her for at hente nye varer fra shop til Saldi	Click here to pick up new items from shop to Saldi	Klikk her for å hente nye varer fra butikk til Saldi
+741	Hent nye varer fra shop	Get new items from the shop	Få nye varer fra butikken
 742	Anvend samlet pris	Apply total price	Bruk totalpris
-743	Afmærkes dette felt bliver det muligt at ændre prisen på bundlinjen i en salgsordre og der bliver givet en samlet rabat	 which, when posting, is distributed on the individual items.	Hvis dette feltet er merket av, vil det være mulig å endre bunnlinjeprisen i en salgsordre, og en total rabatt vil bli gitt.
+743	Afmærkes dette felt, bliver det muligt at ændre prisen på bundlinjen i en salgsordre, og der bliver givet en samlet rabat, som ved postering fordeles på de enkelte varer	 When this field is checked, the price at the line level in a sales order can be changed, and a total discount is applied, which, when posted, is distributed across the individual items	Når dette feltet er merket, blir det mulig å endre prisen på bunnlinjen i en salgsordre, og det gis en samlet rabatt som ved postering fordeles på de enkelte varene
 744	Varenr. for sæt	Item no. for set	Varenr. for sett
-745	Sættes der et varenummer her bliver det muligt at samle en gruppe varer i en salgsordre som et sæt og give en samlet pris for denne gruppe.	If an item number is set here	Hvis et varenummer er angitt her, vil det være mulig å samle en gruppe varer i en salgsordre som et sett og gi en totalpris for denne gruppen.
+745	Angives der et varenummer her, bliver det muligt at samle en gruppe varer i en salgsordre som et sæt og give en samlet pris for denne gruppe	If an item number is entered here, it becomes possible to group items in a sales order as a set and give a total price for this group	Hvis et varenummer er angitt her, blir det mulig å samle en gruppe varer i en salgsordre som et sett og gi en samlet pris for denne gruppen
 746	Brugernavn	Username	Brukernavn
 747	Adgangskode	Password	Passord
 748	Kryptering	Encryption	Kryptering
@@ -784,7 +784,7 @@
 784	Provisionsberegning 	Commission calculation	Provisjonsberegning
 785	Personlige valg	Personal choices	Personlige valg
 786	Ordrerelaterede valg	Order-related choices	Bestillingsrelaterte valg
-787	Varerelaterede valg	Item-related choices	Varerelaterte valg
+787	Varerelaterede valg	Product-related choices	Varerelaterte valg
 788	Variantrelaterede valg	Variation-related choices	Variasjonsrelaterte valg
 789	Shoprelaterede valg	Shop-related choices	Butikkrelaterte valg
 790	API	API	API
@@ -817,23 +817,23 @@
 817	Afmærkes feltet anvendes HTML/CSS til formulargenerering. 	If the field is checked, HTML / CSS is used for form generation.	Hvis feltet er merket av, brukes HTML / CSS for generering av skjemaer.
 818	Brug HTML/CSS til formulargenerering	Use HTML / CSS for form generation	Bruk HTML / CSS for generering av skjemaer
 819	API Nøgle	API Key	API-nøkkel
-820	API nøglen er en unik nøgle til verificering af din adgang til regnskabet.	The API key is a unique key for verifying your access to the accounts.	API-nøkkelen er en unik nøkkel for å verifisere din tilgang til kontoene.
+820	API nøglen er en unik nøgle til verificering af din adgang til regnskabet	The API key is a unique key used to verify your access to the accounting system	API-nøkkelen er en unik nøkkel for å verifisere din tilgang til regnskapet
 821	Tilladte IP adresser	Allowed IP addresses	Tillatte IP-adresser
 822	Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator. 	Specify which IP addresses have access to use the API. Use comma as separator.	Spesifiser hvilke IP-adresser som har tilgang til å bruke API. Bruk komma som skilletegn.
 823	Brugernavn	Username	Brukernavn
-824	Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API	Select the user that is used as a reference for orders and logs etc. NOTE. The user must be specially created for the API	Velg brukeren som brukes som referanse for bestillinger og logger etc. MERK. Brukeren må være spesielt opprettet for API
+824	Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS: Brugeren skal være specielt oprettet til API	Select the user that will be used as a reference for orders, logs, etc. NOTE: The user must be specifically created for API use.	Velg brukeren som skal brukes som referanse for ordre, logs m.m. MERK: Brukeren må være spesielt opprettet for API-bruk.
 825	Ingen brugere uden rettigheder. Opret en bruger uden rettigheder og vælg denne for at aktivere API.	No users without rights. Create an unauthorized user and select it to enable the API.	Ingen brukere uten rettigheter. Opprett en uautorisert bruker og velg den for å aktivere API.
 826	Forslagssum	Suggested sum	Foreslått sum
 827	Forslag	Suggestions	Forslag
 828	Fakturanr.	Invoice no.	Fakturanr.
 829	API Klient	API Client	API-klient
 830	Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten	If you want to integrate with the webshop, you must enter the full url for the api client here	Hvis du vil integrere med nettbutikken, må du oppgi hele url for api-klienten her
-831	Saldi db:	Saldi db:	Saldi db:
-832	Skal sættes som variablen $db i api klienten.	Must be set as the variable $db in the api client.	Må angis som variabelen $db i api-klienten.
+831	Saldi DB:	Saldi DB:	Saldi DB:
+832	Skal sættes som variablen $db i api klienten	Must be set as the variable $db in the api client	Må angis som variabelen $db i api-klienten
 833	Kontonr for inkassoadvokat.	Account number for debt collection lawyer.	Kontonummer for inkassoadvokat.
 834	Ved at udfylde dette felt med kontonummer for din inkassoadvokat (kreditor)	By filling in this field with the account number of your debt collection lawyer (creditor)	Ved å fylle ut dette feltet med kontonummeret til din inkassoadvokat (kreditor)
-835	Saldi url:	Sold url:	Solgt url:
-836	Skal sættes som variablen $url i api klienten.	Must be set as the variable $url in the api client.	Må angis som variabelen $url i api-klienten.
+835	Saldi URL:	Saldi URL:	Saldi URL:
+836	Skal sættes som variablen $url i api klienten	Must be set as the variable $url in the api client	Må angis som variabelen $url i api-klienten
 837	Hvis feltet er afmærket vil `udtages fra kasse` som default være 0	If the field is marked, `taken out of box` will by default be 0	Hvis feltet er merket, vil &apos;tas ut av boksen&apos; som standard 0	
 838	Sæt `udtages fra kasse` til 0	Set `taken out of box` to 0	Sett &apos;tatt ut av esken&apos; til 0	
 839	Er dette felt afmærket skal der foretages valg af bruger / ekspedient inden ekspedition.	If this field is marked, a choice of user / clerk must be made before dispatch.	Hvis dette feltet er merket, må du velge bruker / ekspeditør før utsendelse.
@@ -879,11 +879,11 @@
 879	Hent fra shop	Pick up from shop	Henting fra butikk
 880	Udskriv	Print	Skriv ut
 881	Ordredato	Order date	Ordredato
-882	Fakt. nr.	Invoice no.	Fakt. nr.
-883	Fakt. dato.	Invoice date.	Fakt. dato.
+882	Fakt. nr.	Inv. no.	Fakt. nr.
+883	Fakt. dato	Inv. date	Fakt. dato
 884	Sælger	Selling	Selger
 885	Fakturasum	Invoice_sum	Fakturasum
-886	Levdato	Delivery date	Leveringsdato
+886	Dato for levering	Date of delivery	Dato for levering
 887	Ordresum	Order amount	Ordresum
 888	Tilbudsnr.	Offer no.	Tilbud nr.
 889	Tilbudsdato	Offer date	Tilbudsdato
@@ -932,13 +932,13 @@
 932	Bord	Table	Bord
 933	Ref.	Ref.	Ref.
 934	Beløb	Amount	Beløp
-935	Betaling	Payment	innbetaling
+935	Betaling	Payment	Betaling
 936	Modtaget	Received	Mottatt
 937	Returnér	Return	Komme tilbake
 938	Tilgang kasse	Access box	Tilgangsboks
 939	Forslagsdato	Proposal Date	Forslagsdato
-940	Modt.nr.	Model No.	Modt.nr.
-941	Modt.dato	Model Date	Modt.dato
+940	Modt. nr.	Rec. no.	Modt. nr.
+941	Modt. dato	Rec. date	Modt. dato
 942	Samlet omsætning (excl. moms.)	Total turnover (excl. VAT)	Total omsetning (eks MVA)
 943	Importer OIOUBL faktura	Import OIOUBL Invoice	Importer OIOUBL-faktura
 944	kreditorlistevisning	vendor list view	visning av leverandørliste
@@ -1042,7 +1042,7 @@
 1042	Levering til privatadresse	Delivery to private address	Levering til privat adresse
 1043	Afhentningsadresse er en anden end hovedadressen	Pickup address is different from the main address	Hentningsadresse er forskjellig fra hovedadressen
 1044	Markeres hvis der skal hentes gods fra en anden adresse end hovedadressen.	Marked if products are to be picked up from an address other than the main address.	Merkes hvis varer skal hentes fra en annen adresse enn hovedadressen.
-1045	Firmanavn	Company_name	Selskapsnavn
+1045	Firmanavn	Company name	Selskapsnavn
 1046	Angiv navnet på det firma eller privatperson, der skal gods hentes fra.	Enter the name of the company or individual from whom the products are to be collected.	Skriv inn navnet på selskapet eller personen som varene skal hentes fra.
 1047	Eventuelt ekstra navn	Possibly extra name	Muligens ekstra navn
 1048	Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...	Indicate if there is an extra name or subname for the collection point, eg c / o ...	Angi om det er et ekstra navn eller undernavn for samlepunktet, f.eks c / o ...
@@ -1172,7 +1172,7 @@
 1172	Valutabetegnelse - f.eks. USD	Currency designation - e.g. USD	Valutabetegnelse - f.eks. USD
 1173	Valutabeskrivelse - f.eks. Amerikanske dollar	Currency description - e.g. US dollars	Valutabeskrivelse - f.eks. Amerikanske dollar
 1174	Kontonummer for valutakursdifferanser og avrunding av øret	Account number for exchange rate differences and year rounding	Kontonummer for valutakursdifferanser og avrunding av øret
-1175	Tilføj 	Add	Legge til
+1175	Tilføj	Add	Legg til
 1176	Leverandørnr.	Supplier no.	Leverandørnr.
 1177	FI kreditor nr.	FI creditor no.	FI kreditor nr.
 1178	Kort	Card	Kart
@@ -1196,7 +1196,7 @@
 1196	Specifikation for	Specification for	Spesifikasjon for
 1197	Kladdenr	Draft no	Utkast nr
 1198	Afd. nr	Dept. no	Gjeld. Nei
-1199	Projekt. nr	Project. no	Prosjekt. Nei
+1199	Projekt nr.	Project no.	Prosjekt nr.
 1200	Næste	Next	Neste
 1201	Ordreliste • Kunder	Order list • Customers	Bestillingsliste • Kunder
 1202	Log	Log	Løk
@@ -1270,41 +1270,41 @@
 1270	Kilde for kostpris	Source for cost price	Kilde for kostpris
 1271	Indkøbspris	Purchase price	Kjøpesum
 1272	Skæringsdato for provisionsberegning	Cut-off date for commission calculation	Kuttdato for beregning av provisjon
-1273	Vis priser med moms på varekort	Show prices with VAT on product cards	Vis priser med moms på produktkort
-1274	Når dette felt er afmærket bliver varen vist incl. moms på varekortet	When this field is marked, the item is displayed incl. VAT on the product card	Salg av forlikskommisjonen
-1275	Bekræft ændring af beskrivelse på varekort	Confirm change of description on product card	Bekreft endring av beskrivelse på varekortet
-1276	Når dette felt er afmærket skal ændring af beskrivelse på varekort bekræftes	When this field is marked, the change of description on the product card must be confirmed	Når dette feltet er merket, må endringen av beskrivelse på produktkortet bekreftes
-1277	Kvittèr ved ændring af beholdning på varekort	Receipt when changing stock on product card	Kvittering når du bytter lager på produktkortet
-1278	Når dette felt er afmærket skal kvitteres ved ændring af beholdning på varekort	When this field is marked, it must be acknowledged by changing the stock on the product card	Når dette feltet er merket, må det bekreftes ved å endre lageret på produktkortet
-1279	Sæt vare til udgået, når beholdning bliver negativ	Set item to expire when inventory becomes negative	Angi at varen skal utløpe når beholdningen blir negativ
-1280	Når dette felt er afmærket bliver varen markeret som udgået når beholdningen bliver negativ	When this field is marked, the item is marked as discontinued when the stock becomes negative	Når dette feltet er merket, blir varen merket som avviklet når aksjen blir negativ
-1281	Kommisionsvarer.<br>Afmærk hvis der anvendes POS og der sælges varer i kommission	Commission products. <br> Check if POS is used and products are sold on commission	Provisjonsvarer. <br> Sjekk om POS brukes og varer selges på kommisjon
-1282	Når dette felt er afmærket vises 'Afregn kommission på kasseoptælling' og 'Kommissionsvare' på varekort	When this field is checked, 'Settle commission on cash count' and 'Commission item' will appear on product card	Når dette feltet er krysset av, vises 'Settle provision on cash count' og 'Commission provision' på varekortet
+1273	Vis priser med moms på varekort	Show prices with VAT on the product card	Vis priser med MVA på varekort
+1274	Når dette felt er afmærket, bliver varer vist inkl. moms på varekortet	When this field is checked, items are displayed incl. VAT on the product card	Når dette feltet er avmerket, blir varer vist inkl. MVA på varekortet
+1275	Bekræft ændring af beskrivelse på varekort	Confirm when changing the description on the product card	Bekreft endring av beskrivelse på varekort
+1276	Når dette felt er afmærket, skal der bekræftes vedændring af beskrivelsen på varekort	When this field is checked, confirmation must be given upon changing the description on the product card	Når dette feltet er merket, må det bekreftes ved endring av beskrivelsen på varekort
+1277	Bekræft ved ændring af beholdning på varekort	Confirm when changing the stock on the product card	Bekreft ved endring av beholdning på varekort
+1278	Når dette felt er afmærket, skal der bekræftes ved ændring af beholdning på varekort	When this field is checked, confirmation must be given upon changing the stock on the product card	Når dette feltet er avmerket, må det bekreftes ved endring av beholdning på varekort
+1279	Sæt vare som udgået, når beholdning bliver negativ	Mark product as discontinued when inventory becomes negative	Sett vare som utgått når beholdningen blir negativ
+1280	Når dette felt er afmærket bliver varen markeret som udgået når beholdningen bliver negativ	When this field is checked, the product is marked as discontinued when the stock becomes negative	Når dette feltet er merket, blir varen merket som avviklet når aksjen blir negativ
+1281	Kommisionsvarer - afmærk hvis der anvendes POS og der sælges varer i kommission	Commission products - check if POS is used and products are sold on commission	Kommisjonsvarer - avmer hvis det brukes POS og det selges varer på kommisjon
+1282	Når dette felt er afmærket vises &apos;Afregn kommission på kasseoptælling&apos; og &apos;Kommissionsvare&apos; på varekort	When this field is checked, &apos;Settle commission on cash count&apos; and &apos;Commission item&apos; is shown on product card	Når dette feltet er avmerket, vises &apos;Settle provision on cash count&apos; og &apos;Commission provision&apos; på varekortet
 1283	Standard kommissionssats	Standard commission rate	Standard provisjonsrente
-1284	Sættes en værdi her, anvendes denne sats som udgangspunkt ved oprettelse af kommissionsvarer.\n&apos;	If a value is set here, this rate is used as a starting point when creating commission items. \n &apos;	Hvis en verdi er satt her, brukes denne hastigheten som utgangspunkt når du oppretter kommisjonsposter. \n &apos;
-1285	Er feltet tomt beregnes kostprisen manuelt.	If the field is empty, the cost price is calculated manually.	Hvis feltet er tomt, beregnes kostprisen manuelt.
-1286	Indtægtskonto for kommisionssalg, nye varer	Revenue account for commission sales, new products	Inntektskonto for provisjonssalg, nye varer
-1287	Angiv den konto i kontoplanen hvor indtægter fra kommissionssalg af nye skal bogføres.\n	Indicate the account in the chart of accounts where income from commission sales of new ones is to be posted.\n	Angi kontoen i kontoplanen der inntekt fra provisjonssalg av nye skal bokføres.\n
-1288	Er feltet tomt skal beløbet overføres manuelt i en kassekladde.	If the field is empty, the amount must be transferred manually in a cash journal.	Hvis feltet er tomt, må beløpet overføres manuelt i en kontantjournal.
-1289	Afregningskonto for kommisionssalg, nye varer	Settlement account for commission sales, new items	Oppgjørskonto for provisjonssalg, nye varer
-1290	Angiv den konto i kontoplanen hvorfra afregning for kommissionssalg af nye varer skal trækkes.\n	Indicate the account in the chart of accounts from which settlement for commission sales of new products is to be deducted. \n	Angi kontoen i kontoplanet der oppgjør for provisjonssalg av nye varer skal trekkes fra. \n
-1291	Egen konto for kommisionssalg, nye varer	Own account for commission sales, new items	Egen konto for provisjonssalg, nye varer
-1292	Angiv den konto i kontoplanen hvorfra kommission af salg af nye varer skal trækkes.\n	Specify the account in the chart of accounts from which the commission for the sale of new products is to be deducted. \n	Spesifiser kontoen i kontoplanen som kommisjonen for salg av nye varer skal trekkes fra. \n
-1293	Indtægtskonto for kommisionssalg, brugte varer	Revenue account for commission sales, second-hand products	Inntektskonto for provisjonssalg, brukte varer
-1294	Angiv den konto i kontoplanen hvor indtægter fra kommissionssalg af brugte skal bogføres.\n	Specify the account in the chart of accounts where revenue from commission sales of used items is to be posted. \n	Spesifiser kontoen i kontoplanen der inntektene fra provisjonssalg av brukte varer skal bokføres. \n
-1295	Afregningskonto for kommisionssalg, brugte varer	Settlement account for commission sales, second-hand products	Oppgjørskonto for provisjonssalg, brukte varer
-1296	Angiv den konto i kontoplanen hvorfra afregning for kommissionssalg af brugte skal bogføres.\n	Specify the account in the chart of accounts from which settlement for commission sales of used items is to be posted. \n	Spesifiser kontoen i kontoplanet hvor oppgjør for provisjonssalg av brukte varer skal bokføres. \n
-1297	Egen konto for kommisionssalg, brugte varer	Own account for commission sales, used products	Egen konto for provisjonssalg, brukte varer
-1298	Angiv den konto i kontoplanen hvorfra kommission af salg af brugte varer skal trækkes.\n	Specify the account in the chart of accounts from which the commission on the sale of second-hand products is to be deducted. \n	Spesifiser kontoen i kontoplanen som kommisjonen for salg av brukte varer skal trekkes fra. \n
-1299	Konverter eksisterende varer?	Convert existing items?	Konvertere eksisterende varer?
-1300	Denne funktion anvendes til konvertering af varer oprettet til brug med programmet Loppestatus hvor kostprisen	This feature is used to convert items created for use with the Flea Status application where the cost price	Denne funksjonen brukes til å konvertere elementer som er opprettet for bruk med Flea Status-applikasjonen der kostprisen
-1301	blev brugt som kommissions procent.\n&apos;	was used as commission percentage. \n	ble brukt som provisjonsprosent. \n		
-1302	Afmærkes dette felt ændres alle varer hvor salgspris er 0, kostpris er mellem 0,10 og 0,50 og vareummeret starter med	If this field is checked, all items are changed where the selling price is 0, the cost price is between 0.10 and 0.50 and the item number starts with	Hvis dette feltet er merket av, endres alle varer der salgsprisen er 0, kostprisen er mellom 0,10 og 0,50 og varenummeret starter med
-1303	'kb' eller 'kn'.\n&apos;	'kb' or 'kn'. \n &apos;	'kb' eller 'kn'. \n &apos;
-1304	Hvis kostprisen f.eks. er 0,15 blive denne ændret til 0.85 og kommisionssatsen bliver sat til 15%	If the cost price e.g. is 0.15 this will be changed to 0.85 and the commission rate will be set at 15%	Hvis kostprisen f.eks. er 0,15, dette vil bli endret til 0,85 og provisjonsrenten vil bli satt til 15%
+1284	Sættes en værdi her, anvendes denne sats som udgangspunkt ved oprettelse af kommissionsvarer.	If a value is entered here, this rate is used as a starting point when creating commission items.	Settes en verdi her, brukes denne satsen som utgangspunkt ved opprettelse av kommisjonsvarer.
+1285	Hvis feltet er tomt, beregnes kostprisen manuelt.	If the field is empty, the cost price will be calculated manually.	Hvis feltet er tomt, beregnes kostprisen manuelt.
+1286	Indtægtskonto for kommissionssalg, nye varer	Revenue account for commission sales, new products	Inntektskonto for kommisjonssalg, nye varer
+1287	Angiv den konto i kontoplanen hvor indtægter fra kommissionssalg af nye varer skal bogføres.	Specify the account in the chart of accounts where revenue from commission sales of new products should be posted.	Angi kontoen i kontoplanen der inntekter fra kommisjonssalg av nye varer skal bokføres.
+1288	Er feltet tomt, skal beløbet overføres manuelt i en kassekladde.	If the field is empty, the amount must be transferred manually using a journal entry.	Hvis feltet er tomt, må beløpet overføres manuelt i en kassekladde.
+1289	Afregningskonto for kommissionssalg, nye varer	Settlement account for commission sales, new products	Avregningskonto for kommisjonssalg, nye varer
+1290	Angiv den konto i kontoplanen hvorfra afregning for kommissionssalg af nye varer skal trækkes.	Specify the account in the chart of accounts from which settlement for commission sales of new products should be deducted.	Angi kontoen i kontoplanen hvorfra avregning for kommisjonssalg av nye varer skal trekkes.
+1291	Egen konto for kommissionssalg, nye varer	Separate account for commission sales, new products	Egen konto for kommisjonssalg, nye varer
+1292	Angiv den konto i kontoplanen hvorfra kommission af salg af nye varer skal trækkes.	Specify the account in the chart of accounts from which commission for sales of new products is to be deducted.	Angi kontoen i kontoplanen hvorfra kommisjon av salg av nye varer skal trekkes.
+1293	Indtægtskonto for kommissionssalg, brugte varer	Revenue account for commission sales, second-hand products	Inntektskonto for provisjonssalg, brukte varer
+1294	Angiv den konto i kontoplanen hvor indtægter fra kommissionssalg af brugte skal bogføres.	Specify the account in the chart of accounts where revenue from commission sales of second-hand products is to be posted.	Angi kontoen i kontoplanen hvor inntekter fra kommisjonssalg av brukte varer skal bokføres.
+1295	Afregningskonto for kommissionssalg, brugte varer	Settlement account for commission sales, second-hand products	Avregningskonto for kommisjonssalg, brukte varer
+1296	Angiv den konto i kontoplanen hvorfra afregning for kommissionssalg af brugte skal bogføres.	 Specify the account in the chart of accounts from which settlement for commission sales of second-hand products is to be posted.	Angi kontoen i kontoplanen hvorfra avregning for kommisjonssalg av brukte varer skal bokføres.
+1297	Egen konto for kommissionssalg, brugte varer	Separate account for commission sales, second-hand products	Egen konto for kommisjonssalg, brukte varer
+1298	Angiv den konto i kontoplanen hvorfra kommission af salg af brugte varer skal trækkes.	Specify the account in the chart of accounts from which commission for sales of second-hand products is to be deducted.	Angi kontoen i kontoplanen hvorfra kommisjon av salg av brukte varer skal trekkes.
+1299	Konverter eksisterende varer?	Convert existing products?	Konverter eksisterende varer?
+1300	Denne funktion anvendes til konvertering af varer oprettet til brug med &apos;Mit Salg&apos;, hvor kostprisen	This function is used to convert products created for use with &apos;My Sales&apos;, where the cost price	Denne funksjonen brukes til å konvertere varer opprettet for bruk med &apos;Mitt Salg&apos;, der kostprisen
+1301	blev brugt som kommissionsprocent.	was used as commission percentage.	ble brukt som kommisjonsprosent.
+1302	Afmærkes dette felt, ændres alle varer hvor salgspris er 0, kostpris er mellem 0,10 og 0,50, og varenummer starter med	If this field is checked, all products with a sale price of 0, a cost price between 0.10 and 0.50, and a product number starting with	Hvis dette feltet er merket av, vil alle varer med salgspris på 0, kostpris mellom 0,10 og 0,50, og varenummer som begynner med
+1303	&apos;kb&apos; eller &apos;kn&apos;.	&apos;kb&apos; or &apos;kn&apos;, will be changed.	&apos;kb&apos; eller &apos;kn&apos;, bli endret.
+1304	Hvis kostprisen f.eks. er 0,15, bliver denne ændret til 0,85, og kommisionssatsen bliver sat til 15%.	For example, a cost price of 0.15 will be changed to 0.85, and the commission rate will be set to 15%.	For eksempel, hvis kostprisen er 0,15, vil den bli endret til 0,85, og kommisjonssatsen blir satt til 15%.
 1305	Kontakt os gerne for assistance - +45 4690 2208	Feel free to contact us for assistance - +45 4690 2208	Kontakt oss gjerne for hjelp - +45 4690 2208
-1306	Startdato for afregning til kommissionskunder?	Start date for settlement for commission customers?	Startdato for avregning til provisjonskunder?
-1307	Næste afregning til kommissionskunder vil vlive beregnet fra og med den dato der angives her.\n&apos;	The next settlement for commission customers will be calculated from the date specified here. \n	Neste oppgjør for provisjonskunder blir beregnet fra datoen som er angitt her. \n		
+1306	Startdato for afregning til kommissionskunder?	Settlement start date for commission customers?	Startdato for avregning til kommisjonskunder?
+1307	Næste afregning til kommissionskunder vil blive beregnet fra og med den dato der angives her	The next settlement for commission customers will be calculated from and including the date specified here	Neste avregning til kommisjonskunder vil bli beregnet fra og med datoen som angis her	
 1308	Klik på den labeltype du vil redigere	Click the label type you want to edit	Klikk på etikettypen du vil redigere
 1309	Tilladte tegn er: a-z A-Z 0-9	Permitted characters are: a-z A-Z 0-9	Tillatte tegn er: a-z A-Z 0-9
 1310	A4 38,1 x 21,2 mm, ens labels	A4 38.1 x 21.2 mm, etc. labels	A4 38,1 x 21,2 mm osv. Etiketter
@@ -1318,7 +1318,7 @@
 1318	Prislisterne er lister med priser, som hentes fra en anden ressource eksempelvis en fil på en hjemmeside eller et ftp-sted.	The price lists are lists of prices that are retrieved from another resource, for example a file on a website or an ftp site.	Prislistene er lister over priser som hentes fra en annen ressurs, for eksempel en fil på et nettsted eller et ftp-nettsted.
 1319	URL til prislisten	URL to the price list	URL til prislisten
 1320	Filtype	File type	Filtype
-1321	Lev.rabat	Delivery discount	Lev.rabat
+1321	Lev. rabat	Delivery discount	Lev. rabat
 1322	Prislistens filnavn som er en URL (internetadresse) til selve filen enten på en hjemmeside eller et ftp-sted.	The price list's file name which is a URL (internet address) to the file itself either on a website or an ftp site.	Prislistens filnavn som er en URL (internettadresse) til selve filen, enten på et nettsted eller et ftp-nettsted.
 1323	Prislistens type eksempelvis csv (kommasepareret) eller htmltabel.	Price list type for example csv (comma separated) or htmltabel.	Prisliste type for eksempel csv (kommaadskilt) eller htmltabel.
 1324	Sletter referencen til prislisten. Er kun muligt, når prislisten ikke er aktiv.	Deletes the reference to the price list. Is only possible when the price list is not active.	Sletter referansen til prislisten. Er bare mulig når prislisten ikke er aktiv.
@@ -1445,21 +1445,21 @@
 1445	Udskriv de valgte	Print the selected 	Skriv ut de valgte
 1446	Er du sikker på at du vil slette de valgte	Are you sure you want to delete the selected 	Er du sikker på at du vil slette de valgte
 1447	Vælg på hvilken måde dokumentet skal udskrives, gemmes eller sendes.	Choose how to print, save or send the document.	Velg hvordan du skal skrive ut, lagre eller sende dokumentet.
-1448	Udskrives som PDF uden baggrund	Printed as PDF without background	Trykt som PDF uten bakgrunn
+1448	Udskrives som PDF uden baggrund	Printed as PDF without background	Skrives ut som PDF uten bakgrunn
 1449	PDF-tekst	PDF text	PDF-tekst
-1450	Sendes som PDF via e-mail	Sent as PDF via email	Sendt som PDF via e-post
-1451	Kun ved fakturering/kreditering.	Only for invoicing/crediting.	Bare for fakturering/kreditering.
+1450	Sendes som PDF via e-mail	Sent as PDF via email	Sendes som PDF via e-post
+1451	Kun ved fakturering/kreditering	Only for invoicing/crediting	Kun ved fakturering/kreditering
 1452	Opkræves via betalingsservice	Charged via BS payment service	Charged via BS payment service
 1453	Gem en kopi og vedhæft kundens historik	Save a copy and attach the customer's history	Lagre en kopi og legg ved kundens historie
 1454	klik her for at åbne bilaget	click here to open the attachment	Klikk her for å åpne vedlegget
 1455	klik her for at vedhæfte et bilag	click here to add an attachment	Klikk her for å legge ved et vedlegg
 1456	Projektnummer. Vises for ordrelinjer tilknyttet et projekt.	Project number. Appears for order lines associated with a project.	Prosjektnummer. Vises for ordrelinjer tilknyttet et prosjekt.
-1457	Når dette felt er afmærket udelades ordrelinjen ved genfakturering.	When this field is checked, the order line is omitted for re-invoicing.	Når dette feltet er merket, utelates ordrelinjen for omfakturering.
-1458	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen afmærkeret er der ikke opkrævet moms for den pågældende vare.	If the field is displayed, the customer is subject to the rules for reverse charge. If the item is marked, no VAT has been charged for the item in question.	Hvis feltet vises, er kunden underlagt reglene for omvendt gebyr. Hvis varen er merket, er det ikke belastet merverdiavgift for den aktuelle varen.
-1459	Kopiér til ny ordre med samme indhold.	Copy to new order with the same content.	Kopier til ny ordre med samme innhold.
-1460	Send på e-post med vedlagt PDF-fil. Andre typer behandlinger er valgt fra Skriv ut til-listen.	Send by e-mail with attached PDF file. Other types of treatments are selected from the Print To list.	Send på e-post med vedlagt PDF-fil. Andre typer behandlinger velges fra Print To-listen.
-1461	Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis.	Open a PDF document that can be saved or further processed in another way.	Åpne et PDF-dokument som kan lagres eller viderebehandles på en annen måte.
-1462	Klik her for at oprette en kreditnota, som hel eller delvist krediterer denne faktura. Kreditnotaen oprettes som en kreditnotaordre, som kan redigeres inden bogføring. Eksempelvis hvis kun en enkelt faktureret vare skal krediteres.	Click here to create a credit memo that fully or partially credits this invoice. The credit memo is created as a credit memo order, which can be edited before posting. For example, if only a single invoiced item needs to be credited.	Klikk her for å opprette en kreditnota som helt eller delvis krediterer denne fakturaen. Kredittnotaen opprettes som en kreditnotaordre, som kan redigeres før den legges ut. For eksempel hvis bare en enkelt fakturert vare må krediteres.
+1457	Kun denne ordre: når dette felt er afmærket udelades ordrelinjen ved genfakturering	Only this order: when this field is checked, the order line is omitted for re-invoicing	Kun denne ordre: når dette feltet er merket, utelates ordrelinjen for omfakturering
+1458	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen afmærkeret er der ikke opkrævet moms for den pågældende vare.	If the field is shown, the customer is subject to the rules for reverse charge. If the item is marked, no VAT has been charged for the item in question.	Hvis feltet vises, er kunden underlagt reglene for omvendt gebyr. Hvis varen er merket, er det ikke belastet merverdiavgift for den aktuelle varen.
+1459	Kopiér til ny ordre med samme indhold	Copy to new order with the same content	Kopier til ny ordre med samme innhold
+1460	Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra 'Udskriv til'.	Send as email with attached PDF file. Other options are selected from 'Print to'.	Send som e-post med vedlagt PDF-fil. Andre typer behandlinger velges fra 'Skriv ut til'.
+1461	Åbn et PDF-dokument, som kan gemmes eller viderebehandles på anden vis	Open a PDF document that can be saved or further processed in other ways	Åpne et PDF-dokument som kan lagres eller viderebehandles på annen måte
+1462	Klik her for at oprette en kreditnota, som hel eller delvist krediterer denne faktura. Kreditnotaen oprettes som en kreditnotaordre, som kan redigeres inden bogføring. Eksempelvis hvis kun en enkelt faktureret vare skal krediteres.	Click here to create a credit note that fully or partially credits this invoice. The credit note is created as a credit note order, which can be edited before posting. For example, if only a single invoiced item needs to be credited.	Klikk her for å opprette en kreditnota som helt eller delvis krediterer denne fakturaen. Kreditnotaen opprettes som en kreditnotaordre, som kan redigeres før bokføring. For eksempel hvis kun én fakturert vare skal krediteres.
 1463	Klik her for at skifte kunde på denne ordre	Click here to change customer on this order	Klikk her for å endre kunde på denne bestillingen
 1464	Kundens ordrenummer som refererence	Customer's order number for reference	Kundens bestillingsnummer for referanse
 1465	! Not used !		
@@ -1467,16 +1467,16 @@
 1467	Mail bilag	Mail attachments	Postvedlegg
 1468	Sprog som skal anvendes på dokumenter som tilbud, ordrer, fakturaer med videre.	Language to be used on documents such as offers, orders, invoices and so on.	Språk som skal brukes på dokumenter som tilbud, bestillinger, fakturaer og så videre.
 1469	Dato for returnering	Date of return	Dato for retur
-1470	Dato for kreditnota	Date of credit note	Dato for kreditnota
-1471	KN.dato	KN.date	KN.dato
+1470	Dato for kreditnota	Credit note date	Dato for kreditnota
+1471	KN. dato	CN date	KN. dato
 1472	Genfaktureringsdato. Dette felt skal kun udfyldes, hvis der er tale om et abonnement eller \nlignende, som skal faktureres igen på et senere tidspunkt. \nSkriv datoen for næste fakturering	Re-invoicing date. This field should only be filled in if it is a \nsubscription, or similar that needs to be invoiced again at a later date. \nWrite the date of the next billing	Dato for fakturering på nytt. Dette feltet skal bare fylles ut hvis det er et abonnement eller \nlignende, som må faktureres på et senere tidspunkt. \n Skriv datoen for neste fakturering
 1473	Hvis hele ordren skal registreres på et projekt, vælges projektet her. Ellers anvendes projektfeltet på ordrelinjen.	If the entire order is to be registered on a project, the project is selected here. Otherwise, the project field is used on the order line.	Hvis hele bestillingen skal registreres på et prosjekt, velges prosjektet her. Ellers brukes prosjektfeltet på ordrelinjen.
 1474	Ved fakturering ændres emneteksten til	When invoicing, the subject text is changed to	Ved fakturering endres emneteksten til
 1475	Ved fakturering ændres mailteksten til	When invoicing, the email text changes to	Ved fakturering endres e-postteksten til
-1476	Mail emne	Mail subject	Postemne
+1476	Mail emne	Mail subject	E-postemne
 1477	Positionsnummer. Rækkefølgen ændres ved at overskrive positionsnumrene (1,5 hvis mellem 1 og 2). En enkelt linje slettes ved at skrive minustegn som positionsnummer.	Position number. The order is changed by overwriting the position numbers (1.5 if between 1 and 2). A single line is deleted by typing a minus sign as the position number.	Posisjonsnummer. Rekkefølgen endres ved å overskrive posisjonstallene (1,5 hvis mellom 1 og 2). En enkelt linje slettes ved å skrive et minustegn som posisjonsnummer.
-1478	Varenummer. Skriv hele varenumret eller klik på Opslag for at vælge. Hvis du vil vælge mellem varenumre startende med t, så skriv t* i feltet og klik på Opslag.	Item number. Enter the entire item number or click Lookup to select. If you want to choose between item numbers starting with t, type t* in the field and click Lookup.	Artikkelnummer. Skriv inn hele varenummeret, eller klikk på Oppslag for å velge. Hvis du vil velge mellom varenummer som begynner med t, skriver du t* i feltet og klikker på Oppslag.
-1479	Antal enheder. Timer og minutter kan angives med : som skilletegn. Eksempelvis 5:45 som bliver til 5,75.	Number of units. Hours and minutes can be specified with : as delimiter. For example, 5:45 which becomes 5.75.	Antall enheter. Timer og minutter kan spesifiseres med : som avgrenser. For eksempel 5:45 som blir 5,75.
+1478	Varenummer. Skriv hele varenummeret eller klik på Opslag for at vælge. Hvis du vil vælge mellem varenumre startende med t, så skriv t* i feltet og klik på Opslag.	Item number. Enter the entire item number or click Lookup to select. If you want to choose between item numbers starting with t, type t* in the field and click Lookup.	Artikkelnummer. Skriv inn hele varenummeret, eller klikk på Oppslag for å velge. Hvis du vil velge mellom varenummer som begynner med t, skriver du t* i feltet og klikker på Oppslag.
+1479	Antal enheder. Timer og minutter kan angives med : som skilletegn. Eksempelvis 5:45 som bliver til 5,75.	Number of units. Hours and minutes can be specified with : as delimiter - e.g. 5:45, which becomes 5.75.	Antall enheter. Timer og minutter kan spesifiseres med : som skilletegn. For eksempel 5:45 som blir 5,75.
 1480	Brug [Shift]+[Enter] for et indsætte et linjeskift i en beskrivelseslinje	Use [Shift] + [Enter] to insert a line break in a description line	Bruk [Skift] + [Enter] for å sette inn et linjeskift i en beskrivelseslinje
 1481	Procent	Percent	Prosent
 1482	'Kun denne ordre'. Afmærk dette felt hvis ordrelinjen ikke skal med ved genfakturering eller kopiering af ordren.	'Only this order'. Check this box if the order line should not be included when re-invoicing or copying the order.	'Bare denne bestillingen'. Merk av i denne boksen hvis ordrelinjen ikke skal inkluderes når du fakturerer eller kopierer ordren.
@@ -1484,14 +1484,14 @@
 1484	Indtastningsfeltet herunder er det antal, som leveres ved klik på Levér. Antallet i parantes er det, som allerede er leveret.	The input field below is the number that is delivered by clicking on Deliver. The number in parentheses is what has already been delivered.	Inndatafeltet nedenfor er nummeret som leveres ved å klikke på Deliver. Antallet i parentes er det som allerede er levert.
 1485	Modtag	Receive	Motta
 1486	Indtastningsfeltet herunder er det antal, som modtages ved klik på Modtag. Antallet i parantes er det, som allerede er modtaget.	The input field below is the number received by clicking Receive. The number in parentheses is what has already been received.	Inndatafeltet nedenfor er nummeret som mottas ved å klikke Motta. Antallet i parentes er det som allerede er mottatt.
-1487	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen ligeledes omfattet vil feltet herunder være afmærket pr default og momsen vil være undertrykt for den pågældende vare.	If the field is displayed, the customer is subject to the rules for reverse charge. If the item is also covered, the field below will be marked by default and the VAT will be suppressed for the item in question.	Hvis feltet vises, er kunden underlagt reglene for omvendt gebyr. Hvis varen også er dekket, vil feltet nedenfor være merket som standard, og momsen blir undertrykt for den aktuelle varen.
-1488	Afmærk dette felt hvis ordrelinjen ikke skal med ved genfakturering / kopiering.	Check this box if the order line is not to be included in re-invoicing / copying.	Merk av i dette feltet hvis ordrelinjen ikke skal inngå i omfakturering / kopiering.
-1489	Indsættes ved fed tekst. Sæt cursoren imellem <b> og </b>\n(F.eks. <b>Lorem ipsum</b>).	Inserted in bold text. Place the cursor between <b> and </b>\n(eg <b> Lorem ipsum</b>).	Sett inn i fet skrift. Plasser markøren mellom <b> og </b>\n(f.eks. <b> Lorem ipsum</b>).
-1490	Indsættes ved kursiv tekst. Sæt cursoren imellem <i> og </i>\n(F.eks. <i>Lorem ipsum</i>).\nKan også bruges til tom linje. Her insættes <i></i> uden tekst. 	Inserted in italics. Set the cursor between <i> and </i>\n(E.g.<i> Lorem ipsum</i>).\nCan also be used for blank line. Here, <i> </i> without text is inserted.	Sett inn i kursiv. Sett markøren mellom <i> og </i> \n(f.eks. <i> Lorem ipsum</i>). \nkan også brukes til blank linje. Her settes <i></i> uten tekst inn.
+1487	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen ligeledes omfattet vil feltet herunder være afmærket som standard, og momsen vil være undertrykt for den pågældende vare.	If the field is visible, the customer is subject to the rules for reverse charge. If the item is also covered, the field below will be checked by default, and the VAT will be suppressed for the relevant item.	Hvis feltet vises, er kunden underlagt reglene for omvendt avgiftsplikt. Hvis varen også er omfattet, vil feltet nedenfor være valgt som standard, og merverdiavgiften vil bli utelatt for den aktuelle varen.
+1488	Afmærk dette felt, hvis ordrelinjen ikke skal med ved genfakturering / kopiering.	Check this field if the order line should not be included when re-invoicing / copying.	Merk av dette feltet hvis ordrelinjen ikke skal inngå i gjenfakturering / kopiering.
+1489	Indsættes for at lave fed tekst. Sæt cursoren imellem <b> og </b>.\n(F.eks. <b>Lorem ipsum</b>)	Inserted to create bold text. Place the cursor between <b> and </b>.\n(E.g. <b>Lorem ipsum</b>)	Settes inn for å lage fet tekst. Plasser markøren mellom <b> og </b>.\n(F.eks. <b>Lorem ipsum</b>)
+1490	Indsættes for at lave kursiv tekst. Sæt cursoren imellem <i> og </i>.\n(F.eks. <i>Lorem ipsum</i>)\nKan også bruges til tom linje. Her insættes <i></i> uden tekst. 	Inserted to create italic text. Place the cursor between <i> and </i>.\n(E.g. <i>Lorem ipsum</i>)\nCan also be used for blank line. In this case, insert <i></i> without text.	Settes inn for å lage kursiv tekst. Plasser markøren mellom <i> og </i>\n(F.eks. <i>Lorem ipsum</i>)\nKan også brukes for tom linje. Da settes <i></i> inn uten tekst.
 1491	Klik her for at tage varer retur	Click here to take items back	Klikk her for å ta varene tilbake
 1492	klik her for at kopiér tilbud til ny sag	click here to copy quotes for new case	Klikk her for å kopiere tilbud for ny sak
 1493	Kopiér	Copy	Kopiere
-1494	Afmærk dette felt hvis ordrelinjen ikke skal med ved genfakturering / kopiering.	Check this box if the order line is not to be included in re-invoicing / copying.	Merk av i dette feltet hvis ordrelinjen ikke skal inngå i omfakturering / kopiering.
+1494	Afmærk dette felt, hvis ordrelinjen ikke skal med ved genfakturering / kopiering.	Check this field if the order line should not be included when re-invoicing / copying.	Merk av dette feltet hvis ordrelinjen ikke skal inngå i gjenfakturering / kopiering.
 1495	Tidligere	Previous	Tidligere
 1496	Vælg fra købsordre	Choose from purchase order	Velg fra innkjøpsordre
 1497	Serienummer	Serial number	Serienummer
@@ -1708,7 +1708,7 @@
 1708	Kursændring afbrudt	Price change interrupted	Prisendring avbrutt
 1709	Driftkonto	Operating account	Driftskonto
 1710	Det er foretaget posteringer på	Entries have been made	Påmeldinger er gjort
-1711	Markeres ved bruge af ordrebemærkning til intern brug	Marked if order notes shoud be used for internal use	Merket hvis ordrenotat til intern bruk skal brukes
+1711	Afmærk dette felt for at bruge ordrebemærkning til intern brug	Check this field to use order notes for internal use	Merk av dette feltet for å bruke ordrenotater til intern bruk
 1712	Bemærkning til ordre	Order note	Ordrenotat
 1713	Udvid tekstfeltet ved at hive i hjørnet	Enhance the textarea by stretching the corner	Trek i hjørnet for å forstørre tekstfeltet
 1714	Anvend ordrebemærkning til internt brug	Use order notes for internal use	Bruk ordrenotat til intern bruk
@@ -1878,7 +1878,7 @@
 1878	Leverandør	Supplier	Leverandør
 1879	VVS varer importeret / opdateret	Plumbing items imported / updated	VVS -artikler importert / oppdatert
 1880	Sæt flueben, hvis det skal sendes ordrekopi til sælger v. ''udskriv til mail	Check if an order copy is to be sent to the seller v. '' Print to mail	Sjekk om en ordreeksemplar skal sendes til selgeren v. '' Skriv ut til post
-1881	Mit Salg	My Sale	Mitt salg
+1881	Mit Salg	My Sale	Mitt Salg
 1882	Fejl i ID	Error in ID	Feil i ID
 1883	Kontakt butikken for nyt ID	Contact the store for a new ID	Ta kontakt med butikken for ny ID
 1884	Skriv email og adgangskode	Write email and password	Skriv e -post og passord
@@ -2054,7 +2054,7 @@
 2054	I perioden er der solgt i alt $antal varer fra din stand	During the period, a total of $antal of items from your stand were sold	I perioden er der solgt i alt $antal varer fra din stand.
 2055	Beløbet vil blive overført til din konto en af de nærmeste dage	The amount will be transferred to your account one of the next few days	Beløpet vil bli overført til din konto en av de nærmeste dage
 2056	Med venlig hilsen	Kind regards	Med vennlig hilsen
-2057	Email tekst:	Email text:	E-posttekst:
+2057	E-mail tekst:	Email text:	E-posttekst:
 2058	Du kan bruge $navn som navn på modtager,$kontonr som kontonr $sum som det beløb der overføres,<br>$antal som antal solgte enheder samt $start og $slut som hhv start og slutdato	You can use $name as the name of the recipient, $account as the account number $sum as the amount transferred,<br>$qty as the number of units sold and $start and $end as the start and end date respectively	Du kan bruke $navn som navn på mottaker, $kontonummer som kontonummer $sum som overført beløp,<br>$antal som antall solgte enheter og $start og $slut som henholdsvis start- og sluttdato
 2059	Tilbage til betalingsliste	Return to payment list	Tilbake til betalingslisten
 2060	Opdatér	Update	Uppdatera
@@ -2396,28 +2396,28 @@
 2396	Skriv nyt navn på regnskab	Enter new name for the account	Skriv nytt navn på regnskap
 2397	og klik	and click	og klikk
 2398	Skift navn	Change name	Endre navn
-2399
-2400
-2401
-2402
-2403
-2404
-2405
-2406
-2407
-2408
-2409
-2410
-2411
-2412
-2413
-2414
-2415
-2416
-2417
-2418
-2419
-2420
+2399	Opdater ikke kostpris	Do not update cost price	Oppdater ikke kostpris
+2400	Gennemsnitspris	Average price	Gjennomsnittspris
+2401	Genanskaffelsespris	Replacement price	Erstatningspris
+2402	Att.	Attn.	Att.
+2403	Lokal printer	Local printer	Lokal skriver
+2404	Digitalt	Digital	Digitalt
+2405	Vis ekstrafelter	Show extra fields	Vis ekstrafelter
+2406	Betalings-ID	Payment ID	Betalings-ID
+2407	KDO	OTO	KDO
+2408	O/B	R/C	O/A
+2409	Dækningsbidrag	Contribution margin	Dekningsbidrag
+2410	Dækningsgrad	Margin ratio	Dekningsgrad
+2411	Send faktura digitalt	Send invoice digitally	Send faktura digitalt
+2412	Send til en debitor iPad	Send to a debtor iPad	Send til en debitor iPad
+2413	Ingen	Nothing	Ingen
+2414	Restordre	Backorder	Restordre
+2415	Nedenstående tekster ændres ved fakturering, hold musen over beskrivelsen til venstre for at se ændringen.	The texts below will be changed during invoicing. Hover over the description on the left to see the change.	Tekstene nedenfor endres ved fakturering, hold musepekeren over beskrivelsen til venstre for å se endringen.
+2416	Medtag moms for kommision	Include VAT for commission	Inkluder merverdiavgift for kommisjon
+2417	Afmærkes dette felt er kommissionen ekskl. moms. Ved f.eks. 15% kommission og 25% moms, bliver den faktiske kommision 18,75%.	If this field is checked, the commission is excluding VAT. For example, with 15% commission and 25% VAT, the actual commission becomes 18.75%.	Hvis dette feltet er avmerket, er kommisjonen ekskl. mva. Ved f.eks. 15 % kommisjon og 25 % mva, blir den faktiske kommisjonen 18,75%.
+2418	Opdater fra shop	Update from shop	Oppdater fra shop
+2419	A4 ark	A4 sheet	A4 ark
+2420	Nummer	Number	Nummer
 2421
 2422
 2423
@@ -3066,7 +3066,7 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3066	Vis lagerbeholdning	Show inventory	Viss inventar
 3067	Når en vare som er en lagervare, indastes på kassesystemet, vises den aktuelle lagerbeholdning	When an item that is a stock item, is entered in the POS system, the current stock is shown	Når en vare som er en lagervare, angis i POS-systemet, vises gjeldende beholdning
 3068	Aktiver debitoripad	Activate debitor ipad	Aktiver debitoripad
-3069	Dette felt aktivere debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer kundens iPad-system der kundene dine kan skrive en e-mail på en bestilling selv
+3069	Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer debitoripadsystemet hvor kundene dine selv kan skrive en e-post på en ordre
 3070	Rumfang	Volume	Volum
 3071	Nettosum	Net sum	Nettosum
 3072	I alt	Total	Totalt
@@ -3114,4 +3114,4 @@ bliver slettet, sammen med finansbilag fra før denne dato.
 3114	Omv.menu	Flp.menu	Omv.menu
 3115	Anvend omvendte primær og sekundær menuer (primærmenu i bunden)	Flip the primary and secondarry menus (primary on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
 3116	Decimaler på rabat	Decimals for discount values	Decimaler på rabatt
-3117	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt
+3117	Angiv antallet af decimaler på rabatfelter på ordrer	Specify the number of decimals on discount fields on orders	Angi antallet desimaler på rabattfelter på ordrer

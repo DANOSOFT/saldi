@@ -105,7 +105,7 @@ function productOptions($defaultProvision) {
 	($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$numberFormat = $r['var_value']:$numberFormat = '.|,';
 	print "<form name='productOptions' action='diverse.php?sektion=productOptions' method='post'>";
 	print "<tr><td colspan='6'><hr></td></tr>";
-	$text=findtekst(470,$sprog_id);
+	$text=findtekst('470|Varerelaterede valg',$sprog_id);
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>$text<!--tekst 470--></u></b></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
 	print "<input type=hidden name='id' value='$id'>";
@@ -139,95 +139,96 @@ function productOptions($defaultProvision) {
 	print "</select></td></tr>";
 	*/
 
-	$text=findtekst(1273, $sprog_id); #20210712
-	$title=findtekst(1274, $sprog_id);
+	$text=findtekst('1273|Vis priser med moms på varekort', $sprog_id); #20210712
+	$title=findtekst('1274|Når dette felt er afmærket, bliver varer vist inkl. moms på varekortet', $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='checkbox' class='inputbox' name='vatOnItemCard' $vatOnItemCard></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td>";
 
-	$text=findtekst(1275, $sprog_id);
-	$title=findtekst(1276, $sprog_id);
+	$text=findtekst('1275|Bekræft ændring af beskrivelse på varekort', $sprog_id);
+	$title=findtekst('1276|Når dette felt er afmærket, skal der bekræftes vedændring af beskrivelsen på varekort', $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='checkbox' class='inputbox' name='confirmDescriptionChange' $confirmDescriptionChange></td></tr>";
-	$text=findtekst(1277, $sprog_id);
-	$title=findtekst(1278, $sprog_id);
+	$text=findtekst('1277|Bekræft ved ændring af beholdning på varekort', $sprog_id);
+	$title=findtekst('1278|Når dette felt er afmærket, skal der bekræftes ved ændring af beholdning på varekort', $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='checkbox' class='inputbox' name='confirmStockChange' $confirmStockChange></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td>";
 
-	$text=findtekst(1279, $sprog_id);
-	$title=findtekst(1280, $sprog_id);
+	$text=findtekst('1279|Sæt vare til udgået, når beholdning bliver negativ', $sprog_id);
+	$title=findtekst('1280|Når dette felt er afmærket bliver varen markeret som udgået når beholdningen bliver negativ', $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='checkbox' class='inputbox' name='DisItemIfNeg' $DisItemIfNeg></td></tr>";
-	$text=findtekst(1281, $sprog_id);
-	$title=findtekst(1282, $sprog_id);
+	$text=findtekst('1281|Kommisionsvarer - afmærk hvis der anvendes POS og der sælges varer i kommission', $sprog_id);
+	$title=findtekst('1282|Når dette felt er afmærket vises \'Afregn kommission på kasseoptælling\' og \'Kommissionsvare\' på varekort', $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='checkbox' class='inputbox' name='useCommission' $useCommission></td></tr>";
 	if ($useCommission) {
-		$text  = findtekst(1283, $sprog_id);
-		$title = findtekst(1284, $sprog_id);
-		$title.= findtekst(1285, $sprog_id);
+		$text  = findtekst('1283|Standard kommissionssats', $sprog_id);
+		$title = findtekst('1284|Sættes en værdi her, anvendes denne sats som udgangspunkt ved oprettelse af kommissionsvarer.', $sprog_id)."\n";
+		$title.= findtekst('1285|Hvis feltet er tomt, beregnes kostprisen manuelt.', $sprog_id);
 		list($a,$b) = explode("|",$numberFormat);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='text' style='width:50px;text-align:right;' class='inputbox' ";
 		print "name='defaultCommission' value= '". $defaultCommission ."'></td></tr>";
 
-		$text = "Medtag moms for kommision";
-		$title = "Afmærkes dette felt er kommissionen excl moms, således at ved 15% kommission og 25% moms, ";
-		$title.= "bliver den faktiske kommision 18,75%".
+		$text  = findtekst('2416|Medtag moms for kommision', $sprog_id);
+		$title = findtekst('2417|Afmærkes dette felt er kommissionen ekskl. moms. Ved f.eks. 15% kommission og 25% moms, bliver den faktiske kommision 18,75%.', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'>";
 		print "<input type='checkbox' class='inputbox' name='commissionInclVat' $commissionInclVat></td></tr>";
-		$text  = findtekst(1286, $sprog_id);
-		$title = findtekst(1287, $sprog_id);
-		$title.= findtekst(1288, $sprog_id);
+		$text  = findtekst('1286|Indtægtskonto for kommisionssalg, nye varer', $sprog_id);
+		$title = findtekst('1287|Angiv den konto i kontoplanen hvor indtægter fra kommissionssalg af nye varer skal bogføres', $sprog_id)."\n";
+		$title.= findtekst('1288|Er feltet tomt, skal beløbet overføres manuelt i en kassekladde.', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='text' style='width:75px;text-align:right;' class='inputbox' ";
 		print "name='commissionAccountNew' value= '$commissionAccountNew'></td></tr>";
 
-		$text  = findtekst(1289, $sprog_id);
-		$title = findtekst(1290, $sprog_id);
-		$title.= findtekst(1288, $sprog_id);
+		$text  = findtekst('1289|Afregningskonto for kommissionssalg, nye varer', $sprog_id);
+		$title = findtekst('1290|Angiv den konto i kontoplanen, hvorfra afregning for kommissionssalg af nye varer skal trækkes.', $sprog_id)."\n";
+		$title.= findtekst('1288|Er feltet tomt, skal beløbet overføres manuelt i en kassekladde.', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='text' style='width:75px;text-align:right;' class='inputbox' ";
 		print "name='customerCommissionAccountNew' value= '$customerCommissionAccountNew'></td></tr>";
 
-		$text  = findtekst(1291, $sprog_id);
-		$title = findtekst(1292, $sprog_id);
-		$title.= findtekst(1288, $sprog_id);
+		$text  = findtekst('1291|Egen konto for kommissionssalg, nye varer', $sprog_id);
+		$title = findtekst('1292|Angiv den konto i kontoplanen hvorfra kommission af salg af nye varer skal trækkes.', $sprog_id)."\n";
+		$title.= findtekst('1288|Er feltet tomt, skal beløbet overføres manuelt i en kassekladde.', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='text' style='width:75px;text-align:right;' class='inputbox' ";
 		print "name='ownCommissionAccountNew' value= '$ownCommissionAccountNew'></td></tr>";
 
-		$text  = findtekst(1293, $sprog_id);
-		$title = findtekst(1294, $sprog_id);
-		$title.= findtekst(1288, $sprog_id);
+		$text  = findtekst('1293|Indtægtskonto for kommissionssalg, brugte varer', $sprog_id);
+		$title = findtekst('1294|Angiv den konto i kontoplanen hvor indtægter fra kommissionssalg af brugte skal bogføres.', $sprog_id)."\n";
+		$title.= findtekst('1288|Er feltet tomt, skal beløbet overføres manuelt i en kassekladde.', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='text' style='width:75px;text-align:right;' class='inputbox' ";
 		print "name='commissionAccountUsed' value= '$commissionAccountUsed'></td></tr>";
 
-		$text  = findtekst(1295, $sprog_id);
-		$title = findtekst(1296, $sprog_id);
-		$title.= findtekst(1288, $sprog_id);
+		$text  = findtekst('1295|Afregningskonto for kommissionssalg, brugte varer', $sprog_id);
+		$title = findtekst('1296|Angiv den konto i kontoplanen hvorfra afregning for kommissionssalg af brugte skal bogføres.', $sprog_id)."\n";
+		$title.= findtekst('1288|Er feltet tomt, skal beløbet overføres manuelt i en kassekladde.', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='text' style='width:75px;text-align:right;' class='inputbox' ";
 		print "name='customerCommissionAccountUsed' value= '$customerCommissionAccountUsed'></td></tr>";
-		$text  = findtekst(1297, $sprog_id);
-		$title = findtekst(1298, $sprog_id);
-		$title.= findtekst(1288, $sprog_id);
+
+		$text  = findtekst('1297|Egen konto for kommissionssalg, brugte varer', $sprog_id);
+		$title = findtekst('1298|Angiv den konto i kontoplanen hvorfra kommission af salg af brugte varer skal trækkes.', $sprog_id)."\n";
+		$title.= findtekst('1288|Er feltet tomt, skal beløbet overføres manuelt i en kassekladde.', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='text' style='width:75px;text-align:right;' class='inputbox' ";
 		print "name='ownCommissionAccountUsed' value= '$ownCommissionAccountUsed'></td></tr>";
 		
-		$text  = findtekst(1299, $sprog_id);
-		$title = findtekst(1300, $sprog_id);
-		$title.= findtekst(1301, $sprog_id);
-		$title = findtekst(1302, $sprog_id);
-		$title.= findtekst(1303, $sprog_id);
-		$title.= findtekst(1304, $sprog_id);
-		$title.= findtekst(1305, $sprog_id);
+		$text  = findtekst('1299|Konverter eksisterende varer?', $sprog_id);
+		$title = findtekst('1300|Denne funktion anvendes til konvertering af varer oprettet til brug med \'Mit Salg\' hvor kostprisen', $sprog_id)." ";
+		$title.= findtekst('1301|blev brugt som kommissions procent.', $sprog_id)."\n";
+		$title.= findtekst('1302|Afmærkes dette felt, ændres alle varer hvor salgspris er 0, kostpris er mellem 0,10 og 0,50, og varenummeret starter med', $sprog_id)." ";
+		$title.= findtekst('1303|\'kb\' eller \'kn\'.', $sprog_id)."\n";
+		$title.= findtekst('1304|Hvis kostprisen f.eks. er 0,15 bliver denne ændret til 0,85, og kommisionssatsen bliver sat til 15%.', $sprog_id)."\n";
+		$title.= findtekst('1305|Kontakt os gerne for assistance - +45 4690 2208', $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
 		print "<td title='$title'><input type='checkbox' class='inputbox' name='convertExisting'></td></tr>";
+
 		$text  = findtekst(1306, $sprog_id);
 		$title = findtekst(1307, $sprog_id);
 		print "<tr><td title='$title'>$text</td>";
@@ -235,7 +236,7 @@ function productOptions($defaultProvision) {
 		print "value='$commissionFromDate' placeholder='01-01-2020'></td></tr>";
 	}
 	print "<td><br></td><td><br></td><td><br></td>";
-	$text=findtekst(471,$sprog_id);
+	$text = findtekst('471|Gem/opdatér', $sprog_id);
 	print "<td align = center><input class='button green medium' type=submit accesskey='g' value='$text' name='submit'><!--tekst 471--></td>";
 	print "<tr><td><br></td></tr>";
 	print "</form>";

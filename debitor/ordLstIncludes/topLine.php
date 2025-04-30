@@ -15,7 +15,7 @@
 
 	print "<td width=80% style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
-	if ($valg=="$tilbud1" && !$hurtigfakt) {
+	if ($valg=="tilbud" && !$hurtigfakt) {
 		print "<td width = '100px' align=center>
 			   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(812, $sprog_id)."</button></td>";
@@ -26,24 +26,24 @@
 			   .findtekst(812, $sprog_id)."</button></a></td>";
 	} //20210318
 
-	if ($valg=="$ordrer1") {
+	if ($valg=="ordrer") {
 		print "<td width = '100px' align=center>
 			   <button style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(107, $sprog_id)."</button></td>";
 	} else {
 		print "<td width = '100px' align=center>
-			   <a href='ordreliste.php?valg=$ordrer1&konto_id=$konto_id&returside=$returside'>
+			   <a href='ordreliste.php?valg=ordrer&konto_id=$konto_id&returside=$returside'>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(107, $sprog_id)."</button></a></td>";
 	}
 
-	if ($valg == "$faktura1") {
+	if ($valg == "faktura") {
 		print "<td width = '100px' align=center>
 			   <button style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(643, $sprog_id)."</button></td>";
 	} else {
 		print "<td width = '100px' align=center>
-			   <a href='ordreliste.php? valg=$faktura1&konto_id=$konto_id&returside=$returside'>
+			   <a href='ordreliste.php? valg=faktura&konto_id=$konto_id&returside=$returside'>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			   .findtekst(643, $sprog_id)."</button></a></td>";
 	}
@@ -92,7 +92,7 @@
 		print "</tbody></table></td></tr>\n"; # <- Tabel 1.1.1
 	}
 
-	if ($valg=="$ordrer1") { #20121017
+	if ($valg=="ordrer") { #20121017
 		$dir = '../ublfiler/ind/';
 		if (file_exists("$dir")) {
 			$vis_xml=0;
