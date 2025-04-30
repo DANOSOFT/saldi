@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.0.8 - 2023.06.25 -
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.1.1 --- 2025.04.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190215 Make function to count the box when submitting
@@ -33,7 +33,8 @@
 // 20200202 PHR function cashCountResult. Added $db and $kasse as globals, specification of $log, fopen $log, and fclose $log(); 
 // 20200925 PHR Added button [Kasse] to make it possible to open drawer.
 // 20210517 PHR Outcommented setting '$ny_kortsum' to '$kortsum' and made 'card diff' red. (whish from Havemøbelland)
-// 20230655 PHR	if (count) changed to if ($count) 
+// 20230655 PHR if (count) changed to if ($count)
+// 20250428 PHR Added fiscal_year / $regnaar
 
 function setSpecifiedCashText() 
 { 
@@ -128,10 +129,10 @@ function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_
 
 function cashCountResult($pfnavn, $kasse, $id, $byttepenge, $ny_morgen, $tilgang, $forventet, $optalt, $kassediff, $color, $mellemkonto, $udtages) {
 	echo "<!-- ". __file__ ." cashCountResult Begin -->\n";
-	global $bruger_id,$db,$ifs,$FromCharset,$ToCharset;
-	
-	$qtxt="select box3 from grupper where art = 'POS' and kodenr='2'";
-	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
+	global $bruger_id,$db,$ifs,$regnaar,$FromCharset,$ToCharset;
+
+	$qtxt="select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$x=$kasse-1;
 	$tmp=explode(chr(9),$r['box3']);
 	$printserver=trim($tmp[$x]);
