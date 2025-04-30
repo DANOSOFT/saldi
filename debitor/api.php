@@ -179,7 +179,22 @@
         for ($i = 0; $i < 10; $i++) {
             $randomString .= $characters[rand(0, 4)];
         }
-
+        if(!isset($result["base64EncodedDocumentXml"]) || $result["base64EncodedDocumentXml"] == ""){
+            // An error occurred
+            $errorNumber = curl_errno($ch);
+            $errorMessage = curl_error($ch);
+            $error = ['error' => $errorNumber, 'message' => $errorMessage];
+            json_encode($error, JSON_PRETTY_PRINT);
+            
+            // save response in file in temp folder
+            file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            ?>
+            <script>
+                alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
+            </script>
+            <?php
+            exit;
+        }
         // decode base64
         $xml = base64_decode($result["base64EncodedDocumentXml"]);
         file_put_contents("../temp/$db/xml-$randomString.xml", $xml);
@@ -330,12 +345,18 @@
             }
             file_put_contents("../temp/$db/ordrelinjer.json", json_encode($res, JSON_PRETTY_PRINT), FILE_APPEND);
             if($res["rabat"] > 0) {
+                // make sure the price is positive
+                $res["pris"] = abs($res["pris"]);
+                $res["antal"] = abs($res["antal"]);
                 $price = $res["pris"];
                 $price *= ($res["procent"]/100);
                 $discPrct = $res["rabat"];
                 $discAmount = $price * ($discPrct / 100) * $res["antal"];
                 $lineAmount = $res["antal"] * ($price - ($price/100 * $discPrct));
             }else{
+                // make sure the price is positive
+                $res["pris"] = abs($res["pris"]);
+                $res["antal"] = abs($res["antal"]);
                 $price = $res["pris"];
                 $price *= ($res["procent"]/100);
                 $discAmount = 0;
