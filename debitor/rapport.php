@@ -50,11 +50,13 @@ include("../includes/rapportfunc.php");
 
 #print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 global $sprog_id; //2021
-
+$backUrl = isset($_GET['returside'])
+	? $_GET['returside']
+	: 'javascript:window.history.go(-2);';
 if ($popup)
 	$returside = "../includes/luk.php";
 else
-	$returside = "../index/menu.php";
+	$returside = $backUrl;
 
 if (!isset($rapportart))
 	$rapportart = NULL;
@@ -131,7 +133,6 @@ if (isset($_POST['konto'])) {
 		$konto_fra = $konto_til = $konto;
 	if (!is_numeric($konto_fra))
 		$konto_til = NULL;
-
 }
 $husk = if_isset($_POST['husk']);
 if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
@@ -157,16 +158,16 @@ if (isset($_POST['submit']) || $rapportart) {
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
-#	if (isset($_POST['konto_fra']) && strpos($_POST['konto_fra'],":")) {
-#		list ($konto_fra, $firmanavn) = explode(":", $_POST['konto_fra']);
+	#	if (isset($_POST['konto_fra']) && strpos($_POST['konto_fra'],":")) {
+	#		list ($konto_fra, $firmanavn) = explode(":", $_POST['konto_fra']);
 	$konto_fra = trim(if_isset($konto_fra));
 	#	}
-#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
-#		list ($konto_til, $firmanavn) = explode(":", $_POST['konto_til']);
+	#	if (isset($_POST['konto_til']) && strpos($_POST['konto_til'],":")) {
+	#		list ($konto_til, $firmanavn) = explode(":", $_POST['konto_til']);
 	$konto_til = trim(if_isset($konto_til));
 	#	}
-#	if (isset($_POST['regnaar']) && strpos($_POST['regnaar'],"-")) {
-#		list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);
+	#	if (isset($_POST['regnaar']) && strpos($_POST['regnaar'],"-")) {
+	#		list ($regnaar, $firmanavn)= explode("-", $_POST['regnaar']);
 	$firmanavn = trim(if_isset($firmanavn));
 	#	}
 	if (!isset($_POST['konto_id']))
@@ -255,7 +256,7 @@ if (isset($_POST['submit']) || $rapportart) {
 				echo "SASASA";
 				print "<META HTTP-EQUIV=\"refresh\" CONTENT=\"0; url=inkasso.php?rykker_id=$tmp&kontoantal=$tmp2\">";
 				#				print "<BODY \"onLoad=location.href='inkasso.php?rykker_id=$tmp&kontoantal=$tmp2'\">";
-#				$ny_rykker=1;
+				#				$ny_rykker=1;
 				exit;
 			}
 		} elseif (strstr($submit, "bogf")) {
@@ -327,5 +328,5 @@ if (!isset($konto_til))
 $submit($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
 
 ?>
-</html>
 
+</html>
