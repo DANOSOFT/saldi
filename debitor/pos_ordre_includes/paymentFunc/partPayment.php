@@ -189,7 +189,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 				# Check for flatpay or ip term
 					$qtxt = "SELECT var_value FROM settings WHERE var_name='terminal_type' AND pos_id=$kasse";
 					$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-
 					if ($r[0] == "Flatpay") {
 						$tmp="payments/flatpay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
@@ -205,7 +204,7 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
-					} else if ("Vibrant:" == substr($r[0], 0, 8)) {
+					} else if ("Vibrant" == substr($r[0], 0, 7)) {
 						$tmp="payments/vibrant.php?amount=$belob&id=$id&indbetaling=$indbetaling";
 						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";

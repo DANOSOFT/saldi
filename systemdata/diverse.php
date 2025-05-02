@@ -233,7 +233,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$qp_md5secret = if_isset($_POST['qp_md5secret']);
 		$qp_itemGrp = if_isset($_POST['qp_itemGrp']);
 		$vibrant_api = if_isset($_POST['vibrant_id']);
+		// $paymentDays = if_isset($_POST['paymentDays']) ?? 1;
 		$paymentDays = if_isset($_POST['paymentDays']);
+		$paymentDays = ($paymentDays === null || $paymentDays === '') ? 1 : $paymentDays;
+
 		$mobilepay_client_id = if_isset($_POST['mobilepay_client_id'], "");
 		$mobilepay_client_secret = if_isset($_POST['mobilepay_client_secret'], "");
 		$mobilepay_subscription = if_isset($_POST['mobilepay_subscription'], "");
