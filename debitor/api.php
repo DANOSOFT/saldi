@@ -166,11 +166,11 @@
         
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
+        file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
         $result = json_decode($result, true);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
-            file_put_contents(curl_error($ch), "../temp/$db/fakture-error-$ranStr.json");
+            file_put_contents("../temp/$db/fakture-error-$ranStr.json", curl_error($ch));
             exit();
         }
         
