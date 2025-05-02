@@ -11,7 +11,6 @@
     $query = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $apiKey = $res["var_value"];
-    
 
     include("../includes/online.php");
     include("../includes/forfaldsdag.php");
@@ -166,11 +165,11 @@
         
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
+        file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
         $result = json_decode($result, true);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
-            file_put_contents("../temp/$db/fakture-error-$ranStr.json", curl_error($ch));
+            file_put_contents(curl_error($ch), "../temp/$db/fakture-error-$ranStr.json");
             exit();
         }
         
@@ -216,11 +215,6 @@
             echo 'Error:' . curl_error($ch);
         }
         file_put_contents("../temp/$db/$randomString.html", $result);
-        curl_close($ch);
-
-        $ch = curl_init("increaseInvoiceNumber.php?db=$db");
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        $res = curl_exec($ch);
         curl_close($ch);
 
         return $randomString;
@@ -345,7 +339,6 @@
             }
             file_put_contents("../temp/$db/ordrelinjer.json", json_encode($res, JSON_PRETTY_PRINT), FILE_APPEND);
             if($res["rabat"] > 0) {
-                // make sure the price is positive
                 $res["pris"] = abs($res["pris"]);
                 $res["antal"] = abs($res["antal"]);
                 $price = $res["pris"];
@@ -354,7 +347,6 @@
                 $discAmount = $price * ($discPrct / 100) * $res["antal"];
                 $lineAmount = $res["antal"] * ($price - ($price/100 * $discPrct));
             }else{
-                // make sure the price is positive
                 $res["pris"] = abs($res["pris"]);
                 $res["antal"] = abs($res["antal"]);
                 $price = $res["pris"];
