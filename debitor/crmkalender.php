@@ -95,6 +95,7 @@ function render_page_header()
             height: calc(100vh - 100px);
             overflow-x: scroll;
         }
+
         .calendar {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -128,7 +129,7 @@ function render_month_navigation($selected_year, $selected_month)
             <button type="button" id="prevMonth">&larr;</button>
             <select name="year" onchange="this.form.submit()">
                 <?php
-                for ($year = $current_year-5; $year <= $current_year + 5; $year++) {
+                for ($year = $current_year - 5; $year <= $current_year + 5; $year++) {
                     $selected = $year == $selected_year ? 'selected' : '';
                     echo "<option value='$year' $selected>$year</option>";
                 }
@@ -238,7 +239,7 @@ function render_day_tasks($date)
         $qtxt,
         __FILE__ . " linje " . __LINE__
     );
-    
+
     while ($task = db_fetch_array($query)) {
         render_task_card($task['konto_id'], $task['id']);
     }
@@ -451,6 +452,7 @@ render_crm_calendar();
     .day-header a {
         text-decoration: none;
     }
+
     .today {
         border: 3px red solid !important;
     }

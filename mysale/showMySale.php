@@ -28,6 +28,7 @@
 // 20230311 PHR Various updates according to PHP8 
 // 20230325 PHR added memberShip to query and corrected an sols and for sale buttons in mobileView. 
 // 28.08.2024 PBLM added sidebar and fixed email strtolower
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 if ($from) $from = usdate($from);
 if ($to) $to = usdate($to);
@@ -226,7 +227,7 @@ if ($custName && $access) {
 		}
 		/* if ($medlem) {
 			if (!isset($_SESSION['linkLog']) || !$mySaleLabel) {
-				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
+				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(2364,$sprog_id)."</button></a><br><br>";
 			}
 			($mobile) ? $style = "text-align:center;width:275px;font-size:25pt;margin:3px;" : 
 									$style = "text-align:center;width:80px;margin:3px;";
@@ -238,7 +239,7 @@ if ($custName && $access) {
 				print "<a href=mysale.php?id=$id&tilsalg=1><button style='$style'>Til salg</button></a><br><br>";
 			}
 		} else {
-			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
+			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(2364,$sprog_id)."</button></a><br><br>";
 		} */
 	}
 } else {
@@ -356,9 +357,9 @@ if ($tilsalg == 1) {
 						<?php } ?>
 					</select>
 				<?php } elseif ($showNew) { ?>
-					<div class="text-xl font-bold dark:text-white"><?php echo findtekst(3062,$sprog_id) ?></div>
+					<div class="text-xl font-bold dark:text-white"><?php echo findtekst(2363,$sprog_id) ?></div>
 				<?php } else { ?>
-					<div class="text-xl font-bold dark:text-white"><?php echo findtekst(3060,$sprog_id) ?></div>
+					<div class="text-xl font-bold dark:text-white"><?php echo findtekst(2361,$sprog_id) ?></div>
 				<?php }
 			} ?>
 		</form>
@@ -412,8 +413,8 @@ if ($tilsalg == 1) {
 			print "<option value='used'>brugt</option>";
 			if ($condition != 'new') print "<option value='new'>nyt</option>";
 			print "</select></td>";
-		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
-		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(2363,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(2361,$sprog_id)."</b></td>";
 #		print "<td><select name ='condition'>";
 #		if ($condition == 'new') print "<option value='new'>nyt</option>";
 #		print "<option value='used'>brugt</option>";
@@ -471,8 +472,8 @@ if ($tilsalg == 1) {
 				<option value='used'>brugt</option>
 				<option value='new'>nyt</option>
 			</select> -->
-			<?php } /* elseif ($showNew) print findtekst(3062,$sprog_id);
-			else print findtekst(3060,$sprog_id); */ ?>
+			<?php } /* elseif ($showNew) print findtekst(2363,$sprog_id);
+			else print findtekst(2361,$sprog_id); */ ?>
 			<!-- <select name ='condition' class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
 				<option value='new'>nyt</option>
 				<option value='used'>brugt</option>

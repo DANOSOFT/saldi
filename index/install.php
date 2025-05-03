@@ -218,7 +218,7 @@ if (isset($_POST['opret'])){
 	$r=db_fetch_array(db_select("SELECT id FROM brugere where brugernavn='$adm_navn'",__FILE__ . " linje " . __LINE__));	
 	$adm_password=saldikrypt($r['id'],$adm_password);
 	db_modify("UPDATE brugere SET kode='$adm_password' where id = '$r[id]'",__FILE__ . " linje " . __LINE__); 
-	$qtxt = "CREATE TABLE regnskab (id serial NOT NULL,	regnskab varchar(25), dbhost varchar(25), dbuser varchar(25), ";
+	$qtxt = "CREATE TABLE regnskab (id serial NOT NULL,	regnskab varchar(60), dbhost varchar(25), dbuser varchar(25), ";
 	$qtxt.= "db varchar(25), version varchar(10), sidst varchar(16), brugerantal numeric(5,0), posteringer numeric(10,0), ";
 	$qtxt.= "posteret numeric(10,0), mysale numeric(1,0), lukket varchar(2),administrator varchar(2),lukkes date, ";
 	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT, PRIMARY KEY (id))";

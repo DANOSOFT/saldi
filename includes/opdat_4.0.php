@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------ includes/opdat_4.0.php-----patch 4.0.8 ----2023-07-27--------------
-//                           LICENSE
+// --- includes/opdat_4.0.php --- patch 4.1.0 --- 2025-04-30 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -21,13 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2022-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20210828 LOE Added two tables for IP log
 // 20210915 LOE Added sprog to regnskab table
 // 20211009 PHR Some cleanup. + added language_id to online and scan_id to ordrer
 // 20221004 MLH Added coloumns on_price_list, tier_price_multiplier, salgspris_multiplier, tier_price_method, tier_price_rounding, salgspris_method, salgspris_rounding to the products table
 // 20240215 LOE Minor modification
+// 20250430 PHR opdat_4_1_0
 if (!function_exists('opdat_4_0')) {
 function opdat_4_0($majorNo, $subNo, $fixNo){
 	global $version;
@@ -1216,7 +1217,7 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 				}
 # Access global db
 
-				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='datables'";
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='datatables'";
 				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$qtxt = "CREATE TABLE datatables (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, tabel_id CHARACTER VARYING(10), ";
 					$qtxt.= "column_setup TEXT, search_setup TEXT, filter_setup TEXT, rowcount INTEGER, \"offset\" INTEGER, \"sort\" TEXT)";
@@ -1240,6 +1241,23 @@ function opdat_4_0($majorNo, $subNo, $fixNo){
 				$qtxt = "SELECT tekst FROM tekster WHERE tekst_id = 607 AND sprog_id = 1 AND tekst = 'Kredtor' ";
 				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					db_modify("UPDATE tekster SET tekst = 'Kreditor' WHERE tekst_id = 607 AND sprog_id = 1", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='specialtype'";
+				if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    				$qtxt = "ALTER TABLE varer ADD specialtype varchar(10)";
+    				db_modify($qtxt, __FILE__ . "linje" . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='volume_lager'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    				db_modify("ALTER table varer ADD column volume_lager float default 1", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='notesinternal'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    				db_modify("ALTER table varer ADD column notesinternal text", __FILE__ . " linje " . __LINE__);
+				}
+				$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='colli_webfragt'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    				db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
 				}
 				$qtxt="UPDATE grupper SET box1='$nextver' where art = 'VE'";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);

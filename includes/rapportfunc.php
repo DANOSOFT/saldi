@@ -75,25 +75,33 @@
 // 20230723 PHR - Moved some functions to reportFunc.php
 // 20230824 MSC - Copy pasted new design into code
 // 20240330 PHR	- Corrections in open post when fromdate != currentdate
+// 20250430 make sure the back button go back to the previous page rather going to the dashbaord
 
 include("../includes/reportFunc/showOpenPosts.php");
 
-function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
-	?>
+function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
+{
+?>
 	<script LANGUAGE="JavaScript">
-	<!--
-	function confirmSubmit(tekst)
-	{
-		var agree=confirm(tekst);
-		if (agree) return true ;
-		else return false ;
-	}
-	// -->
+		<!--
+		function confirmSubmit(tekst) {
+			var agree = confirm(tekst);
+			if (agree) return true;
+			else return false;
+		}
+		// 
+		-->
 	</script>
-	<?php
+<?php
 
-	$forfaldsum=NULL;$forfaldsum_plus8=NULL;$forfaldsum_plus30=NULL;$forfaldsum_plus60=NULL;$forfaldsum_plus90=NULL;
-	$linjebg=NULL;$tmp1=NULL;$tmp2=NULL;
+	$forfaldsum = NULL;
+	$forfaldsum_plus8 = NULL;
+	$forfaldsum_plus30 = NULL;
+	$forfaldsum_plus60 = NULL;
+	$forfaldsum_plus90 = NULL;
+	$linjebg = NULL;
+	$tmp1 = NULL;
+	$tmp2 = NULL;
 
 	global $bgcolor;
 	global $bgcolor5;
@@ -108,302 +116,305 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 	global $menu;
 
 	if ($dato_fra && $dato_til) {
-		$fromdate=usdate($dato_fra);
-		$todate=usdate($dato_til);
-	}	elseif ($dato_fra && !$dato_til) {
-//		$fromdate=usdate($dato_fra);
-		$todate=usdate($dato_fra);
+		$fromdate = usdate($dato_fra);
+		$todate = usdate($dato_til);
+	} elseif ($dato_fra && !$dato_til) {
+		//		$fromdate=usdate($dato_fra);
+		$todate = usdate($dato_fra);
 	}
 
-	($kontoart=='D')?$tekst='DRV':$tekst='KRV';
+	($kontoart == 'D') ? $tekst = 'DRV' : $tekst = 'KRV';
 
-	db_modify("update ordrer set art = 'R1' where art = 'RB'",__FILE__ . " linje " . __LINE__); // 20091012 - er overfloedig
+	db_modify("update ordrer set art = 'R1' where art = 'RB'", __FILE__ . " linje " . __LINE__); // 20091012 - er overfloedig
 
-	$r=db_fetch_array(db_select("select * from grupper where art = '$tekst' and kodenr = '1'",__FILE__ . " linje " . __LINE__));
+	$r = db_fetch_array(db_select("select * from grupper where art = '$tekst' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
 	if (!$r['id']) { //20170403
-		db_modify("insert into grupper(beskrivelse,kodenr,art) values ('Debitorrapportvisning','1','$tekst')",__FILE__ . " linje " . __LINE__);
+		db_modify("insert into grupper(beskrivelse,kodenr,art) values ('Debitorrapportvisning','1','$tekst')", __FILE__ . " linje " . __LINE__);
 	}
-	list($a,$b,$c,$d,$e,$f,$g)=explode(';',$r['box7']);
+	list($a, $b, $c, $d, $e, $f, $g) = explode(';', $r['box7']);
 
 	if (isset($_GET['vis_aabenpost'])) {
-		$a=$_GET['vis_aabenpost'];
-		$f=NULL;
-		$g=NULL;
-	} elseif (isset($_GET['skjul_aabenpost']))  {
-		$a=NULL;
-		$f=NULL;
-		$g=NULL;
-	} elseif (isset($_GET['kun_debet']))  {
-		$a=NULL;
-		$f=$_GET['kun_debet'];
-		$g=NULL;
+		$a = $_GET['vis_aabenpost'];
+		$f = NULL;
+		$g = NULL;
+	} elseif (isset($_GET['skjul_aabenpost'])) {
+		$a = NULL;
+		$f = NULL;
+		$g = NULL;
+	} elseif (isset($_GET['kun_debet'])) {
+		$a = NULL;
+		$f = $_GET['kun_debet'];
+		$g = NULL;
 	} elseif (isset($_GET['kun_kredit'])) {
-		$a=NULL;
-		$f=NULL;
-		$g=$_GET['kun_kredit'];
+		$a = NULL;
+		$f = NULL;
+		$g = $_GET['kun_kredit'];
 	}
-	if (isset($_GET['vis_aaben_rykker']))     $b=$_GET['vis_aaben_rykker'];
-	if (isset($_GET['vis_inkasso']))          $c=$_GET['vis_inkasso'];
-	if (isset($_GET['vis_bogfort_rykker']))   $d=$_GET['vis_bogfort_rykker'];
-	if (isset($_GET['vis_afsluttet_rykker'])) $e=$_GET['vis_afsluttet_rykker'];
+	if (isset($_GET['vis_aaben_rykker']))     $b = $_GET['vis_aaben_rykker'];
+	if (isset($_GET['vis_inkasso']))          $c = $_GET['vis_inkasso'];
+	if (isset($_GET['vis_bogfort_rykker']))   $d = $_GET['vis_bogfort_rykker'];
+	if (isset($_GET['vis_afsluttet_rykker'])) $e = $_GET['vis_afsluttet_rykker'];
 
-	$box7="$a;$b;$c;$d;$e;$f;$g";
-	$qtxt="update grupper set box7='$box7' where art='$tekst' and kodenr='1'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$box7 = "$a;$b;$c;$d;$e;$f;$g";
+	$qtxt = "update grupper set box7='$box7' where art='$tekst' and kodenr='1'";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-	$vis_aabenpost=$a;
-	$vis_aaben_rykker=$b;
-	$vis_inkasso=$c;
-	$vis_bogfort_rykker=$d;
-	$vis_afsluttet_rykker=$e;
-	$kun_debet=$f;
-	$kun_kredit=$g;
-	($a || $f || $g)?$skjul_aabenpost=NULL:$skjul_aabenpost='on';
+	$vis_aabenpost = $a;
+	$vis_aaben_rykker = $b;
+	$vis_inkasso = $c;
+	$vis_bogfort_rykker = $d;
+	$vis_afsluttet_rykker = $e;
+	$kun_debet = $f;
+	$kun_kredit = $g;
+	($a || $f || $g) ? $skjul_aabenpost = NULL : $skjul_aabenpost = 'on';
 
 	if ($ny_rykker) {
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=rapport.php?ny_rykker=1&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart\">";
 	}
 
-	if ($r=db_fetch_array(db_select("select * from grupper where art = '$tekst' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__))){
-		$dato_fra=$r['box2'];
-		$dato_til=$r['box3'];
-		$konto_fra=$r['box4'];
-		$konto_til=$r['box5'];
-		$rapportart=$r['box6'];
+	if ($r = db_fetch_array(db_select("select * from grupper where art = '$tekst' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__))) {
+		$dato_fra = $r['box2'];
+		$dato_til = $r['box3'];
+		$konto_fra = $r['box4'];
+		$konto_til = $r['box5'];
+		$rapportart = $r['box6'];
 	}
 
-	if ($vis_aabenpost=='on') {
+	if ($vis_aabenpost == 'on') {
 		$title = "Åbne poster";
 	}
 
-	if ($kun_debet=='on') {
+	if ($kun_debet == 'on') {
 		$title = "Kun konti i debet";
 	}
 
-	if ($kun_kredit=='on') {
+	if ($kun_kredit == 'on') {
 		$title = "Kun konti i kredit";
 	}
 
-	if ($skjul_aabenpost=='on') {
+	if ($skjul_aabenpost == 'on') {
 		$title = "Skjul åbne poster";
 	}
 
 	include("../includes/topline_settings.php");
 
-	if ($menu=='T') {
+	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
+		print "<div class=\"headerbtnLft headLink\"><a href=rapport.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 		print "<div class=\"headerTxt\">$title</div>";
 		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "</div>";
 		print "<div class='content-noside'>";
 		print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" ><tbody><!--Tabel 1 start-->\n";
-	} elseif ($menu=='S') {
+	} elseif ($menu == 'S') {
 		print "<tr><td width=100% height=\"8\">\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
 
 		print "<td width='10%'><a accesskey=l href=\"rapport.php\">
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
-		print "<td width='80%' align='center' style='$topStyle'>".findtekst('1142|Rapport', $sprog_id)." - $rapportart</td>\n";
+		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
 
 		print "<td width='10%' align='center' style='$topStyle'>\n";
 	} else {
 		print "<tr><td width=100% height=\"8\">\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
-		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
-		print "<td width=\"80%\" $top_bund>".findtekst('1142|Rapport', $sprog_id)." - $rapportart</td>\n";
+		print "<td width=\"10%\" $top_bund><a accesskey=l href=\"rapport.php\">" . findtekst('30|Tilbage', $sprog_id) . "</a></td>\n";
+		print "<td width=\"80%\" $top_bund>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
 		print "<td width=\"10%\" $top_bund>\n";
 	}
-		print "<div style='padding:5px;height:12px;'><center><select name=\"aabenpostmode\"
+	print "<div style='padding:5px;height:12px;'><center><select name=\"aabenpostmode\"
 		onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\"></div>\n";
-		if ($kun_debet=='on') print "<option>".findtekst('925|Kun konti i debet', $sprog_id)."</option>\n";
-		elseif ($kun_kredit=='on') print "<option>".findtekst('926|Kun konti i kredit', $sprog_id)."</option>\n";
-		elseif ($vis_aabenpost=='on') print "<option>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
-		else print "<option>".findtekst('927|Skjul åbne poster', $sprog_id)."</option>\n";
-		if ($vis_aabenpost!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n"; #20210701
-		if ($kun_debet!='on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">".findtekst('925|Kun konti i debet', $sprog_id)."</option>\n";
-		if ($kun_kredit!='on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">".findtekst('926|Kun konti i kredit', $sprog_id)."</option>\n";
-		if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">".findtekst('927|Skjul åbne poster', $sprog_id)."</option>\n";
-		print "</select></center>\n";
-		if ($menu) print "<td>\n";
-		else print "</div>\n";
-		print "</tr>";
-	if ($menu!='T') print "</tbody></table></td></tr><!--Tabel 1.2 slut-->\n\n"; // <- Tabel 1.2
-	if ($skjul_aabenpost!='on') vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit);
+	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+	elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
+	else print "<option>" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+	if ($vis_aabenpost != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aabenpost=on\">" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n"; #20210701
+	if ($kun_debet != 'on') print "<option value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_debet=on\">" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
+	if ($kun_kredit != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kun_kredit=on\">" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
+	if ($skjul_aabenpost != 'on') print "<option  value=\"rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&skjul_aabenpost=on\">" . findtekst('927|Skjul åbne poster', $sprog_id) . "</option>\n";
+	print "</select></center>\n";
+	if ($menu) print "<td>\n";
+	else print "</div>\n";
+	print "</tr>";
+	if ($menu != 'T') print "</tbody></table></td></tr><!--Tabel 1.2 slut-->\n\n"; // <- Tabel 1.2
+	if ($skjul_aabenpost != 'on') vis_aabne_poster($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart, $kun_debet, $kun_kredit);
 
- 	//-------------------------------------- Rykkeroversigt ----------------------------------------------
+	//-------------------------------------- Rykkeroversigt ----------------------------------------------
 	if (usdate($dato_til) >= date("Y-m-d")) {
-	if (is_numeric($konto_fra) && is_numeric($konto_til)) {
-		$qtxt = "select * from ordrer where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art LIKE 'R%' order by ".nr_cast('kontonr')."";
-	} elseif ($konto_fra && $konto_fra!='*') {
-		$konto_fra=str_replace("*","%",$konto_fra);
-		$tmp1=strtolower($konto_fra);
-		$tmp2=strtoupper($konto_fra);
-		$qtxt = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' order by firmanavn";
-	}	else $qtxt = "select * from ordrer where art LIKE 'R%' order by firmanavn";
-
-	if ($menu=='T') {
-		$top_bund = "style='color:white;'";
-	}
-
-	if ($kontoart=='D' && db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__))) {
- 		$x=0;
- 		$taeller=0;
- 		$sum=array();
- 		while ($taeller <4) {
-			$sum=array();
-			$taeller++;
-			print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"3\" border=\"0\" class='dataTable'><thead><!--Tabel 1.3 start-->\n"; // Tabel 1.3 ->
-			if ($taeller==1) {
-				print "<tr  bgcolor='$bgcolor5'>";
-				print "<td width=10% align=center class='sub-title-kund-left'><br></td>";
-				print "<td colspan='6' class='sub-title-kund' width=80% align=center>".findtekst(1130,$sprog_id)."</td>";
-				print "<td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-				if ($vis_aaben_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=off>".findtekst(1132,$sprog_id)." ▲</a><td class='sub-title-kund-right'></td></tr>\n";
-				else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=on>".findtekst(1133,$sprog_id)." ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
-			} elseif ($taeller==2) {
-				print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>".findtekst(1135,$sprog_id)."</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-				if ($vis_inkasso=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=off>".findtekst(1132,$sprog_id)." ▲</a><td class='sub-title-kund-right'></tr>\n";
-				else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=on>".findtekst(1133,$sprog_id)." ▾</a><td class='sub-title-kund-right'></tr></thead></table></div><br>\n";
-			} elseif ($taeller==3) {
-				print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>".findtekst(1136,$sprog_id)."</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-				if ($vis_bogfort_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=off>".findtekst(1132,$sprog_id)." ▲</a><td class='sub-title-kund-right'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>\n";
-				else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=on>".findtekst(1133,$sprog_id)." ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
-			} else  {
-				print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>".findtekst(1137,$sprog_id)."</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
-				if ($vis_afsluttet_rykker=='on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=off>".findtekst(1132,$sprog_id)." ▲</a><td class='sub-title-kund-right'></td></tr>\n";
-				else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=on>".findtekst(1133,$sprog_id)." ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
-			}
-			if (($taeller==1 && $vis_aaben_rykker=='on')||($taeller==2 && $vis_inkasso=='on')||($taeller==3 && $vis_bogfort_rykker=='on')||($taeller==4 && $vis_afsluttet_rykker=='on')) {
-			print "<tr><th>".findtekst(1134,$sprog_id)."</th><th>".findtekst(360,$sprog_id)."</th><th colspan=2>".findtekst(635,$sprog_id)."</th><th align=center>".findtekst(1131,$sprog_id)."</th><th colspan=3 align=left>".findtekst(934,$sprog_id)."</th><th colspan=1 align=left></th></tr>\n";
-
-			if ($menu=='T'){
-				print "</thead><tbody>";
-			} else {
-				print "<tr><td colspan=9><hr></td></tr>\n";
-			}
-			if ($taeller==1) {$formnavn='rykker1'; $status= "< 3";}
-			else  {$formnavn='rykker2'; $status= ">= 3";}
-			if ($taeller==2) $inkasso="and felt_5 = 'inkasso'";
-			elseif ($taeller==3) $inkasso="and (felt_5 != 'inkasso' or felt_5 is NULL)";
-			else $inkasso=NULL;
-			if ($taeller==4) $betalt="and betalt = 'on'";
-			else $betalt="and betalt != 'on'";
-			print "<form name=$formnavn action=rapport.php method=post>";
-
-			if (is_numeric($konto_fra) && is_numeric($konto_til)) {
-				$qtxt = "select * from ordrer where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art LIKE 'R%' $betalt $inkasso and status $status order by ".nr_cast('kontonr')."";
-			} elseif ($konto_fra && $konto_fra!='*') {
-				$konto_fra=str_replace("*","%",$konto_fra);
-				$tmp1=strtolower($konto_fra);
-				$tmp2=strtoupper($konto_fra);
-				$qtxt = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' $betalt $inkasso and status $status order by firmanavn";
-			}	else $qtxt = "select * from ordrer where art LIKE 'R%' $betalt $inkasso and status $status order by firmanavn";
-
-			$q1 = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
-			$x=0;
-			while ($r1 = db_fetch_array($q1)) {
-				$rykkernr=substr($r1['art'],-1);
-				$x++;
-				$sum[$x]=0;
-				$udlignet=1;
-				$delsum=0;
-				$q2 = db_select("select * from ordrelinjer where ordre_id = '$r1[id]'",__FILE__ . " linje " . __LINE__);
-				while ($r2 = db_fetch_array($q2)) {
-					if (is_numeric($r2['enhed'])) {
-						$q3 = db_select("select udlignet, amount, valutakurs from openpost where id = '$r2[enhed]'",__FILE__ . " linje " . __LINE__);
-						while ($r3 = db_fetch_array($q3)) {
-							if (!$r3['udlignet']) $udlignet=0;
-							else $delsum=$r3['amount']*$r3['valutakurs']/100;;
-							if(!$r3['valutakurs']) $r3['valutakurs']=100;
-							$sum[$x]=$sum[$x]+$r3['amount']*$r3['valutakurs']/100;
-						}
-					} else $sum[$x]=$sum[$x]+$r2['pris'];
-				}
-				print "<input type=hidden name=rykker_id[$x] value=$r1[id]>";
-				$belob=dkdecimal($sum[$x],2);
-				if ($rykkernr==1) $color="#000000";
-				elseif ($rykkernr==2) $color="#CC6600";
-				elseif ($rykkernr==3) $color="#ff0000";
-				if ($linjebg!=$bgcolor) $linjebg=$bgcolor;
-				elseif ($linjebg!=$bgcolor5) $linjebg=$bgcolor5;
-				print "<tr style=\"background-color:$linjebg ; color: $color;\">";
-				print "<td><span title='Klik for detaljer' og for at sende rykker pr mail><a href=\"rykker.php?rykker_id=$r1[id]\">$r1[ordrenr]</a></td>";
-				print "<td>$r1[firmanavn]</td><td colspan=2 align=left>$r1[ordredate]</td><td align=left>$rykkernr</td>";
-				if ($udlignet || $delsum >= $sum[$x]) {
-					$color="#00aa00";
-					$title="Alle poster på rykkeren er betalt";
-				} elseif ($delsum) {
-					$color="#0000aa";
-					$title="Rykkeren er delvist betalt med kr ".dkdecimal($delsum,2)."";
-				} else $title="";
-				print "<td colspan=3 align=left style=\"background-color:$linjebg ; color: $color;\" title='$title'>$belob</td>";
-				$tmp = $rykkernr+1;
-				$tmp = "R".$tmp;
-				if (!db_fetch_array(db_select("select * from ordrer where art = '$tmp' and ordrenr = '$r1[ordrenr]' and betalt != 'on'",__FILE__ . " linje " . __LINE__))) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=rykkerbox[$x]><span class='checkmarkOrdreliste'></span></label>";
-				else db_modify("update ordrer set betalt = 'on' where id = '$r1[id]'",__FILE__ . " linje " . __LINE__);
-
-				print "</tr>\n";
-			}
-			if ($menu=='T') {
-				print "</tbody><tfoot>";
-			} else {
-				print "";
-			}
-			print "<input type=hidden name=rapportart value=\"openpost\">";
-			print "<input type=hidden name=dato_fra value=$dato_fra>";
-			print "<input type=hidden name=dato_til value=$dato_til>";
-			print "<input type=hidden name=konto_fra value=$konto_fra>";
-			print "<input type=hidden name=konto_til value=$konto_til>";
-			print "<input type=hidden name=rykkerantal value=$x>";
-			print "<input type=hidden name=kontoantal value=$x>";
-			if ($x) {
-				if ($menu=='T'){
-					print "";
-				} else {
-					print "<tr><td colspan=10><hr></td></tr>\n";
-				}
-				if ($taeller==1) print "<tr><td colspan=10 align=center><input type=submit value=\"  ".findtekst(1099,$sprog_id)." \" name=\"submit\" onClick=\"return confirmSubmit('Slet valgte ?')\">&nbsp;&nbsp;";
-				else print "<tr><td colspan=10 align=center>";
-				if ($taeller==2) {
-					print " &nbsp;<span title='Registrerer afmærkede sager som afsluttet og fjerner dem fra listen'><input type=submit value=\"".findtekst(1138,$sprog_id)."\" name=\"submit\" onClick=\"return confirmSubmit('Afslut valgte ?')\"></span>";
-				}
-				else print "<input type=submit value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" onClick=\"return confirmSubmit('Udskriv valgte ?')\">";
-				if ($taeller==3) {
-					print " &nbsp;<span title='Registrerer rykker som afsluttet og fjerner den fra listen'><input type=submit value=\"".findtekst(1138,$sprog_id)."\" name=\"submit\" onClick=\"return confirmSubmit('Afslut valgte ?')\"></span>";
-					print " &nbsp;<input type=submit value=\"".findtekst(1139,$sprog_id)."\" name=\"submit\">";
-				}
-				if ($taeller==1) print " &nbsp;<input type=submit value=\"".findtekst(1065,$sprog_id)."\" name=\"submit\" onClick=\"return confirmSubmit('Bogf&oslash;r valgte ?')\"></td></tr>\n";
-				else print "</td></tr>\n";
-			}
-
-			print "</form>\n";
-				if ($menu=='T') {
-					print "</tfoot></table></div><br></td></tr>";
-				} else {
-					print "</tbody></table></td></tr>";
-				}
-			}
-		}
-		print "</tbody></table>";
+		if (is_numeric($konto_fra) && is_numeric($konto_til)) {
+			$qtxt = "select * from ordrer where " . nr_cast('kontonr') . ">='$konto_fra' and " . nr_cast('kontonr') . "<='$konto_til' and art LIKE 'R%' order by " . nr_cast('kontonr') . "";
+		} elseif ($konto_fra && $konto_fra != '*') {
+			$konto_fra = str_replace("*", "%", $konto_fra);
+			$tmp1 = strtolower($konto_fra);
+			$tmp2 = strtoupper($konto_fra);
+			$qtxt = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' order by firmanavn";
+		} else $qtxt = "select * from ordrer where art LIKE 'R%' order by firmanavn";
 
 		if ($menu == 'T') {
-			include_once '../includes/topmenu/footer.php';
-		} else {
-			include_once '../includes/oldDesign/footer.php';
+			$top_bund = "style='color:white;'";
 		}
 
-	}
+		if ($kontoart == 'D' && db_fetch_array(db_select("$qtxt", __FILE__ . " linje " . __LINE__))) {
+			$x = 0;
+			$taeller = 0;
+			$sum = array();
+			while ($taeller < 4) {
+				$sum = array();
+				$taeller++;
+				print "<tr><td><div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"3\" border=\"0\" class='dataTable'><thead><!--Tabel 1.3 start-->\n"; // Tabel 1.3 ->
+				if ($taeller == 1) {
+					print "<tr  bgcolor='$bgcolor5'>";
+					print "<td width=10% align=center class='sub-title-kund-left'><br></td>";
+					print "<td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1130, $sprog_id) . "</td>";
+					print "<td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
+					if ($vis_aaben_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_aaben_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+				} elseif ($taeller == 2) {
+					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1135, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
+					if ($vis_inkasso == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_inkasso=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></tr></thead></table></div><br>\n";
+				} elseif ($taeller == 3) {
+					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1136, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
+					if ($vis_bogfort_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_bogfort_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+				} else {
+					print "<tr bgcolor = '$bgcolor5'><td width=10% align=center class='sub-title-kund-left'><br></td><td colspan='6' class='sub-title-kund' width=80% align=center>" . findtekst(1137, $sprog_id) . "</td><td class='sub-title-link-kund sub-title-kund' width=10% align=center>\n";
+					if ($vis_afsluttet_rykker == 'on') print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=off>" . findtekst(1132, $sprog_id) . " ▲</a><td class='sub-title-kund-right'></td></tr>\n";
+					else print "<a href=rapport.php?rapportart=openpost&submit=ok&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&vis_afsluttet_rykker=on>" . findtekst(1133, $sprog_id) . " ▾</a><td class='sub-title-kund-right'></td></tr></thead></table></div><br>\n";
+				}
+				if (($taeller == 1 && $vis_aaben_rykker == 'on') || ($taeller == 2 && $vis_inkasso == 'on') || ($taeller == 3 && $vis_bogfort_rykker == 'on') || ($taeller == 4 && $vis_afsluttet_rykker == 'on')) {
+					print "<tr><th>" . findtekst(1134, $sprog_id) . "</th><th>" . findtekst(360, $sprog_id) . "</th><th colspan=2>" . findtekst(635, $sprog_id) . "</th><th align=center>" . findtekst(1131, $sprog_id) . "</th><th colspan=3 align=left>" . findtekst(934, $sprog_id) . "</th><th colspan=1 align=left></th></tr>\n";
 
-}}
+					if ($menu == 'T') {
+						print "</thead><tbody>";
+					} else {
+						print "<tr><td colspan=9><hr></td></tr>\n";
+					}
+					if ($taeller == 1) {
+						$formnavn = 'rykker1';
+						$status = "< 3";
+					} else {
+						$formnavn = 'rykker2';
+						$status = ">= 3";
+					}
+					if ($taeller == 2) $inkasso = "and felt_5 = 'inkasso'";
+					elseif ($taeller == 3) $inkasso = "and (felt_5 != 'inkasso' or felt_5 is NULL)";
+					else $inkasso = NULL;
+					if ($taeller == 4) $betalt = "and betalt = 'on'";
+					else $betalt = "and betalt != 'on'";
+					print "<form name=$formnavn action=rapport.php method=post>";
+
+					if (is_numeric($konto_fra) && is_numeric($konto_til)) {
+						$qtxt = "select * from ordrer where " . nr_cast('kontonr') . ">='$konto_fra' and " . nr_cast('kontonr') . "<='$konto_til' and art LIKE 'R%' $betalt $inkasso and status $status order by " . nr_cast('kontonr') . "";
+					} elseif ($konto_fra && $konto_fra != '*') {
+						$konto_fra = str_replace("*", "%", $konto_fra);
+						$tmp1 = strtolower($konto_fra);
+						$tmp2 = strtoupper($konto_fra);
+						$qtxt = "select * from ordrer where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or upper(firmanavn) like '$tmp2') and art LIKE 'R%' $betalt $inkasso and status $status order by firmanavn";
+					} else $qtxt = "select * from ordrer where art LIKE 'R%' $betalt $inkasso and status $status order by firmanavn";
+
+					$q1 = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
+					$x = 0;
+					while ($r1 = db_fetch_array($q1)) {
+						$rykkernr = substr($r1['art'], -1);
+						$x++;
+						$sum[$x] = 0;
+						$udlignet = 1;
+						$delsum = 0;
+						$q2 = db_select("select * from ordrelinjer where ordre_id = '$r1[id]'", __FILE__ . " linje " . __LINE__);
+						while ($r2 = db_fetch_array($q2)) {
+							if (is_numeric($r2['enhed'])) {
+								$q3 = db_select("select udlignet, amount, valutakurs from openpost where id = '$r2[enhed]'", __FILE__ . " linje " . __LINE__);
+								while ($r3 = db_fetch_array($q3)) {
+									if (!$r3['udlignet']) $udlignet = 0;
+									else $delsum = $r3['amount'] * $r3['valutakurs'] / 100;;
+									if (!$r3['valutakurs']) $r3['valutakurs'] = 100;
+									$sum[$x] = $sum[$x] + $r3['amount'] * $r3['valutakurs'] / 100;
+								}
+							} else $sum[$x] = $sum[$x] + $r2['pris'];
+						}
+						print "<input type=hidden name=rykker_id[$x] value=$r1[id]>";
+						$belob = dkdecimal($sum[$x], 2);
+						if ($rykkernr == 1) $color = "#000000";
+						elseif ($rykkernr == 2) $color = "#CC6600";
+						elseif ($rykkernr == 3) $color = "#ff0000";
+						if ($linjebg != $bgcolor) $linjebg = $bgcolor;
+						elseif ($linjebg != $bgcolor5) $linjebg = $bgcolor5;
+						print "<tr style=\"background-color:$linjebg ; color: $color;\">";
+						print "<td><span title='Klik for detaljer' og for at sende rykker pr mail><a href=\"rykker.php?rykker_id=$r1[id]\">$r1[ordrenr]</a></td>";
+						print "<td>$r1[firmanavn]</td><td colspan=2 align=left>$r1[ordredate]</td><td align=left>$rykkernr</td>";
+						if ($udlignet || $delsum >= $sum[$x]) {
+							$color = "#00aa00";
+							$title = "Alle poster på rykkeren er betalt";
+						} elseif ($delsum) {
+							$color = "#0000aa";
+							$title = "Rykkeren er delvist betalt med kr " . dkdecimal($delsum, 2) . "";
+						} else $title = "";
+						print "<td colspan=3 align=left style=\"background-color:$linjebg ; color: $color;\" title='$title'>$belob</td>";
+						$tmp = $rykkernr + 1;
+						$tmp = "R" . $tmp;
+						if (!db_fetch_array(db_select("select * from ordrer where art = '$tmp' and ordrenr = '$r1[ordrenr]' and betalt != 'on'", __FILE__ . " linje " . __LINE__))) print "<td align=center><label class='checkContainerOrdreliste'><input type=checkbox name=rykkerbox[$x]><span class='checkmarkOrdreliste'></span></label>";
+						else db_modify("update ordrer set betalt = 'on' where id = '$r1[id]'", __FILE__ . " linje " . __LINE__);
+
+						print "</tr>\n";
+					}
+					if ($menu == 'T') {
+						print "</tbody><tfoot>";
+					} else {
+						print "";
+					}
+					print "<input type=hidden name=rapportart value=\"openpost\">";
+					print "<input type=hidden name=dato_fra value=$dato_fra>";
+					print "<input type=hidden name=dato_til value=$dato_til>";
+					print "<input type=hidden name=konto_fra value=$konto_fra>";
+					print "<input type=hidden name=konto_til value=$konto_til>";
+					print "<input type=hidden name=rykkerantal value=$x>";
+					print "<input type=hidden name=kontoantal value=$x>";
+					if ($x) {
+						if ($menu == 'T') {
+							print "";
+						} else {
+							print "<tr><td colspan=10><hr></td></tr>\n";
+						}
+						if ($taeller == 1) print "<tr><td colspan=10 align=center><input type=submit value=\"  " . findtekst(1099, $sprog_id) . " \" name=\"submit\" onClick=\"return confirmSubmit('Slet valgte ?')\">&nbsp;&nbsp;";
+						else print "<tr><td colspan=10 align=center>";
+						if ($taeller == 2) {
+							print " &nbsp;<span title='Registrerer afmærkede sager som afsluttet og fjerner dem fra listen'><input type=submit value=\"" . findtekst(1138, $sprog_id) . "\" name=\"submit\" onClick=\"return confirmSubmit('Afslut valgte ?')\"></span>";
+						} else print "<input type=submit value=\"" . findtekst(880, $sprog_id) . "\" name=\"submit\" onClick=\"return confirmSubmit('Udskriv valgte ?')\">";
+						if ($taeller == 3) {
+							print " &nbsp;<span title='Registrerer rykker som afsluttet og fjerner den fra listen'><input type=submit value=\"" . findtekst(1138, $sprog_id) . "\" name=\"submit\" onClick=\"return confirmSubmit('Afslut valgte ?')\"></span>";
+							print " &nbsp;<input type=submit value=\"" . findtekst(1139, $sprog_id) . "\" name=\"submit\">";
+						}
+						if ($taeller == 1) print " &nbsp;<input type=submit value=\"" . findtekst(1065, $sprog_id) . "\" name=\"submit\" onClick=\"return confirmSubmit('Bogf&oslash;r valgte ?')\"></td></tr>\n";
+						else print "</td></tr>\n";
+					}
+
+					print "</form>\n";
+					if ($menu == 'T') {
+						print "</tfoot></table></div><br></td></tr>";
+					} else {
+						print "</tbody></table></td></tr>";
+					}
+				}
+			}
+			print "</tbody></table>";
+
+			if ($menu == 'T') {
+				include_once '../includes/topmenu/footer.php';
+			} else {
+				include_once '../includes/oldDesign/footer.php';
+			}
+		}
+	}
+}
 
 //--------------------------------------------------------------------------------------
 function bogfor_rykker($id)
 {
-	global $bgcolor,$bgcolor5;
+	global $bgcolor, $bgcolor5;
 	global $regnaar;
 	global $fakturadate;
 	global $dato_fra;
@@ -648,14 +659,14 @@ if (!function_exists('find_maaned_nr')) {
 			$maaned = "12";
 		return ($aar . " " . $maaned);
 	}
-
 }
 
 
 
 // ------------------------------------------------------------------------------------------------------------
-function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
-	global $bgcolor,$bgcolor5;
+function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
+{
+	global $bgcolor, $bgcolor5;
 	global $brugernavn;
 	global $bruger_id;
 	global $top_bund;
@@ -666,7 +677,9 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	global $menu;
 	global $rettigheder;
 	global $sprog_id;
-
+	$backUrl = isset($_GET['returside'])
+		? $_GET['returside']
+		: 'javascript:window.history.go(-2);';
 	$husk = "";
 	print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 	($kontoart == 'D') ? $tekst = 'DRV' : $tekst = 'KRV';
@@ -684,11 +697,13 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	if (!isset($sprog_id))
 		$sprog_id = NULL;
 	($kontoart == 'D') ? $title = findtekst(449, $sprog_id) : $title = findtekst(450, $sprog_id);
-	($popup) ? $returside = "../includes/luk.php" : $returside = "../index/menu.php";
+	// ($popup) ? $returside = "../includes/luk.php" : $returside = "../index/menu.php";
+	($popup) ? $returside = "../includes/luk.php" : $returside = $backUrl;
+
 
 	include("../includes/topline_settings.php");
 
-	if ($menu=='T') {
+	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
@@ -698,12 +713,11 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 		print "</div>";
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv' style='width:700px; margin: auto;'><table width='100%' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" class='dataTableSmall'><tbody>\n";
-
-	} elseif ($menu=='S') {
+	} elseif ($menu == 'S') {
 		print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
 
 		print "<tr><td width='10%' align='center' style='$buttonStyle'><a href=$returside accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>";
 
 		print "<td width='80%' align='center' style='$topStyle'>$title</td>";
 
@@ -712,7 +726,6 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 		print "</tr><tr><td height=99%><br></td></td>";
 		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
 		print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
-
 	} else {
 		$butCol = '#009578';
 		$topStyle = "border:1;border-color:#fefefe;border-radius:5px;width:100%;height:100%;background:url('../img/knap_bg.gif');";
@@ -728,22 +741,21 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	}
 
 	if ($menu == 'T') {
-		include_once ("../includes/reportFunc/frontPageTopMenu.php");
+		include_once("../includes/reportFunc/frontPageTopMenu.php");
 	} else {
-		include_once ("../includes/reportFunc/frontPageOldMenu.php");
+		include_once("../includes/reportFunc/frontPageOldMenu.php");
 	}
 	if ($menu == 'T') {
 		include_once '../includes/topmenu/footer.php';
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
-
-
 }
 
 
 //------------------------------------------------------------------------------------------------------------
-function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart) {
+function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
+{
 
 	//	global $connection;
 	global $bgcolor, $bgcolor5, $bruger_id;
@@ -823,7 +835,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 	$kto_id = array();
 	$x = 0;
 	if (is_numeric($konto_fra) && is_numeric($konto_til)) { #changed 20210816
-#		$qtxt = "select id from adresser where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
+		#		$qtxt = "select id from adresser where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art = '$kontoart' order by ".nr_cast('kontonr')."";
 		$qtxt = "select id,kontonr from adresser where art = '$kontoart' order by kontonr";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -838,7 +850,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			$tmp1 = strtolower($konto_fra);
 			$tmp2 = strtoupper($konto_fra);
 			$qtxt = "select id from adresser where (firmanavn like '$konto_fra' or lower(firmanavn) like '$tmp1' or ";
-			$qtxt.= "upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
+			$qtxt .= "upper(firmanavn) like '$tmp2') and art = '$kontoart' order by firmanavn";
 		} else
 			$qtxt = "select id from adresser where art = '$kontoart' order by firmanavn";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -862,9 +874,9 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 
 	for ($y = 1; $y <= $kontoantal; $y++) {
 		#		if ($todate) $qtxt="select amount from openpost where transdate<='$todate' and konto_id='$konto_id[$y]'";
-#		else $qtxt="select amount from openpost where konto_id='$konto_id[$y]'";
-#		$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
-#		while ($r = db_fetch_array($q)) {
+		#		else $qtxt="select amount from openpost where konto_id='$konto_id[$y]'";
+		#		$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
+		#		while ($r = db_fetch_array($q)) {
 		if (!in_array($konto_id[$y], $kto_id)) {
 			$x++;
 			$kto_id[$x] = $konto_id[$y];
@@ -1007,7 +1019,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		} else {
 			print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 		}
-		if ($menu=='T' && $x==1) {
+		if ($menu == 'T' && $x == 1) {
 			include_once '../includes/top_header.php';
 			include_once '../includes/top_menu.php';
 			print "<div id=\"header\">";
@@ -1016,13 +1028,13 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 			print "</div>";
 			print "<div class='content-noside'>";
-		} elseif ($menu=='S' && $x==1) {
+		} elseif ($menu == 'S' && $x == 1) {
 			print "<tr><td colspan=\"9\" height='30px'>";
 			print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
 
 			print "<tr><td width ='10%' align = 'center'>$luk
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   .findtekst(30, $sprog_id)."</button></a></td>";
+				. findtekst(30, $sprog_id) . "</button></a></td>";
 
 			if ($kontoart == 'K')
 				$tekst = findtekst(1140, $sprog_id) . " - " . lcfirst(findtekst(133, $sprog_id));
@@ -1228,7 +1240,6 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<center><input type='button' onclick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\" accesskey='L' value='" . findtekst(880, $sprog_id) . "'></center>";
 			print "</td></tr>";
 			print "</tfoot></table></div><br>";
-
 		} else {
 			print "<tr><td colspan=9><hr></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
@@ -1424,12 +1435,12 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		print "</div>";
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv'><table width=100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTableNTH'>\n";
-	} elseif ($menu=='S') {
+	} elseif ($menu == 'S') {
 		print "<tr><td colspan=\"8\" height='30px'>";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>";
 
 		print "<tr><td width ='10%' align='center'>$luk
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></td>";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></td>";
 
 		if ($kontoart == 'K')
 			$tekst = "Kreditorrapport - kontosaldo";
@@ -1500,7 +1511,7 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 		$todate = NULL;
 	if (!isset($totalsum))
 		$totalsum = NULL;
-	if (!isset($linjebg))	
+	if (!isset($linjebg))
 		$linjebg = NULL;
 
 
@@ -1585,7 +1596,6 @@ function kontosaldo($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
-
 }
 
 
@@ -1619,7 +1629,6 @@ function ret_openpost($konto_id)
 				db_modify("update openpost set udlign_date = '$max_transdate' where udlign_id='$udlign_id[$x]'", __FILE__ . " linje " . __LINE__);
 			}
 		}
-
 	}
 }
 

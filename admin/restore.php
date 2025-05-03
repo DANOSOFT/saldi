@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------admin/restore.php--------lap 3.8.9------2025-04-28-----------
+// ---------------admin/restore.php--------lap 4.1.1------2025-05-03-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,8 @@
 // 20250426 LOE Modified the javascript confirm function, added language cookie for the sprog_Id and used for updating some parts.
 // 20250427 LOE Now accepts .sql file if available.
 // 20250428 LOE When converting from mysql to postgres, users have the option to fill in the auth details.
+// 20250503 LOE - reordered mix-up text_id from tekster.csv in findtekst()
+
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -288,15 +290,15 @@ if ($menu=='T') {
 				$backupnavn=trim($backupnavn);
 				$regnskab=trim($regnskab);
 				if ($backupnavn && $backupnavn!=$regnskab) {
-					print "<tr><td colspan=2>".findtekst(3121, $sprog_id).": $regnskab<br>".findtekst(3122, $sprog_id).": $backupnavn "."fra den"."$backupdato kl. $backuptid.</td></tr>";	
+					print "<tr><td colspan=2>".findtekst(2422, $sprog_id).": $regnskab<br>".findtekst(2423, $sprog_id).": $backupnavn "."fra den"."$backupdato kl. $backuptid.</td></tr>";	
 					print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
 					print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
 				} elseif ($backupdate) {
-					print "<tr><td colspan=2>".findtekst(3121, $sprog_id).": $regnskab<br>".findtekst(3125, $sprog_id)."$backupdato kl. $backuptid.</td></tr>";	
+					print "<tr><td colspan=2>".findtekst(2422, $sprog_id).": $regnskab<br>".findtekst(2426, $sprog_id)."$backupdato kl. $backuptid.</td></tr>";	
 					print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
 					print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
 				} else {
-					print "<tr><td colspan=2>".findtekst(3121, $sprog_id).": $regnskab.</td></tr>";	
+					print "<tr><td colspan=2>".findtekst(2422, $sprog_id).": $regnskab.</td></tr>";	
 					print "<input type=\"hidden\" name=\"filnavn\" value=\"$filnavn\">";
 				}
 				print "<tr><td colspan=2><hr></td></tr>";	
@@ -304,7 +306,7 @@ if ($menu=='T') {
 				print "</tbody></table></td></tr>";
 				print "</form>";
 			} else {
-				echo findtekst(3126, $sprog_id); //an error occured
+				echo findtekst(2427, $sprog_id); //an error occured
 			}
 		}
 
@@ -315,12 +317,12 @@ print "</tbody></table></div>";
 ################################################################################################################
 function upload($db){
 	global $sprog_id;
-	$textup = findtekst(3120, $sprog_id);
+	$textup = findtekst(2421, $sprog_id);
 	print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<form enctype=\"multipart/form-data\" action=\"restore.php?db=$db\" method=\"POST\">";
 #	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"99999999\">";
 	print "<tr><td width=100% align=center><br></td></tr>";
-	print "<tr><td width=100% align=center>".findtekst(3124, $sprog_id)."</td></tr>";
+	print "<tr><td width=100% align=center>".findtekst(2425, $sprog_id)."</td></tr>";
 	print "<tr><td width=100% align=center><br></td></tr>";
 	print "<tr><td width=100% align=center><hr width=50%></td></tr>";
 	print "<tr><td width=100% align=center></td></tr>";
