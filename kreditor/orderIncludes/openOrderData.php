@@ -157,7 +157,7 @@ print "<td>";
 if ($id) {
 	$txt671 = findtekst('671|Bilag', $sprog_id);
 	print "<b>$txt671</b></td><td align = 'center'>";
-	if (count($attachId) >= 1) {
+	if (($attachId !== null ? count($attachId) : 0) >= 1) {
 		print "<select name = 'showAttachment' id = 'showAttachment'>";
 		for ($x=0;$x<count($attachId);$x++) {
 			print "<option value = '$attachName[$x]'>substr($attachName[$x],0,25)</option>";
