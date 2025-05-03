@@ -389,7 +389,9 @@ print "</tbody></table name=\"tabel_1.3\"></td></tr>\n"; # <- tabel 1.3
 print "</tbody></table name=\"tabel_1\"></td></tr>\n"; # <- tabel 1
 if ($fokus) {
 	print "<script language=\"javascript\">\n";
-	print "document.optalling.$fokus.focus();\n";
+	print "window.onload = function() {\n";
+	print "    document.optalling.$fokus.focus();\n";
+	print "};\n";
 	print "</script>\n";
 }
 
