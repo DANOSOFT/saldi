@@ -228,7 +228,7 @@ else {
 }
 print "</tbody></table></td>";
 print "<td align=center><table border = '0' cellpadding= '0' cellspacing= '0'>";
-print "<tr><tdcolspan='2' >".findtekst('554|Leveringsadresse', $sprog_id)."</td></tr>\n";
+print "<tr><tdcolspan='2' ><a href='orderIncludes/dropshipping.php?id=$id'>".findtekst('554|Leveringsadresse', $sprog_id)."</a></td></tr>\n";
 print "<tr><td colspan='2' align=center><hr></td></tr>\n";
 print "<tr><td>".findtekst('360|Firmanavn', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_navn value='$lev_navn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr1 value='$lev_addr1' onchange='javascript:docChange = true;'></td></tr>\n";
