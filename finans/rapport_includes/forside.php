@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/forside.php --- patch 4.1.1 --- 2025-04-07 ---
+// --- finans/rapport_includes/forside.php --- ver 4.1.1 -- 2025.05.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -289,9 +289,9 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	elseif ($rapportart == "momsangivelse")
 		print "<option title='" . findtekst(514, $sprog_id) . "' value='momsangivelse'>" . findtekst(520, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "saft")
-		print "<option title='" . findtekst(3020, $sprog_id) . "' value='saft'>" . findtekst(3019, $sprog_id) . "</option>\n";
+		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	elseif ($rapportart == "regnskabbasis")
-		print "<option title='" . findtekst(3026, $sprog_id) . "' value='regnskabbasis'>" . findtekst(3025, $sprog_id) . "</option>\n";
+		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
 	#	elseif ($rapportart=="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "matcher");
 	if ($rapportart != "kontokort")
@@ -311,9 +311,9 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	if ($rapportart != "momsangivelse")
 		print "<option title='" . findtekst(514, $sprog_id) . "' value='momsangivelse'>" . findtekst(520, $sprog_id) . "</option>\n";
 	if ($rapportart != "saft")
-		print "<option title='" . findtekst(3020, $sprog_id) . "' value='saft'>" . findtekst(3019, $sprog_id) . "</option>\n";
+		print "<option title='" . findtekst(2321, $sprog_id) . "' value='saft'>" . findtekst(2320, $sprog_id) . "</option>\n";
 	if ($rapportart != "regnskabbasis")
-		print "<option title='" . findtekst(3026, $sprog_id) . "' value='regnskabbasis'>" . findtekst(3025, $sprog_id) . "</option>\n";
+		print "<option title='" . findtekst(2327, $sprog_id) . "' value='regnskabbasis'>" . findtekst(2326, $sprog_id) . "</option>\n";
 	#	if ($rapportart!="momskontrol") print "<option title='".findtekst(514,$sprog_id)."' value='momskontrol'>momskontrol</option>\n";
 	listeangivelser($regnaar, $rapportart, "alle andre");
 

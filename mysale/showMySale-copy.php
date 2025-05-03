@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/showMysale.php --- lap 4.0.8 --- 2023-03-25 ---
+// --- mysale/showMysale.php --- lap 4.0.8 --- 2025-05-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2021 - 2023 saldi.dk aps
+// Copyright (c) 2021 - 2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20210829 PHR varoius minor changes
 // 20220212 PHR replaced cookies with session vars
@@ -28,6 +28,7 @@
 // 20230311 PHR Various updates according to PHP8 
 // 20230325 PHR added memberShip to query and corrected an sols and for sale buttons in mobileView. 
 // 28.08.2024 PBLM added sidebar and fixed email strtolower
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 if ($from) $from = usdate($from);
 if ($to) $to = usdate($to);
@@ -214,7 +215,7 @@ if (strpos($id, $urlPrefix) === 0) {
 				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
 					<path d="M4 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h11.613a2 2 0 0 0 1.346-.52l4.4-4a2 2 0 0 0 0-2.96l-4.4-4A2 2 0 0 0 15.613 6H4Z"/>
 				</svg>
-				<span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base"><?php echo findtekst(3063,$sprog_id) ?></span>
+				<span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base"><?php echo findtekst(2364,$sprog_id) ?></span>
             </a>
          </li>
 		 <li>
@@ -283,7 +284,7 @@ if ($custName && $access) {
 		}
 		if ($medlem) {
 			if (!isset($_SESSION['linkLog']) || !$mySaleLabel) {
-				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
+				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(2364,$sprog_id)."</button></a><br><br>";
 			}
 			($mobile) ? $style = "text-align:center;width:275px;font-size:25pt;margin:3px;" : 
 									$style = "text-align:center;width:80px;margin:3px;";
@@ -295,7 +296,7 @@ if ($custName && $access) {
 				print "<a href=mysale.php?id=$id&tilsalg=1><button style='$style'>Til salg</button></a><br><br>";
 			}
 		} else {
-			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
+			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(2364,$sprog_id)."</button></a><br><br>";
 		}
 	}
 } else {
@@ -411,8 +412,8 @@ if ($tilsalg == 1) {
 			print "<option value='used'>brugt</option>";
 			if ($condition != 'new') print "<option value='new'>nyt</option>";
 			print "</select></td>";
-		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
-		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(2363,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(2361,$sprog_id)."</b></td>";
 	}
 	
 print "<td style='text-align:center'>Tilføj vare</td>";
@@ -481,8 +482,8 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 			print "<option value='used'>brugt</option>";
 			if ($condition != 'new') print "<option value='new'>nyt</option>";
 			print "</select></td>";
-		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
-		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(2363,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(2361,$sprog_id)."</b></td>";
 #		print "<td><select name ='condition'>";
 #		if ($condition == 'new') print "<option value='new'>nyt</option>";
 #		print "<option value='used'>brugt</option>";

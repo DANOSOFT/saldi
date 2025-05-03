@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/basiRegnskab.php --- patch 4.0.8 --- 2024-01-03 ---
+// --- finans/basiRegnskab.php --- patch 4.1.1 --- 2025-05-03 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +21,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 @session_start();
 $s_id = session_id();
@@ -215,7 +216,7 @@ function accountNumberExist($mapToNumber, $standardAcountNumber)
     if ($mapToNumber == '0' || $mapToNumber == null) {
         return '';
     } else if (!in_array($mapToNumber, $standardAcountNumber)) {
-        return "$mapToNumber " . findtekst(3041, $sprog_id) . "";
+        return "$mapToNumber " . findtekst(2342, $sprog_id) . "";
     }
 }
 
@@ -333,15 +334,15 @@ print "<tr><td>Til " . $slutdato . ". $mt $aar_til</td></tr>";
 print "<tr><td colspan=\"3\" class=\"saftFirmName\">$firmanavn</td>\n";
 if ($standardKontoCheck != true) {
     print "<tr><td colspan=\"3\"><hr></td></tr>";
-    print "<tr><td colspan=\"3\"><h2>" . findtekst(3027, $sprog_id) . "<h2></td></tr>";
+    print "<tr><td colspan=\"3\"><h2>" . findtekst(2328, $sprog_id) . "<h2></td></tr>";
     if ($kontoantal_check <= 1) {
-        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3028, $sprog_id) . "</td></tr>"; // For at udskrive en csv skal nedenstående kontonummer mappes til standard kontonummer.
+        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2329, $sprog_id) . "</td></tr>"; // For at udskrive en csv skal nedenstående kontonummer mappes til standard kontonummer.
     } else {
-        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3029, $sprog_id) . " <b>$kontoantal_check</b> " . findtekst(3030, $sprog_id) . "</td></tr>"; // For at udskrive en csv skal de <b>$kontoantal_check</b> nedenstående kontonumre mappes til <u>standard kontonumre</u>.
+        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2330, $sprog_id) . " <b>$kontoantal_check</b> " . findtekst(2331, $sprog_id) . "</td></tr>"; // For at udskrive en csv skal de <b>$kontoantal_check</b> nedenstående kontonumre mappes til <u>standard kontonumre</u>.
     }
-    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3031, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3032, $sprog_id) . "</b></mark> " . findtekst(3033, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3034, $sprog_id) . "</b></mark> " . findtekst(3035, $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">Her</a></td></tr>"; // Inde i <mark class=\"mark\"><b>systemdata &#8658; diverse &#8658; Import & Export</b></mark> kan du under <mark class=\"mark\"><b>Indlæs/udlæs kontoplan</b></mark> Importer mappingfil til offentlig standard kontoplan
-    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3036, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3037, $sprog_id) . "</b></mark>. " . findtekst(3038, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3039, $sprog_id) . "</b></mark>.</td></tr>"; // tekst skal ændres!!! tilføjes tekster.csv
-    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3040, $sprog_id) . ".</td></tr>";
+    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2332, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2333, $sprog_id) . "</b></mark> " . findtekst(2334, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2335, $sprog_id) . "</b></mark> " . findtekst(2336, $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">Her</a></td></tr>"; // Inde i <mark class=\"mark\"><b>systemdata &#8658; diverse &#8658; Import & Export</b></mark> kan du under <mark class=\"mark\"><b>Indlæs/udlæs kontoplan</b></mark> Importer mappingfil til offentlig standard kontoplan
+    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2337, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2338, $sprog_id) . "</b></mark>. " . findtekst(2339, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2340, $sprog_id) . "</b></mark>.</td></tr>"; // tekst skal ændres!!! tilføjes tekster.csv
+    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2341, $sprog_id) . ".</td></tr>";
 }
 print "</table>\n";
 
@@ -389,14 +390,14 @@ fclose($csv);
 
 /****************************************************************************************************** */
 // STANDARD KONTOPLAN
-$showStandardAccountPlan = "" . findtekst(3043, $sprog_id) . ""; // Vis Standard Kontoplan
-$closeStandardAccountPlan = "" . findtekst(3044, $sprog_id) . ""; // Luk Standard Kontoplan
+$showStandardAccountPlan = "" . findtekst(2344, $sprog_id) . ""; // Vis Standard Kontoplan
+$closeStandardAccountPlan = "" . findtekst(2345, $sprog_id) . ""; // Luk Standard Kontoplan
 
 if ($standardKontoCheck != true) {
     print "<hr style=\"border: 1px solid #9a9a9a;\">";
     print "<div class=\"rbButtonSpace\"><button onclick=\"showStandardKontoplan()\" id=\"showStandardKontoplan\">$showStandardAccountPlan</button></div>";
     print "<div id=\"standardKontoplan\">";
-    print "<h2 style=\"text-align: center;\">" . findtekst(3042, $sprog_id) . "</h2>";
+    print "<h2 style=\"text-align: center;\">" . findtekst(2343, $sprog_id) . "</h2>";
     print "<table style='width:100%;'>";
     print "<tr><th>Kontonummer</th><th>Kontonavn</th><th>Type</th><th>Moms</th></tr>";
     for ($x = 0; $x < $csv_kontoantal; $x++) {

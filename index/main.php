@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- index/main.php --- lap 4.1.1 --- 2025.05.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
-
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 @session_start();
 $s_id = session_id();
 
@@ -83,7 +83,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <span class="link_name"><?php print findtekst('3100|Oversigt', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst(3075, $sprog_id); ?></a></li>
+        <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst(2376, $sprog_id); ?></a></li>
       </ul>
     </li>
 
@@ -245,7 +245,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link" id="system">
           <a href="#">
             <i class='bx bx-cog'></i>
-            <span class="link_name"><?php print findtekst(3076, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst(2377, $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>

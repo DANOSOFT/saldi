@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/admin_settings.php --- patch 4.1.0 --- 2024.05.22 ---
+// --------------- admin/admin_settings.php --- patch 4.1.0 --- 2025.05.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190411 PHR Added alertText
 // 20210917 LOE Translated some texts
 // 20210921 Added this block of code to set language
 // 20240522 MMK Newssnippet
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 @session_start();
 $s_id=session_id();
@@ -218,7 +219,7 @@ print "<tr><td>".findtekst(1922, $sprog_id)."</td><td><input style='width:400px'
 print "<tr><td>".findtekst(1923, $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
 print "<tr><td>".findtekst(1924, $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
 print "<tr><td>".findtekst(1925, $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
-print "<tr><td>".findtekst(3064, $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
+print "<tr><td>".findtekst(2365, $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
 
 ##################### #20210920
 print "<tr><td title='".findtekst(2, $sprog_id)."'>".findtekst(436, $sprog_id)." ".findtekst(801, $sprog_id)."</td>";

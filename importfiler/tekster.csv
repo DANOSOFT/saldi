@@ -2297,134 +2297,134 @@
 2297	Gl. saldo	Old balance	Gl. saldo
 2298	Ny saldo	New balance	Ny saldo
 2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
-2300			
-2301			
-2302			
-2303			
-2304			
-2305			
-2306			
-2307			
-2308			
-2309			
-2310			
-2311			
-2312			
-2313			
-2314			
-2315			
-2316			
-2317			
-2318			
-2319			
-2320			
-2321			
-2322			
-2323			
-2324			
-2325			
-2326			
-2327			
-2328			
-2329			
-2330			
-2331			
-2332			
-2333			
-2334			
-2335			
-2336			
-2337			
-2338			
-2339			
-2340			
-2341			
-2342			
-2343			
-2344			
-2345			
-2346			
-2347			
-2348			
-2349			
-2350			
-2351			
-2352			
-2353			
-2354			
-2355			
-2356			
-2357			
-2358			
-2359			
-2360			
-2361			
-2362			
-2363			
-2364			
-2365			
-2366			
-2367			
-2368			
-2369			
-2370			
-2371			
-2372			
-2373			
-2374			
-2375			
-2376			
-2377			
-2378			
-2379			
-2380			
-2381			
-2382			
-2383			
-2384			
-2385			
-2386			
-2387			
-2388			
-2389			
-2390			
-2391			
-2392			
-2393			
-2394			
-2395			
-2396			
-2397			
-2398			
-2399			
-2400			
-2401			
-2402			
-2403			
-2404			
+2300	Den maxlimale længde en label kan have i bokstaver, over 40 skal saldi teamet kontaktes for at udvidde databaseplads	 The maximum length a label can have in letters, above 40 balances the team must be contacted to expand database space	Den maksimale lengden en etikett kan ha i bokstaver, over 40 balanser må teamet kontaktes for å utvide databaseplassen
+2301	Momsangivelse for året	VAT return for the year	Mva-melding for året
+2302	Vis enhed	View unit type	Visa enhet
+2303	Valuta	Currency	Valuta
+2304	Valuta hjælpetekst	Currency	Valuta
+2305	e-mail hjælpetekst	email	Epost
+2306	Udskriv til	Print to	Udskriv til
+2307	Automatisk prisberegning	Automatic price calculation	Automatisk prisberäkningsinställning
+2308	Ved fakturering ændres emneteksten til	When invoicing, the subject text is changed to	Ved fakturering endres emneteksten til
+2309	Ved fakturering ændres mailteksten til	When invoicing, the email text changes to	Ved fakturering endres e-postteksten til
+2310	Send	Send	Send
+2311	Sender ordren til $email som vedhæftet PDF	Sends the order to $email as attached PDF	Sender ordren til $email som vedlagt PDF
+2312	Terminal type	Terminal type	Terminaltype
+2313	Den type betalings terminal du har at gøre med på kassen	The type of payment terminal you're working	Typen betalingsterminal du har å gjøre med på kassaen
+2314	Flatpay ID	Flatpay ID	Flatpay ID
+2315	Dit hemmelige flatpay ID, klik inputtet for at lave en ny	Your secret Flatpay ID, click the input to create a new one	Din hemmelige flatpay ID Klikk på feltet for å lage en ny
+2316	Terminal IP/ID	Terminal IP/ID	Terminal IP/ID
+2317	Vibrant API nøjle	Virant API Key	Vibrant API Key
+2318	API nøjlen til din Vibrant APP	The API key for your vibrant APP	API-key for din Vibrant APP
+2319	Kurs	Exchange rate	Vekslingskurs
+2320	SAF-T	SAF-T	SAF-T
+2321	Dansk SAF-T standart er baseret på OECD standard	Danish SAF-T is based on the OECD standard	Den norske SAF-t-standarden er basert på OECD-standarden
+2322	Lav et vibrant login	Create a vibrant terminal login	Lav et vibrant login 
+2323	Kontoen du anvender til at logge ind på din vibrant terminal med	The login you use to login to your terminal with	Innloggingsnett brukt til terminalen din
+2324	Opret login	Create login	Opprett login
+2325	Vis login	Show login	Vis login
+2326	Regnskab Basis 	Accounting Basis	Regnskapsgrunnlag
+2327	Hent en regnskabsfil med årsrapportens regnskabstal i CSV-format	Download an accounting file with the annual report's accounting figures in CSV format	Last ned en regnskapsfil med årsrapportens regnskapstall i CSV-format
+2328	Bemærk!	Note!	Merk!
+2329	For at udskrive en csv skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To print a csv, the account number below must be mapped to the <u>standard account number</u>.	For å skrive ut en csv må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>.
+2330	For at udskrive en csv skal de	To print a csv, the	For å skrive ut en csv må de
+2331	nedenstående kontonumre mappes til <u>standard kontonumre</u>.	account numbers below must be mapped to <u>standard account numbers</u>.	kontonumrene nedenfor tilordnes <u>standard kontonumre</u>.
+2332	Inde i	Inside	Inne i
+2333	;systemdata &#8658;; diverse &#8658;; Import & Export;	;system data &#8658;; miscellaneous &#8658;; Import & Export;	;systemdata &#8658;; diverse &#8658;; Import & Export;
+2334	kan du under	you can under	kan du under
+2335	Indlæs/udlæs kontoplan	Load/Export chart of accounts	Laste/Eksportere kontoplan
+2336	Importer mappingfil til offentlig standard kontoplan	Import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
+2337	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
+2338	;systemdata &#8658;; kontoplan;	;system data &#8658;; chart of accounts;	;systemdata &#8658;; kontoplan;
+2339	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
+2340	Map til	Map to	Map til
+2341	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
+2342	eksisterer ikke	doesn't exist	eksisterer ikke
+2343	Standard Kontoplan	Standard Chart of Accounts	Standard Kontoplan
+2344	Vis Standard Kontoplan	Show Standard Chart of Accounts	Vis standard kontoplan
+2345	Luk Standard Kontoplan	Close Standard Chart of Accounts	Lukk Standard kontoplan
+2346	For at generere en SAF-T fil skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To generate a SAF-T file, the account number below must be mapped to <u>standard account number</u>	For å generere en SAF-T-fil, må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>
+2347	For at generere en SAF-T fil skal de	To generate a SAF-T file, the	For å generere en SAF-T-fil, må de
+2348	Her kan du oprette en SAF-T Financial rapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansiell rapport:
+2349	Opret	Create	Skape
+2350	Vis XML-fil	Show XML file	Vis XML-fil
+2351	Luk XML-fil	Close XML file	Lukk XML-fil
+2352	er blevet oprettet.	has been created.	er opprettet.
+2353	Filen er downloadet	The file has been downloaded	Filen er lastet ned
+2354	Import af XML SAF-T fil	Import of XML SAF-T file	Import av XML SAF-T-fil
+2355	Importer SAF-T XML fil til kassekladde.	Import SAF-T XML file to cash journal.	Importer SAF-T XML-fil til kassejournal.
+2356	Periode start:	Period start:	Periodestart:
+2357	Periode slut:	Period end:	Periodeslutt:
+2358	Indlæs data til kassekladde her:	Load data to cash journal here:	Last inn data til kassejournal her:
+2359	Filtypenavn ikke tilladt, vælg venligst en XML-fil.	File extension not allowed, please choose a XML file.	Filtypen er ikke tillatt, velg en XML-fil.
+2360	XML filen indeholder ingen data.	The XML file contains no data.	XML-filen inneholder ingen data.
+2361	Brugt	Used	Brukt
+2362	Email til 2fa	Email for 2fa	Email til 2fa
+2363	Nyt	New	Nytt
+2364	Mine labels	My labels	Mine prislapper
+2365	Slet	Delete	Slett
+2366	Alle data, inklusiv kunder, leverandører, varer, bilag mm som ikke har været ændret / handlet efter regnskabårets slutning bliver slettet, sammen med finansbilag fra før denne dato.		
+2367	Vis lagerbeholdning	Show inventory	Viss inventar
+2368	Når en vare som er en lagervare, indastes på kassesystemet, vises den aktuelle lagerbeholdning	When an item that is a stock item, is entered in the POS system, the current stock is shown	Når en vare som er en lagervare, angis i POS-systemet, vises gjeldende beholdning
+2369	Aktiver debitoripad	Activate debitor ipad	Aktiver debitoripad
+2370	Dette felt aktivere debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer kundens iPad-system der kundene dine kan skrive en e-mail på en bestilling selv
+2371	Rumfang	Volume	Volum
+2372	Nettosum	Net sum	Nettosum
+2373	I alt	Total	Totalt
+2374	Fakturér	Invoice	Fakturer
+2375	Sæt	Set	Sett
+2376	Dagens omsætning	Today's turnover	Dagens omsetning
+2377	System	System	System
+2378	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days	
+2379	Aktive medarbejdere	Active employees	Aktive medarbeidere
+2380	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
+2381	Hvilket svarer til	Which is equivalent to	Som tilsvarer
+2382	ufaktureret	unbilled	ufakturert
+2383	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	
+2384	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	
+2385	mere end sidste år til dato	more than last year to date	
+2386	mindre end sidste år til dato	less than last year to date	
+2387	Optæl kassebeholdning for kasse	Count the cash drawer for register	Telle opp kassebeholdningen for kasse
+2388	Antal mønter/sedler af hver slags	Number of coins/bills of each type	Antall mynter/sedler av hver type
+2389	Morgenbeholdning	Opening cash balance	Morgenbeholdning
+2390	Beregn	Calculate	Beregn
+2391	Skuffe	Drawer	Skuff
+2392	Udskriv sidste	Print last	Skriv ut sist
+2393	Dagens kontanttilgang	Cash inflow for the day	Dagens kontanttilgang
+2394	Forventet beholdning	Expected cash balance	 Forventet beholdning
+2395	Optalt beholdning	Counted cash balance	Opptalt beholdning
+2396	Difference	Difference	Differanse
+2397	Udtag fra kasse	Withdraw from cash register	Tas ut fra kassen
+2398	Slet alt og start forfra	Clear all and start over	Slett alt og start på nytt
+2399	Ret	Edit	Rett
+2400	Ordrebek	OrderConf	Ordrebek
+2401	Overblik	Dashboard	Oversikt
+2402	Vælg hvilke varegrupper og kreditorer som skal vises i varelisten	Select which product groups and creditors are to be displayed in the product list	Velg hvilke produktgrupper og kreditorer som skal vises i produktlisten
+2403	Opret en ny vare	Create a new product	Opprett et nytt produkt
+2404	Luk varelisten og gå tilbage til hovedmenuen	Close the product list and go back to the main menu	Lukk produktlisten og gå tilbake til hovedmenyen
 2405			
-2406			
-2407			
-2408			
-2409			
-2410			
-2411			
-2412			
-2413			
-2414			
-2415			
-2416			
-2417			
-2418			
-2419			
-2420			
-2421			
-2422			
-2423			
-2424			
-2425			
-2426			
-2427			
+2406	Opret indkøbsforslag udfra igangværende tilbud og ordrebeholdning	Create purchase proposals based on ongoing offers and order inventory	Opprett innkjøpsforslag basert på pågående tilbud og ordrebeholdning.
+2407	Stor sum	Big total	Stor summ
+2408	Vis ordres totalsum større i kassesystemet	Show the order sum larger in the point of sale system	Vis ordretotaler større i POS-systemet
+2409	Mobil	Mobile	Mobil
+2410	Aktivere den mobile kasseløsning	Activates the mobile POS system setup	Aktivering av den mobile kasseløsningen
+2411	Bredde	width	Bredde
+2412	Skærmens bredde	Screen width	Skjerm bredde
+2413	Zoom	Zoom	Zoom
+2414	Grad af zoom	Degree of zoom	Grad av zoom
+2415	Omv.menu	Flp.menu	Omv.menu
+2416	Anvend omvendte primær og sekundær menuer (primærmenu i bunden)	Flip the primary and secondarry menus (primary on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
+2417	Decimaler på rabat	Decimals for discount values	Decimaler på rabatt
+2418	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt
+2419	Minimums beholdning på varer	Minimum inventory of goods	Minimum varelager
+2420	Standard minimums beholdning	Standard minimum stock	Standard minstelager
+2421	Er det sikkert, at du vil overskrive dit regnskab med denne sikkerhedskopi?	Are you sure you want to overwrite your accounting with this backup?	Er du sikker på at du vil overskrive regnskapet ditt med denne sikkerhetskopien?
+2422	Du er ved at overskrive dit regnskab	You are overwriting your account.	Du overskriver kontoen din.
+2423	med en sikkerhedskopi af regnskabet	with a backup copy of the accounts	med en sikkerhetskopi av kontoene
+2424	fra den	from the	fra den
+2425	Bemærk at alle brugere skal være logget ud	Please note that all users must be logged out.	Vær oppmerksom på at alle brukere må være logget ut.
+2426	med en sikkerhedskopi fra den	with a backup copy from the	med en sikkerhetskopi fra
+2427	;Der er sket en fejl under hentningen - pr&oslash;;v venligst igen.;	An error occurred during the download - please try again.	Det oppsto en feil under nedlastingen – prøv på nytt.
 2428			
 2429			
 2430			
@@ -2447,8 +2447,8 @@
 2447			
 2448			
 2449			
-2450	Den maxlimale længde en label kan have i bokstaver, over 40 skal saldi teamet kontaktes for at udvidde databaseplads	 The maximum length a label can have in letters, above 40 balances the team must be contacted to expand database space	Den maksimale lengden en etikett kan ha i bokstaver, over 40 balanser må teamet kontaktes for å utvide databaseplassen
-2451	Momsangivelse for året	VAT return for the year	Mva-melding for året
+2450			
+2451			
 2452			
 2453			
 2454			
@@ -2997,129 +2997,129 @@
 2997			
 2998			
 2999			
-3000	Vis enhed	View unit type	Visa enhet
-3001	Valuta	Currency	Valuta
-3002	Valuta hjælpetekst	Currency	Valuta
-3003	e-mail hjælpetekst	email	Epost
-3004	Udskriv til	Print to	Udskriv til
-3005	Automatisk prisberegning	Automatic price calculation	Automatisk prisberäkningsinställning
-3006	Ved fakturering ændres emneteksten til	When invoicing, the subject text is changed to	Ved fakturering endres emneteksten til
-3007	Ved fakturering ændres mailteksten til	When invoicing, the email text changes to	Ved fakturering endres e-postteksten til
-3008	Send	Send	Send
-3009	Sender ordren til $email som vedhæftet PDF	Sends the order to $email as attached PDF	Sender ordren til $email som vedlagt PDF
-3010	Terminal type	Terminal type	Terminaltype
-3011	Den type betalings terminal du har at gøre med på kassen	The type of payment terminal you're working	Typen betalingsterminal du har å gjøre med på kassaen
-3014	Flatpay ID	Flatpay ID	Flatpay ID
-3013	Dit hemmelige flatpay ID, klik inputtet for at lave en ny	Your secret Flatpay ID, click the input to create a new one	Din hemmelige flatpay ID Klikk på feltet for å lage en ny
-3015	Terminal IP/ID	Terminal IP/ID	Terminal IP/ID
-3016	Vibrant API nøjle	Virant API Key	Vibrant API Key
-3017	API nøjlen til din Vibrant APP	The API key for your vibrant APP	API-key for din Vibrant APP
-3018	Kurs	Exchange rate	Vekslingskurs
-3019	SAF-T	SAF-T	SAF-T
-3020	Dansk SAF-T standart er baseret på OECD standard	Danish SAF-T is based on the OECD standard	Den norske SAF-t-standarden er basert på OECD-standarden
-3021	Lav et vibrant login	Create a vibrant terminal login	Lav et vibrant login 
-3022	Kontoen du anvender til at logge ind på din vibrant terminal med	The login you use to login to your terminal with	Innloggingsnett brukt til terminalen din
-3023	Opret login	Create login	Opprett login
-3024	Vis login	Show login	Vis login
-3025	Regnskab Basis 	Accounting Basis	Regnskapsgrunnlag
-3026	Hent en regnskabsfil med årsrapportens regnskabstal i CSV-format	Download an accounting file with the annual report's accounting figures in CSV format	Last ned en regnskapsfil med årsrapportens regnskapstall i CSV-format
-3027	Bemærk!	Note!	Merk!
-3028	For at udskrive en csv skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To print a csv, the account number below must be mapped to the <u>standard account number</u>.	For å skrive ut en csv må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>.
-3029	For at udskrive en csv skal de	To print a csv, the	For å skrive ut en csv må de
-3030	nedenstående kontonumre mappes til <u>standard kontonumre</u>.	account numbers below must be mapped to <u>standard account numbers</u>.	kontonumrene nedenfor tilordnes <u>standard kontonumre</u>.
-3031	Inde i	Inside	Inne i
-3032	;systemdata &#8658;; diverse &#8658;; Import & Export;	;system data &#8658;; miscellaneous &#8658;; Import & Export;	;systemdata &#8658;; diverse &#8658;; Import & Export;
-3033	kan du under	you can under	kan du under
-3034	Indlæs/udlæs kontoplan	Load/Export chart of accounts	Laste/Eksportere kontoplan
-3035	Importer mappingfil til offentlig standard kontoplan	Import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
-3036	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
-3037	;systemdata &#8658;; kontoplan;	;system data &#8658;; chart of accounts;	;systemdata &#8658;; kontoplan;
-3038	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
-3039	Map til	Map to	Map til
-3040	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
-3041	eksisterer ikke	doesn't exist	eksisterer ikke
-3042	Standard Kontoplan	Standard Chart of Accounts	Standard Kontoplan
-3043	Vis Standard Kontoplan	Show Standard Chart of Accounts	Vis standard kontoplan
-3044	Luk Standard Kontoplan	Close Standard Chart of Accounts	Lukk Standard kontoplan
-3045	For at generere en SAF-T fil skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To generate a SAF-T file, the account number below must be mapped to <u>standard account number</u>	For å generere en SAF-T-fil, må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>
-3046	For at generere en SAF-T fil skal de	To generate a SAF-T file, the	For å generere en SAF-T-fil, må de
-3047	Her kan du oprette en SAF-T Financial rapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansiell rapport:
-3048	Opret	Create	Skape
-3049	Vis XML-fil	Show XML file	Vis XML-fil
-3050	Luk XML-fil	Close XML file	Lukk XML-fil
-3051	er blevet oprettet.	has been created.	er opprettet.
-3052	Filen er downloadet	The file has been downloaded	Filen er lastet ned
-3053	Import af XML SAF-T fil	Import of XML SAF-T file	Import av XML SAF-T-fil
-3054	Importer SAF-T XML fil til kassekladde.	Import SAF-T XML file to cash journal.	Importer SAF-T XML-fil til kassejournal.
-3055	Periode start:	Period start:	Periodestart:
-3056	Periode slut:	Period end:	Periodeslutt:
-3057	Indlæs data til kassekladde her:	Load data to cash journal here:	Last inn data til kassejournal her:
-3058	Filtypenavn ikke tilladt, vælg venligst en XML-fil.	File extension not allowed, please choose a XML file.	Filtypen er ikke tillatt, velg en XML-fil.
-3059	XML filen indeholder ingen data.	The XML file contains no data.	XML-filen inneholder ingen data.
-3060	Brugt	Used	Brukt
-3061	Email til 2fa	Email for 2fa	Email til 2fa
-3062	Nyt	New	Nytt
-3063	Mine labels	My labels	Mine prislapper
-3064	Slet	Delete	Slett
-3065	Alle data, inklusiv kunder, leverandører, varer, bilag mm som ikke har været ændret / handlet efter regnskabårets slutning bliver slettet, sammen med finansbilag fra før denne dato.		
-3066	Vis lagerbeholdning	Show inventory	Viss inventar
-3067	Når en vare som er en lagervare, indastes på kassesystemet, vises den aktuelle lagerbeholdning	When an item that is a stock item, is entered in the POS system, the current stock is shown	Når en vare som er en lagervare, angis i POS-systemet, vises gjeldende beholdning
-3068	Aktiver debitoripad	Activate debitor ipad	Aktiver debitoripad
-3069	Dette felt aktivere debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer kundens iPad-system der kundene dine kan skrive en e-mail på en bestilling selv
-3070	Rumfang	Volume	Volum
-3071	Nettosum	Net sum	Nettosum
-3072	I alt	Total	Totalt
-3073	Fakturér	Invoice	Fakturer
-3074	Sæt	Set	Sett
-3075	Dagens omsætning	Today's turnover	Dagens omsetning
-3076	System	System	System
-3077	Ufakturerede ordrer de sidste 30 dage	Unbilled orders in the last 30 days	
-3078	Aktive medarbejdere	Active employees	Aktive medarbeidere
-3079	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
-3080	Hvilket svarer til	Which is equivalent to	Som tilsvarer
-3081	ufaktureret	unbilled	ufakturert
-3082	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	
-3083	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	
-3084	mere end sidste år til dato	more than last year to date	
-3085	mindre end sidste år til dato	less than last year to date	
-3086	Optæl kassebeholdning for kasse	Count the cash drawer for register	Telle opp kassebeholdningen for kasse
-3087	Antal mønter/sedler af hver slags	Number of coins/bills of each type	Antall mynter/sedler av hver type
-3088	Morgenbeholdning	Opening cash balance	Morgenbeholdning
-3089	Beregn	Calculate	Beregn
-3090	Skuffe	Drawer	Skuff
-3091	Udskriv sidste	Print last	Skriv ut sist
-3092	Dagens kontanttilgang	Cash inflow for the day	Dagens kontanttilgang
-3093	Forventet beholdning	Expected cash balance	 Forventet beholdning
-3094	Optalt beholdning	Counted cash balance	Opptalt beholdning
-3095	Difference	Difference	Differanse
-3096	Udtag fra kasse	Withdraw from cash register	Tas ut fra kassen
-3097	Slet alt og start forfra	Clear all and start over	Slett alt og start på nytt
-3098	Ret	Edit	Rett
-3099	Ordrebek	OrderConf	Ordrebek
-3100	Overblik	Dashboard	Oversikt
-3101	Vælg hvilke varegrupper og kreditorer som skal vises i varelisten	Select which product groups and creditors are to be displayed in the product list	Velg hvilke produktgrupper og kreditorer som skal vises i produktlisten
-3102	Opret en ny vare	Create a new product	Opprett et nytt produkt
-3103	Luk varelisten og gå tilbage til hovedmenuen	Close the product list and go back to the main menu	Lukk produktlisten og gå tilbake til hovedmenyen
+3000			
+3001		Currency	Valuta
+3002		Currency	Valuta
+3003		email	Epost
+3004		Print to	Udskriv til
+3005		Automatic price calculation	Automatisk prisberäkningsinställning
+3006		When invoicing, the subject text is changed to	Ved fakturering endres emneteksten til
+3007		When invoicing, the email text changes to	Ved fakturering endres e-postteksten til
+3008		Send	Send
+3009		Sends the order to $email as attached PDF	Sender ordren til $email som vedlagt PDF
+3010		Terminal type	Terminaltype
+3011		The type of payment terminal you're working	Typen betalingsterminal du har å gjøre med på kassaen
+3014		Flatpay ID	Flatpay ID
+3013		Your secret Flatpay ID, click the input to create a new one	Din hemmelige flatpay ID Klikk på feltet for å lage en ny
+3015		Terminal IP/ID	Terminal IP/ID
+3016		Virant API Key	Vibrant API Key
+3017		The API key for your vibrant APP	API-key for din Vibrant APP
+3018		Exchange rate	Vekslingskurs
+3019		SAF-T	SAF-T
+3020		Danish SAF-T is based on the OECD standard	Den norske SAF-t-standarden er basert på OECD-standarden
+3021		Create a vibrant terminal login	Lav et vibrant login 
+3022		The login you use to login to your terminal with	Innloggingsnett brukt til terminalen din
+3023		Create login	Opprett login
+3024		Show login	Vis login
+3025		Accounting Basis	Regnskapsgrunnlag
+3026		Download an accounting file with the annual report's accounting figures in CSV format	Last ned en regnskapsfil med årsrapportens regnskapstall i CSV-format
+3027		Note!	Merk!
+3028		To print a csv, the account number below must be mapped to the <u>standard account number</u>.	For å skrive ut en csv må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>.
+3029		To print a csv, the	For å skrive ut en csv må de
+3030		account numbers below must be mapped to <u>standard account numbers</u>.	kontonumrene nedenfor tilordnes <u>standard kontonumre</u>.
+3031		Inside	Inne i
+3032		;system data &#8658;; miscellaneous &#8658;; Import & Export;	;systemdata &#8658;; diverse &#8658;; Import & Export;
+3033		you can under	kan du under
+3034		Load/Export chart of accounts	Laste/Eksportere kontoplan
+3035		Import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
+3036		The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
+3037		;system data &#8658;; chart of accounts;	;systemdata &#8658;; kontoplan;
+3038		Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
+3039		Map to	Map til
+3040		At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
+3041		doesn't exist	eksisterer ikke
+3042		Standard Chart of Accounts	Standard Kontoplan
+3043		Show Standard Chart of Accounts	Vis standard kontoplan
+3044		Close Standard Chart of Accounts	Lukk Standard kontoplan
+3045		To generate a SAF-T file, the account number below must be mapped to <u>standard account number</u>	For å generere en SAF-T-fil, må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>
+3046		To generate a SAF-T file, the	For å generere en SAF-T-fil, må de
+3047		Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansiell rapport:
+3048		Create	Skape
+3049		Show XML file	Vis XML-fil
+3050		Close XML file	Lukk XML-fil
+3051		has been created.	er opprettet.
+3052		The file has been downloaded	Filen er lastet ned
+3053		Import of XML SAF-T file	Import av XML SAF-T-fil
+3054		Import SAF-T XML file to cash journal.	Importer SAF-T XML-fil til kassejournal.
+3055		Period start:	Periodestart:
+3056		Period end:	Periodeslutt:
+3057		Load data to cash journal here:	Last inn data til kassejournal her:
+3058		File extension not allowed, please choose a XML file.	Filtypen er ikke tillatt, velg en XML-fil.
+3059		The XML file contains no data.	XML-filen inneholder ingen data.
+3060		Used	Brukt
+3061		Email for 2fa	Email til 2fa
+3062		New	Nytt
+3063		My labels	Mine prislapper
+3064		Delete	Slett
+3065			
+3066		Show inventory	Viss inventar
+3067		When an item that is a stock item, is entered in the POS system, the current stock is shown	Når en vare som er en lagervare, angis i POS-systemet, vises gjeldende beholdning
+3068		Activate debitor ipad	Aktiver debitoripad
+3069		This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer kundens iPad-system der kundene dine kan skrive en e-mail på en bestilling selv
+3070		Volume	Volum
+3071		Net sum	Nettosum
+3072		Total	Totalt
+3073		Invoice	Fakturer
+3074		Set	Sett
+3075		Today's turnover	Dagens omsetning
+3076		System	System
+3077		Unbilled orders in the last 30 days	
+3078		Active employees	Aktive medarbeidere
+3079		Have been active within the last hour	Har vært aktive innen den siste timen
+3080		Which is equivalent to	Som tilsvarer
+3081		unbilled	ufakturert
+3082		Turnover for the year, excl. VAT	
+3083		Turnover for this month, excl. VAT	
+3084		more than last year to date	
+3085		less than last year to date	
+3086		Count the cash drawer for register	Telle opp kassebeholdningen for kasse
+3087		Number of coins/bills of each type	Antall mynter/sedler av hver type
+3088		Opening cash balance	Morgenbeholdning
+3089		Calculate	Beregn
+3090		Drawer	Skuff
+3091		Print last	Skriv ut sist
+3092		Cash inflow for the day	Dagens kontanttilgang
+3093		Expected cash balance	 Forventet beholdning
+3094		Counted cash balance	Opptalt beholdning
+3095		Difference	Differanse
+3096		Withdraw from cash register	Tas ut fra kassen
+3097		Clear all and start over	Slett alt og start på nytt
+3098		Edit	Rett
+3099		OrderConf	Ordrebek
+3100		Dashboard	Oversikt
+3101		Select which product groups and creditors are to be displayed in the product list	Velg hvilke produktgrupper og kreditorer som skal vises i produktlisten
+3102		Create a new product	Opprett et nytt produkt
+3103		Close the product list and go back to the main menu	Lukk produktlisten og gå tilbake til hovedmenyen
 3104			
-3105	Opret indkøbsforslag udfra igangværende tilbud og ordrebeholdning	Create purchase proposals based on ongoing offers and order inventory	Opprett innkjøpsforslag basert på pågående tilbud og ordrebeholdning.
-3106	Stor sum	Big total	Stor summ
-3107	Vis ordres totalsum større i kassesystemet	Show the order sum larger in the point of sale system	Vis ordretotaler større i POS-systemet
-3108	Mobil	Mobile	Mobil
-3109	Aktivere den mobile kasseløsning	Activates the mobile POS system setup	Aktivering av den mobile kasseløsningen
-3110	Bredde	width	Bredde
-3111	Skærmens bredde	Screen width	Skjerm bredde
-3112	Zoom	Zoom	Zoom
-3113	Grad af zoom	Degree of zoom	Grad av zoom
-3114	Omv.menu	Flp.menu	Omv.menu
-3115	Anvend omvendte primær og sekundær menuer (primærmenu i bunden)	Flip the primary and secondarry menus (primary on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
-3116	Decimaler på rabat	Decimals for discount values	Decimaler på rabatt
-3117	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt
-3118	Minimums beholdning på varer	Minimum inventory of goods	Minimum varelager
-3119	Standard minimums beholdning	Standard minimum stock	Standard minstelager
-3120	Er det sikkert, at du vil overskrive dit regnskab med denne sikkerhedskopi?	Are you sure you want to overwrite your accounting with this backup?	Er du sikker på at du vil overskrive regnskapet ditt med denne sikkerhetskopien?
-3121	Du er ved at overskrive dit regnskab	You are overwriting your account.	Du overskriver kontoen din.
-3122	med en sikkerhedskopi af regnskabet	with a backup copy of the accounts	med en sikkerhetskopi av kontoene
-3123	fra den	from the	fra den
-3124	Bemærk at alle brugere skal være logget ud	Please note that all users must be logged out.	Vær oppmerksom på at alle brukere må være logget ut.
-3125	med en sikkerhedskopi fra den	with a backup copy from the	med en sikkerhetskopi fra
-3126	;Der er sket en fejl under hentningen - pr&oslash;;v venligst igen.;	An error occurred during the download - please try again.	Det oppsto en feil under nedlastingen – prøv på nytt.
+3105		Create purchase proposals based on ongoing offers and order inventory	Opprett innkjøpsforslag basert på pågående tilbud og ordrebeholdning.
+3106		Big total	Stor summ
+3107		Show the order sum larger in the point of sale system	Vis ordretotaler større i POS-systemet
+3108		Mobile	Mobil
+3109		Activates the mobile POS system setup	Aktivering av den mobile kasseløsningen
+3110		width	Bredde
+3111		Screen width	Skjerm bredde
+3112		Zoom	Zoom
+3113		Degree of zoom	Grad av zoom
+3114		Flp.menu	Omv.menu
+3115		Flip the primary and secondarry menus (primary on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
+3116		Decimals for discount values	Decimaler på rabatt
+3117		The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt
+3118		Minimum inventory of goods	Minimum varelager
+3119		Standard minimum stock	Standard minstelager
+3120		Are you sure you want to overwrite your accounting with this backup?	Er du sikker på at du vil overskrive regnskapet ditt med denne sikkerhetskopien?
+3121		You are overwriting your account.	Du overskriver kontoen din.
+3122		with a backup copy of the accounts	med en sikkerhetskopi av kontoene
+3123		from the	fra den
+3124		Please note that all users must be logged out.	Vær oppmerksom på at alle brukere må være logget ut.
+3125		with a backup copy from the	med en sikkerhetskopi fra
+3126		An error occurred during the download - please try again.	Det oppsto en feil under nedlastingen – prøv på nytt.

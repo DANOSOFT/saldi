@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.0 -- 2024.01.18 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.05.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.DK ApS
+// Copyright (c) 2003-2025 Saldi.DK ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
 // 2013.11.01 Tilføjet fravalg af tjek for forskellige datoer på samme bilag i kasseklasse. Søg 20131101
@@ -90,6 +90,7 @@
 // 20240130 PBLM Added Nemhandel (diverse valg)
 // 06-01-2025 PBLM Added a second file to api_valg
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 include("sys_div_func_includes/chooseProvision.php");
 
@@ -855,8 +856,8 @@ function div_valg()
 	print "<input name='mySale' class='inputbox' type='checkbox' $mySale>\n";
 	print "</td></tr>\n";
 
-	print "<tr>\n<td title='" . findtekst(2450, $sprog_id) . "'>Label maxlength</td>\n";
-	print "<td title='" . findtekst(2450, $sprog_id) . "'>\n";
+	print "<tr>\n<td title='" . findtekst(2300, $sprog_id) . "'>Label maxlength</td>\n";
+	print "<td title='" . findtekst(2300, $sprog_id) . "'>\n";
 	print "<!-- 768 : Brug 'Mit salg' -->";
 	print "<input name='labelsize' class='inputbox' type='text' value='$labelsize'>\n";
 	print "</td></tr>\n";
@@ -1131,9 +1132,9 @@ function div_valg()
 	# Guid form flatpay, looks like 9e802837-307b-48c3-9f0e-1b4cac291376
 	$guid = $r ? str_split($r[0], 7)[0] . "-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "";
 
-	$mtxt = findtekst(3014, $sprog_id);
-	$mtitle = findtekst(3013, $sprog_id);
-	print "<tr>\n<td title='$mtitle'><!-- Tekst 3013 -->$mtxt <!-- Tekst 3014 --></td>\n";
+	$mtxt = findtekst(2314, $sprog_id);
+	$mtitle = findtekst(2315, $sprog_id);
+	print "<tr>\n<td title='$mtitle'><!-- Tekst 2315 -->$mtxt <!-- Tekst 2314 --></td>\n";
 	print "<td title='$mtitle'>
     <span style='position:relative;'>
       <input name='flatpay_id' disabled class='inputbox' style='width:150px; cursor: pointer;' type='text' value='$guid' onclick='open_popup()'>
@@ -1148,9 +1149,9 @@ function div_valg()
 	# Check if it exsists
 	$APIKEY = $r ? $r[0] : "";
 
-	$mtxt = findtekst(3016, $sprog_id);
-	$mtitle = findtekst(3017, $sprog_id);
-	print "<tr>\n<td title='$mtitle'><!-- Tekst 3013 -->$mtxt <!-- Tekst 3014 --></td>\n";
+	$mtxt = findtekst(2317, $sprog_id);
+	$mtitle = findtekst(2318, $sprog_id);
+	print "<tr>\n<td title='$mtitle'><!-- Tekst 2315 -->$mtxt <!-- Tekst 2314 --></td>\n";
 	print "<td title='$mtitle'>
     <input name='vibrant_id' class='inputbox' style='width:150px;' type='text' value='$APIKEY'>
   </td>\n</tr>\n";
@@ -1159,13 +1160,13 @@ function div_valg()
 	$qtxt = "SELECT var_name, var_value FROM settings WHERE var_grp='vibrant_account'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
-	$mtxt = findtekst(3021, $sprog_id);
-	$mtitle = findtekst(3022, $sprog_id);
-	print "<tr>\n<td title='$mtitle'><!-- Tekst 3013 -->$mtxt <!-- Tekst 3014 --></td>\n";
+	$mtxt = findtekst(2322, $sprog_id);
+	$mtitle = findtekst(2323, $sprog_id);
+	print "<tr>\n<td title='$mtitle'><!-- Tekst 2315 -->$mtxt <!-- Tekst 2314 --></td>\n";
 
 	# If an account is already setup, show the "Show account" button
 	if ($r) {
-		$ntxt = findtekst(3024, $sprog_id); # Show account
+		$ntxt = findtekst(2325, $sprog_id); # Show account
 
 		print "<td title='$mtitle'>
       <button type='button' onclick='alert(\"Dit login til din vibrant terminalen: \\n\\n$r[var_name] \\n$r[var_value]\")'>$ntxt</button>
@@ -1673,7 +1674,7 @@ function ordre_valg()
 	print "<tr><td title='" . findtekst(688, $sprog_id) . "'>" . findtekst(687, $sprog_id) . "</td><td><INPUT title='" . findtekst(688, $sprog_id) . "' class='inputbox' type='text' style='width:70px;text-align:right;' name='box7' value='$kontantkonto'></td></tr>";
 	print "<tr><td title='" . findtekst(690, $sprog_id) . "'>" . findtekst(689, $sprog_id) . "</td><td><INPUT title='" . findtekst(690, $sprog_id) . "' class='inputbox' type='text' style='width:70px;text-align:right;' name='box10' value='$kortkonto'></td></tr>";
 	print "<tr><td title='" . findtekst(1711, $sprog_id) . "'>" . findtekst(1714, $sprog_id) . "</td><td><INPUT title='" . findtekst(1712, $sprog_id) . "' class='inputbox' type='checkbox' name='orderNoteEnabled' $orderNoteEnabled></td></tr>";
-	print "<tr><td title='" . findtekst(3069, $sprog_id) . "'>" . findtekst(3068, $sprog_id) . "</td><td><INPUT title='" . findtekst(3069, $sprog_id) . "' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
+	print "<tr><td title='" . findtekst(2370, $sprog_id) . "'>" . findtekst(2369, $sprog_id) . "</td><td><INPUT title='" . findtekst(2370, $sprog_id) . "' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
 	print "<tr><td title='" . findtekst(690, $sprog_id) . "'>" . findtekst(2400, $sprog_id) . "</td><td><INPUT title='" . findtekst(2401, $sprog_id) . "' class='inputbox' type='text' style='width:70px;text-align:right;' name='portovarenr' value='$portovarenr'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
