@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/admin_settings.php --- patch 4.1.0 --- 2025.05.03 ---
+// --------------- admin/admin_settings.php --- patch 4.1.1 --- 2025.05.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 // 20210917 LOE Translated some texts
 // 20210921 Added this block of code to set language
 // 20240522 MMK Newssnippet
-// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20250503 LOE Updated files with new if_isset function implementation to prevent exessive error logs
 
 @session_start();
 $s_id=session_id();
@@ -38,27 +38,27 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 
 if (isset($_POST['gem'])) {
-	$ps2pdfId=if_isset($_POST['ps2pdfId']);
-	$ps2pdf=if_isset($_POST['ps2pdf']);
-	$html2pdfId=if_isset($_POST['html2pdfId']);
-	$html2pdf=if_isset($_POST['html2pdf']);
-	$pdfmergeId=if_isset($_POST['pdfmergeId']);
-	$pdfmerge=if_isset($_POST['pdfmerge']);
-	$ftpId=if_isset($_POST['ftpId']);
-	$ftp=if_isset($_POST['ftp']);
-	$dbdumpId=if_isset($_POST['dbdumpId']);
-	$dbdump=if_isset($_POST['dbdump']);
-	$zipId=if_isset($_POST['zipId']);
-	$zip=if_isset($_POST['zip']);
-	$unzipId=if_isset($_POST['unzipId']);
-	$unzip=if_isset($_POST['unzip']);
-	$tarId=if_isset($_POST['tarId']);
-	$tar=if_isset($_POST['tar']);
-	$alertTextId=if_isset($_POST['alertTextId']);
-	$alertText=if_isset($_POST['alertText']);
-	$lang = if_isset($_POST['LanguageName']); #20210920
-	$languageId = if_isset($_POST['LanguageId']); #20210920
-	$newssnippet = if_isset($_POST['newssnippet']);
+	$ps2pdfId = if_isset($_POST, NULL, 'ps2pdfId');
+	$ps2pdf = if_isset($_POST, NULL, 'ps2pdf');
+	$html2pdfId = if_isset($_POST, NULL, 'html2pdfId');
+	$html2pdf = if_isset($_POST, NULL, 'html2pdf');
+	$pdfmergeId = if_isset($_POST, NULL, 'pdfmergeId');
+	$pdfmerge = if_isset($_POST, NULL, 'pdfmerge');
+	$ftpId = if_isset($_POST, NULL, 'ftpId');
+	$ftp = if_isset($_POST, NULL, 'ftp');
+	$dbdumpId = if_isset($_POST, NULL, 'dbdumpId');
+	$dbdump = if_isset($_POST, NULL, 'dbdump');
+	$zipId = if_isset($_POST, NULL, 'zipId');
+	$zip = if_isset($_POST, NULL, 'zip');
+	$unzipId = if_isset($_POST, NULL, 'unzipId');
+	$unzip = if_isset($_POST, NULL, 'unzip');
+	$tarId = if_isset($_POST, NULL, 'tarId');
+	$tar = if_isset($_POST, NULL, 'tar');
+	$alertTextId = if_isset($_POST, NULL, 'alertTextId');
+	$alertText = if_isset($_POST, NULL, 'alertText');
+	$lang = if_isset($_POST, NULL, 'LanguageName'); //20210920
+	$languageId = if_isset($_POST, NULL, 'LanguageId'); //20210920
+	$newssnippet = if_isset($_POST, NULL, 'newssnippet');	
 	$sprog_id = $languageId;
 /*
 	    $qtxt="select * from online where sprog ='$lang'and brugernavn = '$brugernavn'";  #20210921
@@ -219,7 +219,7 @@ print "<tr><td>".findtekst(1922, $sprog_id)."</td><td><input style='width:400px'
 print "<tr><td>".findtekst(1923, $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
 print "<tr><td>".findtekst(1924, $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
 print "<tr><td>".findtekst(1925, $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
-print "<tr><td>".findtekst(2365, $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
+print "<tr><td>".findtekst(3064, $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
 
 ##################### #20210920
 print "<tr><td title='".findtekst(2, $sprog_id)."'>".findtekst(436, $sprog_id)." ".findtekst(801, $sprog_id)."</td>";
