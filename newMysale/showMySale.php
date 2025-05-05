@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/showMysale.php --- lap 4.0.8 --- 2023-03-25 ---
+// --- mysale/showMysale.php --- lap 4.0.8 --- 2025-05-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2021 - 2023 saldi.dk aps
+// Copyright (c) 2021 - 2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20210829 PHR varoius minor changes
 // 20220212 PHR replaced cookies with session vars
@@ -28,6 +28,7 @@
 // 20230311 PHR Various updates according to PHP8 
 // 20230325 PHR added memberShip to query and corrected an sols and for sale buttons in mobileView. 
 // 28.08.2024 PBLM added sidebar and fixed email strtolower
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 if ($from) $from = usdate($from);
 if ($to) $to = usdate($to);
@@ -226,7 +227,7 @@ if ($custName && $access) {
 		}
 		/* if ($medlem) {
 			if (!isset($_SESSION['linkLog']) || !$mySaleLabel) {
-				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
+				print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(2364,$sprog_id)."</button></a><br><br>";
 			}
 			($mobile) ? $style = "text-align:center;width:275px;font-size:25pt;margin:3px;" : 
 									$style = "text-align:center;width:80px;margin:3px;";
@@ -238,7 +239,7 @@ if ($custName && $access) {
 				print "<a href=mysale.php?id=$id&tilsalg=1><button style='$style'>Til salg</button></a><br><br>";
 			}
 		} else {
-			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(3063,$sprog_id)."</button></a><br><br>";
+			print "<a href=mylabel.php?id=$id&condition=$condition><button style=$style>". findtekst(2364,$sprog_id)."</button></a><br><br>";
 		} */
 	}
 } else {
@@ -353,8 +354,8 @@ if ($tilsalg == 1) {
 			print "<option value='used'>brugt</option>";
 			if ($condition != 'new') print "<option value='new'>nyt</option>";
 			print "</select></td>";
-		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
-		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(2363,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(2361,$sprog_id)."</b></td>";
 	}
 	/*
 print "<td style='text-align:center'>Tilføj vare</td>";
@@ -423,8 +424,8 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 			print "<option value='used'>brugt</option>";
 			if ($condition != 'new') print "<option value='new'>nyt</option>";
 			print "</select></td>";
-		} elseif ($showNew) print "<td><b>".findtekst(3062,$sprog_id)."</b></td>";
-		else print "<td><b>".findtekst(3060,$sprog_id)."</b></td>";
+		} elseif ($showNew) print "<td><b>".findtekst(2363,$sprog_id)."</b></td>";
+		else print "<td><b>".findtekst(2361,$sprog_id)."</b></td>";
 #		print "<td><select name ='condition'>";
 #		if ($condition == 'new') print "<option value='new'>nyt</option>";
 #		print "<option value='used'>brugt</option>";
@@ -482,8 +483,8 @@ print "<td ><input style='text-align:center; width:90px;' type='button' name='up
 				<option value='used'>brugt</option>
 				<option value='new'>nyt</option>
 			</select> -->
-			<?php } /* elseif ($showNew) print findtekst(3062,$sprog_id);
-			else print findtekst(3060,$sprog_id); */ ?>
+			<?php } /* elseif ($showNew) print findtekst(2363,$sprog_id);
+			else print findtekst(2361,$sprog_id); */ ?>
 			<!-- <select name ='condition' class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
 				<option value='new'>nyt</option>
 				<option value='used'>brugt</option>

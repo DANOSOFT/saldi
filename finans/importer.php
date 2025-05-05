@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/importer.php --- lap 4.1.0 --- 2024-04-19 ---
+// --- finans/importer.php --- ver 4.1.1 -- 2025.05.03 ---
 // 								LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20130415 - Fejl hvis linje starter med separatortegn.
@@ -38,6 +38,7 @@
 // 20240402 PHR - Missing '>'
 // 20240419 PHR Some claeanup
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 @session_start();
 $s_id = session_id();
@@ -285,7 +286,7 @@ function upload($kladde_id, $bilag)
 	print "<tr><td>$hrlinje</td></tr>";
 	//SAF-T XML file
 	print "<tr><td width=100% align=center><br></td></tr>";
-	print "<tr><td width=100% align=center><b>" . findtekst(3053, $sprog_id) . "</b></td></tr>";
+	print "<tr><td width=100% align=center><b>" . findtekst(2354, $sprog_id) . "</b></td></tr>";
 	print "<tr><td width=100% align=center><br></td></tr>";
 	print "<form enctype=\"multipart/form-data\" action=\"xmlimport.php\" method=\"POST\">";
 	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";

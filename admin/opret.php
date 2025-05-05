@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------/admin/opret.php-----patch 4.1.0 ----2024-04-07--------------
+// ------------/admin/opret.php-----patch 4.1.0 ----2025-05-03--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 
 // 2013.05.14 Slutmd blev sat til 1 ved oprettelse af regnskabsår
@@ -100,6 +100,8 @@
 // 20240621 LOE modified list function block causing undefined "PHP Warning:  Undefined array key 2 in" error during account creation
 // 20250121 connection as first parameter in pg_*
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250503 LOE Use conditionals to adjust for MySQL vs PostgreSQL
+
 
 @session_start();
 $s_id=session_id();
@@ -294,22 +296,55 @@ function opret ($sqhost,$squser,$sqpass,$db,$brugernavn,$passwd,$std_kto_plan) {
 */	
 
 	transaktion("begin");
+
+// Use conditionals to adjust for MySQL vs PostgreSQL
+
+if ($db_type=="mysql" or $db_type=="mysqli") {
+    // MySQL-specific adjustments
+    $id_column = 'id INT AUTO_INCREMENT NOT NULL';
+    $boolean_type = 'TINYINT(1) DEFAULT 0';
+    $decimal_type = 'DECIMAL';
+    $text_type = 'TEXT';
+	$longlat = "`long` $decimal_type(10,6), lat $decimal_type(9,6)";
+	$rowValue = "`row`"; //reserved word in mysql, another variable should be considered perhaps.
+	$varchar = "VARCHAR";  // MySQL uses VARCHAR
+    $quote_offset = "`offset`";
+	$column_modifier = '(255)';
+
+} else {
+    // PostgreSQL-specific adjustments
+    $id_column = 'id SERIAL NOT NULL';
+    $boolean_type = 'BOOLEAN DEFAULT FALSE';
+    $decimal_type = 'NUMERIC';
+    $text_type = 'TEXT';
+	$longlat = "\"long\" $decimal_type(10,6), lat $decimal_type(9,6)";
+	$rowValue = "\"row\"";
+	$varchar = "CHARACTER VARYING";  // PostgreSQL uses CHARACTER VARYING
+    $quote_offset = "\"offset\""; 
+	$column_modifier = '';
+
+}
+
+
+
+
+
+
 #	db_modify("CREATE SEQUENCE id START 1 INCREMENT 1 MAXVALUE 9223372036854775807 MINVALUE 1 CACHE 1",__FILE__ . " linje " . __LINE__);
 	######## Adresser ##########
 	$qtxt = "CREATE TABLE adresser ";
-	$qtxt.= "(id serial NOT NULL,firmanavn varchar(90),addr1 varchar(60),addr2 varchar(60),postnr varchar(10),";
+	$qtxt.= "($id_column,firmanavn varchar(90),addr1 varchar(60),addr2 varchar(60),postnr varchar(10),";
 	$qtxt.= "bynavn varchar(60),land varchar(60),kontakt varchar(60),tlf varchar(60),fax varchar(15),email varchar(60),";
 	$qtxt.= "web varchar(60),bank_navn varchar(60),bank_reg varchar(15),bank_konto varchar(15),bank_fi varchar(15),";
-	$qtxt.= "erh varchar(15),swift varchar(15),productlimit numeric(15,0),notes text,rabat numeric(15,3),momskonto integer,";
-	$qtxt.= "kreditmax numeric(15,3),betalingsbet varchar(15),betalingsdage integer DEFAULT 0,kontonr numeric(30,0),";
+	$qtxt.= "erh varchar(15),swift varchar(15),productlimit $decimal_type(15,0),notes text,rabat $decimal_type(15,3),momskonto integer,";
+	$qtxt.= "kreditmax $decimal_type(15,3),betalingsbet varchar(15),betalingsdage integer DEFAULT 0,kontonr $decimal_type(30,0),";
 	$qtxt.= "cvrnr varchar(20),ean varchar(20),institution varchar(15),art varchar(2),gruppe integer,rabatgruppe integer,";
 	$qtxt.= "kontoansvarlig integer,oprettet date,kontaktet date,kontaktes date,pbs varchar(2),";
 	$qtxt.= "pbs_nr text,pbs_date date,mailfakt varchar(2),udskriv_til varchar(10),felt_1 text,felt_2 text,";
 	$qtxt.= "felt_3 text,felt_4 text,felt_5 text,vis_lev_addr varchar(2),kontotype varchar(15),fornavn varchar(60),";
-	$qtxt.= "efternavn varchar(60),lev_firmanavn varchar(90),lev_fornavn varchar(60),lev_efternavn varchar(60),lev_addr1 varchar(60),"; 
-	$qtxt.= "lev_addr2 varchar(60),lev_postnr varchar(15),lev_bynavn varchar(60),lev_land varchar(60),lev_kontakt varchar(60),";
-	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),kategori varchar(15),saldo numeric(15,3),";
-	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2), medlem text, long int, lat int,PRIMARY KEY (id))";
+	$qtxt.= "efternavn varchar(60),lev_firmanavn varchar(90),lev_fornavn varchar(60),lev_efternavn varchar(60),lev_addr1 varchar(60),"; $qtxt.= "lev_addr2 varchar(60),lev_postnr varchar(15),lev_bynavn varchar(60),lev_land varchar(60),lev_kontakt varchar(60),";
+	$qtxt.= "lev_tlf varchar(15),lev_email varchar(60),status varchar(15),lukket varchar(2),kategori varchar(15),saldo $decimal_type(15,3),";
+	$qtxt.= "invoiced date,mysale varchar(2),hidden varchar(2),medlem text,$longlat,PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 	######## Ansatte ########

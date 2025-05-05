@@ -257,8 +257,8 @@ function productOptions($defaultProvision) {
 		print "value='$commissionFromDate' placeholder='01-01-2020'></td></tr>";
 	}
 	print "<tr><td><br></td><td><br></td><td><br></td></tr>";
-	$text=findtekst(3119, $sprog_id);
-	$title=findtekst(3118, $sprog_id);
+	$text=findtekst(2420, $sprog_id);
+	$title=findtekst(2419, $sprog_id);
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input type='text' class='inputbox' name='minBeholdning' value='$minBeholdning'></td></tr>";
 	print "<td><br></td><td><br></td><td><br></td>";

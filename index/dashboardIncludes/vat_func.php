@@ -47,10 +47,10 @@ function vat_info($regnstart, $regnslut) {
     // Beregn forskellen mellem indeværende regnskabsår og sidste regnskabsår
     $revenue_diff = $revenue - $revenue_last;
     $revenue_status = $revenue_diff > 0 ? 
-        "<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst(3084, $sprog_id)."</span>" 
+        "<span style='color: #15b79f'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst(2385, $sprog_id)."</span>" 
         : 
-        "<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst(3085, $sprog_id)."</span>";
+        "<span style='color: #ea3c3c'>" . formatNumber(abs($revenue_diff)) . " kr</span> <span style='color: #999'>".findtekst(2386, $sprog_id)."</span>";
 
-    key_value(findtekst(2451, $sprog_id), formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
+    key_value(findtekst(2301, $sprog_id), formatNumber($revenue ? $revenue : 0)." kr", "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'>$revenue_status");
 }
 
