@@ -247,7 +247,6 @@ $box3 = select_valg("$valg", "box3");
 $box4 = select_valg("$valg", "box4");
 $box6 = select_valg("$valg", "box6");
 
-
 $qtxt = "select id from grupper where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'";
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$qtxt = "insert into grupper (beskrivelse,kode,kodenr,art,box2,box3,box4,box5,box6,box7) values ";
@@ -786,6 +785,9 @@ while ($r0=db_fetch_array($q0)) {
 			$qtxt.= "konto_id='$r0[konto_id]' and 	amount='$sum_m_moms'";
 			if ($r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$udlignet=(int)$r1['udlignet'];
+				if ($udlignet && !$r0['betalt']) {
+					db_modify("update ordrer set betalt = 1 where id = '$id'",__FILE__ . " linje " . __LINE__);
+				}
 			} else { # 20101220 Denne del er indsat grundet enkelte forekomster med manglende faktnr  
 				$tmp1="Faktura - ".$r0['fakturanr'];
 				$tmp2="Faktura - ".$r0['fakturanr']." - ".$r0['fakturadate'];
