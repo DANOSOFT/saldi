@@ -48,8 +48,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'autocomplete') {
     
     if (!empty($term)) {
         $searchTerm = "%" . db_escape_string($term) . "%";
-        $qtxt = "SELECT id, firmanavn, addr1, addr2, bynavn, postnr FROM adresser 
+        $qtxt = "SELECT id, kontonr, firmanavn, addr1, addr2, bynavn, postnr FROM adresser 
                 WHERE firmanavn ILIKE '$searchTerm' 
+                OR kontonr ILIKE '$searchTerm' 
                 OR addr1 ILIKE '$searchTerm' 
                 OR addr2 ILIKE '$searchTerm' 
                 OR bynavn ILIKE '$searchTerm' 
@@ -59,7 +60,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'autocomplete') {
         $query = db_select($qtxt, __FILE__ . " line " . __LINE__);
         
         while ($row = db_fetch_array($query)) {
-            $label = htmlspecialchars($row['firmanavn'] . ' - ' . $row['addr1'] . ', ' . $row['postnr'] . ' ' . $row['bynavn']);
+            $label = htmlspecialchars($row['kontonr'] . ': ' . $row['firmanavn'] . ' - ' . $row['addr1'] . ', ' . $row['postnr'] . ' ' . $row['bynavn']);
             $html .= '<div class="autocomplete-item" data-id="' . $row['id'] . '">' . $label . '</div>';
             $data[] = $row['id']; // We'll just store the IDs in order
         }
@@ -177,6 +178,7 @@ if ($adresse === null) {
             <table>
                 <thead>
                     <tr>
+                        <th>Kontonr</th>
                         <th>Firmanavn</th>
                         <th>Adresse</th>
                         <th></th>
@@ -188,12 +190,13 @@ if ($adresse === null) {
                 <tbody>
                     <?php
                     // Build the query with search functionality
-                    $qtxt = "SELECT id, firmanavn, addr1, addr2, bynavn, postnr FROM adresser";
+                    $qtxt = "SELECT id, kontonr, firmanavn, addr1, addr2, bynavn, postnr FROM adresser";
                     
                     // Add search condition if search parameter exists
                     if (!empty($search)) {
                         $searchTerm = "%" . db_escape_string($search) . "%";
                         $qtxt .= " WHERE firmanavn ILIKE '$searchTerm' 
+                                   OR kontonr ILIKE '$searchTerm' 
                                    OR addr1 ILIKE '$searchTerm' 
                                    OR addr2 ILIKE '$searchTerm' 
                                    OR bynavn ILIKE '$searchTerm' 
@@ -207,6 +210,7 @@ if ($adresse === null) {
                         while ($row = db_fetch_array($query)) {
                             ?>
                             <tr>
+                                <td><?php echo htmlspecialchars($row["kontonr"]); ?></td>
                                 <td><?php echo htmlspecialchars($row["firmanavn"]); ?></td>
                                 <td><?php echo htmlspecialchars($row["addr1"]); ?></td>
                                 <td><?php echo htmlspecialchars($row["addr2"]); ?></td>
