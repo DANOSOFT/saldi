@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/posOptions.php --- ver 4.1.0 -- 2024-01-18 ---
+// --- systemdata/diverseIncludes/posOptions.php --- ver 4.1.0 -- 2025-05-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.DK ApS
+// Copyright (c) 2003-2025 Saldi.DK ApS
 // -----------------------------------------------------------------------
 // Kaldes fra systemdata/diverse.php
 // 20131230 PHR addad fiscal year to groups.
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 function posOptions () {
 	global $bgcolor,$bgcolor5;
@@ -221,8 +222,8 @@ function posOptions () {
 		print "<td title='".findtekst(716,$sprog_id)."'><!--Tekst 716-->".findtekst(715,$sprog_id)."<!--Tekst 715--></td>\n";
 		print "<td title='".findtekst(722,$sprog_id)."'><!--Tekst 722-->".findtekst(721,$sprog_id)."<!--Tekst 721--></td>\n";
 		print "<td title='".findtekst(705,$sprog_id)."'><!--Tekst 705-->".findtekst(704,$sprog_id)."<!--Tekst 704--></td>\n";
-		print "<td title='".findtekst(3011,$sprog_id)."'><!--Tekst 3011-->".findtekst(3010,$sprog_id)."<!--Tekst 3010--></td>\n";
-		print "<td title='".findtekst(707,$sprog_id)."'><!--Tekst 707-->".findtekst(3015,$sprog_id)."<!--Tekst 3015--></td>\n";
+		print "<td title='".findtekst(2313,$sprog_id)."'><!--Tekst 2313-->".findtekst(2312,$sprog_id)."<!--Tekst 2312--></td>\n";
+		print "<td title='".findtekst(707,$sprog_id)."'><!--Tekst 707-->".findtekst(2316,$sprog_id)."<!--Tekst 2316--></td>\n";
 		print "<td title='".findtekst(726,$sprog_id)."'><!--Tekst 726-->".findtekst(725,$sprog_id)."<!--Tekst 725--></td>\n";
 		if (count($bord)>1) print "<td title='".findtekst(755,$sprog_id)."'><!--Tekst 755-->".findtekst(754,$sprog_id)."<!--Tekst 754--></td>\n";
 		$text=findtekst(765,$sprog_id);
@@ -367,18 +368,18 @@ function posOptions () {
 			print "<tr><td colspan='50'><table id='kasse-$x-ekstra' class='hidden'>";
 
 			# Folding menu headers
-			$text=findtekst(3108, $sprog_id);
-			$title=findtekst(3109, $sprog_id);
-			print "<tr><td title='$title'><!--Tekst 3109-->$text<!--Tekst 3108--></td>\n";
-			$text=findtekst(3110, $sprog_id);
-			$title=findtekst(3111, $sprog_id);
-			print "<td title='$title'><!--Tekst 3110-->$text<!--Tekst 3111--></td>\n";
-			$text=findtekst(3112, $sprog_id);
-			$title=findtekst(3113, $sprog_id);
-			print "<td title='$title'><!--Tekst 3112-->$text<!--Tekst 3113--></td>\n";
-			$text=findtekst(3114, $sprog_id);
-			$title=findtekst(3115, $sprog_id);
-			print "<td title='$title'><!--Tekst 3112-->$text<!--Tekst 3113--></td>\n";
+			$text=findtekst(2409, $sprog_id);
+			$title=findtekst(2410, $sprog_id);
+			print "<tr><td title='$title'><!--Tekst 2410-->$text<!--Tekst 2409--></td>\n";
+			$text=findtekst(2411, $sprog_id);
+			$title=findtekst(2412, $sprog_id);
+			print "<td title='$title'><!--Tekst 2411-->$text<!--Tekst 2412--></td>\n";
+			$text=findtekst(2413, $sprog_id);
+			$title=findtekst(2414, $sprog_id);
+			print "<td title='$title'><!--Tekst 2413-->$text<!--Tekst 2414--></td>\n";
+			$text=findtekst(2415, $sprog_id);
+			$title=findtekst(2416, $sprog_id);
+			print "<td title='$title'><!--Tekst 2413-->$text<!--Tekst 2414--></td>\n";
 			print "</tr>";
 			print "<tr>";
 
@@ -631,10 +632,10 @@ function type_change(idx) {
 	$title = "".findtekst(1961, $sprog_id).".";
 	print "<tr><td title='$title'>$text</td>";
 	print "<td title='$title'><input class='inputbox' type='checkbox' name='jump2price' $jump2price></td>\n";
-	print "<td title='".findtekst(3067,$sprog_id)."'>".findtekst(3066,$sprog_id)."</td>";
-	print "<td title='".findtekst(3067,$sprog_id)."'><input class='inputbox' type='checkbox' name='lagerbeh' $lagerbeh></td></tr>\n";
-	$text = findtekst(3106, $sprog_id);
-	$title = "".findtekst(3107, $sprog_id).".";
+	print "<td title='".findtekst(2368,$sprog_id)."'>".findtekst(2367,$sprog_id)."</td>";
+	print "<td title='".findtekst(2368,$sprog_id)."'><input class='inputbox' type='checkbox' name='lagerbeh' $lagerbeh></td></tr>\n";
+	$text = findtekst(2407, $sprog_id);
+	$title = "".findtekst(2408, $sprog_id).".";
 	$big = get_settings_value("show_big_sum", "POS", "off");
 	$big = $big == "on" ? "checked" : "";
 	print "<tr><td title='$title'>$text</td>";

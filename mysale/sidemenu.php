@@ -30,7 +30,7 @@
 				<svg class="w-16 h-16 lg:w-6 lg:h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
 					<path d="M4 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h11.613a2 2 0 0 0 1.346-.52l4.4-4a2 2 0 0 0 0-2.96l-4.4-4A2 2 0 0 0 15.613 6H4Z"/>
 				</svg>
-               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base"><?php echo findtekst(3063,$sprog_id) ?></span>
+               <span class="flex-1 ms-3 whitespace-nowrap font-sans text-5xl lg:text-base"><?php echo findtekst(2364,$sprog_id) ?></span>
             </a>
          </li>
 		 <li>

@@ -309,7 +309,7 @@ $dom->save($xml_file_name, LIBXML_NOEMPTYTAG);
 
 $_SESSION['fileName'] = "$AuditFileName";
 $_SESSION['filePath'] = "$xml_file_name";
-$_SESSION['fileMessage'] = "$AuditFileName " . findtekst(3051, $sprog_id) . ""; // er blevet oprettet.
+$_SESSION['fileMessage'] = "$AuditFileName " . findtekst(2352, $sprog_id) . ""; // er blevet oprettet.
 // echo $xml_file_name;
 // echo '<script>location.replace("../finans/rapport_includes/saft.php");</script>';
 // redirect($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart);

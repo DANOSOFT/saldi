@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/pricelist.php--- lap 4.0.1 --- 2021-07-28 ----
+// -----------------lager/pricelist.php--- lap 4.0.1 --- 2025-05-03 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
  
 @session_start();
@@ -238,7 +239,7 @@ if ($autoprint) {// Print friendly
 	print " &nbsp"."<input type='checkbox' name='show_antal' $show_antal>".findtekst(2097, $sprog_id);
 
 	($show_enhed)?$show_enhed="checked='checked'":$show_enhed=NULL;
-	print " &nbsp"."<input type='checkbox' name='show_enhed' $show_enhed>".findtekst(3000, $sprog_id);
+	print " &nbsp"."<input type='checkbox' name='show_enhed' $show_enhed>".findtekst(2302, $sprog_id);
 
 	($show_tier_price)?$show_tier_price="checked='checked'":$show_tier_price=NULL;
 	print " &nbsp"."<input type='checkbox' name='show_tier_price' $show_tier_price>".findtekst(2091, $sprog_id);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---patch 4.0.8 ----2023-09-05--------------
+// --- lager/varer.php ---patch 4.1.1 ----2025-05-03--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 2013.01.15 Wildcard forsvinder efter søgning - tak til Henrik Thomsen fra Basslab for rettelse - søg 20130115
@@ -57,9 +57,9 @@
 // 2021.04.01 LOE - Translated these texts to English 20210401
 // 2023.04.14 LOE - Minor modifications
 // 2023.06.03 PHR - php8
-// 2023.09.05	PHR - cookie for saldiProductListStart & saldiProductListLines 
-// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-
+// 2023.09.05 PHR - cookie for saldiProductListStart & saldiProductListLines 
+// 20250130 	  -	migrate utf8_en-/decode() to mb_convert_encoding
+// 2025.05.03 LOE - reordered mix-up text_id from tekster.csv in findtekst()
 
 @session_start();
 $s_id=session_id();
@@ -339,10 +339,10 @@ $txt957  = findtekst(957,$sprog_id);  # Vareliste
 $txt954  = findtekst(954,$sprog_id);  # Indkøbsforslag
 $txt2110 = findtekst(2110,$sprog_id); # Viser status for tilbud.....
 $txt2113 = findtekst(2113,$sprog_id); # Tilbage til varelisten uden at bestille
-$txt3102 = findtekst(3102,$sprog_id); # Opret en ny vare
-$txt3103 = findtekst(3103,$sprog_id); # Luk varelisten....
-$txt3105 = findtekst(3105,$sprog_id); # Opret indkøbsforslag /....
-$txt3101 = findtekst(3101,$sprog_id); # Vælg hvilke varegrupper.....
+$txt3102 = findtekst(2403,$sprog_id); # Opret en ny vare
+$txt3103 = findtekst(2404,$sprog_id); # Luk varelisten....
+$txt3105 = findtekst(2406,$sprog_id); # Opret indkøbsforslag /....
+$txt3101 = findtekst(2402,$sprog_id); # Vælg hvilke varegrupper.....
 
 if ($menu=='T') {
 #	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
@@ -400,7 +400,7 @@ if ($menu=='T') {
 	print "<td width='5%'><a href='varevisning.php'>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
 	print "<td width='5%'><a href='varekort.php?returside=varer.php'>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst('3102|Opret en ny vare', $sprog_id)."'>".findtekst('39|Ny', $sprog_id)."</button></a></td>";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='".findtekst('2403|Opret en ny vare', $sprog_id)."'>".findtekst('39|Ny', $sprog_id)."</button></a></td>";
 
 	print "</tr>\n";
 	print "</tbody></table>\n";

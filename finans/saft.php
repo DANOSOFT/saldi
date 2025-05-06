@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- patch 4.0.8 --- 2024-01-28 ---
+// --- finans/saft.php --- patch 4.1.1 --- 2025.05.03 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,12 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20240128 PHR Changed "AND transdate <= '$startDate'" to "AND transdate < '$startDate'" as opening balance 
 // included day 1.
-
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
@@ -36,7 +36,7 @@ $title = "SAF-T Finance";
 include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
-include("../includes/std_func.php");
+include("../includes/std_func.php");  
 
 global $db;
 global $bruger_id;
@@ -418,7 +418,7 @@ function accountNumberExist($mapToNumber, $standardAcountNumber)
 	if ($mapToNumber == '0' || $mapToNumber == null) {
 		return '';
 	} else if (!in_array($mapToNumber, $standardAcountNumber)) {
-		return "$mapToNumber " . findtekst(3041, $sprog_id) . "";
+		return "$mapToNumber " . findtekst(2342, $sprog_id) . "";
 	}
 }
 
@@ -665,7 +665,7 @@ if ($menu == 'T') {
 /**
  * Popup message
  */
-$downloadMessage = "" . findtekst(3052, $sprog_id) . "";
+$downloadMessage = "" . findtekst(2353, $sprog_id) . "";
 print "<div class=\"popup\"><span class=\"popuptext\" id=\"createMessage\">$fileCreatedMessage</span><span class=\"popuptext\" id=\"downloadMessage\"></span></div>";
 
 
@@ -675,28 +675,28 @@ if ($startdato < 10)
 	$startdato = "0" . $startdato * 1;
 print "<tr><td rowspan=\"2\">Periode</td><td>Fra " . $startdato . ". $mf $aar_fra</td></tr>\n";
 print "<tr><td>Til " . $slutdato . ". $mt $aar_til</td></tr>";
-print "<tr><td colspan=\"3\" class=\"saftFirmName\">$firmanavn</td>\n";
+print "<tr><td colspan=\"3\" class=\"saftFirmName\">$firmanavn</td>\n"; 
 if ($standardKontoCheck != true) {
 	print "<tr><td colspan=\"3\"><hr></td></tr>";
-	print "<tr><td colspan=\"3\"><h2>" . findtekst(3027, $sprog_id) . "<h2></td></tr>";
+	print "<tr><td colspan=\"3\"><h2>" . findtekst(2328, $sprog_id) . "<h2></td></tr>";
 	if ($kontoantal_check <= 1) {
-		print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3045, $sprog_id) . "</td></tr>";
+		print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2346, $sprog_id) . "</td></tr>";
 	} else {
-		print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3046, $sprog_id) . " <b>$kontoantal_check</b> " . findtekst(3030, $sprog_id) . "</td></tr>";
+		print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2347, $sprog_id) . " <b>$kontoantal_check</b> " . findtekst(2331, $sprog_id) . "</td></tr>";
 	}
-	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3031, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3032, $sprog_id) . "</b></mark> " . findtekst(3033, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3034, $sprog_id) . "</b></mark> " . findtekst(3035, $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">Her</a></td></tr>";
-	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3036, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3037, $sprog_id) . "</b></mark>. " . findtekst(3038, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(3039, $sprog_id) . "</b></mark>.</td></tr>";
-	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(3040, $sprog_id) . ".</td></tr>";
+	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2332, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2333, $sprog_id) . "</b></mark> " . findtekst(2334, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2335, $sprog_id) . "</b></mark> " . findtekst(2336, $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">Her</a></td></tr>";
+	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2337, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2338, $sprog_id) . "</b></mark>. " . findtekst(2339, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2340, $sprog_id) . "</b></mark>.</td></tr>";
+	print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2341, $sprog_id) . ".</td></tr>";
 }
 print "</table>\n";
 
-$showXMLFile = "" . findtekst(3049, $sprog_id) . ""; // Vis XML fil
-$closeXMLFile = "" . findtekst(3050, $sprog_id) . ""; // Luk XML fil
+$showXMLFile = "" . findtekst(2350, $sprog_id) . ""; // Vis XML fil
+$closeXMLFile = "" . findtekst(2351, $sprog_id) . ""; // Luk XML fil
 
 if ($standardKontoCheck) {
 	print "<table class=\"saftTable1\">\n";
 	print "<tr><td colspan=\"2\">";
-	print "" . findtekst(3047, $sprog_id) . "";
+	print "" . findtekst(2348, $sprog_id) . "";
 	print "</td><td>&nbsp;</td><td>&nbsp;</td></tr>\n";
 	print "<tr><td colspan=\"4\"></td></tr>";
 	print "<tr><td>";
@@ -719,7 +719,7 @@ if ($standardKontoCheck) {
 	print "<input type='hidden' name='openingDbCrString' value='" . $openingDbCrString . "'>";
 	print "<input type='hidden' name='closingDbCrString' value='" . $closingDbCrString . "'>";
 	print "<input type='hidden' name='standardKontonrString' value='" . $standardKontonrString . "'>";
-	print "<span><button type=\"submit\">" . findtekst(3048, $sprog_id) . "</button></span>";
+	print "<span><button type=\"submit\">" . findtekst(2349, $sprog_id) . "</button></span>";
 	print "</form></td>";
 	print "<td>&nbsp;</td><td></td>";
 	print "<td>&nbsp;</td></tr>\n";
@@ -762,14 +762,14 @@ if ($standardKontoCheck) {
 
 /****************************************************************************************************** */
 // STANDARD KONTOPLAN
-$showStandardAccountPlan = "" . findtekst(3043, $sprog_id) . ""; // Vis Standard Kontoplan
-$closeStandardAccountPlan = "" . findtekst(3044, $sprog_id) . ""; // Luk Standard Kontoplan
+$showStandardAccountPlan = "" . findtekst(2344, $sprog_id) . ""; // Vis Standard Kontoplan
+$closeStandardAccountPlan = "" . findtekst(2345, $sprog_id) . ""; // Luk Standard Kontoplan
 
 if ($standardKontoCheck != true) {
 	print "<hr style=\"border: 1px solid #9a9a9a;\">";
 	print "<div class=\"rbButtonSpace\"><button onclick=\"showStandardKontoplan()\" id=\"showStandardKontoplan\">$showStandardAccountPlan</button></div>";
 	print "<div id=\"standardKontoplan\">";
-	print "<h2 style=\"text-align: center;\">" . findtekst(3042, $sprog_id) . "</h2>";
+	print "<h2 style=\"text-align: center;\">" . findtekst(2343, $sprog_id) . "</h2>";
 	print "<table style='width:100%;'>";
 	print "<tr><th>Kontonummer</th><th>Kontonavn</th><th>Type</th><th>Moms</th></tr>";
 	for ($x = 0; $x < $csv_kontoantal; $x++) {

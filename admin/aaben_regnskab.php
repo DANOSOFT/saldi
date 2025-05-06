@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.0.9 --- 2023-11-03 ---
+// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2015.01.04 Initerer variablen $nextver så den bypasser versionskontrol i online.php
 // 2018.11.07 Rettet stavefejl i variablen $regnskabsaar linje 63
@@ -49,7 +49,7 @@ if ($db != $sqdb) {
 	exit;
 }
 
-$tmp_db_id=if_isset($_GET['db_id']);
+$tmp_db_id=if_isset($_GET,NULL,'db_id');
 
 $qtxt="select db from regnskab where id = '$tmp_db_id'";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
