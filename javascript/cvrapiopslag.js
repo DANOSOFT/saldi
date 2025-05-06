@@ -1,4 +1,4 @@
-// ----------javascript/cvrapiopslag.php------------------------------lap 3.5.0---2015.01.23---
+// ----------javascript/cvrapiopslag.js------------------------------lap 3.5.0---2015.01.23---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,66 +21,129 @@
 // ----------------------------------------------------------------------
 // 2015.01.23 Hente virksomhedsdata fra CVR med CVRapi - tak Niels Rune https://github.com/nielsrune
 
-$(document).keydown(function(e){
-	// Tryk på F2 aktiverer rubrikken kundenr. eller CVR-nr., hvis kundenr. allerede er aktivt
-	if(e.which == '113'){	// F2
-		e.preventDefault();
-		if($("[name=ny_kontonr]").is(':focus')) $("[name=cvrnr]").select();
-		else $("[name=ny_kontonr]").select();
-	}
+// Use strict mode for better error handling and modern JS features
+'use strict';
+
+// F2 key handler using event listener instead of jQuery handler
+document.addEventListener('keydown', (e) => {
+  // F2 key activates account number or CVR number field
+  if (e.key === 'F2' || e.keyCode === 113) {
+    e.preventDefault();
+    
+    const nyKontonrField = document.querySelector('[name=ny_kontonr]');
+    const cvrnrField = document.querySelector('[name=cvrnr]');
+    
+    if (document.activeElement === nyKontonrField) {
+      cvrnrField.select();
+    } else {
+      nyKontonrField.select();
+    }
+  }
 });
 
-function cvrapi(param, country, type){
-	jQuery.ajax
-	({
-		type: "GET",
-		dataType: "jsonp",
-		url: "//cvrapi.dk/api?"+type+"="+param+"&country="+country,
-		success: function (b)
-		{
-			if(b.hasOwnProperty("vat")) $("[name=cvrnr]").val(b.vat);
-			if(b.hasOwnProperty("name")) $("[name=firmanavn]").val(b.name);
-			if(b.hasOwnProperty("address")){
-				if(b.hasOwnProperty("addressco") && b.addressco != null){
-					$("[name=addr1]").val("c/o " + b.addressco);
-					$("[name=addr2]").val(b.address);
-				} else {
-					$("[name=addr1]").val(b.address);
-					$("[name=addr2]").val(null);
-				}
-			}
-			if(b.hasOwnProperty("zipcode")) $("[name=postnr]").val(b.zipcode);
-			if(b.hasOwnProperty("city")) $("[name=bynavn]").val(b.city);
-			if(b.hasOwnProperty("phone")) $("[name=tlf]").val(b.phone);
-			if(b.hasOwnProperty("email")) $("[name=email]").val(b.email);
-			if(b.hasOwnProperty("fax")) $("[name=fax]").val(b.fax);
-		}
-	});
-}
+/**
+ * Fetch company data from CVR API
+ * @param {string} param - The search parameter (VAT number, phone, etc)
+ * @param {string} country - Country code (dk, no, etc)
+ * @param {string} type - Type of search (vat, phone, etc)
+ * @returns {Promise} - Promise resolving with company data
+ */
+const cvrapi = async (param, country, type) => {
+  try {
+    const response = await fetch(`https://cvrapi.dk/api?${type}=${param}&country=${country}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`CVR API request failed with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    updateFormFields(data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching data from CVR API:', error);
+  }
+};
 
-var pattern = /^[\*\/\+]\d{8}[\*\/\+]$/;
+/**
+ * Update form fields with company data
+ * @param {Object} data - Company data from CVR API
+ */
+const updateFormFields = (data) => {
+  // Use optional chaining and nullish coalescing for safer property access
+  if (data?.vat) document.querySelector('[name=cvrnr]').value = data.vat;
+  if (data?.name) document.querySelector('[name=firmanavn]').value = data.name;
+  
+  if (data?.address) {
+    if (data?.addressco) {
+      document.querySelector('[name=addr1]').value = `c/o ${data.addressco}`;
+      document.querySelector('[name=addr2]').value = data.address;
+    } else {
+      document.querySelector('[name=addr1]').value = data.address;
+      document.querySelector('[name=addr2]').value = '';
+    }
+  }
+  
+  if (data?.zipcode) document.querySelector('[name=postnr]').value = data.zipcode;
+  if (data?.city) document.querySelector('[name=bynavn]').value = data.city;
+  if (data?.phone) document.querySelector('[name=tlf]').value = data.phone;
+  if (data?.email) document.querySelector('[name=email]').value = data.email;
+  if (data?.fax) document.querySelector('[name=fax]').value = data.fax;
+};
 
-$("[name=ny_kontonr]").keyup(function(e){
-        var ny_kontonr = $("[name=ny_kontonr]").val();
-        if(pattern.test(ny_kontonr)){
-		ny_kontonr = $("[name=ny_kontonr]").val().substr(1,8);
-		$("[name=ny_kontonr]").val(ny_kontonr);
-                cvrapi(ny_kontonr, 'dk', 'vat');
-        }
-});
+// Update the pattern matching function to process direct input
+/**
+ * Process input field and make API call when appropriate
+ * @param {HTMLElement} element - Input element
+ * @param {string} type - API search type (vat, phone, etc)
+ */
+const processInput = (element, type) => {
+  const value = element.value.trim();
+  
+  // Check if the value contains exactly 8 digits - direct input
+  if (/^\d{8}$/.test(value)) {
+    // Make API call immediately with direct 8-digit input
+    cvrapi(value, 'dk', type);
+    return;
+  }
+  
+  // Support the legacy special character format
+  if (/^[\*\/\+]\d{8}[\*\/\+]$/.test(value)) {
+    // Extract the 8 digits between special characters
+    const processedValue = value.slice(1, 9);
+    element.value = processedValue;
+    cvrapi(processedValue, 'dk', type);
+    return;
+  }
+};
 
-$("[name=cvrnr]").keyup(function(e){
-	var cvrnr = $("[name=cvrnr]").val();
-	if(pattern.test(cvrnr)){
-		cvrnr = cvrnr.substr(1,8);
-		cvrapi(cvrnr, 'dk', 'vat');
-	}
-});
+// Add event listeners to form fields
+document.addEventListener('DOMContentLoaded', () => {
+  // Account number field
+  const nyKontonrField = document.querySelector('[name=ny_kontonr]');
+  if (nyKontonrField) {
+    nyKontonrField.addEventListener('input', () => {
+      processInput(nyKontonrField, 'vat');
+    });
+  }
 
-$("[name=tlf]").keyup(function(e){
-        var tlfnr = $("[name=tlf]").val();
-        if(pattern.test(tlfnr)){
-                tlfnr = tlfnr.substr(1,8);
-                cvrapi(tlfnr, 'dk', 'phone');
-        }
+  // CVR number field  
+  const cvrnrField = document.querySelector('[name=cvrnr]');
+  if (cvrnrField) {
+    cvrnrField.addEventListener('input', () => {
+      processInput(cvrnrField, 'vat');
+    });
+  }
+
+  // Phone number field
+  const tlfField = document.querySelector('[name=tlf]');
+  if (tlfField) {
+    tlfField.addEventListener('input', () => {
+      processInput(tlfField, 'phone');
+    });
+  }
 });

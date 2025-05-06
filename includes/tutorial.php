@@ -23,17 +23,17 @@ function create_tutorial($id, $steps)
                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
                     <path d="M384-96 0-480l384-384 68 68-316 316 316 316-68 68Z" />
                 </svg>
-                <span>Previous</span>
+                <span>Forrige</span>
             </button>
             <span id="status-text"></span>
             <button id="tutorial-next">
-                <span>Next</span>
+                <span>Næste</span>
                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
                     <path d="m288-96-68-68 316-316-316-316 68-68 384 384L288-96Z" />
                 </svg>
             </button>
             <button id="tutorial-finish">
-                <span>Finish</span>
+                <span>Færdig</span>
                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
                     <path d="M389-267 195-460l51-52 143 143 325-324 51 51-376 375Z" />
                 </svg>
