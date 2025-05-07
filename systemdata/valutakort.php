@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/valutakort.php-----patch 4.0.8 ----2023-07-22--
+// -------------systemdata/valutakort.php-----patch 4.1.1 ----2025-05-07--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,8 +29,8 @@
 // 20210708 LOE - Added this variable for javascript dialog box when ret is clicked and also added redirection to ../valuta.php
 // 20210802 LOE - Translated title and alert texts
 // 20220614 MSC - Implementing new design
-
-
+// 20350507 PHR - PHP 8
+ 
 @session_start();
 $s_id=session_id();
 
