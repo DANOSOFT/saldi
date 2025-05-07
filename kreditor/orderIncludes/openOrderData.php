@@ -157,11 +157,19 @@ print "<td>";
 if ($id) {
 	$txt671 = findtekst('671|Bilag', $sprog_id);
 	print "<b>$txt671</b></td><td align = 'center'>";
-	if (($attachId !== null ? count($attachId) : 0) >= 1) {
-		print "<select name = 'showAttachment' id = 'showAttachment'>";
-		for ($x=0;$x<count($attachId);$x++) {
-			print "<option value = '$attachName[$x]'>substr($attachName[$x],0,25)</option>";
-		}	
+	// if (count($attachId) >= 1) {
+	// 	print "<select name = 'showAttachment' id = 'showAttachment'>";
+	// 	for ($x=0;$x<count($attachId);$x++) {
+	// 		print "<option value = '$attachName[$x]'>substr($attachName[$x],0,25)</option>";
+	// 	}	
+
+	if (is_array($attachId) && count($attachId) >= 1) {
+        print "<select name = 'showAttachment' id = 'showAttachment'>";
+        for ($x = 0; $x < count($attachId); $x++) {
+            $shortName = substr($attachName[$x], 0, 25);
+            print "<option value = '$attachName[$x]'>$shortName</option>";
+        }
+
 		print "</select><br>";
 		print "<script type='text/javascript'>
 			var urlmenu = document.getElementById( 'menu1' )

@@ -35,6 +35,10 @@ if (trim($kontonr)) {
 	print "value='$kontonr' onchange='javascript:docChange = true;'></td></tr>\n";
 }
 print "<tr><td>".findtekst(360,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' size='25' name='firmanavn' ";
+print "<tr><td>".findtekst(360,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' size='25' name='firmanavn' ";
+print "<tr><td>".findtekst(360,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' size='25' name='firmanavn' ";
+print "<tr><td>".findtekst(360,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' size='25' name='firmanavn' ";
+print "<tr><td>".findtekst(360,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' size='25' name='firmanavn' ";
 print "onfocus='document.forms[0].fokus.value=this.name;' value='$firmanavn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst(648,$sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' size='25' name='addr1' ";
 print "onfocus='document.forms[0].fokus.value=this.name;' value='$addr1' onchange='javascript:docChange = true;'></td></tr>\n";
