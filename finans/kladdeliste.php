@@ -79,41 +79,39 @@ if ($menu=='T') {
 	print "<td width='10%'  title='".findtekst(1599, $sprog_id)."'>"; #20210721
 	print "<a href='../index/menu.php' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
 	print "<td width=70% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
-	print "<td width='10%'><form method='post' name='digital'>";
-	print "<button type='submit' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" name='digital' value='digital'>";
-	print "Digital";
-	print "</button>";
-	print "</form></td>";
-	print "<td width='10%' title='".findtekst(1600, $sprog_id)."'>";
-	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(39,$sprog_id)."</button></a></td>";
-	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
-
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>
+	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+		Hjælp  
+	</button></td>";
+	$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
+	if(db_num_rows($query) > 0){
+		print "<td width='5%'><form method='post' name='digital'>";
+		print "<button type='submit' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" name='digital' value='digital'>";
+		print "Digital";
+		print "</button>";
+		print "</form></td>";
+	}
 	if(isset($_POST['digital'])) {
 		$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
-		if(db_num_rows($query) > 0){
-			$companyID = db_fetch_array($query)["var_value"];
-			$ch = curl_init();
-			curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
-			curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-			$res = curl_exec($ch);
-			curl_close($ch);
-			?>
-			<script>
-				window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
-				// Optionally close the current window or redirect it
-				// window.location.href = 'your-return-url.php'; // redirect current window
-				// window.close(); // close current window
-			</script>
-			<?php
-		}else{
-			?>
-			<script>
-				alert('Du er ikke oprettet i nemhandel');
-			</script>
-			<?php
-		}
+		$companyID = db_fetch_array($query)["var_value"];
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, "https://easyubl.net/api/Tools/TemporaryKey/$companyID/3");
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', "Authorization: ".$apiKey));
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		$res = curl_exec($ch);
+		curl_close($ch);
+		?>
+		<script>
+			window.open('https://approver.easyubl.eu/?tempKey=<?php echo $res; ?>', '_blank');
+			// Optionally close the current window or redirect it
+			// window.location.href = 'your-return-url.php'; // redirect current window
+			// window.close(); // close current window
+		</script>
+		<?php
 	}
+	print "<td width='10%' title='".findtekst(1600, $sprog_id)."'>";
+	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" id='ny'>".findtekst(39,$sprog_id)."</button></a></td>";
+	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 } else {
 #	if ($menu=='S') {
 #		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -128,7 +126,7 @@ if ($menu=='T') {
 	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
 	else print "<a href=../index/menu.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst(639,$sprog_id)."</td>";
-	if ($popup) print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund onClick=\"javascript:kladde=window.open('kassekladde.php?returside=kladdeliste.php&tjek=-1','kladde','$jsvars');kladde.focus();\"><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
+	if ($popup) print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund onClick=\"javascript:kladde=window.open('kassekladde.php?returside=kladdeliste.php&tjek=-1','kladde','$jsvars');kladde.focus();\"><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N id='ny'>".findtekst(39,$sprog_id)."</a></td>";
 	else print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund><a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
 	print "</tbody></table></td></tr><tr><td valign=\"top\"><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 }
@@ -140,7 +138,7 @@ if ($vis=='alle') {
 	print "</tr>";
 }
 else {
-	print "<tr><td colspan=6 align=center title='".findtekst(1601, $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle>".findtekst(636,$sprog_id)."</a></td></tr>";}
+	print "<tr><td colspan=6 align=center title='".findtekst(1601, $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle id='visalle'>".findtekst(636,$sprog_id)."</a></td></tr>";}
 	if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';
 }
 else {$linjebg=$bgcolor5; $color='#000000';}
@@ -283,4 +281,21 @@ if ($menu=='T') {
 	</tbody></table>";
 	include_once '../includes/oldDesign/footer.php';
 }
+
+$steps = array();
+$steps[] = array(
+	"selector" => "#ny",
+	"content" => "Opret ny kassekladde ved at klikke her",
+);
+$steps[] = array(
+	"selector" => "[name=digital]",
+	"content" => "Digital godkendelse af fakturaer gennem nemhandel.",
+);
+$steps[] = array(
+	"selector" => "#visalle",
+	"content" => "Du kan se dine kollegers kladder ved at klikke her",
+);
+
+include(__DIR__ . "/../includes/tutorial.php");
+create_tutorial("kladlist", $steps);
 ?>

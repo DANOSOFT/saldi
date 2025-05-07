@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 4.0.4 --- 2024-05-24 --
+// --- systemdata/regnskabsaar.php --- ver 4.1.1 --- 2025-05-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------------
 // 20150327 CA  Topmenudesign tilføjet                             søg 20150327
 // 20161202 PHR Små designændringer
@@ -32,6 +32,7 @@
 // 20220103 PHR - "Set all" now updates online.php.
 // 20220501 PHR - Corrected error in set all.
 // 20240524 PHR - Fiscal year can now be deleted.
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 @session_start();
 $s_id = session_id();
@@ -146,7 +147,7 @@ while ($row = db_fetch_array($query)) {
 			$txt1 .= "samt kunder og leverandører som er urørte i efterfølgende år";
 			$txt2 = "Vil du slette dette regnskabsår ?";
 			print "<a href='regnskabsaar.php?deleteYear=$row[kodenr]' title='$txt1' onclick=\"return confirm('$txt2')\">";
-			print findtekst(3064, $sprog_id) . "</a>";
+			print findtekst(2365, $sprog_id) . "</a>";
 		}
 		print "</td>";
 	} else {

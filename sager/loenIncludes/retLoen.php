@@ -126,12 +126,12 @@ function ret_loen() {
 		$loen_mentor = if_isset($_POST['loen_mentor'],array());
 		$mentorRate  = if_isset($_POST['mentorRate'],0);
 		$hvem=db_escape_string(if_isset($_POST['hvem']));
-		$sag_nr=if_isset($_POST['sag_nr'])*1;
-		$sag_id=if_isset($_POST['sag_id'])*1;
+		$sag_nr=(int)if_isset($_POST['sag_nr']);
+		$sag_id=(int)if_isset($_POST['sag_id']);
 		$sag_ref=if_isset($_POST['sag_ref']);
 		$opg_nr=if_isset($_POST['opg_nr'],0);
 		$gl_opg_id=if_isset($_POST['gl_opg_id'],0);
-		$opg_id=if_isset($_POST['opg_id'])*1;
+		$opg_id=if_isset($_POST['opg_id'],0);
 		$loendato=if_isset($_POST['loendato']);
 		$loendate=usdate($loendato);
 		$oprettet=if_isset($_POST['oprettet']);
@@ -147,7 +147,7 @@ function ret_loen() {
 		$ansat_id=if_isset($_POST['ansat_id']);
 		$medarb_nr=if_isset($_POST['medarb_nr']);
 		$medarb_navn=if_isset($_POST['medarb_navn']);
-		$sum=if_isset($_POST['sum'])*1;
+		$sum=if_isset($_POST['sum'],0);
 		$dksum=if_isset($_POST['dksum']);
 		$a_id=if_isset($_POST['a_id']);
 		$a_stk=if_isset($_POST['a_stk'],array());
@@ -159,7 +159,7 @@ function ret_loen() {
 		$hourType=if_isset($_POST['hourType']);
 		if ($opg_id && !$opg_nr) {
 			$r=db_fetch_array(db_select("select nr from opgaver where id = '$opg_id'",__FILE__ . " linje " . __LINE__));
-			$opg_nr=$r['nr']*1;
+			$opg_nr=(int)$r['nr'];
 		}
 
 		if (($loen_art=='akk_afr' || $loen_art=='akkord') && $sag_nr) {
@@ -240,7 +240,7 @@ function ret_loen() {
 			if 	(!$medarb_nr[$x] && !$medarb_navn[$x]) $ansat_id[$x]=0;
 			if (is_numeric($medarb_nr[$x])) {
 				$r=db_fetch_array(db_select("select id,trainee,startdate from ansatte where nummer='$medarb_nr[$x]'",__FILE__ . " linje " . __LINE__));
-				$ansat_id[$x]=$r['id']*1;
+				$ansat_id[$x]=(int)$r['id'];
 				if ($r['trainee']) {
 					if ($loen_art=='akk_afr') $loen_fordeling[$x]=tjek_fordeling($ansat_id[$x],$r['startdate'],$loen_datoer[$x]); #20130905
 					else $loen_fordeling[$x]=tjek_fordeling($ansat_id[$x],$r['startdate'],$loendate);
@@ -279,7 +279,7 @@ function ret_loen() {
 			if ($medarb_navn[$x] && !$ansat_id[$x]) {
 				$medarb_navn[$x]=db_escape_string($medarb_navn[$x]);
 				$r=db_fetch_array(db_select("select id from ansatte where navn='$medarb_navn[$x]'",__FILE__ . " linje " . __LINE__));
-				$ansat_id[$x]=$r['id']*1;
+				$ansat_id[$x]=(int)$r['id'];
 			} else $ansat_id[$x]=0;
 			if ($ansat_id[$x]) {
 				($ansatte)?$ansatte.=chr(9).$ansat_id[$x]:$ansatte=$ansat_id[$x];
@@ -578,8 +578,8 @@ function ret_loen() {
 		}
 	} elseif ($godkend=if_isset($_POST['godkend'])) {
 		$id=if_isset($_POST['id']);
-		$sag_id=if_isset($_POST['sag_id'])*1;
-		$opg_id=if_isset($_POST['opg_id'])*1;
+		$sag_id=if_isset($_POST['sag_id'],0);
+		$opg_id=if_isset($_POST['opg_id'],0);
 #cho "$sag_id ".$_POST['sag_id'],"<br>";
 		$godkendt=date("U");
 		$godkendt_af=$brugernavn;

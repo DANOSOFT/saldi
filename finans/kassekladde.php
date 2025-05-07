@@ -1066,7 +1066,10 @@ if (!$simuler) {
 			.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 			print "<td width='80%' style='$topStyle' align='center'> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
-
+			print "<td id='tutorial-help' width=5% style=$buttonStyle>
+			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+				Hjælp  
+			</button></td>";
 			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
 				   $ny</button></a></td></tr>";
@@ -1112,7 +1115,7 @@ if (!$udskriv) {
 	print "<td></td><td width = '7%' align='center'>
 		<a href='../finans/kassekladde.php?kladde_id=$kladde_id&udskriv=1' target='blank'>
 		<img src='../ikoner/print.png' style='border: 0px solid;'></a></td>
-		<td width = '7%' align = 'center'><a href = https://saldi.dk/dok/ledgerGuide.pdf target = '_blank'>?</a></td></tr>\n";
+		<td width = '7%' align = 'center'><a href = https://saldi.dk/dok/ledgerGuide.pdf target = '_blank' id='questionmark'>?</a></td></tr>\n";
 	#print "</tr><tr><td><br color='$bgcolor5' 'align='center''></td></tr>\n";
 	print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
@@ -1389,7 +1392,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			$href = "../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&dokument=$dokument[$y]&bilag_id=$id[$y]&fokus=bila$y";
 			print "<td title='$titletxt'><!-- ". __line__ ." -->";
-			print "<a onClick='this.form.submit()' href='$href'><img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
+			print "<a onClick='this.form.submit()' href='$href' id='clip'><img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
 		}
 		print "<td> $bilag[$y]</td>";
 		print "<td> $dato[$y]</td>";
@@ -1423,7 +1426,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td> <br></td>";
 		}
 		if (!$udskriv && $bogfort != 'S')
-			print "<td title='" . findtekst(1574, $sprog_id) . "'><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]'><img alt='undo' src='../ikoner/undo.png' style='border: 0px solid ; width: 18px; height: 17px;'></a></td>";
+			print "<td title='" . findtekst(1574, $sprog_id) . "'><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]' id='undo'><img alt='undo' src='../ikoner/undo.png' style='border: 0px solid ; width: 18px; height: 17px;'></a></td>";
 		print "</tr>\n";
 	}
 	print "<tr><td><br></td></tr>";
@@ -2708,4 +2711,32 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
+
+	$steps = array();
+	$steps[] = array(
+		"selector" => "#clip",
+		"content" => "Her kan du tilføje bilag til kladden.",
+	);
+	$steps[] = array(
+		"selector" => "#undo",
+		"content" => "Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde.",
+	);
+	$steps[] = array(
+		"selector" => "#questionmark",
+		"content" => "Klik her for yderligere hjælp.",
+	);
+	$steps[] = array(
+		"selector" => "[name^=debe], [name^=kred]",
+		"content" => "Du kan slå op i Debet/Kredit-felterne: Hvis D/K-feltet er tomt eller indeholder 'F', søger systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søges der i henholdsvis kunder eller leverandører. Du kan også selv skrive 'D' eller 'K' for at vælge, hvor der skal søges. Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.",
+	);
+	$steps[] = array(
+		"selector" => "[name^=fakt]",
+		"content" => "Her kan du tilføje et fakturanummer til bilaget. Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen 'Opslag' i bunden, mens feltet er markeret.",
+	);
+	$steps[] = array(
+		"selector" => "[name=bila1]",
+		"content" => "Du kan slette linjen ved at skrive '-' i feltet i stedet for et tal og trykke Enter.",
+	);
+	include(__DIR__ . "/../includes/tutorial.php");
+	create_tutorial("kasseklad", $steps);
 	?>

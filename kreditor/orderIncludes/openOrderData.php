@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/creditorIncludes/openOrders.php --- lap 4.0.5 --- 2025.04.15 ---
+// --- kreditor/creditorIncludes/openOrders.php --- lap 4.0.5 --- 2025.05.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20221104 MLH added email and udskriv_til
 // 20230105 MLH added mail_text and mail_subj
 // 20250415 LOE Some variables initialized and others checked before using.
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 $attachId    = null;
 $email       = null;
@@ -77,7 +78,7 @@ if (!$id) {
 #20221104 BEGIN
 print "<tr><td>".findtekst(402,$sprog_id)."</td>";
 print "<td><input class='inputbox' type='text' style='width:110px;' name='email' value='$email' onchange='javascript:docChange = true;'></td>";
-print "<td>".findtekst(3004,$sprog_id)."</td><td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
+print "<td>".findtekst(2306,$sprog_id)."</td><td><select class='inputbox' style='width:130px' name='udskriv_til' onchange='this.form.submit()'>\n";
 print "<option value='PDF' ".((!$email || $udskriv_til=="PDF")?"selected='selected'":"").">PDF</option>\n";
 print "<option value='email' ".(($email && $udskriv_til=="email")?"selected='selected'":"")." title=\"".findtekst(1450, $sprog_id)."\">".findtekst(652, $sprog_id)."</option>\n";
 print "</SELECT></td></tr>\n";
@@ -168,6 +169,7 @@ if ($id) {
             $shortName = substr($attachName[$x], 0, 25);
             print "<option value = '$attachName[$x]'>$shortName</option>";
         }
+
 		print "</select><br>";
 		print "<script type='text/javascript'>
 			var urlmenu = document.getElementById( 'menu1' )
@@ -234,7 +236,7 @@ else {
 }
 print "</tbody></table></td>";
 print "<td align=center><table border = '0' cellpadding= '0' cellspacing= '0'>";
-print "<tr><tdcolspan='2' >".findtekst('554|Leveringsadresse', $sprog_id)."</td></tr>\n";
+print "<tr><tdcolspan='2' ><a href='orderIncludes/dropshipping.php?id=$id'>".findtekst('554|Leveringsadresse', $sprog_id)."</a></td></tr>\n";
 print "<tr><td colspan='2' align=center><hr></td></tr>\n";
 print "<tr><td>".findtekst('360|Firmanavn', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_navn value='$lev_navn' onchange='javascript:docChange = true;'></td></tr>\n";
 print "<tr><td>".findtekst('648|Adresse', $sprog_id)."</td><td colspan='2'><input class='inputbox' type='text' style='width:250px' name=lev_addr1 value='$lev_addr1' onchange='javascript:docChange = true;'></td></tr>\n";

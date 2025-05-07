@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.0 --- 2024-06-28 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.0 --- 2025-05-03 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20230111 MSC - Implementing new design
@@ -31,6 +31,7 @@
 // 20230718 LOE - Minor modification.
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20240628 PHR 'recieve' is not shown if $bogfor == 1
+// 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 
 
 $kreditmax=NULL;
@@ -251,8 +252,8 @@ if(!count($posnr) && $id) {
 
 }  elseif ($id && $art=='KO') {
   if ($udskriv_til == 'email') {
-    $spantxt = str_replace('$email',$email,findtekst(3009, $sprog_id));
-    $txt     = findtekst(3008, $sprog_id);
+    $spantxt = str_replace('$email',$email,findtekst(2311, $sprog_id));
+    $txt     = findtekst(2310, $sprog_id);
   } else {
     $spantxt = findtekst(1506, $sprog_id);
     $txt     = findtekst(880, $sprog_id);

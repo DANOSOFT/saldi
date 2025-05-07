@@ -1,5 +1,5 @@
 <?php
-// -------------systemdata/valutakort.php-----patch 4.0.8 ----2023-07-22--
+// -------------systemdata/valutakort.php-----patch 4.1.1 ----2025-05-07--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,8 +29,8 @@
 // 20210708 LOE - Added this variable for javascript dialog box when ret is clicked and also added redirection to ../valuta.php
 // 20210802 LOE - Translated title and alert texts
 // 20220614 MSC - Implementing new design
-
-
+// 20350507 PHR - PHP 8
+ 
 @session_start();
 $s_id=session_id();
 
@@ -156,7 +156,8 @@ if (isset($_POST['submit'])) {
 				('$kontonr[$x]','0','$ny_valdate','".date("Y-m-d")."','".date("H:i")."','$posttekst','$diff','0','0','0','0','','-1','100','0','0')";
 				if ($diff) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				db_modify("update kontoplan set valutakurs='$ny_kurs' where kontonr='$kontonr[$x]' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
-				$y=0;	
+				$y=0;
+				$debkredgrp = array();
 				$q=db_select("select kodenr from grupper where (art = 'DG' or art = 'KG') and box2='$kontonr[$x]'",__FILE__ . " linje " . __LINE__);
 				while($r=db_fetch_array($q)){
 					$debkredgrp[$y]=$r['kodenr'];

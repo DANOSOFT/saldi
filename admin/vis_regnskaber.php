@@ -2,7 +2,7 @@
 @session_start();
 $s_id=session_id();
 
-// --- admin/vis_regnskaber.php --- patch 4.0.4 --- 2021.09.16 ---
+// --- admin/vis_regnskaber.php --- patch 4.1.1 --- 2025.05.03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,11 +18,12 @@ $s_id=session_id();
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2021 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20210328 PHR Some cleanup.
 // 20210916 LOE Translated some texts
 // 20250201 Add hostname to psql
+// 20250503 LOE Updated with improved if_isset func.
 
 $css="../css/standard.css";
 $title="vis regnskaber";
@@ -34,12 +35,13 @@ include("../includes/std_func.php");
 $saldiregnskab = NULL;
 $lukket=array();
 
-$rediger    = if_isset($_GET['rediger']);
-$showClosed = if_isset($_GET['showClosed']);
-$beregn     = if_isset($_GET['beregn']);
-$sort       = if_isset($_GET['sort']);
-$sort2      = if_isset($_GET['sort2']);
-$desc       = if_isset($_GET['desc']);
+$rediger    = if_isset($_GET, NULL, 'rediger');
+$showClosed = if_isset($_GET, NULL, 'showClosed');
+$beregn     = if_isset($_GET, NULL, 'beregn');
+$sort       = if_isset($_GET, NULL, 'sort');
+$sort2      = if_isset($_GET, NULL, 'sort2');
+$desc       = if_isset($_GET, NULL, 'desc');
+
 $modulnr    = 102;
 
 if ($db != $sqdb) {
@@ -50,20 +52,21 @@ if ($db != $sqdb) {
 }
 if (isset($_POST['submit'])) {
 	$rediger="on";
-	$db_antal=if_isset($_POST['db_antal']);
-	$id=if_isset($_POST['id']);
-	$gl_brugerantal=if_isset($_POST['gl_brugerantal']);
-	$gl_posteringer=if_isset($_POST['gl_posteringer']);
-	$brugerantal=if_isset($_POST['brugerantal']);
-	$posteringer=if_isset($_POST['posteringer']);
-	$gl_lukket=if_isset($_POST['gl_lukket']);
-	$lukket=if_isset($_POST['lukket']);
-	$gl_lukkes=if_isset($_POST['gl_lukkes']);
-	$lukkes=if_isset($_POST['lukkes']);
-	$gl_betalt_til=if_isset($_POST['gl_betalt_til']);
-	$betalt_til=if_isset($_POST['betalt_til']);
-	$gl_logintekst=if_isset($_POST['gl_logintekst']);
-	$logintekst=if_isset($_POST['logintekst']);
+	$db_antal = if_isset($_POST, NULL, 'db_antal');
+	$id = if_isset($_POST, NULL, 'id');
+	$gl_brugerantal = if_isset($_POST, NULL, 'gl_brugerantal');
+	$gl_posteringer = if_isset($_POST, NULL, 'gl_posteringer');
+	$brugerantal = if_isset($_POST, NULL, 'brugerantal');
+	$posteringer = if_isset($_POST, NULL, 'posteringer');
+	$gl_lukket = if_isset($_POST, NULL, 'gl_lukket');
+	$lukket = if_isset($_POST, NULL, 'lukket');
+	$gl_lukkes = if_isset($_POST, NULL, 'gl_lukkes');
+	$lukkes = if_isset($_POST, NULL, 'lukkes');
+	$gl_betalt_til = if_isset($_POST, NULL, 'gl_betalt_til');
+	$betalt_til = if_isset($_POST, NULL, 'betalt_til');
+	$gl_logintekst = if_isset($_POST, NULL, 'gl_logintekst');
+	$logintekst = if_isset($_POST, NULL, 'logintekst');
+
 
 
 	for ($x=1;$x<=$db_antal; $x++) {
@@ -161,8 +164,9 @@ while ($r=db_fetch_array($q)) {
 #		$oprettet[$x]=date("d-m-Y",$r['oprettet']);
 		($r['lukket'] == 'on')?$lukket[$x]='X':$lukket[$x]=NULL;
 		($r['lukkes'] == 'on')?$lukkes[$x]='X':$lukkes[$x]=NULL;
-		$betalt_til[$x]=if_isset($r['betalt_til']);
-		$logintekst[$x]=if_isset($r['logintekst']);
+		$betalt_til[$x] = if_isset($r, NULL, 'betalt_til');
+		$logintekst[$x] = if_isset($r, NULL, 'logintekst');
+
 		if($lukkes[$x]) $lukkes[$x]=dkdato($lukkes[$x]);
 		if($betalt_til[$x]) $betalt_til[$x]=dkdato($betalt_til[$x]);
 		$x++;
