@@ -32,6 +32,7 @@ $s_id=session_id();
 // 20151007 PK - Der er sat session på alle og aftrådte i leftmenu, så den husker søgning. Søg alleA eller tiltraadteA
 // 20170911 PK - Har sat validering på brugernavn så der ikke kommer duplikater. Søg 20170911 
 
+	//ini_set("display_errors", "1");
 	$bg="nix";
 	$header='nix';
 
@@ -217,6 +218,7 @@ function ansatliste() {
 	//$sort=if_isset($_GET['sort']);
 	//if (!$sort) $sort='navn';
 	//$dd=date("Y-m-d");
+#cho "select ansatte.* from ansatte,adresser where adresser.art='S' and ansatte.konto_id = adresser.id order by $sort<br>";
 	$q=db_select("select ansatte.* from ansatte,adresser $where order by $sqlsort",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$x++;
@@ -321,7 +323,7 @@ function ret_ansat($id) {
 		$nummer=$r['nummer']+1; 
 	}
 	if(isset($_POST['brugergruppe']) && $id) {	
-		$brugergruppe = $_POST['brugergruppe']*1;
+		$brugergruppe = (int)$_POST['brugergruppe'];
 		if ($id && $brugergruppe) {
 			db_modify("update ansatte set gruppe = '$brugergruppe' where id = '$id'",__FILE__ . " linje " . __LINE__);
 		}
