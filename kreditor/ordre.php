@@ -68,6 +68,7 @@ $s_id=session_id();
 
 ?>
 	<script type="text/javascript">
+
 	<!--
 	var linje_id=0;
 	var antal=0;
@@ -88,6 +89,8 @@ $s_id=session_id();
 	}
 	-->
 	</script>
+	<script src="../javascript/confirmclose.js\"></script>
+
 <?php
 $title="Kreditorordre";
 $css="../css/standard.css";
@@ -329,7 +332,12 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 			$levdate = usdate(trim(if_isset($_POST, NULL, 'levdato')));
 			$cvrnr = trim(if_isset($_POST, NULL, 'cvrnr'));
 			$betalingsbet = if_isset($_POST, NULL, 'betalingsbet');
+			// $betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
 			$betalingsdage = if_isset($_POST, NULL, 'betalingsdage');
+if ($betalingsdage === null || $betalingsdage === '') {
+    $betalingsdage = 1; // default fallback
+}
+
 			$valuta = if_isset($_POST, NULL, 'valuta');
 			$projekt = if_isset($_POST, NULL, 'projekt');
 			$lev_adr = trim(if_isset($_POST, NULL, 'lev_adr'));
@@ -358,7 +366,11 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 		$mail_subj   = db_escape_string(if_isset($_POST,NULL,'mail_subj')); #20230105
 		$mail_text   = db_escape_string(str_replace("\n","<br>",if_isset($_POST,NULL,'mail_text'))); #20230105
 		$varemomssats= if_isset($_POST,NULL,'$varemomssats'); #20141106
-		if (!$betalingsdage)  $betalingsdage = 0;
+		// if (!$betalingsdage)  $betalingsdage = 0;
+		if ($betalingsdage === null || $betalingsdage === '') {
+			$betalingsdage = 1;
+		}
+		
 		if (!$momssats)       $momssats = 0;
 		$momssats = usdecimal($momssats);
 		if(!isset($sletslut)){ $sletslut=null;}
@@ -877,7 +889,9 @@ if(isset($_POST['status'])) $status=$_POST['status'];
 				$qtxt.="lev_kontakt='$lev_kontakt',betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',";
 				$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
 				if (strlen($levdate)>=6)$qtxt.="levdate='$levdate',";
-				$qtxt.="status=$status,ref='$ref',afd='$afd',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
+				// $qtxt.="status=$status,ref='$ref',afd='$afd',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
+				$condition = prepareSearchTerm($fakturanr);
+$qtxt = "select * from ordrer where fakturanr $condition";
 				$qtxt.="hvem = '$brugernavn',tidspkt='$tidspkt',valuta='$valuta',valutakurs='$valutakurs',";
 				$qtxt.="email='$email', udskriv_til='$udskriv_til', projekt='$projekt[0]', ";
 				$qtxt.="mail_subj='$mail_subj',mail_text='$mail_text' ";
@@ -1057,8 +1071,44 @@ function ordreside($id) {
 	$hurtigfakt=$r['box4'];
 
 
+function prepareSearchTerm($searchTerm) {
+    $searchTerm = db_escape_string(trim($searchTerm));
+    
+    if (strpos($searchTerm, ":") !== false) {
+		 print "<br>searchTerm: $searchTerm";
+        list($min, $max) = explode(":", $searchTerm);
+        $min = trim($min);
+        $max = trim($max);
+        
+        if (is_numeric($min) && is_numeric($max)) {
+            return "BETWEEN '$min' AND '$max'";
+        }
+    }
+    
+    // Check if it's a numeric value
+    if (is_numeric($searchTerm)) {
+		print "<h1?>numeric search </h1>";
+		print "<br>searchTerm: $searchTerm";
+        // It's a numeric search, use exact match
+        return "= '$searchTerm'";
+    }
+    
+    if (strpos($searchTerm, "%") === false) {
+		print "<h1?>text search </h1>";
+		
+
+        return "LIKE '%$searchTerm%'";
+    }
+    
+    // Already has wildcards
+    return "LIKE '$searchTerm'";
+}
+
+
 	if (!$id) $fokus='kontonr';
 	print "<form name='ordre' action='ordre.php' method='post'>";
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
+
 	if ($id)	{
 		$q = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
@@ -1168,6 +1218,7 @@ function ordreside($id) {
 	}
 	if (!$status) $status=0;
 	print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
+	print "<input type=\"hidden\" name=\"fakturanr\" value=\"$fakturanr\">";
 	print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 	print "<input type=\"hidden\" name=\"id\" value=\"$id\">";
 	print "<input type=\"hidden\" name=\"art\" value=\"$art\">";
@@ -1476,6 +1527,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find,$lager) {
 		}
 	}
 	print "</tbody></table></td></tr></tbody></table>";
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 	if ($menu=='T') {
 		include_once '../includes/topmenu/footer.php';
@@ -1497,6 +1549,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	$alerttekst=findtekst(154,$sprog_id);
 
 	include("../includes/topline_settings.php");
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -1698,6 +1751,8 @@ print "</tbody></table>
 
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
+
 #} else {
 #	include_once '../includes/topmenu/footer.php';
 }

@@ -303,48 +303,105 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 
 
 #######20210930?
-if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($regnskab=='demo')&&($brugernavn=='admin')))) {#if not admin this blocks seems not to work if brugernavn is different from the sub datatabase
-	$udlob=date("U")-36000;
-	$x=0;
-	$q=db_select("select distinct(brugernavn) from online where brugernavn != '".db_escape_string($brugernavn)."' and db = '$db' and session_id != '$s_id'  and logtime > '$udlob'",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$x++;
-		$aktiv[$x]=$r['brugernavn'];
-	}
-	$y=$x+1;
-	#	if ($y > $bruger_max) {
-	#		$headers = 'From: saldi@saldi.dk'."\r\n".'Reply-To: saldi@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
-	#		mail("saldi@saldi.dk", "Brugerantal ($x) overskredet for $regnskab / $db", "$brugernavn logget ind som bruger nr $y.", "$headers");
-	#		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
-	#	}
-	$asIs = db_escape_string($brugernavn);
-	$low = strtolower($brugernavn);
-	$low = str_replace('Æ','æ',$low);
-	$low = str_replace('Ø','ø',$low);
-	$low = str_replace('Å','å',$low);
-	$low = str_replace('É','é',$low);
-	$low = db_escape_string($low);
-	$up = strtoupper($brugernavn);
-	$up = str_replace('æ','Æ',$up);
-	$up = str_replace('ø','Ø',$up);
-	$up = str_replace('å','Å',$up);
-	$up = str_replace('é','É',$up);
-	$up = db_escape_string($up);
-	$qtxt = "select * from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
-	$qtxt.= "and db = '$db' and session_id != '$s_id'";
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($r = db_fetch_array($q)){
-		$last_time=$r['logtime'];
-		if (!$fortsaet && $unixtime - $last_time < 3600) {
-			online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id);
- #			exit;
-		} elseif (!$fortsaet) {
-			$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
-			$qtxt.= "and db = '$db' and session_id != '$s_id'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-	}
+// if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($regnskab=='demo')&&($brugernavn=='admin')))) {#if not admin this blocks seems not to work if brugernavn is different from the sub datatabase
+// 	$udlob=date("U")-36000;
+// 	$x=0;
+// 	$q=db_select("select distinct(brugernavn) from online where brugernavn != '".db_escape_string($brugernavn)."' and db = '$db' and session_id != '$s_id'  and logtime > '$udlob'",__FILE__ . " linje " . __LINE__);
+// 	while ($r=db_fetch_array($q)) {
+// 		$x++;
+// 		$aktiv[$x]=$r['brugernavn'];
+// 	}
+// 	$y=$x+1;
+// 	#	if ($y > $bruger_max) {
+// 	#		$headers = 'From: saldi@saldi.dk'."\r\n".'Reply-To: saldi@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
+// 	#		mail("saldi@saldi.dk", "Brugerantal ($x) overskredet for $regnskab / $db", "$brugernavn logget ind som bruger nr $y.", "$headers");
+// 	#		print "<BODY onLoad=\"javascript:alert('Max antal samtidige brugere ($x) er overskredet.')\">";
+// 	#	}
+// 	$asIs = db_escape_string($brugernavn);
+// 	$low = strtolower($brugernavn);
+// 	$low = str_replace('Æ','æ',$low);
+// 	$low = str_replace('Ø','ø',$low);
+// 	$low = str_replace('Å','å',$low);
+// 	$low = str_replace('É','é',$low);
+// 	$low = db_escape_string($low);
+// 	$up = strtoupper($brugernavn);
+// 	$up = str_replace('æ','Æ',$up);
+// 	$up = str_replace('ø','Ø',$up);
+// 	$up = str_replace('å','Å',$up);
+// 	$up = str_replace('é','É',$up);
+// 	$up = db_escape_string($up);
+// 	$qtxt = "select * from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
+// 	$qtxt.= "and db = '$db' and session_id != '$s_id'";
+// 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+// 	if ($r = db_fetch_array($q)){
+// 		$last_time=$r['logtime'];
+// 		if (!$fortsaet && $unixtime - $last_time < 3600) {
+// 			online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id);
+//  #			exit;
+// 		} elseif (!$fortsaet) {
+// 			$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
+// 			$qtxt.= "and db = '$db' and session_id != '$s_id'";
+// 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+// 		}
+// 	}
+// }
+
+
+if (
+    !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
+    !(($regnskab === 'demo' && $brugernavn === 'admin'))
+) {
+    $udlob = time() - 14400; // 4 hours
+
+    $q = db_select(
+        "SELECT COUNT(DISTINCT brugernavn) AS user_count 
+         FROM online 
+         WHERE db = '$db' 
+         AND logtime > '$udlob'",
+        __FILE__ . " linje " . __LINE__
+    );
+    $r = db_fetch_array($q);
+    $y = (int) $r['user_count'];
+
+    $bruger_max = 2; // Default value
+    $q = db_select("SELECT brugerantal FROM regnskab WHERE db = '$db'", __FILE__ . " linje " . __LINE__);
+    if ($r = db_fetch_array($q)) {
+        $bruger_max = (int) $r['brugerantal'];
+
+    }
+	// echo "<script>alert(" . json_encode($bruger_max) . ");</script>";
+
+    if ($bruger_max > 0 && $y >= $bruger_max) {
+        $message = "Maximum number of users ($bruger_max) already logged in. Please Contact saldi support.";
+        echo "<script>alert(" . json_encode($message) . ");</script>";
+        echo "<script>window.location.href = 'index.php';</script>";
+        exit;
+    }
+
+    $asIs = db_escape_string($brugernavn);
+    $low = db_escape_string(strtolower(strtr($brugernavn, ['Æ'=>'æ','Ø'=>'ø','Å'=>'å','É'=>'é'])));
+    $up  = db_escape_string(strtoupper(strtr($brugernavn, ['æ'=>'Æ','ø'=>'Ø','å'=>'Å','é'=>'É'])));
+
+    $qtxt = "SELECT * FROM online 
+             WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
+             AND db = '$db' 
+             AND session_id != '$s_id'";
+
+    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    if ($r = db_fetch_array($q)) {
+        $last_time = $r['logtime'];
+        if (!$fortsaet && (time() - $last_time < 3600)) {
+            online($regnskab, $db, $userId, $brugernavn, $password, $timestamp, $s_id);
+        } elseif (!$fortsaet) {
+            $qtxt = "DELETE FROM online 
+                     WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
+                     AND db = '$db' 
+                     AND session_id != '$s_id'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+    }
 }
+
 if(isset($_COOKIE['languageId'])) $languageId = $_COOKIE['languageId']; #20220618
 else $languageId = 1;
 #$qtxt = "select id, var_value from settings where var_name = 'languageId'";

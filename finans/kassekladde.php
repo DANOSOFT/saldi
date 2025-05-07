@@ -789,6 +789,29 @@ if ($_POST) {
 			$qtxt .= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
 			#cho __line__." $qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+if ($x == $antal - 1 && $kladde_id) { // only after last line
+    $sum_debet = 0;
+    $sum_kredit = 0;
+
+    $res = db_select("SELECT debet, kredit FROM tmpkassekl WHERE bilag = '$bilag[$x]' AND kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
+    while ($row = db_fetch_array($res)) {
+        $sum_debet += floatval($row['debet']);
+        $sum_kredit += floatval($row['kredit']);
+    }
+
+    $diff = round($sum_debet - $sum_kredit, 2);
+    if ($diff != 0) {
+        $next_lob = $x + 1;
+        $debet_val = $diff < 0 ? abs($diff) : 0;
+        $kredit_val = $diff > 0 ? abs($diff) : 0;
+
+        $qtxt = "INSERT INTO tmpkassekl (lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id)
+                 VALUES ('$next_lob', '0', '$bilag[$x]', '$dato[$x]', 'Auto-balance', '', '$debet_val', '', '$kredit_val', '', '0', '', '', '$kladde_id', '', '', '', '', '')";
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    }
+}
+
 		}
 		if ($fejl)
 			$submit = 'save'; #20210721

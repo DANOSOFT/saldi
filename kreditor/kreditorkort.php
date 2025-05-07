@@ -192,7 +192,7 @@ if ($menu=='T') {
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
 	print "<div class=\"headerbtnLft headLink\"><a href=javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id') accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
-	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerTxt\">$title swhhshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh</div>";     
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
@@ -215,7 +215,7 @@ if ($menu=='T') {
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";#tabel 1.1 start
 
 	print "<td width='10%'>
-		   <a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>
+		   <a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst -----------nopoooooooooooo')\" accesskey=L>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		   .findtekst(30,$sprog_id)."</button></a></td>\n";
 
