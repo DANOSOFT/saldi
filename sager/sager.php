@@ -50,7 +50,6 @@
 // 20170421 Mulighed for at vælge en fra og til dato i funktion 'akkordliste'
 // 20240531 Addad $regnaar to function akkordliste()
 // 20241126 PHP8
-// 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 
 @session_start();	# Skal angives oeverst i filen??!!
 $s_id=session_id();
@@ -67,19 +66,21 @@ $s_id=session_id();
 	include("../includes/online.php");
 	include("../includes/std_func.php");
 
-	$funktion=if_isset($_GET['funktion']);
-	$sag_id=if_isset($_GET['sag_id']);
-	$sort=if_isset($_GET['sort']);
-	$nysort=if_isset($_GET['nysort']);
-	$vis=if_isset($_GET['vis']);
-	$returside=if_isset($_GET['returside']);
-	$konto_id=if_isset($_GET['konto_id']);
-	$ordre_id=if_isset($_GET['ordre_id']);
+	$funktion = if_isset($_GET['funktion']);
+	$sag_id   = if_isset($_GET['sag_id'],0);
+	$sort     = if_isset($_GET['sort']);
+	$nysort   = if_isset($_GET['nysort']);
+	$vis      = if_isset($_GET['vis']);
+	$returside= if_isset($_GET['returside']);
+	$konto_id = if_isset($_GET['konto_id'],0);
+	$ordre_id = if_isset($_GET['ordre_id'],0);
+	#cho "returside: $returside";
 		
 	if (!$funktion) {
 		($sag_id)?$funktion='':$funktion='sagsliste';  
 	}
 	
+ini_set("display_errors", "0");
 print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
 <html>
 	<head>
@@ -1314,9 +1315,9 @@ function vis_sag() {
 		$bilag_id[$x]=$r['id'];
 #		$bilag_sub_id[$x]=$r['sub_id'];
 		$bilag_title[$x]=$r['navn'];
-		$tmp=mb_convert_encoding($r['navn'], 'ISO-8859-1', 'UTF-8');
+		$tmp=utf8_decode($r['navn']);
 		//if (strlen($tmp)>17) $tmp=substr($tmp,0,17)."...";
-		$bilag_navn[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
+		$bilag_navn[$x]=utf8_encode($tmp);
 		$bilag_filtype[$x]=$r['filtype'];
 		$bilag_kategori[$x]=$r['kategori'];
 		$bilag_beskrivelse[$x]=$r['beskrivelse'];
@@ -1337,9 +1338,9 @@ function vis_sag() {
 #		$notat_sub_id[$x]=$r['sub_id'];
 		(strpos($r['notat'],"\n"))? list($notat_notat[$x],$tmp)=explode("\n",$r['notat'],2):$notat_notat[$x]=$r['notat'];
 		$notat_title[$x]=$r['beskrivelse'];
-		$tmp=mb_convert_encoding($r['beskrivelse'], 'ISO-8859-1', 'UTF-8');
+		$tmp=utf8_decode($r['beskrivelse']);
 		//if (strlen($tmp)>20) $tmp=substr($tmp,0,20)."...";
-		$notat_beskrivelse[$x]=mb_convert_encoding($tmp, 'UTF-8', 'ISO-8859-1');
+		$notat_beskrivelse[$x]=utf8_encode($tmp);
 #		$notat_overskrift[$x]=$r['overskrift'];
 		$notat_dato[$x]=date("d-m-Y",$r['datotid']);
 		$notat_tidspkt[$x]=date("H:i",$r['datotid']);
@@ -2248,6 +2249,7 @@ function vis_sag() {
 				print "</tbody>\n";
 				print "<tbody class=\"tableSagerZebra\">";
 				for ($y=0;$y<count($notat_id);$y++) {
+	#cho "$notat_fase[$y]==$x<br>";
 	#				if ($notat_fase[$y]==$x) {
 					$stat = "";
 					if (!$notat_status[$y]) $stat = "Kladde";
@@ -2318,7 +2320,7 @@ function ret_opgave($sag_id) {
 	global $brugernavn;
 	global $db;
 
-	$opgave_id=if_isset($_GET['opgave_id'])*1;
+	$opgave_id=(int)if_isset($_GET['opgave_id']);
 	$konto_id=if_isset($_GET['konto_id']);
 	$tilbud_id=if_isset($_GET['tilbud_id']);
 	
@@ -2854,13 +2856,20 @@ function ret_sag() {
 	
 	/* Query til ansatte (externe kontaktpersoner) */
 	// Query til stilladstype
+/*
+	$x=0;
+	$q=db_select("select * from grupper where art='V_CAT' order by box1",__FILE__ . " linje " . __LINE__);
+	while ($r=db_fetch_array($q)) {
+		$v_cat[$x]=htmlspecialchars($r['box1']);
+		$x++;
+	}
+*/
 	$x=0;
 	$q=db_select("select * from grupper where art='VG' and box10 = 'on' order by box1",__FILE__ . " linje " . __LINE__);
-		while ($r=db_fetch_array($q)) {
+	while ($r=db_fetch_array($q)) {
 		$sTypes[$x]=htmlspecialchars($r['beskrivelse']);
 		$x++;
 	}
-	
 	// Query til kunde kontakt
 	$x=0;
 	$k_kontakt = array();
@@ -3168,6 +3177,7 @@ function ret_sag() {
 								if ($beskrivelse!=$sTypes[$x]) print "<option value=\"$sTypes[$x]\">$sTypes[$x]&nbsp;</option>\n";
 							}
 							print "</select></div>\n";
+
 						#<div class=\"right\"><input type=\"text\" class=\"text\" id=\"beskrivelse\" name=\"beskrivelse\" value=\"$beskrivelse\"/></div>
 						print "<div class=\"clear\"></div>
 				</div>
