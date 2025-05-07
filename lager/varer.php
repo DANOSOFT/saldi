@@ -545,6 +545,9 @@ if ($vis_lev) {
 print "</tr><tr>\n";
 
 if (!$makeSuggestion && !$csv) {
+	print "<form name=\"vareliste\" action=\"varer.php?sort=$sort&amp;beholdning=$stock&amp;forslag=$makeSuggestion&lev_kto_navn=$lev_kto_navn\" method=\"post\">";
+	print "<input type=\"hidden\" name=\"valg\">";
+	print "<input type=\"hidden\" name=\"start\" value=\"$start\">";
 	$tmp=stripslashes($varenummer);
 	$spantitle="<span title=";
 	$spantitle.="'Skriv&nbsp;en&nbsp;søgetekst.&nbsp;Der&nbsp;søges&nbsp;efter&nbsp;varer hvor&nbsp;teksten&nbsp;indgår.&#13;";
