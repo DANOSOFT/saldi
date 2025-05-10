@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---finans/regnskab.php --- patch 4.1.1 --- 2025.01.13 ---
+// ---finans/regnskab.php --- patch 4.1.1 --- 2025.05.10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 // 20220624 CA  rolled back retrieving data from kontoplan.txt DA and EN cause it overwrites existing accounting plans.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250113 PHR Syncronized with saldiupdates
+// 20250510 LOE Text id changed from 3072 to 2373
 
 @session_start();
 $s_id=session_id();
@@ -342,8 +343,8 @@ $tmp=periodeoverskrifter($maanedantal, $startaar, $startmaaned, 1, "regnskabsmaa
 fwrite($csv,";". str_replace('"','',$tmp) ."I alt\n");
 #$cols+=count(explode(";",$tmp));
 
-$txt3072 = findtekst('3072|I alt', $sprog_id);
-print "<td align=right><b>$txt3072</a></b></td> ";
+$txt2373 = findtekst('2373|I alt', $sprog_id);
+print "<td align=right><b>$txt2373</a></b></td> ";
 print "</tr>";
 $y='';
 for ($x=1; $x<=$kontoantal; $x++){

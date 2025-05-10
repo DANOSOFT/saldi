@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/sum.php --- lap 4.1.1 --- 2024.07.29 ---
+// --- debitor/pos_ordre_includes/showPosLines/sum.php --- lap 4.1.1 --- 2025.05.10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2019-2024 saldi.dk aps
+// Copyright (c) 2019-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // LN 20190508 Move the html that shows the sum here
 // 20210127 PHR Some minor design changes 
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240729 PHR Various translations
+// 20250510 LOE text_id updated from 3072 to 2373
 
 	print "<!-- pos_ordre_includes/showPosLines/sum.php start -->";
 	if ($sum || $sum=='0' || $pris_ny) {
@@ -38,7 +39,7 @@
             print "<tr><td><div onclick=\"javascript:alert('$txt')\">Ialt Nok</div></td><td align=\"right\"></td><td></  td><td align=\"right\"></td>";
 		} else {
             print "<tr><td><div onclick=\"javascript:alert('$txt')\">";
-						print "". findtekst('3072|I alt',$sprog_id) ." $baseCurrency</div></td>";
+						print "". findtekst('2373|I alt',$sprog_id) ." $baseCurrency</div></td>";
 						print "<td align=\"right\"></td><td></  td><td align=\"right\"></td>";
 		}
 		print "<td align=\"right\"><div title=\"$txt\">";

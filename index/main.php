@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.1 --- 2025.05.03 ---
+// ---- index/main.php --- lap 4.1.1 --- 2025.05.10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -80,7 +80,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     <li class="active">
       <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
-        <span class="link_name"><?php print findtekst('3100|Oversigt', $sprog_id); ?></span>
+        <span class="link_name"><?php print findtekst('2401|Oversigt', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
         <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst(2376, $sprog_id); ?></a></li>

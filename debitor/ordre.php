@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-04-28 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -4600,7 +4600,7 @@ $kundeordre = findtekst(1092,$sprog_id);
       print "<td width=\"14.2%\" align=\"center\">Nt/Bt ". number_format($tNetWeight, 1, ',', '.') ."/";
       print number_format($tGrossWeight, 1, ',', '.') ." Kg</td>\n";
       print "<td width=\"14.2%\" align=\"center\">";
-      print findtekst("3072|I alt",$sprog_id)." ".rtrim(rtrim(dkdecimal($r["total"], 3), '0'), ",")." / ";
+      print findtekst("2373|I alt",$sprog_id)." ".rtrim(rtrim(dkdecimal($r["total"], 3), '0'), ",")." / ";
       print number_format($tVolume, 0, ',', '.') ." cm&sup3;</td>\n";
       print "<td align=\"center\">";
       print findtekst('3071|Nettosum',$sprog_id) ." ".dkdecimal($sum,2)."</td>\n";
@@ -4617,7 +4617,7 @@ $kundeordre = findtekst(1092,$sprog_id);
       print "<td width=\"14.2%\" align=\"center\" align=\"center\">";
       print findtekst('770|Moms',$sprog_id)."&nbsp;".dkdecimal($moms,2)."</td>\n";
       print "<td width=\"14.2%\" align=\"center\" align=\"center\" title=\"DG:".dkdecimal($dg_sum,2)."%\">";
-      print findtekst('3072|I alt',$sprog_id) .":";
+      print findtekst('2373|I alt',$sprog_id) .":";
       if ($brugsamletpris && $art=='DO') {
         print "<input type=\"hidden\" name=\"ordresum\" value=\"".afrund($ialt,2)."\">";
         print "<input style=\"width:100px;text-align:right\" type = 'text' name=\"samlet_pris\" value=\"".dkdecimal($ialt,2)."\">";

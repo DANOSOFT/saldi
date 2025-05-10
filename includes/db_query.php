@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 4.0.8 ----2023-07-30--------------
+// --- includes/db_query.php ---patch 4.1.1 ----2025-05-10--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20121222 Tilføjet db_escape_string
 // 20130210 Break ændret til break 1
@@ -36,6 +36,7 @@
 // 20221106 PHR - Various changes to fit php8 / MySQLi
 // 20230730 LOE - Minor modification, abolute path to std_func
 // 20250121 connection as first parameter in pg_*
+// 20250510 LOE Replaced mysql_query() with mysqli_query() to adjust for php7&above
 
 
 if (!function_exists('get_relative')) {
@@ -62,26 +63,33 @@ if (!function_exists('db_connect')) {
 		
 		$errTxt="";
 		
-		if (strtolower($db_type)=='mysql') {
-			if (function_exists('mysql_connect')) {
-				if ($l_host && !$l_bruger && !$l_password) list($l_host,$l_bruger,$l_password)=explode(",",$l_host); 
-				$connection = mysql_connect ("$l_host","$l_bruger","$l_password");
-				if ($db_encode=='UTF8') mysql_query("SET NAMES 'utf8'");
-				else mysql_query("SET NAMES 'latin9'");
-			} else {
-				$errTxt="<h1>Fejl: PHP-funktionen <b>mysql_connect()</b> kunne ikke findes</h1>".
-				"<p>Er b&aring;de MySQL og php-mysql installeret?</p>";
+		if (strtolower($db_type) == 'mysql' || strtolower($db_type) == 'mysqli') {
+    		// Check if mysqli_connect exists (only if mysqli is available)
+	  if (function_exists('mysqli_connect')) {
+			if ($l_host && !$l_bruger && !$l_password) {
+				list($l_host, $l_bruger, $l_password) = explode(",", $l_host); // Parse host, user, and password from a single string if needed
 			}
-		}	elseif (strtolower($db_type)=='mysqli') {
-			if (function_exists('mysqli_connect')) {
-				$connection = mysqli_connect(trim($l_host,"'"), trim($l_bruger, "'"), trim($l_password,"'")); #20190704
-				if ($db_encode=='UTF8') mysqli_query($connection, "SET NAMES 'utf8'"); #20190704
-				else mysqli_query($connection, "SET NAMES 'latin9'"); #20190704
+			
+			// Establish connection using mysqli
+			$connection = mysqli_connect(trim($l_host, "'"), trim($l_bruger, "'"), trim($l_password, "'"));
+			
+			// Check if connection is successful
+			if (!$connection) {
+				$errTxt = "<h1>Fejl: PHP-funktionen <b>mysqli_connect()</b> kunne ikke findes eller forbindelsen fejlede</h1>" .
+						"<p>Er både MySQLi og php-mysqli installeret?</p>";
 			} else {
-				$errTxt="<h1>Fejl: PHP-funktionen <b>mysqli_connect()</b> kunne ikke findes</h1>".
-				"<p>Er b&aring;de MySQLi og php-mysqli installeret?</p>";
+				// Set character encoding to UTF-8 or latin9 based on $db_encode
+				if ($db_encode == 'UTF8') {
+					mysqli_query($connection, "SET NAMES 'utf8'");
+				} else {
+					mysqli_query($connection, "SET NAMES 'latin9'");
+				}
 			}
-		}	else {
+		} else {
+			$errTxt = "<h1>Fejl: PHP-funktionen <b>mysqli_connect()</b> kunne ikke findes</h1>" .
+					"<p>Er både MySQLi og php-mysqli installeret?</p>";
+		}
+	  }else {
 			if (function_exists('pg_connect')) {
 				if ($l_bruger && $l_database) {
 					if ($l_password) $connection = pg_connect ("host=$l_host dbname=$l_database user=$l_bruger password=$l_password");
@@ -130,13 +138,9 @@ if (!function_exists('db_modify')) {
 
 		$qtext=injecttjek($qtext);
 #20190704 START
-		if ($db_type=="mysql") { 
-			$db_query=mysql_query($qtext);
-		}
-		else if ($db_type=="mysqli") { 
-			$db_query=mysqli_query($connection, $qtext); 
-		} 
-		else {
+		 if ($db_type == "mysql" || $db_type == "mysqli") {
+            $db_query = mysqli_query($connection, $qtext);  //mysql_query deprecated in php 7 and above
+			        }else {
 			$qtext=str_replace(' like ',' ilike ',$qtext);
 			$db_query=pg_query($connection, $qtext);
 		}
@@ -190,12 +194,15 @@ if (!function_exists('db_modify')) {
 					fwrite($ff,date("U")."\n");
 					fclose($ff);
 				} 
-				if ($db_type=="mysql") {
-					mysql_query("ROLLBACK");
-				} elseif ($db_type=="mysqli") { #20190704
+				// if ($db_type=="mysql") {
+				// 	mysql_query("ROLLBACK");
+				// } elseif ($db_type=="mysqli") { #20190704
+				// 	mysqli_query($connection, "ROLLBACK");
+				// }
+				if ($db_type == "mysql" || $db_type == "mysqli") {
 					mysqli_query($connection, "ROLLBACK");
 				}
-				
+							
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
 				if ($webservice) return ('1'.chr(9)."$alerttekst");
 				alert("$alerttekst");
@@ -225,18 +232,16 @@ if (!function_exists('db_select')) {
 			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
 			file_put_contents($onlineLog, $onlineTxt, FILE_APPEND);
 		}
-		if ($db_type=="mysql") {
-			$query=mysql_query($qtext);
-			$errtxt=mysql_error();
-		}
-		elseif ($db_type=="mysqli") { 
-			$query=mysqli_query($connection,$qtext);
-			$errtxt=mysqli_error($connection); #20190704
+		if ($db_type == "mysql" || $db_type == "mysqli") {
+			// Use mysqli for MySQL as mysql_query() is deprecated
+			$query = mysqli_query($connection, $qtext);
+			$errtxt = mysqli_error($connection);  // Use mysqli_error for both MySQL and MySQLi
 		} else {
-			$qtext=str_replace(' like ',' ilike ',$qtext);
-			$query=pg_query($connection, $qtext);
-			$errtxt=pg_last_error($connection);
+			$qtext = str_replace(' like ', ' ilike ', $qtext);
+			$query = pg_query($connection, $qtext);
+			$errtxt = pg_last_error($connection);
 		}
+
 		if ($errtxt)	{		
 			$db=trim($db);
 			$linje="";
@@ -366,9 +371,12 @@ if (!function_exists('transaktion')) {
 		$fp=fopen("$temp/.ht_modify.log","a");
 		fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n");
 		fwrite($fp,$qtext.";\n");
-		if ($db_type=="mysql") mysql_query($qtext);
-		elseif ($db_type=="mysqli") mysqli_query($connection, $qtext); #20190704
-		else pg_query($connection, $qtext);
+		if ($db_type == "mysql" || $db_type == "mysqli") {
+			$query = mysqli_query($connection, $qtext);
+		} else {
+			$query = pg_query($connection, $qtext);
+		}
+
 	}
 }
 
