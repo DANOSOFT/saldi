@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------admin/restore.php--------lap 4.1.1------2025-05-04-----------
+// ---------------admin/restore.php--------lap 4.1.1------2025-05-11-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,7 +34,7 @@
 // 20250428 LOE When converting from mysql to postgres, users have the option to fill in the auth details.
 // 20250503 LOE - reordered mix-up text_id from tekster.csv in findtekst()
 // 20250504 LOE Updated to allow for mysql db conversion to psql, default texts if tekster table not found yet; must backup first
-
+// 20250511 LOE Various changes to ehance user's experience
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -179,9 +179,12 @@ if ($menu=='T') {
 			$filnavn=if_isset($_POST, NULL,'filnavn');
 			restore($filnavn,$backup_encode,$backup_dbtype);
 		} else {
-			if(isset($filnavn)){
-				unlink($filnavn);
-			}elseif(isset($filename))unlink($filename);
+		
+			if (!if_isset($_POST,NULL,'mysql_db') ) {
+				if(isset($filnavn)){
+					unlink($filnavn);
+				}elseif(isset($filename))unlink($filename);
+			}
 			
 		} 
 	}
@@ -198,11 +201,12 @@ if ($menu=='T') {
 		}
 	}
 	
-	if (if_isset($_POST,NULL,'filnavn') && if_isset($_POST,NULL,'mysql_db')) {
-		if($extension=='sql'){# check for .sdat here too, extract and use the sql file
+	if ($filnavn=if_isset($_POST,NULL,'filnavn') && if_isset($_POST,NULL,'mysql_db')) {
+		if($extension=='sql'){
 			
 			// Full path of file and its name
 			$backupfil = $_POST['filnavn'];
+			
 			// Move the uploaded file from temporary storage to the desired location
 			if (isset($_POST['mysql_db']) && isset($_POST['mysql_pass']) && $db_type == "postgresql") {					
 				// Retrieve MySQL connection details from form
@@ -214,7 +218,7 @@ if ($menu=='T') {
 				$mysqlUser = $_POST['mysql_user'];
 	
 				// Call the migration function
-				migrateMySQLToPostgreSQL($sqhost, $squser, $sqpass, $db, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb);
+				migrateMySQLToPostgreSQL($sqhost, $squser, $sqpass, $db, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb, $backupfil);
 			
 			}
 		}
@@ -226,6 +230,7 @@ if ($menu=='T') {
 		$tmp=$_FILES['uploadedfile']['tmp_name'];
 		if($extension=='sql'){
 			$tmp = $_FILES['uploadedfile']['tmp_name'];
+			error_log("temp file;".$tmp);
 			$target_file = "../temp/".$db."/";
 			// Define the full path where the file will be stored
 			$backupfil = $target_file . basename($_FILES['uploadedfile']['name']);
@@ -240,13 +245,14 @@ if ($menu=='T') {
 					if(stripos(trim($result), 'MySQL dump') !== false) {
 						//call mysql input function
 					 renderRestoreForm($db, $backupfil, $restoreV = 'Submit');
-
+						
 							###########
 					}elseif(stripos(trim($result), 'PostgreSQL') !== false){
 						$backup_encode=if_isset($_POST, NULL, 'backup_encode');
 						$backup_dbtype=if_isset($_GET, NULL, 'backup_dbtype');
 						restore($backupfil,$backup_encode,$backup_dbtype);
 					}
+					fclose($handle);
 				} else {
 					echo "Failed to open the file.";
 					exit;
@@ -257,8 +263,41 @@ if ($menu=='T') {
 		}else{
 			system ("rm -rf ../temp/".$db."/*");
 			if(move_uploaded_file($tmp, $filnavn)) {
-			
-				system ("gunzip $filnavn");
+				##########
+				
+				error_log('Filename: '.$filnavn);
+				#system ("gunzip $filnavn");
+				// Validate file existence
+				if (!is_file($filnavn)) {
+					exit("❌ File not found: $filnavn\n");
+				}
+
+				// Detect MIME type
+				$finfo = finfo_open(FILEINFO_MIME_TYPE);
+				$mimeType = finfo_file($finfo, $filnavn);
+				finfo_close($finfo);
+
+				// Build command based on file type
+				$commands = [
+					'application/gzip'   => "gunzip " . escapeshellarg($filnavn),
+					'application/x-gzip' => "gunzip " . escapeshellarg($filnavn),
+					'application/x-tar'  => "tar -xf " . escapeshellarg($filnavn),
+				];
+
+				if (isset($commands[$mimeType])) {
+					
+					system($commands[$mimeType], $exitCode);
+
+					if ($exitCode === 0) {
+						error_log("✅ Extraction successful.\n");
+					} else {
+						echo "❌ Extraction failed (exit code: $exitCode)\n";
+					}
+				} else {
+					echo "⚠️Unsupported or unknown file type: $mimeType\n";
+				}
+
+				#################
 				$filnavn=str_replace(".gz","",$filnavn);
 				
 				if (file_exists($filnavn)) system ("cd ../temp/$db\n/bin/tar -xf restore");
@@ -282,8 +321,10 @@ if ($menu=='T') {
 					$result = findDumpInFirstThreeLines($handle);
 					if(stripos(trim($result), 'MySQL dump') !== false) {
 						//call mysql input function
+						error_log('Back2 Up file ;'.$backupfil);
 					 renderRestoreForm($db, $backupfil, $restoreV = 'Submit');
 					}
+					($handlfclosee);
 				}
 			    #######################
 			
@@ -322,6 +363,12 @@ function upload($db){
 	global $sprog_id;
 	global $connection;
 	global $translations;
+	global $db_type;
+
+	if ($db_type=='mysql' or $db_type=='mysqli') {
+		echo '<span style="color:red;">This is not available yet!</span>';
+		exit;
+	}
 	$result = pg_query($connection, "SELECT to_regclass('public.tekster')");
 	$row = pg_fetch_row($result);
 	
@@ -467,6 +514,8 @@ function restore($filnavn,$backup_encode,$backup_dbtype){
 print "</div></div></div>";
 ##########################
 function renderRestoreForm($db, $backupfil, $restoreV = 'Submit') {
+	echo '<p style="color: red; font-weight: bold;">Please note: This operation may take up to 12 minutes to complete.</p>';
+
     echo "<form name='restore' action='restore.php?db=$db' method='post'>";
     echo "<input type='hidden' name='filnavn' value='$backupfil'>";
     echo "<table cellpadding='5' cellspacing='0' border='0' align='center'>";
@@ -521,9 +570,68 @@ function findDumpInFirstThreeLines($handle) {
 }
 
 #++++++++++++++++++++
-function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb) {
+function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb, $backupfil) {
    
-	// Step 1: Connect to PostgreSQL without specifying the database name
+	 
+
+	 // Check if the backup file exists
+	 
+	#########
+	 $backUpDir = "../temp/backup/$pgDb/";
+				if (is_dir($backUpDir)) {
+					foreach (glob($backUpDir . $pgDb . '*.sdat') as $file) {
+						
+						break; 
+					}
+				}
+	$filename = basename($file); // remove any path
+	if (!str_starts_with($filename, $pgDb) && !str_ends_with($filename, '.sdat')) {
+		die("Error: No backup found for the PostgreSQL database '$pgDb'. Migration aborted.\n");
+	}
+	
+	################
+
+		// Connect to MySQL server
+		#$conn = mysqli_connect($mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb);;
+		$conn = mysqli_connect($mysqlHost, $mysqlUser, $mysqlPass);
+
+		if (!$conn) {
+			die("Connection failed: " . mysqli_connect_error() . "\n");
+		}
+
+		// Check if the database exists
+		$result = mysqli_query($conn, "SHOW DATABASES LIKE '$mysqlDb'");
+		if (mysqli_num_rows($result) == 0) {
+			// Create the database
+			if (mysqli_query($conn, "CREATE DATABASE `$mysqlDb` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")) {
+				echo "Database '$mysqlDb' created successfully.\n";
+			} else {
+				die("Error creating database: " . mysqli_error($conn) . "\n");
+			}
+		} else {
+			echo "Database '$mysqlDb' already exists.\n";
+		}
+
+		mysqli_close($conn);
+
+		// Import the SQL dump using system call
+		$command = "mysql -u$mysqlUser -p$mysqlPass $mysqlDb < " . escapeshellarg($backupfil);
+		exec($command, $output, $result);
+
+		if ($result === 0) {
+			echo "SQL file imported successfully.\n";
+		} else {
+			error_log("backUpfil; ".$backupfil);
+			  die("Failed to import fileExit code: $result\n");
+		}
+
+		###############
+
+
+
+
+	
+	// Connect to PostgreSQL without specifying the database name
 	#mysql -u root -p goods_4 < /temp/goods_4.sql //if mysql db not exists must first be created dumped in mysql
     $pgConn1 = pg_connect("host=$pgHost user=$pgUser password=$pgPass");
 
@@ -538,10 +646,16 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 	db_modify("delete from online where db='$pgDb'",__FILE__ . " linje " . __LINE__);
 	db_modify("update regnskab set version = '' where db='$pgDb'",__FILE__ . " linje " . __LINE__);
 
-		#############Delete database if exists. Consider forcing users to backup before restore
+		#############
 		if (pg_num_rows($dbCheckResult) > 0) {
 			// Terminate connections to it
-			pg_query($pgConn1, "...pg_terminate_backend...");
+			 $terminateSql = "
+				SELECT pg_terminate_backend(pid)
+				FROM pg_stat_activity
+				WHERE datname = " . pg_escape_literal($pgConn1, $pgDb) . "
+				AND pid <> pg_backend_pid();
+			";
+			pg_query($pgConn1, $terminateSql);
 		
 			// Drop the database
 			pg_query($pgConn1, "DROP DATABASE \"$pgDb\"");
@@ -586,196 +700,238 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 
     //  Start the PostgreSQL transaction
     pg_query($pgConn, "BEGIN");  // Begin the transaction
+	try {
+		// Loop through each table and transfer schema and data
+		while ($table = $tablesResult->fetch_row()) {
+			$tableName = $table[0];
 
-    // Loop through each table and transfer schema and data
-    while ($table = $tablesResult->fetch_row()) {
-        $tableName = $table[0];
+			###############Check first if the table already exists
 
-		###############Check first if the table already exists
+			$checkTableSQL = "SELECT to_regclass('public.\"$tableName\"')";
+			$checkResult = pg_query($pgConn, $checkTableSQL);
+			$checkRow = pg_fetch_row($checkResult);
+			
+			if ($checkRow[0] !== null) {
+				#echo "Table $tableName already exists in PostgreSQL. Skipping...\n";
+				continue; // Skip to next table
+			}
+			// Get the MySQL schema for the table
+			$createTableQuery = "SHOW CREATE TABLE `$tableName`";
+			$createTableResult = $mysqlConn->query($createTableQuery);
+			if (!$createTableResult) {
+				die("Error fetching table schema for $tableName: " . $mysqlConn->error);
+			}
 
-		$checkTableSQL = "SELECT to_regclass('public.\"$tableName\"')";
-		$checkResult = pg_query($pgConn, $checkTableSQL);
-		$checkRow = pg_fetch_row($checkResult);
+			$createTable = $createTableResult->fetch_row();
+			$createTableSQL = $createTable[1];
+
+			// Modify the CREATE TABLE SQL to be PostgreSQL-compatible
+			$createTableSQL = str_replace('`', '"', $createTableSQL); // Convert backticks to double quotes
+			$createTableSQL = preg_replace('/\s+unsigned\b/i', '', $createTableSQL); // Remove 'unsigned' keyword (not supported in PostgreSQL)
+			$createTableSQL = preg_replace_callback(
+				'/"(\w+)"\s+(bigint|int)\s+NOT NULL\s+AUTO_INCREMENT/i',
+				function ($matches) {
+					$col = $matches[1];
+					$type = strtolower($matches[2]) === 'bigint' ? 'BIGSERIAL' : 'SERIAL';
+					return "\"$col\" $type PRIMARY KEY";
+				},
+				$createTableSQL
+			);
+			$createTableSQL = preg_replace('/\s*AUTO_INCREMENT\s*/i', '', $createTableSQL);
+			$createTableSQL = preg_replace('/ON UPDATE CURRENT_TIMESTAMP/i', '', $createTableSQL);
+			$createTableSQL = preg_replace('/ENGINE\s*=\s*\w+/i', '', $createTableSQL);
+			$createTableSQL = preg_replace('/DEFAULT CHARSET\s*=\s*\w+/i', '', $createTableSQL);
+			$createTableSQL = preg_replace('/COLLATE\s*=\s*[\w_]+/i', '', $createTableSQL);
+
+			// Handle ENUM columns
+			$createTableSQL = preg_replace_callback('/ENUM\(([^)]+)\)/i', function ($matches) {
+				return 'TEXT';  // Replace ENUM with TEXT
+			}, $createTableSQL);
+
+			// Remove UNIQUE KEY and KEY lines
+			$createTableSQL = preg_replace('/UNIQUE KEY\s+"?[\w\d_]+"?\s*\([^)]+\)/i', '', $createTableSQL);
+			$createTableSQL = preg_replace('/KEY\s+"?[\w\d_]+"?\s*\([^)]+\)/i', '', $createTableSQL);
+
+			// Replace UNIQUE KEY with UNIQUE
+			$createTableSQL = preg_replace('/UNIQUE\s+KEY/i', 'UNIQUE', $createTableSQL);
+
+			// Remove DEFAULT NULL (PostgreSQL defaults to NULL if no DEFAULT is provided)
+			$createTableSQL = preg_replace('/\s+DEFAULT\s+NULL/i', '', $createTableSQL);
+
+			// Handle DECIMAL (15,0) correctly by removing unnecessary assignment of values
+			$createTableSQL = preg_replace_callback(
+				'/"(\w+)"\s+decimal\(\s*(\d+)\s*,\s*0\s*\)\s+DEFAULT\s+\'?(\d+)\'?/i',
+				fn($m) => "\"{$m[1]}\" DECIMAL({$m[2]}) DEFAULT {$m[3]}",
+				$createTableSQL
+			);
+
+			
+			//Remove the PRIMARY KEY clause if ev_id already includes it
+			$createTableSQL = preg_replace(
+				'/,\s*PRIMARY KEY\s*\("ev_id"\)/i',
+				'',
+				$createTableSQL
+			);
+			// REMOVE ANY ROGUE '=2 )' EXPRESSIONS
+			$createTableSQL = preg_replace('/=\s*\d*\s*\)/', ')', $createTableSQL);
+
+			// REMOVE ANY OTHER ROGUE EXPRESSIONS LIKE '=X' AT THE END OF COLUMNS
+			$createTableSQL = preg_replace('/\s*=\s*\d*\s*$/', '', $createTableSQL);
+
+			// Ensure there are no trailing commas before closing parentheses for column definitions
+			#$createTableSQL = preg_replace('/,\s*\)/', ')', $createTableSQL);
+
+			// Ensure the final parenthesis after column definitions is correct and doesn't have trailing commas
+			#$createTableSQL = preg_replace('/,\s*$/', '', $createTableSQL); // Remove any trailing commas at the end of the column list
+
+
+
+			// Remove duplicate PRIMARY KEY clauses
+			$createTableSQL = preg_replace('/PRIMARY KEY\s+\("id"\)/i', '', $createTableSQL);
+
+			// Clean up any extra whitespace in the SQL
+			$createTableSQL = preg_replace('/\s+/', ' ', $createTableSQL);
+
+			// Remove any repeated commas (e.g., ", , , ,")
+			$createTableSQL = preg_replace('/(,\s*)+/', ',', $createTableSQL);
+
+			// Replace tinyint(1) with BOOLEAN
+			$createTableSQL = preg_replace('/tinyint\s*\(\s*1\s*\)/i', 'BOOLEAN', $createTableSQL);
+			//Remove comma before the closing parenthesis
+			$createTableSQL = preg_replace('/,\s*(?=\))/', '', $createTableSQL);
+			// Final check for multiple commas in a row
+			if (strpos($createTableSQL, ', ,') !== false) {
+				echo "Warning: Potential double commas still in CREATE TABLE for $tableName:\n$createTableSQL\n";
+			}
+
+			// Create the table in PostgreSQL
+			$result = pg_query($pgConn, $createTableSQL);
+			if (!$result) {
+				// If an error occurs, rollback the transaction
+				pg_query($pgConn, "ROLLBACK");
+				die("Error creating table $tableName in PostgreSQL: " . pg_last_error());
+			}
+
 		
-		if ($checkRow[0] !== null) {
-			#echo "Table $tableName already exists in PostgreSQL. Skipping...\n";
-			continue; // Skip to next table
+
+			// Get the data from MySQL for this table
+			$dateColumns = [];
+			$numericColumns = [];
+
+			$columnTypeQuery = "
+				SELECT column_name, data_type 
+				FROM information_schema.columns 
+				WHERE table_schema = 'public' AND table_name = '$tableName'
+			";
+			$columnTypeResult = pg_query($pgConn, $columnTypeQuery);
+			if (!$columnTypeResult) {
+				pg_query($pgConn, "ROLLBACK");
+				die("Error fetching column types for $tableName: " . pg_last_error());
+			}
+
+			while ($col = pg_fetch_assoc($columnTypeResult)) {
+				$colName = $col['column_name'];
+				$type = strtolower($col['data_type']);
+
+				if (in_array($type, ['integer', 'bigint', 'numeric', 'decimal', 'real', 'double precision'])) {
+					$numericColumns[] = $colName;
+				}
+				if (in_array($type, ['date', 'timestamp without time zone', 'timestamp with time zone'])) {
+					$dateColumns[] = $colName;
+				}
+			}
+
+			$dataResult = $mysqlConn->query("SELECT * FROM `$tableName`");
+
+			if (!$dataResult) {
+				pg_query($pgConn, "ROLLBACK");
+				die("Error fetching data from $tableName: " . $mysqlConn->error);
+			}
+
+			if ($dataResult->num_rows === 0) {
+			# echo "No data found in $tableName, skipping insert.\n";
+				continue;
+			}
+
+			while ($row = $dataResult->fetch_assoc()) {
+				// Ensure that $row is valid before proceeding
+				if (!is_array($row) || empty($row)) {
+				#   echo "Skipping invalid or empty row...\n";
+					continue; // Skip if $row is not an array or is empty
+				}
+
+				$columns = array_keys($row);
+
+				// Create the placeholders for the SQL query (i.e., $1, $2, $3, ...)
+				$placeholders = array_map(function ($index) {
+					return '$' . ($index + 1); // Use index to create placeholders $1, $2, ...
+				}, range(0, count($columns) - 1));
+
+				// Prepare the SQL query with placeholders
+				$insertSQL = "INSERT INTO \"$tableName\" (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
+
+				// Map the values to bind them to the placeholders
+				$values = array_map(function ($column, $value) use ($numericColumns, $dateColumns) {
+					// Handle numeric columns
+					if (in_array($column, $numericColumns)) {
+						return ($value === "" || $value === null || !is_numeric($value)) ? null : $value;
+					}
+
+					// Handle date/timestamp columns
+					if (in_array($column, $dateColumns)) {
+						return ($value === "" || $value === null) ? null : $value; // PostgreSQL will handle dates properly
+					}
+
+					// Handle BOOLEAN columns (like 'status')
+					if ($column == 'status') {
+						return ($value === "" || $value === null) ? null : (strtolower($value) === 'true' || $value == 1);
+					}
+
+					// Default: return string values, NULL if empty
+					return ($value === "" || $value === null) ? null : $value;
+				}, array_keys($row), array_values($row));
+
+				// Execute the query with parameter binding
+				$insertResult = pg_query_params($pgConn, $insertSQL, $values);
+				
+				if (!$insertResult) {
+					pg_query($pgConn, "ROLLBACK");
+					die("Error: " . pg_last_error($pgConn));
+				}
+			}
+
+			
 		}
-        // Get the MySQL schema for the table
-        $createTableQuery = "SHOW CREATE TABLE `$tableName`";
-        $createTableResult = $mysqlConn->query($createTableQuery);
-        if (!$createTableResult) {
-            die("Error fetching table schema for $tableName: " . $mysqlConn->error);
-        }
 
-        $createTable = $createTableResult->fetch_row();
-        $createTableSQL = $createTable[1];
+		// Commit the transaction if all tables were created and data inserted successfully
+		pg_query($pgConn, "COMMIT");
+		echo "Database migration from MySQL to PostgreSQL completed successfully.\n";
+	} catch (Exception $e) {
+		// Rollback the transaction on error
+		pg_query($pgConn, "ROLLBACK");
+		echo "Error: " . $e->getMessage() . "\n";
 
-        // Modify the CREATE TABLE SQL to be PostgreSQL-compatible
-        $createTableSQL = str_replace('`', '"', $createTableSQL); // Convert backticks to double quotes
-        $createTableSQL = preg_replace('/\s+unsigned\b/i', '', $createTableSQL); // Remove 'unsigned' keyword (not supported in PostgreSQL)
-        $createTableSQL = preg_replace_callback(
-            '/"(\w+)"\s+(bigint|int)\s+NOT NULL\s+AUTO_INCREMENT/i',
-            function ($matches) {
-                $col = $matches[1];
-                $type = strtolower($matches[2]) === 'bigint' ? 'BIGSERIAL' : 'SERIAL';
-                return "\"$col\" $type PRIMARY KEY";
-            },
-            $createTableSQL
-        );
-        $createTableSQL = preg_replace('/\s*AUTO_INCREMENT\s*/i', '', $createTableSQL);
-        $createTableSQL = preg_replace('/ON UPDATE CURRENT_TIMESTAMP/i', '', $createTableSQL);
-        $createTableSQL = preg_replace('/ENGINE\s*=\s*\w+/i', '', $createTableSQL);
-        $createTableSQL = preg_replace('/DEFAULT CHARSET\s*=\s*\w+/i', '', $createTableSQL);
-        $createTableSQL = preg_replace('/COLLATE\s*=\s*[\w_]+/i', '', $createTableSQL);
-
-        // Handle ENUM columns
-        $createTableSQL = preg_replace_callback('/ENUM\(([^)]+)\)/i', function ($matches) {
-            return 'TEXT';  // Replace ENUM with TEXT
-        }, $createTableSQL);
-
-        // Remove UNIQUE KEY and KEY lines
-        $createTableSQL = preg_replace('/UNIQUE KEY\s+"?[\w\d_]+"?\s*\([^)]+\)/i', '', $createTableSQL);
-        $createTableSQL = preg_replace('/KEY\s+"?[\w\d_]+"?\s*\([^)]+\)/i', '', $createTableSQL);
-
-        // Replace UNIQUE KEY with UNIQUE
-        $createTableSQL = preg_replace('/UNIQUE\s+KEY/i', 'UNIQUE', $createTableSQL);
-
-        // Remove DEFAULT NULL (PostgreSQL defaults to NULL if no DEFAULT is provided)
-        $createTableSQL = preg_replace('/\s+DEFAULT\s+NULL/i', '', $createTableSQL);
-
-        // Handle DECIMAL (15,0) correctly by removing unnecessary assignment of values
-        $createTableSQL = preg_replace_callback('/DECIMAL\((\d+),(\d+)\)/i', function ($matches) {
-            $precision = $matches[1];
-            $scale = $matches[2];
-            if ($scale == 0) {
-                return "DECIMAL($precision)";
-            }
-            return "DECIMAL($precision, $scale)";
-        }, $createTableSQL);
-
-        // Clean up SQL expression issues (e.g., rogue '=' expressions and commas)
-        $createTableSQL = preg_replace('/=\s*\d*\s*\)/', ')', $createTableSQL);
-        $createTableSQL = preg_replace('/\s*=\s*\d*\s*$/', '', $createTableSQL);
-        $createTableSQL = preg_replace('/,\s*\)/', ')', $createTableSQL);
-        $createTableSQL = preg_replace('/,\s*$/', '', $createTableSQL);
-
-        // Remove duplicate PRIMARY KEY clauses and clean extra whitespace
-        $createTableSQL = preg_replace('/PRIMARY KEY\s+\("id"\)/i', '', $createTableSQL);
-        $createTableSQL = preg_replace('/\s+/', ' ', $createTableSQL);
-        $createTableSQL = preg_replace('/(,\s*)+/', ',', $createTableSQL);
-
-        // Replace tinyint(1) with BOOLEAN
-        $createTableSQL = preg_replace('/tinyint\s*\(\s*1\s*\)/i', 'BOOLEAN', $createTableSQL);
-        $createTableSQL = preg_replace('/,\s*(?=\))/', '', $createTableSQL);
-
-        // Create the table in PostgreSQL
-        $result = pg_query($pgConn, $createTableSQL);
-        if (!$result) {
-            // If an error occurs, rollback the transaction
-            pg_query($pgConn, "ROLLBACK");
-            die("Error creating table $tableName in PostgreSQL: " . pg_last_error());
-        }
-
-       # echo "Table $tableName created successfully in PostgreSQL.\n";
-
-        // Get the data from MySQL for this table
-        $dateColumns = [];
-        $numericColumns = [];
-
-        $columnTypeQuery = "
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
-            WHERE table_schema = 'public' AND table_name = '$tableName'
-        ";
-        $columnTypeResult = pg_query($pgConn, $columnTypeQuery);
-        if (!$columnTypeResult) {
-            pg_query($pgConn, "ROLLBACK");
-            die("Error fetching column types for $tableName: " . pg_last_error());
-        }
-
-        while ($col = pg_fetch_assoc($columnTypeResult)) {
-            $colName = $col['column_name'];
-            $type = strtolower($col['data_type']);
-
-            if (in_array($type, ['integer', 'bigint', 'numeric', 'decimal', 'real', 'double precision'])) {
-                $numericColumns[] = $colName;
-            }
-            if (in_array($type, ['date', 'timestamp without time zone', 'timestamp with time zone'])) {
-                $dateColumns[] = $colName;
-            }
-        }
-
-        $dataResult = $mysqlConn->query("SELECT * FROM `$tableName`");
-
-        if (!$dataResult) {
-            pg_query($pgConn, "ROLLBACK");
-            die("Error fetching data from $tableName: " . $mysqlConn->error);
-        }
-
-        if ($dataResult->num_rows === 0) {
-           # echo "No data found in $tableName, skipping insert.\n";
-            continue;
-        }
-
-        while ($row = $dataResult->fetch_assoc()) {
-            // Ensure that $row is valid before proceeding
-            if (!is_array($row) || empty($row)) {
-             #   echo "Skipping invalid or empty row...\n";
-                continue; // Skip if $row is not an array or is empty
-            }
-
-            $columns = array_keys($row);
-
-            // Create the placeholders for the SQL query (i.e., $1, $2, $3, ...)
-            $placeholders = array_map(function ($index) {
-                return '$' . ($index + 1); // Use index to create placeholders $1, $2, ...
-            }, range(0, count($columns) - 1));
-
-            // Prepare the SQL query with placeholders
-            $insertSQL = "INSERT INTO \"$tableName\" (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
-
-            // Map the values to bind them to the placeholders
-            $values = array_map(function ($column, $value) use ($numericColumns, $dateColumns) {
-                // Handle numeric columns
-                if (in_array($column, $numericColumns)) {
-                    return ($value === "" || $value === null || !is_numeric($value)) ? null : $value;
-                }
-
-                // Handle date/timestamp columns
-                if (in_array($column, $dateColumns)) {
-                    return ($value === "" || $value === null) ? null : $value; // PostgreSQL will handle dates properly
-                }
-
-                // Handle BOOLEAN columns (like 'status')
-                if ($column == 'status') {
-                    return ($value === "" || $value === null) ? null : (strtolower($value) === 'true' || $value == 1);
-                }
-
-                // Default: return string values, NULL if empty
-                return ($value === "" || $value === null) ? null : $value;
-            }, array_keys($row), array_values($row));
-
-            // Execute the query with parameter binding
-            $insertResult = pg_query_params($pgConn, $insertSQL, $values);
-            
-            if (!$insertResult) {
-                pg_query($pgConn, "ROLLBACK");
-                die("Error: " . pg_last_error($pgConn));
-            }
-        }
-
-        #echo "Data from $tableName inserted into PostgreSQL.\n";
-    }
-
-    //Step 8: Commit the transaction if all tables were created and data inserted successfully
-    pg_query($pgConn, "COMMIT");
+		// Attempt to restore the backup from the $backupfil
+		echo "Restoring PostgreSQL database '$pgDb' from backup...\n";
+		$restoreCommand = "psql -h $pgHost -U $pgUser -d $pgDb -f $backupfil";
+		$output = null;
+		$resultCode = null;
+		
+		// Run the restore command and capture output and result code
+		exec($restoreCommand, $output, $resultCode);
+		
+		if ($resultCode !== 0) {
+			die("Error: Failed to restore the backup for PostgreSQL database '$pgDb'. Migration aborted.\n");
+		} else {
+			echo "Backup restored successfully from: $backupfil\n";
+		}
+	}
 
     // Close the connections
     $mysqlConn->close();
     pg_close($pgConn);
 	system ("rm -rf ../temp/".$pgDb."/*");
-    echo "Database migration from MySQL to PostgreSQL completed successfully.\n";
+    echo "Database migration completed.\n";
 }
 
 #++++++++++++++++++++

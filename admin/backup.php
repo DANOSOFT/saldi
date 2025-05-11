@@ -26,6 +26,7 @@
 // 2019.07.04 RG (Rune Grysbæk) Mysqli implementation 
 // 2020.03.08 PHR SQL dump created on demand.
 // 20250427 LOE User can now delete backup file saved if they changed their minds.
+// 20250511 LOE Backupfile save a copy of current db on saldi
 
 @session_start();
 $s_id=session_id();
@@ -49,6 +50,7 @@ $info_filnavn="../temp/backup.info";
 $tar_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".tar";
 $gz_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".tar.gz";
 $dat_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".sdat";
+
 $timestamp=date("Ymd-Hi");
 $r=db_fetch_array(db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__));
 $dbver=$r['box1'];
@@ -137,6 +139,38 @@ print "<td align='center' valign='middle'>";
 print "<table cellpadding='1' cellspacing='1' border='0'><tbody>";
 
 if (file_exists("../temp/$dat_filnavn")) {
+	$dat_filnavn = basename($dat_filnavn);
+	$backUpDir = "../temp/backup/$db/"; //use this to ensure database is backed up
+	$backUpFile = $backUpDir . $dat_filnavn;
+	$sourceFile = "../temp/$dat_filnavn";
+	
+
+
+	if (!is_dir($backUpDir)) {
+		mkdir($backUpDir, 0755, true);
+	}
+	if (file_exists($sourceFile)) {
+		if (is_dir($backUpDir)) {
+			foreach (glob($backUpDir . '*') as $file) {
+				if (is_file($file)) {
+					unlink($file);
+				}
+			}
+		}
+		try {
+			error_log("dat_filnavn1: " . $dat_filnavn);
+			error_log("Source file1: " . $sourceFile);
+			error_log("backUp file1: " . $backUpFile);
+			if (copy($sourceFile, $backUpFile)) {
+				#echo "Please click on save to continue..";
+			} else {
+				throw new Exception("File not saved at $backUpFile");
+			}
+		} catch (Exception $e) {
+			error_log("Error copying file: " . $e->getMessage());
+			echo "An error occurred. Check the logs for more details.\n";
+		}
+	}
     print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td>";
     print "<td $style title='".findtekst('1674|Her har du mulighed for danne en sikkerhedskopi som du kan gemme.', $sprog_id).".'>";
     print "<a href='../temp/$dat_filnavn'> $buttonStart";
@@ -154,6 +188,7 @@ if (file_exists("../temp/$dat_filnavn")) {
     print "<input type='submit' name='cancel' value='Cancel' />";
     print "</form>";
     print "</td></tr>";
+	exit;
 	
 } else {
     print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td><td $style  title='".findtekst('1675|Her har du mulighed for at gemme sikkerhedskopien på din computer', $sprog_id)."'>";
