@@ -273,7 +273,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
     var idx = 0;
     async function get_pos() {
-      if ("<?php print $printserver; ?>" == "dummy") {
+      if ("<?php print $terminal_id; ?>" == "dummy") {
         cardScheme = "Dankort"
         payment_id = "pi_dummy"
         receipt_id = "pi_dummy-dummy"
