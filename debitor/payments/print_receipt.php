@@ -27,20 +27,21 @@ if (isset($_GET['id']))       $id       = $_GET['id'];
 if (isset($_GET['filename'])) $filename = $_GET['filename'];
 
 if (!$kasse) $kasse = $_COOKIE['saldi_pos'];
-/*
-$qtxt="select box3,box4,box5,box6,box11,box12 from grupper where art = 'POS' and kodenr='2'";
-$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
-$x=$kasse-1;
-$tmp=explode(chr(9),$r['box3']);
-$printserver=trim($tmp[$x]);
-if (!$printserver)$printserver='localhost';
-if ($printserver=='box' || $printserver=='saldibox') {
-	$filnavn="http://saldi.dk/kasse/".$_SERVER['REMOTE_ADDR'].".ip";
-	$printserver=file_get_contents($filnavn);
+
+if (!$printserver) {
+  $qtxt="select box3,box4,box5,box6,box11,box12 from grupper where art = 'POS' and kodenr='2'";
+  $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+  $x=$kasse-1;
+  $tmp=explode(chr(9),$r['box3']);
+  $printserver=trim($tmp[$x]);
+  if (!$printserver)$printserver='localhost';
+  if ($printserver=='box' || $printserver=='saldibox') {
+    $filnavn="http://saldi.dk/kasse/".$_SERVER['REMOTE_ADDR'].".ip";
+    $printserver=file_get_contents($filnavn);
+  }
 }
-*/
 #$kasse = 1;
-$printserver = "localhost";
+if (!$printserver) $printserver = "localhost";
 $bon = '';
 if ($type == 'flatpay') {
   $data=explode('[',file_get_contents($filename));
