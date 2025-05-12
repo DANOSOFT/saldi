@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- lap 4.1.1 --- 2024-10-25 ---
+// --- lager/varekort.php --- lap 4.1.1 --- 2025-05-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20130210 Break ændret til break 1
 // 20131007 Kontrol for cirkulær reference indsat. Søg 20131007
@@ -90,7 +90,8 @@
 // 20231018 PHR - More changes in Variants - Must be totally rewritten
 // 20240105 PHR - Error in $ant_be_af
 // 20250815	PHR	- Languages
-// 20251025 PHR - Enabled call to updateProductPrice.php and added oldRetailPrice	
+// 20251025 PHR - Enabled call to updateProductPrice.php and added oldRetailPrice
+// 20250512 PHR - Corrected 'shopurl' fetch 	
 
 ob_start(); //Starts output buffering
 
@@ -179,9 +180,10 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
     $confirmStockChange = $r['var_value'];
 
 
-$qtxt = "select box2 from grupper where art = 'DIV' and kodenr = '5'";
+
+$qtxt = "select box4 from grupper where art = 'API'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
-    $shopurl = trim($r['box2']);
+    $shopurl = trim($r['box4']);
 
 $qtxt = "select count(id) as stocks from grupper where art='LG'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
