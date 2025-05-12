@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 4.1.0 --- 2025-03-22 ---
+// --- includes/docsIncludes/docPool.php --- ver 4.1.0 --- 2025-05-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
+// 20250510 PHR Added 'w' to $legalChars
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 	global $bruger_id,$db,$exec_path;
@@ -69,7 +70,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		}
 	}
 	if ($rename && $newFileName && $newFileName != $poolFile) {
-	  $legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','z');
+	  $legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
 		$nfn = trim($newFileName);
 		$nfn = str_replace('æ','ae',$nfn);
