@@ -1010,7 +1010,7 @@
 1010	Det sprog der skal anvendes ved fakturering	The language to be used for invoicing	Språket som skal brukes til fakturering
 1011	Momsgrp	VATgrp	Momsgrp
 1012	Køb	Purchase	Kjøp
-1013	Modkonto	Mod account	Mod-konto
+1013	Modkonto	Contra account	Motkonto
 1014	ClientID til API	ClientID for API	ClientID for API
 1015	Skriv det ClientID som benyttestil bestilling af fragt via API hos Danske Fragtmænd. Kontakt Saldi.DK på telefon 4690 2208 og hør om hvordan.	Write the ClientID as the style for ordering freight via API at Danske Fragtmænd. Contact Saldi.DK on telephone 4690 2208 and hear about how.	Skriv ClientID som stil for bestilling av frakt via API hos Danske Fragtmænd. Kontakt Saldi.DK på telefon 4690 2208 og hør om hvordan.
 1016	API-brugernavn	API username	API brukernavn
@@ -1050,7 +1050,7 @@
 1050	Angiv vejnavn, husnummer, etage m.v.	Enter street name, house number, floor, etc.	Skriv inn gatenavn, husnummer, etasje osv.
 1051	Eventuelt ekstra adresselinje	Any additional address bar	Eventuell tilleggsadresselinje
 1052	Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.	Indicate any location or other that is part of the official address.	Angi hvilket som helst sted eller annet som er en del av den offisielle adressen.
-1053	Postnummer	Zip_code	Post kode
+1053	Postnummer	Zip code	Post kode
 1054	Angiv postnummeret for afhentningstedet	Enter the postcode for the collection point	Skriv inn postnummeret for innsamlingsstedet
 1055	By	City	By
 1056	Angiv bynavn eller postdistrikt for afhentningsstedet	Enter city name or postal district for the pickup location	Angi bynavn eller postdistrikt for hentestedet
@@ -1069,7 +1069,7 @@
 1069	Valuta	Currency	Valuta  
 1070	Forfald	Due_date	Tidsfrist
 1071	Betal	Pay	Betale
-1072	Kassekladde 	Cash_journal	Kontantjournal
+1072	Kassekladde 	Cash journal	Kontantjournal
 1073	Saldo	Balance	Saldo
 1074	Importer	Import	Import
 1075	Tema	Theme	Tema
@@ -2425,129 +2425,129 @@
 2425	Bemærk at alle brugere skal være logget ud	Please note that all users must be logged out.	Vær oppmerksom på at alle brukere må være logget ut.
 2426	med en sikkerhedskopi fra den	with a backup copy from the	med en sikkerhetskopi fra
 2427	;Der er sket en fejl under hentningen - pr&oslash;;v venligst igen.;	An error occurred during the download - please try again.	Det oppsto en feil under nedlastingen – prøv på nytt.
-2428			
-2429			
-2430			
-2431			
-2432			
-2433			
-2434			
-2435			
-2436			
-2437			
-2438			
-2439			
-2440			
-2441			
-2442			
-2443			
-2444			
-2445			
-2446			
-2447			
-2448			
-2449			
-2450	Den maxlimale længde en label kan have i bokstaver, over 40 skal saldi teamet kontaktes for at udvidde databaseplads	 The maximum length a label can have in letters, above 40 balances the team must be contacted to expand database space	Den maksimale lengden en etikett kan ha i bokstaver, over 40 balanser må teamet kontaktes for å utvide databaseplassen
+2428	Delbetaling	Partial payment	Delbetaling
+2429	Vil du slette konto	Do you want to delete account	Vil du slette konto
+2430	Det nummer i kontoplanen som købsmomsen skal konteres på	The number in the chart of accounts to which the purchase tax should be posted	Det nummeret i kontoplanen som inngående MVA skal bokføres på
+2431	Den moms du skal have retur fra SKAT	The VAT you are owed by the tax authorities	Den MVA du skal ha tilbake fra Skatteetaten
+2432	Konto til postering af salgsmoms for ydelseskøb i udlandet	Account for posting of sales VAT for service purchases abroad	Konto for postering av salgs-MVA for tjenestekjøp i utlandet
+2433	Konto til postering af købsmoms for ydelseskøb i udlandet	Account for posting of purchase VAT for service purchases abroad	Konto for postering av kjøps-MVA for tjenestekjøp i utlandet
+2434	Konto til postering af salgsmoms for køb i udlandet	Account for posting of sales VAT for purchases abroad	Konto for postering av salgs-MVA for kjøp i utlandet
+2435	Konto til postering af købsmoms for køb i udlandet	Account for posting of purchase VAT for purchases abroad	Konto for postering av kjøps-MVA for kjøp i utlandet
+2436	Første kontonummer som skal indgå i rapporten	First account number to be included in the report	Første kontonummer som skal inngå i rapporten
+2437	Sidste kontonummer som skal indgå i rapporten	Last account number to be included in the report	Siste kontonummer som skal inngå i rapporten
+2438	Kontonummer for samlet varekøb i EU	Account number for total goods purchases in the EU	Kontonummer for samlet varekjøp i EU
+2439	Kontonummer for samlet ydelseskøb i EU	Account number for total service purchases in the EU	Kontonummer for samlet tjenestekjøp i EU
+2440	Kontonummer for samlet varesalg i EU	Account number for total goods sales in the EU	Kontonummer for samlet varesalg i EU
+2441	Kontonummer for samlet ydelsessalg i EU	Account number for total service sales in the EU	Kontonummer for samlet tjenestesalg i EU
+2442	Kontonummer for samlet vare- og ydelsessalg uden for EU	Account number for total goods and service sales outside the EU	Kontonummer for samlet vare- og tjenestesalg utenfor EU
+2443	Rubrik	Box	Rubrikk
+2444	Ved ydelseskøb i udlandet, skal der betales lokal moms sats på vegne af sælgeren.	When purchasing services abroad, the local VAT rate must be paid on behalf of the seller.	Ved kjøp av tjenester i utlandet, må lokal MVA betales på vegne av selgeren.
+2445	Ved varekøb i udlandet, skal der betales lokal moms sats på vegne af sælgeren.	When purchasing goods abroad, the local VAT rate must be paid on behalf of the seller.	Ved kjøp av varer i utlandet, må lokal MVA'en betales på vegne av selgeren.
+2446	Samtidig kan købsmomsen trækkes fra, så resultatet bliver 0.	At the same time, the purchase VAT can be deducted, so the result becomes 0.	Samtidig kan kjøps-MVA'en trekkes fra, slik at resultatet blir 0.
+2447	Momsgruppe som debitorgruppen skal tilknyttes	VAT group to which the debtor group should be assigned	MVA-gruppe som debitorgruppen skal knyttes til
+2448	Samlekt.	Coll. acc.	Samlekt.
+2449	Samlekonto for debitorgruppen	Collective account for the debtor group	Samlekonto for debitorgruppen
+2450	Den maxlimale længde en label kan have i bogstaver, over 40 skal saldi teamet kontaktes for at udvidde databaseplads	 The maximum length a label can have in letters, above 40 balances the team must be contacted to expand database space	Den maksimale lengden en etikett kan ha i bokstaver, over 40 balanser må teamet kontaktes for å utvide databaseplassen
 2451	Momsangivelse for året	VAT return for the year	Mva-melding for året
-2452			
-2453			
-2454			
-2455			
-2456			
-2457			
-2458			
-2459			
-2460			
-2461			
-2462			
-2463			
-2464			
-2465			
-2466			
-2467			
-2468			
-2469			
-2470			
-2471			
-2472			
-2473			
-2474			
-2475			
-2476			
-2477			
-2478			
-2479			
-2480			
-2481			
-2482			
-2483			
-2484			
-2485			
-2486			
-2487			
-2488			
-2489			
-2490			
-2491			
-2492			
-2493			
-2494			
-2495			
-2496			
-2497			
-2498			
-2499			
-2500			
-2501			
-2502			
-2503			
-2504			
-2505			
-2506			
-2507			
-2508			
-2509			
-2510			
-2511			
-2512			
-2513			
-2514			
-2515			
-2516			
-2517			
-2518			
-2519			
-2520			
-2521			
-2522			
-2523			
-2524			
-2525			
-2526			
-2527			
-2528			
-2529			
-2530			
-2531			
-2532			
-2533			
-2534			
-2535			
-2536			
-2537			
-2538			
-2539			
-2540			
-2541			
-2542			
-2543			
-2544			
-2545			
-2546			
-2547			
-2548			
-2549			
-2550			
+2452	Provisionsprocent	Commission rate	Provisjonsprosent
+2453	Her angives hvor stor en procentdel af dækningsbidraget det medgår ved beregning af provision.	This indicates what percentage of the contribution margin is used in the calculation of the commission.	Her angis hvilken prosentandel av dekningsbidraget som medgår ved beregning av provisjon.
+2454	Afmærk her, hvis der skal anvendes B2B priser ved salg til denne kundegruppe	Check here to apply B2B prices when selling to this customer group	Merk av her hvis B2B-priser skal anvendes ved salg til denne kundegruppen
+2455	Omvendt betalingspligt	Reverse charge	Omvendt betalingsplikt
+2456	Afmærk her, hvis denne kundegruppe er omfattet af omvendt betalingspligt	Check here if this customer group is subject to reverse charge	Merk av her hvis denne kundegruppen er omfattet av omvendt betalingsplikt
+2457	OB	RC	OB
+2458	Kreditorgrupper	Creditor groups	Kreditorgrupper
+2459	Momsgruppe som kreditorgruppen skal tilknyttes	VAT group to which the creditor group should be assigned	MVA-gruppe som kreditorgruppen skal knyttes til
+2460	Samlekonto for kreditorgruppen	Collective account for the creditor group	Samlekonto for kreditorgruppen
+2461	Det sprog, der skal anvendes ved kommunikation med kreditoren	The language to be used when communicating with the creditor	Språket som skal brukes ved kommunikasjon med kreditoren
+2462	Momsgruppe for salgsmoms ved omvendt betalingspligt	VAT group for sales VAT under reverse charge	"MVA-gruppe for salgs-MVA ved omvendt betalingsplikt
+2463	S.moms grp.	S.VAT grp.	S.MVA grp.
+2464	Afd.	Dept.	Avd.
+2465	Afmærk her, hvis denne leverandørgruppe er omfattet af omvendt betalingspligt	Check here if this supplier group is subject to reverse charge	Merk av her hvis denne leverandørgruppen er omfattet av omvendt betalingsplikt
+2466	Afmærk her, hvis denne varegruppe er omfattet af omvendt betalingspligt	Check here if this product group is subject to reverse charge	Merk av her hvis denne varegruppen er omfattet av omvendt betalingsplikt
+2467	Klik her for at rette i projektopsætningen	Click here to edit the project setup	Klikk her for å endre prosjektoppsettet
+2468	Salg	Sale	Salg
+2469	Klik her for at rette navn	Click here to edit name	Klikk her for å rette navn
+2470	Opret ny vare-rabatgruppe	Create new item discount group	Opprett ny vare-rabattgruppe
+2471	Prisgrupper	Price groups	Prisgrupper
+2472	Tilbudsgrupper	Offer groups	Tilbudsgrupper
+2473	Stk. rabat	Unit discount	Stk. rabatt
+2474	V. antal	Per quantity	V. antall
+2475	Kun se	View only	Kun se
+2476	Startmåned Start month	Startmåned
+2477	Slutmåned	End month	Slutmåned
+2478	Startår	Start year	Startår
+2479	Slutår	End year	Slutår
+2480	Skal være mellem	Must be between	Må være mellom
+2481	Og	And	Og
+2482	Regnskabsår skal slutte senere end det starter	The fiscal year must end later than it starts	Regnskapsår må slutte senere enn det starter
+2483	E-mail/kopi til ref.	Email/copy for ref.	E-post/kopi til ref.
+2484	Databehandleraftale	Data Processing Agreement	Databehandleravtale
+2485	Basisløsning	Basic solution	Basisløsning
+2486	Totalløsning	Complete solution	Totalløsning
+2487	Lev. service	Supplier service	Lev. service
+2488	Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)	Enter VAT number	Skriv inn MVA nummer
+2489	Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)	Enter phone number	Skriv inn telefonnummer
+2490	Skriv sprog der ønskes tilføjet	Enter a language you want to add	Skriv språk som ønskes lagt til
+2491	er oprettet	has been added	er oprettet
+2492	Slet det valgte sprog	Delete the selected language	Slett det valgte språket
+2493	Start	Start	Start
+2494	Slut	End	Slutt
+2495	Just.	Align	Just.
+2496	Side	Page	Side
+2497	Fed	Bold	Fet
+2498	Alle	All	Alle
+2499	Her har du mulighed for at flytte centreringen på formularen	Here you have the option to move the centering of the form	Her har du mulighet til å flytte sentreringen på skjemaet
+2500	Angiv blot det antal mm der skal flyttes hhv. op og til højre	Simply specify the number of mm to move upwards and to the right respectively	Angi bare antall mm som skal flyttes hhv. opp og til høyre
+2501	Anvend negativt fortegn, hvis der skal rykkes ned eller til venstre	Use a negative sign if it should be moved downwards or to the left	Bruk negativt fortegn hvis det skal flyttes ned eller til venstre
+2502	Linjeantal	Line count	Linjeantall
+2503	Linjeafst.	Line sp.	Linjeafst.
+2504	Tekstlængde	Text length	Tekstlengde
+2505	Linjemoms	Line VAT	Linje-MVA
+2506	Varemomssats	Goods VAT rate	Vare-MVA-sats
+2507	Linjesum	Line total	Linjesum
+2508	Op	Up	Opp
+2509	Ned	Down	Ned
+2510	Højre	Right	Høyre
+2511	Venstre	Left	Venstre
+2512	er allerede oprettet. Oprettelse annulleret	already exists. Language setup canceled	er allerede opprettet. Opprettelse annullert
+2513	Sprogbenævnelse må ikke indeholde specialtegn.\\nOprettelse af	The language name must not contain special characters. \\n Setup of	Språkbetegnelse må ikke inneholde spesialtegn.\\nOpprettelsen av
+2514	er annulleret	has been canceled	er annullert
+2515	Toplinjer	Top lines	Topplinjer
+2516	Bundlinker	Bottom lines	Bunnlinjer
+2517	Egen	Own	Egen
+2518	Eget	Own	Eget
+2519	Kundeordrenummer	Customer order number	Kundeordrenummer
+2520	Formular	Form	Skjema
+2521	Transportsum Transport cost Transportsum
+2522	Der findes allerede en enhed med betegnelsen	A unit already exists with the designation	Det finnes allerede en enhet med betegnelsen
+2523	Der findes allerede et materiale med beskrivelsen	A material already exists with the description	Det finnes allerede et materiale med beskrivelsen
+2524	Skriv nyt navn på regnskab	Enter new name for the account	Skriv nytt navn på regnskap
+2525	og klik	and click	og klikk
+2526	Skift navn	Change name	Endre navn
+2527	Opdater ikke kostpris	Do not update cost price	Oppdater ikke kostpris
+2528	Gennemsnitspris	Average price	Gjennomsnittspris
+2529	Genanskaffelsespris	Replacement price	Erstatningspris
+2530	Att.	Attn.	Att.
+2531	Lokal printer	Local printer	Lokal skriver
+2532	Digitalt	Digital	Digitalt
+2533	Vis ekstrafelter	Show extra fields	Vis ekstrafelter
+2534	Betalings-ID	Payment ID	Betalings-ID
+2535	KDO	OTO	KDO
+2536	O/B	R/C	O/A
+2537	Dækningsbidrag	Contribution margin	Dekningsbidrag
+2538	Dækningsgrad	Margin ratio	Dekningsgrad
+2539	Send faktura digitalt	Send invoice digitally	Send faktura digitalt
+2540	Send til en debitor iPad	Send to a debtor iPad	Send til en debitor iPad
+2541	Ingen	Nothing	Ingen
+2542	Restordre	Backorder	Restordre
+2543	Nedenstående tekster ændres ved fakturering, hold musen over beskrivelsen til venstre for at se ændringen.	The texts below will be changed during invoicing. Hover over the description on the left to see the change.	Tekstene nedenfor endres ved fakturering, hold musepekeren over beskrivelsen til venstre for å se endringen.
+2544	Medtag moms for kommision	Include VAT for commission	Inkluder merverdiavgift for kommisjon
+2545	Afmærkes dette felt er kommissionen ekskl. moms. Ved f.eks. 15% kommission og 25% moms, bliver den faktiske kommision 18,75%.	If this field is checked, the commission is excluding VAT. For example, with 15% commission and 25% VAT, the actual commission becomes 18.75%.	Hvis dette feltet er avmerket, er kommisjonen ekskl. mva. Ved f.eks. 15 % kommisjon og 25 % mva, blir den faktiske kommisjonen 18,75%.
+2546	Opdater fra shop	Update from shop	Oppdater fra shop
+2547	A4 ark	A4 sheet	A4 ark
+2548	Nummer	Number	Nummer
+2549	Valuta styres af samlekontoen	Currency is set by the collective account	Valuta styres av samlekontoen			
+2550	Modkonto ved udligning af åbne poster	Offset account for reconciling open items	Motkonto ved utligning av åpne poster			
 2551			
 2552			
 2553			
