@@ -91,13 +91,15 @@
 // 06-01-2025 PBLM Added a second file to api_valg
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20250513 Sawaneh add max user update in kontoindstillinger()
 
 include("sys_div_func_includes/chooseProvision.php");
+include_once("../includes/connect.php"); 
 
 
 function kontoindstillinger($regnskab, $skiftnavn)
 {
-	global $bgcolor, $bgcolor5, $sprog_id, $timezone;
+	global $bgcolor, $bgcolor5, $sprog_id, $timezone, $db, $sqdb,$sqhost, $squser,$sqpass ;
 	#	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone'];
 	#	else {
 	$qtxt = "select id,var_value from settings where var_name='timezone'";
@@ -111,6 +113,47 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	print "<tr><td colspan='6'><hr></td></tr>\n";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>" . findtekst(783, $sprog_id) . "</u></b></td></tr>\n";
 	print "<tr><td colspan='6'><br></td></tr>\n";
+
+	print "<tr><td colspan='6'><hr></td></tr>\n";
+    print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>User Limit</u></b></td></tr>\n";
+    print "<tr><td colspan='6'><br></td></tr>\n";
+	$max_users = 1;
+	$masterDb = $sqdb;
+	
+	$conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
+	
+	if ($conn) {
+		$query = "SELECT brugerantal FROM regnskab WHERE db = $1";
+		$result = pg_query_params($conn, $query, array($db));
+	
+		if ($result) {
+			if (pg_num_rows($result) > 0) {
+				$row = pg_fetch_assoc($result);
+				$max_users = (int)$row['brugerantal'];
+			}
+		} else {
+			error_log("Query failed: " . pg_last_error($conn));
+		}
+	
+		pg_close($conn);
+	} else {
+		error_log("Could not connect to master DB ($masterDb).");
+		echo "<p style='color: red;'>An error occurred while fetching data.</p>";
+	}
+	
+
+print "<form name='maxusers' action='diverse.php?sektion=kontoindstillinger' onsubmit='return confirmUpdate();' method='post'>\n";
+print "<tr><td>Maximum number of users</td>";
+print "<td><input class='inputbox' type='number' style='width:50px' name='max_users' value='" . htmlspecialchars($max_users) . "'></td></tr>";
+print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($_SESSION['csrf_token']) . "'>\n";
+print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='Update User Limit' name='update_max_users'></td></tr>\n";
+print "</form>\n";
+
+print "<script>
+    function confirmUpdate() {
+        return confirm('Are you sure you want to update the maximum number of users?');
+    }
+</script>\n";
 	if (!$skiftnavn) {
 		$klik = findtekst(149, $sprog_id);
 		$klik1 = explode(" ", $klik);  #20210710
