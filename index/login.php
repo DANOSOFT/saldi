@@ -346,17 +346,33 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 // 	}
 // }
 
+/* 
+update table onlineUserTracker with timestamp and amount of users logged in
+*/
+$qtxt="SELECT table_name FROM information_schema.tables WHERE table_name='onlineusertracker'";
+if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+    $qtxt = "CREATE TABLE onlineusertracker (
+        id SERIAL PRIMARY KEY, 
+        regnskab character varying(50) NOT NULL,
+        user_count integer NOT NULL,
+        timestamp timestamp without time zone NOT NULL
+    )";
+    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+}
+db_modify("INSERT INTO onlineusertracker (regnskab, user_count, timestamp) VALUES ('$regnskab', (SELECT COUNT(DISTINCT brugernavn)+1 FROM online WHERE db = '$db'), NOW())", __FILE__ . " linje " . __LINE__);
+
 
 if (
     !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
-    !(($regnskab === 'demo' && $brugernavn === 'admin'))
+    !(($regnskab === 'demo' && $brugernavn === 'admin')) &&
+	!($bruger_id < 0)
 ) {
     $udlob = time() - 14400; // 4 hours
 
     $q = db_select(
         "SELECT COUNT(DISTINCT brugernavn) AS user_count 
          FROM online 
-         WHERE db = '$db' 
+         WHERE db = '$db' AND brugernavn != '" . db_escape_string($brugernavn) . "'
          AND logtime > '$udlob'",
         __FILE__ . " linje " . __LINE__
     );
@@ -370,9 +386,14 @@ if (
 
     }
 	// echo "<script>alert(" . json_encode($bruger_max) . ");</script>";
-
+	$query = db_select("SELECT brugernavn FROM online WHERE brugernavn != '" . db_escape_string($brugernavn) . "' AND db = '$db' AND logtime > '$udlob'", __FILE__ . " linje " . __LINE__);
+	$activeUsers = [];
+	while ($row = db_fetch_array($query)) {
+		$activeUsers[] = $row['brugernavn'];
+	}
+	$activeUsers = implode(", ", $activeUsers);
     if ($bruger_max > 0 && $y >= $bruger_max) {
-        $message = "Maximum number of users ($bruger_max) already logged in. Please Contact saldi support.";
+        $message = "Max antal samtidige brugere ($y) er overskredet for $regnskab. Aktive brugere: $activeUsers.";
         echo "<script>alert(" . json_encode($message) . ");</script>";
         echo "<script>window.location.href = 'index.php';</script>";
         exit;
