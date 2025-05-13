@@ -138,8 +138,10 @@ if (!function_exists('menubuttons')) {
 			$qtxt = "select kodenr from grupper where art='POSBUT' and kode='$plads' and box1='$afd' and (box7 < box8) and (box7<='$tid' and box8>='$tid')";
 			if ($afd)
 				$qtxt .= " and (box12='$afd' or box12='') order by box12 desc limit 1";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$menu_id = $r['kodenr'];
+			
+			if($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))){
+				$menu_id = $r['kodenr'];
+			}
 		}
 		if (!$menu_id && $menu_id != '0') {
 			$qtxt = "select kodenr from grupper where art='POSBUT' and kode='$plads' and (box7 < box8) and (box7<='$tid' and box8>='$tid')";
