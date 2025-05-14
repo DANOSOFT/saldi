@@ -57,13 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 ?>
     <tr>
-        <th colspan="100">Afdelinger</th>
+        <th colspan="100"><?php print findtekst('772|Afdelinger', $sprog_id)?></th>
     </tr>
     <tr>
-        <td>Nr.</td>
-        <td>Beskrivelse</td>
-        <td>Lager</td>
-        <td>Formularnote</td>
+        <td><?php print findtekst('2248|Nr.', $sprog_id)?></td>
+        <td><?php print findtekst('914|Beskrivelse', $sprog_id)?></td>
+        <td><?php print findtekst('608|Lager', $sprog_id)?></td>
+        <td><?php print findtekst('2552|Formularnote', $sprog_id)?></td>
     </tr>
 
 <?php

@@ -654,7 +654,7 @@
 654	Lokalnr.	Local no.	Lokalt nr.
 655	Lokal fax	Local fax	Lokal faks
 656	Privat tlf	Private tel	Privat tlf
-657	Provision:	Commission:	Kommisjon:
+657	Provision	Commission	Kommisjon
 658	Afdeling	Department	Avdeling
 659	Bemærkning	Remark	Bemerke
 660	Fratrådt	Resigned	Gikk av
@@ -2549,7 +2549,7 @@
 2549	Valuta styres af samlekontoen	Currency is set by the collective account	Valuta styres av samlekontoen			
 2550	Modkonto ved udligning af åbne poster	Offset account for reconciling open items	Motkonto ved utligning av åpne poster			
 2551	Klik her for at komme tilbage	Click here to go back	Klikk her for å komme tilbake
-2552			
+2552	Formularnote	Form note	Formularnotat
 2553			
 2554			
 2555			
