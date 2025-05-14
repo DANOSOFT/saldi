@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/openpost_inc.php --- ver 4.0.8 --- 2023.08.28 ---
+// --- finans/kassekladde_includes/openpost_inc.php --- ver 4.1.1 --- 2025.05.09 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,21 +20,21 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk ApS
+// Copyright (c) 2003-2025 saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20220823 PHR Moved $offsetAccount lookup to reduce lookups
 // 20221111 PHR More posts can now be aligned in one step
 // 20230604 PHR Added offsetAccount to kredit,
 // 20230828 PHR Gets Company name from inviince instead of order.
+// 20250509 PHR Fiscal year
 
 function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr){
 # ($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
-	global $bgcolor;
-	global $bgcolor2;
-	global $bgcolor5;
-	global $top_bund;
+	global $bgcolor, $bgcolor2, $bgcolor5;
 	global $charset;
 	global $menu;
+	global $regnaar;
+	global $top_bund;
 
 	$linjebg=NULL;
 
@@ -177,7 +177,7 @@ include("../includes/topline_settings.php");
 
 				}
 				$grpArt=$art[$y]."G"; #20220823
-				$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr	= '$grp'";
+				$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr	= '$grp' and fiscal_year = '$regnaar'";
 				$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$offsetAccount[$x] = $r2['box5'];
 				$x++;
@@ -206,7 +206,7 @@ include("../includes/topline_settings.php");
 					$currency[$x]    = $r['valuta'];
 					$transdate[$x]   = $r['transdate'];
 					$grpArt=$art[$y]."G"; #20220823
-					$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr	= '$grp'";
+					$qtxt = "SELECT box5 FROM grupper WHERE art ='$grpArt' AND kodenr	= '$grp' and fiscal_year = '$regnaar'";
 					$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					$offsetAccount[$x] = $r2['box5'];
 					$qtxt = "SELECT art FROM adresser WHERE id ='$accountId[$x]'";
@@ -244,19 +244,19 @@ include("../includes/topline_settings.php");
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor;}
 		elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5;}
 		if ($openAamount[$x]<0) {
-			if (!$kredit) $kredit=$offsetAccount[$x];
+			($kredit)?$newCredit==$kredit:$newCredit=$offsetAccount[$x];
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x]*-1,2);
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
-			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$kredit&faktura=$invoiceNo[$x]";
+			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$newCredit&faktura=$invoiceNo[$x]";
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
 			$lnktxt.= "&lobenr=$lobenr&find=$find";
 			$tmp="<a href='$lnktxt'>";
 			$newAmount=dkdecimal($openAamount[$x],2);
 		} else {
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x],2);
-			if (!$debet) $debet=$offsetAccount[$x];
+			($debet)?$newDebet==$debet:$newDebet=$offsetAccount[$x];
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
-			$lnktxt.= "&d_type=$d_type&debet=$debet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=$invoiceNo[$x]";
+			$lnktxt.= "&d_type=$d_type&debet=$newDebet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=$invoiceNo[$x]";
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
 			$lnktxt.= "&lobenr=$lobenr&find=$find";
 			$tmp="<a href='$lnktxt'>";
