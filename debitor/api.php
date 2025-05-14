@@ -329,26 +329,22 @@
     
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         while ($res = db_fetch_array($query)) {
-            /* $res["pris"] = abs($res["pris"]);
+            $res["pris"] = abs($res["pris"]);
             $res["rabat"] = abs($res["rabat"]);
             $res["antal"] = abs($res["antal"]);
-            $res["momssats"] = abs($res["momssats"]); */
+            $res["momssats"] = abs($res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
             if(trim($res["beskrivelse"]) == ""){
                 continue;
             }
             file_put_contents("../temp/$db/ordrelinjer.json", json_encode($res, JSON_PRETTY_PRINT), FILE_APPEND);
             if($res["rabat"] > 0) {
-                $res["pris"] = abs($res["pris"]);
-                $res["antal"] = abs($res["antal"]);
                 $price = $res["pris"];
                 $price *= ($res["procent"]/100);
                 $discPrct = $res["rabat"];
                 $discAmount = $price * ($discPrct / 100) * $res["antal"];
                 $lineAmount = $res["antal"] * ($price - ($price/100 * $discPrct));
             }else{
-                $res["pris"] = abs($res["pris"]);
-                $res["antal"] = abs($res["antal"]);
                 $price = $res["pris"];
                 $price *= ($res["procent"]/100);
                 $discAmount = 0;
