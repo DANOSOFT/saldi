@@ -368,6 +368,8 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
     }
     db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
+db_modify("INSERT INTO onlineusertracker (regnskab, user_count, timestamp) VALUES ('$regnskab', (SELECT COUNT(DISTINCT brugernavn)+1 FROM online WHERE db = '$db'), NOW())", __FILE__ . " linje " . __LINE__);
+
 
 if (
     !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
