@@ -281,11 +281,11 @@ $state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 $qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
 $orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($state) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>" .findtekst('2149|Åben kassesystem', $sprog_id)."</button>";
 } elseif ($orderXpress) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>" .findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>" .findtekst('2150|Åben sagsstyring', $sprog_id)."</button>";
 } else {
-	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åben kassesystem', $sprog_id)."</button>";
 }
 	
 print "</div>";

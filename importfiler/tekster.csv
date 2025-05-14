@@ -1905,7 +1905,7 @@
 1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you have shown nothing to do here! Your IP number, username and accounts are registered!	Hmm du har ikke vist noe å gjøre her! Ditt IP -nummer, brukernavn og kontoer er registrert!
 1906	Skjul Luk	Hide Close	Skjul Lukk
 1907	Vis Luk	Show Close	Vis Lukk
-1908	Lås	Lock	Låse
+1908	Lås	Lock	Låse2149
 1909	Brugerantal	Number of users	Antall brukere
 1910	Posteringer	Entries	Innganger
 1911	Posteret	The poster	Plakaten
@@ -2146,8 +2146,8 @@
 2146	Vis DG	Show DG	Viss DG
 2147	Afmærkes her vises dækningsgraden for produktet	If ticked here, the degree of coverage for the product is displayed	Hvis det er krysset av her, vises dekningsgraden for produktet
 2148	Rediger	Edit	Rediger
-2149	Åbn kassesystem	Open POS System	Åpne POS-system
-2150	Åbn sagsstyring	Open Case Management	Åpne saksbehandling
+2149	Åben kassesystem	Open POS System	Åpne POS-system
+2150	Åben sagsstyring	Open Case Management	Åpne saksbehandling
 2151	Opsæt din oversigt	Set up your dashboard	Sett opp oversikten din
 2152	Kontonumre	Account Numbers	Kontonumre
 2153	Min.	Min.	Min.
