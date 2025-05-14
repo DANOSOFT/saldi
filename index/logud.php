@@ -46,6 +46,12 @@ if (isset($r['revisor'])) {
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 session_unset();
 session_destroy();
+if(isset($_COOKIE["saldi_std"])) {
+	unset($_COOKIE["saldi_std"]);
+}
+if(isset($_COOKIE["saldi_pfs"])){
+	unset($_COOKIE["saldi_pfs"]);
+}
 #echo "Good bye";
 echo "<script>if (window !== window.parent) {
 	window.parent.postMessage('logud', '*');
