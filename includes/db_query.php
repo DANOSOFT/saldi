@@ -37,6 +37,7 @@
 // 20230730 LOE - Minor modification, abolute path to std_func
 // 20250121 connection as first parameter in pg_*
 // 20250510 LOE Replaced mysql_query() with mysqli_query() to adjust for php7&above
+// 20250510 LOE Added check for empty database and added error message if database is empty
 
 
 if (!function_exists('get_relative')) {
@@ -250,7 +251,12 @@ if (!function_exists('db_select')) {
 				$linje=trim(fgets($fp));
 				fclose($fp);
 			}
-			list($tmp,$tmp2)=explode("\n",$errtxt);
+			#list($tmp,$tmp2)=explode("\n",$errtxt);
+
+			$lines = explode("\n", $errtxt);
+			$tmp = $lines[0] ?? NULL;  
+			$tmp2 = $lines[1] ?? NULL;
+
 			$tmp.="_".date("h:i");
 			if ($linje != $tmp) {
 				$fp=fopen("$temp/lasterror.txt","a");
@@ -307,10 +313,14 @@ if (!function_exists('db_catalog_setval')) { // <-- Never used
 if (!function_exists('db_fetch_array')) {
 	function db_fetch_array($qtext) {
 		global $db_type;
-#		echo __line__." $qtext<br>";
-		if ($db_type=="mysql") return mysql_fetch_array($qtext);
-		elseif ($db_type=="mysqli") return mysqli_fetch_array($qtext, MYSQLI_BOTH); #20190704
-		else return pg_fetch_array($qtext);
+ 		if ($db_type == "mysql" || $db_type == "mysqli") {
+            if ($qtext && $qtext !== false) {
+                return mysqli_fetch_array($qtext, MYSQLI_BOTH);
+            } else {
+                error_log("Error: db_fetch_array() - Invalid query result");
+                return false;
+            }
+        } else return pg_fetch_array($qtext);
 	}
 }
 
