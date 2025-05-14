@@ -92,11 +92,14 @@
 // 20250815	PHR	- Languages
 // 20251025 PHR - Enabled call to updateProductPrice.php and added oldRetailPrice
 // 20250512 PHR - Corrected 'shopurl' fetch 	
+// 20250512 PHR - added feedback message after product creation 'shopurl' fetch 	
 
 ob_start(); //Starts output buffering
 
 @session_start();
 $s_id = session_id();
+$_SESSION['product_success'] = "Product saved successfully.";
+$_SESSION['product_error'] = "Failed to save the product.";
 
 $begin = 0;
 $folgevare = 0;
@@ -923,7 +926,7 @@ if ($saveItem || $submit = trim($submit)) {
             $qtxt .= "salgspris_rounding='$salgspris_rounding',salgspris_multiplier='$salgspris_multiplier',";// 20221004
             $qtxt .= "retail_price_method='$retail_price_method',retail_price_rounding='$retail_price_rounding',";// 20221004
             $qtxt .= "retail_price_multiplier='$retail_price_multiplier',provision='$provision' where id = '$id'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+         $saved  =  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             if ($submit == 'copy') {
                 $copyItemNo = "kopi_af_$varenr";
                 $r = db_fetch_array(db_select("select id from varer where varenr='$copyItemNo'", __FILE__ . " linje " . __LINE__));
@@ -959,7 +962,7 @@ if ($saveItem || $submit = trim($submit)) {
                     $qtxt = "INSERT INTO vare_lev ($dest_columns) SELECT $source_columns FROM vare_lev WHERE vare_id = $id";
 
                     // Execute the INSERT query
-                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
                     if ($samlevare == "on"){
                         $query = db_select("SELECT string_agg(column_name, ', ') AS all_columns, 
@@ -1013,7 +1016,7 @@ if ($saveItem || $submit = trim($submit)) {
                     if (($be_af_ant[$x] > 0) && ($be_af_pos[$x])) {
                         $be_af_pos[$x] = round($be_af_pos[$x]);
                         $qtxt = "update styklister set antal = $be_af_ant[$x], posnr = $be_af_pos[$x] where id = '$be_af_id[$x]'";
-                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
                     } else {
                         db_modify("delete from styklister where id = '$be_af_id[$x]'", __FILE__ . " linje " . __LINE__);
                     }
@@ -1052,7 +1055,7 @@ if ($saveItem || $submit = trim($submit)) {
                     }
                 }
                 $kostpris[0] = (float) stykliste($id, 0, '');
-                db_modify("update varer set kostpris = '$kostpris[0]' where id = '$id'", __FILE__ . " linje " . __LINE__);
+              db_modify("update varer set kostpris = '$kostpris[0]' where id = '$id'", __FILE__ . " linje " . __LINE__);
 
             }
             /*
@@ -1080,15 +1083,19 @@ if ($saveItem || $submit = trim($submit)) {
         if ($leverandor) {
             $query = db_select("select id from adresser where kontonr='$leverandor' and art = 'K'", __FILE__ . " linje " . __LINE__);
             if ($row = db_fetch_array($query)) {
-                db_modify("insert into vare_lev (lev_id, vare_id) values ('$row[id]', '$id')", __FILE__ . " linje " . __LINE__);
+              db_modify("insert into vare_lev (lev_id, vare_id) values ('$row[id]', '$id')", __FILE__ . " linje " . __LINE__);
             }
         }
     }
     #   }
+    if ($saved) {
+        echo "<script>alert('" . $_SESSION['product_success'] . "');</script>";    
+    }
+    
 } elseif ($id && isset($_POST['ChangeDescription']) && $_POST['ChangeDescription'] == 'Ja') {
     $newDecsription = db_escape_string($_POST['newDecsription']);
     $qtxt = "update varer set beskrivelse='$newDecsription' where id='$id'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+  db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 for ($x = 1; $x <= count($ny_lagerbeh); $x++) {
     $ny_beholdning += $ny_lagerbeh[$x];
@@ -1135,7 +1142,7 @@ if ($saveItem && $beskrivelse[0] != $oldDescription) {
         include("productCardIncludes/changeDescription.php");
     else {
         $qtxt = "update varer set beskrivelse = '" . db_escape_string($beskrivelse[0]) . "' where id= '$id'";
-        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+         db_modify($qtxt, __FILE__ . " linje " . __LINE__);
     }
 }
 ################################################## OUTPUT ####################################################

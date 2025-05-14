@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 //20241004 MMK  
 //20241018 LOE checks that some variables are set before using. 
+//20250513 Sawaneh display number of users online. 
 @session_start();
 $s_id = session_id();
 
@@ -81,6 +82,8 @@ include ("dashboardIncludes/revenue_graph.php");
 include ("dashboardIncludes/customer_graph.php");
 include ("dashboardIncludes/pos_row.php");
 
+
+
 function check_permissions($permarr) {
 	global $rettigheder;
 	$filtered = array_filter($permarr, function ($item) use ($rettigheder) {
@@ -88,6 +91,8 @@ function check_permissions($permarr) {
 	});
 	return !empty($filtered);
 }
+
+
 
 # If the user has finans -> regnskab or finans -> reports level access
 if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
@@ -239,6 +244,29 @@ if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) &
 # Titlebar
 print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
 print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
+if (check_permissions(array(0))) {
+  $udlob = time() - 14400;
+  $masterDb = $sqdb;
+  $conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
+
+  if ($conn) {
+    $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
+              FROM online 
+              WHERE db = $1 AND logtime > $2";
+
+    $result = pg_query_params($conn, $query, array($db, $udlob));
+
+    if ($result) {
+      $r = pg_fetch_array($result);
+      $y = (int) $r['user_count'];
+      print "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $y user(s) currently online</p>";
+    }
+
+    pg_close($conn);
+  }
+}
+
+
 print "<div style='display: flex; gap: 2em;'>";
 
 # Regnaar selector

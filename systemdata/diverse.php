@@ -84,12 +84,18 @@
 // 20241220 LOE Initialized tenantID and $key to null if not set
 // 20250105 PBLM Added a second file to api_valg
 // 20250414 LOE Updated barcodescan location and updated some variables
+// 20250513 Sawaneh add max user update in kontoindstillinger()
 
 
 @session_start();
 $s_id = session_id();
 ob_start();
 
+// Generate CSRF token if not already created
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['csrf_token'];
 $title = "Diverse Indstillinger";
 $modulnr = 1;
 $css = "../css/standard.css";
@@ -1651,6 +1657,70 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'sqlquery_io') {
 		$sqlstreng = if_isset($_POST['sqlstreng']);
 	} elseif ($sektion == 'kontoindstillinger') {
+
+		if (isset($_POST['update_max_users'])) {
+			// csrf token Validation
+			if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+				echo "<p style='color: red;'>Invalid request. Please try again.</p>";
+				error_log("CSRF token mismatch for user attempting to update max users.");
+				exit;
+			}
+		
+			$new_max_users = isset($_POST['max_users']) ? (int)$_POST['max_users'] : 0;
+			if ($new_max_users <= 0 || $new_max_users > 1000) {
+				echo "<p style='color: red;'>Invalid number of users. Must be between 1 and 1000.</p>";
+				exit;
+			}
+		
+			$current_regnskab_name = $regnskab;
+			$current_username = isset($_SESSION['brugernavn']) ? $_SESSION['brugernavn'] : 'Unknown User';
+			$update_successful = false;
+			$old_max_users_value = null;
+		
+			$masterDb = $sqdb;
+			$conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
+		
+			if ($conn) {
+				$query_select = "SELECT brugerantal FROM regnskab WHERE db = $1";
+				$result_select = pg_query_params($conn, $query_select, array($db));
+		
+				if ($result_select && pg_num_rows($result_select) > 0) {
+					$row = pg_fetch_assoc($result_select);
+					$old_max_users_value = (int) $row['brugerantal'];
+		
+					if ($new_max_users !== $old_max_users_value) {
+						$query_update = "UPDATE regnskab SET brugerantal = $1 WHERE db = $2";
+						$result_update = pg_query_params($conn, $query_update, array($new_max_users, $db));
+		
+						if ($result_update) {
+							$update_successful = true;
+							echo "<p style='color: blue;'>Max users updated successfully to $new_max_users.</p>";
+							error_log("$current_username updated max_users from $old_max_users_value to $new_max_users for $current_regnskab_name");
+						
+							$subject = "Max Users Updated on Account: $current_regnskab_name";
+							$message = "User '$current_username' has updated the max users from $old_max_users_value to $new_max_users on account '$current_regnskab_name'.";
+							$headers = "From: noreply@saldi.dk\r\nReply-To: noreply@saldi.dk\r\n";
+						
+							mail("info@saldi.dk", $subject, $message, $headers);
+						}
+						
+					} else {
+						echo "<p style='color: gray;'>No change in max users value.</p>";
+					}
+				} else {
+					echo "<p style='color: red;'>An unexpected error occurred.</p>";
+					error_log("Account not found in regnskab table for DB: $db");
+				}
+		
+				pg_close($conn);
+			} else {
+				echo "<p style='color: red;'>An unexpected error occurred.</p>";
+				error_log("Failed to connect to master DB: $masterDb");
+			}
+		}
+		
+		
+
 		if (isset($_POST['submit']) && strstr($_POST['submit'], 'Skift')) {
 			$nyt_navn = trim(db_escape_string($_POST['nyt_navn']));
 			include("../includes/connect.php");
