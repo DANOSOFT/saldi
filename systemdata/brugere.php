@@ -116,7 +116,7 @@ if ($addUser || $updateUser) {
 	$medarbejder=trim(if_isset($_POST['medarbejder']));
 	$employeeId=if_isset($_POST['employeeId']);
 	// $restore_user = if_isset($_POST['ruser_ip']); #20210831
-	 $insert_ip = if_isset($_POST['insert_ip']); #20210908
+	$insert_ip = if_isset($_POST['insert_ip']); #20210908
 	// $user_ip = if_isset($_POST['user_ip']); #20210831
 	 $re_id=if_isset($_POST['re_id']); #20210909
 	if($insert_ip){
@@ -151,8 +151,8 @@ if ($addUser || $updateUser) {
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $brugernavn!</td></tr>";
 		}	else {
 			if (!$regnaar) $regnaar=1;
-			$qtxt = "insert into brugere (brugernavn,kode,rettigheder,regnskabsaar,ansat_id) ";
-			$qtxt.= "values ('$brugernavn','$kode','$rettigheder','$regnaar',$employeeId[0])";
+			$qtxt = "insert into brugere (brugernavn,kode,rettigheder,regnskabsaar,ansat_id,ip_address) ";
+			$qtxt.= "values ('$brugernavn','$kode','$rettigheder','$regnaar',$employeeId[0],'$insert_ip')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from brugere where brugernavn = '$brugernavn' and kode = '$kode'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -164,7 +164,7 @@ if ($addUser || $updateUser) {
 			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0] where id=$id",__FILE__ . " linje " . __LINE__);
 		} else {
 			$kode=saldikrypt($id,$kode);
-			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0] where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip' where id=$id",__FILE__ . " linje " . __LINE__);
 		}
 	}
 	if($user_ip){
@@ -308,7 +308,7 @@ if ($ret_id) {
 		print "<input type=hidden name=re_id value=$ret_id>"; #20210909+20211015
 	
 		###########################################20210831
-	print "<tr><td>".findtekst(1904, $sprog_id)."</td><td><input class=\"inputbox\" type= text  name=insert_ip maxlength=49></td></tr>"; #20210908
+	print "<tr><td>".findtekst(1904, $sprog_id)."</td><td><input class=\"inputbox\" type= text  name=insert_ip maxlength=49 value='$row[ip_address]' ></td></tr>"; #20210908
 	
 	print "</tbody></table></td></tr>";
 	print "<tr><td><br></td></tr>";
