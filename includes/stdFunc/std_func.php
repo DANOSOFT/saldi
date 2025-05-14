@@ -1597,29 +1597,6 @@ if (!function_exists('get_ip')) { #20210830
 	
 	}
 }
-if (!function_exists('restrict_user_ip')) { #20210831 + 20210909+20211015
-	function restrict_user_ip($user_ip, $ret_id){
-		#global $ret_id ;
-		$ret_id=$ret_id*1;
-		$restricted_user_ip=null;
-		#$d = new DateTime('NOW');
-		#$created_ip_date =    $d->format('c'); 
-#########
-        $restrict = "$user_ip".chr(9)."$ret_id";
-		$qtxt = "select var_value from settings where var_name = 'RestrictedUserIp' and user_id = '0'";
-		if($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
-		$restricted_user_ip = $r ['var_value'];}
-		if (!$restricted_user_ip){
-			db_modify("insert into settings (var_name,var_grp, var_value, user_id) values ('RestrictedUserIp','globals','$restrict','0' )",__FILE__ . " linje " . __LINE__);
-		} 
-##########
-
-		// $query = db_select("select * from restricted_users where ip_values = '$user_ip' ",__FILE__ . " linje " . __LINE__);
-		// if(!$row = db_fetch_array($query)){
-		// db_modify("insert into restricted_users (user_id,ip_values,ip_restricted_date) values ('$ret_id', '$user_ip','$created_ip_date')",__FILE__ . " linje " . __LINE__);
-	    // }
-	}
-}	
 if (!function_exists('restore_user_ip')) { #20210831 + 20210909
 	function restore_user_ip($user_ip, $ret_id){	
 		$query = db_select("select ip_values from restricted_users where ip_values = '$user_ip' and user_id = '$ret_id' ",__FILE__ . " linje " . __LINE__);
