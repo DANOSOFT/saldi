@@ -1673,7 +1673,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		
 			$current_regnskab_name = $regnskab;
-			$current_username = isset($_SESSION['brugernavn']) ? $_SESSION['brugernavn'] : 'Unknown User';
+			$current_username = $brugernavn;
 			$update_successful = false;
 			$old_max_users_value = null;
 		
