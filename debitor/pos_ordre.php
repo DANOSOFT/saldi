@@ -2024,7 +2024,7 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 		}
 		if ($delbetaling) {
 			$tmp = $rest / $delbetaling;
-			print "<tr><td>Delbetaling 1/$delbetaling af $rest</td><td colspan= \"4\" align=\"right\">\n";
+			print "<tr><td>".findtekst('2428|Delbetaling)', $sprog_id)." 1/$delbetaling ".strtolower(findtekst('638|Af)', $sprog_id))." $rest</td><td colspan= \"4\" align=\"right\">\n";
 		} else {
 			print "<tr><td>$betaling $betvaluta";
 			/*
