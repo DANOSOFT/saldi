@@ -1,6 +1,7 @@
 <?php
 function customer_graph() {
     # Customer Heatmap
+
     echo '
     <div style="
         flex: 2;
@@ -13,11 +14,23 @@ function customer_graph() {
         flex-direction: column;
         height: 350px;
     ">
-        <h4 style="margin: 0; color: #999">Antal kunder per tidspunkt gennemsnit de sidste 90 dage</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0; color: #999">Antal kunder per tidspunkt gennemsnit de sidste</h4>
+            <select style="width: 150px; padding: 0.5em; border-radius: 5px; border: 1px solid #ccc;" id="customerHeatmapSelect">
+                <option value="30">30 dage</option>
+                <option value="90">90 dage</option>
+                <option value="180">180 dage</option>
+                <option value="365">365 dage</option>
+            </select>
+        </div>
         <div id="customerHeatmap" style="flex: 1; width: 100%; height: 100%;"></div>
     </div>
     ';
-    
+    $days = 30; // Default to 30 days
+    if (isset($_POST['days'])) {
+        $days = intval($_POST['days']);
+    }
+    $days = max(1, min($days, 365)); // Ensure days is between 1 and 365
     $weekdayDates = array(
         'Monday' => array(),
         'Tuesday' => array(),
@@ -29,7 +42,7 @@ function customer_graph() {
     );
     
     $currentDate = new DateTime();
-    for ($i = 0; $i < 90; $i++) {
+    for ($i = 0; $i < $days; $i++) {
         $date = clone $currentDate;
         $date->sub(new DateInterval('P'.$i.'D'));
         $weekdayName = $date->format('l');
@@ -97,91 +110,138 @@ function customer_graph() {
         ];
     }
     
-    // Output JavaScript with ApexCharts
+    // Output JavaScript with ApexCharts and add event listener for select change
     echo "<script>
     document.addEventListener('DOMContentLoaded', function() {
-        const series = " . json_encode($heatmapSeries) . ";
-        const maxValue = " . json_encode($maxValue) . ";
+        let chart;
         
-        const options = {
-            series: series,
-            chart: {
-                height: 310,
-                type: 'heatmap',
-                toolbar: {
+        function initChart(series, maxValue) {
+            const options = {
+                series: series,
+                chart: {
+                    height: 310,
+                    type: 'heatmap',
+                    toolbar: {
+                        show: false
+                    }
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                colors: ['#008FFB'],
+                title: {
                     show: false
-                }
-            },
-            dataLabels: {
-                enabled: false
-            },
-            colors: ['#008FFB'],
-            title: {
-                show: false
-            },
-            xaxis: {
-                type: 'category',
-                tickPlacement: 'on',
-                labels: {
-                    rotate: -45,
-                    rotateAlways: true
-                }
-            },
-            yaxis: {
-                reversed: true
-            },
-            tooltip: {
-                y: {
-                    formatter: function(value) {
-                        return parseFloat(value).toFixed(1) + ' customers';
+                },
+                xaxis: {
+                    type: 'category',
+                    tickPlacement: 'on',
+                    labels: {
+                        rotate: -45,
+                        rotateAlways: true
+                    }
+                },
+                yaxis: {
+                    reversed: true
+                },
+                tooltip: {
+                    y: {
+                        formatter: function(value) {
+                            return parseFloat(value).toFixed(1) + ' customers';
+                        }
+                    }
+                },
+                plotOptions: {
+                    heatmap: {
+                        shadeIntensity: 0.5,
+                        radius: 0,
+                        colorScale: {
+                            ranges: [
+                                {
+                                    from: 0,
+                                    to: maxValue * 0.05,
+                                    color: '#EBEDF0',
+                                    name: 'Lav'
+                                },
+                                {
+                                    from: maxValue * 0.05,
+                                    to: maxValue * 0.25,
+                                    color: '#C0DEFF',
+                                    name: 'Medium'
+                                },
+                                {
+                                    from: maxValue * 0.25,
+                                    to: maxValue * 0.50,
+                                    color: '#90CAF9',
+                                    name: 'Høj'
+                                },
+                                {
+                                    from: maxValue * 0.50,
+                                    to: maxValue * 0.75,
+                                    color: '#42A5F5',
+                                    name: 'Meget høj'
+                                },
+                                {
+                                    from: maxValue * 0.75,
+                                    to: maxValue,
+                                    color: '#1E88E5',
+                                    name: 'Ekstrem'
+                                }
+                            ]
+                        }
                     }
                 }
-            },
-            plotOptions: {
-                heatmap: {
-                    shadeIntensity: 0.5,
-                    radius: 0,
-                    colorScale: {
-                        ranges: [
-                            {
-                                from: 0,
-                                to: maxValue * 0.05,
-                                color: '#EBEDF0',
-                                name: 'Lav'
-                            },
-                            {
-                                from: maxValue * 0.05,
-                                to: maxValue * 0.25,
-                                color: '#C0DEFF',
-                                name: 'Medium'
-                            },
-                            {
-                                from: maxValue * 0.25,
-                                to: maxValue * 0.50,
-                                color: '#90CAF9',
-                                name: 'Høj'
-                            },
-                            {
-                                from: maxValue * 0.50,
-                                to: maxValue * 0.75,
-                                color: '#42A5F5',
-                                name: 'Meget høj'
-                            },
-                            {
-                                from: maxValue * 0.75,
-                                to: maxValue,
-                                color: '#1E88E5',
-                                name: 'Ekstrem'
-                            }
-                        ]
-                    }
-                }
-            }
-        };
+            };
 
-        const chart = new ApexCharts(document.querySelector('#customerHeatmap'), options);
-        chart.render();
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new ApexCharts(document.querySelector('#customerHeatmap'), options);
+            chart.render();
+        }
+        
+        // Initialize chart with default data
+        const initialSeries = " . json_encode($heatmapSeries) . ";
+        const initialMaxValue = " . json_encode($maxValue) . ";
+        initChart(initialSeries, initialMaxValue);
+        
+        // Add event listener for select change
+        document.getElementById('customerHeatmapSelect').addEventListener('change', function() {
+            const days = this.value;
+            const container = document.getElementById('customerHeatmap');
+            
+            // Show loading indicator
+            container.innerHTML = '<div style=\"display: flex; justify-content: center; align-items: center; height: 100%;\"><div style=\"border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite;\"></div></div>';
+            
+            // Fetch new data based on selected days
+            fetch('customer_graph_data.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'days=' + days
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Initialize chart with new data
+                initChart(data.series, data.maxValue);
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                container.innerHTML = '<div style=\"display: flex; justify-content: center; align-items: center; height: 100%;\">Error loading data</div>';
+            });
+        });
     });
+    
+    // Add CSS for loading spinner
+    document.head.insertAdjacentHTML('beforeend', `
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `);
     </script>";
 }
 ?>
