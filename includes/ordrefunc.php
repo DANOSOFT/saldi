@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-04-28 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-05-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -233,6 +233,7 @@
 // 20250317 LOE Internal pricelist sets to default view.
 // 20250408 PHR Function vareopslag: Fix for wrong sort in search.
 // 20250421 LOE Delimeter now takes directly from database seteup and default set if not given
+// 20250507 PHR (float)$default_procenttillag in function opret_ordre
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
