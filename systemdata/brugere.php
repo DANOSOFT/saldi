@@ -161,14 +161,11 @@ if ($addUser || $updateUser) {
 	}
 	if ($id && $kode && $brugernavn) {
 		if (strstr($kode,'**********')) {
-			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0] where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip' where id=$id",__FILE__ . " linje " . __LINE__);
 		} else {
 			$kode=saldikrypt($id,$kode);
 			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip' where id=$id",__FILE__ . " linje " . __LINE__);
 		}
-	}
-	if($user_ip){
-		restrict_user_ip($user_ip, $re_id); #20210831 + 20210909+20211015
 	}
 	// if($restore_user){
 	// 	restore_user_ip($restore_user, $re_id); #20210831 + 20210909

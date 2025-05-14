@@ -495,6 +495,19 @@ if (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = $r['brugernavn'];
+	$accepted_ips = $r['ip_address'];
+	$ip_address = $_SERVER['REMOTE_ADDR'];
+	if ($accepted_ips != null && $accepted_ips != '') {
+		$accepted_ips = explode(',', $accepted_ips);
+		if (!in_array($ip_address, $accepted_ips)) {
+			$fejltxt = "Din IP-adresse er ikke godkendt til at logge ind.";
+			echo "<script type='text/javascript'>
+				alert(" . json_encode($fejltxt) . ");
+					window.location.href = 'index.php';
+				</script>";
+			exit;
+		}
+	}
 	$pw1  = md5($password);
 	$pw2  = saldikrypt($r['id'],$password);
 	if ($r['kode']==$pw1 || $r['kode']==$pw2) {
@@ -751,22 +764,7 @@ if(!isset($afbryd)){
 		hent_shop_ordrer(0,'');
 #if (!$sag_rettigheder&&$rettigheder) print "<meta http-equiv=\"refresh\" content=\"0;URL=sidemenu.php\">";
 if (!$sag_rettigheder&&$rettigheder) {
-		##########################
-	    $restricted=null; #20211018
-			$ip = get_ip(); #20211015
-			$restricted_user_ip=null;
-			$qtxt = "select var_value from settings where var_name = 'RestrictedUserIp'";
-			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if($r){ $restricted = explode(chr(9),$r['var_value']);
-				for ($x=0; $x<count($restricted);$x++) {
-					if ($restricted[$x] == $ip) $restricted_user_ip  = $restricted[$x];
-				}
-				if ($restricted_user_ip){
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=login.php\">";
-					exit;
-				} 
-			}	
-		##########################
+
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/menu.php\">";
 	}	elseif (substr($sag_rettigheder,2,1)) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../sager/sager.php\">";
