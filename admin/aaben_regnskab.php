@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-03 ---
+// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,7 @@
 // 2020.02.22 PHR Added call to locator and added global_id;
 // 2020.03.11 PHR Added call to betweenUpdates and added global_id to table regnskab if not exist;
 // 2023.11.03 PHR Added call to online.php after tjek4opdat
-
+// 2025.05.14 LOE Added check for empty database and added error message if database is empty
 @session_start();
 $s_id=session_id();
 
@@ -88,7 +88,7 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 }
 $qtxt = "select id, regnskab, global_id from regnskab where id = '$tmp_db_id'"; 
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-if ($r['id']) {
+if (if_isset($r,NULL,'id')) {
 	$dbLocation="://".$_SERVER['SERVER_NAME'].=$_SERVER['PHP_SELF'];
 	$dbLocation=str_replace("/admin/aaben_regnskab.php","",$dbLocation);
 	if ($_SERVER['HTTPS']) $dbLocation="s".$dbLocation;

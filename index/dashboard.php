@@ -247,23 +247,54 @@ print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
 if (check_permissions(array(0))) {
   $udlob = time() - 14400;
   $masterDb = $sqdb;
-  $conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
+  
+ if (check_permissions(array(0))) {
+    $udlob = time() - 14400;
+    $masterDb = $sqdb;
 
-  if ($conn) {
-    $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
-              FROM online 
-              WHERE db = $1 AND logtime > $2";
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        $conn = mysqli_connect($sqhost, $squser, $sqpass, $masterDb);
 
-    $result = pg_query_params($conn, $query, array($db, $udlob));
+        if ($conn) {
+            $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
+                      FROM online 
+                      WHERE db = ? AND logtime > ?";
+            $stmt = mysqli_prepare($conn, $query);
 
-    if ($result) {
-      $r = pg_fetch_array($result);
-      $y = (int) $r['user_count'];
-      print "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $y user(s) currently online</p>";
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, "ss", $db, $udlob);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_bind_result($stmt, $userCount);
+                mysqli_stmt_fetch($stmt);
+                mysqli_stmt_close($stmt);
+
+                echo "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $userCount user(s) currently online</p>";
+            }
+
+            mysqli_close($conn);
+        }
+
+    } else { // PostgreSQL fallback
+        $conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
+
+        if ($conn) {
+            $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
+                      FROM online 
+                      WHERE db = $1 AND logtime > $2";
+
+            $result = pg_query_params($conn, $query, array($db, $udlob));
+
+            if ($result) {
+                $r = pg_fetch_array($result);
+                $userCount = (int) $r['user_count'];
+                echo "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $userCount user(s) currently online</p>";
+            }
+
+            pg_close($conn);
+        }
     }
+}
 
-    pg_close($conn);
-  }
 }
 
 
