@@ -896,13 +896,15 @@ if ($b_submit) {
 	$kontakt = isset($_POST['kontakt']) ? db_escape_string(trim($_POST['kontakt'])) : '';
 	$kontakt_tlf = isset($_POST['kontakt_tlf']) ? db_escape_string(trim($_POST['kontakt_tlf'])) : '';
 	$kundeordnr = isset($_POST['kundeordnr']) ? db_escape_string(trim($_POST['kundeordnr'])) : '';
-	$lev_navn = isset($_POST['lev_navn']) ? db_escape_string(trim($_POST['lev_navn'])) : '';
-	$lev_addr1 = isset($_POST['lev_addr1']) ? db_escape_string(trim($_POST['lev_addr1'])) : '';
-	$lev_addr2 = isset($_POST['lev_addr2']) ? db_escape_string(trim($_POST['lev_addr2'])) : '';
-	$lev_postnr = isset($_POST['lev_postnr']) ? trim($_POST['lev_postnr']) : '';
-	$lev_bynavn = isset($_POST['lev_bynavn']) ? trim($_POST['lev_bynavn']) : '';
-	$lev_email = isset($_POST['lev_email']) ? db_escape_string(trim($_POST['lev_email'])) : '';
-	$lev_land = isset($_POST['lev_land']) ? db_escape_string(trim($_POST['lev_land'])) : '';
+	$lev_navn   = db_escape_string(trim(if_isset($_POST, NULL, 'lev_navn')));
+	$lev_addr1  = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr1')));
+	$lev_addr2  = db_escape_string(trim(if_isset($_POST, NULL, 'lev_addr2')));
+	$lev_postnr = trim(if_isset($_POST, NULL, 'lev_postnr'));
+	$lev_bynavn = trim(if_isset($_POST, NULL, 'lev_bynavn'));
+	$lev_email  = db_escape_string(trim(if_isset($_POST, NULL, 'lev_email')));
+	$lev_land   = db_escape_string(trim(if_isset($_POST, NULL, 'lev_land')));
+
+
 
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
 	else $lev_bynavn = db_escape_string($lev_bynavn);

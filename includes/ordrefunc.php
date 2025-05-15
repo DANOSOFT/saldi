@@ -5128,7 +5128,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 				print "<div id='hiddenContent1' style='display: none;'>"; 
 			}
 			#############################################
-			$id = $filtyper = $filtypebeskrivelse = $lev_id = $prislister = array();
+			$id = $filtyper = $filtypebeskrivelse = $lev_id=$aktiv = $prislister = array();
 			$i=0;
 			$q=db_select("select * from grupper where art = 'PL' order by beskrivelse",__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
@@ -5164,8 +5164,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			$filtypebeskrivelse[2]="Databasefil (SQL-dump)";
 			$filtyper[3]="html";
 			$filtypebeskrivelse[3]="HTML-celler (td)";
-		#	}
-		
+			
 			$i = 0;
 			$qtxt = "select id, kontonr, firmanavn from adresser where art = 'K' order by firmanavn";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -5181,148 +5180,126 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 				print '<table style="width: 100%; border-collapse: collapse;">';
 				// Default delimiter (comma)
 			   
-				
-				// Loop through each CSV file URL in the $prisfil array
-				$idCount = count($id);
-				for ($x = 0; $x < $idCount; $x++) {
-					// Construct the full URL by prepending "https://" to each file URL
-					$delimiter = if_isset($delimiter[$x],',');
-					
-					if (!empty($prisfil[$x])) {
-						$url = $url = 'https://'.$prisfil[$x];
+					$csvData = '';
+					$idCount = count($id);
 
-						
-						$csv_url = filter_var($url, FILTER_SANITIZE_URL);
-						if (!filter_var($csv_url, FILTER_VALIDATE_URL)) {  
-							print "<script>alert('Invalid URL format.');</script>";
-							
-						continue;
-						}
-						
-						$csvData = @file_get_contents($csv_url);
-						if ($csvData === FALSE) {
-						
-							print "<script>alert('Unable to fetch the CSV file. Please check the URL.edit');</script>";
-						
-						}
-					}else {
-						print "<script>alert('Please provide a CSV file URL or upload a CSV file.');</script>";
-					
+					for ($x = 0; $x < $idCount; $x++) {
+						error_log('This is acktive;;;'.$aktiv[$x]);
+						if (trim($aktiv[$x]) === 'Yes' && !empty($prisfil[$x])) {
 
+							$delimiter = if_isset($delimiter[$x], ',');
+
+							$url = (str_starts_with($prisfil[$x], 'http://') || str_starts_with($prisfil[$x], 'https://'))
+								? $prisfil[$x]
+								: 'https://' . $prisfil[$x];
+
+							$csv_url = filter_var($url, FILTER_SANITIZE_URL);
+
+							if (!filter_var($csv_url, FILTER_VALIDATE_URL)) {
+								echo "<script>alert('Invalid URL format: $url');</script>";
+								continue;
+							}
+
+							$csvData = @file_get_contents($csv_url);
+
+							if ($csvData === false) {
+								echo "<script>alert('Unable to fetch the CSV file: $csv_url');</script>";
+								$csvData = '';
+								continue;
+							}
+
+							// ✅ CSV found — stop loop
+							break;
+						}
 					}
 
-					// Check if the file could be loaded
-					if ($csvData === false) {
-						print "Unable to load CSV file at $url.";
-						continue; // Skip to the next file if the current one fails
+					if (empty($csvData)) {
+						echo "<script>alert('No valid active CSV file found matching the criteria.');</script>";
+						return;
 					}
 
-						//================
-						$lines = explode(PHP_EOL, trim($csvData));
-						$header = str_getcsv(trim($lines[0] ?? ''), $delimiter);
-						//===============
-						
-					// Convert CSV data to an array using the defined delimiter
-					$rows = array_map(function ($line) use ($delimiter) {
-						return str_getcsv($line, $delimiter);
-					}, $lines);
-					$header = $rows[0];
+					
+					$lines = explode(PHP_EOL, trim($csvData));
+					$rows = array_map(fn($line) => str_getcsv($line, $delimiter), $lines);
+					$header = $rows[0] ?? [];
 					unset($rows[0]);
-					// Print the start of the table for the current CSV file
-				
+
+					
+					$rowCount = count($rows);
+					$varenrList = [];
+
+					for ($i = 1; $i <= $rowCount; $i++) {
+						$covtR = mb_convert_encoding($rows[$i][0] ?? '', 'UTF-8', 'ISO-8859-1');
+
+						if ($covtR == '/' || $covtR == "") continue;
+
+						$varenrList[] = $covtR;
+					}
+
+					$Nrows = [];
+
+					if (count($varenrList) > 0) {
+						$varenrListStr = implode("','", array_map('addslashes', $varenrList));
+						$qr = db_select("SELECT varenr FROM varer WHERE varenr IN ('$varenrListStr')", __FILE__ . " linje " . __LINE__);
+
+						$existingVarnr = [];
+						while ($row = db_fetch_array($qr)) {
+							$existingVarnr[] = $row['varenr'];
+						}
+
+						for ($i = 1; $i <= $rowCount; $i++) {
+							$covtR = mb_convert_encoding($rows[$i][0] ?? '', 'UTF-8', 'ISO-8859-1');
+
+							if ($covtR == '/' || $covtR == "" || in_array($covtR, $existingVarnr)) continue;
+
+							$Nrows[$i] = $rows[$i];
+						}
+					}
+
+					
 					print '<table border="1" style="width: 100%; name: items_A; border-collapse: collapse; margin-bottom: 20px; margin-top: 5px;">';
 
-
-					// Print the header row (first row in the CSV)
-					print '<tr>';
-					// Print table headers
-					#print '<tr>';
+					// Table Header
 					print '<tr style="background-color: #F6F6F6;">';
 					foreach ($header as $column) {
 						$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
 						print "<th>" . htmlspecialchars($column) . "</th>";
 					}
-					print "<th>Action</th>"; // Column for action
+					print "<th>Action</th>";
 					print '</tr>';
-					$idd = isset($_GET['id'])? $_GET['id']:null;
-	
-			// Cache the number of rows to avoid calling count($rows) in each iteration. 20250110
-				$rowCount = count($rows);
-				// Initialize an array to collect all varenr values
-				$varenrList = [];
 
-				for ($i = 1; $i < $rowCount; $i++) {
-					// Convert encoding only once for each row entry
-					$covtR = mb_convert_encoding($rows[$i][0], 'UTF-8', 'ISO-8859-1');
+					$idd = $_GET['id'] ?? null;
+					$cnrRows = count($Nrows);
 
-					// Skip rows that have an empty or '/' varenr
-					if ($covtR == '/' || $covtR == "") {
-						continue;
-					}
+					for ($i = 1; $i <= $cnrRows; $i++) {
+						if (empty($Nrows[$i])) continue;
 
-					// Collect varenr values into the list
-					$varenrList[] = $covtR;
-				}
+						print '<tr style="background-color:rgb(241, 239, 202);">';
 
-				// If we have at least one varenr to query
-				if (count($varenrList) > 0) {
-					$varenrListStr = implode("','", array_map('addslashes', $varenrList));  // Ensure proper escaping of the varenr values.
-					$qr = db_select("SELECT varenr FROM varer WHERE varenr IN ('$varenrListStr')", __FILE__ . " linje " . __LINE__);
-
-					// Fetch the result once
-					$existingVarnr = [];
-					while ($row = db_fetch_array($qr)) {
-						$existingVarnr[] = $row['varenr'];  // Collect all existing varenr from the query
-					}
-
-					$Nrows = [];
-					for ($i = 1; $i < $rowCount; $i++) {
-						$covtR = mb_convert_encoding($rows[$i][0], 'UTF-8', 'ISO-8859-1');
-						
-						// Skip if already checked or if it's not valid
-						if ($covtR == '/' || $covtR == "" || in_array($covtR, $existingVarnr)) {
-							continue;
+						foreach ($Nrows[$i] as $column) {
+							$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
+							print "<td>" . htmlspecialchars($column) . "</td>";
 						}
 
-						// Store rows where the varenr doesn't exist in the database inside the variable below
-						$Nrows[$i] = $rows[$i];
+						// Build query string
+						$queryData = [];
+						foreach ($header as $index => $columnName) {
+							$columnValue = $Nrows[$i][$index] ?? '';
+							$columnValue = mb_convert_encoding($columnValue, 'UTF-8', 'ISO-8859-1');
+							$queryData[mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1')] = $columnValue;
+						}
+
+						$queryString = http_build_query($queryData);
+						$queryString .= "&fokus=varenr";
+						$queryString .= "&id=$idd&bordnr=$bordnr";
+						$queryString .= "&db=$db";
+
+						print "<td><button type='button' style='background-color: green; color: white;' onclick='window.location.href=\"_varerInsert.php?sdata=&$queryString\"'>".findtekst(586, $sprog_id)."</button></td>";
+						print '</tr>';
 					}
-				}
 
-	
-			 //for ($i = 1; $i < count($rows); $i++) {
-			 $cnrRows = count($Nrows);
-			for ($i = 1; $i < $cnrRows; $i++) {
-				// Skip empty rows
-				if (empty($Nrows[$i])) continue;
 
-				print '<tr style="background-color:rgb(241, 239, 202);">';
-				foreach ($Nrows[$i] as $column) {
-					$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
-					print "<td>" . htmlspecialchars($column) . "</td>";
-				}
-
-				// Build a query string from header-row pairs
-				$queryData = [];
-				foreach ($header as $index => $columnName) {
-					$columnValue = $rows[$i][$index] ?? '';
-					$columnValue =  mb_convert_encoding($columnValue, 'UTF-8', 'ISO-8859-1');
-					$queryData[mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1')] = $columnValue;
-				}
-				$queryString = http_build_query($queryData);
-				$queryString .= "&fokus=varenr";
-				$queryString .= "&id=$idd&bordnr=$bordnr";
-				$queryString .= "&db=$db";
-			
-				// Add a "Select" button for each row
-				print "<td><button type='button' style='background-color: green; color: white;' onclick='window.location.href=\"_varerInsert.php?sdata=&$queryString\"'>".findtekst(586, $sprog_id)."</button></td>"; //Select button 20240227
-
-				// print "<td><button type='button' onclick='window.location.href=\"_varerInsert.php?sdata=&$queryString\"'>Select</button></td>";
-				#print "<td><button type='button' onclick='window.location.href=\"_varerInsert.php?" . $queryString . "\"'>Select</button></td>";
-
-				print '</tr>';
-			}
-
+					
 		print '</table>';
 	}
 		
@@ -5345,7 +5322,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 
 			#############################################
 			print "</div>"; //end of external pricelist div
-		}
+		
 		
 		
 	   

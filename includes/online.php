@@ -162,6 +162,7 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 }
 
 if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
+	$menu=NULL;
 	if (!isset($nextver)) { # 20150104
 		if ($version > $db_ver) {
 			if ($db_type == 'mysql') {
