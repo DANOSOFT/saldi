@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-04-15--------------
+// --- index/login.php -----patch 4.1.1 ----2025-05-14--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -349,18 +349,28 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 /* 
 update table onlineUserTracker with timestamp and amount of users logged in
 */
-$qtxt="SELECT table_name FROM information_schema.tables WHERE table_name='onlineusertracker'";
+if($sqdb !== $db){ // consider checking for master db first, rights etc.
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='onlineusertracker'";
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-    $qtxt = "CREATE TABLE onlineusertracker (
-        id SERIAL PRIMARY KEY, 
-        regnskab character varying(50) NOT NULL,
-        user_count integer NOT NULL,
-        timestamp timestamp without time zone NOT NULL
-    )";
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        $qtxt = "CREATE TABLE onlineusertracker (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            regnskab VARCHAR(50) NOT NULL,
+            user_count INT NOT NULL,
+            timestamp DATETIME NOT NULL
+        )";
+    } else {
+        $qtxt = "CREATE TABLE onlineusertracker (
+            id SERIAL PRIMARY KEY,
+            regnskab character varying(50) NOT NULL, 
+            user_count integer NOT NULL,
+            timestamp timestamp without time zone NOT NULL
+        )";
+    }
     db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 db_modify("INSERT INTO onlineusertracker (regnskab, user_count, timestamp) VALUES ('$regnskab', (SELECT COUNT(DISTINCT brugernavn)+1 FROM online WHERE db = '$db'), NOW())", __FILE__ . " linje " . __LINE__);
-
+}
 
 if (
     !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
@@ -495,7 +505,7 @@ if (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = $r['brugernavn'];
-	$accepted_ips = $r['ip_address'];
+	$accepted_ips = if_isset($r,NULL,'ip_address');
 	$ip_address = $_SERVER['REMOTE_ADDR'];
 	if ($accepted_ips != null && $accepted_ips != '') {
 		$accepted_ips = explode(',', $accepted_ips);

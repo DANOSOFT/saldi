@@ -26,7 +26,29 @@
 // The content of this file must be moved to opdat_4.1 in section 4.1.1 when 4.1.1 is to be released.
 
 
-db_modify("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45) NULL", __FILE__ . " linje " . __LINE__);
+#db_modify("ALTER TABLE brugere ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45) NULL", __FILE__ . " linje " . __LINE__);
+
+
+
+// Check if the column already exists
+$qtxt = "SELECT column_name 
+         FROM information_schema.columns 
+         WHERE table_name = 'brugere' AND column_name = 'ip_address'";
+
+if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    // Column doesn't exist, so alter table
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        $alter = "ALTER TABLE brugere ADD COLUMN ip_address VARCHAR(45) NULL";   
+    } else {
+     $alter = "ALTER TABLE brugere ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)";
+	}
+    if (!empty($alter)) {
+        db_modify($alter, __FILE__ . " linje " . __LINE__);
+    }
+}
+
+
+
 
 // easyUBL
 /*
