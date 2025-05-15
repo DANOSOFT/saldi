@@ -349,26 +349,26 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 /* 
 update table onlineUserTracker with timestamp and amount of users logged in
 */
-$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='onlineusertracker'";
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE LOWER(table_name) = 'onlineusertracker'";
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
     if ($db_type == 'mysql' || $db_type == 'mysqli') {
         $qtxt = "CREATE TABLE onlineusertracker (
             id INT AUTO_INCREMENT PRIMARY KEY,
             regnskab VARCHAR(50) NOT NULL,
             user_count INT NOT NULL,
-            timestamp DATETIME NOT NULL
+            out_timestamp DATETIME NOT NULL
         )";
     } else {
         $qtxt = "CREATE TABLE onlineusertracker (
             id SERIAL PRIMARY KEY,
             regnskab character varying(50) NOT NULL, 
             user_count integer NOT NULL,
-            timestamp timestamp without time zone NOT NULL
+            out_timestamp timestamp without time zone NOT NULL
         )";
     }
     db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
-db_modify("INSERT INTO onlineusertracker (regnskab, user_count, timestamp) VALUES ('$regnskab', (SELECT COUNT(DISTINCT brugernavn)+1 FROM online WHERE db = '$db'), NOW())", __FILE__ . " linje " . __LINE__);
+db_modify("INSERT INTO onlineusertracker (regnskab, user_count, out_timestamp) VALUES ('$regnskab', (SELECT COUNT(DISTINCT brugernavn)+1 FROM online WHERE db = '$db'), NOW())", __FILE__ . " linje " . __LINE__);
 
 
 if (
