@@ -245,30 +245,21 @@ if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) &
 print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
 print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
 if (check_permissions(array(0))) {
-  include_once("../includes/connect.php");
   $udlob = time() - 14400;
   $masterDb = $sqdb;
   
-  if ($connection) {
-        $userCount = 0;
-        $query_pgsql = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
-                        FROM online 
-                        WHERE db = $1 AND logtime > $2";
+ if (check_permissions(array(0))) {
+    $udlob = time() - 14400;
+    $masterDb = $sqdb;
 
-        $query_mysql = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
-                        FROM online 
-                        WHERE db = ? AND logtime > ?";
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        $conn = mysqli_connect($sqhost, $squser, $sqpass, $masterDb);
 
-        if ($db_type == 'pgsql') {
-            $result = pg_query_params($connection, $query_pgsql, array($db, $udlob));
-
-            if ($result) {
-                $r = pg_fetch_array($result);
-                $userCount = (int) $r['user_count'];
-            }
-
-        } elseif ($db_type == 'mysql' || $db_type == 'mysqli') {
-            $stmt = mysqli_prepare($connection, $query_mysql);
+        if ($conn) {
+            $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
+                      FROM online 
+                      WHERE db = ? AND logtime > ?";
+            $stmt = mysqli_prepare($conn, $query);
 
             if ($stmt) {
                 mysqli_stmt_bind_param($stmt, "ss", $db, $udlob);
@@ -276,14 +267,34 @@ if (check_permissions(array(0))) {
                 mysqli_stmt_bind_result($stmt, $userCount);
                 mysqli_stmt_fetch($stmt);
                 mysqli_stmt_close($stmt);
+
+                echo "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $userCount user(s) currently online</p>";
             }
+
+            mysqli_close($conn);
         }
 
-        if (isset($userCount)) {
-            echo "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $userCount user(s) currently online</p>";
-        }
+    } else { // PostgreSQL fallback
+        $conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
 
-  }
+        if ($conn) {
+            $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
+                      FROM online 
+                      WHERE db = $1 AND logtime > $2";
+
+            $result = pg_query_params($conn, $query, array($db, $udlob));
+
+            if ($result) {
+                $r = pg_fetch_array($result);
+                $userCount = (int) $r['user_count'];
+                echo "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $userCount user(s) currently online</p>";
+            }
+
+            pg_close($conn);
+        }
+    }
+}
+
 }
 
 
