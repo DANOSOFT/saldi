@@ -37,6 +37,7 @@
 // 20230730 LOE - Minor modification, abolute path to std_func
 // 20250121 connection as first parameter in pg_*
 // 20250510 LOE Replaced mysql_query() with mysqli_query() to adjust for php7&above
+// 20250510 LOE Added check for empty database and added error message if database is empty
 
 
 if (!function_exists('get_relative')) {
@@ -139,8 +140,15 @@ if (!function_exists('db_modify')) {
 		$qtext=injecttjek($qtext);
 #20190704 START
 		 if ($db_type == "mysql" || $db_type == "mysqli") {
+			
             $db_query = mysqli_query($connection, $qtext);  //mysql_query deprecated in php 7 and above
-			        }else {
+			if (!$db_query) {
+				$error_message = "Error executing query: " . mysqli_error($connection) . " | Query: $qtext";
+				error_log($error_message);	
+				
+			}
+			
+		}else {
 			$qtext=str_replace(' like ',' ilike ',$qtext);
 			$db_query=pg_query($connection, $qtext);
 		}
@@ -154,8 +162,8 @@ if (!function_exists('db_modify')) {
 			fclose($fp);
 		}
 		if (!$db_query) { #20190704
-			if ($db_type=="mysql")       $errtxt = mysql_error($connection);
-			else if ($db_type=="mysqli") $errtxt = mysqli_error($connection); #20190704
+			#if ($db_type=="mysql")       $errtxt = mysql_error($connection);
+			if ($db_type=="mysqli") $errtxt = mysqli_error($connection); #20190704
 			else $errtxt=pg_last_error($connection);
 			$fp=fopen("$temp/.ht_modify.log","a");
 			fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
@@ -199,10 +207,10 @@ if (!function_exists('db_modify')) {
 				// } elseif ($db_type=="mysqli") { #20190704
 				// 	mysqli_query($connection, "ROLLBACK");
 				// }
-				if ($db_type == "mysql" || $db_type == "mysqli") {
-					mysqli_query($connection, "ROLLBACK");
-				}
-							
+				#if ($db_type == "mysql" || $db_type == "mysqli") {
+					#mysqli_query($connection, "ROLLBACK");
+				#}
+						
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset h&aelig;ndelse, kontakt salditeamet på telefon 4690 2208"; 
 				if ($webservice) return ('1'.chr(9)."$alerttekst");
 				alert("$alerttekst");
@@ -250,7 +258,12 @@ if (!function_exists('db_select')) {
 				$linje=trim(fgets($fp));
 				fclose($fp);
 			}
-			list($tmp,$tmp2)=explode("\n",$errtxt);
+			#list($tmp,$tmp2)=explode("\n",$errtxt);
+
+			$lines = explode("\n", $errtxt);
+			$tmp = $lines[0] ?? NULL;  
+			$tmp2 = $lines[1] ?? NULL;
+
 			$tmp.="_".date("h:i");
 			if ($linje != $tmp) {
 				$fp=fopen("$temp/lasterror.txt","a");
@@ -307,10 +320,14 @@ if (!function_exists('db_catalog_setval')) { // <-- Never used
 if (!function_exists('db_fetch_array')) {
 	function db_fetch_array($qtext) {
 		global $db_type;
-#		echo __line__." $qtext<br>";
-		if ($db_type=="mysql") return mysql_fetch_array($qtext);
-		elseif ($db_type=="mysqli") return mysqli_fetch_array($qtext, MYSQLI_BOTH); #20190704
-		else return pg_fetch_array($qtext);
+ 		if ($db_type == "mysql" || $db_type == "mysqli") {
+            if ($qtext && $qtext !== false) {
+                return mysqli_fetch_array($qtext, MYSQLI_BOTH);
+            } else {
+                error_log("Error: db_fetch_array() - Invalid query result");
+                return false;
+            }
+        } else return pg_fetch_array($qtext);
 	}
 }
 

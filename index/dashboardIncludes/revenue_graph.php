@@ -29,7 +29,8 @@ function revenue_graph($startDate, $endDate) {
     $qtxt = "SELECT beskrivelse FROM grupper WHERE kodenr='".($regnaar-1)."' AND art='RA'";
     $r = db_select($qtxt, __FILE__ . " linje " . __LINE__);
     if ($r) {
-        $slutLabel = db_fetch_array($r)["beskrivelse"];
+        $slutResult = db_fetch_array($r);
+        $slutLabel = $slutResult ? $slutResult["beskrivelse"] : NULL;
     } else {
         $slutLabel = "";
     }

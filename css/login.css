@@ -155,7 +155,7 @@ a.forgotpass:hover
     border: 1px solid lightgray;
     background:#fff url('../img/textinputbg.gif') repeat-x;
     color: black;
-    #text-indent: 7px;
+    /* text-indent: 7px; */
     padding: 9px 14px;
     font-size: 15px;
     margin-bottom: 12px;

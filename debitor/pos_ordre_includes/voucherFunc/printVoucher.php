@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- debitor/pos_ordre_includes/voucherFunc/createVoucher.php --- lap 3.9.9 --- 2021.01.25 ---
+// ---- debitor/pos_ordre_includes/voucherFunc/createVoucher.php --- lap 4.1.1 --- 2025.05.12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2021 saldi.dk aps
+// Copyright (c) 2021-2025 saldi.dk aps
 // --------------------------------------------------------------------------
 //
+// 20250512 Fiscal_year
 
 if (!function_exists('printVoucher')) {
 function printVoucher($orderId,$bc) {
-	global $bruger_id,$db_id,$id,$printserver;
+	global $bruger_id,$db_id,$id,$printserver,$regnaar;
 
 	$barcode[0]=$bc;
 
@@ -59,22 +60,22 @@ function printVoucher($orderId,$bc) {
 			$b=0;
 /*
 			$qtxt = "select ordrelinjer.beskrivelse from ordrelinjer where ";
-			$qtxt.= "ordrelinjer.vare_id='$itemId[$v]' and ordrelinjer.ordre_id = '$orderId'"; 
+			$qtxt.= "ordrelinjer.vare_id='$itemId[$v]' and ordrelinjer.ordre_id = '$orderId'";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$itemName[$v][$b] = $r['beskrivelse'];
 				$b++;
 			}
-*/			
-				$qtxt = "select box5 from grupper where art = 'POS' and kodenr = '1'"; #fecth pay card names
+*/
+				$qtxt = "select box5 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'"; #fecth pay card names
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$payCards = explode(chr(9),$r['box5']);
 
-				$qtxt = "select var_value from settings where var_name = 'voucherItems' and var_grp = 'Paycards'"; #fecth voucher item Id's 
+				$qtxt = "select var_value from settings where var_name = 'voucherItems' and var_grp = 'Paycards'"; #fecth voucher item Id's
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$vouchers = explode(chr(9),$r['var_value']);
 				for ($x=0;$x<count($payCards);$x++) {
-					if ($vouchers[$x] == $itemId[$v]) $itemName[$v] = $payCards[$x]; 
+					if ($vouchers[$x] == $itemId[$v]) $itemName[$v] = $payCards[$x];
 				}
 		}
 	} elseif ($barode[0]) {
@@ -88,7 +89,7 @@ function printVoucher($orderId,$bc) {
 		else include('pos_print/voucherPrint.php');
 		return($bon);
 	}	else return NULL;
-	
+
 }}
 
 ?>

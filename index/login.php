@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-04-15--------------
+// --- index/login.php -----patch 4.1.1 ----2025-05-14--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -98,6 +98,13 @@ date_default_timezone_set($timezone);
 
 $ansat_id=null;
 
+
+$query = db_select("SELECT brugernavn FROM brugere",__FILE__ . " linje " . __LINE__);
+$row = db_fetch_array($query);
+$adminUsers = [];
+while ($row = db_fetch_array($query)) {
+	$adminUsers[] = $row['brugernavn'];
+}
 
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name = 'invoices'";
@@ -349,18 +356,40 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 /* 
 update table onlineUserTracker with timestamp and amount of users logged in
 */
-$qtxt="SELECT table_name FROM information_schema.tables WHERE table_name='onlineusertracker'";
+if($sqdb !== $db){ // consider checking for master db first, rights etc.
+$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='onlineusertracker'";
 if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-    $qtxt = "CREATE TABLE onlineusertracker (
-        id SERIAL PRIMARY KEY, 
-        regnskab character varying(50) NOT NULL,
-        user_count integer NOT NULL,
-        timestamp timestamp without time zone NOT NULL
-    )";
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        $qtxt = "CREATE TABLE onlineusertracker (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            regnskab VARCHAR(50) NOT NULL,
+            user_count INT NOT NULL,
+            timestamp DATETIME NOT NULL
+        )";
+    } else {
+        $qtxt = "CREATE TABLE onlineusertracker (
+            id SERIAL PRIMARY KEY,
+            regnskab character varying(50) NOT NULL, 
+            user_count integer NOT NULL,
+            timestamp timestamp without time zone NOT NULL
+        )";
+    }
     db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 db_modify("INSERT INTO onlineusertracker (regnskab, user_count, timestamp) VALUES ('$regnskab', (SELECT COUNT(DISTINCT brugernavn)+1 FROM online WHERE db = '$db'), NOW())", __FILE__ . " linje " . __LINE__);
+}
 
+// Add this code earlier in the file to handle the force logout
+if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
+    $user_to_logout = db_escape_string($_POST['user_to_logout']);
+    
+    // Remove the selected user from online table
+    $qtxt = "DELETE FROM online WHERE brugernavn = '$user_to_logout' AND db = '$db'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    
+    // Continue with login process
+    $_POST['fortsaet'] = true;
+}
 
 if (
     !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
@@ -369,14 +398,16 @@ if (
 ) {
     $udlob = time() - 14400; // 4 hours
 
-    $q = db_select(
-        "SELECT COUNT(DISTINCT brugernavn) AS user_count 
-         FROM online 
-         WHERE db = '$db' AND brugernavn != '" . db_escape_string($brugernavn) . "'
-         AND logtime > '$udlob'",
-        __FILE__ . " linje " . __LINE__
-    );
-    $r = db_fetch_array($q);
+    $query = db_select(
+    "SELECT COUNT(DISTINCT brugernavn) as user_count 
+     FROM online 
+     WHERE db = '$db' 
+     AND brugernavn != '" . db_escape_string($brugernavn) . "'
+     AND brugernavn NOT IN ('" . implode("','", array_map('db_escape_string', $adminUsers)) . "')",
+    __FILE__ . " linje " . __LINE__
+);
+
+    $r = db_fetch_array($query);
     $y = (int) $r['user_count'];
 
     $bruger_max = 2; // Default value
@@ -385,18 +416,120 @@ if (
         $bruger_max = (int) $r['brugerantal'];
 
     }
-	// echo "<script>alert(" . json_encode($bruger_max) . ");</script>";
-	$query = db_select("SELECT brugernavn FROM online WHERE brugernavn != '" . db_escape_string($brugernavn) . "' AND db = '$db' AND logtime > '$udlob'", __FILE__ . " linje " . __LINE__);
+	$query = db_select(
+    "SELECT brugernavn, logtime 
+     FROM online 
+     WHERE db = '$db' 
+     AND brugernavn != '" . db_escape_string($brugernavn) . "' 
+     AND brugernavn NOT IN ('" . implode("','", array_map('db_escape_string', $adminUsers)) . "')",
+    __FILE__ . " linje " . __LINE__
+);
 	$activeUsers = [];
 	while ($row = db_fetch_array($query)) {
 		$activeUsers[] = $row['brugernavn'];
 	}
 	$activeUsers = implode(", ", $activeUsers);
     if ($bruger_max > 0 && $y >= $bruger_max) {
-        $message = "Max antal samtidige brugere ($y) er overskredet for $regnskab. Aktive brugere: $activeUsers.";
-        echo "<script>alert(" . json_encode($message) . ");</script>";
-        echo "<script>window.location.href = 'index.php';</script>";
-        exit;
+ 	?>
+	<style>
+    .force-logout-container {
+        max-width: 400px;
+        margin: 40px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        font-family: Arial, sans-serif;
+    }
+    .force-logout-title {
+        color: #333;
+        font-size: 1.2em;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .force-logout-info {
+        color: #666;
+        margin: 10px 0;
+        text-align: center;
+    }
+    .force-logout-select {
+        width: 100%;
+        padding: 8px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #f8f8f8;
+    }
+    .force-logout-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+</style>";
+    <form method="POST" action="login.php">
+        <input type="hidden" name="regnskab" value="<?= htmlspecialchars($regnskab) ?>">
+        <input type="hidden" name="brugernavn" value="<?= htmlspecialchars($brugernavn) ?>">
+        <input type="hidden" name="password" value="<?= htmlspecialchars($password) ?>">
+        <input type="hidden" name="timestamp" value="<?= time() ?>">
+        
+        <div class="force-logout-container">
+            <h2 class="force-logout-title">Max antal samtidige brugere (<?= $bruger_max ?>) er overskredet</h2>
+            
+            <p class="force-logout-info">Aktive brugere: <?= htmlspecialchars($activeUsers) ?></p>
+            
+            <p class="force-logout-info">Vælg en bruger at logge ud:</p>
+            <select name="user_to_logout" class="force-logout-select">
+                <?php
+                 $query = db_select(
+					"SELECT brugernavn, logtime 
+					FROM online 
+					WHERE db = '$db' 
+					AND brugernavn != '" . db_escape_string($brugernavn) . "' 
+					AND brugernavn NOT IN ('" . implode("','", array_map('db_escape_string', $adminUsers)) . "')",
+					__FILE__ . " linje " . __LINE__
+				);
+				while ($row = db_fetch_array($query)) {
+					$last_active = ($db_type == 'mysql' || $db_type == 'mysqli') ? 
+						date("H:i:s", strtotime($row['logtime'])) : 
+						date("H:i:s", $row['logtime']);
+					echo '<option value="' . htmlspecialchars($row['brugernavn']) . '">' 
+						. htmlspecialchars($row['brugernavn']) . ' (Sidst aktiv: ' . $last_active . ')</option>';
+				}
+                ?>
+            </select>
+            
+            <div class="force-logout-buttons">
+                <input type="submit" name="force_logout" value="Log ud og fortsæt" class="btn btn-primary">
+                <input type="button" value="Afbryd" onclick="window.location.href='index.php'" class="btn btn-secondary">
+            </div>
+        </div>
+    </form>
+    <?php
+    exit;
+        
     }
 
     $asIs = db_escape_string($brugernavn);
@@ -495,7 +628,7 @@ if (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = $r['brugernavn'];
-	$accepted_ips = $r['ip_address'];
+	$accepted_ips = if_isset($r,NULL,'ip_address');
 	$ip_address = $_SERVER['REMOTE_ADDR'];
 	if ($accepted_ips != null && $accepted_ips != '') {
 		$accepted_ips = explode(',', $accepted_ips);
@@ -989,7 +1122,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 #	print "<tr><td align=\"center\" valign=\"bottom\">";
 #	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.3 ->
 #	print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\">&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2012&nbsp;DANOSOFT&nbsp;ApS</td>";
-#	print "<td width=\"60%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"center\">Et <a href=\"http://www.saldi.dk\" target=\"blank\">SALDI</a> regnskab</td>";
+#	print "<td width=\"60%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"center\">Et <a href=\"http://saldi.dk\" target=\"blank\">SALDI</a> regnskab</td>";
 #	print "<td width=\"20%\" style=\"border: 1px solid rgb(180, 180, 255);padding: 0pt 0pt 1px;background:url(../img/grey1.gif);\" align=\"left\"><br></td>";
 #	print "</tr></tbody></table>"; # <- tabel 1.3
 #	print "</td></tr>\n";
