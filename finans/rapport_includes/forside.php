@@ -41,6 +41,7 @@
 // 20241120 PHR	Rermoved  "target='	'" from <form ...
 // 20250324 LOE Updated konto_til value and finans_forside.js created
 // 20250407 LOE konto_til when not set and ktoNameTo default values moved from while loop.
+// 20250516 Sulayman updated the drowdown konto_fra and konto_til to show according to the selected konto_fra and konto_til.
 
 
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
@@ -499,7 +500,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	#####################################################################
 	// JavaScript for validation [0],$konto_til[1]
 	
-	print '<script src="../javascript/finans_forside.js?v=1"></script>';
+	// print '<script src="../javascript/finans_forside.js?v=1"></script>';
 	###################################################################
 	print "<input type=hidden name=regnaar value=$regnaar>\n";
 	if ($menu == 'T') {
@@ -539,6 +540,21 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	print "</tbody></table>\n"; #C slut
 	print "</td></tr>";
 	print "</tbody></table>\n"; #C slut
+    
+
+	echo "<script>
+const konti = " . json_encode(array_map(function($i) use ($kontonr, $kontoType, $konto_beskrivelse) {
+    return [
+        'kontonr' => $kontonr[$i],
+        'type' => $kontoType[$i],
+        'label' => $kontonr[$i] . ' : ' . $konto_beskrivelse[$i]
+    ];
+}, range(0, count($kontonr) - 1))) . ";
+</script>";
+
+
+
+print '<script src="../javascript/finans_forside.js?v=' . time() . '"></script>';
 
 
 
@@ -548,7 +564,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	} else {
 		include_once '../includes/oldDesign/footer.php';
 	}
-
+	
 }
 # endfunc forside
 ?>
