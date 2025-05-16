@@ -106,6 +106,11 @@ while ($row = db_fetch_array($query)) {
 	$adminUsers[] = $row['brugernavn'];
 }
 
+// clean up online table if its older than 24 hours
+$udlob = time() - 86400; // 24 hours
+$qtxt = "DELETE FROM online WHERE logtime < '$udlob'";
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name = 'invoices'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -356,28 +361,6 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 /* 
 update table onlineUserTracker with timestamp and amount of users logged in
 */
-if($sqdb !== $db){ // consider checking for master db first, rights etc.
-$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_name='onlineusertracker'";
-if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-    if ($db_type == 'mysql' || $db_type == 'mysqli') {
-        $qtxt = "CREATE TABLE onlineusertracker (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            regnskab VARCHAR(50) NOT NULL,
-            user_count INT NOT NULL,
-            timestamp DATETIME NOT NULL
-        )";
-    } else {
-        $qtxt = "CREATE TABLE onlineusertracker (
-            id SERIAL PRIMARY KEY,
-            regnskab character varying(50) NOT NULL, 
-            user_count integer NOT NULL,
-            timestamp timestamp without time zone NOT NULL
-        )";
-    }
-    db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-}
-db_modify("INSERT INTO onlineusertracker (regnskab, user_count, timestamp) VALUES ('$regnskab', (SELECT COUNT(DISTINCT brugernavn)+1 FROM online WHERE db = '$db'), NOW())", __FILE__ . " linje " . __LINE__);
-}
 
 // Add this code earlier in the file to handle the force logout
 if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
