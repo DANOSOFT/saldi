@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-14 ---
+// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,7 @@
 // 2020.03.11 PHR Added call to betweenUpdates and added global_id to table regnskab if not exist;
 // 2023.11.03 PHR Added call to online.php after tjek4opdat
 // 2025.05.14 LOE Added check for empty database and added error message if database is empty
+// 2025.05.14 LOE Added check for global_id in table regnskab and added error message if not exist as the former failed for mysql insert
 @session_start();
 $s_id=session_id();
 
@@ -82,12 +83,26 @@ if (!tbl_exists('grupper')) {
 }
 include("../includes/connect.php");
 
-$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' and column_name='global_id'";
-if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	db_modify("ALTER TABLE regnskab ADD column global_id int default 0",__FILE__ . " linje " . __LINE__);
+// Checking if the column exists in the table
+if ($db_type == 'mysql' || $db_type == 'mysqli') {
+    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id'";
+} else {
+    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id' AND table_schema='public'";
 }
-$qtxt = "select id, regnskab, global_id from regnskab where id = '$tmp_db_id'"; 
-$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        db_modify("ALTER TABLE regnskab ADD COLUMN global_id INT DEFAULT 0", __FILE__ . " linje " . __LINE__);
+    } else {
+        
+        db_modify("ALTER TABLE regnskab ADD COLUMN global_id INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
+    }
+}
+
+$qtxt = "SELECT id, regnskab, global_id FROM regnskab WHERE id = '$tmp_db_id'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+
 if (if_isset($r,NULL,'id')) {
 	$dbLocation="://".$_SERVER['SERVER_NAME'].=$_SERVER['PHP_SELF'];
 	$dbLocation=str_replace("/admin/aaben_regnskab.php","",$dbLocation);

@@ -30,13 +30,27 @@ if (isset($_GET['aktiver_regnaar']) && $_GET['aktiver_regnaar']) {
 
 // Get all active fiscal years
 $regnskabsaar = array();
-$query = db_select("SELECT * 
-FROM grupper 
-WHERE art = 'RA' 
-  AND box10 IS DISTINCT FROM 'on'
-  AND box5 = 'on' 
-ORDER BY box2 DESC, box1 DESC
-", __FILE__ . " linje " . __LINE__);
+// Check the database type
+if ($db_type == 'mysqli') {
+    // For MySQL, use != or <> instead of IS DISTINCT FROM
+    $query = db_select("SELECT * 
+    FROM grupper 
+    WHERE art = 'RA' 
+      AND box10 != 'on'
+      AND box5 = 'on' 
+    ORDER BY box2 DESC, box1 DESC
+    ", __FILE__ . " linje " . __LINE__);
+} else {
+    // For PostgreSQL, use IS DISTINCT FROM
+    $query = db_select("SELECT * 
+    FROM grupper 
+    WHERE art = 'RA' 
+      AND box10 IS DISTINCT FROM 'on'
+      AND box5 = 'on' 
+    ORDER BY box2 DESC, box1 DESC
+    ", __FILE__ . " linje " . __LINE__);
+}
+
 while ($row = db_fetch_array($query)) {
     $regnskabsaar[] = array(
         'kodenr' => $row['kodenr'],
@@ -44,6 +58,7 @@ while ($row = db_fetch_array($query)) {
         'is_active' => ($row['kodenr'] == $regnaar)
     );
 }
+
 
 // Create the dropdown if we have multiple fiscal years
 if (count($regnskabsaar) > 1) {
