@@ -62,7 +62,9 @@ include("../includes/finansfunk.php");
 include("../includes/topline_settings.php");
 
 print '<script src="../javascript/chart.js"></script>';
-
+$backUrl = isset($_GET['returside'])
+? $_GET['returside']
+: 'javascript:window.history.go(-2);';
 $beregn_lager=if_isset($_POST['beregn_lager']);
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
@@ -77,7 +79,7 @@ if ($menu=='T') {
 	print "<center>";
 	print "<table width='100%' height='20' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
-	print "<td width='10%' align='center'><a href='../index/menu.php' accesskey='L'>";
+	print "<td width='10%' align='center'><a href='$backUrl' accesskey='L'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
 
 	print "<td width='80%' align='center' style='$topStyle'>".findtekst('849|Regnskab',$sprog_id)."</td>";

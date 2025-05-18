@@ -26,14 +26,16 @@
 // 20220930 MSC - Changed new button text to a plus icon, if the design is topmenu
 // 20230708 LOE - A minor modification
 // 12/02/2025 PBLM - Added a new button to open the digital approver
-
+// 16/05/2025 make sure the back button redirect too the previous page rather than going back to the dashboard
 @session_start();
 $s_id=session_id();
 	
 $css="../css/standard.css";		
 $modulnr=2;	
 $title="kladdeliste";	
-		
+$backUrl = isset($_GET['returside'])
+? $_GET['returside']
+: 'javascript:window.history.go(-2);';
 include("../includes/connect.php");
 include("../includes/std_func.php");
 $query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
@@ -77,7 +79,7 @@ if ($menu=='T') {
 		   <table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
 	print "<td width='10%'  title='".findtekst(1599, $sprog_id)."'>"; #20210721
-	print "<a href='../index/menu.php' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
+	print "<a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
 	print "<td width=70% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
 	print "<td id='tutorial-help' width=5% style=$buttonStyle>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">

@@ -62,6 +62,7 @@
 // 20220321 PHR - Cost price now found from kostpriser if to_date != current date. 
 // 20240404 PHR - $date_to is only used if different from dd
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 
 @session_start();
 $s_id=session_id();
@@ -82,9 +83,12 @@ include("../includes/ordrefunc.php");
 if (!isset ($_GET['detaljer'])) $_GET['detaljer'] = NULL;
 if (!isset ($_GET['kun_salg'])) $_GET['kun_salg'] = NULL;
 if (!isset ($_GET['lagertal'])) $_GET['lagertal'] = NULL;
-
+$backUrl = isset($_GET['returside'])
+? $_GET['returside']
+: 'javascript:window.history.go(-2);';
 if ($popup) $returside="../includes/luk.php";
-else $returside="../index/menu.php";
+
+else $returside = $backUrl;
 
 $inventoryCount = if_isset($_POST['inventoryCount']);
 $lokMinMax        = if_isset($_POST['lokMinMax']);
@@ -194,7 +198,7 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		print "<tr><td width=100%>";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 
-		print "<td width=\"10%\"><a href=$returside accesskey=L>
+		print "<td width=\"10%\"><a href='$returside' accesskey=L>
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 		print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('964|Varerapport - forside', $sprog_id)."</td>";
