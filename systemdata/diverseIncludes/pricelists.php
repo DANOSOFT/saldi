@@ -17,7 +17,7 @@ function pricelists(){
 		$beskrivelse[$i]=$r['beskrivelse']; //holds names of the records
 		$prisfil[$i]=$r['box2']; //file location ? //the url
 		$aktiv[$i]=$r['box4'];
-		$gruppe[$i]=$r['box8'];  
+		$gruppe1[$i]=$r['box8'];  
 		$filtype[$i]=$r['box9'];
         $delimiter[$i] = $r['box10'];
         $encoding[$i]=$r['box11'];
@@ -25,14 +25,14 @@ function pricelists(){
 	}
 	$vgrp = array();
 	$i = 0;
-	// $qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
-	// $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	// while ($r = db_fetch_array($q)) {
-	// 	$vgrp[$i]   = $r['kodenr'];
-	// 	$vgbesk[$i] = $r['beskrivelse'];
-    //     $gruppe[$i]=$r['box8'];
-	// 	$i++;
-	// }
+	$qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$vgrp[$i]   = $r['kodenr'];
+		$vgbesk[$i] = $r['beskrivelse'];
+        $gruppe[$i]=$r['box8'];
+		$i++;
+	}
 
 	$filtyper[0]="csv";
 	$filtypebeskrivelse[0]="Kommasepareret";
@@ -208,13 +208,12 @@ function pricelists(){
                 for ($i = 0; $i < count($id); $i++) {
                     print('<tr>');
                     print('<input type="hidden" name="id[]" value="' . $id[$i] . '">');
-
                     // Editable inputs for each of the values
                     print('<td><input type="text" name="beskrivelse[]" value="' . (isset($beskrivelse[$i]) ? htmlspecialchars($beskrivelse[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="prisfil[]" value="' . (isset($prisfil[$i]) ? htmlspecialchars($prisfil[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="opdateret[]" value="' . (isset($opdateret[$i]) ? htmlspecialchars($opdateret[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="aktiv[]" value="' . (isset($aktiv[$i]) ? htmlspecialchars($aktiv[$i]) : '') . '"></td>');
-                    print('<td><input type="text" name="gruppe[]" value="' . (isset($gruppe[$i]) ? htmlspecialchars($gruppe[$i]) : NULL) . '"></td>');
+                    print('<td><input type="text" name="gruppe[]" value="' . (isset($gruppe1[$i]) ? htmlspecialchars($gruppe1[$i]) : NULL) . '"></td>');
                     print('<td><input type="text" name="filtype[]" value="' . (isset($filtype[$i]) ? htmlspecialchars($filtype[$i]) : '') . '"></td>');
                     // print('<td><input type="text" name="delimiter[]" value="' . (isset($delimiter[$i]) ? htmlspecialchars($delimiter[$i]) : '') . '"></td>');
                     ##Delimiter Start
@@ -304,7 +303,7 @@ function pricelists(){
             }else{
                  #######################################
                 $qtxt = "insert into grupper(box2,box10,box11,beskrivelse,box8,art) values ";
-                $qtxt.= "('$newUrl','$delimiter','$newEncoding','$newDescription',2,'PL')";
+                $qtxt.= "('$newUrl','$delimiter','$newEncoding','$newDescription','$newProductGroup','PL')";
                 $saved = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 
@@ -370,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             #+++++++++++++++
             // Function for the Add Pricelist form
-            function renderAddPricelistForm($beskrivelse) {
+            function renderAddPricelistForm($group) {
                 print '<table style="width: 100%; border-collapse: collapse;">';
                 print '<tr>
                             <td colspan="2">
@@ -420,7 +419,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                             <td>
                                 <select name="new_product_group">';
                 
-                foreach ($beskrivelse as $option) {
+                foreach ($group as $option) {
                     print '<option value="' . htmlspecialchars($option) . '">' . htmlspecialchars($option) . '</option>';
                 }
 
@@ -515,9 +514,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             print '</div>';
             print '</td></tr>';
 
-
+            error_log('This is gruppe array: ' . print_r($gruppe, true));
             // Show add form below the buttons
-            renderAddPricelistForm($beskrivelse);
+            renderAddPricelistForm($gruppe);
 
             print '<script>
                 function toggleAddForm() {
@@ -530,15 +529,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 }
             </script>';
 
-
-
-
             #+++++++++++++++
 
-
-
-    
-    
     // Displaying the forms
     print '
         <form id="formEd" name="editForm" ">
@@ -586,19 +578,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             if ($csvData === FALSE) {
             
                 print "<script>alert('Unable to fetch the CSV file. Please check the URL.edit');</script>";
-            
-          
                # editForm($x);
                 exit;
-
-
             }
             
         } else {
-            print "<script>alert('Please provide a CSV file URL or upload a CSV file.');</script>";
-            
+            print "<script>alert('Please provide a CSV file URL or upload a CSV file.');</script>";  
            # editForm($x);
-           
         }
 
          // Parse CSV data to get the header row

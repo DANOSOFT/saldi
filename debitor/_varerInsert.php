@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/_varerInsert.php -----patch 4.1.0 ----2025-02-27--------------
+// --- debitor/_varerInsert.php -----patch 4.1.1 ----2025-05-18--------------
 //                           LICENSE
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -32,30 +32,30 @@ include("../includes/connect.php");
 include("../includes/online.php");
 
 // Check and retrieve the parameters from the URL
-$db = isset($_GET['db']) ? filter_var($_GET['db'], FILTER_SANITIZE_STRING) : '';
-$varenr = isset($_GET['varenr']) ? filter_var($_GET['varenr'], FILTER_SANITIZE_STRING) : '';
-$stregkode = isset($_GET['stregkode']) ? filter_var($_GET['stregkode'], FILTER_SANITIZE_STRING) : '';
-$trademark  = isset($_GET['varemærke']) ? filter_var($_GET['varemærke'], FILTER_SANITIZE_STRING) : '';
-$beskrivelse = isset($_GET['beskrivelse']) ? filter_var($_GET['beskrivelse'], FILTER_SANITIZE_STRING) : '';
-$kostpris = isset($_GET['kostpris']) ? filter_var($_GET['kostpris'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) : '';
-$salgspris = isset($_GET['salgspris']) ? filter_var($_GET['salgspris'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) : '';
-$retail_price = isset($_GET['vejl_pris']) ? filter_var($_GET['vejl_pris'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) : '';
-$notes = isset($_GET['notes']) ? filter_var($_GET['notes'], FILTER_SANITIZE_STRING) : '';
-$enhed = isset($_GET['enhed']) ? filter_var($_GET['enhed'], FILTER_SANITIZE_STRING) : '';
-$gruppe = isset($_GET['gruppe']) ? filter_var($_GET['gruppe'], FILTER_SANITIZE_STRING) : '';
-$min_lager = isset($_GET['min_lager']) ? filter_var($_GET['min_lager'], FILTER_SANITIZE_NUMBER_INT) : '';
-$max_lager = isset($_GET['max_lager']) ? filter_var($_GET['max_lager'], FILTER_SANITIZE_NUMBER_INT) : '';
-$location = isset($_GET['lokation']) ? filter_var($_GET['lokation'], FILTER_SANITIZE_STRING) : '';
-$fokus = isset($_GET['fokus']) ? filter_var($_GET['fokus'], FILTER_SANITIZE_STRING) : '';
-$id = isset($_GET['id']) ? filter_var($_GET['id'], FILTER_SANITIZE_NUMBER_INT) : '';
-$bordnr = isset($_GET['bordnr']) ? filter_var($_GET['bordnr'], FILTER_SANITIZE_NUMBER_INT) : '';
+$db = if_isset($_GET, NULL, 'db') ? filter_var(if_isset($_GET, NULL, 'db'), FILTER_SANITIZE_STRING) : '';
+$varenr = if_isset($_GET, NULL, 'varenr') ? filter_var(if_isset($_GET, NULL, 'varenr'), FILTER_SANITIZE_STRING) : '';
+$stregkode = if_isset($_GET, NULL, 'stregkode') ? filter_var(if_isset($_GET, NULL, 'stregkode'), FILTER_SANITIZE_STRING) : '';
+$trademark = if_isset($_GET, NULL, 'varemærke') ? filter_var(if_isset($_GET, NULL, 'varemærke'), FILTER_SANITIZE_STRING) : '';
+$beskrivelse = if_isset($_GET, NULL, 'beskrivelse') ? filter_var(if_isset($_GET, NULL, 'beskrivelse'), FILTER_SANITIZE_STRING) : '';
+$kostpris = if_isset($_GET, 0, 'kostpris') ? filter_var(if_isset($_GET, 0, 'kostpris'), FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) : 0;
+$salgspris = if_isset($_GET, 0, 'salgspris') ? filter_var(if_isset($_GET, 0, 'salgspris'), FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) : 0;
+$retail_price = if_isset($_GET, 0, 'vejl_pris') ? filter_var(if_isset($_GET, 0, 'vejl_pris'), FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION) : 0;
+$notes = if_isset($_GET, NULL, 'notes') ? filter_var(if_isset($_GET, NULL, 'notes'), FILTER_SANITIZE_STRING) : '';
+$enhed = if_isset($_GET, NULL, 'enhed') ? filter_var(if_isset($_GET, NULL, 'enhed'), FILTER_SANITIZE_STRING) : '';
+$gruppe = if_isset($_GET, 0, 'gruppe') ? filter_var(if_isset($_GET, 0, 'gruppe'), FILTER_SANITIZE_STRING) : 0;
+$min_lager = if_isset($_GET, 0, 'min_lager') ? filter_var(if_isset($_GET, 0, 'min_lager'), FILTER_SANITIZE_NUMBER_INT) : 0;
+$max_lager = if_isset($_GET, 0, 'max_lager') ? filter_var(if_isset($_GET, 0, 'max_lager'), FILTER_SANITIZE_NUMBER_INT) : 0;
+$location = if_isset($_GET, NULL, 'lokation') ? filter_var(if_isset($_GET, NULL, 'lokation'), FILTER_SANITIZE_STRING) : '';
+$fokus = if_isset($_GET, NULL, 'fokus') ? filter_var(if_isset($_GET, NULL, 'fokus'), FILTER_SANITIZE_STRING) : '';
+$id = if_isset($_GET, NULL, 'id') ? filter_var(if_isset($_GET, NULL, 'id'), FILTER_SANITIZE_NUMBER_INT) : '';
+$bordnr = if_isset($_GET, NULL, 'bordnr') ? filter_var(if_isset($_GET, NULL, 'bordnr'), FILTER_SANITIZE_NUMBER_INT) : '';
 
-$sdata = isset($_GET['sdata']) ? filter_var($_GET['sdata'], FILTER_SANITIZE_STRING) : '';
+//Check for a specific type of pricelist supplied by the user
+$sdata = if_isset($_GET, NULL, 'sdata') ? filter_var(if_isset($_GET, NULL, 'sdata'), FILTER_SANITIZE_STRING) : '';
 $beskrivelse = if_isset($_GET,$beskrivelse,'Text');
 $varenr=if_isset($_GET,$varenr,'Varenr');
 $kostpris = if_isset($_GET,$kostpris,'Kostpris');
 $salgspris = if_isset($_GET,$salgspris,'Salgspris');
-
 
 
 
@@ -76,7 +76,7 @@ $max_lager = is_numeric($max_lager) && !empty($max_lager) ? (int)$max_lager : 0;
 $varenr = is_numeric($varenr) && !empty($varenr) ? (int)$varenr : NULL;
 	
 
-if($retail_price==''){
+if($retail_price==NULL || $retail_price==0){
 	$retail_price=$salgspris;
 }
 	
@@ -86,10 +86,9 @@ if($retail_price==''){
 	$qr = db_select("select * from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__);
 	if (!$chk = db_fetch_array($qr)) {
 		
-	   db_modify("INSERT INTO varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, min_lager, max_lager) 
-	   VALUES ('$varenr','$stregkode','$trademark','".db_escape_string($beskrivelse)."','$kostpris','$salgspris',2,2)",__FILE__ . " linje " . __LINE__);
-		// -- VALUES ('$varenr','$stregkode','$trademark','".db_escape_string($beskrivelse)."','$kostpris','$salgspris','".db_escape_string($notes)."','$enhed','$gruppe',2,2,'$location')",__FILE__ . " linje " . __LINE__);
-	
+	   db_modify("INSERT INTO varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, notes, enhed, gruppe, min_lager, max_lager, location) 
+	    VALUES ('$varenr','$stregkode','$trademark','".db_escape_string($beskrivelse)."','$kostpris','$salgspris','".db_escape_string($notes)."','$enhed','$gruppe',2,2,'$location')",__FILE__ . " linje " . __LINE__);
+	   	
     }
 	
 	
@@ -98,7 +97,7 @@ if($retail_price==''){
 //echo "Location: ". $location;
 $qra = db_select("select * from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__);
 if ($r = db_fetch_array($qra)) {
-$rid = $r['id'];
+$rid = if_isset($r,NULL,'id');
 }
 
 $ul = "ordre.php?";
