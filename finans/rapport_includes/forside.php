@@ -42,8 +42,7 @@
 // 20250324 LOE Updated konto_til value and finans_forside.js created
 // 20250407 LOE konto_til when not set and ktoNameTo default values moved from while loop.
 // 20250516 Sulayman updated the drowdown konto_fra and konto_til to show according to the selected konto_fra and konto_til.
-
-
+// 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
 	global $bruger_id,$brugernavn;
@@ -54,7 +53,9 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	global $revisor;
 	global $sprog_id;
 	global $top_bund;
-
+    $backUrl = isset($_GET['returside'])
+    ? $_GET['returside']
+    : 'javascript:window.history.go(-2);';
 	$regnaar = $regnaar * 1; #fordi den er i tekstformat og skal vaere numerisk
 
 	#$konto_fra=$konto_fra*1;
@@ -220,7 +221,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 			print "<a href=../includes/luk.php accesskey=L>
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
 		else
-			print "<a href=../index/menu.php accesskey=L>
+			print "<a href='$backUrl' accesskey=L>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
 				   .findtekst(30, $sprog_id)."</button></a></td>";
 

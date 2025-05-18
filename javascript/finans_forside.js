@@ -37,7 +37,7 @@
 
 
 
- // 20250516 Sulayman updated the code to use dropdowns for konto_fra and konto_til
+ // 20250516 Sawaneh updated the code to use dropdowns for konto_fra and konto_til
 
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -122,5 +122,52 @@ document.addEventListener('DOMContentLoaded', function () {
     rapportartEl.addEventListener('change', updateAllDropdowns);
     kontoFraEl.addEventListener('change', onFraChange);
     kontoTilEl.addEventListener('change', onTilChange);
+  });
+  
+
+
+ // 20250516 Sawaneh fix date issue not setting for the correct month
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const toMonthEl = document.querySelector('select[name="dato_til_maaned"]');
+    const toYearEl = document.querySelector('select[name="dato_til_aar"]');
+    const toDayEl = document.querySelector('select[name="dato_til_dag"]');
+  
+    if (!toMonthEl || !toYearEl || !toDayEl) return;
+  
+    let wasLastDay = false;
+  
+    function getLastDayOfMonth(year, month) {
+      return new Date(year, month, 0).getDate(); 
+    }
+  
+    function checkIfWasLastDay() {
+      const year = parseInt(toYearEl.value, 10);
+      const month = parseInt(toMonthEl.value, 10);
+      const day = parseInt(toDayEl.value, 10);
+      const lastDay = getLastDayOfMonth(year, month);
+      wasLastDay = (day === lastDay);
+    }
+  
+    function updateToDayIfLast() {
+      const newYear = parseInt(toYearEl.value, 10);
+      const newMonth = parseInt(toMonthEl.value, 10);
+      if (wasLastDay) {
+        const newLastDay = getLastDayOfMonth(newYear, newMonth);
+        toDayEl.value = newLastDay.toString();
+      }
+    }
+  
+   
+    toDayEl.addEventListener('change', checkIfWasLastDay);
+    toMonthEl.addEventListener('change', function () {
+      updateToDayIfLast();
+    });
+    toYearEl.addEventListener('change', function () {
+      updateToDayIfLast();
+    });
+  
+   
+    checkIfWasLastDay();
   });
   
