@@ -17,7 +17,7 @@ function pricelists(){
 		$beskrivelse[$i]=$r['beskrivelse']; //holds names of the records
 		$prisfil[$i]=$r['box2']; //file location ? //the url
 		$aktiv[$i]=$r['box4'];
-		$gruppe[$i]=$r['box8'];  //selected, use as placeholder for the default. or Active prisfil
+		$gruppe[$i]=$r['box8'];  
 		$filtype[$i]=$r['box9'];
         $delimiter[$i] = $r['box10'];
         $encoding[$i]=$r['box11'];
@@ -25,14 +25,14 @@ function pricelists(){
 	}
 	$vgrp = array();
 	$i = 0;
-	$qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$vgrp[$i]   = $r['kodenr'];
-		$vgbesk[$i] = $r['beskrivelse'];
-        $gruppe[$i]=$r['box8'];
-		$i++;
-	}
+	// $qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
+	// $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	// while ($r = db_fetch_array($q)) {
+	// 	$vgrp[$i]   = $r['kodenr'];
+	// 	$vgbesk[$i] = $r['beskrivelse'];
+    //     $gruppe[$i]=$r['box8'];
+	// 	$i++;
+	// }
 
 	$filtyper[0]="csv";
 	$filtypebeskrivelse[0]="Kommasepareret";
@@ -89,7 +89,7 @@ function pricelists(){
                 $id = $r['id'];
                 $url = $r['box2']; // same as $prisfil
                 $isActive = $r['box4']; // same as $aktiv
-
+               
                 if ($url === $selectedUrl) {
                     // Set the selected URL as active
                     db_modify("UPDATE grupper SET box4 = 'Yes' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -100,8 +100,9 @@ function pricelists(){
             }
 
         }
-        echo "<script>alert('Operation completed');</script>";
-        exit;
+         echo "<script>alert('Operation completed');</script>";
+         print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
+        return;
         
     }
    
@@ -127,14 +128,45 @@ function pricelists(){
                 $encoding= htmlspecialchars($encoding);
                 $id = htmlspecialchars($id);
                 $aktiv = htmlspecialchars($aktiv);
-
                 $path_info = pathinfo($prisfil);
-                if (isset($path_info['extension']) && strtolower($path_info['extension']) === 'csv') {
+
+               
+                switch ($delimiter) {
+                    case 'tab':
+                        $delimiter = '\\t';
+                        break;
+                    case ',':
+                    case ';':
+                        $delimiter = $delimiter;
+                        break;
+                    default:
+                        $delimiter = null;
+                }
+
+
+
+                 $checkDelimiter = [',', ';', '\\t'];
+                 
+                    $valid = false;
+                    
+                  if (in_array($delimiter, $checkDelimiter, true)){
+                        $valid = true;
+                        if($delimiter == '\\t'){
+                            $delimiter = "\t";
+                        }
+                        
+                    }else{
+                        $valid = false;
+                        error_log("Invalid delimiter: $delimiter");
+                    }
+                if (isset($path_info['extension']) && strtolower($path_info['extension']) === 'csv' && $valid) {
                     $mode=true;
                 }else{
                     $mode=false;
                 }
+                
               if($mode && !empty($beskrivelse)){
+             
                     $qtxt = "update grupper set box10='$delimiter', box8='$gruppe',beskrivelse='$beskrivelse',";  
                     $qtxt.="box11='$encoding',box2='$prisfil' where id='$id'";
                     
@@ -144,7 +176,7 @@ function pricelists(){
                    
               }else{
                     
-                    print "<script>alert('Ensure the url and description are valid.'); 
+                    print "<script>alert('Ensure the url/description/delimiter are valid.'); 
                     window.location.href = 'diverse.php?sektion=pricelists';</script>";
                     exit;
               }
@@ -182,9 +214,34 @@ function pricelists(){
                     print('<td><input type="text" name="prisfil[]" value="' . (isset($prisfil[$i]) ? htmlspecialchars($prisfil[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="opdateret[]" value="' . (isset($opdateret[$i]) ? htmlspecialchars($opdateret[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="aktiv[]" value="' . (isset($aktiv[$i]) ? htmlspecialchars($aktiv[$i]) : '') . '"></td>');
-                    print('<td><input type="text" name="gruppe[]" value="' . (isset($gruppe[$i]) ? htmlspecialchars($gruppe[$i]) : '') . '"></td>');
+                    print('<td><input type="text" name="gruppe[]" value="' . (isset($gruppe[$i]) ? htmlspecialchars($gruppe[$i]) : NULL) . '"></td>');
                     print('<td><input type="text" name="filtype[]" value="' . (isset($filtype[$i]) ? htmlspecialchars($filtype[$i]) : '') . '"></td>');
-                    print('<td><input type="text" name="delimiter[]" value="' . (isset($delimiter[$i]) ? htmlspecialchars($delimiter[$i]) : '') . '"></td>');
+                    // print('<td><input type="text" name="delimiter[]" value="' . (isset($delimiter[$i]) ? htmlspecialchars($delimiter[$i]) : '') . '"></td>');
+                    ##Delimiter Start
+                  // Get the selected delimiter from the database (or empty string if not set)
+                  
+                    $selected = isset($delimiter[$i]) ? $delimiter[$i] : ','; // Default to comma if not set
+
+                    print('<td><select name="delimiter[]">');
+
+                    $options = [
+                        ','     => 'Comma',
+                        ';'     => 'Semicolon',
+                        'tab'   => 'Tab' // Use symbolic value for tab
+                    ];
+
+                    // Normalize the selected value for comparison (handle tab case)
+                    $selected = ($selected === "\t") ? 'tab' : $selected;
+
+                    foreach ($options as $value => $label) {
+                        $isSelected = ($value === $selected) ? ' selected' : '';
+                        print("<option value=\"$value\"$isSelected>$label</option>");
+                    }
+
+                    print('</select></td>');
+                    ###Delimiter end select
+
+                    ###Delimiter end select
                     print('<td><input type="text" name="encoding[]" value="' . (isset($encoding[$i]) ? htmlspecialchars($encoding[$i]) : '') . '"></td>');
                     print ("<input type='hidden' name='edit_beskrivelse' value='edit_beskrivelse'>");
                     print ("<input type='hidden' name='edit_prisfil' value='edit_prisfil'>");
@@ -265,107 +322,27 @@ function pricelists(){
          $lines = explode(PHP_EOL, trim($csvData));
          $header = str_getcsv(trim($lines[0] ?? ''), $delimiter);
  
-         if (!$header || count($header) < 2) {
-            if($delimiter != ';'){
-                $delimiter = ';';
-            }else{
-                $mode = false;
-                print "<script>alert('The provided file is not a valid CSV format.Check the delimiter');</script>";
-                print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
-                exit;
-            }
+        //  if (!$header || count($header) < 2) {
+        //     if($delimiter != ';'){
+        //         $delimiter = ';';
+        //     }else{
+        //         $mode = false;
+        //         print "<script>alert('The provided file is not a valid CSV format.Check the delimiter');</script>";
+        //         print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
+        //         exit;
+        //     }
             
-         }
+        //  }
  
  
         #**********************
-            ################################
-              // Second step: displaying selected columns
-        
-       // $csvData = $_SESSION['csv_data'];
-    //    $delimiter = $delimiter ?? ';';
-    //     $lines = explode(PHP_EOL, $csvData);
-    //     $rows = array_map(function ($line) use ($delimiter) {
-    //         return str_getcsv($line, $delimiter);
-    //     }, $lines);
-
-    //     $header = $rows[0];
-    //     unset($rows[0]); // Remove header from rows
-
-                //     print "<h2>Selected Data</h2>";
-                //     print "<form name='diverse' action='diverse.php?sektion=pricelists' method='post'>\n";
-                //     print "<input type='hidden' name='step' value='save_data'>";
-                //     print "<input type='hidden' name='mode' value=$mode>";
-                //     // Create a table to display the data
-                //     print "<table border='1'>";
-                    
-                //     // Add a header row with a checkbox for selecting/deselecting all
-                //     print "<tr>";
-                
-                
-                //    // Generating table headers with select options
-                //     foreach ($header as $column) {
-                //         $column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
-                //         print "<th>";
-                //         print '<select name="columnSelect[]">'; // Using array syntax to allow multiple selections if needed
-
-                //         // Setting the default option to the current column
-                //         print '<option value="' . htmlspecialchars($column) . '" selected>' . htmlspecialchars($column) . '</option>'; 
-
-                //         // Adding the rest of the options from the header array
-                //         foreach ($header as $option) {
-                //             $option = mb_convert_encoding($option, 'UTF-8', 'ISO-8859-1');
-                //             // Avoid adding the current column again to prevent duplication in the dropdown
-                //             if ($option !== $column) {
-                //                 print '<option value="' . htmlspecialchars($option) . '">' . htmlspecialchars($option) . '</option>'; 
-                //             }
-                //         }
-
-                //         print '</select>';
-                //         print "</th>";
-                //     }
-                //     print "</tr>";
-                    
-                //     // Add data rows with checkboxes
-                
-
-                //     $rowCount = 0; // Initialize a counter for the number of rows shown
-
-                //     foreach ($rows as $row) {
-                //         if (!empty($row)) {
-                //             $row = mb_convert_encoding($row, 'UTF-8', 'ISO-8859-1');
-
-                //             // Check if we have already printed 10 rows
-                //             if ($rowCount >= 10) {
-                //                 break; // Exit the loop if 10 rows have been printed
-                //             }
-
-                //             print "<tr>"; // Start a new table row
-
-                //             // Render the data cells for the selected columns
-                //             foreach ($header as $column) {
-                //                 $colIndex = array_search($column, $header); // Get the index of the current column
-                //                 print "<td>" . htmlspecialchars($row[$colIndex] ?? '') . "</td>"; // Print the cell value
-                //             }
-
-                //             print "</tr>"; // End the table row
-                //             $rowCount++; // Increment the row counter after printing the row
-                //         }
-                //     }
-                            
-                //     print "</table>";
-                //     print "<button type='submit'>Save Data</button>";
-                //     echo "</form>";
-        
-        
-            #################################
-
+           
             print "<script>alert('Saved');</script>";
             print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
             return; 
         }
     }elseif(isset($_POST['step']) && $_POST['step'] === 'save_data'){
-        #print "<script>alert('To be saved.');</script>";
+     
         error_log('use for edit');
         print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
         exit;
@@ -490,6 +467,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 for ($i = 0; $i < $count; $i++) {
                     $url = htmlspecialchars($prisfil[$i]);
                     $desc = htmlspecialchars($beskrivelse[$i]);
+                    $use = htmlspecialchars($aktiv[$i]);
 
                     print '<div class="pricelist" style="margin-bottom: 10px; display: flex; align-items: center; background-color: #fff; padding: 10px; border: 1px solid #e0e0e0; border-radius: 4px;">';
                     
@@ -497,7 +475,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                     print "<span style=\"flex-grow: 1; font-family: sans-serif; color: #666;\">$desc</span>";
                     
                     // Use button
-                    print "<button type=\"submit\" name=\"use_url\" value=\"$url\" style=\"margin-right: 10px; padding: 6px 12px; background-color: #ccc; color: black; border: none; border-radius: 4px; cursor: pointer;\">Use</button>";
+                   if($use == 'Yes'){
+                        print "<button type=\"submit\" name=\"use_url\" value=\"$url\" style=\"padding: 6px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;\">Use</button>";  
+                    }else{
+                        print "<button type=\"submit\" name=\"use_url\" value=\"$url\" style=\"padding: 6px 12px; background-color: #ccc; color: black; border: none; border-radius: 4px; cursor: pointer;\">Use</button>";
+                    }
 
                     // Delete button
                     print "<button type=\"submit\" name=\"delete_url\" value=\"$url\" style=\"padding: 6px 12px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;\">Delete</button>";
@@ -620,21 +602,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
          // Parse CSV data to get the header row
-         $lines = explode(PHP_EOL, trim($csvData));
-         $header = str_getcsv(trim($lines[0] ?? ''), $delimiter);
- 
-         if (!$header || count($header) < 2) {
-                if($delimiter != ';'){
-                    $delimiter = ';';
-                }else{
-                    print "<script>alert('The provided file is not a valid CSV format.Check the delimiter');</script>";
-                  
-                   # editForm($x);
-                
-                }
-                
-         }
- 
+          $lines = explode(PHP_EOL, trim($csvData));
+            $firstLine = trim($lines[0] ?? '');
+
+            $checkDelimiter = [',', ';', "\t"];
+            $valid = false;
+           if(!in_array($delimiter, $checkDelimiter)){
+                $valid = false;
+            }
+            
+        if (!$valid) {
+            error_log('The provided file is not a valid CSV format. Check the delimiter.');
+            
+            exit;
+        }
+        
         #**********************
 
             ################################

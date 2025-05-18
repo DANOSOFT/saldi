@@ -49,6 +49,16 @@ $location = isset($_GET['lokation']) ? filter_var($_GET['lokation'], FILTER_SANI
 $fokus = isset($_GET['fokus']) ? filter_var($_GET['fokus'], FILTER_SANITIZE_STRING) : '';
 $id = isset($_GET['id']) ? filter_var($_GET['id'], FILTER_SANITIZE_NUMBER_INT) : '';
 $bordnr = isset($_GET['bordnr']) ? filter_var($_GET['bordnr'], FILTER_SANITIZE_NUMBER_INT) : '';
+
+$sdata = isset($_GET['sdata']) ? filter_var($_GET['sdata'], FILTER_SANITIZE_STRING) : '';
+$beskrivelse = if_isset($_GET,$beskrivelse,'Text');
+$varenr=if_isset($_GET,$varenr,'Varenr');
+$kostpris = if_isset($_GET,$kostpris,'Kostpris');
+$salgspris = if_isset($_GET,$salgspris,'Salgspris');
+
+
+
+
 $queryString = $_SERVER['QUERY_STRING'];  
 	$sdataPos = strpos($queryString, 'sdata=&');
 	if ($sdataPos !== false) {
@@ -60,40 +70,27 @@ $queryString = $_SERVER['QUERY_STRING'];
 
 $kostpris = is_numeric($kostpris) && !empty($kostpris) ? (float)$kostpris : NULL;
 $salgspris = is_numeric($salgspris) && !empty($salgspris) ? (float)$salgspris : NULL;
-$retail_price = is_numeric($retail_price) && !empty($retail_price) ? (float)$retail_price : NULL;
-$min_lager = is_numeric($min_lager) && !empty($min_lager) ? (int)$min_lager : NULL;
-$max_lager = is_numeric($max_lager) && !empty($max_lager) ? (int)$max_lager : NULL;
-
+$retail_price = is_numeric($retail_price) && !empty($retail_price) ? (float)$retail_price : 0;
+$min_lager = is_numeric($min_lager) && !empty($min_lager) ? (int)$min_lager : 0;
+$max_lager = is_numeric($max_lager) && !empty($max_lager) ? (int)$max_lager : 0;
+$varenr = is_numeric($varenr) && !empty($varenr) ? (int)$varenr : NULL;
 	
-// echo 'Type of $kostpris: ' . gettype($kostpris) . "<br>";
-// echo 'Type of $salgspris: ' . gettype($salgspris) . "<br>";
-// echo 'Type of $retail_price: ' . gettype($retail_price) . "<br>";
-// echo 'Type of $min_lager: ' . gettype($min_lager) . "<br>";
-// echo 'Type of $max_lager: ' . gettype($max_lager) . "<br>";
-// if($retail_price==''){
-// 	$retail_price=$salgspris;
-// }
+
+if($retail_price==''){
+	$retail_price=$salgspris;
+}
 	
 #varenr; 002438
 
 
-/*
-	echo "varenr: " . htmlspecialchars($varenr) . "<br>";
-	echo "retail_price: " . htmlspecialchars($retail_price) . "<br>";
-	echo "beskrivelse: " . htmlspecialchars($beskrivelse) . "<br>";
-	echo "kostpris: " . htmlspecialchars($kostpris) . "<br>";
-	echo "salgspris: " . htmlspecialchars($salgspris) . "<br>";
-	echo "max_lager: " . htmlspecialchars($max_lager) . "<br>";
-	echo "location: " . htmlspecialchars($location) . "<br>";
-
-	#echo "nothing is here"; exit;
-	*/
 	$qr = db_select("select * from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__);
 	if (!$chk = db_fetch_array($qr)) {
 		
-		db_modify("INSERT INTO varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, notes, enhed, gruppe, min_lager, max_lager, location) 
-		VALUES ('$varenr','$stregkode','$trademark','".db_escape_string($beskrivelse)."','$kostpris','$salgspris','".db_escape_string($notes)."','$enhed','$gruppe',2,2,'$location')",__FILE__ . " linje " . __LINE__);
-	}
+	   db_modify("INSERT INTO varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, min_lager, max_lager) 
+	   VALUES ('$varenr','$stregkode','$trademark','".db_escape_string($beskrivelse)."','$kostpris','$salgspris',2,2)",__FILE__ . " linje " . __LINE__);
+		// -- VALUES ('$varenr','$stregkode','$trademark','".db_escape_string($beskrivelse)."','$kostpris','$salgspris','".db_escape_string($notes)."','$enhed','$gruppe',2,2,'$location')",__FILE__ . " linje " . __LINE__);
+	
+    }
 	
 	
 

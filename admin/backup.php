@@ -50,7 +50,7 @@ $info_filnavn="../temp/backup.info";
 $tar_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".tar";
 $gz_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".tar.gz";
 $dat_filnavn="../temp/".trim($db."_".date("Ymd-Hi")).".sdat";
-
+$backup=TRUE;
 $timestamp=date("Ymd-Hi");
 $r=db_fetch_array(db_select("select box1 from grupper where art = 'VE'",__FILE__ . " linje " . __LINE__));
 $dbver=$r['box1'];
@@ -126,10 +126,23 @@ if ($menu=='T' || $menu=='S') {
 
 ########################Handle the cancel instruction
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel'])) {
-	$file_path = $_POST['file_path'];
-	
+	$file_path = if_isset($_POST,NULL,'file_path');
+	error_log("Attempting to delete file: $file_path");
 	if (file_exists($file_path)) {
+        error_log("Deleting file: $file_path");
 		unlink($file_path);
+        $file_path = "../temp/$dat_filnavn";
+                if (file_exists($file_path)) {
+                    if (unlink($file_path)) {   
+                        error_log("File deleted successfully: $file_path");
+                    }else {
+                        error_log("Error deleting file: $file_path");
+                    } 
+                }
+         $backup=FALSE;
+         echo '<meta http-equiv="refresh" content="0;url=backup.php" />'; 
+        exit;
+
 	} else {
 		error_log("Error: Attempted to delete a non-existing file: $file_path");
 	}
@@ -138,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel'])) {
 print "<td align='center' valign='middle'>";
 print "<table cellpadding='1' cellspacing='1' border='0'><tbody>";
 
-if (file_exists("../temp/$dat_filnavn")) {
+if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
 	$dat_filnavn = basename($dat_filnavn);
 	$backUpDir = "../temp/backup/$db/"; //use this to ensure database is backed up
 	$backUpFile = $backUpDir . $dat_filnavn;
@@ -154,6 +167,7 @@ if (file_exists("../temp/$dat_filnavn")) {
 			foreach (glob($backUpDir . '*') as $file) {
 				if (is_file($file)) {
 					unlink($file);
+                    
 				}
 			}
 		}
@@ -181,16 +195,17 @@ if (file_exists("../temp/$dat_filnavn")) {
     print "<tr><td align=center colspan=2>".findtekst('1244|skal du højreklikke og vælge gem som', $sprog_id)."</td></tr>";
     
     // Add Cancel button below
-
+    error_log('Backup file path: ' . $backUpFile);
     print "<tr><td align=center colspan=2>";
     print "<form action='' method='post'>";
-    print "<input type='hidden' name='file_path' value='../temp/$dat_filnavn' />";
-    print "<input type='submit' name='cancel' value='Cancel' />";
+    print "<input type='hidden' name='file_path' value='$backUpFile' />";
+    print "<input type='submit' name='cancel' value='cancel' />";
     print "</form>";
     print "</td></tr>";
 	exit;
 	
 } else {
+   
     print "<tr><td align=center>".findtekst('1241|Klik her', $sprog_id).": </td><td $style  title='".findtekst('1675|Her har du mulighed for at gemme sikkerhedskopien på din computer', $sprog_id)."'>";
     print "<a href='backup.php?backup=1'> $buttonStart";
     print findtekst('1245|Dan sikkerhedskopi', $sprog_id);
