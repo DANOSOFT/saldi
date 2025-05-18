@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/admin/backup.php---lap 3.8.9--2025-04-27---------------------
+// ----------/admin/backup.php---lap 4.1.1--2025-05-18---------------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -196,13 +196,23 @@ if (file_exists("../temp/$dat_filnavn") && $backup==TRUE) {
     
     // Add Cancel button below
     error_log('Backup file path: ' . $backUpFile);
-    print "<tr><td align=center colspan=2>";
-    print "<form action='' method='post'>";
-    print "<input type='hidden' name='file_path' value='$backUpFile' />";
-    print "<input type='submit' name='cancel' value='cancel' />";
-    print "</form>";
+ 	 print "<tr><td align=center colspan=2>";
+
+	print "<div style='display: flex; justify-content: center; gap: 20px;'>";
+	print "<form action='' method='post'>";
+	print "<input type='hidden' name='file_path' value='$backUpFile' />";
+	print "<input type='submit' name='cancel' value='Cancel' />";
+	print "</form>";
+
+	print "<form action='restore.php' method='get'>";
+	print "<input type='hidden' name='file_path' value='$backUpFile' />";
+	print "<input type='submit' value='Go to Restore' />";
+	print "</form>";
+	print "</div>";
     print "</td></tr>";
-	exit;
+
+
+	return;
 	
 } else {
    
