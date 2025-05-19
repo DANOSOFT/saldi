@@ -1490,7 +1490,7 @@ if($delayLoad == true) {
 #print "</tbody></table></td></tr>\n";
 # print "</tbody></table></td>\n";
 #var_dump($fokus);
-function delbetal($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$betvaluta,$payment_id=0,$betvalkurs) {
+function delbetal($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$betvaluta,$betvalkurs) {
 print "<!-- Function delbetal (start)-->\n";
 	global $bruger_id;
 	global $charset;
@@ -1551,8 +1551,8 @@ print "<!-- Function delbetal (start)-->\n";
 			
 			$qtxt="update pos_betalinger set betalingstype='$betaling',amount='$modtaget',valuta='$betvaluta',valutakurs='$betvalkurs' where id='$r[id]'";
 		} else {
-			$qtxt="insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,payment_id) values ";
-			$qtxt.="('$id','$betaling','$modtaget','$betvaluta','$betvalkurs','$payment_id')";
+			$qtxt="insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) values ";
+			$qtxt.="('$id','$betaling','$modtaget','$betvaluta','$betvalkurs')";
 		}
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$godkendt=NULL;
@@ -1618,8 +1618,8 @@ print "<!-- Function delbetal (start)-->\n";
 					exit;
 				}
 				$tidspkt=date("U");
-				$qtxt="insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,payment_id) values ";
-				$qtxt.="('$id','!','$modtaget','$betvaluta','$betvalkurs','$payment_id')";
+				$qtxt="insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) values ";
+				$qtxt.="('$id','!','$modtaget','$betvaluta','$betvalkurs')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt="select max(id) as pos_bet_id from pos_betalinger where ordre_id='$id' and betalingstype='!'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 

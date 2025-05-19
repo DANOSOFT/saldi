@@ -97,7 +97,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
   const successed = (event) => {
     console.log(cardScheme);
-    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&payment_id=${payment_id}&receipt_id=${receipt_id}&payment_id=${payment_id}`)
+    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&payment_id=${payment_id}&receipt_id=${receipt_id}`)
   };
   const failed = (event) => {
     console.log('Failed click');
@@ -308,7 +308,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
         if (res.status == 201) {
           var json_data = await res.json();
-          var payment_id = json_data['objectIdToProcess'];
+          payment_id = json_data['objectIdToProcess'];
           get_payment_update(payment_id);
           <?php
           if ($printserver == "android") {
