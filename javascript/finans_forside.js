@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
  // 20250516 Sawaneh fix date issue not setting for the correct month
-
+// 20250516 Sawaneh FINAL FIX
  document.addEventListener('DOMContentLoaded', function() {
   function getDaysInMonth(year, month) {
       return new Date(year, month, 0).getDate();
@@ -144,7 +144,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const daysInMonth = getDaysInMonth(year, month);
       let currentDate = parseInt(dateSelect.value) || 1;
       
-      // For "To date" only - check if previous selection was last day
       if (!isFrom) {
           const wasLastDay = manualSelections.to.date === getDaysInMonth(
               parseInt(monthSelect.dataset.prevYear || year),
@@ -158,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function () {
               currentDate = Math.min(currentDate, daysInMonth);
           }
       } else {
-          // For "From date" - always keep selection if valid
           currentDate = Math.min(currentDate, daysInMonth);
       }
 
@@ -187,7 +185,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const monthTo = document.querySelector('select[name="maaned_til"]');
       const dateTo = document.querySelector('select[name="dato_til"]');
 
-      // Only track manual selections for "To date"
       if (dateTo) {
           dateTo.addEventListener('change', function() {
               const [year, month] = monthTo.value.split('|').map(Number);
@@ -220,7 +217,6 @@ document.addEventListener('DOMContentLoaded', function () {
       setupMonthHandler(monthTo, dateTo, false);
   }
 
-  // Rest of your existing code (account selection) remains the same
   function initAccountSelection() {
       const kontoFra = document.querySelector('select[name="konto_fra"]');
       const kontoTil = document.querySelector('select[name="konto_til"]');

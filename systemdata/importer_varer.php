@@ -83,7 +83,8 @@ if($submit) {
 	$tegnset				= if_isset($_POST['tegnset'],NULL);
 	$itemGroup			= if_isset($_POST['itemGroup'],NULL);
 	$show_autocalculate	= if_isset($_POST['show_autocalculate'],NULL); #20221004
-	
+	$import             = if_isset($_POST['import'],NULL);
+
 	// BEGIN 20221004
 	$filterOption="all_products";
 	$tmp = if_isset($_POST['filterOption'],NULL);
@@ -132,6 +133,8 @@ if($submit) {
 	//exit();
 	// END 20221004
 
+
+
 	if (in_array('gruppe',$feltnavn)) $itemGroup = NULL;
 	if (isset ($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['name'])) {
 		$filnavn="../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv";
@@ -140,12 +143,13 @@ if($submit) {
 		} else echo "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
 	} elseif($submit==findtekst(1133, $sprog_id)){ #20221025
 		vis_data($filnavn,$splitter,$feltnavn,$feltantal,$varenr,$csvFile,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
-	}	elseif($submit==findtekst(1074, $sprog_id)){ #20221025
+	}	elseif($import) { #20221025
 		if (($filnavn)&&($splitter))	overfoer_data($filnavn,$splitter,$feltnavn,$feltantal,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
 		else vis_data($filnavn,$splitter,$feltnavn,$feltantal,$varenr,$csvFile,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
 	}
 } else {
-	if (!$r1=db_fetch_array(db_select("select box1, box2, beskrivelse from grupper where art='RA' order by kodenr desc",__FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select box1, box2, beskrivelse from grupper where art='RA' and fiscal_year = '$regnaar' order by kodenr desc";
+	if (!$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		exit;
 	}
 	upload($csvFile);
@@ -171,7 +175,7 @@ function upload($csvFile){
 } # end function upload
 
 function vis_data($filnavn,$splitter,$feltnavn,$feltantal,$varenr,$csvFile,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod) {
-global $charset,$sprog_id;
+global $charset,$regnaar,$sprog_id;
 
 $feltnavn = if_isset($feltnavn,array());
 $komma = $semikolon = $tabulator = 0;
@@ -217,7 +221,7 @@ while($r=db_fetch_array($q)){
 	$v++;
 }
 $vg = 0;
-$qtxt = "select * from grupper where art = 'VG' order by kodenr";
+$qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__); 
 while($r=db_fetch_array($q)){
 	$vGrNr[$vg]=$r['kodenr'];
@@ -311,7 +315,7 @@ if ($show_autocalculate) {
 }
 print "<input type='hidden' name='filnavn' value='$filnavn'>\n";
 print "<input type='hidden' name='feltantal' value='$feltantal'>\n";
-print "&nbsp; <input type='submit' name='submit' value='".findtekst(1133, $sprog_id)."' />\n";
+print "&nbsp; <input type='submit' name='submit' value='".findtekst('1133|Vis' $sprog_id)."' />\n";
 
 #20140718
 $felt_navn=array("varenr","stregkode","varemærke","beskrivelse","kostpris","salgspris_excl_moms","salgspris_incl_moms","vejl.pris","notes","enhed","enhed2","forhold","gruppe","provisionsfri","leverandor","min_lager","max_lager","lokation","lukket","serienr","samlevare","delvare","trademark","retail_price","netweight", "special_price","campaign_cost","tier_price","open_colli_price","colli","outer_colli","outer_colli_price", "special_from_date","special_to_date","komplementaer","circulate","operation","prisgruppe","tilbudgruppe","rabatgruppe", "dvrg","m_type","m_rabat","m_antal","folgevare", "kategori", "varianter", "publiceret","indhold","montage","demontage");
@@ -328,11 +332,11 @@ for ($y=0; $y<=$feltantal; $y++) {
 			$feltnavn[$y]='';
 		} elseif ($felt_navn[$x] && $feltnavn[$y]==$felt_navn[$x]) $felt_aktiv[$x]=1;
 	}
-	if ($feltnavn[$y]=='varenr')$varenr=1;
-	if ($feltnavn[$y]=='beskrivelse')$beskrivelse=1;
+	if ($feltnavn[$y]=='varenr') $varenr=1;
+	if ($feltnavn[$y]=='beskrivelse') $beskrivelse=1;
 }		
 
-if ($filnavn && $splitter && $varenr==1) print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"".findtekst(1074, $sprog_id)."\" /></td></tr>\n";
+if ($filnavn && $splitter && $varenr == 1) print "&nbsp; <input type=\"submit\" name=\"import\" value=\"".findtekst('1074|Importer', $sprog_id)."\" /></td></tr>\n";
 print "<tr><td colspan=$cols><hr></td></tr>\n";
 if ((!$splitter)||($splitter=='Semikolon')) {$splitter=';';}
 elseif ($splitter=='Komma') {$splitter=',';}
@@ -479,13 +483,13 @@ global $charset;
 
 if ($itemGroup) {
 	$VATrate = 0;
-	$qtxt = "select box4 from grupper where box4 != '' and art = 'VG' and kodenr = '$itemGroup'";
+	$qtxt = "select box4 from grupper where box4 != '' and art = 'VG' and kodenr = '$itemGroup' and fiscal_year = '$regnaar'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$qtxt = "select moms from kontoplan where kontonr = '$r[box4]' order by id desc limit 1";
 		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$VATcode = substr($r['moms'],0,1).'M';
 			$VATcodeNo = substr($r['moms'],1);
-			$qtxt = "select box2 from grupper where art = '$VATcode' and kodenr = '$VATcodeNo'";
+			$qtxt = "select box2 from grupper where art = '$VATcode' and kodenr = '$VATcodeNo' and fiscal_year = '$regnaar'";
 			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				$VATrate = $r['box2'];
 			}
@@ -889,6 +893,7 @@ function opdel ($splitter,$linje){
 	return $var;
 }
 function find_lev_id($kontonr) {
+	global $regnaar;
 	$kontonr=trim($kontonr);
 	if (!is_numeric($kontonr)) $kontonr = 0; 
 	$qtxt="select id from adresser where kontonr='$kontonr' and art='K'"; #20160219
@@ -900,10 +905,12 @@ function find_varegrp($gruppe) {
 	if (!is_numeric($gruppe)) {
 		$low=strtolower($gruppe);
 		$up=strtoupper($gruppe);
-		if ($r=db_fetch_array(db_select("select kodenr from grupper where art='VG' and (lower(beskrivelse)='$low' or upper(beskrivelse)='$up')",__FILE__ . " linje " . __LINE__))) return ($r['kodenr']);
+		$qtxt = "select kodenr from grupper where art='VG' and (lower(beskrivelse)='$low' or upper(beskrivelse)='$up') and fiscal_year = '$regnaar'";
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) return ($r['kodenr']);
 		else return(0);
-	} elseif ($r=db_fetch_array(db_select("select id from grupper where art='VG' and kodenr = '$gruppe'",__FILE__ . " linje " . __LINE__))) return ($gruppe);
-	else return(0);
+	} elseif ($r=db_fetch_array(db_select("select id from grupper where art='VG' and kodenr = '$gruppe' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__))) {
+	 return ($gruppe);
+	} else return(0);
 }
 function myAddToPriceFunc($kostpris, $roundingMethod, $value, $CalculationMethod) {
 	$price = 0;

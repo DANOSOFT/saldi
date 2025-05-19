@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 4.1.0 --- 2025-05-10 ---
+// --- includes/docsIncludes/docPool.php --- ver 4.1.1 --- 2025-05-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,6 +23,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20250510 PHR Added 'w' to $legalChars
+// 20250519 PHR '&' replaced by '_' in filenames
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 	global $bruger_id,$db,$exec_path;
@@ -187,6 +188,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					}
 					if (strpos($file,' ')) {
 						$newFile = str_replace (' ','_',$file);
+						$from = $docFolder."/".$db."/pulje/".$file;
+						$to   = $docFolder."/".$db."/pulje/".$newFile;
+						system ("mv '$from' '$to'\n");
+						$file = $newFile;
+					}
+					if (strpos($file,'&')) {
+						$newFile = str_replace ('&','_',$file);
 						$from = $docFolder."/".$db."/pulje/".$file;
 						$to   = $docFolder."/".$db."/pulje/".$newFile;
 						system ("mv '$from' '$to'\n");
