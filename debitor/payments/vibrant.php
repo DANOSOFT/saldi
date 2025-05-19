@@ -91,14 +91,15 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 ?>
 
 <script>
-  var count = 40 - 1;
-  var paused = false;
-  var receipt_id = 'None';
-
+  var count = 40 - 1
+  var paused = false
+  var receipt_id = 'None'
+  var payment_id = ""
   const successed = (event) => {
     console.log(cardScheme);
-    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&receipt_id=${receipt_id}`)
-  };
+    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&receipt_id=${receipt_id}&payment_id=${payment_id}`);
+  }
+
   const failed = (event) => {
     console.log('Failed click');
     window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
