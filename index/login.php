@@ -376,8 +376,7 @@ if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
 
 if (
     !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
-    !(($regnskab === 'demo' && $brugernavn === 'admin')) &&
-	!($bruger_id < 0)
+    !(($regnskab === 'demo' && $brugernavn === 'admin'))
 ) {
     $udlob = time() - 14400; // 4 hours
 
