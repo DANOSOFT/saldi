@@ -128,46 +128,124 @@ document.addEventListener('DOMContentLoaded', function () {
 
  // 20250516 Sawaneh fix date issue not setting for the correct month
 
-  document.addEventListener('DOMContentLoaded', function () {
-    const toMonthEl = document.querySelector('select[name="dato_til_maaned"]');
-    const toYearEl = document.querySelector('select[name="dato_til_aar"]');
-    const toDayEl = document.querySelector('select[name="dato_til_dag"]');
-  
-    if (!toMonthEl || !toYearEl || !toDayEl) return;
-  
-    let wasLastDay = false;
-  
-    function getLastDayOfMonth(year, month) {
-      return new Date(year, month, 0).getDate(); 
-    }
-  
-    function checkIfWasLastDay() {
-      const year = parseInt(toYearEl.value, 10);
-      const month = parseInt(toMonthEl.value, 10);
-      const day = parseInt(toDayEl.value, 10);
-      const lastDay = getLastDayOfMonth(year, month);
-      wasLastDay = (day === lastDay);
-    }
-  
-    function updateToDayIfLast() {
-      const newYear = parseInt(toYearEl.value, 10);
-      const newMonth = parseInt(toMonthEl.value, 10);
-      if (wasLastDay) {
-        const newLastDay = getLastDayOfMonth(newYear, newMonth);
-        toDayEl.value = newLastDay.toString();
+ document.addEventListener('DOMContentLoaded', function() {
+  function getDaysInMonth(year, month) {
+      return new Date(year, month, 0).getDate();
+  }
+
+  const manualSelections = {
+      to: { active: false, date: null }
+  };
+
+  function updateDateDropdown(monthSelect, dateSelect, isFrom) {
+      if (!monthSelect || !dateSelect) return;
+      
+      const [year, month] = monthSelect.value.split('|').map(Number);
+      const daysInMonth = getDaysInMonth(year, month);
+      let currentDate = parseInt(dateSelect.value) || 1;
+      
+      // For "To date" only - check if previous selection was last day
+      if (!isFrom) {
+          const wasLastDay = manualSelections.to.date === getDaysInMonth(
+              parseInt(monthSelect.dataset.prevYear || year),
+              parseInt(monthSelect.dataset.prevMonth || month)
+          );
+          
+          if (wasLastDay || currentDate > daysInMonth) {
+              currentDate = daysInMonth;
+              manualSelections.to.active = false;
+          } else {
+              currentDate = Math.min(currentDate, daysInMonth);
+          }
+      } else {
+          // For "From date" - always keep selection if valid
+          currentDate = Math.min(currentDate, daysInMonth);
       }
-    }
-  
-   
-    toDayEl.addEventListener('change', checkIfWasLastDay);
-    toMonthEl.addEventListener('change', function () {
-      updateToDayIfLast();
-    });
-    toYearEl.addEventListener('change', function () {
-      updateToDayIfLast();
-    });
-  
-   
-    checkIfWasLastDay();
-  });
-  
+
+      monthSelect.dataset.prevYear = year;
+      monthSelect.dataset.prevMonth = month;
+
+      dateSelect.innerHTML = '';
+      for (let day = 1; day <= daysInMonth; day++) {
+          const option = document.createElement('option');
+          option.value = day;
+          option.textContent = day + '.';
+          if (day === currentDate) {
+              option.selected = true;
+          }
+          dateSelect.appendChild(option);
+      }
+      
+      if (!isFrom) {
+          manualSelections.to.date = currentDate;
+      }
+  }
+
+  function initDateDropdowns() {
+      const monthFrom = document.querySelector('select[name="maaned_fra"]');
+      const dateFrom = document.querySelector('select[name="dato_fra"]');
+      const monthTo = document.querySelector('select[name="maaned_til"]');
+      const dateTo = document.querySelector('select[name="dato_til"]');
+
+      // Only track manual selections for "To date"
+      if (dateTo) {
+          dateTo.addEventListener('change', function() {
+              const [year, month] = monthTo.value.split('|').map(Number);
+              const daysInMonth = getDaysInMonth(year, month);
+              
+              if (parseInt(this.value) !== daysInMonth) {
+                  manualSelections.to.active = true;
+                  manualSelections.to.date = parseInt(this.value);
+              } else {
+                  manualSelections.to.active = false;
+              }
+          });
+      }
+
+      function setupMonthHandler(monthSelect, dateSelect, isFrom) {
+          if (!monthSelect || !dateSelect) return;
+          
+          const [initYear, initMonth] = monthSelect.value.split('|').map(Number);
+          monthSelect.dataset.prevYear = initYear;
+          monthSelect.dataset.prevMonth = initMonth;
+          
+          updateDateDropdown(monthSelect, dateSelect, isFrom);
+          
+          monthSelect.addEventListener('change', function() {
+              updateDateDropdown(monthSelect, dateSelect, isFrom);
+          });
+      }
+
+      setupMonthHandler(monthFrom, dateFrom, true);
+      setupMonthHandler(monthTo, dateTo, false);
+  }
+
+  // Rest of your existing code (account selection) remains the same
+  function initAccountSelection() {
+      const kontoFra = document.querySelector('select[name="konto_fra"]');
+      const kontoTil = document.querySelector('select[name="konto_til"]');
+      
+      if (!kontoFra || !kontoTil || typeof konti === 'undefined') return;
+
+      kontoFra.addEventListener('change', function() {
+          const selectedKonto = parseInt(this.value);
+          kontoTil.innerHTML = '';
+          
+          konti.forEach(konto => {
+              if (konto.kontonr >= selectedKonto) {
+                  const option = document.createElement('option');
+                  option.value = konto.kontonr;
+                  option.textContent = konto.label;
+                  kontoTil.appendChild(option);
+              }
+          });
+          
+          if (kontoTil.querySelector(`option[value="${kontoTil.value}"]`)) {
+              kontoTil.value = kontoTil.value;
+          }
+      });
+  }
+
+  initDateDropdowns();
+  initAccountSelection();
+});
