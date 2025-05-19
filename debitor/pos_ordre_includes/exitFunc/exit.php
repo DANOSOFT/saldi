@@ -30,7 +30,7 @@
 // 20240209 PHR Added indbetaling to vibrant & flatpay
 // 20240313 MMK/PHR Vipps / Mobilepay
 
-function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$payment_id=null) {
+function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$payment_id=0) {
 
 print "\n<!-- Function afslut (start)-->\n";
 	global $afd;
@@ -59,7 +59,7 @@ print "\n<!-- Function afslut (start)-->\n";
       print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
       exit(0);
     }
-	}
+}
 // Indsat til Claus ---->
 /*
 	$qtxt="select box5 from grupper where art = 'POS' and kodenr='1'";
@@ -166,8 +166,9 @@ print "\n<!-- Function afslut (start)-->\n";
 					}
 				} #else $terminal_ip=$printserver;
 				$tidspkt=date("U");
-				$qtxt="insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) values ";
-				$qtxt.="('$id','!','$modtaget','$betvaluta','$betvalkurs')";
+				$payment_id = intval($payment_id); // This converts empty strings, nulls etc. to 0
+				$qtxt="insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,payment_id) values ";
+				$qtxt.="('$id','!','$modtaget','$betvaluta','$betvalkurs','$payment_id')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				$qtxt="select max(id) as pos_bet_id from pos_betalinger where ordre_id='$id' and betalingstype='!'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
