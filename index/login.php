@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-05-14--------------
+// --- index/login.php -----patch 4.1.1 ----2025-05-19--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -96,7 +96,7 @@ if ($errcode === 0) {
 }
 date_default_timezone_set($timezone);
 
-$ansat_id=null;
+$ansat_id=$bruger_id=null;
 
 
 $query = db_select("SELECT brugernavn FROM brugere",__FILE__ . " linje " . __LINE__);
