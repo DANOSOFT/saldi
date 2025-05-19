@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/helperMethods/helperFunc.php ---------- lap 3.7.4----2019.01.07-------
+// --- debitor/pos_ordre_includes/helperMethods/helperFunc.php --- lap 4.1.1 --- 2025.05.15 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2019 saldi.dk aps
+// Copyright (c) 2004-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // LN 20190312 Make various helper functions for the pos_ordre and the report files
+// PHR php8
 
 function printWarningMessage($textType) { #LN Print warning message
     if($textType == "proforma") {
@@ -138,13 +139,14 @@ function countPriceCorrectionSetup($newPrice, $oldPrice)
 
 function countPriceCorrection($id, $price, $kasse)
 {
-    $temp = if_isset($_SESSION['price_correction']);
-    if ($temp == true) {
-        db_modify("insert into price_correction (id, price, kasse) values ($id, $price, $kasse)", __LINE__ . "linje" . __LINE__);
-        unset($_SESSION['price_correction']);
+    if (isset($_SESSION['price_correction'])) {
+        $temp = $_SESSION['price_correction'];
+        if ($temp == true) {
+            db_modify("insert into price_correction (id, price, kasse) values ($id, $price, $kasse)", __LINE__ . "linje" . __LINE__);
+            unset($_SESSION['price_correction']);
+        }
     }
 }
-
 function countCorrection($id, $kasse)
 {
     if (isset($_SESSION['savingCorrection']) && $_SESSION['savingCorrection'] == true) {
