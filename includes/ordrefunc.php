@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-05-07 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-05-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -4821,10 +4821,8 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 		
 	
 	if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['option'])) {
-		// Get the URL from the AJAX request
-		$option = $_POST['option']; // Get the selected option value (1 or 2)
-
-		// Process based on the selected option
+		
+		$option = $_POST['option']; 
 		if ($option) {
 		    $url = $location.$option;
 			// Append the URL to the file
@@ -4832,10 +4830,8 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			 // Get the current host (domain name or IP address)
 			 $host = $_SERVER['HTTP_HOST'];
 
-			 // Get the current URI (path and query string)
+			
 			 $requestUri = $_SERVER['REQUEST_URI'];
-
-			 // Combine the parts to get the full URL
 			 $currentUrl = $protocol . '://' . $host . $requestUri;
 			 $startPos = strpos($currentUrl, 'debitor');
 
@@ -4850,13 +4846,10 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 
 	}
 
-
-
    ###################### 
 
 		file_put_contents("../temp/$db/vareopslag.log","vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find)\n",FILE_APPEND);
 		
-	
 		// Display the corresponding content based on the selected option
 	if(isset($option) && $option==2 || !isset($option)){
 			if ($option == 2 || !isset($option)) {
@@ -4980,11 +4973,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						});
 				});
 			</script>";
-			
-	
-	
-		
-	
+			print
 			print "<table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\"><tbody>";
 			$linjebg=$bgcolor; $color='#000000';
 			#	$linjebg=$bgcolor5; $color='#000000';
@@ -5017,10 +5006,6 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 				}
 				$rowheight=NULL;
 			}
-	
-	
-			
-			
 			print("<script>
 			function filterRows() {
 				const input = document.getElementById('filterInput').value.toLowerCase();
@@ -5131,6 +5116,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			$id = $filtyper = $filtypebeskrivelse = $lev_id=$aktiv = $prislister = array();
 			$i=0;
 			$q=db_select("select * from grupper where art = 'PL' order by beskrivelse",__FILE__ . " linje " . __LINE__);
+			
 			while ($r = db_fetch_array($q)) {
 				$id[$i]=$r['id'];
 				$beskrivelse[$i]=$r['beskrivelse']; //holds names of the records
@@ -5184,10 +5170,9 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 					$idCount = count($id);
 
 					for ($x = 0; $x < $idCount; $x++) {
-						error_log('This is acktive;;;'.$aktiv[$x]);
 						if (trim($aktiv[$x]) === 'Yes' && !empty($prisfil[$x])) {
-
-							$delimiter = if_isset($delimiter[$x], ',');
+         				# $checkDelimiter = bin2hex($delimiter[$x])
+							$delimiter = if_isset($delimiter[$x], ';');
 
 							$url = (str_starts_with($prisfil[$x], 'http://') || str_starts_with($prisfil[$x], 'https://'))
 								? $prisfil[$x]
@@ -5310,16 +5295,11 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 					$alert_message = findtekst(1740, $sprog_id);
 					$alert_message = str_replace("'", "\'", $alert_message);
 					$msg1= 'Data ';
-					echo $msg1.$alert_message;
-					print "<script>javascript:alert('".$msg1.$alert_message."');</script>";
 					
+					error_log($msg1.$alert_message);
 				}
 
-
-
 				return;
-
-
 			#############################################
 			print "</div>"; //end of external pricelist div
 		

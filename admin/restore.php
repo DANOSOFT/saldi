@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------admin/restore.php--------lap 4.1.1------2025-05-11-----------
+// ---------------admin/restore.php--------lap 4.1.1------2025-05-16-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,6 +38,7 @@
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
+
 
 ?>
 <script LANGUAGE="JavaScript">
@@ -118,7 +119,18 @@ $translations = [
         1 => "Der er sket en fejl under hentningen - prøv venligst igen.",
         2 => "An error occurred during the download - please try again.",
         3 => "Det oppsto en feil under nedlastingen – prøv på nytt."
-    ]
+	],
+	1360 => [
+		1 => "Indlæs",
+		2 => "Load",
+		3 => "Laste"
+	],
+	1364 => [
+		1 => "V&aelig;lg datafil",
+		2 => "Select data file",
+		3 => "Velg datafil"
+	]
+	
 ];
 
 
@@ -203,7 +215,7 @@ if ($menu=='T') {
 	
 	if ($filnavn=if_isset($_POST,NULL,'filnavn') && if_isset($_POST,NULL,'mysql_db')) {
 		if($extension=='sql'){
-			
+		
 			// Full path of file and its name
 			$backupfil = $_POST['filnavn'];
 			
@@ -223,6 +235,7 @@ if ($menu=='T') {
 			}
 		}
 	}
+	$formSz = true;	
 	$upFn1 = if_isset($_FILES, NULL, 'uploadedfile') ? if_isset($_FILES['uploadedfile'], NULL, 'name') : NULL;
 	if ($upFn1 && basename($upFn1)) {
 		
@@ -244,6 +257,7 @@ if ($menu=='T') {
 					$result = findDumpInFirstThreeLines($handle);
 					if(stripos(trim($result), 'MySQL dump') !== false) {
 						//call mysql input function
+						$formSz=false;
 					 renderRestoreForm($db, $backupfil, $restoreV = 'Submit');
 						
 							###########
@@ -321,6 +335,7 @@ if ($menu=='T') {
 					$result = findDumpInFirstThreeLines($handle);
 					if(stripos(trim($result), 'MySQL dump') !== false) {
 						//call mysql input function
+						$formSz=false;
 						error_log('Back2 Up file ;'.$backupfil);
 					 renderRestoreForm($db, $backupfil, $restoreV = 'Submit');
 					}
@@ -328,7 +343,7 @@ if ($menu=='T') {
 				}
 			    #######################
 			
-
+			if($formSz==true){
 				print "<form name=restore action=restore.php?db=$db&backup_dbtype=$backup_dbtype method=post>";
 				print "<tr><td valign=middle align=center><table><tbody>";
 				$backupnavn=trim($backupnavn);
@@ -349,6 +364,8 @@ if ($menu=='T') {
 				print "<tr><td align=center><input type=submit value=\"OK\" name=\"restore\"></td><td align=center><input type=submit value=\"Afbryd\" name=\"restore\"></td><tr>";
 				print "</tbody></table></td></tr>";
 				print "</form>";
+			}
+
 			} else {
 				echo findtekst(2427, $sprog_id); //an error occured
 			}
@@ -373,13 +390,18 @@ function upload($db){
 	$row = pg_fetch_row($result);
 	
 	if ($row[0] !== null) {
-		$textup = findtekst(2421, $sprog_id);
+		$textup = findtekst(2422, $sprog_id);
 		$textc = findtekst(2425, $sprog_id);
+		$load = findtekst(1360, $sprog_id);
+		$selectdfil = findtekst(1364, $sprog_id);
 	} else {
-		$textup = $translations[2421][$sprog_id];
-		$textc = $translations[2425] [$sprog_id];
+		$textup = $translations[2422][$sprog_id];
+		$textc = $translations[2425][$sprog_id];
+		$load = $translations[1360][$sprog_id];
+		$selectdfil = $translations[1364][$sprog_id];
 	}
 
+	error_log("Textup: ".$load);
 	
 
 	print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
@@ -390,9 +412,9 @@ function upload($db){
 	print "<tr><td width=100% align=center><br></td></tr>";
 	print "<tr><td width=100% align=center><hr width=50%></td></tr>";
 	print "<tr><td width=100% align=center></td></tr>";
-	print "<tr><td width=100% align=center>V&aelig;lg datafil: <input class=\"inputbox\" NAME=\"uploadedfile\" type=\"file\"></td></tr>";
+	print "<tr><td width=100% align=center>\"".$selectdfil."\": <input class=\"inputbox\" NAME=\"uploadedfile\" type=\"file\"></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td align=center><input type=\"submit\" value=\"Indl&aelig;s\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
+	print "<tr><td align=center><input type=\"submit\" value=\"".$load."\" onClick=\"return confirmSubmit(" . htmlspecialchars(json_encode($textup), ENT_QUOTES) . ")\"></td></tr>";
 	print "<tr><td></form></td></tr>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -572,10 +594,7 @@ function findDumpInFirstThreeLines($handle) {
 #++++++++++++++++++++
 function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDb, $backupfil) {
    
-	 
-
 	 // Check if the backup file exists
-	 
 	#########
 	 $backUpDir = "../temp/backup/$pgDb/";
 				if (is_dir($backUpDir)) {
@@ -586,7 +605,15 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 				}
 	$filename = basename($file); // remove any path
 	if (!str_starts_with($filename, $pgDb) && !str_ends_with($filename, '.sdat')) {
-		die("Error: No backup found for the PostgreSQL database '$pgDb'. Migration aborted.\n");
+		#die("Error: No backup found for the PostgreSQL database '$pgDb'. Migration aborted.\n");
+
+			echo "<script type='text/javascript'>
+				alert('Error: No backup found for the PostgreSQL database \"$pgDb\". Migration aborted.');
+				window.location.href = 'backup.php';
+			</script>";
+
+			die(" Migration aborted.\n");
+			
 	}
 	
 	################
@@ -596,6 +623,8 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 		$conn = mysqli_connect($mysqlHost, $mysqlUser, $mysqlPass);
 
 		if (!$conn) {
+			print "script>alert('MySQL connection failed: "  . "');</script>";
+
 			die("Connection failed: " . mysqli_connect_error() . "\n");
 		}
 
@@ -626,13 +655,8 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 		}
 
 		###############
-
-
-
-
 	
 	// Connect to PostgreSQL without specifying the database name
-	#mysql -u root -p goods_4 < /temp/goods_4.sql //if mysql db not exists must first be created dumped in mysql
     $pgConn1 = pg_connect("host=$pgHost user=$pgUser password=$pgPass");
 
     if (!$pgConn1) {
@@ -700,7 +724,9 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 
     //  Start the PostgreSQL transaction
     pg_query($pgConn, "BEGIN");  // Begin the transaction
+	$sequenceTracking = []; // Store table + column pairs to update later 
 	try {
+		
 		// Loop through each table and transfer schema and data
 		while ($table = $tablesResult->fetch_row()) {
 			$tableName = $table[0];
@@ -728,11 +754,13 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 			// Modify the CREATE TABLE SQL to be PostgreSQL-compatible
 			$createTableSQL = str_replace('`', '"', $createTableSQL); // Convert backticks to double quotes
 			$createTableSQL = preg_replace('/\s+unsigned\b/i', '', $createTableSQL); // Remove 'unsigned' keyword (not supported in PostgreSQL)
+
 			$createTableSQL = preg_replace_callback(
-				'/"(\w+)"\s+(bigint|int)\s+NOT NULL\s+AUTO_INCREMENT/i',
-				function ($matches) {
+				'/"(\w+)"\s+(?:bigint|int)(?:\(\d+\))?(?:\s+unsigned)?\s+NOT NULL\s+AUTO_INCREMENT/i',
+				function ($matches) use (&$sequenceTracking, $tableName) {
 					$col = $matches[1];
-					$type = strtolower($matches[2]) === 'bigint' ? 'BIGSERIAL' : 'SERIAL';
+					$type = stripos($matches[0], 'bigint') !== false ? 'BIGSERIAL' : 'SERIAL';
+					$sequenceTracking[] = [$tableName, $col]; 
 					return "\"$col\" $type PRIMARY KEY";
 				},
 				$createTableSQL
@@ -778,14 +806,7 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 			// REMOVE ANY OTHER ROGUE EXPRESSIONS LIKE '=X' AT THE END OF COLUMNS
 			$createTableSQL = preg_replace('/\s*=\s*\d*\s*$/', '', $createTableSQL);
 
-			// Ensure there are no trailing commas before closing parentheses for column definitions
-			#$createTableSQL = preg_replace('/,\s*\)/', ')', $createTableSQL);
-
-			// Ensure the final parenthesis after column definitions is correct and doesn't have trailing commas
-			#$createTableSQL = preg_replace('/,\s*$/', '', $createTableSQL); // Remove any trailing commas at the end of the column list
-
-
-
+			
 			// Remove duplicate PRIMARY KEY clauses
 			$createTableSQL = preg_replace('/PRIMARY KEY\s+\("id"\)/i', '', $createTableSQL);
 
@@ -799,6 +820,59 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 			$createTableSQL = preg_replace('/tinyint\s*\(\s*1\s*\)/i', 'BOOLEAN', $createTableSQL);
 			//Remove comma before the closing parenthesis
 			$createTableSQL = preg_replace('/,\s*(?=\))/', '', $createTableSQL);
+
+			// Replace MySQL DATETIME with PostgreSQL TIMESTAMP
+			$createTableSQL = preg_replace('/\bDATETIME\b/i', 'TIMESTAMP', $createTableSQL);
+
+			// Remove any trailing commas before the closing parenthesis
+			$createTableSQL = preg_replace('/\)\s*\)+\s*$/', ')', $createTableSQL);
+
+			$createTableSQL = rtrim($createTableSQL); // Remove whitespace at the end
+			// Remove comma before closing parenthesis (", )" → ")")
+			$createTableSQL = preg_replace('/,\s*\)/', ')', $createTableSQL);
+
+			// Ensure balanced parentheses (count of '(' matches count of ')')
+			$openParens = substr_count($createTableSQL, '(');
+			$closeParens = substr_count($createTableSQL, ')');
+			if ($closeParens < $openParens) {
+				$createTableSQL .= str_repeat(')', $openParens - $closeParens);
+			}
+
+			// Ensure it ends with a closing parenthesis (if somehow still broken)
+			$createTableSQL = rtrim($createTableSQL);
+			if (!str_ends_with($createTableSQL, ')')) {
+				$createTableSQL .= ')';
+			}
+			// Remove any rogue closing parentheses, such as ")),"
+			$createTableSQL = rtrim($createTableSQL, ')') . ')'; // Fix if we have double closing parentheses
+
+			// Ensure balanced parentheses (count of '(' matches count of ')')
+			$openParens = 0;  // Count of opening parentheses '('
+			$closeParens = 0; // Count of closing parentheses ')'
+
+			// Find position of first opening parenthesis '('
+			$firstParenPos = strpos($createTableSQL, '(');
+
+			// If there's an opening parenthesis after CREATE TABLE, count parentheses
+			if ($firstParenPos !== false) {
+				// Iterate through the string starting from the first parenthesis
+				for ($i = $firstParenPos; $i < strlen($createTableSQL); $i++) {
+					if ($createTableSQL[$i] === '(') {
+						$openParens++;
+					} elseif ($createTableSQL[$i] === ')') {
+						$closeParens++;
+					}
+				}
+
+				// If there are more opening parentheses than closing, append exactly one closing parenthesis
+				if ($openParens > $closeParens) {
+					$createTableSQL .= ')';  // Append only one closing parenthesis
+				}
+			}
+
+
+
+
 			// Final check for multiple commas in a row
 			if (strpos($createTableSQL, ', ,') !== false) {
 				echo "Warning: Potential double commas still in CREATE TABLE for $tableName:\n$createTableSQL\n";
@@ -809,6 +883,7 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 			if (!$result) {
 				// If an error occurs, rollback the transaction
 				pg_query($pgConn, "ROLLBACK");
+				echo "\n📄 Final SQL for table $tableName:\n$createTableSQL\n\n";
 				die("Error creating table $tableName in PostgreSQL: " . pg_last_error());
 			}
 
@@ -902,6 +977,48 @@ function migrateMySQLToPostgreSQL($pgHost, $pgUser, $pgPass, $pgDb, $mysqlHost, 
 
 			
 		}
+
+			#############
+			foreach ($sequenceTracking as [$table, $column]) {
+				// Try to get the attached sequence name
+				$seqQuery = pg_query($pgConn, "SELECT pg_get_serial_sequence('\"$table\"', '$column')");
+				$sequenceName = null;
+
+				if ($seqQuery && pg_num_rows($seqQuery) > 0) {
+					$seqRow = pg_fetch_row($seqQuery);
+					$sequenceName = $seqRow[0];
+				}
+
+				// create sequence if not set
+				if (!$sequenceName) {
+					$sequenceName = "{$table}_{$column}_seq";
+					error_log( "⚠️ Creating missing sequence $sequenceName for $table.$column\n");
+					pg_query($pgConn, "CREATE SEQUENCE \"$sequenceName\"");
+					pg_query($pgConn, "ALTER TABLE \"$table\" ALTER COLUMN \"$column\" SET DEFAULT nextval('\"$sequenceName\"')");
+				}
+
+				// Get the max ID currently in the column
+				$maxIdQuery = pg_query($pgConn, "SELECT MAX(\"$column\") FROM \"$table\"");
+				if (!$maxIdQuery) {
+					error_log( "⚠️ Warning: Could not fetch max ID from $table.$column\n");
+					continue;
+				}
+
+				$maxIdRow = pg_fetch_row($maxIdQuery);
+				$maxId = $maxIdRow[0];
+				if ($maxId === null || $maxId < 1) {
+					$maxId = 1; // PostgreSQL sequences must be >= 1
+				}
+
+				// Set the sequence to the correct next value
+				$setValSQL = "SELECT setval('$sequenceName', $maxId)";
+				$setValResult = pg_query($pgConn, $setValSQL);
+				if (!$setValResult) {
+					error_log( "❌ Error setting sequence value for $sequenceName: " . pg_last_error() . "\n");
+				} else {
+					error_log("✅ Sequence $sequenceName set to $maxId for $table.$column\n");
+				}
+			}
 
 		// Commit the transaction if all tables were created and data inserted successfully
 		pg_query($pgConn, "COMMIT");

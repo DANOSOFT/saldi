@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------kreditor/kreditorvisning.php--------lap 3.7.2--2023-24------
+// --- kreditor/kreditorvisning.php --- lap 3.7.2--2025-05-17 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2018 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2018.03.08 Indhold kopieret fra debitor/debitorvisning.php og tilrettet til kreditor
 // 2023.03.24 PBLM Fixed minor errors
+// 2025.05.17 Fiscal Year
 	
 @session_start();
 $s_id=session_id();
@@ -197,21 +198,15 @@ print "</form>";
 
 function sektion_3() {
 
-	global $brugernavn;
-	global $bruger_id;
-	global $side;
-	global $sort;
-	global $sort;
-	global $title;	
-	global $vis_felt;
-	global $feltbredde;
+	global $brugernavn, $bruger_id;
+	global $feltbredde, $feltnavn;
 	global $justering;
-	global $feltnavn;
-	global $vis_linjeantal;
-	global $vis_feltantal;
-	global $select;
 	global $menu;
-	global $sprog_id;
+	global $regnaar;
+	global $select, $side, $sort, $sprog_id;
+	global $title;	
+	global $vis_felt, $vis_feltantal, $vis_linjeantal;
+
 
 	print "<tr><td colspan=3>".findtekst('548|Vælg om lukkede kreditorer skal være synlige på oversigten.', $sprog_id)."</td></tr>";
 	
@@ -229,7 +224,8 @@ function sektion_3() {
 	print "<tr><td style='padding:5px;'>".findtekst('1185|Skjul lukkede kreditorer', $sprog_id)."<input name=\"skjul_lukkede\" type=\"checkbox\" $skjul_lukkede></td></tr>";
 	print "<tr><td width=50%><table border=0 width=100%><tbody>";
 	print "<tr><td><br><b style='padding:5px;'>".findtekst('1186|Leverandørgrupper', $sprog_id)."</b><br><hr></td></tr>";
-	$q = db_select("select * from grupper where art = 'DG' order by beskrivelse",__FILE__ . " linje " . __LINE__);
+	$qtxt = "select * from grupper where art = 'KG' and fiscal_year = '$regnaar' order by beskrivelse";
+	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	$x=-1;
 	while ($r = db_fetch_array($q)) {
 		$x++;

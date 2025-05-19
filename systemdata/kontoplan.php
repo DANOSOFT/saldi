@@ -35,9 +35,11 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
-
+$backUrl = isset($_GET['returside'])
+? $_GET['returside']
+: 'javascript:window.history.go(-2);';
 if ($popup) $returside="../includes/luk.php";
-else $returside="../index/menu.php";
+else $returside=$backUrl;
 
 if ($menu=='T') {
 #	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";

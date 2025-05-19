@@ -83,19 +83,23 @@ if (!tbl_exists('grupper')) {
 }
 include("../includes/connect.php");
 
-
-$qtxt = "SELECT column_name FROM information_schema.columns 
-         WHERE table_schema = 'your_database' 
-           AND table_name = 'regnskab' 
-           AND column_name = 'global_id'";
-$column_check = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-if (!$column_check) {
-    $alter_result = db_modify("ALTER TABLE regnskab ADD COLUMN global_id INT DEFAULT 0", __FILE__ . " linje " . __LINE__);
-    if (!$alter_result) {
-        die("ALTER TABLE failed");
-    }
-    sleep(1);
+// Checking if the column exists in the table
+if ($db_type == 'mysql' || $db_type == 'mysqli') {
+    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id'";
+} else {
+    $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='regnskab' AND column_name='global_id' AND table_schema='public'";
 }
+
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    
+    if ($db_type == 'mysql' || $db_type == 'mysqli') {
+        db_modify("ALTER TABLE regnskab ADD COLUMN global_id INT DEFAULT 0", __FILE__ . " linje " . __LINE__);
+    } else {
+        
+        db_modify("ALTER TABLE regnskab ADD COLUMN global_id INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
+    }
+}
+
 $qtxt = "SELECT id, regnskab, global_id FROM regnskab WHERE id = '$tmp_db_id'";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
