@@ -128,40 +128,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
  // 20250516 Sawaneh fix date issue not setting for the correct month
 // 20250516 Sawaneh FINAL FIX
-document.addEventListener('DOMContentLoaded', function() {
+ document.addEventListener('DOMContentLoaded', function() {
   function getDaysInMonth(year, month) {
       return new Date(year, month, 0).getDate();
   }
 
   const manualSelections = {
-      from: { active: false, date: null },
       to: { active: false, date: null }
   };
 
   function updateDateDropdown(monthSelect, dateSelect, isFrom) {
       if (!monthSelect || !dateSelect) return;
       
-      const key = isFrom ? 'from' : 'to';
       const [year, month] = monthSelect.value.split('|').map(Number);
       const daysInMonth = getDaysInMonth(year, month);
       let currentDate = parseInt(dateSelect.value) || 1;
       
-      // Check if this was the last day of previous month
-      const wasLastDay = manualSelections[key].date === getDaysInMonth(
-          parseInt(monthSelect.dataset.prevYear || year),
-          parseInt(monthSelect.dataset.prevMonth || month)
-      );
+      if (!isFrom) {
+          const wasLastDay = manualSelections.to.date === getDaysInMonth(
+              parseInt(monthSelect.dataset.prevYear || year),
+              parseInt(monthSelect.dataset.prevMonth || month)
+          );
+          
+          if (wasLastDay || currentDate > daysInMonth) {
+              currentDate = daysInMonth;
+              manualSelections.to.active = false;
+          } else {
+              currentDate = Math.min(currentDate, daysInMonth);
+          }
+      } else {
+          currentDate = Math.min(currentDate, daysInMonth);
+      }
 
       monthSelect.dataset.prevYear = year;
       monthSelect.dataset.prevMonth = month;
-
-      if (!manualSelections[key].active || wasLastDay || currentDate > daysInMonth) {
-          currentDate = daysInMonth;
-          manualSelections[key].active = false;
-      } else {
-          // Keep manual selection if valid
-          currentDate = Math.min(currentDate, daysInMonth);
-      }
 
       dateSelect.innerHTML = '';
       for (let day = 1; day <= daysInMonth; day++) {
@@ -174,7 +174,9 @@ document.addEventListener('DOMContentLoaded', function() {
           dateSelect.appendChild(option);
       }
       
-      manualSelections[key].date = currentDate;
+      if (!isFrom) {
+          manualSelections.to.date = currentDate;
+      }
   }
 
   function initDateDropdowns() {
@@ -183,26 +185,19 @@ document.addEventListener('DOMContentLoaded', function() {
       const monthTo = document.querySelector('select[name="maaned_til"]');
       const dateTo = document.querySelector('select[name="dato_til"]');
 
-      function setupManualTracking(dateSelect, isFrom) {
-          if (!dateSelect) return;
-          
-          const key = isFrom ? 'from' : 'to';
-          
-          dateSelect.addEventListener('change', function() {
-              const [year, month] = (isFrom ? monthFrom : monthTo).value.split('|').map(Number);
+      if (dateTo) {
+          dateTo.addEventListener('change', function() {
+              const [year, month] = monthTo.value.split('|').map(Number);
               const daysInMonth = getDaysInMonth(year, month);
               
               if (parseInt(this.value) !== daysInMonth) {
-                  manualSelections[key].active = true;
-                  manualSelections[key].date = parseInt(this.value);
+                  manualSelections.to.active = true;
+                  manualSelections.to.date = parseInt(this.value);
               } else {
-                  manualSelections[key].active = false;
+                  manualSelections.to.active = false;
               }
           });
       }
-
-      setupManualTracking(dateFrom, true);
-      setupManualTracking(dateTo, false);
 
       function setupMonthHandler(monthSelect, dateSelect, isFrom) {
           if (!monthSelect || !dateSelect) return;
@@ -222,7 +217,6 @@ document.addEventListener('DOMContentLoaded', function() {
       setupMonthHandler(monthTo, dateTo, false);
   }
 
-  // Account selection logic
   function initAccountSelection() {
       const kontoFra = document.querySelector('select[name="konto_fra"]');
       const kontoTil = document.querySelector('select[name="konto_til"]');
