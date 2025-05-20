@@ -30,7 +30,7 @@
 // 20240209 PHR Added indbetaling to vibrant & flatpay
 // 20240313 MMK/PHR Vipps / Mobilepay
 
-function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$payment_id=0) {
+function afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$payment_id,$line=null) {
 
 print "\n<!-- Function afslut (start)-->\n";
 	global $afd;
@@ -166,7 +166,7 @@ print "\n<!-- Function afslut (start)-->\n";
 					}
 				} #else $terminal_ip=$printserver;
 				$tidspkt=date("U");
-				$payment_id = intval($payment_id);
+				file_put_contents("../temp/$db/payment_id.log",__file__." ".__line__." $payment_id\n", FILE_APPEND);
 				$qtxt="insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,payment_id) values ";
 				$qtxt.="('$id','!','$modtaget','$betvaluta','$betvalkurs','$payment_id')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);

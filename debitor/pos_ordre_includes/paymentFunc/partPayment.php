@@ -30,7 +30,7 @@
 // 20240209 PHR Added indbetaling to vibrant & flatpay
 // 20240313 MMK/PHR Vipps / Mobilepay
 
-function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $betvaluta, $betvalkurs, $receipt_id = 0, $payment_id = 0)
+function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $betvaluta, $betvalkurs, $receipt_id = 0, $payment_id = "")
 {
 	print "<!-- Function delbetal (start)-->\n";
 	global $bruger_id;
@@ -92,7 +92,6 @@ function delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetalin
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			$qtxt = "update pos_betalinger set betalingstype='$betaling',amount='$modtaget',valuta='$betvaluta',valutakurs='$betvalkurs',receipt_id='$receipt_id' where id='$r[id]'";
 		} else {
-			$payment_id = intval($payment_id);
 			$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,receipt_id,payment_id) values ";
 			$qtxt .= "('$id','$betaling','$modtaget','$betvaluta','$betvalkurs','$receipt_id', '$payment_id')";
 		}

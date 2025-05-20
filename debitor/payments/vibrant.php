@@ -94,7 +94,6 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
   var count = 40 - 1
   var paused = false
   var receipt_id = 'None'
-  var payment_id = ""
   const successed = (event) => {
     console.log(cardScheme);
     window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&receipt_id=${receipt_id}&payment_id=${payment_id}`);
@@ -176,10 +175,11 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
     }
 
     var cardScheme = 'unkowen';
-    var payment_id = 'null'
+    var payment_id = 'null';
 
 
     async function get_payment_update(pid) {
+        payment_id = pid; // Store the payment intent ID
       setTimeout(async () => {
         var res = await fetch(
           `https://pos.api.vibrant.app/pos/v1/payment_intents/${pid}`,
@@ -278,6 +278,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
         cardScheme = "Dankort"
         payment_id = "pi_dummy"
         receipt_id = "pi_dummy-dummy"
+        payment_id = "payment_id_dummy"
         successed();
         return;
       }

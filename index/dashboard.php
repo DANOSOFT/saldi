@@ -251,7 +251,6 @@ if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) &
 print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
 print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
 
-
 print "<div style='display: flex; gap: 2em;'>";
 
 # Regnaar selector

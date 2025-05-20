@@ -858,11 +858,13 @@ if ($godkendt == 'OK') { # 20131205
 		fwrite($gf, "delbetal($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id,$payment_id, __line__)\n");
 		fclose($gf);
 		include_once("pos_ordre_includes/paymentFunc/partPayment.php");
-		delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id,$payment_id, __LINE__);
+		delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, $payment_id, __LINE__);
+		db_modify("UPDATE pos_betalinger SET payment_id = '$payment_id' WHERE ordre_id = '$id' AND betalingstype = '!'", __FILE__ . " linje " . __LINE__);
 	} else {
-		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id,$payment_id, __line__)\n");
+		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$payment_id, __line__)\n");
 		fclose($gf);
-		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id,$payment_id, __LINE__); #20140129 Tilføjet $kortnavn
+		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $payment_id, __LINE__); #20140129 Tilføjet $kortnavn
+		db_modify("UPDATE pos_betalinger SET payment_id = '$payment_id' WHERE ordre_id = '$id' AND betalingstype = '!'", __FILE__ . " linje " . __LINE__);
 	}
 
 	#} elseif ($godkendt) {
