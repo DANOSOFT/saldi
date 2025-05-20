@@ -371,6 +371,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             // Function for the Add Pricelist form
             function renderAddPricelistForm($group) {
                 print '<table style="width: 100%; border-collapse: collapse;">';
+		     print '<tr>
+                            <td colspan="2">
+                                <button id="addPricelistBtn" type="button" onclick="toggleAddForm()" "></button>
+                            </td>
+                        </tr>';
                 print '<tr id="add-form" style="display:none; margin-top: 20px;">
                         <td colspan="2">
                             <h2>Add New Pricelist URL</h2>
