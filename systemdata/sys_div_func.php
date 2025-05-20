@@ -113,7 +113,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	print "<tr><td colspan='6'><hr></td></tr>\n";
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>" . findtekst(783, $sprog_id) . "</u></b></td></tr>\n";
 	print "<tr><td colspan='6'><br></td></tr>\n";
-	
+
 	$max_users = 1;
 	$masterDb = $sqdb;
 	@session_start();
@@ -133,12 +133,12 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	print "<form name='maxusers' action='diverse.php?sektion=kontoindstillinger' onsubmit='return confirmUpdate();' method='post'>\n";
 	print "<tr><td>Sæt brugere antal:</td>";
 	print "<td><input class='inputbox' type='number' style='width:50px' name='max_users' value='" . htmlspecialchars($max_users) . "'></td></tr>";
-	print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='Updater bruger antal' name='update_max_users'></td></tr>\n";
+	print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='Opdater bruger antal' name='update_max_users'></td></tr>\n";
 	print "</form>\n";
 
 	print "<script>
 		function confirmUpdate() {
-			return confirm('Er du sikker på du vil updatere bruger antal?');
+			return confirm('Er du sikker på du vil opdatere bruger antal?');
 		}
 	</script>\n";
 
