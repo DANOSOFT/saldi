@@ -266,7 +266,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
             }
           }
           if (check_permissions(array(11))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst(614, $sprog_id) . '</a></li>';
+            $restoreRaw = findtekst(1903, $sprog_id);
+            $restore1 = explode(" ", $restoreRaw);
+            $restore = $restore1[0];
+            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst(614, $sprog_id) . '/'.$restore.'</a></li>';
           }
           ?>
         </ul>

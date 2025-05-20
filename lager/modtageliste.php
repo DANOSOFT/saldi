@@ -16,6 +16,7 @@
 //
 // Copyright (c) 2004-2009 DANOSOFT ApS
 // -----------------------------------------------------------------------------------
+// 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 
 @session_start();
 $s_id=session_id();
@@ -39,9 +40,11 @@ if (!$sort) {
 	$sort = "id";
 	$rf = "desc";
 }
-
+$backUrl = isset($_GET['returside'])
+    ? $_GET['returside']
+    : 'javascript:window.history.go(-2);';
 if ($popup) $returside="../includes/luk.php";
-else $returside="../index/menu.php";
+else $returside=$backUrl;
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';

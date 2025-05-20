@@ -46,7 +46,10 @@ if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
         db_modify($alter, __FILE__ . " linje " . __LINE__);
     }
 }
-
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrer' and column_name='lev_email'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table ordrer ADD column lev_email VARCHAR(60)", __FILE__ . " linje " . __LINE__);
+}
 
 
 

@@ -34,19 +34,25 @@ print "<title>Overblik</title>";
 
 include ("../includes/std_func.php");
 include ("../includes/connect.php");
-
-
+# get superUsers
+$qtxt = "SELECT brugernavn FROM brugere";
+$result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+$superUsers = array();
+while ($row = db_fetch_array($result)) {
+    $superUsers[] = $row['brugernavn'];
+}
 # Get database name of current online user
 $qtxt = "SELECT db FROM online WHERE session_id='$s_id' limit 1";
 $db = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
 # Get list of active users
-$qtxt = "SELECT brugernavn, logtime FROM online WHERE db='$db'";
+$superUsersPlaceholders = implode("','", $superUsers);
+$qtxt = "SELECT brugernavn, logtime FROM online WHERE db='$db' AND brugernavn NOT IN ('$superUsersPlaceholders')";
 $online_people = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 
 # Get amount of active users
 $timestamp = (int) date("U") - (60*60);
-$qtxt = "SELECT count(brugernavn) FROM online WHERE db='$db' AND logtime > '$timestamp' AND revisor is not true";
+$qtxt = "SELECT count(brugernavn) FROM online WHERE db='$db' AND logtime > '$timestamp' AND revisor is not true AND brugernavn NOT IN ('$superUsersPlaceholders')";
 $online_people_amount = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
 $newssnippet = get_settings_value("nyhed", "dashboard", "");
@@ -244,59 +250,6 @@ if ((isset($closed_newssnippet) && $closed_newssnippet) != isset($newssnippet) &
 # Titlebar
 print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2em; align-items: center;'>";
 print "<h1>".findtekst('2224|Oversigt', $sprog_id)." - $name</h1>";
-if (check_permissions(array(0))) {
-  $udlob = time() - 14400;
-  $masterDb = $sqdb;
-  
- if (check_permissions(array(0))) {
-    $udlob = time() - 14400;
-    $masterDb = $sqdb;
-
-    if ($db_type == 'mysql' || $db_type == 'mysqli') {
-        $conn = mysqli_connect($sqhost, $squser, $sqpass, $masterDb);
-
-        if ($conn) {
-            $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
-                      FROM online 
-                      WHERE db = ? AND logtime > ?";
-            $stmt = mysqli_prepare($conn, $query);
-
-            if ($stmt) {
-                mysqli_stmt_bind_param($stmt, "ss", $db, $udlob);
-                mysqli_stmt_execute($stmt);
-                mysqli_stmt_bind_result($stmt, $userCount);
-                mysqli_stmt_fetch($stmt);
-                mysqli_stmt_close($stmt);
-
-                echo "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $userCount user(s) currently online</p>";
-            }
-
-            mysqli_close($conn);
-        }
-
-    } else { // PostgreSQL fallback
-        $conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
-
-        if ($conn) {
-            $query = "SELECT COUNT(DISTINCT brugernavn) AS user_count 
-                      FROM online 
-                      WHERE db = $1 AND logtime > $2";
-
-            $result = pg_query_params($conn, $query, array($db, $udlob));
-
-            if ($result) {
-                $r = pg_fetch_array($result);
-                $userCount = (int) $r['user_count'];
-                echo "<p style='color: green; font-weight: bold; margin: 0.5em 0 0 0;'>🟢 $userCount user(s) currently online</p>";
-            }
-
-            pg_close($conn);
-        }
-    }
-}
-
-}
-
 
 print "<div style='display: flex; gap: 2em;'>";
 
