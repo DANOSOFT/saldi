@@ -1659,64 +1659,64 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'kontoindstillinger') {
 
 		if (isset($_POST['update_max_users'])) {
-			// csrf token Validation
-			if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
-				echo "<p style='color: red;'>Invalid request. Please try again.</p>";
-				error_log("CSRF token mismatch for user attempting to update max users.");
-				exit;
-			}
 		
 			$new_max_users = isset($_POST['max_users']) ? (int)$_POST['max_users'] : 0;
 			if ($new_max_users <= 0 || $new_max_users > 1000) {
 				echo "<p style='color: red;'>Invalid number of users. Must be between 1 and 1000.</p>";
 				exit;
 			}
-		
+			
+			$ch = curl_init();
+			$curl_url = "https://saldi.dk/locator/locator.php?action=insertUserCount&userCount=$new_max_users&dbName=$db";
+			curl_setopt($ch, CURLOPT_URL, $curl_url);
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+				'Content-Type: application/json',
+				'Accept: application/json'
+			));
+			$response = curl_exec($ch);
+			$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+			curl_close($ch);
+			if ($http_code != 200) {
+				echo "<p style='color: red;'>Failed to update max users. Please try again later.</p>";
+				error_log("Failed to update max users via API. HTTP code: $http_code");
+				exit;
+			}
+
 			$current_regnskab_name = $regnskab;
 			$current_username = $brugernavn;
 			$update_successful = false;
 			$old_max_users_value = null;
 		
 			$masterDb = $sqdb;
-			$conn = pg_connect("host=$sqhost dbname=$masterDb user=$squser password=$sqpass");
+			include("../includes/connect.php");
+				$query_select = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
+				$result_select = db_select($query_select, __FILE__ . " linje " . __LINE__);
 		
-			if ($conn) {
-				$query_select = "SELECT brugerantal FROM regnskab WHERE db = $1";
-				$result_select = pg_query_params($conn, $query_select, array($db));
-		
-				if ($result_select && pg_num_rows($result_select) > 0) {
-					$row = pg_fetch_assoc($result_select);
+				if ($result_select && db_num_rows($result_select) > 0) {
+					$row = db_fetch_array($result_select);
 					$old_max_users_value = (int) $row['brugerantal'];
 		
 					if ($new_max_users !== $old_max_users_value) {
-						$query_update = "UPDATE regnskab SET brugerantal = $1 WHERE db = $2";
-						$result_update = pg_query_params($conn, $query_update, array($new_max_users, $db));
+						$query_update = "UPDATE regnskab SET brugerantal = $new_max_users WHERE db = '$db'";
+						db_modify($query_update, __FILE__ . " linje " . __LINE__);
 		
-						if ($result_update) {
 							$update_successful = true;
 							echo "<p style='color: blue;'>Max users updated successfully to $new_max_users.</p>";
-							error_log("$current_username updated max_users from $old_max_users_value to $new_max_users for $current_regnskab_name");
 						
 							$subject = "Max Users Updated on Account: $current_regnskab_name";
 							$message = "User '$current_username' has updated the max users from $old_max_users_value to $new_max_users on account '$current_regnskab_name'.";
 							$headers = "From: noreply@saldi.dk\r\nReply-To: noreply@saldi.dk\r\n";
 						
 							mail("info@saldi.dk", $subject, $message, $headers);
-						}
 						
 					} else {
 						echo "<p style='color: gray;'>No change in max users value.</p>";
 					}
 				} else {
 					echo "<p style='color: red;'>An unexpected error occurred.</p>";
-					error_log("Account not found in regnskab table for DB: $db");
 				}
-		
-				pg_close($conn);
-			} else {
-				echo "<p style='color: red;'>An unexpected error occurred.</p>";
-				error_log("Failed to connect to master DB: $masterDb");
-			}
+				include("../includes/online.php");
 		}
 		
 		
