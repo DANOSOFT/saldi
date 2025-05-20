@@ -204,7 +204,7 @@
 204	Hvis du afmærker dette felt	will orders	Hvis du merker av i denne boksen
 205	Frist for dellevering (dage)	Deadline for partial delivery (days)	Frist for delvis levering (dager)
 206	Her angiver du	how many days old an order should be	Her går du inn
-207	Hvis du afmærker dette felt	SALDI will work in pop-ups	Hvis du merker av i denne boksen
+207	Hvis du afmærker dette felt vil SALDI virke i pop op-vinduer	If this field is checked, SALDI will work in pop-ups	Hvis du merker av dette feltet vil SALDI fungere i popup-vinduer
 208	Anvend popup-vinduer	Use pop-ups	Bruk popup-vinduer
 209	Her skriver du de parametrer, der passer bedst til din browsers pop-up funktioner	Enter the parameters that best suit your browser's pop-up features	Her skriver du inn de parameterne, som passer best til din nettlesers pop-up-funksjoner
 210	Popup-indstillinger	Pop-up settings	Pop-up-innstillinger
@@ -764,7 +764,7 @@
 764	Hvis du vil kunne udskrive direkte til en lokal printer skal din router redirrigere data på port 9100 fra $myip direkte til din lokale printer. Herudover skal din printer være oprettet på saldi serveren. Kontakt Saldi for uddybning.	To print directly to a local printer, your router must redirect port 9100 from $myip to your local printer. Furthermore your printer must ms supported by the saldi server	For å skrive ut direkte til en lokal skriver, må ruteren din omdirigere data på port 9100 fra $myip direkte til din lokale skriver. I tillegg må skriveren være satt opp på Saldi serveren. Kontakt Saldi for utdyping.
 765	Font str.	Font size	Skriftstørrelse
 766	Fontstørrelse på tekster som ikke er knap tekster i POS	Font size for texts that are not scarce texts in POS	Skriftstørrelse for tekster som ikke er knappe tekster i POS
-767	`Mit salg` findes i debitorkonti. Anvendes til at give provisions kunder adgang til at se deres salg (loppemarkeder og lign.). 	My sales` can be found in debtor accounts. Used to give commission customers access to see their sales (flea markets and the like).	`Salget mitt 'finnes i debitorkontoer. Brukes for å gi kommisjonskunder tilgang til å se deres salg (loppemarkeder og lignende).
+767	&apos;Mit salg&apos; findes i debitorkonti. Anvendes til at give provisions kunder adgang til at se deres salg (loppemarkeder og lign.). 	&apos;My sales&apos; can be found in debtor accounts. Used to give commission customers access to see their sales (flea markets and the like).	&apos;Mitt salg&apos; finnes i debitorkontoer. Brukes for å gi kommisjonskunder tilgang til å se deres salg (loppemarkeder og lignende).
 768	Aktivér &apos;Mit salg&apos;	Activate &apos;My sales&apos;	Aktiver &apos;Mitt salg&apos;
 769	Bank BIC	Bank BIC	Bank BIC
 770	Moms	VAT	MVA
@@ -850,7 +850,7 @@
 850	Saldo for drift- og statuskonti samt summering af disse for valgte konti i valgt periode.	Balance for operating and status accounts and summation of these for selected accounts in the selected period.	Saldo for drifts- og statuskontoer og summering av disse for utvalgte kontoer i valgt periode.
 851	Er du sikker på at du vil slette dit regnskab? Denne handling kan ikke fortrydes! - Tag en sikkerhedskopi først!	Are you sure you want to delete your accounts? This action can not be undone! - Make a backup first!	Er du sikker på at du vil slette kontoene dine? Denne handlingen kan ikke angres! - Ta en sikkerhetskopi først!
 852	Slet regnskab	Delete accounts	Slett regnskap
-853	Hvis du sætter flueben i feltet og klikker på `Slet` slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven. 	If you check the box and click on `Delete`, the accounts will be deleted and your account will be closed. We keep a backup copy for 5 years, cf. the Accounting Act.	Hvis du merker av i boksen og klikker på `Slett`, vil kontoene bli slettet og kontoen din vil bli stengt. Vi oppbevarer en sikkerhetskopi i 5 år, jf. Regnskapsloven.
+853	Hvis du sætter flueben i feltet og klikker på &apos;Slet&apos; slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven. 	If you check the box and click on &apos;Delete&apos;, the accounts will be deleted and your account will be closed. We keep a backup copy for 5 years, cf. the Accounting Act.	Hvis du merker av i boksen og klikker på &apos;Slett&apos;, vil kontoene bli slettet og kontoen din vil bli stengt. Vi oppbevarer en sikkerhetskopi i 5 år, jf. Regnskapsloven.
 854	Gavekortnumre	Gift card numbers	Gavekortnummer
 855	Afmærk hvis hvert gavekort eller tilgodebevis skal have eget nummer.	Check if each gift card or voucher must have its own number.	Sjekk om hvert gavekort eller tilgodelapp må ha sitt eget nummer.
 856	Gavekorttekst	Gift card text	Gavekorttekst
