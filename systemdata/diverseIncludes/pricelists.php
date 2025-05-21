@@ -17,19 +17,20 @@ function pricelists(){
 		$beskrivelse[$i]=$r['beskrivelse']; //holds names of the records
 		$prisfil[$i]=$r['box2']; //file location ? //the url
 		$aktiv[$i]=$r['box4'];
-		$gruppe1[$i]=$r['box8'];  
-		$filtype[$i]=$r['box9'];
+		$gruppe1[$i]=$r['box8'];  //selected group
+		$supplier[$i]=$r['box9'];
         $delimiter[$i] = $r['box10'];
         $encoding[$i]=$r['box11'];
 		$i++;
 	}
 	$vgrp = array();
 	$i = 0;
-	$qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
+	// $qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
+    $qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by beskrivelse";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$vgrp[$i]   = $r['kodenr'];
-		$vgbesk[$i] = $r['beskrivelse'];
+		$vgbesk[$i] = $r['beskrivelse']; //list of groups
         $gruppe[$i]=$r['box8'];
 		$i++;
 	}
@@ -45,15 +46,14 @@ function pricelists(){
 #	}
 
 	$i = 0;
-	$qtxt = "select id, kontonr, firmanavn from adresser where art = 'K' order by firmanavn";
+	$qtxt = "select id,kontonr,firmanavn from adresser where art = 'K' and lukket != 'on' order by firmanavn";
 	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		if (!isset($r['lukket'])) {
+	while ($r = db_fetch_array($q)) {	
 			$supplId[$i]      = $r['id'];
 			$supplAccout[$i]  = $r['kontonr'];
 			$supplCompany[$i] = $r['firmanavn'];
 			$i++;
-		}
+		
 	}
 
     $k=0;
@@ -61,7 +61,7 @@ function pricelists(){
 	$q1 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
     while ($row = db_fetch_array($q1)){
        
-        $beskrivelse1[$k]=$row['beskrivelse'];
+        $beskrivelse1[$k]=$row['beskrivelse']; //gruppe
         $k++;
     }
 
@@ -118,6 +118,7 @@ function pricelists(){
                 $filtype = $_POST['filtype'][$i];
                 $delimiter = $_POST['delimiter'][$i];
                 $encoding = $_POST['encoding'][$i];
+                $supplier = $_POST['suppliergroup'][$i];
                
                 
                 
@@ -129,6 +130,7 @@ function pricelists(){
                 $id = htmlspecialchars($id);
                 $aktiv = htmlspecialchars($aktiv);
                 $path_info = pathinfo($prisfil);
+                $supplier = htmlspecialchars($supplier);
 
                
                 switch ($delimiter) {
@@ -167,7 +169,7 @@ function pricelists(){
                 
               if($mode && !empty($beskrivelse)){
              
-                    $qtxt = "update grupper set box10='$delimiter', box8='$gruppe',beskrivelse='$beskrivelse',";  
+                    $qtxt = "update grupper set box10='$delimiter',box9='$supplier', box8='$gruppe',beskrivelse='$beskrivelse',";  
                     $qtxt.="box11='$encoding',box2='$prisfil' where id='$id'";
                     
 
@@ -197,7 +199,7 @@ function pricelists(){
                 <th>Opdateret</th>
                 <th>Aktiv</th>
                 <th>Gruppe</th>
-                <th>Filtype</th>
+                <th>Supplier Group</th>
                 <th>Delimiter</th>
                 <th>Encoding</th>
             </tr>');
@@ -213,9 +215,26 @@ function pricelists(){
                     print('<td><input type="text" name="prisfil[]" value="' . (isset($prisfil[$i]) ? htmlspecialchars($prisfil[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="opdateret[]" value="' . (isset($opdateret[$i]) ? htmlspecialchars($opdateret[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="aktiv[]" value="' . (isset($aktiv[$i]) ? htmlspecialchars($aktiv[$i]) : '') . '"></td>');
-                    print('<td><input type="text" name="gruppe[]" value="' . (isset($gruppe1[$i]) ? htmlspecialchars($gruppe1[$i]) : NULL) . '"></td>');
-                    print('<td><input type="text" name="filtype[]" value="' . (isset($filtype[$i]) ? htmlspecialchars($filtype[$i]) : '') . '"></td>');
-                    // print('<td><input type="text" name="delimiter[]" value="' . (isset($delimiter[$i]) ? htmlspecialchars($delimiter[$i]) : '') . '"></td>');
+                    print '<td><select name="gruppe[]">';
+                        if (empty($gruppe1[$i])) {
+                            print '<option value="">-- Select Group --</option>';
+                        }
+                        foreach ($vgbesk as $value) {
+                            $selected = (isset($gruppe1[$i]) && $gruppe1[$i] === $value) ? 'selected' : '';
+                            print '<option value="' . htmlspecialchars($value) . '" ' . $selected . '>' . htmlspecialchars($value) . '</option>';
+                        }
+                    print '</select></td>';
+                    // Supplier Group
+                    print '<td><select name="suppliergroup[]">';
+                    if (empty($supplier[$i])) {
+                        print '<option value="">-- Select Supplier --</option>';
+                    }
+                    foreach ($supplCompany as $company) {
+                        $selected = (isset($supplier[$i]) && $supplier[$i] === $company) ? 'selected' : '';
+                        print '<option value="' . htmlspecialchars($company) . '" ' . $selected . '>' . htmlspecialchars($company) . '</option>';
+                    }
+                    print '</select></td>';
+
                     ##Delimiter Start
                   // Get the selected delimiter from the database (or empty string if not set)
                   
@@ -240,8 +259,19 @@ function pricelists(){
                     print('</select></td>');
                     ###Delimiter end select
 
-                    ###Delimiter end select
-                    print('<td><input type="text" name="encoding[]" value="' . (isset($encoding[$i]) ? htmlspecialchars($encoding[$i]) : '') . '"></td>');
+                    ##Encoding Start
+                    print '<td><select name="encoding[]">';
+                    if (empty($encoding[$i])) {
+                        print '<option value="">-- Select Encoding --</option>';
+                    }
+                    $encodings = ['utf-8' => 'UTF-8', 'iso-8859' => 'ISO-8859'];
+                    foreach ($encodings as $value => $label) {
+                        $selected = (isset($encoding[$i]) && $encoding[$i] === $value) ? 'selected' : '';
+                        print '<option value="' . htmlspecialchars($value) . '" ' . $selected . '>' . htmlspecialchars($label) . '</option>';
+                    }
+                    print '</select></td>';
+                    ##Encoding end select
+           
                     print ("<input type='hidden' name='edit_beskrivelse' value='edit_beskrivelse'>");
                     print ("<input type='hidden' name='edit_prisfil' value='edit_prisfil'>");
                     print('</tr>');
@@ -270,6 +300,7 @@ function pricelists(){
             $delimiter = htmlspecialchars($_POST['new_delimiter']);
             $newEncoding = htmlspecialchars($_POST['new_encoding']);
             $newProductGroup = htmlspecialchars($_POST['new_product_group']);
+            $newSupplierGroup = htmlspecialchars($_POST['new_supplier_group']);
             $mode = htmlspecialchars($_POST['mode']);
           
             
@@ -302,10 +333,15 @@ function pricelists(){
 
             }else{
                  #######################################
-                $qtxt = "insert into grupper(box2,box10,box11,beskrivelse,box8,art) values ";
-                $qtxt.= "('$newUrl','$delimiter','$newEncoding','$newDescription','$newProductGroup','PL')";
-                $saved = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
+                 $selection= db_select("select * from grupper where box2='$newUrl' and art='PL'",__FILE__ . " linje " . __LINE__);
+                 if(db_fetch_array($selection)){
+                    echo "<script>alert('The URL already exists.'); window.location.href = 'diverse.php?sektion=pricelists';</script>";
+                    exit;
+                 }else{
+                    $qtxt = "insert into grupper(box2,box10,box11,beskrivelse,box8,art,box9) values ";
+                    $qtxt.= "('$newUrl','$delimiter','$newEncoding','$newDescription','$newProductGroup','PL','$newSupplierGroup')";
+                    $saved = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+                }
 
                 #######################################
             }
@@ -369,8 +405,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             #+++++++++++++++
             // Function for the Add Pricelist form
-            function renderAddPricelistForm($group) {
+            function renderAddPricelistForm($group,$supplier) {
                 print '<table style="width: 100%; border-collapse: collapse;">';
+		     print '<tr>
+                            <td colspan="2">
+                                <button id="addPricelistBtn" type="button" onclick="toggleAddForm()" "></button>
+                            </td>
+                        </tr>';
                 print '<tr id="add-form" style="display:none; margin-top: 20px;">
                         <td colspan="2">
                             <h2>Add New Pricelist URL</h2>
@@ -417,14 +458,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 foreach ($group as $option) {
                     print '<option value="' . htmlspecialchars($option) . '">' . htmlspecialchars($option) . '</option>';
                 }
-
                 print '        </select>
                             </td>
                         </tr>';
-
+                        
                 print '<tr style="display: none;">
                             <td colspan="2">
                                 <input type="hidden" name="new_pricelist" value="1">
+                            </td>
+                        </tr>';
+                        print '<tr>
+                            <td><label>Supplier Group:</label></td>
+                            <td>
+                                <select name="new_supplier_group">';
+                
+                foreach ($supplier as $supp) {
+                    print '<option value="' . htmlspecialchars($supp) . '">' . htmlspecialchars($supp) . '</option>';
+                }
+
+                print '        </select>
                             </td>
                         </tr>';
 
@@ -511,7 +563,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             error_log('This is gruppe array: ' . print_r($gruppe, true));
             // Show add form below the buttons
-            renderAddPricelistForm($gruppe);
+            renderAddPricelistForm($beskrivelse1,$supplCompany);
 
             print '<script>
                 function toggleAddForm() {
