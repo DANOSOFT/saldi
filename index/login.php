@@ -380,7 +380,7 @@ if (
     $udlob = time() - 14400; // 4 hours
 	// if mysql
 	if($db_type == 'mysql' || $db_type == 'mysqli') {
-		$query = ("SELECT COUNT(DISTINCT brugernavn) as user_count
+		$query = db_select("SELECT COUNT(DISTINCT brugernavn) as user_count
 		FROM online
 		WHERE revisor != 1
 		AND db = '$db'", __FILE__ . " linje " . __LINE__);
