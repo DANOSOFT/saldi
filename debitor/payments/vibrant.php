@@ -68,7 +68,15 @@ print "<div id='bg'></div>";
 
 $type = ($raw_amount < 0) ? "process_refund" : "process_payment_intent";
 $amount = abs($raw_amount) * 100;
-
+echo $ordre_id;
+if($type == "process_refund") {
+  $query = db_select("SELECT betalings_id FROM ordrer WHERE id = $ordre_id", __FILE__ . " linje " . __LINE__);
+  $row = db_fetch_array($query);
+  $payment_id = $row['betalings_id'];
+  // Also store receipt_id to extract chargeId if needed
+  $receipt_parts = explode('-', $row['receipt_id'] ?? '');
+  $charge_id = $receipt_parts[0] ?? '';
+}
 # Get settings
 $q = db_select("select var_value from settings where var_name = 'vibrant_auth'", __FILE__ . " linje " . __LINE__);
 $APIKEY = db_fetch_array($q)[0];
@@ -140,28 +148,86 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       }
     }, 1000)
   }
-
-  if ('$type' == 'process_refund') {
-    paused = true;
-    var elm = document.getElementById('status');
-    elm.style.backgroundColor = '#ea3a3a';
-    elm.innerText = `Fejl: Negativt beløb, kan ikke tages retur på denne terminal`;
-    document.getElementById('bg').style.backgroundColor = '#fb9389';
-    document.getElementById('continue').style.display = 'block';
-    document.getElementById('continue').disabled = false;
-
-    /*
-    var data = {
+ const type = "<?php print $type; ?>";
+  if (type == 'process_refund') {
+    console.log('Setting refund data');
+    var refundData = {
       'refund': {
-        'amount': $amount,
-        'description': 'Bon $ordre_id',
+        'amount': <?php print $amount; ?>,
+        'paymentIntentId': '<?php print $payment_id; ?>',
+        <?php if (!empty($charge_id)) echo "'chargeId': '$charge_id',"; ?>
+        'description': 'Refund Bon <?php print $ordre_id; ?>',
         'reason': 'requested_by_customer',
         'metadata': {
-          'correlationId': '$ordre_id'
+          'orderId': '<?php print $ordre_id; ?>'
         }
       }
     }
-    */
+    
+    var cardScheme = 'unknown';
+    
+    async function process_refund() {
+      if ("<?php print $terminal_id; ?>" == "dummy") {
+        cardScheme = "Dankort";
+        payment_id = "pi_dummy_refund";
+        receipt_id = "pi_dummy_refund-dummy";
+        successed();
+        return;
+      }
+      
+      try {
+        var res = await fetch(
+          'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund',
+          {
+            method: 'post',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': '<?php print $APIKEY; ?>'
+            },
+            body: JSON.stringify(refundData),
+          }
+        );
+        
+        console.log(res);
+        if (!res.ok) {
+          paused = true;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#ea3a3a';
+          elm.innerText = `Fejl: ${res.statusText}`;
+          document.getElementById('bg').style.backgroundColor = '#fb9389';
+          document.getElementById('continue').style.display = 'block';
+          document.getElementById('continue').disabled = false;
+          return;
+        }
+        
+        if (res.status == 201) {
+          var json_data = await res.json();
+          payment_id = json_data['id'];
+          
+          paused = true;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#51e87d';
+          elm.innerText = 'Refund gennemført';
+          
+          countdown(1);
+          
+          document.getElementById('continue-success').style.display = 'block';
+          document.getElementById('continue').style.display = 'none';
+        }
+      } catch (error) {
+        console.log(error);
+        paused = true;
+        var elm = document.getElementById('status');
+        elm.style.backgroundColor = '#ea3a3a';
+        elm.innerText = `Fejl: ${error.message}`;
+        document.getElementById('bg').style.backgroundColor = '#fb9389';
+        document.getElementById('continue').style.display = 'block';
+        document.getElementById('continue').disabled = false;
+      }
+    }
+    
+    process_refund();
+    
   } else {
     console.log('Setting data')
     var data = {

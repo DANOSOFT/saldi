@@ -281,6 +281,10 @@ include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
 
+if(isset($_GET["payment_id"])){
+	$_SESSION["payment_id"] = $_GET['payment_id'];
+}
+
 if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi_pos"]) == "on") {
 	$width = get_settings_value("mobilwidth", "POS", "510", null, $_COOKIE["saldi_pos"]);
 	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
@@ -2287,6 +2291,7 @@ function opret_posordre($konto_id, $kasse)
 	if (!is_numeric($kontonr))
 		$kontonr = 0;
 	# 20141210 Tilføjet felt_5
+	
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,";
 	$qtxt .= "betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,";
 	$qtxt .= "ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,pbs,status,nr,felt_5)";
@@ -2301,6 +2306,7 @@ function opret_posordre($konto_id, $kasse)
 	$qtxt .= "values ";
 	$qtxt .= "('13003','" . date('U') . "','$kasse','$bruger_id','$id','" . __FILE__ . "','" . __LINE__ . "')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 	return ($id);
 } # endfunc opret_posordre()
 

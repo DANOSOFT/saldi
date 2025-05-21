@@ -995,6 +995,7 @@ function krediter_pos($id)
 	$ordrenr = $r['ordrenr'] * 1;
 	$sum = $r['sum'] * -1;
 	$orderVatRate = $r['momssats'] * 1;
+	$betalings_id = $r['betalings_id'];
 	#	$ref=db_escape_string($r['ref']);
 	$fakturanr = $r['fakturanr'] * 1;
 	$kred_ord_id = $r['kred_ord_id'] * 1;
@@ -1059,7 +1060,7 @@ function krediter_pos($id)
 	$qtxt .= ",art,valuta,valutakurs,sprog,ordredate,levdate,notes,ordrenr,sum,";
 	$qtxt .= "momssats,status,ref,kred_ord_id,lev_adr,kostpris,moms,hvem,tidspkt,";
 	$qtxt .= "pbs,mail,mail_cc,mail_bcc,mail_subj,mail_text,";
-	$qtxt .= "felt_1,felt_2,felt_3,felt_4,felt_5,vis_lev_addr,betalt,projekt,nr)";
+	$qtxt .= "felt_1,felt_2,felt_3,felt_4,felt_5,vis_lev_addr,betalt,projekt,nr, betalings_id)";
 	$qtxt .= " VALUES ";
 	$qtxt .= "('$konto_id','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$email','$mail_fakt',";
 	$qtxt .= "'$udskriv_til','$kundeordnr','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn',";
@@ -1067,7 +1068,7 @@ function krediter_pos($id)
 	$qtxt .= "'$art','$valuta','$valutakurs','$sprog','$ordredate','$levdate','$notes','$ordrenr','$sum',";
 	$qtxt .= "'$orderVatRate','1','$brugernavn','$kred_ord_id','$lev_adr','$orderCost','$moms','$hvem','$tidspkt',";
 	$qtxt .= "'$pbs','$mail','$mail_cc','$mail_bcc','$mail_subj','$mail_text','";
-	$qtxt .= "$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$vis_lev_addr','$betalt','$projekt','$ny_nr')";
+	$qtxt .= "$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$vis_lev_addr','$betalt','$projekt','$ny_nr', '$betalings_id')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$mrabat = NULL; #20160815
 	$r = db_fetch_array(db_select("select max(id) as id from ordrer where ref = '$brugernavn'", __FILE__ . " linje " . __LINE__));
@@ -1671,8 +1672,9 @@ function bogfor($id, $webservice)
 		batch_kob($id, $art);
 		batch_salg($id);
 		$tidspkt = date("H:i");
-		$qtxt = "update ordrer set status='3', fakturanr='$fakturanr', tidspkt='$tidspkt', valutakurs='$valutakurs' where id='$id'";
+		$qtxt = "update ordrer set status='3', fakturanr='$fakturanr', tidspkt='$tidspkt', valutakurs='$valutakurs', betalings_id='$_SESSION[payment_id]' where id='$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		unset($_SESSION['payment_id']);
 		if ($afd)
 			db_modify("update ordrer set felt_5='$afd' where id='$id' and felt_5 =''", __FILE__ . " linje " . __LINE__);
 
