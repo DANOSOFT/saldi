@@ -849,7 +849,6 @@ if ($godkendt == 'OK') { # 20131205
 		$kortnavn = if_isset($_GET['cardscheme']);
 
 	$delbetaling = if_isset($_GET['delbetaling']);
-	$payment_id = if_isset($_GET['payment_id'], null);
 
 	$gf = fopen("../temp/$db/godkendt.txt", "a"); # 20180816
 
@@ -859,16 +858,14 @@ if ($godkendt == 'OK') { # 20131205
 	fwrite($gf, "\n" . __FILE__ . " " . __LINE__ . " " . date("H:i:s") . " " . $_SERVER['HTTP_REFERER'] . "\n");
 
 	if ($delbetaling) {
-		fwrite($gf, "delbetal($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id,$payment_id, __line__)\n");
+		fwrite($gf, "delbetal($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id, __line__)\n");
 		fclose($gf);
 		include_once("pos_ordre_includes/paymentFunc/partPayment.php");
-		delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, $payment_id, __LINE__);
-		db_modify("UPDATE pos_betalinger SET payment_id = '$payment_id' WHERE ordre_id = '$id' AND betalingstype = '!'", __FILE__ . " linje " . __LINE__);
+		delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__);
 	} else {
-		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$payment_id, __line__)\n");
+		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn, __line__)\n");
 		fclose($gf);
-		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $payment_id, __LINE__); #20140129 Tilføjet $kortnavn
-		db_modify("UPDATE pos_betalinger SET payment_id = '$payment_id' WHERE ordre_id = '$id' AND betalingstype = '!'", __FILE__ . " linje " . __LINE__);
+		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, __LINE__); #20140129 Tilføjet $kortnavn
 	}
 
 	#} elseif ($godkendt) {
