@@ -2367,7 +2367,7 @@
 2367	Vis lagerbeholdning	Show inventory	Viss inventar
 2368	Når en vare som er en lagervare, indastes på kassesystemet, vises den aktuelle lagerbeholdning	When an item that is a stock item, is entered in the POS system, the current stock is shown	Når en vare som er en lagervare, angis i POS-systemet, vises gjeldende beholdning
 2369	Aktiver debitoripad	Activate debitor ipad	Aktiver debitoripad
-2370	Dette felt aktivere debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer kundens iPad-system der kundene dine kan skrive en e-mail på en bestilling selv
+2370	Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre	This field enables the customer iPad system where your customers can write an email on an order themselves	Dette feltet aktiverer debitoripadsystemet hvor kundene dine selv kan skrive en e-post på en ordre
 2371	Rumfang	Volume	Volum
 2372	Nettosum	Net sum	Nettosum
 2373	I alt	Total	Totalt
@@ -3009,8 +3009,9 @@
 3009	Sender ordren til $email som vedhæftet PDF	Sends the order to $email as attached PDF	Sender ordren til $email som vedlagt PDF
 3010	Terminal type	Terminal type	Terminaltype
 3011	Den type betalings terminal du har at gøre med på kassen	The type of payment terminal you're working	Typen betalingsterminal du har å gjøre med på kassaen
-3014	Flatpay ID	Flatpay ID	Flatpay ID
+3012
 3013	Dit hemmelige Flatpay ID, klik inputtet for at lave en ny	Your secret Flatpay ID, click the input to create a new one	Din hemmelige Flatpay ID, klikk på feltet for å lage en ny
+3014	Flatpay ID	Flatpay ID	Flatpay ID
 3015	Terminal IP/ID	Terminal IP/ID	Terminal IP/ID
 3016	Vibrant API nøjle	Virant API Key	Vibrant API Key
 3017	API nøjlen til din Vibrant APP	The API key for your vibrant APP	API-key for din Vibrant APP
