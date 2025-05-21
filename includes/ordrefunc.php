@@ -4824,9 +4824,10 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 		
 		$option = $_POST['option']; 
 		if ($option) {
+			#$option = "&option=$option";
 		    $url = $location.$option;
 			// Append the URL to the file
-			
+			$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 			 // Get the current host (domain name or IP address)
 			 $host = $_SERVER['HTTP_HOST'];
 
@@ -4835,11 +4836,14 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			 $currentUrl = $protocol . '://' . $host . $requestUri;
 			 $startPos = strpos($currentUrl, 'debitor');
 
+			 error_log("Start Position: $startPos");
+			// Check if the URL contains 'debitor'
 			// Check if the word 'debitor' is found
 			if ($startPos !== false) {
 				// Get the substring starting from 'debitor' to the end
 				$result = substr($currentUrl, $startPos);
 				file_put_contents($priceListUrl, $result.$option . "\n", FILE_APPEND);
+				error_log("result and option:".$result.$option);
 			}
 		   
 		}
@@ -5199,6 +5203,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 					}
 
 					if (empty($csvData)) {
+						error_log('No valid active CSV file found matching the criteria.');
 						echo "<script>alert('No valid active CSV file found matching the criteria.');</script>";
 						return;
 					}
@@ -5228,6 +5233,12 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						$qr = db_select("SELECT varenr FROM varer WHERE varenr IN ('$varenrListStr')", __FILE__ . " linje " . __LINE__);
 
 						$existingVarnr = [];
+						if(!$qr) {
+							echo "<script>alert('Error fetching existing varenr from database.');</script>";
+							error_log('Error fetching existing varenr from database.');
+							exit;
+							#return;
+						}
 						while ($row = db_fetch_array($qr)) {
 							$existingVarnr[] = $row['varenr'];
 						}
@@ -5283,6 +5294,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						print '</tr>';
 					}
 
+		error_log("query string: ".$queryString);
 
 					
 		print '</table>';
@@ -5291,12 +5303,12 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 
 				if(!isset($queryData)){ //If no data to insert is available in the external source 
 					//Either they have all been inserted to database or the csv url is not set
-					
 					$alert_message = findtekst(1740, $sprog_id);
 					$alert_message = str_replace("'", "\'", $alert_message);
 					$msg1= 'Data ';
 					
 					error_log($msg1.$alert_message);
+					
 				}
 
 				return;
