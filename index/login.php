@@ -362,7 +362,6 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 update table onlineUserTracker with timestamp and amount of users logged in
 */
 
-// Add this code earlier in the file to handle the force logout
 if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
     $user_to_logout = db_escape_string($_POST['user_to_logout']);
     
@@ -383,9 +382,7 @@ if (
     $query = db_select(
     "SELECT COUNT(DISTINCT brugernavn) as user_count 
      FROM online 
-     WHERE db = '$db' 
-     AND brugernavn != '" . db_escape_string($brugernavn) . "'
-     AND brugernavn NOT IN ('" . implode("','", array_map('db_escape_string', $adminUsers)) . "')",
+     WHERE db = '$db' AND revisor IS NOT true",
     __FILE__ . " linje " . __LINE__
 );
 
@@ -402,8 +399,7 @@ if (
     "SELECT brugernavn, logtime 
      FROM online 
      WHERE db = '$db' 
-     AND brugernavn != '" . db_escape_string($brugernavn) . "' 
-     AND brugernavn NOT IN ('" . implode("','", array_map('db_escape_string', $adminUsers)) . "')",
+     AND revisor IS NOT true",
     __FILE__ . " linje " . __LINE__
 );
 	$activeUsers = [];
@@ -489,8 +485,7 @@ if (
 					"SELECT brugernavn, logtime 
 					FROM online 
 					WHERE db = '$db' 
-					AND brugernavn != '" . db_escape_string($brugernavn) . "' 
-					AND brugernavn NOT IN ('" . implode("','", array_map('db_escape_string', $adminUsers)) . "')",
+					AND revisor IS NOT true",
 					__FILE__ . " linje " . __LINE__
 				);
 				while ($row = db_fetch_array($query)) {
