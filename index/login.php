@@ -378,13 +378,20 @@ if (
     !(($regnskab === 'demo' && $brugernavn === 'admin'))
 ) {
     $udlob = time() - 14400; // 4 hours
-
-    $query = db_select(
-    "SELECT COUNT(DISTINCT brugernavn) as user_count 
-     FROM online 
-     WHERE db = '$db' AND revisor IS NOT true",
-    __FILE__ . " linje " . __LINE__
-);
+	// if mysql
+	if($db_type == 'mysql' || $db_type == 'mysqli') {
+		$query = ("SELECT COUNT(DISTINCT brugernavn) as user_count
+		FROM online
+		WHERE revisor != 1
+		AND db = '$db'", __FILE__ . " linje " . __LINE__);
+	}else{
+		$query = db_select(
+		"SELECT COUNT(DISTINCT brugernavn) as user_count 
+		FROM online 
+		WHERE db = '$db' AND revisor IS NOT true",
+		__FILE__ . " linje " . __LINE__
+		);
+	}
 
     $r = db_fetch_array($query);
     $y = (int) $r['user_count'];
@@ -395,13 +402,23 @@ if (
         $bruger_max = (int) $r['brugerantal'];
 
     }
-	$query = db_select(
-    "SELECT brugernavn, logtime 
-     FROM online 
-     WHERE db = '$db' 
-     AND revisor IS NOT true",
-    __FILE__ . " linje " . __LINE__
-);
+	if($db_type == 'mysql' || $db_type == 'mysqli') {
+		$query = db_select(
+		"SELECT brugernavn, logtime 
+		FROM online 
+		WHERE db = '$db' 
+		AND revisor != 1",
+		__FILE__ . " linje " . __LINE__
+		);
+	}else{
+		$query = db_select(
+		"SELECT brugernavn, logtime 
+		FROM online 
+		WHERE db = '$db' 
+		AND revisor IS NOT true",
+		__FILE__ . " linje " . __LINE__
+		);
+	}
 	$activeUsers = [];
 	while ($row = db_fetch_array($query)) {
 		$activeUsers[] = $row['brugernavn'];
@@ -481,13 +498,23 @@ if (
             <p class="force-logout-info">Vælg en bruger at logge ud:</p>
             <select name="user_to_logout" class="force-logout-select">
                 <?php
-                 $query = db_select(
+				if($db_type == 'mysql' || $db_type == 'mysqli') {
+					$query = db_select(
 					"SELECT brugernavn, logtime 
 					FROM online 
 					WHERE db = '$db' 
-					AND revisor IS NOT true",
+					AND revisor != 1",
 					__FILE__ . " linje " . __LINE__
-				);
+					);
+				}else{
+					$query = db_select(
+						"SELECT brugernavn, logtime 
+						FROM online 
+						WHERE db = '$db' 
+						AND revisor IS NOT true",
+						__FILE__ . " linje " . __LINE__
+					);
+				}
 				while ($row = db_fetch_array($query)) {
 					$last_active = ($db_type == 'mysql' || $db_type == 'mysqli') ? 
 						date("H:i:s", strtotime($row['logtime'])) : 
