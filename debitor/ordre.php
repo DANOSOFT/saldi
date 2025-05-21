@@ -2103,7 +2103,6 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
 }
 ##########################OPSLAG###Angiv#############################
 #+++++++++++++++++++++++++++++++++
-
 $formData = $_POST;
 $queryString = http_build_query($formData);
 $href = "ordre.php?";
@@ -2111,7 +2110,7 @@ $Urlc = $href . $queryString;
 #global $db;echo __LINE__.'URL;;;'.$Urlc;
 $directory = "temp/$db";  // Directory path
 $priceListUrl = "$directory/pricelisturl.txt";
-
+$option = NULL;
 // Ensure the directory exists
 if (!is_dir($directory)) {
     if (!mkdir($directory, 0777, true) && !is_dir($directory)) {
@@ -2158,13 +2157,8 @@ if (!file_exists($priceListUrl)) {
           }
          
         }
-
-      #  var_dump($formData);
-       # file_put_contents('test.txt', $newContent, FILE_APPEND);
         
     }
-
-
 
 $Urlc = file_get_contents($priceListUrl);
 if ($Urlc === false || empty(trim($Urlc))) {
@@ -2194,58 +2188,58 @@ $queryParamA = !empty($_POST['pricelist']) ? $_POST : $_GET;
 
 $Urlc = $originalUrl;
 // Now use the $queryParams to set the variables
-#if (isset($queryParams['pricelist']) && isset($queryParams['lookUp'])) {
   if (isset($_GET['fokus']) && ($_GET['fokus']=='vare0')) {
     $queryParams = $_GET; // Use GET values when 'vare0' is set.
   }
    if ( isset($queryParams['lookUp']) && isset($queryParamA['lookUp']) && isset($queryParamA['pricelist'])) {
    // if ( isset($queryParams['lookUp']) && isset($_GET['lookUp']) && isset($_GET['pricelist'])) {
-    if (isset($queryParams['ordrenr'])) $ordrenr = $queryParams['ordrenr'];
-    if (isset($queryParams['status'])) $status = $queryParams['status'];
-    if (isset($queryParams['id'])) $id = $queryParams['id'];
-    if (isset($queryParams['art'])) $art = $queryParams['art'];
-    if (isset($queryParams['kred_ord_id'])) $kred_ord_id = $queryParams['kred_ord_id'];
-    if (isset($queryParams['sag_id'])) $sag_id = $queryParams['sag_id'];
-    if (isset($queryParams['afd_lager'])) $afd_lager = $queryParams['afd_lager'];
-    if (isset($queryParams['kontonr'])) $kontonr = $queryParams['kontonr'];
-    if (isset($queryParams['firmanavn'])) $firmanavn = $queryParams['firmanavn'];
-    if (isset($queryParams['addr1'])) $addr1 = $queryParams['addr1'];
-    if (isset($queryParams['addr2'])) $addr2 = $queryParams['addr2'];
-    if (isset($queryParams['postnr'])) $postnr = $queryParams['postnr'];
-    if (isset($queryParams['bynavn'])) $bynavn = $queryParams['bynavn'];
-    if (isset($queryParams['land'])) $land = $queryParams['land'];
-    if (isset($queryParams['kontakt'])) $kontakt = $queryParams['kontakt'];
-    if (isset($queryParams['kundeordnr'])) $kundeordnr = $queryParams['kundeordnr'];
-    if (isset($queryParams['cvrnr'])) $cvrnr = $queryParams['cvrnr'];
-    if (isset($queryParams['ean'])) $ean = $queryParams['ean'];
-    if (isset($queryParams['phone'])) $phone = $queryParams['phone'];
-    if (isset($queryParams['institution'])) $institution = $queryParams['institution'];
-    if (isset($queryParams['email'])) $email = $queryParams['email'];
-    if (isset($queryParams['udskriv_til'])) $udskriv_til = $queryParams['udskriv_til'];
-    if (isset($queryParams['momssats'])) $momssats = $queryParams['momssats'];
-    if (isset($queryParams['mail_bilag'])) $mail_bilag = $queryParams['mail_bilag'];
-    if (isset($queryParams['ordredato'])) $ordredato = $queryParams['ordredato'];
-    if (isset($queryParams['betalingsbet'])) $betalingsbet = $queryParams['betalingsbet'];
-    if (isset($queryParams['betalingsdage'])) $betalingsdage = $queryParams['betalingsdage'];
-    if (isset($queryParams['ny_valuta'])) $ny_valuta = $queryParams['ny_valuta'];
-    if (isset($queryParams['ref'])) $ref = $queryParams['ref'];
-    if (isset($queryParams['felt_1'])) $felt_1 = $queryParams['felt_1'];
-    if (isset($queryParams['felt_2'])) $felt_2 = $queryParams['felt_2'];
-    if (isset($queryParams['felt_3'])) $felt_3 = $queryParams['felt_3'];
-    if (isset($queryParams['felt_4'])) $felt_4 = $queryParams['felt_4'];
-    if (isset($queryParams['felt_5'])) $felt_5 = $queryParams['felt_5'];
-    if (isset($queryParams['lev_navn'])) $lev_navn = $queryParams['lev_navn'];
-    if (isset($queryParams['lev_addr1'])) $lev_addr1 = $queryParams['lev_addr1'];
-    if (isset($queryParams['lev_addr2'])) $lev_addr2 = $queryParams['lev_addr2'];
-    if (isset($queryParams['lev_postnr'])) $lev_postnr = $queryParams['lev_postnr'];
-    if (isset($queryParams['lev_bynavn'])) $lev_bynavn = $queryParams['lev_bynavn'];
-    if (isset($queryParams['lev_kontakt'])) $lev_kontakt = $queryParams['lev_kontakt'];
-    if (isset($queryParams['linjeantal'])) $linjeantal = $queryParams['linjeantal'];
-    if (isset($queryParams['lagervarer'])) $lagervarer = $queryParams['lagervarer'];
-    if (isset($queryParams['fokus'])) $fokus = $queryParams['fokus'];
-    if (isset($queryParams['orderNoteText'])) $orderNoteText = $queryParams['orderNoteText'];
-    if (isset($queryParams['valutakurs'])) $valutakurs = $queryParams['valutakurs'];
-    if (isset($queryParams['option'])) $option = $queryParams['option'];
+if(if_isset($queryParams, NULL, 'ordrenr')) $ordrenr = $queryParams['ordrenr'];
+if(if_isset($queryParams, NULL, 'status')) $status = $queryParams['status'];
+if(if_isset($queryParams, NULL, 'id')) $id = $queryParams['id'];
+if(if_isset($queryParams, NULL, 'art')) $art = $queryParams['art'];
+if(if_isset($queryParams, NULL, 'kred_ord_id')) $kred_ord_id = $queryParams['kred_ord_id'];
+if(if_isset($queryParams, NULL, 'sag_id')) $sag_id = $queryParams['sag_id'];
+if(if_isset($queryParams, NULL, 'afd_lager')) $afd_lager = $queryParams['afd_lager'];
+if(if_isset($queryParams, NULL, 'kontonr')) $kontonr = $queryParams['kontonr'];
+if(if_isset($queryParams, NULL, 'firmanavn')) $firmanavn = $queryParams['firmanavn'];
+if(if_isset($queryParams, NULL, 'addr1')) $addr1 = $queryParams['addr1'];
+if(if_isset($queryParams, NULL, 'addr2')) $addr2 = $queryParams['addr2'];
+if(if_isset($queryParams, NULL, 'postnr')) $postnr = $queryParams['postnr'];
+if(if_isset($queryParams, NULL, 'bynavn')) $bynavn = $queryParams['bynavn'];
+if(if_isset($queryParams, NULL, 'land')) $land = $queryParams['land'];
+if(if_isset($queryParams, NULL, 'kontakt')) $kontakt = $queryParams['kontakt'];
+if(if_isset($queryParams, NULL, 'kundeordnr')) $kundeordnr = $queryParams['kundeordnr'];
+if(if_isset($queryParams, NULL, 'cvrnr')) $cvrnr = $queryParams['cvrnr'];
+if(if_isset($queryParams, NULL, 'ean')) $ean = $queryParams['ean'];
+if(if_isset($queryParams, NULL, 'phone')) $phone = $queryParams['phone'];
+if(if_isset($queryParams, NULL, 'institution')) $institution = $queryParams['institution'];
+if(if_isset($queryParams, NULL, 'email')) $email = $queryParams['email'];
+if(if_isset($queryParams, NULL, 'udskriv_til')) $udskriv_til = $queryParams['udskriv_til'];
+if(if_isset($queryParams, NULL, 'momssats')) $momssats = $queryParams['momssats'];
+if(if_isset($queryParams, NULL, 'mail_bilag')) $mail_bilag = $queryParams['mail_bilag'];
+if(if_isset($queryParams, NULL, 'ordredato')) $ordredato = $queryParams['ordredato'];
+if(if_isset($queryParams, NULL, 'betalingsbet')) $betalingsbet = $queryParams['betalingsbet'];
+if(if_isset($queryParams, NULL, 'betalingsdage')) $betalingsdage = $queryParams['betalingsdage'];
+if(if_isset($queryParams, NULL, 'ny_valuta')) $ny_valuta = $queryParams['ny_valuta'];
+if(if_isset($queryParams, NULL, 'ref')) $ref = $queryParams['ref'];
+if(if_isset($queryParams, NULL, 'felt_1')) $felt_1 = $queryParams['felt_1'];
+if(if_isset($queryParams, NULL, 'felt_2')) $felt_2 = $queryParams['felt_2'];
+if(if_isset($queryParams, NULL, 'felt_3')) $felt_3 = $queryParams['felt_3'];
+if(if_isset($queryParams, NULL, 'felt_4')) $felt_4 = $queryParams['felt_4'];
+if(if_isset($queryParams, NULL, 'felt_5')) $felt_5 = $queryParams['felt_5'];
+if(if_isset($queryParams, NULL, 'lev_navn')) $lev_navn = $queryParams['lev_navn'];
+if(if_isset($queryParams, NULL, 'lev_addr1')) $lev_addr1 = $queryParams['lev_addr1'];
+if(if_isset($queryParams, NULL, 'lev_addr2')) $lev_addr2 = $queryParams['lev_addr2'];
+if(if_isset($queryParams, NULL, 'lev_postnr')) $lev_postnr = $queryParams['lev_postnr'];
+if(if_isset($queryParams, NULL, 'lev_bynavn')) $lev_bynavn = $queryParams['lev_bynavn'];
+if(if_isset($queryParams, NULL, 'lev_kontakt')) $lev_kontakt = $queryParams['lev_kontakt'];
+if(if_isset($queryParams, NULL, 'linjeantal')) $linjeantal = $queryParams['linjeantal'];
+if(if_isset($queryParams, NULL, 'lagervarer')) $lagervarer = $queryParams['lagervarer'];
+if(if_isset($queryParams, NULL, 'fokus')) $fokus = $queryParams['fokus'];
+if(if_isset($queryParams, NULL, 'orderNoteText')) $orderNoteText = $queryParams['orderNoteText'];
+if(if_isset($queryParams, NULL, 'valutakurs')) $valutakurs = $queryParams['valutakurs'];
+if(if_isset($queryParams, NULL, 'option')) $option = $queryParams['option'];
+
     if (isset($queryParams['lookUp']) && ($queryParams['lookUp'] == 'Lookup') || $queryParams['lookUp'] == 'Opslag'){
         $b_submit = 'Opslag';
     }
@@ -2282,9 +2276,9 @@ if ($swap_account) {
 */
     if ((strstr($fokus,'lev_navn'))&&($id)) kontoopslag("$art","$sort","$fokus","$id","$lev_navn",'','','','','');
 #    elseif (strstr($fokus,'kontakt')) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
-	$q=db_select("select box2 from grupper where art = 'PL' order by beskrivelse",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select box2 from grupper where art = 'PL' AND box4='Yes'",__FILE__ . " linje " . __LINE__);
 	if($s = db_fetch_array($q)){
-		$option= $option.':'.$s[0];
+		$option= if_isset($option,NULL).':'.$s[0];
 	}	
 
     if ((strstr($fokus,'vare'))&&($art!='DK')) vareopslag($art,$sort,'varenr',$id,$vis_kost,$ref,$varenr[0],$Urlc,$option);

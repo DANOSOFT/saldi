@@ -281,6 +281,10 @@ include("pos_ordre_includes/showPosLines/showPosLinesFunc.php"); #20190510
 
 include("pos_ordre_includes/exitFunc/exit.php"); #20190510
 
+if(isset($_GET["payment_id"])){
+	$_SESSION["payment_id"] = $_GET['payment_id'];
+}
+
 if (get_settings_value("mobilepos", "POS", "off", NULL, $kasse = $_COOKIE["saldi_pos"]) == "on") {
 	$width = get_settings_value("mobilwidth", "POS", "510", null, $_COOKIE["saldi_pos"]);
 	$zoom = usdecimal(get_settings_value("mobilzoom", "POS", "1.0", null, $_COOKIE["saldi_pos"]));
@@ -845,7 +849,6 @@ if ($godkendt == 'OK') { # 20131205
 		$kortnavn = if_isset($_GET['cardscheme']);
 
 	$delbetaling = if_isset($_GET['delbetaling']);
-	$payment_id = if_isset($_GET['payment_id'], null);
 
 	$gf = fopen("../temp/$db/godkendt.txt", "a"); # 20180816
 
@@ -855,16 +858,14 @@ if ($godkendt == 'OK') { # 20131205
 	fwrite($gf, "\n" . __FILE__ . " " . __LINE__ . " " . date("H:i:s") . " " . $_SERVER['HTTP_REFERER'] . "\n");
 
 	if ($delbetaling) {
-		fwrite($gf, "delbetal($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id,$payment_id, __line__)\n");
+		fwrite($gf, "delbetal($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$receipt_id, __line__)\n");
 		fclose($gf);
 		include_once("pos_ordre_includes/paymentFunc/partPayment.php");
-		delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, $payment_id, __LINE__);
-		db_modify("UPDATE pos_betalinger SET payment_id = '$payment_id' WHERE ordre_id = '$id' AND betalingstype = '!'", __FILE__ . " linje " . __LINE__);
+		delbetal($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $receipt_id, __LINE__);
 	} else {
-		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn,$payment_id, __line__)\n");
+		fwrite($gf, "afslut($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling,$godkendt,$kortnavn, __line__)\n");
 		fclose($gf);
-		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, $payment_id, __LINE__); #20140129 Tilføjet $kortnavn
-		db_modify("UPDATE pos_betalinger SET payment_id = '$payment_id' WHERE ordre_id = '$id' AND betalingstype = '!'", __FILE__ . " linje " . __LINE__);
+		afslut($id, $betaling, $betaling2, $modtaget, $modtaget2, $indbetaling, $godkendt, $kortnavn, __LINE__); #20140129 Tilføjet $kortnavn
 	}
 
 	#} elseif ($godkendt) {
@@ -2287,6 +2288,7 @@ function opret_posordre($konto_id, $kasse)
 	if (!is_numeric($kontonr))
 		$kontonr = 0;
 	# 20141210 Tilføjet felt_5
+	
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,";
 	$qtxt .= "betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,";
 	$qtxt .= "ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,pbs,status,nr,felt_5)";
@@ -2301,6 +2303,7 @@ function opret_posordre($konto_id, $kasse)
 	$qtxt .= "values ";
 	$qtxt .= "('13003','" . date('U') . "','$kasse','$bruger_id','$id','" . __FILE__ . "','" . __LINE__ . "')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
 	return ($id);
 } # endfunc opret_posordre()
 
