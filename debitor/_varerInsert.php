@@ -85,7 +85,7 @@ if($retail_price==NULL || $retail_price==0){
 
 	$qr = db_select("select * from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__);
 	if (!$chk = db_fetch_array($qr)) {
-		if($beskrivelse==NULL && $varenr==NULL && $stregkode==NULL && $trademark==NULL && $kostpris==NULL ){
+		if($beskrivelse==NULL && $varenr==NULL && $kostpris==NULL ){
 			print "<script>alert('Please ensure your data is valid, check your delimiter!');</script>";
 			print "<meta http-equiv=\"refresh\" content=\"1;URL=ordreliste.php\">\n";
 			exit;
