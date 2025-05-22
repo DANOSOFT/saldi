@@ -353,24 +353,8 @@ function pricelists(){
             exit;
         }
 
-         // Parse CSV data to get the header row
-         $lines = explode(PHP_EOL, trim($csvData));
-         $header = str_getcsv(trim($lines[0] ?? ''), $delimiter);
- 
-        //  if (!$header || count($header) < 2) {
-        //     if($delimiter != ';'){
-        //         $delimiter = ';';
-        //     }else{
-        //         $mode = false;
-        //         print "<script>alert('The provided file is not a valid CSV format.Check the delimiter');</script>";
-        //         print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
-        //         exit;
-        //     }
-            
-        //  }
- 
- 
-        #**********************
+         
+        
            
             print "<script>alert('Saved');</script>";
             print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
@@ -560,8 +544,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             print '</div>';
             print '</td></tr>';
-
-            error_log('This is gruppe array: ' . print_r($gruppe, true));
             // Show add form below the buttons
             renderAddPricelistForm($beskrivelse1,$supplCompany);
 
@@ -608,8 +590,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
            
             $url = (str_starts_with($prisfil[$x], 'http')) ? $prisfil[$x] : 'https://' . $prisfil[$x];
 
-            $delimiter = $delimiter[$x] ?? ';';
-            
+            $delimiter2 = htmlspecialchars($delimiter[$x]);
+            $delimiter2 = $delimiter[$x] ?? ';';
             $csv_url = filter_var($url, FILTER_SANITIZE_URL);
 
             if (!filter_var($url, FILTER_VALIDATE_URL)) {  
@@ -640,42 +622,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             $checkDelimiter = [',', ';', "\t"];
             $valid = false;
-           if(!in_array($delimiter, $checkDelimiter)){
+           if(!in_array($delimiter2[$x], $checkDelimiter)){
                 $valid = false;
             }
             
         if (!$valid) {
             error_log('The provided file is not a valid CSV format. Check the delimiter.');
             
-            exit;
+          #  exit;
         }
-        
+      
         #**********************
-
-            ################################
-             
-
-        print "<input type='hidden' name='step' value='save_data'>";
-        
         // Create a table to display the data
-        print "<table border='1'>";
-        
-        
-        
-        // Add data rows with checkboxes
        
+        ################################
+         print "<table border='1' >";
+              // display Chosen pricelist before use.
+        if($aktiv[$x] == 'Yes'){ 
+             $delimiter = $delimiter[$x] ?? ';';
+        $lines = explode(PHP_EOL, $csvData);
+        $lines = explode(PHP_EOL, trim($csvData));
+		$rows = array_map(fn($line) => str_getcsv($line, $delimiter), $lines);
+            $header = $rows[0];
+            unset($rows[0]); // Remove header from rows
+                    print "<h2>Selected Pricelist Structure</h2>";
+                    print "<input type='hidden' name='step' value='save_data'>";
+                    print "<input type='hidden' name='mode' value=$mode>";
+                    // Create a table to display the data
+                   print "<table border='1'>";
+                    // Header row
+                    print "<tr>";
+                    foreach ($header as $column) {
+                        $column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
+                        print "<th>" . htmlspecialchars($column) . "</th>";
+                    }
+                    print "</tr>";
+                    // Data rows
+                    $rowCount = 0;
+                    foreach ($rows as $row) {
+                        if (!empty($row)) {
+                            $row = mb_convert_encoding($row, 'UTF-8', 'ISO-8859-1');
 
-        $rowCount = 0; // Initialize a counter for the number of rows shown
-
-        
-                
-        print "</table>"; //End of form handling csv data
-        
-        #///////////////////////////////////
+                            if ($rowCount >= 50) {
+                                break;
+                            }
+                            print "<tr>";
+                            foreach ($header as $column) {
+                                $colIndex = array_search($column, $header);
+                                print "<td>" . htmlspecialchars($row[$colIndex] ?? '') . "</td>";
+                            }
+                            print "</tr>";
+                            $rowCount++;
+                        }
+                    }
+                    print "</table>";
+                   
+            #################################  
+        }  
 
         print '</table>'; // Close the edit form table
-
-       // Add name to the button
         print '</td>';
         print '</tr>';
     }

@@ -5231,7 +5231,11 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 					$Nrows = [];
 
 					if (count($varenrList) > 0) {
-						$varenrListStr = implode("','", array_map('addslashes', $varenrList));
+						
+						$filteredVarenrList = array_filter($varenrList, function($value) {
+							return ctype_digit($value); 
+						});
+						$varenrListStr = implode("','", array_map('addslashes', $filteredVarenrList));
 						$qr = db_select("SELECT varenr FROM varer WHERE varenr IN ('$varenrListStr')", __FILE__ . " linje " . __LINE__);
 
 						$existingVarnr = [];

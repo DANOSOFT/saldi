@@ -362,6 +362,14 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 update table onlineUserTracker with timestamp and amount of users logged in
 */
 
+$query = db_select("SELECT id, brugerantal FROM regnskab", __FILE__ . " linje " . __LINE__);
+while($row = db_fetch_array($query)) {
+	$brugerantal = $row['brugerantal'];
+	$id = $row['id'];
+	if($brugerantal == 0){
+		db_modify("UPDATE regnskab SET brugerantal = 1 WHERE id = $id", __FILE__ . " linje " . __LINE__);
+	}
+}
 if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
     $user_to_logout = db_escape_string($_POST['user_to_logout']);
     
@@ -375,10 +383,10 @@ if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
 
 if (
     !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
-    !(($regnskab === 'demo' && $brugernavn === 'admin'))
+    !(($regnskab === 'demo' && $brugernavn === 'admin' && $regnskab === $sqdb))
 ) {
     $udlob = time() - 14400; // 4 hours
-	// if mysql
+	// if mysql or mysqli
 	if($db_type == 'mysql' || $db_type == 'mysqli') {
 		$query = db_select("SELECT COUNT(DISTINCT brugernavn) as user_count
 		FROM online
