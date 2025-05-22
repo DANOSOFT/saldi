@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/_varerInsert.php -----patch 4.1.1 ----2025-05-18--------------
+// --- debitor/_varerInsert.php -----patch 4.1.1 ----2025-05-21--------------
 //                           LICENSE
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -85,7 +85,11 @@ if($retail_price==NULL || $retail_price==0){
 
 	$qr = db_select("select * from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__);
 	if (!$chk = db_fetch_array($qr)) {
-		
+		if($beskrivelse==NULL && $varenr==NULL && $stregkode==NULL && $trademark==NULL && $kostpris==NULL ){
+			print "<script>alert('Please ensure your data is valid, check your delimiter!');</script>";
+			print "<meta http-equiv=\"refresh\" content=\"1;URL=ordreliste.php\">\n";
+			exit;
+		}
 	   db_modify("INSERT INTO varer (varenr, stregkode, trademark, beskrivelse, kostpris, salgspris, notes, enhed, gruppe, min_lager, max_lager, location) 
 	    VALUES ('$varenr','$stregkode','$trademark','".db_escape_string($beskrivelse)."','$kostpris','$salgspris','".db_escape_string($notes)."','$enhed','$gruppe',2,2,'$location')",__FILE__ . " linje " . __LINE__);
 	   	
