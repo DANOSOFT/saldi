@@ -5209,8 +5209,6 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						echo "<script>alert('No valid active CSV file found matching the criteria.');</script>";
 						return;
 					}
-
-					
 					$lines = explode(PHP_EOL, trim($csvData));
 					$rows = array_map(fn($line) => str_getcsv($line, $delimiter), $lines);
 					$header = $rows[0] ?? [];
@@ -5258,52 +5256,71 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						}
 					}
 
-					
-					print '<table border="1" style="width: 100%; name: items_A; border-collapse: collapse; margin-bottom: 20px; margin-top: 5px;">';
+					if (count($Nrows) > 0) {	
+						print '<table border="1" style="width: 100%; name: items_A; border-collapse: collapse; margin-bottom: 20px; margin-top: 5px;">';
 
-					// Table Header
-					print '<tr style="background-color: #F6F6F6;">';
-					foreach ($header as $column) {
-						$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
-						print "<th>" . htmlspecialchars($column) . "</th>";
-					}
-					print "<th>Action</th>";
-					print '</tr>';
+						// Table Header
+						
+						######################
+						print '<form method="post" action="_varerInsert.php">'; // Form to submit selected rows
+						print '<table border="1" cellpadding="5" cellspacing="0">';
 
-					$idd = $_GET['id'] ?? null;
-					$cnrRows = count($Nrows);
-
-					for ($i = 1; $i <= $cnrRows; $i++) {
-						if (empty($Nrows[$i])) continue;
-
-						print '<tr style="background-color:rgb(241, 239, 202);">';
-
-						foreach ($Nrows[$i] as $column) {
-							$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
-							print "<td>" . htmlspecialchars($column) . "</td>";
+						// Header row with "Select All" checkbox
+						print '<tr style="background-color: #F6F6F6;">';
+						print '<th><input type="checkbox" id="selectAll" onclick="toggleAllCheckboxes(this)"></th>';
+						foreach ($header as $columnName) {
+							$encodedHeader = htmlspecialchars(mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1'));
+							print '<th>' . $encodedHeader . '</th>';
 						}
-
-						// Build query string
-						$queryData = [];
-						foreach ($header as $index => $columnName) {
-							$columnValue = $Nrows[$i][$index] ?? '';
-							$columnValue = mb_convert_encoding($columnValue, 'UTF-8', 'ISO-8859-1');
-							$queryData[mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1')] = $columnValue;
-						}
-
-						$queryString = http_build_query($queryData);
-						$queryString .= "&fokus=varenr";
-						$queryString .= "&id=$idd&bordnr=$bordnr";
-						$queryString .= "&db=$db";
-
-						print "<td><button type='button' style='background-color: green; color: white;' onclick='window.location.href=\"_varerInsert.php?sdata=&$queryString\"'>".findtekst(586, $sprog_id)."</button></td>";
 						print '</tr>';
-					}
+						$idd = $_GET['id'] ?? null;
+						$cnrRows = count($Nrows);
 
-		error_log("query string: ".$queryString);
+						// Data rows
+						for ($i = 1; $i <= $cnrRows; $i++) {
+							if (empty($Nrows[$i])) continue;
+							print '<tr style="background-color:rgb(241, 239, 202);">';
+							// Prepare row data
+							$rowData = [];
+							foreach ($header as $index => $columnName) {
+								$columnValue = $Nrows[$i][$index] ?? '';
+								$columnValue = mb_convert_encoding($columnValue, 'UTF-8', 'ISO-8859-1');
+								$rowData[mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1')] = $columnValue;
+							}
+							$rowData['id'] = $idd;
+							$rowData['bordnr'] = $bordnr;
+							$rowData['db'] = $db;
+							$rowData['fokus'] = 'varenr';
 
-					
-		print '</table>';
+							$serialized = htmlspecialchars(json_encode($rowData), ENT_QUOTES, 'UTF-8');
+							print "<td><input type='checkbox' class='rowCheckbox' name='selectedRows[]' value='{$serialized}'></td>";
+							// Data columns
+							foreach ($Nrows[$i] as $column) {
+								$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
+								print '<td>' . htmlspecialchars($column) . '</td>';
+							}
+							print '</tr>';
+						}
+						print '</table>'; // End of data table
+						print '<br>';
+						print '<input type="submit" value="Insert Data" style="padding: 10px; background-color:rgb(47, 156, 102); color: white; border: none; border-radius: 4px;">';
+						print '</form>';
+
+						// JavaScript block in print
+						print '
+						<script>
+						function toggleAllCheckboxes(source) {
+							var checkboxes = document.querySelectorAll(".rowCheckbox");
+							checkboxes.forEach(function(cb) {
+								cb.checked = source.checked;
+							});
+						}
+						</script>
+						';                     
+	   				}
+ 
+					######################				
+		print '</table>'; //
 	}
 		
 
