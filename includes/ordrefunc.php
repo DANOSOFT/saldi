@@ -4776,49 +4776,113 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 	if($option == ''){$option = NULL;}
 	// HTML Form
 	if (!$option && $externalPricelist) { 
-		// Show the form only if there's no option in the URL
-		print '
-		<!-- HTML Form -->
-		<form id="optionForm" method="POST" action="' . $location . '">
-			<input type="hidden" name="action" id="actionInput" value="">
-			<input type="hidden" name="option" id="optionInput" value="">
-		</form>
-	
-			<button onclick="chooseOption(1)" style="display: inline-block; margin-right: 10px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
-				External Pricelist
-			</button>
-			<button onclick="chooseOption(2)" style="display: inline-block; padding: 10px 20px; background-color: #008CBA; color: white; border: none; border-radius: 5px; cursor: pointer;">
-				Internal Pricelist
-			</button>
 
-		<div id="result"></div>
-		 <div id="hiddenContent" style="display:none;"></div>
-		 <div id="hiddenContent1" style="display:none;"></div>
-	
-		<script>
-		function chooseOption(option) {
-			var resultDiv = document.getElementById(\'result\');
-			var hiddenContentDiv = document.getElementById(\'hiddenContent\');
-			var hiddenContentDiv1 = document.getElementById(\'hiddenContent1\');
-	
-			// Show the corresponding content based on the selected option
-			if (option == 2) {
-				hiddenContentDiv.style.display = \'block\'; // Show internal pricelist content
-				hiddenContentDiv1.style.display = \'none\'; // Hide external pricelist content
-			} else if (option == 1) {
-				resultDiv.innerHTML = \'You selected External Pricelist\';
-				hiddenContentDiv.style.display = \'none\'; // Hide internal pricelist content
-				hiddenContentDiv1.style.display = \'block\'; // Show external pricelist content
-			}
-	
-			// Set the hidden input field with the selected option
-			document.getElementById("optionInput").value = option;
-	
-			// Submit the form via POST
-			document.getElementById("optionForm").submit();
+		$q = db_select("select box2 from grupper where art = 'PL' order by beskrivelse", __FILE__ . " linje " . __LINE__);
+
+		$prisfil1 = [];
+		while ($r = db_fetch_array($q)) {
+			$prisfil1[] = $r['box2']; 
 		}
-		</script>
-		';
+			if(count($prisfil1)>1){
+			#############################Change to new pricelist
+			echo '<div style="text-align: center;">';
+				echo '<form id="priceListForm" action="ordre.php" method="post">';
+				echo '<select name="change_active_pricelist_file">';
+				$q = db_select("SELECT * FROM grupper WHERE art = 'PL' ORDER BY beskrivelse", __FILE__ . " linje " . __LINE__);
+
+				while ($r = db_fetch_array($q)) {
+					$id = htmlspecialchars($r['id']);
+					$beskrivelse = htmlspecialchars($r['beskrivelse']);
+					$selected = ($r['box4'] === 'Yes') ? ' selected' : '';
+					echo "<option value=\"$id\"$selected>$beskrivelse</option>";
+				}
+
+				echo '</select>';
+				echo '<input type="hidden" name="post_identifier" value="unique_post_' . time() . '">';
+				echo '</form>';
+			echo '</div>';
+
+
+			print '<script>
+				document.addEventListener("DOMContentLoaded", function () {
+				const form = document.getElementById("priceListForm");
+				const select = form.querySelector("select[name=\'change_active_pricelist_file\']");
+
+				// Auto-submit form on select change
+				select.addEventListener("change", function () {
+					form.dispatchEvent(new Event("submit", { cancelable: true }));
+				});
+
+				// Handle form submission via fetch
+				form.addEventListener("submit", function (e) {
+					e.preventDefault();
+
+					const formData = new FormData(form);
+
+					fetch(form.action, {
+						method: "POST",
+						body: formData
+					})
+					.then(response => response.text())
+					.then(data => {
+						console.log("Server response:", data);
+						updateTable(data);
+					})
+					.catch(error => {
+						console.error("Fetch error:", error);
+					});
+				});
+			});
+
+			function updateTable(data) {
+				const table = document.getElementById("priceListTable");
+				table.innerHTML = data;
+			}
+			</script>';
+				############################
+			}
+			// Show the form only if there's no option in the URL
+			print '
+			<!-- HTML Form -->
+			<form id="optionForm" method="POST" action="' . $location . '">
+				<input type="hidden" name="action" id="actionInput" value="">
+				<input type="hidden" name="option" id="optionInput" value="">
+			</form>
+		
+				<button onclick="chooseOption(1)" style="display: inline-block; margin-right: 10px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+					External Pricelist
+				</button>
+				
+
+			<div id="result"></div>
+			<div id="hiddenContent" style="display:none;"></div>
+			<div id="hiddenContent1" style="display:none;"></div>
+		
+			<script>
+			function chooseOption(option) {
+				var resultDiv = document.getElementById(\'result\');
+				var hiddenContentDiv = document.getElementById(\'hiddenContent\');
+				var hiddenContentDiv1 = document.getElementById(\'hiddenContent1\');
+		
+				// Show the corresponding content based on the selected option
+				if (option == 2) {
+					hiddenContentDiv.style.display = \'block\'; // Show internal pricelist content
+					hiddenContentDiv1.style.display = \'none\'; // Hide external pricelist content
+				} else if (option == 1) {
+					resultDiv.innerHTML = \'You selected External Pricelist\';
+					hiddenContentDiv.style.display = \'none\'; // Hide internal pricelist content
+					hiddenContentDiv1.style.display = \'block\'; // Show external pricelist content
+				}
+		
+				// Set the hidden input field with the selected option
+				document.getElementById("optionInput").value = option;
+		
+				// Submit the form via POST
+				document.getElementById("optionForm").submit();
+			}
+			</script>
+			';
+		
 	}
 		
 	
@@ -5209,8 +5273,6 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						echo "<script>alert('No valid active CSV file found matching the criteria.');</script>";
 						return;
 					}
-
-					
 					$lines = explode(PHP_EOL, trim($csvData));
 					$rows = array_map(fn($line) => str_getcsv($line, $delimiter), $lines);
 					$header = $rows[0] ?? [];
@@ -5258,52 +5320,71 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						}
 					}
 
-					
-					print '<table border="1" style="width: 100%; name: items_A; border-collapse: collapse; margin-bottom: 20px; margin-top: 5px;">';
+					if (count($Nrows) > 0) {	
+						print '<table border="1" style="width: 100%; name: items_A; border-collapse: collapse; margin-bottom: 20px; margin-top: 5px;">';
 
-					// Table Header
-					print '<tr style="background-color: #F6F6F6;">';
-					foreach ($header as $column) {
-						$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
-						print "<th>" . htmlspecialchars($column) . "</th>";
-					}
-					print "<th>Action</th>";
-					print '</tr>';
+						// Table Header
+						
+						######################
+						print '<form method="post" action="_varerInsert.php">'; // Form to submit selected rows
+						print '<table border="1" cellpadding="5" cellspacing="0">';
 
-					$idd = $_GET['id'] ?? null;
-					$cnrRows = count($Nrows);
-
-					for ($i = 1; $i <= $cnrRows; $i++) {
-						if (empty($Nrows[$i])) continue;
-
-						print '<tr style="background-color:rgb(241, 239, 202);">';
-
-						foreach ($Nrows[$i] as $column) {
-							$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
-							print "<td>" . htmlspecialchars($column) . "</td>";
+						// Header row with "Select All" checkbox
+						print '<tr style="background-color: #F6F6F6;">';
+						print '<th><input type="checkbox" id="selectAll" onclick="toggleAllCheckboxes(this)"></th>';
+						foreach ($header as $columnName) {
+							$encodedHeader = htmlspecialchars(mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1'));
+							print '<th>' . $encodedHeader . '</th>';
 						}
-
-						// Build query string
-						$queryData = [];
-						foreach ($header as $index => $columnName) {
-							$columnValue = $Nrows[$i][$index] ?? '';
-							$columnValue = mb_convert_encoding($columnValue, 'UTF-8', 'ISO-8859-1');
-							$queryData[mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1')] = $columnValue;
-						}
-
-						$queryString = http_build_query($queryData);
-						$queryString .= "&fokus=varenr";
-						$queryString .= "&id=$idd&bordnr=$bordnr";
-						$queryString .= "&db=$db";
-
-						print "<td><button type='button' style='background-color: green; color: white;' onclick='window.location.href=\"_varerInsert.php?sdata=&$queryString\"'>".findtekst(586, $sprog_id)."</button></td>";
 						print '</tr>';
-					}
+						$idd = $_GET['id'] ?? null;
+						$cnrRows = count($Nrows);
 
-		error_log("query string: ".$queryString);
+						// Data rows
+						for ($i = 1; $i <= $cnrRows; $i++) {
+							if (empty($Nrows[$i])) continue;
+							print '<tr style="background-color:rgb(241, 239, 202);">';
+							// Prepare row data
+							$rowData = [];
+							foreach ($header as $index => $columnName) {
+								$columnValue = $Nrows[$i][$index] ?? '';
+								$columnValue = mb_convert_encoding($columnValue, 'UTF-8', 'ISO-8859-1');
+								$rowData[mb_convert_encoding($columnName, 'UTF-8', 'ISO-8859-1')] = $columnValue;
+							}
+							$rowData['id'] = $idd;
+							$rowData['bordnr'] = $bordnr;
+							$rowData['db'] = $db;
+							$rowData['fokus'] = 'varenr';
 
-					
-		print '</table>';
+							$serialized = htmlspecialchars(json_encode($rowData), ENT_QUOTES, 'UTF-8');
+							print "<td><input type='checkbox' class='rowCheckbox' name='selectedRows[]' value='{$serialized}'></td>";
+							// Data columns
+							foreach ($Nrows[$i] as $column) {
+								$column = mb_convert_encoding($column, 'UTF-8', 'ISO-8859-1');
+								print '<td>' . htmlspecialchars($column) . '</td>';
+							}
+							print '</tr>';
+						}
+						print '</table>'; // End of data table
+						print '<br>';
+						print '<input type="submit" value="Insert Data" style="padding: 10px; background-color:rgb(47, 156, 102); color: white; border: none; border-radius: 4px;">';
+						print '</form>';
+
+						// JavaScript block in print
+						print '
+						<script>
+						function toggleAllCheckboxes(source) {
+							var checkboxes = document.querySelectorAll(".rowCheckbox");
+							checkboxes.forEach(function(cb) {
+								cb.checked = source.checked;
+							});
+						}
+						</script>
+						';                     
+	   				}
+ 
+					######################				
+		print '</table>'; //
 	}
 		
 
@@ -5320,10 +5401,9 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 				return;
 			#############################################
 			print "</div>"; //end of external pricelist div
-		
-		
-		
-	   
+		print '<?php>';
+
+			
     exit;
 } //end vareopslag func
 

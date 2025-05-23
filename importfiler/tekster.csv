@@ -582,7 +582,7 @@
 582	Ordrelinjer	Order lines	Bestill linjer
 583	Streger	Lines	Linjer
 584	Flyt center	Move center	Flytt senter
-585	Mail tekst	Mail text	E-posttekst
+585	Mail tekst	Mail text	E-post tekst
 586	Vælg	Select	Velg
 587	formularskabelon	form template	skjemamal
 588	Pos. Kontakt	Pos. Contact	Pos. Ta kontakt med
@@ -1473,13 +1473,13 @@
 1473	Hvis hele ordren skal registreres på et projekt, vælges projektet her. Ellers anvendes projektfeltet på ordrelinjen.	If the entire order is to be registered on a project, the project is selected here. Otherwise, the project field is used on the order line.	Hvis hele bestillingen skal registreres på et prosjekt, velges prosjektet her. Ellers brukes prosjektfeltet på ordrelinjen.
 1474	Ved fakturering ændres emneteksten til	When invoicing, the subject text is changed to	Ved fakturering endres emneteksten til
 1475	Ved fakturering ændres mailteksten til	When invoicing, the email text changes to	Ved fakturering endres e-postteksten til
-1476	Mail emne	Mail subject	E-postemne
+1476	Mail emne	Mail subject	E-post emne
 1477	Positionsnummer. Rækkefølgen ændres ved at overskrive positionsnumrene (1,5 hvis mellem 1 og 2). En enkelt linje slettes ved at skrive minustegn som positionsnummer.	Position number. The order is changed by overwriting the position numbers (1.5 if between 1 and 2). A single line is deleted by typing a minus sign as the position number.	Posisjonsnummer. Rekkefølgen endres ved å overskrive posisjonstallene (1,5 hvis mellom 1 og 2). En enkelt linje slettes ved å skrive et minustegn som posisjonsnummer.
 1478	Varenummer. Skriv hele varenummeret eller klik på Opslag for at vælge. Hvis du vil vælge mellem varenumre startende med t, så skriv t* i feltet og klik på Opslag.	Item number. Enter the entire item number or click Lookup to select. If you want to choose between item numbers starting with t, type t* in the field and click Lookup.	Artikkelnummer. Skriv inn hele varenummeret, eller klikk på Oppslag for å velge. Hvis du vil velge mellom varenummer som begynner med t, skriver du t* i feltet og klikker på Oppslag.
 1479	Antal enheder. Timer og minutter kan angives med : som skilletegn. Eksempelvis 5:45 som bliver til 5,75.	Number of units. Hours and minutes can be specified with : as delimiter - e.g. 5:45, which becomes 5.75.	Antall enheter. Timer og minutter kan spesifiseres med : som skilletegn. For eksempel 5:45 som blir 5,75.
 1480	Brug [Shift]+[Enter] for et indsætte et linjeskift i en beskrivelseslinje	Use [Shift] + [Enter] to insert a line break in a description line	Bruk [Skift] + [Enter] for å sette inn et linjeskift i en beskrivelseslinje
 1481	Procent	Percent	Prosent
-1482	'Kun denne ordre'. Afmærk dette felt hvis ordrelinjen ikke skal med ved genfakturering eller kopiering af ordren.	'Only this order'. Check this box if the order line should not be included when re-invoicing or copying the order.	'Bare denne bestillingen'. Merk av i denne boksen hvis ordrelinjen ikke skal inkluderes når du fakturerer eller kopierer ordren.
+1482	&apos;Kun denne ordre&apos;. Afmærk dette felt hvis ordrelinjen ikke skal med ved genfakturering eller kopiering af ordren.	&apos;Only this order&apos;. Check this box if the order line should not be included when re-invoicing or copying the order.	&apos;Bare denne bestillingen&apos;. Merk av i denne boksen hvis ordrelinjen ikke skal inkluderes når du fakturerer eller kopierer ordren.
 1483	Levér	Deliver	Levere
 1484	Indtastningsfeltet herunder er det antal, som leveres ved klik på Levér. Antallet i parantes er det, som allerede er leveret.	The input field below is the number that is delivered by clicking on Deliver. The number in parentheses is what has already been delivered.	Inndatafeltet nedenfor er nummeret som leveres ved å klikke på Deliver. Antallet i parentes er det som allerede er levert.
 1485	Modtag	Receive	Motta
@@ -1539,7 +1539,7 @@
 1539	Klik her for at opdele ordren i 2.<br>Den ene vil indeholde ikke leverede varer<br>Den anden vil indeholde leverede varer	Click here to split the order into 2. <br> One will contain undelivered products <br> The other will contain delivered products	Klikk her for å dele ordren i 2. <br> Den ene inneholder varer som ikke er levert <br> Den andre inneholder leverte varer
 1540	Handicappet	Disabled	Funksjonshemmet
 1541	Vælg betalingsmåde	Select payment method	Velg betalingsmåte
-1542	Ordren er i brug af	The order is in use of	Bestillingen er i bruk av
+1542	Ordren er i brug af	The order is in use by	Bestillingen er i bruk av
 1543	Angiv belob - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
 1544	Klik her for at gemme	Click here to save	Klikk her for å lagre
 1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	Lookup - your cursor&apos;s location indicates which table the lookup is in	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i

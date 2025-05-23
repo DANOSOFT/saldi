@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-10 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -286,6 +286,15 @@ if (isset($_POST['create_debtor'])) {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&konto_id=$konto_id\">\n";
 	exit;
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_active_pricelist_file'])) {
+    $selectedId = $_POST['change_active_pricelist_file'];
+    db_modify("UPDATE grupper SET box4 = '' WHERE art = 'PL'", __FILE__ . " linje " . __LINE__);
+    db_modify("UPDATE grupper SET box4 = 'Yes' WHERE id = '" .$selectedId. "'", __FILE__ . " linje " . __LINE__);
+    error_log( "Updated successfully for ID: " . htmlspecialchars($selectedId));
+	exit;
+}
+
 
 if (isset($_GET['id']) && isset($_POST['insertItems']))	{
 	$insertId=$_POST['insertId'];
@@ -5409,3 +5418,5 @@ if ($menu=='T') {
 <!--  -->
 
 <script src="../javascript/tablenav.js"></script>
+
+

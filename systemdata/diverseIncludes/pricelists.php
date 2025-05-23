@@ -66,7 +66,6 @@ function pricelists(){
     }
 
 
-
  //e.g  https://saldi.dk/Buchberg/varer.csv
  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $selectedUrl = $_POST['use_url'] ?? null;
