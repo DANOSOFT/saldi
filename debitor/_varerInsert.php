@@ -81,9 +81,11 @@ if (!empty($_POST['selectedRows'])) {
 	$varenr = is_numeric($varenr) && !empty($varenr) ? (int)$varenr : NULL;
 		
 
-	if($retail_price==NULL || $retail_price==0){
-		$retail_price=$salgspris;
+	if($salgspris==NULL || $salgspris==0){
+		$salgspris=$kostpris;
 	}
+	
+	
 
 ###############
 
@@ -107,12 +109,11 @@ if (!empty($_POST['selectedRows'])) {
 				$vare_id = if_isset($r,NULL,'id');	
 
 				if(if_isset($id,NULL)){
-					db_modify("insert into ordrelinjer (varenr,beskrivelse,enhed,pris,vare_id,kostpris,ordre_id) values ('$varenr','$beskrivelse','$enhed','$salgspris','$vare_id','$kostpris','$id')",__FILE__ . " linje " . __LINE__);
+		
+					include_once("../includes/ordrefunc.php");
+					opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $salgpris, $rabat_ny, $procent, $art, $momsfri, $posnr, $linje_id, $incl_moms, $kdo, $rabatart, $kopi, $saet, $fast_db, $lev_varenr, $lager, $linje);
 				}
       
-					print "<script>alert('Single Item has been inserted successfully!');</script>";
-					break;
-
 			}
 		}
 
@@ -120,9 +121,6 @@ if (!empty($_POST['selectedRows'])) {
       echo "No rows selected.";
 	}
 	
-	
-	
-//echo "Location: ". $location;
 
 $qra = db_select("select * from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__);
 if ($r = db_fetch_array($qra)) {
