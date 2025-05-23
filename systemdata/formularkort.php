@@ -1118,6 +1118,8 @@ print "    <td width='24%' ".$top_bund.">&nbsp;</td>\n";
 	print "title=\"".findtekst(1779, $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">".findtekst(801, $sprog_id)."</a></span></td>\n";
 	print "<td width=\"7%\" ".$top_bund."><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span ";
 	print "title=\"".findtekst(1780, $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst(571, $sprog_id)."</a></span></td>\n";
+	print "<td width=\"7%\" ".$top_bund."><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span ";
+	print "title=\"Visual editor\"><a href=formular_visual_editor.php?form_nr=$form_nr&sprog=$formularsprog>Visual editor</a></span></td>\n";
 	print "    <td width='14%' ".$top_bund.">&nbsp;</td>\n";
 } # 20150331 slut bund
 print "    <!-- <td width='10%' ".$top_bund."> ";
