@@ -66,7 +66,6 @@ function pricelists(){
     }
 
 
-
  //e.g  https://saldi.dk/Buchberg/varer.csv
  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $selectedUrl = $_POST['use_url'] ?? null;
@@ -483,7 +482,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             #++++++++++end of add pricelist func
 
             // Begin main page output
-           print '<tr><td colspan="2"><h2>📦 Price List Files</h2></td></tr>';
+           print '<tr><td colspan="2"><h2>📦 Price List</h2></td></tr>';
 
             print '<tr><td colspan="2" style="background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd;">';
                 print '<form method="POST" action="">';

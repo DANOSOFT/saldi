@@ -4776,49 +4776,113 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 	if($option == ''){$option = NULL;}
 	// HTML Form
 	if (!$option && $externalPricelist) { 
-		// Show the form only if there's no option in the URL
-		print '
-		<!-- HTML Form -->
-		<form id="optionForm" method="POST" action="' . $location . '">
-			<input type="hidden" name="action" id="actionInput" value="">
-			<input type="hidden" name="option" id="optionInput" value="">
-		</form>
-	
-			<button onclick="chooseOption(1)" style="display: inline-block; margin-right: 10px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
-				External Pricelist
-			</button>
-			<button onclick="chooseOption(2)" style="display: inline-block; padding: 10px 20px; background-color: #008CBA; color: white; border: none; border-radius: 5px; cursor: pointer;">
-				Internal Pricelist
-			</button>
 
-		<div id="result"></div>
-		 <div id="hiddenContent" style="display:none;"></div>
-		 <div id="hiddenContent1" style="display:none;"></div>
-	
-		<script>
-		function chooseOption(option) {
-			var resultDiv = document.getElementById(\'result\');
-			var hiddenContentDiv = document.getElementById(\'hiddenContent\');
-			var hiddenContentDiv1 = document.getElementById(\'hiddenContent1\');
-	
-			// Show the corresponding content based on the selected option
-			if (option == 2) {
-				hiddenContentDiv.style.display = \'block\'; // Show internal pricelist content
-				hiddenContentDiv1.style.display = \'none\'; // Hide external pricelist content
-			} else if (option == 1) {
-				resultDiv.innerHTML = \'You selected External Pricelist\';
-				hiddenContentDiv.style.display = \'none\'; // Hide internal pricelist content
-				hiddenContentDiv1.style.display = \'block\'; // Show external pricelist content
-			}
-	
-			// Set the hidden input field with the selected option
-			document.getElementById("optionInput").value = option;
-	
-			// Submit the form via POST
-			document.getElementById("optionForm").submit();
+		$q = db_select("select box2 from grupper where art = 'PL' order by beskrivelse", __FILE__ . " linje " . __LINE__);
+
+		$prisfil1 = [];
+		while ($r = db_fetch_array($q)) {
+			$prisfil1[] = $r['box2']; 
 		}
-		</script>
-		';
+			if(count($prisfil1)>1){
+			#############################Change to new pricelist
+			echo '<div style="text-align: center;">';
+				echo '<form id="priceListForm" action="ordre.php" method="post">';
+				echo '<select name="change_active_pricelist_file">';
+				$q = db_select("SELECT * FROM grupper WHERE art = 'PL' ORDER BY beskrivelse", __FILE__ . " linje " . __LINE__);
+
+				while ($r = db_fetch_array($q)) {
+					$id = htmlspecialchars($r['id']);
+					$beskrivelse = htmlspecialchars($r['beskrivelse']);
+					$selected = ($r['box4'] === 'Yes') ? ' selected' : '';
+					echo "<option value=\"$id\"$selected>$beskrivelse</option>";
+				}
+
+				echo '</select>';
+				echo '<input type="hidden" name="post_identifier" value="unique_post_' . time() . '">';
+				echo '</form>';
+			echo '</div>';
+
+
+			print '<script>
+				document.addEventListener("DOMContentLoaded", function () {
+				const form = document.getElementById("priceListForm");
+				const select = form.querySelector("select[name=\'change_active_pricelist_file\']");
+
+				// Auto-submit form on select change
+				select.addEventListener("change", function () {
+					form.dispatchEvent(new Event("submit", { cancelable: true }));
+				});
+
+				// Handle form submission via fetch
+				form.addEventListener("submit", function (e) {
+					e.preventDefault();
+
+					const formData = new FormData(form);
+
+					fetch(form.action, {
+						method: "POST",
+						body: formData
+					})
+					.then(response => response.text())
+					.then(data => {
+						console.log("Server response:", data);
+						updateTable(data);
+					})
+					.catch(error => {
+						console.error("Fetch error:", error);
+					});
+				});
+			});
+
+			function updateTable(data) {
+				const table = document.getElementById("priceListTable");
+				table.innerHTML = data;
+			}
+			</script>';
+				############################
+			}
+			// Show the form only if there's no option in the URL
+			print '
+			<!-- HTML Form -->
+			<form id="optionForm" method="POST" action="' . $location . '">
+				<input type="hidden" name="action" id="actionInput" value="">
+				<input type="hidden" name="option" id="optionInput" value="">
+			</form>
+		
+				<button onclick="chooseOption(1)" style="display: inline-block; margin-right: 10px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+					External Pricelist
+				</button>
+				
+
+			<div id="result"></div>
+			<div id="hiddenContent" style="display:none;"></div>
+			<div id="hiddenContent1" style="display:none;"></div>
+		
+			<script>
+			function chooseOption(option) {
+				var resultDiv = document.getElementById(\'result\');
+				var hiddenContentDiv = document.getElementById(\'hiddenContent\');
+				var hiddenContentDiv1 = document.getElementById(\'hiddenContent1\');
+		
+				// Show the corresponding content based on the selected option
+				if (option == 2) {
+					hiddenContentDiv.style.display = \'block\'; // Show internal pricelist content
+					hiddenContentDiv1.style.display = \'none\'; // Hide external pricelist content
+				} else if (option == 1) {
+					resultDiv.innerHTML = \'You selected External Pricelist\';
+					hiddenContentDiv.style.display = \'none\'; // Hide internal pricelist content
+					hiddenContentDiv1.style.display = \'block\'; // Show external pricelist content
+				}
+		
+				// Set the hidden input field with the selected option
+				document.getElementById("optionInput").value = option;
+		
+				// Submit the form via POST
+				document.getElementById("optionForm").submit();
+			}
+			</script>
+			';
+		
 	}
 		
 	
@@ -5337,10 +5401,9 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 				return;
 			#############################################
 			print "</div>"; //end of external pricelist div
-		
-		
-		
-	   
+		print '<?php>';
+
+			
     exit;
 } //end vareopslag func
 
