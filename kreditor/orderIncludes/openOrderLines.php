@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.0 --- 2025-05-03 ----
+// --- kreditor/ordreIncludes/openOrerLines.php --- patch 4.1.10 --- 2025-05-24 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,8 +32,9 @@
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20240628 PHR 'recieve' is not shown if $bogfor == 1
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20250524 PHR Bogfor now set to 0 if tidl_lev (Delivered) differs from antal (qty)
 
-
+print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
 $kreditmax=NULL;
 for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) {
@@ -134,6 +135,8 @@ if ($status>=1) {
         else $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
       }
     }
+    if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
+
     $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);
     if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-1);
     if (substr($dk_tidl_lev[$x],-1)=='0') $dk_tidl_lev[$x]=substr($dk_tidl_lev[$x],0,-2);
@@ -231,6 +234,7 @@ print "value='Gem' name='save' onclick='javascript:docChange = false;'></td>";
 print "<td align='center'><input type=submit style = 'width:120px;' accesskey='o' ";
 print "value='Opslag' name='lookup' onclick='javascript:docChange = false;'></td>";
 
+echo __line__." $bogfor<br>";
 if ($status > 1 && $bogfor==1){
   print "<td align=center><input type=submit style = 'width:120px;'accesskey='b' value='".findtekst(1065, $sprog_id)."' ";
   print "name='postNow' onclick='javascript:docChange = false;'></td>";
@@ -262,7 +266,7 @@ if(!count($posnr) && $id) {
   print "<input type = 'submit' style = 'width:120px;' value='".$txt."' ";
   print "name='print' onclick='javascript:docChange = false;'></span></td>";
   print "<td align=center><span title='".findtekst(1960, $sprog_id)."'>";
-  print "<input type=submit style = 'width:120px;' value='".findtekst(1959, $sprog_id)."' ";
+  print "<input type=submit style = 'width:120px;' value='".findtekst('1959|Udskriv', $sprog_id)."' ";
   print "name='split' onclick='javascript:docChange = false;'>";
   print "</span></td>";
 }
@@ -302,5 +306,5 @@ $tilgode=$tilgode+$opp_amount;
     print "<span style='color:#FF0000';>OBS Kreditmax overskrides med $valuta $tmp !</span>";
   }
 }# end  if ($kreditmax....
-
+print "<!-- END orderIncludes/openOrderLines.php -->";
 ?>
