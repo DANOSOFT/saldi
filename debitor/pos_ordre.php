@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-03-22--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-05-26--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -214,6 +214,7 @@
 // 20230617 PHR php8
 // 20231223 PHR find_kassesalg omdøbt og flyttet til findBoxSale
 // 20240415 PHR Moved function delbetal to pos_ordre_includes/paymentFunc/partPayment.php
+// 20250526 PHR added "if ($returside == 'kassespor.php') .... " to function primary_menu as 'retur til kassespor' didn't work
 
 @session_start();
 $s_id = session_id();
@@ -1836,7 +1837,7 @@ print "<td valign=\"top\" align=\"center\">\n";
 $omv_menu = get_settings_value("omv_menu", "POS", "off", null, $kasse);
 function primary_menu() {
 	print "\n<!-- Function primary_menu (start)-->\n";
-	global $status, $fokus, $bundmenu, $sidemenu, $afslut, $kasse, $id, $vare_id, $afd;
+	global $status, $fokus, $bundmenu, $sidemenu, $afslut, $kasse, $id, $vare_id, $afd, $returside;
 
 	# If there is not share table
 	if ($afslut || $status >= 3 || $fokus == 'modtaget') {
@@ -1844,7 +1845,8 @@ function primary_menu() {
 			$qtxt = "select kodenr from grupper where art = 'POSBUT' and kode='H' and box6='B'";
 		else
 			$qtxt = "select kodenr from grupper where art = 'POSBUT' and kode='H' and box6='A'";
-		if ($afd)
+		if ($returside == 'kassespor.php') menubuttons($id, $r['kodenr'], $vare_id, 'H');
+		elseif ($afd)
 			$qtxt .= " and (box12='$afd' or box12='') order by box12 desc limit 1";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
 			menubuttons($id, $r['kodenr'], $vare_id, 'H');
@@ -1871,8 +1873,8 @@ function primary_menu() {
 	print "<tr><td colspan=\"2\" valign=\"middle\" align=\"center\">"; #<table border=\"2\"><tbody>\n";
 	print "\n<!-- Function primary_menu (slut)-->\n";
 }
-function secondarry_menu() {
-	print "\n<!-- Function secondarry_menu (start)-->\n";
+function secondary_menu() {
+	print "\n<!-- Function secondary_menu (start)-->\n";
 	global $status, $fokus, $bundmenu, $id, $vare_id, $afd;
 
 	if ($status < 3 && $fokus != 'modtaget' && $fokus != 'modtaget2') {
@@ -1888,13 +1890,13 @@ function secondarry_menu() {
 				menubuttons($id, NULL, $vare_id, 'B');
 		}
 	}
-	print "\n<!-- Function secondarry_menu (slut)-->\n";
+	print "\n<!-- Function secondary_menu (slut)-->\n";
 }
 # Primarry menu gets swapped for mobile users
-$omv_menu!="on" ? primary_menu() : secondarry_menu(); 
+$omv_menu!="on" ? primary_menu() : secondary_menu();
 print "</td></tr>\n";
 print "<tr><td colspan=\"2\" valign=\"middle\" align=\"center\">"; #<table border=\"2\"><tbody>\n";
-$omv_menu!="on" ? secondarry_menu() : primary_menu(); 
+$omv_menu!="on" ? secondary_menu() : primary_menu();
 
 #print "</td></tbody></table></td></tr>\n";
 print "</td></tbody></table></td></tr>\n";
