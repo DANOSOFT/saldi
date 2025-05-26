@@ -282,9 +282,9 @@
             "issueDate" => date("c", strtotime($r_faktura["fakturadate"])),
             "dueDate" => usdate(forfaldsdag($r_faktura['fakturadate'], $r_faktura['betalingsbet'], $r_faktura['betalingsdage']))."T00:00:00.000Z",
             "deliveryDate" => date("c", strtotime($r_faktura["levdate"])),
-            "salesOrderID" => $r_faktura["kundeordnr"],
+            "salesOrderID" => $r_faktura["ordrenr"],
             "note" => $r_faktura["notes"],
-            "buyerReference" => "",
+            "buyerReference" => $r_faktura["kundeordnr"],
             "accountingCost" => "0",
             "externalReference" => "",
             "accountingCustomerParty" => [
