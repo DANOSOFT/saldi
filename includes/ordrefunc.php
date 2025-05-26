@@ -5278,7 +5278,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 					foreach ($lines as $line) {
 						$rows[] = str_getcsv($line, $delimiter);
 					}
-					$header = $rows[0] ?? [];
+					(isset($rows[0])) ? $header = $rows[0] : $header = [];
 					unset($rows[0]);
 
 					
