@@ -57,6 +57,21 @@ print "<div id='bg'></div>";
 $q = db_select("select var_value from settings where var_name = 'flatpay_auth'", __FILE__ . " linje " . __LINE__);
 $guid = db_fetch_array($q)[0];
 
+// Fetch printserver
+$r = db_fetch_array(db_select("select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
+if (!$printserver)
+	$printserver = 'localhost';
+if ($printserver == 'box' || $printserver == 'saldibox') {
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	if ($fp = fopen($filnavn, 'r')) {
+		$printserver = trim(fgets($fp));
+		fclose($fp);
+	}
+}
+
 // Get terminal ID
 $qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -68,7 +83,7 @@ $amount = (string)(abs($raw_amount) * 100); // Convert to pennies as string
 
 // Prepare printfile
 if (file_exists("../../temp/$db/receipt_$kasse.txt")) unlink("../../temp/$db/receipt_$kasse.txt");
-if ($db=='pos_10' || $db=='laja_15') {
+if ($db=='pos_10' || $db=='develop_16') {
   $printfile = 'https://'.$_SERVER['SERVER_NAME'];
   $printfile.= str_replace('debitor/payments/flatpay.php', "temp/$db/receipt_$kasse.txt", $_SERVER['PHP_SELF']);
 } else $printfile = NULL;
@@ -247,7 +262,7 @@ print "
           
           // Print receipt if printfile is specified
           if ('$printfile' !== '') {
-            window.open(\"http://localhost/saldiprint.php?bruger_id=99&bonantal=1&printfil=$printfile&skuffe=0&gem=1\", '', 'width=200,height=100');
+            window.open(\"http://$printserver/saldiprint.php?bruger_id=99&bonantal=1&printfil=$printfile&skuffe=0&gem=1\", '', 'width=200,height=100');
           }
           
           // Update UI for success

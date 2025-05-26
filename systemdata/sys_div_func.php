@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.05.03 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.05.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -92,10 +92,10 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250513 Sawaneh add max user update in kontoindstillinger()
+// 20250526 PHR 'nyt_navn' changed to 'newName' 
 
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
-
 
 function kontoindstillinger($regnskab, $skiftnavn)
 {
@@ -236,8 +236,8 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		print "</form>\n"; # <- 20170731
 	} else {
 		print "<form name='diverse' action='diverse.php?sektion=kontoindstillinger' method='post'>\n";
-		print "<tr><td colspan='6'>".findtekst('2396|Skriv nyt navn på regnskab', $sprog_id)."<input class='inputbox' type='text' style='width:400px' name='nyt_navn' value='$regnskab'> ";
-		print findtekst('2397|og klik', $sprog_id)." <input class='button gray medium' style='width:75px' type='submit' value='".findtekst('2398|Skift navn', $sprog_id)."' name='submit'></td></tr>\n";
+		print "<tr><td colspan='6'>".findtekst('2524|Skriv nyt navn på regnskab', $sprog_id)."<input class='inputbox' type='text' style='width:400px' name='newName' value='$regnskab'> ";
+		print findtekst('2525|og klik', $sprog_id)." <input class='button gray medium' style='width:75px' type='submit' value='".findtekst('2526|Skift navn', $sprog_id)."' name='changeAccountName'></td></tr>\n";
 		print "</form>\n";
 	}
 

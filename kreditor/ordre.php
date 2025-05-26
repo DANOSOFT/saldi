@@ -890,9 +890,11 @@ if ($betalingsdage === null || $betalingsdage === '') {
 				$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
 				if (strlen($levdate)>=6)$qtxt.="levdate='$levdate',";
 				// $qtxt.="status=$status,ref='$ref',afd='$afd',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
+/* saul ??
 				$condition = prepareSearchTerm($fakturanr);
-$qtxt = "select * from ordrer where fakturanr $condition";
-				$qtxt.="hvem = '$brugernavn',tidspkt='$tidspkt',valuta='$valuta',valutakurs='$valutakurs',";
+ 				$qtxt = "select * from ordrer where fakturanr $condition";
+*/
+ 				$qtxt.="hvem = '$brugernavn',tidspkt='$tidspkt',valuta='$valuta',valutakurs='$valutakurs',";
 				$qtxt.="email='$email', udskriv_til='$udskriv_til', projekt='$projekt[0]', ";
 				$qtxt.="mail_subj='$mail_subj',mail_text='$mail_text' ";
 				$qtxt.="where id=$id";
@@ -1070,7 +1072,7 @@ function ordreside($id) {
 	$r=db_fetch_array(db_SELECT("select box4 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
 	$hurtigfakt=$r['box4'];
 
-
+/*
 function prepareSearchTerm($searchTerm) {
     $searchTerm = db_escape_string(trim($searchTerm));
     
@@ -1103,7 +1105,7 @@ function prepareSearchTerm($searchTerm) {
     // Already has wildcards
     return "LIKE '$searchTerm'";
 }
-
+*/
 
 	if (!$id) $fokus='kontonr';
 	print "<form name='ordre' action='ordre.php' method='post'>";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/regnskabskort.php --- lap 4.1.0 -- 2024-01-18 --
+// --- systemdata/regnskabskort.php --- lap 4.1.1 -- 2025-05-22 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------------
 // 2013.02.10 Break ændret til break 1
 // 2015-01-02 Tilrettet til dynamisk lagerværdi. Søg find_lagervaerdi
@@ -33,7 +33,8 @@
 // 20220103 PHR - Made some cleanup, set it to save twice and set year active when new year created.
 // 20220614 MSC - Implementing new design
 // 20230609 PHR - php8
-// 20231230	PHR - Added individual groups for each year.
+// 20231230 PHR - Added individual groups for each year.
+// 20250522	PHR	- (int)$id
 
 @session_start();
 $s_id=session_id();
@@ -85,7 +86,7 @@ if ($menu=='T') {
 $id=if_isset($_GET['id']);
 
 if ($_POST) {
-	$id = if_isset($_POST['id']);
+	$id = (int)if_isset($_POST['id'],0);
 	$beskrivelse = if_isset($_POST['beskrivelse']);
 	$kodenr = if_isset($_POST['kodenr']);
 	$kode=if_isset($_POST['kode']);
@@ -155,8 +156,8 @@ if ($_POST) {
 			$qtxt.= "('".db_escape_string($beskrivelse)."','$kodenr','$kode','RA','$startmd',";
 			$qtxt.= "'$startaar','$slutmd','$slutaar','$aaben')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
-			$query = db_select("select id from grupper where kodenr = '$kodenr' and art = 'RA'",__FILE__ . " linje " . __LINE__);
+			$qtxt = "select id from grupper where kodenr = '$kodenr' and art = 'RA'";
+			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$row = db_fetch_array($query);
 			$id = $row['id'];
 			$setFiscialYear=1;
@@ -168,10 +169,13 @@ if ($_POST) {
 				$qtxt = "select * from grupper where fiscal_year > '0' and fiscal_year = '$tmp' and art != 'RA'";
 				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
-					db_modify("CREATE TEMP TABLE tmp (like grupper)",__FILE__ . " linje " . __LINE__);
-					db_modify("INSERT INTO tmp SELECT * FROM grupper WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__);
+					$qtxt = "CREATE TEMP TABLE tmp (like grupper)";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					$qtxt = "INSERT INTO tmp SELECT * FROM grupper WHERE id = '$r[id]'";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 					$qtxt = "UPDATE tmp SET id = nextval('grupper_id_seq'), fiscal_year = '$kodenr'";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+					$qtxt = "INSERT INTO grupper SELECT * from tmp";
 					db_modify("INSERT INTO grupper SELECT * from tmp",__FILE__ . " linje " . __LINE__);
 					db_modify("DROP TABLE tmp",__FILE__ . " linje " . __LINE__);
 				}
@@ -195,7 +199,7 @@ if ($_POST) {
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
-		if (($id>0)&&($kodenr>0)) {
+		if ($id>0 && $kodenr>0) {
 			$qtxt = "select kodenr from grupper where id = '$id' and art = 'RA'";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$preNo = $r['kodenr'] -1;
@@ -216,10 +220,11 @@ if ($_POST) {
 					}
 				}
 			} else {
-				$query = db_select("select id from kontoplan where regnskabsaar=$kodenr",__FILE__ . " linje " . __LINE__);
+				$qtxt = "select id from kontoplan where regnskabsaar = '$kodenr'";
+				$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if($row = db_fetch_array($query)) {
-					$qtxt =
-					db_modify ("update kontoplan set primo='0' where  regnskabsaar=$kodenr",__FILE__ . " linje " . __LINE__);
+					$qtxt = "update kontoplan set primo='0' where  regnskabsaar = '$kodenr'";
+					db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
 					for ($x=0; $x<=$kontoantal; $x++) {
 						$overfor_til[$x]=(int)$overfor_til[$x];
 						$kontonr[$x]=$kontonr[$x]*1;
@@ -233,7 +238,8 @@ if ($_POST) {
 						}
 					}
 				} else {
-					$query = db_select("select * from kontoplan where regnskabsaar=$kodenr-1 order by kontonr",__FILE__ . " linje " . __LINE__);
+					$qtxt = "select * from kontoplan where regnskabsaar=$kodenr-1 order by kontonr";
+					$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 					$y=0;
 					while ($row = db_fetch_array($query)) {
 						if ($row['kontotype']=="S") {
@@ -334,7 +340,6 @@ if ($id > 0) {
 	if ($x==0) year1($id, 1, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
 	else {
 		include_once("fiscalYearInc/yearX.php");
-echo __line__."<br>";
 		yearX($id, $x, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager);
 	}
 }
