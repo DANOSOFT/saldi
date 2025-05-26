@@ -42,6 +42,7 @@ $query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp
 $apiKey = db_fetch_array($query)["var_value"];
 include("../includes/online.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
 
 if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
 

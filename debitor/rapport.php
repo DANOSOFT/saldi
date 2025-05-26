@@ -47,6 +47,7 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
+include("../includes/row-hover-style.js.php");
 
 #print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 global $sprog_id; //2021

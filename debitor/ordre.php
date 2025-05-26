@@ -234,6 +234,7 @@ include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
 include("../includes/tid2decimal.php");
 
+
 $title = findtekst('1092|Kundeordre', $sprog_id);
 $txt370 = findtekst('370|Kontant',$sprog_id);
 $txt283 = findtekst('283|Kreditkort',$sprog_id);

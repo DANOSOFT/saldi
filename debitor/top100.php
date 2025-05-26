@@ -39,6 +39,7 @@ include("../includes/settings.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
 
 $periode=if_isset($_GET['periode'])? $_GET['periode']:Null;
 $ret=if_isset($_GET['ret'])? $_GET['ret']:Null;

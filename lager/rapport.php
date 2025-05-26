@@ -78,6 +78,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/ordrefunc.php");
+include("../includes/row-hover-style.js.php");
+
 #	include("../includes/db_query.php");
 
 if (!isset ($_GET['detaljer'])) $_GET['detaljer'] = NULL;
