@@ -44,6 +44,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
 
 global $menu;
 

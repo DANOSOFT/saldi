@@ -35,6 +35,8 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
+
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
 : 'javascript:window.history.go(-2);';

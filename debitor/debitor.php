@@ -89,6 +89,8 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
+include("../includes/row-hover-style.js.php");
+
 $id = if_isset($_GET,NULL,'id');
 $returside=if_isset($_GET,NULL,'returside');
 $valg= strtolower(if_isset($_GET,NULL,'valg'));

@@ -60,6 +60,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
 
 print '<script src="../javascript/chart.js"></script>';
 $backUrl = isset($_GET['returside'])

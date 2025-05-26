@@ -62,6 +62,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
 
 $status = if_isset($_GET['status']);
 $id = if_isset($_GET['id']);

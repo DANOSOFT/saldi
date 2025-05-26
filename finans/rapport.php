@@ -63,6 +63,7 @@ include("../includes/var_def.php");
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/row-hover-style.js.php");
 
 $aar_fra = "";
 $maaned_fra = "";

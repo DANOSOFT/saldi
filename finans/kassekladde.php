@@ -134,6 +134,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
+
 
 print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
