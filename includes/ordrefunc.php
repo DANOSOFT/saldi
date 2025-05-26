@@ -5274,7 +5274,10 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 						return;
 					}
 					$lines = explode(PHP_EOL, trim($csvData));
-					$rows = array_map(fn($line) => str_getcsv($line, $delimiter), $lines);
+					$rows = [];
+					foreach ($lines as $line) {
+						$rows[] = str_getcsv($line, $delimiter);
+					}
 					$header = $rows[0] ?? [];
 					unset($rows[0]);
 
