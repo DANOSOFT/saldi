@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2025-04-14------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2025-05-26------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,6 +85,7 @@
 // 20250105 PBLM Added a second file to api_valg
 // 20250414 LOE Updated barcodescan location and updated some variables
 // 20250513 Sawaneh add max user update in kontoindstillinger()
+// 20250526 PHR 'nyt_navn' changed to 'newName'
 
 
 @session_start();
@@ -1720,21 +1721,20 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		
 		
-
-		if (isset($_POST['submit']) && strstr($_POST['submit'], 'Skift')) {
-			$nyt_navn = trim(db_escape_string($_POST['nyt_navn']));
+		if (isset($_POST['newName']) && $_POST['newName']) {
+			$newName = trim(db_escape_string($_POST['newName']));
 			include("../includes/connect.php");
-			if (db_fetch_array(db_select("select id from regnskab WHERE regnskab = '$nyt_navn'", __FILE__ . " linje " . __LINE__))) {
+			if (db_fetch_array(db_select("select id from regnskab WHERE regnskab = '$newName'", __FILE__ . " linje " . __LINE__))) {
 				$alert1 = findtekst(1742, $sprog_id);
 				$alert2 = findtekst(1743, $sprog_id);
-				print "<BODY onLoad=\"JavaScript:alert('$alert1 $nyt_navn! $alert2')\">";
+				print "<BODY onLoad=\"JavaScript:alert('$alert1 $newName! $alert2')\">";
 			} else {
 				$r = db_fetch_array(db_select("select id from kundedata WHERE regnskab_id = '$db_id'", __FILE__ . " linje " . __LINE__));
 				if (!$r['id']) {
 					$tmp = db_escape_string($regnskab);
 					db_modify("update kundedata set regnskab_id = '$db_id' WHERE regnskab='$tmp'", __FILE__ . " linje " . __LINE__);
 				}
-				db_modify("update regnskab set regnskab = '$nyt_navn' WHERE db='$db'", __FILE__ . " linje " . __LINE__);
+				db_modify("update regnskab set regnskab = '$newName' WHERE db='$db'", __FILE__ . " linje " . __LINE__);
 			}
 			include("../includes/online.php");
 		} elseif (isset($_POST['updateCurrency'])) {
