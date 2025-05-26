@@ -116,6 +116,7 @@ function kontoindstillinger($regnskab, $skiftnavn)
 
 	$max_users = 1;
 	$masterDb = $sqdb;
+	$disabled = "";
 	@session_start();
 	$s_id = session_id();
 	include("../includes/connect.php");
@@ -129,10 +130,13 @@ function kontoindstillinger($regnskab, $skiftnavn)
 			}
 		}
 	include("../includes/online.php");
-
+	if($masterDb == "gratis" || $masterDb == "mini") {
+		$disabled = "disabled";
+	}
+	
 	print "<form name='maxusers' action='diverse.php?sektion=kontoindstillinger' onsubmit='return confirmUpdate();' method='post'>\n";
 	print "<tr><td>Sæt brugere antal:</td>";
-	print "<td><input class='inputbox' type='number' style='width:50px' name='max_users' value='" . htmlspecialchars($max_users) . "'></td></tr>";
+	print "<td><input class='inputbox' type='number' style='width:50px' name='max_users' value='" . htmlspecialchars($max_users) . "' $disabled></td></tr>";
 	print "<td></td><td><input class='button gray medium' style='width:200px' type='submit' value='Opdater bruger antal' name='update_max_users'></td></tr>\n";
 	print "</form>\n";
 
