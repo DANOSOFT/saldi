@@ -5286,7 +5286,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 					$varenrList = [];
 
 					for ($i = 1; $i <= $rowCount; $i++) {
-						$covtR = mb_convert_encoding($rows[$i][0] ?? '', 'UTF-8', 'ISO-8859-1');
+						$covtR = mb_convert_encoding((isset($rows[$i][0])) ? $rows[$i][0] : '', 'UTF-8', 'ISO-8859-1');
 
 						if ($covtR == '/' || $covtR == "") continue;
 
