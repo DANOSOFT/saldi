@@ -86,7 +86,13 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 		} else {
 			$x++;
 			$varenr[$x]=$r['varenr'];
-			$konto[$x]=str_replace($vareprefix,'',$varenr[$x])*1;
+			// $konto[$x]=str_replace($vareprefix,'',$varenr[$x])*1;
+
+			// Sawaneh 2025-05-24 FIX: Ensure numeric konto value after stripping prefix (avoids type error)
+
+			$kontoStr = str_replace($vareprefix, '', $varenr[$x]);
+            $konto[$x] = is_numeric($kontoStr) ? (int)$kontoStr : 0;
+			
 			$sum[$x]=$r['antal']*$r['pris'];
 			$cost[$x]=$r['antal']*$r['kostpris'];
 			if (!$r['momsfri']) {
