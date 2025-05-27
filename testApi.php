@@ -22,7 +22,7 @@ $db='develop_8';#' #Findes under Indstillinger ->  Diverse -> API
  $url .= "&gruppe=" . urlencode(1); // Example customer group
  
  // Add order details
- $url .= "&shop_ordre_id=" . urlencode("123456789"); // Example shop order ID
+ $url .= "&shop_ordre_id=" . urlencode("3485745"); // Example shop order ID
  $url .= "&shop_status=" . urlencode("New Order");
  $url .= "&nettosum=" . urlencode("104.00"); // Example net amount
  $url .= "&momssum=" . urlencode("25.00"); // Example VAT amount
@@ -46,10 +46,11 @@ $db='develop_8';#' #Findes under Indstillinger ->  Diverse -> API
  curl_close($ch);
  
 // The response should be the Saldi order ID if successful
-$saldi_ordre_id = intval($response);
-
+// Remove quotes and whitespace before converting to integer
+$saldi_ordre_id = intval(trim($response, " \t\n\r\0\x0B\""));
+file_put_contents('saldi_order_response.txt', "Saldi Order ID: $saldi_ordre_id\nResponse: $response\n", FILE_APPEND);
 // Add each order line to Saldi
-foreach ($orderLines["items"] as $orderLine) {
+
 	$urltxt = "action=insert_shop_orderline";
 	$urltxt .= "&db=" . urlencode($db);
 	$urltxt .= "&key=" . urlencode($api_key);
@@ -89,7 +90,7 @@ foreach ($orderLines["items"] as $orderLine) {
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	$res = curl_exec($ch);
 	curl_close($ch);
-}
+
 
 // Generate invoice from order
 /* $urltxt = "action=fakturer_ordre";
