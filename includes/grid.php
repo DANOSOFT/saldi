@@ -250,22 +250,51 @@ function create_datagrid($id, $grid_data) {
     global $defaultValues;
     global $bruger_id;
 
+    // Performance logging for grid creation
+    $grid_start_time = microtime(true);
+    $log_file = "../../temp/$db/vareliste_performance.log";
+    
+    function log_grid_performance($message, $start_time = null) {
+        global $log_file;
+        $current_time = microtime(true);
+        if ($start_time) {
+            $elapsed = round(($current_time - $start_time) * 1000, 2);
+            $message .= " (took {$elapsed}ms)";
+        }
+        $timestamp = date('Y-m-d H:i:s');
+        file_put_contents($log_file, "[$timestamp] GRID: $message\n", FILE_APPEND | LOCK_EX);
+        return $current_time;
+    }
+
+    log_grid_performance("Grid creation started");
+
     // Normalize columns with default values
+    $normalize_start = microtime(true);
     $columns = normalize_columns($grid_data['columns'], $defaultValues);
+    log_grid_performance("Column normalization", $normalize_start);
+    log_grid_performance("Column normalization", $normalize_start);
+    
+    $filter_start = microtime(true);
     $columns_filtered = array_filter($columns, function ($item) {
         return !$item["hidden"];
     });
 
     // Retrieve filters
     $filters = $grid_data["filters"];
+    log_grid_performance("Column filtering and filters setup", $filter_start);
 
     // Fetch stored grid setup from the database
+    $fetch_setup_start = microtime(true);
     list($columns_setup, $search_setup, $filter_setup) = fetch_grid_setup(
         $id,
         $columns_filtered,
         if_isset($_GET["search"][$id], array()),
         $filters
     );
+    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
+    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
+    
+    $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
     $columns_updated = fill_missing_values($columns_setup, $columns);
 
@@ -273,10 +302,13 @@ function create_datagrid($id, $grid_data) {
     $search_setup = json_decode($search_setup, true);
     $searchTerms = if_isset($_GET["search"][$id], $search_setup);
     $search_json  = db_escape_string(json_encode($searchTerms));
+    log_grid_performance("JSON processing and search setup", $setup_processing_start);
 
     // Retrieve stored grid settings from the database
+    $grid_settings_start = microtime(true);
     $q = "SELECT search_setup, rowcount, \"offset\", \"sort\" FROM datatables WHERE user_id = $bruger_id AND tabel_id='$id'";
     $r = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
+    log_grid_performance("Grid settings query", $grid_settings_start);
 
     // Determine sorting, row count, and offset
     $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
@@ -320,18 +352,37 @@ function create_datagrid($id, $grid_data) {
     // Handle different menu options
     if ($menu == "main") {
         // Build and execute the main query
+        $query_build_start = microtime(true);
         $query = build_query($id, $grid_data, $columns_updated, $filters_updated, $searchTerms, $sort, $selectedrowcount, $offset);
+        log_grid_performance("Query building", $query_build_start);
+        
+        // Log the actual query being executed
+        $query_length = strlen($query);
+        log_grid_performance("Built query with length: {$query_length} characters");
+        
         print "<!-- \n DEBUG QUERY \n\n$query -->";
+        
+        $main_query_start = microtime(true);
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
+        log_grid_performance("Main SQL query execution", $main_query_start);
+        
+        $fetch_rows_start = microtime(true);
         $rows = fetch_rows_from_query($sqlquery);
+        log_grid_performance("Fetching rows from query", $fetch_rows_start);
 
         // Fetch total row count
+        $count_query_start = microtime(true);
         $countQuery = build_count_query($grid_data, $columns_updated, $filters_updated, $searchTerms, $sort);
+        $count_query_length = strlen($countQuery);
+        log_grid_performance("Built count query with length: {$count_query_length} characters");
+        
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
         $totalItems = db_fetch_array($countResult)["total_items"];
         $totalRows = count($rows);
+        log_grid_performance("Count query execution", $count_query_start);
 
         // Render the data grid
+        $render_start = microtime(true);
         render_datagrid(
             $id,
             $columns_updated, 
@@ -348,12 +399,15 @@ function create_datagrid($id, $grid_data) {
             $offset,
             $menu
         );
+        log_grid_performance("Grid rendering", $render_start);
 
         // Render additional styles and scripts
+        $styles_start = microtime(true);
         render_search_style();
         render_dropdown_style();
         render_pagination_script($id);
         render_sort_script($id);
+        log_grid_performance("Rendering styles and scripts", $styles_start);
 
     } else if ($menu == "kolonner") {
         if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -399,7 +453,13 @@ function create_datagrid($id, $grid_data) {
     }
 
     // Render dropdown script for interactions
+    $dropdown_start = microtime(true);
     render_dropdown_script($id, $query);
+    log_grid_performance("Dropdown script rendering", $dropdown_start);
+
+    // Final grid performance log
+    $total_grid_time = microtime(true) - $grid_start_time;
+    log_grid_performance("TOTAL grid creation completed in " . round($total_grid_time * 1000, 2) . "ms");
 
     return $rows;
 }
