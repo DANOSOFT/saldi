@@ -292,7 +292,7 @@ $filters[] = array(
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
-            "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0' or v.lukket)",
+            "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0' OR v.lukket = '')",
         )
     )
 );
