@@ -3,7 +3,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=1024">
-    <title>Visual Form Editor - Database Integration</title>
+    <title>Visuel Formular Editor - Database Integration</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
     <style>
         body { 
@@ -97,8 +97,8 @@
         
         .form-canvas {
             position: relative;
-            width: 595px;  /* A4 width in points */
-            height: 842px; /* A4 height in points */
+            width: 794px;  /* A4 width in pixels (210mm * 3.78px/mm) */
+            height: 1123px; /* A4 height in pixels (297mm * 3.78px/mm) */
             background: white;
             transform-origin: top left;
             margin: 20px;
@@ -263,28 +263,21 @@
             border-radius: 4px;
             margin: 10px 0;
         }
-        
-        .zoom-control {
-            position: fixed;
-            top: 90px;
-            right: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 1001;
-        }
+
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script>
-// Update the constants to match PDF generation - based on typical A4 measurements
-const A4_WIDTH = 595;  // A4 width in points
-const A4_HEIGHT = 842; // A4 height in points
-const MM_TO_POINTS = 2.834645669; // More precise conversion: 72/25.4
+// Constants matching formfunk.php exactly
+const A4_WIDTH_MM = 210;   // A4 width in mm
+const A4_HEIGHT_MM = 297;  // A4 height in mm 
+const FORMFUNK_MULTIPLIER = 2.86; // Exact value from formfunk.php
+const FONT_SIZE_MULTIPLIER = 1.2;  // Font size conversion from formfunk.php
+const MM_TO_PX = 3.78; // 1mm = 3.78px at 96dpi (standard for web browsers)
+
+// Canvas dimensions in pixels (A4 size converted to pixels)
+const A4_WIDTH_PX = A4_WIDTH_MM * MM_TO_PX;   // 210 * 3.78 = 793.8
+const A4_HEIGHT_PX = A4_HEIGHT_MM * MM_TO_PX; // 297 * 3.78 = 1122.66
 
 // Get URL parameters
 function getUrlParameter(name) {
@@ -292,51 +285,62 @@ function getUrlParameter(name) {
     return urlParams.get(name);
 }
 
-// Fixed coordinate transformation based on typical PostScript/PDF coordinate system
-function transformPdfToScreen(x, y) {
-    const screenX = x * MM_TO_POINTS; // Convert mm to points/pixels
-    const screenY = A4_HEIGHT - (y * MM_TO_POINTS); // Flip Y and convert
+// Coordinate transformations matching formfunk.php exactly
+function transformFormfunkToScreen(x, y) {
+    // For text elements stored in database (coordinates are in mm):
+    // formfunk: $a = $row['xa']; $b = 297 - $row['ya'];
+    
+    const htmlX = x; // X coordinate is already in mm
+    const htmlY = A4_HEIGHT_MM - y; // Flip Y-axis: 297 - y
+    
+    // Convert mm to pixels for screen display
+    const screenX = htmlX * MM_TO_PX;
+    const screenY = htmlY * MM_TO_PX;
     
     return {
         x: Math.round(screenX),
         y: Math.round(screenY)
     };
+}
+
+function transformScreenToFormfunk(x, y) {
+    // Convert pixels back to mm
+    const htmlX = x / MM_TO_PX;
+    const htmlY = y / MM_TO_PX;
+    
+    // Reverse the Y-axis flip to get formfunk coordinates
+    const formfunkX = htmlX;
+    const formfunkY = A4_HEIGHT_MM - htmlY; // 297 - htmlY
+    
+    return {
+        x: Math.round(formfunkX * 100) / 100, // Round to 2 decimal places
+        y: Math.round(formfunkY * 100) / 100
+    };
+}
+
+// For legacy compatibility
+function transformPdfToScreen(x, y) {
+    return transformFormfunkToScreen(x, y);
 }
 
 function transformScreenToPdf(x, y) {
-    const pdfX = x / MM_TO_POINTS; // Convert points/pixels to mm
-    const pdfY = (A4_HEIGHT - y) / MM_TO_POINTS; // Flip Y and convert
-    
-    return {
-        x: Math.round(pdfX * 10) / 10, // Round to 1 decimal place
-        y: Math.round(pdfY * 10) / 10
-    };
+    return transformScreenToFormfunk(x, y);
 }
 
-// Alternative transformation if coordinates are stored as points
 function transformPdfToScreenPoints(x, y) {
-    const screenX = x;
-    const screenY = A4_HEIGHT - y; // Just flip Y coordinate
-    
-    return {
-        x: Math.round(screenX),
-        y: Math.round(screenY)
-    };
+    return transformFormfunkToScreen(x, y);
 }
 
 function transformScreenToPdfPoints(x, y) {
-    return {
-        x: Math.round(x),
-        y: Math.round(A4_HEIGHT - y)
-    };
+    return transformScreenToFormfunk(x, y);
 }
 
-// Add accurate grid based on actual PDF measurements
+// Add accurate grid based on formfunk coordinate system
 function addPositioningGrid() {
     const canvas = $('.form-canvas');
     
-    // Add grid every 10mm (28.6 points)
-    const gridSize = 10 * MM_TO_POINTS; // 28.6px for 10mm
+    // Add grid every 10mm
+    const gridSize = 10 * MM_TO_PX; // 37.8px for 10mm
     
     canvas.css({
         'background-image': `
@@ -346,16 +350,17 @@ function addPositioningGrid() {
         'background-size': `${gridSize}px ${gridSize}px`
     });
     
-    // Add rulers every 50 points (approximately 17.5mm)
-    for (let x = 0; x <= A4_WIDTH; x += 50) {
-        const mark = $(`<div class="ruler-mark" style="left: ${x}px; top: 0px; z-index: 100; background: rgba(255,255,255,0.8); padding: 1px 2px; font-size: 9px;">${x}</div>`);
+    // Add rulers every 50mm
+    for (let xMm = 0; xMm <= A4_WIDTH_MM; xMm += 50) {
+        const xPx = xMm * MM_TO_PX;
+        const mark = $(`<div class="ruler-mark" style="left: ${xPx}px; top: 0px; z-index: 100; background: rgba(255,255,255,0.8); padding: 1px 2px; font-size: 8px;">${xMm}</div>`);
         canvas.append(mark);
     }
     
     // Y-axis ruler marks
-    for (let y = 0; y <= A4_HEIGHT; y += 50) {
-        const screenY = transformPdfToScreen(0, y).y;
-        const mark = $(`<div class="ruler-mark" style="left: 0px; top: ${screenY}px; z-index: 100; background: rgba(255,255,255,0.8); padding: 1px 2px; font-size: 9px;">${y}</div>`);
+    for (let yMm = 0; yMm <= A4_HEIGHT_MM; yMm += 50) {
+        const yPx = yMm * MM_TO_PX;
+        const mark = $(`<div class="ruler-mark" style="left: 0px; top: ${yPx}px; z-index: 100; background: rgba(255,255,255,0.8); padding: 1px 2px; font-size: 8px;">${yMm}</div>`);
         canvas.append(mark);
     }
     
@@ -365,11 +370,9 @@ function addPositioningGrid() {
         const x = Math.round(e.clientX - rect.left);
         const y = Math.round(e.clientY - rect.top);
         
-        const pdfCoords = transformScreenToPdf(x, y);
-        const mmX = (pdfCoords.x / MM_TO_POINTS).toFixed(1);
-        const mmY = (pdfCoords.y / MM_TO_POINTS).toFixed(1);
+        const formfunkCoords = transformScreenToFormfunk(x, y);
         
-        $('#coords-display').text(`PDF: ${pdfCoords.x}pt, ${pdfCoords.y}pt (${mmX}mm, ${mmY}mm)`);
+        $('#coords-display').text(`Formfunk: ${formfunkCoords.x}mm, ${formfunkCoords.y}mm (Screen: ${x}px, ${y}px)`);
     });
     
     // Add coordinate display if it doesn't exist
@@ -381,7 +384,7 @@ function addPositioningGrid() {
 // Load form data from database and add debugging
 function loadFormData(formNr, language) {
     console.log('Loading form data for:', formNr, language);
-    $('#canvas').html('<div class="loading">Loading form data...</div>');
+    $('#canvas').html('<div class="loading">Indlæser formulardata...</div>');
     
     $.ajax({
         url: 'load_form_data.php',
@@ -411,49 +414,53 @@ function loadFormData(formNr, language) {
                 initializeDraggable();
                 
                 // Update element counter
-                $('.element-counter').text(response.data.length + ' elements');
+                $('.element-counter').text(response.data.length + ' elementer');
                 
                 console.log('Form loaded successfully:', response.form_name, response.data.length, 'elements');
             } else {
-                $('#canvas').html('<div class="error">Error loading form: ' + response.error + '</div>');
+                $('#canvas').html('<div class="error">Fejl ved indlæsning af formular: ' + response.error + '</div>');
             }
         },
         error: function(xhr, status, error) {
             console.log('AJAX Error:', xhr.responseText); // Debug log
-            $('#canvas').html('<div class="error">Error loading form data: ' + error + '</div>');
+            $('#canvas').html('<div class="error">Fejl ved indlæsning af formulardata: ' + error + '</div>');
             console.error('Load form error:', error);
         }
     });
 }
 
-// Improved element creation with debugging
+// Improved element creation with debugging - matching formfunk.php exactly
 function createElementFromData(data) {
     console.log('Creating element from data:', data); // Debug log
     
     let element;
     
-    // Parse coordinates
+    // Parse coordinates (these should be in mm as stored in database)
     const xa = parseFloat(data.xa) || 0;
     const ya = parseFloat(data.ya) || 0;
     
-    console.log('Original coordinates:', xa, ya); // Debug log
+    console.log('Original coordinates (mm):', xa, ya); // Debug log
     
-    // Try both coordinate transformation methods and log results
-    const posMethod1 = transformPdfToScreen(xa, ya);
-    const posMethod2 = transformPdfToScreenPoints(xa, ya);
+    // Transform to screen coordinates using formfunk logic
+    const pos = transformFormfunkToScreen(xa, ya);
     
-    console.log('Method 1 (mm->points):', posMethod1);
-    console.log('Method 2 (points):', posMethod2);
-    
-    // Use method 1 for now (assuming coordinates are in mm)
-    const pos = window.usePointsDirectly ? posMethod2 : posMethod1;
+    console.log('Screen coordinates:', pos.x, pos.y); // Debug log
     
     if (data.art == 2) { // Text element
         const fontClass = (data.font && data.font.toLowerCase()) || 'helvetica';
         const justClass = 'just-' + ((data.justering && data.justering.toLowerCase()) || 'v');
         const boldClass = (data.fed === 'on') ? 'fed' : '';
         const italicClass = (data.kursiv === 'on') ? 'kursiv' : '';
-        const fontSize = data.str || 12;
+        const fontSize = data.str || 8;
+        
+        // Apply formfunk font size conversion (str * 1.2)
+        const displayFontSize = fontSize * FONT_SIZE_MULTIPLIER;
+        
+        // Truncate long text to prevent stacking
+        let displayText = data.beskrivelse || 'Tekst';
+        if (displayText.length > 5) {
+            displayText = displayText.substring(0, 5) + '...';
+        }
         
         element = $(`<div class="form-element form-text ${fontClass} ${justClass} ${boldClass} ${italicClass}" 
             data-id="${data.id}" 
@@ -461,19 +468,20 @@ function createElementFromData(data) {
             data-xa="${xa}"
             data-ya="${ya}"
             data-str="${fontSize}"
-            style="left: ${pos.x}px; top: ${pos.y}px; font-size: ${fontSize}pt; line-height: 1; border: 1px dashed red;">
-            ${data.beskrivelse || 'Text'}
+            data-full-text="${data.beskrivelse || 'Tekst'}"
+            style="left: ${pos.x}px; top: ${pos.y}px; font-size: ${displayFontSize}px; line-height: 1; border: 1px dashed red;">
+            ${displayText}
         </div>`);
         
-        console.log('Created text element at screen position:', pos.x, pos.y);
+        console.log('Created text element at screen position:', pos.x, pos.y, 'font size:', displayFontSize);
 
     } else if (data.art == 1) { // Line element
         const xb = parseFloat(data.xb) || xa;
         const yb = parseFloat(data.yb) || ya;
         const lineWidth = data.str || 1;
         
-        const startPos = window.usePointsDirectly ? transformPdfToScreenPoints(xa, ya) : transformPdfToScreen(xa, ya);
-        const endPos = window.usePointsDirectly ? transformPdfToScreenPoints(xb, yb) : transformPdfToScreen(xb, yb);
+        const startPos = transformFormfunkToScreen(xa, ya);
+        const endPos = transformFormfunkToScreen(xb, yb);
         
         console.log('Line from', startPos, 'to', endPos);
         
@@ -558,68 +566,57 @@ function initializeDraggable() {
                 const oldYb = parseFloat(element.data('yb'));
                 
                 // Calculate how far the line was moved
-                const oldScreenPos = window.usePointsDirectly ? 
-                    transformPdfToScreenPoints(oldXa, oldYa) : 
-                    transformPdfToScreen(oldXa, oldYa);
+                const oldScreenPos = transformFormfunkToScreen(oldXa, oldYa);
                 
                 const deltaX = position.left - oldScreenPos.x;
                 const deltaY = position.top - oldScreenPos.y;
                 
                 console.log('Line moved by:', deltaX, deltaY);
                 
-                // Calculate new PDF coordinates for both points
-                const newStartPdf = window.usePointsDirectly ? 
-                    transformScreenToPdfPoints(position.left, position.top) : 
-                    transformScreenToPdf(position.left, position.top);
+                // Calculate new formfunk coordinates for both points
+                const newStartFormfunk = transformScreenToFormfunk(position.left, position.top);
                 
-                const oldEndScreenPos = window.usePointsDirectly ?
-                    transformPdfToScreenPoints(oldXb, oldYb) :
-                    transformPdfToScreen(oldXb, oldYb);
-                    
-                const newEndPdf = window.usePointsDirectly ?
-                    transformScreenToPdfPoints(oldEndScreenPos.x + deltaX, oldEndScreenPos.y + deltaY) :
-                    transformScreenToPdf(oldEndScreenPos.x + deltaX, oldEndScreenPos.y + deltaY);
+                const oldEndScreenPos = transformFormfunkToScreen(oldXb, oldYb);
+                const newEndFormfunk = transformScreenToFormfunk(oldEndScreenPos.x + deltaX, oldEndScreenPos.y + deltaY);
                 
-                console.log('New line coordinates - Start:', newStartPdf, 'End:', newEndPdf);
+                console.log('New line coordinates - Start:', newStartFormfunk, 'End:', newEndFormfunk);
                 
                 // Update element data attributes
-                element.data('xa', newStartPdf.x);
-                element.data('ya', newStartPdf.y);
-                element.data('xb', newEndPdf.x);
-                element.data('yb', newEndPdf.y);
+                element.data('xa', newStartFormfunk.x);
+                element.data('ya', newStartFormfunk.y);
+                element.data('xb', newEndFormfunk.x);
+                element.data('yb', newEndFormfunk.y);
                 
                 // Also update HTML attributes for debugging
-                element.attr('data-xa', newStartPdf.x);
-                element.attr('data-ya', newStartPdf.y);
-                element.attr('data-xb', newEndPdf.x);
-                element.attr('data-yb', newEndPdf.y);
+                element.attr('data-xa', newStartFormfunk.x);
+                element.attr('data-ya', newStartFormfunk.y);
+                element.attr('data-xb', newEndFormfunk.x);
+                element.attr('data-yb', newEndFormfunk.y);
                 
                 // Update property panel if this element is selected
                 if (element.hasClass('selected')) {
-                    $('#element-x').val(newStartPdf.x);
-                    $('#element-y').val(newStartPdf.y);
+                    $('#element-x').val(newStartFormfunk.x);
+                    $('#element-y').val(newStartFormfunk.y);
                 }
                 
             } else { // Text element
-                // Convert screen position back to PDF coordinates
-                const pdfPos = window.usePointsDirectly ? 
-                    transformScreenToPdfPoints(position.left, position.top) : 
-                    transformScreenToPdf(position.left, position.top);
+                // Convert screen position back to formfunk coordinates
+                const formfunkPos = transformScreenToFormfunk(position.left, position.top);
                 
-                console.log('New text coordinates:', pdfPos);
+                console.log('New text coordinates:', formfunkPos);
                 
                 // Update element data attributes
-                element.data('xa', pdfPos.x);
-                element.data('ya', pdfPos.y);
+                element.data('xa', formfunkPos.x);
+                element.data('ya', formfunkPos.y);
                 
                 // Also update HTML attributes for debugging
-                element.attr('data-xa', pdfPos.x);
-                element.attr('data-ya', pdfPos.y);
+                element.attr('data-xa', formfunkPos.x);
+                element.attr('data-ya', formfunkPos.y);
                 
                 // Update property panel if this element is selected
                 if (element.hasClass('selected')) {
-                    $('#element-x').val(pdfPos.x);
-                    $('#element-y').val(pdfPos.y);
+                    $('#element-x').val(formfunkPos.x);
+                    $('#element-y').val(formfunkPos.y);
                 }
             }
             
@@ -666,7 +663,7 @@ function selectElement(element) {
     
     if (art == 2) { // Text element
         $('#text-properties').show();
-        $('#element-text').val(element.text().trim());
+        $('#element-text').val(element.data('full-text') || element.text().trim());
         $('#element-size').val(element.data('str'));
         $('#element-justification').val(element.hasClass('just-c') ? 'C' : 
                                  (element.hasClass('just-h') ? 'H' : 'V'));
@@ -695,7 +692,7 @@ function updateElementProperties() {
     const y = parseFloat($('#element-y').val());
     
     if (!isNaN(x) && !isNaN(y)) {
-        const screenPos = window.usePointsDirectly ? transformPdfToScreenPoints(x, y) : transformPdfToScreen(x, y);
+        const screenPos = transformFormfunkToScreen(x, y);
         selectedElement.css({
             left: screenPos.x + 'px',
             top: screenPos.y + 'px'
@@ -709,11 +706,21 @@ function updateElementProperties() {
     
     if (art == 2) { // Text element
         const text = $('#element-text').val();
-        selectedElement.text(text);
+        
+        // Store full text and display truncated version
+        selectedElement.data('full-text', text);
+        selectedElement.attr('data-full-text', text);
+        
+        let displayText = text;
+        if (displayText.length > 15) {
+            displayText = displayText.substring(0, 12) + '...';
+        }
+        selectedElement.text(displayText);
         
         const fontSize = parseInt($('#element-size').val());
         if (!isNaN(fontSize)) {
-            selectedElement.css('font-size', fontSize + 'pt');
+            const displayFontSize = fontSize * FONT_SIZE_MULTIPLIER; // Convert to formfunk points
+            selectedElement.css('font-size', displayFontSize + 'px');
             selectedElement.data('str', fontSize);
             selectedElement.attr('data-str', fontSize);
         }
@@ -743,8 +750,8 @@ function updateElementProperties() {
             const xb = selectedElement.data('xb');
             const yb = selectedElement.data('yb');
             
-            const startPos = window.usePointsDirectly ? transformPdfToScreenPoints(xa, ya) : transformPdfToScreen(xa, ya);
-            const endPos = window.usePointsDirectly ? transformPdfToScreenPoints(xb, yb) : transformPdfToScreen(xb, yb);
+            const startPos = transformFormfunkToScreen(xa, ya);
+            const endPos = transformFormfunkToScreen(xb, yb);
             const deltaX = endPos.x - startPos.x;
             const deltaY = endPos.y - startPos.y;
             
@@ -776,7 +783,7 @@ function saveFormChanges(formNr, language) {
         console.log('Processing element for save:', elementData);
         
         if (element.data('art') == 2) { // Text element
-            elementData.beskrivelse = element.text().trim();
+            elementData.beskrivelse = element.data('full-text') || element.text().trim();
             elementData.justering = element.hasClass('just-c') ? 'C' : 
                                 (element.hasClass('just-h') ? 'H' : 'V');
             elementData.font = element.hasClass('times') ? 'Times' : 'Helvetica';
@@ -799,7 +806,7 @@ function saveFormChanges(formNr, language) {
     
     const saveButton = $('#save-form');
     const originalText = saveButton.text();
-    saveButton.text('Saving...').prop('disabled', true);
+    saveButton.text('Gemmer...').prop('disabled', true);
     
     $.ajax({
         url: 'save_form_data.php',
@@ -816,17 +823,17 @@ function saveFormChanges(formNr, language) {
             saveButton.text(originalText).prop('disabled', false);
             
             if (response.success) {
-                alert('Form saved successfully! Updated ' + response.updated + ' elements.');
+                alert('Formular gemt med succes! Opdaterede ' + response.updated + ' elementer.');
                 $('.form-element').css('border', '');
             } else {
-                alert('Error saving form: ' + response.error);
+                alert('Fejl ved gemning af formular: ' + response.error);
             }
         },
         error: function(xhr, status, error) {
             console.log('Save error response:', xhr.responseText);
             
             saveButton.text(originalText).prop('disabled', false);
-            alert('Error saving form: ' + error);
+            alert('Fejl ved gemning af formular: ' + error);
         }
     });
 }
@@ -873,7 +880,7 @@ $(document).ready(function() {
         console.log('Load button clicked:', formNr, language);
         
         if (!formNr) {
-            alert('Please select a form first');
+            alert('Vælg venligst en formular først');
             return;
         }
         
@@ -886,32 +893,12 @@ $(document).ready(function() {
         const language = $('#language-selector').val();
         
         if (!formNr) {
-            alert('Please select a form first');
+            alert('Vælg venligst en formular først');
             return;
         }
         
         saveFormChanges(formNr, language);
     });
-    
-    // Zoom functionality
-    let zoomLevel = 100;
-    
-    $('#zoom-in').on('click', function() {
-        zoomLevel += 10;
-        updateZoom();
-    });
-    
-    $('#zoom-out').on('click', function() {
-        if (zoomLevel > 50) {
-            zoomLevel -= 10;
-            updateZoom();
-        }
-    });
-    
-    function updateZoom() {
-        $('#zoom-level').text(zoomLevel + '%');
-        $('.form-canvas').css('transform', `scale(${zoomLevel/100})`);
-    }
     
     console.log('Editor initialization complete');
 });
@@ -921,12 +908,12 @@ $(document).ready(function() {
 
 <!-- Toolbar -->
 <div class="toolbar">
-    <h1>Visual Form Editor</h1>
+    <h1>Visuel Formular Editor</h1>
     
     <div class="form-selector">
-        <label>Form:</label>
+        <label>Formular:</label>
         <select id="form-selector">
-            <option value="">Select Form</option>
+            <option value="">Vælg Formular</option>
             <option value="1">Tilbud</option>
             <option value="2">Ordrebekræftelse</option>
             <option value="3">Følgeseddel</option>
@@ -938,7 +925,7 @@ $(document).ready(function() {
             <option value="9">Plukliste</option>
         </select>
         
-        <label>Language:</label>
+        <label>Sprog:</label>
         <select id="language-selector">
             <option value="Dansk">Dansk</option>
             <option value="English">English</option>
@@ -946,37 +933,30 @@ $(document).ready(function() {
         </select>
     </div>
     
-    <div class="element-counter">0 elements</div>
+    <div class="element-counter">0 elementer</div>
     
     <div style="margin-left: auto; display: flex; gap: 10px;">
-        <button id="load-form" class="button blue">Load Form</button>
-        <button id="save-form" class="button blue">Save</button>
-        <a href="formularkort.php" class="button gray">Back</a>
+        <button id="load-form" class="button blue">Indlæs Formular</button>
+        <button id="save-form" class="button blue">Gem</button>
+        <a href="formularkort.php" class="button gray">Tilbage</a>
     </div>
-</div>
-
-<!-- Zoom control -->
-<div class="zoom-control">
-    <button id="zoom-out" class="button gray">-</button>
-    <span id="zoom-level">100%</span>
-    <button id="zoom-in" class="button gray">+</button>
 </div>
 
 <div class="main-container">
     <!-- Main canvas -->
     <div class="canvas-container">
         <div class="form-canvas" id="canvas">
-            <div class="loading">Select a form and click "Load Form" to begin editing</div>
+            <div class="loading">Vælg en formular og klik "Indlæs Formular"</div>
         </div>
     </div>
 
     <!-- Properties panel -->
     <div class="properties">
-        <h3>Element Properties</h3>
+        <h3>Element Egenskaber</h3>
         
         <div id="element-properties">
             <div class="no-selection">
-                Select an element to edit its properties
+                Vælg et element for at redigere dets egenskaber
             </div>
             
             <!-- Common properties -->
@@ -991,26 +971,26 @@ $(document).ready(function() {
             <!-- Text element properties -->
             <div id="text-properties" style="display: none;">
                 <div class="property-group">
-                    <label>Text</label>
-                    <input type="text" id="element-text" class="inputbox" placeholder="Element text">
+                    <label>Tekst</label>
+                    <input type="text" id="element-text" class="inputbox" placeholder="Element tekst">
                 </div>
                 
                 <div class="property-group">
-                    <label>Font Size</label>
+                    <label>Skriftstørrelse</label>
                     <input type="number" id="element-size" class="inputbox" placeholder="12">
                 </div>
                 
                 <div class="property-group">
-                    <label>Justification</label>
+                    <label>Justering</label>
                     <select id="element-justification" class="inputbox">
-                        <option value="V">Left</option>
-                        <option value="C">Center</option>
-                        <option value="H">Right</option>
+                        <option value="V">Venstre</option>
+                        <option value="C">Centreret</option>
+                        <option value="H">Højre</option>
                     </select>
                 </div>
                 
                 <div class="property-group">
-                    <label>Font</label>
+                    <label>Skrifttype</label>
                     <select id="element-font" class="inputbox">
                         <option value="Helvetica">Helvetica</option>
                         <option value="Times">Times</option>
@@ -1019,10 +999,10 @@ $(document).ready(function() {
                 
                 <div class="property-group">
                     <label>
-                        <input type="checkbox" id="element-fed"> Bold
+                        <input type="checkbox" id="element-fed"> Fed
                     </label>
                     <label>
-                        <input type="checkbox" id="element-kursiv"> Italic
+                        <input type="checkbox" id="element-kursiv"> Kursiv
                     </label>
                 </div>
             </div>
@@ -1030,7 +1010,7 @@ $(document).ready(function() {
             <!-- Line element properties -->
             <div id="line-properties" style="display: none;">
                 <div class="property-group">
-                    <label>Line Width</label>
+                    <label>Linjebredde</label>
                     <input type="number" id="line-width" class="inputbox" placeholder="1">
                 </div>
             </div>
