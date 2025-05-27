@@ -16,3 +16,9 @@ Response:
 Saldi Order ID: 31
 Response:  
 "31"
+Saldi Order ID: 0
+Response:  
+"Order id: 3485745 exists in saldi (internal ID: 31)"
+Saldi Order ID: 0
+Response:  
+"Order id: 3485745 exists in saldi (internal ID: 31)"
