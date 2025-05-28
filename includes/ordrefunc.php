@@ -1672,7 +1672,18 @@ function bogfor($id, $webservice)
 		batch_kob($id, $art);
 		batch_salg($id);
 		$tidspkt = date("H:i");
-		$qtxt = "update ordrer set status='3', fakturanr='$fakturanr', tidspkt='$tidspkt', valutakurs='$valutakurs', betalings_id='$_SESSION[payment_id]' where id='$id'";
+		$betaling_id = "";
+		if(isset($_SESSION["payment_id"]) && $_SESSION["payment_id"] != '') {
+			$betaling_id = $_SESSION["payment_id"];
+		} else {
+			db_select("SELECT betalings_id FROM ordrer WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($r = db_fetch_array($query)) {
+				$betaling_id = $r['betalings_id'];
+			} else {
+				$betaling_id = '';
+			}
+		}
+		$qtxt = "update ordrer set status='3', fakturanr='$fakturanr', tidspkt='$tidspkt', valutakurs='$valutakurs', betalings_id='$betaling_id' where id='$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		unset($_SESSION['payment_id']);
 		if ($afd)
