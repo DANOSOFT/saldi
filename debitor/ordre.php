@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-10 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -206,7 +206,7 @@ $default_procenttillag=$digital=NULL;
 $fakturadate=$fakturadato=$felt_1=$felt_2=$felt_3=$felt_4=$felt_5=$firmanavn=$fglv=NULL;
 $genfakt=$gl_id=$gruppe=NULL;
 $konto_id=$kontonr=$kred_ord_id=$krediteret=$kundeordnr=0;
-$lager[0]=$lev_kontakt=$levdate=$lev_navn=$localPrint=NULL;
+$lager[0]=$lev_kontakt=$levdate=$lev_navn=$lev_email=$localPrint=NULL;
 $masterprojekt=$mail_fakt=$modtaget=$moms=$momsfri[0]=NULL;
 $nextfakt=$notes=NULL;
 $oioxml=$oioubl=$ordrenr=NULL;
@@ -217,7 +217,7 @@ $status=$swap_account=NULL;
 $tdlv=NULL;
 $valgt=$varenr[0]=$valuta=$vis_lev_addr=$vis_projekt=NULL; 
 $width=NULL;
-
+$fast_db=array();
 $sletslut=$sletstart=0;
 
 $modulnr=5;
@@ -250,7 +250,6 @@ $id        = if_isset($_GET, NULL, 'id');
 $funktion  = if_isset($_GET, NULL, 'funktion');
 $sag_id    = if_isset($_GET, NULL, 'sag_id'); // 20241126
 $konto_id  = if_isset($_GET, NULL, 'konto_id');
-
 $showLocalPrint='';
 $qtxt="select box1 from grupper where art='PV'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && $r['box1']=='on') $showLocalPrint='on';$title=findtekst('1092|Kundeordre', $sprog_id);
@@ -443,9 +442,9 @@ $bogfor=1;
 $gruppe = 0;
 if ($id) {
 	$r=db_fetch_array(db_select("SELECT adresser.gruppe,ordrer.status,ordrer.sprog FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id",__FILE__ . " linje " . __LINE__));
-	$status=$r['status']*1;
-	$gruppe=(int)$r['gruppe'];
-	$formularsprog=$r['sprog']; #20140428
+	$status=if_isset($r,0,'status');
+	$gruppe=if_isset($r,0,'gruppe');
+	$formularsprog=if_isset($r,1,'sprog');
 } 
 $qtxt = "select id from grupper where art='DG' and kodenr='$gruppe' and box8='on'";
 if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -554,7 +553,8 @@ if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kont
 		$lev_bynavn = db_escape_string($lev_bynavn);
 		$lev_postnr=db_escape_string($lev_postnr);
 		$lev_land=db_escape_string($r['lev_land']);
-		$lev_kontakt=db_escape_string($r['lev_email']);
+		$lev_kontakt=db_escape_string($r['lev_kontakt']);
+		$lev_email=db_escape_string($r['lev_email']);
 
 		(findtekst('244|Ordrefelt 1', $sprog_id) == findtekst('255|Ekstrafelt 1', $sprog_id))?$felt_1=db_escape_string($r['felt_1']):$felt_1='';
 		(findtekst('245|Ordrefelt 2', $sprog_id) == findtekst('256|Ekstrafelt 2', $sprog_id))?$felt_2=db_escape_string($r['felt_2']):$felt_2='';
@@ -567,7 +567,8 @@ if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kont
 	if (!isset ($ansat_navn)) $ansat_navn = NULL;
 	if (!$afd && $id) { #20150302+04
 		$r = db_fetch_array(db_select("select afd,ref from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
-		$afd=$r['afd'];
+		$afd=if_isset($r,NULL,'afd');
+		if(!$afd) error_log("afd is not set for ordre ");
 	}
 
 	if ($kontoansvarlig){
@@ -577,10 +578,15 @@ if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kont
 		if (!$afd) $afd=$row['afd'];
 	} else {
 		$qtxt = "select ansat_id from brugere where brugernavn = '$brugernavn'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && $r['ansat_id']) {
-			$r = db_fetch_array(db_select("select navn,afd from ansatte where id = '$r[ansat_id]'",__FILE__ . " linje " . __LINE__));
-			$ansat_navn=$row['navn'];
-			if (!$afd) $afd=$row['afd'];
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && if_isset($r,NULL,'ansat_id')) {
+			
+				$r = db_fetch_array(db_select("select navn,afd from ansatte where id = '$r[ansat_id]'",__FILE__ . " linje " . __LINE__));
+				$ansat_navn=$row['navn'];
+				if (!$afd) $afd=$row['afd'];
+				
+		}else{
+			$ansat_navn = $brugernavn; #20250528
+			error_log("ansat_id is not set in the database for brugernavn: $brugernavn");
 		}
 	}
 
@@ -703,7 +709,7 @@ if ($id && $status<3 && isset($_GET['vare_id'])) {
 	$lager[0]=if_isset($_GET,NULL,'lager');
 	$query = db_select("select grupper.box6 as box6,ordrer.valuta as valuta,ordrer.ordredate as ordredate,ordrer.status as status from ordrer,adresser,grupper where ordrer.id='$id' and adresser.id=ordrer.konto_id and grupper.art='DG' and ".nr_cast("grupper.kodenr")."=adresser.gruppe",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
-	if ($row['status']>2) {
+	if (if_isset($row,NULL,'status')>2) {
 		print "Hmmm - har du brugt browserens opdater eller tilbageknap???";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php?id=$id\">\n";
 		exit;
@@ -717,7 +723,6 @@ if ($id && $status<3 && isset($_GET['vare_id'])) {
 		}
 	}
 }
-
 if (isset($_POST['orderNoteText']) && $id) {
 	$orderNoteText=$_POST['orderNoteText'];
 	$notes=$orderNoteText;
@@ -726,7 +731,7 @@ if (isset($_POST['orderNoteText']) && $id) {
 }elseif($id){ 
 	$qtxt="select notes from ordrer where id='$id'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$orderNoteText=$r['notes'];
+	$orderNoteText=if_isset($r,NULL,'notes');
 }
 
 if (isset($_POST['copy']) && $_POST['copy']) $b_submit = 'Kopier';
@@ -778,9 +783,9 @@ if (($b_submit || isset($_POST['udskriv_til'])) && $id = $_POST['id']) {
 		setcookie('localPrint', 'off', time()+10, '/', 'saldi.dk');
 		$localPrint=NULL;
 	}
-	$formularsprog = if_isset($_POST['sprog']); # 2022113 Tilføjet 'sprog
-	$mail_bilag=if_isset($_POST['mail_bilag']); # 20131122 Tilføjet 'mail_bilag'
-	$genfakt=if_isset($_POST['genfakt']);
+	$formularsprog = if_isset($_POST,NULL,'sprog'); # 2022113 Tilføjet 'sprog
+	$mail_bilag=if_isset($_POST,NULL,'mail_bilag'); # 20131122 Tilføjet 'mail_bilag'
+	$genfakt=if_isset($_POST,NULL,'genfakt');
 	if ($genfakt=='') $genfakt='-';
 	$ean = db_escape_string(trim($_POST['ean']));
 	if (strpos($email,"@") && strpos($email,".") && strlen($email)>5 && $udskriv_til=='email') $mail_fakt = 'on';
@@ -865,7 +870,7 @@ if ($b_submit) {
 	$kred_ord_id = $_POST['kred_ord_id'];
 	$art = $_POST['art'];
 	$kontonr = (int)if_isset($_POST['kontonr'],0);
-	$rb = if_isset($_POST['konto_id'],0);
+	$rb = if_isset($_POST,0,'konto_id');
 	$konto_id = (int)$rb; #20210719
 	if ($id && $kontonr && !$konto_id) { #20150222
 		$r=db_fetch_array(db_select("select id from adresser where kontonr = '$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__));
@@ -920,8 +925,8 @@ if ($b_submit) {
 
 	if ($lev_postnr && !$lev_bynavn) $lev_bynavn=bynavn($lev_postnr);
 	else $lev_bynavn = db_escape_string($lev_bynavn);
-	$lev_kontakt = isset($_POST['lev_kontakt'])? db_escape_string(trim($_POST['lev_kontakt'])) : '';
-	$vis_lev_addr=if_isset($_POST['vis_lev_addr']);
+	$lev_kontakt = if_isset($_POST,NULL,'lev_kontakt')? db_escape_string(trim($_POST['lev_kontakt'])) : '';
+	$vis_lev_addr=if_isset($_POST,NULL,'vis_lev_addr');
 	update_settings_value("vis_lev_addr", "ordrer", $vis_lev_addr, "If the adress field should be showen as standard value", $bruger_id);
 
 	$felt_1 = db_escape_string(trim($_POST['felt_1']));
@@ -935,7 +940,7 @@ if ($b_submit) {
 		$felt_5=db_escape_string(trim(if_isset($_POST['kasse'])));
 	}
 	$ordredate = usdate(if_isset($_POST['ordredato']));
-	$levdato = trim(if_isset($_POST['levdato']));
+	$levdato = trim(if_isset($_POST,NULL,'levdato'));
 #  $genfakt = trim(if_isset($_POST['genfakt']));
 	$fakturadato    = trim(if_isset($_POST, NULL, 'fakturadato'));
 	$cvrnr          = db_escape_string(trim(if_isset($_POST, NULL, 'cvrnr')));
@@ -961,10 +966,10 @@ if ($b_submit) {
 	$datotid         = if_isset($_POST, NULL, 'datotid');
 	$nr              = if_isset($_POST, NULL, 'nr');
 
-	$returside = if_isset($_POST['returside']);
-	if ($status<3) $status = $_POST['status'];
-	$godkend = if_isset($_POST['godkend']);
-	$restordre = if_isset($_POST['restordre']);
+	$returside = if_isset($_POST,NULL,'returside');
+	if ($status<3) $status = if_isset($_POST,NULL,'status');
+	$godkend = if_isset($_POST,NULL,'godkend');
+	$restordre = if_isset($_POST,NULL,'restordre');
 	($restordre)? $restordre="1":$restordre="0";
 	$omdan_t_fakt = if_isset($_POST, NULL, 'omdan_t_fakt');
 	$kreditnota   = if_isset($_POST, NULL, 'kreditnota');
@@ -976,7 +981,7 @@ if ($b_submit) {
 	$momssats = usdecimal($_POST['momssats'],2);
 	$procenttillag = usdecimal(if_isset($_POST,0,'procenttillag'),2);
 	$mail_subj = db_escape_string(trim(if_isset($_POST,NULL,'mail_subj')));
-	$mail_text=db_escape_string(str_replace("\n","<br>",if_isset($_POST['mail_text'])));
+	$mail_text=db_escape_string(str_replace("\n","<br>",if_isset($_POST,NULL,'mail_text')));
 	$enhed         = if_isset($_POST, NULL, 'enhed');
 	$vare_id       = if_isset($_POST, NULL, 'vare_id');
 	$antal         = if_isset($_POST, NULL, 'antal');
@@ -993,7 +998,7 @@ if ($b_submit) {
 	$lev_varenr    = if_isset($_POST, NULL, 'lev_varenr');
 	$kostpris      = if_isset($_POST, NULL, 'kostpris');
 	$saet          = if_isset($_POST, NULL, 'saet');
-	$fast_db       = if_isset($_POST, NULL, 'fast_db');
+	$fast_db       = if_isset($_POST, 0, 'fast_db');
 	$samlet_pris   = if_isset($_POST, NULL, 'samlet_pris');
 
 	if ($samlet_pris!='-') $samlet_pris=usdecimal($samlet_pris,2); #20150317
@@ -1332,7 +1337,7 @@ if ($b_submit) {
 		$procent[$x]=usdecimal(if_isset($_POST[$y]),2);
 		if (($x>0)&&(!$procent[$x]))$procent[$x]=100;
 		$y="ialt".$x;
-		$ialt[$x]=if_isset($_POST[$y]);
+		$ialt[$x]=if_isset($_POST,NULL,$y);
 		if (($godkend == "on")&&($status==0)) {
 			if ($vis_saet) $fakturadato=date("d-m-Y");
 			$leveres[$x]=$antal[$x];
@@ -1519,6 +1524,7 @@ if ($status<3 && $b_submit) {
 			}
 		}
 	}
+	
   if (!$id && !$gl_id && $konto_id && $firmanavn ){  # Opretter ny ordre fra konto id
 		$phone = str_replace('','',$phone); 
 		if (strlen($phone) > 15) {
@@ -1926,7 +1932,7 @@ if ((strstr($b_submit,'Kopi'))||(strstr($b_submit,'Kred')))  {
 		else $ordrenr=1;
 		
     $tilbudnr = (int)if_isset($tilbudnr, 0);
-    $sag_id = (int)if_isset($sag_id, 0);
+    $sag_id = (int)if_isset($sag_id, NULL); #20250528
     $sagsnr = (int)if_isset($sagsnr, 0);
     $nr = (int)if_isset($nr, 0);
 		$qtxt="insert into ordrer"; 
@@ -2210,6 +2216,7 @@ if(if_isset($queryParams, NULL, 'status')) $status = $queryParams['status'];
 if(if_isset($queryParams, NULL, 'id')) $id = $queryParams['id'];
 if(if_isset($queryParams, NULL, 'art')) $art = $queryParams['art'];
 if(if_isset($queryParams, NULL, 'kred_ord_id')) $kred_ord_id = $queryParams['kred_ord_id'];
+if(if_isset($queryParams, NULL, 'konto_id')) $kred_ord_id = $queryParams['konto_id'];
 if(if_isset($queryParams, NULL, 'sag_id')) $sag_id = $queryParams['sag_id'];
 if(if_isset($queryParams, NULL, 'afd_lager')) $afd_lager = $queryParams['afd_lager'];
 if(if_isset($queryParams, NULL, 'kontonr')) $kontonr = $queryParams['kontonr'];
@@ -2258,7 +2265,6 @@ if(if_isset($queryParams, NULL, 'option')) $option = $queryParams['option'];
 }
 
 #+++++++++++++++++++++++++++++
-
 
 
 /*
@@ -2521,6 +2527,8 @@ function ordreside($id,$regnskab) {
 	global $varenr,$vis_projekt,$vis_saet; #20150306 varenr
 	global $width;
 	global $menu;
+	global $fast_db;
+	
 
 	if ($menu=='T') {
 		include_once '../includes/top_header.php';
@@ -2544,7 +2552,7 @@ function ordreside($id,$regnskab) {
 
 	$r=db_fetch_array(db_select("select * from ordrer where id='$id'",__FILE__ . " linje " . __LINE__));
 	
-	$sag_id = if_isset($r['sag_id'])*1; #20210719
+	$sag_id = if_isset($r,NULL,'sag_id')*1; #20210719
 	if ($sag_id) {
 		$returside=urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 	}
@@ -2574,66 +2582,71 @@ function ordreside($id,$regnskab) {
 	if ($id) {
 		$query = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);
-		$konto_id = $row['konto_id']*1;
-		$kontonr = $row['kontonr'];
-		$firmanavn = $row['firmanavn'];
-		$addr1 = $row['addr1'];
-		$addr2 = $row['addr2'];
-		$postnr = $row['postnr'];
-		$bynavn = $row['bynavn'];
-		$land = $row['land'];
-		$kontakt = $row['kontakt'];
-		$kontakt_tlf = $row['kontakt_tlf'];
-		$kundeordnr = $row['kundeordnr'];
-		$lev_navn = $row['lev_navn'];
-		$lev_addr1 = $row['lev_addr1'];
-		$lev_addr2 = $row['lev_addr2'];
-		$lev_postnr = $row['lev_postnr'];
-		$lev_bynavn = $row['lev_bynavn'];
-    $lev_land = $row['lev_land'];
-		$lev_kontakt = $row['lev_kontakt'];
-    $lev_email = $row['lev_email'];
-		$vis_lev_addr = $row['vis_lev_addr'];
-		$felt_1 = $row['felt_1'];
-		$felt_2 = $row['felt_2'];
-		$felt_3 = $row['felt_3'];
-		$felt_4 = $row['felt_4'];
-    $felt_5 = $row['felt_5'];
-		$cvrnr = trim($row['cvrnr']);
-		$ean = $row['ean'];
-		$institution = $row['institution'];
-		$email = $row['email'];
-		$mail_fakt = $row['mail_fakt'];
-		$phone = $row['phone'];
-		$udskriv_til = $row['udskriv_til'];
-		$mail_bilag = $row['mail_bilag']; #20131122 tilføj $mail_bilag til visning
-		$betalingsbet = trim($row['betalingsbet']);
-		$betalingsdage = $row['betalingsdage'];
-		$betalings_id = $row['betalings_id'];
-		$valuta=$row['valuta'];
-		$valutakurs=$row['valutakurs']*1;
+		$konto_id = if_isset($row, NULL, 'konto_id') * 1;
+		$kontonr = if_isset($row, NULL, 'kontonr');
+		$firmanavn = if_isset($row, NULL, 'firmanavn');
+		$addr1 = if_isset($row, NULL, 'addr1');
+		$addr2 = if_isset($row, NULL, 'addr2');
+		$postnr = if_isset($row, NULL, 'postnr');
+		$bynavn = if_isset($row, NULL, 'bynavn');
+		$land = if_isset($row, NULL, 'land');
+		$kontakt = if_isset($row, NULL, 'kontakt');
+		$kontakt_tlf = if_isset($row, NULL, 'kontakt_tlf');
+		$kundeordnr = if_isset($row, NULL, 'kundeordnr');
+		$lev_navn = if_isset($row, NULL, 'lev_navn');
+		$lev_addr1 = if_isset($row, NULL, 'lev_addr1');
+		$lev_addr2 = if_isset($row, NULL, 'lev_addr2');
+		$lev_postnr = if_isset($row, NULL, 'lev_postnr');
+		$lev_bynavn = if_isset($row, NULL, 'lev_bynavn');
+		$lev_land = if_isset($row, NULL, 'lev_land');
+		$lev_kontakt = if_isset($row, NULL, 'lev_kontakt');
+		$lev_email = if_isset($row, NULL, 'lev_email');
+		$vis_lev_addr = if_isset($row, NULL, 'vis_lev_addr');
+		$felt_1 = if_isset($row, NULL, 'felt_1');
+		$felt_2 = if_isset($row, NULL, 'felt_2');
+		$felt_3 = if_isset($row, NULL, 'felt_3');
+		$felt_4 = if_isset($row, NULL, 'felt_4');
+		$felt_5 = if_isset($row, NULL, 'felt_5');
+
+		$cvrnr = trim(if_isset($row, NULL, 'cvrnr'));
+		$ean = if_isset($row, NULL, 'ean');
+		$institution = if_isset($row, NULL, 'institution');
+		$email = if_isset($row, NULL, 'email');
+		$mail_fakt = if_isset($row, NULL, 'mail_fakt');
+		$phone = if_isset($row, NULL, 'phone');
+		$udskriv_til = if_isset($row, NULL, 'udskriv_til');
+		$mail_bilag = if_isset($row, NULL, 'mail_bilag'); // #20131122 tilføj $mail_bilag til visning
+		$betalingsbet = trim(if_isset($row, NULL, 'betalingsbet'));
+		$betalingsdage = if_isset($row, NULL, 'betalingsdage');
+		$betalings_id = if_isset($row, NULL, 'betalings_id');
+		$valuta = if_isset($row, NULL, 'valuta');
+		$valutakurs = if_isset($row, NULL, 'valutakurs') * 1;
 		if (!$valutakurs) $valutakurs=100;
-		$projekt[0]=$row['projekt'];
-		$formularsprog=$row['sprog'];
-		$pbs=$row['pbs'];
-		$afd=$row['afd'];
-		$sum=$row['sum'];
-		$moms=$row['moms'];
-		$ref = trim($row['ref']);
-		$fakturanr = $row['fakturanr'];
-		$lev_adr = $row['lev_adr'];
-		$ordrenr=$row['ordrenr'];
-		$kred_ord_id=$row['kred_ord_id']*1;
-		$restordre=$row['restordre'];
-    $digitalStatus = $row['digital_status'];
-		if($row['ordredate']) $ordredate=$row['ordredate'];
-		else {$ordredate=date("y-m-d");}
+		$projekt[0] = if_isset($row, NULL, 'projekt');
+		$formularsprog = if_isset($row, NULL, 'sprog');
+		$pbs = if_isset($row, NULL, 'pbs');
+		$afd = if_isset($row, NULL, 'afd');
+		$sum = if_isset($row, NULL, 'sum');
+		$moms = if_isset($row, NULL, 'moms');
+		$ref = trim(if_isset($row, NULL, 'ref'));
+		$fakturanr = if_isset($row, NULL, 'fakturanr');
+		$lev_adr = if_isset($row, NULL, 'lev_adr');
+		$ordrenr = if_isset($row, NULL, 'ordrenr');
+		$kred_ord_id = if_isset($row, NULL, 'kred_ord_id') * 1;
+		$restordre = if_isset($row, NULL, 'restordre');
+    	$digitalStatus = if_isset($row,NULL,'digital_status');
+		$ordredate = if_isset($row, null, 'ordredate') ?? date("y-m-d");
+
 		$ordredato=dkdato($ordredate);
-		if ($row['levdate']) $levdato=dkdato($row['levdate']);
-		if ($row['fakturadate']) {
-			$fakturadate=$row['fakturadate'];
-			$fakturadato=dkdato($row['fakturadate']);
+		if (if_isset($row, NULL, 'levdate')) {
+			$levdato = dkdato(if_isset($row, NULL, 'levdate'));
 		}
+
+		if (if_isset($row, NULL, 'fakturadate')) {
+			$fakturadate = if_isset($row, NULL, 'fakturadate');
+			$fakturadato = dkdato(if_isset($row, NULL, 'fakturadate'));
+		}
+
 /*
 			$gls_username = "2080050875";
 			$gls_pass = "50875";
@@ -2659,28 +2672,34 @@ function ordreside($id,$regnskab) {
 			$tGrossWeight=1;
 			$qtxt="select var_name,var_value from settings where var_grp='GLS'";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			while($r=db_fetch_array($q)) {
-				if ($r['var_name']=='dfm_id')      $dfm_id      = $r['var_value'];
-				if ($r['var_name']=='dfm_user')    $dfm_user    = $r['var_value'];
-				if ($r['var_name']=='dfm_pass')    $dfm_pass    = $r['var_value'];
-				if ($r['var_name']=='dfm_agree')   $dfm_agree   = $r['var_value'];
-				if ($r['var_name']=='dfm_hub')     $dfm_hub     = $r['var_value'];
-				if ($r['var_name']=='dfm_ship')    $dfm_ship    = $r['var_value'];
-				if ($r['var_name']=='dfm_good')    $dfm_good    = $r['var_value'];
-				if ($r['var_name']=='dfm_pay')     $dfm_pay     = $r['var_value'];
-				if ($r['var_name']=='dfm_url')     $dfm_url     = $r['var_value'];
-				if ($r['var_name']=='dfm_delrem')  $dfm_delrem  = $r['var_value'];
-				if ($r['var_name']=='dfm_gooddes') $dfm_gooddes = $r['var_value'];
-				if ($r['var_name']=='dfm_sercode') $dfm_sercode = $r['var_value'];
-				if ($r['var_name']=='dfm_pickup_addr')     $dfm_pickup_addr     = $r['var_value'];
-				if ($r['var_name']=='dfm_pickup_name1')     $dfm_pickup_name1     = $r['var_value'];
-				if ($r['var_name']=='dfm_pickup_name2')     $dfm_pickup_name2     = $r['var_value'];
-				if ($r['var_name']=='dfm_pickup_street1')     $dfm_pickup_street1     = $r['var_value'];
-				if ($r['var_name']=='dfm_pickup_street2')     $dfm_pickup_street2     = $r['var_value'];
-				if ($r['var_name']=='dfm_pickup_town')     $dfm_pickup_town     = $r['var_value'];
-				if ($r['var_name']=='dfm_pickup_zipcode')     $dfm_pickup_zipcode     = $r['var_value'];
+			while ($r = db_fetch_array($q)) {
+				if (!isset($r['var_name'])) continue;  
+				$var_name = $r['var_name'];            
+				$var_value = if_isset($r, NULL, 'var_value');  
 
+				switch ($var_name) {
+					case 'dfm_id':              $dfm_id              = $var_value; break;
+					case 'dfm_user':            $dfm_user            = $var_value; break;
+					case 'dfm_pass':            $dfm_pass            = $var_value; break;
+					case 'dfm_agree':           $dfm_agree           = $var_value; break;
+					case 'dfm_hub':             $dfm_hub             = $var_value; break;
+					case 'dfm_ship':            $dfm_ship            = $var_value; break;
+					case 'dfm_good':            $dfm_good            = $var_value; break;
+					case 'dfm_pay':             $dfm_pay             = $var_value; break;
+					case 'dfm_url':             $dfm_url             = $var_value; break;
+					case 'dfm_delrem':          $dfm_delrem          = $var_value; break;
+					case 'dfm_gooddes':         $dfm_gooddes         = $var_value; break;
+					case 'dfm_sercode':         $dfm_sercode         = $var_value; break;
+					case 'dfm_pickup_addr':     $dfm_pickup_addr     = $var_value; break;
+					case 'dfm_pickup_name1':    $dfm_pickup_name1    = $var_value; break;
+					case 'dfm_pickup_name2':    $dfm_pickup_name2    = $var_value; break;
+					case 'dfm_pickup_street1':  $dfm_pickup_street1  = $var_value; break;
+					case 'dfm_pickup_street2':  $dfm_pickup_street2  = $var_value; break;
+					case 'dfm_pickup_town':     $dfm_pickup_town     = $var_value; break;
+					case 'dfm_pickup_zipcode':  $dfm_pickup_zipcode  = $var_value; break;
+				}
 			}
+
 		
 			$form_prodcode = if_isset($_POST['form_prodcode']);
 			$form_gooddes = if_isset($_POST['form_gooddes']);
@@ -2710,24 +2729,29 @@ function ordreside($id,$regnskab) {
 				$dfm_pickup_town,$dfm_pickup_zipcode);
 		}
 
-		if($row['nextfakt']) $genfakt = dkdato($row['nextfakt']);
-		$momssats=$row['momssats'];
-		$procenttillag=$row['procenttillag']*1;
-		$status=$row['status'];
-		if (!$status){$status=0;}
-		$kontonr=$row['kontonr'];
-		$art=$row['art'];
-		$mail_subj=$row['mail_subj'];
-		$mail_text=str_replace("<br>","\n",$row['mail_text']);
-		$dokument=$row['dokument'];
-		$sag_id=$row['sag_id']*1;
-		$sagsnr=$row['sagsnr']*1;
-		$tilbudnr=$row['tilbudnr'];
-		$datotid=$row['datotid'];
-		$nr=$row['nr']*1;
-		if (!$returside && $row['returside']) $returside=$row['returside'];
-		($row['omvbet'])?$omkunde='on':$omkunde='';
-		$betalt=$row['betalt'];
+		if (if_isset($row, false, 'nextfakt')) {
+			$genfakt = dkdato($row['nextfakt']);
+		}
+
+		$momssats = if_isset($row, 0, 'momssats');
+		$procenttillag = if_isset($row, 0, 'procenttillag') * 1;
+		$status = if_isset($row, 0, 'status');
+		$kontonr = if_isset($row, '', 'kontonr');
+		$art = if_isset($row, '', 'art');
+		$mail_subj = if_isset($row, '', 'mail_subj');
+		$mail_text = str_replace("<br>", "\n", if_isset($row, '', 'mail_text'));
+		$dokument = if_isset($row, '', 'dokument');
+		$sag_id = if_isset($row, 0, 'sag_id') * 1;
+		$sagsnr = if_isset($row, 0, 'sagsnr') * 1;
+		$tilbudnr = if_isset($row, '', 'tilbudnr');
+		$datotid = if_isset($row, '', 'datotid');
+		$nr = if_isset($row, 0, 'nr') * 1;
+		if (!$returside && if_isset($row, false, 'returside')) {
+			$returside = $row['returside'];
+		}
+		$omkunde = if_isset($row, '', 'omvbet') ? 'on' : '';
+		$betalt = if_isset($row, 0, 'betalt');
+
 
 		if ($udskriv_til=='ingen' && $status >= '3') $udskriv_til="PDF";
 #    if ($brugernavn && !$ref) $ref=$brugernavn; #flyttet til efter 'ikke faktureret'
@@ -3482,18 +3506,20 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		$r=db_fetch_array(db_select("select * from adresser where id=$konto_id",__FILE__ . " linje " . __LINE__));
 	
 		if(!empty($r) || $r == false ){
-			$k_firmanavn     = if_isset($r['firmanavn']); #20210719 	
-			$k_addr1         = if_isset($r['addr1']);
-			$k_addr2         = if_isset($r['addr2']);	
-			$k_postnr        = if_isset($r['postnr']);
-			$k_land          = if_isset($r['land']);
-			$k_bynavn        = if_isset($r['bynavn']);
-			$k_cvrnr         = if_isset($r['cvrnr']);		
-			$k_betalingsbet  = if_isset($r['betalingsbet']);		
-			$k_betalingsdage = if_isset($r['betalingsdage']);		
-			$k_email         = if_isset($r['email']);		
-      		$k_ean           = if_isset($r['ean']);    
-			$k_institution   = if_isset($r['institution']);
+			#$k_firmanavn     = if_isset($r['firmanavn']); #20210719 	
+			$k_firmanavn     = if_isset($r, NULL, 'firmanavn'); #20210719 	
+			$k_addr1         = if_isset($r, NULL, 'addr1');
+			$k_addr2         = if_isset($r, NULL, 'addr2');	
+			$k_postnr        = if_isset($r, NULL, 'postnr');
+			$k_land          = if_isset($r, NULL, 'land');
+			$k_bynavn        = if_isset($r, NULL, 'bynavn');
+			$k_cvrnr         = if_isset($r, NULL, 'cvrnr');		
+			$k_betalingsbet  = if_isset($r, NULL, 'betalingsbet');		
+			$k_betalingsdage = if_isset($r, NULL, 'betalingsdage');		
+			$k_email         = if_isset($r, NULL, 'email');		
+			$k_ean           = if_isset($r, NULL, 'ean');    
+			$k_institution   = if_isset($r, NULL, 'institution');
+
 		
 		}
 		
@@ -3570,7 +3596,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		print "<tr><td><span style=\"color:$tekstcolor;\" title=\"$k_postnr\">".findtekst('650|Postnr.', $sprog_id)."</span> &amp; ";
 		if ($bynavn==$k_bynavn) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
-		$txt651 = findtekst('46|By', $sprog_id);
+		$txt46 = findtekst('46|By', $sprog_id);
 		print "<span style=\"color:$tekstcolor;\" title=\"$k_bynavn\">$txt46</span></td><td colspan=\"2\"><input class = 'inputbox' type = 'text' style=\"width:45px;\" name=\"postnr\" onfocus=\"document.forms[0].fokus.value=this.name;\"  value=\"$postnr\" onchange=\"javascript:docChange = true;\" $disabled><input class = 'inputbox' type = 'text' style=\"width:150px;margin-left:3px;\" name=\"bynavn\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$bynavn\" onchange=\"javascript:docChange = true;\" $disabled></td></tr>\n";
 		if ($land==$k_land) $tekstcolor="#444444";
 		else {$tekstcolor="#ff0000";$ret=1;};
@@ -4147,7 +4173,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		print "</td></tr></tbody></table></td></tr>\n"; #<- Tabel 4.3
     	$kontonr=(int)$kontonr;
 		$row2 = db_fetch_array(db_select("select notes from adresser where kontonr = '$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__)); #20142403-1
-		$notes=str_replace("\n","<br>",if_isset($row2['notes']));
+		$notes=str_replace("\n","<br>",if_isset($row2,NULL,'notes'));
 		if ($notes) print "<tr><td colspan=\"3\" witdh=\"100%\" style=\"color: rgb(255,0,0)\">$notes</td></tr>\n";
 		/*
 		$query = db_select("select notes from adresser where kontonr = '$kontonr' and art = 'D'",__FILE__ . " linje " . __LINE__);
@@ -4488,7 +4514,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
       $posnr[0]=$linjeantal+1;
       if ($varenr[0] && isset($_GET['vare_id']) || isset($_GET['varenr'])) { //20150407+20241229
         $fokus="dkan0"; #20150306 + value i dkan0
-        $lager[0]=if_isset($_GET['lager'])*1;
+        $lager[0]=if_isset($_GET,NULL,'lager')*1;
 
         if(isset($_GET['varenr'])){
           //+++++ Insert into varer table if not exist 
@@ -4540,7 +4566,8 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
         }
       }
       if ($art != 'OT') { // ordrelinje til indtastning behøves ikke at vises ved 'Original tilbud' #20140716
-        print "<tr class='ordrelinje'>\n";
+        $fast_db1=if_isset(if_isset($fast_db, 0, 0), 0, 0);
+		print "<tr class='ordrelinje'>\n";
         #print "<td colspan = '2' valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px;\" name=\"posn0\" value=\"$posnr[0]\"></td>\n";
         print "<td colspan = '0' valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px;\" name=\"posn0\" value=\"$posnr[0]\"></td>\n"; #20240426
         if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"readonly\" size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
@@ -4558,7 +4585,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
         print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right\" size=\"4\" name=\"raba0\">\n";
         if ($procentfakt) print "</td><td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right\" size=\"4\" name=\"proc0\" value=\"100,00\">\n";
         else print "<input type=\"hidden\" name=\"proc0\" value=\"100,00\">\n";
-        print "<input type = 'hidden' name = 'fast_db[0]' value = '".if_isset($fast_db[0],0)."'></td>";
+        print "<input type = 'hidden' name = 'fast_db[0]' value = '".$fast_db1."'></td>";
         print "<td valign='top'>
         <input class='inputbox' 
         type='text' 
