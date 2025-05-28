@@ -444,7 +444,7 @@ if ($id) {
 	$r=db_fetch_array(db_select("SELECT adresser.gruppe,ordrer.status,ordrer.sprog FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id",__FILE__ . " linje " . __LINE__));
 	$status=if_isset($r,0,'status');
 	$gruppe=if_isset($r,0,'gruppe');
-	$formularsprog=if_isset($r,1,'sprog');
+	$formularsprog=if_isset($r,'Dansk','sprog');
 } 
 $qtxt = "select id from grupper where art='DG' and kodenr='$gruppe' and box8='on'";
 if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
