@@ -604,7 +604,7 @@
 604	Debitor	Debtor	Debitor
 605	Ordre	Order	Rekkefølge
 606	Konti	Accounts	Kontoer
-607	Kreditor	Creditor	Kreditor
+607	Kreditorer	Creditors	Kreditorer
 608	Lager	Inventory	Lager
 609	Varer	Goods	Varer
 610	Varemodtagelse	Goods Receipt	Varemottak
@@ -1273,7 +1273,7 @@
 1273	Vis priser med moms på varekort	Show prices with VAT on the product card	Vis priser med MVA på varekort
 1274	Når dette felt er afmærket, bliver varer vist inkl. moms på varekortet	When this field is checked, items are displayed incl. VAT on the product card	Når dette feltet er avmerket, blir varer vist inkl. MVA på varekortet
 1275	Bekræft ændring af beskrivelse på varekort	Confirm when changing the description on the product card	Bekreft endring av beskrivelse på varekort
-1276	Når dette felt er afmærket, skal der bekræftes vedændring af beskrivelsen på varekort	When this field is checked, confirmation must be given upon changing the description on the product card	Når dette feltet er merket, må det bekreftes ved endring av beskrivelsen på varekort
+1276	Når dette felt er afmærket, skal der bekræftes ved ændring af beskrivelsen på varekort	When this field is checked, confirmation must be given upon changing the description on the product card	Når dette feltet er merket, må det bekreftes ved endring av beskrivelsen på varekort
 1277	Bekræft ved ændring af beholdning på varekort	Confirm when changing the stock on the product card	Bekreft ved endring av beholdning på varekort
 1278	Når dette felt er afmærket, skal der bekræftes ved ændring af beholdning på varekort	When this field is checked, confirmation must be given upon changing the stock on the product card	Når dette feltet er avmerket, må det bekreftes ved endring av beholdning på varekort
 1279	Sæt vare som udgået, når beholdning bliver negativ	Mark product as discontinued when inventory becomes negative	Sett vare som utgått når beholdningen blir negativ
@@ -1303,7 +1303,7 @@
 1303	&apos;kb&apos; eller &apos;kn&apos;.	&apos;kb&apos; or &apos;kn&apos;, will be changed.	&apos;kb&apos; eller &apos;kn&apos;, bli endret.
 1304	Hvis kostprisen f.eks. er 0,15, bliver denne ændret til 0,85, og kommisionssatsen bliver sat til 15%.	For example, a cost price of 0.15 will be changed to 0.85, and the commission rate will be set to 15%.	For eksempel, hvis kostprisen er 0,15, vil den bli endret til 0,85, og kommisjonssatsen blir satt til 15%.
 1305	Kontakt os gerne for assistance - +45 4690 2208	Feel free to contact us for assistance - +45 4690 2208	Kontakt oss gjerne for hjelp - +45 4690 2208
-1306	Startdato for afregning til kommissionskunder?	Settlement start date for commission customers?	Startdato for avregning til kommisjonskunder?
+1306	Startdato for afregning til kommissionskunder?	Settlement start date for commission customers?	Startdato for oppgjør til provisjonskunder?
 1307	Næste afregning til kommissionskunder vil blive beregnet fra og med den dato der angives her	The next settlement for commission customers will be calculated from and including the date specified here	Neste avregning til kommisjonskunder vil bli beregnet fra og med datoen som angis her	
 1308	Klik på den labeltype du vil redigere	Click the label type you want to edit	Klikk på etikettypen du vil redigere
 1309	Tilladte tegn er: a-z A-Z 0-9	Permitted characters are: a-z A-Z 0-9	Tillatte tegn er: a-z A-Z 0-9
@@ -2416,8 +2416,8 @@
 2416	Anvend omvendte primær og sekundær menuer (primærmenu i bunden)	Flip the primary and secondarry menus (primary on the bottom)	Bruk inverterte primær- og sekundærmenyer (primærmeny nederst)
 2417	Decimaler på rabat	Decimals for discount values	Decimaler på rabatt
 2418	Antallet af decimaler på rabatfelter i ordre	The amount of decimals to use for the discount fields in a order	Antall desimaler i rabattfelt
-2419	Minimums beholdning på varer	Minimum inventory of goods	Minimum varelager
-2420	Standard minimums beholdning	Standard minimum stock	Standard minstelager
+2419	Minimumsbeholdning på varer	Minimum stock level	Minimumsbeholdning av varer
+2420	Standard minimumsbeholdning	Standard minimum stock	Standard minimumsbeholdning
 2421	Er det sikkert, at du vil overskrive dit regnskab med denne sikkerhedskopi?	Are you sure you want to overwrite your accounting with this backup?	Er du sikker på at du vil overskrive regnskapet ditt med denne sikkerhetskopien?
 2422	Du er ved at overskrive dit regnskab	You are overwriting your account.	Du overskriver kontoen din.
 2423	med en sikkerhedskopi af regnskabet	with a backup copy of the accounts	med en sikkerhetskopi av kontoene
@@ -2550,12 +2550,12 @@
 2550	Modkonto ved udligning af åbne poster	Offset account for reconciling open items	Motkonto ved utligning av åpne poster			
 2551	Klik her for at komme tilbage	Click here to go back	Klikk her for å komme tilbake
 2552	Formularnote	Form note	Formularnotat
-2553			
-2554			
-2555			
-2556			
-2557			
-2558			
+2553	E-mail til lagerstatusrapporter	Email for stock status reports	E-post for lagerstatusrapporter
+2554	Den mail, der skal bruges til at modtage lagerstatusrapporter	The email address used to receive stock status reports	E-postadressen som skal brukes for å motta lagerstatusrapporter
+2555	Hyppighed for lagerstatus e-mails (timer)	Frequency of stock status emails (hours)	Hyppighet for lagerstatus e-poster (timer)
+2556	Hvor ofte lagerstatus e-mails skal sendes, angivet i timer	How often stock status emails should be sent, specified in hours	Hvor ofte lagerstatus e-poster skal sendes, angitt i timer
+2557	Lagerstatus beholdningsgrænse	Stock status threshold	Lagerstatus beholdningsgrense
+2558	Angiver den beholdningsmængde, hvor systemet begynder at sende lagerstatus e-mails. Når lageret falder til eller under denne grænse, udsendes en e-mail.	Specifies the inventory level at which the system starts sending stock status emails. When the stock falls to or below this threshold, an email is sent.	Angir den beholdningsmengden hvor systemet begynner å sende lagerstatus e-poster. Når lageret faller til eller under denne grensen, sendes en e-post
 2559			
 2560			
 2561			
