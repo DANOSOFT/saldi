@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- lap 4.1.0 --- 2024.02.09 ---
+// ---- index/main.php --- lap 4.1.1 --- 2025.05.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,16 +20,18 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2025 saldi.dk aps
 // ----------------------------------------------------------------------
-// 17042024 MMK - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
-// 17-10-2024 PBLM - Added link to booking
+// 17042024 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
+// 17102024 PBLM - Added link to booking
+// 26052025 LOE  - Sets v.lukket to '' instead of v.lukket.
 
 @session_start();
 $s_id = session_id();
 
 $css = "../../css/standard.css?v=20";
 
+$include_start = microtime(true);
 include("../../includes/std_func.php");
 include("../../includes/connect.php");
 include("../../includes/online.php");
@@ -37,13 +39,34 @@ include("../../includes/stdFunc/dkDecimal.php");
 
 $valg = "Vareliste";
 include("topLineVarer.php");
+// Performance logging
+$start_time = microtime(true);
+$log_file = "../../temp/$db/vareliste_performance.log";
 
+function log_performance($message, $start_time = null) {
+    global $log_file;
+    $current_time = microtime(true);
+    if ($start_time) {
+        $elapsed = round(($current_time - $start_time) * 1000, 2);
+        $message .= " (took {$elapsed}ms)";
+    }
+    $timestamp = date('Y-m-d H:i:s');
+    file_put_contents($log_file, "[$timestamp] $message\n", FILE_APPEND | LOCK_EX);
+    return $current_time;
+}
+
+log_performance("Page load started");
+
+$grid_start = microtime(true);
 include(get_relative() . "includes/grid.php");
+log_performance("Grid include loaded", $grid_start);
+
 $vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
     ? true : false;
 
 // Columnconfig
 
+$columns_start = microtime(true);
 $columns = array();
 
 $columns[] = array(
@@ -52,7 +75,7 @@ $columns[] = array(
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
 
-        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
     "sqlOverride" => "v.varenr"
@@ -64,7 +87,7 @@ $columns[] = array(
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
 
-        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
     "sqlOverride" => "v.beskrivelse"
@@ -131,7 +154,8 @@ $columns[] = array(
 );
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
-$query = "SELECT kodenr FROM grupper WHERE art='LG' GROUP BY kodenr ORDER BY kodenr";
+$lager_query_start = microtime(true);
+$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' GROUP BY kodenr, beskrivelse ORDER BY kodenr";
 $SQLLagerFetch = "";
 $SQLLagerJoin = "";
 $lagere = array();
@@ -139,7 +163,7 @@ $lagere = array();
 $q = db_select($query, __FILE__ . " line " . __LINE__);
 while ($row = db_fetch_array($q)) {
     $SQLLagerFetch .= "COALESCE(ls$row[kodenr].beholdning, 0) AS lager$row[kodenr],\n";
-    $SQLLagerJoin .= "LEFT JOIN LagerSummary ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
+    $SQLLagerJoin .= "LEFT JOIN lagerstatus ls$row[kodenr] ON v.id = ls$row[kodenr].vare_id AND ls$row[kodenr].lager = $row[kodenr]\n";
     $lagere[] = "lager" . $row['kodenr'];
 
     $columns[] = array(
@@ -166,6 +190,7 @@ while ($row = db_fetch_array($q)) {
         }
     );
 }
+log_performance("Lager fields query and setup", $lager_query_start);
 
 // Add lager_total field
 $columns[] = array(
@@ -174,7 +199,7 @@ $columns[] = array(
     "type" => "number",
     "align" => "right",
     "width" => "0.2",
-    "sqlOverride" => "COALESCE(ls.lager_total, 0)",
+    "sqlOverride" => "COALESCE(lt.lager_total, 0)",
     "render" => function ($value, $row, $column) {
         if ($row["samlevare"] == "on") {
             return "<td></td>";
@@ -237,11 +262,14 @@ $columns[] = array(
     "decimalPrecision" => 1,
 );
 
+log_performance("Column configuration completed", $columns_start);
 
 // Filtersetup
+$filters_start = microtime(true);
 $filters = array();
 
 // Vargrupper
+$varegrupper_start = microtime(true);
 $query = "SELECT * FROM grupper WHERE art='VG' AND fiscal_year=$regnaar ORDER BY beskrivelse";
 $q = db_select($query, __FILE__ . " line " . __LINE__);
 $VGs = array();
@@ -258,7 +286,9 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $VGs
 );
+log_performance("Varegrupper filter query", $varegrupper_start);
 
+$leverandor_start = microtime(true);
 $query = "SELECT kontonr, firmanavn
 FROM 
     adresser a
@@ -273,7 +303,7 @@ while ($row = db_fetch_array($q)) {
     $levs[] = array(
         "name" => $row["firmanavn"],
         "checked" => "",
-        "sqlOn" => "levs.kontonr_concat LIKE '%$row[kontonr]%'", // Use EXISTS for efficient lookups
+        "sqlOn" => "ol.kontonr_concat LIKE '%$row[kontonr]%'", // Use optimized_levs alias
         "sqlOff" => "",
     );
 }
@@ -282,6 +312,7 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $levs
 );
+log_performance("Leverandøre filter query", $leverandor_start);
 
 // Misc
 $filters[] = array(
@@ -292,37 +323,36 @@ $filters[] = array(
             "name" => "Vis udgået",
             "checked" => "checked",
             "sqlOn" => "",
-            "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0' or v.lukket)",
+            "sqlOff" => "(v.lukket IS NULL OR v.lukket = '0' or v.lukket = '')",
         )
     )
 );
 
+log_performance("All filters setup completed", $filters_start);
 
+$data_start = microtime(true);
 $data = array(
     "table_name" => "varer",
-
-    "query" => "WITH LagerSummary AS (
-    SELECT 
-        vare_id,          
-        lager,            
-        beholdning,       
-        SUM(beholdning) OVER (PARTITION BY vare_id) AS lager_total  
-    FROM lagerstatus
-    GROUP BY vare_id, lager, beholdning
-),
-levs AS (
+    "query" => "WITH optimized_levs AS (
+    -- Simplified supplier aggregation - only when needed
     SELECT 
         vl.vare_id, 
-        string_agg(a.kontonr::TEXT, ' ') AS kontonr_concat, -- Cast to TEXT
+        string_agg(a.kontonr::TEXT, ' ') AS kontonr_concat,
         string_agg(a.id || '\t' || a.kontonr::TEXT || '\t' || a.firmanavn, '\n') AS lev
     FROM 
         vare_lev vl
     LEFT JOIN 
-        adresser a 
-    ON 
-        vl.lev_id = a.id AND a.art = 'K' -- No syntax issue here
+        adresser a ON vl.lev_id = a.id AND a.art = 'K'
     GROUP BY 
         vl.vare_id
+),
+lager_totals AS (
+    -- Single calculation of lager totals
+    SELECT 
+        vare_id,
+        SUM(beholdning) AS lager_total
+    FROM lagerstatus
+    GROUP BY vare_id
 )
 SELECT 
     v.id AS id,                     
@@ -336,7 +366,7 @@ SELECT
     v.notesinternal as notes_internal,
     v.samlevare AS samlevare,
     $SQLLagerFetch
-    COALESCE(ls.lager_total, 0) AS lager_total,  
+    COALESCE(lt.lager_total, 0) AS lager_total,  
     v.salgspris AS salgspris,       
     v.kostpris AS kostpris,         
     CASE 
@@ -356,16 +386,10 @@ SELECT
         WHEN vg.box7 = 'on' THEN v.salgspris  
         ELSE (100 + sm.box2::float) / 100 * v.salgspris  
     END AS momspris,                  
-    levs.lev as leverandør                          -- Supplier information
+    ol.lev as leverandør                          
 FROM varer v
 $SQLLagerJoin
-LEFT JOIN (
-    SELECT 
-        vare_id, 
-        SUM(beholdning) AS lager_total  
-    FROM lagerstatus
-    GROUP BY vare_id
-) ls ON v.id = ls.vare_id
+LEFT JOIN lager_totals lt ON v.id = lt.vare_id  -- Use optimized CTE
 LEFT JOIN grupper vg ON vg.kodenr = v.gruppe AND vg.fiscal_year = $regnaar AND vg.art = 'VG'
 LEFT JOIN kontoplan kp ON kp.kontonr::text = vg.box4 AND regnskabsaar = $regnaar AND vg.box7 != 'on'
 LEFT JOIN grupper sm 
@@ -376,7 +400,7 @@ LEFT JOIN grupper sm
         END
     AND sm.fiscal_year = $regnaar 
     AND sm.art = 'SM'
-LEFT JOIN levs ON v.id = levs.vare_id  -- Join to include supplier information
+LEFT JOIN optimized_levs ol ON v.id = ol.vare_id  -- Use optimized CTE
 WHERE {{WHERE}}  
 ORDER BY {{SORT}}
 ",
@@ -393,10 +417,13 @@ ORDER BY {{SORT}}
     "filters" => $filters,
 );
 
+log_performance("Data array configuration completed", $data_start);
 
+$grid_render_start = microtime(true);
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("varelst$vatOnItemCard", $data);
 print "</div>";
+log_performance("Grid rendering completed", $grid_render_start);
 
 $steps = array();
 $steps[] = array(
@@ -430,3 +457,11 @@ $steps[] = array(
 
 include(get_relative() . "includes/tutorial.php");
 create_tutorial("vareliste", $steps);
+
+// Final performance log
+$total_time = microtime(true) - $start_time;
+log_performance("Total page load completed in " . round($total_time * 1000, 2) . "ms");
+
+// Output performance summary to browser console for debugging
+echo "<script>console.log('Vareliste performance log written to /tmp/vareliste_performance.log');</script>";
+?>

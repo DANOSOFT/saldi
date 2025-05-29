@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-05-18 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-05-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1672,7 +1672,18 @@ function bogfor($id, $webservice)
 		batch_kob($id, $art);
 		batch_salg($id);
 		$tidspkt = date("H:i");
-		$qtxt = "update ordrer set status='3', fakturanr='$fakturanr', tidspkt='$tidspkt', valutakurs='$valutakurs', betalings_id='$_SESSION[payment_id]' where id='$id'";
+		$betaling_id = "";
+		if(isset($_SESSION["payment_id"]) && $_SESSION["payment_id"] != '') {
+			$betaling_id = $_SESSION["payment_id"];
+		} else {
+			db_select("SELECT betalings_id FROM ordrer WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($r = db_fetch_array($query)) {
+				$betaling_id = $r['betalings_id'];
+			} else {
+				$betaling_id = '';
+			}
+		}
+		$qtxt = "update ordrer set status='3', fakturanr='$fakturanr', tidspkt='$tidspkt', valutakurs='$valutakurs', betalings_id='$betaling_id' where id='$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		unset($_SESSION['payment_id']);
 		if ($afd)
@@ -4756,6 +4767,8 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 	global $regnaar;
 	global $sprog_id;
 	global $href;
+	global $konto_id;
+	
 	$kundeordre = findtekst(1092,$sprog_id);  #20240416
 	if ($menu=='T') {
 		include_once '../includes/top_menu.php';
@@ -4791,10 +4804,10 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 				$q = db_select("SELECT * FROM grupper WHERE art = 'PL' ORDER BY beskrivelse", __FILE__ . " linje " . __LINE__);
 
 				while ($r = db_fetch_array($q)) {
-					$id = htmlspecialchars($r['id']);
+					$grupper_id = htmlspecialchars($r['id']);
 					$beskrivelse = htmlspecialchars($r['beskrivelse']);
 					$selected = ($r['box4'] === 'Yes') ? ' selected' : '';
-					echo "<option value=\"$id\"$selected>$beskrivelse</option>";
+					echo "<option value=\"$grupper_id\"$selected>$beskrivelse</option>";
 				}
 
 				echo '</select>';
@@ -4896,15 +4909,9 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 			 // Get the current host (domain name or IP address)
 			 $host = $_SERVER['HTTP_HOST'];
-
-			
 			 $requestUri = $_SERVER['REQUEST_URI'];
 			 $currentUrl = $protocol . '://' . $host . $requestUri;
 			 $startPos = strpos($currentUrl, 'debitor');
-
-			 error_log("Start Position: $startPos");
-			// Check if the URL contains 'debitor'
-			// Check if the word 'debitor' is found
 			if ($startPos !== false) {
 				// Get the substring starting from 'debitor' to the end
 				$result = substr($currentUrl, $startPos);
@@ -4919,8 +4926,9 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
    ###################### 
 
 		file_put_contents("../temp/$db/vareopslag.log","vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find)\n",FILE_APPEND);
-		
 		// Display the corresponding content based on the selected option
+		$ordre_id=if_isset($_GET,NULL,'id');
+		
 	if(isset($option) && $option==2 || !isset($option)){
 			if ($option == 2 || !isset($option)) {
 				print "<div id='hiddenContent' style='display: block;'>"; // Show internal content
@@ -5146,6 +5154,9 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			$qtxt = str_replace('by ordrenr','by varenr',$qtxt);
 		}
 		// Initial data fetch
+		if(!$ordre_id && if_isset($id,NULL)){
+			$ordre_id = $id;
+		}
 		$result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($result)) {
 			$vare_id = $row['id'];
@@ -5154,7 +5165,7 @@ function vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find, $location=null, 
 			$linjebg = ($linjebg != $bgcolor) ? $bgcolor : $bgcolor5;
 	
 			print "<tr bgcolor=\"$linjebg\">";
-			print "<td $onclick><a class='no-outline' id='opslag_0' href='$href?vare_id={$row['id']}&fokus=$fokus&id=$id&bordnr=$bordnr'>$row[varenr]</a></td>";
+			print "<td $onclick><a class='no-outline' id='opslag_0' href='$href?vare_id={$row['id']}&fokus=$fokus&bordnr=$bordnr&konto_id=$konto_id&ordre_id=$ordre_id'>$row[varenr]</a></td>";
 			print "<td $onclick>{$row['enhed']}</td>";
 			print "<td $onclick>{$row['beskrivelse']}</td>";
 	
@@ -5536,8 +5547,8 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 
 	$title = $tekst;
 
-	$sag_id = if_isset($_GET['sag_id']);
-	$konto_id = if_isset($_GET['konto_id']);
+	$sag_id = if_isset($_GET,NULL,'sag_id');
+	$konto_id = if_isset($_GET,NULL,'konto_id');
 
 	if (!$returside) {
 		if ($popup)

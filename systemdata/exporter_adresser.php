@@ -57,7 +57,7 @@ if (!$art) {
 	print "<tr><td>".findtekst(1390, $sprog_id)." ".findtekst(1355, $sprog_id)."</td>";
 	print "<td><select name=\"art\">";
 	print "<option value='D'>".findtekst(908, $sprog_id)."</option>";
-	print "<option value='K'>".findtekst(507, $sprog_id)."</option>";
+	print "<option value='K'>".findtekst(607, $sprog_id)."</option>";
 	print "</select>";
 	print "</td>";
 	print "<td><input type=\"submit\" name=\"eksporter\" value=\"OK\"><td></tr>";

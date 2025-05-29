@@ -284,15 +284,37 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		$lev_kontakt='';
 	}
 	sleep (1);
+	
+	// Enhanced duplication prevention checks
 	if ($shopOrderId) {
-		fwrite($log,__line__." select id from shop_ordrer where shop_id='$shopOrderId'\n");
-		$r=db_fetch_array(db_select("select id,saldi_id from shop_ordrer where shop_id='$shopOrderId'",__FILE__ . " linje " . __LINE__));
+		// Primary check: Check if shop order ID already exists
+		fwrite($log,__line__." Checking for existing shop order: $shopOrderId\n");
+		$qtxt = "select id,saldi_id from shop_ordrer where shop_id='$shopOrderId'";
+		fwrite($log,__line__." $qtxt\n");
+		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		if ($r['id']) { 
-			fwrite($log,__line__." Order id: $shopOrderId exists in saldi\n");
+			fwrite($log,__line__." DUPLICATE DETECTED: Order id $shopOrderId already exists in saldi (saldi_id: $r[saldi_id])\n");
 			fclose ($log);
-#		return $r['saldi_id'];
-			return "Order id: $shopOrderId exists in saldi";
-			exit;
+			return "Order id: $shopOrderId exists in saldi (internal ID: $r[saldi_id])";
+		}
+		
+		// Additional check: Verify no duplicate orders with same customer details and total amount
+		if ($nettosum > 0 && $saldi_addr_id) {
+			$duplicate_window = date('Y-m-d', strtotime('-1 day')); // Check last 24 hours
+			$qtxt = "select o.id, o.ordrenr, o.sum from ordrer o ";
+			$qtxt.= "where o.konto_id='$saldi_addr_id' and o.sum='$nettosum' ";
+			$qtxt.= "and o.ordredate >= '$duplicate_window' and o.art='DO'";
+			fwrite($log,__line__." Checking for potential duplicate by amount and customer: $qtxt\n");
+			$duplicate_check = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			$duplicate_count = 0;
+			while ($dup_r = db_fetch_array($duplicate_check)) {
+				$duplicate_count++;
+				fwrite($log,__line__." Found potential duplicate: Order $dup_r[ordrenr] (ID: $dup_r[id]) with same amount $dup_r[sum]\n");
+			}
+			if ($duplicate_count > 2) { // Allow max 2 orders with same amount per day per customer
+				fwrite($log,__line__." POTENTIAL DUPLICATE WARNING: Customer $saldi_addr_id has $duplicate_count orders with amount $nettosum in last 24h\n");
+				// Log warning but don't block - this could be legitimate
+			}
 		}
 	}
 	$qtxt="select saldi_id from shop_adresser where shop_id='$shop_addr_id'";
@@ -378,12 +400,36 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		$kontonr=$r['kontonr'];
 		fwrite($log,__line__." kontonr $kontonr\n");
 	}
-	$qtxt="select ordrenr from ordrer where art='DO'";
-	fwrite($log,__line__." $qtxt\n");
-	$ordrenr=1;
-	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		if ($ordrenr<=$r['ordrenr']) $ordrenr=$r['ordrenr']+1;
+	// Generate unique order number with additional safety checks
+	$max_attempts = 5;
+	$attempt = 0;
+	$ordrenr_found = false;
+	
+	while (!$ordrenr_found && $attempt < $max_attempts) {
+		$attempt++;
+		fwrite($log,__line__." Attempting to generate unique ordrenr (attempt $attempt)\n");
+		
+		$qtxt="select max(ordrenr) as max_ordrenr from ordrer where art='DO'";
+		fwrite($log,__line__." $qtxt\n");
+		$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
+		$ordrenr = ($r['max_ordrenr'] ? $r['max_ordrenr'] : 0) + 1;
+		
+		// Double-check that this order number doesn't exist
+		$qtxt="select id from ordrer where ordrenr='$ordrenr' and art='DO'";
+		$check_r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if (!$check_r['id']) {
+			$ordrenr_found = true;
+			fwrite($log,__line__." Generated unique ordrenr: $ordrenr\n");
+		} else {
+			fwrite($log,__line__." Ordrenr $ordrenr already exists, retrying...\n");
+			sleep(1); // Brief pause to avoid rapid retries
+		}
+	}
+	
+	if (!$ordrenr_found) {
+		fwrite($log,__line__." ERROR: Could not generate unique ordrenr after $max_attempts attempts\n");
+		fclose ($log);
+		return "Error: Could not generate unique order number";
 	}
 	$projektnr=0;
 	$qtxt = "select box1 from grupper where art='DG' and kodenr = '$gruppe' ";
@@ -433,15 +479,40 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
 	$saldi_ordre_id=$r['id'];
-	fwrite($log,__line__."saldi_ ID $saldi_ordre_id\n");
-	$qtxt="insert into shop_ordrer(saldi_id,shop_id)values('$saldi_ordre_id','$shopOrderId')";
-	fwrite($log,__line__." ".$qtxt."\n");
-	if ($saldi_ordre_id && $shopOrderId) db_modify($qtxt,__FILE__ . " linje " . __LINE__);  
+	fwrite($log,__line__."saldi_ordre_id: $saldi_ordre_id\n");
+	
+	// Enhanced shop_ordrer insertion with duplicate prevention
+	if ($saldi_ordre_id && $shopOrderId) {
+		// Final check before inserting into shop_ordrer table
+		$qtxt_check="select id from shop_ordrer where shop_id='$shopOrderId'";
+		$check_r=db_fetch_array(db_select($qtxt_check,__FILE__ . " linje " . __LINE__));
+		if ($check_r['id']) {
+			fwrite($log,__line__." ERROR: Race condition detected - shop_id $shopOrderId already exists in shop_ordrer\n");
+			// Clean up the order we just created since it's a duplicate
+			db_modify("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
+			fclose ($log);
+			return "Error: Duplicate shop order detected during insertion";
+		}
+		
+		$qtxt="insert into shop_ordrer(saldi_id,shop_id)values('$saldi_ordre_id','$shopOrderId')";
+		fwrite($log,__line__." $qtxt\n");
+		$insert_result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		
+		if (!$insert_result) {
+			fwrite($log,__line__." ERROR: Failed to insert into shop_ordrer table\n");
+			// Clean up the order we just created
+			db_modify("delete from ordrer where id='$saldi_ordre_id'",__FILE__ . " linje " . __LINE__);
+			fclose ($log);
+			return "Error: Failed to create shop order mapping";
+		}
+		
+		fwrite($log,__line__." Successfully created order mapping: saldi_id=$saldi_ordre_id, shop_id=$shopOrderId\n");
+	}  
 	fclose ($log);
 	return $saldi_ordre_id;
 }
 
-function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$varegruppe,$discountType) {
+function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$varegruppe) {
 
 	global $db,$db_skriv_id;
 	global $brugernavn;
@@ -457,7 +528,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$lager*=1;
 	$log=fopen("../temp/$db/rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
-	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
+	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant)\n");
 	if ($ordre_id && is_numeric($ordre_id)) {
 		$qtxt="select status,momssats from ordrer where id='$ordre_id'";
 		fwrite($log,__line__." ".$qtxt."\n");
@@ -621,7 +692,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		fwrite ($log,__line__." Vnr: $varenr\n");
 		
 		fwrite($log,__line__." opret_ordrelinje($ordre_id,$vare_id,".db_escape_string(chk4utf8($varenr)).",$antal,".db_escape_string(chk4utf8($beskrivelse)).",$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','','','0','','','','','',$lager,".__line__.")\n");
-		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','',$discountType,'0','','','','','',$lager,__LINE__);
+		$lineSum = opret_ordrelinje($ordre_id,$vare_id,db_escape_string(chk4utf8($varenr)),$antal,db_escape_string(chk4utf8($beskrivelse)),$pris,$rabat,'100','DO',$momsfri,$posnr,'0','','','','0','','','','','',$lager,__LINE__);
 		
 		fwrite($log,__line__." LineSum =  $lineSum\n");
 		$qtxt = "select max(id) as id from ordrelinjer where ordre_id = '$ordre_id' and vare_id = '$vare_id'"; 
