@@ -2294,7 +2294,7 @@ if ($swap_account) {
 */
     if ((strstr($fokus,'lev_navn'))&&($id)) kontoopslag("$art","$sort","$fokus","$id","$lev_navn",'','','','','');
 #    elseif (strstr($fokus,'kontakt')) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
-	$q=db_select("select box2 from grupper where art = 'PL' AND box4='Yes'",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select box2 from grupper where art = 'PL' AND box12='Yes'",__FILE__ . " linje " . __LINE__);
 	if($s = db_fetch_array($q)){
 		$option= if_isset($option,NULL).':'.$s[0];
 	}	

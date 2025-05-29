@@ -16,7 +16,8 @@ function pricelists(){
 		$id[$i]=$r['id'];
 		$beskrivelse[$i]=$r['beskrivelse']; //holds names of the records
 		$prisfil[$i]=$r['box2']; //file location ? //the url
-		$aktiv[$i]=$r['box4'];
+		$aktiv[$i]=$r['box12'];
+        $selected[$i]=$r['box4']; //on
 		$gruppe1[$i]=$r['box8'];  //selected group
 		$supplier[$i]=$r['box9'];
         $delimiter[$i] = $r['box10'];
@@ -87,14 +88,15 @@ function pricelists(){
             while ($r = db_fetch_array($q)) {
                 $id = $r['id'];
                 $url = $r['box2']; // same as $prisfil
-                $isActive = $r['box4']; // same as $aktiv
+                $isActive = $r['box12']; // same as $aktiv
+                $selectActive = $r['box4']; 
                
                 if ($url === $selectedUrl) {
                     // Set the selected URL as active
-                    db_modify("UPDATE grupper SET box4 = 'Yes' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+                    db_modify("UPDATE grupper SET box12 = 'Yes', box4 ='on' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
                 } else if ($isActive === 'Yes') {
                     // Deactivate all other records that were previously active
-                    db_modify("UPDATE grupper SET box4 = '' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+                    db_modify("UPDATE grupper SET box12 = '' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
                 }
             }
 
