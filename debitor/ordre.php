@@ -4514,7 +4514,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
       $posnr[0]=$linjeantal+1;
       if ($varenr[0] && isset($_GET['vare_id']) || isset($_GET['varenr'])) { //20150407+20241229
         $fokus="dkan0"; #20150306 + value i dkan0
-        $lager[0]=if_isset($_GET,NULL,'lager')*1;
+        $lager[0]=(int)if_isset($_GET,NULL,'lager',0);
 
         if(isset($_GET['varenr'])){
           //+++++ Insert into varer table if not exist 
