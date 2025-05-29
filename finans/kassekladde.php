@@ -89,6 +89,7 @@
 // 20240804	PHR - Removed (float) from belob
 // 20240807 PHR	- Minor correction.
 // 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
+//  28-05-2025 Sawaneh -  Adedd position-based sorting to kassekladde entries
 
 ob_start(); //Starter output buffering
 
@@ -151,6 +152,8 @@ print "<script>
 		that.style.backgroundColor = bgcolor;
 	}
 </script>";
+include("kassekladde_includes/moveButton.php");
+include("kassekladde_includes/moveButtonStyle.php");
 
 if (!isset($tidspkt))
 	$tidspkt = 0;
@@ -194,8 +197,24 @@ if ($tjek = if_isset($_GET['tjek'])) {
 }
 
 $ompost = isset($_GET['ompost']) ? $_GET['ompost'] : Null;
+$move_up = isset($_GET['move_up']) ? $_GET['move_up'] : null;
+$move_down = isset($_GET['move_down']) ? $_GET['move_down'] : null;
+$move_bilag = isset($_GET['move_bilag']) ? $_GET['move_bilag'] : null;
+$move_date = isset($_GET['move_date']) ? $_GET['move_date'] : null;
+$move_pos = isset($_GET['move_pos']) ? $_GET['move_pos'] : null;
+$kladde_id_from_get = isset($_GET['kladde_id']) ? $_GET['kladde_id'] : null;
+
+if (($move_up || $move_down) && $move_bilag && $move_date && $move_pos && $kladde_id_from_get) {
+    $direction = $move_up ? 'up' : 'down';
+    moveEntryByBilag($move_bilag, $move_date, $move_pos, $direction, $kladde_id_from_get);
+    header("Location: kassekladde.php?kladde_id=$kladde_id_from_get&tjek=$kladde_id_from_get");
+    exit;
+}
+
 if ($ompost)
 	ompost($ompost);
+
+	
 
 $kladde_id = isset($_POST['kladde_id']) ? $_POST['kladde_id'] : 0;
 $antal_ny = isset($_POST['antal_ny']) ? $_POST['antal_ny'] : 0;
@@ -1011,6 +1030,7 @@ if ($r = db_fetch_array(db_select("select id from adresser where art = 'S'", __F
 }
 if (!$fejl && $kladde_id) {
 	opdater($kladde_id);
+    initializePositions($kladde_id);
 	db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
 /*
@@ -1164,6 +1184,7 @@ if (db_fetch_array(db_select("select id from kassekladde where kladde_id = '$kla
 		print "<td  align='center'><b> <span title= '" . findtekst(1572, $sprog_id) . "'>" . findtekst(1071, $sprog_id) . ".id</b></td>";
 }
 print "<td align='center' width='30px'><b> <span title= '" . findtekst(1573, $sprog_id) . "'>&nbsp;u/m&nbsp;</b></td>";
+print "<td align='center' width='60px'><b>Position</b></td>";
 if ($kontrolkonto) {
 	print "<td align='center' width='30px'><b> <span title= '" . findtekst(1573, $sprog_id) . "'>Saldo<br>Regnskab</b></td>";
 	$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
@@ -1244,7 +1265,12 @@ if ($kladde_id) {
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$fejl = 1;
 	} else {
-		$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, id";
+		// $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, id";
+if ($kksort == 'bilag,transdate') {
+    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag, transdate, pos, id";
+} else {
+    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, pos, id";
+}
 	}
 	#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1358,6 +1384,7 @@ if ($kladde_id) {
 			$forfaldsdato[$x] = $tmpffdato;
 		}
 		$betal_id[$x] = $row['betal_id'];
+		$pos[$x] = $row['pos'] ? $row['pos'] : 0;
 	}
 	if (!$fejl)
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
@@ -1427,6 +1454,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		} else {
 			print "<td> <br></td>";
 		}
+		if (strstr($momsfri[$y], "on")) {
+			print "<td align='center'> V</td>";
+		} else {
+			print "<td> <br></td>";
+		}
+		
+		// .........Position column.............
+		print "<td align='center'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
 		if (!$udskriv && $bogfort != 'S')
 			print "<td title='" . findtekst(1574, $sprog_id) . "'><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]' id='undo'><img alt='undo' src='../ikoner/undo.png' style='border: 0px solid ; width: 18px; height: 17px;'></a></td>";
 		print "</tr>\n";
@@ -1645,6 +1680,38 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		} else {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='javascript:docChange = true;'></td>\n";
 		}
+if (($bogfort && $bogfort != '-') || $udskriv) {
+    print "<td class='position-cell'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
+} else {
+   
+    print "<td class='position-cell'>";
+    print "<span class='position-controls'>";
+    
+    // ..................Up button.....................
+    if ($y > 1 && isset($bilag[$y-1]) && $bilag[$y] == $bilag[$y-1] && $dato[$y] == $dato[$y-1]) {
+        $move_date = urlencode($transdate[$y]);
+        print "<button type='button' class='move-btn move-up' 
+               onclick=\"window.location.href='kassekladde.php?kladde_id=$kladde_id&move_up=1&move_bilag=$bilag[$y]&move_date=$move_date&move_pos=$pos[$y]&tjek=$kladde_id'\" 
+               title='Flyt op'>↑</button>";
+    } else {
+        print "<span class='move-btn-disabled'>↑</span>";
+    }
+    
+    print "<span class='position-number'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</span>";
+    
+    //.................Down button.................
+    if ($y < $x && isset($bilag[$y+1]) && $bilag[$y] == $bilag[$y+1] && $dato[$y] == $dato[$y+1]) {
+        $move_date = urlencode($transdate[$y]);
+        print "<button type='button' class='move-btn move-down' 
+               onclick=\"window.location.href='kassekladde.php?kladde_id=$kladde_id&move_down=1&move_bilag=$bilag[$y]&move_date=$move_date&move_pos=$pos[$y]&tjek=$kladde_id'\" 
+               title='Flyt ned'>↓</button>";
+    } else {
+        print "<span class='move-btn-disabled'>↓</span>";
+    }
+    
+    print "</span>";
+    print "</td>\n";
+}
 		if ($control_bal_fetched) {
 			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
 			$titletxt .= $control_record_date;
@@ -2438,18 +2505,36 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					#				$beskrivelse=db_escape_string(if_isset($r['beskrivelse'], ''));
 					$qtxt = NULL;
 					if ($forfaldsdate) {
+						$next_pos_query = db_select("SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$r[bilag]' AND transdate = '$transdate'", __FILE__ . " linje " . __LINE__);
+$next_pos_row = db_fetch_array($next_pos_query);
+$next_pos = $next_pos_row['next_pos'];
+						// $qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
+						// $qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id)";
+						// $qtxt .= "values ";
+						// $qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+						// $qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', ";
+						// $qtxt .= "'$kladde_id','$forfaldsdate','$betal_id')";
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
-						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id)";
-						$qtxt .= "values ";
-						$qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
-						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', ";
-						$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id')";
+$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id,forfaldsdate,betal_id, pos)"; // Added pos
+$qtxt .= "values ";
+$qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', ";
+$qtxt .= "'$kladde_id','$forfaldsdate','$betal_id', '$next_pos')"; // Added $next_pos
 					} elseif (($r['bilag'] || $r['bilag'] == '0') && ($beskrivelse || $debet || $kredit || $amount)) {
+						$next_pos_query = db_select("SELECT COALESCE(MAX(pos), 0) + 1 as next_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND bilag = '$r[bilag]' AND transdate = '$transdate'", __FILE__ . " linje " . __LINE__);
+$next_pos_row = db_fetch_array($next_pos_query);
+$next_pos = $next_pos_row['next_pos'];
+						// $qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
+						// $qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id)";
+						// $qtxt .= " values ";
+						// $qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+						// $qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id')";
+
 						$qtxt = "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, ";
-						$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id)";
-						$qtxt .= " values ";
-						$qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
-						$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id')";
+$qtxt .= "faktura, amount, momsfri, afd, projekt, ansat, valuta, kladde_id, pos)"; // Added pos
+$qtxt .= " values ";
+$qtxt .= "('$r[bilag]', '$transdate', '$beskrivelse', '$d_type', '$debet', '$k_type', '$kredit', ";
+$qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id', '$valutakode', '$kladde_id', '$next_pos')"; // Added $next_pos
 					}
 					if ($qtxt) {
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -2598,7 +2683,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 	} # endfunc ompost
 ##########################################################################################################
-	function valutaopslag($amount, $valuta, $transdate) {
+	// Handle move up/down
+
+function valutaopslag($amount, $valuta, $transdate) {
 
 		$qtxt = "select * from valuta where gruppe = '$valuta' and valdate <= '$transdate' order by valdate desc";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2739,6 +2826,8 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 		"selector" => "[name=bila1]",
 		"content" => "Du kan slette linjen ved at skrive '-' i feltet i stedet for et tal og trykke Enter.",
 	);
+
+	
 	include(__DIR__ . "/../includes/tutorial.php");
 	create_tutorial("kasseklad", $steps);
 	?>
