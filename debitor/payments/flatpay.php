@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2025.05.12 ---
+// --- payments/flatpay.php --- lap 4.1.0 --- 2025.05.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20250512 Updated to use new Flatpay API endpoints
+// 20250523 printserver lookup
 
 @session_start();
 $s_id = session_id();
