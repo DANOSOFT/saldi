@@ -71,6 +71,32 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 
+//...... pos functionality to kassekladde table..........
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='kassekladde' and column_name='pos'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if ($db_type == 'mysql' || $db_type == 'mysqli') {
+		db_modify("ALTER TABLE kassekladde ADD COLUMN pos INT DEFAULT 0", __FILE__ . " linje " . __LINE__);
+	} else {
+		db_modify("ALTER TABLE kassekladde ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
+	}
+	
+	$qtxt = "UPDATE kassekladde k1 
+			 SET pos = (
+				 SELECT COUNT(*) 
+				 FROM kassekladde k2 
+				 WHERE k2.kladde_id = k1.kladde_id 
+				 AND k2.bilag = k1.bilag 
+				 AND k2.transdate = k1.transdate 
+				 AND k2.id <= k1.id
+			 )";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tmpkassekl' and column_name='pos'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE tmpkassekl ADD COLUMN pos TEXT DEFAULT '0'", __FILE__ . " linje " . __LINE__);
+}
+
 // easyUBL
 /*
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='timereg_sessions'";

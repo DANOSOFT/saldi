@@ -47,7 +47,7 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
-include("../includes/row-hover-style.js.php");
+include("../includes/row-hover-style-with-links.js.php");
 
 #print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 global $sprog_id; //2021
@@ -89,6 +89,8 @@ if (isset($_GET['ny_rykker'])) {
 		}
 	}
 	if ($rapportart == 'accountChart')
+include("../includes/row-hover-style-with-link-no-input.js.php");
+
 		$rapportart = 'kontokort';
 	if ($rapportart == 'accountChart')
 		include_once("../includes/reportFunc/accountChart.php");
@@ -155,7 +157,7 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_fra = $_POST['dato_fra'];
 		$dato_til = $_POST['dato_til'];
 	} else {
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		db_modify("update grupper set box1='$husinputk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
