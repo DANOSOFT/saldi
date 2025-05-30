@@ -89,8 +89,12 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 $q = db_select("select id from settings where var_name = 'flatpay_auth'", __FILE__ . " linje " . __LINE__);
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$q = db_select("select id from settings where var_name = 'flatpay_print'", __FILE__ . " linje " . __LINE__);
-	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		$qtxt = "insert into settings"
+	// if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	// 	$qtxt = "insert settings (var_name, value, description) 
+	// 			values ('flatpay_print', '1', 'Flatpay print receipt enabled')";
+	// 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	// }
+		
 }
 
 
