@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 4.1.1---2025-04-28---
+//------------index/install.php----lap 4.1.1---2025-05-29---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,41 @@ print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<td width=\"100%\" align = \"center\" $top_bund>$font<a href=\"http://saldi.dk/dok/komigang.html\" target=\"_blank\"><small>Vejledning</small></a></td>\n";
 print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"center\">\n";
+
+##########
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['language'])) {
+    $_SESSION['language'] = $_POST['language'];
+
+    
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+$current_language = $_SESSION['language'] ?? '';
+
+$language_names = [
+    '1' => 'Dansk',
+    '2' => 'English',
+    '3' => 'Norsk',
+];
+
+print '<html><head><title>Language Selection</title></head><body>';
+
+print '<form method="POST">';
+print '<label for="language">Choose language:</label>';
+print '<select name="language" id="language" onchange="this.form.submit()">';
+
+print '<option value="">-- Select --</option>';
+print '<option value="1"' . ($current_language === '1' ? ' selected' : '') . '>1: Dansk</option>';
+print '<option value="2"' . ($current_language === '2' ? ' selected' : '') . '>2: English</option>';
+print '<option value="3"' . ($current_language === '3' ? ' selected' : '') . '>3: Norsk</option>';
+
+print '</select>';
+print '</form>';
+##########
+
+
+
 
 if (isset($_POST['opret'])){
 	$felt_mangler=false;	
@@ -312,10 +347,15 @@ if (isset($_POST['opret'])){
 	$db_password  = if_isset($_SESSION['db_password']);
 	$adm_navn     = if_isset($_SESSION['adm_navn']);
 	$adm_password = if_isset($_SESSION['adm_password']);
+	if(!if_isset($sprog_id,1));
+	if(isset( $_SESSION['language'])){
+		$sprog_id = $_SESSION['language'];
+	}
 
+	$current_year = date("Y");
 	print	"<table width=40% align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print	"<tr><td colspan=\"5\" align=\"center\"><font face=\"Helvetica, Arial, sans-serif\"><big><b>Velkommen til SALDI</b></big></td></tr>";
-	print	"<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\">Hvis du har installeret webserveren Apache med PHP og en af databaseserverne PostgreSQL eller MySQL, kan du nu installere SALDI.</td></tr>";
+	print	"<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\">".findtekst('1994|Hvis du har installeret webserveren Apache med PHP og en af databaseserverne PostgreSQL eller MySQL, kan du nu installere SALDI',$sprog_id).".</td></tr>";
 	print	"<FORM name=\"opret\" METHOD=POST ACTION=\"install.php\"><tr><td colspan=2><br></td></tr>";
 	$title="V&aelig;lg den databaseserver, du &oslash;nsker at bruge.";
 	print "<tr><td><font face=\"Arial,Helvetica\">Databaseserver</td><td title=\"$title\"><SELECT NAME=db_type>";
@@ -324,32 +364,32 @@ if (isset($_POST['opret'])){
 	if ($db_type!='MySQLi') print "<option>MySQLi</option></SELECT>";
 	print "</td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">Servernavn</td><td title=\"Hostname for databaseserver\"><input type=\"text\" name=\"db_host\" value=\"$db_host\"><td><td width=\"5%\"></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('2559|Servernavn',$sprog_id)."</td><td title=\"Hostname for databaseserver\"><input type=\"text\" name=\"db_host\" value=\"$db_host\"><td><td width=\"5%\"></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">Tegns&aelig;t</td><td title=\"V&aelig;lg det tegns&aelig;t du &oslash;nsker at bruge. Nyere versioner af PostgreSQL fungerer kun med UTF8\"><SELECT NAME=db_encode><option>UTF8</option><option>LATIN9</option></SELECT></td><td></td></tr>";;
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1965|Tegnsæt',$sprog_id)."</td><td title=\"V&aelig;lg det tegns&aelig;t du &oslash;nsker at bruge. Nyere versioner af PostgreSQL fungerer kun med UTF8\"><SELECT NAME=db_encode><option>UTF8</option><option>LATIN9</option></SELECT></td><td></td></tr>";;
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">Databasenavn</td><td title=\"&Oslash;nsket navn p&aring; din hoveddatabase for SALDI\"><INPUT TYPE=TEXT NAME=db_navn VALUE = \"$db_navn\"> <td><td width=5%></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1966|Databasenavn',$sprog_id)."</td><td title=\"&Oslash;nsket navn p&aring; din hoveddatabase for SALDI\"><INPUT TYPE=TEXT NAME=db_navn VALUE = \"$db_navn\"> <td><td width=5%></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">Eksisterende databaseadministrator</td> <td title=\"Navn p&aring; en bruger, som har i forvejen har tilladelse til at oprette, rette og slette databaser. Typisk er det for PostgreSQL brugeren postgres og for MySQL brugeren root.\"><INPUT TYPE=TEXT NAME=db_bruger VALUE=\"$db_bruger\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('2560|Eksisterende databaseadministrator',$sprog_id)."</td> <td title=\"Navn p&aring; en bruger, som har i forvejen har tilladelse til at oprette, rette og slette databaser. Typisk er det for PostgreSQL brugeren postgres og for MySQL brugeren root.\"><INPUT TYPE=TEXT NAME=db_bruger VALUE=\"$db_bruger\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">Adgangskode for databaseadministrator</td><td title=\"Adgangskode for ovenst&aring;ende bruger\"><INPUT TYPE=password NAME=db_password VALUE=\"$db_password\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1968|Adgangskode for databaseadministrator',$sprog_id)."</td><td title=\"Adgangskode for ovenst&aring;ende bruger\"><INPUT TYPE=password NAME=db_password VALUE=\"$db_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">SALDI-administratorens brugernavn</td><td title=\"&Oslash;nsket navn p&aring; din administratorkonto til dit SALDI-system\"><INPUT TYPE=TEXT NAME=adm_navn VALUE = \"$adm_navn\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1969|SALDI-administratorens brugernavn',$sprog_id)."</td><td title=\"&Oslash;nsket navn p&aring; din administratorkonto til dit SALDI-system\"><INPUT TYPE=TEXT NAME=adm_navn VALUE = \"$adm_navn\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">SALDI-administratorens adgangskode</td><td title=\"&Oslash;nsket adgangskode for administratoren af dit SALDI-system\"><INPUT TYPE=password NAME=adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('1970|SALDI-administratorens adgangskode',$sprog_id)."</td><td title=\"&Oslash;nsket adgangskode for administratoren af dit SALDI-system\"><INPUT TYPE=password NAME=adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td><font face=\"Arial,Helvetica\">SALDI-administratorens adgangskode igen</td><td title=\"Verificering af ovenst&aring;ende adgangskode\"><INPUT TYPE=password NAME=verify_adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
+	print "<tr><td><font face=\"Arial,Helvetica\">".findtekst('2561|SALDI-administratorens adgangskode igen',$sprog_id)."</td><td title=\"Verificering af ovenst&aring;ende adgangskode\"><INPUT TYPE=password NAME=verify_adm_password VALUE = \"$adm_password\"></td><td></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td colspan=2 align=center title=\"Klik her for at oprette dit SALDI-system\"><INPUT TYPE=submit name=opret VALUE=Install&eacute;r></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\"> <b>Alle</b> felter skal udfyldes. Hvis du er i tvivl, s&aring; udfyld kun de tomme felter.</td></tr>";
+	print "<tr><td colspan=\"5\"> <font face=\"Helvetica, Arial, sans-serif\"> ".findtekst('2004|<b>Alle</b> felter skal udfyldes. Hvis du er i tvivl, s&aring; udfyld kun de tomme felter',$sprog_id).".</td></tr>";
 	print "<tr><td><br></td></tr><tr></tr></FORM>";
 	print "</tr>";
 	print	"</tbody></table>";
 	print	"</td></tr>";
 	print	"<tr><td align=\"center\" valign=\"bottom\">";
 	print	"<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print	"<td style=\"border: 1px solid rgb(180,180,255); padding: 0pt 0pt 1px;\" align=\"left\" background=\"../img/grey1.gif\" width=\"100%\" bgcolor=\"$bgcolor2\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000000\"><small><small>&nbsp;Copyright&nbsp;&copy;&nbsp;2003-2016&nbsp;saldi.dk&nbsp;aps</small></small></td>";
+	print	"<td style=\"border: 1px solid rgb(180,180,255); padding: 0pt 0pt 1px;\" align=\"left\" background=\"../img/grey1.gif\" width=\"100%\" bgcolor=\"$bgcolor2\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000000\"><small><small>&nbsp;Copyright&nbsp;&copy;&nbsp;2003-$current_year&nbsp;saldi.dk&nbsp;aps</small></small></td>";
 	print	"</tbody></table>";
 	print	"</td></tr>";
 	print	"</tbody></table>";
@@ -420,13 +460,8 @@ function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,
 		fwrite($fp,"else \$connection = db_connect (\"\$sqhost\", \"\$squser\", \"\$sqpass\", \"\$sqdb\");\n");
 	}
 	fwrite($fp,"if (!isset(\$connection)) die( \"Unable to connect to database\");\n");
-	// if ($db_type=='mysqli') {
-	// 	fwrite($fp,"elseif (!mysqli_select_db(\$connection,\$sqdb)) die( \"Unable to connect to MySQL\");\n");
-	// 	fwrite($fp,"else mysqli_query(\$connection,\"SET storage_engine=INNODB\");\n");
-	// }
 	if ($db_type == 'mysqli') {
 		fwrite($fp, "elseif (!mysqli_select_db(\$connection, \$sqdb)) die( \"Unable to connect to MySQL\");\n");
-		// fwrite($fp, "elseif (!mysqli_query(\$connection, \"SET storage_engine=INNODB\")) die(\"Failed to set storage engine: \" . mysqli_error(\$connection));\n");
 		fwrite($fp, "else mysqli_query(\$connection, \"SET SESSION default_storage_engine='InnoDB'\");\n"); // Set default storage engine to InnoDB for MySQL 5.7+ (replaces 'storage_engine') 
 
 	}	
