@@ -79,24 +79,21 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	} else {
 		db_modify("ALTER TABLE kassekladde ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
 	}
-	
-	$qtxt = "UPDATE kassekladde k1 
-			 SET pos = (
-				 SELECT COUNT(*) 
-				 FROM kassekladde k2 
-				 WHERE k2.kladde_id = k1.kladde_id 
-				 AND k2.bilag = k1.bilag 
-				 AND k2.transdate = k1.transdate 
-				 AND k2.id <= k1.id
-			 )";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tmpkassekl' and column_name='pos'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE tmpkassekl ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
-
 }
+
+$q = db_select("select id from settings where var_name = 'flatpay_auth'", __FILE__ . " linje " . __LINE__);
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$q = db_select("select id from settings where var_name = 'flatpay_print'", __FILE__ . " linje " . __LINE__);
+	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$qtxt = "insert into settings"
+}
+
+
 
 // easyUBL
 /*
