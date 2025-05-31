@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-28 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-30 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -4764,7 +4764,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 					if($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop"){
 						$disabled='';
 					}
-					$txt = findtekst('3073|Fakturér',$sprog_id); 
+					$txt = findtekst('2374|Fakturér',$sprog_id); 
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
 				} else {
 					if ($vis_saet) {
@@ -4795,7 +4795,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 				else $tmp="";
 				if ($udskriv_til=='email') {
 					$b_name = 'send';
-					$txt  = findtekst('3008|Send', $sprog_id);
+					$txt  = findtekst('2310|Send', $sprog_id);
 				} else {
 					$b_name = 'print';
 					$txt = findtekst('880|Udskriv', $sprog_id);
