@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-15 ---
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-05-31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -117,7 +117,7 @@
 // 20250321 LOE Updated with various changes and new additions from multiple updates including comments
 // 20250323 LOE Checks if input is set, ensures it doesn't exceed 80 characters, and sanitizes it to prevent XSS attacks.
 // 20250405 LOE if_isset() updated and to check explicitly if array keys exist if they are arrays.
-
+// 20250531 LOE Updated and moved check_permissions from dashbord to this file 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
@@ -203,31 +203,36 @@ if (!function_exists('get_relative')) {
     }
 }
 
-// if (!function_exists('if_isset')) {
-// 	function if_isset(&$var, $return = NULL)
-// 	{
-		/**
-		 * Checks if a variable is set and not empty.
-		 * If set and not empty, returns the value of the variable.
-		 * Otherwise, returns the default value provided.
-		 *
-		 * @param mixed $var - The variable to check.
-		 * @param mixed $return - The value to return if the variable is not set or is empty (default: NULL).
-		 *
-		 * @return mixed - The value of the variable if set and not empty, otherwise the default value.
-		 * ######## Known Behaviour #######, 
-		 * This doesn't return True if $var === 0 as 0 is considered Falsy in PHP. But 0 can be set and retrieved as value in $return param.
-		 * Same thing for False value.
-		 * if_isset(false) //NULL
-		 * if_isset(0)     //NULL
-		 * #################
-		 */
-// 		if ($var)
-// 			return ($var);
-// 		else
-// 			return ($return);
-// 	}
-// }
+if (!function_exists('check_permissions')) {
+
+	/**
+	 * Checks if the current user has any of the specified permissions. 
+	 *
+	 * The function examines a global `$rettigheder` string or array,
+	 * where each character represents a permission flag at a specific index.
+	 * A permission is considered granted if the character at that position is "1".
+	 *
+	 * @param int|int[] $permarr One or more permission indices to check.
+	 * @return bool True if at least one of the specified permissions is granted, false otherwise.
+	 */
+	function check_permissions($permarr) {
+		global $rettigheder;
+
+		$rettigheder_str = is_array($rettigheder) ? $rettigheder[0] : $rettigheder;
+
+		if (!is_array($permarr)) {
+			$permarr = [$permarr];
+		}
+
+		$filtered = array_filter($permarr, function ($item) use ($rettigheder_str) {
+			return (substr($rettigheder_str, $item, 1) === "1");
+		});
+
+		return !empty($filtered);
+	}
+}
+
+
 
 if (!function_exists('if_isset')) {
     function if_isset($arrayOrVar, $default = null, $key = null) {
