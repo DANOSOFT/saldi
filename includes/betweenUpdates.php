@@ -74,29 +74,79 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 //...... pos functionality to kassekladde table..........
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='kassekladde' and column_name='pos'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-	if ($db_type == 'mysql' || $db_type == 'mysqli') {
-		db_modify("ALTER TABLE kassekladde ADD COLUMN pos INT DEFAULT 0", __FILE__ . " linje " . __LINE__);
-	} else {
-		db_modify("ALTER TABLE kassekladde ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
-	}
-	
-	$qtxt = "UPDATE kassekladde k1 
-			 SET pos = (
-				 SELECT COUNT(*) 
-				 FROM kassekladde k2 
-				 WHERE k2.kladde_id = k1.kladde_id 
-				 AND k2.bilag = k1.bilag 
-				 AND k2.transdate = k1.transdate 
-				 AND k2.id <= k1.id
-			 )";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("ALTER TABLE kassekladde ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
 }
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tmpkassekl' and column_name='pos'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE tmpkassekl ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
-
 }
+
+$qtxt = "select id from settings where var_name = 'flatpay_auth'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select id from settings where var_name = 'flatpay_print'";
+	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		($db == 'pos_10' || $db == 'pos_62') ? $flatpay_print = 1: $flatpay_print = 0;
+		$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ";
+		($db == 'pos_10' || $db == 'pos_62') ? $qtxt.= "'1', ":
+		$qtxt.= "('flatpay_print', 'POS', '$flatpay_print', 'If 1, Saldi will print the terminal receipt else it is printed by the termanal')";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+}
+
+#############For managing employee users profile 
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ansatte' AND column_name='brugernavn'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE ansatte ADD COLUMN brugernavn TEXT", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ansatte' AND column_name='bruger_id'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE ansatte ADD COLUMN bruger_id INT", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ansatte' AND column_name='profile_image'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE ansatte ADD COLUMN profile_image TEXT", __FILE__ . " linje " . __LINE__);
+}
+$qtxt = "SELECT constraint_name 
+         FROM information_schema.table_constraints 
+         WHERE table_name='ansatte' AND constraint_type='FOREIGN KEY' AND constraint_name='fk_bruger_id'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    db_modify("ALTER TABLE ansatte 
+               ADD CONSTRAINT fk_bruger_id 
+               FOREIGN KEY (bruger_id) 
+               REFERENCES brugere(id) 
+               ON DELETE SET NULL", __FILE__ . " linje " . __LINE__); 
+}
+
+//add foreign key to brugere table 
+$qtxt = "
+    SELECT 1
+    FROM information_schema.table_constraints tc 
+    JOIN information_schema.key_column_usage kcu 
+      ON tc.constraint_name = kcu.constraint_name 
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_name = 'brugere'
+      AND kcu.column_name = 'ansat_id'
+";
+
+$result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+
+if (!$result || !$r = db_fetch_array($result)) {
+    // Nullify any ansat_id values that don't match ansatte.id
+    db_modify("
+        UPDATE brugere
+        SET ansat_id = NULL
+        WHERE ansat_id IS NOT NULL
+          AND ansat_id NOT IN (SELECT id FROM ansatte)
+    ", __FILE__ . " linje " . __LINE__);
+
+    $alter_sql = "ALTER TABLE brugere ADD CONSTRAINT fk_brugere_ansat_id FOREIGN KEY (ansat_id) REFERENCES ansatte(id)";
+    db_modify($alter_sql, __FILE__ . " linje " . __LINE__);
+}
+
+####################### 
+
+
 
 // easyUBL
 /*

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 4.1.0 --- 2024-04-23---
+// --- includes/online.php --- patch 4.1.1 --- 2025-05-31---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20120905 $ansat_navn bliver nu sat her. Søg 20120905
 // 20130120 $sag_rettigheder bliver nu sat her. Søg 20130120
@@ -53,9 +53,10 @@
 // 20231107 PK Added css- and javascript-link for flatpickr
 // 20240422 PHR Added 'S' in box3 when insertion uset in grupper
 // 26042024 PBLM changed the path of the javascript and css files to be relative to the file location for flatpickr
-// 23-05-2024 PBLM Setup notification from easyUBL
+// 23052024 PBLM Setup notification from easyUBL
+// 20250531 LOE Checks whether a user is admin or not
 
-#include("../includes/connect.php"); #20211001
+#include("../includes/connect.php"); #20211001 
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
 	date_default_timezone_set($timezone);
@@ -96,6 +97,56 @@ if (isset($_COOKIE['timezone'])) { #20190110
 		$r ? $systemLanguage = $r['var_value'] : $systemLanguage = 'Dansk';
 	}
 }
+
+######################
+################Enable admin check and get username
+
+$is_admin = false;
+$user_db = '';
+$username = '';
+
+try {
+    $qtxt = "SELECT db, brugernavn FROM online WHERE session_id = '$s_id'  LIMIT 1";
+    $result = db_select($qtxt, __FILE__ . " line " . __LINE__);
+    if (db_num_rows($result) > 0) {
+        $row = db_fetch_array($result);
+        $fetched_db = $row['db'];
+        $username1 = $row['brugernavn'];
+			################
+			$qtxt = "SELECT brugernavn FROM brugere WHERE brugernavn = '$username1'  LIMIT 1";
+			$result1 = db_select($qtxt, __FILE__ . " line " . __LINE__);
+			###########
+		if (db_num_rows($result1) > 0) {
+				$row = db_fetch_array($result1);
+				
+				$brugernavn = $row['brugernavn'];
+			if ($brugernavn) {
+				$is_admin = true;
+			} else {
+				$is_admin = false;
+			}
+		}
+    }
+} catch (Exception $e) {
+    $is_admin = false;
+}
+
+if (!$is_admin) {
+    $conn = db_connect($sqhost, $squser, $sqpass, $sqdb);
+    $safe_session = addslashes($s_id);
+    $qtxt = "SELECT db, brugernavn FROM online WHERE session_id = '$safe_session' LIMIT 1";
+    $result = db_select($qtxt, __FILE__ . " line " . __LINE__, $conn);
+    $info = db_fetch_array($result);
+    if ($info) {
+        $user_db = $info['db'];
+        $brugernavn = $info['brugernavn'];
+    }
+}
+
+##################
+
+
+
 
 if (!isset($meta_returside)) $meta_returside = NULL;
 $db_skriv_id = NULL; #bruges til at forhindre at skrivninger til masterbasen logges i de enkelte regnskaber.

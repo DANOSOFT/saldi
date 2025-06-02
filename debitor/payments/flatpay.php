@@ -26,6 +26,7 @@
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20250512 Updated to use new Flatpay API endpoints
 // 20250523 printserver lookup
+// 20250531 PHR added $flatpayPrint
 
 @session_start();
 $s_id = session_id();
@@ -58,6 +59,9 @@ print "<div id='bg'></div>";
 $q = db_select("select var_value from settings where var_name = 'flatpay_auth'", __FILE__ . " linje " . __LINE__);
 $guid = db_fetch_array($q)[0];
 
+$q = db_select("select var_value from settings where var_name = 'flatpay_print'", __FILE__ . " linje " . __LINE__);
+$flatpayPrint = db_fetch_array($q)[0];
+
 // Fetch printserver
 $r = db_fetch_array(db_select("select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 $x = $kasse - 1;
@@ -84,7 +88,7 @@ $amount = (string)(abs($raw_amount) * 100); // Convert to pennies as string
 
 // Prepare printfile
 if (file_exists("../../temp/$db/receipt_$kasse.txt")) unlink("../../temp/$db/receipt_$kasse.txt");
-if ($db=='pos_10' || $db=='develop_16') {
+if ($flatpayPrint) {
   $printfile = 'https://'.$_SERVER['SERVER_NAME'];
   $printfile.= str_replace('debitor/payments/flatpay.php', "temp/$db/receipt_$kasse.txt", $_SERVER['PHP_SELF']);
 } else $printfile = NULL;
