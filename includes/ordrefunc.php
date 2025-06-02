@@ -6867,8 +6867,3 @@ one;
 } */
 
 ?>
-<style>
-	.hidden {
-		display: none;
-	}
-</style>
