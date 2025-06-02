@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .section {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        .success {
+            color: green;
+            margin: 10px 0;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Key Management</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h2>Create New API Key</h2>
+            <form id="createKeyForm">
+                <div class="form-group">
+                    <label for="database">Database Name:</label>
+                    <input type="text" id="database" name="database" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="created_by">Created By:</label>
+                    <input type="text" id="created_by" name="created_by" value="system">
+                </div>
+                <button type="submit">Create API Key</button>
+            </form>
+            <div id="createResult"></div>
+        </div>
+        
+        <div class="section">
+            <h2>API Keys List</h2>
+            <button onclick="refreshKeys()">Refresh List</button>
+            <div id="keysList"></div>
+        </div>
+    </div>
+
+    <script>
+        // Function to create new API key
+        document.getElementById('createKeyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            try {
+                const response = await fetch('manage_api_keys.php?action=create', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('createResult');
+                
+                if (result.error) {
+                    resultDiv.innerHTML = `<div class="error">${result.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ${result.message}<br>
+                            API Key: ${result.api_key}<br>
+                            <strong>Make sure to copy this key now. You won't be able to see it again!</strong>
+                        </div>
+                    `;
+                    e.target.reset();
+                    refreshKeys();
+                }
+            } catch (error) {
+                document.getElementById('createResult').innerHTML = 
+                    `<div class="error">Error: ${error.message}</div>`;
+            }
+        });
+
+        // Function to refresh the keys list
+        async function refreshKeys() {
+            try {
+                const response = await fetch('manage_api_keys.php?action=list');
+                const result = await response.json();
+                
+                if (result.error) {
+                    document.getElementById('keysList').innerHTML = 
+                        `<div class="error">${result.message}</div>`;
+                    return;
+                }
+                
+                const table = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>API Key</th>
+                                <th>Database</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Last Used</th>
+                                <th>Created By</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.keys.map(key => `
+                                <tr>
+                                    <td>${key.id}</td>
+                                    <td>${key.api_key}</td>
+                                    <td>${key.database}</td>
+                                    <td>${key.description || ''}</td>
+                                    <td>${key.active ? 'Active' : 'Inactive'}</td>
+                                    <td>${new Date(key.created_at).toLocaleString()}</td>
+                                    <td>${key.last_used_at ? new Date(key.last_used_at).toLocaleString() : 'Never'}</td>
+                                    <td>${key.created_by}</td>
+                                    <td>
+                                        ${key.active ? `
+                                            <button onclick="deactivateKey('${key.api_key}')">Deactivate</button>
+                                        ` : 'Inactive'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                document.getElementById('keysList').innerHTML = table;
+            } catch (error) {
+                document.getElementById('keysList').innerHTML = 
+                    `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Function to deactivate an API key
+        async function deactivateKey(apiKey) {
+            if (!confirm('Are you sure you want to deactivate this API key?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('manage_api_keys.php?action=deactivate', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert(result.message);
+                } else {
+                    alert(result.message);
+                    refreshKeys();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Load keys list on page load
+        refreshKeys();
+    </script>
+</body>
+</html> 
