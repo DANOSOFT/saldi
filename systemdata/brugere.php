@@ -268,16 +268,18 @@ while ($row = db_fetch_array($query)) {
 		// event listener for checkboxes
 		checkbox.forEach((el) => {
 			el.addEventListener("change", () => {
-				const res = fetch("brugereRevisor.php",
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/x-www-form-urlencoded"
-						},
-						body: "id=" + el.id + "&db=" + db
-					}
-				)
-				window.location.reload();
+				if(confirm("vil du gøre denne bruger til revisor? Du kan kun have én revisoradgang og kan ikke ændre, hvilken bruger der er revisor, uden at kontakte Saldi support.")) {
+					const res = fetch("brugereRevisor.php",
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/x-www-form-urlencoded"
+							},
+							body: "id=" + el.id + "&db=" + db
+						}
+					)
+					window.location.reload();
+				}
 			})
 		})
 	</script>
