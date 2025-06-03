@@ -237,8 +237,8 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		$dbpass = trim(if_isset($r,'','dbpass'));
 		$db         = trim(if_isset($r,'','db'));
 		$db_id      = trim(if_isset($r,'','id'));
-		$post_max   = if_isset($r,0,'posteringer')*1;
-		$bruger_max = if_isset($r,0,'brugerantal')*1;	
+		$post_max   = if_isset($r,0,'posteringer');
+		$bruger_max = if_isset($r,0,'brugerantal');
 		$lukket     = trim(if_isset($r,'','lukket'));
 		$dbMail = if_isset($r,null,'email');
 		if(if_isset($r,null,'global_id')){
