@@ -214,9 +214,9 @@
 214	Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen	If this field is not checked, purchase invoices must be posted through the cash journal with the [Get Orders]-function	Hvis dette feltet ikke er avmerket, skal kjøpsfakturaer bokføres via kassekladden med [Hent ordrer]-funksjonen
 215	Emne og tekst til brug ved udsendelse som e-mail	Subject and text for use when sending by e-mail	Emne og tekst for bruk ved sending via e-post
 216	Emne	Topic	Emne
-217	Skriv overskriften til den email som bruges	Write the title of the email used	Skriv tittelen på e-postmeldingen som brukes
+217	Skriv overskriften til den e-mail som bruges	Write the title of the email used	Skriv tittelen på e-postmeldingen som brukes
 218	Mailtekst	Mail text	E-posttekst
-219	Skriv teksten til den email som bruges	Write the text of the email used	Skriv teksten til e-postmeldingen som ble brukt
+219	Skriv teksten til den e-mail som bruges	Write the text of the email used	Skriv teksten til e-postmeldingen som brukes
 220	Skal genfaktureringsdato slettes fra den gamle faktura	Must re-invoice date be deleted from the old invoice	Må fakturadato slettes fra den gamle fakturaen
 221	Ryd genfaktdato fra gl.fakt	Clear re-fact date from old fact	Tydelig re-faktum dato fra gamle faktum
 222	Genfaktureringsdato slettes fra gammel faktura	Re-invoicing date is deleted from old invoice	Dato for omfakturering slettes fra gammel faktura
@@ -2513,7 +2513,7 @@
 2513	Sprogbenævnelse må ikke indeholde specialtegn.\\nOprettelse af	The language name must not contain special characters. \\n Setup of	Språkbetegnelse må ikke inneholde spesialtegn.\\nOpprettelsen av
 2514	er annulleret	has been canceled	er annullert
 2515	Toplinjer	Top lines	Topplinjer
-2516	Bundlinker	Bottom lines	Bunnlinjer
+2516	Bundlinjer	Bottom lines	Bunnlinjer
 2517	Egen	Own	Egen
 2518	Eget	Own	Eget
 2519	Kundeordrenummer	Customer order number	Kundeordrenummer
