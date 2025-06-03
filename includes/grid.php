@@ -1433,6 +1433,7 @@ HTML;
                         });
                     </script>
                 </div>
+                <div style="height: 2rem;"></div>
             </div>
         </form>
     </div>
