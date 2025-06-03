@@ -234,13 +234,13 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		$dbuser = trim(if_isset($r['dbuser'], ''));
 		$dbver = trim(if_isset($r['version'], ''));
 		// $dbpass = trim(if_isset($r['dbpass'], ''));
-		$dbpass = trim(if_isset($r,'','dbpass'));
-		$db         = trim(if_isset($r,'','db'));
-		$db_id      = trim(if_isset($r,'','id'));
-		$post_max   = if_isset($r,0,'posteringer');
-		$bruger_max = if_isset($r,0,'brugerantal');
-		$lukket     = trim(if_isset($r,'','lukket'));
-		$dbMail = if_isset($r,null,'email');
+		// $dbpass = trim(if_isset($r["dbpass"],''));
+		$db         = trim(if_isset($r["db"],''));
+		$db_id      = trim(if_isset($r["id"],''));
+		$post_max   = (int)if_isset($r['posteringer'],0);
+		$bruger_max = (int)if_isset($r['brugerantal'],0);
+		$lukket     = trim(if_isset($r["lukket"],''));
+		$dbMail = if_isset($r["email"],null);
 		if(if_isset($r,null,'global_id')){
 			  $globalId = $r['global_id'];
 			  $_SESSION['globalId']= $globalId; //20241202
@@ -653,7 +653,7 @@ if (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = $r['brugernavn'];
-	$accepted_ips = if_isset($r,NULL,'ip_address');
+	$accepted_ips = if_isset($r["ip_address"],NULL);
 	$ip_address = $_SERVER['REMOTE_ADDR'];
 	if ($accepted_ips != null && $accepted_ips != '') {
 		$accepted_ips = explode(',', $accepted_ips);
