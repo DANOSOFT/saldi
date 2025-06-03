@@ -1417,8 +1417,21 @@ HTML;
                 </div>
                 <hr>
                 <div style='display: flex; justify-content: flex-end; gap: 5px;'>
+                    <button class="select">Marker alle</button>
+                    <button class="deselect">Fjern alle</button>
                     <button>Gem</button>
                     <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>Luk</button>
+                    <script>
+                        const checkboxes = document.querySelectorAll('[type="checkbox"]');
+                        document.querySelector('.select').addEventListener('click', function(event) {
+                            event.preventDefault();
+                            checkboxes.forEach(checkbox => checkbox.checked = true);
+                        });
+                        document.querySelector('.deselect').addEventListener('click', function(event) {
+                            event.preventDefault();
+                            checkboxes.forEach(checkbox => checkbox.checked = false);
+                        });
+                    </script>
                 </div>
             </div>
         </form>
