@@ -332,23 +332,28 @@ if ($menu=='T') {
 // print "<td></td>\n";
 // print "</tr>\n";
 
+
 print "<tr>";
-print "<td style=\"padding-top: 20px;width:30px\"><b>Status</b></td>\n";
-print "<td style=\"padding-top: 20px;width:60px\"><b>Id</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Receipt Date</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Time.</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Receipt no</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Register</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Table</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Ref.</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Amount</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Payment</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Received</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Return</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Rabat</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>DG</b></td>\n";
-print "<td></td>\n";
+
+print "<td style=\"padding-top: 20px;width:30px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Status</b></td>\n";
+print "<td style=\"padding-top: 20px;width:60px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Id</b></td>\n";
+print "<th style='padding-top: 20px; width:110px; text-align:right'><b><a href='kassespor.php?nysort=fakturadate&sort=$sort&valg=$valg$hreftext'>" . findtekst(929, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:50px; text-align:right'><b>" . findtekst(930, $sprog_id) . "</b></th>\n";
+print "<th style='padding-top: 20px; width:110px; text-align:right'><b><a href='kassespor.php?nysort=fakturanr&sort=$sort&valg=$valg$hreftext'>" . findtekst(928, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:50px; text-align:right'><b><a href='kassespor.php?nysort=felt_5&sort=$sort&valg=$valg$hreftext'>" . findtekst(931, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:50px; text-align:right'><b><a href='kassespor.php?nysort=nr&sort=$sort&valg=$valg$hreftext'>" . findtekst(932, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=ref&sort=$sort&valg=$valg$hreftext'>" . findtekst(933, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=sum&sort=$sort&valg=$valg$hreftext'>" . findtekst(934, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=felt_1&sort=$sort&valg=$valg$hreftext'>" . findtekst(935, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=felt_2&sort=$sort&valg=$valg$hreftext'>" . findtekst(936, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(937, $sprog_id) . "</b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(428, $sprog_id) . "</b></th>\n";
+
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>BA</b></th>\n";
+print "<th style='width:30px;'></th>\n";
 print "</tr>\n";
+
+
 print "<input type=hidden name=sort value=\"$sort\">";
 #print "<input type=hidden name=nysort value=\"$nysort\">";
 print "<input type=hidden name=kontoid value=\"$kontoid\">";
@@ -617,7 +622,15 @@ $total_gross_profit = 0;
 						print "<td align=right>".dkdecimal($retur,2)."<br></td>\n";
 						$retursum+=$retur;
 						print "<td align=right>".dkdecimal($discount[$x], 2)."<br></td>\n";
-print "<td align=right>".dkdecimal($gross_profit[$x], 2)."<br></td>\n";
+						// print "<td align=right>".dkdecimal($gross_profit[$x], 2)."<br></td>\n";
+
+						$dg_percent = 0;
+						$total_sales = $sum[$x] + $moms[$x];
+						if ($total_sales != 0) {
+						$dg_percent = ($gross_profit[$x] / $total_sales) * 100;
+						}
+						print "<td align=right>".dkdecimal($dg_percent, 2)." %<br></td>\n";
+
 
 					} else {
 						print "<td align=right><br></td>\n";
