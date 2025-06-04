@@ -1746,7 +1746,7 @@
 1749	Logoet er indlæst.	The logo is loaded.	Logoen er lastet inn.
 1750	ImageMagic er ikke installeret - logo kan ikke indlæses	ImageMagick is not installed - logo can not be loaded	ImageMagick er ikke installert - logoen kan ikke lastes ned
 1751	Siden er indlæst.	The page is loaded.	Siden er lastet inn.
-1752	Hverken PDFTK (anbefales) eller PDF2PS er ikke installeret - logo kan ikke indlæses	Neither PDFTK (recommended) nor PDF2PS is installed - logo can not be loaded	Verken PDFTK (anbefalt) eller PDF2PS er installert - logoen kan ikke lastes ned
+1752	Hverken PDFTK (anbefales) eller PDF2PS er installeret - logo kan ikke indlæses	Neither PDFTK (recommended) nor PDF2PS is installed - logo can not be loaded	Verken PDFTK (anbefalt) eller PDF2PS er installert - logoen kan ikke lastes ned
 1753	Der er sket en fejl under indlæsningen. Prøv venligst igen	An error occurred while loading. Please try again	Det oppstod en feil under lasting. Vær så snill, prøv på nytt
 1754	vis baggrund	show background	vis bakgrunn
 1755	Vil du slette denne baggrund alle formularer?	Do you want to delete this background all forms?	Vil du slette denne bakgrunnen alle skjemaer?
