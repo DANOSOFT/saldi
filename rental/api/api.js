@@ -405,3 +405,11 @@ export const getBookingsFromPeriod = async (fromDate, toDate) => {
     headers: { "Content-Type": "application/json" }
   })
 }
+
+export const oldProductInfo = async () => {
+  const url = `${apiUrl}oldProductInfo`
+  return await fetchJson(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  })
+}
