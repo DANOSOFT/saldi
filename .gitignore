@@ -42,7 +42,7 @@ phpmailerOld/
 phpmailer/
 mappe/
 bilag/
-systemdata/user_profile/uploads/
+
 # Python stuff
 __pycache__/
 .pytest_cache

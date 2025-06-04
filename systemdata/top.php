@@ -85,9 +85,6 @@ print "<tr><td width=\"170px\"><br></td></tr>
       <tr><td><a href=\"brugere.php\" accesskey=\"B\">
       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(777, $sprog_id)."</button></a></td></tr>
 
-      <tr><td><a href=\"user_profile/user_profile.php?valg=user_profile\" accesskey=\"P\"> 
-      <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('990|User',$sprog_id)." Profile</button></a></td></tr>
-
       <tr><td><a href=\"regnskabsaar.php\" accesskey=\"R\">
       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(778, $sprog_id)."</button></a></td></tr>
 

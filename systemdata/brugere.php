@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------systemdata/brugere.php-----patch 4.1.1----2025-06-03-----
+// --------------systemdata/brugere.php-----patch 4.0.8 ----2023-07-23-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2023 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20150327 CA  - Topmenudesign tilføjet                             søg 20150327
 // 20161104	PHR	- Ændret kryptering af adgangskode
@@ -40,8 +40,6 @@
 // 20211015 LOE - Modified some codes to adjust to IP moved to settings table
 // 20220514 MSC - Implementing new design
 // 20230316 PHR Replaced *1 by (int)
-// 20250602 LOE - Updated rights, and mapped ansat_id to users table
-
 
 @session_start();
 $s_id=session_id();
@@ -50,30 +48,11 @@ $modulnr=1;
 $title="Brugere";
 $css="../css/standard.css";
 
-$employeeId=$rights=$roRights=array(); 
+$employeeId=$rights=$roRights=array();
 
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
-
-error_log("is_admin: " . var_export($is_admin, true));
-if($is_admin===false){
-	$qtxt = "SELECT rettigheder FROM brugere WHERE brugernavn='$brugernavn' AND id='$bruger_id'";
-	$rettigheder1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$rettigheder = $rettigheder1[0];
-
- 	//Check if they have permission
-	if (!check_permissions(array(12))) {
-	
-			print "<script>
-				alert(\"You don't have the right to do this.\");
-				window.location.href = 'syssetup.php';
-			</script>";
-			exit;
-		
-	}
-}
 
 if (!isset ($colbg)) $colbg = NULL;
 $da = str_replace(" ", "",(findtekst(1141, $sprog_id)));
@@ -127,34 +106,28 @@ $updateUser=if_isset($_POST['updateUser']);
 $ret_id=if_isset($_GET['ret_id']);
 $slet_id=if_isset($_GET['slet_id']);
 $yd = get_ip(); #20211015
-/*
-switch ($art) { 
-    case 'D': $type = 'Debitor'; break;
-    case 'K': $type = 'Kreditor'; break;
-    case 'S': $type = 'Sælger'; break;
-    default:  $type = 'Ukendt'; // Unknown
-}
-*/
 
+#var_dump($yd, $db);
 if ($addUser || $updateUser) {
 	$tmp=if_isset($_POST['random']);
 	$brugernavn=trim(if_isset($_POST[$tmp]));
 	$kode=trim(if_isset($_POST['kode']));
 	$kode2=trim(if_isset($_POST['kode2']));
 	$medarbejder=trim(if_isset($_POST['medarbejder']));
-	$ansat_id = $employeeId=if_isset($_POST['employeeId']);
+	$employeeId=if_isset($_POST['employeeId']);
 	// $restore_user = if_isset($_POST['ruser_ip']); #20210831
 	$insert_ip = if_isset($_POST['insert_ip']); #20210908
 	// $user_ip = if_isset($_POST['user_ip']); #20210831
 	 $re_id=if_isset($_POST['re_id']); #20210909
 	if($insert_ip){
-	 $user_ip=$insert_ip;
+	$user_ip=$insert_ip;
+	// input_ip($user_ip, $id);
 	} #20210908
-	$konto_id = if_isset($_POST,NULL,'konto_id');
+	
 	$rights=$_POST['rights'];
 	$roRights=$_POST['roRights'];
 	$rettigheder=NULL;
-	for ($x=0;$x<17;$x++) {
+	for ($x=0;$x<16;$x++) {
 		if (!isset($rights[$x])) $rights[$x]=NULL;
 		if (!isset($roRights[$x])) $roRights[$x]=NULL;
 		if ($roRights[$x]=='on') $rettigheder.='2';
@@ -164,16 +137,12 @@ if ($addUser || $updateUser) {
 	$brugernavn=trim($brugernavn);
 	if ($kode && $kode != $kode2) {
 		$alerttext="Adgangskoder er ikke ens";
-		print "<BODY onLoad=\"javascript:alert('$alerttext')\">"; 
+		print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
 		$kode=NULL;
 		$ret_id=$id;
 	}
 	$tmp=substr($medarbejder,0,1);
-	
-
-	// var_dump($employeeId.'And employeeName;'.$brugernavn."Konto_id;".$konto_id);
-	// error_log("employeeId[0] : $employeeId[0]");
-	// exit;
+	$employeeId[0]=(int)$employeeId[0];
 	if ($addUser && $brugernavn) {
 		$query = db_select("select id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
 		if ($row = db_fetch_array($query)) {
@@ -182,41 +151,16 @@ if ($addUser || $updateUser) {
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $brugernavn!</td></tr>";
 		}	else {
 			if (!$regnaar) $regnaar=1;
-			
 			$qtxt = "insert into brugere (brugernavn,kode,rettigheder,regnskabsaar,ansat_id,ip_address) ";
 			$qtxt.= "values ('$brugernavn','$kode','$rettigheder','$regnaar',$employeeId[0],'$insert_ip')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from brugere where brugernavn = '$brugernavn' and kode = '$kode'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$id=$r['id'];
-			sleep(1);		
-			############Update ansatte table
-			$query = db_select("select id from ansatte where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($query)) {
-				$qtxt="update ansatte set konto_id='$konto_id', bruger_id='$id' where brugernavn = '$brugernavn'";
-				db_modify($qtxt,__FiLE__ . " linje " . __LINE__);
-			}else{
-				$query = db_select("select id from ansatte where bruger_id = '$id'",__FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query)) {
-					$qtxt="update ansatte set konto_id='$konto_id', brugernavn='$brugernavn' where bruger_id = '$id'";
-					db_modify($qtxt,__FiLE__ . " linje " . __LINE__);
-				}else{
-					$qtxt="update ansatte set konto_id='$konto_id', brugernavn='$brugernavn', bruger_id = '$id' where id = '$ansat_id'";
-					db_modify($qtxt,__FiLE__ . " linje " . __LINE__);
-				}
-			}
-			#####################
 		}
 	}
 	if ($id && $kode && $brugernavn) {
 		if (strstr($kode,'**********')) {
-			if(empty($employeeId[0])){
-				print "<script>
-					alert('Ensure the employee exists')	
-				</script>";
-				echo '<meta http-equiv="refresh" content="1;url=stamkort.php">';
-				exit; 
-			}
 			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip' where id=$id",__FILE__ . " linje " . __LINE__);
 		} else {
 			$kode=saldikrypt($id,$kode);
@@ -252,7 +196,7 @@ print str_repeat("<td align='center' width='8px'><br></td>", 30);
 print "</tr>";
 $da = str_replace(" ", "",(findtekst(1141, $sprog_id))); #20210711
 $ka = str_replace(" ", "",(findtekst(1140, $sprog_id)));
-$createUser = "Create New User";
+
 $Sikkerhedskopi = findtekst(614, $sprog_id);   $Debitorrapport    = findtekst(449, $sprog_id);
 $Varemodtagelse = findtekst(182, $sprog_id);   $Kreditorrapport   = $ka;
 $Varelager      = findtekst(1261, $sprog_id);  $Produktionsordrer = findtekst(1260, $sprog_id);
@@ -262,19 +206,14 @@ $Debitorordrer  = findtekst(1255, $sprog_id);  $Finansrapport     = findtekst(89
 $Regnskab		= findtekst(849, $sprog_id);   $Kassekladde       = findtekst(601, $sprog_id);
 $Indstillinger  = findtekst(122, $sprog_id);   $Kontoplan		  = findtekst(113, $sprog_id);
 
+#var_dump($Produksjonsordrer);
 
-
-$modules=array($createUser,$Sikkerhedskopi,$Debitorrapport,$Varemodtagelse,$Kreditorrapport,$Varelager,$Produktionsordrer,$Kreditorkonti,$Varerapport,
+$modules=array($Sikkerhedskopi,$Debitorrapport,$Varemodtagelse,$Kreditorrapport,$Varelager,$Produktionsordrer,$Kreditorkonti,$Varerapport,
 $Kreditorordrer,$Debitorkonti,$Debitorordrer,$Finansrapport,$Regnskab,$Kassekladde,$Indstillinger,$Kontoplan);
 #$modules=array('Sikkerhedskopi','Debitorrapport','Varemodtagelse','Kreditorrapport','Varelager','Produktionsordrer','Kreditorkonti','Varerapport','Kreditorordrer','Debitorkonti','Debitorordrer','Finansrapport','Regnskab','Kassekladde','Indstillinger','Kontoplan');
-$q = db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__);
-$r = db_fetch_array($q);
-if($r != false){
-	$countryConfig = $r['land'];
-	$konto_id=(int)$r['id'];
-}
-#var_dump("Konto: id: ".$konto_id);
-$cs=15;
+
+
+$cs=14;
 for ($x=0;$x<count($modules);$x++) {
 print "<tr><td colspan = '$cs' align='right'> $modules[$x] &nbsp;</td>";
 	if ($x <= 6) {
@@ -355,12 +294,12 @@ if ($ret_id) {
 	print "<input type=hidden name=random value=$tmp>";	#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<td><input class='inputbox' type='text' size=20 name='$tmp' value=\"$row[brugernavn]\"></td>";
 	print "</tr><tr><td></td><td>Adgang til</td>\n";
-	for ($x=0;$x<17;$x++) {
+	for ($x=0;$x<16;$x++) {
 		(substr($row['rettigheder'],$x,1)>=1)?$checked='checked':$checked=NULL;
 		print "<td><input class='inputbox' type='checkbox' name=\"rights[$x]\" $checked>\n</td>";
 	}
 	print "</tr><tr><td></td><td>Kun se</td>";
-	for ($x=0;$x<17;$x++) {
+	for ($x=0;$x<16;$x++) {
 		(substr($row['rettigheder'],$x,1)==2)?$checked='checked':$checked=NULL;
 		print "<td>";
 		if ($x==9) print "<input class='inputbox' type='checkbox' name=\"roRights[$x]\" $checked>\n";
@@ -415,70 +354,17 @@ if ($ret_id) {
 	print "<input style='width:100px;background-color:44ff44;' type=submit value=\"".findtekst(1091, $sprog_id)."\" name=\"updateUser\">&nbsp;";
 	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst(1099, $sprog_id)."\" name=\"deleteUser\" onclick=\"confirm('Slet $userName?')\"></td>";
 } else {
-
-	###################
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
-	###########
-	$employeeId=array();
-		$query = "SELECT * FROM ansatte";
-		$q2 = db_select($query, __FILE__ . " linje " . __LINE__);
-			
-		while ($r2 = db_fetch_array($q2)) {
-			$x++;
-			$employeeId[$x] = $r2['id'];
-			$employeeInitials[$x] = $r2['initialer'];
-			$employeeName[$x] = $r2['navn'];
-			$bruger_id1[$x]  = $r2['bruger_id'];
-			$brugernavn1[$x] = $r2['brugernavn'];
-		}
-
-			print '<tr><td>Add employee:</td><td>';
-			print '<select name="employeeId" class="inputbox">';
-			for ($i = 1; $i <= $x; $i++) {
-				$idExists = !empty($employeeId[$i]);
-				$nameExists = !empty($employeeName[$i]);
-				$bruger_idExists = !empty($bruger_id1[$i]);
-				$brugernavnExists = !empty($brugernavn1[$i]);
-				
-				# Skip only if both missing
-				if (!$idExists && !$nameExists) {
-					continue;
-				}
-                #check if both already exist
-				if ($bruger_idExists && $brugernavnExists) {
-					continue;
-				}
-
-				#If ID exists, use it as value, else empty string
-				$optionValue = $idExists ? htmlspecialchars($employeeId[$i]) : '';
-				if ($nameExists) {
-					$nameToShow = htmlspecialchars($employeeName[$i]);
-				} elseif ($idExists) {
-					$nameToShow = 'EmployeeId(' . htmlspecialchars($employeeId[$i]) . ')';
-				} else {
-					
-					# so this case means no id but name exists; just show name
-					$nameToShow = htmlspecialchars($employeeName[$i]);
-				}
-				print '<option value="' . $optionValue . '">' . $nameToShow . '</option>';
-			}
-			print '</select>';
-			
-			print '</td></tr>';
-
-
-	#########
-	print "<input type=hidden name=konto_id value = $konto_id>";
 	print "<input type=hidden name=random value = $tmp>";
 	print "<tr><td> ".findtekst(333, $sprog_id)."</td>";
 	print "<td><input class=\"inputbox\" type=\"text\" size='20' name='$tmp'></td>";
 	$s = findtekst(329, $sprog_id); $as = explode(" ", $s); 
 	print "</tr><tr><td></td><td>$as[0]</td>";
-	for ($x=0;$x<17;$x++) {
+	for ($x=0;$x<16;$x++) {
 		print "<td><input class='inputbox' type='checkbox' name=\"rights[$x]\"></td>\n";
 	}
 	print "</tr><tr><td></td><td>Kun se</td>";
-	for ($x=0;$x<17;$x++) {
+	for ($x=0;$x<16;$x++) {
 		print "<td>";
 		if ($x==9) print "<input class='inputbox' type='checkbox' name='roRights[$x]'>\n";
 		else {
