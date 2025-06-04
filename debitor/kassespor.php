@@ -519,26 +519,44 @@ $total_gross_profit = 0;
 		$moms[$x]=$r['moms'];
 		$art[$x]=$r['art'];
 		$dkksum[$x]=dkdecimal($sum[$x]+$moms[$x],2);
-	$q_dg = db_fetch_array(db_select("
-    SELECT
-      COALESCE(SUM(
-        CASE
-          WHEN rabatart IN ('', 'percent') THEN (COALESCE(pris,0) * COALESCE(rabat,0) / 100) * COALESCE(antal,0)
-          ELSE COALESCE(rabat,0) * COALESCE(antal,0)
-        END
-      ),0) AS discount,
-      COALESCE(SUM((COALESCE(pris,0) - COALESCE(kostpris,0)) * COALESCE(antal,0)),0) AS dg
-    FROM ordrelinjer
-    WHERE ordre_id = '{$r['id']}'
-    ", __FILE__ . ' linje ' . __LINE__));
+	
+
+					$q_dg = db_fetch_array(db_select("
+					SELECT
+						COALESCE(SUM(pris * antal), 0) AS total_sales,
+						COALESCE(SUM(
+						CASE 
+							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat * antal
+							ELSE (pris * rabat / 100) * antal
+						END
+						), 0) AS discount,
+						COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+						COALESCE(SUM(
+						(
+							pris - 
+							CASE 
+								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat
+								ELSE (pris * rabat / 100)
+							END
+							- kostpris
+						) * antal
+						), 0) AS dg
+					FROM ordrelinjer
+					WHERE ordre_id = '{$id[$x]}'
+			", __FILE__ . ' linje ' . __LINE__));
+
+
+					$discount[$x] = $q_dg['discount'];
+					$gross_profit[$x] = $q_dg['dg'];
+					$kostpris[$x] = $q_dg['kostpris'];
+                    $total_discount += $discount[$x];
+				    $total_gross_profit += $gross_profit[$x];
 
 
 
-     $discount[$x] = $q_dg['discount'];
-     $gross_profit[$x] = $q_dg['dg'];
 
-     $total_discount += $discount[$x];
-     $total_gross_profit += $gross_profit[$x];
+
+		
 
 
 		$x++;
@@ -621,17 +639,42 @@ $total_gross_profit = 0;
 					if (!isset($ordre_id[$y-1]) || $ordre_id[$y]!=$ordre_id[$y-1]) {
 						print "<td align=right>".dkdecimal($retur,2)."<br></td>\n";
 						$retursum+=$retur;
-						print "<td align=right>".dkdecimal($discount[$x], 2)."<br></td>\n";
-						// print "<td align=right>".dkdecimal($gross_profit[$x], 2)."<br></td>\n";
+	
+						$q_dg = db_fetch_array(db_select("
+						SELECT
+							COALESCE(SUM(pris * antal), 0) AS total_sales,
+							COALESCE(SUM(
+							CASE 
+								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat * antal
+								ELSE (pris * rabat / 100) * antal
+							END
+							), 0) AS discount,
+							COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+							COALESCE(SUM(
+							(
+								pris - 
+								CASE 
+									WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat
+									ELSE (pris * rabat / 100)
+								END
+								- kostpris
+							) * antal
+							), 0) AS dg
+						FROM ordrelinjer
+						WHERE ordre_id = '{$id[$x]}'
+						", __FILE__ . ' linje ' . __LINE__));
 
-						$dg_percent = 0;
-						$total_sales = $sum[$x] + $moms[$x];
-						if ($total_sales != 0) {
-						$dg_percent = ($gross_profit[$x] / $total_sales) * 100;
-						}
-						print "<td align=right>".dkdecimal($dg_percent, 2)." %<br></td>\n";
 
+        $discount_val = $q_dg['discount'];
+        $gross_profit_val = $q_dg['dg'];
+        $net_sales = $q_dg['total_sales'] - $q_dg['discount'];
+        $dg_percent = 0;
+        if ($net_sales > 0) {
+            $dg_percent = ($gross_profit_val / $net_sales) * 100;
+        }
 
+        print "<td align=right>".dkdecimal($discount_val, 2)."<br></td>\n";
+        print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
 					} else {
 						print "<td align=right><br></td>\n";
 					}
