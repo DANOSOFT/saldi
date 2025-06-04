@@ -25,7 +25,6 @@
 //20241004 MMK  
 //20241018 LOE checks that some variables are set before using. 
 //20250513 Sawaneh display number of users online. 
-//20250531 LOE Check_permissions moved to std_func.php for general usage 
 @session_start();
 $s_id = session_id();
 
@@ -91,13 +90,13 @@ include ("dashboardIncludes/pos_row.php");
 
 
 
-// function check_permissions($permarr) {
-// 	global $rettigheder;
-// 	$filtered = array_filter($permarr, function ($item) use ($rettigheder) {
-// 		return (substr($rettigheder, $item, 1) == "1");
-// 	});
-// 	return !empty($filtered); 
-// }
+function check_permissions($permarr) {
+	global $rettigheder;
+	$filtered = array_filter($permarr, function ($item) use ($rettigheder) {
+		return (substr($rettigheder, $item, 1) == "1");
+	});
+	return !empty($filtered);
+}
 
 
 
@@ -325,7 +324,7 @@ if ($ordercount === "on") {
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
-	key_value(findtekst('2378|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2381|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('2382|ufaktureret', $sprog_id)."</span>");
+	key_value(findtekst('3077|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3080|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('3081|ufaktureret', $sprog_id)."</span>");
 }
 
 # #######################################
