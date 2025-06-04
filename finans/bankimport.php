@@ -91,7 +91,7 @@ if(($_GET)||($_POST)) {
 		$kladde_id   = if_isset($_POST['kladde_id'],0);
 		$filnavn     = if_isset($_POST['filnavn'],NULL);
 		$splitter    = if_isset($_POST['splitter'],NULL);
-		$feltnavn    = if_isset($_POST['feltnavn'],NULL);
+		$feltnavn    = if_isset($_POST['feltnavn'],array());
 		$feltantal   = if_isset($_POST['feltantal'],0);
 		$kontonr     = if_isset($_POST['kontonr'],0);
 		$gebyrkonto  = (int)if_isset($_POST['gebyrkonto'],NULL);
