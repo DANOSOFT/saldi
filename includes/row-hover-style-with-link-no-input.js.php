@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
       let skip = false;
       for (let td of tds) {
         if (
-          td.querySelector('button,b, select, input, textarea, i, img')
+          td.querySelector('button, b,font')
         ) {
           skip = true;
           break;

@@ -234,13 +234,13 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		$dbuser = trim(if_isset($r['dbuser'], ''));
 		$dbver = trim(if_isset($r['version'], ''));
 		// $dbpass = trim(if_isset($r['dbpass'], ''));
-		$dbpass = trim(if_isset($r,'','dbpass'));
-		$db         = trim(if_isset($r,'','db'));
-		$db_id      = trim(if_isset($r,'','id'));
-		$post_max   = if_isset($r,0,'posteringer')*1;
-		$bruger_max = if_isset($r,0,'brugerantal')*1;	
-		$lukket     = trim(if_isset($r,'','lukket'));
-		$dbMail = if_isset($r,null,'email');
+		// $dbpass = trim(if_isset($r["dbpass"],''));
+		$db         = trim(if_isset($r["db"],''));
+		$db_id      = trim(if_isset($r["id"],''));
+		$post_max   = (int)if_isset($r['posteringer'],0);
+		$bruger_max = (int)if_isset($r['brugerantal'],0);
+		$lukket     = trim(if_isset($r["lukket"],''));
+		$dbMail = if_isset($r["email"],null);
 		if(if_isset($r,null,'global_id')){
 			  $globalId = $r['global_id'];
 			  $_SESSION['globalId']= $globalId; //20241202
@@ -380,7 +380,19 @@ if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
     // Continue with login process
     $_POST['fortsaet'] = true;
 }
-
+$userName = "revisor";
+db_connect ("$sqhost", "$squser", "$sqpass", "$db");
+$query = db_select("SELECT user_id FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
+if ($r = db_fetch_array($query)) {
+	$userId = $r['user_id'];
+	$query = db_select("SELECT brugernavn FROM brugere WHERE id = '$userId'", __FILE__ . " linje " . __LINE__);
+	if ($r = db_fetch_array($query)) {
+		$userName = $r['brugernavn'];
+	}
+} else {
+	$userId = 0; // Default value if not found
+}
+include("../includes/connect.php");
 if (
     !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
     !(($regnskab === 'demo' && $brugernavn === 'admin')) &&
@@ -392,12 +404,12 @@ if (
 		$query = db_select("SELECT COUNT(DISTINCT brugernavn) as user_count
 		FROM online
 		WHERE revisor != 1
-		AND db = '$db'", __FILE__ . " linje " . __LINE__);
+		AND db = '$db' AND brugernavn != '$userName'", __FILE__ . " linje " . __LINE__);
 	}else{
 		$query = db_select(
 		"SELECT COUNT(DISTINCT brugernavn) as user_count 
 		FROM online 
-		WHERE db = '$db' AND revisor IS NOT true",
+		WHERE db = '$db' AND revisor IS NOT true AND brugernavn != '$userName'",
 		__FILE__ . " linje " . __LINE__
 		);
 	}
@@ -409,14 +421,14 @@ if (
     $q = db_select("SELECT brugerantal FROM regnskab WHERE db = '$db'", __FILE__ . " linje " . __LINE__);
     if ($r = db_fetch_array($q)) {
         $bruger_max = (int) $r['brugerantal'];
-
     }
+
 	if($db_type == 'mysql' || $db_type == 'mysqli') {
 		$query = db_select(
 		"SELECT brugernavn, logtime 
 		FROM online 
 		WHERE db = '$db' 
-		AND revisor != 1",
+		AND revisor != 1 AND brugernavn != '$userName'",
 		__FILE__ . " linje " . __LINE__
 		);
 	}else{
@@ -424,7 +436,7 @@ if (
 		"SELECT brugernavn, logtime 
 		FROM online 
 		WHERE db = '$db' 
-		AND revisor IS NOT true",
+		AND revisor IS NOT true AND brugernavn != '$userName'",
 		__FILE__ . " linje " . __LINE__
 		);
 	}
@@ -512,7 +524,7 @@ if (
 					"SELECT brugernavn, logtime 
 					FROM online 
 					WHERE db = '$db' 
-					AND revisor != 1",
+					AND revisor != 1 AND brugernavn != '$userName'",
 					__FILE__ . " linje " . __LINE__
 					);
 				}else{
@@ -520,7 +532,7 @@ if (
 						"SELECT brugernavn, logtime 
 						FROM online 
 						WHERE db = '$db' 
-						AND revisor IS NOT true",
+						AND revisor IS NOT true AND brugernavn != '$userName'",
 						__FILE__ . " linje " . __LINE__
 					);
 				}
@@ -641,7 +653,7 @@ if (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = $r['brugernavn'];
-	$accepted_ips = if_isset($r,NULL,'ip_address');
+	$accepted_ips = if_isset($r["ip_address"],NULL);
 	$ip_address = $_SERVER['REMOTE_ADDR'];
 	if ($accepted_ips != null && $accepted_ips != '') {
 		$accepted_ips = explode(',', $accepted_ips);

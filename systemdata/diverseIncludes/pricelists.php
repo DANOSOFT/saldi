@@ -16,7 +16,8 @@ function pricelists(){
 		$id[$i]=$r['id'];
 		$beskrivelse[$i]=$r['beskrivelse']; //holds names of the records
 		$prisfil[$i]=$r['box2']; //file location ? //the url
-		$aktiv[$i]=$r['box4'];
+		$aktiv[$i]=$r['box12'];
+        $selected[$i]=$r['box4']; //on
 		$gruppe1[$i]=$r['box8'];  //selected group
 		$supplier[$i]=$r['box9'];
         $delimiter[$i] = $r['box10'];
@@ -51,7 +52,7 @@ function pricelists(){
 	while ($r = db_fetch_array($q)) {	
 			$supplId[$i]      = $r['id'];
 			$supplAccout[$i]  = $r['kontonr'];
-			$supplCompany[$i] = $r['firmanavn'];
+			$supplierCompany[$i] = $r['firmanavn'];
 			$i++;
 		
 	}
@@ -87,14 +88,15 @@ function pricelists(){
             while ($r = db_fetch_array($q)) {
                 $id = $r['id'];
                 $url = $r['box2']; // same as $prisfil
-                $isActive = $r['box4']; // same as $aktiv
+                $isActive = $r['box12']; // same as $aktiv
+                $selectActive = $r['box4']; 
                
                 if ($url === $selectedUrl) {
                     // Set the selected URL as active
-                    db_modify("UPDATE grupper SET box4 = 'Yes' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+                    db_modify("UPDATE grupper SET box12 = 'Yes', box4 ='on' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
                 } else if ($isActive === 'Yes') {
                     // Deactivate all other records that were previously active
-                    db_modify("UPDATE grupper SET box4 = '' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+                    db_modify("UPDATE grupper SET box12 = '' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
                 }
             }
 
@@ -113,14 +115,18 @@ function pricelists(){
                 $prisfil = $_POST['prisfil'][$i];
                 $opdateret = $_POST['opdateret'][$i];
                 $aktiv = $_POST['aktiv'][$i];
-                $gruppe = $_POST['gruppe'][$i];
+                #$gruppe = $_POST['gruppe'][$i];
                 $filtype = $_POST['filtype'][$i];
                 $delimiter = $_POST['delimiter'][$i];
                 $encoding = $_POST['encoding'][$i];
                 $supplier = $_POST['suppliergroup'][$i];
+               # $vgrp  = $_POST['kodenr'][$i];
                
-                
-                
+                $groupMap = array_combine($vgrp, $vgbesk);
+                $selectedId = $_POST['gruppe'][$i];  
+                $gruppe = $groupMap[$selectedId]; //description
+               
+
                 $beskrivelse = htmlspecialchars($beskrivelse);
                 $prisfil = htmlspecialchars($prisfil);
                 $delimiter = htmlspecialchars($delimiter);
@@ -130,6 +136,7 @@ function pricelists(){
                 $aktiv = htmlspecialchars($aktiv);
                 $path_info = pathinfo($prisfil);
                 $supplier = htmlspecialchars($supplier);
+                $vgrp  = htmlspecialchars($selectedId); //kodenr
 
                
                 switch ($delimiter) {
@@ -168,7 +175,7 @@ function pricelists(){
                 
               if($mode && !empty($beskrivelse)){
              
-                    $qtxt = "update grupper set box10='$delimiter',box9='$supplier', box8='$gruppe',beskrivelse='$beskrivelse',";  
+                    $qtxt = "update grupper set box10='$delimiter',box9='$supplier',kodenr='$vgrp', box8='$gruppe',beskrivelse='$beskrivelse',";  
                     $qtxt.="box11='$encoding',box2='$prisfil' where id='$id'";
                     
 
@@ -214,21 +221,28 @@ function pricelists(){
                     print('<td><input type="text" name="prisfil[]" value="' . (isset($prisfil[$i]) ? htmlspecialchars($prisfil[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="opdateret[]" value="' . (isset($opdateret[$i]) ? htmlspecialchars($opdateret[$i]) : '') . '"></td>');
                     print('<td><input type="text" name="aktiv[]" value="' . (isset($aktiv[$i]) ? htmlspecialchars($aktiv[$i]) : '') . '"></td>');
-                    print '<td><select name="gruppe[]">';
-                        if (empty($gruppe1[$i])) {
-                            print '<option value="">-- Select Group --</option>';
-                        }
-                        foreach ($vgbesk as $value) {
-                            $selected = (isset($gruppe1[$i]) && $gruppe1[$i] === $value) ? 'selected' : '';
-                            print '<option value="' . htmlspecialchars($value) . '" ' . $selected . '>' . htmlspecialchars($value) . '</option>';
-                        }
-                    print '</select></td>';
+                    print '<td>';
+                   print '<select name="gruppe[]">';
+        if (empty($gruppe1[$i])) {
+            print '<option value="">-- Select Group --</option>';
+        }
+
+        for ($j = 0; $j < count($vgbesk); $j++) {
+            $groupName = $vgbesk[$j];
+            $groupId = $vgrp[$j];
+
+            $selected = (isset($gruppe1[$i]) && $gruppe1[$i] === $groupId) ? 'selected' : '';
+            print '<option value="' . htmlspecialchars($groupId) . '" ' . $selected . '>' . htmlspecialchars($groupName) . '</option>';
+        }
+
+        print '</select>';
+                    print '</td>';
                     // Supplier Group
                     print '<td><select name="suppliergroup[]">';
                     if (empty($supplier[$i])) {
                         print '<option value="">-- Select Supplier --</option>';
                     }
-                    foreach ($supplCompany as $company) {
+                    foreach ($supplierCompany as $company) {
                         $selected = (isset($supplier[$i]) && $supplier[$i] === $company) ? 'selected' : '';
                         print '<option value="' . htmlspecialchars($company) . '" ' . $selected . '>' . htmlspecialchars($company) . '</option>';
                     }
@@ -298,13 +312,17 @@ function pricelists(){
             $newUrl = htmlspecialchars($_POST['csv_url']);
             $delimiter = htmlspecialchars($_POST['new_delimiter']);
             $newEncoding = htmlspecialchars($_POST['new_encoding']);
-            $newProductGroup = htmlspecialchars($_POST['new_product_group']);
             $newSupplierGroup = htmlspecialchars($_POST['new_supplier_group']);
             $mode = htmlspecialchars($_POST['mode']);
-          
+            $newProductVar = htmlspecialchars($_POST['new_product_group']);
+
+            
+             list($newProductGroupId, $newProductGroup) = explode('|', $newProductVar );
+       
+   
+
             
            
-
         #****************************
         // Check if a URL was provided
             if (!empty($_POST['csv_url'])) {
@@ -331,14 +349,23 @@ function pricelists(){
                 exit;
 
             }else{
+
+                   $checkDelimiter = [',', ';', '\\t'];
+                   if (in_array($delimiter, $checkDelimiter, true)){
+                        $valid = true;
+                        if($delimiter == '\\t'){
+                            $delimiter = "\t";
+                        }  
+                    }
+
                  #######################################
                  $selection= db_select("select * from grupper where box2='$newUrl' and art='PL'",__FILE__ . " linje " . __LINE__);
                  if(db_fetch_array($selection)){
                     echo "<script>alert('The URL already exists.'); window.location.href = 'diverse.php?sektion=pricelists';</script>";
                     exit;
                  }else{
-                    $qtxt = "insert into grupper(box2,box10,box11,beskrivelse,box8,art,box9) values ";
-                    $qtxt.= "('$newUrl','$delimiter','$newEncoding','$newDescription','$newProductGroup','PL','$newSupplierGroup')";
+                    $qtxt = "insert into grupper(box2,box10,box11,beskrivelse,box8,art,box9,kodenr) values ";
+                    $qtxt.= "('$newUrl','$delimiter','$newEncoding','$newDescription','$newProductGroup','PL','$newSupplierGroup','$newProductGroupId')";
                     $saved = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
                 }
 
@@ -361,7 +388,6 @@ function pricelists(){
         }
     }elseif(isset($_POST['step']) && $_POST['step'] === 'save_data'){
      
-        error_log('use for edit');
         print "<meta http-equiv=\"refresh\" content=\"0;url=diverse.php?sektion=pricelists\">";
         exit;
     }
@@ -388,7 +414,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             #+++++++++++++++
             // Function for the Add Pricelist form
-            function renderAddPricelistForm($group,$supplier) {
+            function renderAddPricelistForm($group,$supplier, $kodenr) {
                 print '<table style="width: 100%; border-collapse: collapse;">';
 		     print '<tr>
                             <td colspan="2">
@@ -434,26 +460,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                         </tr>';
 
                 print '<tr>
-                            <td><label>Product Group:</label></td>
-                            <td>
-                                <select name="new_product_group">';
-                
-                foreach ($group as $option) {
-                    print '<option value="' . htmlspecialchars($option) . '">' . htmlspecialchars($option) . '</option>';
-                }
-                print '        </select>
-                            </td>
-                        </tr>';
+                        <td><label>Product Group:</label></td>
+                        <td>';
+                           print '<select name="new_product_group">';
+                            for ($i = 0; $i < count($group); $i++) {
+                               print '<option value="' . htmlspecialchars($kodenr[$i] . '|' . $group[$i]) . '">' . htmlspecialchars($group[$i]) . '</option>';
+                            }
+                            print '</select>';
+                        print '</td>';
+                       print' </tr>';
                         
                 print '<tr style="display: none;">
                             <td colspan="2">
                                 <input type="hidden" name="new_pricelist" value="1">
                             </td>
                         </tr>';
-                        print '<tr>
-                            <td><label>Supplier Group:</label></td>
-                            <td>
-                                <select name="new_supplier_group">';
+                print '<tr>
+                        <td><label>Supplier Group:</label></td>
+                        <td>
+                            <select name="new_supplier_group">';
                 
                 foreach ($supplier as $supp) {
                     print '<option value="' . htmlspecialchars($supp) . '">' . htmlspecialchars($supp) . '</option>';
@@ -544,7 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             print '</div>';
             print '</td></tr>';
             // Show add form below the buttons
-            renderAddPricelistForm($beskrivelse1,$supplCompany);
+            renderAddPricelistForm($beskrivelse1,$supplierCompany, $vgrp);
 
             print '<script>
                 function toggleAddForm() {

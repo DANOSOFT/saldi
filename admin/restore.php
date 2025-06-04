@@ -386,20 +386,14 @@ function upload($db){
 		echo '<span style="color:red;">This is not available yet!</span>';
 		exit;
 	}
-	$result = pg_query($connection, "SELECT to_regclass('public.tekster')");
-	$row = pg_fetch_row($result);
 	
-	if ($row[0] !== null) {
-		$textup = findtekst(2422, $sprog_id);
-		$textc = findtekst(2425, $sprog_id);
-		$load = findtekst(1360, $sprog_id);
-		$selectdfil = findtekst(1364, $sprog_id);
-	} else {
+	
+	
 		$textup = $translations[2422][$sprog_id];
 		$textc = $translations[2425][$sprog_id];
 		$load = $translations[1360][$sprog_id];
 		$selectdfil = $translations[1364][$sprog_id];
-	}
+	
 
 	error_log("Textup: ".$load);
 	

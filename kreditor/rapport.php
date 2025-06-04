@@ -35,6 +35,11 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
+include("../includes/row-hover-style.js.php");
+
+
+
+
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
 	: 'javascript:window.history.go(-2);';

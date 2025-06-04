@@ -229,14 +229,26 @@ print "<tr><td colspan = '$cs' align='right'> $modules[$x] &nbsp;</td>";
 print "<tr><td colspan = $cs align='right'> &nbsp;</td>"; print str_repeat("<td align=center>|</td>", $x); 
 print "<td colspan=9></td></tr>";
 
-print "<tr><td><b>Navn &nbsp;</b></td><td><b>".findtekst(823, $sprog_id)."</b></td></tr>"; 
+print "<tr><td><b>Revisor</b></td><td><b>".findtekst(823, $sprog_id)."</b></td></tr>"; 
+$query = db_select("SELECT * FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
+if(db_num_rows($query) > 0){
+	$r = db_fetch_array($query);
+	$userId = $r['user_id'];
+	if ($userId) {
+		$disabled = "disabled";
+	} else {
+		$disabled = "";
+	}
+} else {
+	$disabled = "";
+}
 $query = db_select("select * from brugere order by brugernavn",__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
 	if ($row['id']!=$ret_id) {
 		if ($row['ansat_id']) {
 			$r2 = db_fetch_array(db_select("select initialer from ansatte where id = $row[ansat_id]",__FILE__ . " linje " . __LINE__));
 		}	else {$r2['initialer']='';}
-		print "<tr><td> $r2[initialer]&nbsp;</td><td><a href=brugere.php?ret_id=$row[id]>";
+		print "<tr><td><input type='checkbox' name='revisor' id='$row[id]' $disabled " . (($userId == $row['id']) ? 'checked' : '') . "></td><td><a href=brugere.php?ret_id=$row[id]>";
 		($row['brugernavn'])?print $row['brugernavn']:print '?';
 		print "</a></td>";
 		for ($y=0; $y<=15; $y++) {
@@ -249,6 +261,29 @@ while ($row = db_fetch_array($query)) {
 		print "</tr>";
 	}
 }
+?>
+	<script>
+		const checkbox = document.querySelectorAll("[name=revisor]")
+		const db = "<?php echo $db; ?>";
+		// event listener for checkboxes
+		checkbox.forEach((el) => {
+			el.addEventListener("change", () => {
+				if(confirm("vil du gøre denne bruger til revisor? Du kan kun have én revisoradgang og kan ikke ændre, hvilken bruger der er revisor, uden at kontakte Saldi support.")) {
+					const res = fetch("brugereRevisor.php",
+						{
+							method: "POST",
+							headers: {
+								"Content-Type": "application/x-www-form-urlencoded"
+							},
+							body: "id=" + el.id + "&db=" + db
+						}
+					)
+					window.location.reload();
+				}
+			})
+		})
+	</script>
+<?php
 if ($ret_id) {
 	$query = db_select("select * from brugere where id = $ret_id",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/loppeafregning.php --- Patch 4.0.3 --- 2021.10.01 ---
+// --- finans/loppeafregning.php --- Patch 4.1.1 --- 2025.05.30 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,10 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2021 saldi.dk ApS
+// Copyright (c) 2016-2025 saldi.dk ApS
 // -----------------------------------------------------------------------------------
 // 20180621 PHR Summer tillægges moms hvis ordrelinjer er momsbelagt. Søg momsfri & momssats
 // 20211020 PHR Comparing $gruppesum[$y] to $totalsum and regulating $gruppesum[$y] if diff less than 0.1 to avoid diff in ledger.
+// 20250530 PHR Fixed an error in extraction the account no. and added % or text
 
 @session_start();
 $s_id=session_id();
@@ -89,10 +90,12 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 			// $konto[$x]=str_replace($vareprefix,'',$varenr[$x])*1;
 
 			// Sawaneh 2025-05-24 FIX: Ensure numeric konto value after stripping prefix (avoids type error)
-
+/*
 			$kontoStr = str_replace($vareprefix, '', $varenr[$x]);
-            $konto[$x] = is_numeric($kontoStr) ? (int)$kontoStr : 0;
-			
+      $konto[$x] = is_numeric($kontoStr) ? (int)$kontoStr : 0;
+*/
+			$konto[$x]=substr($varenr[$x],-4);
+
 			$sum[$x]=$r['antal']*$r['pris'];
 			$cost[$x]=$r['antal']*$r['kostpris'];
 			if (!$r['momsfri']) {
@@ -108,6 +111,7 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 				$costSum[$y]+=$r['antal']*$r['kostpris']*$r['momssats']/100;
 			}
 		}
+		$custPart[$x]=100 - ($sum[$x]-$cost[$x]) * 100/$sum[$x];
 	}
 #	if ($x) $gruppesum[$y]+=$sum[$x];
 	$y=0;
@@ -118,7 +122,7 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 #		$konto=str_replace($vareprefix,'',$varenr[$x]);
 		$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta)";
 		$qtxt.="  values ";
-		$qtxt.="('$bilag','$dd','Afr: $konto[$x] $fra - $til','','0','D','$konto[$x]','','$udbetales[$x]','$kladde_id','0')";
+		$qtxt.="('$bilag','$dd','Afr: $konto[$x] $fra - $til ($custPart[$x]%)','','0','D','$konto[$x]','','$udbetales[$x]','$kladde_id','0')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 	for ($z=0;$z<count($v_gr);$z++) {
@@ -128,7 +132,7 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 			if (abs($gruppesum[$y]-$totalsum) < 0.1) $gruppesum[$y] = $totalsum; #20211020
 			$qtxt="insert into kassekladde (bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,kladde_id,valuta)";
 			$qtxt.="  values ";
-			$qtxt.="('$bilag','$dd','$afregning $fra - $til','F','$vg_modkonto[$z]','','0','','$gruppesum[$y]','$kladde_id','0')";
+			$qtxt.="('$bilag','$dd','$afregning $fra - $til ','F','$vg_modkonto[$z]','','0','','$gruppesum[$y]','$kladde_id','0')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}

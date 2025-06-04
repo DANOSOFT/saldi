@@ -1,16 +1,12 @@
 <?php
 include("../includes/connect.php");
 include("../includes/std_func.php");
-$db = $_GET["id"];
+$db = $_GET["db"];
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 
 $query = db_select("SELECT trade_conditions FROM rentalpayment", __FILE__ . " linje " . __LINE__);
-if(db_num_rows($query) > 0) {
-    $row = db_fetch_array($query);
-    $terms = $row["trade_conditions"];
-}else{
-    $terms = "#";
-}
+$row = db_fetch_array($query);
+$terms = $row["trade_conditions"];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -53,7 +49,7 @@ if(db_num_rows($query) > 0) {
             <hr>
             <!-- Modal body -->
              <p class="text-white mt-3 px-4">Hvis du allerede er kunde kan du logge ind her istedet 
-                <button class="text-white mt-3 inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 payment" id="login" onClick="window.open('https://ssl8.saldi.dk/laja/mysale/mysale.php', '_blank')">
+                <button class="text-white mt-3 inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 payment" id="login" onClick="window.open('https://ssl7.saldi.dk/pos/mysale/mysale.php', '_blank')">
                     Logind
                 </button>
             </p>

@@ -13,20 +13,26 @@ document.addEventListener('DOMContentLoaded', function () {
     table.querySelectorAll('tr').forEach(row => {
       const tds = row.querySelectorAll('td');
       if (tds.length <= 1) return;
-
       if (row.offsetParent === null) return;
 
+      let hasLabel = false;
       let skip = false;
+
       for (let td of tds) {
-        if (
-          td.querySelector('button,b, select, input, textarea, i, img')
-        ) {
+        if (td.querySelector('label')) {
+          hasLabel = true;
+        }
+
+        const interactive = td.querySelector('button, select, input:not([type="hidden"]), b, i, img');
+        if (interactive) {
           skip = true;
           break;
         }
       }
 
-      if (!skip) row.classList.add('hover-highlight');
+      if (!skip || hasLabel) {
+        row.classList.add('hover-highlight');
+      }
     });
   });
 });

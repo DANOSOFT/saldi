@@ -71,6 +71,30 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 }
 
 
+//...... pos functionality to kassekladde table..........
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='kassekladde' and column_name='pos'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE kassekladde ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tmpkassekl' and column_name='pos'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE tmpkassekl ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
+}
+
+$qtxt = "select id from settings where var_name = 'flatpay_auth'";
+if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select id from settings where var_name = 'flatpay_print'";
+	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		($db == 'pos_10' || $db == 'pos_62') ? $flatpay_print = 1: $flatpay_print = 0;
+		$qtxt = "INSERT INTO settings(var_name, var_grp, var_value, var_description) VALUES ";
+		($db == 'pos_10' || $db == 'pos_62') ? $qtxt.= "'1', ":
+		$qtxt.= "('flatpay_print', 'POS', '$flatpay_print', 'If 1, Saldi will print the terminal receipt else it is printed by the termanal')";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+}
+
+
 // easyUBL
 /*
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='timereg_sessions'";

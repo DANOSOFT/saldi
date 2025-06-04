@@ -371,10 +371,12 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "k_type varchar(1),kredit $decimal_type(15,0),faktura text,amount $decimal_type(15,3),kladde_id integer,";
 	$qtxt.= "momsfri varchar(2),medarb integer,ansat text,afd integer,projekt text,valuta integer,";
 	$qtxt.= "valutakurs $decimal_type(15,3),ordre_id integer,forfaldsdate date,betal_id text,dokument text,";
-	$qtxt.= "saldo $decimal_type(15,3),PRIMARY KEY (id))";
+	// $qtxt.= "saldo $decimal_type(15,3),PRIMARY KEY (id))";
+	$qtxt.= "saldo $decimal_type(15,3),pos integer DEFAULT 0,PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
-	db_modify("CREATE TABLE tmpkassekl (id integer,lobenr integer,bilag text,transdate text,beskrivelse text,d_type text,debet text,k_type text,kredit text,faktura text,amount text,kladde_id integer,momsfri text,afd text,projekt text,ansat text,valuta text,valutakurs text,forfaldsdate text,betal_id text,dokument text)",__FILE__ . " linje " . __LINE__);
+	// db_modify("CREATE TABLE tmpkassekl (id integer,lobenr integer,bilag text,transdate text,beskrivelse text,d_type text,debet text,k_type text,kredit text,faktura text,amount text,kladde_id integer,momsfri text,afd text,projekt text,ansat text,valuta text,valutakurs text,forfaldsdate text,betal_id text,dokument text)",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE tmpkassekl (id integer,lobenr integer,bilag text,transdate text,beskrivelse text,d_type text,debet text,k_type text,kredit text,faktura text,amount text,kladde_id integer,momsfri text,afd text,projekt text,ansat text,valuta text,valutakurs text,forfaldsdate text,betal_id text,dokument text,pos integer DEFAULT 0)",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE kladdeliste ($id_column,kladdedate date,bogforingsdate date,kladdenote text,bogfort varchar(2),oprettet_af text,bogfort_af text,hvem text,tidspkt text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 
 	$qtxt = "CREATE TABLE kontoplan ($id_column,kontonr $decimal_type(15,0),beskrivelse text,kontotype varchar(1),";

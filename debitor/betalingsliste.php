@@ -37,6 +37,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
+include("../includes/row-hover-style-with-link-no-input.js.php");
 
 $sort=isset($_GET['sort'])? $_GET['sort']:Null;
 $rf=isset($_GET['rf'])? $_GET['rf']:Null;

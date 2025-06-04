@@ -1200,7 +1200,7 @@
     if(isset($_GET["getRemoteLink"])){
         $serverName = $_SERVER['SERVER_NAME'];
         $firstFolder = explode('/', trim($_SERVER['REQUEST_URI'], '/'))[0];
-        echo json_encode("https://".$serverName."/".$firstFolder."/remoteBooking/index.php?db=".$db);
+        echo json_encode("https://".$serverName."/".$firstFolder."/remoteBooking/index.php?id=".$db);
     }
 
     function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_ny,$procent,$art,$momsfri,$posnr,$linje_id,$incl_moms,$kdo,$rabatart,$kopi,$saet,$fast_db,$lev_varenr,$lager,$linje) { #20140426

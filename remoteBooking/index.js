@@ -367,10 +367,13 @@ const calendarView = async (main, product, weeks, price, db) => {
 
             const shuffleArray = array => {
                 for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1))
-                    [array[i], array[j]] = [array[j], array[i]] // Swap elements
+                    const j = Math.floor(Math.random() * (i + 1));
+                    // Store temporarily to avoid TDZ issues
+                    const temp = array[i];
+                    array[i] = array[j];
+                    array[j] = temp;
                 }
-                return array
+                return array;
             }
             // get id from availableDatesById based on startDate
             const shuffledArray = shuffleArray(availableDatesById)
@@ -449,6 +452,7 @@ const calendarView = async (main, product, weeks, price, db) => {
                     }).then(response => {
                         return response.json()
                     })
+                    console.log(res)
                     main.innerHTML = `
                         <div class="w-2/3 mx-auto text-white text-center mt-4">
                             <h3>Tak for din bestilling!</h3>
@@ -720,18 +724,6 @@ const appState = {
         // So we can just navigate back to the price view
         this.navigateTo('price')
       })
-      
-      // Add rental button event listener
-      if (rental) {
-        rental.addEventListener('click', (e) => {
-          // Your existing rental button code
-          const selectedDates = datePick.selectedDates
-          // ... rest of the code
-        })
-      }
-      
-      // Add other calendar view event listeners here
-      // ...
     },
     
     // Initialize the application
@@ -745,7 +737,7 @@ const appState = {
   const main = async () => {
     // get url parameters
     const urlParams = new URLSearchParams(window.location.search)
-    const db = urlParams.get('id')
+    const db = urlParams.get('db')
     
     // Initialize app with database ID
     appState.init(db)

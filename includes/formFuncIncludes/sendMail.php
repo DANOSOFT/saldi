@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 4.0.7 --- 2022-11-24 ---
+// --- includes/formFuncIncludes/sendMail.php --- patch 4.1.1 --- 2025-06-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20211028 PHR moved this function rom ../formfunc,php  
 // 20221124 PHR Added $mail->ReturnPath = $afsendermail;
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250603 PHR enhanced use of variables in mailtext. 
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -154,9 +155,16 @@ print "<!--function send_mails start-->";
 		$subjekt='';
 		for ($a=0;$a<count($ordliste);$a++) {
 			if (substr($ordliste[$a],0,1)=='$') {
-				$tmp=substr($ordliste[$a],1);
-				$r=db_fetch_array(db_select("select $tmp from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$tmp];
+				$var=substr($ordliste[$a],1);
+				if (strpos($var,';')) {
+					list($var,$tmp) = explode(';',$var,2);
+				}
+				if (strpos($var,',')) {
+					list($var,$tmp) = explode(',',$var,2);
+				}
+				$var=trim($var);
+				$r=db_fetch_array(db_select("select $var from ordrer where id='$ordre_id'",__FILE__ . " linje " . __LINE__));
+				$ordliste[$a]=$r[$var];
 			} 
 			$subjekt.=$ordliste[$a]." ";
 		}
@@ -167,16 +175,23 @@ print "<!--function send_mails start-->";
 		$mailtext='';
 		for ($a=0;$a<count($ordliste);$a++) {
 			if (substr($ordliste[$a],0,1)=='$') {
-				$tmp=substr($ordliste[$a],1);
+				$var=substr($ordliste[$a],1);
 				$br='';
-				if (strpos($tmp,'<br>')) {
-					list($tmp,$br)=explode("<br>",$tmp,2);
+				if (strpos($var,'<br>')) {
+					list($var,$br)=explode("<br>",$var,2);
 					if (!$br) $br=" ".$br; #Eller æder den linjeskiftet hvis der ikke er noget efter <br>  
 				}
-				$tmp=trim($tmp);
-				$qtxt="select $tmp from ordrer where id='$ordre_id'";
+				if (strpos($var,';')) {
+					list($var,$tmp) = explode(';',$var,2);
+				}
+				if (strpos($var,',')) {
+					list($var,$tmp) = explode(',',$var,2);
+				}
+				$var=trim($var);
+				$qtxt="select $var from ordrer where id='$ordre_id'";
+				#cho "$qtxt<br>";
 				$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$ordliste[$a]=$r[$tmp];
+				$ordliste[$a]=$r[$var];
 				if ($br) {
 					$ordliste[$a].="<br>".$br;
 				}

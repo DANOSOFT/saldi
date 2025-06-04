@@ -46,6 +46,7 @@
 // 20220905 MSC Implementing new design
 // 20230427 PHR Extendet cookie lifetime to 1 year.
 // 20230907 PHR PHP-8
+// 20243025 Sawaneh add rabat and gross profit columns
 
 ob_start();
 @session_start();
@@ -310,22 +311,43 @@ if ($menu=='T') {
 	print "<tbody>";
 	print "<tr><td colspan=20><hr></td></tr>\n";
 }
+// print "<tr>";
+// print "<td style=\"padding-top: 20px;width:30px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Status</b></td>\n";
+// print "<td style=\"padding-top: 20px;width:60px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Id</b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:110px\"><b><a href='kassespor.php?nysort=fakturadate&sort=$sort&valg=$valg$hreftext'>".findtekst(929,$sprog_id)."</a></b></td>\n"; #20210330
+// print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b>".findtekst(930,$sprog_id).".</a></b></td>\n";
+// #print "<td align=center><b><a href='kassespor.php?nysort=kontonr&sort=$sort&valg=$valg$hreftext'>Konto</b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:110px\"><b><a href='kassespor.php?nysort=fakturanr&sort=$sort&valg=$valg$hreftext'>".findtekst(928,$sprog_id)."</a></b></td>\n"; 
+// print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b><a href='kassespor.php?nysort=felt_5&sort=$sort&valg=$valg$hreftext'>".findtekst(931,$sprog_id)."</a></b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b><a href='kassespor.php?nysort=nr&sort=$sort&valg=$valg$hreftext'>".findtekst(932,$sprog_id)."</a></b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b><a href='kassespor.php?nysort=ref&sort=$sort&valg=$valg$hreftext'>".findtekst(933,$sprog_id)."</a></b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b><a href='kassespor.php?nysort=sum&sort=$sort&valg=$valg$hreftext'>".findtekst(934,$sprog_id)."</a></b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b><a href='kassespor.php?nysort=felt_1&sort=$sort&valg=$valg$hreftext'>".findtekst(935,$sprog_id)."</a></b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b><a href='kassespor.php?nysort=felt_2&sort=$sort&valg=$valg$hreftext'>".findtekst(936,$sprog_id)."</a></b></td>\n";
+// #print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_3&sort=$sort&valg=$valg$hreftext'>Betaling 2</a></b></td>\n";
+// #print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_4&sort=$sort&valg=$valg$hreftext'>Modtaget 2</a></b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b>".findtekst(937,$sprog_id)."</a></b></td><td></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b>Rabat</b></td>\n";
+// print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b>DG</b></td>\n";
+// print "<td></td>\n";
+// print "</tr>\n";
+
 print "<tr>";
-print "<td style=\"padding-top: 20px;width:30px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Status</b></td>\n";
-print "<td style=\"padding-top: 20px;width:60px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Id</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:110px\"><b><a href='kassespor.php?nysort=fakturadate&sort=$sort&valg=$valg$hreftext'>".findtekst(929,$sprog_id)."</a></b></td>\n"; #20210330
-print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b>".findtekst(930,$sprog_id).".</a></b></td>\n";
-#print "<td align=center><b><a href='kassespor.php?nysort=kontonr&sort=$sort&valg=$valg$hreftext'>Konto</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:110px\"><b><a href='kassespor.php?nysort=fakturanr&sort=$sort&valg=$valg$hreftext'>".findtekst(928,$sprog_id)."</a></b></td>\n"; 
-print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b><a href='kassespor.php?nysort=felt_5&sort=$sort&valg=$valg$hreftext'>".findtekst(931,$sprog_id)."</a></b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b><a href='kassespor.php?nysort=nr&sort=$sort&valg=$valg$hreftext'>".findtekst(932,$sprog_id)."</a></b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:50px\"><b><a href='kassespor.php?nysort=ref&sort=$sort&valg=$valg$hreftext'>".findtekst(933,$sprog_id)."</a></b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b><a href='kassespor.php?nysort=sum&sort=$sort&valg=$valg$hreftext'>".findtekst(934,$sprog_id)."</a></b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b><a href='kassespor.php?nysort=felt_1&sort=$sort&valg=$valg$hreftext'>".findtekst(935,$sprog_id)."</a></b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b><a href='kassespor.php?nysort=felt_2&sort=$sort&valg=$valg$hreftext'>".findtekst(936,$sprog_id)."</a></b></td>\n";
-#print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_3&sort=$sort&valg=$valg$hreftext'>Betaling 2</a></b></td>\n";
-#print "<td style=\"text-align:center;width:100px\"><b><a href='kassespor.php?nysort=felt_4&sort=$sort&valg=$valg$hreftext'>Modtaget 2</a></b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;width:100px\"><b>".findtekst(937,$sprog_id)."</a></b></td><td></td>\n";
+print "<td style=\"padding-top: 20px;width:30px\"><b>Status</b></td>\n";
+print "<td style=\"padding-top: 20px;width:60px\"><b>Id</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Receipt Date</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Time.</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Receipt no</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Register</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Table</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Ref.</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Amount</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Payment</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Received</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Return</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>Rabat</b></td>\n";
+print "<td style=\"padding-top: 20px; text-align:right;\"><b>DG</b></td>\n";
+print "<td></td>\n";
 print "</tr>\n";
 print "<input type=hidden name=sort value=\"$sort\">";
 #print "<input type=hidden name=nysort value=\"$nysort\">";
@@ -398,6 +420,11 @@ if ($menu=='T') {
 }
 print "<tr><td colspan=\"9\" align=\"right\"><b>".dkdecimal($omsaet,2)."</b></td><td colspan=\"2\" align=\"right\"><b>".dkdecimal($modtaget,2)."</b></td><td colspan=\"1\" align=\"right\"><b>".dkdecimal($retursum,2)."</b></td><td></td></tr>"; 
 
+print "<td align=\"right\"><b>".dkdecimal($modtaget,2)."</b></td>
+<td align=\"right\"><b>".dkdecimal($total_discount,2)."</b></td>
+<td align=\"right\"><b>".dkdecimal($total_gross_profit,2)."</b></td>
+<td></td></tr>";
+
 for ($z=0;$z<count($bet_type);$z++) {
 	if ($bet_sum[$z]) print "<tr><td colspan=\"10\" align=\"right\"><b>$bet_type[$z]</b></td><td align=\"right\"><b>".dkdecimal($bet_sum[$z],2)."</b></td></tr>"; 
 }
@@ -421,7 +448,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	global $omsaet;
 	global $modtaget;
 	global $retursum;
-	
+	$total_discount = 0;
+$total_gross_profit = 0;
+
 	$linjebg=NULL;
 	$y=0;
 	$sort=str_replace('+',' ',$sort);
@@ -485,6 +514,28 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 		$moms[$x]=$r['moms'];
 		$art[$x]=$r['art'];
 		$dkksum[$x]=dkdecimal($sum[$x]+$moms[$x],2);
+	$q_dg = db_fetch_array(db_select("
+    SELECT
+      COALESCE(SUM(
+        CASE
+          WHEN rabatart IN ('', 'percent') THEN (COALESCE(pris,0) * COALESCE(rabat,0) / 100) * COALESCE(antal,0)
+          ELSE COALESCE(rabat,0) * COALESCE(antal,0)
+        END
+      ),0) AS discount,
+      COALESCE(SUM((COALESCE(pris,0) - COALESCE(kostpris,0)) * COALESCE(antal,0)),0) AS dg
+    FROM ordrelinjer
+    WHERE ordre_id = '{$r['id']}'
+    ", __FILE__ . ' linje ' . __LINE__));
+
+
+
+     $discount[$x] = $q_dg['discount'];
+     $gross_profit[$x] = $q_dg['dg'];
+
+     $total_discount += $discount[$x];
+     $total_gross_profit += $gross_profit[$x];
+
+
 		$x++;
 	}
 	for ($x=0;$x<count($id);$x++) {
@@ -565,6 +616,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 					if (!isset($ordre_id[$y-1]) || $ordre_id[$y]!=$ordre_id[$y-1]) {
 						print "<td align=right>".dkdecimal($retur,2)."<br></td>\n";
 						$retursum+=$retur;
+						print "<td align=right>".dkdecimal($discount[$x], 2)."<br></td>\n";
+print "<td align=right>".dkdecimal($gross_profit[$x], 2)."<br></td>\n";
+
 					} else {
 						print "<td align=right><br></td>\n";
 					}

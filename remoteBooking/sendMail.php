@@ -38,9 +38,11 @@
 
 
     // autoload phpmailer through composer
-    require_once '../../vendor/phpmailer/phpmailer/class.phpmailer.php';
-    require_once '../../vendor/phpmailer/phpmailer/class.smtp.php';
-
+    require '../../vendor/autoload.php';
+    use PHPMailer\PHPMailer\PHPMailer;
+    use PHPMailer\PHPMailer\Exception;
+    use PHPMailer\PHPMailer\SMTP;
+    $timestamp = time();
 
     $query = db_select("SELECT * FROM rentalmail WHERE id = 1", __FILE__ . " linje " . __LINE__);
     if(db_num_rows($query) > 0){

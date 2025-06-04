@@ -350,7 +350,7 @@ if ($status < 3) {
 			$qtxt = "select id  from pos_betalinger where ordre_id='$id'and betalingstype ='!'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "update pos_betalinger set betalingstype='$betaling',amount='$modtaget',valuta='$betvaluta',";
-				$qtxt .= "valutakurs='$betvalkurs',payment_id='" . $payment_id . "',receipt_id='$receipt_id' ";
+				$qtxt .= "valutakurs='$betvalkurs',payment_id='" . (int)$payment_id . "',receipt_id='$receipt_id' ";
 				$qtxt .= "where id='$r[id]'";
 			} else {
 				$qtxt = "insert into pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs,receipt_id) values ";

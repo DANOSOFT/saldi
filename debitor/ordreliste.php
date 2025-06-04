@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.0 ----2025-04-15--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-05-28--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -141,7 +141,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
-include("../includes/row-hover-style.js.php");
+include("../includes/row-hover-style-with-links.js.php");
 
 # >> Date picker scripts <<
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
@@ -804,7 +804,10 @@ while ($r0=db_fetch_array($q0)) {
 				} else $udlignet=1;
 			}
 		}
-		$href="ordre.php?tjek=$id&id=$id&returside=".urlencode($_SERVER["REQUEST_URI"]);
+		if(!if_isset($konto_id,NULL)){
+			$konto_id=$r0['konto_id'];
+		}
+		$href="ordre.php?tjek=$id&id=$id&konto_id=$konto_id&returside=".urlencode($_SERVER["REQUEST_URI"]);
 		$tle1 = findtekst(1421, $sprog_id);
 		$tle2 = findtekst(1522, $sprog_id);
 		if ($valg == 'faktura' || $tidspkt-($timestamp)>3600 || $who==$brugernavn || $who=='' ) { #20220301
