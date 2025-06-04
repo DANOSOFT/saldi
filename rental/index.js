@@ -1125,7 +1125,9 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     document.querySelector(".table-point").innerHTML = "<table class='table table-bordered table-responsive table-light'></table>"
     if (document.querySelector(".calendar")) document.querySelector(".calendar").setAttribute("class", "remove-margin sticky-container")
     const header = document.querySelector(".header")
-    header.setAttribute("class", "sticky-top")
+    if(header){
+        header.setAttribute("class", "sticky-top")
+    }
     // Setting Dates
     currentMonth = parseInt(thisMonth)
     currentYear = year
@@ -1604,23 +1606,42 @@ const productOverviewMonth = async (thisMonth, year, value) => {
             modalButton.addEventListener("click", async (e) => {
                 // close modal
                 const closeModal = document.querySelector(".close-modal")
+                closeModal.addEventListener("click", (e) => {
+                    e.preventDefault()
+                })
                 closeModal.click()
                 const standType = document.querySelector(".available-select").value
-                // check if all is selected in the select element
+                
                 if(standType == "all"){
-                    // check if item has booking in the given period
-                    const items = await getBookingsForItems()
-                    
+                    // Get ALL rental items (not just booked ones)
+                    const items = await getProductInfos(currentMonth+1, currentYear)
+
                     if(items.success == false){
                         alert(items.msg)
-                        // refresh the page
                         window.location.href = "index.php?vare"
+                        return
                     }
+                    
+                    // Get all unique items
+                    const allUniqueItems = new Map()
+                    
+                    items.forEach(item => {
+                        if (!allUniqueItems.has(item.item_id)) {
+                            allUniqueItems.set(item.item_id, {
+                                product_name: item.product_name,
+                                item_name: item.item_name,
+                                product_id: item.product_id,
+                                item_id: item.item_id
+                            })
+                        }
+                    })
+                    
+                    // Convert to itemsInfo format for display
                     itemsInfo = items.map((item) => ({
                         product_name: item.product_name,
                         item_name: item.item_name,
-                        fromDate: new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2),
-                        toDate: new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2),
+                        fromDate: item.from ? new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2) : null,
+                        toDate: item.to ? new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2) : null,
                         product_id: item.product_id,
                         cust_id: item.cust_id,
                         rental_id: item.rental_id,
@@ -1628,26 +1649,80 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                         item_id: item.item_id,
                         kontonr: item.kontonr
                     }))
-                    // check if there is any bookings in the given period fromDate to toDate
-                    availableItems = itemsInfo.filter(item => {
-                        // Find all bookings for this item
-                        const bookings = itemsInfo.filter(booking => booking.item_id === item.item_id)
                     
-                        // Check if any of the bookings overlap with the given period
-                        const hasBookingDuringPeriod = bookings.some(booking => {
-                            return !(booking.toDate < fromDate || booking.fromDate > toDate)
+                    // Find available items (items without bookings during the selected period)
+                    availableItems = []
+                    
+                    allUniqueItems.forEach((itemDetails, itemId) => {
+                        // Get all bookings for this specific item
+                        const itemBookings = items.filter(item => 
+                            item.item_id === itemId && 
+                            item.rental_id && // Only consider actual bookings (not empty entries)
+                            item.from && item.to // Make sure booking has dates
+                        )
+                        
+                        // Check reservations for this item
+                        let hasReservationDuringPeriod = false
+                        if (reservations.success !== false) { // Changed this condition
+                            hasReservationDuringPeriod = reservations.some(reservation => {
+                                if (parseInt(reservation.item_id) === parseInt(itemId)) {
+                                    const reservationFrom = new Date(reservation.from * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.from * 1000).getDate()).slice(-2)
+                                    const reservationTo = new Date(reservation.to * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.to * 1000).getDate()).slice(-2)
+                                    return !(reservationTo < fromDate || reservationFrom > toDate)
+                                }
+                                return false
+                            })
+                        }
+                        
+                        if (hasReservationDuringPeriod) {
+                            return // Skip this item
+                        }
+                        
+                        // Check if any booking overlaps with our selected period
+                        const hasOverlappingBooking = itemBookings.some(booking => {
+                            const bookingStart = new Date(booking.from * 1000).getFullYear() + "-" + ("0" + (new Date(booking.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.from * 1000).getDate()).slice(-2)
+                            const bookingEnd = new Date(booking.to * 1000).getFullYear() + "-" + ("0" + (new Date(booking.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.to * 1000).getDate()).slice(-2)
+                            
+                            // Check for overlap: booking overlaps if it doesn't end before our period starts
+                            // AND doesn't start after our period ends
+                            return !(bookingEnd < fromDate || bookingStart > toDate)
                         })
-                    
-                        // Return true if there are no bookings during the given period
-                        return !hasBookingDuringPeriod
+                        
+                        // If no overlapping booking and no reservation, this item is available
+                        if (!hasOverlappingBooking) {
+                            availableItems.push(itemDetails)
+                        }
                     })
-                }else{
+                    
+                } else {
+                    // Similar logic for specific product type
                     const items = await getBookingsForItemsByType(standType)
+                    
+                    if(items.success == false){
+                        alert(items.msg)
+                        window.location.href = "index.php?vare"
+                        return
+                    }
+                    
+                    // Get all unique items for this product type
+                    const allUniqueItems = new Map()
+                    
+                    items.forEach(item => {
+                        if (!allUniqueItems.has(item.item_id)) {
+                            allUniqueItems.set(item.item_id, {
+                                product_name: item.product_name,
+                                item_name: item.item_name,
+                                product_id: item.product_id,
+                                item_id: item.item_id
+                            })
+                        }
+                    })
+                    
                     itemsInfo = items.map((item) => ({
                         product_name: item.product_name,
                         item_name: item.item_name,
-                        fromDate: new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2),
-                        toDate: new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2),
+                        fromDate: item.from ? new Date(item.from * 1000).getFullYear() + "-" + ("0" + (new Date(item.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.from * 1000).getDate()).slice(-2) : null,
+                        toDate: item.to ? new Date(item.to * 1000).getFullYear() + "-" + ("0" + (new Date(item.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(item.to * 1000).getDate()).slice(-2) : null,
                         product_id: item.product_id,
                         cust_id: item.cust_id,
                         rental_id: item.rental_id,
@@ -1656,54 +1731,49 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                         kontonr: item.kontonr
                     }))
 
-                    // check if there is any bookings in the given period fromDate to toDate
-                    availableItems = itemsInfo.filter(item => {
-                        // Find all bookings for this item
-                        const bookings = itemsInfo.filter(booking => booking.item_id === item.item_id)
+                    availableItems = []
                     
+                    allUniqueItems.forEach((itemDetails, itemId) => {
+                        // Get all bookings for this specific item
+                        const itemBookings = items.filter(item => 
+                            item.item_id === itemId && 
+                            item.rental_id && 
+                            item.from && item.to
+                        )
+                        
+                        // Check reservations
                         let hasReservationDuringPeriod = false
-                        if (!reservations.success) {
+                        if (reservations.success !== false) { // Changed this condition
                             hasReservationDuringPeriod = reservations.some(reservation => {
-                                if (parseInt(reservation.item_id) === parseInt(item.item_id)) {
+                                if (parseInt(reservation.item_id) === parseInt(itemId)) {
                                     const from = new Date(reservation.from * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.from * 1000).getDate()).slice(-2)
                                     const to = new Date(reservation.to * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.to * 1000).getDate()).slice(-2)
-                                    // Check if the reservation overlap wit the given period
-                                    return from <= toDate && to >= fromDate
+                                    return !(to < fromDate || from > toDate)
                                 }
                                 return false
                             })
                         }
-                    
+                        
                         if (hasReservationDuringPeriod) {
-                            return false
+                            return // Skip this item
                         }
-        
-                        // Check if any of the bookings overlap with the given period
-                        const hasBookingDuringPeriod = bookings.some(booking => {
-                            return !(booking.toDate < fromDate || booking.fromDate > toDate)
+                        
+                        const hasOverlappingBooking = itemBookings.some(booking => {
+                            const bookingStart = new Date(booking.from * 1000).getFullYear() + "-" + ("0" + (new Date(booking.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.from * 1000).getDate()).slice(-2)
+                            const bookingEnd = new Date(booking.to * 1000).getFullYear() + "-" + ("0" + (new Date(booking.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(booking.to * 1000).getDate()).slice(-2)
+                            
+                            return !(bookingEnd < fromDate || bookingStart > toDate)
                         })
-                    
-                        // Return true if there are no bookings during the given period
-                        return !hasBookingDuringPeriod
+                        
+                        if (!hasOverlappingBooking) {
+                            availableItems.push(itemDetails)
+                        }
                     })
                 }
+                
                 showAvailability(availableItems, itemsInfo)
             })
         }else{
-            /* const date = prompt("Indtast en dato i formatet dd-mm-yyyy")
-            if(date == null) return
-            const dateArray = date.split("-")
-            const day = dateArray[0]
-            const month = dateArray[1]
-            const year = dateArray[2]
-            currentMonth = parseInt(month) - 1
-            currentYear = year
-            span.innerHTML = ""
-            span.appendChild(document.createTextNode(months[currentMonth] + " - " + currentYear))
-            const currentDate = year + "-" + month + "-" + day
-            // get all items that is not booked on the given date
-            availableItems = productInfo.filter(item => item.fromDate > currentDate || item.toDate < currentDate)
-            } */
             showAvailability(availableItems)
         }
     }else{

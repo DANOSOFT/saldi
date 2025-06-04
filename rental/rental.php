@@ -514,7 +514,7 @@
         }
     }
 
-    /* if(isset($_GET["productInfo"])){
+   /*  if(isset($_GET["oldProductInfo"])){
         $query = db_select("SELECT * FROM rentalitems ORDER BY length(item_name), item_name ASC", __FILE__ . " linje " . __LINE__);
         $i = 0;
         if(db_num_rows($query) === 0){
@@ -554,6 +554,58 @@
         }
         echo json_encode($productInfo);
     } */
+        /* if(isset($_GET["newProductInfo"])){
+            $query = db_select("SELECT 
+                    rp.id as rental_id, 
+                    rp.rt_from, 
+                    rp.rt_to, 
+                    rp.cust_id, 
+                    ri.id as item_id, 
+                    ri.item_name, 
+                    ri.product_id, 
+                    COALESCE(v.beskrivelse, '') as product_name, 
+                    COALESCE(a.firmanavn, '') as cust_name, 
+                    COALESCE(a.kontonr, '') as kontonr 
+                FROM 
+                    rentalitems ri
+                LEFT JOIN 
+                    varer v ON ri.product_id = v.id
+                LEFT JOIN 
+                    rentalperiod rp ON rp.item_id = ri.id
+                LEFT JOIN 
+                    adresser a ON rp.cust_id = a.id 
+                ORDER BY 
+                    LENGTH(ri.item_name), 
+                    ri.item_name ASC", __FILE__ . " linje " . __LINE__);
+
+            if ($query === false) {
+                echo json_encode(["msg" => "Query failed", "success" => false]);
+                exit();
+            }
+
+            $i = 0;
+            if(db_num_rows($query) === 0){
+                echo json_encode(["msg" => "Der er ingen items", "success" => false]);
+                exit();
+            }
+
+            while($res = db_fetch_array($query)){
+                $productInfo[$i]["product_name"] = $res["product_name"];
+                $productInfo[$i]["reservation_id"] = $res["rental_id"];
+                $productInfo[$i]["product_id"] = $res["product_id"];
+                $productInfo[$i]["item_name"] = $res["item_name"];
+                $productInfo[$i]["item_id"] = $res["item_id"];
+                $productInfo[$i]["rental_id"] = $res["rental_id"];
+                $productInfo[$i]["from"] = $res["rt_from"];
+                $productInfo[$i]["to"] = $res["rt_to"];
+                $productInfo[$i]["cust_id"] = $res["cust_id"];
+                $productInfo[$i]["cust_name"] = str_replace("'", "´", $res["cust_name"]);
+                $productInfo[$i]["kontonr"] = $res["kontonr"];
+                $i++;
+            }
+            echo json_encode($productInfo);
+        }
+ */
 
     if(isset($_GET["productInfo"])){
         $month = $_GET["month"]; // The month you want to filter by
