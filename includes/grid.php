@@ -249,20 +249,28 @@ $defaultValues = [
 function create_datagrid($id, $grid_data) {
     global $defaultValues;
     global $bruger_id;
-
+    global $db;
     // Performance logging for grid creation
     $grid_start_time = microtime(true);
     $log_file = "../../temp/$db/vareliste_performance.log";
     
     function log_grid_performance($message, $start_time = null) {
         global $log_file;
+        
+        // Safety check - if log_file is still empty, skip logging
+        if (empty($log_file)) {
+            return microtime(true);
+        }
+        
         $current_time = microtime(true);
         if ($start_time) {
             $elapsed = round(($current_time - $start_time) * 1000, 2);
             $message .= " (took {$elapsed}ms)";
         }
         $timestamp = date('Y-m-d H:i:s');
-        file_put_contents($log_file, "[$timestamp] GRID: $message\n", FILE_APPEND | LOCK_EX);
+        
+        // Use error suppression to prevent fatal errors
+        @file_put_contents($log_file, "[$timestamp] GRID: $message\n", FILE_APPEND | LOCK_EX);
         return $current_time;
     }
 
