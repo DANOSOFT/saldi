@@ -216,7 +216,7 @@ $columns[] = array(
 
 
 // Loop to generate lager fields (lager1, lager2, lager3, ...)
-$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' GROUP BY kodenr ORDER BY kodenr";
+$query = "SELECT kodenr, beskrivelse FROM grupper WHERE art='LG' ORDER BY kodenr";
 $SQLLagerFetch = "";
 $SQLLagerJoin  = "";
 $lagere = array();
