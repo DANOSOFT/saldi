@@ -117,7 +117,6 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script
 $css="../css/std.css";
 global $sprog_id;
 $modulnr=5;
-$title='txt1201';
 $api_encode=NULL;
 $check_all=$checked=$cols=NULL;
 $dk_dg=NULL; 
@@ -140,8 +139,9 @@ $timestamp = date('U');
 $find=array(NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 $padding2=$padding=$padding1_5=null; #20211018
 include("../includes/connect.php");
-include("../includes/online.php");
 include("../includes/std_func.php");
+$title=findtekst('1201|Ordreliste • Kunder', $sprog_id);
+include("../includes/online.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style-with-links.js.php");
 

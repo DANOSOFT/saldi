@@ -468,7 +468,7 @@
 468	Momskode for salgspriser på varekort 	VAT code for sales prices on product cards	MVA-kode for salgspriser på produktkort
 469	Hvis dette felt er udfyldt	display sales prices on product cards incl. VAT.	Hvis dette feltet er fylt ut
 470	Varerelaterede valg	Product-related options	Varerelaterte valg
-471	Gem/opdatér	Save / Update	Lagre / oppdater
+471	Gem/opdatér	Save/update	Lagre/oppdater
 472	Varianter	Variants	Varianter
 473	Ny variant værdi	New variant value	Ny variantverdi
 474	Ny variant	New variant	Ny variant
@@ -2561,9 +2561,9 @@
 2561	SALDI-administratorens adgangskode igen	SALDI administrator's password again	Skriv inn SALDI-administratorens passord på nytt
 2562	Revisor	Auditor	Revisor
 2563	Vil du gøre denne bruger til revisor? Kun én bruger kan have revisoradgang, og du kan ikke ændre hvilken bruger der er revisor uden at kontakte Saldi support.	Do you want to make this user an auditor? Only one user can have auditor access, and you cannot change which user holds the auditor role without contacting Saldi support.	Vil du gjøre denne brukeren til revisor? Kun én bruker kan ha revisoradgang, og du kan ikke endre hvilken bruker som er revisor uten å kontakte Saldi support.
-2564	
-2565	
-2566	
+2564	Hjælp	Help	Hjelp
+2565	Klik her for at rette nr. eller navn på projektet	Click here to edit the project number or name	Klikk her for å rette nr. eller navn på prosjektet
+2566	Klik her for at slette projektet	Click here to delete the project	Klikk her for å slette prosjektet
 2567	
 2568	
 2569	
