@@ -31,6 +31,7 @@ $title="vis regnskaber";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 $saldiregnskab = NULL;
 $lukket=array();
@@ -91,24 +92,62 @@ if (isset($_POST['submit'])) {
 	$qtxt="update regnskab set lukket='' where lukket is NULL";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
+if ($menu=='S') {
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+	print "<tr><td align='center' valign='top' height='25px'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
+	print "<td width='10%'><a href=../index/admin_menu.php accesskey=L>
+		    <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\" height=\"25\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=../index/admin_menu.php accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
-print "<td width=\"80%\" $top_bund align=\"center\">".findtekst(340, $sprog_id)."</td>";#Vis regnskaber
-print "<td width=\"5%\" $top_bund align = \"center\">";
-if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>".findtekst(1906, $sprog_id)." </a>";#Skjul Luk
-else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>".findtekst(1907, $sprog_id)." </a>";#Vis Luk
-print "</td><td $top_bund align = \"center\">";
-if ($rediger) print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' > ".findtekst(1908, $sprog_id)."</a>"; #Lås
-else print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R> ".findtekst(1206, $sprog_id)."</a>";#Ret
-print "</td>";
-print "</tbody></table>";
-print "</td></tr>";
-print "<td align = center valign = center>";
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst(340, $sprog_id)."</td>";#Vis regnskaber
+	print "<td width='5%' align = 'center' style='$topStyle'>";
+
+	if ($showClosed) {
+		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   .findtekst(1906, $sprog_id)."</button></a>";#Skjul Luk
+	} else {
+		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+			   .findtekst(1907, $sprog_id)."</button></a>";#Vis Luk
+	}
+	print "</td><td align='center' style='$topStyle'>";
+
+	if ($rediger) {
+		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' >
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(1908, $sprog_id)."</button></a>"; #Lås
+	} else {
+		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R>
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(1206, $sprog_id)."</button></a>";#Ret
+	}
+	print "</td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<td align = center valign = center>";
+	print "<link rel='stylesheet' href='../css/vis_regnskaber.css'>";
+	print "<table class='table2'><tbody>";
+} else {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"center\" valign=\"top\" height=\"25px\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><a href=../index/admin_menu.php accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund align=\"center\">".findtekst(340, $sprog_id)."</td>";#Vis regnskaber
+	print "<td width=\"5%\" $top_bund align = \"center\">";
+	if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>".findtekst(1906, $sprog_id)." </a>";#Skjul Luk
+	else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>".findtekst(1907, $sprog_id)." </a>";#Vis Luk
+	print "</td><td $top_bund align = \"center\">";
+	if ($rediger) print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' > ".findtekst(1908, $sprog_id)."</a>"; #Lås
+	else print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R> ".findtekst(1206, $sprog_id)."</a>";#Ret
+	print "</td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<td align = center valign = center>";
+	#print "<table cellpadding=\"1\" cellspacing=\"3\" border=\"1\" style='width:50%;border-radius:5px;border-color:#cccccc;' ><tbody>";
+	print "<link rel='stylesheet' href='../css/vis_regnskaber.css'>"; #20240503
+	#print "<table class='table table-bordered with-inner-borders'><tbody>";
+	print "<table class='table2'><tbody>";
+}
 
 $id=array(); $regnskab=array(); $db_navn=array();
 
