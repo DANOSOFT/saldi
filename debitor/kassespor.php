@@ -523,26 +523,27 @@ $total_gross_profit = 0;
 
 					$q_dg = db_fetch_array(db_select("
 					SELECT
-						COALESCE(SUM(pris * antal), 0) AS total_sales,
-						COALESCE(SUM(
+					COALESCE(SUM(pris * antal), 0) AS total_sales,
+					COALESCE(SUM(
 						CASE 
-							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat * antal
-							ELSE (pris * rabat / 100) * antal
+						WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+						ELSE (pris * rabat / 100) * antal
 						END
-						), 0) AS discount,
-						COALESCE(SUM(kostpris * antal), 0) AS kostpris,
-						COALESCE(SUM(
+					), 0) AS discount,
+					COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+					COALESCE(SUM(
 						(
-							pris - 
-							CASE 
-								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat
-								ELSE (pris * rabat / 100)
-							END
-							- kostpris
+						pris - 
+						CASE 
+							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+							ELSE (pris * rabat / 100)
+						END
+						- kostpris
 						) * antal
-						), 0) AS dg
+					), 0) AS dg
 					FROM ordrelinjer
 					WHERE ordre_id = '{$id[$x]}'
+
 			", __FILE__ . ' linje ' . __LINE__));
 
 
@@ -642,27 +643,27 @@ $total_gross_profit = 0;
 	
 						$q_dg = db_fetch_array(db_select("
 						SELECT
-							COALESCE(SUM(pris * antal), 0) AS total_sales,
-							COALESCE(SUM(
+						COALESCE(SUM(pris * antal), 0) AS total_sales,
+						COALESCE(SUM(
 							CASE 
-								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat * antal
-								ELSE (pris * rabat / 100) * antal
+							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+							ELSE (pris * rabat / 100) * antal
 							END
-							), 0) AS discount,
-							COALESCE(SUM(kostpris * antal), 0) AS kostpris,
-							COALESCE(SUM(
+						), 0) AS discount,
+						COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+						COALESCE(SUM(
 							(
-								pris - 
-								CASE 
-									WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'fixed' THEN rabat
-									ELSE (pris * rabat / 100)
-								END
-								- kostpris
+							pris - 
+							CASE 
+								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+								ELSE (pris * rabat / 100)
+							END
+							- kostpris
 							) * antal
-							), 0) AS dg
+						), 0) AS dg
 						FROM ordrelinjer
 						WHERE ordre_id = '{$id[$x]}'
-						", __FILE__ . ' linje ' . __LINE__));
+							", __FILE__ . ' linje ' . __LINE__));
 
 
         $discount_val = $q_dg['discount'];
