@@ -59,38 +59,7 @@ if ($menu=='T') {
 	print "";
 }
 
-$post_valg = $_POST["valg"];
-if (isset($post_valg["tilbud"])) {
-	$valg = "Tilbud";
-} else if (isset($post_valg["ordrebekræftelse"])) {
-	$valg = "Ordrebekræftelse";
-} else if (isset($post_valg["følgeseddel"])) {
-	$valg = "Følgeseddel";
-} else if (isset($post_valg["faktura"])) {
-	$valg = "Faktura";
-} else if (isset($post_valg["kreditnota"])) {
-	$valg = "Kreditnota";
-} else if (isset($post_valg["rykker_1"])) {
-	$valg = "Rykker_1";
-} else if (isset($post_valg["rykker_2"])) {
-	$valg = "Rykker_2";
-} else if (isset($post_valg["rykker_3"])) {
-	$valg = "Rykker_3";
-} else if (isset($post_valg["plukliste"])) {
-	$valg = "Plukliste";
-} else if (isset($post_valg["kontokort"])) {
-	$valg = "Kontokort";
-} else if (isset($post_valg["indkøbsforslag"])) {
-	$valg = "Indkøbsforslag";
-} else if (isset($post_valg["rekvisition"])) {
-	$valg = "Rekvisition";
-} else if (isset($post_valg["købsfaktura"])) {
-	$valg = "Købsfaktura";
-} else if (isset($post_valg["alle"])) {
-	$valg = "Alle";
-}
-
-if (isset($valg)) {
+if ($valg=if_isset($_POST['valg'])) {
 	if ($valg=='Alle') {
 		db_modify("delete from formularer");
 		formularimport("../importfiler/formular.txt",'');
@@ -127,26 +96,24 @@ elseif(isset($_POST['afbryd']) && $_POST['afbryd'])  {
 	exit;
 } else {
 	print "<form name=formularimport action=$_SERVER[PHP_SELF] method=\"post\">";
-	print "<div style=\"text-align: center;\">$font Dette vil overskrive den valgte danske formular med standardopsætningen<br>";
+	print "<div style=\"text-align: center;\">$font Dette vil overskrive den valgte danske formular med standardops&aelig;tningen<br>";
 	print "<div style=\"text-align: center;\">$font\"Alle\" overskriver alle formularer og sletter formularer på andre sprog end dansk<br>";
-	print "<div style=\"text-align: center;\">$font og slette formularer på andre sprog end dansk.<br>";
-
-	print "
-	<input class='button red medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('81|Afbryd', $sprog_id)."\" name=\"afbryd\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('812|Tilbud', $sprog_id)."\" name=\"valg[tilbud]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('575|Ordrebekræftelse', $sprog_id)."\" name=\"valg[ordrebekræftelse]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('576|Følgeseddel', $sprog_id)."\" name=\"valg[følgeseddel]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('643|Faktura', $sprog_id)."\" name=\"valg[faktura]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('577|Kreditnota', $sprog_id)."\" name=\"valg[kreditnota]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('578|Rykker', $sprog_id)." 1\" name=\"valg[rykker_1]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('578|Rykker', $sprog_id)." 2\" name=\"valg[rykker_2]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('578|Rykker', $sprog_id)." 3\" name=\"valg[rykker_3]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('574|Plukliste', $sprog_id)."\" name=\"valg[plukliste]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('133|Kontokort', $sprog_id)."\" name=\"valg[kontokort]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('954|Indkøbsforslag', $sprog_id)."\" name=\"valg[indkøbsforslag]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('579|Rekvisition', $sprog_id)."\" name=\"valg[rekvisition]\"><br><br>
-	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('580|Købsfaktura', $sprog_id)."\" name=\"valg[købsfaktura]\"><br><br>
-	<input class='button gray medium' type=\"submit\" style=\"width:150px\" value=\"".findtekst('2498|Alle', $sprog_id)."\" name=\"valg[alle]\"><br><br>";
+	print "<div style=\"text-align: center;\">$font og slette formularer p&aring; andre sprog end dansk.<br>";
+	print "<input class='button red medium' type=\"submit\" style=\"width:150px\" value=\"Afbryd\" name=\"afbryd\"><br><br>
+		<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Tilbud\" name=\"valg\"><br><br>
+		<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Ordrebekræftelse\" name=\"valg\"><br><br>
+		<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Følgeseddel\" name=\"valg\"><br><br>
+		<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Faktura\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Kreditnota\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Rykker_1\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Rykker_2\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Rykker_3\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Plukliste\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Kontokort\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Indkøbsforslag\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Rekvisition\" name=\"valg\"><br><br>
+	<input class='button blue medium' type=\"submit\" style=\"width:150px\" value=\"Købsfaktura\" name=\"valg\"><br><br>
+	<input class='button gray medium' type=\"submit\" style=\"width:150px\" value=\"Alle\" name=\"valg\"><br><br>";
 	print "</small></font></div></form>";
 }
 ?>

@@ -191,66 +191,67 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($refresh_opener) {
 			print "<BODY onLoad=\"javascript:opener.location.reload();\">";
 		}
-	#######################################################################################
+		#######################################################################################
 	} elseif ($sektion == 'div_valg') {
-		$id      = (int) $_POST['id'];
-		$box1    = $_POST['box1']; #gruppevalg
-		$box2    = $_POST['box2']; #kuansvalg
-		$box3    = $_POST['box3']; #extra_ansat
-		$box4    = $_POST['box4']; #forskellige_datoer
-		$box5    = $_POST['box5']; #debtor2orderphone
-		$box6    = $_POST['box6']; #docubizz
-		$box7    = $_POST['box7']; #jobkort
-//		$box8    = $_POST['box8']; #ebconnect
-		$box8    = $_POST['box8']; #paymentdays
-		$box9    = $_POST['box9']; #ledig
-		$box10   = $_POST['box10']; #betalingsliste
-		$box12   = $_POST['box12'];
+		$id = (int) $_POST['id'];
+		$box1 = $_POST['box1']; #gruppevalg
+		$box2 = $_POST['box2']; #kuansvalg
+		$box3 = $_POST['box3']; #extra_ansat
+		$box4 = $_POST['box4']; #forskellige_datoer
+		$box5 = $_POST['box5']; #debtor2orderphone
+		$box6 = $_POST['box6']; #docubizz
+		$box7 = $_POST['box7']; #jobkort
+		// $box8 = $_POST['box8']; #ebconnect
+		$box8 = $_POST['box8']; #paymentdays
+		$box9 = $_POST['box9']; #ledig
+		$box10 = $_POST['box10']; #betalingsliste
+		$box12 = $_POST['box12'];
 		$pv_box1 = $_POST['pv_box1']; #Direkte print til lokal printer
-		$pv_box3            = $_POST['pv_box3']; #formulargenerator html/ps
-		$gls_id             = $_POST['gls_id'];
-		$gls_user           = if_isset($_POST['gls_user']);
-		$gls_pass           = if_isset($_POST['gls_pass']);
-		$gls_ctId           = if_isset($_POST['gls_ctId']);
-		$dfm_id             = $_POST['dfm_id'];
-		$dfm_user           = if_isset($_POST['dfm_user']);
-		$dfm_pass           = if_isset($_POST['dfm_pass']);
-		$dfm_agree          = if_isset($_POST['dfm_agree']);
-		$dfm_hub            = if_isset($_POST['dfm_hub']);
-		$dfm_ship           = if_isset($_POST['dfm_ship']);
-		$dfm_good           = if_isset($_POST['dfm_good']);
-		$dfm_pay            = if_isset($_POST['dfm_pay']);
-		$dfm_url            = if_isset($_POST['dfm_url']);
-		$dfm_gooddes        = if_isset($_POST['dfm_gooddes']);
-		$dfm_sercode        = if_isset($_POST['dfm_sercode']);
-		$dfm_pickup_addr    = if_isset($_POST['dfm_pickup_addr']);
-		$dfm_pickup_name1   = if_isset($_POST['dfm_pickup_name1']);
-		$dfm_pickup_name2   = if_isset($_POST['dfm_pickup_name2']);
+		$pv_box3 = $_POST['pv_box3']; #formulargenerator html/ps
+		$gls_id = $_POST['gls_id'];
+		$gls_user = if_isset($_POST['gls_user']);
+		$gls_pass = if_isset($_POST['gls_pass']);
+		$gls_ctId = if_isset($_POST['gls_ctId']);
+		$dfm_id = $_POST['dfm_id'];
+		$dfm_user = if_isset($_POST['dfm_user']);
+		$dfm_pass = if_isset($_POST['dfm_pass']);
+		$dfm_agree = if_isset($_POST['dfm_agree']);
+		$dfm_hub = if_isset($_POST['dfm_hub']);
+		$dfm_ship = if_isset($_POST['dfm_ship']);
+		$dfm_good = if_isset($_POST['dfm_good']);
+		$dfm_pay = if_isset($_POST['dfm_pay']);
+		$dfm_url = if_isset($_POST['dfm_url']);
+		$dfm_gooddes = if_isset($_POST['dfm_gooddes']);
+		$dfm_sercode = if_isset($_POST['dfm_sercode']);
+		$dfm_pickup_addr = if_isset($_POST['dfm_pickup_addr']);
+		$dfm_pickup_name1 = if_isset($_POST['dfm_pickup_name1']);
+		$dfm_pickup_name2 = if_isset($_POST['dfm_pickup_name2']);
 		$dfm_pickup_street1 = if_isset($_POST['dfm_pickup_street1']);
 		$dfm_pickup_street2 = if_isset($_POST['dfm_pickup_street2']);
-		$dfm_pickup_town    = if_isset($_POST['dfm_pickup_town']);
+		$dfm_pickup_town = if_isset($_POST['dfm_pickup_town']);
 		$dfm_pickup_zipcode = if_isset($_POST['dfm_pickup_zipcode']);
-		$mySale             = if_isset($_POST['mySale']);
-		$mySaleLabel        = if_isset($_POST['mySaleLabel']);
-		$paperflow          = if_isset($_POST['paperflow']);
-		$paperflowId        = if_isset($_POST['paperflowId']);
-		$paperflowBearer    = if_isset($_POST['paperflowBearer']);
-		$qp_agreement_id    = if_isset($_POST['qp_agreement_id']);
-		$qp_merchant        = if_isset($_POST['qp_merchant']);
-		$qp_md5secret       = if_isset($_POST['qp_md5secret']);
-		$qp_itemGrp         = if_isset($_POST['qp_itemGrp']);
-		$vibrant_api        = if_isset($_POST['vibrant_id']);
-//		$paymentDays        = if_isset($_POST['paymentDays']) ?? 1;
-		$paymentDays        = if_isset($_POST['paymentDays']);
-		$paymentDays        = ($paymentDays === null || $paymentDays === '') ? 1 : $paymentDays;
+		$mySale = if_isset($_POST['mySale']);
+		$mySaleLabel = if_isset($_POST['mySaleLabel']);
+		$paperflow = if_isset($_POST['paperflow']);
+		$paperflowId = if_isset($_POST['paperflowId']);
+		$paperflowBearer = if_isset($_POST['paperflowBearer']);
+		$qp_agreement_id = if_isset($_POST['qp_agreement_id']);
+		$qp_merchant = if_isset($_POST['qp_merchant']);
+		$qp_md5secret = if_isset($_POST['qp_md5secret']);
+		$qp_itemGrp = if_isset($_POST['qp_itemGrp']);
+		$vibrant_api = if_isset($_POST['vibrant_id']);
+		// $paymentDays = if_isset($_POST['paymentDays']) ?? 1;
+		$paymentDays = if_isset($_POST['paymentDays']);
+		$paymentDays = ($paymentDays === null || $paymentDays === '') ? 1 : $paymentDays;
 
-		$mobilepay_client_id      = if_isset($_POST['mobilepay_client_id'], "");
-		$mobilepay_client_secret  = if_isset($_POST['mobilepay_client_secret'], "");
-		$mobilepay_subscription   = if_isset($_POST['mobilepay_subscription'], "");
-		$mobilepay_msn            = if_isset($_POST['mobilepay_msn'], "");
+		$mobilepay_client_id = if_isset($_POST['mobilepay_client_id'], "");
+		$mobilepay_client_secret = if_isset($_POST['mobilepay_client_secret'], "");
+		$mobilepay_subscription = if_isset($_POST['mobilepay_subscription'], "");
+		$mobilepay_msn = if_isset($_POST['mobilepay_msn'], "");
 
 		$copay_api = if_isset($_POST['copay_id']);
 		$nemhandel = if_isset($_POST['nemhandel']);
+
 		$labelsize = if_isset($_POST['labelsize']);
 
 		# Vibrant API save
@@ -476,26 +477,26 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'ordre_valg') {
-		$box1             = if_isset($_POST['box1']); #incl_moms
-		$box2             = if_isset($_POST['box2']); #Rabatvarenr
-		$box3             = if_isset($_POST['box3']); #folge_s_tekst
-		$box4             = if_isset($_POST['box4']); #hurtigfakt
-		$box5             = if_isset($_POST['straks_deb']) . ";" . if_isset($_POST['straks_kred']); #straks_bogf
-		$box6             = if_isset($_POST['box6']); #fifo
-		$box7             = if_isset($_POST['box7']); #
-		$box8             = if_isset($_POST['box8']); #vis_nul_lev
-		$box9             = if_isset($_POST['box9']); #negativt_lager
-		$box10            = if_isset($_POST['box10']); #
-		$box11            = if_isset($_POST['box11']); #advar_lav_beh
-		$box12            = if_isset($_POST['box12']); #$procentfakt
-		$box13            = if_isset($_POST['procenttillag']) . chr(9) . if_isset($_POST['procentvare']);
-		$box14            = if_isset($_POST['box14']);
-		$rabatvarenr      = if_isset($_POST['rabatvarenr']);
-		$kostmetode       = if_isset($_POST['kostmetode']);
-		$saetvarenr       = if_isset($_POST['saetvarenr']); #20150907
+		$box1 = if_isset($_POST['box1']); #incl_moms
+		$box2 = if_isset($_POST['box2']); #Rabatvarenr
+		$box3 = if_isset($_POST['box3']); #folge_s_tekst
+		$box4 = if_isset($_POST['box4']); #hurtigfakt
+		$box5 = if_isset($_POST['straks_deb']) . ";" . if_isset($_POST['straks_kred']); #straks_bogf
+		$box6 = if_isset($_POST['box6']); #fifo
+		$box7 = if_isset($_POST['box7']); #
+		$box8 = if_isset($_POST['box8']); #vis_nul_lev
+		$box9 = if_isset($_POST['box9']); #negativt_lager
+		$box10 = if_isset($_POST['box10']); #
+		$box11 = if_isset($_POST['box11']); #advar_lav_beh
+		$box12 = if_isset($_POST['box12']); #$procentfakt
+		$box13 = if_isset($_POST['procenttillag']) . chr(9) . if_isset($_POST['procentvare']);
+		$box14 = if_isset($_POST['box14']);
+		$rabatvarenr = if_isset($_POST['rabatvarenr']);
+		$kostmetode = if_isset($_POST['kostmetode']);
+		$saetvarenr = if_isset($_POST['saetvarenr']); #20150907
 		$orderNoteEnabled = if_isset($_POST['orderNoteEnabled']);
-		$debitoripad      = if_isset($_POST['debitoripad']);
-		$portovarenr      = if_isset($_POST['portovarenr']);
+		$debitoripad = if_isset($_POST['debitoripad']);
+		$portovarenr = if_isset($_POST['portovarenr']);
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
 
@@ -566,40 +567,40 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		#######################################################################################
 	} elseif ($sektion == 'productOptions') {
 
-		$id                              = $_POST['id'];
-		$box1                            = if_isset($_POST['box1']); #incl_moms
-		$DisItemIfNeg_id                 = if_isset($_POST['DisItemIfNeg_id']);
-		$DisItemIfNeg                    = if_isset($_POST['DisItemIfNeg']);
-		$vatOnItemCard_id                = if_isset($_POST['vatOnItemCard_id']);
-		$vatOnItemCard                   = if_isset($_POST['vatOnItemCard']);
-		$useCommission                   = if_isset($_POST['useCommission']);
-		$useCommissionId                 = if_isset($_POST['useCommissionId']);
-		$commissionAccountNew            = if_isset($_POST['commissionAccountNew']);
-		$commissionAccountNewId          = if_isset($_POST['commissionAccountNewId']);
-		$commissionAccountUsed           = if_isset($_POST['commissionAccountUsed']);
-		$commissionAccountUsedId         = if_isset($_POST['commissionAccountUsedId']);
-		$customerCommissionAccountNew    = if_isset($_POST['customerCommissionAccountNew']);
-		$customerCommissionAccountNewId  = if_isset($_POST['customerCommissionAccountNewId']);
-		$customerCommissionAccountUsed   = if_isset($_POST['customerCommissionAccountUsed']);
+		$id = $_POST['id'];
+		$box1 = if_isset($_POST['box1']); #incl_moms
+		$DisItemIfNeg_id = if_isset($_POST['DisItemIfNeg_id']);
+		$DisItemIfNeg = if_isset($_POST['DisItemIfNeg']);
+		$vatOnItemCard_id = if_isset($_POST['vatOnItemCard_id']);
+		$vatOnItemCard = if_isset($_POST['vatOnItemCard']);
+		$useCommission = if_isset($_POST['useCommission']);
+		$useCommissionId = if_isset($_POST['useCommissionId']);
+		$commissionAccountNew = if_isset($_POST['commissionAccountNew']);
+		$commissionAccountNewId = if_isset($_POST['commissionAccountNewId']);
+		$commissionAccountUsed = if_isset($_POST['commissionAccountUsed']);
+		$commissionAccountUsedId = if_isset($_POST['commissionAccountUsedId']);
+		$customerCommissionAccountNew = if_isset($_POST['customerCommissionAccountNew']);
+		$customerCommissionAccountNewId = if_isset($_POST['customerCommissionAccountNewId']);
+		$customerCommissionAccountUsed = if_isset($_POST['customerCommissionAccountUsed']);
 		$customerCommissionAccountUsedId = if_isset($_POST['customerCommissionAccountUsedId']);
-		$defaultCommission               = if_isset($_POST['defaultCommission']);
-		$defaultCommissionId             = if_isset($_POST['defaultCommissionId']);
-		$commissionInclVat               = if_isset($_POST['commissionInclVat']);
-		$commissionInclVatId             = if_isset($_POST['commissionInclVatId']);
-		$ownCommissionAccountNew         = if_isset($_POST['ownCommissionAccountNew']);
-		$ownCommissionAccountNewId       = if_isset($_POST['ownCommissionAccountNewId']);
-		$ownCommissionAccountUsed        = if_isset($_POST['ownCommissionAccountUsed']);
-		$ownCommissionAccountUsedId      = if_isset($_POST['ownCommissionAccountUsedId']);
-		$commissionFromDate              = if_isset($_POST['commissionFromDate']);
-		$convertExisting                 = if_isset($_POST['convertExisting']);
-		$confirmDescriptionChange_id     = if_isset($_POST['confirmDescriptionChange_id']);
-		$confirmDescriptionChange        = if_isset($_POST['confirmDescriptionChange']);
-		$confirmStockChange_id           = if_isset($_POST['confirmStockChange_id']);
-		$confirmStockChange              = if_isset($_POST['confirmStockChange']);
-		$statusmail                      = if_isset($_POST['statusmail']);
-		$lagertrigger                    = if_isset($_POST['lagertrigger']);
-		$lagertime                       = if_isset($_POST['lagertime']);
-		$minBeholdning                   = if_isset($_POST["minBeholdning"]);
+		$defaultCommission = if_isset($_POST['defaultCommission']);
+		$defaultCommissionId = if_isset($_POST['defaultCommissionId']);
+		$commissionInclVat = if_isset($_POST['commissionInclVat']);
+		$commissionInclVatId = if_isset($_POST['commissionInclVatId']);
+		$ownCommissionAccountNew = if_isset($_POST['ownCommissionAccountNew']);
+		$ownCommissionAccountNewId = if_isset($_POST['ownCommissionAccountNewId']);
+		$ownCommissionAccountUsed = if_isset($_POST['ownCommissionAccountUsed']);
+		$ownCommissionAccountUsedId = if_isset($_POST['ownCommissionAccountUsedId']);
+		$commissionFromDate = if_isset($_POST['commissionFromDate']);
+		$convertExisting = if_isset($_POST['convertExisting']);
+		$confirmDescriptionChange_id = if_isset($_POST['confirmDescriptionChange_id']);
+		$confirmDescriptionChange = if_isset($_POST['confirmDescriptionChange']);
+		$confirmStockChange_id = if_isset($_POST['confirmStockChange_id']);
+		$confirmStockChange = if_isset($_POST['confirmStockChange']);
+		$statusmail = if_isset($_POST['statusmail']);
+		$lagertrigger = if_isset($_POST['lagertrigger']);
+		$lagertime = if_isset($_POST['lagertime']);
+		$minBeholdning = if_isset($_POST["minBeholdning"]);
 
 		update_settings_value("mail", "lagerstatus", $statusmail, "The email used to send stock warnings to");
 		update_settings_value("trigger", "lagerstatus", $lagertrigger, "The amount of stock that is required to trigger a stock mail");
@@ -885,15 +886,15 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	#######################################################################################
 	} elseif ($sektion == 'shop_valg') {
 		$id = if_isset($_POST['id']);
-#		$box1 = if_isset($_POST['box1']);   #incl_moms
-		$box2 = if_isset($_POST['box2']);   #Shop url
-		$box3 = if_isset($_POST['box3']);   #shop valg
-		$box4 = if_isset($_POST['box4']);   #merchant id
-		$box5 = if_isset($_POST['box5']);   #md5 secret
-#		$box6 = if_isset($_POST['box6']);   #Bruges ved productOptions
-		$box7 = if_isset($_POST['box7']);   #Tegnsæt for webshop
-#		$box8 = if_isset($_POST['box8']);   #Bruges ved ordre_valg
-		$box9 = if_isset($_POST['box9']);   #Agreement ID
+#		$box1 = if_isset($_POST['box1']);#incl_moms
+		$box2 = if_isset($_POST['box2']); #Shop url
+		$box3 = if_isset($_POST['box3']); #shop valg
+		$box4 = if_isset($_POST['box4']); #merchant id
+		$box5 = if_isset($_POST['box5']); #md5 secret
+#		$box6 = if_isset($_POST['box6']);#Bruges ved productOptions
+		$box7 = if_isset($_POST['box7']); #Tegnsæt for webshop
+#		$box8 = if_isset($_POST['box8']);#Bruges ved ordre_valg
+		$box9 = if_isset($_POST['box9']); #Agreement ID
 		$box10 = if_isset($_POST['box10']); #ledig
 
 		if ($box3 == '1')
@@ -944,7 +945,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		for ($x = 0; $x < count($noGo); $x++) {
 			if (strstr($labelText, $noGo[$x])) {
 				$labelText = str_replace($noGo[$x], '', $labelText);
-				$alert = findtekst('1738|Illegal værdi i labeltekst', $sprog_id);
+				$alert = findtekst(1738, $sprog_id);
 				print "<BODY onLoad=\"JavaScript:alert('$alert')\">";
 			}
 		}
@@ -1013,7 +1014,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$antal = $_POST['antal'];
 
 		for ($x = 0; $x < count($id); $x++) {
-#			if (!$box4[$x]) $box1[$x]=''; # 20160225
+			#			if (!$box4[$x]) $box1[$x]=''; # 20160225
 
 			$id[$x] *= 1;
 			$qtxt = NULL;
@@ -1033,7 +1034,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			if ($qtxt)
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
-	#######################################################################################
+		#######################################################################################
 	} elseif ($sektion == 'rykker_valg') {
 		$id = if_isset($_POST['id']);
 		$box1 = if_isset($_POST['box1']);
@@ -1061,7 +1062,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		} elseif ($id > 0) {
 			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box9='$box9' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 		}
-	#######################################################################################
+		#######################################################################################
 	} elseif ($sektion == 'posOptions') {
 		$id1 = if_isset($_POST['id1']) * 1;
 		$box1 = if_isset($_POST['kasseantal']) * 1;
@@ -1187,7 +1188,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$kort[$x] = "$kortno[$x]" . chr(9) . "$korttyper[$x]" . chr(9) . "$kortkonti[$x]" . chr(9) . "$betalingskort[$x]" . chr(9);
 			$kort[$x] .= "$voucher[$x]" . chr(9) . "$voucherText[$x]" . chr(9) . "$enabled[$x]";
 		}
-//		array_multisort($kortno, $korttyper, $kortkonti, $betalingskort, $voucher, $voucherText, $enabled);
+		//		array_multisort($kortno, $korttyper, $kortkonti, $betalingskort, $voucher, $voucherText, $enabled);
 		sort($kort);
 		for ($x = 0; $x < count($kortno); $x++) {
 			list($kortno[$x], $korttyper[$x], $kortkonti[$x], $betalingskort[$x], $voucher[$x], $voucherText[$x], $enabled[$x]) = explode(chr(9), $kort[$x]);
@@ -1621,10 +1622,10 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 
 
-######################################################################################
+		######################################################################################
 
 
-######################################################################################
+		######################################################################################
 	} elseif ($sektion == 'kontoplan_io') {
 		if (strstr($_POST['submit']) == "Eksport") {
 			list($tmp) = explode(":", $_POST['regnskabsaar']);
