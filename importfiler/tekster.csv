@@ -106,6 +106,9 @@
 106	Klik her når du skal oprette salgsordrer eller fakturaer til kunder.	Click here to create sales orders or invoices for customers.	Klikk her for å opprette salgsordrer eller fakturaer for kunder.
 107	Ordrer	Orders	Ordrer
 108	Klik her nå½st	Innholdsfortegnelse
+109	
+110	
+111	
 112	Klik her for at se eller rette i kontoplanen.	Click here to view or correct the chart of accounts.	Klikk her for å se eller korrigere kontoplanen.
 113	Kontoplan	Chart of Accounts	Kontooversikt
 114	Klik her for at se en månedsopdelt regnskabsoversigt.	Click here to see a monthly financial statement.	Klikk her for å se en månedlig regnskap.
@@ -1898,7 +1901,7 @@
 1901	Angiv hvilket grupper der skal importeres til	Specify which groups to import to	Angi hvilke grupper du vil importere til
 1902	Begræns bruger IP	Restrict User IP	Begrens bruker IP
 1903	Gendan brugers IP	Restore User IP	Gjenopprett bruker IP
-1904	Angiv brugerens tilladte ip adresser	Enter IP address to restrict	Skriv inn IP for å begrense
+1904	Angiv brugerens tilladte IP adresser	Enter IP address to restrict	Skriv inn IP for å begrense
 1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you have shown nothing to do here! Your IP number, username and accounts are registered!	Hmm du har ikke vist noe å gjøre her! Ditt IP -nummer, brukernavn og kontoer er registrert!
 1906	Skjul Luk	Hide Close	Skjul Lukk
 1907	Vis Luk	Show Close	Vis Lukk
@@ -2469,7 +2472,7 @@
 2472	Tilbudsgrupper	Offer groups	Tilbudsgrupper
 2473	Stk. rabat	Unit discount	Stk. rabatt
 2474	V. antal	Per quantity	V. antall
-2475	Kun se	View only	Kun se
+2475	Kun visning	View only	Kun visning
 2476	Startmåned Start month	Startmåned
 2477	Slutmåned	End month	Slutmåned
 2478	Startår	Start year	Startår
@@ -2556,8 +2559,8 @@
 2559	Servernavn	Server name	Servernavn
 2560	Eksisterende databaseadministrator	Existing database administrator	Eksisterende databaseadministrator
 2561	SALDI-administratorens adgangskode igen	SALDI administrator's password again	Skriv inn SALDI-administratorens passord på nytt
-2562	
-2563	
+2562	Revisor	Auditor	Revisor
+2563	Vil du gøre denne bruger til revisor? Kun én bruger kan have revisoradgang, og du kan ikke ændre hvilken bruger der er revisor uden at kontakte Saldi support.	Do you want to make this user an auditor? Only one user can have auditor access, and you cannot change which user holds the auditor role without contacting Saldi support.	Vil du gjøre denne brukeren til revisor? Kun én bruker kan ha revisoradgang, og du kan ikke endre hvilken bruker som er revisor uten å kontakte Saldi support.
 2564	
 2565	
 2566	
