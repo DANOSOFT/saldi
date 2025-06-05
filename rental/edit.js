@@ -190,7 +190,9 @@ const editBooking = async (id) => {
   // draw form
   const fromDatePicker = document.querySelector('[name=fromDate]')
   const toDatePicker = document.querySelector('[name=toDate]')
-  let fromDateData, toDateData, addedDays, lastDay
+  let toDateData = toDate
+  let fromDateData = fromDate
+  let addedDays
   const addedDaysArray = []
   closedDates.push(...bookedDates)
   const today = new Date();
