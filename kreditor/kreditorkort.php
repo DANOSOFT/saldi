@@ -363,7 +363,7 @@ print "<tr bgcolor=$bg><td>".findtekst('381|Kreditmax', $sprog_id)."</td><td><in
 print "<tr bgcolor=$bg><td>".findtekst('387|Lukket', $sprog_id)."</td><td><input class=\"inputbox\" type=checkbox name=lukket $lukket></td></tr>";
 print "</tbody></table></td>";#  <- tabel 1.2.1 
 print "<td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" class='dataTableSmall'><tbody>\n"; # tabel 1.2.2 ->
-print "<tr bgcolor=$bg><td colspan=2 height=25px align=center><b>".findtekst(301,$sprog_id)."</b></tr>\n";
+print "<tr bgcolor=$bg><td colspan=2 height=25px align=center><b>".findtekst(301,$sprog_id)."</b>&nbsp;<a href=\"labelprint.php?id=$id\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></tr>\n";
 	($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
 	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('".findtekst(307,$sprog_id)."', WIDTH=600);\" onmouseout=\"return nd();\">".findtekst(302,$sprog_id)."</td><td><input class=\"inputbox\" type=text name=\"felt_1\" size=\"25\" value=\"$felt_1\"></span></td></tr>\n";
 	($bg==$bgcolor) ? $bg=$bgcolor5 : $bg=$bgcolor;
