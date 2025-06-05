@@ -1615,16 +1615,15 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                 if(standType == "all"){
                     // Get ALL rental items (not just booked ones)
                     const items = await getProductInfos(currentMonth+1, currentYear)
-
                     if(items.success == false){
                         alert(items.msg)
                         window.location.href = "index.php?vare"
                         return
                     }
-                    
+
                     // Get all unique items
                     const allUniqueItems = new Map()
-                    
+
                     items.forEach(item => {
                         if (!allUniqueItems.has(item.item_id)) {
                             allUniqueItems.set(item.item_id, {
@@ -1652,7 +1651,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                     
                     // Find available items (items without bookings during the selected period)
                     availableItems = []
-                    
+                    const reservations = await getReservations()
                     allUniqueItems.forEach((itemDetails, itemId) => {
                         // Get all bookings for this specific item
                         const itemBookings = items.filter(item => 
@@ -1690,7 +1689,19 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                         
                         // If no overlapping booking and no reservation, this item is available
                         if (!hasOverlappingBooking) {
-                            availableItems.push(itemDetails)
+                            // check if item have a reservation in the given period
+                            const hasReservation = reservations.some(reservation => {
+                                if (parseInt(reservation.item_id) === parseInt(itemId)) {
+                                    const reservationFrom = new Date(reservation.from * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.from * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.from * 1000).getDate()).slice(-2)
+                                    const reservationTo = new Date(reservation.to * 1000).getFullYear() + "-" + ("0" + (new Date(reservation.to * 1000).getMonth() + 1)).slice(-2) + "-" + ("0" + new Date(reservation.to * 1000).getDate()).slice(-2)
+                                    return !(reservationTo < fromDate || reservationFrom > toDate)
+                                }
+                                return false
+                            })
+                            // If there is a reservation, it should not be pushed to availableItems
+                            if (!hasReservation) {
+                                availableItems.push(itemDetails)
+                            }
                         }
                     })
                     
@@ -1766,6 +1777,7 @@ const productOverviewMonth = async (thisMonth, year, value) => {
                         })
                         
                         if (!hasOverlappingBooking) {
+                            
                             availableItems.push(itemDetails)
                         }
                     })

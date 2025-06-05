@@ -380,206 +380,6 @@ if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
     // Continue with login process
     $_POST['fortsaet'] = true;
 }
-$userName = "revisor";
-db_connect ("$sqhost", "$squser", "$sqpass", "$db");
-$query = db_select("SELECT user_id FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
-if ($r = db_fetch_array($query)) {
-	$userId = $r['user_id'];
-	$query = db_select("SELECT brugernavn FROM brugere WHERE id = '$userId'", __FILE__ . " linje " . __LINE__);
-	if ($r = db_fetch_array($query)) {
-		$userName = $r['brugernavn'];
-	}
-} else {
-	$userId = 0; // Default value if not found
-}
-include("../includes/connect.php");
-if (
-    !(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
-    !(($regnskab === 'demo' && $brugernavn === 'admin')) &&
-	$sqdb != $regnskab
-) {
-    $udlob = time() - 14400; // 4 hours
-	// if mysql or mysqli
-	if($db_type == 'mysql' || $db_type == 'mysqli') {
-		$query = db_select("SELECT COUNT(DISTINCT brugernavn) as user_count
-		FROM online
-		WHERE revisor != 1
-		AND db = '$db' AND brugernavn != '$userName'", __FILE__ . " linje " . __LINE__);
-	}else{
-		$query = db_select(
-		"SELECT COUNT(DISTINCT brugernavn) as user_count 
-		FROM online 
-		WHERE db = '$db' AND revisor IS NOT true AND brugernavn != '$userName'",
-		__FILE__ . " linje " . __LINE__
-		);
-	}
-
-    $r = db_fetch_array($query);
-    $y = (int) $r['user_count'];
-
-    $bruger_max = 2; // Default value
-    $q = db_select("SELECT brugerantal FROM regnskab WHERE db = '$db'", __FILE__ . " linje " . __LINE__);
-    if ($r = db_fetch_array($q)) {
-        $bruger_max = (int) $r['brugerantal'];
-    }
-
-	if($db_type == 'mysql' || $db_type == 'mysqli') {
-		$query = db_select(
-		"SELECT brugernavn, logtime 
-		FROM online 
-		WHERE db = '$db' 
-		AND revisor != 1 AND brugernavn != '$userName'",
-		__FILE__ . " linje " . __LINE__
-		);
-	}else{
-		$query = db_select(
-		"SELECT brugernavn, logtime 
-		FROM online 
-		WHERE db = '$db' 
-		AND revisor IS NOT true AND brugernavn != '$userName'",
-		__FILE__ . " linje " . __LINE__
-		);
-	}
-	$activeUsers = [];
-	while ($row = db_fetch_array($query)) {
-		$activeUsers[] = $row['brugernavn'];
-	}
-	$activeUsers = implode(", ", $activeUsers);
-    if ($bruger_max > 0 && $y >= $bruger_max) {
- 	?>
-	<style>
-    .force-logout-container {
-        max-width: 400px;
-        margin: 40px auto;
-        padding: 20px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        font-family: Arial, sans-serif;
-    }
-    .force-logout-title {
-        color: #333;
-        font-size: 1.2em;
-        margin-bottom: 20px;
-        text-align: center;
-    }
-    .force-logout-info {
-        color: #666;
-        margin: 10px 0;
-        text-align: center;
-    }
-    .force-logout-select {
-        width: 100%;
-        padding: 8px;
-        margin: 10px 0;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        background: #f8f8f8;
-    }
-    .force-logout-buttons {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin-top: 20px;
-    }
-    .btn {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: background-color 0.2s;
-    }
-    .btn-primary {
-        background: #007bff;
-        color: white;
-    }
-    .btn-primary:hover {
-        background: #0056b3;
-    }
-    .btn-secondary {
-        background: #6c757d;
-        color: white;
-    }
-    .btn-secondary:hover {
-        background: #545b62;
-    }
-</style>";
-    <form method="POST" action="login.php">
-        <input type="hidden" name="regnskab" value="<?= htmlspecialchars($regnskab) ?>">
-        <input type="hidden" name="brugernavn" value="<?= htmlspecialchars($brugernavn) ?>">
-        <input type="hidden" name="password" value="<?= htmlspecialchars($password) ?>">
-        <input type="hidden" name="timestamp" value="<?= time() ?>">
-        
-        <div class="force-logout-container">
-            <h2 class="force-logout-title">Max antal samtidige brugere (<?= $bruger_max ?>) er overskredet</h2>
-            
-            <p class="force-logout-info">Aktive brugere: <?= htmlspecialchars($activeUsers) ?></p>
-            
-            <p class="force-logout-info">Vælg en bruger at logge ud:</p>
-            <select name="user_to_logout" class="force-logout-select">
-                <?php
-				if($db_type == 'mysql' || $db_type == 'mysqli') {
-					$query = db_select(
-					"SELECT brugernavn, logtime 
-					FROM online 
-					WHERE db = '$db' 
-					AND revisor != 1 AND brugernavn != '$userName'",
-					__FILE__ . " linje " . __LINE__
-					);
-				}else{
-					$query = db_select(
-						"SELECT brugernavn, logtime 
-						FROM online 
-						WHERE db = '$db' 
-						AND revisor IS NOT true AND brugernavn != '$userName'",
-						__FILE__ . " linje " . __LINE__
-					);
-				}
-				while ($row = db_fetch_array($query)) {
-					$last_active = ($db_type == 'mysql' || $db_type == 'mysqli') ? 
-						date("H:i:s", strtotime($row['logtime'])) : 
-						date("H:i:s", $row['logtime']);
-					echo '<option value="' . htmlspecialchars($row['brugernavn']) . '">' 
-						. htmlspecialchars($row['brugernavn']) . ' (Sidst aktiv: ' . $last_active . ')</option>';
-				}
-                ?>
-            </select>
-            
-            <div class="force-logout-buttons">
-                <input type="submit" name="force_logout" value="Log ud og fortsæt" class="btn btn-primary">
-                <input type="button" value="Afbryd" onclick="window.location.href='index.php'" class="btn btn-secondary">
-            </div>
-        </div>
-    </form>
-    <?php
-    exit;
-        
-    }
-
-    $asIs = db_escape_string($brugernavn);
-    $low = db_escape_string(strtolower(strtr($brugernavn, ['Æ'=>'æ','Ø'=>'ø','Å'=>'å','É'=>'é'])));
-    $up  = db_escape_string(strtoupper(strtr($brugernavn, ['æ'=>'Æ','ø'=>'Ø','å'=>'Å','é'=>'É'])));
-
-    $qtxt = "SELECT * FROM online 
-             WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
-             AND db = '$db' 
-             AND session_id != '$s_id'";
-
-    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-    if ($r = db_fetch_array($q)) {
-        $last_time = $r['logtime'];
-        if (!$fortsaet && (time() - $last_time < 3600)) {
-            online($regnskab, $db, $userId, $brugernavn, $password, $timestamp, $s_id);
-        } elseif (!$fortsaet) {
-            $qtxt = "DELETE FROM online 
-                     WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
-                     AND db = '$db' 
-                     AND session_id != '$s_id'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-    }
-}
 
 if(isset($_COOKIE['languageId'])) $languageId = $_COOKIE['languageId']; #20220618
 else $languageId = 1;
@@ -598,9 +398,6 @@ echo "db $db<br>";
 if ($db) {
 	$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
 	$qtxt.= "and db = '$db'";
-	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "insert into online (session_id, brugernavn, db, dbuser, logtime,language_id) values ";
-	$qtxt.= "('$s_id', '".db_escape_string($brugernavn)."', '$db', '$dbuser', '$unixtime','$languageId')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
 else db_modify("delete from online where db=''",__FILE__ . " linje " . __LINE__); 
@@ -735,7 +532,209 @@ if ($userId) {
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_secret = $r["var_value"];
 
+	$userName = "revisor";
+	db_connect ("$sqhost", "$squser", "$sqpass", "$db");
+	$query = db_select("SELECT user_id FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
+	if ($r = db_fetch_array($query)) {
+		$userId = $r['user_id'];
+		$query = db_select("SELECT brugernavn FROM brugere WHERE id = '$userId'", __FILE__ . " linje " . __LINE__);
+		if ($r = db_fetch_array($query)) {
+			$userName = $r['brugernavn'];
+		}
+	} else {
+		$userId = 0; // Default value if not found
+	}
+	include("../includes/connect.php");
+	if (
+		!(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
+		!(($regnskab === 'demo' && $brugernavn === 'admin')) &&
+		$sqdb != $regnskab
+	) {
+		$udlob = time() - 14400; // 4 hours
+		// if mysql or mysqli
+		if($db_type == 'mysql' || $db_type == 'mysqli') {
+			$query = db_select("SELECT COUNT(DISTINCT brugernavn) as user_count
+			FROM online
+			WHERE revisor != 1
+			AND db = '$db' AND brugernavn != '$userName'", __FILE__ . " linje " . __LINE__);
+		}else{
+			$query = db_select(
+			"SELECT COUNT(DISTINCT brugernavn) as user_count 
+			FROM online 
+			WHERE db = '$db' AND revisor IS NOT true AND brugernavn != '$userName'",
+			__FILE__ . " linje " . __LINE__
+			);
+		}
 
+		$r = db_fetch_array($query);
+		$y = (int) $r['user_count'];
+
+		$bruger_max = 2; // Default value
+		$q = db_select("SELECT brugerantal FROM regnskab WHERE db = '$db'", __FILE__ . " linje " . __LINE__);
+		if ($r = db_fetch_array($q)) {
+			$bruger_max = (int) $r['brugerantal'];
+		}
+
+		if($db_type == 'mysql' || $db_type == 'mysqli') {
+			$query = db_select(
+			"SELECT brugernavn, logtime 
+			FROM online 
+			WHERE db = '$db' 
+			AND revisor != 1 AND brugernavn != '$userName'",
+			__FILE__ . " linje " . __LINE__
+			);
+		}else{
+			$query = db_select(
+			"SELECT brugernavn, logtime 
+			FROM online 
+			WHERE db = '$db' 
+			AND revisor IS NOT true AND brugernavn != '$userName'",
+			__FILE__ . " linje " . __LINE__
+			);
+		}
+		$activeUsers = [];
+		while ($row = db_fetch_array($query)) {
+			$activeUsers[] = $row['brugernavn'];
+		}
+		$activeUsers = implode(", ", $activeUsers);
+		if ($bruger_max > 0 && $y >= $bruger_max) {
+		?>
+		<style>
+		.force-logout-container {
+			max-width: 400px;
+			margin: 40px auto;
+			padding: 20px;
+			background: white;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+			font-family: Arial, sans-serif;
+		}
+		.force-logout-title {
+			color: #333;
+			font-size: 1.2em;
+			margin-bottom: 20px;
+			text-align: center;
+		}
+		.force-logout-info {
+			color: #666;
+			margin: 10px 0;
+			text-align: center;
+		}
+		.force-logout-select {
+			width: 100%;
+			padding: 8px;
+			margin: 10px 0;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			background: #f8f8f8;
+		}
+		.force-logout-buttons {
+			display: flex;
+			justify-content: center;
+			gap: 10px;
+			margin-top: 20px;
+		}
+		.btn {
+			padding: 8px 16px;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-weight: 500;
+			transition: background-color 0.2s;
+		}
+		.btn-primary {
+			background: #007bff;
+			color: white;
+		}
+		.btn-primary:hover {
+			background: #0056b3;
+		}
+		.btn-secondary {
+			background: #6c757d;
+			color: white;
+		}
+		.btn-secondary:hover {
+			background: #545b62;
+		}
+	</style>";
+		<form method="POST" action="login.php">
+			<input type="hidden" name="regnskab" value="<?= htmlspecialchars($regnskab) ?>">
+			<input type="hidden" name="brugernavn" value="<?= htmlspecialchars($brugernavn) ?>">
+			<input type="hidden" name="password" value="<?= htmlspecialchars($password) ?>">
+			<input type="hidden" name="timestamp" value="<?= time() ?>">
+			
+			<div class="force-logout-container">
+				<h2 class="force-logout-title">Max antal samtidige brugere (<?= $bruger_max ?>) er overskredet</h2>
+				
+				<p class="force-logout-info">Aktive brugere: <?= htmlspecialchars($activeUsers) ?></p>
+				
+				<p class="force-logout-info">Vælg en bruger at logge ud:</p>
+				<select name="user_to_logout" class="force-logout-select">
+					<?php
+					if($db_type == 'mysql' || $db_type == 'mysqli') {
+						$query = db_select(
+						"SELECT brugernavn, logtime 
+						FROM online 
+						WHERE db = '$db' 
+						AND revisor != 1 AND brugernavn != '$userName'",
+						__FILE__ . " linje " . __LINE__
+						);
+					}else{
+						$query = db_select(
+							"SELECT brugernavn, logtime 
+							FROM online 
+							WHERE db = '$db' 
+							AND revisor IS NOT true AND brugernavn != '$userName'",
+							__FILE__ . " linje " . __LINE__
+						);
+					}
+					while ($row = db_fetch_array($query)) {
+						$last_active = ($db_type == 'mysql' || $db_type == 'mysqli') ? 
+							date("H:i:s", strtotime($row['logtime'])) : 
+							date("H:i:s", $row['logtime']);
+						echo '<option value="' . htmlspecialchars($row['brugernavn']) . '">' 
+							. htmlspecialchars($row['brugernavn']) . ' (Sidst aktiv: ' . $last_active . ')</option>';
+					}
+					?>
+				</select>
+				
+				<div class="force-logout-buttons">
+					<input type="submit" name="force_logout" value="Log ud og fortsæt" class="btn btn-primary">
+					<input type="button" value="Afbryd" onclick="window.location.href='index.php'" class="btn btn-secondary">
+				</div>
+			</div>
+		</form>
+		<?php
+		exit;
+			
+		}
+
+		$asIs = db_escape_string($brugernavn);
+		$low = db_escape_string(strtolower(strtr($brugernavn, ['Æ'=>'æ','Ø'=>'ø','Å'=>'å','É'=>'é'])));
+		$up  = db_escape_string(strtoupper(strtr($brugernavn, ['æ'=>'Æ','ø'=>'Ø','å'=>'Å','é'=>'É'])));
+
+		$qtxt = "SELECT * FROM online 
+				WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
+				AND db = '$db' 
+				AND session_id != '$s_id'";
+
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		if ($r = db_fetch_array($q)) {
+			$last_time = $r['logtime'];
+			if (!$fortsaet && (time() - $last_time < 3600)) {
+				online($regnskab, $db, $userId, $brugernavn, $password, $timestamp, $s_id);
+			} elseif (!$fortsaet) {
+				$qtxt = "DELETE FROM online 
+						WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
+						AND db = '$db' 
+						AND session_id != '$s_id'";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
+		}
+	}
+	$qtxt = "insert into online (session_id, brugernavn, db, dbuser, logtime,language_id) values ";
+	$qtxt.= "('$s_id', '".db_escape_string($brugernavn)."', '$db', '$dbuser', '$unixtime','$languageId')";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	#	if (($regnskabsaar)&&($db)) {
 #		$qtxt = "update online set rettigheder='$rettigheder', regnskabsaar='$regnskabsaar', language_id='$languageId' ";
 #		$qtxt.= "where session_id = '$s_id'";

@@ -241,6 +241,7 @@ if(db_num_rows($query) > 0){
 		$disabled = "";
 	}
 } else {
+	$userId = 0;
 	$disabled = "";
 }
 $query = db_select("select * from brugere order by brugernavn",__FILE__ . " linje " . __LINE__);

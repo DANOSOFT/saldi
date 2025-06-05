@@ -332,23 +332,28 @@ if ($menu=='T') {
 // print "<td></td>\n";
 // print "</tr>\n";
 
+
 print "<tr>";
-print "<td style=\"padding-top: 20px;width:30px\"><b>Status</b></td>\n";
-print "<td style=\"padding-top: 20px;width:60px\"><b>Id</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Receipt Date</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Time.</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Receipt no</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Register</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Table</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Ref.</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Amount</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Payment</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Received</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Return</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>Rabat</b></td>\n";
-print "<td style=\"padding-top: 20px; text-align:right;\"><b>DG</b></td>\n";
-print "<td></td>\n";
+
+print "<td style=\"padding-top: 20px;width:30px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Status</b></td>\n";
+print "<td style=\"padding-top: 20px;width:60px\"><b><a href='kassespor.php?nysort=id&sort=$sort&valg=$valg$hreftext'>Id</b></td>\n";
+print "<th style='padding-top: 20px; width:110px; text-align:right'><b><a href='kassespor.php?nysort=fakturadate&sort=$sort&valg=$valg$hreftext'>" . findtekst(929, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:50px; text-align:right'><b>" . findtekst(930, $sprog_id) . "</b></th>\n";
+print "<th style='padding-top: 20px; width:110px; text-align:right'><b><a href='kassespor.php?nysort=fakturanr&sort=$sort&valg=$valg$hreftext'>" . findtekst(928, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:50px; text-align:right'><b><a href='kassespor.php?nysort=felt_5&sort=$sort&valg=$valg$hreftext'>" . findtekst(931, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:50px; text-align:right'><b><a href='kassespor.php?nysort=nr&sort=$sort&valg=$valg$hreftext'>" . findtekst(932, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=ref&sort=$sort&valg=$valg$hreftext'>" . findtekst(933, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=sum&sort=$sort&valg=$valg$hreftext'>" . findtekst(934, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=felt_1&sort=$sort&valg=$valg$hreftext'>" . findtekst(935, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=felt_2&sort=$sort&valg=$valg$hreftext'>" . findtekst(936, $sprog_id) . "</a></b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(937, $sprog_id) . "</b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(428, $sprog_id) . "</b></th>\n";
+
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>BA</b></th>\n";
+print "<th style='width:30px;'></th>\n";
 print "</tr>\n";
+
+
 print "<input type=hidden name=sort value=\"$sort\">";
 #print "<input type=hidden name=nysort value=\"$nysort\">";
 print "<input type=hidden name=kontoid value=\"$kontoid\">";
@@ -514,26 +519,45 @@ $total_gross_profit = 0;
 		$moms[$x]=$r['moms'];
 		$art[$x]=$r['art'];
 		$dkksum[$x]=dkdecimal($sum[$x]+$moms[$x],2);
-	$q_dg = db_fetch_array(db_select("
-    SELECT
-      COALESCE(SUM(
-        CASE
-          WHEN rabatart IN ('', 'percent') THEN (COALESCE(pris,0) * COALESCE(rabat,0) / 100) * COALESCE(antal,0)
-          ELSE COALESCE(rabat,0) * COALESCE(antal,0)
-        END
-      ),0) AS discount,
-      COALESCE(SUM((COALESCE(pris,0) - COALESCE(kostpris,0)) * COALESCE(antal,0)),0) AS dg
-    FROM ordrelinjer
-    WHERE ordre_id = '{$r['id']}'
-    ", __FILE__ . ' linje ' . __LINE__));
+	
+
+					$q_dg = db_fetch_array(db_select("
+					SELECT
+					COALESCE(SUM(pris * antal), 0) AS total_sales,
+					COALESCE(SUM(
+						CASE 
+						WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+						ELSE (pris * rabat / 100) * antal
+						END
+					), 0) AS discount,
+					COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+					COALESCE(SUM(
+						(
+						pris - 
+						CASE 
+							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+							ELSE (pris * rabat / 100)
+						END
+						- kostpris
+						) * antal
+					), 0) AS dg
+					FROM ordrelinjer
+					WHERE ordre_id = '{$id[$x]}'
+
+			", __FILE__ . ' linje ' . __LINE__));
+
+
+					$discount[$x] = $q_dg['discount'];
+					$gross_profit[$x] = $q_dg['dg'];
+					$kostpris[$x] = $q_dg['kostpris'];
+                    $total_discount += $discount[$x];
+				    $total_gross_profit += $gross_profit[$x];
 
 
 
-     $discount[$x] = $q_dg['discount'];
-     $gross_profit[$x] = $q_dg['dg'];
 
-     $total_discount += $discount[$x];
-     $total_gross_profit += $gross_profit[$x];
+
+		
 
 
 		$x++;
@@ -616,9 +640,42 @@ $total_gross_profit = 0;
 					if (!isset($ordre_id[$y-1]) || $ordre_id[$y]!=$ordre_id[$y-1]) {
 						print "<td align=right>".dkdecimal($retur,2)."<br></td>\n";
 						$retursum+=$retur;
-						print "<td align=right>".dkdecimal($discount[$x], 2)."<br></td>\n";
-print "<td align=right>".dkdecimal($gross_profit[$x], 2)."<br></td>\n";
+	
+						$q_dg = db_fetch_array(db_select("
+						SELECT
+						COALESCE(SUM(pris * antal), 0) AS total_sales,
+						COALESCE(SUM(
+							CASE 
+							WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat * antal
+							ELSE (pris * rabat / 100) * antal
+							END
+						), 0) AS discount,
+						COALESCE(SUM(kostpris * antal), 0) AS kostpris,
+						COALESCE(SUM(
+							(
+							pris - 
+							CASE 
+								WHEN LOWER(TRIM(COALESCE(rabatart, ''))) = 'amount' THEN rabat
+								ELSE (pris * rabat / 100)
+							END
+							- kostpris
+							) * antal
+						), 0) AS dg
+						FROM ordrelinjer
+						WHERE ordre_id = '{$id[$x]}'
+							", __FILE__ . ' linje ' . __LINE__));
 
+
+        $discount_val = $q_dg['discount'];
+        $gross_profit_val = $q_dg['dg'];
+        $net_sales = $q_dg['total_sales'] - $q_dg['discount'];
+        $dg_percent = 0;
+        if ($net_sales > 0) {
+            $dg_percent = ($gross_profit_val / $net_sales) * 100;
+        }
+
+        print "<td align=right>".dkdecimal($discount_val, 2)."<br></td>\n";
+        print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
 					} else {
 						print "<td align=right><br></td>\n";
 					}
