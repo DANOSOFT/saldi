@@ -83,4 +83,27 @@ td.position-cell {
     vertical-align: middle;
     padding: 2px;
 }
+
+.drag-handle {
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s ease;
+    pointer-events: none;
+    color: #4A90E2;
+}
+
+/* Show drag handle on row hover or while dragging */
+tr:hover .drag-handle,
+tr.dragging .drag-handle {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+tr:hover .drag-handle:hover {
+    color: #3A7BC8;
+}
+
+tr.dragging .drag-handle {
+    cursor: grabbing;
+    color: #3A7BC8;
+}
 </style>";

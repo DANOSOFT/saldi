@@ -67,4 +67,19 @@ function initializePositions($kladde_id) {
         $position++;
     }
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (isset($input['action']) && $input['action'] === 'reorder') {
+        $ids = $input['ids'] ?? [];
+        $kladde_id = (int)($input['kladde_id'] ?? 0);
+        foreach ($ids as $pos => $id) {
+            $id = (int)$id;
+            db_modify("UPDATE kassekladde SET pos = " . ($pos + 1) . " WHERE id = $id AND kladde_id = $kladde_id", __FILE__ . " linje " . __LINE__);
+        }
+        echo json_encode(['success' => true]);
+        exit;
+    }
+}
+
 ?>
