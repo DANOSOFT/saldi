@@ -1447,7 +1447,7 @@ if ($status<3 && $b_submit) {
 		if ($row = db_fetch_array($query)) {
 			if ($row['lukket'] == 'on') {
 				$alert1 = findtekst('1830|er lukket', $sprog_id);
-				$alert2 = findtekst('592|Konto', $sprog_id);
+				$alert2 = findtekst('440|Konto', $sprog_id);
 				alert("$alert2 $kontonr $alert1");
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">\n";
 				exit;
