@@ -1684,43 +1684,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
+
 		} else {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='javascript:docChange = true;'></td>\n";
-// 		}
-// if (($bogfort && $bogfort != '-') || $udskriv) {
-	print "<td class='drag-handle' style='cursor:move;'>&#x2630; " . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
+		}
 
-// } else {
-   
-//     print "<td class='position-cell'>";
-//     print "<span class='position-controls'>";
-    
-//     // ..................Up button.....................
-//     if ($y > 1 && isset($bilag[$y-1]) && $bilag[$y] == $bilag[$y-1] && $dato[$y] == $dato[$y-1]) {
-//         $move_date = urlencode($transdate[$y]);
-//         print "<button type='button' class='move-btn move-up' 
-//                onclick=\"window.location.href='kassekladde.php?kladde_id=$kladde_id&move_up=1&move_bilag=$bilag[$y]&move_date=$move_date&move_pos=$pos[$y]&tjek=$kladde_id'\" 
-//                title='Flyt op'>↑</button>";
-//     } else {
-//         print "<span class='move-btn-disabled'>↑</span>";
-//     }
-    
-    // print "<span class='position-number'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</span>";
-    
-    // //.................Down button.................
-    // if ($y < $x && isset($bilag[$y+1]) && $bilag[$y] == $bilag[$y+1] && $dato[$y] == $dato[$y+1]) {
-    //     $move_date = urlencode($transdate[$y]);
-    //     print "<button type='button' class='move-btn move-down' 
-    //            onclick=\"window.location.href='kassekladde.php?kladde_id=$kladde_id&move_down=1&move_bilag=$bilag[$y]&move_date=$move_date&move_pos=$pos[$y]&tjek=$kladde_id'\" 
-    //            title='Flyt ned'>↓</button>";
-    // } else {
-    //     print "<span class='move-btn-disabled'>↓</span>";
-    // }
-    
-    // print "</span>";
+		print "<td class='drag-handle' style='cursor:move;'>&#x2630; " . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
+    	print "</td>\n";
 
-    print "</td>\n";
-}
 		if ($control_bal_fetched) {
 			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
 			$titletxt .= $control_record_date;
