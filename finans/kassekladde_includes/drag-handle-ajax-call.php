@@ -9,31 +9,38 @@ document.addEventListener('DOMContentLoaded', () => {
             onStart: evt => {
                 evt.item.classList.add('dragging');
             },
-            onEnd: evt => {
-                evt.item.classList.remove('dragging');
-                [...tbody.rows].forEach(row => row.classList.remove('drop-target'));
+    onEnd: evt => {
+    evt.item.classList.remove('dragging');
+    [...tbody.rows].forEach(row => row.classList.remove('drop-target'));
 
-                const ids = [...tbody.querySelectorAll('tr')]
-                    .map(row => row.querySelector('input[name^="id"]'))
-                    .filter(input => input)
-                    .map(input => input.value);
+    [...tbody.rows].forEach((row, idx) => {
+        const posCell = row.querySelector('.drag-handle');
+        if (posCell) {
+            posCell.innerHTML = '&#x2630; ' + (idx + 1);
+        }
+    });
 
-                fetch('kassekladde.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'reorder',
-                        kladde_id: <?php echo json_encode($kladde_id); ?>,
-                        ids
-                    })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.success) {
-                        alert('Kunne ikke gemme ny rækkefølge!');
-                    }
-                });
-            },
+    const ids = [...tbody.querySelectorAll('tr')]
+        .map(row => row.querySelector('input[name^="id"]'))
+        .filter(input => input)
+        .map(input => input.value);
+
+    fetch('kassekladde.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'reorder',
+            kladde_id: <?php echo json_encode($kladde_id); ?>,
+            ids
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            alert('Kunne ikke gemme ny rækkefølge!');
+        }
+    });
+},
             onMove: evt => {
                 [...tbody.rows].forEach(row => row.classList.remove('drop-target'));
                 if (evt.related) {
@@ -58,3 +65,4 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 </script>
+<?php
