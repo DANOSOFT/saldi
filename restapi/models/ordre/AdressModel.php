@@ -12,6 +12,7 @@ class AdresseModel
     private $bynavn;
     private $land;
     private $kontakt;
+    private $firmanavn;
 
     /**
      * Constructor - Create a DTO from database row or AdresseModel
@@ -38,6 +39,7 @@ class AdresseModel
         $this->bynavn = isset($row['bynavn']) ? $row['bynavn'] : null;
         $this->land = isset($row['land']) ? $row['land'] : null;
         $this->kontakt = isset($row['kontakt']) ? $row['kontakt'] : null;
+        $this->firmanavn = isset($row['firmanavn']) ? $row['firmanavn'] : null;
     }
 
     /**
@@ -54,6 +56,7 @@ class AdresseModel
             'bynavn' => $this->bynavn,
             'land' => $this->land,
             'kontakt' => $this->kontakt,
+            'firmanavn' => $this->firmanavn
         ];
     }
 
@@ -64,4 +67,5 @@ class AdresseModel
     public function getBynavn() { return $this->bynavn; }
     public function getLand() { return $this->land; }
     public function getKontakt() { return $this->kontakt; }
+    public function getFirmanavn() { return $this->firmanavn; }
 }

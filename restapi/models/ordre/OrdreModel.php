@@ -536,4 +536,41 @@ class OrdreModel
     public function setRef($ref) { $this->ref = $ref; return $this; }
     public function setFakturanr($fakturanr) { $this->fakturanr = $fakturanr; return $this; }
     public function setKostpris($kostpris) { $this->kostpris = $kostpris; return $this; }
+    public function setMomsfri($momsfri) { $this->momsfri = $momsfri; return $this; }
+    
+    /**
+     * Set address object
+     * 
+     * @param AdresseModel $adresse
+     * @return OrdreModel
+     */
+    public function setAdresse(AdresseModel $adresse)
+    {
+        $this->adresse = $adresse;
+        return $this;
+    }
+
+    /**
+     * Set delivery address object
+     * 
+     * @param AdresseModel $levAdresse
+     * @return OrdreModel
+     */
+    public function setLevAdresse(AdresseModel $levAdresse)
+    {
+        $this->lev_adresse = $levAdresse;
+        return $this;
+    }
+
+    /**
+     * Add order line to the order
+     * 
+     * @param OrdreLinjeModel $orderLine
+     * @return OrdreModel
+     */
+    public function addOrderLine(OrdreLinjeModel $orderLine)
+    {
+        $this->orderLines[] = $orderLine;
+        return $this;
+    }
 }
