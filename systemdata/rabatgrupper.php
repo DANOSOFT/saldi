@@ -34,6 +34,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if (!isset ($_POST['id'])) $_POST['id'] = null;
 if (!isset ($_POST['rabat'])) $_POST['rabat'] = null;
@@ -193,23 +194,23 @@ print "<input type=hidden name=vg_antal value=\"".$vg_antal."\">";
 print "<table class='dataTable2' id='dataTable' cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border:solid 1px $bgcolor5\"><tbody>"; #tabel 1.1.3 ->
 if (!$drg_antal && !$rabatantal && !$dgselfdef) {
 #	echo "valgmulighed"
-	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a class='button blue medium' href=\"rabatgrupper.php?dgselfdef=1\">Definer selv debitorrabatgrupper</a></td></tr>";
+	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a class='button blue medium' href=\"rabatgrupper.php?dgselfdef=1\">".findtekst('1252|Definer selv debitorrabatgrupper', $sprog_id)."</a></td></tr>";
 	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><hr></td></tr>";
 }
 if (!$vrg_antal && !$rabatantal && !$vgselfdef) {
 #	echo "valgmulighed"
-	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a href=\"rabatgrupper.php?vgselfdef=1\">Definer selv varerabatgrupper</a></td></tr>";
+	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><a href=\"rabatgrupper.php?vgselfdef=1\">".findtekst('1253|Definer selv varerabatgrupper', $sprog_id)."</a></td></tr>";
 	print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"$colspan\" align=\"center\"><hr></td></tr>";
 }
-print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"2\" align=\"center\">Debitorgrp \ Varegrp</td>";
+print "<tr bgcolor=\"$bgcolor5\"><td colspan=\"2\" align=\"center\">".findtekst('1254|Debitorgrp \ Varegrp', $sprog_id)."</td>";
 print "<td align=\"center\">Type</td>";
 #if ($vrg_antal || $vgselfdef) $vg_antal=$vrg_antal+1;
 for ($y=1;$y<=$vg_antal;$y++) {
-	if ($vrg_antal) print "<td title=\"".$vgnavn[0][$y]." | Klik for at rette navn\"><a href=\"rabatgrupper.php?ret_vrgnavn=$y\">&nbsp;VG$y</a></td>";
+	if ($vrg_antal) print "<td title=\"".$vgnavn[0][$y]." | ".findtekst('2469|Klik her for at rette navn', $sprog_id)."\"><a href=\"rabatgrupper.php?ret_vrgnavn=$y\">&nbsp;VG$y</a></td>";
 	else print "<td title=\"".$vgnavn[0][$y]."\">&nbsp;VG$y</td>";
 }
 #$y++;
-if ($vrg_antal) print "<td title=\"Opret ny vare-rabatgruppe\"><a href=\"rabatgrupper.php?vgselfdef=$y\">Ny</a></td>";
+if ($vrg_antal) print "<td title=\"".findtekst('2470|Opret ny vare-rabatgruppe', $sprog_id)."\"><a href=\"rabatgrupper.php?vgselfdef=$y\">".findtekst('39|Ny', $sprog_id)."</a></td>";
 $linjebg=$bgcolor;
 print "</tr>";
 print "<tr><td colspan=\"$colspan\"><hr></td></tr>";
@@ -254,10 +255,12 @@ print "<tr><td colspan=\"$colspan\"><hr></td></tr>";
 #}
 if ($menu=='T'){
 	$style = "class='button green medium'";
+} elseif ($menu=='S') {
+	$style = "STYLE = '$buttonStyle; width: 20%'";
 } else {
 	$style = "STYLE=\"width: 100%;height: 1.5em;margin-bottom:1px;padding: 1px 1px;border: 1px solid #DDDDDD;background:url('../img/knap_bg.gif');\"";
 }
-print "<tr><td colspan=\"$colspan\" align = \"center\"><input $style type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
+print "<tr><td colspan='$colspan' align='center'><input $style type=submit accesskey=\"g\" value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"gem\" onclick=\"javascript:docChange = false;\"></td></tr>\n";
 print "</form>";
 
 print "</tbody></table></td></tr>"; # <- tabel 1.1.3

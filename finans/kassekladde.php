@@ -152,6 +152,7 @@ print "<script>
 		that.style.backgroundColor = bgcolor;
 	}
 </script>";
+print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
 
@@ -1157,7 +1158,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 #elseif ($browser=="opera" || $browser=="firefox") print "<table cellpadding='0' cellspacing='0' border='0' align = 'center' valign = 'top'>";
 else
 	print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
-print "<tbody>"; # Tabel 1.3 -> kladdelinjer
+// print "<tbody>"; # Tabel 1.3 -> kladdelinjer
+// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+print "<thead>";
+
 print "<tr>";
 if ($vis_bilag && !$fejl && !$udskriv)
 	print "<td></td>";
@@ -1195,6 +1199,9 @@ if ($kontrolkonto) {
 }
 #print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
 print "</tr>\n";
+
+print "</thead>";
+print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
 
 #####################################  Output  #################################
 
@@ -1677,41 +1684,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
+
 		} else {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='javascript:docChange = true;'></td>\n";
 		}
-if (($bogfort && $bogfort != '-') || $udskriv) {
-    print "<td class='position-cell'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
-} else {
-   
-    print "<td class='position-cell'>";
-    print "<span class='position-controls'>";
-    
-    // ..................Up button.....................
-    if ($y > 1 && isset($bilag[$y-1]) && $bilag[$y] == $bilag[$y-1] && $dato[$y] == $dato[$y-1]) {
-        $move_date = urlencode($transdate[$y]);
-        print "<button type='button' class='move-btn move-up' 
-               onclick=\"window.location.href='kassekladde.php?kladde_id=$kladde_id&move_up=1&move_bilag=$bilag[$y]&move_date=$move_date&move_pos=$pos[$y]&tjek=$kladde_id'\" 
-               title='Flyt op'>↑</button>";
-    } else {
-        print "<span class='move-btn-disabled'>↑</span>";
-    }
-    
-    print "<span class='position-number'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</span>";
-    
-    //.................Down button.................
-    if ($y < $x && isset($bilag[$y+1]) && $bilag[$y] == $bilag[$y+1] && $dato[$y] == $dato[$y+1]) {
-        $move_date = urlencode($transdate[$y]);
-        print "<button type='button' class='move-btn move-down' 
-               onclick=\"window.location.href='kassekladde.php?kladde_id=$kladde_id&move_down=1&move_bilag=$bilag[$y]&move_date=$move_date&move_pos=$pos[$y]&tjek=$kladde_id'\" 
-               title='Flyt ned'>↓</button>";
-    } else {
-        print "<span class='move-btn-disabled'>↓</span>";
-    }
-    
-    print "</span>";
-    print "</td>\n";
-}
+
+		print "<td class='drag-handle' style='cursor:move;'>&#x2630; " . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
+    	print "</td>\n";
+
 		if ($control_bal_fetched) {
 			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
 			$titletxt .= $control_record_date;
@@ -1827,6 +1807,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!isset($valuta[$x]))      $valuta[$x]      = NULL;
 		if (!isset($ansat[$x]))       $ansat[$x]       = NULL;
 		print "<tr>";
+
 		if ($vis_bilag && !$fejl) { #20140425
 			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst(1455, $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
 			if ($kladde_id && $intern_bilag) {
@@ -1938,8 +1919,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	}
 	for ($z = $x; $z <= $y; $z++) {
 		print "<tr>";
+		
 		if ($vis_bilag && !$fejl)
 			print "<td><br></td>\n";
+
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;' name='bila$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name='dato$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
@@ -2830,4 +2813,9 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 	
 	include(__DIR__ . "/../includes/tutorial.php");
 	create_tutorial("kasseklad", $steps);
+
+
+include("kassekladde_includes/drag-handle-ajax-call.php");
+
 	?>
+

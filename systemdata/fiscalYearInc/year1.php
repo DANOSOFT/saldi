@@ -1,5 +1,6 @@
 <?php
 function year1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager) {
+	include("../includes/topline_settings.php");
 	global $sprog_id, $bgcolor5;
 	global $menu;
 	$row = db_fetch_array(db_select("select MAX(kodenr) as kodenr from grupper where art = 'RA'",__FILE__ . " linje " . __LINE__));
@@ -109,7 +110,12 @@ function year1($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 #	print "<tr><td colspan = 3> Overfr �ningsbalance</td><td align='center'><input type='checkbox' name=primotal checked></td></tr>\n";
 	print "<input type=hidden name=kontoantal value=$y>";
 	print "<tr><td colspan='4' align='center'>";
-	print "<input class='buttom green medium' style='width:150px;' type='submit' accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\" style=\"width:100px\" ";
+	print "<input class='buttom green medium' style='width:150px;' type='submit' accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\"";
+	if ($menu == 'S') {
+		print "style = \"$buttonStyle; width: 150px\" onMouseOver=\"this.style.cursor='pointer'\"";
+	} else {
+		print "style=\"width:100px\"";
+	}
 	print "name=\"submit\" onclick=\"javascript:docChange = false;\">";
 #	print "&nbsp;&nbsp;<input class='button green medium' type=submit value=\"".findtekst(1009,$sprog_id)." ".findtekst(1218,$sprog_id)."\" name=\"delete\"  style=\"width:100px\" ";
 #	print "onclick=\"javascript:docChange = false;\">";

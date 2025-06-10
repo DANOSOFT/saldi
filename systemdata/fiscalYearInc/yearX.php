@@ -1,5 +1,6 @@
 <?php
 function yearX($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaar, $aaben,$aut_lager) {
+	include("../includes/topline_settings.php");
 	global $overfor_til,$regnaar,$sprog_id,$menu;
 	$debetsum=0;
 	$kreditsum=0;
@@ -195,7 +196,14 @@ function yearX($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	if ($debetsum-$kreditsum!=0) {print "<BODY onLoad=\"javascript:alert('Konti er ikke i balance')\">";}
 #	print "<tr><td colspan = 3> Overfr �ningsbalance</td><td align='center'><input type='checkbox' name=primotal checked></td></tr>\n";
 	print "<input type=hidden name=kontoantal value=$y>";
-	print "<tr><td colspan = 5 align = center><input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\"  style=\"width:150px\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
+	print "<tr><td colspan = 5 align = center>";
+	print "<input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\"";
+	if ($menu == 'S') {
+		print "style = \"$buttonStyle; width: 150px\" onMouseOver=\"this.style.cursor='pointer'\"";
+	} else {
+		print "style=\"width:150px\"";
+	}
+	print "name=\"submit\" onclick=\"javascript:docChange = false;\">";
 /*
 	if ($aut_lager && date("Y-m-d")>$pre_regnslut) {
 		$title="Bogfører alle lagerbevægelser i det foregående år. Bør gøres umiddelbart efter årsskifte og lageroptælling".

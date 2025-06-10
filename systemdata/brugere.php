@@ -53,19 +53,20 @@ $employeeId=$rights=$roRights=array();
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/topline_settings.php");
 
 if (!isset ($colbg)) $colbg = NULL;
-$da = str_replace(" ", "",(findtekst(1141, $sprog_id)));
-$ka = str_replace(" ", "",(findtekst(1140, $sprog_id)));
+$da = str_replace(" ", "",(findtekst('1141|Debitorapport', $sprog_id)));
+$ka = str_replace(" ", "",(findtekst('1140|Kreditorapport', $sprog_id)));
 
-$kontoplan   	  =  lcfirst(findtekst(113, $sprog_id));   $indstillinger    = lcfirst(findtekst(613, $sprog_id)); #20210711
-$kassekladde 	  =  lcfirst(findtekst(601, $sprog_id));   $regnskab	     = lcfirst(findtekst(322, $sprog_id));
-$finansrapport    =  lcfirst(findtekst(895, $sprog_id));   $debitorordre     = lcfirst(findtekst(1255, $sprog_id));
-$debitorkonti     =  lcfirst(findtekst(1256, $sprog_id));  $kreditorordre    = lcfirst(findtekst(1257, $sprog_id));
-$kreditorkonti    =  lcfirst(findtekst(1258, $sprog_id));  $varer 		     = lcfirst(findtekst(110, $sprog_id));
-$enheder		  =  lcfirst(findtekst(1259, $sprog_id));  $backup		     = lcfirst(findtekst(521, $sprog_id));
-$debitorrapport   =  lcfirst($da);                         $kreditorrapport  = lcfirst($ka);
-$produktionsordre =  lcfirst(findtekst(1260, $sprog_id));  $varerapport		 = lcfirst(findtekst(965, $sprog_id));
+$kontoplan   	  =  lcfirst(findtekst('113|Kontoplan', $sprog_id));		 $indstillinger	  = lcfirst(findtekst('122|Indstillinger', $sprog_id)); #20210711
+$kassekladde 	  =  lcfirst(findtekst('601|Kassekladde', $sprog_id));		 $regnskab		  = lcfirst(findtekst('322|Regnskab', $sprog_id));
+$finansrapport    =  lcfirst(findtekst('895|Finansrapport', $sprog_id));	 $debitorordre	  = lcfirst(findtekst('1255|Debitorordre', $sprog_id));
+$debitorkonti     =  lcfirst(findtekst('1256|Debitorkonti', $sprog_id)); 	 $kreditorordre   = lcfirst(findtekst('1257|Kreditorordre', $sprog_id));
+$kreditorkonti    =  lcfirst(findtekst('1258|Kreditorkonti', $sprog_id));	 $varer 		  = lcfirst(findtekst('609|Varer', $sprog_id));
+$enheder		  =  lcfirst(findtekst('1259|Enheder', $sprog_id));			 $backup		  = lcfirst(findtekst('521|Sikkerhedskopi', $sprog_id));
+$debitorrapport   =  lcfirst($da);											 $kreditorrapport = lcfirst($ka);
+$produktionsordre =  lcfirst(findtekst('1260|Produktionsordre', $sprog_id)); $varerapport	  = lcfirst(findtekst('965|Varerapport', $sprog_id));
 
 
 
@@ -194,17 +195,17 @@ if ($menu=='T') {
 print "<tr><td colspan='2'></td>";
 print str_repeat("<td align='center' width='8px'><br></td>", 30);
 print "</tr>";
-$da = str_replace(" ", "",(findtekst(1141, $sprog_id))); #20210711
-$ka = str_replace(" ", "",(findtekst(1140, $sprog_id)));
+$da = str_replace(" ", "",(findtekst('1141|Debitorapport', $sprog_id))); #20210711
+$ka = str_replace(" ", "",(findtekst('1140|Kreditorapport', $sprog_id)));
 
-$Sikkerhedskopi = findtekst(614, $sprog_id);   $Debitorrapport    = findtekst(449, $sprog_id);
-$Varemodtagelse = findtekst(182, $sprog_id);   $Kreditorrapport   = $ka;
-$Varelager      = findtekst(1261, $sprog_id);  $Produktionsordrer = findtekst(1260, $sprog_id);
-$Kreditorkonti  = findtekst(1258, $sprog_id);  $Varerapport       = findtekst(965, $sprog_id);
-$Kreditorordrer = findtekst(1257, $sprog_id);  $Debitorkonti	  = findtekst(1256, $sprog_id);
-$Debitorordrer  = findtekst(1255, $sprog_id);  $Finansrapport     = findtekst(895, $sprog_id);
-$Regnskab		= findtekst(849, $sprog_id);   $Kassekladde       = findtekst(601, $sprog_id);
-$Indstillinger  = findtekst(122, $sprog_id);   $Kontoplan		  = findtekst(113, $sprog_id);
+$Sikkerhedskopi = findtekst('521|Sikkerhedskopi', $sprog_id);   $Debitorrapport	   = findtekst('449|Debitorrapporter', $sprog_id);
+$Varemodtagelse = findtekst('182|Varemodtagelse', $sprog_id);   $Kreditorrapport   = $ka;
+$Varelager      = findtekst('1261|Varelager', $sprog_id);		$Produktionsordrer = findtekst('1260|Produktionsordre', $sprog_id);
+$Kreditorkonti  = findtekst('1258|Kreditorkonti', $sprog_id);	$Varerapport	   = findtekst('965|Varerapport', $sprog_id);
+$Kreditorordrer = findtekst('1257|Kreditorordre', $sprog_id);	$Debitorkonti	   = findtekst('1256|Debitorkonti', $sprog_id);
+$Debitorordrer  = findtekst('1255|Debitorordre', $sprog_id);	$Finansrapport	   = findtekst('895|Finansrapport', $sprog_id);
+$Regnskab		= findtekst('322|Regnskab', $sprog_id);			$Kassekladde	   = findtekst('601|Kassekladde', $sprog_id);
+$Indstillinger  = findtekst('122|Indstillinger', $sprog_id);	$Kontoplan		   = findtekst('113|Kontoplan', $sprog_id);
 
 #var_dump($Produksjonsordrer);
 
@@ -229,7 +230,7 @@ print "<tr><td colspan = '$cs' align='right'> $modules[$x] &nbsp;</td>";
 print "<tr><td colspan = $cs align='right'> &nbsp;</td>"; print str_repeat("<td align=center>|</td>", $x); 
 print "<td colspan=9></td></tr>";
 
-print "<tr><td><b>Revisor</b></td><td><b>".findtekst(823, $sprog_id)."</b></td></tr>"; 
+print "<tr><td><b>".findtekst('2562|Revisor', $sprog_id)."</b></td><td><b>".findtekst('225|Brugernavn', $sprog_id)."</b></td></tr>"; 
 $query = db_select("SELECT * FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
 if(db_num_rows($query) > 0){
 	$r = db_fetch_array($query);
@@ -266,23 +267,33 @@ while ($row = db_fetch_array($query)) {
 	<script>
 		const checkbox = document.querySelectorAll("[name=revisor]")
 		const db = "<?php echo $db; ?>";
+		const confirmMessage = <?php echo json_encode(findtekst('2563|Vil du gøre denne bruger til revisor? Kun én bruger kan have revisoradgang, og du kan ikke ændre hvilken bruger der er revisor uden at kontakte Saldi support.', $sprog_id)); ?>;
 		// event listener for checkboxes
 		checkbox.forEach((el) => {
-			el.addEventListener("change", () => {
-				if(confirm("vil du gøre denne bruger til revisor? Du kan kun have én revisoradgang og kan ikke ændre, hvilken bruger der er revisor, uden at kontakte Saldi support.")) {
+		el.addEventListener("change", () => {
+			// Check if checkbox is selected
+			if (el.checked) {
+				if (confirm(confirmMessage)) {
 					const res = fetch("brugereRevisor.php",
-						{
-							method: "POST",
-							headers: {
-								"Content-Type": "application/x-www-form-urlencoded"
-							},
-							body: "id=" + el.id + "&db=" + db
-						}
-					)
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/x-www-form-urlencoded"
+						},
+						body: "id=" + el.id + "&db=" + db
+					}
+				);
 					window.location.reload();
+				} else {
+					// Remove selection if user cancels
+					el.checked = false;
 				}
-			})
-		})
+			} else {
+				// Do nothing if checkbox is de-selected (no confirm dialog)
+				// No popup if checkbox is de-selected
+			}
+		});
+	});
 	</script>
 <?php
 if ($ret_id) {
@@ -299,7 +310,7 @@ if ($ret_id) {
 		(substr($row['rettigheder'],$x,1)>=1)?$checked='checked':$checked=NULL;
 		print "<td><input class='inputbox' type='checkbox' name=\"rights[$x]\" $checked>\n</td>";
 	}
-	print "</tr><tr><td></td><td>Kun se</td>";
+	print "</tr><tr><td></td><td>".findtekst('2475|Kun visning', $sprog_id)."</td>";
 	for ($x=0;$x<16;$x++) {
 		(substr($row['rettigheder'],$x,1)==2)?$checked='checked':$checked=NULL;
 		print "<td>";
@@ -311,8 +322,8 @@ if ($ret_id) {
 		print "</td>";
 	}
 	print "</tr>";
-	print "<tr><td>".findtekst(747, $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode value='********************'></td></tr>";
-	print "<tr><td>".findtekst(328, $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode2 value='********************'></td></tr>";
+	print "<tr><td>".findtekst('327|Adgangskode.', $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode value='********************'></td></tr>";
+	print "<tr><td>".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode2 value='********************'></td></tr>";
 	$x=0;
 	if ($r2 = db_fetch_array(db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))) {
 		$employeeId=array();
@@ -329,7 +340,7 @@ if ($ret_id) {
 		}
 	}
 	$ansat_antal=$x;
-	print "<tr><td> ".findtekst(589, $sprog_id)."</td>";
+	print "<tr><td> ".findtekst('589|Ansat', $sprog_id)."</td>";
 	print "<td><SELECT NAME=employeeId[0]>";
 	print "<option value=\"$employeeId[0]\">$employeeInitials[0]</option>";
 	for ($x=1; $x<=$ansat_antal; $x++) { 
@@ -341,7 +352,7 @@ if ($ret_id) {
 		print "<input type=hidden name=re_id value=$ret_id>"; #20210909+20211015
 	
 		###########################################20210831
-	print "<tr><td>".findtekst(1904, $sprog_id)."</td><td><input class=\"inputbox\" type= text  name=insert_ip maxlength=49 value='$row[ip_address]' ></td></tr>"; #20210908
+	print "<tr><td>".findtekst('1904|Angiv brugerens tilladte IP adresser', $sprog_id)."</td><td><input class=\"inputbox\" type= text  name=insert_ip maxlength=49 value='$row[ip_address]' ></td></tr>"; #20210908
 	
 	print "</tbody></table></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -352,19 +363,19 @@ if ($ret_id) {
 		$class = "class='inputbox'";
 	}
 	print "<td colspan='12' align = 'center'>";
-	print "<input style='width:100px;background-color:44ff44;' type=submit value=\"".findtekst(1091, $sprog_id)."\" name=\"updateUser\">&nbsp;";
-	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst(1099, $sprog_id)."\" name=\"deleteUser\" onclick=\"confirm('Slet $userName?')\"></td>";
+	print "<input style='width:100px;background-color:44ff44;' type=submit value=\"".findtekst('1091|Opdater', $sprog_id)."\" name=\"updateUser\">&nbsp;";
+	print "<input style='width:100px;background-color:ff4444;' type=submit value=\"".findtekst('1099|Slet', $sprog_id)."\" name=\"deleteUser\" onclick=\"confirm('Slet $userName?')\"></td>";
 } else {
 	$tmp="navn".rand(100,999);				#For at undgaa at browseren "husker" et forkert brugernavn.
 	print "<input type=hidden name=random value = $tmp>";
-	print "<tr><td> ".findtekst(333, $sprog_id)."</td>";
+	print "<tr><td> ".findtekst('333|Ny bruger', $sprog_id)."</td>";
 	print "<td><input class=\"inputbox\" type=\"text\" size='20' name='$tmp'></td>";
-	$s = findtekst(329, $sprog_id); $as = explode(" ", $s); 
+	$s = findtekst('329|Adgang til', $sprog_id); $as = explode(" ", $s); 
 	print "</tr><tr><td></td><td>$as[0]</td>";
 	for ($x=0;$x<16;$x++) {
 		print "<td><input class='inputbox' type='checkbox' name=\"rights[$x]\"></td>\n";
 	}
-	print "</tr><tr><td></td><td>Kun se</td>";
+	print "</tr><tr><td></td><td>".findtekst('2475|Kun visning', $sprog_id)."</td>";
 	for ($x=0;$x<16;$x++) {
 		print "<td>";
 		if ($x==9) print "<input class='inputbox' type='checkbox' name='roRights[$x]'>\n";
@@ -374,16 +385,18 @@ if ($ret_id) {
 		print "</td>";
 	}
 	print "</tr>";
-	print "<tr><td> ".findtekst(327, $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode></td></tr>";
-	print "<tr><td> ".findtekst(328, $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode2></td></tr>";
+	print "<tr><td> ".findtekst('324|Adgangskode', $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode></td></tr>";
+	print "<tr><td> ".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input class=\"inputbox\" type=password size=20 name=kode2></td></tr>";
 	print "</tbody></table></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<td colspan=12 align = center>";
 	if ($menu=='T') {
-		print "<input style='width:200px;' class='blue medium button' type=submit value=\"".findtekst(1175, $sprog_id)."\" name=\"addUser\"></td>";
+		print "<input style='width:200px;' class='blue medium button' type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"addUser\"></td>";
+	} elseif ($menu=='S') {
+		print "<input style='$buttonStyle; width:200px' type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"addUser\"></td>";
 	} else {
-		print "<input style='width:200px;background-color:#aaaaff;' type=submit value=\"".findtekst(1175, $sprog_id)."\" name=\"addUser\"></td>";
+		print "<input style='width:200px;background-color:#aaaaff;' type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"addUser\"></td>";
 	}
 }
 print "</tr>";

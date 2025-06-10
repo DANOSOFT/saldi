@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-05-28--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-06-05--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -91,6 +91,8 @@
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20240106 PBLM Added box5 on line 1187 for the extra api client
 // 20250415 LOE Updated some variables using if_isset
+// 20250605	PHR Removed konto_id from href
+
 #ob_start();
 @session_start();
 $s_id=session_id();
@@ -115,7 +117,6 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script
 $css="../css/std.css";
 global $sprog_id;
 $modulnr=5;
-$title='txt1201';
 $api_encode=NULL;
 $check_all=$checked=$cols=NULL;
 $dk_dg=NULL; 
@@ -138,8 +139,9 @@ $timestamp = date('U');
 $find=array(NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
 $padding2=$padding=$padding1_5=null; #20211018
 include("../includes/connect.php");
-include("../includes/online.php");
 include("../includes/std_func.php");
+$title=findtekst('1201|Ordreliste • Kunder', $sprog_id);
+include("../includes/online.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style-with-links.js.php");
 
@@ -804,10 +806,7 @@ while ($r0=db_fetch_array($q0)) {
 				} else $udlignet=1;
 			}
 		}
-		if(!if_isset($konto_id,NULL)){
-			$konto_id=$r0['konto_id'];
-		}
-		$href="ordre.php?tjek=$id&id=$id&konto_id=$konto_id&returside=".urlencode($_SERVER["REQUEST_URI"]);
+		$href="ordre.php?tjek=$id&id=$id&returside=".urlencode($_SERVER["REQUEST_URI"]);
 		$tle1 = findtekst(1421, $sprog_id);
 		$tle2 = findtekst(1522, $sprog_id);
 		if ($valg == 'faktura' || $tidspkt-($timestamp)>3600 || $who==$brugernavn || $who=='' ) { #20220301
@@ -1010,13 +1009,7 @@ while ($r0=db_fetch_array($q0)) {
 				} 
 			} elseif ($vis_felt[$x]=='kundeordnr' && $valg=="faktura") {
 				$tmp=$vis_felt[$x];
-				if ($db=='bizsys_49' || $db=='udvikling_5') {
-					if ($gem_id==$r0['id']) print "<a href='$gem' download='$download' title='".findtekst(1434, $sprog_id)."'><font color='green'>$r0[$tmp]</font></a>";
-					else print "<a href='formularprint.php?id=$r0[id]&ordre_antal=1&formular=4&udskriv_til=fil'>$r0[$tmp]</a>";
-#					print "<span onclick=window.open('formularprint.php?id=$r0[id]&ordre_antal=1&formular=4&udskriv_til=fil')>$r0[$tmp]</span>";
-				} else {
-					print "<a href='ordre.php?id=$r0[id]'>$r0[$tmp]</a>";
-				}
+				print "<a href='ordre.php?id=$r0[id]'>$r0[$tmp]</a>";
 			} elseif (strpos($vis_felt[$x],"date") || $vis_felt[$x]=="nextfakt") {
 	 			print dkdato($r0[$vis_felt[$x]]);
 			} else {

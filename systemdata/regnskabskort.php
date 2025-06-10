@@ -49,6 +49,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
+include("../includes/topline_settings.php");
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 if ($menu=='T') {
@@ -56,7 +57,7 @@ if ($menu=='T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
 		print "<div id=\"header\">";
-		print "<div class=\"headerbtnLft headLink\"><a href=regnskabsaar.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
+		print "<div class=\"headerbtnLft headLink\"><a href=regnskabsaar.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
 		print "<div class=\"headerTxt\">$title</div>";
 		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "</div>";
@@ -72,8 +73,13 @@ if ($menu=='T') {
 		print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
 		print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>"; ####################table 1a start.
 		print "<tr><td align='center' valign=top>";
-		print "<a href=\"javascript:confirmClose('regnskabsaar.php','". findtekst(154,$sprog_id) ."')\">";
-		print "<button style = 'width:80px;'>Luk</button></a>";
+		print "<a href=\"javascript:confirmClose('regnskabsaar.php','". findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id) ."')\">";
+		if ($menu=='S') {
+			print "<button style = '$buttonStyle; width: 10%' onMouseOver=\"this.style.cursor='pointer'\">";
+		} else {
+			print "<button style = 'width: 80px;'>";
+		}
+		print findtekst('2172|Luk', $sprog_id)."</button></a>";
 		print "<table width=100% align='center' border=0 cellspacing=4 cellpadding=0><tbody>\n"; ##############table 2b start
 		print "<tr>\n";
 		print "</tbody></table>\n"; #####################################################table 2b slut.
@@ -121,27 +127,27 @@ if ($_POST) {
 		if ($startaar != $slutaar) $beskrivelse.= "/".$slutaar;
 	}
 	if (($startmd<1)||($startmd>12)){
-		alert('Startm&aring;ned skal v&aelig;re mellem 1 og 12!');
+		alert(findtekst('2476|Startmåned', $sprog_id)." ".strtolower(findtekst('2480|Skal være mellem', $sprog_id))." 1 ".strtolower(findtekst('2481|Og', $sprog_id))." 12!");
 		$startmd="";
 	}
 	elseif ($startmd<10) $startmd="0".$startmd;
 	if (($slutmd<1)||($slutmd>12)){
-		alert('Slutm&aring;ned skal v&aelig;re mellem 1 og 12!');
+		alert(findtekst('2477|Slutmåned', $sprog_id)." ".strtolower(findtekst('2480|Skal være mellem', $sprog_id))." 1 ".strtolower(findtekst('2481|Og', $sprog_id))." 12!");
 		$slutmd="";
 	}
 	elseif ($slutmd<10) $slutmd="0".$slutmd;
 	if (($startaar<$bundaar)||($startaar>$topaar)){
-		alert("Startår skal være mellem $bundaar og $topaar!");
+		alert(findtekst('2478|Startår', $sprog_id)." ".strtolower(findtekst('2480|Skal være mellem', $sprog_id))." $bundaar ".strtolower(findtekst('2481|Og', $sprog_id))." $topaar!");
 		$startaar="";
 	}
 	if (($slutaar<$bundaar)||($slutaar>$topaar)){
-		alert('Slut&aring;r skal v&aelig;re mellem $bundaar og $topaar!');
+		alert(findtekst('2479|Slutår', $sprog_id)." ".strtolower(findtekst('2480|Skal være mellem', $sprog_id))." $bundaar ".strtolower(findtekst('2481|Og', $sprog_id))." $topaar!");
 		$slutaar="";
 	}
 	$startdato=$startaar.$startmd;
 	$slutdato=$slutaar.$slutmd;
 	if ($slutdato<=$startdato){
-		alert('Regnskabs&aring;r skal slutte senere end det starter');
+		alert(findtekst('2482|Regnskabsår skal slutte senere end det starter', $sprog_id));
 		$aaben="";
 	}
 	$qtxt = "select id from grupper where kodenr = '$kodenr' and art = 'RA'";
