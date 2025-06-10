@@ -33,14 +33,14 @@ function yearX($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	}
 
 	print "<form id = '1' name='yearX' action='regnskabskort.php' method='post'>";
-	if ($id) print "<tr><td colspan=5 align = center><big><b>".findtekst(1206,$sprog_id)." $kodenr. ".findtekst(894,$sprog_id).": $beskrivelse</td></tr>\n";
+	if ($id) print "<tr><td colspan=5 align = center><big><b>".findtekst('1206|Ret', $sprog_id)." $kodenr. ".findtekst('894|Regnskabsår', $sprog_id).": $beskrivelse</td></tr>\n";
 	else {
-		print "<tr><td colspan=5 align = center><big><b>". findtekst(1232,$sprog_id)." $kodenr. ".findtekst(894,$sprog_id).": $beskrivelse</td></tr>\n";
+		print "<tr><td colspan=5 align = center><big><b>". findtekst('1232|Opret', $sprog_id)." $kodenr. ".findtekst('894|Regnskabsår', $sprog_id).": $beskrivelse</td></tr>\n";
 		$aaben='on';
 	}
 	print "<tr><td colspan=5 align='center'><table width=100% border=0><tbody><tr>"; ###########################table 8d start
-	print "<tr><td></td><td align='center'>Start</td><td align='center'>Start</td><td align='center'>".findtekst(1216,$sprog_id)."</td><td align='center'>".findtekst(1216,$sprog_id)."</td><td align='center'>".findtekst(1086,$sprog_id)."</td></tr>\n";
-	print "<tr><td align='center'>".findtekst(914,$sprog_id)."</td><td align='center'>".findtekst(1217,$sprog_id)."</td><td align='center'>".findtekst(1218,$sprog_id)."</td><td align='center'>".findtekst(1217,$sprog_id)."</td><td align='center'>".findtekst(1218,$sprog_id)."</td><td align='center'>".findtekst(1219,$sprog_id)."</td></tr>\n";
+	print "<tr><td></td><td align='center'>Start</td><td align='center'>Start</td><td align='center'>".findtekst('1216|Slut', $sprog_id)."</td><td align='center'>".findtekst('1216|Slut', $sprog_id)."</td><td align='center'>".findtekst('1086|Bogføring', $sprog_id)."</td></tr>\n";
+	print "<tr><td align='center'>".findtekst('914|Beskrivelse', $sprog_id)."</td><td align='center'>".findtekst('1217|Måned', $sprog_id)."</td><td align='center'>".findtekst('1218|År', $sprog_id)."</td><td align='center'>".findtekst('1217|Måned', $sprog_id)."</td><td align='center'>".findtekst('1218|År', $sprog_id)."</td><td align='center'>".findtekst('1219|Tilladt', $sprog_id)."</td></tr>\n";
 	print "<tr><input type=hidden name=kodenr value=$kodenr><input type=hidden name=id value='$id'	>";
 	print "<td align='center'><input type=text size=30 name=beskrivelse value=\"$beskrivelse\" onchange=\"javascript:docChange = true;\"></td>";
 	print "<td align='center'><input readonly=readonly style='text-align:right' size='2' name=startmd value=$startmd></td>";
@@ -51,7 +51,7 @@ function yearX($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	if (!$id) $checked='checked';
 	print "<td align='center'><input type='checkbox' name='aaben' $aaben onchange=\"javascript:docChange = true;\"></td>";
 	print "</tr>\n</tbody></table></td></tr>\n"; #####################################################table 8d slut
-	print "<tr><td colspan=2 align='center'> ".findtekst(1231,$sprog_id)." $kodenr. ".findtekst(894,$sprog_id).":</td><td align = center> ".findtekst(1073,$sprog_id)."</td><td align = center> ".findtekst(1228,$sprog_id)." ".findtekst(904,$sprog_id)."</td><td align = center> ".findtekst(39,$sprog_id)." ".findtekst(1229,$sprog_id)."</td></tr>\n";
+	print "<tr><td colspan=2 align='center'> ".findtekst('1231|Primotal for', $sprog_id)." $kodenr. ".findtekst('894|Regnskabsår', $sprog_id).":</td><td align = center> ".findtekst('1073|Saldo', $sprog_id)."</td><td align = center> ".findtekst('1228|Overfør', $sprog_id)." ".findtekst('904|til', $sprog_id)."</td><td align = center> ".findtekst('39|Ny', $sprog_id)." ".findtekst('1229|Primo', $sprog_id)."</td></tr>\n";
 	$tmp=$kodenr;
 	$kontoantal=0;
 	while ($kontoantal<1&&$tmp>0){ #Hvis der ikke er oprettet konti for indevaerende regsskabsaar, hentes konti fra forrige.
@@ -197,7 +197,7 @@ function yearX($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 #	print "<tr><td colspan = 3> Overfr �ningsbalance</td><td align='center'><input type='checkbox' name=primotal checked></td></tr>\n";
 	print "<input type=hidden name=kontoantal value=$y>";
 	print "<tr><td colspan = 5 align = center>";
-	print "<input class='button green medium' type=submit accesskey=\"g\" value=\"".findtekst(471, $sprog_id)."\"";
+	print "<input class='button green medium' type='submit' accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\"";
 	if ($menu == 'S') {
 		print "style = \"$buttonStyle; width: 150px\" onMouseOver=\"this.style.cursor='pointer'\"";
 	} else {
@@ -208,7 +208,7 @@ function yearX($id, $kodenr, $beskrivelse, $startmd, $startaar, $slutmd, $slutaa
 	if ($aut_lager && date("Y-m-d")>$pre_regnslut) {
 		$title="Bogfører alle lagerbevægelser i det foregående år. Bør gøres umiddelbart efter årsskifte og lageroptælling".
 		$confirmtxt="";
-		print "&nbsp;<a href=laas_lager.php?regnaar=$pre_regnaar&regnaar_id=$id&print=0><input title=\"$title\" type=\"button\" value=\"".findtekst(1230, $sprog_id)."\" onclick=\"return confirm('Bogfør og lås lagerprimo? Obs - Vær tålmodig det kan tage flere minutter')\"></a>";
+		print "&nbsp;<a href=laas_lager.php?regnaar=$pre_regnaar&regnaar_id=$id&print=0><input title=\"$title\" type=\"button\" value=\"".findtekst('1230|Lås lagerværdi', $sprog_id)."\" onclick=\"return confirm('Bogfør og lås lagerprimo? Obs - Vær tålmodig det kan tage flere minutter')\"></a>";
 	}
 */	
 	# if ($regnaar==$max_aar) print "<input type=submit value=\"Slet\" name=\"submit\" onclick=\"javascript:docChange = false;\">";
