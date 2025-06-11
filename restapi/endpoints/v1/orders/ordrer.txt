@@ -1,0 +1,46 @@
+required fields
+
+
+firmanavn
+telefon
+email
+momssats
+
+check tlf in adresser for the user if exist, take the id from adresser and place into konto_id and kontonr and place it into kontonr
+
+
+Not required fields
+
+sum
+kostpris
+moms
+valuta (if not set to check settings for var_name = baseCurrency and use var_value as valuta if not found set to DKK)
+betalingsbet (if user exists, look in adresser for betalingsbet and use that, if user does not exists set betalingsbet to "netto")
+betalingsdage (if user exists, look in adresser for betalingsdage and use that, if user does not exists set betalingsdage to 8)
+addr1
+addr2
+postnr
+bynavn
+land
+lev_navn
+lev_addr1
+lev_addr2
+lev_postnr
+lev_bynavn
+lev_land
+ean
+cvrnr
+ordredate 
+notes
+betalt true/false but used as "on" in text in the table or nothing if false
+
+
+
+Fields the system sets
+
+ref the x-saldiuser
+status (always 0)
+ordrenr (always an increment of the last ordrenr)
+valutakurs (found in grupper where art = "VK" and box1 = valuta, use box2 as valutakurs if not found give error)
+konto_id (If user exists the use id from adresser if not create a new one with the data from the user and use the id)
+kontonr (If user exists the use kontonr from adresser if not create a new one with the data from the user and use the kontonr)

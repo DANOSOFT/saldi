@@ -1,0 +1,16 @@
+required fields
+
+ordre_id
+
+
+
+not required fields
+
+varenr (if is set then use function opret_ordrelinje())
+
+
+
+
+
+
+fields the system sets
