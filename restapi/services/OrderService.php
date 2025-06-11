@@ -77,7 +77,7 @@ class OrderService
         if (isset($data->cvrnr)) $order->setCvrnr($data->cvrnr);
         if (isset($data->ordredate)) $order->setOrdredate($data->ordredate);
         if (isset($data->notes)) $order->setNotes($data->notes);
-        
+
         // Handle betalt field
         $betalt = (isset($data->betalt) && $data->betalt) ? 'on' : '';
         $order->setBetalt($betalt);
@@ -162,13 +162,16 @@ class OrderService
         $ean = isset($data->ean) ? $data->ean : '';
         $cvrnr = isset($data->cvrnr) ? $data->cvrnr : '';
 
+        // Handle kundegruppe - default to 1 if not provided
+        $kundegruppe = (isset($data->kundegruppe) && $data->kundegruppe != "") ? $data->kundegruppe : 1;
+
         // Insert new debitor
         $qtxt = "INSERT INTO adresser (
             firmanavn, tlf, email, addr1, addr2, postnr, bynavn, land, 
-            ean, cvrnr, kontonr, betalingsbet, betalingsdage
+            ean, cvrnr, kontonr, betalingsbet, betalingsdage, art, gruppe
         ) VALUES (
             '$data->firmanavn', '$data->telefon', '$data->email', '$addr1', '$addr2', 
-            '$postnr', '$bynavn', '$land', '$ean', '$cvrnr', '$nextKontonr', 'netto', 8
+            '$postnr', '$bynavn', '$land', '$ean', '$cvrnr', '$nextKontonr', 'netto', 8, 'D', '$kundegruppe'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);

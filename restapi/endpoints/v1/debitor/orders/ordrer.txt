@@ -33,7 +33,7 @@ cvrnr
 ordredate 
 notes
 betalt true/false but used as "on" in text in the table or nothing if false
-
+kunde gruppe
 
 
 Fields the system sets

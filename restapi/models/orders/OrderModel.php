@@ -337,6 +337,7 @@ class OrderModel
     public function setPostnr($postnr) { $this->postnr = $postnr; }
     public function setBynavn($bynavn) { $this->bynavn = $bynavn; }
     public function setLand($land) { $this->land = $land; }
+    public function setKundeGruppe($kundegruppe) { $this->kundegruppe = $kundegruppe; }
     
     // Delivery address setters
     public function setLevNavn($lev_navn) { $this->lev_navn = $lev_navn; }

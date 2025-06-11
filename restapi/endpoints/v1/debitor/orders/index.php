@@ -1,7 +1,7 @@
 <?php
-require_once '../../../models/orders/OrderModel.php';
-require_once '../../../services/OrderService.php';
-require_once '../../../core/BaseEndpoint.php';
+require_once '../../../../models/orders/OrderModel.php';
+require_once '../../../../services/OrderService.php';
+require_once '../../../../core/BaseEndpoint.php';
 
 class OrderEndpoint extends BaseEndpoint
 {
