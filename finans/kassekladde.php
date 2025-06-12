@@ -2816,6 +2816,9 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 
 
 include("kassekladde_includes/drag-handle-ajax-call.php");
+include("kassekladde_includes/unsavedWarning.php");
+
+
 
 	?>
 
