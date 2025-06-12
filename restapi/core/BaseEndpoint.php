@@ -4,6 +4,7 @@ include_once __DIR__ . "/../../includes/db_query.php";
 include_once __DIR__ . "/../../includes/connect.php";
 include_once __DIR__ . "/../../includes/std_func.php";
 include_once __DIR__ . "/auth.php";
+include_once __DIR__ . "/logging.php";
 
 
 abstract class BaseEndpoint
@@ -91,7 +92,6 @@ abstract class BaseEndpoint
 
     protected function checkAuthorization()
     {
-
         // Retrieve all headers
         $headers = getallheaders();
 
@@ -135,7 +135,16 @@ abstract class BaseEndpoint
             return false;
         }
 
-        return access_check($db, $user, $authorization) === 'OK';
+        // Log authorization attempt
+        write_log("Authorization attempt for user: $user", $db, 'INFO');
+
+        $result = access_check($db, $user, $authorization) === 'OK';
+        
+        if (!$result) {
+            write_log("Authorization failed for user: $user", $db, 'WARNING');
+        }
+        
+        return $result;
     }
 
     protected function sendResponse($success, $data = null, $message = null, $code = 200)
