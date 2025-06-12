@@ -28,7 +28,7 @@ class OrderLineService
                 return [
                     'success' => false, 
                     'message' => 'Missing required field: ordre_id',
-                    'status_code' => 400
+                    'status_code' => 400  // Make sure this is included
                 ];
             }
 
@@ -36,6 +36,7 @@ class OrderLineService
 
             // Validate order exists and status
             $orderInfo = $this->getOrderInfo($orderId);
+            // Order not found
             if (!$orderInfo) {
                 return [
                     'success' => false, 
@@ -44,6 +45,7 @@ class OrderLineService
                 ];
             }
 
+            // Order status check
             if ($orderInfo['status'] >= 3) {
                 return [
                     'success' => false, 
