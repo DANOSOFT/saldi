@@ -4,6 +4,7 @@ include_once __DIR__ . "/../../includes/db_query.php";
 include_once __DIR__ . "/../../includes/connect.php";
 include_once __DIR__ . "/../../includes/std_func.php";
 include_once __DIR__ . "/auth.php";
+include_once __DIR__ . "/logging.php";
 
 
 abstract class BaseEndpoint
@@ -91,10 +92,12 @@ abstract class BaseEndpoint
 
     protected function checkAuthorization()
     {
-
         // Retrieve all headers
         $headers = getallheaders();
 
+        // headers to lowercase for case-insensitive comparison
+        $headers = array_change_key_case($headers, CASE_LOWER);
+        
         // Check if headers are present
         if (empty($headers)) {
             $this->sendResponse(false, array(), "No headers received", 400);
@@ -102,7 +105,7 @@ abstract class BaseEndpoint
         }
 
         // Check for required headers
-        $requiredHeaders = ['Authorization', 'x-saldiuser', 'x-db'];
+        $requiredHeaders = ['authorization', 'x-saldiuser', 'x-db'];
         foreach ($requiredHeaders as $header) {
             if (!isset($headers[$header])) {
                 $this->sendResponse(false, array(), "Missing required header: '{$header}'", 401);
@@ -111,7 +114,7 @@ abstract class BaseEndpoint
         }
 
         // Extract header values
-        $authorization = $headers['Authorization'];
+        $authorization = $headers['authorization'];
         $user = $headers['x-saldiuser'];
         $db = $headers['x-db'];
 
@@ -132,7 +135,16 @@ abstract class BaseEndpoint
             return false;
         }
 
-        return access_check($db, $user, $authorization) === 'OK';
+        // Log authorization attempt
+        write_log("Authorization attempt for user: $user", $db, 'INFO');
+
+        $result = access_check($db, $user, $authorization) === 'OK';
+        
+        if (!$result) {
+            write_log("Authorization failed for user: $user", $db, 'WARNING');
+        }
+        
+        return $result;
     }
 
     protected function sendResponse($success, $data = null, $message = null, $code = 200)
