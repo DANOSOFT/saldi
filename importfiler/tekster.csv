@@ -1217,8 +1217,8 @@
 1217	Måned	Month	Måned
 1218	År	Year	År
 1219	Tilladt	Allowed	Tillatt
-1220	1.fakturanummer	1st invoice number	1. fakturanummer
-1221	1.modtagelsesnummer	1st receipt number	1. mottaksnummer
+1220	1. fakturanummer	1st invoice number	1. fakturanummer
+1221	1. modtagelsesnummer	1st receipt number	1. mottaksnummer
 1222	Undlad bilagsnummer til faktura	Do not include document number for invoice	Ikke ta med dokumentnummer for faktura
 1223	Brug fakturanummer som bilagsnummer	Use invoice number as document number	Bruk fakturanummer som dokumentnummer
 1224	Brug modtagelsesnummer som bilagsnummer	Use the receipt number as the document number	Bruk kvitteringsnummeret som dokumentnummer
