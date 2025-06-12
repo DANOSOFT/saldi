@@ -43,15 +43,15 @@ echo "JSON Data to send:\n";
 echo json_encode($data, JSON_PRETTY_PRINT) . "\n\n";
 
 // Initialize cURL
-$ch = curl_init("https://dev.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/");
+$ch = curl_init("https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
-    'Authorization: 4M1SlprEv82hhtl2KSfCFOs4*BzLYgAdUD',
+    'Authorization: 4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD',
     'x-saldiuser: api',
-    'x-db: develop_8'
+    'x-db: 	test_4'
 ]);
 
 // Execute request
@@ -84,7 +84,7 @@ curl_close($ch);
 
 // Test GET request for specific order
 function testGetOrder($orderId) {
-    $ch = curl_init("https://dev.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/?id=$orderId");
+    $ch = curl_init("https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/?id=$orderId");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
@@ -115,7 +115,7 @@ function testGetOrder($orderId) {
 
 // Test GET all orders
 echo "\n=== Testing Get All Orders ===\n";
-$ch = curl_init("https://dev.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/");
+$ch = curl_init("https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
