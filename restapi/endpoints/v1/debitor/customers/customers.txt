@@ -1,0 +1,41 @@
+table adresser
+
+required fields
+
+ firmanavn text
+ tlf text
+ email text
+
+optional fields
+
+addr1 text
+addr2 text
+postnr text
+bynavn text
+cvrnr text
+land text
+bank_navn text
+bank_reg text
+bank_konto text
+bank_fi text
+notes text
+betalingsbet text
+betalingsdage int
+ean text
+fornavn text
+efternavn text
+lev_firmanavn text
+lev_addr1 text
+lev_addr2 text
+lev_postnr text
+lev_bynavn text
+lev_tlf text
+lev_email text
+lev_land text
+kontakt text
+
+
+fields the system sets
+art varchar(2) always "D"
+gruppe int default 1
+
