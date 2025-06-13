@@ -108,62 +108,52 @@ class OrderModel
      */
     public function save()
     {
-        if ($this->id) {
-            // Update existing order
-            $qtxt = "UPDATE ordrer SET 
-                konto_id = '$this->konto_id',
-                firmanavn = '$this->firmanavn',
-                phone = '$this->telefon',
-                email = '$this->email',
-                momssats = '$this->momssats',
-                addr1 = '$this->addr1',
-                addr2 = '$this->addr2',
-                postnr = '$this->postnr',
-                bynavn = '$this->bynavn',
-                land = '$this->land',
-                lev_navn = '$this->lev_navn',
-                lev_addr1 = '$this->lev_addr1',
-                lev_addr2 = '$this->lev_addr2',
-                lev_postnr = '$this->lev_postnr',
-                lev_bynavn = '$this->lev_bynavn',
-                lev_land = '$this->lev_land',
-                ean = '$this->ean',
-                cvrnr = '$this->cvrnr',
-                ordredate = '$this->ordredate',
-                notes = '$this->notes',
-                betalt = '$this->betalt',
-                sum = '$this->sum',
-                kostpris = '$this->kostpris',
-                moms = '$this->moms',
-                valuta = '$this->valuta',
-                betalingsbet = '$this->betalingsbet',
-                betalingsdage = '$this->betalingsdage',
-                kontonr = '$this->kontonr',
-                valutakurs = '$this->valutakurs'
-                WHERE id = $this->id";
+        // Insert new order
+        $qtxt = "INSERT INTO ordrer (
+            konto_id, firmanavn, phone, email, momssats, addr1, addr2, postnr, bynavn, land,
+            lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, ean, cvrnr,
+            ordredate, notes, betalt, sum, kostpris, moms, valuta, betalingsbet, betalingsdage,
+            kontonr, ref, status, ordrenr, valutakurs, art
+        ) VALUES (
+            '$this->konto_id', '$this->firmanavn', '$this->telefon', '$this->email', '$this->momssats',
+            '$this->addr1', '$this->addr2', '$this->postnr', '$this->bynavn', '$this->land',
+            '$this->lev_navn', '$this->lev_addr1', '$this->lev_addr2', '$this->lev_postnr', '$this->lev_bynavn',
+            '$this->lev_land', '$this->ean', '$this->cvrnr', '$this->ordredate', '$this->notes',
+            '$this->betalt', '$this->sum', '$this->kostpris', '$this->moms', '$this->valuta',
+            '$this->betalingsbet', '$this->betalingsdage', '$this->kontonr', '$this->ref',
+            '$this->status', '$this->ordrenr', '$this->valutakurs', 'DO'
+        )";
 
-            $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            return explode("\t", $q)[0] == "0";
-        } else {
-            // Insert new order
-            $qtxt = "INSERT INTO ordrer (
-                konto_id, firmanavn, phone, email, momssats, addr1, addr2, postnr, bynavn, land,
-                lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, ean, cvrnr,
-                ordredate, notes, betalt, sum, kostpris, moms, valuta, betalingsbet, betalingsdage,
-                kontonr, ref, status, ordrenr, valutakurs, art
-            ) VALUES (
-                '$this->konto_id', '$this->firmanavn', '$this->telefon', '$this->email', '$this->momssats',
-                '$this->addr1', '$this->addr2', '$this->postnr', '$this->bynavn', '$this->land',
-                '$this->lev_navn', '$this->lev_addr1', '$this->lev_addr2', '$this->lev_postnr', '$this->lev_bynavn',
-                '$this->lev_land', '$this->ean', '$this->cvrnr', '$this->ordredate', '$this->notes',
-                '$this->betalt', '$this->sum', '$this->kostpris', '$this->moms', '$this->valuta',
-                '$this->betalingsbet', '$this->betalingsdage', '$this->kontonr', '$this->ref',
-                '$this->status', '$this->ordrenr', '$this->valutakurs', 'DO'
-            )";
-
-            $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            return explode("\t", $q)[0] == "0";
+        $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        $resultArray = explode("\t", $result);
+        
+        // Check if insert was successful
+        if ($resultArray[0] == "0") {
+            // Insert was successful, now get the inserted ID
+            // Use PostgreSQL's CURRVAL() to get the last value from the sequence
+            $qtxt = "SELECT CURRVAL(pg_get_serial_sequence('ordrer', 'id')) AS id";
+            $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            
+            if ($q && ($r = db_fetch_array($q))) {
+                $this->id = (int)$r['id'];
+                return true;
+            }
+            
+            // Fallback: try to find the order by unique fields
+            $qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$this->ordrenr' AND kontonr = '$this->kontonr' ORDER BY id DESC LIMIT 1";
+            $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            
+            if ($q && ($r = db_fetch_array($q))) {
+                $this->id = (int)$r['id'];
+                return true;
+            }
+            
+            // If we can't get the ID but insert was successful, still return true
+            return true;
         }
+        
+        // Insert failed
+        return false;
     }
 
     /**

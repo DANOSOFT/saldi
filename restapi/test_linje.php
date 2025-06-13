@@ -6,13 +6,13 @@
  */
 
 // Configuration
-$base_url = 'http://localhost/pblm/restapi/endpoints/v1/debitor/orderlines/';
-$test_db = 'test_db';
-$test_user = 'test_user';
-$test_auth = 'test_auth_token';
+$base_url = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/orderlines/';
+$test_db = 'test_4';
+$test_user = 'api';
+$test_auth = '4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD';
 
 // Test order ID (make sure this order exists in your database)
-$test_order_id = 1;
+$test_order_id = 45;
 
 /**
  * Helper function to make HTTP requests
@@ -76,7 +76,7 @@ function printTestResult($test_name, $result, $expected_code = 200) {
 // Common headers for all requests
 $headers = [
     'Content-Type: application/json',
-    'Authorization: Bearer ' . $test_auth,
+    'Authorization: ' . $test_auth,
     'x-saldiuser: ' . $test_user,
     'x-db: ' . $test_db
 ];
@@ -91,7 +91,7 @@ echo "\n" . str_repeat("🧪", 30) . " TEST SUITE START " . str_repeat("🧪", 3
 
 $test_data_1 = [
     'ordre_id' => $test_order_id,
-    'varenr' => 'TEST001',
+    'varenr' => '020065',
     'antal' => 2,
     'pris' => 100.50,
     'beskrivelse' => 'Test product line 1'
@@ -114,7 +114,7 @@ $test_2_passed = printTestResult('Create Order Line with Description Only', $res
 // Test 3: Create order line with vare_id
 $test_data_3 = [
     'ordre_id' => $test_order_id,
-    'vare_id' => 1,
+    'vare_id' => 10,
     'antal' => 3,
     'rabat' => 10.0,
     'beskrivelse' => 'Product by ID with discount'
@@ -134,7 +134,7 @@ $test_4_passed = printTestResult('Create Order Line with Minimum Data', $result_
 
 // Test 5: Error test - missing ordre_id
 $test_data_5 = [
-    'varenr' => 'TEST005',
+    'varenr' => '020065',
     'antal' => 1,
     'beskrivelse' => 'This should fail - no ordre_id'
 ];
@@ -145,7 +145,7 @@ $test_5_passed = printTestResult('Error Test - Missing ordre_id', $result_5, 400
 // Test 6: Error test - invalid order ID
 $test_data_6 = [
     'ordre_id' => 99999,
-    'varenr' => 'TEST006',
+    'varenr' => '020065',
     'antal' => 1,
     'beskrivelse' => 'This should fail - invalid order'
 ];
@@ -166,7 +166,7 @@ $test_7_passed = printTestResult('Error Test - Missing Authorization', $result_7
 // Test 8: Create order line with VAT-free setting
 $test_data_8 = [
     'ordre_id' => $test_order_id,
-    'varenr' => 'VATFREE001',
+    'varenr' => '020065',
     'antal' => 1,
     'pris' => 200.00,
     'momsfri' => 1,
@@ -179,7 +179,7 @@ $test_8_passed = printTestResult('Create VAT-Free Order Line', $result_8, 201);
 // Test 9: Create order line with percentage discount
 $test_data_9 = [
     'ordre_id' => $test_order_id,
-    'varenr' => 'DISCOUNT001',
+    'varenr' => '020065',
     'antal' => 2,
     'pris' => 150.00,
     'rabat' => 15.0,

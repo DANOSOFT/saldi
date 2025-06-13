@@ -39,28 +39,18 @@ class OrderLineEndpoint extends BaseEndpoint
     protected function handlePost($data)
     {
         try {
-            // Validate required fields
-            $this->validateData($data, ['ordre_id']);
-            
-            // Get database and user from headers for logging
-            $headers = array_change_key_case(getallheaders(), CASE_LOWER);
-            $db = $headers['x-db'] ?? 'unknown';
-            
             $service = new OrderLineService();
-            $result = $service->createOrderLine($data, $db);
+            $result = $service->createOrderLine($data);
             
             if ($result['success']) {
-                write_log("Order line created successfully for order: " . $data->ordre_id, $db, 'INFO');
-                $this->sendResponse(true, $result['data'], 'Order line created successfully', 201);
+                $this->sendResponse(true, $result['data'], $result['message'], 201);
             } else {
-                write_log("Failed to create order line: " . $result['message'], $db, 'ERROR');
-                $this->sendResponse(false, null, $result['message'], 400);
+                // Use the status_code from the service response, default to 500 if not set
+                $statusCode = isset($result['status_code']) ? $result['status_code'] : 500;
+                $this->sendResponse(false, null, $result['message'], $statusCode);
             }
         } catch (Exception $e) {
-            $headers = array_change_key_case(getallheaders(), CASE_LOWER);
-            $db = $headers['x-db'] ?? 'unknown';
-            write_log("Exception creating order line: " . $e->getMessage(), $db, 'ERROR');
-            $this->handleError($e);
+            $this->sendResponse(false, null, 'Internal server error: ' . $e->getMessage(), 500);
         }
     }
 

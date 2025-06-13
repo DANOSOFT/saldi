@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 4.0.7 --- 2023.03.04 ---
+// ---------------finans/bogfor.php---------- patch 4.1.1 --- 2025.06.12 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20121122 - Åbne poster udlignes ikke mere automatisk hvis forskelligt projektnummer. Søg 20121122
 // 20130210 - Break ændret til break 1
@@ -49,6 +49,7 @@
 // 20221018	PHR - Some cleanup.
 // 20230324	PHR - Correted errors in 'findtekst' (wrong text ID) 
 // 20230626 PHR - Moved this part into 'if ($r = db_fetch_array($q)) {' from below as amount was aligned
+// 20250612 PHR	- Extra diff controle
 
 @session_start();
 $s_id=session_id();
@@ -500,7 +501,8 @@ if (abs($diff)>=0.01 || count($diffbilag))  { #20131115 ( || count($diffbilag))
 	print "</tbody></table></td></tr>";
 	#$fejl=1;
 	if (abs($diff)>=0.01) $fejl=1;
-} elseif ($b!=$c) {
+} elseif ($b!=$c || abs($d_sum - $k_sum) >= 0.01) {
+echo "$b!=$c $d_sum != $k_sum<br>";
 	$message=$db." | Uoverensstemmelse i posteringssum | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
 	$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
 	mail('fejl@saldi.dk', 'SALDI Fejl', $message, $headers);

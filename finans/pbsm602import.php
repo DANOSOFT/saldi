@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/pbsm602import.php --- patch 4.0.8 --- 2023.10.23 ---
+// --- finans/pbsm602import.php --- patch 4.1.1 --- 2025.06.13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20200102 PHR Instead of finding the latest invoice it now finds the oldest unpaid invoice. 20200102
@@ -29,7 +29,8 @@
 // 20231003 PHR Reversed above.
 // 20231023 PHR Combined recognition with invoice nummer for use with and without.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-//
+// 20250613 PHR	Corrected error in chages made 20250130
+
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -127,7 +128,7 @@ function vis_data($kladde_id, $bilag, $modkonto){
 		if ($fp) {
 			while ($linje[$i]=fgets($fp)) {
 				if (trim($linje[$i])) {
-					$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
+					$linje[$i]=trim(mb_convert_encoding($linje[$i], 'UTF-8', 'ISO-8859-1'));
 					$fn[$i]=$fileName; 
 					$i++;
 				}
@@ -318,7 +319,7 @@ function flyt_data($kladde_id, $bilag, $modkonto){
 		if ($fp) {
 			while ($linje[$i]=fgets($fp)) {
 				if (trim($linje[$i])) {
-					$linje[$i]=trim(mb_convert_encoding($linje[$i]), 'UTF-8', 'ISO-8859-1');
+					$linje[$i]=trim(mb_convert_encoding($linje[$i], 'UTF-8', 'ISO-8859-1'));
 					$i++;
 				}
 			}

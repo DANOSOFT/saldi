@@ -1,8 +1,6 @@
 <?php
 
-include_once __DIR__ . "/../../includes/db_query.php";
-include_once __DIR__ . "/../../includes/connect.php";
-include_once __DIR__ . "/../../includes/std_func.php";
+require_once __DIR__ . '/../models/orderlines/OrderLineModel.php';
 
 class OrderLineService 
 {
@@ -27,19 +25,33 @@ class OrderLineService
             
             // Validate required fields
             if (empty($params['ordre_id'])) {
-                return ['success' => false, 'message' => 'Missing ordre_id'];
+                return [
+                    'success' => false, 
+                    'message' => 'Missing required field: ordre_id',
+                    'status_code' => 400  // Make sure this is included
+                ];
             }
 
             $orderId = $params['ordre_id'];
 
             // Validate order exists and status
             $orderInfo = $this->getOrderInfo($orderId);
+            // Order not found
             if (!$orderInfo) {
-                return ['success' => false, 'message' => 'Order not found'];
+                return [
+                    'success' => false, 
+                    'message' => 'Order not found',
+                    'status_code' => 400
+                ];
             }
 
+            // Order status check
             if ($orderInfo['status'] >= 3) {
-                return ['success' => false, 'message' => 'Cannot add lines to a posted order'];
+                return [
+                    'success' => false, 
+                    'message' => 'Cannot add lines to a posted order',
+                    'status_code' => 400
+                ];
             }
 
             // Set defaults
@@ -63,7 +75,11 @@ class OrderLineService
 
             // If no product found and no manual description, return error
             if (!$productInfo && empty($params['beskrivelse'])) {
-                return ['success' => false, 'message' => 'Product not found and no description provided'];
+                return [
+                    'success' => false, 
+                    'message' => 'Product not found and no description provided',
+                    'status_code' => 400
+                ];
             }
 
             // Calculate pricing
@@ -92,13 +108,24 @@ class OrderLineService
             }
 
         } catch (Exception $e) {
-            return ['success' => false, 'message' => $e->getMessage()];
+            return [
+                'success' => false, 
+                'message' => $e->getMessage(),
+                'status_code' => 500
+            ];
         }
     }
 
     private function getCurrentFiscalYear()
     {
         $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
+        
+        // Add error checking here
+        if (!$query) {
+            error_log("Failed to get fiscal year data");
+            return date('Y'); // Return current year as fallback
+        }
+        
         $currentYear = date('Y');
         $currentMonth = date('m');
         $regnaar = null;
@@ -137,6 +164,12 @@ class OrderLineService
                  WHERE ordrer.id='$orderId' AND adresser.id=ordrer.konto_id";
                  
         $result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        
+        if (!$result) {
+            error_log("Get order info failed for order ID: $orderId");
+            return null;
+        }
+        
         if ($r = db_fetch_array($result)) {
             return [
                 'art' => $r['art'],
@@ -246,17 +279,41 @@ class OrderLineService
 
     private function calculateVAT($varegruppe) 
     {
+        // Query 1: Get box4 from varegruppe
         $qtxt = "SELECT box4 FROM grupper WHERE art = 'VG' AND kodenr = '$varegruppe' AND fiscal_year = '{$this->regnaar}'";
-        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+        $result1 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        
+        if (!$result1) {
+            error_log("VAT Query 1 failed: $qtxt");
+            return ['account' => 0, 'rate' => $this->momssats];
+        }
+        
+        if ($r = db_fetch_array($result1)) {
             $bogfkto = $r['box4'];
             
             if ($bogfkto) {
-                $qtxt = "SELECT moms FROM kontoplan WHERE kontonr = '$bogfkto' AND regnskabsaar = '{$this->regnaar}'";
-                if ($r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                // Query 2: Get moms from kontoplan
+                $qtxt2 = "SELECT moms FROM kontoplan WHERE kontonr = '$bogfkto' AND regnskabsaar = '{$this->regnaar}'";
+                $result2 = db_select($qtxt2, __FILE__ . " linje " . __LINE__);
+                
+                if (!$result2) {
+                    error_log("VAT Query 2 failed: $qtxt2");
+                    return ['account' => 0, 'rate' => $this->momssats];
+                }
+                
+                if ($r2 = db_fetch_array($result2)) {
                     $momsCode = (int) substr($r2['moms'], 1);
                     if ($momsCode) {
-                        $qtxt = "SELECT box1, box2 FROM grupper WHERE art = 'SM' AND kodenr = '$momsCode' AND fiscal_year = '{$this->regnaar}'";
-                        if ($r3 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                        // Query 3: Get VAT rate
+                        $qtxt3 = "SELECT box1, box2 FROM grupper WHERE art = 'SM' AND kodenr = '$momsCode' AND fiscal_year = '{$this->regnaar}'";
+                        $result3 = db_select($qtxt3, __FILE__ . " linje " . __LINE__);
+                        
+                        if (!$result3) {
+                            error_log("VAT Query 3 failed: $qtxt3");
+                            return ['account' => 0, 'rate' => $this->momssats];
+                        }
+                        
+                        if ($r3 = db_fetch_array($result3)) {
                             return [
                                 'account' => (int) $r3['box1'],
                                 'rate' => (float) $r3['box2']
@@ -267,10 +324,7 @@ class OrderLineService
             }
         }
 
-        return [
-            'account' => 0,
-            'rate' => $this->momssats
-        ];
+        return ['account' => 0, 'rate' => $this->momssats];
     }
 
     private function insertNewOrderLine($data) 
@@ -288,29 +342,29 @@ class OrderLineService
             // Build description
             $beskrivelse = $params['beskrivelse'] ?? ($productInfo ? $productInfo['beskrivelse'] : '');
 
-            // Prepare values for insertion
-            $vare_id = $productInfo ? $productInfo['id'] : '';
+            // Prepare values for insertion - handle NULL values properly
+            $vare_id = $productInfo ? $productInfo['id'] : 'NULL';
             $varenr = $productInfo ? $productInfo['varenr'] : ($params['varenr'] ?? '');
             $enhed = $productInfo ? $productInfo['enhed'] : ($params['enhed'] ?? '');
             $antal = $params['antal'];
             $procent = $params['procent'];
             $momsfri = $params['momsfri'];
-            $variant_id = $variantInfo ? $variantInfo['id'] : '';
+            $variant_id = $variantInfo ? $variantInfo['id'] : 'NULL';
 
             // Escape strings
             $beskrivelse = db_escape_string($beskrivelse);
             $varenr = db_escape_string($varenr);
             $enhed = db_escape_string($enhed);
 
-            // Insert the order line
+            // Insert the order line - use NULL for integer fields when no value
             $qtxt = "INSERT INTO ordrelinjer (
                 ordre_id, vare_id, varenr, enhed, beskrivelse, antal, rabat, procent,
                 pris, vat_price, kostpris, momsfri, momssats, posnr, vat_account, variant_id
             ) VALUES (
-                '$orderId', '$vare_id', '$varenr', '$enhed', '$beskrivelse', '$antal', 
+                '$orderId', $vare_id, '$varenr', '$enhed', '$beskrivelse', '$antal', 
                 '{$pricing['discount']}', '$procent', '{$pricing['price']}', '{$pricing['vat_price']}', 
                 '{$pricing['cost']}', '$momsfri', '{$pricing['vat_rate']}', '$posnr', 
-                '{$pricing['vat_account']}', '$variant_id'
+                '{$pricing['vat_account']}', $variant_id
             )";
 
             $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);

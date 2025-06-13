@@ -257,6 +257,17 @@ class OrderService
      */
     private static function getValutakurs($valuta)
     {
+        $qtxt = "SELECT var_value FROM settings WHERE var_name = 'baseCurrency'";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        if ($r = db_fetch_array($q)) {
+            $baseCurrency = $r['var_value'];
+        }else{
+            $baseCurrency = 'DKK'; // Default base currency if not set
+        }
+        if($baseCurrency == $valuta) {
+            return 100; // No conversion needed for base currency
+        }
+
         $qtxt = "SELECT box2 FROM grupper WHERE art = 'VK' AND box1 = '$valuta'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
