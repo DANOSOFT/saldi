@@ -66,6 +66,7 @@
 // 20250314 LOE	- Sanitized some inputs to mitigate against XSS attack
 // 20250325 LOE - Fixed 'ansat_id'  "Undefined array key" notice and checks that other variables are set before use if $userId exists
 // 20250405 LOE - Revised with several improvements
+// 20250614 PHR - sanitize prevented login for users with, among other things, email as username
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -125,8 +126,6 @@ if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE online ALTER COLUMN session_id TYPE varchar(32)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
-
-
 #$_COOKIE['timezone'] = $timezone;#20210929
 
 $r=db_fetch_array(db_select("select var_value from settings where var_name='alertText'",__FILE__ . " linje " . __LINE__));
@@ -159,7 +158,8 @@ print "</head>";
 
 $dbMail=NULL;
 function sanitize_input($input) {
-	// Trim the input to remove any leading/trailing whitespace
+	return $input; // No sanitization needed for this example, but you can add your own logic here.
+	/* // Trim the input to remove any leading/trailing whitespace
 	$input = trim($input);
 	
 	// Remove any special characters that might lead to SQL injection
@@ -169,9 +169,9 @@ function sanitize_input($input) {
 		return false;
 	}
 	
-	return $input;
+	return $input; */
 }
-
+/* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
 if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 	if ($regnskab = trim($_POST['regnskab'])){
 		#	}	else {
@@ -180,13 +180,11 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 		#		 $password = "test";
 
 		// Sanitize
-		
+
 		$brugernavn = isset($_POST['brugernavn']) ? sanitize_input(htmlspecialchars(trim($_POST['brugernavn']), ENT_COMPAT, $charset)) : null;
 		$password = isset($_POST['password']) ? sanitize_input(htmlspecialchars(trim($_POST['password']), ENT_COMPAT, $charset)) : null;
 		$timestamp = isset($_POST['timestamp']) ? sanitize_input(trim($_POST['timestamp'])) : null;
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
-		$afbryd = isset($_POST['afbryd']) ? sanitize_input(trim($_POST['afbryd'])) : null;
-
 
 	}
 	if (isset($_POST['huskmig'])) {
@@ -209,7 +207,8 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
         }
 	}
 	$unixtime=date("U");
-	$r=db_fetch_array(db_select("select * from regnskab where regnskab = '$sqdb'",__FILE__ . " linje " . __LINE__));
+	$qtxt = "select * from regnskab where regnskab = '$sqdb'";
+	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$masterversion=$r["version"];
 	$asIs = db_escape_string($regnskab);
 	$low = strtolower($regnskab);
@@ -229,7 +228,6 @@ if ((isset($_POST['regnskab']))||($_GET['login']=='test')) {
 #	$qtxt = "select * from regnskab where regnskab = '$asIs'";
  #	$qtxt.= " or lower(regnskab) = '".db_escape_string(strtolower($regnskab))."'";
  # $qtxt.= " or upper(regnskab) = '".db_escape_string(strtoupper($regnskab))."'";
-
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))){
 		$dbuser = trim(if_isset($r['dbuser'], ''));
 		$dbver = trim(if_isset($r['version'], ''));
@@ -394,7 +392,6 @@ if ($db && !file_exists("../temp/.ht_$db.log")) {
 	fwrite($fp,"\\connect $db;\n");
 	fclose ($fp);
 }
-echo "db $db<br>";
 if ($db) {
 	$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
 	$qtxt.= "and db = '$db'";
