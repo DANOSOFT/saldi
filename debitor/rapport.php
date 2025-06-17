@@ -47,7 +47,7 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
-// include("../includes/row-hover-style-with-links.js.php");
+include("../includes/row-hover-style-with-links.js.php");
 
 print '
 <style>
