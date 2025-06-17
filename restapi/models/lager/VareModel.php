@@ -45,211 +45,246 @@ class VareModel
      */
     private function loadFromId($id)
     {
-        $qtxt = "SELECT * FROM varer WHERE id = $id";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        $query = "SELECT * FROM varer WHERE id = '$id'";
+        $result = db_select($query, __FILE__ . " line " . __LINE__);
+        
+        if ($result && db_num_rows($result) > 0) {
+            $row = db_fetch_array($result);
+            if ($row) {
+                $this->loadFromArray($row);
+            }
+        }
+    }
 
-        if ($r = db_fetch_array($q)) {
-            $this->id = (int)$r['id'];
-            $this->varenr = $r['varenr'];
-            $this->stregkode = $r['stregkode'];
-            $this->beskrivelse = $r['beskrivelse'];
-            $this->enhed = $r['enhed'];
-            $this->enhed2 = $r['enhed2'];
+    /**
+     * Find products by field value
+     */
+    public static function findBy($field, $value)
+    {
+        // Validate field name to prevent SQL injection
+        $allowedFields = ['id', 'varenr', 'stregkode', 'beskrivelse'];
+        if (!in_array($field, $allowedFields)) {
+            error_log("Invalid field name in VareModel::findBy: $field");
+            return [];
+        }
+        
+        // Escape the value to prevent SQL injection
+        $escapedValue = pg_escape_string($value);
+        $query = "SELECT * FROM varer WHERE $field = '$escapedValue'";
+        
+        // Execute query with error handling
+        $result = db_select($query, __FILE__ . " line " . __LINE__);
+        
+        // Check if query failed
+        if ($result === false) {
+            error_log("Database query failed in VareModel::findBy for field: $field, value: $value");
+            return [];
+        }
+        
+        $items = [];
+        if ($result && db_num_rows($result) > 0) {
+            while ($row = db_fetch_array($result)) {
+                if ($row) {
+                    $vare = new VareModel();
+                    $vare->loadFromArray($row);
+                    $items[] = $vare;
+                }
+            }
+        }
+        
+        return $items;
+    }
 
-            $this->salgspris = (float)$r['salgspris'];
-            $this->kostpris = (float)$r['kostpris'];
+    /**
+     * Get all products
+     */
+    public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC')
+    {
+        // Validate orderBy to prevent SQL injection
+        $allowedOrderBy = ['id', 'varenr', 'beskrivelse', 'modtime'];
+        $allowedDirection = ['ASC', 'DESC'];
+        
+        if (!in_array($orderBy, $allowedOrderBy)) {
+            $orderBy = 'id';
+        }
+        if (!in_array($orderDirection, $allowedDirection)) {
+            $orderDirection = 'ASC';
+        }
+        
+        $query = "SELECT * FROM varer ORDER BY $orderBy $orderDirection";
+        $result = db_select($query, __FILE__ . " line " . __LINE__);
+        
+        $items = [];
+        if ($result && db_num_rows($result) > 0) {
+            while ($row = db_fetch_array($result)) {
+                if ($row) {
+                    $vare = new VareModel();
+                    $vare->loadFromArray($row);
+                    $items[] = $vare;
+                }
+            }
+        }
+        
+        return $items;
+    }
 
-            $this->lager = LagerModel::getAllItems($this->id);
-            $this->gruppe = new VareGruppeModel(NULL, $r['gruppe']);
-            
-            // Load size data into SizeModel
-            $this->size = new SizeModel([
-                'width' => isset($r['width']) ? $r['width'] : 0,
-                'height' => isset($r['height']) ? $r['height'] : 0,
-                'length' => isset($r['length']) ? $r['length'] : 0,
-                'netWeight' => isset($r['netweight']) ? $r['netweight'] : 0,
-                'grossWeight' => isset($r['grossweight']) ? $r['grossweight'] : 0,
-                'netWeightUnit' => isset($r['netweightunit']) ? $r['netweightunit'] : 'kg',
-                'grossWeightUnit' => isset($r['grossweightunit']) ? $r['grossweightunit'] : 'kg',
-                'modTime' => isset($r['modtime']) ? $r['modtime'] : null
-            ]);
+    /**
+     * Save product to database
+     */
+    public function save()
+    {
+        try {
+            if ($this->id) {
+                // UPDATE existing record
+                return $this->updateRecord();
+            } else {
+                // INSERT new record
+                return $this->insertRecord();
+            }
+        } catch (Exception $e) {
+            error_log("Error in VareModel::save(): " . $e->getMessage());
+            return "Error saving product: " . $e->getMessage();
+        }
+    }
 
+    /**
+     * Insert new record
+     */
+    private function insertRecord()
+    {
+        $this->modtime = date('Y-m-d H:i:s');
+        
+        // Escape values to prevent SQL injection
+        $varenr = pg_escape_string($this->varenr ?? '');
+        $stregkode = pg_escape_string($this->stregkode ?? '');
+        $beskrivelse = pg_escape_string($this->beskrivelse ?? '');
+        $salgspris = floatval($this->salgspris ?? 0);
+        $kostpris = floatval($this->kostpris ?? 0);
+        $modtime = pg_escape_string($this->modtime);
+        
+        $query = "INSERT INTO varer (varenr, stregkode, beskrivelse, salgspris, kostpris, modtime) 
+                  VALUES ('$varenr', '$stregkode', '$beskrivelse', $salgspris, $kostpris, '$modtime')";
+        
+        $result = db_modify($query, __FILE__ . " line " . __LINE__);
+        
+        if ($result) {
+            // Try to get the inserted ID
+            $this->loadLastInsertedId();
             return true;
         }
-
+        
         return false;
     }
 
     /**
-     * Save/update the current item
-     * 
-     * @return bool Success status
+     * Update existing record
      */
-    public function save()
+    private function updateRecord()
     {
-        if ($this->id) {
-            // Update existing item with all properties including size
-            $qtxt = "UPDATE varer SET 
-                stregkode = '$this->stregkode', 
-                beskrivelse = '$this->beskrivelse',
-                width = " . $this->size->getWidth() . ",
-                height = " . $this->size->getHeight() . ",
-                length = " . $this->size->getLength() . ",
-                netweight = " . $this->size->getNetWeight() . ",
-                grossweight = " . $this->size->getGrossWeight() . ",
-                netweightunit = '" . $this->size->getNetWeightUnit() . "',
-                grossweightunit = '" . $this->size->getGrossWeightUnit() . "',
-                modtime = NOW()
-                WHERE id = $this->id";
+        $this->modtime = date('Y-m-d H:i:s');
+        
+        // Escape values to prevent SQL injection
+        $varenr = pg_escape_string($this->varenr ?? '');
+        $stregkode = pg_escape_string($this->stregkode ?? '');
+        $beskrivelse = pg_escape_string($this->beskrivelse ?? '');
+        $salgspris = floatval($this->salgspris ?? 0);
+        $kostpris = floatval($this->kostpris ?? 0);
+        $modtime = pg_escape_string($this->modtime);
+        $id = intval($this->id);
+        
+        $query = "UPDATE varer SET 
+                    varenr = '$varenr', 
+                    stregkode = '$stregkode', 
+                    beskrivelse = '$beskrivelse', 
+                    salgspris = $salgspris, 
+                    kostpris = $kostpris, 
+                    modtime = '$modtime' 
+                  WHERE id = $id";
+        
+        $result = db_modify($query, __FILE__ . " line " . __LINE__);
+        
+        return $result !== false;
+    }
 
-            $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-            return explode("\t", $q)[0] == "0";
-        } else {
-            // Insert new item with size data
-            $qtxt = "INSERT INTO varer (
-                varenr, 
-                stregkode, 
-                beskrivelse, 
-                width, 
-                height, 
-                length, 
-                netweight, 
-                grossweight, 
-                netweightunit, 
-                grossweightunit, 
-                specialtype, 
-                modtime
-            ) VALUES (
-                '$this->varenr', 
-                '$this->stregkode', 
-                '$this->beskrivelse',
-                " . $this->size->getWidth() . ",
-                " . $this->size->getHeight() . ",
-                " . $this->size->getLength() . ",
-                " . $this->size->getNetWeight() . ",
-                " . $this->size->getGrossWeight() . ",
-                '" . $this->size->getNetWeightUnit() . "',
-                '" . $this->size->getGrossWeightUnit() . "',
-                NOW()
-            )";
-
-            $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-            return explode("\t", $q)[0] == "0";
+    /**
+     * Get the last inserted ID
+     */
+    private function loadLastInsertedId()
+    {
+        try {
+            if ($this->varenr) {
+                $varenr = pg_escape_string($this->varenr);
+                $query = "SELECT id FROM varer WHERE varenr = '$varenr' ORDER BY id DESC LIMIT 1";
+                $result = db_select($query, __FILE__ . " line " . __LINE__);
+                
+                if ($result && db_num_rows($result) > 0) {
+                    $row = db_fetch_array($result);
+                    if ($row && isset($row['id'])) {
+                        $this->id = $row['id'];
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log("Error getting last inserted ID: " . $e->getMessage());
         }
     }
 
     /**
-     * Delete the current item
-     * 
-     * @return bool Success status
+     * Delete product from database
      */
     public function delete()
     {
         if (!$this->id) {
             return false;
         }
-
-        $qtxt = "DELETE FROM varer WHERE id = ?";
-        $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
-        return explode("\t", $q)[0] == "0";
+        
+        $id = intval($this->id);
+        $query = "DELETE FROM varer WHERE id = $id";
+        $result = db_modify($query, __FILE__ . " line " . __LINE__);
+        
+        if ($result !== false) {
+            $this->id = null;
+            return true;
+        }
+        
+        return false;
     }
 
     /**
-     * Class method to get all items in a lighter DTO format
-     * 
-     * @param string $orderBy Column to order by (default: varenr)
-     * @param string $orderDirection Sort direction (default: ASC)
-     * @return VareReadDTO[] Array of VareReadDTO objects
+     * Load product data from array
      */
-    public static function getAllItems($orderBy = 'varenr', $orderDirection = 'ASC')
+    private function loadFromArray($row)
     {
-        // Whitelist allowed order by columns to prevent SQL injection
-        $allowedOrderBy = [
-            'id', 'varenr', 'stregkode', 'beskrivelse', 'salgspris', 'kostpris', 'modtime'
-        ];
-        $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'varenr';
-
-        // Validate order direction
-        $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
-
-        // Only select needed columns for VareReadDTO
-        $qtxt = "SELECT id, varenr, stregkode, beskrivelse, salgspris, kostpris, modtime 
-                FROM varer 
-                ORDER BY $orderBy $orderDirection";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-
-        $items = [];
-        while ($r = db_fetch_array($q)) {
-            // Create DTO directly from DB row instead of loading full VareModel
-            $items[] = new VareReadDTO($r);
-        }
-
-        return $items;
+        $this->id = $row['id'] ?? null;
+        $this->varenr = $row['varenr'] ?? null;
+        $this->stregkode = $row['stregkode'] ?? null;
+        $this->beskrivelse = $row['beskrivelse'] ?? null;
+        $this->enhed = $row['enhed'] ?? null;
+        $this->enhed2 = $row['enhed2'] ?? null;
+        $this->salgspris = $row['salgspris'] ?? null;
+        $this->kostpris = $row['kostpris'] ?? null;
+        $this->modtime = $row['modtime'] ?? null;
     }
 
     /**
-     * Class method to find items by a specific field
-     * 
-     * @param string $field Field to search
-     * @param string $value Value to match
-     * @return VareModel[] Array of matching Vare objects
-     */
-    public static function findBy($field, $value)
-    {
-        // Whitelist allowed search fields
-        $allowedFields = [
-            'id', 'varenr', 'stregkode', 'beskrivelse',
-            'width', 'height', 'length', 'netweight', 'grossweight', 'specialtype'
-        ];
-        if (!in_array($field, $allowedFields)) {
-            return [];
-        }
-
-        $qtxt = "SELECT id FROM varer WHERE $field = ?";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-
-        $items = [];
-        while ($r = db_fetch_array($q)) {
-            $items[] = new VareModel($r['id']);
-        }
-
-        return $items;
-    }
-
-    /**
-     * Method to convert object to array
-     * 
-     * @return array Associative array of item properties
+     * Convert to array
      */
     public function toArray()
     {
-        $lagere = array();
-        foreach ($this->lager as $key => $value) {
-            $lagere[] = $value->toArray();
-        }
-
-        return array(
+        return [
             'id' => $this->id,
             'varenr' => $this->varenr,
             'stregkode' => $this->stregkode,
             'beskrivelse' => $this->beskrivelse,
-            'enhed' => array(
-                'enhed' => $this->enhed,
-                'enhed2' => $this->enhed2
-            ),
-            'priser' => array(
-                'salgspris' => $this->salgspris,
-                'momspris' => $this->getPrisInklMoms(),
-                'moms' => $this->getPrisInklMoms() - $this->salgspris,
-                'kostpris' => $this->kostpris,
-            ),
-            'size' => $this->size->toArray(),
-            'lager' => $lagere,
-            'gruppe' => $this->gruppe->toArray(),
-        );
+            'enhed' => $this->enhed,
+            'enhed2' => $this->enhed2,
+            'salgspris' => $this->salgspris,
+            'kostpris' => $this->kostpris,
+            'gruppe' => $this->gruppe ? $this->gruppe->toArray() : null,
+            'lager' => $this->lager ? $this->lager->toArray() : null,
+            'size' => $this->size ? $this->size->toArray() : null,
+            'modtime' => $this->modtime
+        ];
     }
 
     // Getter methods
