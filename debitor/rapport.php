@@ -47,7 +47,47 @@ include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
-include("../includes/row-hover-style-with-links.js.php");
+// include("../includes/row-hover-style-with-links.js.php");
+
+print '
+<style>
+.hover-highlight:hover {
+  outline: 2px solid #000;
+  background-color: #f9f9f9;
+  cursor: pointer;
+}
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // Only apply to tables with a specific class, e.g. "data-table"
+  document.querySelectorAll("table.data-table").forEach(table => {
+    table.querySelectorAll("tr").forEach(row => {
+      const tds = row.querySelectorAll("td");
+      if (tds.length <= 1) return;
+      if (row.offsetParent === null) return;
+
+      let hasLabel = false;
+      let skip = false;
+
+      for (let td of tds) {
+        if (td.querySelector("label")) {
+          hasLabel = true;
+        }
+        const interactive = td.querySelector("button, select, input:not([type=\'hidden\']), b, i, img");
+        if (interactive) {
+          skip = true;
+          break;
+        }
+      }
+
+      if (!skip || hasLabel) {
+        row.classList.add("hover-highlight");
+      }
+    });
+  });
+});
+</script>
+';
 
 #print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 global $sprog_id; //2021

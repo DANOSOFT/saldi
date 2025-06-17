@@ -677,9 +677,27 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	global $menu;
 	global $rettigheder;
 	global $sprog_id;
-	$backUrl = isset($_GET['returside'])
-		? $_GET['returside']
-		: 'javascript:window.history.go(-2);';
+	print "<script>
+		function saldiSpecialBack() {
+		const params = new URLSearchParams(window.location.search);
+		
+		if (
+			params.has('dato_fra') && params.get('dato_fra') === '' &&
+			params.has('dato_til') && params.get('dato_til') === '' &&
+			params.has('konto_fra') && params.get('konto_fra') === '' &&
+			params.has('konto_til') && params.get('konto_til') === ''
+		) {
+			
+			window.location = '/index/menu.php';
+		} else {
+		
+			window.history.go(-2);
+			    }
+		}
+</script>";
+$backUrl = isset($_GET['returside']) ? $_GET['returside'] : 'javascript:saldiSpecialBack()';
+
+
 	$husk = "";
 	print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 	($kontoart == 'D') ? $tekst = 'DRV' : $tekst = 'KRV';
