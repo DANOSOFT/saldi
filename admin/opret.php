@@ -542,7 +542,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.=" meta_value text, meta_description text, user_id integer, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE drawer (id integer, openings integer)", __FILE__ . "linje" . __LINE__);
-	$qtxt="CREATE TABLE proforma ($id_column, price $decimal_type(15,3), count integer, PRIMARY KEY (id))";	
+	$qtxt="CREATE TABLE proforma ($id_column, price $decimal_type(15,3), count integer, report_number integer, kasse integer PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . "linje" . __LINE__);
 	$qtxt="CREATE TABLE deleted_order ($id_column, price $decimal_type(15,3), kasse integer, ordre_id integer,report_number integer default 0, PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . "linje" . __LINE__);
