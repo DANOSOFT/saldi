@@ -83,7 +83,7 @@ class OrderLineModel
         return false;
     }
 
-    public function delete()
+    /* public function delete()
     {
         if (!$this->id) {
             return false;
@@ -92,7 +92,7 @@ class OrderLineModel
         $qtxt = "DELETE FROM ordrelinjer WHERE id = $this->id";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
         return explode("\t", $q)[0] == "0";
-    }
+    } */
 
     public static function getByOrderId($orderId)
     {

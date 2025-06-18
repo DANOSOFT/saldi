@@ -3,7 +3,7 @@ require_once '../../../../models/orders/OrderModel.php';
 require_once '../../../../services/OrderService.php';
 require_once '../../../../core/BaseEndpoint.php';
 
-class OrderEndpoint extends BaseEndpoint
+class KreditorOrderEndpoint extends BaseEndpoint
 {
     public function __construct()
     {
@@ -20,8 +20,8 @@ class OrderEndpoint extends BaseEndpoint
                 $this->sendResponse(false, null, 'Order not found', 404);
             }
         } else {
-            // Get all orders with art = 'DO' for debitor
-            $orders = OrderModel::getAllItems('DO');
+            // Get all orders with art = 'KO' for kreditor
+            $orders = OrderModel::getAllItems('KO');
             $items = [];
             foreach ($orders as $order) {
                 $items[] = $order->toArray();
@@ -32,8 +32,8 @@ class OrderEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
-        // Set art to DO for debitor orders
-        $data->art = 'DO';
+        // Set art to KO for kreditor orders
+        $data->art = 'KO';
         $result = OrderService::createOrder($data);
         
         if ($result['success']) {
@@ -91,5 +91,5 @@ class OrderEndpoint extends BaseEndpoint
     }
 }
 
-$endpoint = new OrderEndpoint();
+$endpoint = new KreditorOrderEndpoint();
 $endpoint->handleRequestMethod();

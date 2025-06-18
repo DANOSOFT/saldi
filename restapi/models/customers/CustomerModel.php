@@ -105,7 +105,6 @@ class CustomerModel
     public function save()
     {
         // Set default values
-        $this->art = 'D';
         $this->gruppe = $this->gruppe ?: 1;
         
         // Handle integer fields - set to NULL if empty/null, otherwise ensure they're integers
@@ -140,6 +139,7 @@ class CustomerModel
         $lev_email = db_escape_string($this->lev_email ?: '');
         $lev_land = db_escape_string($this->lev_land ?: '');
         $kontakt = db_escape_string($this->kontakt ?: '');
+        $art = db_escape_string($this->art ?: '');
 
         // Insert new customer
         $qtxt = "INSERT INTO adresser (
@@ -152,7 +152,7 @@ class CustomerModel
             '$cvrnr', '$land', '$bank_navn', '$bank_reg', '$bank_konto', '$bank_fi',
             '$notes', '$betalingsbet', $betalingsdage, '$ean', '$fornavn',
             '$efternavn', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr',
-            '$lev_bynavn', '$lev_tlf', '$lev_email', '$lev_land', '$kontakt', 'D', $gruppe
+            '$lev_bynavn', '$lev_tlf', '$lev_email', '$lev_land', '$kontakt', '$art', $gruppe
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -199,13 +199,13 @@ class CustomerModel
      * @param string $orderDirection Sort direction (default: ASC)
      * @return CustomerModel[] Array of CustomerModel objects
      */
-    public static function getAllItems($orderBy = 'firmanavn', $orderDirection = 'ASC')
+    public static function getAllItems($art, $orderBy = 'firmanavn', $orderDirection = 'ASC')
     {
         $allowedOrderBy = ['id', 'firmanavn', 'tlf', 'email'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'firmanavn';
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
 
-        $qtxt = "SELECT id FROM adresser WHERE art = 'D' ORDER BY $orderBy $orderDirection";
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art' ORDER BY $orderBy $orderDirection";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
@@ -354,11 +354,13 @@ class CustomerModel
     public function getEfternavn() { return $this->efternavn; }
     public function getKontakt() { return $this->kontakt; }
     public function getGruppe() { return $this->gruppe; }
+    public function getArt() { return $this->art; }
 
     // Setters for required fields
     public function setFirmanavn($firmanavn) { $this->firmanavn = $firmanavn; }
     public function setTlf($tlf) { $this->tlf = $tlf; }
     public function setEmail($email) { $this->email = $email; }
+    public function setArt() { $this->art = $art; } // Always set to 'D' for debitor
 
     // Setters for optional fields
     public function setAddr1($addr1) { $this->addr1 = $addr1; }

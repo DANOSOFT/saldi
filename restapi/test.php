@@ -88,9 +88,9 @@ function testGetOrder($orderId) {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'Authorization: 4M1SlprEv82hhtl2KSfCFOs4*BzLYgAdUD',
+        'Authorization: 4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD',
         'x-saldiuser: api',
-        'x-db: develop_8'
+        'x-db: test_4'
     ]);
     
     $response = curl_exec($ch);
@@ -119,9 +119,9 @@ $ch = curl_init("https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
-    'Authorization: 4M1SlprEv82hhtl2KSfCFOs4*BzLYgAdUD',
+    'Authorization: 4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD',
     'x-saldiuser: api',
-    'x-db: develop_8'
+    'x-db: test_4'
 ]);
 
 $response = curl_exec($ch);

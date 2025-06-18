@@ -4,7 +4,7 @@ require_once '../../../../models/customers/CustomerModel.php';
 require_once '../../../../services/CustomerService.php';
 require_once '../../../../core/BaseEndpoint.php';
 
-class CustomerEndpoint extends BaseEndpoint
+class CreditorEndpoint extends BaseEndpoint
 {
     public function __construct()
     {
@@ -22,7 +22,7 @@ class CustomerEndpoint extends BaseEndpoint
             }
         } else {
             // Get all customers
-            $customers = CustomerModel::getAllItems('D');
+            $customers = CustomerModel::getAllItems('K');
             $items = [];
             foreach ($customers as $customer) {
                 $items[] = $customer->toArray();
@@ -33,7 +33,7 @@ class CustomerEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
-        $data->art = 'D'; // Set art to 'D' for debitor customers
+        $data->art = 'K'; // Set art to 'D' for debitor customers
         $result = CustomerService::createCustomer($data);
         
         if ($result['success']) {

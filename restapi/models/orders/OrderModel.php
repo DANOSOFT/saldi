@@ -36,7 +36,7 @@ class OrderModel
     private $status;
     private $ordrenr;
     private $valutakurs;
-
+    private $art;
     /**
      * Constructor - can create an empty Order or load an existing one by ID
      * 
@@ -121,7 +121,7 @@ class OrderModel
             '$this->lev_land', '$this->ean', '$this->cvrnr', '$this->ordredate', '$this->notes',
             '$this->betalt', '$this->sum', '$this->kostpris', '$this->moms', '$this->valuta',
             '$this->betalingsbet', '$this->betalingsdage', '$this->kontonr', '$this->ref',
-            '$this->status', '$this->ordrenr', '$this->valutakurs', 'DO'
+            '$this->status', '$this->ordrenr', '$this->valutakurs', '$this->art'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -161,7 +161,7 @@ class OrderModel
      * 
      * @return bool Success status
      */
-    public function delete()
+/*     public function delete()
     {
         if (!$this->id) {
             return false;
@@ -171,7 +171,7 @@ class OrderModel
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
-    }
+    } */
 
     /**
      * Class method to get all orders
@@ -180,7 +180,7 @@ class OrderModel
      * @param string $orderDirection Sort direction (default: DESC)
      * @return OrderModel[] Array of OrderModel objects
      */
-    public static function getAllItems($orderBy = 'ordrenr', $orderDirection = 'DESC')
+    public static function getAllItems($art, $orderBy = 'ordrenr', $orderDirection = 'DESC')
     {
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'ordrenr', 'firmanavn', 'ordredate', 'status'];
@@ -189,7 +189,7 @@ class OrderModel
         // Validate order direction
         $orderDirection = strtoupper($orderDirection) === 'ASC' ? 'ASC' : 'DESC';
 
-        $qtxt = "SELECT id FROM ordrer ORDER BY $orderBy $orderDirection";
+        $qtxt = "SELECT id FROM ordrer WHERE art = 'art' ORDER BY $orderBy $orderDirection";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
@@ -207,7 +207,7 @@ class OrderModel
      * @param string $value Value to match
      * @return OrderModel[] Array of matching Order objects
      */
-    public static function findBy($field, $value)
+    public static function findBy($field, $value, $art)
     {
         // Whitelist allowed search fields
         $allowedFields = ['id', 'ordrenr', 'firmanavn', 'email', 'phone', 'status'];
@@ -299,6 +299,7 @@ class OrderModel
     public function getBetalt() { return $this->betalt; }
     public function getOrdredate() { return $this->ordredate; }
     public function getNotes() { return $this->notes; }
+    public function getArt() { return $this->art; }
 
     // Setter methods - ALL REQUIRED SETTERS
     public function setKontoId($konto_id) { $this->konto_id = $konto_id; }
@@ -320,7 +321,8 @@ class OrderModel
     public function setBetalt($betalt) { $this->betalt = $betalt; }
     public function setOrdredate($ordredate) { $this->ordredate = $ordredate; }
     public function setNotes($notes) { $this->notes = $notes; }
-    
+    public function setArt($art) { $this->art = $art; }
+
     // Address setters
     public function setAddr1($addr1) { $this->addr1 = $addr1; }
     public function setAddr2($addr2) { $this->addr2 = $addr2; }

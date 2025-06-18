@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Customer Endpoint Test Script
+ * Creditor Endpoint Test Script
  * 
  * This script tests all CRUD operations for the Customer API endpoint
  * including validation for duplicate email and phone numbers.
@@ -16,7 +16,7 @@ class CustomerEndpointTest
     public function __construct()
     {
         // Configure your API base URL and headers
-        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/customers/';
+        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/creditor/creditors/';
         
         // Set your actual authorization headers
         $this->headers = [
@@ -66,8 +66,8 @@ class CustomerEndpointTest
         
         $customerData = [
             'firmanavn' => 'Test Company A',
-            'tlf' => '59842689',
-            'email' => 'test2@company-a.com',
+            'tlf' => '59842687',
+            'email' => 'test@company-a.com',
             'addr1' => 'Test Street 123',
             'postnr' => '1234',
             'bynavn' => 'Test City',
