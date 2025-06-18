@@ -866,7 +866,9 @@ function get_all_labels() {
     ml.price, 
     ml.sold, 
     ml.hidden,
+	ml.barcode,
     a.firmanavn, 
+	a.id,
     a.email
 FROM mylabel ml
 LEFT JOIN adresser a ON a.id = ml.account_id
