@@ -25,6 +25,7 @@
 // 17042024 MMK  - Added suport for reloading page, and keeping current URI, DELETED old system that didnt work
 // 17102024 PBLM - Added link to booking
 // 26052025 LOE  - Sets v.lukket to '' instead of v.lukket.
+// 17062025 PBLM - Fixed bug where you could not search for leverandør in vareliste.
 
 @session_start();
 $s_id = session_id();
@@ -132,7 +133,7 @@ $columns[] = array(
     "field" => "leverandør",
     "headerName" => "Leverandør",
     "width" => "1.5",
-    "sqlOverride" => "levs.lev",
+    "sqlOverride" => "ol.lev", // Fixed: changed from "levs.lev" to "ol.lev"
     "render" => function ($value, $row, $column) {
         $html = "<td align='$column[align]'>";
         if ($value) {
@@ -303,7 +304,7 @@ while ($row = db_fetch_array($q)) {
     $levs[] = array(
         "name" => $row["firmanavn"],
         "checked" => "",
-        "sqlOn" => "ol.kontonr_concat LIKE '%$row[kontonr]%'", // Use optimized_levs alias
+        "sqlOn" => "ol.kontonr_concat LIKE '%$row[kontonr]%'", // Fixed: changed from levs.lev to ol.kontonr_concat
         "sqlOff" => "",
     );
 }
