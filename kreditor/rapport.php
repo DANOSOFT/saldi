@@ -1,7 +1,7 @@
 <?php
 
-// --- kreditor/rapport.php-----patch 4.0.8 ----2023-07-23--------------
-//                           LICENSE
+// --- kreditor/rapport.php-----patch 4.0.8 ----2025-06-18--------------
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -17,9 +17,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2023.03.23 PBLM Fixed minor errors
+// 20250618 PHR - changed $modulnr from 8 to 13;
 
 
 @session_start();
@@ -27,7 +28,7 @@ $s_id = session_id();
 $css = "../css/std.css";
 
 $title = "Kreditorrapport";
-$modulnr = 8;
+$modulnr = 13;
 
 include("../includes/connect.php");
 include("../includes/online.php");
