@@ -42,7 +42,8 @@ phpmailerOld/
 phpmailer/
 mappe/
 bilag/
-
+utils/
+/utils/
 # Python stuff
 __pycache__/
 .pytest_cache

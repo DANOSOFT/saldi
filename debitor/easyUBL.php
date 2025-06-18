@@ -2,10 +2,10 @@
 
     // This file is used to receive webhooks from EasyUBL
 
-    require '../vendor/autoload.php';
+    /* require '../vendor/autoload.php';
     use PHPMailer\PHPMailer\PHPMailer;
     use PHPMailer\PHPMailer\SMTP;
-    use PHPMailer\PHPMailer\Exception;
+    use PHPMailer\PHPMailer\Exception; */
     include("../includes/connect.php");
     // Retrieving webhook data
     $webhookData = file_get_contents('php://input');
@@ -23,13 +23,9 @@
 
     // get server name based on domain
     $domain = "https://".$_SERVER['SERVER_NAME'];
-    if($domain == "https://ssl8.saldi.dk"){
-        $serverName = "$domain/laja";
-    }else if($domain == "https://ssl5.saldi.dk"){
-        $serverName = "$domain/finans";
-    }else{
-        $serverName = "$domain/pos";
-    }
+    $path = trim($_SERVER['REQUEST_URI'], '/');
+    $firstFolder = explode('/', $path)[0];
+    $serverName = "$domain/$firstFolder";
 
     // get db name
     $companyId = json_decode($webhookData, true);
@@ -45,22 +41,24 @@
         $db = $output["db_name"];
         $dbLocation = $output["db_location"];
         $connection=db_connect($sqhost,$squser,$sqpass,$db);
+        file_put_contents("../temp/$db/connection-$timestamp.text", $connection);
+        file_put_contents("../temp/$db/db-$timestamp.text", "$sqhost | $squser | $sqpass | $db");
         $email = $output["email"];
         
         if(!file_exists("../temp/$db")){
             mkdir("../temp/$db");
         }
-        file_put_contents("../temp/$db/db-$timestamp.json", $jsonOutPut);
+        /* file_put_contents("../temp/$db/db-$timestamp.json", $jsonOutPut); */
         
         // send notification to user
         $decoded = base64_decode($base64["base64EncodedMessage"]);
-        if($decoded != ""){
+        /* if($decoded != ""){
             db_modify("INSERT INTO notifications (msg, read_status) VALUES ('$decoded', 0)",  __FILE__ . " linje " . __LINE__);
         }
 
         if($base64["documentStatusCode"] == 5210){
             db_modify("INSERT INTO notifications (msg, read_status) VALUES ('Du har modtaget en faktura', 0)",  __FILE__ . " linje " . __LINE__);
-        }
+        } */
 
         // update digital status
         $incStatus = array(
@@ -79,9 +77,9 @@
             5130 => "Sending"
         );
         
-        if (array_key_exists($base64["documentStatusCode"], $incStatus)) {
-            $statusName = $incStatus[$base64["documentStatusCode"]];
-            db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE id = '$base64[externalIdentifier]'", __FILE__ . " linje " . __LINE__);
+        if (array_key_exists((int)$base64["documentStatusCode"], $incStatus)) {
+            $statusName = $incStatus[(int)$base64["documentStatusCode"]];
+            db_modify("UPDATE ordrer SET digital_status = '$statusName' WHERE fakturanr = '$base64[externalIdentifier]'", __FILE__ . " linje " . __LINE__);
         }
 
         if($base64["documentStatusCode"] == 5110 || $base64["documentStatusCode"] == 5210){
@@ -113,11 +111,11 @@
         $newData = ["db" => $db, "db_location" => explode("/", $dbLocation)[2], "invoice" => $decoded];
         $newData = json_encode($newData);
         // file_put_contents("../temp/$db/error-$timestamp.json", $newData);
-/*         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "$serverName/laja/debitor/increaseInvoiceNumber.php?db=$db");
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        $res = curl_exec($ch);
-        curl_close($ch); */
+        //$ch = curl_init();
+        //curl_setopt($ch, CURLOPT_URL, "$serverName/laja/debitor/increaseInvoiceNumber.php?db=$db");
+        //curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        //$res = curl_exec($ch);
+        //curl_close($ch);
         // file_put_contents("../temp/$db/iin-$timestamp.json", $res);
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "https://storage.saldi.dk/getInvoice.php");
@@ -128,7 +126,7 @@
         $res = curl_exec($ch);
         curl_close($ch);
         // send mail to reciever of invoice with phpmailer
-        $mail = new PHPMailer(true);
+        /* $mail = new PHPMailer(true);
         //Server settings
         try{
         $mail->SMTPDebug = SMTP::DEBUG_OFF;                      // Enable verbose debug output
@@ -147,7 +145,7 @@
         $mail->send();
         }catch(Exception $e){
             file_put_contents("../temp/$db/error-$timestamp.json", $e->errorMessage());
-        }
+        } */
         file_put_contents("../temp/$db/storage-$timestamp.json", $res);
     }else{
         // not sure what to do here yet (other responses) 
