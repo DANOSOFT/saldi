@@ -33,7 +33,7 @@ class CreditorEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
-        $data->art = 'K'; // Set art to 'D' for debitor customers
+        $data->art = 'K'; // Set art to 'K' for Kreditor
         $result = CustomerService::createCustomer($data);
         
         if ($result['success']) {
@@ -75,5 +75,5 @@ class CreditorEndpoint extends BaseEndpoint
     }
 }
 
-$endpoint = new CustomerEndpoint();
+$endpoint = new CreditorEndpoint();
 $endpoint->handleRequestMethod();

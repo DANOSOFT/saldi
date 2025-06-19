@@ -66,8 +66,8 @@ class CustomerEndpointTest
         
         $customerData = [
             'firmanavn' => 'Test Company A',
-            'tlf' => '59842687',
-            'email' => 'test@company-a.com',
+            'tlf' => '59842682',
+            'email' => 'test4@company-a.com',
             'addr1' => 'Test Street 123',
             'postnr' => '1234',
             'bynavn' => 'Test City',

@@ -55,7 +55,7 @@ class CustomerModel
      */
     private function loadFromId($id)
     {
-        $qtxt = "SELECT * FROM adresser WHERE id = $id AND art = 'D'";
+        $qtxt = "SELECT * FROM adresser WHERE id = $id";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         if ($r = db_fetch_array($q)) {
@@ -88,7 +88,6 @@ class CustomerModel
             $this->lev_email = $r['lev_email'];
             $this->lev_land = $r['lev_land'];
             $this->kontakt = $r['kontakt'];
-            $this->art = $r['art'];
             $this->gruppe = (int)$r['gruppe'];
 
             return true;
