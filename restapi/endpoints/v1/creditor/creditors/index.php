@@ -34,7 +34,7 @@ class CreditorEndpoint extends BaseEndpoint
     protected function handlePost($data)
     {
         $data->art = 'K'; // Set art to 'K' for Kreditor
-        $result = CustomerService::createCustomer($data);
+        $result = CustomerService::createCustomer($data, 'K');
         
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Customer created successfully', 201);
@@ -45,7 +45,7 @@ class CreditorEndpoint extends BaseEndpoint
 
     protected function handlePut($data)
     {
-        $result = CustomerService::updateCustomer($data);
+        $result = CustomerService::updateCustomer($data, 'K');
         
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Customer updated successfully');
@@ -61,7 +61,7 @@ class CreditorEndpoint extends BaseEndpoint
             return;
         }
 
-        $customer = new CustomerModel($data->id);
+        $customer = new CustomerModel($data->id, 'K');
         if (!$customer->getId()) {
             $this->sendResponse(false, null, 'Customer not found', 404);
             return;

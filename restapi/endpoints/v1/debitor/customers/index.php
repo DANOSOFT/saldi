@@ -34,7 +34,7 @@ class CustomerEndpoint extends BaseEndpoint
     protected function handlePost($data)
     {
         $data->art = 'D'; // Set art to 'D' for debitor customers
-        $result = CustomerService::createCustomer($data);
+        $result = CustomerService::createCustomer($data, 'D');
         
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Customer created successfully', 201);
@@ -45,7 +45,7 @@ class CustomerEndpoint extends BaseEndpoint
 
     protected function handlePut($data)
     {
-        $result = CustomerService::updateCustomer($data);
+        $result = CustomerService::updateCustomer($data, 'D');
         
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Customer updated successfully');
@@ -61,7 +61,7 @@ class CustomerEndpoint extends BaseEndpoint
             return;
         }
 
-        $customer = new CustomerModel($data->id);
+        $customer = new CustomerModel($data->id, 'D');
         if (!$customer->getId()) {
             $this->sendResponse(false, null, 'Customer not found', 404);
             return;
