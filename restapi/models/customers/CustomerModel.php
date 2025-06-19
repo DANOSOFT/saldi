@@ -40,10 +40,10 @@ class CustomerModel
      * 
      * @param int|null $id Optional ID to load existing customer
      */
-    public function __construct($id = null)
+    public function __construct($id = null, $art)
     {
         if ($id !== null) {
-            $this->loadFromId($id);
+            $this->loadFromId($id, $art);
         }
     }
 
@@ -53,9 +53,9 @@ class CustomerModel
      * @param int $id
      * @return bool Success status
      */
-    private function loadFromId($id)
+    private function loadFromId($id, $art)
     {
-        $qtxt = "SELECT * FROM adresser WHERE id = $id";
+        $qtxt = "SELECT * FROM adresser WHERE id = $id AND art = $art";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         if ($r = db_fetch_array($q)) {
@@ -88,7 +88,6 @@ class CustomerModel
             $this->lev_email = $r['lev_email'];
             $this->lev_land = $r['lev_land'];
             $this->kontakt = $r['kontakt'];
-            $this->gruppe = (int)$r['gruppe'];
 
             return true;
         }

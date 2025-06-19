@@ -14,7 +14,7 @@ class CustomerEndpoint extends BaseEndpoint
     protected function handleGet($id = null)
     {
         if ($id) {
-            $customer = new CustomerModel($id);
+            $customer = new CustomerModel($id, 'D'); // 'D' for debitor customers
             if ($customer->getId()) {
                 $this->sendResponse(true, $customer->toArray());
             } else {
