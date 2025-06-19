@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----patch 4.0.8 ----2024-01-18--------
+// --- systemdata/kontokort.php -----patch 4.1.1 ----2025-06-19------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20210707 LOE - Translated these texts with findtekst function 
 // 20220605 MSC - Implementing new design
 // 20220605 PHR - php8
+// 20250619 PHR - Somebody broke the code by omitting || in several if statements
 
 @session_start();
 $s_id = session_id();
