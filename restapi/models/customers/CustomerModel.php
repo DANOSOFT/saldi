@@ -200,13 +200,13 @@ class CustomerModel
      * @param string $orderDirection Sort direction (default: ASC)
      * @return CustomerModel[] Array of CustomerModel objects
      */
-    public static function getAllItems($art, $orderBy = 'firmanavn', $orderDirection = 'ASC')
+    public static function getAllItems($art, $orderBy = 'firmanavn', $orderDirection = 'ASC', $limit = 20)
     {
         $allowedOrderBy = ['id', 'firmanavn', 'tlf', 'email'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'firmanavn';
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
 
-        $qtxt = "SELECT id FROM adresser WHERE art = '$art' ORDER BY $orderBy $orderDirection";
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art' ORDER BY $orderBy $orderDirection LIMIT $limit";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
