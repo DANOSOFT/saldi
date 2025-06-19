@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-05-26--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-06-19--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -215,6 +215,7 @@
 // 20231223 PHR find_kassesalg omdøbt og flyttet til findBoxSale
 // 20240415 PHR Moved function delbetal to pos_ordre_includes/paymentFunc/partPayment.php
 // 20250526 PHR added "if ($returside == 'kassespor.php') .... " to function primary_menu as 'retur til kassespor' didn't work
+// 20250619 PHR proforma button can nov be called anything - not nessecary 'proforma'
 
 @session_start();
 $s_id = session_id();
@@ -1232,7 +1233,7 @@ if ($vare_id) {
 	$zReport = (isset($_POST['zRapport']) && $_POST['zRapport'] == "Z-Rapport") ? True : False;
 	if (!$id && !$varenr_ny && $kundedisplay)
 		kundedisplay('**** Velkommen ****', '', '1');
-	if ((isset($_POST['kopi']) && $_POST['kopi'] == "Kopier") || (isset($_POST['proforma']) && $_POST['proforma'] == 'Proforma') || (isset($_POST['udskriv']) && $_POST['udskriv'] == "Udskriv") || $xReport || $zReport) {
+	if ((isset($_POST['kopi']) && $_POST['kopi'] == "Kopier") || (isset($_POST['proforma']) && $_POST['proforma']) || (isset($_POST['udskriv']) && $_POST['udskriv'] == "Udskriv") || $xReport || $zReport) {
 		$momssats = (float) $momssats;
 		if ($id && (!$xReport && !$zReport)) {
 			if ($tracelog)
