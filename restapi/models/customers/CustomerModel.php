@@ -101,10 +101,16 @@ class CustomerModel
     /**
      * Save/insert the current customer
      * 
+     * @param int|null $id Optional ID to set before saving (for updates)
      * @return bool Success status
      */
-    public function save()
+    public function save($id = null)
     {
+        // If an ID is passed, set it for update operations
+        if ($id !== null) {
+            $this->id = $id;
+        }
+
         // Set default values
         $this->gruppe = $this->gruppe ?: 1;
         
@@ -141,6 +147,55 @@ class CustomerModel
         $lev_land = db_escape_string($this->lev_land ?: '');
         $kontakt = db_escape_string($this->kontakt ?: '');
         $art = db_escape_string($this->art ?: '');
+
+        // If ID is set, we are updating an existing customer
+        if ($this->id) {
+            // Update existing customer
+            // Build dynamic update query to only update fields that are set
+            $updateFields = [];
+            if ($this->firmanavn !== null) $updateFields[] = "firmanavn = '$firmanavn'";
+            if ($this->tlf !== null) $updateFields[] = "tlf = '$tlf'";
+            if ($this->email !== null) $updateFields[] = "email = '$email'";
+            if ($this->addr1 !== null) $updateFields[] = "addr1 = '$addr1'";
+            if ($this->addr2 !== null) $updateFields[] = "addr2 = '$addr2'";
+            if ($this->postnr !== null) $updateFields[] = "postnr = '$postnr'";
+            if ($this->bynavn !== null) $updateFields[] = "bynavn = '$bynavn'";
+            if ($this->cvrnr !== null) $updateFields[] = "cvrnr = '$cvrnr'";
+            if ($this->land !== null) $updateFields[] = "land = '$land'";
+            if ($this->bank_navn !== null) $updateFields[] = "bank_navn = '$bank_navn'";
+            if ($this->bank_reg !== null) $updateFields[] = "bank_reg = '$bank_reg'";
+            if ($this->bank_konto !== null) $updateFields[] = "bank_konto = '$bank_konto'";
+            if ($this->bank_fi !== null) $updateFields[] = "bank_fi = '$bank_fi'";
+            if ($this->notes !== null) $updateFields[] = "notes = '$notes'";
+            if ($this->betalingsbet !== null) $updateFields[] = "betalingsbet = '$betalingsbet'";
+            if ($this->betalingsdage !== null) $updateFields[] = "betalingsdage = $betalingsdage";
+            if ($this->ean !== null) $updateFields[] = "ean = '$ean'";
+            if ($this->fornavn !== null) $updateFields[] = "fornavn = '$fornavn'";
+            if ($this->efternavn !== null) $updateFields[] = "efternavn = '$efternavn'";
+            if ($this->lev_firmanavn !== null) $updateFields[] = "lev_firmanavn = '$lev_firmanavn'";
+            if ($this->lev_addr1 !== null) $updateFields[] = "lev_addr1 = '$lev_addr1'";
+            if ($this->lev_addr2 !== null) $updateFields[] = "lev_addr2 = '$lev_addr2'";
+            if ($this->lev_postnr !== null) $updateFields[] = "lev_postnr = '$lev_postnr'";
+            if ($this->lev_bynavn !== null) $updateFields[] = "lev_bynavn = '$lev_bynavn'";
+            if ($this->lev_tlf !== null) $updateFields[] = "lev_tlf = '$lev_tlf'";
+            if ($this->lev_email !== null) $updateFields[] = "lev_email = '$lev_email'";
+            if ($this->lev_land !== null) $updateFields[] = "lev_land = '$lev_land'";
+            if ($this->kontakt !== null) $updateFields[] = "kontakt = '$kontakt'";
+            if ($this->gruppe !== null) $updateFields[] = "gruppe = $gruppe";
+            
+            // Only proceed if there are fields to update
+            if (!empty($updateFields)) {
+                $qtxt = "UPDATE adresser SET " . implode(", ", $updateFields) . " WHERE id = $this->id AND art = '$art'";
+                $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                $resultArray = explode("\t", $result);
+                // Check if update was successful
+                if ($resultArray[0] == "0") {
+                    return true; // Update successful
+                }
+            }
+            
+            return false; // Update failed or no fields to update
+        }
 
         // Insert new customer
         $qtxt = "INSERT INTO adresser (
@@ -361,7 +416,7 @@ class CustomerModel
     public function setFirmanavn($firmanavn) { $this->firmanavn = $firmanavn; }
     public function setTlf($tlf) { $this->tlf = $tlf; }
     public function setEmail($email) { $this->email = $email; }
-    public function setArt() { $this->art = $art; } // Always set to 'D' for debitor
+    public function setArt($art) { $this->art = $art; }
 
     // Setters for optional fields
     public function setAddr1($addr1) { $this->addr1 = $addr1; }

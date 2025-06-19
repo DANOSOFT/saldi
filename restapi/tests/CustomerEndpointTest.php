@@ -118,7 +118,7 @@ class CustomerEndpointTest
         
         $customerId = $this->createdCustomerIds[0];
         $response = $this->makeRequest('GET', null, "?id=$customerId");
-        
+        print_r($response); // Debugging line
         if ($response['success'] && $response['data']['id'] == $customerId) {
             echo "✓ Retrieved customer with ID: $customerId\n";
         } else {

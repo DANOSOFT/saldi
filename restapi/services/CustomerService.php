@@ -10,7 +10,7 @@ class CustomerService
      * @param object $data Customer data
      * @return array Result with success status and data/message
      */
-    public static function createCustomer($data)
+    public static function createCustomer($data, $art)
     {
         try {
             // Validate required fields
@@ -47,7 +47,7 @@ class CustomerService
             $customer->setFirmanavn(trim($data->firmanavn));
             $customer->setTlf(trim($data->tlf));
             $customer->setEmail(trim($data->email));
-
+            $customer->setArt($art); // Set customer type (e.g., 'D' for debitor)
             // Set optional fields if provided
             if (isset($data->addr1)) $customer->setAddr1(trim($data->addr1));
             if (isset($data->addr2)) $customer->setAddr2(trim($data->addr2));
@@ -105,7 +105,7 @@ class CustomerService
      * @param object $data Customer data with ID
      * @return array Result with success status and data/message
      */
-    public static function updateCustomer($data)
+    public static function updateCustomer($data, $art)
     {
         try {
             if (!isset($data->id)) {
@@ -115,7 +115,8 @@ class CustomerService
                 ];
             }
 
-            $customer = new CustomerModel($data->id);
+            // Load existing customer with art parameter
+            $customer = new CustomerModel($data->id, $art);
             if (!$customer->getId()) {
                 return [
                     'success' => false,
@@ -148,7 +149,12 @@ class CustomerService
             if (isset($data->postnr)) $customer->setPostnr(trim($data->postnr));
             if (isset($data->bynavn)) $customer->setBynavn(trim($data->bynavn));
             if (isset($data->notes)) $customer->setNotes(trim($data->notes));
+            if (isset($data->cvrnr)) $customer->setCvrnr(trim($data->cvrnr));
+            if (isset($data->land)) $customer->setLand(trim($data->land));
+            if (isset($data->fornavn)) $customer->setFornavn(trim($data->fornavn));
+            if (isset($data->efternavn)) $customer->setEfternavn(trim($data->efternavn));
 
+            // Save the customer (it will update since ID is already set)
             if ($customer->save()) {
                 return [
                     'success' => true,
