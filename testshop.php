@@ -1,4 +1,5 @@
 <?php 
+  include "saldiinfo.php";
   // Get specific order by increment_id
   $increment_id = "3000037872";
   $ch = curl_init("https://www.havemoebelshoppen.dk/rest/V1/orders?searchCriteria[filter_groups][0][filters][0][field]=increment_id&searchCriteria[filter_groups][0][filters][0][condition_type]=eq&searchCriteria[filter_groups][0][filters][0][value]=".$increment_id);
@@ -17,26 +18,28 @@
   $res = json_decode($res);
 
   // Database connection
-  $pdo = new PDO("mysql:host=localhost;dbname=accd7f09_866b5", "accd7f09_866b5", "LardedAcaciaBiopsyCuries");
+  /* $pdo = new PDO("mysql:host=localhost;dbname=accd7f09_866b5", "accd7f09_866b5", "LardedAcaciaBiopsyCuries");
   $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-  $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+  $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false); */
 
   $i = 0;
   foreach($res->items as $item){
     // Get EAN from custom fields
-    $query = $pdo->prepare("SELECT * FROM `amasty_amcheckout_order_custom_fields` WHERE `order_id` = ?");
+    /* query = $pdo->prepare("SELECT * FROM `amasty_amcheckout_order_custom_fields` WHERE `order_id` = ?");
     $query->execute([$item->entity_id]);
     if($query->rowCount() == 1){
       $ean = $query->fetch(PDO::FETCH_ASSOC)["billing_value"];
     }else{
       $ean = "";
-    }
+    } */
+   $ean = "";
     
     // Get payment info
-    $query = $pdo->prepare("SELECT * FROM `sales_order_payment` WHERE `parent_id` = ?");
-    $query->execute([$item->entity_id]);
+    /* $query = $pdo->prepare("SELECT * FROM `sales_order_payment` WHERE `parent_id` = ?");
+    $query->execute([$item->entity_id]); */
 
-    $magentoData[$i]["payment_id"] = $query->fetch(PDO::FETCH_ASSOC)["last_trans_id"];
+    /* $magentoData[$i]["payment_id"] = $query->fetch(PDO::FETCH_ASSOC)["last_trans_id"]; */
+    $magentoData[$i]["payment_id"] = $item->payment->additional_information[0];
     $magentoData[$i]["ean"] = $ean;
     $magentoData[$i]["order_id"] = $item->entity_id;
     $magentoData[$i]["order_nr"] = $item->increment_id;
@@ -129,11 +132,92 @@
     $i++;
   }
   
-  // Debug output
+  // Send data to API (same as orderhop.php)
   if(isset($magentoData)){
     file_put_contents("res.json", json_encode($magentoData));
-    print_r($magentoData);
-    echo "\nOrder data extracted for increment_id: " . $increment_id;
+    foreach($magentoData as $data){
+        $url = "action=insert_shop_order&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser);
+        $url .= "&shop_ordre_id=".urlencode($data["order_id"])."&shop_fakturanr=";
+        $url .= "&shop_addr_id=".urlencode($data["konto_id"])."&firmanavn=".urlencode($data["billing-company"]);
+        $url .= "&addr1=".urlencode($data["customer_street_address"][0]);
+        (isset($data["customer_street_address"][1])) ? $url .= "&addr2=".urlencode($data["customer_street_address"][1]) : $url .= "&addr2="; 
+        $url .= "&postnr=".urlencode($data["customer_postcode"])."&bynavn=".urlencode($data["customer_city"]);
+        $url .= "&land=".urlencode($data["customer_country"])."&tlf=".urlencode($data["customer_telephone"]);
+        $url .= "&email=".urlencode($data["customer_email"])."&ref=Magento";
+        $url .= "&shop_status=".urlencode($data["order_status"])."&nettosum=".urlencode($data["net_sum"]);
+        $url .= "&momssum=".urlencode($data["vat_sum"])."&kontakt=".urlencode($data["att"]);
+        $url .= "&lev_firmanavn=".urlencode($data["shipping-company"])."&lev_addr1=".urlencode($data["shipping_street_address"][0]);
+        (isset($data["shipping_address_street"][1])) ? $url .= "&lev_addr2=".urlencode($data["shipping_address_street"][1]) :  $url .= "&lev_addr2=";
+        $url .= "&lev_postnr=".urlencode($data["shipping_postcode"]);
+        $url .= "&lev_bynavn=".urlencode($data["shipping_city"]);
+        $url .= "&lev_land=".urlencode($data["shipping_country"]);
+        $url .= "&lev_kontakt=".urlencode($data["shipping-att"])."&betalingsbet=".urlencode($data["payment_method"]);
+        $url .= "&betalingsdage=8&shop_fakturanr=".$data["order_nr"];
+        $url .= "&ordredate=".urlencode($data["created_at"]);
+        $url .= "&lev_date=";
+        $url .= "&momssats=".urlencode($data["moms"]);
+        $url .= "&valuta=".urlencode($data["valuta"]);
+        $url .= "&valutakurs=100";
+        $url .= "&gruppe=1";
+        $url .= "&afd=3";
+        $url .= "&projekt=";
+        $url .= "&ekstra1=".urlencode($data["cc_type"]);
+        $url .= "&ekstra2=".urlencode($data["total_price"]);
+        $url .= "&notes=".urlencode($data["comment"]);
+        $url .= "&ekstra3=".urlencode($data["payment_method"]);
+        $url .= "&ekstra4=0.00";
+        $url .= "&ekstra5=4";
+        $url .= "&betalings_id=".urlencode($data["payment_id"]);
+        $url .= "&ean=".urlencode($data["ean"]);
+        $url .= "&momsfri=";
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $callback = curl_exec($ch);
+        echo "Response: " . $callback . "\n";
+        /* if (curl_errno($ch)) {
+          error_logs(curl_errno($ch));
+        } */
+        curl_close($ch);
+        $callback = str_replace('"','',$callback);
+        intval($callback) ? $saldi_ordre_id = (int)$callback : $saldi_ordre_id = 0;
+        echo "Order ID: " . $saldi_ordre_id . "\n";
+        // Insert order lines
+        for($k = 0; $k < count($data["items_prices"]); $k++){
+          $urltxt="action=insert_shop_orderline&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id;
+          $urltxt.="&vare_id=".urlencode($data["product_id"][$k])."&varenr=".urlencode($data["sku"][$k]);
+          $urltxt.="&beskrivelse=".urlencode($data["name"][$k]);
+          $urltxt.="&antal=".urlencode($data["qty_ordered"][$k]);
+          $urltxt.="&pris=".urlencode($data["item_price"][$k])."&rabat=0&stregkode=&variant=&varegruppe=2";
+          $urltxt .= "&momsfri=";
+          $ch = curl_init();
+          curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
+          curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+          $res = curl_exec($ch);
+          /* if (curl_errno($ch)) {
+            error_logs(curl_errno($ch));
+          } */
+          curl_close($ch);
+          file_put_contents("response.txt", $urltxt, FILE_APPEND);
+        }
+        
+        // Insert shipping line
+        $urltxt="action=insert_shop_orderline&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id;
+        $urltxt.="&vare_id=0&varenr=fm&beskrivelse=".urlencode($data["shipping_description"]);
+        $urltxt.="&antal=1&pris=".urlencode($data["shipping_amount"])."&rabat=0&stregkode=&variant=&varegruppe=72";
+        $urltxt.="&momsfri=";
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $res = curl_exec($ch);
+        /* if (curl_errno($ch)) {
+          error_logs(curl_errno($ch));
+        } */
+        curl_close($ch);
+        
+        echo "Order sent successfully: " . $data["order_nr"] . "\n";
+    }
   } else {
     echo "No order found with increment_id: " . $increment_id;
   }
