@@ -17,7 +17,12 @@ class KreditorOrderEndpoint extends BaseEndpoint
             if ($order->getId()) {
                 $this->sendResponse(true, $order->toArray());
             } else {
-                $this->sendResponse(false, null, 'Order not found', 404);
+                $this->sendResponse(
+                    false, 
+                    null, 
+                    "Order with ID $id not found or is not a creditor order", 
+                    404
+                );
             }
         } else {
             $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
@@ -27,7 +32,7 @@ class KreditorOrderEndpoint extends BaseEndpoint
             // get order based on dates 
             $fromDate = isset($_GET['fromDate']) ? $_GET['fromDate'] : null;
             $toDate = isset($_GET['toDate']) ? $_GET['toDate'] : null;
-            
+
             if ($fromDate && $toDate) {
                 // Validate date format
                 if (!DateTime::createFromFormat('Y-m-d', $fromDate) || !DateTime::createFromFormat('Y-m-d', $toDate)) {

@@ -152,7 +152,7 @@ abstract class BaseEndpoint
         http_response_code($code);
 
         $response = [
-            'success' => $success
+            'success' => $success,
         ];
 
         if ($message !== null) {

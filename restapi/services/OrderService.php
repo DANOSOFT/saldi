@@ -27,6 +27,7 @@ class OrderService
         $order->setTelefon($data->telefon);
         $order->setEmail($data->email);
         $order->setMomssats($data->momssats);
+        $order->setArt($data->art); // Default to 'DO' if not set
 
         // Check if user exists by phone number and get/create konto_id and kontonr
         $debtorInfo = self::getOrCreateDebtor($data);
@@ -45,6 +46,10 @@ class OrderService
         if (isset($data->sum)) $order->setSum($data->sum);
         if (isset($data->kostpris)) $order->setKostpris($data->kostpris);
         if (isset($data->moms)) $order->setMoms($data->moms);
+        // set moms and sum and kostpris to 0 if not set
+        if (!isset($data->moms)) $order->setMoms(0);
+        if (!isset($data->sum)) $order->setSum(0);
+        if (!isset($data->kostpris)) $order->setKostpris(0);
         
         // Handle currency
         $valuta = self::getValuta($data);
@@ -75,7 +80,10 @@ class OrderService
         // Set other fields
         if (isset($data->ean)) $order->setEan($data->ean);
         if (isset($data->cvrnr)) $order->setCvrnr($data->cvrnr);
+        // if orderdate is not set, use current date
         if (isset($data->ordredate)) $order->setOrdredate($data->ordredate);
+        else $order->setOrdredate(date('Y-m-d H:i:s'));
+
         if (isset($data->notes)) $order->setNotes($data->notes);
 
         // Handle betalt field
@@ -178,7 +186,7 @@ class OrderService
         
         if (explode("\t", $result)[0] == "0") {
             // Success, get the new ID
-            $newId = self::getLastInsertId();
+            $newId = self::getLastInsertId($data->telefon);
             if ($newId) {
                 return [
                     'id' => $newId,
@@ -214,13 +222,14 @@ class OrderService
      * 
      * @return int|false Last insert ID or false on error
      */
-    private static function getLastInsertId()
+    private static function getLastInsertId($tlf)
     {
-        $qtxt = "SELECT LASTVAL() as last_id";
+        $qtxt = "SELECT id FROM adresser WHERE tlf = '$tlf' LIMIT 1";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
-        if ($r = db_fetch_array($q)) {
-            return (int)$r['last_id'];
+        if ($q) {
+            $r = db_fetch_array($q);
+            return (int)$r['id'];
         }
         
         return false;

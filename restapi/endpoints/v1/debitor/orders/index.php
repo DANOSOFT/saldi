@@ -17,7 +17,12 @@ class OrderEndpoint extends BaseEndpoint
             if ($order->getId()) {
                 $this->sendResponse(true, $order->toArray());
             } else {
-                $this->sendResponse(false, null, 'Order not found', 404);
+                $this->sendResponse(
+                    false,
+                    null,
+                    "Order with ID $id not found or is not a debitor order", 
+                    404
+                );
             }
         } else {
             $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;

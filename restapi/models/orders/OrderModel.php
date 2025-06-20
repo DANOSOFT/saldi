@@ -42,7 +42,7 @@ class OrderModel
      * 
      * @param int|null $id Optional ID to load existing order
      */
-    public function __construct($id = null, $art)
+    public function __construct($id = null, $art = null)
     {
         if ($id !== null) {
             $this->loadFromId($id, $art);
