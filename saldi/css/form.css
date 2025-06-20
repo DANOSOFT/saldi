@@ -1,0 +1,312 @@
+.contentB, .contentA, .contentC{
+		padding:10px;
+		#width:320px
+	}
+.contentAB{
+		padding:10px 10px 0 10px;
+}
+.contentBA{
+		padding:0 10px 10px 10px;
+}
+.contentAA{
+		padding:0 10px 0 10px;
+}
+	.left{
+		width:90px;
+		float:left;
+		padding:5px 0px 0px 7px;
+	}
+	.leftSmall{
+		width:60px;
+		float:left;
+		padding:5px 0px 0px 7px;
+	}
+	.leftMedium{
+		width:75px;
+		float:left;
+		padding:5px 0px 0px 7px;
+	}
+	.leftLarge{
+		width:140px;
+		float:left;
+		padding:5px 0px 0px 7px;
+	}
+	.leftTableCell{
+		width:79px;
+		word-wrap:break-word;
+		padding:5px 0px 5px 7px;
+	}
+	.rightTableCell{
+		width:222px;
+		padding:5px;
+	}
+	.right{
+		width:242px;
+		float:left;
+		padding:5px;
+	}
+	.rightNoWidth{
+		float:left;
+		padding:5px;
+	}
+	.rightSmall{
+		width:100px;
+		float:left;
+		padding:5px;
+	}
+	.rightMedium{
+		width:130px;
+		float:left;
+		padding:5px;
+	}
+	.rightMediumLarge{
+		width:200px;
+		float:left;
+		padding:5px;
+  }
+.rightLarge{
+		width:276px;
+		float:left;
+		padding:5px;
+}
+.rightXLarge{
+		width:324px;
+		float:left;
+		padding:5px;
+}
+.rightXXLarge{
+		width:564px;
+		float:left;
+		padding:5px;
+}
+.rightNoWidth{
+		#width:564px;
+		float:left;
+		padding:5px;
+}
+.rightSmallX{
+		width:55px;
+		float:left;
+		padding:5px;
+}
+	.clear{
+		float:none;
+		clear:both;
+		height:0px;
+	}
+	.row{
+		background-color:transparent;
+		display:block;
+		min-height:30px;
+	}
+	.row2{
+		background-color:transparent;
+		#display:block;
+		min-height:30px;
+	}    
+	.text{
+		width:230px;             
+	}
+	.textSmall{
+		width:50px;
+	}
+	.textXSmall{
+		width: 25px;
+	}
+	.textMedium{
+		width:95px;
+	}
+	.textMediumX{
+		width:125px;
+	}
+	.textMediumLarge{
+		width: 170px;         
+	}
+	.textMediumLargeX{
+		width: 210px;         
+	}
+	.textLong{
+		width: 272px;
+	}
+	.textXLong{
+		width: 320px;
+	}
+	.textSpace{
+		margin-left: 6px;
+		-moz-margin-start:8px;
+	}
+	.textSpaceSmall{
+		margin-left: 4px;
+		#-moz-margin-start:2px;
+	}
+	.textSpaceLarge{
+		margin-left: 12px;
+	}
+	.textIndent{
+		text-indent: 3px;
+	}
+	.textArea{
+		box-sizing: border-box;
+		padding: 2px 3px 2px 3px;
+		font: normal 13.33px Arial, Helvetica, sans-serif;
+		color: #444;
+	}
+	.ruler{
+		width:400px; border-bottom:dashed 1px #dcdcdc;
+	}
+	tr:focus{
+		background-color:#fcfcf0;
+	}
+	
+	.over{
+		background-color:#d6e5f2;
+	}
+	.out{
+		background-color:transparent;
+	}
+	.placeholder {color:#aaa;}
+	
+	.placeholderLoen::-webkit-input-placeholder { /* WebKit browsers */
+			color: #000;
+	}
+	.placeholderLoen:-moz-placeholder { /* Mozilla Firefox 4 to 18 */
+		color: #000;
+		opacity:  1;
+	}
+	.placeholderLoen::-moz-placeholder { /* Mozilla Firefox 19+ */
+		color: #000;
+		opacity:  1;
+	}
+	.placeholderLoen:-ms-input-placeholder { /* Internet Explorer 10+ */
+		color: #000;
+	}
+	
+	@-moz-document url-prefix(){
+		input[type="text"], textarea, select, #sq{
+			border-top:1px solid #7E7E7E;
+			border-bottom:1px solid #AEAEAE;
+			border-left:1px solid #7E7E7E;
+			border-right:1px solid #AEAEAE;
+			border-radius:3px;
+			#font-size:12px;
+			background-color:#fff;
+		}
+	}
+	input[type="checkbox"] {
+		#-moz-appearance: none;
+	}
+	input[type="checkbox"]{/* rykker alle checkbox 2px ned */
+		#margin-top: 2px;
+	}
+	
+	/*--------------------------------------------------------------------------*/
+	/*                        dropdown med text-field                           */
+	.ddbox {
+		position: relative;padding: 0px 0px 18px 0px;
+	}
+	
+	.ddtext {
+		width:181px !important; height: 16px; border: 0px solid transparent !important; position: absolute; top: 1px; left: 1px; z-index: 2; 
+	}
+	
+	.ddselect {
+		 width: 202px; #height: 18px; position: absolute; top: 0px; left: 0px; z-index: 1;
+	}
+	
+	@-moz-document url-prefix(){
+		.ddbox {
+			padding: 0px 0px 19px 0px;
+		}
+		.ddtext {
+			width:180px !important; position: absolute; top: 1px; left: 2px; 
+		}
+		.ddselect  {
+			width: 202px !important; height: 19px;
+		}
+	}
+	
+	.ddtext {
+		-moz-box-shadow: none !important;
+		-webkit-box-shadow: none !important;
+		box-shadow: none !important;
+
+		#border: 1px solid rgba(81, 203, 238, 1);
+	}
+	
+	.ddtext:focus + .ddselect {
+		-moz-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+		-webkit-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+		box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+
+		border: 1px solid rgba(81, 203, 238, 1);
+	}
+	
+	/*--------------------------------------------------------------------------*/
+	/*             dropdown med text-field    (E-mail ordre.php)                */
+	.ddbox2 {
+		position: relative;padding: 0px 0px 18px 0px;
+	}
+	
+	.ddtext2 {
+		width:161px !important; height: 16px; border: 0px solid transparent !important; position: absolute; top: 1px; left: 1px; z-index: 2; 
+	}
+	
+	.ddselect2 {
+		 width: 182px; #height: 18px; position: absolute; top: 0px; left: 0px; z-index: 1;
+	}
+	
+	@-moz-document url-prefix(){
+		.ddbox2 {
+			padding: 0px 0px 19px 0px;
+		}
+		.ddtext2 {
+			width:160px !important; position: absolute; top: 1px; left: 2px; 
+		}
+		.ddselect2  {
+			width: 182px !important; height: 19px;
+		}
+	}
+	
+	.ddtext2 {
+		-moz-box-shadow: none !important;
+		-webkit-box-shadow: none !important;
+		box-shadow: none !important;
+
+		#border: 1px solid rgba(81, 203, 238, 1);
+	}
+	
+	.ddtext2:focus + .ddselect2 {
+		-moz-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+		-webkit-box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+		box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+
+		border: 1px solid rgba(81, 203, 238, 1);
+	}
+	/* IPHONE 4 ONLY */
+@media screen and (device-width: 320px) and (device-height: 480px) and (-webkit-device-pixel-ratio: 2) {
+
+/* YOUR CUSTOM STYLE */
+
+}
+
+/* IPHONE 5 ONLY */
+
+@media screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) {
+
+/* YOUR CUSTOM STYLE */
+
+}
+
+/* IPAD 1, 2, Mini – Non Retina */
+@media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : portrait) and (-webkit-min-device-pixel-ratio: 1) {
+
+/* YOUR CUSTOM STYLE */
+
+}
+
+/* IPAD 3, 4, AIR Retina */
+@media only screen and (min-device-width : 768px) and (max-device-width : 1024px) and (orientation : portrait) and (-webkit-min-device-pixel-ratio: 2) {
+
+/* YOUR CUSTOM STYLE */
+
+}

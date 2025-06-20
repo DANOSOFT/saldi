@@ -1,0 +1,13 @@
+Funktionsbeskrivelse - kreditering. 
+
+Kundeordre
+
+Ved kreditering af en vare reguleres den linje i batch_køb som  modsvarer den linje i batch salg der hører til den krediterede faktura.
+I batch_salg tilføjes tilsvarende linjer med negativt antal. Feltet batch_kob_id indeholder her id for den linje i batch salg som er blevet krediteret. 
+Ved negetivt antal på salgsfaktura, oprettes en ny linje i "batch_køb" som refererer den linje_id på salgsfakturaen hvor varen "købes".
+
+Leverandørordre
+
+Ved returnering  af en lagerført vare oprettes en ny linje i batch køb med negativt antal. og rest 0. 
+På den linje i batch_kob, hvor varen er blevet købt, reguleres "rest" med den krediterede antal.  
+Relationen mellem disse kan findes i ordrelinjens "kred_linje_id" som modsvarer feltet linje_id i batch_kob.

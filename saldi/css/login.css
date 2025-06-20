@@ -1,0 +1,214 @@
+/* 
+    Document   : login
+    Created on : 02-08-2012, 12:03:26
+    Author     : per kringelbach
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+*
+{
+    margin: 0px;
+    padding: 0px;
+}
+
+html 
+{
+    height: 100%;
+}
+
+body
+{
+    height: 100%;
+    font: normal 11px Arial, Helvetica, sans-serif;
+    color: #444;
+    letter-spacing: -0.04em;
+}
+
+#wrapper
+{
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    #margin-bottom: -30px;
+}
+
+.loginHolder
+{
+    text-align: center;
+    width:100%;
+    position: absolute;
+    top: 25%;
+    margin-bottom: 10px;
+}
+
+.loginBox
+{
+    width:350px;
+    text-align: left;
+    font-size: 15px;
+    margin:10px;
+    border: 1px solid lightgray;
+    border-radius: 10px;
+    box-shadow: 3px 3px 5px #888888;
+    display:inline-block;
+    background-color: white;
+}
+
+.loginBox label
+{
+    display: block;
+    font-size: 15px;
+    color: #444;
+    margin-bottom: 3px;
+}
+
+.loginForm
+{
+    margin:22px;
+}
+
+.loginAction label
+{
+    font-size: 12px;
+    color: #777;
+    border-bottom: 1px solid lightGrey;		
+    padding: 0 0 5px;
+    margin: 0 0 7px;
+}
+
+.loginAction label input
+{
+    vertical-align: middle;
+}
+
+input[type="checkbox"] 
+{
+    margin: 3px 3px 3px 4px;
+}
+
+a.forgotpass
+{
+    display: block;
+    font-size: 12px;
+    text-decoration: none;
+    color: #AAA;
+}
+
+a.forgotpass:hover
+{
+    text-decoration: underline;
+    color: #8d1c1c;
+}
+
+.loginForm
+{
+    margin: 22px;
+}
+
+.textinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: black;
+    #text-indent: 7px;
+    padding: 7px 7px;  
+    font-size: 15px;
+    margin-bottom: 10px;
+		overflow:visible;
+}
+
+.button {
+    display: inline-block;
+    zoom: 1; /* zoom and *display = ie7 hack for display:inline-block */
+    *display: inline;
+    vertical-align: baseline;
+    margin-top:10px;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font: 16px/100% Arial, Helvetica, sans-serif;
+    padding: .5em 2em .55em;
+    text-shadow: 0 1px 1px rgba(0,0,0,.3);
+    -webkit-border-radius: .5em; 
+    -moz-border-radius: .5em;
+    border-radius: .5em;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner*/
+    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    -moz-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+
+.button:hover {
+    text-decoration: none;
+}
+
+.button:active {
+    position: relative;
+    top: 1px;
+}
+
+.blue {
+    color: #d9eef7;
+    border: solid 1px #0076a3;
+    background: #0095cd;
+    background: -webkit-gradient(linear, left top, left bottom, from(#00adee), to(#0078a5));
+    background: -moz-linear-gradient(top,  #00adee,  #0078a5);
+    background: -ms-linear-gradient(top,  #00adee,  #0078a5);
+		background: -o-linear-gradient(top,  #00adee,  #0078a5);
+		background: linear-gradient(top,  #00adee,  #0078a5);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#00adee', endColorstr='#0078a5');
+}
+.blue:hover {
+    background: #007ead;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0095cc), to(#00678e));
+    background: -moz-linear-gradient(top,  #0095cc,  #00678e);
+    background: -ms-linear-gradient(top,  #0095cc,  #00678e);
+		background: -o-linear-gradient(top,  #0095cc,  #00678e);
+		background: linear-gradient(top,  #0095cc,  #00678e);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0095cc', endColorstr='#00678e');
+}
+.blue:active {
+    color: #80bed6;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0078a5), to(#00adee));
+    background: -moz-linear-gradient(top,  #0078a5,  #00adee);
+    background: -ms-linear-gradient(top,  #0078a5,  #00adee);
+		background: -o-linear-gradient(top,  #0078a5,  #00adee);
+		background: linear-gradient(top,  #0078a5,  #00adee);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0078a5', endColorstr='#00adee');
+}
+
+.clearfix
+{
+    clear:both;
+    height:0;
+    font-size:1px;
+    line-height:1px;
+    width:100%;
+    overflow:hidden;
+}
+
+.flleft
+{
+    float: left;
+}
+
+.flright
+{
+    float: right;
+}
+
+#footer
+{
+		position:fixed;
+		bottom:0px;
+    text-align: center;
+    width:100%;
+    height:30px;
+    line-height: 30px;
+    vertical-align: middle;
+    overflow:hidden;
+}

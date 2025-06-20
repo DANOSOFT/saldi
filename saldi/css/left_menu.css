@@ -1,0 +1,102 @@
+/* 
+    Document   : main
+    Created on : 29-07-2012, 18:04:07
+    Author     : per kringelbach
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+/* style til venstre menu */
+#leftmenuholder
+{
+    width: 148px;
+    float: left;
+    margin-right: 8px;
+		#margin-left: -100%;
+}
+
+.leftmenuhead
+{
+    text-align: center;
+    font-weight: bold;  
+    padding: 5px 0;
+    margin-top: -5px;
+    background-color: lightgray;
+}
+
+.leftmenu
+{
+    width: 146px;
+    #height: 200px;
+    float: left;
+    font-size: 12px;
+    padding: 5px 0;
+    line-height: 17px;
+    margin:0px 0px 8px 0px;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+    overflow: hidden;
+}
+
+.leftmenu li
+{
+    list-style-type: none;
+}
+
+.leftmenu li a
+{ 
+    display: block;
+    padding: 2px 12px;
+    color: #333;
+    text-decoration: none; 
+    outline:none;
+}
+
+.leftmenu li a:hover, leftmenu li a:active
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.leftmenu hr
+{
+    border: 0 none;
+    color: lightgray;
+    background-color: lightgray;
+    height: 1px;
+    margin: 9px 8px;
+}
+/* her slutter venstremenu */
+.maincontent
+{
+    width: 802px;  
+    #float: left;
+		margin-left: auto;
+		margin-right: auto;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    #border: 1px solid lightgray;
+    #-moz-border-radius:5px;
+    #-webkit-border-radius:5px;
+    #border-radius:5px;
+}
+
+.maincontentborder
+{
+		border: 0px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+}
+.maincontent hr
+{
+    border: 0 none;
+    color: lightgray;
+    background-color: lightgray;
+    height: 1px;
+    margin: 9px 0px;
+}
+
+/*************************************************************/

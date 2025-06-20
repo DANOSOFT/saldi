@@ -1,0 +1,1566 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" xmlns:dr3d="urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0" xmlns:math="http://www.w3.org/1998/Math/MathML" xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0" xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" xmlns:ooo="http://openoffice.org/2004/office" xmlns:ooow="http://openoffice.org/2004/writer" xmlns:oooc="http://openoffice.org/2004/calc" xmlns:dom="http://www.w3.org/2001/xml-events" xmlns:xforms="http://www.w3.org/2002/xforms" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0" xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0" xmlns:rpt="http://openoffice.org/2005/report" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:grddl="http://www.w3.org/2003/g/data-view#" xmlns:officeooo="http://openoffice.org/2009/office" xmlns:tableooo="http://openoffice.org/2009/table" xmlns:drawooo="http://openoffice.org/2010/draw" xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0" xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0" xmlns:field="urn:openoffice:names:experimental:ooo-ms-interop:xmlns:field:1.0" xmlns:formx="urn:openoffice:names:experimental:ooxml-odf-interop:xmlns:form:1.0" xmlns:css3t="http://www.w3.org/TR/css3-text/" office:version="1.2" office:mimetype="application/vnd.oasis.opendocument.graphics">
+ <office:meta><meta:creation-date>2015-11-16T09:09:35.907000000</meta:creation-date><dc:date>2015-12-06T17:00:43.798000000</dc:date><meta:editing-duration>PT12H50M25S</meta:editing-duration><meta:editing-cycles>42</meta:editing-cycles><meta:generator>LibreOffice/5.0.3.2$Windows_x86 LibreOffice_project/e5f16313668ac592c1bfb310f4390624e3dbfb75</meta:generator><meta:print-date>2015-11-28T11:50:41.611000000</meta:print-date><meta:document-statistic meta:object-count="77"/></office:meta>
+ <office:settings>
+  <config:config-item-set config:name="ooo:view-settings">
+   <config:config-item config:name="VisibleAreaTop" config:type="int">-6059</config:config-item>
+   <config:config-item config:name="VisibleAreaLeft" config:type="int">79</config:config-item>
+   <config:config-item config:name="VisibleAreaWidth" config:type="int">34448</config:config-item>
+   <config:config-item config:name="VisibleAreaHeight" config:type="int">26299</config:config-item>
+   <config:config-item-map-indexed config:name="Views">
+    <config:config-item-map-entry>
+     <config:config-item config:name="ViewId" config:type="string">view1</config:config-item>
+     <config:config-item config:name="GridIsVisible" config:type="boolean">true</config:config-item>
+     <config:config-item config:name="GridIsFront" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="IsSnapToGrid" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="IsSnapToPageMargins" config:type="boolean">true</config:config-item>
+     <config:config-item config:name="IsSnapToSnapLines" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="IsSnapToObjectFrame" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="IsSnapToObjectPoints" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="IsPlusHandlesAlwaysVisible" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="IsFrameDragSingles" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="EliminatePolyPointLimitAngle" config:type="int">1500</config:config-item>
+     <config:config-item config:name="IsEliminatePolyPoints" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="VisibleLayers" config:type="base64Binary">//////////////////////////////////////////8=</config:config-item>
+     <config:config-item config:name="PrintableLayers" config:type="base64Binary">7v////////////////////////////////////////8=</config:config-item>
+     <config:config-item config:name="LockedLayers" config:type="base64Binary"/>
+     <config:config-item config:name="NoAttribs" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="NoColors" config:type="boolean">true</config:config-item>
+     <config:config-item config:name="RulerIsVisible" config:type="boolean">true</config:config-item>
+     <config:config-item config:name="PageKind" config:type="short">0</config:config-item>
+     <config:config-item config:name="SelectedPage" config:type="short">0</config:config-item>
+     <config:config-item config:name="IsLayerMode" config:type="boolean">true</config:config-item>
+     <config:config-item config:name="IsDoubleClickTextEdit" config:type="boolean">true</config:config-item>
+     <config:config-item config:name="IsClickChangeRotation" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="SlidesPerRow" config:type="short">4</config:config-item>
+     <config:config-item config:name="EditModeStandard" config:type="int">0</config:config-item>
+     <config:config-item config:name="EditModeNotes" config:type="int">0</config:config-item>
+     <config:config-item config:name="EditModeHandout" config:type="int">1</config:config-item>
+     <config:config-item config:name="VisibleAreaTop" config:type="int">-6059</config:config-item>
+     <config:config-item config:name="VisibleAreaLeft" config:type="int">-609</config:config-item>
+     <config:config-item config:name="VisibleAreaWidth" config:type="int">35799</config:config-item>
+     <config:config-item config:name="VisibleAreaHeight" config:type="int">26301</config:config-item>
+     <config:config-item config:name="GridCoarseWidth" config:type="int">1000</config:config-item>
+     <config:config-item config:name="GridCoarseHeight" config:type="int">1000</config:config-item>
+     <config:config-item config:name="GridFineWidth" config:type="int">100</config:config-item>
+     <config:config-item config:name="GridFineHeight" config:type="int">100</config:config-item>
+     <config:config-item config:name="GridSnapWidthXNumerator" config:type="int">100</config:config-item>
+     <config:config-item config:name="GridSnapWidthXDenominator" config:type="int">1</config:config-item>
+     <config:config-item config:name="GridSnapWidthYNumerator" config:type="int">100</config:config-item>
+     <config:config-item config:name="GridSnapWidthYDenominator" config:type="int">1</config:config-item>
+     <config:config-item config:name="IsAngleSnapEnabled" config:type="boolean">false</config:config-item>
+     <config:config-item config:name="SnapAngle" config:type="int">1500</config:config-item>
+     <config:config-item config:name="ZoomOnPage" config:type="boolean">false</config:config-item>
+    </config:config-item-map-entry>
+   </config:config-item-map-indexed>
+  </config:config-item-set>
+  <config:config-item-set config:name="ooo:configuration-settings">
+   <config:config-item config:name="ApplyUserData" config:type="boolean">true</config:config-item>
+   <config:config-item config:name="BitmapTableURL" config:type="string">$(user)/config/standard.sob</config:config-item>
+   <config:config-item config:name="CharacterCompressionType" config:type="short">0</config:config-item>
+   <config:config-item config:name="ColorTableURL" config:type="string">$(user)/config/standard.soc</config:config-item>
+   <config:config-item config:name="DashTableURL" config:type="string">$(user)/config/standard.sod</config:config-item>
+   <config:config-item config:name="DefaultTabStop" config:type="int">1250</config:config-item>
+   <config:config-item config:name="EmbedFonts" config:type="boolean">false</config:config-item>
+   <config:config-item-map-indexed config:name="ForbiddenCharacters">
+    <config:config-item-map-entry>
+     <config:config-item config:name="Language" config:type="string">da</config:config-item>
+     <config:config-item config:name="Country" config:type="string">DK</config:config-item>
+     <config:config-item config:name="Variant" config:type="string"/>
+     <config:config-item config:name="BeginLine" config:type="string"/>
+     <config:config-item config:name="EndLine" config:type="string"/>
+    </config:config-item-map-entry>
+    <config:config-item-map-entry>
+     <config:config-item config:name="Language" config:type="string">en</config:config-item>
+     <config:config-item config:name="Country" config:type="string">US</config:config-item>
+     <config:config-item config:name="Variant" config:type="string"/>
+     <config:config-item config:name="BeginLine" config:type="string"/>
+     <config:config-item config:name="EndLine" config:type="string"/>
+    </config:config-item-map-entry>
+   </config:config-item-map-indexed>
+   <config:config-item config:name="GradientTableURL" config:type="string">$(user)/config/standard.sog</config:config-item>
+   <config:config-item config:name="HatchTableURL" config:type="string">$(user)/config/standard.soh</config:config-item>
+   <config:config-item config:name="IsKernAsianPunctuation" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="IsPrintBooklet" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="IsPrintBookletBack" config:type="boolean">true</config:config-item>
+   <config:config-item config:name="IsPrintBookletFront" config:type="boolean">true</config:config-item>
+   <config:config-item config:name="IsPrintDate" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="IsPrintFitPage" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="IsPrintHiddenPages" config:type="boolean">true</config:config-item>
+   <config:config-item config:name="IsPrintPageName" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="IsPrintTilePage" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="IsPrintTime" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="LineEndTableURL" config:type="string">$(user)/config/standard.soe</config:config-item>
+   <config:config-item config:name="LoadReadonly" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="MeasureUnit" config:type="short">3</config:config-item>
+   <config:config-item config:name="PageNumberFormat" config:type="int">4</config:config-item>
+   <config:config-item config:name="ParagraphSummation" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="PrintQuality" config:type="int">0</config:config-item>
+   <config:config-item config:name="PrinterIndependentLayout" config:type="string">low-resolution</config:config-item>
+   <config:config-item config:name="PrinterName" config:type="string">HP Color LaserJet CP1510 series PCL6</config:config-item>
+   <config:config-item config:name="PrinterSetup" config:type="base64Binary">KCP+/0hQIENvbG9yIExhc2VySmV0IENQMTUxMCBzZXJpZXMgUENMNgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASFAgQ29sb3IgTGFzZXJKZXQgQ1AxNTEwIHNlcmllcwAWAAEATiIAAAAAAAAEAAhSAAAEdAAAM1ROVwYASABQACAAQwBvAGwAbwByACAATABhAHMAZQByAEoAZQB0ACAAQwBQADEANQAxADAAIABzAGUAcgBpAGUAAAAAAAEEAAbcAGwhQ/+ABwEACQCaCzQIZAABAA8AWAICAAEAWAIDAAEAQQA0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAACAAAAAgAAABUBAAD/////AAAAAAAAAAAAAAAAAAAAAERJTlUiAOAGHAlQGLwUf2MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOgAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAABAAEAAAAAAAEAAAABAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAQABAAEAAQABAAEAAQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAA4AYAAFNNVEoAAAAAEADQBkgAUAAgAEMAbwBsAG8AcgAgAEwAYQBzAGUAcgBKAGUAdAAgAEMAUAAxADUAMQAwACAAcwBlAHIAaQBlAHMAIABQAEMATAA2AAAASW5wdXRCaW4AUHJpbnRlclNlbGVjdABSRVNETEwAVW5pcmVzRExMAFJlc29sdXRpb24ANjAwZHBpAE9yaWVudGF0aW9uAFBPUlRSQUlUAEhQT3JpZW50Um90YXRlMTgwAEZhbHNlAER1cGxleABOT05FAFBhcGVyU2l6ZQBMRVRURVIATWVkaWFUeXBlAEF1dG8AQ29sbGF0ZQBPTgBPdXRwdXRCaW4AQXV0bwBIUEltYWdlU2hpZnQAT2ZmAEhQQXV0b0R1cGxleFNjYWxpbmcAVHJ1ZQBDb2xvck1vZGUAMjRicHAAVGV4dEFzQmxhY2sARmFsc2UAVFRBc0JpdG1hcHNTZXR0aW5nAFRUTW9kZU91dGxpbmUAUkVUQ2hvaWNlAFRydWUASFBCYWNrU2lkZVByaW50aW5nAEZhbHNlAEpQRUdFbmFibGUAQmVzdABTbW9vdGhpbmcAVHJ1ZQBQcmludFF1YWxpdHlHcm91cABQUUdyb3VwXzEASFBDb2xvck1vZGUAQ09MT1JfTU9ERQBIUFBETFR5cGUAUERMX1BDTDYASFBQSkxFbmNvZGluZwBVVEY4AEhQSm9iQWNjb3VudGluZwBIUEpPQkFDQ1RfSk9CQUNOVABIUEJvcm5PbkRhdGUASFBCT0QASFBKb2JCeUpvYk92ZXJyaWRlAEpCSk8ASFBYTUxGaWxlVXNlZABocG1jcGNwNi54bWwASFBTdGFwbGluZ09wcG9zZWQARmFsc2UASFBQQ0w2UGFzc1Rocm91Z2gAVHJ1ZQBIUFNtYXJ0RHVwbGV4U2luZ2xlUGFnZUpvYgBUcnVlAEhQU21hcnREdXBsZXhPZGRQYWdlSm9iAFRydWUASFBNYW51YWxEdXBsZXhEaWFsb2dJdGVtcwBJbnN0cnVjdGlvbklEXzAxX0ZBQ0VET1dOLU5PUk9UQVRFAEhQTWFudWFsRmVlZE9yaWVudGF0aW9uAEZBQ0VET1dOAEhQT3V0cHV0QmluT3JpZW50YXRpb24ARkFDRURPV04AU3RhcGxpbmcATm9uZQBIUE1hbnVhbER1cGxleERpYWxvZ01vZGVsAE1vZGVsZXNzAEhQTWFudWFsRHVwbGV4UGFnZU9yZGVyAEV2ZW5QYWdlc0ZpcnN0AEhQTWFwTWFudWFsRmVlZFRvVHJheTEAVHJ1ZQBIUFByaW50T25Cb3RoU2lkZXNNYW51YWxseQBGYWxzZQBIUFN0cmFpZ2h0UGFwZXJQYXRoAEZhbHNlAEhQU2VuZFBKTFVzYWdlQ21kAENVUkkASFBDb3ZlcnMAT3RoZXJfUGFnZXMARnJvbnRfQ292ZXJfZnJvbV9GZWVkZXJfSW5wdXRCaW4ATm9uZQBCYWNrX0NvdmVyX2Zyb21fRmVlZGVyX0lucHV0QmluAE5vbmUASlJDb25zdHJhaW50cwBKUkNIRFBhcnRpYWwASlJIREluc3RhbGxlZABKUkhET2ZmAEpSSEROb3RJbnN0YWxsZWQASlJIRE9mZgBIUENvbnN1bWVyQ3VzdG9tUGFwZXIAVHJ1ZQBQU0FsaWdubWVudEZpbGUASFBaTFN3bjcASFBTbWFydEh1Yl9PbmxpbmVkaWFnbm9zdGljdG9vbHMAVFJVRQBIUFNtYXJ0SHViX1N1cHBvcnRhbmR0cm91Ymxlc2hvb3RpbmcAVFJVRQBIUFNtYXJ0SHViX1Byb2R1Y3RtYW51YWxzAFRSVUUASFBTbWFydEh1Yl9DaGVja2ZvcmRyaXZlcnVwZGF0ZXMAVFJVRQBIUFNtYXJ0SHViX0NvbG9ycHJpbnRpbmdhY2Nlc3N1c2FnZQBUUlVFAEhQU21hcnRIdWJfT3JkZXJzdXBwbGllcwBUUlVFAEhQU21hcnRIdWJfU2hvd21laG93AFRSVUUAUFNTZXJ2aWNlc19QcmludGNvbG9ydXNhZ2Vqb2Jsb2cAVFJVRQBIUFNtYXJ0SHViAEluZXRfU0lEXzI2M19CSURfNTE0X0hJRF8yNjUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQGAAASVVQSBAAEQAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEAZAABAAEAAwACAAAAAgAAAAIAAABBADQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJAJoLNAgAAP///////////////wEAAAAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAWwBuAG8AbgBlAF0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIABbAG4AbwBuAGUAXQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADQAAABQAAAAAAAAAAEAAAAAAAAAwMDAAAAAAADAwMAAAAAAAAAAAAAAAAAAAAAAAAkAAAABAAAAZAAAAAAAAAAAAAAAAAAAAAAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEUAVgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAEAAAAPAAAAFQEAAAAAAAAPAAAAFQEAAAAAAAD/////AAAAAAAAAAAPAAAAFQEAAA8AAAAVAQAAAAAAAAAAAAAAAAAAAAAAADQIAAA0CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZAAAAAEAAABQAHIAaQBuAHQAIABkAHIAaQB2AGUAcgAgAGgAbwBzAHQAIABmAG8AcgAgADMAMgBiAGkAdAAgAGEAcABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAP////9zcGx3b3c2NC5leGUAAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAA8AAAAVAQAADwAAABUBAAAPAAAAFQEAAA8AAAAVAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAEAAAAAABDADoAXABXAGkAbgBkAG8AdwBzAFwAcwBwAGwAdwBvAHcANgA0AC4AZQB4AGUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIAQ09NUEFUX0RVUExFWF9NT0RFCgBEVVBMRVhfT0ZG</config:config-item>
+   <config:config-item config:name="SaveVersionOnClose" config:type="boolean">false</config:config-item>
+   <config:config-item config:name="ScaleDenominator" config:type="int">1</config:config-item>
+   <config:config-item config:name="ScaleNumerator" config:type="int">1</config:config-item>
+   <config:config-item config:name="UpdateFromTemplate" config:type="boolean">true</config:config-item>
+  </config:config-item-set>
+ </office:settings>
+ <office:scripts>
+  <office:script script:language="ooo:Basic">
+   <ooo:libraries xmlns:ooo="http://openoffice.org/2004/office" xmlns:xlink="http://www.w3.org/1999/xlink"/>
+  </office:script>
+ </office:scripts>
+ <office:font-face-decls>
+  <style:font-face style:name="Wingdings1" svg:font-family="Wingdings" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Wingdings2" svg:font-family="Wingdings" style:font-adornments="normal" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Liberation Sans3" svg:font-family="&apos;Liberation Sans&apos;" style:font-pitch="variable" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Mangal2" svg:font-family="Mangal" style:font-pitch="variable" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Microsoft YaHei2" svg:font-family="&apos;Microsoft YaHei&apos;" style:font-pitch="variable" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Wingdings" svg:font-family="Wingdings" style:font-pitch="variable" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Liberation Sans2" svg:font-family="&apos;Liberation Sans&apos;" style:font-family-generic="roman" style:font-pitch="variable" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Mangal1" svg:font-family="Mangal" style:font-family-generic="system" style:font-pitch="variable" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Microsoft YaHei1" svg:font-family="&apos;Microsoft YaHei&apos;" style:font-family-generic="system" style:font-pitch="variable" style:font-charset="x-symbol"/>
+  <style:font-face style:name="Liberation Sans" svg:font-family="&apos;Liberation Sans&apos;" style:font-family-generic="roman" style:font-pitch="variable"/>
+  <style:font-face style:name="Liberation Serif" svg:font-family="&apos;Liberation Serif&apos;" style:font-family-generic="roman" style:font-pitch="variable"/>
+  <style:font-face style:name="Times New Roman" svg:font-family="&apos;Times New Roman&apos;" style:font-family-generic="roman" style:font-pitch="variable"/>
+  <style:font-face style:name="Times New Roman1" svg:font-family="&apos;Times New Roman&apos;" style:font-adornments="normal" style:font-family-generic="roman" style:font-pitch="variable"/>
+  <style:font-face style:name="Arial" svg:font-family="Arial" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="Arial1" svg:font-family="Arial" style:font-adornments="fed" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="Arial Narrow" svg:font-family="&apos;Arial Narrow&apos;" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="Arial Narrow1" svg:font-family="&apos;Arial Narrow&apos;" style:font-adornments="normal" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="HelveticaNeueLT Std" svg:font-family="&apos;HelveticaNeueLT Std&apos;" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="HelveticaNeueLT Std1" svg:font-family="&apos;HelveticaNeueLT Std&apos;" style:font-adornments="55 Roman" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="Liberation Sans1" svg:font-family="&apos;Liberation Sans&apos;" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="Liberation Sans4" svg:font-family="&apos;Liberation Sans&apos;" style:font-adornments="Normal" style:font-family-generic="swiss" style:font-pitch="variable"/>
+  <style:font-face style:name="Mangal" svg:font-family="Mangal" style:font-family-generic="system" style:font-pitch="variable"/>
+  <style:font-face style:name="Microsoft YaHei" svg:font-family="&apos;Microsoft YaHei&apos;" style:font-family-generic="system" style:font-pitch="variable"/>
+  <style:font-face style:name="Segoe UI" svg:font-family="&apos;Segoe UI&apos;" style:font-family-generic="system" style:font-pitch="variable"/>
+  <style:font-face style:name="Tahoma" svg:font-family="Tahoma" style:font-family-generic="system" style:font-pitch="variable"/>
+ </office:font-face-decls>
+ <office:styles>
+  <draw:fill-image draw:name="Fiery">
+   <office:binary-data>iVBORw0KGgoAAAANSUhEUgAAAF4AAABeCAMAAACdDFNcAAAC7lBMVEX9WzP6/av6/bv6/KP7
+    +4P983v1/YT6/bP1/aP1/Yz7+4v7+3v883P2/br984P7+3P2/Xz90lX6/sr1/av94lz99Zv9
+    6mP7+Wz5/sL92Fb2/XX1/bP96l39qEb+86P3/sj+9rn8w0398rT+8F77/dP98mT94qT2/cL9
+    zJv7jEH9q4L9vZD+1H398Kz9fFr967P98Y39bkv9pWz8y4n9mnT9jmvv/ZL+knH+5bD+05r9
+    1KP9u47+xJT+hFn8wXP94qv+7af+5pv+6Zn904X+kmP7vH3925L9soP8onX9qnv+26X9pYD+
+    3pr+vob+gWT+tor+iV3915X8qHP+3Kz+s3L9nGb9vHf9zIf944z9Zkr9i2T9pX79c1X+lFz+
+    smz9y3v+6Kr8w4z9k2z6t3/9Qyr9Kxv9czv9ZDn9Syz9ajX9Ui39OiT9Wi79g0H9MyL9IhX9
+    MR79eT39PSn9YzT9QiX9VDH9azn9fEH9JBn9TDD9GxL+XDj9k0n9gT39fT39m0v9GA79RjD9
+    kUX9eTr8Syb9iUT9jUH9hT39kUL8Yi79q1P9jUX9iUH9cjb9FhD9Nyj9bED9s1n9LiD9g0r9
+    s1P9Ewz9fTr9c0L9xGL8OR/9qkv9y2P9oVD9i0r9u1L9rFn9k1L9plX9DAn9nFH7iUb922v9
+    lEL9o0v9Uzr9w1v9KBb9vGL9pVH+Hxj9m0X9ij79uVn964L9lUX+e0n90Wn9o1v9w2v9zHT9
+    smH6/Jv962v9rmL9vVz922P9oVT+BwX6+5P9w1P93Hr98Yn942v923L9y1T91HL8hjv9sk39
+    5X3901v7hz77eTn91Wj943P9CQb942P9y1v9zGr99Yr9jVD95IP9gTr9YkT99JL7u176fD/9
+    7Iv9uV39vVn7ej3982z95Xn902P99Y394X391W39okX8eDX7kkD93YP963v97ZP9kz790m39
+    21v+vG79nVv963P7ikD94nn9uk71/Zv1/ZP7gDv61Wz6hDhsqECHAAAYj0lEQVR4XkSWZXP0
+    Wg6Ez481M3uYmSnMzPgyMzNeZlpm/LYtT2qvJqnyJK5Hch+pZbZZnZycbM5/9ejp+9tXrvzz
+    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
+   </office:binary-data>
+  </draw:fill-image>
+  <draw:marker draw:name="Arrow" svg:viewBox="0 0 20 30" svg:d="M10 0l-10 30h20z"/>
+  <draw:stroke-dash draw:name="_32__20_Dots_20_1_20_Dash" draw:display-name="2 Dots 1 Dash" draw:style="rect" draw:dots1="2" draw:dots2="1" draw:dots2-length="0.203cm" draw:distance="0.203cm"/>
+  <draw:stroke-dash draw:name="_33__20_Dashes_20_3_20_Dots_20__28_var_29_" draw:display-name="3 Dashes 3 Dots (var)" draw:style="rect" draw:dots1="3" draw:dots1-length="197%" draw:dots2="3" draw:distance="100%"/>
+  <draw:stroke-dash draw:name="Fine_20_Dashed" draw:display-name="Fine Dashed" draw:style="rect" draw:dots1="1" draw:dots1-length="197%" draw:distance="197%"/>
+  <draw:stroke-dash draw:name="Ultrafine_20_2_20_Dots_20_3_20_Dashes" draw:display-name="Ultrafine 2 Dots 3 Dashes" draw:style="rect" draw:dots1="2" draw:dots1-length="0.051cm" draw:dots2="3" draw:dots2-length="0.254cm" draw:distance="0.127cm"/>
+  <draw:stroke-dash draw:name="Ultrafine_20_Dashed" draw:display-name="Ultrafine Dashed" draw:style="rect" draw:dots1="1" draw:dots1-length="0.051cm" draw:dots2="1" draw:dots2-length="0.051cm" draw:distance="0.051cm"/>
+  <style:default-style style:family="graphic">
+   <style:graphic-properties svg:stroke-color="#3465a4" draw:fill-color="#729fcf" fo:wrap-option="no-wrap"/>
+   <style:paragraph-properties style:text-autospace="ideograph-alpha" style:punctuation-wrap="simple" style:line-break="strict" style:writing-mode="lr-tb" style:font-independent-line-spacing="false">
+    <style:tab-stops/>
+   </style:paragraph-properties>
+   <style:text-properties style:use-window-font-color="true" style:font-name="Liberation Serif" fo:font-size="24pt" fo:language="da" fo:country="DK" style:font-name-asian="Segoe UI" style:font-size-asian="24pt" style:language-asian="zh" style:country-asian="CN" style:font-name-complex="Tahoma" style:font-size-complex="24pt" style:language-complex="hi" style:country-complex="IN"/>
+  </style:default-style>
+  <style:style style:name="standard" style:family="graphic">
+   <style:graphic-properties draw:stroke="solid" svg:stroke-width="0cm" svg:stroke-color="#3465a4" draw:marker-start-width="0.2cm" draw:marker-start-center="false" draw:marker-end-width="0.2cm" draw:marker-end-center="false" draw:fill="solid" draw:fill-color="#729fcf" draw:textarea-horizontal-align="justify" fo:padding-top="0.125cm" fo:padding-bottom="0.125cm" fo:padding-left="0.25cm" fo:padding-right="0.25cm" draw:shadow="hidden" draw:shadow-offset-x="0.2cm" draw:shadow-offset-y="0.2cm" draw:shadow-color="#808080">
+    <text:list-style style:name="standard">
+     <text:list-level-style-bullet text:level="1" text:bullet-char="●">
+      <style:list-level-properties text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="2" text:bullet-char="●">
+      <style:list-level-properties text:space-before="0.6cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="3" text:bullet-char="●">
+      <style:list-level-properties text:space-before="1.2cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="4" text:bullet-char="●">
+      <style:list-level-properties text:space-before="1.8cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="5" text:bullet-char="●">
+      <style:list-level-properties text:space-before="2.4cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="6" text:bullet-char="●">
+      <style:list-level-properties text:space-before="3cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="7" text:bullet-char="●">
+      <style:list-level-properties text:space-before="3.6cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="8" text:bullet-char="●">
+      <style:list-level-properties text:space-before="4.2cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="9" text:bullet-char="●">
+      <style:list-level-properties text:space-before="4.8cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+     <text:list-level-style-bullet text:level="10" text:bullet-char="●">
+      <style:list-level-properties text:space-before="5.4cm" text:min-label-width="0.6cm"/>
+      <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+     </text:list-level-style-bullet>
+    </text:list-style>
+   </style:graphic-properties>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:margin-top="0cm" fo:margin-bottom="0cm" fo:line-height="100%" fo:text-indent="0cm"/>
+   <style:text-properties fo:font-variant="normal" fo:text-transform="none" style:use-window-font-color="true" style:text-outline="false" style:text-line-through-style="none" style:text-line-through-type="none" style:font-name="Liberation Sans" fo:font-family="&apos;Liberation Sans&apos;" style:font-family-generic="roman" style:font-pitch="variable" fo:font-size="18pt" fo:font-style="normal" fo:text-shadow="none" style:text-underline-style="none" fo:font-weight="normal" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-family-asian="&apos;Microsoft YaHei&apos;" style:font-family-generic-asian="system" style:font-pitch-asian="variable" style:font-size-asian="18pt" style:font-style-asian="normal" style:font-weight-asian="normal" style:font-name-complex="Mangal" style:font-family-complex="Mangal" style:font-family-generic-complex="system" style:font-pitch-complex="variable" style:font-size-complex="18pt" style:font-style-complex="normal" style:font-weight-complex="normal" style:text-emphasize="none" style:font-relief="none" style:text-overline-style="none" style:text-overline-color="font-color"/>
+  </style:style>
+  <style:style style:name="objectwitharrow" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="solid" svg:stroke-width="0.15cm" svg:stroke-color="#000000" draw:marker-start="Arrow" draw:marker-start-width="0.7cm" draw:marker-start-center="true" draw:marker-end-width="0.3cm"/>
+  </style:style>
+  <style:style style:name="objectwithshadow" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:shadow="visible" draw:shadow-offset-x="0.2cm" draw:shadow-offset-y="0.2cm" draw:shadow-color="#808080"/>
+  </style:style>
+  <style:style style:name="objectwithoutfill" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-color="#000000" draw:fill="none"/>
+  </style:style>
+  <style:style style:name="Objekt_20_uden_20_fyld_20_og_20_uden_20_linjer" style:display-name="Objekt uden fyld og uden linjer" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+  </style:style>
+  <style:style style:name="text" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+  </style:style>
+  <style:style style:name="textbody" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+   <style:text-properties fo:font-size="16pt"/>
+  </style:style>
+  <style:style style:name="textbodyjustfied" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+   <style:paragraph-properties fo:text-align="justify"/>
+  </style:style>
+  <style:style style:name="textbodyindent" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0.6cm"/>
+  </style:style>
+  <style:style style:name="title" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+   <style:text-properties fo:font-size="44pt"/>
+  </style:style>
+  <style:style style:name="title1" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="#008080" draw:shadow="visible" draw:shadow-offset-x="0.2cm" draw:shadow-offset-y="0.2cm" draw:shadow-color="#808080"/>
+   <style:paragraph-properties fo:text-align="center"/>
+   <style:text-properties fo:font-size="24pt"/>
+  </style:style>
+  <style:style style:name="title2" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.05cm" draw:fill-color="#ffcc99" draw:shadow="visible" draw:shadow-offset-x="0.2cm" draw:shadow-offset-y="0.2cm" draw:shadow-color="#808080"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0.2cm" fo:margin-top="0.1cm" fo:margin-bottom="0.1cm" fo:text-align="center" fo:text-indent="0cm"/>
+   <style:text-properties fo:font-size="36pt"/>
+  </style:style>
+  <style:style style:name="headline" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+   <style:paragraph-properties fo:margin-top="0.42cm" fo:margin-bottom="0.21cm"/>
+   <style:text-properties fo:font-size="24pt"/>
+  </style:style>
+  <style:style style:name="headline1" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+   <style:paragraph-properties fo:margin-top="0.42cm" fo:margin-bottom="0.21cm"/>
+   <style:text-properties fo:font-size="18pt" fo:font-weight="bold"/>
+  </style:style>
+  <style:style style:name="headline2" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+   <style:paragraph-properties fo:margin-top="0.42cm" fo:margin-bottom="0.21cm"/>
+   <style:text-properties fo:font-size="14pt" fo:font-style="italic" fo:font-weight="bold"/>
+  </style:style>
+  <style:style style:name="measure" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="solid" svg:stroke-color="#000000" draw:marker-start="Arrow" draw:marker-start-width="0.2cm" draw:marker-end="Arrow" draw:marker-end-width="0.2cm" draw:fill="none" draw:show-unit="true"/>
+   <style:text-properties fo:font-size="12pt"/>
+  </style:style>
+ </office:styles>
+ <office:automatic-styles>
+  <style:page-layout style:name="PM0">
+   <style:page-layout-properties fo:margin-top="0cm" fo:margin-bottom="0cm" fo:margin-left="0.108cm" fo:margin-right="0cm" fo:page-width="21cm" fo:page-height="29.7cm" style:print-orientation="portrait"/>
+  </style:page-layout>
+  <style:style style:name="dp1" style:family="drawing-page">
+   <style:drawing-page-properties draw:background-size="border" draw:fill="none"/>
+  </style:style>
+  <style:style style:name="dp2" style:family="drawing-page"/>
+  <style:style style:name="gr1" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="13.311cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr2" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="5.304cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr3" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="5.324cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr4" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="5.325cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr5" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="2.941cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr6" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none" fo:min-height="0.638cm"/>
+  </style:style>
+  <style:style style:name="gr7" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_2_20_Dots_20_3_20_Dashes" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="5.362cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr8" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_2_20_Dots_20_3_20_Dashes" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="3.325cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr9" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_2_20_Dots_20_3_20_Dashes" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="7.981cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr10" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_2_20_Dots_20_3_20_Dashes" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="2.821cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr11" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_2_20_Dots_20_3_20_Dashes" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="1.896cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr12" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="_32__20_Dots_20_1_20_Dash" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.199cm" fo:min-width="5.774cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr13" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="_32__20_Dots_20_1_20_Dash" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="5.774cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr14" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="2.948cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr15" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.637cm" fo:min-width="8.464cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr16" style:family="graphic" style:parent-style-name="objectwithoutfill">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Fine_20_Dashed" svg:stroke-color="#999999" draw:fill="none" draw:textarea-vertical-align="middle"/>
+  </style:style>
+  <style:style style:name="gr17" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" svg:stroke-color="#000000" draw:fill="none" draw:fill-color="#ffffff" fo:min-height="0.433cm"/>
+  </style:style>
+  <style:style style:name="gr18" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.579cm" draw:marker-end-width="0.579cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="13.326cm" fo:min-width="20.189cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr19" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="0.997cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr20" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.194cm" fo:min-width="0.409cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr21" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="0.361cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr22" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="bitmap" draw:fill-image-name="Fiery" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="2.106cm" fo:min-width="5.428cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr23" style:family="graphic" style:parent-style-name="standard" style:list-style-name="L1">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="1.608cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr24" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="0.817cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr25" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" draw:fill="none" fo:min-height="0.374cm"/>
+  </style:style>
+  <style:style style:name="gr26" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="3.298cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr27" style:family="graphic" style:parent-style-name="standard" style:list-style-name="L1">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="_33__20_Dashes_20_3_20_Dots_20__28_var_29_" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="4.052cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr28" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_2_20_Dots_20_3_20_Dashes" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="3.682cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr29" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_2_20_Dots_20_3_20_Dashes" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.745cm" fo:min-width="17.109cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr30" style:family="graphic" style:parent-style-name="standard" style:list-style-name="L1">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="_33__20_Dashes_20_3_20_Dots_20__28_var_29_" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="5.217cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr31" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="_32__20_Dots_20_1_20_Dash" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.199cm" fo:min-width="5.81cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr32" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="0.387cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr33" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="_32__20_Dots_20_1_20_Dash" svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.198cm" fo:min-width="5.81cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr34" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#999999" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.594cm" fo:min-width="0.495cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr35" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties svg:stroke-width="0.053cm" svg:stroke-color="#ffff00" draw:marker-start-width="0.5cm" draw:marker-end-width="0.5cm" svg:stroke-opacity="80%" draw:stroke-linejoin="bevel" svg:stroke-linecap="round" draw:fill="none" draw:textarea-horizontal-align="justify" draw:textarea-vertical-align="middle" draw:auto-grow-height="false" fo:min-height="0.842cm" fo:min-width="19.874cm" fo:padding-top="0.151cm" fo:padding-bottom="0.151cm" fo:padding-left="0.276cm" fo:padding-right="0.276cm"/>
+  </style:style>
+  <style:style style:name="gr36" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_Dashed" svg:stroke-color="#000000" draw:fill="solid" draw:fill-color="#e6e6ff" fo:min-height="13.931cm"/>
+  </style:style>
+  <style:style style:name="gr37" style:family="graphic" style:parent-style-name="objectwithoutfill">
+   <style:graphic-properties svg:stroke-width="0.2cm" svg:stroke-color="#008000" draw:marker-start-width="0.8cm" draw:marker-end-width="0.8cm" draw:fill="none" draw:textarea-vertical-align="middle" fo:padding-top="0.225cm" fo:padding-bottom="0.225cm" fo:padding-left="0.35cm" fo:padding-right="0.35cm"/>
+  </style:style>
+  <style:style style:name="gr38" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties fo:background-color="#ffffcc"/>
+  </style:style>
+  <style:style style:name="gr39" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:textarea-vertical-align="middle"/>
+  </style:style>
+  <style:style style:name="gr40" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_Dashed" svg:stroke-color="#000000" draw:fill="solid" draw:fill-color="#ffffcc" fo:min-height="30.034cm" style:protect="position size"/>
+  </style:style>
+  <style:style style:name="gr41" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_Dashed" svg:stroke-color="#000000" draw:fill="solid" draw:fill-color="#ffffcc" fo:min-height="4.985cm" style:protect="position size"/>
+  </style:style>
+  <style:style style:name="gr42" style:family="graphic" style:parent-style-name="standard" style:list-style-name="L1">
+   <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Ultrafine_20_Dashed" svg:stroke-color="#000000" draw:fill="solid" draw:fill-color="#e6e6ff" fo:min-height="10.325cm" style:protect="position size"/>
+  </style:style>
+  <style:style style:name="gr43" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:marker-start="Arrow" draw:marker-start-width="0.3cm" draw:marker-end="Arrow" draw:marker-end-width="0.3cm" draw:textarea-vertical-align="middle"/>
+  </style:style>
+  <style:style style:name="gr44" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" svg:stroke-color="#000000" draw:fill="none" draw:fill-color="#ffffff" fo:min-height="0.319cm"/>
+  </style:style>
+  <style:style style:name="gr45" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:stroke="none" svg:stroke-color="#000000" draw:fill="none" draw:fill-color="#ffffff" fo:min-height="0.637cm"/>
+  </style:style>
+  <style:style style:name="gr46" style:family="graphic" style:parent-style-name="standard">
+   <style:graphic-properties draw:textarea-vertical-align="middle" fo:background-color="#ffffff"/>
+  </style:style>
+  <style:style style:name="P1" style:family="paragraph">
+   <style:paragraph-properties style:text-autospace="none"/>
+  </style:style>
+  <style:style style:name="P2" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="start" fo:text-indent="0cm" style:text-autospace="none"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P3" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="start" style:text-autospace="none"/>
+  </style:style>
+  <style:style style:name="P4" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0cm" style:text-autospace="none"/>
+   <style:text-properties fo:font-size="16pt" fo:font-weight="bold" style:font-size-asian="16pt" style:font-weight-asian="bold" style:font-size-complex="16pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="P5" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0cm" style:text-autospace="none"/>
+  </style:style>
+  <style:style style:name="P6" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm" style:text-autospace="none"/>
+  </style:style>
+  <style:style style:name="P7" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm" style:text-autospace="none"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P8" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="end" style:text-autospace="none"/>
+  </style:style>
+  <style:style style:name="P9" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="start" fo:text-indent="0cm"/>
+  </style:style>
+  <style:style style:name="P10" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="start" fo:text-indent="0cm"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P11" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:text-align="center"/>
+  </style:style>
+  <style:style style:name="P12" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none" draw:fill-color="#ffffff"/>
+   <style:text-properties fo:color="#666666" fo:font-size="11pt" style:font-size-asian="11pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="P13" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:text-align="start" style:text-autospace="none"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P14" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm"/>
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P15" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="start" fo:text-indent="0cm"/>
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P16" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="center" fo:text-indent="0cm"/>
+  </style:style>
+  <style:style style:name="P17" style:family="paragraph">
+   <loext:graphic-properties draw:fill="bitmap" draw:fill-image-name="Fiery"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="center" fo:text-indent="0cm"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P18" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm"/>
+  </style:style>
+  <style:style style:name="P19" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm"/>
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-name-complex="Mangal" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="P20" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="end"/>
+  </style:style>
+  <style:style style:name="P21" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0cm" style:text-autospace="none"/>
+   <style:text-properties fo:color="#000080" style:font-name="Arial Narrow1" fo:font-size="9pt" fo:font-weight="normal" style:font-size-asian="16pt" style:font-weight-asian="bold" style:font-size-complex="16pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="P22" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm" style:text-autospace="none"/>
+   <style:text-properties fo:color="#000080" style:font-name="Arial Narrow1" fo:font-size="9pt" fo:font-weight="normal" style:font-size-asian="16pt" style:font-weight-asian="bold" style:font-size-complex="16pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="P23" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm" style:text-autospace="none"/>
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-name-complex="Mangal" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P24" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="start" fo:text-indent="0cm" style:text-autospace="none"/>
+  </style:style>
+  <style:style style:name="P25" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="start" fo:text-indent="0cm" style:text-autospace="none"/>
+   <style:text-properties fo:font-size="9pt" fo:font-style="normal" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P26" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm"/>
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P27" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-align="end" fo:text-indent="0cm"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="P28" style:family="paragraph">
+   <loext:graphic-properties draw:fill="solid" draw:fill-color="#e6e6ff"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="P29" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="start"/>
+   <style:text-properties style:text-line-through-style="none" style:text-line-through-type="none" style:font-name="Liberation Sans1" fo:font-size="10pt" fo:font-style="normal" style:text-underline-style="none" fo:font-weight="normal"/>
+  </style:style>
+  <style:style style:name="P30" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="center"/>
+   <style:text-properties fo:color="#ff0000" style:text-line-through-style="none" style:text-line-through-type="none" style:font-name="Liberation Sans1" fo:font-size="10pt" fo:font-style="normal" style:text-underline-style="none" fo:font-weight="bold"/>
+  </style:style>
+  <style:style style:name="P31" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0.3cm" fo:margin-right="0cm" fo:text-indent="0cm" style:text-autospace="none"/>
+  </style:style>
+  <style:style style:name="P32" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0.3cm" fo:margin-right="0cm" fo:text-indent="0cm"/>
+  </style:style>
+  <style:style style:name="P33" style:family="paragraph">
+   <loext:graphic-properties draw:fill="solid" draw:fill-color="#ffffcc"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="P34" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0cm"/>
+  </style:style>
+  <style:style style:name="P35" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0.4cm" fo:margin-right="0cm" fo:text-indent="0cm"/>
+  </style:style>
+  <style:style style:name="P36" style:family="paragraph">
+   <loext:graphic-properties draw:fill="solid" draw:fill-color="#ffffcc"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0cm"/>
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="P37" style:family="paragraph">
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0cm" style:text-autospace="ideograph-alpha"/>
+  </style:style>
+  <style:style style:name="P38" style:family="paragraph">
+   <loext:graphic-properties draw:fill="solid" draw:fill-color="#e6e6ff"/>
+   <style:paragraph-properties fo:margin-left="0cm" fo:margin-right="0cm" fo:text-indent="0cm"/>
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-name-complex="Mangal" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="P39" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="center"/>
+  </style:style>
+  <style:style style:name="P40" style:family="paragraph">
+   <loext:graphic-properties draw:fill="none" draw:fill-color="#ffffff"/>
+   <style:paragraph-properties fo:text-align="center"/>
+   <style:text-properties fo:font-size="8pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="P41" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="center"/>
+   <style:text-properties style:text-line-through-style="none" style:text-line-through-type="none" style:font-name="Liberation Sans1" fo:font-size="10pt" fo:font-style="normal" style:text-underline-style="none" fo:font-weight="bold"/>
+  </style:style>
+  <style:style style:name="P42" style:family="paragraph">
+   <style:paragraph-properties fo:text-align="start"/>
+   <style:text-properties fo:color="#ff00ff" style:text-line-through-style="none" style:text-line-through-type="none" style:font-name="Liberation Sans1" fo:font-size="9pt" fo:font-style="italic" style:text-underline-style="none" fo:font-weight="bold"/>
+  </style:style>
+  <style:style style:name="T1" style:family="text">
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T2" style:family="text">
+   <style:text-properties fo:font-size="16pt" fo:font-weight="bold" style:font-size-asian="16pt" style:font-weight-asian="bold" style:font-size-complex="16pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T3" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-name-complex="Mangal" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T4" style:family="text">
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T5" style:family="text">
+   <style:text-properties fo:color="#666666" fo:font-size="11pt" fo:font-style="italic" style:font-size-asian="11pt" style:font-style-asian="italic" style:font-size-complex="18pt" style:font-style-complex="italic"/>
+  </style:style>
+  <style:style style:name="T6" style:family="text">
+   <style:text-properties fo:color="#666666" fo:font-size="11pt" style:font-size-asian="11pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T7" style:family="text">
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-name-complex="Mangal" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T8" style:family="text">
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="9pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-name-complex="Mangal" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T9" style:family="text">
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-name-complex="Mangal" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T10" style:family="text">
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T11" style:family="text">
+   <style:text-properties fo:color="#000080" style:font-name="Arial Narrow1" fo:font-size="9pt" fo:font-weight="normal" style:font-size-asian="16pt" style:font-weight-asian="bold" style:font-size-complex="16pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T12" style:family="text">
+   <style:text-properties fo:color="#ff0000" fo:font-size="9pt" style:font-size-asian="9pt" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T13" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" fo:font-style="normal" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-name-complex="Mangal" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T14" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-name-complex="Mangal" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T15" style:family="text">
+   <style:text-properties style:font-name="Arial1" fo:font-size="10pt" style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color" fo:font-weight="bold" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T16" style:family="text">
+   <style:text-properties fo:font-size="9pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T17" style:family="text">
+   <style:text-properties fo:font-size="9pt" fo:font-weight="bold" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T18" style:family="text">
+   <style:text-properties fo:font-size="9pt" fo:font-style="italic" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T19" style:family="text">
+   <style:text-properties style:font-name="Wingdings2" fo:font-size="9pt" style:font-name-asian="Wingdings2" style:font-size-asian="18pt" style:font-name-complex="Wingdings2" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T20" style:family="text">
+   <style:text-properties fo:font-size="7pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T21" style:family="text">
+   <style:text-properties fo:font-size="7pt" style:text-underline-style="none" fo:font-weight="normal" style:font-size-asian="18pt" style:font-weight-asian="normal" style:font-size-complex="18pt" style:font-weight-complex="normal"/>
+  </style:style>
+  <style:style style:name="T22" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans4" fo:font-size="9pt" style:font-name-asian="Wingdings2" style:font-size-asian="18pt" style:font-name-complex="Wingdings2" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T23" style:family="text">
+   <style:text-properties fo:font-size="10pt" fo:font-style="italic" style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color" fo:font-weight="bold" style:font-size-asian="10pt" style:font-weight-asian="bold" style:font-size-complex="10pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T24" style:family="text">
+   <style:text-properties fo:font-size="9pt" fo:font-style="italic" style:font-size-asian="18pt" style:font-style-asian="italic" style:font-size-complex="18pt" style:font-style-complex="italic"/>
+  </style:style>
+  <style:style style:name="T25" style:family="text">
+   <style:text-properties fo:font-size="9pt" fo:font-style="italic" fo:font-weight="bold" style:font-size-asian="18pt" style:font-style-asian="italic" style:font-weight-asian="bold" style:font-size-complex="18pt" style:font-style-complex="italic" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T26" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" fo:font-style="italic" style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color" fo:font-weight="bold" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-weight-asian="bold" style:font-name-complex="Mangal" style:font-size-complex="9pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T27" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" fo:font-style="italic" style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-name-complex="Mangal" style:font-size-complex="9pt"/>
+  </style:style>
+  <style:style style:name="T28" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" fo:font-style="italic" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="9pt" style:font-style-asian="italic" style:font-name-complex="Mangal" style:font-size-complex="9pt" style:font-style-complex="italic"/>
+  </style:style>
+  <style:style style:name="T29" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="10pt" style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color" fo:font-weight="bold" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-weight-asian="bold" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T30" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" fo:font-style="italic" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-style-asian="italic" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-style-complex="italic"/>
+  </style:style>
+  <style:style style:name="T31" style:family="text">
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" fo:font-weight="normal" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-weight-asian="normal" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-weight-complex="normal"/>
+  </style:style>
+  <style:style style:name="T32" style:family="text">
+   <style:text-properties style:font-name="Times New Roman1" fo:font-size="10pt" fo:font-weight="bold" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-weight-asian="bold" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T33" style:family="text">
+   <style:text-properties style:font-name="HelveticaNeueLT Std1" fo:font-size="10pt" fo:font-weight="normal" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-weight-asian="normal" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-weight-complex="normal"/>
+  </style:style>
+  <style:style style:name="T34" style:family="text">
+   <style:text-properties style:font-name="HelveticaNeueLT Std1" fo:font-size="10pt" fo:font-weight="bold" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-weight-asian="bold" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T35" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" fo:font-weight="bold" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-weight-asian="bold" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-weight-complex="bold"/>
+  </style:style>
+  <style:style style:name="T36" style:family="text">
+   <style:text-properties style:font-name="Liberation Sans" fo:font-size="9pt" fo:font-style="normal" fo:font-weight="normal" style:letter-kerning="true" style:font-name-asian="Microsoft YaHei" style:font-size-asian="18pt" style:font-style-asian="normal" style:font-weight-asian="normal" style:font-name-complex="Mangal" style:font-size-complex="18pt" style:font-style-complex="normal" style:font-weight-complex="normal"/>
+  </style:style>
+  <style:style style:name="T37" style:family="text">
+   <style:text-properties fo:font-size="8pt" style:font-size-asian="18pt" style:font-size-complex="18pt"/>
+  </style:style>
+  <style:style style:name="T38" style:family="text">
+   <style:text-properties fo:font-style="normal" fo:font-weight="bold"/>
+  </style:style>
+  <style:style style:name="T39" style:family="text">
+   <style:text-properties fo:font-weight="bold"/>
+  </style:style>
+  <text:list-style style:name="L1">
+   <text:list-level-style-bullet text:level="1" text:bullet-char="●">
+    <style:list-level-properties text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="2" text:bullet-char="●">
+    <style:list-level-properties text:space-before="0.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="3" text:bullet-char="●">
+    <style:list-level-properties text:space-before="1.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="4" text:bullet-char="●">
+    <style:list-level-properties text:space-before="1.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="5" text:bullet-char="●">
+    <style:list-level-properties text:space-before="2.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="6" text:bullet-char="●">
+    <style:list-level-properties text:space-before="3cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="7" text:bullet-char="●">
+    <style:list-level-properties text:space-before="3.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="8" text:bullet-char="●">
+    <style:list-level-properties text:space-before="4.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="9" text:bullet-char="●">
+    <style:list-level-properties text:space-before="4.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="10" text:bullet-char="●">
+    <style:list-level-properties text:space-before="5.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+  </text:list-style>
+  <text:list-style style:name="L2">
+   <text:list-level-style-bullet text:level="1" text:bullet-char="">
+    <style:list-level-properties text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="2" text:bullet-char="">
+    <style:list-level-properties text:space-before="0.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="3" text:bullet-char="">
+    <style:list-level-properties text:space-before="1.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="4" text:bullet-char="">
+    <style:list-level-properties text:space-before="1.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="5" text:bullet-char="">
+    <style:list-level-properties text:space-before="2.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="6" text:bullet-char="">
+    <style:list-level-properties text:space-before="3cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="7" text:bullet-char="">
+    <style:list-level-properties text:space-before="3.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="8" text:bullet-char="">
+    <style:list-level-properties text:space-before="4.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="9" text:bullet-char="">
+    <style:list-level-properties text:space-before="4.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="10" text:bullet-char="">
+    <style:list-level-properties text:space-before="5.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+  </text:list-style>
+  <text:list-style style:name="L3">
+   <text:list-level-style-bullet text:level="1" text:bullet-char="">
+    <style:list-level-properties text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="2" text:bullet-char="">
+    <style:list-level-properties text:space-before="0.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="3" text:bullet-char="">
+    <style:list-level-properties text:space-before="1.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="4" text:bullet-char="">
+    <style:list-level-properties text:space-before="1.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="5" text:bullet-char="">
+    <style:list-level-properties text:space-before="2.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="6" text:bullet-char="">
+    <style:list-level-properties text:space-before="3cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="7" text:bullet-char="">
+    <style:list-level-properties text:space-before="3.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="8" text:bullet-char="">
+    <style:list-level-properties text:space-before="4.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="9" text:bullet-char="">
+    <style:list-level-properties text:space-before="4.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="10" text:bullet-char="">
+    <style:list-level-properties text:space-before="5.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:font-charset="x-symbol" fo:color="#000000" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+  </text:list-style>
+  <text:list-style style:name="L4">
+   <text:list-level-style-bullet text:level="1" text:bullet-char="●">
+    <style:list-level-properties text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="2" text:bullet-char="●">
+    <style:list-level-properties text:space-before="0.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="3" text:bullet-char="●">
+    <style:list-level-properties text:space-before="1.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="4" text:bullet-char="●">
+    <style:list-level-properties text:space-before="1.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="5" text:bullet-char="●">
+    <style:list-level-properties text:space-before="2.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="6" text:bullet-char="●">
+    <style:list-level-properties text:space-before="3cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="7" text:bullet-char="●">
+    <style:list-level-properties text:space-before="3.6cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="8" text:bullet-char="●">
+    <style:list-level-properties text:space-before="4.2cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="9" text:bullet-char="●">
+    <style:list-level-properties text:space-before="4.8cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+   <text:list-level-style-bullet text:level="10" text:bullet-char="●">
+    <style:list-level-properties text:space-before="5.4cm" text:min-label-width="0.6cm"/>
+    <style:text-properties fo:font-family="StarSymbol" style:use-window-font-color="true" fo:font-size="45%"/>
+   </text:list-level-style-bullet>
+  </text:list-style>
+ </office:automatic-styles>
+ <office:master-styles>
+  <draw:layer-set>
+   <draw:layer draw:name="layout"/>
+   <draw:layer draw:name="background"/>
+   <draw:layer draw:name="backgroundobjects"/>
+   <draw:layer draw:name="controls"/>
+   <draw:layer draw:name="measurelines">
+    <svg:title>RappSystem</svg:title>
+    <svg:desc>Her befinder sig forklaringer m.v. til design-systemet.</svg:desc>
+   </draw:layer>
+   <draw:layer draw:name="Saldi-Objekter">
+    <svg:title>Titel</svg:title>
+   </draw:layer>
+  </draw:layer-set>
+  <style:master-page style:name="Standard" style:page-layout-name="PM0" draw:style-name="dp1"/>
+ </office:master-styles>
+ <office:body>
+  <office:drawing>
+   <draw:page draw:name="Faktura" draw:style-name="dp2" draw:master-page-name="Standard">
+    <office:forms form:automatic-focus="false" form:apply-design-mode="false">
+     <form:form form:name="Formular" form:command="Varedata" form:datasource="TelefonOrdrer" form:apply-filter="true" form:enctype="application/text" form:command-type="table" form:control-implementation="ooo:com.sun.star.form.component.Form" office:target-frame="" xlink:href="" xlink:type="simple">
+      <form:properties>
+       <form:property form:property-name="PropertyChangeNotificationEnabled" office:value-type="boolean" office:boolean-value="true"/>
+       <form:property form:property-name="URL" office:value-type="string" office:string-value=""/>
+      </form:properties>
+      <form:combobox form:name="Kombinationsfelt 2" form:control-implementation="ooo:com.sun.star.form.component.ComboBox" xml:id="control1" form:id="control1" form:dropdown="true" form:printable="false" form:size="16" form:max-length="19" form:convert-empty-to-null="true" form:list-source-type="table-fields">
+       <form:properties>
+        <form:property form:property-name="ControlTypeinMSO" office:value-type="float" office:value="0"/>
+        <form:property form:property-name="DefaultControl" office:value-type="string" office:string-value="com.sun.star.form.control.ComboBox"/>
+        <form:property form:property-name="HelpText" office:value-type="string" office:string-value="Forkert angivelse kan medføre ødelæggelse af en anden formular!"/>
+        <form:property form:property-name="MouseWheelBehavior" office:value-type="float" office:value="2"/>
+        <form:property form:property-name="ObjIDinMSO" office:value-type="float" office:value="65535"/>
+       </form:properties>
+       <form:item form:label="Vælg formulartype..."/>
+       <form:item form:label=" 1: Tilbud"/>
+       <form:item form:label=" 2: Ordrebekræftelse"/>
+       <form:item form:label=" 3: Følgeseddel"/>
+       <form:item form:label=" 4: Faktura"/>
+       <form:item form:label=" 5: Kreditnota"/>
+       <form:item form:label=" 6: Rykker_1"/>
+       <form:item form:label=" 7: Rykker_2"/>
+       <form:item form:label=" 8: Rykker_3"/>
+       <form:item form:label=" 9: Plukliste"/>
+       <form:item form:label="10: Pos"/>
+       <form:item form:label="11: Kontokort"/>
+       <form:item form:label="12: Indkøbsforslag"/>
+       <form:item form:label="13: Rekvisition"/>
+       <form:item form:label="14: Købsfaktura"/>
+      </form:combobox>
+      <form:formatted-text form:name="Felt med mønster 1" form:control-implementation="ooo:com.sun.star.form.component.PatternField" xml:id="control2" form:id="control2" form:printable="false" form:readonly="true" form:current-value="  Vigtigt: Angiv korrekt formular!   " form:value="  Vigtigt: Angiv korrekt formular!   " form:convert-empty-to-null="true" form:validation="true">
+       <form:properties>
+        <form:property form:property-name="ControlTypeinMSO" office:value-type="float" office:value="0"/>
+        <form:property form:property-name="DefaultControl" office:value-type="string" office:string-value="com.sun.star.form.control.PatternField"/>
+        <form:property form:property-name="HelpText" office:value-type="string" office:string-value="Forkert angivelse kan medføre ødelæggelse af en anden formular!"/>
+        <form:property form:property-name="MouseWheelBehavior" office:value-type="float" office:value="0"/>
+        <form:property form:property-name="ObjIDinMSO" office:value-type="float" office:value="65535"/>
+       </form:properties>
+      </form:formatted-text>
+      <form:combobox form:name="Kombinationsfelt 2" form:control-implementation="ooo:com.sun.star.form.component.ComboBox" xml:id="control3" form:id="control3" form:dropdown="true" form:printable="false" form:size="6" form:max-length="19" form:convert-empty-to-null="true" form:list-source-type="table-fields">
+       <form:properties>
+        <form:property form:property-name="ControlTypeinMSO" office:value-type="float" office:value="0"/>
+        <form:property form:property-name="DefaultControl" office:value-type="string" office:string-value="com.sun.star.form.control.ComboBox"/>
+        <form:property form:property-name="MouseWheelBehavior" office:value-type="float" office:value="2"/>
+        <form:property form:property-name="ObjIDinMSO" office:value-type="float" office:value="65535"/>
+       </form:properties>
+       <form:item form:label="Vælg sprog..."/>
+       <form:item form:label="Dansk"/>
+      </form:combobox>
+      <form:formatted-text form:name="Felt med mønster 1" form:control-implementation="ooo:com.sun.star.form.component.PatternField" xml:id="control4" form:id="control4" form:printable="false" form:readonly="true" form:current-value="Sprog:" form:value="Sprog:" form:convert-empty-to-null="true" form:validation="true">
+       <form:properties>
+        <form:property form:property-name="ControlTypeinMSO" office:value-type="float" office:value="0"/>
+        <form:property form:property-name="DefaultControl" office:value-type="string" office:string-value="com.sun.star.form.control.PatternField"/>
+        <form:property form:property-name="HelpText" office:value-type="string" office:string-value="Forkert angivelse kan medføre ødelæggelse af en anden formular!"/>
+        <form:property form:property-name="MouseWheelBehavior" office:value-type="float" office:value="0"/>
+        <form:property form:property-name="ObjIDinMSO" office:value-type="float" office:value="65535"/>
+       </form:properties>
+      </form:formatted-text>
+      <form:fixed-text form:name="Etiketfelt 1" form:control-implementation="ooo:com.sun.star.form.component.FixedText" xml:id="control5" form:id="control5" form:label="Bug i LO v. 5.0.3: DropDown-knapper virker ikke! Brug mus rulleknap."/>
+     </form:form>
+    </office:forms>
+    <draw:custom-shape draw:style-name="gr1" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="13.863cm" svg:height="0.5cm" svg:x="0.476cm" svg:y="0.997cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$eget_firmanavn <text:s text:c="4"/>* <text:s text:c="4"/>$egen_addr1 <text:s text:c="4"/>* <text:s text:c="4"/>$eget_postnr $eget_bynavn <text:s text:c="4"/>* <text:s text:c="4"/>Danmark</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr2" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.856cm" svg:height="0.5cm" svg:x="14.544cm" svg:y="3.263cm">
+     <text:p text:style-name="P3"><text:span text:style-name="T1">$eget_firmanavn</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr3" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.876cm" svg:height="0.5cm" svg:x="14.544cm" svg:y="6.387cm">
+     <text:p text:style-name="P3"><text:span text:style-name="T1">CVR nr: $eget_cvrnr</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr4" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.877cm" svg:height="0.5cm" svg:x="14.544cm" svg:y="4.828cm">
+     <text:p text:style-name="P3"><text:span text:style-name="T1">DK-$eget_postnr $eget_bynavn</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr5" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="3.493cm" svg:height="0.5cm" svg:x="10.097cm" svg:y="5.325cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">if($ordre_kontakt;)Att: $ordre_kontakt;</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr3" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.876cm" svg:height="0.5cm" svg:x="14.544cm" svg:y="5.354cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">Tlf:. $egen_tlf</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr3" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.876cm" svg:height="0.5cm" svg:x="14.544cm" svg:y="5.874cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">Fax: $egen_fax</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:frame draw:style-name="gr6" draw:text-style-name="P4" draw:layer="Saldi-Objekter" svg:width="3cm" svg:height="0.888cm" svg:x="10.086cm" svg:y="2.424cm">
+     <draw:text-box>
+      <text:p text:style-name="P1"><text:span text:style-name="T2">Faktura</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:custom-shape draw:style-name="gr7" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.914cm" svg:height="0.5cm" svg:x="1.177cm" svg:y="26.319cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$egen_bank_reg $egen_bank_konto</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr8" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="3.877cm" svg:height="0.5cm" svg:x="1.177cm" svg:y="25.819cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$egen_bank_navn</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr9" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="8.533cm" svg:height="0.5cm" svg:x="11.758cm" svg:y="24.172cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">Betales inden: $formular_forfaldsdato</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr10" draw:text-style-name="P7" draw:layer="Saldi-Objekter" svg:width="3.373cm" svg:height="0.5cm" svg:x="12.343cm" svg:y="23.188cm">
+     <text:p text:style-name="P6"><text:span text:style-name="T3">$formular_moms</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr11" draw:text-style-name="P7" draw:layer="Saldi-Objekter" svg:width="2.448cm" svg:height="0.5cm" svg:x="4.061cm" svg:y="23.188cm">
+     <text:p text:style-name="P8"><text:span text:style-name="T1">$formular_ialt</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr12" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="6.326cm" svg:height="0.501cm" svg:x="1.956cm" svg:y="4.026cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$ordre_postnr $ordre_bynavn</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr13" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="6.326cm" svg:height="0.5cm" svg:x="1.956cm" svg:y="2.525cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$ordre_firmanavn</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr13" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="6.326cm" svg:height="0.5cm" svg:x="1.956cm" svg:y="3.526cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$ordre_addr2;</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr12" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="6.326cm" svg:height="0.501cm" svg:x="1.956cm" svg:y="3.025cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$ordre_addr1</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr14" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="3.5cm" svg:height="0.5cm" svg:x="10.097cm" svg:y="3.325cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$ordre_fakturanr</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr14" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="3.5cm" svg:height="0.5cm" svg:x="10.097cm" svg:y="4.325cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$ordre_kundeordnr;</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr14" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="3.5cm" svg:height="0.5cm" svg:x="10.097cm" svg:y="3.825cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$ordre_fakturadate</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr14" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="3.5cm" svg:height="0.5cm" svg:x="10.097cm" svg:y="4.825cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$ordre_ordrenr</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr15" draw:text-style-name="P10" draw:layer="Saldi-Objekter" svg:width="9.016cm" svg:height="0.939cm" svg:x="5.354cm" svg:y="8.301cm">
+     <text:p><text:span text:style-name="T4">beskrivelse</text:span></text:p>
+     <text:p text:style-name="P9"><text:span text:style-name="T1"/></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:line draw:style-name="gr16" draw:text-style-name="P11" draw:layer="measurelines" svg:x1="0.108cm" svg:y1="6.996cm" svg:x2="21cm" svg:y2="6.996cm">
+     <text:p/>
+    </draw:line>
+    <draw:line draw:style-name="gr16" draw:text-style-name="P11" draw:layer="measurelines" svg:x1="0.108cm" svg:y1="22.007cm" svg:x2="21cm" svg:y2="22.007cm">
+     <text:p/>
+    </draw:line>
+    <draw:frame draw:style-name="gr17" draw:text-style-name="P12" draw:layer="measurelines" svg:width="2.488cm" svg:height="0.683cm" svg:x="0.144cm" svg:y="6.929cm">
+     <draw:text-box>
+      <text:p><text:span text:style-name="T5">Ordrelinier</text:span><text:span text:style-name="T6">:</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr17" draw:text-style-name="P12" draw:layer="measurelines" svg:width="2.74cm" svg:height="0.683cm" svg:x="0.144cm" svg:y="22.004cm">
+     <draw:text-box>
+      <text:p><text:span text:style-name="T5">SideFooter</text:span><text:span text:style-name="T6">:</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr17" draw:text-style-name="P12" draw:layer="measurelines" svg:width="2.873cm" svg:height="0.683cm" svg:x="0.144cm" svg:y="0.13cm">
+     <draw:text-box>
+      <text:p><text:span text:style-name="T5">SideHeader</text:span><text:span text:style-name="T6">:</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:custom-shape draw:style-name="gr2" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.856cm" svg:height="0.5cm" svg:x="14.544cm" svg:y="4.288cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$egen_addr2</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr2" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="5.856cm" svg:height="0.5cm" svg:x="14.544cm" svg:y="3.775cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T1">$egen_addr1</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr18" draw:text-style-name="P13" draw:layer="Saldi-Objekter" svg:width="20.741cm" svg:height="13.628cm" svg:x="0.108cm" svg:y="8.2cm">
+     <text:p/>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr19" draw:text-style-name="P14" draw:layer="Saldi-Objekter" svg:width="1.549cm" svg:height="0.5cm" svg:x="2.743cm" svg:y="8.301cm">
+     <text:p><text:span text:style-name="T4">varenr</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr20" draw:text-style-name="P15" draw:layer="Saldi-Objekter" svg:width="0.961cm" svg:height="0.496cm" svg:x="1.579cm" svg:y="8.301cm">
+     <text:p text:style-name="P9"><text:span text:style-name="T7">posnr</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr21" draw:text-style-name="P14" draw:layer="Saldi-Objekter" svg:width="0.913cm" svg:height="0.5cm" svg:x="4.335cm" svg:y="8.301cm">
+     <text:p text:style-name="P9"><text:span text:style-name="T8">antal</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr22" draw:text-style-name="P17" draw:layer="Saldi-Objekter" svg:width="5.98cm" svg:height="2.408cm" svg:x="14.478cm" svg:y="0.644cm">
+     <text:p text:style-name="P16"><text:span text:style-name="T1">LOGO</text:span></text:p>
+     <text:p text:style-name="P9"><text:span text:style-name="T1"/></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr23" draw:text-style-name="P19" draw:layer="Saldi-Objekter" svg:width="2.16cm" svg:height="0.5cm" svg:x="18.06cm" svg:y="8.301cm">
+     <text:p text:style-name="P18"><text:span text:style-name="T9">liniesum</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr24" draw:text-style-name="P14" draw:layer="Saldi-Objekter" svg:width="1.369cm" svg:height="0.5cm" svg:x="14.531cm" svg:y="8.301cm">
+     <text:p text:style-name="P20"><text:span text:style-name="T10">pris</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P21" draw:layer="Saldi-Objekter" svg:width="2.073cm" svg:height="0.624cm" svg:x="2.499cm" svg:y="7.696cm">
+     <draw:text-box>
+      <text:p text:style-name="P1"><text:span text:style-name="T11">Varenummer</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P21" draw:layer="Saldi-Objekter" svg:width="1.117cm" svg:height="0.624cm" svg:x="1.5cm" svg:y="7.696cm">
+     <draw:text-box>
+      <text:p text:style-name="P1"><text:span text:style-name="T11">Pos.</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P21" draw:layer="Saldi-Objekter" svg:width="1.139cm" svg:height="0.624cm" svg:x="4.3cm" svg:y="7.696cm">
+     <draw:text-box>
+      <text:p text:style-name="P1"><text:span text:style-name="T11">Antal</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P21" draw:layer="Saldi-Objekter" svg:width="4.855cm" svg:height="0.624cm" svg:x="5.2cm" svg:y="7.696cm">
+     <draw:text-box>
+      <text:p text:style-name="P1"><text:span text:style-name="T11">Produkt beskrivelse</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="1.472cm" svg:height="0.624cm" svg:x="14.4cm" svg:y="7.696cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">à pris</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="2.305cm" svg:height="0.624cm" svg:x="18.201cm" svg:y="7.696cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">Beløb u. moms</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:custom-shape draw:style-name="gr26" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="3.85cm" svg:height="0.5cm" svg:x="16.441cm" svg:y="28.451cm">
+     <text:p text:style-name="P8"><text:span text:style-name="T1">Side $formular_side</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr8" draw:text-style-name="P7" draw:layer="Saldi-Objekter" svg:width="3.877cm" svg:height="0.5cm" svg:x="16.074cm" svg:y="23.188cm">
+     <text:p text:style-name="P6"><text:span text:style-name="T3">$formular_sum</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr27" draw:text-style-name="P23" draw:layer="Saldi-Objekter" svg:width="4.604cm" svg:height="0.5cm" svg:x="15.687cm" svg:y="22.39cm">
+     <text:p text:style-name="P6"><text:span text:style-name="T3">$formular_transportsum</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr28" draw:text-style-name="P7" draw:layer="Saldi-Objekter" svg:width="4.234cm" svg:height="0.5cm" svg:x="6.966cm" svg:y="23.188cm">
+     <text:p text:style-name="P6"><text:span text:style-name="T3">$ordre_momssats;% moms</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr29" draw:text-style-name="P2" draw:layer="Saldi-Objekter" svg:width="17.661cm" svg:height="1.047cm" svg:x="1.177cm" svg:y="27.14cm">
+     <text:p text:style-name="P1"><text:span text:style-name="T12">$ordre_betalingsbet $ordre_betalingsdage dage</text:span></text:p>
+     <text:p text:style-name="P1"><text:span text:style-name="T1"/></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr30" draw:text-style-name="P23" draw:layer="Saldi-Objekter" svg:width="5.769cm" svg:height="0.5cm" svg:x="9.736cm" svg:y="22.39cm">
+     <text:p text:style-name="P6"><text:span text:style-name="T3">Transport til side $formular_nextside</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr31" draw:text-style-name="P25" draw:layer="Saldi-Objekter" svg:width="6.362cm" svg:height="0.501cm" svg:x="1.956cm" svg:y="5.013cm">
+     <text:p text:style-name="P24"><text:span text:style-name="T13">if($ordre_lev_addr1)Leveringsadresse:</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr32" draw:text-style-name="P26" draw:layer="Saldi-Objekter" svg:width="0.939cm" svg:height="0.5cm" svg:x="15.944cm" svg:y="8.301cm">
+     <text:p text:style-name="P18"><text:span text:style-name="T7">rabat</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="1.233cm" svg:height="0.624cm" svg:x="15.752cm" svg:y="7.696cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">Rabat</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="1.694cm" svg:height="0.624cm" svg:x="8.534cm" svg:y="3.282cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">Nummer:</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="1.694cm" svg:height="0.624cm" svg:x="8.534cm" svg:y="3.782cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">Dato:</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:custom-shape draw:style-name="gr33" draw:text-style-name="P25" draw:layer="Saldi-Objekter" svg:width="6.362cm" svg:height="0.5cm" svg:x="1.956cm" svg:y="5.514cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$ordre_lev_navn</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr31" draw:text-style-name="P25" draw:layer="Saldi-Objekter" svg:width="6.362cm" svg:height="0.501cm" svg:x="1.956cm" svg:y="6.014cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$ordre_lev_addr1;</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr33" draw:text-style-name="P25" draw:layer="Saldi-Objekter" svg:width="6.362cm" svg:height="0.5cm" svg:x="1.956cm" svg:y="6.515cm">
+     <text:p text:style-name="P5"><text:span text:style-name="T3">$ordre_lev_postnr $ordre_lev_bynavn;</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="2.185cm" svg:height="0.624cm" svg:x="8.043cm" svg:y="4.282cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">Deres Ref.</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="1.694cm" svg:height="0.624cm" svg:x="8.534cm" svg:y="4.782cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">Ordrenr:</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:custom-shape draw:style-name="gr34" draw:text-style-name="P27" draw:layer="Saldi-Objekter" svg:width="1.047cm" svg:height="0.896cm" svg:x="16.945cm" svg:y="8.301cm">
+     <text:p><text:span text:style-name="T14"/></text:p>
+     <text:p><text:span text:style-name="T4">Varemomssats</text:span></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:frame draw:style-name="gr25" draw:text-style-name="P22" draw:layer="Saldi-Objekter" svg:width="1.504cm" svg:height="0.624cm" svg:x="16.675cm" svg:y="7.71cm">
+     <draw:text-box>
+      <text:p text:style-name="P8"><text:span text:style-name="T11">Moms%</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:custom-shape draw:style-name="gr35" draw:text-style-name="P10" draw:layer="Saldi-Objekter" svg:width="20.426cm" svg:height="1.144cm" svg:x="0.265cm" svg:y="8.222cm">
+     <text:p text:style-name="P9"><text:span text:style-name="T1"/></text:p>
+     <text:p text:style-name="P9"><text:span text:style-name="T1"/></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:custom-shape draw:style-name="gr35" draw:text-style-name="P10" draw:layer="Saldi-Objekter" svg:width="20.426cm" svg:height="1.144cm" svg:x="0.265cm" svg:y="9.422cm">
+     <text:p text:style-name="P9"><text:span text:style-name="T1"/></text:p>
+     <text:p text:style-name="P9"><text:span text:style-name="T1"/></text:p>
+     <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="rectangle" draw:enhanced-path="M 0 0 L 21600 0 21600 21600 0 21600 0 0 Z N"/>
+    </draw:custom-shape>
+    <draw:frame draw:style-name="gr36" draw:text-style-name="P28" draw:layer="measurelines" svg:width="8.598cm" svg:height="14.181cm" svg:x="26.032cm" svg:y="-0.561cm">
+     <draw:text-box>
+      <text:p><text:span text:style-name="T15">Udarbejdelse / tilpasning af formulardesign:</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Flyt rundt med de eksisterende felter og tekster.</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Slet de overflødige og opret andre felter, men sørg for at de alle befinder sig i laget </text:span><text:span text:style-name="T17">Saldi-Objekter</text:span><text:span text:style-name="T16">. Kun objekter i dette lag medtages til bestemmelse af placeringer og egenskaber i den endelige formular.</text:span></text:p>
+      <text:p><text:span text:style-name="T16">Det nemmeste er at tage en kopi af et eksisterende objekt og rette det til.</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T18">Simple Tekst-Labeler (f.eks. overskrifter):</text:span><text:span text:style-name="T16"> oprettes som tekster.</text:span></text:p>
+      <text:p><text:span text:style-name="T18">DataVariabler: </text:span><text:span text:style-name="T16">oprettes som rektangler uden flade, men med ramme og tekst.</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Sørg for at feltet får tilstrækkelig bredde og højde, samt at justering er valgt: Venstre - Centreret - Højre</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Objekter i laget </text:span><text:span text:style-name="T17">Mållinier</text:span><text:span text:style-name="T16"> er kun til hjælp og støtte.</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Over sidens top, findes et felt hvor formularnummer skal angives. Husk også at sidens navn omdøbes fra f.eks. ”Dias1” til ”Faktura”.</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Når du er færdig med tilretninger, gemmes data således:</text:span></text:p>
+      <text:p><text:span text:style-name="T16">Filer – Gem en kopi – Filtype: Flat XML….fodg</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Denne fil benytter SALDI efterfølgende til at importere de nødvendige data for placeringer.</text:span></text:p>
+      <text:p><text:span text:style-name="T16"/></text:p>
+      <text:p><text:span text:style-name="T16">Til slut justeres følgende inde i SALDI formulardesign:</text:span></text:p>
+      <text:list text:style-name="L2">
+       <text:list-item>
+        <text:p><text:span text:style-name="T16">Tekstfarver hvor sort ikke ønskes. </text:span><text:span text:style-name="T19"></text:span></text:p>
+       </text:list-item>
+       <text:list-item>
+        <text:p><text:span text:style-name="T16">Felter som ikke skal udskrives på alle sider.</text:span><text:span text:style-name="T20"> (</text:span><text:span text:style-name="T21"> 1 / S / !S)</text:span></text:p>
+       </text:list-item>
+       <text:list-item>
+        <text:p><text:span text:style-name="T16">Tekstjustering som ikke skal være venstrestillet. </text:span><text:span text:style-name="T19"></text:span></text:p>
+       </text:list-item>
+       <text:list-item>
+        <text:p><text:span text:style-name="T16">Font som ikke skal være Helvetica </text:span><text:span text:style-name="T19"></text:span></text:p>
+       </text:list-item>
+      </text:list>
+      <text:list text:style-name="L3">
+       <text:list-item>
+        <text:p><text:span text:style-name="T16">Tekster med anden højde end 11 pt. </text:span><text:span text:style-name="T19"></text:span></text:p>
+        <text:p><text:span text:style-name="T19"/></text:p>
+        <text:p><text:span text:style-name="T16"><text:s/></text:span><text:span text:style-name="T19"></text:span><text:span text:style-name="T22">: Import indarbejdes måske i en senere version.</text:span></text:p>
+       </text:list-item>
+      </text:list>
+     </draw:text-box>
+    </draw:frame>
+    <draw:line draw:style-name="gr37" draw:text-style-name="P11" draw:layer="Saldi-Objekter" svg:x1="0.362cm" svg:y1="7.52cm" svg:x2="20.721cm" svg:y2="7.52cm">
+     <text:p/>
+    </draw:line>
+    <draw:line draw:style-name="gr37" draw:text-style-name="P11" draw:layer="Saldi-Objekter" svg:x1="0.403cm" svg:y1="25.51cm" svg:x2="20.762cm" svg:y2="25.51cm">
+     <text:p/>
+    </draw:line>
+    <draw:control draw:style-name="gr38" draw:text-style-name="P29" draw:layer="layout" svg:width="5.625cm" svg:height="0.647cm" svg:x="15.375cm" svg:y="-0.7cm" draw:control="control1"/>
+    <draw:control draw:style-name="gr39" draw:text-style-name="P30" draw:layer="layout" svg:width="5.663cm" svg:height="0.496cm" svg:x="15.372cm" svg:y="-1.282cm" draw:control="control2"/>
+    <draw:frame draw:style-name="gr40" draw:text-style-name="P33" draw:layer="layout" svg:width="4.666cm" svg:height="30.284cm" svg:x="21.252cm" svg:y="-0.584cm">
+     <draw:text-box>
+      <text:p><text:span text:style-name="T18">Systemets </text:span><text:span text:style-name="T23">Variabelnavne</text:span><text:span text:style-name="T18">:</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">På: </text:span><text:span text:style-name="T25">Alle formulare</text:span><text:span text:style-name="T24">r</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$eget_firmanavn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_addr1</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_addr2</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$eget_postnr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$eget_bynavn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$eget_land</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$eget_cvrnr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_tlf</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_fax</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_bank_navn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_bank_reg</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_bank_konto</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_email</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$egen_web</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_side</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_nextside</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_preside</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_transportsum</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_betalingsid(9,5)</text:span></text:p>
+      <text:p text:style-name="P5"><text:span text:style-name="T24">ikke: </text:span><text:span text:style-name="T25">Rykkere</text:span><text:span text:style-name="T24"> og </text:span><text:span text:style-name="T25">Plukliste</text:span><text:span text:style-name="T24"> men </text:span><text:span text:style-name="T25">Pos</text:span><text:span text:style-name="T24"> og </text:span><text:span text:style-name="T25">Indkøbsforslag</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_initialer</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_navn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_addr1</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_addr2</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_postnr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_by</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_email</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_mobil</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_tlf</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_fax</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ansat_privattlf</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">På: </text:span><text:span text:style-name="T25">Kontokort</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_firmanavn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_addr1</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_addr2</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_postnr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_bynavn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_land</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_kontakt</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$adresser_cvrnr</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">ikke: </text:span><text:span text:style-name="T25">Kontokort</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_firmanavn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_addr1</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_addr2</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_postnr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_bynavn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_land</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_kontakt</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_cvrnr</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">ikke: </text:span><text:span text:style-name="T25">Rykkere</text:span><text:span text:style-name="T24"> og </text:span><text:span text:style-name="T25">Plukliste</text:span><text:span text:style-name="T24"> men </text:span><text:span text:style-name="T25">Pos</text:span><text:span text:style-name="T24"> og </text:span><text:span text:style-name="T25">Indkøbsforslag</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_ordredate</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_levdate</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_notes</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_ordrenr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_momssats</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_kundeordnr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_projekt</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_lev_navn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_lev_addr1</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_lev_addr2</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_lev_postnr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_lev_bynavn</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_lev_kontakt</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_ean</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_institution</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_lev_kontakt</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">På: </text:span><text:span text:style-name="T25">Faktura</text:span><text:span text:style-name="T24"> og </text:span><text:span text:style-name="T25">Rekvisition</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_fakturanr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$ordre_fakturadate</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">ikke: </text:span><text:span text:style-name="T25">Rykkere</text:span><text:span text:style-name="T24"> og </text:span><text:span text:style-name="T25">Plukliste</text:span><text:span text:style-name="T24"> men </text:span><text:span text:style-name="T25">Pos</text:span><text:span text:style-name="T24"> og </text:span><text:span text:style-name="T25">Indkøbsforslag</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_moms</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_momsgrundlag</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$formular_ialt</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">På: </text:span><text:span text:style-name="T25">Følgeseddel</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$levering_lev_nr</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$levering_salgsdate</text:span></text:p>
+      <text:p text:style-name="P1"><text:span text:style-name="T24">På </text:span><text:span text:style-name="T25">Rykkere</text:span></text:p>
+      <text:p text:style-name="P31"><text:span text:style-name="T18">$forfalden_sum</text:span></text:p>
+      <text:p text:style-name="P32"><text:span text:style-name="T18">$rykker_gebyr</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr41" draw:text-style-name="P36" draw:layer="layout" svg:width="4.666cm" svg:height="5.235cm" svg:x="26.058cm" svg:y="13.764cm">
+     <draw:text-box>
+      <text:p text:style-name="P34"><text:span text:style-name="T26">Ordrelinier</text:span><text:span text:style-name="T27">:</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">posnr</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">varenr</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">antal</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">enhed</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">beskrivelse</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">pris</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">rabat</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">momssats</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">linjemoms</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">varemomssats</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">linjesum</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">projekt</text:span></text:p>
+      <text:p text:style-name="P35"><text:span text:style-name="T28">Procent</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr42" draw:text-style-name="P38" draw:layer="layout" svg:width="8.598cm" svg:height="10.575cm" svg:x="26.032cm" svg:y="19.182cm">
+     <draw:text-box>
+      <text:p text:style-name="P34"><text:span text:style-name="T29">Specialiteter</text:span><text:span text:style-name="T14">:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14"/></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T30">Side udskrivning:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">For at tilkendegive på hvilke sider felter skal udskrives varieres feltrammernes stregtype:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">Gennemgående</text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14">~ <text:s/>A = Alle sider</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">2 punkter 1 streg <text:s/></text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14">~ <text:s/>1 = Kun første side</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">2 prikker 3 streger</text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14">~ <text:s/>S = Kun sidste side</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">3 streger 3 prikker</text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14">~ !S = Ikke sidste side</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14"/></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T30">Tekst font:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">I Libre Office</text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14">i SALDI</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T31">”</text:span><text:span text:style-name="T31">Times new Roman”</text:span><text:span text:style-name="T32"> </text:span><text:span text:style-name="T32"><text:tab/></text:span><text:span text:style-name="T32"><text:tab/></text:span><text:span text:style-name="T32">Times</text:span><text:span text:style-name="T33"> <text:s/></text:span><text:span text:style-name="T33"><text:tab/></text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T33">”</text:span><text:span text:style-name="T33">Helvetica neueLT Std”</text:span><text:span text:style-name="T33"><text:tab/></text:span><text:span text:style-name="T33"><text:tab/></text:span><text:span text:style-name="T34">Helvetica</text:span><text:span text:style-name="T14"> </text:span><text:span text:style-name="T14"><text:tab/></text:span></text:p>
+      <text:p text:style-name="P37"><text:span text:style-name="T14">Alle andre</text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T14"><text:tab/></text:span><text:span text:style-name="T34">Helvetica</text:span><text:span text:style-name="T14"> </text:span><text:span text:style-name="T14"><text:tab/></text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14"/></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T30">Tekst højde:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">Den angivne </text:span><text:span text:style-name="T35">højde</text:span><text:span text:style-name="T14"> i LOO overføres til SALDI.</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14"/></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T30">Tekst farve:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14">Den angivne </text:span><text:span text:style-name="T35">farve</text:span><text:span text:style-name="T14"> i LOO overføres til SALDI.</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14"/></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T30">Tekst typografi:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T35">Skråskrift</text:span><text:span text:style-name="T14"> og </text:span><text:span text:style-name="T35">fed</text:span><text:span text:style-name="T14"> i LOO overføres til SALDI.</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T14"/></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T36">Tekst sprog</text:span><text:span text:style-name="T14">:</text:span></text:p>
+      <text:p text:style-name="P34"><text:span text:style-name="T35">Dansk</text:span><text:span text:style-name="T14"> (Vælges i DropDown felt over sidens top)</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:line draw:style-name="gr43" draw:text-style-name="P39" draw:layer="measurelines" svg:x1="0.794cm" svg:y1="21.802cm" svg:x2="0.794cm" svg:y2="8.176cm">
+     <text:p/>
+    </draw:line>
+    <draw:line draw:style-name="gr43" draw:text-style-name="P39" draw:layer="measurelines" svg:x1="1.285cm" svg:y1="9.383cm" svg:x2="1.285cm" svg:y2="8.176cm">
+     <text:p/>
+    </draw:line>
+    <draw:frame draw:style-name="gr44" draw:text-style-name="P40" draw:layer="measurelines" svg:width="3.414cm" svg:height="0.569cm" draw:transform="rotate (1.5707963267949) translate (0.987cm 12.833cm)">
+     <draw:text-box>
+      <text:p text:style-name="P39"><text:span text:style-name="T37">Højden af en ordrelinie</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:frame draw:style-name="gr45" draw:text-style-name="P40" draw:layer="measurelines" svg:width="3.3cm" svg:height="0.887cm" draw:transform="rotate (1.5707963267949) translate (0.339cm 16.391cm)">
+     <draw:text-box>
+      <text:p text:style-name="P39"><text:span text:style-name="T37">Reserveret plads til ordrelinier</text:span></text:p>
+     </draw:text-box>
+    </draw:frame>
+    <draw:control draw:style-name="gr38" draw:text-style-name="P29" draw:layer="Saldi-Objekter" svg:width="3.077cm" svg:height="0.647cm" svg:x="12.224cm" svg:y="-0.699cm" draw:control="control3"/>
+    <draw:control draw:style-name="gr46" draw:text-style-name="P41" draw:layer="layout" svg:width="2.967cm" svg:height="0.496cm" svg:x="12.247cm" svg:y="-1.282cm" draw:control="control4"/>
+    <draw:control draw:style-name="gr39" draw:text-style-name="P42" draw:layer="layout" svg:width="11.192cm" svg:height="0.45cm" svg:x="10.768cm" svg:y="-1.878cm" draw:control="control5"/><officeooo:annotation svg:x="-1.825cm" svg:y="9.075cm">
+     <dc:date>2015-11-17T07:49:49</dc:date>
+     <text:p>Brug af LAG:</text:p>
+     <text:p>Nederst vises faneblade med lag.</text:p>
+     <text:p><text:span text:style-name="T38">Layout</text:span>, <text:span text:style-name="T39">Kontrolelementer</text:span> og <text:span text:style-name="T39">Mållinier</text:span> er systemlag, med begrænsede indstillingsmuligheder.</text:p>
+     <text:p>Laget <text:span text:style-name="T39">Saldi-Objekter</text:span> indeholder elementer der skal udskrives i rapporter. </text:p>
+     <text:p>Laget <text:span text:style-name="T39">Mållinier</text:span> er benyttet til kommentarer til systemet.</text:p>
+    </officeooo:annotation>
+   </draw:page>
+  </office:drawing>
+ </office:body>
+</office:document>

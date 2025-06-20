@@ -1,0 +1,2322 @@
+/* 
+    Document   : main
+    Created on : 29-07-2012, 18:04:07
+    Author     : per kringelbach
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+*
+{
+    margin: 0px;
+    padding: 0px;
+}
+
+html 
+{
+    height: 100%;
+		overflow-y: scroll;
+}
+
+body
+{
+    font: normal 12px Arial, Helvetica, sans-serif;
+    color: #444;
+    height: 100%;
+		
+}
+
+p
+{
+    font-size: 12px;
+    line-height: 18px;   
+}
+
+h1
+{
+    
+}
+
+h4
+{
+    font-size: 14px;
+    font-weight: bold;
+    
+}
+
+img
+{
+    border: none;
+}
+
+.date
+{
+    font: 10px "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, sans-serif; 
+    color:#888;
+    text-align: right;
+    width:100%;
+    padding: 4px 0px;
+    overflow:hidden;
+}
+
+.infonote
+{
+    font: 10px "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, sans-serif; 
+    color:#888;
+    margin-left: 90px;
+    width:100%;
+    padding: 4px 0px;
+    overflow:hidden;
+}
+
+#wrapper
+{
+    margin: auto;
+    width: 980px;
+		width: 981px \9;
+    height: 100%;
+    background-color: white;
+    margin-bottom: -30px;
+		#padding-bottom:10px;
+}
+.floatright{float: right;}
+.floatleft{float: left;}
+
+/* her er style til link */
+.link a
+{
+	outline: none;
+	color: #444;
+	text-decoration: underline;
+}
+.link a:hover
+{
+	color: black;
+}
+.link a:active
+{
+	color: #0085cf;
+}
+
+/* her er style til hoved i vis_sag */
+.vissaghoved
+{
+	padding:5px 12px 6px 12px;
+	margin:-5px -12px 5px -12px;
+}
+.vissaghoved a
+{
+	outline: none;
+	color: #111;
+	font-size: 14px;
+	font-weight: bold;
+	text-decoration: underline;
+	display: block;
+	background-color:#d3d3d3;
+	padding:5px 12px 6px 12px;
+	margin:-5px -12px -6px -12px;
+	-moz-border-top-left-radius:4px;
+  -webkit-border-top-left-radius:4px;
+	border-top-left-radius: 4px;
+	-moz-border-top-right-radius:4px;
+  -webkit-border-top-right-radius:4px;
+	border-top-right-radius: 4px;
+}
+.vissaghoved a:hover
+{
+	color: #000066;
+	background-color:#ccc;
+}
+.vissaghoved a:active
+{
+	color: #0085cf;
+}
+
+/* her er style til 'sagens omkostninger' i vis_sag */
+.sagensomkostninger {}
+.sagensomkostninger td a 
+{
+	outline: none;
+	color: #111;
+	font-size: 13px;
+	font-weight: bold;
+	text-decoration: underline;
+	display: block;
+	background-color:#d3d3d3;
+	padding: 2px 0 4px 0;
+}
+.sagensomkostninger a:hover
+{
+	color: #000066;
+	background-color:#ccc;
+}
+.sagensomkostninger a:active
+{
+	color: #0085cf;
+}
+
+/* her starter menuen */
+#menubarholder
+{
+    padding: 18px 0px 18px 0px;    
+}
+
+#menubar
+{
+    width: 978px;
+    height: 34px;
+    color: #e9e9e9;
+    border: solid 1px #555;
+    background: #6e6e6e;
+    background: -webkit-gradient(linear, left top, left bottom, from(#888), to(#575757));
+    background: -moz-linear-gradient(top,  #888,  #575757);
+    background: -ms-linear-gradient(top,  #888,  #575757);
+		background: -o-linear-gradient(top,  #888,  #575757);
+		background: linear-gradient(top,  #888,  #575757);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#888888', endColorstr='#575757');
+    
+    -moz-border-radius:4px;
+    -webkit-border-radius:4px;
+    border-radius:4px;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+		
+    -moz-box-shadow: 0px 3px 3px #cecece;
+    -webkit-box-shadow: 0px 3px 3px #cecece;
+    box-shadow: 0 3px 4px #8b8b8b;
+}
+
+.navbar
+{
+    width: 978px; /* skal ændres til 978px, hvis original søgebar bruges. Ny søgebar 778px */
+    display: table;
+    float: left;
+    table-layout: fixed;
+    text-align: center;
+    text-decoration: none;
+    height: 34px;
+    
+}
+
+ul.navbar {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: table;
+	
+}
+
+ul.navbar li {
+    display: table-cell;
+    margin: 0;
+    padding: 0;
+    border-right: 1px solid #5d5d5d;
+}
+
+ul.navbar li:last-child
+{
+    border-right: none;
+}
+
+ul.navbar li a {
+    
+    display: block;  
+    #height: 34px;
+    vertical-align: middle;
+    color: #d7d7d7;
+    vertical-align: baseline;
+    #margin: 0 2px;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font: 16px/100% Arial, Helvetica, sans-serif;
+    #padding: .55em 2em .55em;
+    padding: 9px;
+    text-shadow: 0 1px 1px rgba(0,0,0,.3);
+}
+
+ul.navbar li a:hover
+{
+    background: #616161;
+    background: -webkit-gradient(linear, left top, left bottom, from(#757575), to(#4b4b4b));
+    background: -moz-linear-gradient(top,  #757575,  #4b4b4b);
+    background: -ms-linear-gradient(top,  #757575,  #4b4b4b);
+		background: -o-linear-gradient(top,  #757575,  #4b4b4b);
+		background: linear-gradient(top,  #757575,  #4b4b4b);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#757575', endColorstr='#4b4b4b');
+}
+
+ul.navbar li:first-child a:hover, ul.navbar li:first-child a:active
+{
+    -moz-border-top-left-radius:4px;
+    -webkit-border-top-left-radius:4px;
+    border-top-left-radius:4px;
+		border-top-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+    -moz-border-bottom-left-radius:4px;
+    -webkit-border-bottom-left-radius:4px;
+    border-bottom-left-radius:4px;
+		border-bottom-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+}
+
+ul.navbar li a:active
+{
+    color: #afafaf;
+    background: -webkit-gradient(linear, left top, left bottom, from(#575757), to(#888));
+    background: -moz-linear-gradient(top,  #575757,  #888);
+    background: -ms-linear-gradient(top,  #575757,  #888);
+		background: -o-linear-gradient(top,  #575757,  #888);
+		background: linear-gradient(top,  #575757,  #888);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#575757', endColorstr='#888888');
+}
+
+#menuActive 
+{
+    color: #afafaf;
+    background: -webkit-gradient(linear, left top, left bottom, from(#575757), to(#888));
+    background: -moz-linear-gradient(top,  #575757,  #888);
+    background: -ms-linear-gradient(top,  #575757,  #888);
+		background: -o-linear-gradient(top,  #575757,  #888);
+		background: linear-gradient(top,  #575757,  #888);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#575757', endColorstr='#888888');
+}
+
+ul.navbar li:first-child #menuActive 
+{
+		-moz-border-top-left-radius:4px;
+    -webkit-border-top-left-radius:4px;
+    border-top-left-radius:4px;
+		border-top-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+    -moz-border-bottom-left-radius:4px;
+    -webkit-border-bottom-left-radius:4px;
+    border-bottom-left-radius:4px;
+		border-bottom-left-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner (and IE10)*/
+}
+
+/* style til søgefelt */
+
+/* original css til søgebar 
+ul.navbar li form input
+{
+    width:76px; height:19px; margin-left:0px; margin-top:0px; border:none; padding-left:20px; padding-right:10px; color: #d7d7d7; outline:none; 
+    
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+    border-radius:10px;
+  
+    background-image: url("../media/magnifier-white.png");
+    background-repeat: no-repeat;
+    
+    background-color:#6E6E6E;
+    
+    -moz-box-shadow: inset 0 2px 1px 1px #363636;
+    -webkit-box-shadow: inset 0 2px 1px 1px #363636;
+    box-shadow: inset 0 2px 1px 1px #363636;
+}
+
+ul.navbar li form input:focus
+{
+    width: 145px;
+    color: #444;
+    background-color: #fff;
+    background-image: url("../media/magnifier-dark.png");
+}
+
+ul.navbar li form input
+{
+    -webkit-transition: all 500ms ease-in-out;
+
+    -moz-transition: all 500ms ease-in-out;
+
+    -o-transition: all 500ms ease-in-out;
+
+    transition: all 500ms ease-in-out;
+}
+*/
+/* her starter ny søgebar med autocomplete */
+
+.navbarsearch
+{
+    width: 200px; 
+    float: left;
+    text-align: center;
+    margin-top:7px;
+    padding: 0px;
+}	
+
+.navbarsearch form input
+{
+    width:145px; height:19px; margin-left:0px; margin-top:0px; border:none; padding-left:20px; padding-right:18px; color:#444; outline:none; 
+    
+    -moz-border-radius:10px;
+    -webkit-border-radius:10px;
+    border-radius:10px;
+  
+    background-image: url("../media/magnifier-dark.png");
+    background-repeat: no-repeat;
+    
+    #background-color:#6E6E6E;
+    background-color: #fff;
+    -moz-box-shadow: inset 0 2px 1px 1px #363636;
+    -webkit-box-shadow: inset 0 2px 1px 1px #363636;
+    box-shadow: inset 0 2px 1px 1px #363636;
+}
+/* 
+.navbarsearch form input:focus
+{
+    width: 145px;  
+    color: #444;
+    background-color: #fff;
+    background-image: url("../media/magnifier-dark.png");
+}
+
+.navbarsearch form input
+{
+    -webkit-transition: all 500ms ease-in-out;
+
+    -moz-transition: all 500ms ease-in-out;
+
+    -o-transition: all 500ms ease-in-out;
+
+    transition: all 500ms ease-in-out;
+}
+*/
+.divclearable {
+  
+        #background:#fff;       
+        
+        #padding: 3px 5px 3px 3px;    
+	#border: 1px solid #ccc;
+        
+        #-moz-border-radius:10px;
+        #-webkit-border-radius:10px;
+        #border-radius:10px;
+    
+	display: -moz-inline-stack;
+	display: inline-block;
+	zoom:1;
+	*display:inline;	
+	vertical-align:middle;
+        
+}
+
+a.clearlink
+{
+    background: url("../img/close-button-light.png") no-repeat;
+	#background-position: center center;
+        margin-left: -16px;
+        padding-left: 4px;
+        #margin-bottom: 2px;
+	cursor: pointer;     
+	display: -moz-inline-stack;
+	display: inline-block;
+        vertical-align:middle;
+	zoom:1;
+	*display:inline;	
+	height: 12px;
+	width: 12px;
+	z-index: 2000;
+	border: none;
+}
+
+a.clearlink:hover {
+	background: url("../img/close-button-dark.png") no-repeat;
+	#background-position: center center;
+}
+
+.search /* bruges til original søgebar  */
+{
+    width:200px;
+    vertical-align: middle;
+}
+
+/* her slutter menuen og søgefelt */
+/*************************************/
+
+/* her starter header */
+#header
+{
+    width: 100%;
+    height: 45px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid lightgray;
+    #background-color: lightcoral;
+}
+
+.headerRght
+{
+    float: right;
+}
+
+.headerLft
+{
+		float: left;
+}
+
+.headerbtn
+{
+    float: right;
+    margin: 5px 12px 0px 0px;
+}
+
+.headerMM
+{
+		float: left;
+    margin: 5px 0px 0px 12px;
+}
+
+[data-notifications] {
+	position: relative;
+}
+
+[data-notifications]:after {
+	content: attr(data-notifications);
+	position: absolute;
+	background: red;
+	border-radius: 50%;
+	display: inline-block;
+	padding: 0.3em;
+	color: #f2f2f2;
+	right: -10px;
+	top: -10px;
+}
+/* her er style til knapperne på siden */
+
+.button {
+    display: inline-block;
+    zoom: 1; /* zoom and *display = ie7 hack for display:inline-block */
+    *display: inline;
+    vertical-align: baseline;
+    #margin-top:5px;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font: 14px/100% Arial, Helvetica, sans-serif;
+    padding: .5em 2em .55em;
+    text-shadow: 0 1px 1px rgba(0,0,0,.3);
+    -webkit-border-radius: .5em; 
+    -moz-border-radius: .5em;
+    border-radius: .5em;
+    border-radius: 0 \0/IE89; /* disable IE8 and IE9 round corner*/
+    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    -moz-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+
+.button:hover {
+    text-decoration: none;
+}
+
+.button:active {
+    position: relative;
+    top: 1px; 
+}
+
+.medium {
+	font-size: 12px;
+	padding: .4em 1.5em .42em;
+}
+.small {
+	font-size: 11px;
+	padding: .2em 1em .275em;
+}
+.smallx {
+	font-size: 11px;
+	padding: .2em .1em .275em;
+}
+.widebtn {
+    width:100%;
+}
+.italic {
+	  font-style:italic;
+}
+.bold {
+		font-weight:bold;
+}
+/* blue */
+.blue {
+    color: #d9eef7;
+    border: solid 1px #0076a3;
+    background: #0095cd;
+    background: -webkit-gradient(linear, left top, left bottom, from(#00adee), to(#0078a5));
+    background: -moz-linear-gradient(top,  #00adee,  #0078a5);
+    background: -ms-linear-gradient(top,  #00adee,  #0078a5);
+		background: -o-linear-gradient(top,  #00adee,  #0078a5);
+		background: linear-gradient(top,  #00adee,  #0078a5);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#00adee', endColorstr='#0078a5');
+}
+.blue:hover {
+    background: #007ead;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0095cc), to(#00678e));
+    background: -moz-linear-gradient(top,  #0095cc,  #00678e);
+    background: -ms-linear-gradient(top,  #0095cc,  #00678e);
+		background: -o-linear-gradient(top,  #0095cc,  #00678e);
+		background: linear-gradient(top,  #0095cc,  #00678e);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0095cc', endColorstr='#00678e');
+}
+.blue:active {
+    color: #80bed6;
+    background: -webkit-gradient(linear, left top, left bottom, from(#0078a5), to(#00adee));
+    background: -moz-linear-gradient(top,  #0078a5,  #00adee);
+    background: -ms-linear-gradient(top,  #0078a5,  #00adee);
+		background: -o-linear-gradient(top,  #0078a5,  #00adee);
+		background: linear-gradient(top,  #0078a5,  #00adee);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#0078a5', endColorstr='#00adee');
+}
+
+/* gray */
+.gray {
+    color: #e9e9e9;
+    border: solid 1px #555;
+    background: #6e6e6e;
+    background: -webkit-gradient(linear, left top, left bottom, from(#888), to(#575757));
+    background: -moz-linear-gradient(top,  #888,  #575757);
+    background: -ms-linear-gradient(top,  #888,  #575757);
+		background: -o-linear-gradient(top,  #888,  #575757);
+		background: linear-gradient(top,  #888,  #575757);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#888888', endColorstr='#575757');
+}
+.gray:hover {
+    background: #616161;
+    background: -webkit-gradient(linear, left top, left bottom, from(#757575), to(#4b4b4b));
+    background: -moz-linear-gradient(top,  #757575,  #4b4b4b);
+    background: -ms-linear-gradient(top,  #757575,  #4b4b4b);
+		background: -o-linear-gradient(top,  #757575,  #4b4b4b);
+		background: linear-gradient(top,  #757575,  #4b4b4b);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#757575', endColorstr='#4b4b4b');
+}
+.gray:active {
+    color: #afafaf;
+    background: -webkit-gradient(linear, left top, left bottom, from(#575757), to(#888));
+    background: -moz-linear-gradient(top,  #575757,  #888);
+    background: -ms-linear-gradient(top,  #575757,  #888);
+		background: -o-linear-gradient(top,  #575757,  #888);
+		background: linear-gradient(top,  #575757,  #888);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#575757', endColorstr='#888888');
+}
+
+/* white */
+.white {
+    color: #606060;
+    border: solid 1px #b7b7b7;
+    background: #fff;
+    background: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#ededed));
+    background: -moz-linear-gradient(top,  #fff,  #ededed);
+    background: -ms-linear-gradient(top,  #fff,  #ededed);
+		background: -o-linear-gradient(top,  #fff,  #ededed);
+		background: linear-gradient(top,  #fff,  #ededed);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#ededed');
+}
+.white:hover {
+    background: #ededed;
+    background: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#dcdcdc));
+    background: -moz-linear-gradient(top,  #fff,  #dcdcdc);
+    background: -ms-linear-gradient(top,  #fff,  #dcdcdc);
+		background: -o-linear-gradient(top,  #fff,  #dcdcdc);
+		background: linear-gradient(top,  #fff,  #dcdcdc);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffff', endColorstr='#dcdcdc');
+}
+.white:active {
+    color: #999;
+    background: -webkit-gradient(linear, left top, left bottom, from(#ededed), to(#fff));
+    background: -moz-linear-gradient(top,  #ededed,  #fff);
+    background: -ms-linear-gradient(top,  #ededed,  #fff);
+		background: -o-linear-gradient(top,  #ededed,  #fff);
+		background: linear-gradient(top,  #ededed,  #fff);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ededed', endColorstr='#ffffff');
+}
+
+/* orange */
+.orange {
+    color: #fef4e9;
+    border: solid 1px #da7c0c;
+    background: #f78d1d;
+    background: -webkit-gradient(linear, left top, left bottom, from(#faa51a), to(#f47a20));
+    background: -moz-linear-gradient(top,  #faa51a,  #f47a20);
+    background: -ms-linear-gradient(top,  #faa51a,  #f47a20);
+		background: -o-linear-gradient(top,  #faa51a,  #f47a20);
+		background: linear-gradient(top,  #faa51a,  #f47a20);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#faa51a', endColorstr='#f47a20');
+}
+.orange:hover {
+    background: #f47c20;
+    background: -webkit-gradient(linear, left top, left bottom, from(#f88e11), to(#f06015));
+    background: -moz-linear-gradient(top,  #f88e11,  #f06015);
+    background: -ms-linear-gradient(top,  #f88e11,  #f06015);
+		background: -o-linear-gradient(top,  #f88e11,  #f06015);
+		background: linear-gradient(top,  #f88e11,  #f06015);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#f88e11', endColorstr='#f06015');
+}
+.orange:active {
+    color: #fcd3a5;
+    background: -webkit-gradient(linear, left top, left bottom, from(#f47a20), to(#faa51a));
+    background: -moz-linear-gradient(top,  #f47a20,  #faa51a);
+    background: -ms-linear-gradient(top,  #f47a20,  #faa51a);
+		background: -o-linear-gradient(top,  #f47a20,  #faa51a);
+		background: linear-gradient(top,  #f47a20,  #faa51a);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#f47a20', endColorstr='#faa51a');
+}
+
+/* red */
+.red {
+    color: #faddde;
+    border: solid 1px #980c10;
+    background: #d81b21;
+    background: -webkit-gradient(linear, left top, left bottom, from(#ed1c24), to(#aa1317));
+    background: -moz-linear-gradient(top,  #ed1c24,  #aa1317);
+    background: -ms-linear-gradient(top,  #ed1c24,  #aa1317);
+		background: -o-linear-gradient(top,  #ed1c24,  #aa1317);
+		background: linear-gradient(top,  #ed1c24,  #aa1317);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ed1c24', endColorstr='#aa1317');
+}
+.red:hover {
+    background: #b61318;
+    background: -webkit-gradient(linear, left top, left bottom, from(#c9151b), to(#a11115));
+    background: -moz-linear-gradient(top,  #c9151b,  #a11115);
+    background: -ms-linear-gradient(top,  #c9151b,  #a11115);
+		background: -o-linear-gradient(top,  #c9151b,  #a11115);
+		background: linear-gradient(top,  #c9151b,  #a11115);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#c9151b', endColorstr='#a11115');
+}
+.red:active {
+    color: #de898c;
+    background: -webkit-gradient(linear, left top, left bottom, from(#aa1317), to(#ed1c24));
+    background: -moz-linear-gradient(top,  #aa1317,  #ed1c24);
+    background: -ms-linear-gradient(top,  #aa1317,  #ed1c24);
+		background: -o-linear-gradient(top,  #aa1317,  #ed1c24);
+		background: linear-gradient(top,  #aa1317,  #ed1c24);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#aa1317', endColorstr='#ed1c24');
+}
+
+/* rosy */
+.rosy {
+    color: #fae7e9;
+    border: solid 1px #b73948;
+    background: #da5867;
+    background: -webkit-gradient(linear, left top, left bottom, from(#f16c7c), to(#bf404f));
+    background: -moz-linear-gradient(top,  #f16c7c,  #bf404f);
+    background: -ms-linear-gradient(top,  #f16c7c,  #bf404f);
+		background: -o-linear-gradient(top,  #f16c7c,  #bf404f);
+		background: linear-gradient(top,  #f16c7c,  #bf404f);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#f16c7c', endColorstr='#bf404f');
+}
+.rosy:hover {
+    background: #ba4b58;
+    background: -webkit-gradient(linear, left top, left bottom, from(#cf5d6a), to(#a53845));
+    background: -moz-linear-gradient(top,  #cf5d6a,  #a53845);
+    background: -ms-linear-gradient(top,  #cf5d6a,  #a53845);
+		background: -o-linear-gradient(top,  #cf5d6a,  #a53845);
+		background: linear-gradient(top,  #cf5d6a,  #a53845);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#cf5d6a', endColorstr='#a53845');
+}
+.rosy:active {
+    color: #dca4ab;
+    background: -webkit-gradient(linear, left top, left bottom, from(#bf404f), to(#f16c7c));
+    background: -moz-linear-gradient(top,  #bf404f,  #f16c7c);
+    background: -ms-linear-gradient(top,  #bf404f,  #f16c7c);
+		background: -o-linear-gradient(top,  #bf404f,  #f16c7c);
+		background: linear-gradient(top,  #bf404f,  #f16c7c);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#bf404f', endColorstr='#f16c7c');
+}
+
+/* green */
+.green {
+    color: #e8f0de;
+    border: solid 1px #538312;
+    background: #64991e;
+    background: -webkit-gradient(linear, left top, left bottom, from(#7db72f), to(#4e7d0e));
+    background: -moz-linear-gradient(top,  #7db72f,  #4e7d0e);
+    background: -ms-linear-gradient(top,  #7db72f,  #4e7d0e);
+		background: -o-linear-gradient(top,  #7db72f,  #4e7d0e);
+		background: linear-gradient(top,  #7db72f,  #4e7d0e);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#7db72f', endColorstr='#4e7d0e');
+}
+.green:hover {
+    background: #538018;
+    background: -webkit-gradient(linear, left top, left bottom, from(#6b9d28), to(#436b0c));
+    background: -moz-linear-gradient(top,  #6b9d28,  #436b0c);
+    background: -ms-linear-gradient(top,  #6b9d28,  #436b0c);
+		background: -o-linear-gradient(top,  #6b9d28,  #436b0c);
+		background: linear-gradient(top,  #6b9d28,  #436b0c);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#6b9d28', endColorstr='#436b0c');
+}
+.green:active {
+    color: #a9c08c;
+    background: -webkit-gradient(linear, left top, left bottom, from(#4e7d0e), to(#7db72f));
+    background: -moz-linear-gradient(top,  #4e7d0e,  #7db72f);
+    background: -ms-linear-gradient(top,  #4e7d0e,  #7db72f);
+		background: -o-linear-gradient(top,  #4e7d0e,  #7db72f);
+		background: linear-gradient(top,  #4e7d0e,  #7db72f);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#4e7d0e', endColorstr='#7db72f');
+}
+
+@-moz-document url-prefix(http://),url-prefix(https://) { /* fjerner den padding som firefox har sat på button */
+    button::-moz-focus-inner, input[type="button"]::-moz-focus-inner, input[type="submit"]::-moz-focus-inner, input[type="reset"]::-moz-focus-inner {
+        padding: 0px !important;
+        border: 0px none !important;
+    }
+}
+
+ 
+/* her starter style til breadcrumb */
+
+#breadcrumbbar
+{
+    #width: 100%;
+    #height: 30px;
+    #border-top: 1px solid lightgray;
+}
+
+#breadcrumb {
+    font: 10px Arial, Helvetica, sans-serif;
+    background-repeat:repeat-x;
+    height:30px;
+    line-height:30px;
+    color:#888;
+    #border-top: 1px solid lightgray;
+    #border-bottom: 1px solid lightgray;
+    width:100%;
+    overflow:hidden;
+    margin:0px;
+    padding:0px;
+}
+
+#breadcrumb li {
+    list-style-type:none;
+    padding-left:10px;
+    display:inline-block;
+    float:left;
+}
+
+#breadcrumb a {
+    display:inline-block;
+    background-image:url('../img/separator.png'); 
+    background-repeat:no-repeat; 
+    background-position:right;
+    padding-right: 15px;
+    text-decoration: none;
+    color:#333333;
+    outline:none;
+}
+
+.home {
+    border:none;
+    margin: 7px 0px;
+}
+.help {
+    background-image: none;
+}
+#breadcrumb a:hover {
+    color:#0085cf;
+}
+
+/* her slutter breadcrumb */
+/*------------------------*/
+
+/* style til venstre menu */
+#leftmenuholder
+{
+    width: 118px;
+    float: left;
+    margin-right: 8px;
+}
+
+.leftmenuhead
+{
+    text-align: center;
+    font-weight: bold;  
+    padding: 5px 0;
+    margin-top: -5px;
+    background-color: lightgray;
+}
+
+.leftmenu
+{
+    width: 116px;
+    #height: 200px;
+    float: left;
+    font-size: 11px;
+    padding: 5px 0;
+    line-height: 17px;
+    margin:0px 0px 8px 0px;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+    overflow: hidden;
+}
+
+.leftmenu li
+{
+    list-style-type: none;
+}
+
+.leftmenu li a
+{ 
+    display: block;
+    padding: 2px 12px;
+    color: #333;
+    text-decoration: none; 
+    outline:none;
+}
+
+.leftmenu li a:hover, leftmenu li a:active
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.leftmenu hr
+{
+    border: 0 none;
+    color: lightgray;
+    background-color: lightgray;
+    height: 1px;
+    margin: 9px 8px;
+}
+/* her slutter venstremenu */
+
+/*************************************************************/
+/* her starter style til hovedindhold */
+.maincontent
+{
+    width: 852px;  
+    float: left;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border: 1px solid lightgray;
+    -moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+}
+
+.maincontent hr
+{
+    border: 0 none;
+    color: lightgray;
+    background-color: lightgray;
+    height: 1px;
+    margin: 9px 0px;
+}
+
+.content
+{
+    width: 828px;
+    padding: 5px 12px;  
+    #overflow: hidden;
+}
+
+.content hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 4px 0px;
+}
+
+.content .sagheader hr
+{
+    border: 0 none;
+    color: #444;
+    background-color:lightgray;
+    height: 1px;
+    margin: 4px 0px;
+}
+
+.contentNone {display:none;}
+/* style til visning af list på forsiden */
+.contentlist
+{
+    width: 828px;
+    padding: 5px 12px;    
+}
+
+.contentlist hr
+{
+    border: 0 none;
+    color: #444;
+    background-color: #444;
+    height: 1px;
+    margin: 4px 0px;
+}
+
+.contentlist a
+{
+    display: block;
+    padding: 4px 0px;
+    margin: -4px 0px;
+    color: #333;
+    text-decoration: none; 
+    outline:none;
+}
+
+.contentlist a:hover
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+/* style til visning af dagbog liste */
+
+.contentdagbog
+{
+    width: 852px;
+    padding: 5px 0px;  
+}
+
+.contentdagbog ul
+{
+    list-style-type: none;
+}
+
+.contentdagbog ul li
+{
+    padding: 3px 12px;
+    
+}
+
+.contentdagbog a
+{
+    display: block;
+    padding: 3px 12px;
+    margin: -3px -12px;
+    color: #333;
+    text-decoration: none; 
+    outline:none;
+}
+
+.contentdagbog a:hover
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.space
+{
+ padding: 3px 0px;
+}
+
+.contentdagbog ul li:nth-child(even) 
+{
+    background:#F2F2F2; 
+}
+
+span.notatdato {display: inline-block; width: 200px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+span.notatsagsnr {display: inline-block; width: 150px; #background-color: lightcoral; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+span.notataf {display: inline-block; width: 100px; #background-color: lightgreen; vertical-align: middle;overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+span.notatstatus {display: inline-block; width: 160px; #background-color: lightcoral; vertical-align: middle;overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+
+.notatTable tr td {
+	padding: 5px;
+	border: 3px solid lightgray;
+}
+/* her er style til vandret søgebar */
+.contentsoeg
+{
+    #margin: 10px 0px;
+		margin:10px 0 0 0;
+}
+
+.contentsoeg table
+{
+    margin: 5px 12px 0px;
+    /*border:1px solid #ccc;*/
+    /*border-collapse:collapse;*/ /* Virker ikke med 'border-radius', undtaget IE9?? */
+    border-spacing:0px; /* Bruges i stedet for 'border-collapse:colapse' */
+}
+
+.contentsoeg table th 
+{
+    padding: 5px 0; 
+}
+
+.contentsoeg table td 
+{
+    padding: 5px 7px; 
+}
+
+
+.contentsoeg table tr:first-child th:first-child /* Her vælges øverste venstre hjørne */
+{  
+	border-top-left-radius: 5px;
+	border-left:1px solid #ccc;
+	border-top:1px solid #ccc;
+}
+.contentsoeg table tr:first-child th:last-child /* Øverste højre hjørne */
+{
+	border-top-right-radius: 5px;
+	border-right:1px solid #ccc;
+	border-top:1px solid #ccc;
+}
+.contentsoeg table tr:last-child td:first-child /* Nederste venstre hjørne */
+{
+	border-bottom-left-radius: 5px;
+	border-left:1px solid #ccc;
+	border-bottom:1px solid #ccc;
+}
+.contentsoeg table tr:last-child td:last-child /* Nederste højre hjørne */
+{
+	border-bottom-right-radius: 5px;
+	border-right:1px solid #ccc;
+	border-bottom:1px solid #ccc;
+}
+.contentsoeg table td:first-child
+{
+		border-left: 1px solid #ccc;
+}
+.contentsoeg table td:last-child
+{
+		border-right: 1px solid #ccc;
+}
+.contentsoeg table tr th /* Øverste border*/
+{
+    border-top:1px solid #ccc;
+}
+.contentsoeg table tr:last-child td /* Nederste border */
+{
+    border-bottom:1px solid #ccc;
+}
+
+.contentsoeg th
+{
+    background-color:#ccc;
+}
+
+/* her er style til lodret søgebar */
+.contentsoegh
+{
+    padding: 10px 0px;
+}
+
+.contentsoegh table
+{
+    margin: 5px 12px 0px;
+    /*border:1px solid #ccc;*/
+    /*border-collapse:collapse;*/ /* Virker ikke med 'border-radius', undtaget IE9?? */
+    border-spacing:0px; /* Bruges i stedet for 'border-collapse:colapse' */
+}
+
+.contentsoegh table th 
+{
+    padding: 5px 0; 
+}
+
+.contentsoegh table td 
+{
+    padding: 5px 7px; 
+}
+
+
+.contentsoegh table tr:first-child th:first-child /* Her vælges øverste venstre hjørne */
+{  
+	border-top-left-radius: 5px;
+	border-left:1px solid #ccc;
+	border-top:1px solid #ccc;
+}
+.contentsoegh table tr:first-child td:last-child /* Øverste højre hjørne */
+{
+	border-top-right-radius: 5px;
+	border-right:1px solid #ccc;
+	border-top:1px solid #ccc;
+}
+.contentsoegh table tr:last-child th:first-child /* Nederste venstre hjørne */
+{
+	border-bottom-left-radius: 5px;
+	border-left:1px solid #ccc;
+	border-bottom:1px solid #ccc;
+}
+.contentsoegh table tr:last-child td:last-child /* Nederste højre hjørne */
+{
+	border-bottom-right-radius: 5px;
+	border-right:1px solid #ccc;
+	border-bottom:1px solid #ccc;
+}
+.contentsoeg table tr th:first-child /* Venstre side */
+{
+	  border-left:1px solid #ccc;
+}
+.contentsoegh table tr:first-child td /* Øverste border*/
+{
+    border-top:1px solid #ccc;
+}
+.contentsoegh table tr td:last-child /* Højre side */
+{
+	  border-right:1px solid #ccc;
+}
+.contentsoegh table tr:last-child td /* Nederste border */
+{
+    border-bottom:1px solid #ccc;
+}
+
+.contentsoegh th
+{
+    background-color:#ccc;
+}
+
+/* Her er style til notat.php fase og kategori */
+.contentsoegN table
+{
+		margin: 5px 12px 0px;
+    /*border:1px solid #ccc;*/
+    /*border-collapse:collapse;*/ /* Virker ikke med 'border-radius', undtaget IE9?? */
+    border-spacing:0px; /* Bruges i stedet for 'border-collapse:colapse' */
+}
+.contentsoegN table td 
+{
+    padding: 5px 7px; 
+}
+
+/* style til table i sager.php */
+
+.tableSagerHead {background-color:lightgray;}
+.tableSagerBorder {border-top: 1px solid lightgray; padding:4px 0 0 0;}
+.tableSagerZebra tr:nth-child(even) td {background:#F2F2F2;}
+.tableSagerEllipsis {
+		white-space:nowrap;
+		text-overflow:ellipsis;
+		overflow:hidden;
+		#width:130px;
+		display:block;
+}
+.tableOmkostninger {#border-bottom: 1px solid lightgray;border-collapse: collapse;width:100%;}
+.tableOmkostninger02 {border-collapse: collapse;width:100%;}
+.tableOmkostninger02 th {padding: 5px;border-bottom: 1px solid lightgray;}
+.tableOmkostninger02 td {padding: 5px;}
+.tableOmkostningerBorder {border-top: 1px solid black;}
+.tableOmkostninger03 {border-top: 1px solid lightgray;border-collapse: collapse;width:100%;}
+.tableOmkostninger03 td {padding: 5px;}
+
+.tableBilag {width:595px;border-collapse:collapse;}
+.tableBilagZebra tr:nth-child(even) td {background:#F2F2F2;}
+.tableBilagBorderTop {border-top: 1px solid lightgray;}
+.tableBilagBorderBottom {border-bottom: 1px solid lightgray;}
+
+/* style til stamkort i ansat.php */
+.contentBorder
+{
+		margin-top: 8px;
+		border:1px solid #ccc;
+		-moz-border-radius:5px;
+    -webkit-border-radius:5px;
+    border-radius:5px;
+}
+
+.stamkort table th
+{
+		padding: 5px 0;
+		background-color:#ccc;
+}
+
+.stamkort table td
+{
+		padding: 5px 7px;
+}
+
+.stamkort table tr:first-child th:first-child /* Her vælges øverste venstre hjørne */
+{  
+	border-top-left-radius: 4px;
+	border-left:-1px solid #ccc;
+	border-top:-1px solid #ccc;
+}
+.stamkort table tr:first-child th:last-child /* Øverste højre hjørne */
+{
+	border-top-right-radius: 4px;
+	border-right:-1px solid #ccc;
+	border-top:-1px solid #ccc;
+}
+
+/* style til kundeliste */
+.contentkundehead
+{
+    width: 852px;
+    #padding: 3px 0px;  
+    background-color: lightgray;
+}
+
+.contentkundehead ul
+{
+    list-style-type: none;
+}
+
+.contentkundehead ul li
+{
+    padding: 5px 12px;
+}
+
+.contentkundehead ul li a
+{
+		border-right:1px solid white;
+		padding:5px 0;
+		margin:-5px 0;
+}
+
+.contentkundehead ul li a:last-child
+{  
+		border: none;
+}
+
+.contentkundehead a
+{
+    color: #333;
+    font-weight: bold;
+    text-decoration: none; 
+    outline:none;
+		background-repeat: no-repeat;
+		background-position: center right;
+		padding-right: 20px;
+		background-image: url(../img/bg.gif);
+}
+
+.contentkundehead a.asc
+{
+		background-image: url(../img/asc.gif);
+		color: #0085cf;
+		text-decoration: underline;
+}
+
+.contentkundehead a.desc
+{
+		background-image: url(../img/desc.gif);
+		color: #0085cf;
+		text-decoration: underline;
+}
+
+.contentkundehead a:hover
+{
+    #color:#0085cf;
+}
+
+.contentkundesearch
+{
+		width: 852px; 
+    background-color: #f2f2f2;
+}
+
+.contentkundesearch ul
+{
+    list-style-type: none;
+}
+
+.contentkundesearch ul li
+{
+    padding: 5px 12px;
+		
+}
+
+.contentkundesearch ul li div
+{
+    border-right:1px solid white;
+		padding:5px 0;
+		margin:-5px 0;
+}
+
+.contentkundesearch ul li div:last-child
+{  
+		border: none;
+}
+
+.contentkunde
+{
+    width: 852px;  
+}
+
+.contentkunde ul
+{
+    list-style-type: none;
+}
+
+.contentkunde ul li
+{
+    padding: 3px 12px;
+    
+}
+
+.contentkunde a
+{
+    display: block;
+    padding: 3px 12px;
+    margin: -3px -12px;
+    color: #333;
+    text-decoration: none; 
+    outline:none;
+}
+
+.contentkunde a:hover
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.contentkunde ul li:nth-child(even) 
+{
+    background:#F2F2F2;   
+}
+
+.contentkunde ul li:nth-child(even) span
+{
+		border-right:1px solid #fff;
+		padding:3px 0px 4px 0px;
+		margin:-4px 0px -3px 0px;
+}
+
+.contentkunde ul li:nth-child(odd) span
+{
+		border-right:1px solid #F2F2F2;
+		padding:3px 0px 4px 0px;
+		margin:-4px 0px -3px 0px;
+}
+
+.contentkunde ul li:nth-child(even) span:nth-last-child(-n+1)
+{
+		border-right: none;
+}
+
+.contentkunde ul li:nth-child(odd) span:nth-last-child(-n+1)
+{
+		border-right: none;
+}
+
+.contentkunde ul li:last-child
+{
+		border-bottom:1px solid #F2F2F2;
+}
+
+.contentansatte ul li:nth-child(25n+25)
+{
+		border-bottom:1px solid #F2F2F2;
+}
+
+.contentkundestatus
+{
+		width:16px;
+		height:16px;
+		float:left;
+		border-right:none !important;
+		text-align:center;
+		padding:2px !important;
+		margin:-3px 0px -4px 0px !important;
+		border-radius:10px;
+		#display:inline-block;
+}
+.contentkundesager
+{
+    width: 852px;  
+}
+
+.contentkundesager ul
+{
+    list-style-type: none;
+}
+
+.contentkundesager ul li
+{
+    padding: 3px 12px;
+    
+}
+
+.contentkundesager a
+{
+    display: block;
+    padding: 3px 12px;
+    margin: -3px -12px;
+    color: #333;
+    text-decoration: none; 
+    outline:none;
+		float:left;
+}
+
+.contentkundesager a:hover
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.contentkundesager ul li:nth-child(even):hover
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.contentkundesager ul li:nth-child(odd):hover
+{
+    color:#0085cf;
+    background-color: #d6e5f2;
+}
+
+.contentkundesager ul li:nth-child(even) 
+{
+    background:#F2F2F2;   
+}
+
+.contentkundesager ul li:nth-child(even) span
+{
+		border-right:1px solid #fff;
+		padding:3px 0px 4px 0px;
+		margin:-4px 0px -3px 0px;
+}
+
+.contentkundesager ul li:nth-child(odd) span
+{
+		border-right:1px solid #F2F2F2;
+		padding:3px 0px 4px 0px;
+		margin:-4px 0px -3px 0px;
+}
+
+.contentkundesager ul li:nth-child(even) span:nth-last-child(-n+1)
+{
+		#border-right: none;
+}
+
+.contentkundesager ul li:nth-child(odd) span:nth-last-child(-n+1)
+{
+		#border-right: none;
+}
+
+.contentkundesager ul li:last-child
+{
+		border-bottom:1px solid #F2F2F2;
+}
+.contentkundestatussager 
+{
+	display: inline-block;
+	
+}
+.contentkundestatussager span
+{
+	border-right: none !important;
+	padding-left:3px !important;
+}
+.toggle 
+{
+	position:absolute;
+	background:#fff;
+	z-index:100;
+	margin-top:-17px;
+	
+}
+.togglelink
+{
+	cursor:pointer;
+}
+.statcolor_1 {color:#000000 !important;}
+.statcolor_2 {color:#000000 !important;}
+.statcolor_3 {color:#000000 !important;}
+.statcolor_4 {color:#FF0000 !important;}
+.statcolor_5 {color:green !important;}
+.statcolor_6 {color:#C1BE00 !important;}
+.statcolor_7 {color:#000000 !important;}
+.statcolor_8 {color:#000000 !important;}
+/* gammel status color fra ajax
+.statcolor1 {color:#006600 !important;}
+.statcolor2 {color:#009900 !important;}
+.statcolor3 {color:#00CC00 !important;}
+.statcolor4 {color:#C1BE00 !important;}
+.statcolor5 {color:#FF9900 !important;}
+.statcolor6 {color:#FF6600 !important;}
+.statcolor7 {color:#FF3300 !important;}
+.statcolor8 {color:#FF0000 !important;}
+*/
+/*
+span.kundenr {display: inline-block; width: 72px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.kundenr {display: inline-block; width: 72px;}
+span.navn {display: inline-block; width: 150px; #background-color: lightcoral; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.navn {display: inline-block; width: 150px;}
+span.adresse {display: inline-block; width: 155px; #background-color: lightgreen; vertical-align: middle;overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.adresse {display: inline-block; width: 155px;}
+span.postnr {display: inline-block; width: 60px; #background-color: lightcoral; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.postnr {display: inline-block; width: 60px;}
+span.by {display: inline-block; width: 105px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.by {display: inline-block; width: 105px;}
+span.kontaktperson {display: inline-block; width: 120px; #background-color: lightcoral; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.kontaktperson {display: inline-block; width: 120px;}
+span.telefon {display: inline-block; width:89px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.telefon {display: inline-block; width: 89px;}
+span.initialer {display: inline-block; width: 72px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.initialer {display: inline-block; width: 72px;}
+span.emails {display: inline-block; width: 120px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.emails {display: inline-block; width: 120px;}
+*/
+/* style til medarbejderliste */
+/*
+span.loendato {display: inline-block; width:89px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.loendato {display: inline-block; width: 89px;}
+span.opretdato {display: inline-block; width:89px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.opretdato {display: inline-block; width: 89px;}
+span.afslutdato {display: inline-block; width:89px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.afslutdato {display: inline-block; width: 89px;}
+span.godkendtdato {display: inline-block; width:89px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.godkendtdato {display: inline-block; width: 89px;}
+span.type {display: inline-block; width: 200px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.type {display: inline-block; width: 200px;}
+span.medarbejder {display: inline-block; width:100px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.medarbejder {display: inline-block; width: 100px;}
+span.sum {display: inline-block; width:89px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.sum {display: inline-block; width: 89px;}
+span.felt01 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+*/
+.felt01 {display: inline-block;}
+span.felt02 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt02 {display: inline-block;}
+span.felt03 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt03 {display: inline-block;}
+span.felt04 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt04 {display: inline-block;}
+span.felt05 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt05 {display: inline-block;}
+span.felt06 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt06 {display: inline-block;}
+span.felt07 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt07 {display: inline-block;}
+span.felt08 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt08 {display: inline-block;}
+span.felt09 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt09 {display: inline-block;}
+span.felt10 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt10 {display: inline-block;}
+span.felt11 {display: inline-block; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+.felt11 {display: inline-block;}
+
+/* style til kontaktliste */
+
+.contentkontakt{
+    width:808px;
+    padding:10px;
+}
+.contentkontakt ul
+{
+    list-style-type: none;
+}
+
+.contentkontakt ul li
+{
+    padding: 3px 12px;
+
+}
+.contentkontaktborder
+{
+	border-top: 1px solid lightgray; border-bottom: 1px solid lightgray;
+}
+.contentkontaktbody
+{
+	
+}
+.contentkontaktbody li:hover
+{
+	color:#0085cf;
+	background-color:#d6e5f2;
+}
+.contentkontaktbody li:nth-child(even)
+{
+	background:#F2F2F2;
+}
+.contentkontaktbody li:nth-child(even):hover
+{
+	background-color:#d6e5f2;
+}
+.contentkontakt a
+{
+    #display: block;
+    padding: 3px 12px;
+    margin: -3px -12px;
+    color: #333;
+    text-decoration: none; 
+    outline:none;
+}
+
+.contentkontakt a:hover
+{
+    color:#0085cf;
+    #background-color: #d6e5f2;
+}
+/*
+.contentkontakt ul li:nth-child(even) 
+{
+    background:#F2F2F2;   
+}*/
+span.pos {display: inline-block; width: 50px; #background-color: lightcoral; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+span.kontakt {display: inline-block; width: 170px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+span.lokal {display: inline-block; width: 120px; #background-color: lightcoral; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+span.mobil {display: inline-block; width: 120px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+span.email {display: inline-block; width: 250px; #background-color: lightgreen; vertical-align: middle; overflow:hidden;
+		white-space:nowrap;
+		text-overflow:ellipsis;
+}
+
+/* style til akkordliste */
+.akkordTable
+{
+    width: 100%;
+    border-width: 1px;
+    border-spacing: 0px;
+    border-collapse: collapse;
+		margin-top: 8px;
+}
+.akkordTableListe
+{
+		width: 100%;
+    border-width: 1px;
+    border-spacing: 0px;
+    border-collapse: collapse;
+		margin-top: 8px;
+}
+.akkordTableListeBody tr td {padding: 1px 2px;}
+.akkordListeHead th {padding: 0px 2px;border-right: 1px solid #fff;}
+.akkordListeHead2 th:nth-child(odd) {#padding: 0px 2px;border-right: 1px solid #d3d3d3;}
+.akkordListeHead th:last-child{border-right: none;}
+.akkordListeTrans {border-top: 1px solid #d3d3d3;border-bottom: 1px solid #d3d3d3;}
+.akkordListeTrans td {padding: 2px 0px;}
+
+.akkordTableBody tr td{padding: 1px;}
+.akkordTableBody2 tr td{padding: 2px 1px;}
+.akkordTableBorderAll tr td{border: 1px solid lightgray;}
+.akkordTableBorderBottom td,.akkordTableBorderBottom th{border-bottom: 1px solid lightgray;}
+.akkordTableBorderBottomAll tr{border-bottom: 1px solid lightgray;}
+.akkordTableBorderBottomAll tr:last-child{border-bottom: none;}
+.akkordTableDoubleBorder tr:last-child{border-bottom: 3px double #444;}
+.alignRight{text-align: right;}
+.alignLeft{text-align: left;}
+.alignCenter{text-align: center;}
+#toggle{display:none;}
+
+.textAreaLoen{
+		font: bold 12px Arial, Helvetica, sans-serif;
+		color: #444;
+		line-height: 1.2em;
+		resize: none;
+		padding: 2px 2px 2px 4px;
+}
+/* style til input-field */
+.textinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    #text-indent: 3px;
+    padding: 3px 3px;  
+    font-size: 12px;
+		overflow:visible;
+}
+
+.textinputClear 
+{
+		width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+		line-height:15px;
+}
+.selectinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    line-height: 15px;
+    padding: 2px 0;
+    font-size: 12px;
+}
+@-moz-document url-prefix() {
+		.selectinput{
+			width:100%;
+			border-top:1px solid #7E7E7E;
+			border-bottom:1px solid #AEAEAE;
+			border-left:1px solid #7E7E7E;
+			border-right:1px solid #AEAEAE;
+			border-radius:3px;
+			background:#fff url('../img/textinputbg.gif') repeat-x;
+			color: #444;
+			text-indent: 3px;
+			line-height: 15px;
+			padding: 2px 0;
+			font-size: 12px;
+	}
+}
+noindex:-o-prefocus, .selectinput {/* opera hack */
+    padding: 3px 0;
+}
+.textinputloen
+{
+    #width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    padding: 2px 0;  
+    font-size: 12px;
+}
+.selectinputloen
+{
+    #width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    line-height: 15px;
+    padding: 1px 0;
+    font-size: 12px;
+}
+@-moz-document url-prefix() {
+		.selectinputloen{
+			#width:100%;
+			border-top:1px solid #7E7E7E;
+			border-bottom:1px solid #AEAEAE;
+			border-left:1px solid #7E7E7E;
+			border-right:1px solid #AEAEAE;
+			border-radius:3px;
+			background:#fff url('../img/textinputbg.gif') repeat-x;
+			color: #444;
+			text-indent: 3px;
+			line-height: 15px;
+			padding: 1px 0;
+			font-size: 12px;
+	}
+}
+noindex:-o-prefocus, .selectinputloen {/* opera hack */
+    padding: 2px 0;
+}
+.selectinputsager
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../img/textinputbg.gif') repeat-x;
+    color: #444;
+    #text-indent: 3px;
+    line-height: 15px;
+    padding: 2px 0;
+		margin: 0 -7px 0 0;
+    font-size: 12px;
+}
+@-moz-document url-prefix() {
+		.selectinputsager{
+			width:100%;
+			border-top:1px solid #7E7E7E;
+			border-bottom:1px solid #AEAEAE;
+			border-left:1px solid #7E7E7E;
+			border-right:1px solid #AEAEAE;
+			border-radius:3px;
+			background:#fff url('../img/textinputbg.gif') repeat-x;
+			color: #444;
+			#text-indent: 3px;
+			line-height: 15px;
+			padding: 2px 0;
+			margin: 0 -7px 0 0;
+			font-size: 12px;
+	}
+}
+noindex:-o-prefocus, .selectinputsager {/* opera hack */
+    padding: 3px 0;
+}
+.xmark{
+    display:block;
+		border:none;
+		background-color: transparent;
+    width: 16px;
+    height: 16px;
+    #float: left;
+		margin:auto;
+    background-repeat: no-repeat;
+    background-image: url('../img/x_mark.png');
+}
+.xmark:hover{
+		border:none;
+		background-color: transparent;
+    background-image: url('../img/x_mark_hover.png');
+}
+.xmark:active{
+		border:none;
+		background-color: transparent;
+    background-image: url('../img/x_mark_active.png');
+}
+.cross{
+    display:block;
+		border:none;
+		background-color: transparent;
+    width: 16px;
+    height: 16px;
+		margin:auto;
+    background-repeat: no-repeat;
+    background-image: url('../img/cross_mark.png');
+}
+.cross:hover{
+		border:none;
+		background-color: transparent;
+    background-image: url('../img/cross_mark_hover.png');
+}
+.cross:active{
+		border:none;
+		background-color: transparent;
+    background-image: url('../img/cross_mark_active.png');
+}
+
+/* her er style til sortering af akkordliste */
+.highlight {
+		bacground-color: #ccc;
+}
+
+/* style til templateliste */
+.templateListTable tr td {padding:2px;}
+.templateListTable tr:nth-child(even) {background:#F2F2F2;}
+.templateListTable th {border-bottom: 1px solid lightgray;}
+
+.valg-box {
+	#position:relative;
+	padding:3px;
+	border: 1px solid lightgray;
+	-webkit-border-radius:3px;
+	-moz-border-radius:3px;
+	border-radius:3px;
+}
+
+.valg-box {
+	margin-top:2px;
+	margin-right:5px;
+}
+/*
+.valg-box:before {
+	content:"";
+	position:absolute;
+	width:15px;
+	border:1px solid lightgray;
+	bottom: 50%;
+	left: -17px;
+	
+}
+*/
+
+/* Her er style til select box. passer til søgebar. Husk at '.selectinput' skal ind i select tagget, og label tagget skal udenom 
+.selectinput
+{
+    width:100%;
+    border: 1px solid lightgray;
+    background:#fff url('../media/textinputbg.gif') repeat-x;
+    color: #444;
+    text-indent: 3px;
+    line-height:15px;
+    padding: 2px 0;  
+    font-size: 12px;
+    display: inline-block;
+    #-webkit-appearance:none;
+    #-moz-appearance:none;
+    #appearance:none;
+    cursor:pointer;
+}
+
+@-moz-document url-prefix() { /* firefox placerer pilen 3px udenfor selectbox. det rettes her 
+        .selectinput {
+        padding: 2px 3px 2px 0px;
+    }
+}
+*/
+/* her ændres selectbox pilen i højre hjørne. Virker i Firefox, Chrome og Safari. I IE vises den nye pil, men man kan ikke clicke på den 
+
+.contentdagbog table tr td label {position:relative}
+.contentdagbog table tr td label:after {
+    content:'<>';
+    font:11px "Consolas", monospace;
+    color:#aaa;
+    -webkit-transform:rotate(90deg);
+    -moz-transform:rotate(90deg);
+    -ms-transform:rotate(90deg);
+    transform:rotate(90deg);
+    right:7px; top:1px;
+    padding:0 0 2px;
+    border-bottom:1px solid #ccc;
+    position:absolute;
+    pointer-events:none; /* virker ikke i IE. 
+}
+.contentdagbog table tr td label:before {
+    content:'';
+    right:1px; top:1px;
+    width:20px; height:16px;
+    background:#fff;
+    position:absolute;
+    pointer-events:none;
+    display:block;
+}
+@-moz-document url-prefix() { /* firefox har for meget padding i selectbox, og skal ændres separat i forhold til de andre browser 
+        .contentdagbog table tr td label:after {
+        right:9px; top:0px;
+    }
+        .contentdagbog table tr td label:before {
+        right:5px; top:-1px;
+        width:20px; height:17px;  
+    }
+}
+*/
+
+/* her er style til status-farverne */
+.staclrgreen
+{
+    height: 16px;
+    width: 40px;  
+    margin-top: 7px;
+    background: #64991e;
+    background: -webkit-gradient(linear, left top, left bottom, from(#7db72f), to(#4e7d0e));
+    background: -moz-linear-gradient(top,  #7db72f,  #4e7d0e);
+    background: -o-linear-gradient(top,  #7db72f,  #4e7d0e);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#7db72f', endColorstr='#4e7d0e');
+    #-moz-border-radius:20px;
+    #-webkit-border-radius:20px;
+    #border-radius:20px;
+}
+
+.staclrorange
+{
+    height: 16px;
+    width: 40px;  
+    margin-top: 7px;
+    background: #f78d1d;
+    background: -webkit-gradient(linear, left top, left bottom, from(#faa51a), to(#f47a20));
+    background: -moz-linear-gradient(top,  #faa51a,  #f47a20);
+    background: -o-linear-gradient(top,  #faa51a,  #f47a20);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#faa51a', endColorstr='#f47a20');
+    #-moz-border-radius:20px;
+    #-webkit-border-radius:20px;
+    #border-radius:20px;
+}
+
+.staclrred
+{
+    height: 16px;
+    width: 40px;  
+    margin-top: 7px;
+    background: #d81b21;
+    background: -webkit-gradient(linear, left top, left bottom, from(#ed1c24), to(#aa1317));
+    background: -moz-linear-gradient(top,  #ed1c24,  #aa1317);
+    background: -o-linear-gradient(top,  #ed1c24,  #aa1317);
+    filter:  progid:DXImageTransform.Microsoft.gradient(startColorstr='#ed1c24', endColorstr='#aa1317');
+    #-moz-border-radius:20px;
+    #-webkit-border-radius:20px;
+    #border-radius:20px;
+}
+
+/* Farver til status-selectbox */
+.status_color1{color:black;}
+.status_color2{color:black;}
+.status_color3{color:black;}
+.status_color4{color:red;}
+.status_color5{color:green;}
+.status_color6{color:#C1BE00;}
+.status_color7{color:black;}
+.status_color8{color:black;}
+
+/* gammel statusfarver
+.status_color1{color:#006600;}
+.status_color2{color:#009900;}
+.status_color3{color:#00CC00;}
+.status_color4{color:#C1BE00;}
+.status_color5{color:#FF9900;}
+.status_color6{color:#FF6600;}
+.status_color7{color:#FF3300;}
+.status_color8{color:#FF0000;}
+*/
+/*-------------------------------------------------------*/
+/* kontrolskemaer i certificering                        */
+.dataTable 
+{
+    width: 100%;
+		float: left;
+		font-family: Arial, Helvetica, sans-serif;
+		font-size: 10pt;
+}
+.dataTable tbody tr td
+{
+    padding: 5px 7px;
+}
+/* Style til kontrolskemaer */  
+.kontrolskema
+{
+	width:595px;
+	border-collapse:collapse;
+	text-align:left;
+}
+.kontrolskema td
+{
+	border:1px solid black;
+}
+.kontrolskema_liste
+{
+	border: 3px solid lightgray; 
+	#border: 3px solid rgb(180, 180, 255); 
+	padding: 0pt 0pt 1px;
+	text-align:left;
+}
+noindex:-o-prefocus, .kontrolskema, .kontrolskema_liste {/* opera hack */
+    text-align:left;
+}
+.kontrolskemaText
+{
+	height:14px;
+	min-width:279px;
+	width:100%;
+}
+.kontrolskema_tegning
+{
+	height:75px;
+	#min-width:279px;
+	width:100%;
+	font: bold 12px Arial, Helvetica, sans-serif;
+  color:#cd3300 !important;
+}
+.kontrolskema_font
+{
+	font: normal 12px Arial, Helvetica, sans-serif;
+  color: #444;
+}
+.kontrol_status
+{
+		background: transparent;
+		width: 70px;
+		padding: 8px;
+		margin:-5px -7px;
+		font-size: 12px;
+		#text-align: center;
+		#display: block;
+		line-height: 1em;
+		border: 0;
+		border-radius: 0;
+		min-height: 30px;
+		height: 100%;
+		#box-sizing: padding-box;
+		appearance: none;
+		-o-appearance: none;
+		-ms-appearance: none;
+		-moz-appearance: none !important;/* 'none' virker ikke til mozilla. En workaround nedenunder */
+		-khtml-appearance: none;
+		-webkit-appearance: none;
+}
+@-moz-document url-prefix() { /* Firefox only */
+	.kontrol_status {
+		text-indent: 0.01px; /* flytter texten lidt til højre */
+		text-overflow: ''; /* (tom string) ændre alt som er udenfor elementet*/
+		font-size: 10px; /* font-size ændres så tekst ikke bliver klippet */
+	}
+}
+.kontrol_status::-ms-expand /* fjerner pilen i selectbox IE10 */
+{
+	display:none;
+}
+.kontrol_status::-ms-value /* laver textcolor om til sort IE10 */
+{
+	color: #000;
+}
+.textAreaSager
+{
+		#width: 100%;
+    #border: 1px solid lightgray;
+    color: #444;
+    font-size: 12px;
+		line-height: 1.2em;
+    #display: block;
+		resize: none;
+    margin: -2px -2px -2px -3px;
+    padding: 2px 2px 2px 3px;
+}
+.checkboxNed input[type="checkbox"]{/* rykker alle checkbox 2px ned */
+    margin-top: 2px;
+}
+#printableFooter{display:none;}
+/*.arbejdsseddelFooter{margin:0 auto;width:595px;}
+	.arbejdsseddelFooter tr td{padding: 5px 7px;}*/
+.printIcon { 
+	margin: 7px 0px;
+	width: 16px;
+	height: 16px;
+	border: none;
+}
+/*-------------------------------------------------------------*/
+/*           Toggle switch til status på sagsliste             */
+
+.onoffswitch {
+    position: relative; width: 45px; margin: 7px 15px 0 0;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+}
+
+.onoffswitch-checkbox {
+    display: none;
+}
+
+.onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border: 1px solid #999999; border-radius: 14px;
+}
+
+.onoffswitch-inner {
+    display: block; width: 200%; margin-left: -100%;
+    -moz-transition: margin 0.3s ease-in 0s; -webkit-transition: margin 0.3s ease-in 0s;
+    -o-transition: margin 0.3s ease-in 0s; transition: margin 0.3s ease-in 0s;
+}
+
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    display: block; float: left; width: 50%; height: 14px; padding: 0; line-height: 14px;
+    font-size: 10px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+    -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
+}
+
+.onoffswitch-inner:before {
+    content: "ON";
+    padding-left: 8px;
+    background-color: #2FCCFF; color: #FFFFFF;
+}
+
+.onoffswitch-inner:after {
+    content: "OFF";
+    padding-right: 6px;
+    background-color: #EEEEEE; color: #999999;
+    text-align: right;
+}
+
+.onoffswitch-switch {
+    display: block; width: 14px; margin: 0px;
+    background: #FFFFFF;
+    border: 1px solid #999999; border-radius: 14px;
+    position: absolute; top: 0; bottom: 0; right: 29px;
+    -moz-transition: all 0.3s ease-in 0s; -webkit-transition: all 0.3s ease-in 0s;
+    -o-transition: all 0.3s ease-in 0s; transition: all 0.3s ease-in 0s; 
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px; 
+}
+
+/* style til table akkordliste */
+.tableAkkordliste {margin:10px 0 10px 0;}
+.tableAkkordliste tbody tr td {padding:0px;text-align:left;}
+.tableAkkordlisteHead {background-color:lightgray;}
+.tableAkkordlisteBorder {border-top: 1px solid lightgray; padding:4px 0 0 0;}
+.tableAkkordlisteZebra tr:nth-child(even) td {background:#F2F2F2;}
+
+/* style til datepicker i akkordlister */
+.event a {background: #5FBA7D !important;color: #ffffff !important;}
+.event .ui-state-active {background-color: #edf7f1 !important;color: #555555 !important;}
+
+/* style der fjerner 'idag' knap på datepicker */
+#ui-datepicker-div button.ui-datepicker-current {display: none;}
+
+/* style til error i ret_loen */
+
+/*.errorcolor { border-color: red; }*/
+
+/*------------------*/
+
+#footer
+{
+    text-align: center;
+    width:100%;
+    height:30px;
+    line-height: 30px;
+    vertical-align: middle;
+    overflow:hidden;
+}
