@@ -3,6 +3,631 @@
 
 Her listes ændringer i kildekoden til Saldi, som er foretaget siden 
 navneskiftet til Saldi 2006-01-18. De seneste ændringer listes først.
+
+Ændringer i 1.0.6
+=====================================================================
+Opdateringer på grund af ny udgave (1.0.6).
+
+Rettet følgende filer:
+  AENDRINGER.txt
+  includes/version.php
+  index.php
+
+
+Tilføjet versionhåndtering til indgangssiden.
+
+Rettet følgende fil:
+  index.php
+
+
+Flyttet indgangssiden fra ren HTML-fil til PHP-fil.
+
+Flyttet filen:
+  index.html
+til:
+  index.php
+
+
+Ændret ejerskab og ophavsret til Saldi fra ITz ApS til DANOSOFT ApS.
+
+Rettet følgende filer:
+  BIDRAGYDERE.txt
+  COPYING.txt
+  debitor/ansatte.php
+  debitor/batch.php
+  debitor/debitor.php
+  debitor/formularprint.php
+  debitor/levering.php
+  debitor/mail_kontoudtog.php
+  debitor/ordre.php
+  debitor/rykkerprint.php
+  debitor/serienummer.php
+  debitor/udskriftsvalg.php
+  finans/bankimport.php
+  finans/bogfor.php
+  finans/genberegn.php
+  finans/hentordrer.php
+  finans/importer.php
+  finans/kontospec.php
+  finans/kontrolspor.php
+  finans/openpostdato.php
+  finans/rapport.php
+  finans/simuler.php
+  includes/dkdato.php
+  includes/dkdecimal.php
+  includes/forfaldsdag.php
+  includes/formfunk.php
+  includes/funktioner.php
+  includes/genberegn.php
+  includes/luk.php
+  includes/udskriv.php
+  includes/udvaelg.php
+  includes/usdecimal.php
+  index/admin_menu.php
+  index/install.php
+  index/login.php
+  index/logud.php
+  kreditor/ansatte.php
+  kreditor/batch.php
+  kreditor/kreditorkort.php
+  kreditor/kreditor.php
+  kreditor/modtag.php
+  kreditor/ordreliste.php
+  kreditor/rapport.php
+  lager/beholdningsliste.php
+  lager/enheder.php
+  lager/fuld_stykliste.php
+  lager/lagerflyt.php
+  lager/opdater_kostpriser.php
+  lager/stykliste.php
+  lager/varekort.php
+  lager/varer.php
+  OPHAVSRET.txt
+  produktion/ordreliste.php
+  produktion/ordre.php
+  produktion/rapport.php
+  systemdata/ansatte.php
+  systemdata/brugere.php
+  systemdata/eg_adr_sync.php
+  systemdata/kontokort.php
+  systemdata/logoupload.php
+  systemdata/regnskabskort.php
+  systemdata/stamkort.php
+  systemdata/stdktoplan.php
+  systemdata/syssetup.php
+  systemdata/top.php
+  utils/formularimport.php
+
+
+Ændret SQL Finans til Saldi.
+
+Rettet følgende filer:
+  admin/opret.php
+  index/admin_menu.php
+
+Rapport til at udlæse lagerstatus.
+
+Tilføjet følgende fil:
+  lager/lagerstatus.php
+
+
+Tilføjet felt med mulighed for valg af kundeansvarlig.
+
+Rettet følgende filer:
+  debitor/debitorkort.php
+
+
+Tilføjet mulighed for at anvende "if". Eksempelvis:
+
+  if($ordre_kontakt)Att:  
+
+Hvis der er en ordre_kontakt - skriv Att: .
+
+Rettet følgende filer:
+  systemdata/formularkort.php
+	
+2006-10-13 Peter Rude <phr@saldi.dk> 
+---------------------------------------------------------------------
+
+
+Ændringer i 1.0.5
+=====================================================================
+Opdateringer på grund af ny udgave (1.0.5).
+
+Rettet følgende filer:
+  AENDRINGER.txt
+  includes/version.php
+  index.html
+
+Rapport til at udlæse lagerstatus.
+
+Tilføjet følgende fil:
+  lager/lagerstatus.php
+
+
+Rettet fejl i "dropdown"-valg i fakturerede ordrer, så nye kunder 
+også kan vælges, selvom ordren endnu ikke er bogført i kassekladde.
+
+Rettet følgende filer:
+  debitor/ordreliste.php
+
+
+Tilføjet funktion til autoreservering af varer - ikke aktiveret.
+
+Rettet følgende filer:
+  debitor/ordre.php
+
+
+Rettet opdateringsrutine på grund af en fejl, som betød, at der ved 
+salg af en lagerført vare med indkøbspris på 0 blev anvendt 
+salgspris til regulering af varekøbskonto.
+
+Rettet følgende filer:
+  debitor/bogfor.php
+
+
+Rettet fakturanummer tæller, så der ikke kan forekomme fakturaer med 
+fakturanummer 0.
+
+Rettet følgende filer:
+  debitor/bogfor.php
+
+
+Rettet fakturanummer tæller, så der ikke kan forekomme leverandør-
+fakturaer med modtagelsenummer 0.
+
+Rettet følgende filer:
+  kreditor/bogfor.php
+
+
+Tilføjet mulighed for at ændre centreringen af alle tekster, linjer 
+og logo.
+
+Rettet følgende filer:
+  systemdata/formularkort.php
+
+
+Tilføjet standardværdier i stamfelter for at lette oprettelse af 
+regnskabsår for ikke regnskabskyndige, samt kopieret OK-knap til en 
+synlig placering.
+
+Rettet følgende filer:
+  systemdata/regnskabskort.php
+
+
+Tilføjet mulighed for at anvende 0 som bilagsnummer.
+
+Rettet følgende filer:
+  finans/kassekladde.php
+
+
+Tilføjet knap for lagerstatus.
+
+Rettet følgende filer:
+  lager/rapport.php
+
+2006-10-03 Peter Rude <phr@saldi.dk> 
+---------------------------------------------------------------------
+
+
+Ændringer i 1.0.4
+=====================================================================
+Opdateringer og tilføjelser på grund af ny udgave (1.0.4).
+
+Rettet følgende filer:
+  AENDRINGER.txt
+  includes/version.php
+  index.html
+
+
+Momsrutinen ændret som erhvervelsesmoms bliver korrekt konteret, 
+når udenlandsk levarandør anvendes til modpostering i kassekladden.
+
+
+Udligning af åbne poster.
+
+Tilføjet følgende filer:
+  debitor/udlign_openpost.php
+
+
+Import af standardformularer.
+
+Tilføjet følgende filer:
+  systemdata/formularimport.php
+
+
+Visse dele af opsætningen er flyttet over i egen opsætningsfil.
+
+Tilføjet følgende filer:
+  includes/settings.php
+Rettet følgende filer:
+  /includes/connect.php
+
+
+Tilføjet link på åbne poster i kontoudtog, som kalder filen 
+udlign_openpost.php.
+
+Rettet følgende filer:
+  debitor/rapport.php
+
+
+Tilføjet mulighed for at udskrive en oversigt over åbne poster i 
+rykkerbrevet.
+
+Rettet følgende filer:
+  debitor/rykkerprint.php
+
+
+Fjernet headertekst og variabler til farvevalg fra generering af 
+connect.php - disse er flyttet til includes/settings.php
+
+Rettet følgende filer:
+  index/install.php
+
+
+Tilføjet headertekst og variabler til farvevalg.
+
+Rettet følgende filer:
+  includes/online.php
+
+
+Rettet fejl i skærmvisning af kreditnota - moms var angivet negativt. 
+Har ingen betydning for bogføring.
+
+Rettet følgende filer:
+  kreditor/ordre.php
+
+
+Rettet kontrolfunktion for korrekt opsat kreditorgrupper i henhold 
+til ændringer i importmoms.
+
+Rettet følgende filer:
+  kreditor/ordre.php
+
+
+Rettet fejl ved oprettelse af ny konto.
+
+Rettet følgende filer:
+  systemdata/kontokort.php
+
+
+Tilføjet link til formularimport.
+
+Rettet følgende filer:
+  systemdata/formularkort.php
+
+
+Rettet en slåfejl - tilgodende -> tilgodehavende.
+
+Rettet følgende filer:
+  importfiler/formular.txt
+
+
+Tilføjet mulighed for at kopiere en bogført kassekladde til en ny.
+
+Rettet følgende filer:
+  finans/kassekladde.php
+
+
+Rettet fejl i kontrolsystem for importmoms.
+
+Rettet følgende filer:
+  finans/bogfor.php
+
+
+Ændret så formularer bliver importeret selvom standardkontoplan 
+fravælges.
+
+Rettet følgende filer:
+  admin/opret.php
+
+2006-08-01 Peter Rude <phr@saldi.dk> 
+---------------------------------------------------------------------
+
+
+Ændringer i 1.0.3
+=====================================================================
+
+Opdateringer på grund af ny udgave (1.0.3).
+
+Rettet følgende filer:
+  AENDRINGER.txt
+  includes/version.php
+  index.html
+
+2006-06-28 Claus Agerskov <ca@saldi.dk> og Peter Rude <phr@saldi.dk> 
+---------------------------------------------------------------------
+
+Momsrutinen ændret så erhvervelsesmoms bliver korrekt konteret, 
+når udenlandsk levarandør anvendes til modpostering i kassekladden.
+
+Rettet følgende filer:
+  finans/bogfor.php
+
+2006-06-28 Peter Rude <phr@saldi.dk> 
+---------------------------------------------------------------------
+
+
+Ændringer i 1.0.2
+=====================================================================
+
+Opdateringer på grund af ny udgave (1.0.2).
+
+Rettet følgende filer:
+  AENDRINGER.txt
+  includes/version.php
+  index.html
+
+2006-06-26 Claus Agerskov <ca@saldi.dk>
+
+---------------------------------------------------------------------
+
+Ændret HTTP_POST_VARS for PHP5-kompatibilitet.
+
+Rettet i følgende filer:
+  De fleste filer.
+
+
+Tilføjet sqlpassword i db_connect streng samt oprettet databasefeltet 
+"Genvej" som varchar i kontoplan.
+
+Rettet i følgende fil:
+  admin/opret.php:
+
+
+Rettet fejl så reservationer slettes, hvis en varelinje med 
+reservationer slettes.
+
+Rettet i følgende fil:
+  debitor/ordre.php
+
+
+Forbedret rutinen til at finde varer, som er bestilt hos leverandør, 
+men endnu ikke leveret.
+
+Rettet i følgende fil:
+  debitor/batch.php
+
+
+Tilføjet kontrolfelter i openpost oversigt til udsendelse af 
+kontoudtog samt udskrivning af rykkere via mail.
+
+Rettet i følgende fil:
+  debitor/rapport.php
+
+Tilføjet følgende filer:
+  debitor/mail_kontoudtog.php
+  debitor/rykkerprint.php
+
+Tilføjet kontrolfelt, til oversigt over kontobevægelser og knap til 
+bankimport. 
+
+Desuden standardtekst ved udligning af åbneposter ændret fra 
+firmanavn til "udligning". 
+
+Indsat kontrol for om kassekladden allerede er bogført.
+
+Rettet i følgende fil:
+  finans/kassekladde.php
+
+Tilføjet følgende fil:
+  finans/bankimport.php
+
+
+Ændret importtekst fra firmanavn til henholdsvis "Faktura" eller 
+"Kreditnota" efterfulgt af tilhørende nummer.
+
+Rettet i følgende fil:
+  finans/hentordrer.php
+
+
+Indsat yderligere kontrol for om kassekladden allerede er bogført.
+
+Rettet i følgende fil:
+  finans/bogfor.php
+
+
+Indsat headerstreng i oprettelse af connect.php
+
+Rettet i følgende fil:
+  index/install.php
+
+
+Indsat modtagelsesnummer.
+
+Rettet i følgende fil:
+  kreditor/ordreliste.php
+
+
+Indsat beholdningsvisning.
+
+Rettet i følgende fil:
+  lager/varekort.php.
+
+
+Ændret åbningsprocedure for varekort så sortering og visning 
+bibeholdes.
+
+Rettet i følgende fil:
+  lager/varer.php
+
+
+Tilføjet modulet phpmailer skrevet af Brent R. Matzelle og frigivet 
+under GNU LGPL. Benyttes til udsendelse af kontoudtog.
+
+Rettet i følgende fil:
+  OPHAVSRET.txt
+
+Tilføjet følgende filer:
+  Alle i kataloget phpmailer og tilhørende underkataloger.
+
+
+Tilføjet transaktions- og kontrolspor (lovkrav).
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/84
+
+Tilføjet understøttelse af erhvervelsesmoms (EU-moms), som lovkrav 
+ved indkøb fra EU-lande.
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/106
+
+Ændret på feltstørrelser, så de kan ses i en bredde på 800 
+billedpunkter. 
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/57
+
+Rettet fejl ved sletning af en kontaktperson/ansat.
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/62
+
+Håndtering af udestående med kunder.
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/107
+
+Tilføjet momsrapport.
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/63
+
+Rettet fejl ved lagerrapporter der ikke indholder varernumre.
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/74
+
+Rettet så backup vinduet lukker korrekt.
+
+  Indløsning af billet http://trac.lue.dk/saldi/ticket/32
+
+Rettet i følgende filer:
+  Mange som ikke er blevet noteret løbende.
+
+
+2006-06-22 Peter Rude <phr@saldi.dk>
+---------------------------------------------------------------------
+
+Rettet stavefejl i indgangssiden. Tak til E. Sjørlund for angivelsen:
+http://trac.lue.dk/saldi/ticket/101
+
+Rettet følgende fil:
+  index.html
+
+2006-04-18 Claus Agerskov <ca@saldi.dk>
+
+---------------------------------------------------------------------
+
+
+Ændringer i 1.0.1
+=====================================================================
+
+Opdateringer på grund af ny udgave (1.0.1).
+
+Rettet følgende filer:
+  AENDRINGER.txt
+  includes/version.php
+  index.html
+
+
+Tilføjet yderligere information om PostgreSQL-konfiguration i 
+installationsvejledningen.
+
+Rettet følgende fil:
+  INSTALLATION.txt
+
+
+Tilføjet henvisning til dokumentation på Saldi-hjemmesiden samt 
+ændret overskrifter til HTML-overskrifter.
+
+Rettet følgende fil:
+  index/komigang.html
+
+
+2006-04-08 Claus Agerskov <ca@saldi.dk>
+
+---------------------------------------------------------------------
+
+Rettet kritisk fejl, hvor moms blev summeret op fra faktura til 
+faktura, når flere fakturaer var valgt til udskrivning samtidigt. 
+Fejlen havde dog ikke indvirkning på selve regnskabet - kun 
+udskrivningen af fakturaerne.
+
+Rettet følgende fil:
+  debitor/formularprint.php
+
+
+Tilføjet restanceovervågning, så man kan se, hvilke fakturaer, der er
+overskredet henholdsvis mere end 8, 30, 60 og 90 dage.
+
+Rettet følgende fil:
+  debitor/rapport.php 
+
+
+Tilføjet fejlbesked ved angivelse af andet end et eksisterende 
+kontonummer i feltet kontrolkontonummer i kassekladden. 
+
+Indløsning af billet http://trac.lue.dk/saldi/ticket/90
+
+Rettet følgende fil:
+  finans/kassekladde.php
+
+
+Håndtering af kreditnotaer fra kreditorer i forbindelse med 
+varelager.
+
+Rettet følgende filer:
+  kreditor/modtag.php
+  kreditor/ordre.php
+
+2006-04-08 Peter Rude <phr@saldi.dk>
+
+---------------------------------------------------------------------
+
+
+Ændringer i 1.0.0
+=====================================================================
+
+Ændret overskriften 'varekort' til 'Varekort'.
+
+Rettet følgende fil:
+  lager/varekort.php
+
+Ændret 'Fragt / Porto' til 'Fragt/porto'.
+
+Rettet følgende fil:
+  admin/opret.php
+
+Rettet 'ialt' til 'i alt' jævnfør Retskrivningsordbogen.
+
+Rettet følgende filer:
+  debitor/ordre.php
+  importfiler/kontoplan2.txt
+  includes/kontoplan.php
+  kreditor/ordre.php
+  lager/varer.php
+  lager/beholdningsliste.php
+
+Opdateringer på grund af ny udgave (1.0.0).
+
+Rettet følgende filer:
+  AENDRINGER.txt
+  includes/version.php
+  index.html
+  index/menu.php
+
+2006-03-30 Claus Agerskov <ca@saldi.dk>
+
+---------------------------------------------------------------------
+
+Fjernet linket 'Ny', som pegede på en ikke-eksisterende fil.
+
+Rettet følgende fil:
+  finans/regnskab.php
+
+Ændret udskrivningsknappens navn fra 'Print' til 'Udskriv' samt 
+tilføjet besked, hvis ingen fakturaer ermarkeret.
+
+Rettet følgende fil:
+  debitor/ordreliste.php
+
+2006-03-30 Peter Rude <phr@saldi.dk>
+
 ---------------------------------------------------------------------
 
 
@@ -552,7 +1177,6 @@ Oprettelse af filerne README.txt, LAESMIG.txt, BIDRAGSYDERE.txt,
 AENDRINGER.txt og INSTALLERING.txt.
 
 =====================================================================
-Senest ændret 2006-02-08 af Claus Agerskov <ca@saldi.dk>
+Senest ændret 2006-10-19 af Claus Agerskov <ca@saldi.dk>
 
 © Saldi - http://www.saldi.dk/
-  

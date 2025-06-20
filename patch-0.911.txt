@@ -1,3 +1,0 @@
-Ønske: Ved indsættelse af varenr i salgsordre skal der ikke skelnes mellen store og små bogstaver - rettet.
-Fejl: Ved "levering" forsøges udskrift efter "gammelt" udskriftssystem - rettet.
-Fejl: Hvis en salgsfaktura er blevet krediteret, kan den ikke kopieres - rettet.

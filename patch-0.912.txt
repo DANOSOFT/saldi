@@ -1,3 +1,0 @@
-Fejl: (Kassekladde) Ved opslag i kreditorer med "k" angivet i kontonr. felt, opstår fejl hvis der ikke vælges kreditor - rettet.
-Fejl: (Kassekladde) Ved opslag i åbne poster, opstår fejl hvis der er mellemrum i tekst i fakturanummerfelt - rettet.
-Fejl: (Salgfaktura) Fejl i  db beregning ved vareantal over 1. - rettet.

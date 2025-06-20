@@ -1,9 +1,0 @@
-lap-0.981 er alle de rettede filer fra Saldi 0.980 til Saldi 0.981 
-samt denne fil.
-
-Pak filen ud i det katalog, hvor du har Saldi installeret, så 
-bliver Saldi opdateret.
-
-Dine data og opsætningsfiler, bliver ikke ændret af denne lap.
-
-2006-03-27 Claus Agerskov, ca@saldi.dk

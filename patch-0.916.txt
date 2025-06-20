@@ -1,1 +1,0 @@
-fejl (Kreditorordre / modtagelse): Fejl v. kreditering af vare som ikke er på lager. Kreditering nægtet, alligevel går varelager i negativ beholdning. - rettet.   

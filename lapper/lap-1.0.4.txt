@@ -1,0 +1,9 @@
+Lap lap-1.0.4 er alle de rettede filer fra Saldi 1.0.3 til Saldi 1.0.4
+samt denne fil.
+
+Pak filen ud i det katalog, hvor du har Saldi installeret, så
+bliver Saldi opdateret fra 1.0.3 til 1.0.4.
+
+Dine data og opsætningsfiler, bliver ikke ændret af denne lap.
+
+2006-09-07 Peter Rude, phr@saldi.dk
