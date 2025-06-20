@@ -1,0 +1,1 @@
+Ønske: Færre detaljer på vareliste (varer.php) for højere hastighed. - Indsat link så leverandørinfo kan tilvælges - Løst.

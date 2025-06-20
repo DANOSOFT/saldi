@@ -1,0 +1,13 @@
+lap-0.960 er alle de rettede filer fra Saldi 0.955 til Saldi 0.960
+samt denne fil.
+
+Pak filen ud i det katalog, hvor du har Saldi installeret, så
+bliver Saldi opdateret.
+
+Dine data og opsætningsfiler, bliver ikke ændret af denne lap.
+
+
+
+Ændringer siden sidst kan ses i filen AENDRINGER.txt.
+
+2006-03-09 Claus Agerskov, ca@saldi.dk

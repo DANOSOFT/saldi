@@ -1,0 +1,1 @@
+Fejl i batchåndtering. Levering ikke muligt hvis varer ikke er modtaget på lager og antal på varelinje er > 1 - Rettet (debitor/batch.php & kreditor/ordre.php).

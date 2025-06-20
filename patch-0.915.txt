@@ -1,0 +1,1 @@
+Ønske:(Kassekladde) Fast modkonto v. udligning af åbne poster. - Løst - modkonto sættes under indstillinger > debitor/kreditor grupper. Der kan sættes en konto for hver gruppe.

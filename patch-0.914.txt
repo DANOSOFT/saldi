@@ -1,0 +1,1 @@
+Ønske: Varerapport / statestik: - Oprettet varerapport, samt foretaget nødv. ændringer i menu og indstillinger->brugere.

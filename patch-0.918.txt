@@ -1,0 +1,2 @@
+Fejl:(Kassekladde) Ved brug af anførselstegn (") i tekst, sættes backslask (\) foran anførselstegnet - rettet.
+Fejl: (Bogføring af kassekladde) Efter bogføring åbnes en ekstra kladdeliste - rettet.
