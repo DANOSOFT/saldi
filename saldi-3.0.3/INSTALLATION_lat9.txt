@@ -1,0 +1,143 @@
+Installering af SALDI
+=============================================================================
+
+Systemkrav til server:
+----------------------
+Linux eller andet Unix-lignende system med webserver med PHP-understøttelse 
+samt en PostgreSQL- eller MySQL-databaseserver. Sidstnævnte fra 2.0.7, så 
+indtil videre anbefales PostgreSQL stadig som databaseserver.
+
+I nyere udgaver af PostgreSQL skal databaseadministratoren have rettigheden 
+'trust', som sættes i konfigurationensfilen pg_hba.conf eksempelvis således:
+
+  local   all         postgres                          trust
+
+Hvis den ikke sættes, så kan der være problemer med indlæsning af sikkerheds-
+kopi.
+
+Om den nye forgrening MariaDB, som er udsprunget af MySQL, er understøttet, 
+er ikke undersøgt.
+ 
+Det frarådes at benytte andre databaseservere, da det er sandsynligt, at der 
+vil ske fejl ved opgradering, hvor der er ændret i databasemodellen.
+
+
+Systemkrav til klient:
+----------------------
+Webbrowser hvor cookies og JavaScript er slået til og som understøtter nye 
+vinduer og popop-vinduer. 
+
+Saldi er udviklet til og testet med webbrowserne:
+- Opera 9.0 (anbefales)
+- Firefox 3.0
+- Microsoft Internet Explorer 7.0
+ 
+Dog skulle de fleste andre browsere også virke problemfrit.
+
+
+Selve installeringen:
+---------------------
+0. Hent den nyeste udgave af SALDI fra FTP-stedet ftp.saldi.dk:
+
+	ftp://ftp.saldi.dk/saldi/
+
+1. Pak filerne ud i et midlertidigt katalog.
+
+     tar xvfz saldi-*.tar.gz
+
+2. Opret det katalog hvor Saldi skal installeres og køres fra. Husk 
+   at kataloget skal kunne tilgås af webserveren. Eksempelvis:
+
+     mkdir /var/www/html/regnskab
+
+3. Kopiér al indholdet i det midlertidige katalog til det 
+   nyoprettede katalog. Eksempelvis:
+
+     cp -a saldi-*/* /var/www/html/regnskab/
+
+4. Opret eventuelt gruppen saldi:
+
+     sudo groupadd saldi
+
+5. Tilføj eventuelt webbrugeren www-data til gruppen saldi.
+
+     sudo sed -i 's/^\(saldi:.*[a-z0-9]\)$/\1,www-data/' /etc/group
+     sudo sed -i 's/^\(saldi:.*:\)$/\1www-data/' /etc/group
+
+4. Ændr rettighederne til katalogerne includes, logolib og temp, så 
+   webserverbrugeren (den besøgende) har adgang til at skrive i 
+   disse. Hvis denne bruger på systemet hedder www-data og er medlem af
+   gruppen saldi så:
+
+     sudo chgrp -R saldi /var/www/html/regnskab/
+     sudo chmod 775 /var/www/html/regnskab/{includes,logolib,temp}  
+
+   eller hvis du står nede i selve Saldi-kataloget:
+
+     sudo chmod 775 includes logolib temp
+
+   I kataloget includes bliver filen connect.php oprettet, så efter 
+   oprettelsen kan den godt ændres til 555. I kataloget logolib 
+   bliver logoer, som lægges op, placeret, hvorfor den også med 
+   fordel kan ændres til 555, hvis man ikke har (flere) logoer, 
+   som skal lægges op. Dog er det vigtigt, at der er skriveadgang 
+   til kataloget temp, da det er her logfiler og sikkerhedskopier 
+   skrives ud.
+ 
+5. Sørg for at såvel webserveren som databaseserveren kører. Kig i 
+   dokumentationen for disse for at se hvordan.
+
+6. Åbn din browser.
+
+7. Angiv adressen på webserveren og det katalog under webserverens 
+   hieraki, hvor du har kopieret Saldi-filerne til. Eksempelvis:
+
+     http://intern.firma.dk/regnskab
+
+8. Det kan være at browseren brokker sig over, at siden forsøger at 
+   åbne popop-vinduer. Dette skal du acceptere.
+
+9. I det nyåbnede popop-vindue vælges databaseserver og tegnsæt samt
+   angives databaseadministrator, adgangskode til denne, brugenavn 
+   og adgangskode for Saldi-administratoren. Der er vejledningtekst 
+   ved hvert punkt, som popper op, når markøren føres henover feltet.
+   såvel databasen som databasens administrator og acceptér.
+
+   Klik på knappen Installér, når du alle felter er udfyldt.
+
+10. Så er Saldi installeret, hvilket kan ses af overskriften på den 
+    fremkomne side, hvor der klikkes på knappen Næste.
+
+11. Nu bliver du bedt om at logge ind med de oplysninger, du angav 
+    ved oprettelsen af databasen:
+
+       Regnskab    [ Databasenavn                       ]
+       Brugernavn  [ SALDI-administratorens brugernavn  ]
+       Adgangskode [ SALDI-administratorens adgangskode ]
+
+    Du kan altid logge ind med de samme oplysninger senere for at 
+    administrere regnskaber.
+
+12. Nu dukker Administrationsmenuen for Saldi op. Her vælger du 
+    "Opret regnskab".
+
+13. På siden "Opret regnskab" angives navnet på det nye regnskab, 
+    brugernavn for en administrator med tilhørende adgangskode. 
+    Desuden skal man vælge, om der skal oprettes en standard-
+    kontoplan for det nye regnskab. Hvis du er i tvivl, så vælg den, 
+    da den passer til de fleste mindre virksomheder, og det er muligt
+    at rette i den senere. Klik Gem/Opdatér.
+
+14. Efter lidt tid fremkommer en meddelse om, at regnskabet er 
+    oprettet og aktiveret. Klik på knappen OK. 
+
+15. I den fremkomne Administrationsmenu vælges "Vis regnskaber" og i 
+    listen vælges det nyoprettede regnskab.
+
+16. Nu er det tid til opsætning af regnskabet i Saldi. Se linket
+    "Brugervejledning" under "Support" på hjemmesiden http://saldi.dk/.
+
+=======================================================================
+Senest ændret 2010-05-17 af Claus Agerskov <ca@saldi.dk>
+
+© DANOSOFT aps - http://danosoft.dk - http://saldi.dk/

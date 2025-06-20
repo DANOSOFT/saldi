@@ -1,0 +1,12 @@
+Serienumre.
+
+id:
+vare_id:
+købslinje_id: ID fra den linje i ordrelinjer hvor varen købes - Sættes når varenummer skrives!
+                     OBS! Hvis varen returneres til leverandør sættes denne værdi til tilsvarende negative værdi.
+salgslinje_id: ID fra den linje i ordrelinjer hvor varen købes - Sættes når varenummer vælges. 
+                     OBS! Hvis varen tages retur sættes denne værdi til tilsvarende negative værdi. (ved "levering")
+batch_kob_id: ID på den linje i batch_kob som indeholder info om varekøb - Sættes når købsordre lukkes til bogføring
+                     OBS! Hvis varen returneres til leverandør sættes denne værdi til tilsvarende negative værdi.
+batch_salg_id: ID på den linje i batch_salg som indeholder info om varesalg - Sættes når salgsordre lukkes til bogføring
+                     OBS! Hvis varen tages retur sættes denne værdi til tilsvarende negative værdi og der oprettes en ny linje med samme købsinformationer. (ved "levering")
