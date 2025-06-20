@@ -1,0 +1,196 @@
+PBS.
+
+PBS betalinger styres via følgende tabeller / felter
+
+adresser
+	pbs_nr 
+		Hvis art = 'S' dækker dette felt kreditors PBS nr, 
+		Hvis art = 'D' er det PBS debitorgruppenr - Hvis det er tomt opkræves ikke via PBS
+	pbs_date
+		Dato for oprettelse af PBS aftale.
+	
+For at tilmelde en bruger til PBS udfyldes feltet med 00000.
+Når der gemmes bliver datoen skrevet i pbs_date, kortet kontrolleres for reg_nr & kontonr, 
+og konto_id for debitoren tilføjes til box1 i grupper hvor art = PBS. 
+Ved generering af PBS fil hentes listen over tilføjede konti i grupper.box1, og de enkelte konto kontrolleres for validitet. 
+(Navn, adresse, postnr, regnr, kontonr & cvr/cpr) 
+De valide konti slettes fra listen og der meldes tilbage til bruger om eventielle fejl).
+
+Ordrer
+	pbs_nr - Hentes fra kontokort v. oprettelse af ordre.
+	pbs - Afkrydsningsfelt.kun synligt hvis PBS nr eksisterer. 
+
+Fakturering: 
+	Hvis pbs er afmærket udskrives faktura ikke v. klik på fakturer, istedet genereres en linje i pbs_betalinger. 
+
+	
+pbs_liste
+	id:						Løbenr - referancenr for andre pbs tabeller
+	data_lev_nr:	CVR nr fra adresser.cvr_nr where art = "S"
+	liste_date			Dato for generering	yyyy-mm-dd
+	afsendt				blank eller 'on' Hvis blank kan der stadig tilføjes betalinger, eller genereres en ny. 
+	reg_nr				Bank reg. nr fra adresser.bank_reg where art = "S"
+	kontonr				Bank konto fra adresser.bank_konto where art = "S"
+	pbs_nr				pbs nr fra adresser.pbs_nr where art = "S"
+
+pbs_betalinger
+	id						Løbenr.
+	liste_id			Referance til pbs_liste
+	rec_type			Recordtype - 022 for navn og addresse, 042 for betalingsinfo
+	ordre_id			ID fra ordrer.
+	reg_nr				Bank reg. nr fra adresser.bank_reg where kontonr = ordre_kontonr
+	kontonr				Bank konto fra adresser.bank_konto where kontonr = ordre_kontonr
+	pbs_nr				PBS nr fra adresser.pbs_nr where kontonr = ordre_kontonr
+
+Hvis betaling skal foregå vil BPS anføres debitorgruppenr på kundens kontokort.
+På ordren vil nu være en afkrydsningsfelt "PBS betaling" som er afmærket automatisk - Hvis afmærkning fjernes udskrives ordinær faktura ellers foregår betaling via PBS
+
+Med afmærkning:
+
+Når der trykkes "fakturer" hentes ID i pbs_liste hvor afsendt = "" 
+Hvis denne ikke findes, genereres en ny hvor eget cvrnr, dato & pbs nr indskrives. ID aflæses.
+
+I pbs betalinger genereres linje med liste_id = pbs_liste.id, rec_type = '022', reg_nr, kontonr og ordre_id iht ovenstående.
+
+Ordren bogføres.
+
+Udskrivning af PBS betalingsfil
+
+I ordreoversigten vil være en felt PBS.
+
+Undes dette er en liste over PBS betalinger - Den øverste er den åbne øvrige er låste.
+
+Ved klik på den åbne genererer en PBS M601 betalingsoplysning med følgende indhold
+
+Linje 1 
+
+BS002AAAAAAAABS10601BBBBBBBBBB                   CCCCCC+73 tomme felter
+
+A	= pbs_liste.cvr_nr
+B	=	pbs_liste.id - foranstilles med 0 til 10 cifre
+C = pbs_liste.liste_date i formatet ddmmåå
+
+Næste linje (Sektion start) (Laveste deb_grp nr fra aktuelle pbs_betalinger findes) 
+
+BS012AAAAAAAA0112     BBBBB000000000000000    00000000CCCCDDDDDDDDDD+60 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C	=	pbs_liste.reg_nr
+D	=	pbs_liste.kontonr (foranstilles med 0 til ialt 10 cifre)
+
+Næste linje (1. debitor).
+
+BS022AAAAAAAA0240000001BBBBBCCCCCCCCCCCCCCC00000000DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD+42 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C = bps_betalinger.kontonr (foranstilles med 0 til ialt 15 cifre)
+D = ordrer.firmanavn
+
+Næste linje (Hvis ordrer.ean ikke er udfyldt overspringes denne linje))
+
+BS022AAAAAAAA0240000002BBBBBCCCCCCCCCCCCCCC00000000DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD+42 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+D = ordrer.ean
+
+Næste linje
+
+BS022AAAAAAAA0240000002BBBBBCCCCCCCCCCCCCCC00000000DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD+42 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+D = ordrer.addr1 . ordrer.addr2
+
+Næste linje
+
+BS022AAAAAAAA0240000009BBBBBCCCCCCCCCCCCCCC00000000000000000000000DDDDDK+56 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+Hvis ordrer.ean udfyldt D = '0555'
+ellers D = ordrer.postnr (4 felter)
+
+Næste linje
+
+BS042AAAAAAAA028000000BBBBBCCCCCCCCCCCCCCC000000000DDDDDDDDEFFFFFFFFFFFFF+55 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+D = forfaldsdato ddmmyyyy beregnes fra ordrer.fakturadato og ordrebetalingsbetingelser/dage
+E = 0 hvis beløb == 0, 1 Hvis beløb positivt, 2 hvis beløb negativt
+F = Beløb i øre fra ordrer.sum + ordrer.moms (foranstilles med 0 til ialt 13 cifre)
+
+Næste linje
+
+BS052AAAAAAAA024100001BBBBBCCCCCCCCCCCCCCC000000000 Beskrivelse                    Antal        Pris       Beløb+ 16 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+
+Næste linje
+
+BS052AAAAAAAA0241BBBBBCCCCCDDDDDDDDDDDDDDD000000000 EEEEEEEEEEEEEEEEEEEEEEEEEEEEEE FFFFF GGGGGGGGGGG HHHHHHHHHHH+ 16 tomme felter
+
+A = pbs_liste.pbs_nr
+B = ordrelinjer.posnr+1; (foranstilles med 0 til ialt 5 cifre)
+C = pbs_liste.deb_grp
+D = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+E = ordrelinjer.beskrivelse (beskrivelse beskæres til 30 karakterer / forlænges med tomme felter til ialt 30 felter)
+F = ordrelinjer.antal (foranstilles med tomme felter til ialt 6 cifre)
+G = ordrelinjer.pris minus evt.rabat (foranstilles med tomme felter til ialt 12 cifre)
+H = ordrelinjer.antal+ordrelinjer.pris minus rabat (foranstilles med tomme felter til ialt 12 cifre)
+
+Næste linje (Medtages kun hvis moms)
+
+BS052AAAAAAAA0241BBBBBCCCCCDDDDDDDDDDDDDDD000000000 Momsgrundlag                                     EEEEEEEEEEE+ 16 tomme felter
+
+A = pbs_liste.pbs_nr
+B = ordrelinjer.posnr+1; (foranstilles med 0 til ialt 5 cifre)
+C = pbs_liste.deb_grp
+D = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+E = ordrer.moms*100/ordrer.momssats (foranstilles med tomme felter til ialt 12 felter)
+
+Næste linje (Medtages kun hvis moms)
+
+BS052AAAAAAAA0241BBBBBCCCCCDDDDDDDDDDDDDDD000000000 Moms                                             EEEEEEEEEEE+ 16 tomme felter
+
+A = pbs_liste.pbs_nr
+B = ordrelinjer.posnr+1; (foranstilles med 0 til ialt 5 cifre)
+C = pbs_liste.deb_grp
+D = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+E = ordrer.moms*100/ordrer.momssats (foranstilles med tomme felter til ialt 12 felter)
+
+Næste linje (Sidste ordrelinje)
+
+BS052AAAAAAAA0241BBBBBCCCCCDDDDDDDDDDDDDDD000000000 I alt                                            EEEEEEEEEEE+ 16 tomme felter
+
+A = pbs_liste.pbs_nr
+B = ordrelinjer.posnr+1; (foranstilles med 0 til ialt 5 cifre)
+C = pbs_liste.deb_grp
+D = bps_betalinger.kontonr  (foranstilles med 0 til ialt 15 cifre)
+E = ordrer.sum+ordrer.moms (foranstilles med tomme felter til ialt 12 felter)
+
+Hvis flere ordrer i samme debitorgruppe - tilbage til sektion 022 
+ellers
+Find næste debitorgruppe -> tilbage til Sektion 012
+Hivis ikke flere debitorgrupper -> fortsæt
+
+Næste linje
+
+BS092AAAAAAAA011200000BBBBB    CCCCCCCCCCCDDDDDDDDDDDDDDDEEEEEEEEEEE               FFFFFFFFFFF+34 tomme felter
+
+A = pbs_liste.pbs_nr
+B = pbs_liste.deb_grp
+C = antal 042 linjer i denne sektion (foranstilles med 0 til ialt 11 cifre)
+D = Nettobeløb i øre, uden fortegn i 042 records i sektionen
+E = antal 052 linjer + antal 052 linjer i denne sektion (foranstilles med 0 til ialt 11 cifre)
+F = antal 022 linjer i denne sektion (foranstilles med 0 til ialt 11 cifre)
+
