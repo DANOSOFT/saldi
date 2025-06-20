@@ -1,0 +1,258 @@
+10	RESULTATOPGØRELSE	H			
+					
+100	OMSÆTNING:	H			
+1000	Udført arbejde	D			S1
+1100	Varesalg	D			S1
+1300	Fragt ydet	D			S1
+1800	Igangværende arbejder	D			
+1900	Tab på debitorer	D			S1
+1950	OMSÆTNING I ALT	Z	1000		
+					
+2000	VARIABLE OMKOSTNINGER:	H			
+2001	VAREFORBRUG:	H			
+2100	Vareforbrug	D			K1
+2300	Fragt modtaget	D			K1
+2400	Leje driftsmidler	D			K1
+2500	Forbrug egne varer	D			
+2600	Lagerregulering	D			
+2800	EU erhvervelser	D			E1
+2850	VAREFORBRUG I ALT	Z	2000		
+					
+2899	FREMMED ARBEJDE	H			
+2900	Fremmed arbejde	D			K1
+3000	VAREFORBRUG OG FREMMEDE ARBEJDE	Z	2850		
+					
+3500	DÆKNINGSBIDRAG I	Z	1		
+					
+4099	LØNNINGER:	H			
+4100	Løn, A-indkomst	D			
+4110	Medarbejder ATP	D			
+4120	Medarbejder pension	D			
+4125	Bruttoløn	Z	4100		
+					
+4130	Bidragsfri A-indkomst	D			
+4140	Særlig indkomst	D			
+4150	Personalegoder	D			
+4160	Tillæg	D			
+4170	Optjent SH (søgne-/hel	D			
+4200	Feriepenge brutto	D			
+4205	AM-indkomst	D			
+4210	Virksomhed ATP	D			
+4220	Virksomhed pension	D			
+4230	DA Barsel	D			
+4240	Refusion sygedagpenge	D			
+					
+4249	LØNNINGER I ALT	Z	4000		
+4250	DÆKNINGSBIDRAG II	Z	1		
+					
+4308	Øvrige omkostninger:	H			
+4309	Øvrige personaleomkostninger:	H			
+4310	Arbejdstøj	D			
+4320	AER/AES/ATP-fib	D			
+4330	Personaleforsikringer	D			
+4340	Uddannelsesudgifter	D			
+4350	Diverse udgifter	D			
+4950	PERSONALEOMK. I ALT	Z	4500		
+5000	LØN OG PERSONALE I ALT	Z	4100		
+					
+5099	LOKALEOMKOSTNINGER:	H			
+5100	Husleje	D			K1
+5200	El, varme m.v.	D			K1
+5250	Elafgift	D			
+5260	Privat andel el	D			K1
+5300	Varme	D			
+5360	Privat andel varme	D			
+5400	Rengøring og dekoration	D			K1
+5500	Reparation og vedligeholdelse	D			K1
+5600	LOKALEOMKOSTNINGER I ALT	Z	5100		
+					
+5899	SALGSOMKOSTNINGER:	H			
+5900	Annoncer & reklame	D			K1
+5910	Dekoration	D			K1
+5930	Rejseudgifter	D			
+5940	Konferencer	D			
+5950	Messer	D			K1
+5960	Pakkeporto	D			
+					
+5989	Repræsentation:	H			
+5990	Repræsentation, restaurant	D			
+6000	Repræsentation, gaver og blomst.	D			
+6010	Repræsentation, diverse	D			
+6020	Ej fradragsberett. andel	D			
+6030	Repræsentation i alt	Z	5980		
+6040	SALGSOMKOSTNINGER I ALT	Z	5900		
+					
+					
+6099	ADMINISTRATION:	H			
+6100	Advokat og revisor	D			K1
+6150	Bogføringsassistance	D			K1
+6200	Konsulentbistand	D			K1
+6300	Avishold	D			
+6400	Kontingenter m/moms	D			K1
+6450	Kontingenter u/moms	D			
+6800	Erhvervsforsikringer	D			
+6900	Fragt & kørsel	D			K1
+7000	Kontorartikler & tryksager	D			K1
+7200	Porto & gebyrer	D			
+7400	Småanskaffelser	D			K1
+7600	Telefoni	D			K1
+7640	Privat andel telefon mv.	D			
+7650	Internet og webhotel	D			K1
+7700	Vedligehold driftsmidler	D			K1
+7750	Leje af driftsmidler	D			K1
+7800	Diverse inkl. moms	D			K1
+7900	Diverse ekskl. moms	D			
+7950	Reg. kassedifferencer	D			
+8000	ADMINISTRATION I ALT	Z	6100		
+					
+8299	KØRSEL:	H			
+8300	Udbetalte kilometerpenge	D			
+8400	Brændstof	D			
+8500	Vedligeholdelse	D			
+8600	Vægtafgift & forsikringer	D			
+8700	Afskrivning	D			
+8800	Privat andel autodrift	D			
+8950	Øvrig personbefordring	D			
+8960	KØRSEL I ALT	Z	8300		
+					
+8980	Øvrige omkosninger i alt:	Z	4500		
+					
+9000	RESULTAT FØR AFSKRIVNINGER	Z	1		
+					
+9099	AFSKRIVNINGER:	H			
+9100	Småanskaffelser	D			K1
+9200	Driftsmidler	D			
+9250	Immaterielle anlægsaktiver	D			
+9300	Lejede lokaler	D			
+9500	Indgået på tidligere afskrevne f	D			
+9550	AFSKRIVNINGER I ALT	Z	9100		
+					
+9600	RESULTAT FØR FINANSIERING	Z	1		
+					
+9799	RENTEINDTÆGTER M.V.:	H			
+9800	Bank- & giro	D			
+9850	Renteindtægter diverse	D			
+9870	RENTEINDTÆGTER M.V. I ALT	Z	9800		
+					
+9899	RENTEUDGIFTER M.V.:	H			
+9900	Bankrenter	D			
+9950	Leverandører m.v.	D			
+9960	FRADRAGSBERETTIGEDE RENTEUDGIFTE	Z	9900		
+9990	Ikke-fradragsberettigede renter	D			
+10000	RENTEUDGIFTER M.V. I ALT	Z	9900		
+					
+11000	RESULTAT I ALT	Z	1		
+					
+49996	STATUS	H			
+					
+49997	AKTIVER:	H			
+					
+20000	------------------------------------------------------------	X			
+					
+49998	IMMATERIELLE ANLÆGSAKTIVER	H			
+49999	(Patenter, Rettigheder, Goodwill, Udviklingsprojekter under udførelse mv.)	H			
+50800	Imaterielle anlægsaktiver primo	S			
+50810	Forbedringer i året	S			
+50820	Salg i året	S			
+50830	Tilgang i året	S			
+50840	Årets afskrivninger	S			
+50850	IMATERIELLE ANLÆGSAKTIVER I ALT	Z	50790		
+					
+50898	MATERIELLE ANLÆGSAKTIVER	H			
+50899	(Inventar, bygninger, maskiner mv.)	H			
+50900	Driftmiddelsaldo primo	S			
+50910	Tilgang i året Drift/inventar	S			K1
+50920	Afgang i året drift/inventar	S			
+50930	Årets afskrivninger	S			
+51995	Anlægsaktiver	Z	50000		
+					
+					
+					
+55099	OMSÆTNINGSAKTIVER:	H			
+55100	Varebeholdning	S			
+55995	Varebeholdning	Z	55000		
+					
+56099	TILGODEHAVENDER	H			
+56100	Debitorer, ubetalte fakturaer	S			
+56150	Efterposteringer	S			
+56295	Tilgode for salg	Z	56000		
+					
+56300	Deposita	S			
+56500	Forudbetalte omkostninger	S			
+56995	Andre tilgodehavender	Z	56300		
+56999	Tilgodehavender	Z	56000		
+					
+					
+57999	LIKVIDEBEHOLDNINGER	H			
+58000	Bank	S			
+58100	Giro	S			
+58200	Kasse	S			
+58998	Likvide beholdninger i alt	Z	58000		
+					
+					
+58999	OMSÆTNINGSAKTIVER I ALT	Z	58000		
+					
+59999	AKTIVER I ALT	Z	50000		
+					
+					
+60498	PASSIVER	H			
+					
+60499	EGENKAPITAL	H			
+60500	Egenkapitalkonto primo	S			
+60800	Årets resultat	S			
+60900	Overført fra tidligere år	S			
+62000	Mellemregning	S			
+62010	B-skat	S			
+62020	Restskat	S			
+62100	Hævet kontant i virksomheden	S			
+62200	Indskudt kontant i virksomheden	S			
+62300	Ikke fradragsberettigede udgift.	S			
+62400	Privat andel autodrift	S			
+62500	Privat andel telefon	S			
+62600	75% andel repræsentation	S			
+62995	Egenkapital	Z	60000		
+					
+62999	LANGFRISTET GÆLD (over 1 år)	H			
+63000	Banklån	S			
+63099	LANGFRISTET GÆLD I ALT	Z	63000		
+					
+64097	KORTFRISTET GÆLD (under 1 år)	H			
+					
+64098	SKYLDIGE OMKOSTNINGER	H			
+64099	Løn	H			
+64100	Nettoløn	S			
+64110	A conto-udbetaling af løn	S			
+64150	Skyldig A-skat, personale	S			
+64160	Skyldigt arbejdsmarkedsbidrag	S			
+64165	Skyldig SP (særlig pension)	S			
+64170	Skyldig ATP	S			
+64190	Feriepenge hensat	S			
+64195	Feriepenge udbetalt	S			
+64200	Skyldig pension, gruppeliv	S			
+64210	Skyldig SH (søgne-/helligdage)	S			
+63300	Løn	Z	63000		
+					
+65050	Forudbetalt fra kunder	S			
+65095	Forudbetalinger	Z	65000		
+					
+65100	Kreditorer, ubetalte regninger	S			
+65200	Kreditor efterpostering	S			
+65995	Kreditorer	Z	65100		
+					
+65600	SKYLDIGE OMKOSTNINGER I ALT	Z	64098		
+					
+66099	SKYLDIG MOMS	H			
+66100	Salgsmoms	S			
+66150	Moms af varekøb i udlandet	S			
+66160	Olieafgift	S			
+66170	Elafgift	S			
+66180	Vandafgift	S			
+66200	Købsmoms	S			
+66900	Momsafregning	S			
+66950	Skyldig moms i alt	Z	66100		
+67000	KORTFRISTET GÆLD I ALT	Z	64100		
+					
+72000	PASSIVER I ALT	Z	60500		
+					
+99995	Ukendte poster	S			
+99999	Balancekontrol	Z	50000		

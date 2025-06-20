@@ -1,0 +1,48 @@
+Ændringer foretaget i Saldi siden version 1.9.0 (2.0 beta 1)
+=============================================================================
+
+Her listes ændringer i kildekoden til Saldi, som er foretaget siden skiftet
+til den nye hovedversionsnummer 2.0 startende med 2.0 beta 1 også kaldet 
+1.9.0 fra 2008-03-14.
+
+Nyheder i versionsserien 2.0
+=============================================================================
+Fakturering i flere sprog. Nye sprog oprettes under Indstillinger -> 
+Formularer.
+
+Fakturering og bogføring i fremmed valuta. Nye valutaer oprettes under 
+Indstillinger -> Valuta.
+
+Mulighed for delfakturering.
+
+Straksbogføring af fakturaer, købsordrer og rykkere. Option under 
+Indstillinger -> diverse.
+
+Hurtigfakturering - dvs i stedet for at skulle gennem proceduren med tilbud - 
+ordre - levering - fakturering kan man nu nøjes med ordre -> fakturering. 
+Opsætning under Indstillinger -> diverse.
+
+Kontering på projekter. Mulighed for at angive projektnummer i kassekladde og 
+på ordrer. Projekter oprettes under Indstillinger -> Projekt.
+
+Kontering på medarbejderniveau.
+
+Simpelt CRM-system til kundeopfølgning. Findes under Debitorkonti -> Historik.
+
+Simpelt abonnementssystem. På ordrekortet er der mulighed for at skrive en 
+dato i feltet "Genfakt". På fakturaoversigten kan man så sortere på eller søge
+efter genfaktureringsdatoer. Når en faktura så "kopieres til ny" sættes 
+automatisk en ny genfaktureringsdato, med samme tidsinterval som til den 
+forrige.
+
+Automatiseret genbestilling af varer som vil komme under minimumsgrænsen. 
+Findes under "Varer".
+
+Inddeling af vareliste efter varegruppe eller leverandør.
+
+Rykkere i 3 niveauer.
+
+=====================================================================
+Senest ændret 2008-03-14 af Claus Agerskov <ca@saldi.dk>
+
+© Saldi - http://www.saldi.dk/
