@@ -5,267 +5,6 @@ Her listes ændringer i kildekoden til Saldi, som er foretaget siden skiftet
 til den nye hovedversionsnummer 2.0 startende med 2.0 beta 1 også kaldet 
 1.9.0 fra 2008-03-14. Tidligere ændringer ses i filen GAMLE_AENDRINGER.txt.
 
-==============================================================================
-Nyt i 2.0.5 - 2009-03-12
-==============================================================================
-
-        Mange filer er blevet opdateret så der er understøttelse af tegnsættet 
-        UTF-8, som er standard i de fleste nyere Linux-distributioner.
-
-==============================================================================
-Nyt i 2.0.4 - 2009-02-11
-==============================================================================
-
-	index/menu.php
-		Enh / mat flyttet til indsttillinger og erstattet af varemod-
-                tagelse
-	finans/kassekladde.php
-		Mulighed for at sortere på dato
-		Forbedring af 'aut. tilføjelse af linjer'
-	finans/bogfor.php
-		Aut. postering på diffkonto v. valutadiff.	
-	debitor/ordreliste.php
-		Sortering af fakturanumre nu numerisk
-		Massefakturering - fakturer alle ordrer som kan leveres.
-	debitor/ordre.php
-		Pile, så der kan blades i søgeudvalg
-	debitor/debitor.php
-		Sortering af debitornumre nu numerisk
-	debitor/debitorkort.php
-		Tilføjet genveje i bund
-	debitor/ansatte.php
-		Fejl - side ikke fundet - v sletning af kontaktperson
-	debitor/rapport.php
-		Div. forbedringer af rykkerprocedurer
-		Mulighed for udligning med øredifference 
-                (Indstillinger->diverse)
-	kreditor/ordre.php
-		Søgetekst kan indtastes på ordrelinje inden opslag
-	kreditor/rapport.php
-		Betalingslister skal nu aktiveres under indstillinger/diverse
-	lager/varer.php
-		Optimeret genbestillingsrutine og forbedret fejlhåndtering	
-	lager/varemodtagelse.php
-		Automatiseret varemodtagelse med stregkodescanner udfra 
-                bekræftede indkøbsordrer
-	systemdata/diverse.php
-		Mulighed for at vise priser inkl. moms på kundeordrer og 
-                fakturaer
-		Mulighed for valg af massefakturering.
-	
-
-==============================================================================
-Nyt i 2.0.3 - 2008-11-21
-==============================================================================
-
-	Generelt er der lavet en række små forbedringer over hele linjen
-		bl.a. advarsel før lukning på de fleste formular sider og 
-                titlefelter, som giver hints på en række tekster/links	
-	
-	finans/kassekladde.php
-		Tilføjet knap for ompostering på bogførte kladder
-		Tilføjet knap for import fra DocuBizz (kræver at DocuBizz er
-		aktiveret under indstillinger -> diverse)
-		Tilføjelse af CSS
-	debitor/ordreliste
-		Ikke udlignede fakturaer vises nu med rødt i beløbsfeltet.
-		
-
-==============================================================================
-Nyt i 2.0.2e - 2008-11-05
-=============================================================================
-
-	finans/kassekladde.php
-		Tilføjet knap for ompostering på bogførte kladder
-		Tilføjet knap for import fra DocuBizz
-		Tilføjelse af CSS
-	finans/docubizzimport.php
-		Rutine til import fra DocuBizz til Kassekladde
-	systemdata/diverse.php
-		Tilføjet mulighed for at ændre navn på regnskab
-		Tilføjet link til DocuBizz
-		Tilføjet link til debitor im- og eksport
-	systemdata/importer_debitor.php	
-		Rutine til import af kunder fra csv
-	systemdata/exporter_debitor.php	
-		Rutine til export af kunder til csv
-	debitor/rapport.php
-		Tilføjet link til Top100
-	debitor/top100.php
-		Rapport som viser omsætning på de 100 største kunder fordelt 
-                på omsætning
-		
-==============================================================================
-Nyt i 2.0.2d - 2008-10-09
-==============================================================================
-
-	finans/rapport.php
-		Fejl i momsrapport ved regnskabsår over 12 mdr.
-	finans/kladdeliste.php
-		Tilføjelse af CSS og hjælpetekster 
-	kreditor/ordre.php
-		Anførselstegn i varenummer - løst
-
-
-==============================================================================
-Nyt i 2.0.2c - 2008-09-15
-==============================================================================
-
-	debitor/ansatte.php
-		Tilføjet addslashes på $_POST, hvor aktuelt.
-	finans/rapport.php
-		Konto udelades fra kontokort hvis ingen posteringer - også 
-                hvis der er åbningstal
-		
-		
-==============================================================================
-Nyt i 2.0.2b - 2008-09-15
-==============================================================================
-
-	kreditor/borfor.php
-		Fejl hvis batch_kob_id er udefineret. (linje 157/177)
-
-==============================================================================
-Nyt i 2.0.2a - 2008-09-11
-==============================================================================
-
-	includes/udlign_openpost.php
-		Udligning mulig med diff. rettet.
-	systemdata/kontokort.php
-		Sletning af konto skal nu bekræftes, og næste konto åbnes 
-                efter sletning.
-	kreditor/bogfor.php
-		Fejl v. returnering af vare, som ikke tidligere har været 
-                handlet.
-	index/login.php
-		Regnskab & brugernavn sendes nu med retur til loginbillede 
-                ved fejllogin.
-	index/index.php
-		Regnskab & brugernavn kan nu parses med $_GET
-	finans/kontrolspor.php
-		Manglende tabelangivelse ved søgning på kontonr.
-	systemdata/formularkort.php	
-		Tilføjet ordre_projekt på variabelliste.
-	debitor/ordre.php	
-		Rettet - Projekt overføres ikke ved kreditering / kopiering.
-	systemdata/top.php 
-		Tilføjet undtagelse for css
-	systemdata/regnskabskort.php
-		Forkert visning af ny primo hvod der er oprettet nye konti i 
-                nyt regnskabsår.
-	finans/raooprt.php
-		Rettet - Primotal medregnes i momsrapport, hvis der ikke er 
-                posteringer i perioden.	
-	debitor/ordre.php
-		Forkert db beregning på ydelser m. kostpris (linje 909)	
-	debitor/rapport.php & kreditor/rapport.php
-		Forvirrende rækkefølge hvis kontonummer er blevet rettet på 
-                debitor/kreditor
-		
-		
-==============================================================================
-Nyt i 2.0.2 - 2008-07-01
-==============================================================================
-
-	debitor/jobkort.php
-		Arbejdskort til beskrivelse af igangværende sager på den 
-                enkelte kunde.
-	debitor/jobliste.php
-		Liste over arbejdskort.
-	debitor/ordre.php
-		Slåfejl i kommando til valutaopslag.
-	systemdata/diverse.php
-		Tilføjet sprog - fungerer  kun i jobkort
-	systemdata/tekster.php 
-		Nyt modul til redigering af faste tekster - fungerer kun i 
-                jobkort.
-	
-
-==============================================================================
-Nyt i 2.0.1d - 2008-07-01
-==============================================================================
-
-	debitor/formularprint.php
-		Afrundingsfejl
-	kreditor/ordre.php
-		Rettet så der ikke kontrolleres for batch når hurtigfakt er 
-                aktiv. 
-
-	
-==============================================================================
-Nyt i 2.0.1c - 2008-06-30
-==============================================================================
-
-	debitor/bogfor.php
-		Afrundingsfejl kan i specielle tilfælde forhindre bogføring
-	debitor/formularprint.php
-		Afrundingsfejl  
-	
-
-==============================================================================
-Nyt i 2.0.1b - 2008-06-30
-==============================================================================
-
-	finans/raport.php
-		Sidste måned i regnskabsåret kan ikke vælges. jf. 
-                http://forum.saldi.dk/viewtopic.php?t=405 
-	
-
-==============================================================================
-Nyt i 2.0.1a - 2008-06-18
-==============================================================================
-
-webservice - experiemental version.
-
-kreditor/kreditorkort.php
-	Ændret rækkefølge af parametre v. NY kontakt. jf. 
-        http://trac.lue.dk/saldi/ticket/240
-lager/varer.php
-	Fjernet debugtekst jf. http://trac.lue.dk/saldi/ticket/240
-kreditor/rapport.php
-	Fejl i valutaberegning når grundvaluta er DKK og der udlignes en 
-        faktura i !DKK med DKK
-debitor/rapport.php
-	Fejl i valutaberegning når grundvaluta er DKK og der udlignes en 
-        faktura i !DKK med DKK
-includes/udlign_openpost.php
-	Manglende valutaberegning v. blandet valuta.
-finans/kassekladde.php
-	Kosmetik - Lauout v. for lille skærmbrede. jf. 
-        http://trac.lue.dk/saldi/ticket/212
-	Valuta mm, forsvinder efter finans/kreditor & debitor opslag.	
-	
-
-==============================================================================
-Nyt i 2.0.1 - 2008-06-09
-==============================================================================
-
-index.php, AENDRINGER.txt og include/version.php
-	Opdateret version til 2.0.1 og udgivelsesdato til 2008-06-09
-
-
-==============================================================================
-Nyt i 2.0.0m - 2008-06-04
-=============================================================================
-
-kreditor/ordre.php
-	Rettet forkert henvisning til oprindelig ordre v. kreditering
-kreditor/bogfor.php
-	tilføjet manglende beregning af eu moms for udenlandske kreditorer
-finans/hentordrer.php
-	Tilføjet manglende visning af eu moms på oversigt 
-finans/kontrolspor.php
-	kosmetik 
-
-=============================================================================
-Nyt i 2.0.0l - 2008-05-31
-=============================================================================
-
-		includes/std_func.php & includes/usdate.php
-			forbedret funktionen usdate for bedre håndtering af afvigende datoformater
-		includes/openpost.php
-			fjernet noget debugtekst som kom med på output.
-
 =============================================================================
 Nyt i 2.0.0k - 2008-05-28
 =============================================================================
@@ -625,18 +364,15 @@ debitor/bogfor.php
 systemdata/valutakort.php
 	tilføjet felt til kontonummer for valuta- og afrundingsdifferencer.
 systemdata/brugerdata.php
-	rettet så den kalder sig selv ved ændring af aktivt regnskabsaar. - 
-        http://trac.lue.dk/saldi/ticket/211
+	rettet så den kalder sig selv ved ændring af aktivt regnskabsaar. - http://trac.lue.dk/saldi/ticket/211
 includes/online.php
-	rettet så rettighedskontrol fungerer.igen - 
-        http://trac.lue.dk/saldi/ticket/211
+	rettet så rettighedskontrol fungerer.igen - http://trac.lue.dk/saldi/ticket/211
 systemdata/kontokort.php
 	rettet så der nu kan anvendes moms på statuskonti.
 /kreditor/rapport.php, includes/openpost.php & finans/rapport.php
-	Oprydning og prædefinition af variabler
+	oprydning og prædefinition af variabler
 admin/opret.php
-	Fjernet ; fra 'CREATE SEQUENCE....' da ; blev tolket som forsøg på 
-        SQL injektion.
+	Fjernet ; fra 'CREATE SEQUENCE....' da ; blev tolket som forsøg på SQL injektion.
 
 =============================================================================
 Nyt i 1.9.1d
@@ -645,34 +381,30 @@ Nyt i 1.9.1d
 debitor/fakturadato.php
 	Manglende accept af 6 cifret datoformat.jf 
 finans/bogfor.php
-	Momsfejl vil momssats med decimal 
-        jf: http://forum.saldi.dk/viewtopic.php?t=318
+	Momsfejl vil momssats med decimal jf: http://forum.saldi.dk/viewtopic.php?t=318
 systemdata/formularimport.php
 	Viste kun blank skærm jf: http://forum.saldi.dk/viewtopic.php?t=312 
 systemdata/kontokort.php
-	Rettet så der nu kan anvendes moms på statuskonti 
+	rettet så der nu kan anvendes moms på statuskonti 
 /kreditor/rapport.php, includes/openpost.php & finans/rapport.php
-	Oprydning og prædefinition af variabler
+	oprydning og prædefinition af variabler
 admin/backup.php
-	Ændret navngivning af backupfiler til at indeholder timer & min 
-        jf: http://forum.saldi.dk/viewtopic.php?t=322
+	Ændret navngivning af backupfiler til at indeholder timer & min jf: http://forum.saldi.dk/viewtopic.php?t=322
 
 =============================================================================
 Nyt i 1.9.1c
 =============================================================================
 /includes/db_query.php:
-	Indført kontrol til sikring mod SQL-injections 
-        jf: http://forum.saldi.dk/viewtopic.php?t=316
+	indført kontrol til sikring mod SQL-injections jf: http://forum.saldi.dk/viewtopic.php?t=316
 
 2008-03-25 Peter Rude
 =============================================================================
 Nyt i 1.9.1b
 =============================================================================
 /finans/hentordrer.php:
-	Rettet fejlagtig momstilskrivning 
-        jf:.http://forum.saldi.dk/viewtopic.php?t=306
+	rettet fejlagtig momstilskrivning jf:.http://forum.saldi.dk/viewtopic.php?t=306
 /lager/rapport.php:
-	Rettet forkert DG beregning jf: http://forum.saldi.dk/viewtopic.php?t=308
+	rettet forkert DG beregning jf: http://forum.saldi.dk/viewtopic.php?t=308
 
 2008-03-25 Peter Rude
 =============================================================================
