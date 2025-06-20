@@ -1,0 +1,188 @@
+"Kontonr."	"Kontonavn"	"Type"	"Moms"	"Afd."	"Sum fra"	"Sum til"
+10	"I N D T &AElig; G T E R"	"Tekst"				
+						
+100	"VARESALG"	"Tekst"				
+1000	"Varegruppe 1"	"Drift"	"S25"			
+1100	"Varegruppe 2"	"Drift"	"S25"			
+1200	"Diverse"	"Drift"	"S25"			
+1700	"Salg til EU"	"Drift"				
+1800	"Salg uden for EU"	"Drift"				
+1850	"Valutakursdifferencer, eksport"	"Drift"				
+1890	"Varesalg i alt"	"Sum"			1000	1890
+						
+1899	"SERVICEYDELSER"	"Tekst"				
+1900	"Behandlinger"	"Drift"	"S25"			
+1999	"NETTOOMS&AElig;TNING"	"Sum"			2	1999
+						
+2000	"U D G I F T E R"	"Tekst"				
+						
+2001	"VAREK&Oslash;B"	"Tekst"				
+2100	"Varegruppe 1"	"Drift"	"K25"			
+2200	"Varegruppe 2"	"Drift"	"K25"			
+2300	"Diverse varek&oslash;b"	"Drift"	"K25"			
+2800	"EU-erhvervelser"	"Drift"				
+2850	"Valutakursdifferencer, import"	"Drift"				
+2995	"Varek&oslash;b i alt"	"Sum"			2000	2995
+2999	"D&AElig;KNINGSBIDRAG"	"Sum"			1	2999
+						
+4000	"PERSONALE"	"Tekst"				
+4100	"L&oslash;n, A-indkomst"	"Drift"				
+4125	"A-Skat"	"Drift"				
+4150	"ATP-bidrag"	"Drift"				
+4175	"AM- & SP-bidrag"	"Drift"				
+4200	"Hens&aelig;ttelse til feriepenge"	"Drift"				
+4250	"Personaleudgifter"	"Drift"				
+4260	"K&oslash;rselsgodtg&oslash;relse"	"Drift"				
+4999	"Personale i alt"	"Sum"			4000	4499
+						
+5000	"LOKALEOMKOSTNINGER"	"Tekst"				
+5100	"Husleje"	"Drift"	"K25"			
+5200	"El, varme m.v."	"Drift"				
+5300	"Reng&oslash;ring og dekoration"	"Drift"	"K25"			
+5500	"Reparation og vedligeholdelse"	"Drift"	"K25"			
+5995	"Lokaleomkostninger i alt"	"Sum"			5000	5995
+						
+6000	"ADMINISTRATION"	"Tekst"				
+6100	"Bogf&oslash;ring"	"Drift"	"K25"			
+6150	"Advokat"	"Drift"	"K25"			
+6200	"Anden konsulentassistance"	"Drift"	"K25"			
+6300	"Abonnementer/kurser"	"Drift"				
+6350	"Annoncer"	"Drift"	"K25"			
+6400	"Distriktsafgift"	"Drift"	"K25"			
+6800	"Forsikring"	"Drift"				
+6900	"Fragt"	"Drift"	"K25"			
+7000	"Kontorartikler"	"Drift"	"K25"			
+7100	"Blade, aviser"	"Drift"	"K25"			
+7200	"Porto"	"Drift"				
+7250	"Gebyr"	"Drift"				
+7300	"Rep. & vedl. inventar"	"Drift"	"K25"			
+7400	"Sm&aring;anskaffelser kr. 10.500"	"Drift"	"K25"			
+7425	"Software"	"Drift"	"K25"			
+7450	"Hardware"	"Drift"	"K25"			
+7600	"Telefon"	"Drift"	"K25"			
+7650	"Internet og WEB hotel"	"Drift"	"K25"			
+7800	"Diverse inkl. moms"	"Drift"	"K25"			
+7900	"Diverse ekskl. moms"	"Drift"				
+7995	"Administration i alt"	"Sum"			6000	7995
+						
+8000	"K&Oslash;RSEL OG TRANSPORT"	"Tekst"				
+						
+8900	"Transportudgifter"	"Tekst"				
+8910	"F&aelig;rge/Tog/Taxa"	"Drift"				
+8920	"Fly"	"Drift"				
+8930	"Drift"	"Drift"				
+8940	"Hotel"	"Drift"				
+8945	"Konferencelokaler"	"Drift"	"K25"			
+8950	"Fort&aelig;ring rejse"	"Drift"				
+8995	"K&oslash;rsel og transport i alt"	"Sum"			8000	8995
+						
+10000	"REKLAME OG REPR&AElig;SENTATION"	"Tekst"				
+10250	"Udstillinger"	"Drift"	"K25"			
+10251	"Annoncer &amp; Reklame"	"Drift"	"K25"			
+10300	"Repr&aelig;sentation Gaver,blomster"	"Drift"				
+10400	"Repr&aelig;sentation Vin & Tobak"	"Drift"				
+10500	"Repr&aelig;sentation restaurant"	"Drift"				
+10900	"Repr&aelig;sentation diverse"	"Drift"				
+10995	"Markedsf&oslash;ringsudgifter i alt"	"Sum"			10000	10995
+10998	"ANDRE EKSTERNE UDGIFTER"	"Sum"			5000	10998
+						
+29999	"RESULTAT F&Oslash;R RENTER"	"Sum"			1	29999
+						
+30000	"RENTEINDT&AElig;GTER"	"Tekst"				
+41000	"Renteindt&aelig;gter"	"Drift"				
+41995	"Renteindt&aelig;gter i alt"	"Sum"			40000	41995
+						
+42000	"RENTEUDGIFTER"	"Tekst"				
+43100	"Renteudgifter"	"Drift"				
+43800	"Renteudgifter kreditorer"	"Drift"				
+43850	"Gebyr bank,giro,PBS"	"Drift"				
+43900	"Renteudgifter u. fradrag"	"Drift"				
+43995	"Renteudgifter i alt"	"Sum"			43000	43995
+						
+45100	"Ekstraordin&aelig;re indt&aelig;gter"	"Drift"				
+46000	"Ekstraordin&aelig;re udgifter"	"Drift"				
+46995	"Ekstraordin&aelig;rt i alt"	"Sum"			45000	46995
+						
+49998	"PERIODENS RESULTAT"	"Sum"			1	49998
+						
+50000	"A K T I V E R"	"Tekst"				
+						
+50100	"ANL&AElig;GSAKTIVER"	"Tekst"				
+50800	"Driftsmidler & Inventar"	"Status"				
+50810	"Tilgang i &aring;ret drift/inventar"	"Status"	"K25"			
+50820	"Afgang i &aring;ret drift/inventar"	"Status"				
+50830	"Akk. afskrivning af driftsmidler"	"Status"				
+51800	"Franchise Distrikt"	"Status"	"K25"			
+51995	"Anl&aelig;gsaktiver i alt"	"Sum"			50000	51995
+						
+						
+55000	"Varelager"	"Tekst"				
+55100	"Varebeholdning"	"Status"				
+55200	"Varelager Nord"	"Status"				
+55300	"Varelager Syd"	"Status"				
+55900	"Varelager ialt"	"Sum"			55100	55900
+						
+56000	"TILGODE FRA SALG"	"Tekst"				
+56100	"Debitorer, ubetalte fakturaer"	"Status"				
+56150	"Efterposteringer"	"Status"				
+56295	"Tilgode fra salg i alt"	"Sum"			56000	56295
+						
+56300	"Depositum"	"Tekst"				
+56301	"Andre tilgodehavender"	"Sum"			56300	56995
+56999	"TILGODEHAVENDER IALT"	"Sum"			56000	56999
+						
+57000	"Likvider"	"Tekst"				
+58000	"Bank"	"Status"				
+58001	"Kassekonto Nord"	"Status"				
+58002	"Kassekonto Syd"	"Status"				
+58010	"Mellemregning Peter"	"Status"				
+58020	"Mellemregning Claus"	"Status"				
+58050	"Hens&aelig;ttelseskonto"	"Status"				
+58995	"Likvide beholdninger"	"Sum"			58000	58995
+						
+58997	"OMS&AElig;TNINGSAKTIVER IALT"	"Sum"			56000	58997
+		"Tekst"				
+59999	"AKTIVER IALT"	"Sum"			50000	59999
+						
+60000	"P A S S I V E R"	"Tekst"				
+						
+60001	"EGENKAPITAL"	"Tekst"				
+60500	"Egenkapital"	"Status"				
+60800	"&Aring;rets resultat"	"Status"				
+60900	"Overf&oslash;rt fra tidligere &aring;r"	"Status"				
+62000	"Mellemregning"	"Status"				
+62010	"B-skat"	"Status"				
+62020	"Restskat"	"Status"				
+62995	"Egenkapital i alt"	"Sum"			60000	62995
+						
+63000	"KORTFRISTET G&AElig;LD"	"Tekst"				
+63001	"L&oslash;n"	"Tekst"				
+63100	"Nettol&oslash;n"	"Status"				
+63110	"A conto-udbetaling af l&oslash;n"	"Status"				
+63150	"Skyldig A-skat, personale"	"Status"				
+63160	"Skyldigt arbejdsmarkedsbidrag"	"Status"				
+63170	"Skyldig ATP"	"Status"				
+63190	"Skyldige feriepenge"	"Status"				
+63195	"L&oslash;n i alt"	"Sum"			63000	63195
+						
+64400	"Forudbetalt fra kunder"	"Status"				
+64495	"Forudbetalinger i alt"	"Sum"			64400	64495
+						
+65100	"Kreditorer, ubetalte regninger"	"Status"				
+65200	"Kreditor efterpostering"	"Status"				
+65995	"Kreditorer i alt"	"Sum"			65000	65995
+						
+66000	"Moms"	"Tekst"				
+66100	"Salgsmoms (udg&aring;ende moms)"	"Status"				
+66150	"Moms af varek&oslash;b mv. i udlandet"	"Status"				
+66200	"K&oslash;bsmoms (indg&aring;ende moms)"	"Status"				
+66300	"Elafgift"	"Status"				
+66900	"Momsafregning"	"Status"				
+66995	"Moms i alt"	"Sum"			66000	66995
+						
+69999	"KORTFRISTET G&AElig;LD IALT"	"Sum"			63000	69995
+						
+70000	"PASSIVER IALT"	"Sum"			60000	70000
+						
+99995	"Ukendte poster"	"Status"				
+99999	"Balancekontrol"	"Sum"			1	99999

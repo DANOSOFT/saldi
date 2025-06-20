@@ -1,0 +1,137 @@
+10000	"RESULTATOPGØRELSE"	"Hovedoverskrift"			
+11000	"OMSÆTNING"	"Overskrift"			
+11010	"Varesalg Indland - vare 1"	"Drift"			"Salg"
+11020	"Varesalg Indland - vare 2"	"Drift"			"Salg"
+11030	"Varesalg Indland - vare 3"	"Drift"			"Salg"
+11040	"Varesalg Indland - diverse"	"Drift"			"Salg"
+11110	"Varesalg EU - vare 1"	"Drift"			
+11120	"Varesalg EU - vare 2"	"Drift"			
+11140	"Varesalg EU - diverse"	"Drift"			
+11210	"Varesalg andre lande - vare 1"	"Drift"			
+11220	"Varesalg andre lande - vare 2"	"Drift"			
+11230	"Varesalg andre lande - vare 3"	"Drift"			
+11240	"Varesalg andre lande - diverse"	"Drift"			
+11440	"Varesalg diverse"	"Drift"			
+11450	"Afgivne rabatter"	"Drift"			
+11600	"Gebyr før moms"	"Drift"			"Salg"
+11610	"Gebyr efter moms"	"Drift"			
+11797	"OMSÆTNING I ALT"	"Total"	10000		
+12000	"VAREFORBRUG"	"Overskrift"			
+12010	"Vareforbrug"	"Drift"			"Køb"
+12020	"Varekøb specialvarer"	"Drift"			"Køb"
+12030	"Vareforbrug diverse"	"Drift"			"Køb"
+12310	"Fragt"	"Drift"			
+12400	"Tab / Vind lager"	"Drift"			
+12410	"Regulering varelager"	"Drift"			
+12420	"Modtagne rabatter"	"Drift"			
+12450	"Gebyr før moms"	"Drift"			"Køb"
+12460	"Gebyr efter moms"	"Drift"			
+12497	"VAREFORBRUG I ALT"	"Total"	12000		
+12498	"DÆKNINGSBIDRAG I"	"Total"	10000		
+12500	"PROVISION"	"Overskrift"			
+12510	"Provisionsindtægter"	"Drift"			
+12520	"Bonusindtægter"	"Drift"			
+12597	"PROVISION I ALT"	"Total"	12500		
+13499	"DÆKNINGSBIDRAG II"	"Total"	10000		
+13500	"AUTODRIFT"	"Overskrift"			
+13510	"Brændstof og olie"	"Drift"			"Køb"
+13520	"Vægtafgift"	"Drift"			
+13530	"Forsikringer"	"Drift"			
+13540	"Reparation og vedligeholdelse"	"Drift"			"Køb"
+13599	"AUTODRIFT I ALT"	"Total"	13500		
+13600	"MARKEDSFØRINGSOMKOSTNINGER"	"Overskrift"			
+13610	"Annoncer og reklamer"	"Drift"			"Køb"
+13620	"Repræsentation, vin og tobak"	"Drift"			
+13630	"Repræsentation, gaver og blomster"	"Drift"			
+13640	"Rejseudgifter"	"Drift"			
+13650	"Restaurantbesøg"	"Drift"			
+13660	"Færgebillet og brobillet"	"Drift"			"Køb"
+13699	"MARKEDSFØRINGSOMKOSTNINGER  I ALT"	"Total"	13600		
+14000	"LOKALEOMKOSTNINGER"	"Overskrift"			
+14010	"Husleje lager"	"Drift"			"Køb"
+14020	"Forsikring"	"Drift"			
+14030	"Reparation og vedligeholdelse"	"Drift"			"Køb"
+14299	"LOKALEOMKOSTNINGER  I ALT"	"Total"	14000		
+15000	"ADMINISTRATIONSOMKOSTNINGER"	"Overskrift"			
+15010	"Telefon og mobiltelefon"	"Drift"			"Køb"
+15020	"Kontorartikler"	"Drift"			"Køb"
+15030	"Porto og gebyrer"	"Drift"			
+15040	"Forsikringer"	"Drift"			
+15050	"Kontingenter"	"Drift"			
+15060	"Aviser og tidsskrifter"	"Drift"			
+15070	"Revision og regnskabsassistance"	"Drift"			"Køb"
+15080	"Advokat"	"Drift"			"Køb"
+15090	"Edb"	"Drift"			"Køb"
+15100	"Småanskaffelser"	"Drift"			"Køb"
+15997	"ADMINISTRATIONSOMK. I ALT"	"Total"	15000		
+16997	"OMKOSTNINGER I ALT"	"Total"	13500		
+17499	"RESULTAT FØR RENTER"	"Total"	10000		
+17500	"FINANSIELLE INDTÆGTER"	"Overskrift"			
+17510	"Renter pengeinstitutter"	"Drift"			
+17520	"Debitorrenter"	"Drift"			
+17597	"FINANSIELLE INDTÆGTER I ALT"	"Total"	17500		
+17600	"FINANSIELLE UDGIFTER"	"Overskrift"			
+17610	"Renter pengeinstitutter"	"Drift"			
+17620	"Kreditorrenter"	"Drift"			
+17640	"Andre renteudgifter"	"Drift"			
+17650	"Periodeafgrænsning"	"Drift"			
+17660	"Kursdifferencer"	"Drift"			
+17670	"Øredifferencer"	"Drift"			
+17697	"FINANSIELLE UDGIFTER I ALT"	"Total"	17600		
+19997	"RENTER I ALT"	"Total"	17500		
+19999	"PERIODENS RESULTAT"	"Total"	10000		
+20000	"STATUS"	"Sideskift"			
+20001	"STATUS"	"Sideskift"			
+24000	"VARELAGER"	"Overskrift"			
+24100	"Varelager primo"	"Status"			
+24200	"Varelager tilgang Indland"	"Status"			
+24300	"Varelager tilgang EU"	"Status"			
+24400	"Varelager tilgang andre lande"	"Status"			
+24500	"Varelager afgang"	"Status"			
+24600	"Lagerregulering"	"Status"			
+24699	"VARELAGER I ALT"	"Total"	24000		
+25000	"TILGODEHAVENDER"	"Overskrift"			
+25100	"Debitorer"	"Status"			
+25200	"Øvrige tilgodehavender"	"Status"			
+25900	"Periodeafgrænsning"	"Status"			
+25999	"TILGODEHAVENDER I ALT"	"Total"	25000		
+26000	"LIKVIDE BEHOLDNINGER"	"Overskrift"			
+26100	"Kasse"	"Status"			
+26200	"Bank"	"Status"			
+26300	"Giro"	"Status"			
+26400	"Bankkonto USD"	"Status"			
+26500	"Bankkonto EUR"	"Status"			
+26999	"LIKVIDE MIDLER I ALT"	"Total"	26000		
+27000	"OMSÆTNINGSAKTIVER I ALT"	"Total"	24000		
+29999	"AKTIVER I ALT"	"Total"	20000		
+30000	"PASSIVER"	"Hovedoverskrift"			
+30001	"EGENKAPITAL"	"Overskrift"			
+30100	"Egenkapital primo"	"Status"			
+30200	"Overført resultat indev. år"	"Status"			
+30900	"Hævet privat"	"Status"			
+30999	"EGENKAPITAL ULTIMO"	"Total"	30001		
+31000	"LANGFRISTET GÆLD"	"Overskrift"			
+31100	"Lån"	"Status"			
+31999	"LANGFRISTET GÆLD I ALT"	"Total"	31000		
+32000	"GÆLD PENGEINSTITUT"	"Overskrift"			
+32100	"Kassekredit"	"Status"			
+32999	"GÆLD PENGEINSTITUT I ALT"	"Total"	32000		
+33000	"MOMS"	"Overskrift"			
+33100	"Udgående moms (salgsmoms)"	"Status"			
+33200	"Indgående moms (købsmoms)"	"Status"			
+33300	"Moms af varekøb i udland"	"Status"			
+33400	"Olieafgift"	"Status"			
+33500	"CO2-afgift"	"Status"			
+33600	"Vandafgift"	"Status"			
+33700	"El afgift"	"Status"			
+33900	"Momsafregning"	"Status"			
+33997	"MOMS I ALT"	"Total"	33000		
+34000	"KREDITORER"	"Overskrift"			
+34100	"Kreditorer"	"Status"			
+34200	"Skyldige omkostninger"	"Status"			
+34997	"KREDITORER I ALT"	"Total"	34000		
+35799	"KORTFRISTET GÆLD I ALT"	"Total"	32000		
+35899	"GÆLD I ALT"	"Total"	31000		
+39995	"Systemkonto"	"Status"			
+39998	"PASSIVER I ALT"	"Total"	30000		
+39999	"KONSOLIDERING"	"Total"	10000		

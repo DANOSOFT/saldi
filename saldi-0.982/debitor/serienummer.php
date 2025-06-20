@@ -1,0 +1,204 @@
+<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Serienumre</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>
+<?
+// ----------------------------------------------------------------------
+// LICENS
+//
+// Dette program er fri software. Du kan gendistribuere det og / eller
+// modificere det under betingelserne i GNU General Public License (GPL)
+// som er udgivet af The Free Software Foundation; enten i version 2
+// af denne licens eller en senere version efter eget valg
+//
+// Dette program er udgivet med haab om at det vil vaere til gavn,
+// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
+// GNU General Public Licensen for flere detaljer.
+//
+// En dansk oversaettelse af licensen kan laeses her:
+// http://www.fundanemt.com/gpl_da.html
+//
+// Copyright (c) 2004-2005 ITz ApS
+// ----------------------------------------------------------------------
+@session_start();
+$s_id=session_id();
+
+$batch_kob_id=$_GET['batch_kob_id'];
+$linje_id=$_GET['linje_id'];
+
+include("../includes/connect.php");
+include("../includes/online.php");
+include("../includes/db_query.php");
+
+if ($HTTP_POST_VARS['submit'])
+{
+  $submit=trim($HTTP_POST_VARS['submit']);
+  $vare_id=$HTTP_POST_VARS['vare_id'];
+  $kred_linje_id=$HTTP_POST_VARS['kred_linje_id'];
+  $ordre_id=$HTTP_POST_VARS['ordre_id'];
+  $antal=$HTTP_POST_VARS['antal'];
+  $leveres=$HTTP_POST_VARS['leveres'];
+  $serienr=$HTTP_POST_VARS["serienr"];
+  $sn_id=$HTTP_POST_VARS['sn_id'];
+  $sn_antal=$HTTP_POST_VARS['sn_antal'];
+  $sn_tjek=$HTTP_POST_VARS['sn_tjek'];
+  $valg=$HTTP_POST_VARS['valg'];
+  $art=trim($HTTP_POST_VARS['art']);
+
+  if (!$sn_tjek){$sn_tjek=array();}
+  if ($HTTP_POST_VARS['status']<3)
+  {
+    $y=0;
+    if ($antal[$x]>0)
+    {
+      for ($x=1; $x<=$sn_antal; $x++)
+      {
+        if (trim($valg[$x])=="on")
+        {
+          $y++;
+          db_modify("update serienr set salgslinje_id='$linje_id' where id=$sn_id[$x]");
+#          else {db_modify("update serienr set salgslinje_id=0 where id=$sn_id[$x]");}
+        }  
+        elseif ($sn_id[$x]) {db_modify("update serienr set salgslinje_id=0 where id=$sn_id[$x]");}
+      }
+#      if ((($y>$leveres)&&($art!="DK"))||(($y>$leveres)&&($art=="DK")))
+#     {
+#        print "<BODY onLoad=\"javascript:alert('Der kan ikke v&aelig;lges flere end $leveres !')\">";
+#      }
+    }
+    else {
+      for ($x=1; $x<=$sn_antal; $x++)
+      {
+        if (trim($valg[$x])=="on")
+        {
+          $y++;
+          db_modify("update serienr set salgslinje_id=$kred_linje_id*-1 where id=$sn_id[$x]");
+        }  
+        elseif ($sn_id[$x]) {db_modify("update serienr set salgslinje_id=$kred_linje_id where id=$sn_id[$x]");}
+      }
+   }
+  }
+/*
+  $x=0;
+  if ($antal<0)
+  {
+   $y=0;
+    for ($x=1; $x<=$sn_antal; $x++)
+    {
+      $serienr[$x]=trim($serienr[$x]);
+        if ((trim($valg[$x])=="on")&&(!in_array($serienr[$x],$sn_tjek)))
+        {
+          if ($art=="DK") {$y--;}
+          else {$y++;}
+          if ((($y>=$leveres)&&($art!="DK"))||(($y<=$leveres)&&($art=="DK")))
+          {
+            db_modify("insert into serienr (kobslinje_id, salgslinje_id, serienr, batch_kob_id, batch_salg_id, vare_id) values ('$linje_id', '0', '$serienr[$x]', '0', '0', $vare_id)");
+          }
+        }
+        elseif ((trim($valg[$x])=="")&&(in_array($serienr[$x],$sn_tjek)))
+        {      
+          db_modify("delete from serienr where serienr='$serienr[$x]' and kobslinje_id=$linje_id and vare_id=$vare_id");
+        }
+    }
+    if ((($y<$leveres)&&($art!="DK"))||(($y>$leveres)&&($art=="DK")))
+    {
+      $leveres=$leveres*-1;
+      print "<BODY onLoad=\"javascript:alert('Der kan ikke v&aelig;lges flere end $leveres !')\">";
+    }
+  }
+*/
+}
+if ($submit=="Luk"){print "<body onload=\"javascript:window.close();\">";}
+
+$antal=0;
+$query = db_select("select * from ordrelinjer where id = '$linje_id'");
+if ($row = db_fetch_array($query))
+{
+  $ordre_id=$row[ordre_id];
+  $antal=$row[antal];
+  $leveres=$row[leveres];
+  $posnr=$row[posnr];
+  $vare_id=$row[vare_id];
+  $varenr=$row['varenr'];
+  $kred_linje_id=$row[kred_linje_id];
+
+  $query = db_select("select status, art from ordrer where id = '$ordre_id'");
+  $row = db_fetch_array($query);
+  $status=$row[status];
+  $art=$row[art];
+}
+
+print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"1\" valign = \"top\" align=\"center\"><tbody>";
+print "<tr><td align=center>$font<big><b>Posnr: $posnr - Varenr: $varenr</td></tr>";
+print "<form name=ordre serienr.php?linje_id=$linje_id method=post>";
+print "<tr><td><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\" align=\"center\" width=\"100%\"><tbody>";
+print "<tr><td>$font<small><b>Serienr.</td><td align=right>$font<small><b>K&oslash;bsordre</td></tr>";
+print "<tr><td colspan=2><hr></td></tr>";
+if ($antal>0) {  
+  $sn_antal=0;
+  $query = db_select("select * from serienr where vare_id=$vare_id and batch_salg_id > 0 and salgslinje_id=$linje_id order by serienr");
+  while ($row = db_fetch_array($query))
+  {
+    $kobsordre=db_fetch_array(db_select("select ordre_id from ordrelinjer where id=$row[kobslinje_id]"));
+    $kobsordre=$kobsordre[ordre_id];
+    
+    $sn_antal++;
+    print "<tr><td>$row[serienr]</td><td onClick=\"window.open('../kreditor/ordre.php?id=$kobsordre')\"; align=right>$kobsordre</td></tr>";
+  }
+  if ($sn_antal-$antal<0)
+  {
+    $gem=1;
+    $query = db_select("select * from serienr where batch_kob_id=$batch_kob_id and vare_id=$vare_id and batch_salg_id < 1 and (salgslinje_id=0 or salgslinje_id=$linje_id) order by serienr");
+    while ($row = db_fetch_array($query))
+    {
+      if ($status < 3)
+      {
+        $sn_antal++;
+        print "<tr><td>$row[serienr]</td><td><input type=checkbox name=valg[$sn_antal]";
+        if ($row[salgslinje_id]>0){print " checked";}
+        print "</td></tr>";
+        print "<input type=hidden name=sn_id[$sn_antal] value=$row[id]>";
+        print "<input type=hidden name=serienr[$sn_antal] value='$row[serienr]'>";
+      }
+      else 
+      {
+        if ($row[salgslinje_id]>0){print "<tr><td>$row[serienr]</td></tr>";}
+      }
+    }
+  }
+}
+else {  
+  $sn_antal=0;
+  $query = db_select("select * from serienr where salgslinje_id=$kred_linje_id or salgslinje_id=$kred_linje_id*-1 order by serienr");
+  while ($row = db_fetch_array($query))
+  {
+      $r2 =db_fetch_array(db_select("select id from serienr where salgslinje_id=$linje_id and serienr='$row[serienr]' order by id desc"));
+      if (($status < 3)&&(!$r2[id]))
+    {
+      $sn_antal++;
+      print "<tr><td>$row[serienr]</td><td><input type=checkbox name=valg[$sn_antal]";
+      if ($row[salgslinje_id]<0){print " checked";}
+      print "</td></tr>";
+      print "<input type=hidden name=sn_id[$sn_antal] value=$row[id]>";
+      print "<input type=hidden name=serienr[$sn_antal] value='$row[serienr]'>";
+    }
+    else 
+    {
+      if ($row[salgslinje_id]<0){print "<tr><td>$row[serienr]</td></tr>";}
+    }
+  }
+}
+
+print "</td></tr>";
+print "<input type=hidden name=antal value='$antal'>";
+print "<input type=hidden name=kred_linje_id value='$kred_linje_id'>";
+print "<input type=hidden name=vare_id value='$vare_id'>";
+print "<input type=hidden name=ordre_id value='$ordre_id'>";
+print "<input type=hidden name=sn_antal value='$sn_antal'>";
+print "<input type=hidden name=leveres value='$leveres'>";
+print "<input type=hidden name=status value='$status'>";
+print "<input type=hidden name=art value='$art'>";
+print "</tbody></table>";
+print "<tr><td align=center><input type=submit value=\"Luk\" name=\"submit\"></td></tr>";
+print "</form> </tr>";
+print "</td></tr></tbody></table>";
+print "</form>";
+
+?>

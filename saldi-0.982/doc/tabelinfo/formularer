@@ -1,0 +1,15 @@
+Tabel formularer:
+
+ID: Uniq ID
+Formular (Int): 1: Tilbud, 2: Ordrebekraeftelse, 3: Folgeseddel, 4: Faktura, 5: Kreditnota
+Art(Int): 1: Linje, 2: Tekst (Variabler), 3: Ordrelinjer , 6: Billede
+Beskrivelse(Varchar): Beskrivelse
+Placering(Varchar): H: Hoejre, C: Center, V: Venstre.
+xa(Num): placering i koordinatsystem - start
+ya(Num): placering i koordinatsystem - start
+xb(Num): placering i koordinatsystem - linjeslutning / tekstlaengde 
+yb(Num): placering i koordinatsystem - slut (Linjer) 
+Str(Num): Stoerrelse  ( V. linjer: stregtykkelse)
+Color(integer): Farve
+Font(Varchar): Font
+Side (Varchar) 1: side 1, A: Alle sider S: Sidste side !S: Alle sider dog ej sidste.
