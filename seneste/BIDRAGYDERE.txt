@@ -1,0 +1,54 @@
+Bidragsydere til SALDI
+=====================================================================
+SALDI ejes af DANOSOFT ApS (http://www.danosoft.dk/).
+
+Hovedudvikler:
+  Peter Rude <peter@saldi.dk>
+    DANOSOFT ApS (http://www.danosoft.dk/) tidligere ITz ApS.
+
+Koordinator og udvikler:
+  Claus Agerskov <ca@saldi.dk>
+    AgerCon v/Claus Agerskov (http://www.agercon.dk/)  
+
+
+Andre bidrag
+^^^^^^^^^^^^
+
+Niels Rune Brandt alias nielsrune fra forum.saldi.dk 
+  - Inspirerende kode til overskrifter i regnskab og budget i 3.0.2
+
+Magnus Lund alias Goblin fra forum.saldi.dk
+  - Test- og fejlfinding af beta 2.0
+
+alias js fra  forum.saldi.dk
+  - Test- og fejlfinding af beta 2.0
+ 
+Jacob D. Jensen alias Lade fra forum.saldi.dk 
+  - Test- og fejlfinding af beta 2.0
+
+alias Kristian fra forum.saldi.dk 
+  - Test- og fejlfinding af beta 2.0
+
+Lars Brandi jensen	
+ AB Jensens Maskinfabrik A/S
+  - Financering af alt vedr. produktion & tidsregistrering.
+
+Mogens Kjaer
+ http://www.sslug.dk/emailarkiv/prog/2002_09/msg00132.html
+  - Postscript håndteringen
+
+Allan Jacobsen <Allan.J SNABELA cobsen.dk>
+  Film & Farver ApS
+  - Rettelser og tilføjelser
+
+Jesper K. Pedersen <jesper SNABELA famped.dk>
+  - Forbedret sikkerhed ved brugeradgang skrevet i JavaScript
+
+Niels Svennekjær <oss SNABELA justLinux.dk>
+  justLinux (http://www.justlinux.dk/)
+  - Dual-understøttelse af databaseserverne MySQL og PostgreSQL
+
+=====================================================================
+Senest ændret 2010-05-26 af Claus Agerskov <ca@saldi.dk>
+
+© 2003-2010 DANOSOFT ApS http://danosoft.dk          http://saldi.dk/
