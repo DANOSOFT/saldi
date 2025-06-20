@@ -1,0 +1,25 @@
+debitor/ordre.php
+2014.01.12 Tilføjet individuelle mailenner/tekster og vedhæftning af bilag Søg mail_subject
+2014.01.12 Tilføjet mulighed for at ændre debitor ved opslag søg 20140112
+2014.01.12 Visning af kostpris forkert grundet ombytning af 100 & $valutakurs. Kun visning på ordre. Søg 20140116
+2014.01.30 Omskrevet kostprisberegningen grundet risiko for fejl ved køb i en fremmed valuta og salg i en anden fremmed valuta, når salg gennemføres før bogføring af købsordre 
+
+debitor/pos_ordre.php
+2014.01.29 - Indsat automatisk genkendelse af registrerede betalingskort, (Kun med integreret betalingsterminal) Søg 20140129, $kortnavn eller 'Betalingskort'
+
+includes/ordrefunc.php
+2014.01.15 Tilføjet && !$kontonr - Ellers bliver openpost ikke ført og der bogføres på kunden kontonummer i transaktioner og ikke på samlekontoen. Søg 20140115
+2014.01.17 Rettet $kobs_valutakurs til $valutakurs da kursen ikke blev beregnet inden returnering af kostpris. Se også i ordrer.php. Sog 20140117 
+2014.01.29 Indsat automatisk genkendelse af registrerede betalingskort, (Kun med integreret betalingsterminal) Søg 20140129, $kortnavn eller 'Betalingskort'
+2013.01.31	Indsat popup ved som advarer ved indsættelse af vare som ikke kan leveres. Søg 20140131
+
+includes/sys_div_func.php
+2014.01.29	Tilføjet valg til automatisk genkendelse af betalingskort (kun ved integreret betalingsterminal) Søg 20140129
+
+lager/lagerstatus.php
+2014.01.28 Ved søgning på modtaget / leveret tjekkes ikke for dato hvis angivet dato = dags dato da det gav forkert lagerantal for leverancer med leveringsdato > dd. Søg 20140128   
+
+
+systemdata/diverse.php
+2014.01.29	Tilføjet valg til automatisk genkendelse af betalingskort (kun ved integreret betalingsterminal) Søg 20140129
+

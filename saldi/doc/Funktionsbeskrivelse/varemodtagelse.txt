@@ -1,0 +1,119 @@
+*********************************** Når en vare leveres og faktureres inden varemodtagelse ******************************************
+
+Når en indkøbsordre godkendes skrives der for hver varelinje, en tilsvarende linje (A) i tabellen RESERVATION.
+Varelinjens ID angives i [linje_id], varens ID i [vare_id], 0 i [batch_salg_id] og vareantal i [antal]
+
+Når en vare reserveres i en salgsordre, oprettes ligeledes en linje (B) i RESERVATION.
+[linje_id] og [vare_id] kopieres fra linjen fra indkøbsordren, varelinjens id angives med negativt fortegn i [batch_salg_id] og reserveret antal angives i [antal]
+
+Når varen leveres oprettes en linje (C) i BATCH_SALG
+Her angives salgs ordre ID i [ordre_id], vare_id i [vare_id], ordrelinje ID i [linje_id], leveringsdato i [salgsdate] og leverance nummer i [lev_nr] 
+i linje A ændres [batch_salg_id] til linje ID fra C.
+
+Når salgsordren faktureres oprettes en linje (D) i BATCH_KOB. (hvis [batch_kob] i A er tom)
+Her angives købs ordre ID i [ordre_id], vare_id i [vare_id] og salgspris i [pris]. Linje ID aflæses. (hvis [batch_kob] i A er tom)
+I linje A og alle øvrige linjer med samme værdi i [linje_id] angives linje ID fra D i [batch_kob]. (hvis [batch_kob] i A er tom)
+I linje C angives linje ID fra D i [batch_kob], salgspris i [pris], og fakturadato i [fakturadate] 
+I tabellen ordrelinjer tilføjes 2 linjer. Her angives 
+1. værdien -1 i [posnr], værdien fra [pris] i D i [pris], ordre-id i [ordre_id], "lager afgang" i [bogf_konto] og antal i [antal]
+2. værdien -1 i [posnr], værdien fra [pris] i D med negativt fortegn i [pris], ordre-id i [ordre_id], "varekøb" i [bogf_konto] og antal i [antal]
+ 
+Ved bogføring af salgsordre krediteres værdien fra [pris] i D på "lager afgang" og debiteres på "varekøb". Salgssummen krediteres på varesalg og debiteres på Kunden.
+
+Når varen modtages:
+I linje D angives antal i [antal] Reserveret antal fra linjer med samme værdi som A i [linje_id] og [batch_køb] hvor [batch_salg] er positiv trækkes fra og restantal angives i [rest]. Leveringsdato angives i [salgsdate].
+Linje A og alle linjer med samme værdi i [linje_id] og [batch_køb] hvor [batch_salg] er positiv slettes.  
+I alle linjer med samme værdi i [linje_id] og [batch_køb] hvor [batch_salg] er negativ anføres værdien fra [batch_salg] i linje_id og [batch_salg] rettes til 0.  
+
+Når indkøbsordren afsluttes til bogføring:
+I linje C beregnes differensen mellem indkøbsprisen og prisen angivet i [pris]. [pris] rettes til indkøbsprisen. Fakturadato angives i [Fakturadate]
+I tabellen ordrelinjer tilføjes 2 linjer. Her angives 
+
+1. værdien -1 i [posnr], differencen fra [pris] i C med negativt fortegn i [pris], ordre-id i [ordre_id], "varekøb" i [bogf_konto] og antal-rest i [antal]
+2. værdien -1 i [posnr], differencen fra [pris] i C i [pris], ordre-id i [ordre_id], "lager afgang" i [bogf_konto] og antal-rest i [antal]
+
+Ved bogføring af salgsordre krediteres differencen på "varekøb" og debiteres på "lager afgang". Købssummen krediteres på kunden og debiteres på "Lager tilgang".
+
+*************************** Når en vare leveres og faktureres efter varemodtagelse og før indkøbsordre bogføres ******************************
+
+Når en indkøbsordre godkendes skrives der for hver varelinje, en tilsvarende linje (A) i tabellen RESERVATION.
+Varelinjens ID angives i [linje_id], varens ID i [vare_id], 0 i [batch_salg_id] og vareantal i [antal]
+
+Når varen modtages:
+Der oprettes en linje (B) i BATCH_KOB.
+Her angives købs ordre ID i [ordre_id], vare_id i [vare_id], antal i [antal], antal i [rest], leveringsdato i [salgsdate].
+
+Når en vare reserveres i en salgsordre, oprettes en linje (C) i RESERVATION.
+I C angives varelinjens ID i [linje_id], vare ID  i [vare_id], antal i [antal] og ID fra B i [batch_salg_id].
+
+Når varen leveres oprettes en linje (D) i BATCH_SALG
+Her angives salgs ordre ID i [ordre_id], vare_id i [vare_id], ordrelinje ID i [linje_id], ID fra B i [batch_kob_id], leveringsdato i [salgsdate] og leverance nummer i [lev_nr] 
+
+Når salgsordren faktureres 
+I linje D angives salgspris i [pris], og fakturadato i [fakturadate]
+I linje B angives salgspris i [pris] men KUN hvis dette felt er tomt.
+I tabellen ordrelinjer tilføjes 2 linjer. Her angives 
+1. værdien -1 i [posnr], værdien fra [pris] i D i [pris], ordre-id i [ordre_id], "lager afgang" i [bogf_konto] og antal i [antal]
+2. værdien -1 i [posnr], værdien fra [pris] i D med negativt fortegn i [pris], ordre-id i [ordre_id], "lager afgang" i [bogf_konto] og antal i [antal]
+ 
+Ved bogføring af salgsordre krediteres værdien fra [pris] i D på "lager afgang" og debiteres på "varekøb". Salgssummen krediteres på varesalg og debiteres på Kunden.
+
+
+Når indkøbsordren afsluttes til bogføring:
+I linje B beregnes differensen mellem indkøbsprisen og prisen angivet i [pris]. [pris] rettes til indkøbsprisen. Fakturadato angives i [Fakturadate]
+
+Ved bogføring af salgsordre krediteres differencen på "varekøb" og debiteres på "lager afgang". Købssummen krediteres på kunden og debiteres på "Lager tilgang".
+
+*************************** Når en vare leveres og faktureres efter varemodtagelse og bogføring af indkøbsordre ******************************
+
+Når en indkøbsordre godkendes skrives der for hver varelinje, en tilsvarende linje (A) i tabellen RESERVATION.
+Varelinjens ID angives i [linje_id], varens ID i [vare_id], 0 i [batch_salg_id] og vareantal i [antal]
+
+Når varen modtages:
+Der oprettes en linje (B) i BATCH_KOB.
+Her angives købs ordre ID i [ordre_id], vare_id i [vare_id], antal i [antal], antal i [rest], leveringsdato i [salgsdate].
+
+Når indkøbsordren afsluttes til bogføring:
+I linje B angives indkøbsprisen i [pris]. Fakturadato angives i [Fakturadate]
+
+Ved bogføring af salgsordre krediteres købssummen på Leverandøren og debiteres på "Lager tilgang".
+
+Når en vare reserveres i en salgsordre, oprettes en linje (C) i RESERVATION.
+I C angives varelinjens ID i [linje_id], vare ID  i [vare_id], antal i [antal] og ID fra B i [batch_salg_id].
+
+Når varen leveres oprettes en linje (D) i BATCH_SALG
+Her angives salgs ordre ID i [ordre_id], vare_id i [vare_id], ordrelinje ID i [linje_id], ID fra B i [batch_kob_id], leveringsdato i [salgsdate] og leverance nummer i [lev_nr] 
+
+Når salgsordren faktureres 
+I linje D angives salgspris i [pris], og fakturadato i [fakturadate]
+
+Ved bogføring af salgsordre krediteres værdien fra [pris] i B på "lager afgang" og debiteres på "varekøb". Salgssummen krediteres på varesalg og debiteres på Kunden.
+
+*************************** Når en vare leveres før varemodtagelse og faktureres før bogføring af indkøbsordre ******************************
+Når en indkøbsordre godkendes skrives der for hver varelinje, en tilsvarende linje (A) i tabellen RESERVATION.
+Varelinjens ID angives i [linje_id], varens ID i [vare_id] og vareantal i [antal]
+
+Når en vare reserveres i en salgsordre, oprettes ligeledes en linje (B) i RESERVATION.
+[linje_id] og [vare_id] kopieres fra linjen fra indkøbsordren, varelinjens id angives med negativt fortegn i [batch_salg_id] og reserveret antal angives i [antal]
+
+Når varen leveres oprettes en linje (C) i BATCH_SALG
+Her angives salgs ordre ID i [ordre_id], vare_id i [vare_id], ordrelinje ID i [linje_id], 0 i [batch_kob_id], leveringsdato i [salgsdate] og leverance nummer i [lev_nr] 
+i linje B ændres [batch_salg_id] til linje ID fra C.
+
+Når varen modtages oprettes en linje (D) i BATCH_KOB.
+Her angives købs ordre ID i [ordre_id], vare_id i [vare_id] og ordrelinje ID i [linje_id]. Linje ID aflæses. (hvis [batch_kob] i A er tom)
+Reserveret antal fra linjer med samme værdi som A i [linje_id] og [batch_køb] hvor [batch_salg] er positiv trækkes fra og restantal angives i [rest]. Leveringsdato angives i [salgsdate].
+Linje A og alle linjer med samme værdi i [linje_id] og [batch_køb] hvor [batch_salg] er positiv slettes.  
+I alle linjer med samme værdi i [linje_id] og [batch_køb] hvor [batch_salg] er negativ anføres værdien fra [batch_salg] i linje_id, [batch_kob] rettes til ID fra D og [batch_salg] rettes til 0.  
+
+Når salgsordren faktureres: 
+
+I linje C angives linje ID fra D i [batch_kob], salgspris i [pris], og fakturadato i [fakturadate].
+I linje D angives salgspris i [pris] (KUN hvis [pris] er tom) 
+Ved bogføring af salgsordre krediteres værdien fra [pris] i D på "lager afgang" og debiteres på "varekøb". Salgssummen krediteres på varesalg og debiteres på Kunden.
+
+
+Når indkøbsordren afsluttes til bogføring:
+I linje D beregnes differensen mellem indkøbsprisen og prisen angivet i [pris]. [pris] rettes til indkøbsprisen. Fakturadato angives i [Fakturadate]
+Ved bogføring af salgsordre krediteres differencen på "varekøb" og debiteres på "lager afgang". Købssummen krediteres på kunden og debiteres på "Lager tilgang".
+

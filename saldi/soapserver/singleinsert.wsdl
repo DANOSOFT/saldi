@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+	xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" 
+	xmlns:tns="urn:Singleinsert" 
+	xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" 
+	xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" 
+	xmlns="http://schemas.xmlsoap.org/wsdl/" 
+	targetNamespace="urn:Singleinsert">
+	<message name="SingleinsertRequest">
+		<part name="regnskab" type="xsd:string"/>
+	</message>
+	<message name="SingleinsertResponse">
+		<part name="return" type="xsd:string"/>
+	</message>
+	<portType name="SingleinsertPortType">
+		<operation name="Singleinsert">
+			<input message="tns:SingleinsertRequest"/>
+			<output message="tns:SingleinsertResponse"/>
+		</operation>
+	</portType>
+	<binding name="SingleinsertBinding" type="tns:SingleinsertPortType">
+		<soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<operation name="Singleinsert">
+			<input>
+				<soap:body use="encoded" namespace="urn:Singleinsert" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output>
+				<soap:body use="encoded" namespace="urn:Singleinsert" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+	</binding>
+	<service name="Singleinsert">
+		<port name="SingleinsertPort" binding="tns:SingleinsertBinding">
+			<soap:address location="%SERVERURL%/singleinsert.php"/>
+		</port>
+	</service>
+</definitions>

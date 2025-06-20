@@ -1,0 +1,678 @@
+1	Dansk
+2	Vælg aktivt sprog
+3	Gem
+4	Nyt sprog
+5	Annull&eacute;r
+6	Jobnr.:
+7	Felt 1
+8	Felt 2
+9	Felt 3
+10	Felt 4
+11	Felt 5
+12	Felt 6
+13	Felt 7
+14	Felt 8
+15	Felt 9
+16	Felt 10
+17	Bemærkning 1
+18	Tabelfelt 1
+19	Tabelfelt 2
+20	Tabelfelt 3
+21	Tabelfelt 4
+22	Tabelfelt 5
+23	Tabelfelt 6
+24	Bemærkning 2
+25	Bemærkning 3
+26	Bemærkning 4
+27	Planlagt til uge:
+28	Firmanavn
+29	Jobkort
+30	Luk
+31	Nuværende tekst
+32	Ny tekst
+33	Skriv nyt tekstforslag
+34	Debitorliste
+35	Kunde
+36	Postnr.
+37	Telefon
+38	Jobliste
+39	Ny
+40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval
+41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten
+42	Afmærk de felter som skal eksporteres.
+43	Kontonr.
+44	Adresse 1
+45	Adresse 2
+46	By
+47	Land
+48	Cvrnr.
+49	Tlf
+50	Fax
+51	Web
+52	Email
+53	Erh
+54	Ean
+55	Institution
+56	Betalingsbet.
+57	Betalingsdage
+58	Bank_navn
+59	Bank_reg
+60	Bank_konto
+61	Bank_fi
+62	Swift
+63	Gruppe
+64	Kontoansvarlig
+65	Oprettet
+66	Kontaktet
+67	Kontaktes
+68	Vælg om det originale fakturanummer skal genanvendes, eller der skal genereres et nyt
+69	Brug originalt ordrenummer
+70	Ordrenummer kopieres fra den oprindelige faktura
+71	Der genereres nyt ordrenummer
+72	Vælg om der skal bogføres og udskrives, eller om ordrer skal efterlades åbne.
+73	Gennemfør komplet fakturering
+74	Fakturaer kopieres til ny ordre, bogføres og udskrives.
+75	Fakturaer kopieres til ny ordre og efterlades åbne.
+76	Vælg om datoen skal hentes fra "Nextfakt"-feltet, eller dags dato skal anvendes
+77	Brug forvalgt fakturadato
+78	Fakturadato fra "Nextfakt"-felt anvendes
+79	Dags dato anvendes som fakturadato
+80	Ok
+81	Afbryd
+82	Genfakturering
+83	Ja
+84	Nej
+85	Vælg om priser skal opdateres fra vareliste eller overføres uændrede.
+86	Opdater priser.
+87	Priser opdateres fra vareliste
+88	Priser forbliver uændrede.
+89	Vælg alle
+90	Fravælg alle
+91	Her finder du det, som vedrører selve regnskabet.
+92	Vejledning
+93	Log ud
+94	<big><big><big><b>= SALDI =</b></big></big></big>
+95	<b>FINANS</b>
+96	Her finder du det, som vedrører dine kunder.
+97	Her finder du det, som vedrører dine leverandører.
+98	Klik her når du skal bogføre eller ompostere.
+99	<b>DEBITOR</b>
+100	<b>KREDITOR</b>
+101	Her finder du det, som vedrører dine varer.
+102	<b>LAGER</b>
+103	Her foretager du opsætning af regnskabet.
+104	<b>SYSTEMDATA</b>
+105	Kassekladder
+106	Klik her når du skal oprette salgsordrer eller fakturaer til kunder.
+107	Ordrer
+108	Klik her når du skal oprette indkøbsordrer eller modtage varer til videresalg.
+109	Klik her når du skal oprette varer eller generere indkøbsforslag.
+110	Varer
+111	Beholdningsliste
+112	Klik her for at se eller rette i kontoplanen.
+113	Kontoplan
+114	Klik her for at se en månedsopdelt regnskabsoversigt.
+115	Regnskab
+116	Klik her for at komme til kundeliste, historik og jobkort.
+117	Konti
+118	Klik her for at komme til leverandørliste.
+119	Klik her for at tilføje eller rette i enheder og materialer.
+120	Enh./mat.
+121	Klik her for at rette i forskellige indstillinger for moms, kunde-, leverandør- og varegrupper, afdelinger, stamdate, lagre, regnskabsår, formularer og diverse indstillinger.
+122	Indstillinger
+123	Klik her for momsrapport, resultatopgørelse, balance og kontokort. Her finder du også kontrolspor, hvor du kan søge på stort set alt, som er bogført.
+124	Rapporter
+125	Klik her for at se åbne poster og kontokort for dine kunder. Her kan du også skrive rykkere og få en oversigt over de 100 kunder med med største omsætning.
+126	Klik her for at se åbne poster og kontokort for dine leverandører. Her kan du også lave betalingslister til banken.
+127	Klik ker for at få overblik over dit vareflow og se beholdning for dit lager på et vilkårligt tidspunkt.
+128	Her kan du gemme en sikkerhedskopi af hele dit regnskab, eller indlæse en tidligere gemt sikkerhedskopi.
+129	Vis fakturaliste.
+130	Vis historik.
+131	Historik
+132	Vis Kontokort.
+133	Kontokort
+134	Fakturaliste
+135	Klik her for at sortere på kontonummer.
+136	Kontonummer
+137	Klik her for at sortere på navn.
+138	Navn
+139	Klik her for at sortere på adresse.
+140	Adresse
+141	Klik her for at sortere på adresse 2.
+142	Adresse 2
+143	Klik her for at sortere på postnr.
+144	Postnr
+145	Klik her for at sortere på by.
+146	By
+147	Klik her for at sortere på kontaktperson.
+148	Kontaktperson
+149	Klik her for at sortere på telefonnummer.
+150	Telefon.
+151	Kundeansvarlig - Klik her for at sortere på dette felt
+152	Kua.
+153	Klik her for at åbne kundekortet.
+154	Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.
+155	Vil du slette denne ordre?
+156	Klik her for at slette hele ordren. Hvis du blot vil slette en ordrelinje skal du sætte - (minus) som pos.nr.
+157	Kontonummer for samlekonto | kreditorgruppe ikke gyldig - (Indstillinger -> Deb/Kred-grp)
+158	Klik på kladde_id for den kassekladde som posteringen skal tilbageføres til.
+159	Fortryd
+160	<- Klik her for at fortryde.
+161	Klik her hvis du vil logge ud af SALDI
+162	Tvungen valg af debitorgruppe på debitorkort
+163	Tvungen valg af kundeansvarlig på debitorkort
+164	Medtag kommentarer på følgesedler
+165	Anvend hurtigfakturering (ingen tilbud & automatisk levering ved fakturering)
+166	Omgående bogføring af købs- og salgsordrer
+167	Integration med DocuBizz
+168	Brug jobkort
+169	Medtag kun linjer med antal på følgeseddel
+170	Øredifferencer
+171	Skriv det maksimale beløb for øredifferencer angivet i kroner, som må udlignes i åbne poster
+172	Maksimalt beløb for øredifferencer (i kroner)
+173	Skriv det kontonummer i kontoplanen som skal bruges til øredifferencer
+174	Kontonummer for øredifferencer
+175	Kontonummer for øredifferencer findes ikke i kontoplanen
+176	Udlignet som øredifference
+177	Fejl i opsætning af kontonummer for øredifferencer!
+178	Klik her for udligning af valgte åbne poster
+179	Klik her for at udligne valgte åbne poster og postere differencen på differencekontoen valgt under Indstillinger -> Diverse
+180	Klik her når du har afmærket de poster, der skal udlignes
+181	Klik her for at foretage modtagelse af varer som tidligere er bestilt.
+182	Varemodtagelse
+183	Tillad negativ lagerbeholdning
+184	Brug betalingslister
+185	Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervesformater). Hvis dette felt er afmærket, vil der komme er ekstra felt på kassekladden til betalings-id ved bogføring af kreditorfakturaer, ligesom knappen [Betalingsliste] vil være synlig under kreditorrapporter.
+186	Hvis dette felt afmærkes, tvinges brugeren til aktivt at vælge debitorgruppe ved oprettelse af debitorer.
+187	Hvis dette felt afmærkes, tvinges brugeren til aktivt at vælge kundeansvarlig ved oprettelse af debitorer.
+188	Hvis dette felt afmærkes, medtages kommentarlinjer fra tilbud/ordrer på følgesedler.
+189	Hvis dette felt afmærkes, medtages kun de varer, som er med i den pågældende leverering på følgesedlen.
+190	Hurtigfakturering anvendes, hvis man ikke har behov for at skrive tilbud/følgesedler, og hvor lagerttræk skal ske ved fakturering
+191	Hvis dette felt ikke er afmærket, skal købs- og salgsfakturaer bogføres gennem kassekladden med [Hent ordrer]-funktionen.
+192	Afmærk dette felt for at tillade negativ lagerbeholdning.
+193	Docubizz er en aplikation til håndtering af indscannede dokumenter. Se mere om denne funktion på www.docubizz.dk
+194	Jobkort findes i debitorkonti. Her kan du definere opgavebeskrivelser til medarbejdere osv.
+195	Under enheder/materialer kan du tilføje og rette i de enhedsbetegnelser, der bruges i varekort<br>og i ordrer/fakturaer samt materialebetegnelser i varekortet.
+196	Vis priser inkl. moms på kundeordrer
+197	Når dette felt er afmærket, vises priser på kundeordrer, fakturaudskrifter osv. inkl. moms.
+198	Klik her for at skifte til forrige ordre på ordrelisten - husk at gemme eventuelle ændringer først.
+199	Klik her for at skifte til næste ordre på ordrelisten - husk at gemme eventuelle ændringer først.
+200	Massefakturering
+201	Aktiver massefakturering
+202	Hvis du aktiverer massefakturering, har du mulighed for at fakturere alle godkendte salgsordrer i en arbejdsgang.
+203	Medtag delleverancer
+204	Hvis du afmærker dette felt, vil ordrer, hvor ikke alt er på lager, blive delleveret/-faktureret.
+205	Frist for dellevering (dage)
+206	Her angiver du, hvor mange dage gammel en ordre skal være, før der foretages en dellevering/-fakturering.
+207	Hvis du afmærker dette felt, vil SALDI arbejde i popup-vinduer, hvilket gør at man kan have flere vinduer åbne samtidig.
+208	Anvend popup-vinduer
+209	Her skriver du de parametrer, som passer bedst til din browsers popup-funktioner
+210	Popup-indstillinger
+211	Intern bilagsopbevaring (mod betaling).
+212	Afmærk her hvis du vil ancende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 
+213
+214
+215	Emne og tekst til brug ved udsendelse som e-mail
+216	Emne
+217	Skriv overskriften til den email som bruges, når der sendes pr. mail.
+218	Mailtekst
+219	Skriv teksten til den email som bruges, når der sendes pr. mail. HTML koder accepteres.
+220	Skal genfaktureringsdato slettes fra den gamle faktura
+221	Ryd genfaktdato fra gl.fakt
+222	Genfaktureringsdato slettes fra gammel faktura
+223	Genfaktureringsdato bibeholdes på gammel faktura
+224	Brugernavn for "rykkeransvarlig" - Når brugeren logger ind, adviseres denne, hvis der skal rykkes - Hvis navn ikke angives adviseres alle.
+225	Brugernavn
+226	Mailadresse for "rykkeransvarlig". Hvis angivet sendes email fra denne adresse, når der skal rykkes. (Når nogen logger ind - uanset hvem)
+227	Mailadresse
+228	Rentesats i % pr. påbegyndt måned
+229	Rentesats
+230	Skriv det varenummer som bruges til renteopkrævning.
+231	Varenummer for rente
+232	Antal dage betalingsfrist skal være overskredet, før rykker 1 genereres.
+233	Frist for rykker 1.
+234	Antal dage betalingsfrist for rykker 1 skal være overskredet, før rykker 2 genereres.
+235	Frist for rykker 2.
+236	Antal dage betalingsfrist for rykker 2 skal være overskredet, før rykker 3 genereres.
+237	Frist for rykker 3.
+238	Rykkerpåmindelse
+239	Der er rykkere klar til udsendelse i SALDI.
+240	Der er rykkere klar til udsendelse.
+241	Rykkervalg
+242	<big>Denne funktion gør følgende:<UL><LI>udligner alle konti, hvor saldo er 0.</LI><LI>opretter rykkere, hvor betalingsfrist er overskredet med det antal dage, som er valgt under indstillinger -> rykkervalg,</LI><LI>bogfører åbne rykkere, hvor betalingsfrist er overskredet, og opretter rykkere på næste niveau for disse</LI><LI>Sletter åbne rykkere, som er blevet betalt.</LI></UL></big>
+243	Ekstrafelter
+244	Ordrefelt 1
+245	Ordrefelt 2
+246	Ordrefelt 3
+247	Ordrefelt 4
+248	Ordrefelt 5
+249	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 244 & 249.
+250	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 245 & 250.
+251	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 246 & 251.
+252	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 247 & 252.
+253	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 248 & 253.
+254	Ekstrafelter
+255	Ekstrafelt 1
+256	Ekstrafelt 2
+257	Ekstrafelt 3
+258	Ekstrafelt 4
+259	Ekstrafelt 5
+260	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 255 & 260.
+261	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 256 & 261.
+262	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 257 & 262.
+263	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 258 & 263.
+264	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 259 & 264.
+265	Indstillinger for POS ordrer.
+266	Skriv her hvor mange kasseapperater der er i alt i alle butikker.
+267	Antal kasser.
+268	Vælg kontonumre for de enkelte kasser.
+269	Vælg afdeling og kontonumre for de enkelte kasser.
+270	Konti.
+271	PoS-valg
+272	Kassenr.
+273	Vælg den afdeling som kassen skal konteres under
+274	Afdeling
+275	Vælg det kontonummer hvor bevægelser skal konteres
+276	Kontonummer
+277	Kontonummer <variable> eksisterer ikke
+278	Kontonummer skal udfyldes for alle kasser
+279	Skriv her hvor mange forskellige kreditkort der modtages
+280	Antal kreditkort
+281	Type af kredikort, f.eks Dankort, Mastercard eller lign.
+282	Vælg det kontonummer hvor betalinger skal konteres.
+283	Kreditkort
+284	Kontonummer
+285	Vælg momsgruppe for kontantkunder.
+286	Momsgruppe
+287	Varenr. for rabat
+288	For at kunne give rabat på kontantsalg, skal dette felt udfyldes med varenummeret for den vare som bruges til formålet.
+289	Varenr. XXXXX eksisterer ikke.
+290	Ekstrafelter
+291	Ordrefelt 1
+292	Ordrefelt 2
+293	Ordrefelt 3
+294	Ordrefelt 4
+295	Ordrefelt 5
+296	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 291 & 296.
+297	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 292 & 297.
+298	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 293 & 298.
+299	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 294 & 299.
+300	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 295 & 300.
+301	Ekstrafelter
+302	Ekstrafelt 1
+303	Ekstrafelt 2
+304	Ekstrafelt 3
+305	Ekstrafelt 4
+306	Ekstrafelt 5
+307	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 302 & 307.
+308	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 303 & 308.
+309	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 304 & 309.
+310	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 305 & 310.
+311	Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 306 & 311.
+312	Klik her for at &aring;bne listen med arbejdskort.
+313	Hvis dette felt er afmærket styres lager efter FIFO (first in first out) princippet og kostprisen reguleres automatisk efter sidste varekøb.
+314	Anvend FIFO på lagervarer
+315	Anvend sidemenu
+316	Hvis dette felt afmærkes vil der fremkomme en menu i venstre skærmside som letter navigationen, og reducerer arbejdsbredden
+317	Baggrundsfarve
+318	Her skriver du hex-værdien for den ønskede baggrundsfarve eksempelvis ff9933 for orange. Se flere værdier på www.html.dk/dokumentation/farver 
+319	Bogføringskonto ikke sat for varegruppe:
+320	Varenummer
+321	er ikke tilknyttet en varegruppe!
+322	Regnskab
+323	Brugernavn
+324	Adgangskode
+325	
+326	Skriv - (minus) som brugernavn for at slette bruger
+327	Adgangskode
+328	Gentag kode
+329	Adgang til
+330	Administrator
+331	Kan oprette regnskaber
+332	Kan slette regnskaber
+333	Ny bruger
+334	Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til, adskilt af komma
+335	Afmærk her hvis brugeren er skal have administratorrettigheder
+336	Afmærk her hvis brugeren er skal kunne oprette regnskaber og efterfølgende have adgang til disse
+337	Afmærk her hvis brugeren er skal kunne slette de regnskaber, denne har adgang til
+338	Brugernavn
+339	Opret regnskab
+340	Vis regnskaber
+341	Slet regnskab
+342	Uforudset h&aelig;ndelse - Kontakt venligst SALDI-teamet p&aring; telefon 46 90 22 08.
+343	Skriv evt. ny kategori her
+344	Kategorien $ny_kategori eksisterer allerede
+345	Kontonummer m&aring; kun best&aring; af heltal uden mellemrum
+346	Navn skal angives
+347	Kundeansvarlig ikke valgt!
+348	Debitorgruppe ikke valgt!
+349	Kontonummer $ny_kontonr tildelt automatisk!
+350	Der findes allerede en debitor med Kontonr: $ny_kontonr
+351	Kontonummer findes allerede, ikke &aelig;ndret
+352	Hint! Du skal s&aelig;tte et - (minus) som pos nr for at slette en kontaktperson
+353	Privat
+354	Erhverv
+355	Vis leveringsadresse
+356	Debitorkort
+357	Kundenr.
+358	Fornavn
+359	Efternavn
+360	Firmanavn
+361	Adresse
+362	Adresse2
+363	Postnr./By
+364	Land
+365	E-mail / brug mail
+366	Afm&aelig;rk her hvis modtageren skal modtage tilbud, ordrer, fakturaer & rykker pr. mail
+367	Hjemmeside
+368	Betalingsbetingelse
+369	Forud
+370	Kontant
+371	Efterkrav
+372	Netto
+373	Lb. md.
+374	Debitorgruppe
+375	Rabatgruppe
+376	CVR-nr.
+377	Telefon
+378	Telefax
+379	EAN-nr.
+380	Institutionsnr.
+381	Kreditmax
+382	Bank reg.
+383	Bank konto
+384	PBS-nr.
+385	PBS
+386	Kundeansvarlig
+387	Lukket
+388	Kategorier
+389	Omd&oslash;b $ny_kategori til:
+390	For at oprette en ny kategori skrives navnet p&aring; kategorien her. For at oprette en underkategori skrives id på den overstående kategori foran navnet med | som adskillelse, f.eks 31|Herresokker. Id findes ved at holde musen over kategoriens navn.
+391	Bem&aelig;rkning
+392	Kontaktpersoner
+393	Positionsnummer. Prim&aelig;r kontakt har nummer 1
+394	Pos.
+395	S&aelig;t flueben her for at knytte $firmanavn til denne kategori
+396	Klik her for at omd&oslash;be denne kategori
+397	Klik her for at slette denne kategori
+398	Kontakt
+399	Direkte telefonnummer eller lokalnummer
+400	Direkte/lokal
+401	Mobil
+402	E-mail
+403	Kontakt navn
+404	Kontakt adresse
+405	Kontakt adresse 2
+406	Kontakt postnr
+407	Kontakt by
+408	Kontakt telefon
+409	Kontakt telefax
+410	Kontakt e-mail
+411	Kontakt bemærkning
+412	Husnr.
+413	Etage
+414	PBS-nr.
+415	Fremh&aelig;vning
+416	Fremh&aelig;ver eksempelvis ordre med den angivne farvenuance, hvor der mangler levering eller modtagelse
+417	V&aelig;lg farvenuance til fremh&aelig;vning
+418	R&oslash;d
+419	Gr&oslash;n
+420	Bl&aring;
+421	Gul
+422	Magenta (lyselilla)
+423	Cyan (lysebl&aring;)
+424	Intet
+425	Afm&aelig;rk her for at benytte VVS-prislisten fra $beskrivelse
+426	Klik her for at s&aelig;tte individuelle rabatter og varegrupper for de enkelte prisgrupper
+427	Prislister
+428	Rabat
+429	Varegruppe
+430	Aktiv
+431	Skriv den generelle rabat for varer fra $beskrivelse
+432	V&aelig;lg den generelle varegruppe til varer fra $beskrivelse
+433	Ingen leverand&oslash;r med kontonummer $kontonr
+434	Her kan skrives en alternativ SMTP-server til brug for udsendelse af ordrer mm. Den angivne server skal tillade videresendelse af mails fra ssl.saldi.dk.
+435	Alternativ SMTP-server
+436	Skift
+437	Skriv en dato i formatet ddmmåå, f.eks 311210 for at se bevægelser inden danne dato<br>eller skriv et datointerval f.eks. 010110:311210.<br>Kontosaldi anvender kun slutdatoen.
+438	Dato
+439	Skriv et kundenummer eller et interval adskilt af kolon. Listen vil blive sorteret efter kundenummer<br>Der kan også skrives et kontonavn,<br>f.eks<br>Skrives DANOSOFT aps vises kun bevægelser for DANOSOFT aps<br>DANO* vil vise bevægelser for alle hvor navnet starter med DANO<br>*aps vil vise alle hvor navnet slutter på aps<br>*SOFT* viser alle hvor navnet indeholder soft 
+440	Konto
+441	Åbne poster
+442	Kontosaldo
+443	Kontokort
+444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato
+445	Viser en liste over saldi på valgte konti pr. den angivne dato 
+446	Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.
+447	Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.
+448	Top 100
+449	Debitorrapporter
+450	Kreditorrapporter
+451	Afmærk her hvis din søgning skal huskes
+452	Husk
+453	Afmærk her for at finansbogføre hver handel separat. Hvis der ikke er afmærket, foretages bogføring samlet ved kasseoptælling.
+454	Bogfør hver handel.
+455	Kassespor
+456	Afmærk her for at for at udskrive bon automatisk. Hvis der ikke er afmærket, skal bon udskrives manuelt efter hver handel.
+457	Udskriv bon automatisk.
+458	Afmærk her for at vise knappen [Kontant på beløb]. Kan bruges ved kassesalg hvor der ikke skal beregnes returbeløb.
+459	Vis knap [Kontant på beløb]
+460	Afmærk her for at vise knappen [Kontoopslag]. Bruges ved kassesalg til kontokunder
+461	Vis knap [Kontoopslag]
+462	Antal sekunder siden med [Udskriv] og [Ny kunde] skal blive stående før der skifter til ny ordre. Hvis tallet er 0 skiftes aldrig.
+463	Tidsfrist for udskrift
+464	Afmærk her for at vise knappen [Indbetaling]. Bruges til kontokunder som indbetaler til konto
+465	Vis knap [Indbetaling]
+466	Mængderabat
+467	Mængderabat $rabatpct %
+468	Momskode for salgspriser på varekort 
+469	Hvis dette felt er udfyldt, vises salgspriser på varekort inkl. moms.
+470	Varerelaterede valg
+471	Gem/opdat&eacute;r
+472	Varianter
+473	Ny variant værdi
+474	Ny variant
+475	Variant
+476	Værdi
+477	Klik her for at omd&oslash;be denne variant
+478	Klik her for at slette denne variant og tilhørende variant værdier.
+479	Klik her for at omd&oslash;be denne værdi
+480	Klik her for at slette denne værdi.
+481	Vil du slette denne variant og tilhørende variant værdier?
+482	Vil du slette denne værdi?
+483	Vil du omdøbe denne variant?
+484	Vil du omdøbe denne værdi?
+485	Varianter for varer, f.eks Farve eller Størrelse.
+486	Værdi for variant , f.eks Rød eller Small.
+487	Afmærk her hvis varen indeholder denne type varianter.
+488	Kopi af tilbud gemt kl. $time, se vedhæftning.
+489	Kopi af ordrebekræftelse gemt kl $time, se vedhæftning.
+490	Kopi gemt til historik
+491	Klik på teksten for at indsætte den i ordren.
+492	Klik på krydset for at slette denne tekst fra listen.
+493	Vil du slette denne tekst?
+494	Status.
+495	Ny status
+496	Vælg "Ny Status" for at tilføje en ny status
+497	Navn på ny status.
+498	Kopi af faktura gemt kl. $time, se vedhæftning.
+499	Kopi af kreditnota gemt kl. $time, se vedhæftning.
+500	Ordrenr
+501	Opdatér feltet herunder med information fra ordren?
+502	Kontakt
+503	Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.
+504	Webshop URL
+505	Klik her for at eksportere valgte transaktioner til CSV-fil for import i andet program, f.eks. regneark.
+506	Fejl ved overførsel til FTP - Dokument ikke gemt!
+507	Klik her for at oprette nyt regnskabsår.
+508	Opret nyt regnskabsaar
+509	Kontospecifikation alle valgte konti i valgt periode
+510	Kontospecifikation fra valgte momsbelagte konti i valgt periode. Viser moms for posteringer hvor momsen er trukket automatisk.
+511	Saldo for statuskonti og summering af disse for valgte konti i valgt periode.
+512	Saldo for driftkonti og summering af disse for valgte konti i valgt periode.
+513	Saldo for driftkonti + budgettal og summering af disse for valgte konti i valgt periode.
+514	Saldo for momskonti og summering i valgt periode.
+515	Kontokort
+516	Kontokort med moms
+517	Balance
+518	Resultat
+519	Resultat/budget
+520	Momsangivelse
+521	Sikkerhedskopi
+522	Anvend topmenu
+523	Hvis dette felt afmærkes vil der fremkomme en menu i toppen af skærmen som letter navigationen, og reducerer arbejdshøjden
+524	Klassisk udseende
+525	Hvis dette felt afmærkes vil hverken fremkomme menu i toppen eller siden og hele siden kan anvendes som arbejdsområde.
+526	Integration med ebConnect
+527	Afmærk her hvis du har en ftp-konto hos ebConnect og ønsker at kunne sende OIOUBL-fakturaer direkte til modtager.
+528	- FTP-server hos ebConnect
+529	- FTP-brugernavn hos ebConnect
+530	- FTP-adgangskode hos ebConnect
+531	Betalingslister til bank, hvor betalingsID og dato er angivet ved bogføring
+532	Betalingslister
+600	Finans
+601	Kassekladde
+602	Regnskab
+603	Rapporter
+604	Debitor
+605	Ordre
+606	Konti
+607	Kredtor
+608	Lager
+609	Varer
+610	Varemodtagelse
+611	Systemdata
+612	Kontoplan
+613	Indstillinger
+614	Sikkerhedskopi
+615	Ved at afmærke her får du op til 14 ekstra felter på ansattes stamkort, for egne ansattes.
+616	Tilføj ekstra felter på ansatte
+617	-
+618	-
+619	-
+620	-
+621	-
+622	-
+623	-
+624	-
+625	-
+626	-
+627	-
+628	-
+629	-
+630	-
+631	-
+632	-
+633	-
+634	-
+635	-
+636	-
+637	-
+638	-
+639	-
+640	-
+641	-
+642	-
+643	-
+644	-
+645	Medarbejdernr.
+646	Navn
+647	Initialer
+648	Adresse
+649	Adresse2
+650	Postnr
+651	By
+652	e-mail
+653	Mobil
+654	Lokalnr.
+655	Lokal fax
+656	Privat tlf
+657	Provision:
+658	Afdeling
+659	Bemærkning
+660	Fratrådt
+661	Cpr-nr
+662	Bank
+663	Tiltrådt
+664	Løn
+665	Løntillæg
+666	Postnr. &amp; by
+667	E-mail/brug
+668	Betalingsbet.
+669	Ny kontakt
+670	Trainee
+671	Bilag
+672	Skriv navn til vedhæftet bilag, når der sendes pr. mail.
+673	Skriv her hvor mange borde der skal registreres
+674	Antal borde
+675	Beskrivelse af bordene.
+676	Bordnavn
+677	Mailfakt
+678	Klik her for at synkronisere kategorier i Saldi med kategorier fra shop.
+679	Synkroniser kategorier i Saldi med shop. 
+680	Afmærkes dette felt vil der komme en advarsel, hvis der indsættes varer, som ikke kan leveres, på en kundeordre.
+681	Anvend procentfakturering
+682	Afmærkes her, kommer et ekstra felt på kundeordrer til procentfakturering af vareværdien. Bruges f.eks ved udlejning af materiel.
+683	Procenttillæg
+684	Skrives en værdi her, vil den fremkomme et redigerbart felt på ordresiden med den angivne værdi. Procenttillægget er et tillæg til den samlede fakturasum før momsberegning. 
+685	Varenr. for procenttillæg
+686	Angiv her hvilken konto i kontoplanen procenttillægget skal konteres på.
+687	Kontonummer for kontantsalg.
+688	Angiv hvilken konto betalingen skal konteres på ved kontantsalg. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.
+689	Kontonummer for salg på kreditkort.
+690	Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.
+691	Merchant nr tildeles ved oprettelse af betalingsaftale hos Quickpay
+692	Merchant nr:
+693	Md5-secret tildeles ved oprettelse af betalingsaftale hos Quickpay
+694	Md5-secret
+695	Vælg her om du vil anvende Saldi's interne shop eller en ekstern via API.  
+696	Webshop valg
+697	Ingen webshop
+698	Intern webshop
+699	Ekstern webshop
+700	Kassebeholdning, morgen
+701	Skriv her hvor meget kassebeholdningen er ved dagens start. Hvis tallet er nul, tælles den aktuelle beholdning.
+702	Assistance til kasseoptælling
+703	Afmærk her, hvis kasseoptællingen skal assisteres med formular til antal af mønter & sedler.
+704	Printer IP
+705	Skriv ipnummeret til printserveren, hvis bonprinteren ikke tilsluttet kasseapparatet direkte.
+706	Terminal IP
+707	Skriv ipnummeret til kortterminalen, hvis der anvendes integreret kortterminal.
+708	Tillad forskellige datoer på samme bilagsnummer i kassekladde.
+709	Afmærk her for at undtrykke advarsel i kassekladden, hvis der anvendes samme bilagsnummer til flere bilag med forskellige datoer. (F.eks, hvis et kontoudtog fra bank bogføres som ét bilag).
+710	Betalingskort
+711	Afmærk her, hvis kortet er et betalingskort som bruges med betalingsterminal (Kun til anvendelse med integreret betalingsterminal).
+712	Andre kort
+713	Udfyldes dette felt, vises kun 1 betalingskort på kasseskærmen og der bogføres automatisk på det kortnavn som terminalen returnerer. Hvis kortet ikke er oprettet herover, bogføres på denne konto.  
+714	Advar ved for lav lagerbeholdning
+715	Mellemkto
+716	Mellemkonto for beløb som udtages fra kasse ved dagsafslutning.
+717	Mellemkonto <variable> eksisterer ikke
+718	Mellemkonto skal udfyldes for alle kasser
+719	Brug Google Docs viewer
+720	Afmærk her hvis du har en google konto. Så vil du kunne se næsten alle dokumentformater. Eller kan du kun se de formater din browser understøtter.
+721	Diffkto
+722	Difference konto for kassedifferencer dagsafslutning.
+723	Difference konto <variable> eksisterer ikke
+724	Difference konto skal udfyldes for alle kasser
+725	Køkkenprint.&nbsp;IP
+726	Skriv ipnummeret til køkkenprinteren, hvis der anvendes en sådan.
+727	Omvendt betalingspligt ved salg
+728	Afmærk hvis det skal være muligt at sælge varer med omvendt betalingspligt
+729	Varenr. for delbetaling
+730	For at kunne håndtere delbetalinger, skal dette felt udfyldes med varenummeret for den vare som bruges til formålet.
+731	Aut. regulering af kostpriser
+732	Vælg om kostpriser skal reguleres til gennemsnitspris, genanskaffelsespris eller ikke skal reguleres, ved varekøb
+733	Tegn kodning for shop 
+734	Hvis dette felt er afmærket gives mulighed for at give en speciel pris på en gruppe af varer. Varene samles på bonnen uden pris på de enkelte varer og prisen vises som sætpris under varerne.    
+735	Vis knap [Sæt]
+736	Labelprint
+737	Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.
+738	Klik her for at opdatere kostprisen for alle lagervarer med pris på sidste køb.
+739	Opdater kostpriser
+740	Klik her for at hente nye varer fra shop til Saldi.
+741	Hent nye varer fra shop.
+742	Anvend samlet pris
+743	Afmærkes dette felt bliver det muligt at ændre prisen på bundlinjen i en salgsordre og der bliver givet en samlet rabat, som ved bogføring fordeles på de enkelte varer. 
+744	Varenr. for sæt
+745	Sættes der et varenummer her bliver det muligt at samle en gruppe varer i en salgsordre som et sæt og give en samlet pris for denne gruppe.

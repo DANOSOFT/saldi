@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+	xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" 
+	xmlns:tns="urn:Singleselect" 
+	xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" 
+	xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" 
+	xmlns="http://schemas.xmlsoap.org/wsdl/" 
+	targetNamespace="urn:Singleselect">
+	<message name="SingleselectRequest">
+		<part name="regnskab" type="xsd:string"/>
+	</message>
+	<message name="SingleselectResponse">
+		<part name="return" type="xsd:string"/>
+	</message>
+	<portType name="SingleselectPortType">
+		<operation name="Singleselect">
+			<input message="tns:SingleselectRequest"/>
+			<output message="tns:SingleselectResponse"/>
+		</operation>
+	</portType>
+	<binding name="SingleselectBinding" type="tns:SingleselectPortType">
+		<soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<operation name="Singleselect">
+			<input>
+				<soap:body use="encoded" namespace="urn:Singleselect" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</input>
+			<output>
+				<soap:body use="encoded" namespace="urn:Singleselect" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+			</output>
+		</operation>
+	</binding>
+	<service name="Singleselect">
+		<port name="SingleselectPort" binding="tns:SingleselectBinding">
+			<soap:address location="%SERVERURL%/singleselect.php"/>
+		</port>
+	</service>
+</definitions>

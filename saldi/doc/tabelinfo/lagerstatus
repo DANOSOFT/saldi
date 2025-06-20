@@ -1,0 +1,10 @@
+Lagre.
+
+Tabeller lagerstatus indeholder information om beholdninger på de enkelte lagre.
+
+Felter:
+ID: 
+vare_id:          Varens id
+lagernr.:         Nummeret hentes fra feltet kodenr i tabellen "grupper" hvor feltet art = "LG" 
+beholdning:    beholdning på det pågældende lager
+
