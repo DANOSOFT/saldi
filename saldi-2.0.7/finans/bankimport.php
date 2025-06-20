@@ -1,0 +1,417 @@
+<?php
+// ----------finans/bankimport.php------------patch 2.0.7------2009.05.13-----------
+// LICENS
+//
+// Dette program er fri software. Du kan gendistribuere det og / eller
+// modificere det under betingelserne i GNU General Public License (GPL)
+// som er udgivet af The Free Software Foundation; enten i version 2
+// af denne licens eller en senere version efter eget valg
+//
+// Dette program er udgivet med haab om at det vil vaere til gavn,
+// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
+// GNU General Public Licensen for flere detaljer.
+//
+// En dansk oversaettelse af licensen kan laeses her:
+// http://www.fundanemt.com/gpl_da.html
+//
+// Copyright (c) 2004-2009 DANOSOFT ApS
+// ----------------------------------------------------------------------
+
+@session_start();
+$s_id=session_id();
+$css="../css/standard.css";
+
+$title="SALDI - Bankimport";
+include("../includes/connect.php");
+include("../includes/online.php");
+include("../includes/settings.php");
+include("../includes/std_func.php");
+
+print "<div align=\"center\">";
+
+if(($_GET)||($_POST)) {
+
+	if ($_GET) {
+		$kladde_id=$_GET['kladde_id'];
+		$bilag=$_GET['bilagsnr'];
+	}
+	else {
+		$submit=$_POST['submit'];
+		$kladde_id=$_POST['kladde_id'];
+		$filnavn=$_POST['filnavn'];
+		$splitter=$_POST['splitter'];
+		$feltnavn=$_POST['feltnavn'];
+		$feltantal=$_POST['feltantal'];
+		$kontonr=$_POST['kontonr'];
+		$bilag=$_POST['bilag'];
+	}
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>Luk</a></td>";
+	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Bankimport (Kassekladde $kladde_id)</td>";
+	print "<td width=\"10%\" $top_bund ><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+
+	if (($kontonr) && (strlen($kontonr)==1)) {
+		$kontonr=strtoupper($kontonr);
+		$query = db_select("select * from kontoplan where genvej='$kontonr' and regnskabsaar='$regnaar'",__FILE__ . " linje " . __LINE__);
+		if ($row = db_fetch_array($query)) $kontonr=$row[kontonr];
+		else {
+			$kontonr='';
+			print "<BODY onLoad=\"javascript:alert('Angivet kontonrnummer findes ikke')\">";
+		}
+	}
+	elseif ($kontonr)	 {
+		$tmp=$kontonr*1;
+		if (!$row=db_fetch_array(db_select("select id from kontoplan where kontonr=$tmp"))) {
+			print "<BODY onLoad=\"javascript:alert('Kontonummer $kontonr findes ikke i kontoplanen')\">";
+			$submit='Vis';
+		}
+	}
+	if (basename($_FILES['uploadedfile']['name'])) {
+		$filnavn="../temp/".$db."_".str_replace(" ","_",$brugernavn).".csv";
+		if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $filnavn)) {
+		
+			if ($r=db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='3' and kodenr='$bruger_id'",__FILE__ . " linje " . __LINE__))) {
+				$kontonr=if_isset($r['box1']);
+				$feltantal=if_isset($r['box2']);
+				$feltnavn[0]=if_isset($r['box3']);
+				$feltnavn[1]=if_isset($r['box4']);
+				$feltnavn[2]=if_isset($r['box5']);
+				$feltnavn[3]=if_isset($r['box6']);
+				$feltnavn[4]=if_isset($r['box7']);
+				$feltnavn[5]=if_isset($r['box8']);
+				$feltnavn[6]=if_isset($r['box9']);
+				$feltnavn[7]=if_isset($r['box10']);
+			} else {
+				db_modify ("insert into grupper (beskrivelse,art,kode,kodenr) values ('Bankimport','KASKL','3','$bruger_id')",__FILE__ . " linje " . __LINE__);
+			}
+			if (!$feltantal) $feltantal=1;	
+			vis_data($kladde_id, $filnavn, '', $feltnavn, $feltantal, $kontonr, $bilag);
+		}	else {
+			echo "Der er sket en fejl under hentningen, pr&oslash;v venligst igen";
+		}
+	}
+	elseif($submit=='Vis'){
+		vis_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $bilag);
+	}
+	elseif($submit=='Flyt'){
+		if (($kladde_id)&&($filnavn)&&($splitter)&&($kontonr))	flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $bilag);
+		else vis_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $bilag);
+	}
+	else {
+		upload($kladde_id, $bilag);
+	}
+
+/*	
+if ($kladde_id)
+	{
+		hentdata($kladde_id);
+	}
+*/	
+}
+print "</tbody></table>";
+################################################################################################################
+function upload($kladde_id, $bilag){
+global $charset;
+
+print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+print "<form enctype=\"multipart/form-data\" action=\"bankimport.php\" method=\"POST\">";
+print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"100000\">";
+print "<input type=\"hidden\" name=\"kladde_id\" value=$kladde_id>";
+print "<input type=\"hidden\" name=\"bilag\" value=$bilag>";
+print "<tr><td width=100% align=center> V&aelig;lg datafil: <input name=\"uploadedfile\" type=\"file\" /><br /></td></tr>";
+print "<tr><td><br></td></tr>";
+print "<tr><td align=center><input type=\"submit\" value=\"Hent\" /></td></tr>";
+print "<tr><td></form></td></tr>";
+print "</tbody></table>";
+print "</td></tr>";
+}
+
+function vis_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $bilag){
+global $charset;
+global $bruger_id;
+
+$fp=fopen("$filnavn","r");
+if ($fp) {
+	for ($y=1; $y<10; $y++) {
+		$linje=fgets($fp); 
+		$tmp=$linje;
+		while ($tmp=substr(strstr($tmp,";"),1)) $semikolon++;	
+		$tmp=$linje;
+		while ($tmp=substr(strstr($tmp,","),1)) $komma++;
+		$tmp=$linje;
+		while ($tmp=substr(strstr($tmp,chr(9)),1)) $tabulator++;
+		$tmp='';
+	}
+	if (($komma>$semikolon)&& ($komma>$tabulator)) {$tmp='Komma'; $feltantal=$komma;}
+	elseif (($semikolon>$tabulator)&&($semikolon>$komma)) {$tmp='Semikolon'; $feltantal=$semikolon;}			
+	elseif (($tabulator>$semikolon)&&($tabulator>$komma)) {$tmp='Tabulator'; $feltantal=$tabulator;}			
+
+	if (!$splitter) {$splitter=$tmp;}
+	if ($splitter=='Komma') $feltantal=$komma;
+	elseif ($splitter=='Semikolon') $feltantal=$semikolon;
+	elseif ($splitter=='Tabulator') $feltantal=$tabulator;
+	$cols=$feltantal+1;
+}
+fclose($fp);
+
+$fp=fopen("$filnavn","r");
+if ($fp) {
+	if ($splitter=='Komma') $splittegn=",";
+	elseif ($splitter=='Semikolon') $splittegn=";";
+	elseif ($splitter=='Tabulator') $splittegn=chr(9);
+	
+	$y=0;
+	$feltantal=0;
+#	for ($y=1; $y<20; $y++) {
+	while ($linje=fgets($fp)) {
+		$linje=trim($linje);
+		if ($linje) {
+			$y++;
+			if ($charset=='UTF-8') $linje=utf8_encode($linje);
+			$anftegn=0;
+				$felt=array();
+				$z=0;
+				for ($x=0; $x<strlen($linje);$x++) {
+				if ($x==0 && substr($linje,$x,1)=='"') {
+					$z++; $anftegn=1; $felt[$z]='';
+				} elseif ($x==0) {
+					$z++; $felt[$z]=substr($linje,$x,1);
+				} elseif (substr($linje,$x,1)=='"' && substr($linje,$x-1,1)==$splittegn && !$anftegn) {
+					$z++; $anftegn=1; $felt[$z]='';
+				} elseif (substr($linje,$x,1)=='"' && (substr($linje,$x+1,1)==$splittegn || $x==strlen($linje)-1)) {
+					$anftegn=0;
+					if (substr($linje,$x+2,1)=='"') $x++;
+#					if ($x==strlen($linje)) $z--;
+				}	elseif (!$anftegn && substr($linje,$x,1)==$splittegn) {
+					$z++; $felt[$z]='';
+					if (substr($linje,$x+1,1)=='"') $x++;
+				} else {
+					$felt[$z]=$felt[$z].substr($linje,$x,1);
+				} 
+			}
+			if ($z>$feltantal) $feltantal=$z-1;
+			for ($x=1; $x<=$z; $x++) {
+				$ny_linje[$y]=$ny_linje[$y].$felt[$x].chr(9);
+#				echo "$felt[$x]|".chr(9);	
+			}
+			$x++;
+			$ny_linje[$y]=$ny_linje[$y].$felt[$x]."\n";
+#			echo "$felt[$x]<br>";
+		}
+	}
+}  
+$linjeantal=$y;
+#$cols=$feltantal;
+fclose ($fp);
+$fp=fopen($filnavn."2","w");
+for ($y=1; $y<=$linjeantal;$y++) {
+	fwrite($fp,$ny_linje[$y]);
+}
+fclose ($fp);
+print "<tr><td width=100% align=center><table width=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
+print "<form enctype=\"multipart/form-data\" action=\"bankimport.php\" method=\"POST\">";
+#print "<tr><td colspan=6 width=100% align=center> $filnavn</td></tr>";
+print "<tr><td colspan=$cols align=center><span title='Angiv hvilket skilletegn der anvendes til opdeling af kolonner'>Separatortegn&nbsp;<select name=splitter>\n";
+if ($splitter) {print "<option>$splitter</option>\n";}
+if ($splitter!='Semikolon') print "<option>Semikolon</option>\n";
+if ($splitter!='Komma') print "<option>Komma</option>\n";
+if ($splitter!='Tabulator') print "<option>Tabulator</option>\n";
+print "</select></span>";
+print "&nbsp;<span title='Angiv hvilket kontonummer der skal anvendes til posteringer'>Posteringskonto&nbsp;<input type=text size=8 name=kontonr value=$kontonr></span>&nbsp;";
+print "<input type=\"hidden\" name=\"filnavn\" value=$filnavn>";
+print "<input type=\"hidden\" name=\"feltantal\" value=$feltantal>";
+print "<input type=\"hidden\" name=\"kladde_id\" value=$kladde_id>";
+print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Vis\" />";
+if (($kladde_id)&&($filnavn)&&($splitter)&&($kontonr)) print "&nbsp; <input type=\"submit\" name=\"submit\" value=\"Flyt\" /></td></tr>";
+print "<tr><td colspan=$cols><hr></td></tr>\n";
+#if ((!$splitter)||($splitter=='Semikolon')) {$splitter=';';}
+#elseif ($splitter=='Komma') {$splitter=',';}
+#elseif ($splitter=='Tabulator') {$splitter=chr(9);}
+$splitter=chr(9);
+print "<tr><td><span title='Angiv 1. bilagsnummer'><input type=text size=4 name=bilag value=$bilag></span></td>";
+for ($y=0; $y<=$feltantal; $y++) {
+	if (($feltnavn[$y]=='Dato') &&($dato==1)) {
+		print "<BODY onLoad=\"javascript:alert('Der kan kun v&aelig;re 1 kolonne med Dato')\">";
+		$feltnavn[$y]='';
+	}
+	if (($feltnavn[$y]=='Beskrivelse') &&($beskr==1)) {
+		print "<BODY onLoad=\"javascript:alert('Der kan kun v&aelig;re 1 kolonne med Beskrivelse')\">";
+		$feltnavn[$y]='';
+	}
+	if ((strstr($feltnavn[$y],'Bel'))&&($belob==1)) {
+		print "<BODY onLoad=\"javascript:alert('Der kan kun v&aelig;re 1 kolonne med Bel&oslash;b')\">";
+		$feltnavn[$y]='';
+	}
+	if (strstr($feltnavn[$y],'Bel')) print "<td align=right><select name=feltnavn[$y]>\n";
+	elseif ($feltnavn[$y]) print "<td><select name=feltnavn[$y]>\n";
+	else  print "<td align=center><select name=feltnavn[$y]>\n";
+	print "<option>$feltnavn[$y]</option>\n";
+	if ($feltnavn[$y]) print "<option></option>\n";
+	if ($feltnavn[$y]!='Dato') print "<option>Dato</option>\n";
+	else $dato=1;
+	if ($feltnavn[$y]!='Beskrivelse') print "<option>Beskrivelse</option>\n";
+	else $beskr=1;
+	if (!strstr($feltnavn[$y],'Bel')) print "<option>Bel&oslash;b</option>\n";
+	else $belob=1;
+	print "</select>";
+}
+print "</form>";
+$fp=fopen($filnavn."2","r");
+if ($fp) {
+	$x=0;
+	while($linje=fgets($fp)) {
+#	while (!feof($fp)) {
+		$skriv_linje=0;
+		if ($linje=trim($linje)) {
+			$x++;
+			$skriv_linje=1;
+			$felt=array();
+			$felt = split($splitter, $linje);
+			for ($y=0; $y<=$feltantal; $y++) {
+				$felt[$y]=trim($felt[$y]);
+				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
+				if ($feltnavn[$y]=='Dato') $felt[$y]=str_replace(".","-",$felt[$y]);
+				if (strstr($feltnavn[$y],'Bel')) {
+					if (nummertjek($felt[$y])=='US') {
+						if ($felt[$y]==0) $skriv_linje=0;
+						else $felt[$y]=dkdecimal($felt[$y]);
+					} elseif (nummertjek($felt[$y])=='DK') {
+						if (usdecimal($felt[$y])==0) $skriv_linje=0;
+					}	else $skriv_linje=0;		
+				}
+			}
+ 		}		
+		if ($skriv_linje==1){
+			print "<tr><td>$bilag</td>";
+			for ($y=0; $y<=$feltantal; $y++) {
+				if (strstr($feltnavn[$y],'Bel')) {
+					print "<td align=right>$felt[$y]&nbsp;</td>";
+				}
+				elseif ($feltnavn[$y]) {print "<td>$felt[$y]&nbsp;</td>";}
+				else {print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";}
+			}
+			print "</tr>";
+			$bilag++;
+		} else {
+			print "<tr><td><span style=\"color: rgb(153, 153, 153);\">-</span></td>";
+			for ($y=0; $y<=$feltantal; $y++) {
+				if (strstr($feltnavn[$y],'Bel')) {
+					print "<td align=right><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
+				} elseif ($feltnavn[$y]) print "<td><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
+				else {print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";}
+			}
+			print "</tr>";
+		}	
+	}
+}
+ fclose($fp);
+print "</tbody></table>";
+print "</td></tr>";
+db_modify("update grupper set box1='$kontonr', box2='$feltantal' where ART='KASKL' and kode='3' and kodenr='$bruger_id'",__FILE__ . " linje " . __LINE__);
+for ($y=0; $y<=$feltantal; $y++) {
+	$box=$y+3;
+	if ($box<=10) {
+		$box="box$box";
+		db_modify("update grupper set $box='$feltnavn[$y]' where ART='KASKL' and kode='3' and kodenr='$bruger_id'",__FILE__ . " linje " . __LINE__);
+	}
+}
+} # endfunc # vis_data
+
+function flyt_data($kladde_id, $filnavn, $splitter, $feltnavn, $feltantal, $kontonr, $bilag){
+	global $charset;
+
+	transaktion('begin');
+/*
+	$fp=fopen($filnavn."2","r");
+	if ($fp) {
+		for ($y=1; $y<4; $y++) $linje=fgets($fp);
+		$tmp=$linje;
+		while ($tmp=substr(strstr($tmp,";"),1)) {$semikolon++;}
+		$tmp=$linje;
+		while ($tmp=substr(strstr($tmp,","),1)) {$komma++;}
+		$tmp=$linje;
+		while ($tmp=substr(strstr($tmp,chr(9)),1)) {$tabulator++;}
+		$tmp='';
+		if (($komma>$semikolon)&& ($komma>$tabulator)) {$tmp='Komma'; $feltantal=$komma;}
+		elseif (($semikolon>$tabulator)&&($semikolon>$komma)) {$tmp='Semikolon'; $feltantal=$semikolon;}			
+		elseif (($tabulator>$semikolon)&&($tabulator>$komma)) {$tmp='Tabulator'; $feltantal=$tabulator;}			
+		if (!$splitter) {$splitter=$tmp;}
+		$cols=$feltantal+1;
+	}
+	fclose($fp);
+	if ((!$splitter)||($splitter=='Semikolon')) {$splitter=';';}
+	elseif ($splitter=='Komma') {$splitter=',';}
+	elseif ($splitter=='Tabulator') {$splitter=chr(9);}
+*/
+	$splitter=chr(9);
+	$fp=fopen($filnavn."2","r");
+	if ($fp) {
+		$x=0;
+		while (!feof($fp)) {
+			$skriv_linje=0;
+			if ($linje=trim(fgets($fp))) {
+				$x++;
+				$skriv_linje=1;
+				$felt=array();
+				$felt = split($splitter, $linje);
+				for ($y=0; $y<=$feltantal; $y++) {
+					$felt[$y]=trim($felt[$y]);
+					if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
+					if ($feltnavn[$y]=='Dato') $felt[$y]=str_replace(".","-",$felt[$y]);
+					if (strstr($feltnavn[$y],'Bel')) {
+						if (nummertjek($felt[$y])=='US') $felt[$y]=dkdecimal($felt[$y]);
+						elseif (nummertjek($felt[$y])!='DK') $skriv_linje=0;		
+					}
+				}
+ 			}		
+			if ($skriv_linje==1){
+				for ($y=0; $y<=$feltantal; $y++) {
+					$bilag=$bilag*1;
+					if (strstr($feltnavn[$y],'Bel')) $amount=usdecimal($felt[$y]);
+					elseif ($feltnavn[$y]=="Dato") $transdate=usdate($felt[$y]);
+					elseif ($feltnavn[$y]=="Beskrivelse") 	$beskrivelse=addslashes($felt[$y]);
+				}
+				if ($amount>0) {
+#echo "insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id')<br>";
+					db_modify("insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id')",__FILE__ . " linje " . __LINE__);
+					$bilag++;
+				} elseif ($amount<0) {
+					$amount=$amount*-1;
+#echo "insert into kassekladde (bilag, transdate, beskrivelse, k_type, kredit, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id')<br>";
+					db_modify("insert into kassekladde (bilag, transdate, beskrivelse, k_type, kredit, amount, kladde_id) values ('$bilag', '$transdate', '$beskrivelse', 'F', '$kontonr', '$amount', '$kladde_id')",__FILE__ . " linje " . __LINE__);
+					$bilag++;
+				}
+			}
+		}
+	}	
+	fclose($fp);
+	unlink($filnavn); # sletter filen.
+	unlink($filnavn."2"); # sletter filen.
+	transaktion('commit');
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
+}
+function nummertjek ($nummer){
+	$nummer=trim($nummer);
+	$retur=1;
+	$nummerliste=array("1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",", ".", "-");
+	for ($x=0; $x<strlen($nummer); $x++) {
+		if (!in_array($nummer{$x}, $nummerliste)) $retur=0;
+	}
+	if ($retur) {
+		for ($x=0; $x<strlen($nummer); $x++) {
+			if ($nummer{$x}==',') $komma++;
+			elseif ($nummer{$x}=='.') $punktum++;		
+		}
+		if ((!$komma)&&(!$punktum)) $retur='US';
+		elseif (($komma==1)&&(substr($nummer,-3,1)==',')) $retur='DK';
+		elseif (($punktum==1)&&(substr($nummer,-3,1)=='.')) $retur='US';
+		elseif (($komma==1)&&(!$punktum)) $retur='DK';
+		elseif (($punktum==1)&&(!$komma)) $retur='US';	
+	}
+	return $retur;
+}
+	
