@@ -176,28 +176,87 @@ class OrderModel
     /**
      * Class method to get all orders
      * 
+     * @param string $art Order type (e.g., 'KO' for kreditor)
+     * @param int $limit Number of records to return
      * @param string $orderBy Column to order by (default: ordrenr)
      * @param string $orderDirection Sort direction (default: DESC)
+     * @param string|null $fromDate Start date filter (YYYY-MM-DD)
+     * @param string|null $toDate End date filter (YYYY-MM-DD)
      * @return OrderModel[] Array of OrderModel objects
      */
-    public static function getAllItems($art, $orderBy = 'ordrenr', $orderDirection = 'DESC')
+    public static function getAllItems($art, $limit = 20, $orderBy = 'ordrenr', $orderDirection = 'DESC', $fromDate = null, $toDate = null)
     {
         // Whitelist allowed order by columns to prevent SQL injection
-        $allowedOrderBy = ['id', 'ordrenr', 'firmanavn', 'ordredate', 'status'];
+        $allowedOrderBy = ['ordrenr', 'id', 'postnr', 'firmanavn', 'ordredate'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'ordrenr';
 
         // Validate order direction
         $orderDirection = strtoupper($orderDirection) === 'ASC' ? 'ASC' : 'DESC';
-
-        $qtxt = "SELECT id FROM ordrer WHERE art = 'art' ORDER BY $orderBy $orderDirection";
+        
+        // Validate and sanitize limit
+        $limit = (int)$limit;
+        if ($limit <= 0 || $limit > 100) {
+            $limit = 20;
+        }
+        
+        // Escape the art parameter
+        $art = pg_escape_string($art);
+        
+        // Build the base query
+        $whereClause = "WHERE art = '$art'";
+        
+        // Add date filtering if provided - handle DATE type properly
+        if ($fromDate || $toDate) {
+            $formattedFromDate = self::formatDate($fromDate);
+            $formattedToDate = self::formatDate($toDate);
+            
+            if ($formattedFromDate && $formattedToDate) {
+                $whereClause .= " AND ordredate >= DATE('$formattedFromDate') AND ordredate <= DATE('$formattedToDate')";
+            } elseif ($formattedFromDate) {
+                $whereClause .= " AND ordredate >= DATE('$formattedFromDate')";
+            } elseif ($formattedToDate) {
+                $whereClause .= " AND ordredate <= DATE('$formattedToDate')";
+            }
+        }
+        
+        // Build the complete query
+        $qtxt = "SELECT id FROM ordrer $whereClause ORDER BY $orderBy $orderDirection LIMIT $limit";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
-        while ($r = db_fetch_array($q)) {
-            $items[] = new OrderModel($r['id']);
+        if ($q && db_num_rows($q) > 0) {
+            while ($r = db_fetch_array($q)) {
+                // Pass the art parameter to the constructor
+                $items[] = new OrderModel($r['id'], $art);
+            }
         }
 
         return $items;
+    }
+
+    /**
+     * Helper method to validate and format date
+     * 
+     * @param string $date Input date
+     * @return string|null Formatted date or null if invalid
+     */
+    private static function formatDate($date)
+    {
+        if (!$date) {
+            return null;
+        }
+        
+        // Try to parse various date formats
+        $formats = ['Y-m-d', 'd/m/Y', 'm/d/Y', 'd-m-Y'];
+        
+        foreach ($formats as $format) {
+            $dateObj = DateTime::createFromFormat($format, $date);
+            if ($dateObj && $dateObj->format($format) === $date) {
+                return $dateObj->format('Y-m-d'); // Return in database format
+            }
+        }
+        
+        return null;
     }
 
     /**

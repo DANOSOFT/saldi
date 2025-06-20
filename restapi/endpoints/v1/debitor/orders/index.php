@@ -20,8 +20,26 @@ class OrderEndpoint extends BaseEndpoint
                 $this->sendResponse(false, null, 'Order not found', 404);
             }
         } else {
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+            $orderBy = isset($_GET['orderBy']) ? $_GET['orderBy'] : 'ordrenr';
+            $orderDirection = isset($_GET['orderDirection']) ? $_GET['orderDirection'] : 'ASC';
+
+            // get order based on dates 
+            $fromDate = isset($_GET['fromDate']) ? $_GET['fromDate'] : null;
+            $toDate = isset($_GET['toDate']) ? $_GET['toDate'] : null;
+            
+            if ($fromDate && $toDate) {
+                // Validate date format
+                if (!DateTime::createFromFormat('Y-m-d', $fromDate) || !DateTime::createFromFormat('Y-m-d', $toDate)) {
+                    $this->sendResponse(false, null, 'Invalid date format. Use YYYY-MM-DD', 400);
+                    return;
+                }
+            }else{
+                $fromDate = null;
+                $toDate = null;
+            }
             // Get all orders with art = 'DO' for debitor
-            $orders = OrderModel::getAllItems('DO');
+            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate);
             $items = [];
             foreach ($orders as $order) {
                 $items[] = $order->toArray();
