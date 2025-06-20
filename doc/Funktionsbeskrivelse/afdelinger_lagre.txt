@@ -1,0 +1,13 @@
+Afdelinger / Lagre
+
+Der kan oprettes et ubegrænset antal afdelinger og et ubegrænset antal lagre.
+
+Der kan være ingen, et eller flere lagre pr afdeling. Dog skal der minimum være ét lager tilknyttet én afdeling.
+Alle ansatte skal være tilknyttet en afdeling. 
+
+I kassekladden kan der, for hvert bilagsnummer, hvis der er mere end en afdelign, vælges hvilken afdeling posteringen vedrører.
+
+Ved varekøb/salg vælges det lager som hører til den afdeling, hvor den person som foretager indkøbet et knyttet.
+Hvis der ikke er et knyttet et lager til afdelingen og der ér mere end et lager, skal lager vælges.
+
+ 
