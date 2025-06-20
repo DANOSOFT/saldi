@@ -1,0 +1,1358 @@
+openapi: 3.0.3
+info:
+  title: PBLM REST API
+  description: |
+    A comprehensive REST API for managing orders, customers, products, and inventory.
+    
+    ## Authentication
+    All endpoints require authentication via headers:
+    - `x-db`: Database identifier
+    - `x-saldiuser`: User identifier
+    - `x-apikey`: API key for authentication
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+servers:
+  - url: http://ssl12.saldi.dk/pblm/restapi/endpoints/v1
+    description: Local development server
+  - url: https://saldi.dk/v1
+    description: Production server
+
+security:
+  - DatabaseAuth: []
+    UserAuth: []
+    ApiKeyAuth: []
+
+paths:
+  # Debitor Orders
+  /debitor/orders:
+    get:
+      tags:
+        - Debitor Orders
+      summary: Get all debitor orders
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+            default: ordrenr
+        - name: orderDirection
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderListResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Debitor Orders
+      summary: Create a new debitor order
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /debitor/orders/{id}:
+    get:
+      tags:
+        - Debitor Orders
+      summary: Get a specific debitor order
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Creditor Orders
+  /creditor/orders:
+    get:
+      tags:
+        - Creditor Orders
+      summary: Get all creditor orders
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+            default: ordrenr
+        - name: orderDirection
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of creditor orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderListResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Creditor Orders
+      summary: Create a new creditor order
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /creditor/orders/{id}:
+    get:
+      tags:
+        - Creditor Orders
+      summary: Get a specific creditor order
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Order Lines - Debitor
+  /debitor/orderlines:
+    get:
+      tags:
+        - Order Lines
+      summary: Get order lines
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: order_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Order ID to get lines for
+      responses:
+        '200':
+          description: List of order lines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderLineListResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Order Lines
+      summary: Create a new order line
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderLineRequest'
+      responses:
+        '201':
+          description: Order line created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderLineResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /debitor/orderlines/{id}:
+    get:
+      tags:
+        - Order Lines
+      summary: Get a specific order line
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Order line details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderLineResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Order Lines - Creditor
+  /creditor/orderlines:
+    get:
+      tags:
+        - Order Lines
+      summary: Get creditor order lines
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: order_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of order lines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderLineListResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Order Lines
+      summary: Create a new creditor order line
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderLineRequest'
+      responses:
+        '201':
+          description: Order line created successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Customers (Debitors)
+  /debitor/customers:
+    get:
+      tags:
+        - Customers
+      summary: Get all customers
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      responses:
+        '200':
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerListResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Customers
+      summary: Create a new customer
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /debitor/customers/{id}:
+    get:
+      tags:
+        - Customers
+      summary: Get a specific customer
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Customers
+      summary: Update a customer
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Customer updated successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Customers
+      summary: Delete a customer
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer deleted successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Creditors
+  /creditor/creditors:
+    get:
+      tags:
+        - Creditors
+      summary: Get all creditors
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      responses:
+        '200':
+          description: List of creditors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerListResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Creditors
+      summary: Create a new creditor
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Creditor created successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /creditor/creditors/{id}:
+    get:
+      tags:
+        - Creditors
+      summary: Get a specific creditor
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Creditor details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Creditors
+      summary: Update a creditor
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Creditor updated successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Creditors
+      summary: Delete a creditor
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Creditor deleted successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Products
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Get all products
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get a specific product
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Products
+      summary: Update a product
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Products
+      summary: Delete a product
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product deleted successfully
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    DatabaseAuth:
+      type: apiKey
+      in: header
+      name: x-db
+      description: Database identifier
+    UserAuth:
+      type: apiKey
+      in: header
+      name: x-saldiuser
+      description: User identifier
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-apikey
+      description: API key for authentication
+
+  parameters:
+    DatabaseHeader:
+      name: x-db
+      in: header
+      required: true
+      description: Database identifier
+      schema:
+        type: string
+        example: "mycompany_db"
+    UserHeader:
+      name: x-saldiuser
+      in: header
+      required: true
+      description: User identifier
+      schema:
+        type: string
+        example: "user123"
+    ApiKeyHeader:
+      name: x-apikey
+      in: header
+      required: true
+      description: API key for authentication
+      schema:
+        type: string
+        example: "your-api-key-here"
+
+  schemas:
+    # Order Schemas
+    CreateOrderRequest:
+      type: object
+      required:
+        - firmanavn
+        - telefon
+        - email
+        - momssats
+      properties:
+        firmanavn:
+          type: string
+          description: Company name
+          example: "ACME Corporation"
+        telefon:
+          type: string
+          description: Phone number
+          example: "+45 12345678"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "contact@acme.com"
+        momssats:
+          type: number
+          format: float
+          description: VAT rate
+          example: 25.0
+        sum:
+          type: number
+          format: float
+          description: Order total
+          example: 1250.00
+        kostpris:
+          type: number
+          format: float
+          description: Cost price
+          example: 1000.00
+        moms:
+          type: number
+          format: float
+          description: VAT amount
+          example: 250.00
+        valuta:
+          type: string
+          description: Currency code
+          example: "DKK"
+        betalingsbet:
+          type: string
+          description: Payment terms
+          example: "netto"
+        betalingsdage:
+          type: integer
+          description: Payment days
+          example: 8
+        addr1:
+          type: string
+          description: Address line 1
+          example: "Main Street 123"
+        addr2:
+          type: string
+          description: Address line 2
+          example: "Suite 456"
+        postnr:
+          type: string
+          description: Postal code
+          example: "1234"
+        bynavn:
+          type: string
+          description: City name
+          example: "Copenhagen"
+        land:
+          type: string
+          description: Country
+          example: "Denmark"
+        lev_navn:
+          type: string
+          description: Delivery name
+          example: "ACME Warehouse"
+        lev_addr1:
+          type: string
+          description: Delivery address 1
+          example: "Industrial Road 789"
+        lev_addr2:
+          type: string
+          description: Delivery address 2
+          example: "Building B"
+        lev_postnr:
+          type: string
+          description: Delivery postal code
+          example: "5678"
+        lev_bynavn:
+          type: string
+          description: Delivery city
+          example: "Aarhus"
+        lev_land:
+          type: string
+          description: Delivery country
+          example: "Denmark"
+        ean:
+          type: string
+          description: EAN number
+          example: "1234567890123"
+        cvrnr:
+          type: string
+          description: CVR number
+          example: "12345678"
+        ordredate:
+          type: string
+          format: date
+          description: Order date
+          example: "2025-06-20"
+        notes:
+          type: string
+          description: Notes
+          example: "Urgent delivery required"
+        betalt:
+          type: boolean
+          description: Paid status
+          example: false
+
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1001
+        ordrenr:
+          type: integer
+          example: 2025001
+        firmanavn:
+          type: string
+          example: "ACME Corporation"
+        telefon:
+          type: string
+          example: "+45 12345678"
+        email:
+          type: string
+          example: "contact@acme.com"
+        momssats:
+          type: number
+          format: float
+          example: 25.0
+        sum:
+          type: number
+          format: float
+          example: 1250.00
+        status:
+          type: integer
+          example: 0
+        ordredate:
+          type: string
+          format: date
+          example: "2025-06-20"
+        valuta:
+          type: string
+          example: "DKK"
+        ref:
+          type: string
+          example: "user123"
+
+    OrderListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderResponse'
+
+    # Order Line Schemas
+    CreateOrderLineRequest:
+      type: object
+      required:
+        - ordre_id
+      properties:
+        ordre_id:
+          type: integer
+          description: Order ID
+          example: 1001
+        varenr:
+          type: string
+          description: Product number
+          example: "PROD001"
+        antal:
+          type: number
+          format: float
+          description: Quantity
+          example: 5.0
+        pris:
+          type: number
+          format: float
+          description: Price
+          example: 250.00
+        rabat:
+          type: number
+          format: float
+          description: Discount
+          example: 0.0
+        beskrivelse:
+          type: string
+          description: Description
+          example: "Premium Product"
+        momsfri:
+          type: integer
+          description: VAT exempt flag
+          example: 0
+        procent:
+          type: number
+          format: float
+          description: Percentage
+          example: 25.0
+
+    OrderLineResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5001
+        ordre_id:
+          type: integer
+          example: 1001
+        vare_id:
+          type: integer
+          example: 301
+        varenr:
+          type: string
+          example: "PROD001"
+        beskrivelse:
+          type: string
+          example: "Premium Product"
+        antal:
+          type: number
+          format: float
+          example: 5.0
+        pris:
+          type: number
+          format: float
+          example: 250.00
+        rabat:
+          type: number
+          format: float
+          example: 0.0
+
+    OrderLineListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineResponse'
+
+    # Customer Schemas
+    CreateCustomerRequest:
+      type: object
+      required:
+        - firmanavn
+        - tlf
+        - email
+      properties:
+        firmanavn:
+          type: string
+          description: Company name
+          example: "ACME Corporation"
+        tlf:
+          type: string
+          description: Phone number
+          example: "+45 12345678"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "contact@acme.com"
+        addr1:
+          type: string
+          description: Address line 1
+          example: "Main Street 123"
+        addr2:
+          type: string
+          description: Address line 2
+          example: "Suite 456"
+        postnr:
+          type: string
+          description: Postal code
+          example: "1234"
+        bynavn:
+          type: string
+          description: City name
+          example: "Copenhagen"
+        cvrnr:
+          type: string
+          description: CVR number
+          example: "12345678"
+        land:
+          type: string
+          description: Country
+          example: "Denmark"
+        bank_navn:
+          type: string
+          description: Bank name
+          example: "Danske Bank"
+        bank_reg:
+          type: string
+          description: Bank registration
+          example: "1234"
+        bank_konto:
+          type: string
+          description: Bank account
+          example: "567890123"
+        notes:
+          type: string
+          description: Notes
+          example: "VIP customer"
+        betalingsbet:
+          type: string
+          description: Payment terms
+          example: "netto"
+        betalingsdage:
+          type: integer
+          description: Payment days
+          example: 30
+        ean:
+          type: string
+          description: EAN number
+          example: "1234567890123"
+        fornavn:
+          type: string
+          description: First name
+          example: "John"
+        efternavn:
+          type: string
+          description: Last name
+          example: "Doe"
+
+    UpdateCustomerRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateCustomerRequest'
+        - type: object
+          required:
+            - id
+          properties:
+            id:
+              type: integer
+              description: Customer ID
+              example: 201
+
+    CustomerResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 201
+        firmanavn:
+          type: string
+          example: "ACME Corporation"
+        tlf:
+          type: string
+          example: "+45 12345678"
+        email:
+          type: string
+          example: "contact@acme.com"
+        addr1:
+          type: string
+          example: "Main Street 123"
+        addr2:
+          type: string
+          example: "Suite 456"
+        postnr:
+          type: string
+          example: "1234"
+        bynavn:
+          type: string
+          example: "Copenhagen"
+        cvrnr:
+          type: string
+          example: "12345678"
+        land:
+          type: string
+          example: "Denmark"
+        art:
+          type: string
+          example: "D"
+
+    CustomerListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CustomerResponse'
+
+    # Product Schemas
+    CreateProductRequest:
+      type: object
+      required:
+        - varenr
+      properties:
+        varenr:
+          type: string
+          description: Product number
+          example: "PROD001"
+        stregkode:
+          type: string
+          description: Barcode
+          example: "1234567890123"
+        beskrivelse:
+          type: string
+          description: Description
+          example: "Premium Product"
+        salgspris:
+          type: number
+          format: float
+          description: Sales price
+          example: 250.00
+        kostpris:
+          type: number
+          format: float
+          description: Cost price
+          example: 200.00
+        size:
+          type: object
+          properties:
+            width:
+              type: number
+              format: float
+              example: 10.5
+            height:
+              type: number
+              format: float
+              example: 5.2
+            length:
+              type: number
+              format: float
+              example: 15.8
+            netWeight:
+              type: number
+              format: float
+              example: 1.2
+            grossWeight:
+              type: number
+              format: float
+              example: 1.5
+
+    UpdateProductRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateProductRequest'
+        - type: object
+          required:
+            - id
+          properties:
+            id:
+              type: integer
+              description: Product ID
+              example: 301
+
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 301
+        varenr:
+          type: string
+          example: "PROD001"
+        stregkode:
+          type: string
+          example: "1234567890123"
+        beskrivelse:
+          type: string
+          example: "Premium Product"
+        salgspris:
+          type: number
+          format: float
+          example: 250.00
+        kostpris:
+          type: number
+          format: float
+          example: 200.00
+        modtime:
+          type: string
+          format: date-time
+          example: "2025-06-20T10:30:00Z"
+
+    ProductListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+
+    # Common Response Schemas
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          description: Error message
+          example: "Authentication failed"
+        data:
+          type: object
+          nullable: true
+          example: null
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          description: Success message
+          example: "Operation completed successfully"
+        data:
+          type: object
+          description: Response data
+
+tags:
+  - name: Debitor Orders
+    description: Operations for debitor orders
+  - name: Creditor Orders
+    description: Operations for creditor orders
+  - name: Order Lines
+    description: Operations for order lines
+  - name: Customers
+    description: Operations for customers/debitors
+  - name: Creditors
+    description: Operations for creditors
+  - name: Products
+    description: Operations for products/inventory
