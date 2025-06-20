@@ -1,4 +1,0 @@
-Debitorkort.php er en retttet udgave som kompenserer for en mangel i opret.php i ver. 1.0.6., hvor adressetabellen oprettes uden feltet "kontoansvarlig". 
-Denne rettede udgave opretter feltet hvis det ikke eksisterer i forvejen.
-
-
