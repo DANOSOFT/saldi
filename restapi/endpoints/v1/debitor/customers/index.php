@@ -45,9 +45,20 @@ class CustomerEndpoint extends BaseEndpoint
 
     protected function handlePut($data)
     {
-        /* $data->art = 'D'; // Set art to 'D' for debitor customers */
+        // first, try to read an ?id= from the query string
+        $id = isset($_GET['id'])
+            ? (int)$_GET['id']
+            : (isset($data->id) ? (int)$data->id : null);
+
+        if (!$id) {
+            $this->sendResponse(false, null, 'Customer ID is required for update', 400);
+            return;
+        }
+
+        // override any body‐id with the query‐string
+        $data->id = $id;
+
         $result = CustomerService::updateCustomer($data, 'D');
-        
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Customer updated successfully');
         } else {
@@ -57,12 +68,17 @@ class CustomerEndpoint extends BaseEndpoint
 
     protected function handleDelete($data)
     {
-        if (!isset($data->id)) {
+        // same pattern for delete
+        $id = isset($_GET['id'])
+            ? (int)$_GET['id']
+            : (isset($data->id) ? (int)$data->id : null);
+
+        if (!$id) {
             $this->sendResponse(false, null, 'Customer ID is required for deletion', 400);
             return;
         }
 
-        $customer = new CustomerModel($data->id, 'D');
+        $customer = new CustomerModel($id, 'D');
         if (!$customer->getId()) {
             $this->sendResponse(false, null, 'Customer not found', 404);
             return;
