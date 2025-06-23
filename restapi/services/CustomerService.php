@@ -124,6 +124,9 @@ class CustomerService
                 ];
             }
 
+            // IMPORTANT: Set the art property on the customer object
+            $customer->setArt($art);
+
             // Check for duplicate email (excluding current customer)
             if (isset($data->email) && CustomerModel::emailExists(trim($data->email), $data->id)) {
                 return [
@@ -154,8 +157,15 @@ class CustomerService
             if (isset($data->fornavn)) $customer->setFornavn(trim($data->fornavn));
             if (isset($data->efternavn)) $customer->setEfternavn(trim($data->efternavn));
 
-            // Save the customer (it will update since ID is already set)
-            if ($customer->save()) {
+            // if id is in data object, set it to the customer
+            if (isset($data->id)) {
+                $id = (int)$data->id;
+            }else{
+                $id = null;
+            }
+
+            // Save the customer - DON'T pass any parameters to save()
+            if ($customer->save($id)) {
                 return [
                     'success' => true,
                     'data' => $customer->toArray()

@@ -367,27 +367,25 @@ class OrderLineService
                 '{$pricing['vat_account']}', $variant_id
             )";
 
-            $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            $resultArray = explode("\t", $result);
-            
-            if ($resultArray[0] == "0") {
-                // Get the inserted line ID
-                $lineId = $resultArray[1] ?? null;
-                
-                return [
-                    'success' => true,
-                    'data' => [
-                        'id' => $lineId,
-                        'ordre_id' => $orderId,
-                        'beskrivelse' => $beskrivelse,
-                        'antal' => $antal,
-                        'pris' => $pricing['price'],
-                        'total' => $pricing['price'] * $antal
-                    ]
-                ];
-            } else {
-                return ['success' => false, 'message' => 'Database error: ' . $result];
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            $qtxt = "SELECT id FROM ordrelinjer WHERE ordre_id = '$orderId' AND posnr = '$posnr' ORDER BY id DESC LIMIT 1";
+            $result = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            if (!$result) {
+                error_log("Failed to insert order line: $qtxt");
+                return ['success' => false, 'message' => 'Database error'];
             }
+            $result = db_fetch_array($result);
+            return [
+                'success' => true,
+                'data' => [
+                    'id' => $result['id'],
+                    'ordre_id' => $orderId,
+                    'beskrivelse' => $beskrivelse,
+                    'antal' => $antal,
+                    'pris' => $pricing['price'],
+                    'total' => $pricing['price'] * $antal
+                ]
+            ];
 
         } catch (Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];

@@ -78,6 +78,7 @@ class OrderLineModel
                 WHERE id = $this->id";
 
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
             return explode("\t", $q)[0] == "0";
         }
         return false;
@@ -87,6 +88,18 @@ class OrderLineModel
     {
         if (!$this->id) {
             return false;
+        }
+
+        // check if status is less than 2
+        $qtxt = "SELECT status FROM ordre WHERE id = $this->ordre_id";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        if ($q) {
+            $r = db_fetch_array($q);
+            if ($r['status'] >= 2) {
+                return false; // Cannot delete line if order status is 2 or higher
+            }
+        } else {
+            return false; // Order not found
         }
 
         $qtxt = "DELETE FROM ordrelinjer WHERE id = $this->id";

@@ -360,7 +360,7 @@ class CustomerModel
         $qtxt = "SELECT id FROM adresser WHERE art = 'D' AND email = '$email'";
         
         if ($excludeId) {
-            $qtxt .= " AND id != $excludeId";
+            $qtxt .= " AND id NOT IN ($excludeId)";
         }
         
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);

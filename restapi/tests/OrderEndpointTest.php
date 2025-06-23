@@ -16,7 +16,7 @@ class OrderEndpointTest
     public function __construct()
     {
         // Configure your API base URL and headers
-        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/';
+        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/creditor/orders/';
         
         // Set your actual authorization headers
         $this->headers = [

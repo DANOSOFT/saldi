@@ -33,7 +33,7 @@ class CustomerEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
-        $data->art = 'D'; // Set art to 'D' for debitor customers
+        /* $data->art = 'D'; // Set art to 'D' for debitor customers */
         $result = CustomerService::createCustomer($data, 'D');
         
         if ($result['success']) {
@@ -45,6 +45,7 @@ class CustomerEndpoint extends BaseEndpoint
 
     protected function handlePut($data)
     {
+        /* $data->art = 'D'; // Set art to 'D' for debitor customers */
         $result = CustomerService::updateCustomer($data, 'D');
         
         if ($result['success']) {
