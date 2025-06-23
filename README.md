@@ -1,4 +1,6 @@
-📦 Usage (Legacy Release)
+📦 Usage For New Users (Legacy Release)
+###########################################################################
+
 To get the clean, stable legacy version of Saldi (v0.x) or any specific older version, follow these steps:
 
 
@@ -12,6 +14,25 @@ git checkout tags/v0.x-stable -b [your-branch-name]
 
 git clean -fdx   # ⚠️ WARNING: removes all untracked files leftover from master branch 
 
+
+############################################################################
+
+📦 Usage For Existing Users (Legacy Release)
+
+cd saldi  # or the name of your working directory
+
+
+git pull
+
+/*git checkout tags/[tag name] -b your-branch-name .e.g: */
+
+git checkout tags/v0.x-stable -b your-branch-name
+
+
+git clean -fdx
+
+cd saldi  # or cd saldi/saldi-version [e.g., saldi-0.982]
+##############################################################################
 
 Note:
 Some of the legacy source codes are located inside the saldi-version folder (for example, saldi-0.982).
