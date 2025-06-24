@@ -64,6 +64,17 @@ include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
+$r = db_fetch_array(db_select("select box2 from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
+if ($r && $r['box2']) {
+    $v = db_fetch_array(db_select("select varenr from varer where id = '{$r['box2']}'", __FILE__ . " linje " . __LINE__));
+    if ($v && $v['varenr']) {
+        $rabat_varenr = trim($v['varenr']);
+    }
+}
+
+$r = db_fetch_array(db_select("select box12 from grupper where art = 'POS' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
+if ($r && $r['box12'] == 'on') $vis_saet = 1;
+
 
 $status = if_isset($_GET['status']);
 $id = if_isset($_GET['id']);
@@ -346,9 +357,14 @@ print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='
 print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=sum&sort=$sort&valg=$valg$hreftext'>" . findtekst(934, $sprog_id) . "</a></b></th>\n";
 print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=felt_1&sort=$sort&valg=$valg$hreftext'>" . findtekst(935, $sprog_id) . "</a></b></th>\n";
 print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='kassespor.php?nysort=felt_2&sort=$sort&valg=$valg$hreftext'>" . findtekst(936, $sprog_id) . "</a></b></th>\n";
-print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(937, $sprog_id) . "</b></th>\n";
-print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(428, $sprog_id) . "</b></th>\n";
+// print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(937, $sprog_id) . "</b></th>\n";
+// print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(428, $sprog_id) . "</b></th>\n";
 
+// print "<th style='padding-top: 20px; width:100px; text-align:right'><b>BA</b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(937, $sprog_id) . "</b></th>\n";
+if ($rabat_varenr && $vis_saet) {
+    print "<th style='padding-top: 20px; width:100px; text-align:right'><b>Rabat</b></th>\n";
+}
 print "<th style='padding-top: 20px; width:100px; text-align:right'><b>BA</b></th>\n";
 print "<th style='width:30px;'></th>\n";
 print "</tr>\n";
@@ -453,8 +469,9 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 	global $omsaet;
 	global $modtaget;
 	global $retursum;
+    global $rabat_varenr, $vis_saet;
 	$total_discount = 0;
-$total_gross_profit = 0;
+    $total_gross_profit = 0;
 
 	$linjebg=NULL;
 	$y=0;
@@ -665,21 +682,40 @@ $total_gross_profit = 0;
 						WHERE ordre_id = '{$id[$x]}'
 							", __FILE__ . ' linje ' . __LINE__));
 
+						$discount_val = $q_dg['discount'];	
+						$gross_profit_val = $q_dg['dg'];
+						
+						if ($rabat_varenr && $vis_saet) {
+							$q_rabat = db_fetch_array(db_select(
+							"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('$rabat_varenr')) ORDER BY id ASC LIMIT 1",
+							__FILE__ . " linje " . __LINE__
+							));
+						$rabatrabat = '0,00';
+						if (isset($q_rabat['lev_varenr']) && $q_rabat['lev_varenr'] !== '') {
+							$parts = explode('|', $q_rabat['lev_varenr']);
+							$first = isset($parts[0]) ? $parts[0] : '';
+							$first = ltrim($first, '-');
+							if (is_numeric($first) && $first !== '') {
+								$rabatrabat = number_format($first, 2, ',', '.');
+							}
+						}
+						print "<td align=right>" . $rabatrabat . "</td>\n";
+						} else {
+							print "<td align=right><br></td>\n";
+						}
+						$net_sales = $q_dg['total_sales'] - $q_dg['discount'];
+						if ($net_sales != 0) {
+							$dg_percent = ($q_dg['dg'] / $net_sales) * 100;
+						} else {
+							$dg_percent = 0;
+						}
+						print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
+							
 
-        $discount_val = $q_dg['discount'];
-        $gross_profit_val = $q_dg['dg'];
-        $net_sales = $q_dg['total_sales'] - $q_dg['discount'];
-        $dg_percent = 0;
-        if ($net_sales > 0) {
-            $dg_percent = ($gross_profit_val / $net_sales) * 100;
-        }
-
-        print "<td align=right>".dkdecimal($discount_val, 2)."<br></td>\n";
-        print "<td align=right>" . dkdecimal($dg_percent, 2) . " %</td>\n";
-					} else {
+				        } else  {
 						print "<td align=right><br></td>\n";
-					}
-					print "<td></td>";
+						}
+					    print "<td></td>";
 				}
 			}
 		}
