@@ -563,8 +563,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 
 			        ", __FILE__ . ' linje ' . __LINE__));
 
-
-					$discount[$x] = $q_dg['discount'];
+                    $discount[$x] = $q_dg['discount'];
 					$gross_profit[$x] = $q_dg['dg'];
 					$kostpris[$x] = $q_dg['kostpris'];
                     $total_discount += $discount[$x];
