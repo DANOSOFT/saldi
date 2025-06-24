@@ -2134,12 +2134,12 @@
 2134	Udtaget fra kasse	Withdrawn from cash register	Tatt ut av kassa
 2135	Salg på konto	Sales on account	Salg på konto
 2136	Godkend optælling	Approve count	Godkjenn telling
-2137	Udlejnings oversigt	Rental overview	Utleieoversikt
+2137	Udlejningsoversigt	Rental overview	Utleieoversikt
 2138	Daglig oversigt	Daily overview	Daglig oversikt
 2139	Indstillinger	Settings	Instillinger
 2140	Lukkedage	Closed days	Stengte dager
 2141	Udlejningsvare	Rental product	Utleieprodukt
-2142	Søg kunde historik	Search customer history	Søk kundehistorikk
+2142	Søg kundehistorik	Search customer history	Søk kundehistorikk
 2143	Ekstern booking	Remote booking	Ekstern booking
 2144	Intern note	Internal note	Internt notat
 2145	Webfragt	Webfragt	Webfragt
@@ -2398,7 +2398,7 @@
 2398	Slet alt og start forfra	Clear all and start over	Slett alt og start på nytt
 2399	Ret	Edit	Rett
 2400	Ordrebek	OrderConf	Ordrebek
-2401	Overblik	Dashboard	Oversikt
+2401	Oversigt	Dashboard	Oversikt
 2402	Vælg hvilke varegrupper og kreditorer som skal vises i varelisten	Select which product groups and creditors are to be displayed in the product list	Velg hvilke produktgrupper og kreditorer som skal vises i produktlisten
 2403	Opret en ny vare	Create a new product	Opprett et nytt produkt
 2404	Luk varelisten og gå tilbage til hovedmenuen	Close the product list and go back to the main menu	Lukk produktlisten og gå tilbake til hovedmenyen
@@ -2564,15 +2564,15 @@
 2564	Hjælp	Help	Hjelp
 2565	Klik her for at rette nr. eller navn på projektet	Click here to edit the project number or name	Klikk her for å rette nr. eller navn på prosjektet
 2566	Klik her for at slette projektet	Click here to delete the project	Klikk her for å slette prosjektet
-2567	
-2568	
-2569	
-2570	
-2571	
-2572	
-2573	
-2574	
-2575	
+2567	Indbetaling	Deposit	Innbetaling
+2568	Det beløb, der skal indsættes på kontoen	The amount to be deposited into the account	Beløpet som skal settes inn på kontoen
+2569	Ved udbetaling skal beløbet være negativt	For withdrawals, the amount must be negative	Ved utbetaling må beløpet være negativt
+2570	Det beløb der betales, f.eks. hvis der betales	The amount paid, e.g. if payment is made by card	Beløpet som betales, f.eks. hvis det betales med
+2571	med kort og kunden samtidig vil hæve kontant	and the customer also wants to withdraw cash	kort og kunden samtidig ønsker å ta ut kontanter
+2572	Feltet kan efterlades tomt for ind-/udbetaling på beløb	The field can be left empty for exact-amount deposits and withdrawals	Feltet kan stå tomt ved inn-/utbetaling av nøyaktig beløp
+2573	Ved udbetaling <b>skal</b> feltet efterlades tomt	For withdrawals, the field <b>must</b> be left empty	Ved utbetaling <b>må</b> feltet stå tomt
+2574	Velkommen	Welcome	Velkommen
+2575	Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår	There is currently no active financial year. Activate a financial year through System » Settings » Financial year	Det er for øyeblikket intet aktivt regnskapsår. Aktiver et regnskapsår via System » Innstillinger » Regnskapsår
 2576	
 2577	
 2578	

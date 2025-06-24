@@ -80,10 +80,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     <li class="active">
       <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
-        <span class="link_name"><?php print findtekst('2401|Oversigt', $sprog_id); ?></span>
+        <span class="link_name"><?php print findtekst('2224|Oversigt', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst(2376, $sprog_id); ?></a></li>
+        <li><a class="" href="#" onclick='clear_sidebar(); update_iframe("/index/dashboard.php")'><?php print findtekst('2224|Oversigt', $sprog_id); ?></a></li>
       </ul>
     </li>
 
@@ -95,21 +95,21 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       <div class="icon_link" id="finans">
         <a href="#">
           <i class='bx bx-coin-stack'></i>
-          <span class="link_name"><?php print findtekst(600, $sprog_id); ?></span>
+          <span class="link_name"><?php print findtekst('600|Finans', $sprog_id); ?></span>
         </a>
         <i class='bx bxs-chevron-down arrow'> </i>
       </div>
       <ul class="sub-menu">
-        <li><span class="link_name"><?php print findtekst(600, $sprog_id); ?></span></li>
+        <li><span class="link_name"><?php print findtekst('600|Finans', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(2))) {
-          echo '<li><a href="#" id="kladdeliste" onclick=\'update_iframe("/finans/kladdeliste.php")\'>' . findtekst(601, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" id="kladdeliste" onclick=\'update_iframe("/finans/kladdeliste.php")\'>' . findtekst('601|Kassekladde', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(3))) {
-          echo '<li><a href="#" id="regnskab" onclick=\'update_iframe("/finans/regnskab.php")\'>' . findtekst(602, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" id="regnskab" onclick=\'update_iframe("/finans/regnskab.php")\'>' . findtekst('602|Regnskab', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(4))) {
-          echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" id="rapport" onclick=\'update_iframe("/finans/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         ?>
       </ul>
@@ -124,21 +124,21 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       <div class="icon_link" id="debitor">
         <a href="#">
           <i class='bx bx-group'></i>
-          <span class="link_name"><?php print findtekst(604, $sprog_id); ?></span>
+          <span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span>
         </a>
         <i class='bx bxs-chevron-down arrow'> </i>
       </div>
       <ul class="sub-menu">
-        <li><span class="link_name"><?php print findtekst(604, $sprog_id); ?></span></li>
+        <li><span class="link_name"><?php print findtekst('604|Debitor', $sprog_id); ?></span></li>
         <?php
         if (check_permissions(array(5))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>' . findtekst(605, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/ordreliste.php")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst(606, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/debitor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(12))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
         if (check_permissions(array(6))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/crmkalender.php")\'>CRM</a></li>';
@@ -159,21 +159,21 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link">
           <a href="#">
             <i class='bx bx-calendar'></i>
-            <span class="link_name"><?php print findtekst(1116, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('1116|Booking', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name"><?php print findtekst(1116, $sprog_id); ?></span></li>
+          <li><span class="link_name"><?php print findtekst('1116|Booking', $sprog_id); ?></span></li>
           <?php
           if (check_permissions(array(6))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php?vare")\'>' . findtekst(2137, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php")\'>' . findtekst(2138, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/settings.php")\'>' . findtekst(122, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/daysoff.php")\'>' . findtekst(2140, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/items.php")\'>' . findtekst(2141, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/remote.php")\'>' . findtekst(2143, $sprog_id) . '</a></li>';
-            echo '<li><a href="#" onclick=\'update_iframe("/rental/lookupcust.php")\'>' . findtekst(2142, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php?vare")\'>' . findtekst('2137|Udlejningsoversigt', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/index.php")\'>' . findtekst('2138|Daglig oversigt', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/settings.php")\'>' . findtekst('122|Indstillinger', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/daysoff.php")\'>' . findtekst('2140|Lukkedage', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/items.php")\'>' . findtekst('2141|Udlejningsvare', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/remote.php")\'>' . findtekst('2143|Ekstern booking', $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/rental/lookupcust.php")\'>' . findtekst('2142|Søg kundehistorik', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>
@@ -187,21 +187,21 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link" id="kreditor">
           <a href="#">
             <i class='bx bx-archive-out'></i>
-            <span class="link_name"><?php print findtekst(607, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('607|Kreditorer', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name"><?php print findtekst(607, $sprog_id); ?></span></li>
+          <li><span class="link_name"><?php print findtekst('607|Kreditorer', $sprog_id); ?></span></li>
           <?php
           if (check_permissions(array(7))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/ordreliste.php")\'>' . findtekst(605, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/ordreliste.php")\'>' . findtekst('605|Ordre', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(8))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/kreditor.php")\'>' . findtekst(606, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/kreditor.php")\'>' . findtekst('606|Konti', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(13))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/kreditor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>
@@ -216,21 +216,21 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link" id="lager">
           <a href="#">
             <i class='bx bx-package'></i>
-            <span class="link_name"><?php print findtekst(608, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('608|Lager', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
         <ul class="sub-menu">
-          <li><span class="link_name"><?php print findtekst(608, $sprog_id); ?></span></li>
+          <li><span class="link_name"><?php print findtekst('608|Lager', $sprog_id); ?></span></li>
           <?php
           if (check_permissions(array(9))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/lager/varer.php")\'>' . findtekst(609, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/lager/varer.php")\'>' . findtekst('609|Varer', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(10))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/lager/modtageliste.php")\'>' . findtekst(610, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/lager/modtageliste.php")\'>' . findtekst('610|Varemodtagelse', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(15))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>' . findtekst(603, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/lager/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
           }
           ?>
         </ul>
@@ -245,7 +245,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         <div class="icon_link" id="system">
           <a href="#">
             <i class='bx bx-cog'></i>
-            <span class="link_name"><?php print findtekst(2377, $sprog_id); ?></span>
+            <span class="link_name"><?php print findtekst('2377|System', $sprog_id); ?></span>
           </a>
           <i class='bx bxs-chevron-down arrow'> </i>
         </div>
@@ -253,23 +253,23 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
           <li><span class="link_name">System</span></li>
           <?php
           if (check_permissions(array(0))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>' . findtekst(612, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/kontoplan.php")\'>' . findtekst('612|Kontoplan', $sprog_id) . '</a></li>';
           }
           if (check_permissions(array(1))) {
-            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/syssetup.php")\'>' . findtekst(613, $sprog_id) . '</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/systemdata/syssetup.php")\'>' . findtekst('122|Indstillinger', $sprog_id) . '</a></li>';
 
             # Kassesystem eller ej
             $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
             $state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
             if ($state) {
-              print "<li><a href=\"#\" onclick='update_iframe(\"/systemdata/posmenuer.php\")'>" . findtekst(1940, $sprog_id) . "</a></li>";
+              print "<li><a href=\"#\" onclick='update_iframe(\"/systemdata/posmenuer.php\")'>" . findtekst('1940|POS-menuer', $sprog_id) . "</a></li>";
             }
           }
           if (check_permissions(array(11))) {
-            $restoreRaw = findtekst(1903, $sprog_id);
+            $restoreRaw = findtekst('1903|Gendan brugers IP', $sprog_id);
             $restore1 = explode(" ", $restoreRaw);
             $restore = $restore1[0];
-            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst(614, $sprog_id) . '/'.$restore.'</a></li>';
+            echo '<li><a href="#" onclick=\'update_iframe("/admin/backup.php")\'>' . findtekst('614|Sikkerhedskopi', $sprog_id) . '/'.$restore.'</a></li>';
           }
           ?>
         </ul>
@@ -280,7 +280,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     <li>
       <a href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">
         <i class='bx bx-envelope'></i>
-        <span class="link_name"><?php print findtekst(398, $sprog_id); ?></span>
+        <span class="link_name"><?php print findtekst('398|Kontakt', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
         <li><a class="" href="#" onclick="alert('Kontakt os på tlf: 46 90 22 08 mail: support@saldi.dk')">Kontakt</a>
@@ -291,10 +291,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     <li>
       <a href="#" onclick='redirect_uri("/index/logud.php")'>
         <i class='bx bx-log-out'></i>
-        <span class="link_name"><?php print findtekst(93, $sprog_id); ?></span>
+        <span class="link_name"><?php print findtekst('93|Log ud', $sprog_id); ?></span>
       </a>
       <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst(93, $sprog_id); ?></a>
+        <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst('93|Log ud', $sprog_id); ?></a>
         </li>
       </ul>
     </li>
