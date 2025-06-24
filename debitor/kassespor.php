@@ -561,7 +561,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 					FROM ordrelinjer
 					WHERE ordre_id = '{$id[$x]}'
 
-			", __FILE__ . ' linje ' . __LINE__));
+			        ", __FILE__ . ' linje ' . __LINE__));
 
 
 					$discount[$x] = $q_dg['discount'];
@@ -569,12 +569,6 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 					$kostpris[$x] = $q_dg['kostpris'];
                     $total_discount += $discount[$x];
 				    $total_gross_profit += $gross_profit[$x];
-
-
-
-
-
-		
 
 
 		$x++;
@@ -680,7 +674,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						), 0) AS dg
 						FROM ordrelinjer
 						WHERE ordre_id = '{$id[$x]}'
-							", __FILE__ . ' linje ' . __LINE__));
+						", __FILE__ . ' linje ' . __LINE__));
 
 						$discount_val = $q_dg['discount'];	
 						$gross_profit_val = $q_dg['dg'];
