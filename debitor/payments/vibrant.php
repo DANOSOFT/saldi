@@ -68,15 +68,7 @@ print "<div id='bg'></div>";
 
 $type = ($raw_amount < 0) ? "process_refund" : "process_payment_intent";
 $amount = abs($raw_amount) * 100;
-echo $ordre_id;
-if($type == "process_refund") {
-  $query = db_select("SELECT betalings_id FROM ordrer WHERE id = $ordre_id", __FILE__ . " linje " . __LINE__);
-  $row = db_fetch_array($query);
-  $payment_id = $row['betalings_id'];
-  // Also store receipt_id to extract chargeId if needed
-  $receipt_parts = explode('-', $row['receipt_id'] ?? '');
-  $charge_id = $receipt_parts[0] ?? '';
-}
+
 # Get settings
 $q = db_select("select var_value from settings where var_name = 'vibrant_auth'", __FILE__ . " linje " . __LINE__);
 $APIKEY = db_fetch_array($q)[0];
@@ -96,20 +88,36 @@ if (file_exists("../../temp/$db/receipt_$kasse.txt"))
 $printfile = 'https://' . $_SERVER['SERVER_NAME'];
 $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kasse.txt", $_SERVER['PHP_SELF']);
 
+$logfile = __DIR__ . "/../../temp/{$db}/vibrant_log.log";
+file_put_contents($logfile,
+  date('c') . " START order={$ordre_id} amount={$raw_amount} kasse={$kasse} terminal={$terminal_id}\n",
+  FILE_APPEND
+);
 ?>
 
 <script>
-  var count = 40 - 1
-  var paused = false
-  var receipt_id = 'None'
+  function logServer(msg) {
+    const db = '<?php print $db; ?>';
+    fetch('log_vibrant.php', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: msg, db: db})
+    })
+  }
+
+  var count = 40 - 1;
+  var paused = false;
+  var receipt_id = 'None';
+
   const successed = (event) => {
     console.log(cardScheme);
-    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&receipt_id=${receipt_id}&payment_id=${payment_id}`);
-  }
+    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&payment_id=${payment_id}&receipt_id=${receipt_id}`)
+  };
 
   const failed = (event) => {
     console.log('Failed click');
-    window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
+    logServer('User clicked failed – redirecting to afvist');
+    window.location.replace(/* … */);
   }
 
   function countdown(i) {
@@ -148,86 +156,28 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
       }
     }, 1000)
   }
- const type = "<?php print $type; ?>";
-  if (type == 'process_refund') {
-    console.log('Setting refund data');
-    var refundData = {
+
+  if ('$type' == 'process_refund') {
+    paused = true;
+    var elm = document.getElementById('status');
+    elm.style.backgroundColor = '#ea3a3a';
+    elm.innerText = `Fejl: Negativt beløb, kan ikke tages retur på denne terminal`;
+    document.getElementById('bg').style.backgroundColor = '#fb9389';
+    document.getElementById('continue').style.display = 'block';
+    document.getElementById('continue').disabled = false;
+
+    /*
+    var data = {
       'refund': {
-        'amount': <?php print $amount; ?>,
-        'paymentIntentId': '<?php print $payment_id; ?>',
-        <?php if (!empty($charge_id)) echo "'chargeId': '$charge_id',"; ?>
-        'description': 'Refund Bon <?php print $ordre_id; ?>',
+        'amount': $amount,
+        'description': 'Bon $ordre_id',
         'reason': 'requested_by_customer',
         'metadata': {
-          'orderId': '<?php print $ordre_id; ?>'
+          'correlationId': '$ordre_id'
         }
       }
     }
-    
-    var cardScheme = 'unknown';
-    
-    async function process_refund() {
-      if ("<?php print $terminal_id; ?>" == "dummy") {
-        cardScheme = "Dankort";
-        payment_id = "pi_dummy_refund";
-        receipt_id = "pi_dummy_refund-dummy";
-        successed();
-        return;
-      }
-      
-      try {
-        var res = await fetch(
-          'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund',
-          {
-            method: 'post',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': '<?php print $APIKEY; ?>'
-            },
-            body: JSON.stringify(refundData),
-          }
-        );
-        
-        console.log(res);
-        if (!res.ok) {
-          paused = true;
-          var elm = document.getElementById('status');
-          elm.style.backgroundColor = '#ea3a3a';
-          elm.innerText = `Fejl: ${res.statusText}`;
-          document.getElementById('bg').style.backgroundColor = '#fb9389';
-          document.getElementById('continue').style.display = 'block';
-          document.getElementById('continue').disabled = false;
-          return;
-        }
-        
-        if (res.status == 201) {
-          var json_data = await res.json();
-          payment_id = json_data['id'];
-          
-          paused = true;
-          var elm = document.getElementById('status');
-          elm.style.backgroundColor = '#51e87d';
-          elm.innerText = 'Refund gennemført';
-          
-          countdown(1);
-          
-          document.getElementById('continue-success').style.display = 'block';
-          document.getElementById('continue').style.display = 'none';
-        }
-      } catch (error) {
-        console.log(error);
-        paused = true;
-        var elm = document.getElementById('status');
-        elm.style.backgroundColor = '#ea3a3a';
-        elm.innerText = `Fejl: ${error.message}`;
-        document.getElementById('bg').style.backgroundColor = '#fb9389';
-        document.getElementById('continue').style.display = 'block';
-        document.getElementById('continue').disabled = false;
-      }
-    }
-    
-    process_refund();
-    
+    */
   } else {
     console.log('Setting data')
     var data = {
@@ -241,11 +191,10 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
     }
 
     var cardScheme = 'unkowen';
-    var payment_id = 'null';
+    var payment_id = 'null'
 
 
     async function get_payment_update(pid) {
-        payment_id = pid; // Store the payment intent ID
       setTimeout(async () => {
         var res = await fetch(
           `https://pos.api.vibrant.app/pos/v1/payment_intents/${pid}`,
@@ -259,6 +208,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
         if (!res.ok) {
           paused = true;
+          logServer(`get_payment_update() bad response: ${res.status}`);
           var elm = document.getElementById('status');
           elm.style.backgroundColor = '#ea3a3a';
           elm.innerText = `Fejl: ${res.error}`;
@@ -315,6 +265,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
           return;
         } else if (json_data['lastPaymentError'] != null) {
           paused = true;
+          logServer("payment failed: " + json_data['lastPaymentError']['message']);
           var elm = document.getElementById('status');
           elm.style.backgroundColor = '#ea3a3a';
           elm.innerText = `Fejl: ${json_data['lastPaymentError']['message']}`;
@@ -340,11 +291,10 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
     var idx = 0;
     async function get_pos() {
-      if ("<?php print $terminal_id; ?>" == "dummy") {
+      if ("<?php print $printserver; ?>" == "dummy") {
         cardScheme = "Dankort"
         payment_id = "pi_dummy"
         receipt_id = "pi_dummy-dummy"
-        payment_id = "payment_id_dummy"
         successed();
         return;
       }
@@ -365,6 +315,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
         console.log(res);
         if (!res.ok) {
           paused = true;
+          logServer(`get_pos() bad response: ${res.status} ${res.statusText}`);
           var elm = document.getElementById('status');
           elm.style.backgroundColor = '#ea3a3a';
           elm.innerText = `Fejl: ${res.statusText}`;
@@ -387,8 +338,7 @@ $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kas
 
       } catch (error) {
         console.log(error);
-        //console.log('Retrying');
-        //await get_pos();
+        logServer("get_pos() exception: " + error);
       }
     }
 
