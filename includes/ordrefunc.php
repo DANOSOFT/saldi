@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-05-29 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-06-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -235,6 +235,7 @@
 // 20250421 LOE Delimeter now takes directly from database seteup and default set if not given
 // 20250507 PHR (float)$default_procenttillag in function opret_ordre
 // 20250529 PHR Function vareopslag moved to includes/orderFuncIncludes/productLookup.php
+// 20250625 PHR Omitting errors from sort by by enhancing whitelist.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -3741,17 +3742,13 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 		print "<td><input  STYLE=\"width: 0.01em;height: 0.01em;\" type=submit name=\"Opdat\" value=\"\"></td></tr>";
 		print "</form>";
 	}
-	$sort = $_GET['sort'];
-	if (!isset($sort) && $sort != "") {
-		$query = db_select("SELECT column_name FROM information_schema.columns 
-		WHERE table_name = 'adresser' AND column_name = '$sort'", __FILE__ . " linje " . __LINE__);
-		if(db_num_rows($query) > 0){
-			$sort = "firmanavn";
-		}
-	}
-	if (!$sort) {
-		$sort = "firmanavn";
-	}
+	(isset($_GET['sort']))?$sort = $_GET['sort']:$sort=NULL;
+	if ($sort) {
+		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name = 'adresser' AND column_name = '".db_escape_string($sort)."'";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		if (!$r = db_fetch_array($q)) $sort = "firmanavn";
+	} else $sort = "firmanavn";
+
 	if (strstr($fokus, 'lev_'))
 		$soeg = 'firmanavn';
 	elseif ($firmanavn || $addr1 || $postnr || $bynavn) {
@@ -3774,7 +3771,7 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 		else
 			$qtxt .= "and ($soeg like '%" . db_escape_string($find) . "%' or upper($soeg) like '%" . strtoupper(db_escape_string($find)) . "%') ";
 	}
-	$qtxt .= "order by $sort";
+	
 	$fokus_id = 'id=fokus';
 	$x = 0;
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
