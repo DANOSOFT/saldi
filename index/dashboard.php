@@ -267,9 +267,9 @@ $orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))
 if ($state) {
 	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>".findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 } elseif ($orderXpress) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åben sagsstyring', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
 } else {
-	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åben kassesystem', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 }
 	
 print "</div>";
@@ -324,7 +324,7 @@ if ($ordercount === "on") {
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
-	key_value(findtekst('3077|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3080|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('3081|ufaktureret', $sprog_id)."</span>");
+	key_value(findtekst('2378|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2381|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('2382|ufaktureret', $sprog_id)."</span>");
 }
 
 # #######################################
@@ -345,7 +345,7 @@ if ($vat_count == "on") {
 # #######################################
 
 if ($onlineusers === "on") {
-	key_value(findtekst('3078|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3079|Har været aktive inden for den sidste time', $sprog_id)."</span>");
+	key_value(findtekst('2379|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2380|Har været aktive inden for den sidste time', $sprog_id)."</span>");
 }
 
 # Close the contianer div
@@ -430,11 +430,11 @@ print "
           <td><input type='checkbox' name='ordercount' " . ($ordercount === "on" ? "checked" : "") . " /></td>
     </tr>
     <tr>
-      <td>".findtekst('3078|Aktive medarbejdere', $sprog_id)."</td>
+      <td>".findtekst('2379|Aktive medarbejdere', $sprog_id)."</td>
           <td><input type='checkbox' name='onlineusers' " . ($onlineusers === "on" ? "checked" : "") . " /></td>
     </tr>
         <tr>
-          <td>Momsangivelse</td>
+          <td>".findtekst('520|Momsangivelse', $sprog_id)."</td>
           <td><input type='checkbox' name='vatcount' " . ($vat_count === "on" ? "checked" : "") . " /></td>
         </tr>
         
@@ -452,7 +452,7 @@ print "
           <td><input type='checkbox' name='customergraph' " . ($customergraph === "on" ? "checked" : "") . " /></td>
         </tr>
         <tr>
-          <td>Varegruppe omsætning</td>
+          <td>".findtekst('2576|Varegruppeomsætning', $sprog_id)."</td>
           <td><input type='checkbox' name='varegrpdoughnut' " . ($varegrp_doughnut === "on" ? "checked" : "") . " /></td>
     </tr>
   </table> 

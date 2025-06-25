@@ -517,7 +517,7 @@
 517	Balance	Balance	Balanse
 518	Resultat	Result	Resultat
 519	Resultat/budget	Result / budget	Resultat / budsjett
-520	Momsangivelse	VAT return	Mva-retur
+520	Momsangivelse	VAT return	MVA-melding
 521	Sikkerhedskopi	Backup	Sikkerhetskopiering
 522	Anvend topmenu	Use top menu	Bruk toppmeny
 523	Hvis dette felt afmærkes vil der fremkomme en menu i toppen af skærmen som letter navigationen	and reduces the working height	Hvis dette feltet er merket av, vil det vises en meny øverst på skjermen som letter navigering
@@ -1682,7 +1682,7 @@
 1682	Der er sat	There is set	Det er satt
 1683	til levering men valgt	for delivery but selected	for levering men valgt
 1684	til returnering men valgt	for return but selected	for retur men valgt
-1685	Vare tilhrer ikke nogen varegruppe - kontroller vare og indstillinger!	Item does not belong to any item group - check item and settings!	Varen tilhører ikke noen varegruppe - sjekk element og innstillinger!
+1685	Vare tilhører ikke nogen varegruppe - kontroller vare og indstillinger!	Item does not belong to any item group - check item and settings!	Varen tilhører ikke noen varegruppe - sjekk element og innstillinger!
 1686	Varegruppe ikke opsat korrekt, pos nr	Item group not set up correctly, item no	Varegruppe er ikke riktig konfigurert, varenr
 1687	mangler kontonummer for varekøb og/eller varesalg (Indstillinger -> Varegrp)	missing account number for item purchases and/or item sales (Settings -> Item group)	manglende kontonummer for varekjøp og/eller varesalg (Innstillinger -> Varegruppe)
 1688	Reserveret antal stemmer ikke overens med antal til levering	Reserved number does not match quantity for delivery	Reservert nummer samsvarer ikke med antall for levering
@@ -1793,7 +1793,7 @@
 1793	Klik her for at redigere/opdatere regnskabsår	Click here to edit / update fiscal year	Klikk her for å redigere / oppdatere regnskapsår
 1794	Klik for at sætte regnskabsår	Click to set fiscal year	Klikk for å angi regnskapsår
 1795	aktivt for alle brugere	active for all users	aktiv for alle brukere
-1796	Sæt regnskabsår	Set fiscal year	Sett regnskapsår
+1796	Sæt regnskabsår til	Set fiscal year to	Sett regnskapsår til
 1797	Klik for at se ændringer i perioder eller mailadresser	Click to see changes in periods or email addresses	Klikk for å se endringer i perioder eller e -postadresser
 1798	Send som html. Emne og mailtekst kan ikke ændres.	Send as html. Subject and email text cannot be changed.	Send som html. Emne og e -posttekst kan ikke endres.
 1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen \&apos;Kontoudtog\&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form \ &apos;Account statement\&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet \ &apos;Kontoutskrift\&apos;
@@ -2084,7 +2084,7 @@
 2084	Klik her for at eksportere til csv	Click here to export to csv	Klikk her for å eksportere til csv
 2085	Vejl.pris	Retail price	Vejl.pris
 2086	Vejledende pris	Retail price	Vejledende pris
-2087	Vis	View	Visa
+2087	Vis	View	Vis
 2088	B2B salgspris	B2B sales price	B2B försäljningspris
 2089	B2B salgsprisen	B2B sales price	B2B försäljningspris
 2090	Vis skjulte produkter	View hidden products	Visa dolda varor
@@ -2298,7 +2298,7 @@
 2298	Ny saldo	New balance	Ny saldo
 2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
 2300	Den maxlimale længde en label kan have i bokstaver, over 40 skal saldi teamet kontaktes for at udvidde databaseplads	 The maximum length a label can have in letters, above 40 balances the team must be contacted to expand database space	Den maksimale lengden en etikett kan ha i bokstaver, over 40 balanser må teamet kontaktes for å utvide databaseplassen
-2301	Momsangivelse for året	VAT return for the year	Mva-melding for året
+2301	Momsangivelse for året	VAT return for the year	MVA-melding for året
 2302	Vis enhed	View unit type	Visa enhet
 2303	Valuta	Currency	Valuta
 2304	Valuta hjælpetekst	Currency	Valuta
@@ -2380,10 +2380,10 @@
 2380	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
 2381	Hvilket svarer til	Which is equivalent to	Som tilsvarer
 2382	ufaktureret	unbilled	ufakturert
-2383	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	
-2384	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	
-2385	mere end sidste år til dato	more than last year to date	
-2386	mindre end sidste år til dato	less than last year to date	
+2383	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	Omsetning for året, ekskl. MVA
+2384	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	Omsetning denne måneden, ekskl. MVA
+2385	mere end sidste år til dato	more than last year to date	mer enn i fjor til dato
+2386	mindre end sidste år til dato	less than last year to date	mindre enn i fjor til dato
 2387	Optæl kassebeholdning for kasse	Count the cash drawer for register	Telle opp kassebeholdningen for kasse
 2388	Antal mønter/sedler af hver slags	Number of coins/bills of each type	Antall mynter/sedler av hver type
 2389	Morgenbeholdning	Opening cash balance	Morgenbeholdning
@@ -2573,19 +2573,19 @@
 2573	Ved udbetaling <b>skal</b> feltet efterlades tomt	For withdrawals, the field <b>must</b> be left empty	Ved utbetaling <b>må</b> feltet stå tomt
 2574	Velkommen	Welcome	Velkommen
 2575	Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår	There is currently no active financial year. Activate a financial year through System » Settings » Financial year	Det er for øyeblikket intet aktivt regnskapsår. Aktiver et regnskapsår via System » Innstillinger » Regnskapsår
-2576	
-2577	
-2578	
-2579	
-2580	
-2581	
-2582	
-2583	
-2584	
-2585	
-2586	
-2587	
-2588	
+2576	Varegruppeomsætning	Product group revenue	Varegruppeomsetning
+2577	Gennemsnitligt antal kunder pr. time de sidste	Average number of customers per hour over the past	Gjennomsnittlig antall kunder per time de siste
+2578	Dage	Days	Dagene
+2579	Lav	Low	Lav
+2580	Medium	Medium	Middels
+2581	Høj	High	Høy
+2582	Meget høj	Very high	Svært høy
+2583	Ekstrem	Extreme	Ekstrem
+2584	Åbn vareliste	Open product list	Åpne vareliste
+2585	Opret vare	Create product	Opprett vare
+2586	Menu opsætning	Menu setup	Menyoppsett
+2587	Åbn rapporter	Open reports	Åpne rapporter
+2588	Omsætning baseret på varegrupper i det gældene regnskabsår	Revenue based on product groups in the current fiscal year	Omsetning basert på varegrupper i det gjeldende regnskapsåret
 2589	
 2590	
 2591	
