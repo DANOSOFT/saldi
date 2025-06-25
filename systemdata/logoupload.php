@@ -50,6 +50,17 @@ if (!isset ($_POST['bilagfil'])) $_POST['bilagfil'] = null;
 global $db_id;
 global $menu;
 global $sprog_id; 
+
+$current_sprog = 'Dansk'; 
+if (isset($_GET['sprog'])) {
+    $current_sprog = $_GET['sprog'];
+    $_SESSION['current_sprog'] = $current_sprog;
+} elseif (isset($_SESSION['current_sprog'])) {
+    $current_sprog = $_SESSION['current_sprog'];
+} elseif (isset($_POST['sprog_valg'])) {
+    $current_sprog = $_POST['sprog_valg'];
+    $_SESSION['current_sprog'] = $current_sprog;
+}
 print "<div align=\"center\">";
 if ($menu=='T') {
 #	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
@@ -91,11 +102,20 @@ if ($menu=='T') {
 if (!file_exists("../logolib")) mkdir("../logolib",0777); 
 if (!file_exists("../logolib/$db_id")) mkdir("../logolib/$db_id",0777); 
 
+// if (isset($_GET['slet_bilag'])) {
+// 	$slet_bilag=$_GET['slet_bilag'].".pdf";
+// 	unlink("../logolib/$db_id/$slet_bilag");
+// 	upload();
+// 	exit;
+// }
+
 if (isset($_GET['slet_bilag'])) {
-	$slet_bilag=$_GET['slet_bilag'].".pdf";
-	unlink("../logolib/$db_id/$slet_bilag");
-	upload();
-	exit;
+    $slet_bilag=$_GET['slet_bilag'].".pdf";
+    if (file_exists("../logolib/$db_id/$slet_bilag")) {
+        unlink("../logolib/$db_id/$slet_bilag");
+    }
+    upload();
+    exit;
 }
 	
 if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
@@ -114,12 +134,20 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 	if (!isset ($_POST['bg_valg'])) $_POST['bg_valg'] = null;
 	$bilag_valg = $_POST['bilag_valg'];
 	$bg_valg = $_POST['bg_valg'];
+	if (!isset ($_POST['sprog_valg'])) $_POST['sprog_valg'] = 'Dansk';
+$sprog_valg = $_POST['sprog_valg'];
 	$fil_stoerrelse = $_FILES['uploadedfile']['size'];
 	$filetype = $_FILES['uploadedfile']['type'];
 	$fileName= $_FILES['uploadedfile']['name'];
 	$fra = $_FILES["uploadedfile"]["tmp_name"];
 	$fil_stoerrelse = $_FILES["uploadedfile"]["size"];
-	($bg_valg)?$valg=$bg_valg:$valg=$bilag_valg;
+	// ($bg_valg)?$valg=$bg_valg:$valg=$bilag_valg;
+	if ($bg_valg) {
+    $valg = ($sprog_valg != 'Dansk') ? $sprog_valg . "_" . $bg_valg : $bg_valg;
+} else {
+    $valg = ($sprog_valg != 'Dansk') ? $sprog_valg . "_" . $bilag_valg : $bilag_valg;
+}
+
 	//echo "valg: $valg"; exit;
 //echo "filtype $filetype<br>";
 //echo "filename $fileName<br>";
@@ -201,135 +229,347 @@ if(isset($_POST['bgfil'])||($_POST['bilagfil'])) {
 } else upload();
 print "</tbody></table>";
 ################################################################################################################
+// function upload(){
+// 	global $font;
+// 	global $db_id;
+// 	global $sprog_id; #20210803
+
+// 	if(file_exists("../logolib/$db_id/bg.pdf")) {
+// 		$bg="<a href=\"view_logoupload.php?vis=bg\">".findtekst('1754|vis baggrund', $sprog_id)."</a>";
+// 		$txt1= findtekst('1755|Vil du slette denne baggrund alle formularer?', $sprog_id);
+// 		$slet_bg="<a href=\"logoupload.php?slet_bilag=bg\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+// 	} else {
+// 		$bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+// 		$slet_bg=NULL;
+// 	}
+// 	if(file_exists("../logolib/$db_id/tilbud_bg.pdf")) {
+// 		$tilbud_bg="<a href=\"view_logoupload.php?vis=tilbud_bg\">".findtekst('1756|vis baggrund til tilbud', $sprog_id)."</a>";
+// 		$txt= findtekst('1757|Vil du slette denne baggrund til tilbud?', $sprog_id);
+// 		$slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag=tilbud_bg\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+// 	} else {
+// 		$tilbud_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+// 		$slet_tilbud_bg=NULL;
+// 	}
+// 	if(file_exists("../logolib/$db_id/ordrer_bg.pdf")) {
+// 		$ordrer_bg="<a href=\"view_logoupload.php?vis=ordrer_bg\">".findtekst('1759|vis baggrund til ordrer', $sprog_id)."</a>";
+// 		$txt1=findtekst('1760|Vil du slette denne baggrund til ordrer?', $sprog_id);
+// 		$slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag=ordrer_bg\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+// 	} else {
+// 		$ordrer_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+// 		$slet_ordrer_bg=NULL;
+// 	}
+// 	if(file_exists("../logolib/$db_id/faktura_bg.pdf")) {
+// 		$txt= findtekst('1762|Vil du slette denne baggrund til faktura?', $sprog_id);
+// 		$faktura_bg="<a href=\"view_logoupload.php?vis=faktura_bg\">".findtekst('1761|vis baggrund til faktura', $sprog_id)."</a>";
+// 		$slet_faktura_bg="<a href=\"logoupload.php?slet_bilag=faktura_bg\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+// 	} else {
+// 		$faktura_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+// 		$slet_faktura_bg=NULL;
+// 	}
+// 	if(file_exists("../logolib/$db_id/tilbud_bilag.pdf")) {
+// 		$txt1 = findtekst('1764|Vil du slette dette bilag til tilbud?', $sprog_id);
+// 		$tilbud_bilag="<a href=\"view_logoupload.php?vis=tilbud_bilag\">".findtekst('1763|vis bilag til tilbud', $sprog_id)."</a>";
+// 		$slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag=tilbud_bilag\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+// 	} else {
+// 		$tilbud_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
+// 		$slet_tilbud_bilag=NULL;
+// 	}
+// 	if(file_exists("../logolib/$db_id/ordrer_bilag.pdf")) {
+// 		$txt = findtekst('1766|Vil du slette dette bilag til ordrer?', $sprog_id);
+// 		$ordrer_bilag="<a href=\"view_logoupload.php?vis=ordrer_bilag\">".findtekst('1765|vis bilag til ordrer', $sprog_id)."</a>";
+// 		$slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag=ordrer_bilag\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+// 	} else {
+// 		$ordrer_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
+// 		$slet_ordrer_bilag=NULL;
+// 	}
+// 	if(file_exists("../logolib/$db_id/faktura_bilag.pdf")) {
+// 		$txt1 = findtekst('1769|Vil du slette dette bilag til faktura?', $sprog_id);
+// 		$faktura_bilag="<a href=\"view_logoupload.php?vis=faktura_bilag\">".findtekst('1768|vis bilag til faktura', $sprog_id)."</a>";
+// 		$slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag=faktura_bilag\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>"; #20210803
+// 	} else {
+// 		$faktura_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
+// 		$slet_faktura_bilag=NULL;
+// 	}
+// 	print "<tr><td width=\"100%\" align=\"center\">";
+// 	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">";
+// 	print "<colgroup>
+// 						<col width=\"15%\">
+// 						<col width=\"20%\">
+// 						<col width=\"30%\">
+// 						<col width=\"5%\">
+// 						<col width=\"12%\">
+// 						<col width=\"3%\">
+// 						<col width=\"15%\">
+// 				</colgroup>";
+// 	print "<tbody>";
+// 	//print "<tr><td>&nbsp;</td><td colspan=\"5\" align=center>$font Du har mulighed for at oploade en logo i form af en jpg eller eps fil. </td><td>&nbsp;</td></tr>";
+// 	//print "<tr><td>&nbsp;</td><td colspan=\"5\" align=center>$font Eller du kan lave en hel side i PDF format og bruge den som baggrund for tilbud, ordrer og fakturaer</td><td>&nbsp;</td></tr>";
+// 	//print "<tr><td>&nbsp;</td><td colspan=\"5\"align=center>$font Brug f.eks <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> som kan gemme direkte til PDF</td><td>&nbsp;</td></tr>";
+// 	//print "<tr><td>&nbsp;</td><td colspan=\"5\"align=center>$font Max str. er 100 kb for jpg og 500 kb for eps &amp; PDF<br><br><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+// 	print "<tr><td colspan=\"2\">&nbsp;</td><td align=\"justify\">$font ".findtekst('1770|Du har mulighed for at oploade en hel side i PDF format som baggrund for alle formularer eller specifikt for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
+// 	print "<br>".findtekst('1771|Det er også muligt at oploade et bilag i PDF format, som vedhæftet fil i mail for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
+// 	print "<br>".findtekst('1772|Brug f.eks', $sprog_id)." <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> ".findtekst('1773|som kan gemme direkte til PDF.', $sprog_id);
+// 	print "<br>".findtekst('1774|Størrelsen på PDF må max være 10mb.', $sprog_id)."<br><br></td><td colspan=\"4\">&nbsp;</td></tr>";
+// 	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\">$font<hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+// 	print "</tbody>";
+	
+// 	print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+// 	print "<tbody>";
+// 	print "<tr><td>&nbsp;";
+// 	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
+// 	print "<input type=\"hidden\" name=\"filtype\" value='PDF'></td>";
+// 	print "<td align=left>$font ".findtekst('1775|Vælg PDF fil til baggrund for:', $sprog_id)."</td>";
+// 	// print "<td><select name=\"bg_valg\">
+// 	// 				<option value=\"bg\">".findtekst('1776|Alle formularer', $sprog_id)."</option>
+// 	// 				<option value=\"tilbud_bg\">".findtekst('812|Tilbud', $sprog_id)."</option>
+// 	// 				<option value=\"ordrer_bg\">".findtekst('107|Ordrer', $sprog_id)."</option>
+// 	// 				<option value=\"faktura_bg\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
+// 	// 			</select>";
+// 	print "<td><select name=\"sprog_valg\">
+// 				<option value=\"Dansk\">Dansk</option>";
+// 				$q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
+// 				while ($r=db_fetch_array($q)) {
+// 					if ($r['sprog'] != 'Dansk') {
+// 						print "<option value=\"".$r['sprog']."\">".$r['sprog']."</option>";
+// 					}
+// 				}
+// print "</select>
+// 			<select name=\"bg_valg\">
+// 				<option value=\"bg\">".findtekst('1776|Alle formularer', $sprog_id)."</option>
+// 				<option value=\"tilbud_bg\">".findtekst('812|Tilbud', $sprog_id)."</option>
+// 				<option value=\"ordrer_bg\">".findtekst('107|Ordrer', $sprog_id)."</option>
+// 				<option value=\"faktura_bg\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
+// 			</select>";
+// 	print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('1776|Alle formularer', $sprog_id)."</td><td>$font $bg&nbsp;</td><td>$font $slet_bg&nbsp;</td><td>&nbsp;</td></td></tr>";
+// 	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bg&nbsp;</td><td>$font $slet_tilbud_bg&nbsp;</td><td>&nbsp;</td></tr>";
+// 	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bg&nbsp;</td><td>$font $slet_ordrer_bg&nbsp;</td><td>&nbsp;</td></tr>";
+// 	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=center><input class='button green medium' type=\"submit\" name=\"bgfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td>$font ".findtekst('1777|Fakturaer', $sprog_id)."</td><td>$font $faktura_bg&nbsp;</td><td>$font $slet_faktura_bg&nbsp;</td><td>&nbsp;</td></tr>";
+// 	//print "<tr><td width=20%>&nbsp;</td><td>&nbsp;</td><td width=20%>&nbsp;</td></tr>";
+// 	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+// 	print "</tbody>";
+// 	print "</form>";
+	
+// 	print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+// 	print "<tbody>";
+// 	print "<tr><td>&nbsp;";
+// 	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
+// 	print "<input type=\"hidden\" name=\"filtype\" value='logo'></td>";
+// 	print "<td align=left>$font ".findtekst('1778|Vælg PDF som bilag i mail til:', $sprog_id)."</td>";
+// 	print "<td><select name=\"bilag_valg\">
+// 					<option value=\"tilbud_bilag\">".findtekst('812|Tilbud', $sprog_id)."</option>
+// 					<option value=\"ordrer_bilag\">".findtekst('107|Ordrer', $sprog_id)."</option>
+// 					<option value=\"faktura_bilag\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
+// 				</select>";
+// 	print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bilag&nbsp;</td><td>$font $slet_tilbud_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+// 	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bilag&nbsp;</td><td>$font $slet_ordrer_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+// 	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=\"center\"><input class='button green medium' type=\"submit\" name=\"bilagfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td width=5%>$font ".findtekst('1777|Fakturaer', $sprog_id).":</td><td>$font $faktura_bilag&nbsp;</td><td>$font $slet_faktura_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+// 	//print "<tr><td width=20%>&nbsp;</td><td>&nbsp;</td><td width=20%>&nbsp;</td></tr>";
+// 	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+// 	print "</tbody>";
+// 	print "</form>";
+	
+// 	print "</table>";
+// 	print "</td></tr>";
+// }
+
 function upload(){
-	global $font;
-	global $db_id;
-	global $sprog_id; #20210803
+    global $font;
+    global $db_id;
+    global $sprog_id;
+    global $current_sprog; 
 
-	if(file_exists("../logolib/$db_id/bg.pdf")) {
-		$bg="<a href=\"view_logoupload.php?vis=bg\">".findtekst('1754|vis baggrund', $sprog_id)."</a>";
-		$txt1= findtekst('1755|Vil du slette denne baggrund alle formularer?', $sprog_id);
-		$slet_bg="<a href=\"logoupload.php?slet_bilag=bg\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/tilbud_bg.pdf")) {
-		$tilbud_bg="<a href=\"view_logoupload.php?vis=tilbud_bg\">".findtekst('1756|vis baggrund til tilbud', $sprog_id)."</a>";
-		$txt= findtekst('1757|Vil du slette denne baggrund til tilbud?', $sprog_id);
-		$slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag=tilbud_bg\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$tilbud_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_tilbud_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/ordrer_bg.pdf")) {
-		$ordrer_bg="<a href=\"view_logoupload.php?vis=ordrer_bg\">".findtekst('1759|vis baggrund til ordrer', $sprog_id)."</a>";
-		$txt1=findtekst('1760|Vil du slette denne baggrund til ordrer?', $sprog_id);
-		$slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag=ordrer_bg\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$ordrer_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_ordrer_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/faktura_bg.pdf")) {
-		$txt= findtekst('1762|Vil du slette denne baggrund til faktura?', $sprog_id);
-		$faktura_bg="<a href=\"view_logoupload.php?vis=faktura_bg\">".findtekst('1761|vis baggrund til faktura', $sprog_id)."</a>";
-		$slet_faktura_bg="<a href=\"logoupload.php?slet_bilag=faktura_bg\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$faktura_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
-		$slet_faktura_bg=NULL;
-	}
-	if(file_exists("../logolib/$db_id/tilbud_bilag.pdf")) {
-		$txt1 = findtekst('1764|Vil du slette dette bilag til tilbud?', $sprog_id);
-		$tilbud_bilag="<a href=\"view_logoupload.php?vis=tilbud_bilag\">".findtekst('1763|vis bilag til tilbud', $sprog_id)."</a>";
-		$slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag=tilbud_bilag\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$tilbud_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
-		$slet_tilbud_bilag=NULL;
-	}
-	if(file_exists("../logolib/$db_id/ordrer_bilag.pdf")) {
-		$txt = findtekst('1766|Vil du slette dette bilag til ordrer?', $sprog_id);
-		$ordrer_bilag="<a href=\"view_logoupload.php?vis=ordrer_bilag\">".findtekst('1765|vis bilag til ordrer', $sprog_id)."</a>";
-		$slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag=ordrer_bilag\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
-	} else {
-		$ordrer_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
-		$slet_ordrer_bilag=NULL;
-	}
-	if(file_exists("../logolib/$db_id/faktura_bilag.pdf")) {
-		$txt1 = findtekst('1769|Vil du slette dette bilag til faktura?', $sprog_id);
-		$faktura_bilag="<a href=\"view_logoupload.php?vis=faktura_bilag\">".findtekst('1768|vis bilag til faktura', $sprog_id)."</a>";
-		$slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag=faktura_bilag\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>"; #20210803
-	} else {
-		$faktura_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
-		$slet_faktura_bilag=NULL;
-	}
-	print "<tr><td width=\"100%\" align=\"center\">";
-	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">";
-	print "<colgroup>
-						<col width=\"15%\">
-						<col width=\"20%\">
-						<col width=\"30%\">
-						<col width=\"5%\">
-						<col width=\"12%\">
-						<col width=\"3%\">
-						<col width=\"15%\">
-				</colgroup>";
-	print "<tbody>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\" align=center>$font Du har mulighed for at oploade en logo i form af en jpg eller eps fil. </td><td>&nbsp;</td></tr>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\" align=center>$font Eller du kan lave en hel side i PDF format og bruge den som baggrund for tilbud, ordrer og fakturaer</td><td>&nbsp;</td></tr>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\"align=center>$font Brug f.eks <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> som kan gemme direkte til PDF</td><td>&nbsp;</td></tr>";
-	//print "<tr><td>&nbsp;</td><td colspan=\"5\"align=center>$font Max str. er 100 kb for jpg og 500 kb for eps &amp; PDF<br><br><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "<tr><td colspan=\"2\">&nbsp;</td><td align=\"justify\">$font ".findtekst('1770|Du har mulighed for at oploade en hel side i PDF format som baggrund for alle formularer eller specifikt for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
-	print "<br>".findtekst('1771|Det er også muligt at oploade et bilag i PDF format, som vedhæftet fil i mail for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
-	print "<br>".findtekst('1772|Brug f.eks', $sprog_id)." <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> ".findtekst('1773|som kan gemme direkte til PDF.', $sprog_id);
-	print "<br>".findtekst('1774|Størrelsen på PDF må max være 10mb.', $sprog_id)."<br><br></td><td colspan=\"4\">&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\">$font<hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "</tbody>";
+    // Get current language selection (default to Dansk)
+    // $current_sprog = isset($_POST['sprog_valg']) ? $_POST['sprog_valg'] : 'Dansk';
+	global $current_sprog; 
+    $sprog_prefix = ($current_sprog != 'Dansk') ? $current_sprog . "_" : "";
+    
+    // Function to check for language-specific files with fallback
+    function check_file_exists($db_id, $sprog_prefix, $file_type) {
+        $lang_file = "../logolib/$db_id/{$sprog_prefix}{$file_type}.pdf";
+        $default_file = "../logolib/$db_id/{$file_type}.pdf";
+        
+        if (file_exists($lang_file)) {
+            return array('file' => $lang_file, 'name' => $sprog_prefix . $file_type);
+        } elseif (file_exists($default_file)) {
+            return array('file' => $default_file, 'name' => $file_type);
+        }
+        return false;
+    }
+    
+    // Check for background files
+    $bg_check = check_file_exists($db_id, $sprog_prefix, 'bg');
 	
-	print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
-	print "<tbody>";
-	print "<tr><td>&nbsp;";
-	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
-	print "<input type=\"hidden\" name=\"filtype\" value='PDF'></td>";
-	print "<td align=left>$font ".findtekst('1775|Vælg PDF fil til baggrund for:', $sprog_id)."</td>";
-	print "<td><select name=\"bg_valg\">
-					<option value=\"bg\">".findtekst('1776|Alle formularer', $sprog_id)."</option>
-					<option value=\"tilbud_bg\">".findtekst('812|Tilbud', $sprog_id)."</option>
-					<option value=\"ordrer_bg\">".findtekst('107|Ordrer', $sprog_id)."</option>
-					<option value=\"faktura_bg\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
-				</select>";
-	print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('1776|Alle formularer', $sprog_id)."</td><td>$font $bg&nbsp;</td><td>$font $slet_bg&nbsp;</td><td>&nbsp;</td></td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bg&nbsp;</td><td>$font $slet_tilbud_bg&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bg&nbsp;</td><td>$font $slet_ordrer_bg&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=center><input class='button green medium' type=\"submit\" name=\"bgfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td>$font ".findtekst('1777|Fakturaer', $sprog_id)."</td><td>$font $faktura_bg&nbsp;</td><td>$font $slet_faktura_bg&nbsp;</td><td>&nbsp;</td></tr>";
-	//print "<tr><td width=20%>&nbsp;</td><td>&nbsp;</td><td width=20%>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "</tbody>";
-	print "</form>";
-	
-	print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
-	print "<tbody>";
-	print "<tr><td>&nbsp;";
-	print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
-	print "<input type=\"hidden\" name=\"filtype\" value='logo'></td>";
-	print "<td align=left>$font ".findtekst('1778|Vælg PDF som bilag i mail til:', $sprog_id)."</td>";
-	print "<td><select name=\"bilag_valg\">
-					<option value=\"tilbud_bilag\">".findtekst('812|Tilbud', $sprog_id)."</option>
-					<option value=\"ordrer_bilag\">".findtekst('107|Ordrer', $sprog_id)."</option>
-					<option value=\"faktura_bilag\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
-				</select>";
-	print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bilag&nbsp;</td><td>$font $slet_tilbud_bilag&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bilag&nbsp;</td><td>$font $slet_ordrer_bilag&nbsp;</td><td>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=\"center\"><input class='button green medium' type=\"submit\" name=\"bilagfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td width=5%>$font ".findtekst('1777|Fakturaer', $sprog_id).":</td><td>$font $faktura_bilag&nbsp;</td><td>$font $slet_faktura_bilag&nbsp;</td><td>&nbsp;</td></tr>";
-	//print "<tr><td width=20%>&nbsp;</td><td>&nbsp;</td><td width=20%>&nbsp;</td></tr>";
-	print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
-	print "</tbody>";
-	print "</form>";
-	
-	print "</table>";
-	print "</td></tr>";
+    if ($bg_check) {
+        // $bg="<a href=\"view_logoupload.php?vis={$bg_check['name']}\">".findtekst('1754|vis baggrund', $sprog_id)."</a>";
+		$bg="<a href=\"view_logoupload.php?vis={$bg_check['name']}&sprog=$current_sprog\">".findtekst('1754|vis baggrund', $sprog_id)."</a>";
+        $txt1= findtekst('1755|Vil du slette denne baggrund alle formularer?', $sprog_id);
+        $slet_bg="<a href=\"logoupload.php?slet_bilag={$bg_check['name']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+    } else {
+        $bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+        $slet_bg=NULL;
+    }
+    
+    $tilbud_bg_check = check_file_exists($db_id, $sprog_prefix, 'tilbud_bg');
+    if ($tilbud_bg_check) {
+        // $tilbud_bg="<a href=\"view_logoupload.php?vis={$tilbud_bg_check['name']}\">".findtekst('1756|vis baggrund til tilbud', $sprog_id)."</a>";
+		$tilbud_bg="<a href=\"view_logoupload.php?vis={$tilbud_bg_check['name']}&sprog=$current_sprog\">".findtekst('1756|vis baggrund til tilbud', $sprog_id)."</a>";
+        $txt= findtekst('1757|Vil du slette denne baggrund til tilbud?', $sprog_id);
+        $slet_tilbud_bg="<a href=\"logoupload.php?slet_bilag={$tilbud_bg_check['name']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+    } else {
+        $tilbud_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+        $slet_tilbud_bg=NULL;
+    }
+    
+    $ordrer_bg_check = check_file_exists($db_id, $sprog_prefix, 'ordrer_bg');
+    if ($ordrer_bg_check) {
+        $ordrer_bg="<a href=\"view_logoupload.php?vis={$ordrer_bg_check['name']}\">".findtekst('1759|vis baggrund til ordrer', $sprog_id)."</a>";
+        $txt1=findtekst('1760|Vil du slette denne baggrund til ordrer?', $sprog_id);
+        $slet_ordrer_bg="<a href=\"logoupload.php?slet_bilag={$ordrer_bg_check['name']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+    } else {
+        $ordrer_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+        $slet_ordrer_bg=NULL;
+    }
+    
+    $faktura_bg_check = check_file_exists($db_id, $sprog_prefix, 'faktura_bg');
+    if ($faktura_bg_check) {
+        $txt= findtekst('1762|Vil du slette denne baggrund til faktura?', $sprog_id);
+        $faktura_bg="<a href=\"view_logoupload.php?vis={$faktura_bg_check['name']}\">".findtekst('1761|vis baggrund til faktura', $sprog_id)."</a>";
+        $slet_faktura_bg="<a href=\"logoupload.php?slet_bilag={$faktura_bg_check['name']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+    } else {
+        $faktura_bg="<i>".findtekst('1758|Ingen baggrund', $sprog_id)."</i>";
+        $slet_faktura_bg=NULL;
+    }
+    
+    // Check for attachment files
+    $tilbud_bilag_check = check_file_exists($db_id, $sprog_prefix, 'tilbud_bilag');
+    if ($tilbud_bilag_check) {
+        $txt1 = findtekst('1764|Vil du slette dette bilag til tilbud?', $sprog_id);
+        $tilbud_bilag="<a href=\"view_logoupload.php?vis={$tilbud_bilag_check['name']}\">".findtekst('1763|vis bilag til tilbud', $sprog_id)."</a>";
+        $slet_tilbud_bilag="<a href=\"logoupload.php?slet_bilag={$tilbud_bilag_check['name']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+    } else {
+        $tilbud_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
+        $slet_tilbud_bilag=NULL;
+    }
+    
+    $ordrer_bilag_check = check_file_exists($db_id, $sprog_prefix, 'ordrer_bilag');
+    if ($ordrer_bilag_check) {
+        $txt = findtekst('1766|Vil du slette dette bilag til ordrer?', $sprog_id);
+        $ordrer_bilag="<a href=\"view_logoupload.php?vis={$ordrer_bilag_check['name']}\">".findtekst('1765|vis bilag til ordrer', $sprog_id)."</a>";
+        $slet_ordrer_bilag="<a href=\"logoupload.php?slet_bilag={$ordrer_bilag_check['name']}\" onclick=\"return confirm('$txt')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+    } else {
+        $ordrer_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
+        $slet_ordrer_bilag=NULL;
+    }
+    
+    $faktura_bilag_check = check_file_exists($db_id, $sprog_prefix, 'faktura_bilag');
+    if ($faktura_bilag_check) {
+        $txt1 = findtekst('1769|Vil du slette dette bilag til faktura?', $sprog_id);
+        $faktura_bilag="<a href=\"view_logoupload.php?vis={$faktura_bilag_check['name']}\">".findtekst('1768|vis bilag til faktura', $sprog_id)."</a>";
+        $slet_faktura_bilag="<a href=\"logoupload.php?slet_bilag={$faktura_bilag_check['name']}\" onclick=\"return confirm('$txt1')\">".findtekst('1099|Slet', $sprog_id)."</a>";
+    } else {
+        $faktura_bilag="<i>".findtekst('1767|Ingen bilag', $sprog_id)."</i>";
+        $slet_faktura_bilag=NULL;
+    }
+    
+    print "<tr><td width=\"100%\" align=\"center\">";
+    print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">";
+    print "<colgroup>
+                        <col width=\"15%\">
+                        <col width=\"20%\">
+                        <col width=\"30%\">
+                        <col width=\"5%\">
+                        <col width=\"12%\">
+                        <col width=\"3%\">
+                        <col width=\"15%\">
+                </colgroup>";
+    print "<tbody>";
+
+	print "<tr><td colspan=\"7\" align=\"center\">";
+print "<form method=\"GET\" action=\"logoupload.php\">";
+print "<strong>Vælg sprog: </strong>";
+print "<select name=\"sprog\" onchange=\"this.form.submit()\">";
+print "<option value=\"Dansk\"" . ($current_sprog == 'Dansk' ? ' selected' : '') . ">Dansk</option>";
+$q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
+while ($r=db_fetch_array($q)) {
+    if ($r['sprog'] != 'Dansk') {
+        $selected = ($current_sprog == $r['sprog']) ? ' selected' : '';
+        print "<option value=\"".$r['sprog']."\"$selected>".$r['sprog']."</option>";
+    }
 }
-
-
+print "</select>";
+print "</form>";
+print "<br><strong>Viser filer for: $current_sprog</strong><br><br></td></tr>";
+    
+    print "<tr><td colspan=\"2\">&nbsp;</td><td align=\"justify\">$font ".findtekst('1770|Du har mulighed for at oploade en hel side i PDF format som baggrund for alle formularer eller specifikt for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
+    print "<br>".findtekst('1771|Det er også muligt at oploade et bilag i PDF format, som vedhæftet fil i mail for tilbud, ordrer og fakturaer.', $sprog_id)."<br>";
+    print "<br>".findtekst('1772|Brug f.eks', $sprog_id)." <a href=\"http://da.libreoffice.org\" target=\"blank\">Libre Office</a> ".findtekst('1773|som kan gemme direkte til PDF.', $sprog_id);
+    print "<br>".findtekst('1774|Størrelsen på PDF må max være 10mb.', $sprog_id)."<br><br></td><td colspan=\"4\">&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\">$font<hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+    print "</tbody>";
+    
+    print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+    print "<tbody>";
+    print "<tr><td>&nbsp;";
+    print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
+    print "<input type=\"hidden\" name=\"filtype\" value='PDF'></td>";
+    print "<td align=left>$font ".findtekst('1775|Vælg PDF fil til baggrund for:', $sprog_id)."</td>";
+    
+    print "<td><select name=\"sprog_valg\">";
+    print "<option value=\"Dansk\"" . ($current_sprog == 'Dansk' ? ' selected' : '') . ">Dansk</option>";
+    $q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
+    while ($r=db_fetch_array($q)) {
+        if ($r['sprog'] != 'Dansk') {
+            $selected = ($current_sprog == $r['sprog']) ? ' selected' : '';
+            print "<option value=\"".$r['sprog']."\"$selected>".$r['sprog']."</option>";
+        }
+    }
+    print "</select>
+            <select name=\"bg_valg\">
+                <option value=\"bg\">".findtekst('1776|Alle formularer', $sprog_id)."</option>
+                <option value=\"tilbud_bg\">".findtekst('812|Tilbud', $sprog_id)."</option>
+                <option value=\"ordrer_bg\">".findtekst('107|Ordrer', $sprog_id)."</option>
+                <option value=\"faktura_bg\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
+            </select>";
+    print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('1776|Alle formularer', $sprog_id)."</td><td>$font $bg&nbsp;</td><td>$font $slet_bg&nbsp;</td><td>&nbsp;</td></td></tr>";
+    print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bg&nbsp;</td><td>$font $slet_tilbud_bg&nbsp;</td><td>&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bg&nbsp;</td><td>$font $slet_ordrer_bg&nbsp;</td><td>&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=center><input class='button green medium' type=\"submit\" name=\"bgfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td>$font ".findtekst('1777|Fakturaer', $sprog_id)."</td><td>$font $faktura_bg&nbsp;</td><td>$font $slet_faktura_bg&nbsp;</td><td>&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+    print "</tbody>";
+    print "</form>";
+    
+    print "<form enctype=\"multipart/form-data\" action=\"logoupload.php\" method=\"POST\">";
+    print "<tbody>";
+    print "<tr><td>&nbsp;";
+    print "<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"10000000\">";
+    print "<input type=\"hidden\" name=\"filtype\" value='logo'></td>";
+    print "<td align=left>$font ".findtekst('1778|Vælg PDF som bilag i mail til:', $sprog_id)."</td>";
+    
+    print "<td><select name=\"sprog_valg\">";
+    print "<option value=\"Dansk\"" . ($current_sprog == 'Dansk' ? ' selected' : '') . ">Dansk</option>";
+    $q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
+    while ($r=db_fetch_array($q)) {
+        if ($r['sprog'] != 'Dansk') {
+            $selected = ($current_sprog == $r['sprog']) ? ' selected' : '';
+            print "<option value=\"".$r['sprog']."\"$selected>".$r['sprog']."</option>";
+        }
+    }
+    print "</select>
+            <select name=\"bilag_valg\">
+                <option value=\"tilbud_bilag\">".findtekst('812|Tilbud', $sprog_id)."</option>
+                <option value=\"ordrer_bilag\">".findtekst('107|Ordrer', $sprog_id)."</option>
+                <option value=\"faktura_bilag\">".findtekst('1777|Fakturaer', $sprog_id)."</option>
+            </select>";
+    print "<input name=\"uploadedfile\" type=\"file\" /><br /></td><td>$font ".findtekst('812|Tilbud', $sprog_id)."</td><td>$font $tilbud_bilag&nbsp;</td><td>$font $slet_tilbud_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>$font ".findtekst('107|Ordrer', $sprog_id)."</td><td>$font $ordrer_bilag&nbsp;</td><td>$font $slet_ordrer_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td>&nbsp;</td><td align=\"center\"><input class='button green medium' type=\"submit\" name=\"bilagfil\" value=\"".findtekst('1360|Indlæs', $sprog_id)."\"></td><td width=5%>$font ".findtekst('1777|Fakturaer', $sprog_id).":</td><td>$font $faktura_bilag&nbsp;</td><td>$font $slet_faktura_bilag&nbsp;</td><td>&nbsp;</td></tr>";
+    print "<tr><td>&nbsp;</td><td colspan=\"5\" align=\"center\"><br><hr width=\"100%\"><br></td><td>&nbsp;</td></tr>";
+    print "</tbody>";
+    print "</form>";
+    
+    print "</table>";
+    print "</td></tr>";
+}
 
 print "</tbody></table>";
 print "</td></tr>";

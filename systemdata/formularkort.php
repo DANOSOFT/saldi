@@ -1189,3 +1189,25 @@ print "</td></tr>\n";
 print "</tbody></table>\n";
 if ($menu=='T') print "</div>\n</div>\n";  # 20150331
 print "</body></html>\n";
+
+function get_background_file($form_type, $sprog) {
+    global $db_id;
+    
+    $sprog_prefix = ($sprog != 'Dansk') ? $sprog . "_" : "";
+    $background_file = "../logolib/$db_id/{$sprog_prefix}{$form_type}_bg.pdf";
+    
+    // If language-specific file doesn't exist, try default
+    if (!file_exists($background_file)) {
+        $background_file = "../logolib/$db_id/{$form_type}_bg.pdf";
+    }
+    
+    // If form-specific doesn't exist, try general background
+    if (!file_exists($background_file)) {
+        $background_file = "../logolib/$db_id/{$sprog_prefix}bg.pdf";
+        if (!file_exists($background_file)) {
+            $background_file = "../logolib/$db_id/bg.pdf";
+        }
+    }
+    
+    return file_exists($background_file) ? $background_file : null;
+}
