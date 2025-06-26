@@ -92,6 +92,7 @@
 // 20240106 PBLM Added box5 on line 1187 for the extra api client
 // 20250415 LOE Updated some variables using if_isset
 // 20250605	PHR Removed konto_id from href
+// 26062025 PBLM Added link to the whole line almost
 
 #ob_start();
 @session_start();
@@ -1485,20 +1486,25 @@ function select_valg( $valg, $box ){  #20210623
 
 ?>
 <script>
-// wait for the DOM to be fully loaded before running the script
 document.addEventListener('DOMContentLoaded', () => {
-	// select all rows with the class 'hover-highlight'
-	document.querySelectorAll('.hover-highlight').forEach(row => {
-		const cells = row.querySelectorAll('td')
-		if (cells.length > 1) {
-			const a = cells[1].querySelector('a')
-			if (a && a.href) {
-			row.style.cursor = 'pointer'
-			row.addEventListener('click', () => {
-				window.location.href = a.href
-			})
-			}
-		}
-	})
-})	
+  document.querySelectorAll('.hover-highlight').forEach(row => {
+    const cells = Array.from(row.querySelectorAll('td'))
+    if (cells.length < 2) return
+    const link = cells[1].querySelector('a')
+    if (!link || !link.href) return
+
+    // give pointer cursor only to all but the last 2 cells
+    cells.slice(0, cells.length - 2)
+         .forEach(cell => cell.style.cursor = 'pointer')
+
+    row.addEventListener('click', e => {
+      const td = e.target.closest('td')
+      if (!td) return
+      const idx = cells.indexOf(td)
+      // ignore clicks on the last two cells
+      if (idx >= cells.length - 2) return
+      window.location.href = link.href
+    })
+  })
+})
 </script>
