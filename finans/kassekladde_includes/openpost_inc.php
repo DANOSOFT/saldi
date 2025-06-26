@@ -244,7 +244,7 @@ include("../includes/topline_settings.php");
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor;}
 		elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5;}
 		if ($openAamount[$x]<0) {
-			($kredit)?$newCredit==$kredit:$newCredit=$offsetAccount[$x];
+			($kredit)?$newCredit=$kredit:$newCredit=$offsetAccount[$x];
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x]*-1,2);
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
 			$lnktxt.= "&d_type=$accountType[$x]&debet=$accountNo[$x]&k_type=$k_type&kredit=$newCredit&faktura=$invoiceNo[$x]";
@@ -254,7 +254,7 @@ include("../includes/topline_settings.php");
 			$newAmount=dkdecimal($openAamount[$x],2);
 		} else {
 			($amount)?$newAmount=dkdecimal($belob):$newAmount=dkdecimal($openAamount[$x],2);
-			($debet)?$newDebet==$debet:$newDebet=$offsetAccount[$x];
+			($debet)?$newDebet=$debet:$newDebet=$offsetAccount[$x];
 			$lnktxt = "kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskr";
 			$lnktxt.= "&d_type=$d_type&debet=$newDebet&k_type=$accountType[$x]&kredit=$accountNo[$x]&faktura=$invoiceNo[$x]";
 			$lnktxt.= "&belob=$newAmount&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$currency[$x]";
