@@ -85,6 +85,7 @@ if ($_GET['returside']) {
 	$returside = $_GET['returside'];
 	$ordre_id = $_GET['ordre_id'];
 	$fokus = $_GET['fokus'];
+	$returside .= '?ordre_id=' . $ordre_id;
 } else {
 	if ($popup) $returside = "../includes/luk.php";
 	else $returside = "debitor.php";
