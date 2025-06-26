@@ -1091,7 +1091,7 @@ if (!$simuler) {
 			print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
 			print "<td id='tutorial-help' width=5% style=$buttonStyle>
 			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-				Hjælp  
+				".findtekst('2564|Hjælp', $sprog_id)."  
 			</button></td>";
 			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
@@ -1172,29 +1172,29 @@ print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debi
 print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
 print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
 print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Debet', $sprog_id)) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . ".</b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
 print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 if ($vis_afd)
-	print "<td align = left><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>Afd.</b></td>";
+	print "<td align = left><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
 if ($vis_ansat)
-	print "<td align = left><b> <span title= '" . findtekst('1568|Angiv hvilket ansatejder posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . ".</b></td>";
+	print "<td align = left><b> <span title= '" . findtekst('1568|Angiv hvilken ansat posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . "</b></td>";
 if ($vis_projekt)
 	print "<td align = left><b> <span title= '" . findtekst('1569|Angiv hvilket projekt posteringen hører under', $sprog_id) . "'>Proj.</b></td>";
 if ($vis_valuta)
 	print "<td align = left><b> <span title= '" . findtekst('1570|Angiv valuta for posteringen', $sprog_id) . "'>" . findtekst('1069|Valuta', $sprog_id) . "</b></td>";
 if (db_fetch_array(db_select("select id from kassekladde where kladde_id = '$kladde_id' and (k_type = 'K' or d_type = 'D')", __FILE__ . " linje " . __LINE__))) {
-	print "<td  align='center'><b> <span title= '" . findtekst('1571|etalingsdato for debitor eller kreditorfaktura', $sprog_id) . "'>" . findtekst('1070|Forfald', $sprog_id) . "</b></td>";
+	print "<td  align='center'><b> <span title= '" . findtekst('1571|Betalingsdato for debitor- eller kreditorfaktura', $sprog_id) . "'>" . findtekst('1070|Forfald', $sprog_id) . "</b></td>";
 	if ($vis_bet_id)
-		print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalingsid fra girokort - Kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('1071|Betal', $sprog_id) . ".id</b></td>";
+		print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
 }
-print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>&nbsp;u/m&nbsp;</b></td>";
+print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
 print "<td align='center' width='60px'><b>Position</b></td>";
 if ($kontrolkonto) {
-	print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>Saldo<br>Regnskab</b></td>";
+	print "<td align='center' width='30px'><b>Saldo<br>Regnskab</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 	$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		print "<td style = 'width:20px'></td>";
-		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>Saldo<br>Bank</b></td>";
+		print "<td align='center' width='30px'><b>Saldo<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 	}
 }
 #print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
@@ -1421,10 +1421,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
 			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$clip = 'paper.png';
-				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
+				$titletxt =  findtekst('1454|Klik her for at åbne bilaget', $sprog_id);
 			} else {
 				$clip = 'clip.png';
-				$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
+				$titletxt =  findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id);
 			}
 			$href = "../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&dokument=$dokument[$y]&bilag_id=$id[$y]&fokus=bila$y";
 			print "<td title='$titletxt'><!-- ". __line__ ." -->";

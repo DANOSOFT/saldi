@@ -1451,8 +1451,8 @@
 1451	Kun ved fakturering/kreditering	Only for invoicing/crediting	Kun ved fakturering/kreditering
 1452	Opkræves via betalingsservice	Charged via BS payment service	Charged via BS payment service
 1453	Gem en kopi og vedhæft kundens historik	Save a copy and attach the customer's history	Lagre en kopi og legg ved kundens historie
-1454	klik her for at åbne bilaget	click here to open the attachment	Klikk her for å åpne vedlegget
-1455	klik her for at vedhæfte et bilag	click here to add an attachment	Klikk her for å legge ved et vedlegg
+1454	Klik her for at åbne bilaget	Click here to open the attachment	Klikk her for å åpne bilaget
+1455	Klik her for at vedhæfte et bilag	Click here to add an attachment	Klikk her for å legge ved et bilag
 1456	Projektnummer. Vises for ordrelinjer tilknyttet et projekt.	Project number. Appears for order lines associated with a project.	Prosjektnummer. Vises for ordrelinjer tilknyttet et prosjekt.
 1457	Kun denne ordre: når dette felt er afmærket udelades ordrelinjen ved genfakturering	Only this order: when this field is checked, the order line is omitted for re-invoicing	Kun denne ordre: når dette feltet er merket, utelates ordrelinjen for omfakturering
 1458	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen afmærkeret er der ikke opkrævet moms for den pågældende vare.	If the field is shown, the customer is subject to the rules for reverse charge. If the item is marked, no VAT has been charged for the item in question.	Hvis feltet vises, er kunden underlagt reglene for omvendt gebyr. Hvis varen er merket, er det ikke belastet merverdiavgift for den aktuelle varen.
@@ -1558,20 +1558,20 @@
 1558	Klik her for at lukke kassekladden	Click here to close the checkout journal	Klikk her for at lukke kassekladden
 1559	Her kan skrives en bemærkning til kladden	A comment on the journal can be written here	Hennes kan skrives og bemærkning til kladden
 1560	Angiv kontonummer til kontrol af kontobevægelser	Enter account number to control account movements	Angiv kontonummer til kontrol af kontobevægelser
-1561	Klik her for at opdatere	Click here to update	Klikk på henne for at opdatere
-1562	Skriv - (minus) for at slette en linje	Type - (minus) to delete a line	Skriv - (minus) for at slette en linje
-1563	Angiv dato som ddmmyy (f.eks 241205)	Enter date as ddmmyy (eg 241205)	Angiv dato som ddmmyy (f.eks. 241205)
-1564	Angiv D for debitor, K for kreditor eller F for finanspostering	Enter D for debtor, K for creditor or F for financial posting	Angiv D for debitor, K for kreditor eller F for finanspostering
-1565	Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek	Type D or K and click on [Lookup] for lookups in the debtor or creditor directory, respectively	Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek
-1566	Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning	Enter invoice number - click on lookup to look up in open records. Write a minus here to suppress automatic equalization	Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus henne for at undertrykke automatisk udligning
-1567	Angiv hvilken afdeling posteringen hører under	Specify which department the posting belongs to	Angiv hvilken afdeling posteringen hører under
-1568	Angiv hvilket ansatejder posteringen hører under	Indicate which employee owner the posting belongs to	Angiv hvilken ansatejder posteringen hører under
-1569	Angiv hvilket projekt posteringen hører under	Specify which project the posting belongs to	Angiv hvilket projekt posteringen hører under
-1570	Angiv valuta for posteringen	Enter currency for posting	Angiv valuta for posteringen
-1571	Betalingsdato for debitor eller kreditorfaktura	Payment date for debtor or creditor invoice	Betalingsdato for debitor eller kreditorfaktura
-1572	Betalingsid fra girokort - Kun nummeret skal skrives	Payment ID from giro card - Only the number must be written	Betalingsid fra girokort - Kun nummeret skal skrives
-1573	Afmærk her, hvis der ikke skal trækkes moms	Check here if VAT is not to be deducted	Afmærk her, hvis der ikke skal trækkes moms
-1574	Tilbagefør postering	Return posting	Tilbagefør postering
+1561	Klik her for at opdatere	Click here to update	Klikk her for å oppdatere
+1562	Skriv - (minus) for at slette en linje	Enter - (minus) to delete a line	Skriv - (minus) for at slette en linje
+1563	Angiv dato som ddmmåå (f.eks 241205)	Enter date as ddmmyy (eg 241205)	Angi dato som ddmmåå (f.eks. 241205)
+1564	Angiv D for debitor, K for kreditor eller F for finanspostering	Enter D for debtor, K for creditor, or F for financial posting	Angi D for debitor, K for kreditor eller F for finanspostering
+1565	Skriv D eller K, og klik på [Opslag] for opslag i hhv. debitor- eller kreditorkartotek	Enter D or K and click on [Lookup] to search in the debtor or creditor directory, respectively	Skriv D eller K, og klikk på [Oppslag] for oppslag i hhv. debitor- eller kreditorkartotek
+1566	Angiv fakturanummer - klik på [Opslag] for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning	Enter invoice number - click on [Lookup] to search in open records. Enter a minus here to suppress automatic equalization	Angi fakturanummer - klikk på [Oppslag] for at søke i åpne poster. Skriv et minus her for å undertrykke automatisk utligning
+1567	Angiv hvilken afdeling posteringen hører under	Specify which department the posting belongs to	Angi hvilken avdeling posteringen hører til
+1568	Angiv hvilken ansat posteringen hører under	Specify which employee the posting belongs to	Angi hvilken ansatt posteringen hører til
+1569	Angiv hvilket projekt posteringen hører under	Specify which project the posting belongs to	Angi hvilket prosjekt posteringen hører til
+1570	Angiv valuta for posteringen	Enter the currency for the posting	Angi valuta for posteringen
+1571	Betalingsdato for debitor- eller kreditorfaktura	Payment date for debtor or creditor invoice	Betalingsdato for debitor- eller kreditorfaktura
+1572	Betalings-ID fra girokort - kun nummeret skal skrives	Payment ID from giro slip - only enter the number	Betalings-ID fra girokort - kun nummeret skal oppgis
+1573	Afmærk her, hvis der ikke skal trækkes moms	Mark here if VAT is not to be deducted	Merk av her hvis det ikke skal beregnes merverdiavgift
+1574	Tilbagefør postering	Return posting	Tilbakefør postering
 1575	En tilsvarende postering er også ført på kladde	A similar entry is also entered on the draft	En tilsvarende postering er også ført på kladde
 1576	Importer data fra DocuBizz?	Import data from DocuBizz?	Importørdata fra DocuBizz?
 1577	Kladden er i brug af	The draft is in use	Kladden er i brug af
@@ -2586,7 +2586,7 @@
 2586	Menu opsætning	Menu setup	Menyoppsett
 2587	Åbn rapporter	Open reports	Åpne rapporter
 2588	Omsætning baseret på varegrupper i det gældene regnskabsår	Revenue based on product groups in the current fiscal year	Omsetning basert på varegrupper i det gjeldende regnskapsåret
-2589	
+2589	u/m	n/v	u/m
 2590	
 2591	
 2592	
