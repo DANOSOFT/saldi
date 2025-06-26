@@ -59,7 +59,7 @@ if (!$sort) {
 	$sort = "id";
 	$rf = "desc";
 }
-if (strpos(findtekst(639,$sprog_id),'undtrykke')) {
+if (strpos(findtekst('639|Kladdeliste', $sprog_id),'undtrykke')) {
 	$qtxt = "update tekster set tekst = '' where tekst_id >= '600'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 }
@@ -79,12 +79,12 @@ if ($menu=='T') {
 		   <tr><td height = '25' align='center' valign='top'>
 		   <table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
-	print "<td width='10%'  title='".findtekst(1599, $sprog_id)."'>"; #20210721
-	print "<a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst(30,$sprog_id)."</button></a></td>";
-	print "<td width=70% style=$topStyle align=center>".findtekst(639,$sprog_id)."</td>";
+	print "<td width='10%'  title='".findtekst('1599|Klik her for at lukke kladdelisten', $sprog_id)."'>"; #20210721
+	print "<a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	print "<td width=70% style=$topStyle align=center>".findtekst('639|Kladdeliste', $sprog_id)."</td>";
 	print "<td id='tutorial-help' width=5% style=$buttonStyle>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-		Hjælp  
+		".findtekst('2564|Hjælp', $sprog_id)."
 	</button></td>";
 	$query = db_select("SELECT var_value FROM settings WHERE var_name = 'companyID'", __FILE__ . " linje " . __LINE__);
 	if(db_num_rows($query) > 0){
@@ -112,8 +112,8 @@ if ($menu=='T') {
 		</script>
 		<?php
 	}
-	print "<td width='10%' title='".findtekst(1600, $sprog_id)."'>";
-	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" id='ny'>".findtekst(39,$sprog_id)."</button></a></td>";
+	print "<td width='5%' title='".findtekst('1600|Klik her for at oprette en ny kassekladde', $sprog_id)."'>";
+	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" id='ny'>".findtekst('39|Ny', $sprog_id)."</button></a></td>";
 	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 } else {
 #	if ($menu=='S') {
@@ -125,39 +125,39 @@ if ($menu=='T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
 	<tr><td height = \"25\" align=\"center\" valign=\"top\">
 	<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\"  title=\"".findtekst(1599, $sprog_id)."\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">"; #20210721
-	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-	else print "<a href=../index/menu.php accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst(639,$sprog_id)."</td>";
-	if ($popup) print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund onClick=\"javascript:kladde=window.open('kassekladde.php?returside=kladdeliste.php&tjek=-1','kladde','$jsvars');kladde.focus();\"><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N id='ny'>".findtekst(39,$sprog_id)."</a></td>";
-	else print "<td width=\"10%\" title=\"".findtekst(1600, $sprog_id)."\" $top_bund><a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
+	print "<td width=\"10%\"  title=\"".findtekst('1599|Klik her for at lukke kladdelisten', $sprog_id)."\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">"; #20210721
+	if ($popup) print "<a href=../includes/luk.php accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+	else print "<a href=../index/menu.php accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('639|Kladdeliste', $sprog_id)."</td>";
+	if ($popup) print "<td width=\"10%\" title=\"".findtekst('1600|Klik her for at oprette en ny kassekladde', $sprog_id)."\" $top_bund onClick=\"javascript:kladde=window.open('kassekladde.php?returside=kladdeliste.php&tjek=-1','kladde','$jsvars');kladde.focus();\"><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=$vis accesskey=N id='ny'>".findtekst('39|Ny', $sprog_id)."</a></td>";
+	else print "<td width=\"10%\" title=\"".findtekst('1600|Klik her for at oprette en ny kassekladde', $sprog_id)."\" $top_bund><a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";
 	print "</tbody></table></td></tr><tr><td valign=\"top\"><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 }
 if ($vis=='alle') {
 	print "<tr>";
 	print "<td colspan=1 align=left></td>";
-	print "<td colspan=4 align=center><a href=kladdeliste.php?sort=$sort&rf=$rf>".findtekst(641,$sprog_id)."</a></td>";
+	print "<td colspan=4 align=center><a href=kladdeliste.php?sort=$sort&rf=$rf>".findtekst('641|Vis egne', $sprog_id)."</a></td>";
 	print "<td colspan=1 align=right class='imgNoTextDeco'></td>";
 	print "</tr>";
 }
 else {
-	print "<tr><td colspan=6 align=center title='".findtekst(1601, $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle id='visalle'>".findtekst(636,$sprog_id)."</a></td></tr>";}
+	print "<tr><td colspan=6 align=center title='".findtekst('1601|Klik her for at se alle kladder', $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle id='visalle'>".findtekst('636|Vis alle', $sprog_id)."</a></td></tr>";}
 	if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';
 }
 else {$linjebg=$bgcolor5; $color='#000000';}
 print "<tr bgcolor=\"$linjebg\">";
 if (($sort == 'id')&&(!$rf)) {print "<td width = 5%><b><a href=kladdeliste.php?sort=id&rf=desc&vis=$vis>Id</a></b></td>\n";}
-else {print "<td width = 5% title='".findtekst(1602, $sprog_id)."'><b><a href=kladdeliste.php?sort=id&vis=$vis>Id</a></b></td>\n";}
-if (($sort == 'kladdedate')&&(!$rf)) {print "<td width = 10%><b><a href=kladdeliste.php?sort=kladdedate&rf=desc&vis=$vis>".findtekst(635,$sprog_id)."</a></b></td>\n";} //20210318
-else {print "<td width = 10% title='".findtekst(1603, $sprog_id)."'><b><a href=kladdeliste.php?sort=kladdedate&vis=$vis>".findtekst(635,$sprog_id)."</a></b></td>\n";}
-if (($sort == 'oprettet_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=oprettet_af&rf=desc&vis=$vis>".findtekst(634,$sprog_id)."</a></b></td>\n";}
-else {print "<td title='".findtekst(1604, $sprog_id)."'><b><a href=kladdeliste.php?sort=oprettet_af&vis=$vis>".findtekst(634,$sprog_id)."</a></b></td>\n";}
-if (($sort == 'kladdenote')&&(!$rf)) {print "<td width = 70%><b><a href=kladdeliste.php?sort=kladdenote&rf=desc&vis=$vis>".findtekst(391,$sprog_id)."</a></b></td>\n";}
-else {print "<td width = 70% title='".findtekst(1605, $sprog_id)."'><b><a href=kladdeliste.php?sort=kladdenote&vis=$vis>".findtekst(391,$sprog_id)."</a></b></td>\n";}
-if (($sort == 'bogforingsdate')&&(!$rf)) {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&rf=desc&vis=$vis>".findtekst(637,$sprog_id)."</a></b></td>\n";}
-else {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&vis=$vis>".findtekst(637,$sprog_id)."</a></b></td>\n";}
+else {print "<td width = 5% title='".findtekst('1602|Klik her for at sortere på ID', $sprog_id)."'><b><a href=kladdeliste.php?sort=id&vis=$vis>Id</a></b></td>\n";}
+if (($sort == 'kladdedate')&&(!$rf)) {print "<td width = 10%><b><a href=kladdeliste.php?sort=kladdedate&rf=desc&vis=$vis>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";} //20210318
+else {print "<td width = 10% title='".findtekst('1603|Klik her for at sortere på dato', $sprog_id)."'><b><a href=kladdeliste.php?sort=kladdedate&vis=$vis>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";}
+if (($sort == 'oprettet_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=oprettet_af&rf=desc&vis=$vis>".findtekst('634|Ejer', $sprog_id)."</a></b></td>\n";}
+else {print "<td title='".findtekst('1604|Klik her for at sortere på ejer (den der har oprettet kassekladden)', $sprog_id)."'><b><a href=kladdeliste.php?sort=oprettet_af&vis=$vis>".findtekst('634|Ejer', $sprog_id)."</a></b></td>\n";}
+if (($sort == 'kladdenote')&&(!$rf)) {print "<td width = 70%><b><a href=kladdeliste.php?sort=kladdenote&rf=desc&vis=$vis>".findtekst('391|Bemærkning', $sprog_id)."</a></b></td>\n";}
+else {print "<td width = 70% title='".findtekst('1605|Klik her for at sortere på bemærkning', $sprog_id)."'><b><a href=kladdeliste.php?sort=kladdenote&vis=$vis>".findtekst('391|Bemærkning', $sprog_id)."</a></b></td>\n";}
+if (($sort == 'bogforingsdate')&&(!$rf)) {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&rf=desc&vis=$vis>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";}
+else {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&vis=$vis>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";}
 if (($sort == 'bogfort_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=bogfort_af&rf=desc&vis=$vis>Af</a></b></td>\n";}
-else {print "<td title='".findtekst(1606, $sprog_id)."\"' align='center'><b><a href=kladdeliste.php?sort=bogfort_af&vis=$vis>".findtekst(638,$sprog_id)."</a></b></td>\n";}
+else {print "<td title='".findtekst('1606|Klik her for at sortere på bogført af', $sprog_id)."\"' align='center'><b><a href=kladdeliste.php?sort=bogfort_af&vis=$vis>".findtekst('638|Af', $sprog_id)."</a></b></td>\n";}
 print "</tr>\n";
 $tjek=0;
 #$sqhost = "localhost";
@@ -180,7 +180,7 @@ $tjek=0;
 			if ($popup) print "<td onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kladde=window.open('kassekladde.php?tjek=$row[id]&kladde_id=$row[id]&returside=kladdeliste.php','$kladde','".$jsvars."');$kladde.focus();\"><span style=\"text-decoration: underline;\">$row[id]</a></span></td>";
 			else print "<td><a href=kassekladde.php?tjek=$row[id]&kladde_id=$row[id]&returside=kladdeliste.php'>$row[id]</a></td>";
 		}
-		else {print "<td><span title= '".findtekst(1607, $sprog_id)." $row[hvem]'>$row[id]</span></td>";}
+		else {print "<td><span title= '".findtekst('1607|Kladde er låst af', $sprog_id)." $row[hvem]'>$row[id]</span></td>";}
 		$kladdedato=dkdato($row['kladdedate']);
 		print "<td>$kladdedato<br></td>";
 		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
@@ -199,7 +199,7 @@ $tjek=0;
 		if ($popup) print "<td  onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kladde=window.open('kassekladde.php?kladde_id=$row[id]&returside=kladdeliste.php','$kladde','".$jsvars."');$kladde.focus();\"><span style=\"text-decoration: underline;\">$row[id]</a></span></td>";
 		else print "<td><a href=kassekladde.php?tjek=$row[id]&kladde_id=$row[id]&returside=kladdeliste.php'>$row[id]</a></td>";
 		}
-		else {print "<td><span title= '".findtekst(1607, $sprog_id)." $row[hvem]'>$row[id]</span></td>";}#		print "<tr>";
+		else {print "<td><span title= '".findtekst('1607|Kladde er låst af', $sprog_id)." $row[hvem]'>$row[id]</span></td>";}#		print "<tr>";
 #		print "<td> $row[id]<br></td>";
 		$kladdedato=dkdato($row['kladdedate']);
 		print "<td>$kladdedato<br></td>";
@@ -212,7 +212,7 @@ $tjek=0;
 	$hr=$tjek;
 	while ($row = db_fetch_array($query)){
 		if ($hr==$tjek) {
-			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst(1089,$sprog_id)."</b></td><td colspan=\"4\"><hr></td></tr>";
+			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst('1089|Simulerede kladder', $sprog_id)."</b></td><td colspan=\"4\"><hr></td></tr>";
 		}
 		$tjek++;
 		$kladde="kladde".$row['id'];
@@ -239,7 +239,7 @@ $tjek=0;
 	$hr=$tjek;
 	while ($row = db_fetch_array($query)){
 		if ($hr==$tjek) {
-			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst(1093,$sprog_id)."</b></td><td colspan=\"4\"><hr></td></tr>";
+			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst('1093|Bogførte kladder', $sprog_id)."</b></td><td colspan=\"4\"><hr></td></tr>";
 		}
 		$tjek++;
 		$kladde="kladde".$row['id'];

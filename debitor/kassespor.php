@@ -679,20 +679,20 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 						$gross_profit_val = $q_dg['dg'];
 						
 						if ($rabat_varenr && $vis_saet) {
-							$q_rabat = db_fetch_array(db_select(
-							"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('$rabat_varenr')) ORDER BY id ASC LIMIT 1",
-							__FILE__ . " linje " . __LINE__
+								$q_rabat = db_fetch_array(db_select(
+								"SELECT lev_varenr FROM ordrelinjer WHERE ordre_id = '{$id[$x]}' AND TRIM(UPPER(varenr)) = TRIM(UPPER('$rabat_varenr')) AND rabat != 0 ORDER BY id ASC LIMIT 1",
+								__FILE__ . " linje " . __LINE__
 							));
-						$rabatrabat = '0,00';
-						if (isset($q_rabat['lev_varenr']) && $q_rabat['lev_varenr'] !== '') {
-							$parts = explode('|', $q_rabat['lev_varenr']);
-							$first = isset($parts[0]) ? $parts[0] : '';
-							$first = ltrim($first, '-');
-							if (is_numeric($first) && $first !== '') {
-								$rabatrabat = number_format($first, 2, ',', '.');
+							$rabatrabat = '0.00';
+							if (isset($q_rabat['lev_varenr']) && $q_rabat['lev_varenr'] !== '') {
+								$parts = explode('|', $q_rabat['lev_varenr']);
+								$first = isset($parts[0]) ? $parts[0] : '';
+								$first = ltrim($first, '-');
+								if (is_numeric($first) && $first !== '') {
+									$rabatrabat = number_format($first, 2, ',', '.');
+								}
 							}
-						}
-						print "<td align=right>" . $rabatrabat . "</td>\n";
+							print "<td align=right>" . $rabatrabat . "</td>\n";
 						} else {
 							print "<td align=right><br></td>\n";
 						}

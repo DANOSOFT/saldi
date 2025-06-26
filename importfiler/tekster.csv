@@ -1061,13 +1061,13 @@
 1061	Når en ordre oprettes flyttes debitors kontonummer over på ordren, hvis der ikke er angivet et telefonnummer på debitorkortet. Kan dog rettes på ordren efterfølgende.	When an order is created, the debtor's account number is transferred to the order if a telephone number is not specified on the debtor card. Can, however, be corrected on the order afterwards.	Når en ordre opprettes, overføres skyldnerens kontonummer til bestillingen hvis et telefonnummer ikke er spesifisert på gjeldskortet. Kan imidlertid korrigeres på bestillingen etterpå.
 1062	Klik her for at synkronisere debitorkort med debitor-informationer fra ordren	Click here to synchronize debtor cards with debtor information from the order	Klikk her for å synkronisere debitorkort med debitorinformasjon fra bestillingen
 1063	Klik her for at synkronisere ordren med debitor-informationer fra debitorkort	Click here to synchronize the order with debtor information from debtor cards	Klikk her for å synkronisere ordren med debitorinformasjon fra debitorkort
-1064	Simuler	Simulate	Simuler
+1064	Simulér	Simulate	Simuler
 1065	Bogfør	Post	Bokfør
 1066	Udlign	Equalize	Utjevner
 1067	Budget	Budget	 Budsjett
 1068	Bilagstekst	Attachment text	Vedleggstekst
 1069	Valuta	Currency	Valuta  
-1070	Forfald	Due_date	Tidsfrist
+1070	Forfald	Due date	Tidsfrist
 1071	Betal	Pay	Betale
 1072	Kassekladde 	Cash journal	Kontantjournal
 1073	Saldo	Balance	Saldo
@@ -1088,7 +1088,7 @@
 1088	Finansbevægelser	Financial movements	Økonomiske bevegelser
 1089	Simulerede kladder	Simulated drafts	Simulerte utkast
 1090	Annuller simulering	Cancel simulation	Avbryt simulering
-1091	Opdater	Update	Oppdater
+1091	Opdatér	Update	Oppdater
 1092	Kundeordre	Sales order	Salgsordre
 1093	Bogførte kladder	Posted drafts	Skrevet utkast
 1094	Fakturadato	Invoice date	Fakturadato
@@ -1540,7 +1540,7 @@
 1540	Handicappet	Disabled	Funksjonshemmet
 1541	Vælg betalingsmåde	Select payment method	Velg betalingsmåte
 1542	Ordren er i brug af	The order is in use by	Bestillingen er i bruk av
-1543	Angiv belob - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
+1543	Angiv beløb - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
 1544	Klik her for at gemme	Click here to save	Klikk her for å lagre
 1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	Lookup - your cursor&apos;s location indicates which table the lookup is in	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i
 1546	Simulering af bogføring viser bevægelser i kontoplanen	Posting simulation shows movements in the chart of accounts	Bokføringssimulering viser bevegelser i kontoplanen
@@ -1578,7 +1578,7 @@
 1578	Ulovlig værdi i debetfelt (Bilag nr	Illegal value in debit field (Attachment no	Ulovlig verdi i debetfelt (Bilag nr
 1579	kladde ikke gemt!	draft not saved!	kladde ikke gemt!
 1580	Ulovlig værdi i kreditfelt (Bilag nr	Illegal value in credit field (Attachment no	Ulovlig verdi i kreditfelt (Bilag nr
-1581	Forskellige datoer i bilag	Different dates in appendices	Forskellige datoer i bilag
+1581	Forskellige datoer i bilag	Different dates in attachments	Forskellige datoer i bilag
 1582	Ulovlig værdi i bilagsfelt (Bilag nr	Illegal value in attachment field (Attachment no	Ulovlig verdi i bilagsfelt (Bilag nr
 1583	Brug af refresh konstateret - handling ignoreret	Use of refresh detected - action ignored	Brug af refresh konstateret - håndtering av ignoreret
 1584	Kladden er allerede bogført - kladden lukkes	The journal is already posted - the journal is closed	Kladden er allerede bogført - kladden lukkes
@@ -1602,7 +1602,7 @@
 1602	Klik her for at sortere på ID	Click here to sort by ID	Klikk her for å sortere etter ID
 1603	Klik her for at sortere på dato	Click here to sort by date	Klikk her for å sortere etter dato
 1604	Klik her for at sortere på ejer (den der har oprettet kassekladden)	Click here to sort by owner (the one who created the cash journal)	Klikk her for å sortere etter eier (den som opprettet kontantjournalen)
-1605	Klik her for at sortere på bemårkning	Click here to sort by remark	Klikk her for å sortere etter kommentar
+1605	Klik her for at sortere på bemærkning	Click here to sort by remark	Klikk her for å sortere etter kommentar
 1606	Klik her for at sortere på \&apos;bogført af	Click here to sort by \ &apos;posted by	Klikk her for å sortere etter \ &apos;skrevet av
 1607	Kladde er låst af	Draft is locked off	Utkast er låst av
 1608	Klik her for at komme til forsiden af rapporter	Click here to get to the front page of reports	Klikk her for å komme til forsiden av rapporter
