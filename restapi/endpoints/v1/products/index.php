@@ -107,7 +107,35 @@ class VareEndpoint extends BaseEndpoint
         try {
             $result = $vare->save();
             if ($result === true) {
-                $this->sendResponse(true, $vare->toArray(), "Product created successfully", 201);
+                // —— NEW: handle lagerstatus sub‐object ——
+                if (
+                    isset($data['lagerstatus']) &&
+                    is_array($data['lagerstatus']) &&
+                    class_exists('LagerStatusModel')
+                ) {
+                    $ls = new LagerStatusModel(
+                        null,
+                        $vare->getId(),
+                        $data['lagerstatus']['lager'] ?? null
+                    );
+                    // set absolute stock
+                    if (isset($data['lagerstatus']['beholdning'])) {
+                        $ls->setBeholdning($data['lagerstatus']['beholdning']);
+                    }
+                    // optionally adjust relative stock
+                    if (isset($data['lagerstatus']['adjust'])) {
+                        $ls->adjustQuantity($data['lagerstatus']['adjust']);
+                    }
+                    if (isset($data['lagerstatus']['lok'])) {
+                        $ls->setLok($data['lagerstatus']['lok']);
+                    }
+                    if (isset($data['lagerstatus']['variant_id'])) {
+                        $ls->setVariantId($data['lagerstatus']['variant_id']);
+                    }
+                    $ls->save();
+                }
+
+                $this->sendResponse(true, $vare->toArray(), "Product saved", $this->getRequestMethod()==='POST'?201:200);
             } else {
                 // Handle both string error messages and boolean false
                 $errorMessage = is_string($result) ? $result : "Failed to create product";
@@ -201,6 +229,34 @@ class VareEndpoint extends BaseEndpoint
         try {
             $result = $vare->save();
             if ($result === true) {
+                // —— NEW: handle lagerstatus sub‐object ——
+                if (
+                    isset($data['lagerstatus']) &&
+                    is_array($data['lagerstatus']) &&
+                    class_exists('LagerStatusModel')
+                ) {
+                    $ls = new LagerStatusModel(
+                        null,
+                        $vare->getId(),
+                        $data['lagerstatus']['lager'] ?? null
+                    );
+                    // set absolute stock
+                    if (isset($data['lagerstatus']['beholdning'])) {
+                        $ls->setBeholdning($data['lagerstatus']['beholdning']);
+                    }
+                    // optionally adjust relative stock
+                    if (isset($data['lagerstatus']['adjust'])) {
+                        $ls->adjustQuantity($data['lagerstatus']['adjust']);
+                    }
+                    if (isset($data['lagerstatus']['lok'])) {
+                        $ls->setLok($data['lagerstatus']['lok']);
+                    }
+                    if (isset($data['lagerstatus']['variant_id'])) {
+                        $ls->setVariantId($data['lagerstatus']['variant_id']);
+                    }
+                    $ls->save();
+                }
+
                 $this->sendResponse(true, $vare->toArray(), "Product updated successfully");
             } else {
                 $errorMessage = is_string($result) ? $result : "Failed to update product";
