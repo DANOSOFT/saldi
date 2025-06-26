@@ -93,13 +93,13 @@
 // 20251025 PHR - Enabled call to updateProductPrice.php and added oldRetailPrice
 // 20250512 PHR - Corrected 'shopurl' fetch 	
 // 20250512 PHR - added feedback message after product creation 'shopurl' fetch 	
-
+// 26062025 PBLM - Changed alert text to danish
 ob_start(); //Starts output buffering
 
 @session_start();
 $s_id = session_id();
-$_SESSION['product_success'] = "Product saved successfully.";
-$_SESSION['product_error'] = "Failed to save the product.";
+$_SESSION['product_success'] = "Varen er gemt.";
+$_SESSION['product_error'] = "Fejl ved gemning af varen.";
 
 $begin = 0;
 $folgevare = 0;

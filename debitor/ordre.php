@@ -3256,6 +3256,9 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 					if ($lev_varenr[$x]) $dkpris=NULL;
 				}
 			} else {$antal[$x]='';$dkpris='';$dkrabat='';$dkprocent='';$ialt='';}
+			if ($rabat[$x] == 0 && $varenr[$x] == "R") {
+				continue;
+			}
 			$title=var2str($beskrivelse[$x],$id,$posnr[$x],$varenr[$x],$dkantal[$x],$enhed[$x],$dkpris,$dkprocent,$serienr[$x],$varemomssats[$x],$rabat[$x]);
 			print "<tr bgcolor='$linjebg'>\n";
 			print "<input type='hidden' name='linje_id[$x]' value='$linje_id[$x]'>\n";
@@ -3268,6 +3271,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 			print "<input type='hidden' name='beskrivelse$x' ";
 			if (strpos($beskrivelse[$x],'"')) print "value='$beskrivelse[$x]'>";
 			else print "value=\"$beskrivelse[$x]\"'>";
+			
 			print "<td title='$title'>".str_replace("\n","<br>",$beskrivelse[$x])."&nbsp;</td>\n";
 			print "<input type='hidden' name='pris$x' value='".dkdecimal($pris[$x],3)."'><td align='right' title='Kostpris $dk_kostpris[$x]'>$dkpris<br></td>\n";
 #			print "<input type='hidden' name='pris$x' value='$dkpris'><td align='right'>$dkpris<br></td>\n";
