@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/openpost_inc.php --- ver 4.1.1 --- 2025.05.09 ---
+// --- finans/kassekladde_includes/openpost_inc.php --- ver 4.1.1 --- 2025.06.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20230604 PHR Added offsetAccount to kredit,
 // 20230828 PHR Gets Company name from inviince instead of order.
 // 20250509 PHR Fiscal year
+// 20250626 PHR '==' replaved by '='
 
 function openpost($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr){
 # ($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato,$beskrivelse,$d_type,$debet,$k_type,$kredit,$faktura,$belob,$momsfri,$afd,$projekt,$ansat,$valuta,$forfaldssato,$betailngs_id,$lobenr) {
