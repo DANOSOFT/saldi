@@ -8,6 +8,10 @@ $TableBG = "bgcolor=$bgcolor";
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
 	: 'javascript:window.history.go(-2);';
+$currentPage = basename(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+if ($currentPage === 'ordreliste.php') {
+    $backUrl = '../index/dashboard.php';
+}
 
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
 
