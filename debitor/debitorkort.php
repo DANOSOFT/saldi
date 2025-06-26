@@ -742,10 +742,8 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-	$currentPage = basename(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-	if ($currentPage === 'debitorkort.php') {
-		$returside = 'debitor.php';
-	}
+
+	$returside = 'debitor.php';
 
 	print "<td width='10%'>
 		   <a href=\"$returside\" accesskey=L>
