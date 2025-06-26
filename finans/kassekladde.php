@@ -172,7 +172,7 @@ if ($tjek = if_isset($_GET['tjek'])) {
 	if (isset($row['tidspkt'])) {
 		list($a, $c) = explode(" ", $row['tidspkt']);
 		if (($b - $c < 3600) && ($row['hvem'] != $brugernavn)) {
-			$alert1 = findtekst(1577, $sprog_id); //Kladden er i brug af
+			$alert1 = findtekst('1577|Kladden er i brug af', $sprog_id); //Kladden er i brug af
 			print "<body onLoad=\"javascript:alert('$alert1 $row[hvem]')\">"; #20210720
 			if ($popup || $visipop)
 				print "<meta http-equiv='refresh' content='0;URL=../includes/luk.php'>";
@@ -197,13 +197,13 @@ if ($tjek = if_isset($_GET['tjek'])) {
 	}
 }
 
-$ompost = isset($_GET['ompost']) ? $_GET['ompost'] : Null;
-$move_up = isset($_GET['move_up']) ? $_GET['move_up'] : null;
-$move_down = isset($_GET['move_down']) ? $_GET['move_down'] : null;
-$move_bilag = isset($_GET['move_bilag']) ? $_GET['move_bilag'] : null;
-$move_date = isset($_GET['move_date']) ? $_GET['move_date'] : null;
-$move_pos = isset($_GET['move_pos']) ? $_GET['move_pos'] : null;
-$kladde_id_from_get = isset($_GET['kladde_id']) ? $_GET['kladde_id'] : null;
+$ompost             = isset($_GET['ompost'])     ? $_GET['ompost']     : Null;
+$move_up            = isset($_GET['move_up'])    ? $_GET['move_up']    : null;
+$move_down          = isset($_GET['move_down'])  ? $_GET['move_down']  : null;
+$move_bilag         = isset($_GET['move_bilag']) ? $_GET['move_bilag'] : null;
+$move_date          = isset($_GET['move_date'])  ? $_GET['move_date']  : null;
+$move_pos           = isset($_GET['move_pos'])   ? $_GET['move_pos']   : null;
+$kladde_id_from_get = isset($_GET['kladde_id'])  ? $_GET['kladde_id']  : null;
 
 if (($move_up || $move_down) && $move_bilag && $move_date && $move_pos && $kladde_id_from_get) {
     $direction = $move_up ? 'up' : 'down';
@@ -218,7 +218,7 @@ if ($ompost)
 	
 
 $kladde_id = isset($_POST['kladde_id']) ? $_POST['kladde_id'] : 0;
-$antal_ny = isset($_POST['antal_ny']) ? $_POST['antal_ny'] : 0;
+$antal_ny  = isset($_POST['antal_ny'])  ? $_POST['antal_ny']  : 0;
 $h = $antal_ny * 10 + 100;
 
 ?>
@@ -239,41 +239,41 @@ function bogfor() {
 
 <?php
 $r = db_fetch_array(db_select("select box4,box10 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__)); #20140624
-($r['box4']) ? $forskellige_datoer = 1 : $forskellige_datoer = 0;
-($r['box10']) ? $vis_bet_id = 1 : $vis_bet_id = 0;
+($r['box4'])  ? $forskellige_datoer = 1 : $forskellige_datoer = 0;
+($r['box10']) ? $vis_bet_id = 1         : $vis_bet_id = 0;
 if ($_GET) {
 	$returside = if_isset($_GET['returside']);
-	if (!$returside)          $returside = "../finans/kladdeliste.php'";
-	if (isset($_GET['fokus'])) $fokus = $_GET['fokus'];
-	$sort = if_isset($_GET['sort']);
-	$kksort = if_isset($_GET['kksort']); #sortering i kassekladde
-	$funktion = if_isset($_GET['funktion']);
-	$x = (int) if_isset($_GET['x'], 0);
-	$id[$x] = if_isset($_GET['id']);
-	$lobenr[$x] = if_isset($_GET['lobenr']);
-	$kladde_id = (int) if_isset($_GET['kladde_id'], 0);
-	$bilag[$x] = (int) if_isset($_GET['bilag'], 0);
-	$dato[$x] = if_isset($_GET['dato']);
-	$beskrivelse[$x] = if_isset($_GET['beskrivelse']);
-	$d_type[$x] = if_isset($_GET['d_type']);
-	$debet[$x] = if_isset($_GET['debet']);
-	$k_type[$x] = if_isset($_GET['k_type']);
-	$kredit[$x] = if_isset($_GET['kredit']);
-	$faktura[$x] = if_isset($_GET['faktura']);
-	$belob[$x] = if_isset($_GET['belob']);
-	$momsfri[$x] = if_isset($_GET['momsfri'], '');
-	$afd[$x] = if_isset($_GET['afd'], '');
-	$projekt[$x] = if_isset($_GET['projekt'], '');
-	$ansat[$x] = if_isset($_GET['ansat'], '');
-	$valuta[$x] = if_isset($_GET['valuta'], '');
-	$find = if_isset($_GET['find'], '');
-	$beskrivelse[$x] = trim(if_isset($beskrivelse[$x], ''));
-	$d_type[$x] = trim(if_isset($d_type[$x], ''));
-	$debet[$x] = trim(if_isset($debet[$x], ''));
-	$k_type[$x] = trim(if_isset($k_type[$x], ''));
-	$kredit[$x] = trim(if_isset($kredit[$x], ''));
-	$faktura[$x] = trim(if_isset($faktura[$x], ''));
-	$belob[$x] = trim(if_isset($belob[$x], ''));
+	if (!$returside)           $returside = "../finans/kladdeliste.php'";
+	if (isset($_GET['fokus'])) $fokus     = $_GET['fokus'];
+	$sort            =       if_isset($_GET['sort']);
+	$kksort          =       if_isset($_GET['kksort']); #sortering i kassekladde
+	$funktion        =       if_isset($_GET['funktion']);
+	$x               = (int) if_isset($_GET['x'], 0);
+	$id[$x]          =       if_isset($_GET['id']);
+	$lobenr[$x]      =       if_isset($_GET['lobenr']);
+	$kladde_id       = (int) if_isset($_GET['kladde_id'], 0);
+	$bilag[$x]       = (int) if_isset($_GET['bilag'], 0);
+	$dato[$x]        =       if_isset($_GET['dato']);
+	$beskrivelse[$x] =       if_isset($_GET['beskrivelse']);
+	$d_type[$x]      =       if_isset($_GET['d_type']);
+	$debet[$x]       =       if_isset($_GET['debet']);
+	$k_type[$x]      =       if_isset($_GET['k_type']);
+	$kredit[$x]      =       if_isset($_GET['kredit']);
+	$faktura[$x]     =       if_isset($_GET['faktura']);
+	$belob[$x]       =       if_isset($_GET['belob']);
+	$momsfri[$x]     =       if_isset($_GET['momsfri'], '');
+	$afd[$x]         =       if_isset($_GET['afd'], '');
+	$projekt[$x]     =       if_isset($_GET['projekt'], '');
+	$ansat[$x]       =       if_isset($_GET['ansat'], '');
+	$valuta[$x]      =       if_isset($_GET['valuta'], '');
+	$find            =       if_isset($_GET['find'], '');
+	$beskrivelse[$x] =  trim(if_isset($beskrivelse[$x], ''));
+	$d_type[$x]      =  trim(if_isset($d_type[$x], ''));
+	$debet[$x]       =  trim(if_isset($debet[$x], ''));
+	$k_type[$x]      =  trim(if_isset($k_type[$x], ''));
+	$kredit[$x]      =  trim(if_isset($kredit[$x], ''));
+	$faktura[$x]     =  trim(if_isset($faktura[$x], ''));
+	$belob[$x]       =  trim(if_isset($belob[$x], ''));
 
 	if (!isset($forfaldsdato[$x]))
 		$forfaldsdato[$x] = '';
@@ -294,25 +294,25 @@ if ($_GET) {
 	}
 	if ($kladde_id) {
 		$qtxt = "select bogfort from kladdeliste where id = $kladde_id"; #echo __line__." $qtxt<br>";
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$r    = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if ($r['bogfort'] == '-' && ($id[$x]) || ($lobenr[$x] || ($x))) {
 			if ($id[$x]) {
 				$qtxt = "update tmpkassekl set beskrivelse='" . db_escape_string($beskrivelse[$x]) . "',d_type='$d_type[$x]', ";
-				$qtxt .= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
-				$qtxt .= "amount='$belob[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
-				$qtxt .= "valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',betal_id='$betal_id[$x]' ";
-				$qtxt .= "where id='$id[$x]' and kladde_id='$kladde_id'";
+				$qtxt.= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
+				$qtxt.= "amount='$belob[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
+				$qtxt.= "valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',betal_id='$betal_id[$x]' ";
+				$qtxt.= "where id='$id[$x]' and kladde_id='$kladde_id'";
 			} elseif ($lobenr[$x]) {
 				$qtxt = "update tmpkassekl set bilag='$bilag[$x]',beskrivelse='" . db_escape_string($beskrivelse[$x]) . "',d_type='$d_type[$x]',";
-				$qtxt .= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
-				$qtxt .= "amount='$belob[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
-				$qtxt .= "valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',betal_id='$betal_id[$x]' ";
-				$qtxt .= "where lobenr='$lobenr[$x]' and kladde_id='$kladde_id'";
+				$qtxt.= "debet='$debet[$x]', k_type='$k_type[$x]', kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "',";
+				$qtxt.= "amount='$belob[$x]', momsfri='$momsfri[$x]', afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]',";
+				$qtxt.= "valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',betal_id='$betal_id[$x]' ";
+				$qtxt.= "where lobenr='$lobenr[$x]' and kladde_id='$kladde_id'";
 			} else {
 				$qtxt = "update tmpkassekl set bilag='$bilag[$x]',d_type='$d_type[$x]', debet='$debet[$x]', k_type='$k_type[$x]', ";
-				$qtxt .= "kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "', amount='$belob[$x]', momsfri='$momsfri[$x]',";
-				$qtxt .= "afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]', valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',";
-				$qtxt .= "betal_id='$betal_id[$x]' where lobenr='$x' and kladde_id='$kladde_id'";
+				$qtxt.= "kredit='$kredit[$x]', faktura='" . db_escape_string($faktura[$x]) . "', amount='$belob[$x]', momsfri='$momsfri[$x]',";
+				$qtxt.= "afd='$afd[$x]', projekt='$projekt[$x]', ansat='$ansat[$x]', valuta='$valuta[$x]',forfaldsdate='$forfaldsdato[$x]',";
+				$qtxt.= "betal_id='$betal_id[$x]' where lobenr='$x' and kladde_id='$kladde_id'";
 			}
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			kontroller($id[$x], $bilag[$x], $dato[$x], $beskrivelse[$x], $d_type[$x], $debet[$x], $k_type[$x], $kredit[$x], $faktura[$x], $belob[$x], $momsfri[$x], $kladde_id, $afd[$x], $projekt[$x], $ansat[$x], $valuta[$x], $forfaldsdato[$x], $betal_id[$x], $x);
@@ -348,12 +348,12 @@ if ($_POST) {
 	$antal_ny      = if_isset($_POST['antal_ny']);
 	$antal_ex      = if_isset($_POST['antal_ex']);
 	$fokus         = if_isset($_POST['fokus']);
-//$momsfri       = if_isset($_POST['momsfri']);
-	$id            =  if_isset($_POST['id']);
+//  $momsfri       = if_isset($_POST['momsfri']);
+	$id            = if_isset($_POST['id']);
 	$gl_transdate  = if_isset($_POST['transdate']);
 	if ($kladde_id) {
-		#		if ($r=db_fetch_array(db_select("select id from kladdeliste where bogfort='S' and id='$kladde_id'",__FILE__ . " linje " . __LINE__))) {
-#			 $alerttekst= findtekst(1417, $sprog_id);
+#		if ($r=db_fetch_array(db_select("select id from kladdeliste where bogfort='S' and id='$kladde_id'",__FILE__ . " linje " . __LINE__))) {
+#			 $alerttekst= findtekst('1417|Annullerer simulering for denne kladde', $sprog_id);
 #			 alert('a'.$alerttekst);
 #		}
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
@@ -370,7 +370,7 @@ if ($_POST) {
 	(isset($r['box6']) && $r['box6'] == 'on') ? $intern_bilag = 1 : $intern_bilag = 0;
 	(db_fetch_array(db_select("select * from grupper where ART = 'AFD'", __FILE__ . " linje " . __LINE__))) ? $vis_afd = 1 : $vis_afd = 0;
 	(db_fetch_array(db_select("select * from grupper where ART = 'PRJ'", __FILE__ . " linje " . __LINE__))) ? $vis_projekt = 1 : $vis_projekt = 0;
-	(db_fetch_array(db_select("select * from grupper where ART = 'VK'", __FILE__ . " linje " . __LINE__))) ? $vis_valuta = 1 : $vis_valuta = 0;
+	(db_fetch_array(db_select("select * from grupper where ART = 'VK'",  __FILE__ . " linje " . __LINE__))) ? $vis_valuta = 1 : $vis_valuta = 0;
 	for ($x = 1; $x <= $antal_ny; $x++) {
 		$dato[$x] = $beskrivelse[$x] = $d_type[$x] = $debet[$x] = $k_type[$x] = $kredit[$x] = $faktura[$x] = NULL;
 		$belob[$x] = $momsfri[$x] = $afd[$x] = $projekt[$x] = $ansat[$x] = $valuta[$x] = $forfaldsdato[$x] = $betal_id[$x] = NULL;
@@ -438,26 +438,26 @@ if ($_POST) {
 		if ($sletrest) $bilag[$x] = '-';
 		if (($bilag[$x] == "=*")) $restlig = 1;
 		if ($restlig)  $bilag[$x] = '=';
-		if ($bilag[$x] == "=") $bilag[$x] = $bilag[$x - 1];
-		if ($bilag[$x] == "+") $bilag[$x] = $bilag[$x - 1] + 1;
-		if (substr($bilag[$x], 0, 1) == "+") $bilag[$x] = $bilag[$x - 1] + 1;
-		if (!$dato[$x] || $dato[$x] == '=') $dato[$x] = $dato[$x - 1];
-		if ($beskrivelse[$x] == "=")   $beskrivelse[$x] = $beskrivelse[$x - 1];
-		if ($d_type[$x] == "=")        $d_type[$x]      = $d_type[$x - 1];
-		if ($debet[$x] == "=")         $debet[$x]       = $debet[$x - 1];
-		if ($k_type[$x] == "=")        $k_type[$x]      = $k_type[$x - 1];
-		if ($kredit[$x] == "=")        $kredit[$x]      = $kredit[$x - 1];
-		if ($faktura[$x] == "=")       $faktura[$x]     = $faktura[$x - 1];
-		if ($belob[$x] == "=")         $belob[$x]       = $belob[$x - 1];
-		if ($afd[$x] == "=")           $afd[$x]         = $afd[$x - 1];
-		if ($ansat[$x] == "=")         $ansat[$x]       = $ansat[$x - 1];
-		if ($projekt[$x] == "=")      $projekt[$x]      = $projekt[$x - 1];
-		if ($forfaldsdato[$x] == "=") $forfaldsdato[$x] = $forfaldsdato[$x - 1];
-		if ($betal_id[$x] == "=")     $betal_id[$x]     = $betal_id[$x - 1];
+		if ($bilag[$x] == "=")               $bilag[$x]        = $bilag[$x - 1];
+		if ($bilag[$x] == "+")               $bilag[$x]        = $bilag[$x - 1] + 1;
+		if (substr($bilag[$x], 0, 1) == "+") $bilag[$x]        = $bilag[$x - 1] + 1;
+		if (!$dato[$x] || $dato[$x] == '=')  $dato[$x]         = $dato[$x - 1];
+		if ($beskrivelse[$x] == "=")         $beskrivelse[$x]  = $beskrivelse[$x - 1];
+		if ($d_type[$x] == "=")              $d_type[$x]       = $d_type[$x - 1];
+		if ($debet[$x] == "=")               $debet[$x]        = $debet[$x - 1];
+		if ($k_type[$x] == "=")              $k_type[$x]       = $k_type[$x - 1];
+		if ($kredit[$x] == "=")              $kredit[$x]       = $kredit[$x - 1];
+		if ($faktura[$x] == "=")             $faktura[$x]      = $faktura[$x - 1];
+		if ($belob[$x] == "=")               $belob[$x]        = $belob[$x - 1];
+		if ($afd[$x] == "=")                 $afd[$x]          = $afd[$x - 1];
+		if ($ansat[$x] == "=")               $ansat[$x]        = $ansat[$x - 1];
+		if ($projekt[$x] == "=")             $projekt[$x]      = $projekt[$x - 1];
+		if ($forfaldsdato[$x] == "=")        $forfaldsdato[$x] = $forfaldsdato[$x - 1];
+		if ($betal_id[$x] == "=")            $betal_id[$x]     = $betal_id[$x - 1];
 		if ((!$dato[$x]) && (($beskrivelse[$x]) || ($debet[$x]) || ($kredit[$x]))) $dato[$x] = date("d-m-Y");
-		if ($bilag[$x] != $bilag[$x - 1]) $kontrolsum = 0;
-		if ($debet[$x])                   $kontrolsum = $kontrolsum + $dkkamount[$x];
-		if ($kredit[$x])                  $kontrolsum = $kontrolsum - $dkkamount[$x];
+		if ($bilag[$x] != $bilag[$x - 1])    $kontrolsum       = 0;
+		if ($debet[$x])                      $kontrolsum       = $kontrolsum + $dkkamount[$x];
+		if ($kredit[$x])                     $kontrolsum       = $kontrolsum - $dkkamount[$x];
 		$bilagssum[$x] = $kontrolsum;
 		# fjerner autogenererede linjer hvis bilaget er i balance
 		if (!$kontrolsum && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && $bilag[$x] == $bilag[$x - 1] && $dato[$x] == $dato[$x - 1] && $beskrivelse[$x] == $beskrivelse[$x - 1])
@@ -477,7 +477,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set bilag= '$bilag[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$sletstart = '';
-			$sletslut = '';
+			$sletslut  = '';
 		}
 		## Bilag		
 #		if ($bilag[$x]=='-*') $sletrest=1;
@@ -504,7 +504,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set bilag= '$bilag[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$bilag_ligstart = '';
-			$bilag_ligslut = '';
+			$bilag_ligslut  = '';
 		}
 		# Dato
 		if ((!$dato_ligslut) && ($dato[$x] == "=>")) {
@@ -522,7 +522,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set dato= '$dato[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$dato_ligstart = '';
-			$dato_ligslut = '';
+			$dato_ligslut  = '';
 		}
 		# beskrivelse
 		if ((!$beskrivelse_ligslut) && ($beskrivelse[$x] == "=>")) {
@@ -540,7 +540,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set beskrivelse= '$beskrivelse[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$beskrivelse_ligstart = '';
-			$beskrivelse_ligslut = '';
+			$beskrivelse_ligslut  = '';
 		}
 		# d_type
 		if ((!$d_type_ligslut) && ($d_type[$x] == "=>")) {
@@ -558,7 +558,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set d_type= '$d_type[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$d_type_ligstart = '';
-			$d_type_ligslut = '';
+			$d_type_ligslut  = '';
 		}
 		if ($d_type[$x] && $d_type[$x] != 'D' && $d_type[$x] != 'K')
 			$d_type[$x] = 'F'; #20110605
@@ -596,7 +596,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set k_type= '$k_type[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$k_type_ligstart = '';
-			$k_type_ligslut = '';
+			$k_type_ligslut  = '';
 		}
 		if ($k_type[$x] && $k_type[$x] != 'D' && $k_type[$x] != 'K')
 			$k_type[$x] = 'F'; #20110605
@@ -616,7 +616,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set kredit= '$kredit[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$kredit_ligstart = '';
-			$kredit_ligslut = '';
+			$kredit_ligslut  = '';
 		}
 		# kredit
 		if ((!$kredit_ligslut) && ($kredit[$x] == "=>")) {
@@ -634,7 +634,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set kredit= '$kredit[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$kredit_ligstart = '';
-			$kredit_ligslut = '';
+			$kredit_ligslut  = '';
 		}
 		# faktura
 		if ((!$faktura_ligslut) && ($faktura[$x] == "=>")) {
@@ -652,7 +652,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set faktura= '$faktura[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$faktura_ligstart = '';
-			$faktura_ligslut = '';
+			$faktura_ligslut  = '';
 		}
 		# belob
 		if ((!$belob_ligslut) && ($belob[$x] == "=>")) {
@@ -670,7 +670,7 @@ if ($_POST) {
 				db_modify("update tmpkassekl set belob= '$belob[$y]' where lobenr='$y' and kladde_id='$kladde_id'", __FILE__ . " linje " . __LINE__);
 			}
 			$belob_ligstart = '';
-			$belob_ligslut = '';
+			$belob_ligslut  = '';
 		}
 		/*
 																			if (strtoupper($debet[$x]) == 'D') $d_type[$x]='D';
@@ -707,7 +707,7 @@ if ($_POST) {
 			$bilag[$x] = '-';
 		}
 		if (!$forskellige_datoer && $bilag[$x] && $bilag[$x] != '-' && $bilag[$x] == $bilag[$x - 1] && $dato[$x] != $dato[$x - 1] && $bilagssum[$x - 1]) {
-			$alert3 = findtekst(1581, $sprog_id); //Forskellige datoer i bilag
+			$alert3 = findtekst('1581|Forskellige datoer i bilag', $sprog_id); //Forskellige datoer i bilag
 			print "<BODY onLoad=\"javascript:alert('$alert3 $bilag[$x]')\">";
 		}
 		if (strpos($bilag[$x], '+') && $kladde_id) {
@@ -764,7 +764,7 @@ if ($_POST) {
 			}
 		}
 		if (($bilag[$x]) && ($bilag[$x] != "-") && ($bilag[$x] != "->") && ($bilag[$x] != "<-") && (!strpos($bilag[$x], '+')) && (substr($bilag[$x], -1) != 'r') && (!is_numeric($bilag[$x]))) { //20160909 undtaget * til brug for bilagsrenum
-			$alerttxt = findtekst(1582, $sprog_id); //Forskellige datoer i bilag
+			$alerttxt = findtekst('1582|Ulovlig værdi i bilagsfelt (Bilag nr', $sprog_id); //Forskellige datoer i bilag
 			print "<BODY onLoad=\"javascript:alert('$alerttxt $bilag[$x])')\">";
 			$fejl = 1;
 		} elseif (($bilag[$x]) && ($bilag[$x] != "-") && ($bilag[$x] != "->") && (substr($bilag[$x], -1) != 'r') && ($bilag[$x] != "<-"))
@@ -803,12 +803,12 @@ if ($_POST) {
 			$valuta[$x] = db_escape_string(if_isset($valuta[$x], ''));
 			$forfaldsdato[$x] = db_escape_string(if_isset($forfaldsdato[$x], ''));
 			$qtxt = "insert into tmpkassekl ";
-			$qtxt .= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,";
-			$qtxt .= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
-			$qtxt .= "values ";
-			$qtxt .= "('$x', '$id[$x]', '$bilag[$x]', '$dato[$x]', '$beskrivelse[$x]', '$d_type[$x]', '$debet[$x]', ";
-			$qtxt .= "'$k_type[$x]', '$kredit[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', ";
-			$qtxt .= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
+			$qtxt.= "(lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,";
+			$qtxt.= "amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id) ";
+			$qtxt.= "values ";
+			$qtxt.= "('$x', '$id[$x]', '$bilag[$x]', '$dato[$x]', '$beskrivelse[$x]', '$d_type[$x]', '$debet[$x]', ";
+			$qtxt.= "'$k_type[$x]', '$kredit[$x]', '$faktura[$x]', '$belob[$x]', '$momsfri[$x]', '$afd[$x]', ";
+			$qtxt.= "'$kladde_id', '$projekt[$x]', '$ansat[$x]', '$valuta[$x]','$forfaldsdato[$x]','$betal_id[$x]')";
 			#cho __line__." $qtxt<br>";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -824,8 +824,8 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 
     $diff = round($sum_debet - $sum_kredit, 2);
     if ($diff != 0) {
-        $next_lob = $x + 1;
-        $debet_val = $diff < 0 ? abs($diff) : 0;
+        $next_lob   = $x + 1;
+        $debet_val  = $diff < 0 ? abs($diff) : 0;
         $kredit_val = $diff > 0 ? abs($diff) : 0;
 
         $qtxt = "INSERT INTO tmpkassekl (lobenr,id,bilag,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,kladde_id,projekt,ansat,valuta,forfaldsdate,betal_id)
@@ -849,7 +849,7 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 	if ($kladde_id) {
 		$row = db_fetch_array(db_select("select bogfort,tidspkt from kladdeliste where id=$kladde_id", __FILE__ . " linje " . __LINE__));
 		if (!$row['bogfort'] && $tidspkt == $row['tidspkt']) { #Refreshtjek"
-			$alert = findtekst(1583, $sprog_id); //Brug af refresh konstateret - handling ignoreret
+			$alert = findtekst('1583|Brug af refresh konstateret - handling ignoreret', $sprog_id); //Brug af refresh konstateret - handling ignoreret
 			print "<BODY onLoad=\"javascript:alert('$alert')\">";
 		} else {
 			$qtxt = "update kladdeliste set hvem = '$brugernavn', tidspkt='$tidspkt'";
@@ -1055,7 +1055,7 @@ if ($kladde_id) {
 	$bogfort = $row['bogfort'];
 }
 $x = 0;
-($visipop) ? $ny = NULL : $ny = findtekst(39, $sprog_id); #20210628
+($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
 
 if (!$simuler) {
 	if ($returside != "regnskab") {
@@ -1088,7 +1088,7 @@ if (!$simuler) {
 			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 			.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-			print "<td width='80%' style='$topStyle' align='center'> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
+			print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
 			print "<td id='tutorial-help' width=5% style=$buttonStyle>
 			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 				Hjælp  
@@ -1103,11 +1103,11 @@ if (!$simuler) {
 			else print "<td $top_bund>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 			if ($popup || $visipop) {
-				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst(30, $sprog_id) . "</a></td>";
+				print "<a href=\"javascript:confirmClose('../includes/luk.php?tabel=kladdeliste&amp;id=$kladde_id&exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			} else {
 				print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 			}
-			print "<td width='80%' $top_bund> " . findtekst(1072, $sprog_id) . "  $kladde_id</td>";
+			print "<td width='80%' $top_bund> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
 			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>$ny</a></td></tr>";
 		}
 		print "</tbody></table>"; # Tabel 1.1 <- Toplinje
@@ -1124,16 +1124,16 @@ if (!$udskriv) {
 	print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
 	print "<tr>";
 	print "<td width = '14%'></td>";
-	print "<td align='left'><b><span title= '" . findtekst(1559, $sprog_id) . "'>" . findtekst(599, $sprog_id) . ":</b>
+	print "<td align='left'><b><span title= '" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</b>
 	<input class='inputbox' type='text' style='width:750px' name=ny_kladdenote value='$kladdenote'
 	onchange='javascript:docChange = true;'></td>";
 	if ($bogfort == "-") {
 		if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
 		if ($kontrolkonto == "-") $kontrolkonto = "";
-		print "<td></td><td><span title= '" . findtekst(1560, $sprog_id) . "'><input class='inputbox' type='text' style='text-align:right;width:80px' name='kontrolkonto' value='$kontrolkonto' placeholder = 'kontrolkonto' onchange='javascript:docChange = true;'></td>";
+		print "<td></td><td><span title= '" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><input class='inputbox' type='text' style='text-align:right;width:80px' name='kontrolkonto' value='$kontrolkonto' placeholder = 'kontrolkonto' onchange='javascript:docChange = true;'></td>";
 		#	} elseif ($bogfort!="S") {
 	} else {
-		print "<td></td><td width='80px' align='center'><span title='" . findtekst(1561, $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px;float:left' accesskey='o' value='" . findtekst(1091, $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
+		print "<td></td><td width='80px' align='center'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px;float:left' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
 	}
 	print "<td></td><td width = '7%' align='center'>
 		<a href='../finans/kassekladde.php?kladde_id=$kladde_id&udskriv=1' target='blank'>
@@ -1165,36 +1165,36 @@ print "<thead>";
 print "<tr>";
 if ($vis_bilag && !$fejl && !$udskriv)
 	print "<td></td>";
-print "<td align = center><b><span title= '" . findtekst(1562, $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&tjek=$kladde_id>" . findtekst(671, $sprog_id) . "</a></b></td>";
-print "<td align = center><b> <span title= '" . findtekst(1563, $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&tjek=$kladde_id>" . findtekst(635, $sprog_id) . "</a></b></td>";
-print "<td align = center><b> " . findtekst(1068, $sprog_id) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst(1564, $sprog_id) . "'>D/K</b></td>";
-print "<td align = center><b> <span title= '" . findtekst(1565, $sprog_id) . "'>" . ucfirst(findtekst(1000, $sprog_id)) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst(1564, $sprog_id) . "'>D/K</b></td>";
-print "<td align = center><b> <span title= '" . findtekst(1565, $sprog_id) . "'>" . ucfirst(findtekst(1001, $sprog_id)) . "</b></td>";
-print "<td align = center><b> <span title= '" . findtekst(1566, $sprog_id) . ".'>" . findtekst(828, $sprog_id) . ".</b></td>";
-print "<td align = center><b> <span title= '" . findtekst(1543, $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst(934, $sprog_id) . "</a></b></td>"; #20210720
+print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
+print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Debet', $sprog_id)) . "</b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . ".</b></td>";
+print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
 if ($vis_afd)
-	print "<td align = left><b> <span title= '" . findtekst(1567, $sprog_id) . "'>Afd.</b></td>";
+	print "<td align = left><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>Afd.</b></td>";
 if ($vis_ansat)
-	print "<td align = left><b> <span title= '" . findtekst(1568, $sprog_id) . "'>" . findtekst(589, $sprog_id) . ".</b></td>";
+	print "<td align = left><b> <span title= '" . findtekst('1568|Angiv hvilket ansatejder posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . ".</b></td>";
 if ($vis_projekt)
-	print "<td align = left><b> <span title= '" . findtekst(1569, $sprog_id) . "'>Proj.</b></td>";
+	print "<td align = left><b> <span title= '" . findtekst('1569|Angiv hvilket projekt posteringen hører under', $sprog_id) . "'>Proj.</b></td>";
 if ($vis_valuta)
-	print "<td align = left><b> <span title= '" . findtekst(1570, $sprog_id) . "'>" . findtekst(1069, $sprog_id) . "</b></td>";
+	print "<td align = left><b> <span title= '" . findtekst('1570|Angiv valuta for posteringen', $sprog_id) . "'>" . findtekst('1069|Valuta', $sprog_id) . "</b></td>";
 if (db_fetch_array(db_select("select id from kassekladde where kladde_id = '$kladde_id' and (k_type = 'K' or d_type = 'D')", __FILE__ . " linje " . __LINE__))) {
-	print "<td  align='center'><b> <span title= '" . findtekst(1571, $sprog_id) . "'>" . findtekst(1070, $sprog_id) . "</b></td>";
+	print "<td  align='center'><b> <span title= '" . findtekst('1571|etalingsdato for debitor eller kreditorfaktura', $sprog_id) . "'>" . findtekst('1070|Forfald', $sprog_id) . "</b></td>";
 	if ($vis_bet_id)
-		print "<td  align='center'><b> <span title= '" . findtekst(1572, $sprog_id) . "'>" . findtekst(1071, $sprog_id) . ".id</b></td>";
+		print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalingsid fra girokort - Kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('1071|Betal', $sprog_id) . ".id</b></td>";
 }
-print "<td align='center' width='30px'><b> <span title= '" . findtekst(1573, $sprog_id) . "'>&nbsp;u/m&nbsp;</b></td>";
+print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>&nbsp;u/m&nbsp;</b></td>";
 print "<td align='center' width='60px'><b>Position</b></td>";
 if ($kontrolkonto) {
-	print "<td align='center' width='30px'><b> <span title= '" . findtekst(1573, $sprog_id) . "'>Saldo<br>Regnskab</b></td>";
+	print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>Saldo<br>Regnskab</b></td>";
 	$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		print "<td style = 'width:20px'></td>";
-		print "<td align='center' width='30px'><b> <span title= '" . findtekst(1573, $sprog_id) . "'>Saldo<br>Bank</b></td>";
+		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>Saldo<br>Bank</b></td>";
 	}
 }
 #print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
@@ -1421,10 +1421,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
 			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$clip = 'paper.png';
-				$titletxt =  findtekst(1454, $sprog_id);
+				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
 			} else {
 				$clip = 'clip.png';
-				$titletxt =  findtekst(1455, $sprog_id);
+				$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
 			}
 			$href = "../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&dokument=$dokument[$y]&bilag_id=$id[$y]&fokus=bila$y";
 			print "<td title='$titletxt'><!-- ". __line__ ." -->";
@@ -1470,7 +1470,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// .........Position column.............
 		print "<td align='center'>" . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
 		if (!$udskriv && $bogfort != 'S')
-			print "<td title='" . findtekst(1574, $sprog_id) . "'><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]' id='undo'><img alt='undo' src='../ikoner/undo.png' style='border: 0px solid ; width: 18px; height: 17px;'></a></td>";
+			print "<td title='" . findtekst('1574|Tilbagefør postering', $sprog_id) . "'><a href='../finans/kassekladde.php?kladde_id=$kladde_id&ompost=$id[$y]' id='undo'><img alt='undo' src='../ikoner/undo.png' style='border: 0px solid ; width: 18px; height: 17px;'></a></td>";
 		print "</tr>\n";
 	}
 	print "<tr><td><br></td></tr>";
@@ -1610,10 +1610,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
 			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$clip = 'paper.png';
-				$titletxt =  findtekst(1454, $sprog_id);
+				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
 			} else {
 				$clip = 'clip.png';
-				$titletxt =  findtekst(1455, $sprog_id);
+				$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
 			}
 			print "<td title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
@@ -1626,7 +1626,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!isset($dub_kladde_id[$y]))
 			$dub_kladde_id[$y] = 0;
 		if ($dub_bilag[$y] && $dub_kladde_id[$y]) {
-			$title = "title='" . findtekst(1575, $sprog_id) . " $dub_kladde_id[$y] med bilagsnummer $dub_bilag[$y]'";
+			$title = "title='" . findtekst('1575|En tilsvarende postering er også ført på kladde', $sprog_id) . " $dub_kladde_id[$y] med bilagsnummer $dub_bilag[$y]'";
 			$color = "color:#FF0000;";
 		} else {
 			$title = NULL;
@@ -1809,17 +1809,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<tr>";
 
 		if ($vis_bilag && !$fejl) { #20140425
-			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst(1455, $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
+			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
 			if ($kladde_id && $intern_bilag) {
 				$id[$y]        = (int)if_isset($id[$y],0);
 				$dokument[$y] = if_isset($dokument[$y],NULL);
 				$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
 				if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$clip = 'paper.png';
-					$titletxt =  findtekst(1454, $sprog_id);
+					$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
 				} else {
 					$clip = 'clip.png';
-					$titletxt =  findtekst(1455, $sprog_id);
+					$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
 				}
 				$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
 				print "<td title='$titletxt'>";
@@ -1950,7 +1950,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
 		print "</tr>\n";
 	}
-	#	if (count($bilag)<10) print "<tr><td align='center' colspan='8'>".findtekst(598, $sprog_id)."</td></tr>";
+	#	if (count($bilag)<10) print "<tr><td align='center' colspan='8'>".findtekst('598|-', $sprog_id)."</td></tr>";
 	print "<input type='hidden' name='fokus' id='fokus'>";
 	print "<input type=hidden name=kladde_id value=$kladde_id>";
 	$tidspkt = microtime();
@@ -1981,39 +1981,39 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!$udskriv) {
 		if ($bogfort == 'V') {
 			#		print "<input type=hidden name=ny_kladdenote value='$kladdenote'>";
-			print "<tr><td colspan=9 align='center'><input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst(1598, $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;'></td></tr>\n";
+			print "<tr><td colspan=9 align='center'><input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst('1598|Kopier til ny', $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;'></td></tr>\n";
 			print "</form>";
 			#		print "</tbody></table></td></tr>\n";
 #		print "</tbody></table>";
 		} elseif ($bogfort == '!') {
 			#		print "<input type=hidden name=ny_kladdenote value='$kladdenote'>";
-			print "<tr><td colspan=9 align='center'><input type='submit' accesskey='b' value='" . findtekst(1597, $sprog_id) . "' name='revert' onclick='javascript:docChange = false;'></td></tr>\n";
+			print "<tr><td colspan=9 align='center'><input type='submit' accesskey='b' value='" . findtekst('1597|Tilbagefør', $sprog_id) . "' name='revert' onclick='javascript:docChange = false;'></td></tr>\n";
 			print "</form>";
 			#		print "</tbody></table></td></tr>\n";
 #		print "</tbody></table>";
 		} elseif ($bogfort == 'S') {
-			print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst(1090, $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
+			print "<tr><td colspan=9 align='center'><input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'></td></tr>\n";
 			print "</form>";
 		} else {
-			print "<td align='center'><span title='" . findtekst(1544, $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst(3, $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
-			print "<td align='center'><span title='" . findtekst(1545, $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst(644, $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
+			print "<td align='center'><span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:120px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span></td>\n";
+			print "<td align='center'><span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:120px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span></td>";
 			if ($kladde_id && !$fejl) {
-				print "<td align='center'><span title='" . findtekst(1546, $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='s' value='" . findtekst(1064, $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span></td>";
-				print "<td align='center'><span title='" . findtekst(1547, $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='b' value='" . findtekst(1065, $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span></td>";
+				print "<td align='center'><span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span></td>";
+				print "<td align='center'><span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span></td>";
 				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
 				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 					$qtxt = "select id from ordrer where status=3";
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-						print "<td align='center'><span title='" . findtekst(1548, $sprog_id) . "'><input type='submit' style='width:120px;float:left' accesskey='h' value='" . findtekst(1078, $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span></td>";
+						print "<td align='center'><span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' style='width:120px;float:left' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span></td>";
 					}
 				}
 				$qtxt = "select * from grupper where art = 'DIV' and kodenr = '2' and box6='on'";
 				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$confirm1 = findtekst(1576, $sprog_id);
+					$confirm1 = findtekst('1576|Importer data fra DocuBizz?', $sprog_id);
 					print "<td align='center'><input type='submit' style='width:120px;float:left' accesskey='d' value='DocuBizz' name='submit' onclick='javascript:docChange = false;' onclick=\"return confirm('$confirm1')\"></td>"; #20210720
 				}
-				print "<td align='center'><span title='" . findtekst(1549, $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst(1356, $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
-				print "<td align='center'><span title='" . findtekst(1550, $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst(1066, $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
+				print "<td align='center'><span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span></td>";
+				print "<td align='center'><span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span></td>";
 			}
 		}
 		print "</form>";
@@ -2048,7 +2048,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 			if ($r['bogfort'] != '-') {
-				$alerttxt = findtekst(1584, $sprog_id); //Kladden er allerede bogført - kladden lukkes
+				$alerttxt = findtekst('1584|Kladden er allerede bogført - kladden lukkes', $sprog_id); //Kladden er allerede bogført - kladden lukkes
 				print "<BODY onLoad=\"javascript:alert('$alerttxt')\">";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 				exit;
@@ -2142,8 +2142,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($row = db_fetch_array($query))
 					$debet = $row["kontonr"];
 				else {
-					$txt1 = findtekst(1585, $sprog_id); // er ikke defineret som genvejstast (Bilag nr
-					$txt2 = findtekst(1586, $sprog_id); // ) Kladden en IKKE gemt!
+					$txt1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
+					$txt2 = findtekst('1586| Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 					$alerttekst = addslashes($debet . " " . $txt1 . " " . $bilag . $txt2); # 20230306 added spaces
 					alert($alerttekst);
 					$fejl = 1;
@@ -2202,8 +2202,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				if ($row = db_fetch_array($query))
 					$kredit = $row['kontonr'];
 				else {
-					$alert1 = findtekst(1585, $sprog_id); // er ikke defineret som genvejstast (Bilag nr
-					$alert2 = findtekst(1586, $sprog_id); // ) Kladden en IKKE gemt!
+					$alert1 = findtekst('1585|er ikke defineret som genvejstast (Bilag nr', $sprog_id); // er ikke defineret som genvejstast (Bilag nr
+					$alert2 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
 					$alerttekst = addslashes($kredit . " " . $txt1 . " " . $bilag . $txt2); # 20230306 added spaces
 					alert($alerttekst);
@@ -2213,11 +2213,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ((!$fejl) && ($d_type == "F") && ($debet > 0)) {
 				$alerttekst = '';
 				if (!in_array($debet, $accountNumbers)) {
-					$alerttxt1 = findtekst(1589, $sprog_id); // Der er ingen finanskonti hvor
-					$alerttxt2 = findtekst(1590, $sprog_id); // indgår (Bilag nr
-					$alerttxt3 = findtekst(1586, $sprog_id); // ) Kladden en IKKE gemt!
-					$alerttxt4 = findtekst(1591, $sprog_id); // Debetkonto
-					$alerttxt5 = findtekst(1592, $sprog_id); // er låst og må ikke anvendes (Bilag nr
+					$alerttxt1 = findtekst('1589|Der er ingen finanskonti hvor', $sprog_id); // Der er ingen finanskonti hvor
+					$alerttxt2 = findtekst('1590|indgår (Bilag nr', $sprog_id); // indgår (Bilag nr
+					$alerttxt3 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
+					$alerttxt4 = findtekst('1591|Debetkonto', $sprog_id); // Debetkonto
+					$alerttxt5 = findtekst('1592|er låst og må ikke anvendes (Bilag nr', $sprog_id); // er låst og må ikke anvendes (Bilag nr
 
 
 					$alerttekst = addslashes($alerttxt1 . " '" . $debet . "' " . $alerttxt2 . " " . $bilag . $alerttxt3); # 20230306 added ' and spaces
@@ -2230,10 +2230,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			if ((!$fejl) && ($k_type == "F") && ($kredit > 0)) {
 				$alerttekst = '';
-				$alert1 = findtekst(1593, $sprog_id); // Kreditkonto
-				$alert2 = findtekst(1594, $sprog_id); // eksisterer ikke
-				$alert3 = findtekst(1588, $sprog_id); // ( Bilag nr
-				$alert4 = findtekst(1586, $sprog_id); // ) Kladden en IKKE gemt!
+				$alert1 = findtekst('1593|Kreditkonto', $sprog_id); // Kreditkonto
+				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id); // eksisterer ikke
+				$alert3 = findtekst('1588|( Bilag nr', $sprog_id); // ( Bilag nr
+				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id); // ) Kladden en IKKE gemt!
 
 
 				if (!in_array($kredit, $accountNumbers)) {
@@ -2247,10 +2247,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			if ((!$fejl) && ($d_type == "D") && ($debet) && (!in_array($debet, $debitornr))) {
 				$alerttekst = '';
-				$alert1 = findtekst(604, $sprog_id);
-				$alert2 = findtekst(1594, $sprog_id);
-				$alert3 = findtekst(1588, $sprog_id);
-				$alert4 = findtekst(1586, $sprog_id);
+				$alert1 = findtekst('604|Debitor', $sprog_id);
+				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
+				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
 				$svar = find_kontonr($fokus, 'D', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $debet)
@@ -2264,10 +2264,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			if ((!$fejl) && ($k_type == "D") && ($kredit) && (!in_array($kredit, $debitornr))) {
 				$alerttekst = '';
-				$alert1 = findtekst(604, $sprog_id);
-				$alert2 = findtekst(1594, $sprog_id);
-				$alert3 = findtekst(1588, $sprog_id);
-				$alert4 = findtekst(1586, $sprog_id);
+				$alert1 = findtekst('604|Debitor', $sprog_id);
+				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
+				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
 				$svar = find_kontonr($fokus, 'D', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $kredit)
@@ -2281,10 +2281,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			if ((!$fejl) && ($d_type == "K") && ($debet) && (!in_array($debet, $kreditornr))) {
 				$alerttekst = '';
-				$alert1 = findtekst(1169, $sprog_id);
-				$alert2 = findtekst(1594, $sprog_id);
-				$alert3 = findtekst(1588, $sprog_id);
-				$alert4 = findtekst(1586, $sprog_id);
+				$alert1 = findtekst('1169|Kreditor', $sprog_id);
+				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
+				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 				$svar = find_kontonr($fokus, 'K', $debet, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $debet)
 					$alerttekst = addslashes($alert1 . " " . $debet . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
@@ -2297,10 +2297,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			if ((!$fejl) && ($k_type == "K") && ($kredit) && (!in_array($kredit, $kreditornr))) {
 				$alerttekst = '';
-				$alert1 = findtekst(1169, $sprog_id);
-				$alert2 = findtekst(1594, $sprog_id);
-				$alert3 = findtekst(1588, $sprog_id);
-				$alert4 = findtekst(1586, $sprog_id);
+				$alert1 = findtekst('1169|Kreditor', $sprog_id);
+				$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
+				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 				$svar = find_kontonr($fokus, 'K', $kredit, $id, $kladde_id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $x);
 				if ($svar == $kredit)
 					$alerttekst = addslashes($alert1 . " " . $kredit . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
@@ -2329,10 +2329,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 
 #			if (!$fejl && $dato && ($ym < $aarstart || $ym > $aarslut)) {
-				$alert1 = findtekst(635, $sprog_id);
-				$alert2 = findtekst(1595, $sprog_id);
-				$alert3 = findtekst(1588, $sprog_id);
-				$alert4 = findtekst(1586, $sprog_id);
+				$alert1 = findtekst('635|Dato', $sprog_id);
+				$alert2 = findtekst('1595|udenfor regnskabsår', $sprog_id);
+				$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+				$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 				#'Dato ('.$dato.') udenfor regnskabs&aring;r (Bilag nr '.$bilag.') Kladden er IKKE gemt!';
 				$alerttekst = $alert1 . " (" . $dato . ") " . $alert2 . " " . $alert3 . " " . $bilag .")";
 				alert($alerttekst);
@@ -2344,10 +2344,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if (!$fejl && $afd) {
 				$qtxt = "select id from grupper where art='AFD' and kodenr='$afd'";
 				if (!$row = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$alert1 = findtekst(274, $sprog_id);
-					$alert2 = findtekst(1594, $sprog_id);
-					$alert3 = findtekst(1588, $sprog_id);
-					$alert4 = findtekst(1586, $sprog_id);
+					$alert1 = findtekst('274|Afdeling', $sprog_id);
+					$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
+					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+					$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 					$alerttekst = addslashes($alert1 . " " . $afd . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
 					alert($alerttekst);
 					$fejl = 1;
@@ -2356,10 +2356,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			#		$projekt=$projekt*1;
 			if (!$fejl && $projekt) {
 				if (!$row = db_fetch_array(db_select("select id from grupper where art='PRJ' and kodenr='$projekt'", __FILE__ . " linje " . __LINE__))) {
-					$alert1 = findtekst(553, $sprog_id);
-					$alert2 = findtekst(1594, $sprog_id);
-					$alert3 = findtekst(1588, $sprog_id);
-					$alert4 = findtekst(1586, $sprog_id);
+					$alert1 = findtekst('553|Projekt', $sprog_id);
+					$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
+					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+					$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
 					$alerttekst = addslashes($alert1 . " " . $projekt . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
 					alert($alerttekst);
@@ -2370,10 +2370,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				$valuta = $baseCurrency;
 			if ($id && !$fejl && $valuta != $baseCurrency) {
 				if (!$row = db_fetch_array(db_select("select kodenr from grupper where art='VK' and box1='$valuta'", __FILE__ . " linje " . __LINE__))) {
-					$alert1 = findtekst(1069, $sprog_id); #20210720
-					$alert2 = findtekst(1594, $sprog_id);
-					$alert3 = findtekst(1588, $sprog_id);
-					$alert4 = findtekst(1586, $sprog_id);
+					$alert1 = findtekst('1069|Valuta', $sprog_id); #20210720
+					$alert2 = findtekst('1594|eksisterer ikke', $sprog_id);
+					$alert3 = findtekst('1588|( Bilag nr', $sprog_id);
+					$alert4 = findtekst('1586|) Kladden en IKKE gemt!', $sprog_id);
 
 					$alerttekst = addslashes($alert1 . " " . $valuta . " " . $alert2 . " " . $alert3 . " " . $bilag . $alert4);
 					alert($alerttekst);
@@ -2580,7 +2580,7 @@ $qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id',
 										  $slut=usdate("31-".trim($row['box3'])."-".trim($row['box4']))	; #usdate bruges for at sikre korrekt dato.
 									  } else {
 										  #$alerttekst='Regnskabs&aring;r ikke oprettet!';
-										  $alerttekst=findtekst(1596, $sprog_id);
+										  $alerttekst=findtekst('1596|Regnskabsår', $sprog_id);
 										  alert($alerttekst);
 										  exit;
 									  }
@@ -2640,9 +2640,9 @@ $qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id',
 		if (!$ompost_til) {
 			$x = 0;
 			print "<table border=\"1\"><tbody>";
-			print "<tr><td colspan=3>" . findtekst(158, $sprog_id) . "</td></tr>";
+			print "<tr><td colspan=3>" . findtekst('158|Klik på kladde_id for den kassekladde som posteringen skal tilbageføres til.', $sprog_id) . "</td></tr>";
 			print "<tr><td>Kladde_id</td><td>Beskrivelse</td><td>Oprettet&nbsp;af</td></tr>";
-			print "<tr><td><a href=kassekladde.php?kladde_id=$kladde_id>" . findtekst(159, $sprog_id) . "</a></td><td>" . findtekst(160, $sprog_id) . "</td><td><br></td></tr>";
+			print "<tr><td><a href=kassekladde.php?kladde_id=$kladde_id>" . findtekst('159|Fortryd', $sprog_id) . "</a></td><td>" . findtekst('160|<- Klik her for at fortryde.', $sprog_id) . "</td><td><br></td></tr>";
 			$q = db_select("select * from kladdeliste where bogfort='-'", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$x++;
