@@ -87,7 +87,7 @@ if ($_GET['returside']) {
 	$fokus = $_GET['fokus'];
 } else {
 	if ($popup) $returside = "../includes/luk.php";
-	else $returside = $backUrl;
+	else $returside = "debitor.php";
 }
 if (isset($_GET['delete_category'])) {
 	$delete_category = $_GET['delete_category'];
@@ -742,8 +742,6 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-
-	$returside = 'debitor.php';
 
 	print "<td width='10%'>
 		   <a href=\"$returside\" accesskey=L>
