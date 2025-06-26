@@ -101,7 +101,7 @@ function check_permissions($permarr) {
 
 
 # If the user has finans -> regnskab or finans -> reports level access
-if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
+ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 	$qtxt = "SELECT firmanavn FROM adresser WHERE art='S'";
 	$name = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
 
@@ -109,9 +109,9 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 
 	# Titlebar
 	print "<div style='display: flex; justify-content: space-between; flex-wrap: wrap'>";
-	print "<h1>Velkommen - $name</h1>";
+	print "<h1>".findtekst('2574|Velkommen', $sprog_id)." - $name</h1>";
   	if (is_null($regnaar)) {
-		print "<p>Der er ikke et aktivt rengskabsår, aktiver et regnskabsår gennem System » Indstillinger » Regnskabsår</p>";
+		print "<p>".findtekst('2575|Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår', $sprog_id)."</p>";
 	}
 	print "<div style='display: flex; gap: 2em'>";
 	$qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
@@ -119,9 +119,9 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 	$qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
 	$orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if ($state) {
-		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>Åben kassesystem</button>";
+		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>".findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 	} elseif ($orderXpress) {
-		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>Åben sagsstyring</button>";
+		print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
 	}
 
 	print "</div>";
@@ -129,7 +129,7 @@ if (!check_permissions(array(3,4)) || is_null($regnaar) ) {
 //	print "<p title='For at få adgang skal du aktivere finansmodulet for brugeren'>Du har ikke adgang til at se virksomhedsoversigten</p>";
 	print "<img src='../img/Saldi_Main_Logo.png' style='position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40%'></img>";
 	exit;
-}
+ }
 
 
 print '<script src="../javascript/chart.js"></script>';
@@ -256,8 +256,8 @@ print "<div style='display: flex; gap: 2em;'>";
 # Regnaar selector
 include "dashboardIncludes/regnaar.php";
 
-print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".findtekst('2224|Oversigt', $sprog_id)."</button>";
-if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .findtekst('2224|Oversigt', $sprog_id). "</button>";
+print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
+if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
 
 # Kassesystem eller ej
 $qtxt = "SELECT id FROM grupper WHERE art='POS' AND box1>='1' AND fiscal_year='$regnaar'";
@@ -265,11 +265,11 @@ $state = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 $qtxt = "SELECT id FROM settings WHERE var_name = 'orderXpress' AND var_value='on'";
 $orderXpress = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 if ($state) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>" .findtekst('2149|Åben kassesystem', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../debitor/pos_ordre.php\"'>".findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 } elseif ($orderXpress) {
-	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>" .findtekst('2150|Åben sagsstyring', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: pointer' onclick='parent.location.href=\"../sager/sager.php\"'>".findtekst('2150|Åbn sagsstyring', $sprog_id)."</button>";
 } else {
-	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åben kassesystem', $sprog_id)."</button>";
+	print "<button style='padding: 1em; cursor: not-allowed' disabled>" .findtekst('2149|Åbn kassesystem', $sprog_id)."</button>";
 }
 	
 print "</div>";
@@ -324,7 +324,11 @@ if ($ordercount === "on") {
 	$data = db_fetch_array($q);
 	$active_orders = formatNumber((int)$data[0], $dkFormat=false);
 	$active_total = formatNumber($data[1]);
-	key_value(findtekst('3077|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3080|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('3081|ufaktureret', $sprog_id)."</span>");
+<<<<<<< HEAD
+	key_value(findtekst('2378|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2381|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('2382|ufaktureret', $sprog_id)."</span>");
+=======
+	key_value(findtekst('2380|Ufakturerede ordrer de sidste 30 dage', $sprog_id), $active_orders, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2381|Hvilket svarer til', $sprog_id)." <span style='color: 15b79f'>$active_total kr</span> ".findtekst('2382|ufaktureret', $sprog_id)."</span>");
+>>>>>>> 5050c4b (Corrected wrong text numbers)
 }
 
 # #######################################
@@ -345,7 +349,7 @@ if ($vat_count == "on") {
 # #######################################
 
 if ($onlineusers === "on") {
-	key_value(findtekst('3078|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('3079|Har været aktive inden for den sidste time', $sprog_id)."</span>");
+	key_value(findtekst('2379|Aktive medarbejdere', $sprog_id), $online_people_amount, "<hr style='margin: 1em 0em; background-color: #ddd; border: none; height: 1px'><span style='color: #999'>".findtekst('2380|Har været aktive inden for den sidste time', $sprog_id)."</span>");
 }
 
 # Close the contianer div
@@ -430,11 +434,11 @@ print "
           <td><input type='checkbox' name='ordercount' " . ($ordercount === "on" ? "checked" : "") . " /></td>
     </tr>
     <tr>
-      <td>".findtekst('3078|Aktive medarbejdere', $sprog_id)."</td>
+      <td>".findtekst('2379|Aktive medarbejdere', $sprog_id)."</td>
           <td><input type='checkbox' name='onlineusers' " . ($onlineusers === "on" ? "checked" : "") . " /></td>
     </tr>
         <tr>
-          <td>Momsangivelse</td>
+          <td>".findtekst('520|Momsangivelse', $sprog_id)."</td>
           <td><input type='checkbox' name='vatcount' " . ($vat_count === "on" ? "checked" : "") . " /></td>
         </tr>
         
@@ -452,7 +456,7 @@ print "
           <td><input type='checkbox' name='customergraph' " . ($customergraph === "on" ? "checked" : "") . " /></td>
         </tr>
         <tr>
-          <td>Varegruppe omsætning</td>
+          <td>".findtekst('2576|Varegruppeomsætning', $sprog_id)."</td>
           <td><input type='checkbox' name='varegrpdoughnut' " . ($varegrp_doughnut === "on" ? "checked" : "") . " /></td>
     </tr>
   </table> 

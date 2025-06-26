@@ -1,7 +1,7 @@
 <?php
 function varegrp_doughnut($startDate, $endDate) {
     // Globals for account limits
-    global $kontomin, $kontomaks, $regnaar;
+    global $kontomin, $kontomaks, $regnaar, $sprog_id;
 
     // HTML for the chart container
     ?>
@@ -15,7 +15,7 @@ function varegrp_doughnut($startDate, $endDate) {
       height: 350px;
     ">
       <h4 style="margin: 0; color: #999">
-        Omsætning baseret på varegrupper i det gældene regnskabsår
+        <?php echo findtekst('2588|Omsætning baseret på varegrupper i det gældene regnskabsår', $sprog_id);?>
       </h4>
       <div style="padding-top: 22.4px"></div>
       <div style="flex: 1; width: 100%">
