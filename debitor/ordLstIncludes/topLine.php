@@ -8,6 +8,10 @@ $TableBG = "bgcolor=$bgcolor";
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
 	: 'javascript:window.history.go(-2);';
+$currentPage = basename(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+if ($currentPage === 'ordreliste.php') {
+    $backUrl = '../index/dashboard.php';
+}
 
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
 
@@ -20,6 +24,7 @@ print "<td width=10% style=$buttonStyle>
 print "<td width=75% style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
 if ($valg == "$tilbud1" && !$hurtigfakt) {
+	
 	print "<td width = '100px' align=center>
 		   <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		   .findtekst('812|Tilbud', $sprog_id)."</button></td>";
