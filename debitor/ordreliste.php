@@ -869,11 +869,11 @@ while ($r0=db_fetch_array($q0)) {
 					$tr_title= findtekst(1427, $sprog_id);
 				}
 			}
-	
+			
 			$linjebg=linjefarve($linjebg, $bgcolor, $bgcolor5, $bgnuance1, $bgnuance);
 			print "<tr bgcolor=\"$linjebg\" title='$tr_title'><td bgcolor=$bgcolor></td>";
         } elseif ($vis_lagerstatus) {
-            // Initialize background color for the table rows
+            // Initialize background color for the table rows<
             $linjebg = NULL;
             $spantxt = "<table><tbody>";
 
@@ -949,6 +949,7 @@ while ($r0=db_fetch_array($q0)) {
 
             // Print the table row with the calculated background color
             print "<tr bgcolor=\"$linjebg\" title=''><td bgcolor=\"$bgcolor\">";
+
             print "</td>";
 
 		} else {
@@ -1483,3 +1484,21 @@ function select_valg( $valg, $box ){  #20210623
 
 
 ?>
+<script>
+// wait for the DOM to be fully loaded before running the script
+document.addEventListener('DOMContentLoaded', () => {
+	// select all rows with the class 'hover-highlight'
+	document.querySelectorAll('.hover-highlight').forEach(row => {
+		const cells = row.querySelectorAll('td')
+		if (cells.length > 1) {
+			const a = cells[1].querySelector('a')
+			if (a && a.href) {
+			row.style.cursor = 'pointer'
+			row.addEventListener('click', () => {
+				window.location.href = a.href
+			})
+			}
+		}
+	})
+})	
+</script>
