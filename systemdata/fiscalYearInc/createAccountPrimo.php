@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------------
-// 20250629 - PHR $basecurrency  & some cleanup
+	// 20250629 - PHR $basecurrency  & some cleanup
 
 function createAccountPrimo($accountId,$yearBegin,$yearEnd,$nextYearBegin) {
 	global $baseCurrency;
