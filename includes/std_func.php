@@ -117,6 +117,7 @@
 // 20250321 LOE Updated with various changes and new additions from multiple updates including comments
 // 20250323 LOE Checks if input is set, ensures it doesn't exceed 80 characters, and sanitizes it to prevent XSS attacks.
 // 20250405 LOE if_isset() updated and to check explicitly if array keys exist if they are arrays.
+// 20250630 PHR Minor change in transtjek
 
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
