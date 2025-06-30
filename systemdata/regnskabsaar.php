@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 4.1.1 --- 2025-05-03 --
+// --- systemdata/regnskabsaar.php --- ver 4.1.1 --- 2025-06-29 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20220501 PHR - Corrected error in set all.
 // 20240524 PHR - Fiscal year can now be deleted.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20250629 PHR - Delete fiscal year hidden if fiscal year less than 5 years old
 
 @session_start();
 $s_id = session_id();
@@ -128,20 +129,21 @@ while ($row = db_fetch_array($query)) {
 	if ($row['box10'] != 'on')
 		print "<a href='regnskabskort.php?id=$row[id]' title=\"$title\"> $row[kodenr]</a>";
 	else
-		print $row['kodenr'];
+	print $row['kodenr'];
 	print "<br></td>";
 	print "<td> $row[beskrivelse]<br></td>";
 	print "<td> $row[box1]<br></td>";
 	print "<td> $row[box2]<br></td>";
 	print "<td> $row[box3]<br></td>";
 	print "<td> $row[box4]<br></td>";
+	(date('Y') - $row['box4'] > 5)?$showDelete=1:$showDelete=0;
 	if ($row['box10'] == 'on') {
 		print "<td> Slettet<br></td><td></td>";
 	} elseif ($row['kodenr'] != $regnaar && $row['box5'] == 'on') {
 		print "<td><a href='regnskabsaar.php?aktiver=$row[kodenr]'> " . findtekst('1213|Sæt aktivt', $sprog_id) . "</a><br></td><td></td>";
 	} elseif ($row['kodenr'] != $regnaar) {
 		print "<td>" . findtekst('387|Lukket', $sprog_id) . "</td><td>";
-		if (($x == 1 || $deleted[$x - 1] == '1') && $row['box5'] != 'on') {
+		if (($x == 1 || $deleted[$x - 1] == '1') && $row['box5'] != 'on' && $showDelete) {
 			$txt1 = "Sletter transaktioner med tilhørende bilag, ordrer og fakturaer fra regnskabsåret, ";
 			$txt1.= "varer er oprettet i regnskabsåret og ikke har været handlet siden ";
 			$txt1.= "samt kunder og leverandører som er urørte i efterfølgende år";

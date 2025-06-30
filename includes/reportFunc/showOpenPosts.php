@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/showOpenPosts.php --- lap 4.1.0 --- 2024.04.11 ---
+// --- includes/reportFunc/showOpenPosts.php --- lap 4.1.1 --- 2025.06.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,16 +20,17 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 - 2024 Saldi.dk ApS
+// Copyright (c) 2023 - 2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 20240207 PHR Accounts was not shown if all was alligned, evet if alligned after $todate.
 // 20240411 PHR	'if (abs($y)' changed to 'if (abs($y) >= 0.01'
 // 20240529	PHR Unalignet account with sum = 0 was not shown
+// 20250527 PHR Fixed problem with small corrency diffs that listed alligned accounts at unequal
 
 if (!function_exists('vis_aabne_poster')) {
 function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart,$kun_debet,$kun_kredit) {
-	global $bgcolor,$bgcolor5,$bruger_id;
+	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id;
 	global $db;
 	global $menu;
 	global $sprog_id;
@@ -97,24 +98,37 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	}
 */
 	if ($todate < $currentdate) {
-		$qtxt = "select konto_id, sum(amount) as amount from openpost where transdate <= '$todate' group by konto_id";  
+		$qtxt = "select konto_id, amount*valutakurs/100 as amount from openpost where transdate <= '$todate' order by konto_id";
 	} else {
-		$qtxt = "select konto_id, sum(amount) as amount from openpost group by konto_id";  
+		$qtxt = "select konto_id, amount*valutakurs/100 as amount from openpost order by konto_id";
 	}
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (abs($r['amount']) > 0.01) {
-			$op_id[$x]=$r['konto_id'];
-			$op_amount[$x]=$r['amount'];
+		if (!in_array($r['konto_id'],$op_id)) {
+			if (abs($r['amount']) > 0.01) {
+				$op_amount[$x]+= $r['amount'];
+			}
+		} else {
+			$op_id[$x]     = $r['konto_id'];
+			$op_amount[$x]+= $r['amount'];
+			$x++;
+		}
+	}
+	$opAmount = $opId = array();
+	$x = 0;
+	for ($i=0;$i<count($op_id);$i++) {
+		if (abs($op_amount) > 0.01) {
+			$opId[$x] = $op_id[$i];
+			$opAmount[$x] = $op_amount[$i];
 			$x++;
 		}
 	}
 	$qtxt = "select * from openpost where udlignet = '0'";
 	$q = db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (!in_array($r['konto_id'],$op_id)) {
-			$op_id[$x]=$r['konto_id'];
-			$op_amount[$x]=0;
+		if (!in_array($r['konto_id'],$opId)) {
+			$opId[$x]=$r['konto_id'];
+			$opAmount[$x]=0;
 			$x++;
 		}
 	}
@@ -132,7 +146,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	$x=0;
 	$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (in_array($r['id'],$op_id)) {
+		if (in_array($r['id'],$opId)) {
 			if (!$r['pbs_nr'] || $showPBS) {
 			$x++;
 			$konto_id[$x]=$r['id'];
@@ -174,12 +188,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		if ($todate != $currentdate) {
 			$qtxt="select * from openpost where transdate<='$todate' and konto_id='$konto_id[$x]' order by faktnr,amount $tmp";
 		} else $qtxt="select * from openpost where konto_id='$konto_id[$x]' order by faktnr,amount $tmp";
+#cho __line__." $qtxt<br>",
 		$q=db_select("$qtxt",__FILE__ . " linje " . __LINE__);
 		$ks=0;
 		while ($r=db_fetch_array($q)) {
 			$aligned = $r['udlignet'];
 			if (!$r['udlignet']) $accountAligned = 0;
-      if ($r['valutakurs']*1 && $r['valuta']!='-') {
+      if ((float)$r['valutakurs'] && $r['valuta']!='-') {
 				$kontrol+=afrund($r['amount']*$r['valutakurs']/100,2); //2012.03.30 afrunding rettet til 2 (Ørediff hos saldi_390) 
 			} else {
 				$kontrol+=afrund($r['amount'],2);
@@ -196,22 +211,19 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 */				
 				($r['forfaldsdate'])?$forfaldsdag=$r['forfaldsdate']:$forfaldsdag=$r['transdate']; 
 				
-#				if ($konto_id[$x] == 6) echo __line__." $r[udlignet] $r[transdate] $r[amount]<br>";
 				$oid=$r['id'];
 
 				$transdate=$r['transdate'];
 				
 				if ($r['valuta']) $valuta=$r['valuta']; // <- 2009.05.05
-				else $valuta='DKK';
+				else $valuta=$baseCurrency;
 				if ($r['valutakurs']) $valutakurs=$r['valutakurs'];
 				else $valutakurs=100;
 #				$accountAligned="0";
-				($valuta=='DKK')?$amount=afrund($r['amount'],2):$amount=afrund($r['amount'],3); //2012.04.03 se saldi_ 
+				($valuta==$baseCurrency)?$amount=afrund($r['amount'],2):$amount=afrund($r['amount'],3); //2012.04.03 se saldi_
 				if (!$forfaldsdag && $kontoart=='D' && $amount < 0) $forfaldsdag=$r['transdate'];
 				elseif (!$forfaldsdag && $kontoart=='K' && $amount > 0) $forfaldsdag=$r['transdate'];
 				elseif (!$forfaldsdag) $forfaldsdag=$r['forfaldsdate'];
-
-#if ($konto_id[$x] == 6) echo __line__." $amount $forfaldsdag<br>";
 
 				$amount*=$valutakurs/100;
 				$fakt_utid=strtotime($transdate);
@@ -224,23 +236,18 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 				if ($forfaldsdag<$todate){$rykkerbelob=$rykkerbelob+$amount;}
 				if (($forfaldsdag<$todate)&&($forfaldsdag_plus8>$todate)){
 					$forfalden=$forfalden+$amount;
-#if ($konto_id[$x] == 6) echo __line__." $forfalden=$forfalden+$amount<br>";
 				}
 				if (!$aligned && $forfaldsdag_plus8<=$todate && $forfaldsdag_plus30>$todate ) {
 					$forfalden_plus8=$forfalden_plus8+$amount;
-#if ($konto_id[$x] == 6) echo __line__." $forfalden_plus8=$forfalden_plus8+$amount<br>";
 				}
 				if (!$aligned && $forfaldsdag_plus30<=$todate && $forfaldsdag_plus60>$todate ){
 					$forfalden_plus30=$forfalden_plus30+$amount;
-#if ($konto_id[$x] == 6) echo __line__." $forfalden_plus30=$forfalden_plus30+$amount<br>";
 				}
 				if (!$aligned && $forfaldsdag_plus60<=$todate && $forfaldsdag_plus90>$todate ){
 					$forfalden_plus60=$forfalden_plus60+$amount;
-#if ($konto_id[$x] == 6) echo __line__." $forfalden_plus60=$forfalden_plus60+$amount<br>";
 				}
 				if (!$aligned && $forfaldsdag_plus90<=$todate){
 					$forfalden_plus90=$forfalden_plus90+$amount;
-#if ($konto_id[$x] == 6) echo __line__." $forfalden_plus90=$forfalden_plus90+$amount<br>";
 				}
 			$y=$y+$amount;
 #			}
