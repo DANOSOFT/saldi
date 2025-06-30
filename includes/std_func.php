@@ -764,8 +764,7 @@ if (!function_exists('reducer')) {
 }
 
 if (!function_exists('transtjek')) {
-	function transtjek()
-	{
+	function transtjek() {
 		/**
 		 * Checks for any imbalance in the accounting transactions.
 		 *
@@ -782,11 +781,12 @@ if (!function_exists('transtjek')) {
 		 */
 
 		global $db;
-
-		$r = db_fetch_array(db_select("select sum(debet) as debet,sum(kredit) as kredit from transaktioner", __FILE__ . " linje " . __LINE__));
+		$yearback = date('Y') -1 ."-". date('m-d');
+		$qtxt = "select sum(round(debet,2)) as debet,sum(round(kredit,2)) as kredit from transaktioner";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$diff = abs(afrund($r['debet'] - $r['kredit'], 2));
 
-		if ($diff >= 1) {
+		if ($diff > 0.1) {
 			$message = $db . " | Ubalance i regnskab: kr: $diff";
 			$headers = 'From: fejl@saldi.dk' . "\r\n" . 'Reply-To: fejl@saldi.dk' . "\r\n" . 'X-Mailer: PHP/' . phpversion();
 			mail('fejl@saldi.dk', 'Ubalance i regnskab:' . $db, $message, $headers);
