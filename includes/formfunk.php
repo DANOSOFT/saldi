@@ -88,7 +88,8 @@
 // 20230421 PHR Function modulus10 - cuts beginning of customer no instead of end, if too long
 // 20230712 PHR Added $creditedinvoice;
 // 20240918 PBLM Added function betalingslink
-// 20241002 PHR 'Kontant' in texts replacet by text ID 370
+// 20241002 PHR 'Kontant' in texts replaced by text ID 370
+// 20250630 PHR Somebody has removed brackets in line 2285 & 2289 - Why !!!
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
@@ -876,6 +877,7 @@ if (!function_exists('modulus_10')) {
 		print "<!--function modulus_10 start-->";
 		# Genererer betalingsid for kortart 71.
 		# Kortart 71 bestaar af 15 cifrer, hvor det sidste er kontrolciffer.
+		global $formularsprog;
 
 		$faktlen = 14;
 		$kontolen = 0;
@@ -1881,12 +1883,12 @@ if (!function_exists('formulartekst')) {
 			} else {
 				$art = "Kreditnota";
 			}
-/*
+
 			$query = db_select("select * from ordrelinjer where ordre_id = '$id' and rabat > '0'", __FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) {
 				$rabat = "y";
 			}
-*/
+
 			$faktdato = dkdato($fakturadate);
 			$query = db_select("select * from ordrelinjer where ordre_id = '$id' and rabat > '0'", __FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) {
