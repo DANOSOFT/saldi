@@ -123,10 +123,15 @@ class VareGruppeModel
      */
     public function save()
     {
-        global $regnaar;
-
-        if ($this->id) {
+        global $regnaar;        if ($this->id) {
             // Update existing item
+            $buy_account_val = is_object($this->buy_account) ? $this->buy_account->getKontonr() : $this->buy_account;
+            $sell_account_val = is_object($this->sell_account) ? $this->sell_account->getKontonr() : $this->sell_account;
+            $buy_eu_account_val = is_object($this->buy_eu_account) ? $this->buy_eu_account->getKontonr() : $this->buy_eu_account;
+            $sell_eu_account_val = is_object($this->sell_eu_account) ? $this->sell_eu_account->getKontonr() : $this->sell_eu_account;
+            $buy_outside_eu_account_val = is_object($this->buy_outside_eu_account) ? $this->buy_outside_eu_account->getKontonr() : $this->buy_outside_eu_account;
+            $sell_outside_eu_account_val = is_object($this->sell_outside_eu_account) ? $this->sell_outside_eu_account->getKontonr() : $this->sell_outside_eu_account;
+            
             $qtxt = "UPDATE grupper SET 
                 beskrivelse = '$this->beskrivelse', 
                 kodenr = '$this->kodenr', 
@@ -136,17 +141,25 @@ class VareGruppeModel
                 box8 = '$this->lager', 
                 box9 = '$this->batch', 
                 box10 = '$this->operation', 
-                box3 = '$this->buy_account', 
-                box4 = '$this->sell_account', 
-                box11 = '$this->buy_eu_account', 
-                box12 = '$this->sell_eu_account', 
-                box13 = '$this->buy_outside_eu_account', 
-                box14 = '$this->sell_outside_eu_account' 
+                box3 = '$buy_account_val', 
+                box4 = '$sell_account_val', 
+                box11 = '$buy_eu_account_val', 
+                box12 = '$sell_eu_account_val', 
+                box13 = '$buy_outside_eu_account_val', 
+                box14 = '$sell_outside_eu_account_val' 
             WHERE id = $this->id";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            
             return explode("\t", $q)[0] == "0";
         } else {
             // Insert new item
+            $buy_account_val = is_object($this->buy_account) ? $this->buy_account->getKontonr() : $this->buy_account;
+            $sell_account_val = is_object($this->sell_account) ? $this->sell_account->getKontonr() : $this->sell_account;
+            $buy_eu_account_val = is_object($this->buy_eu_account) ? $this->buy_eu_account->getKontonr() : $this->buy_eu_account;
+            $sell_eu_account_val = is_object($this->sell_eu_account) ? $this->sell_eu_account->getKontonr() : $this->sell_eu_account;
+            $buy_outside_eu_account_val = is_object($this->buy_outside_eu_account) ? $this->buy_outside_eu_account->getKontonr() : $this->buy_outside_eu_account;
+            $sell_outside_eu_account_val = is_object($this->sell_outside_eu_account) ? $this->sell_outside_eu_account->getKontonr() : $this->sell_outside_eu_account;
+            
             $qtxt = "INSERT INTO grupper (
                 art, 
                 beskrivelse, 
@@ -173,15 +186,21 @@ class VareGruppeModel
                 '$this->lager', 
                 '$this->batch', 
                 '$this->operation', 
-                '$this->buy_account', 
-                '$this->sell_account', 
-                '$this->buy_eu_account', 
-                '$this->sell_eu_account', 
-                '$this->buy_outside_eu_account', 
-                '$this->sell_outside_eu_account'
+                '$buy_account_val', 
+                '$sell_account_val', 
+                '$buy_eu_account_val', 
+                '$sell_eu_account_val', 
+                '$buy_outside_eu_account_val', 
+                '$sell_outside_eu_account_val'
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-
+            // SELECT the id from grupper i just inserted row
+            /* this dosent exists $this->id = db_insert_id(); the function db_insert_id() dose not exists */
+            
+            $idQuery = db_select("SELECT currval('grupper_id_seq') as id", __FILE__ . " linje " . __LINE__);
+            if ($r = db_fetch_array($idQuery)) {
+                $this->id = (int)$r['id'];
+            }
             // If insert is successful, set the new ID
             return explode("\t", $q)[0] == "0";
         }
@@ -198,7 +217,7 @@ class VareGruppeModel
             return false;
         }
 
-        $qtxt = "DELETE FROM grupper WHERE id = ?";
+        $qtxt = "DELETE FROM grupper WHERE id = $this->id";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
@@ -249,7 +268,7 @@ class VareGruppeModel
             return [];
         }
 
-        $qtxt = "SELECT id FROM grupper WHERE art = 'VG' AND fiscal_year = '$regnaar' AND $field = ?";
+        $qtxt = "SELECT id FROM grupper WHERE art = 'VG' AND fiscal_year = '$regnaar' AND $field = '" . db_escape_string($value) . "'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];
@@ -277,12 +296,12 @@ class VareGruppeModel
             'batch' => $this->batch == "on",
             'operation' => $this->operation == "on",
             'accounts' => array(
-                'buy_account' => $this->buy_account !== NULL ? $this->buy_account->toArray() : NULL,
-                'sell_account' => $this->sell_account !== NULL ? $this->sell_account->toArray() : NULL,
-                'buy_eu_account' => $this->buy_eu_account !== NULL ? $this->buy_eu_account->toarray() : NULL,
-                'sell_eu_account' => $this->sell_eu_account !== NULL ? $this->sell_eu_account->toarray() : NULL,
-                'buy_outside_eu_account' => $this->buy_outside_eu_account !== NULL ? $this->buy_outside_eu_account->toarray() : NULL,
-                'sell_outside_eu_account' => $this->sell_outside_eu_account !== NULL ? $this->sell_outside_eu_account->toarray() : NULL
+                'buy_account' => ($this->buy_account !== NULL && is_object($this->buy_account)) ? $this->buy_account->toArray() : $this->buy_account,
+                'sell_account' => ($this->sell_account !== NULL && is_object($this->sell_account)) ? $this->sell_account->toArray() : $this->sell_account,
+                'buy_eu_account' => ($this->buy_eu_account !== NULL && is_object($this->buy_eu_account)) ? $this->buy_eu_account->toArray() : $this->buy_eu_account,
+                'sell_eu_account' => ($this->sell_eu_account !== NULL && is_object($this->sell_eu_account)) ? $this->sell_eu_account->toArray() : $this->sell_eu_account,
+                'buy_outside_eu_account' => ($this->buy_outside_eu_account !== NULL && is_object($this->buy_outside_eu_account)) ? $this->buy_outside_eu_account->toArray() : $this->buy_outside_eu_account,
+                'sell_outside_eu_account' => ($this->sell_outside_eu_account !== NULL && is_object($this->sell_outside_eu_account)) ? $this->sell_outside_eu_account->toArray() : $this->sell_outside_eu_account
             )
         );
     }
@@ -384,26 +403,62 @@ class VareGruppeModel
     }
     public function setBuyAccount($buy_account)
     {
-        $this->buy_account = $buy_account;
+        if (is_numeric($buy_account) && $buy_account != "") {
+            $this->buy_account = new AccountModel($id = NULL, $kontonr = $buy_account);
+        } elseif (is_object($buy_account)) {
+            $this->buy_account = $buy_account;
+        } else {
+            $this->buy_account = NULL;
+        }
     }
     public function setSellAccount($sell_account)
     {
-        $this->sell_account = $sell_account;
+        if (is_numeric($sell_account) && $sell_account != "") {
+            $this->sell_account = new AccountModel($id = NULL, $kontonr = $sell_account);
+        } elseif (is_object($sell_account)) {
+            $this->sell_account = $sell_account;
+        } else {
+            $this->sell_account = NULL;
+        }
     }
     public function setBuyEuAccount($buy_eu_account)
     {
-        $this->buy_eu_account = $buy_eu_account;
+        if (is_numeric($buy_eu_account) && $buy_eu_account != "") {
+            $this->buy_eu_account = new AccountModel($id = NULL, $kontonr = $buy_eu_account);
+        } elseif (is_object($buy_eu_account)) {
+            $this->buy_eu_account = $buy_eu_account;
+        } else {
+            $this->buy_eu_account = NULL;
+        }
     }
     public function setSellEuAccount($sell_eu_account)
     {
-        $this->sell_eu_account = $sell_eu_account;
+        if (is_numeric($sell_eu_account) && $sell_eu_account != "") {
+            $this->sell_eu_account = new AccountModel($id = NULL, $kontonr = $sell_eu_account);
+        } elseif (is_object($sell_eu_account)) {
+            $this->sell_eu_account = $sell_eu_account;
+        } else {
+            $this->sell_eu_account = NULL;
+        }
     }
     public function setBuyOutsideEuAccount($buy_outside_eu_account)
     {
-        $this->buy_outside_eu_account = $buy_outside_eu_account;
+        if (is_numeric($buy_outside_eu_account) && $buy_outside_eu_account != "") {
+            $this->buy_outside_eu_account = new AccountModel($id = NULL, $kontonr = $buy_outside_eu_account);
+        } elseif (is_object($buy_outside_eu_account)) {
+            $this->buy_outside_eu_account = $buy_outside_eu_account;
+        } else {
+            $this->buy_outside_eu_account = NULL;
+        }
     }
     public function setSellOutsideEuAccount($sell_outside_eu_account)
     {
-        $this->sell_outside_eu_account = $sell_outside_eu_account;
+        if (is_numeric($sell_outside_eu_account) && $sell_outside_eu_account != "") {
+            $this->sell_outside_eu_account = new AccountModel($id = NULL, $kontonr = $sell_outside_eu_account);
+        } elseif (is_object($sell_outside_eu_account)) {
+            $this->sell_outside_eu_account = $sell_outside_eu_account;
+        } else {
+            $this->sell_outside_eu_account = NULL;
+        }
     }
 }
