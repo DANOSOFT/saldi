@@ -75,6 +75,7 @@ if ($_POST) {
 			$ret_id=$id;
 	}
 	if (($kode) && (!strstr($kode,'**********'))) {
+		$insetKode = $kode;
 		$kode=saldikrypt($id,$kode);
 	} elseif($kode)	{
 		$query = db_select("select * from brugere where id = '$id'",__FILE__ . " linje " . __LINE__);
@@ -89,9 +90,9 @@ if ($_POST) {
 			print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $ret_bruger!</td></tr>\n";
 		}	else {
-			db_modify("insert into brugere (brugernavn,rettigheder) values ('$ret_bruger','rettigheder')",__FILE__ . " linje " . __LINE__);
+			db_modify("insert into brugere (brugernavn,rettigheder) values ('$ret_bruger','$rettigheder')",__FILE__ . " linje " . __LINE__);
 			$r=db_fetch_array(db_select("select id from brugere where brugernavn = '$ret_bruger'",__FILE__ . " linje " . __LINE__));
-			$kode=saldikrypt($r['id'],$kode);
+			$kode = saldikrypt($r['id'],$insetKode);
 			db_modify("update brugere set kode='$kode' where id=$r[id]",__FILE__ . " linje " . __LINE__);
 		}
 	} elseif ((strstr($submit,'Opdat'))&&($ret_bruger)&&($ret_bruger!="-")) {
