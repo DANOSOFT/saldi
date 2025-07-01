@@ -32,6 +32,7 @@
 // 20170509 PHR Søgning med wildcards i TXT'er
 // 20180228 PHR Fejlrettelse i ovenstående.
 // 20231113 PHR Added lower & upper to text search
+// 01072025 PBLM Added else $udvaelg= " and $key::text like '$tmp%'"; on line 97 for better search
 
 if (!function_exists('udvaelg')){
 	function udvaelg ($tmp, $key, $art){
