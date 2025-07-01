@@ -93,7 +93,7 @@ if (!function_exists('udvaelg')){
 					$udvaelg.= " or lower($key) like '%".mb_strtolower($tmp)."%'";
 					$udvaelg.= " or upper($key) like '%".mb_strtoupper($tmp)."%')";
 				}
-			} else $udvaelg= " and $key = '$tmp'";
+			} else $udvaelg= " and $key::text like '$tmp%'";
 			}
 		return $udvaelg;
 	}
