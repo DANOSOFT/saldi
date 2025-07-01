@@ -147,7 +147,7 @@ else {
 else {$linjebg=$bgcolor5; $color='#000000';}
 print "<tr bgcolor=\"$linjebg\">";
 if (($sort == 'id')&&(!$rf)) {print "<td width = 5%><b><a href=kladdeliste.php?sort=id&rf=desc&vis=$vis>Id</a></b></td>\n";}
-else {print "<td width = 5% title='".findtekst('1602|Klik her for at sortere på ID', $sprog_id)."'><b><a href=kladdeliste.php?sort=id&vis=$vis>Id</a></b></td>\n";}
+else {print "<td width = 5% title='".findtekst('1602|Klik her for at sortere på ID', $sprog_id)."'><b><a href=kladdeliste.php?sort=id&vis=$vis>ID</a></b></td>\n";}
 if (($sort == 'kladdedate')&&(!$rf)) {print "<td width = 10%><b><a href=kladdeliste.php?sort=kladdedate&rf=desc&vis=$vis>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";} //20210318
 else {print "<td width = 10% title='".findtekst('1603|Klik her for at sortere på dato', $sprog_id)."'><b><a href=kladdeliste.php?sort=kladdedate&vis=$vis>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";}
 if (($sort == 'oprettet_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=oprettet_af&rf=desc&vis=$vis>".findtekst('634|Ejer', $sprog_id)."</a></b></td>\n";}
@@ -157,7 +157,7 @@ else {print "<td width = 70% title='".findtekst('1605|Klik her for at sortere p�
 if (($sort == 'bogforingsdate')&&(!$rf)) {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&rf=desc&vis=$vis>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";}
 else {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&vis=$vis>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";}
 if (($sort == 'bogfort_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=bogfort_af&rf=desc&vis=$vis>Af</a></b></td>\n";}
-else {print "<td title='".findtekst('1606|Klik her for at sortere på bogført af', $sprog_id)."\"' align='center'><b><a href=kladdeliste.php?sort=bogfort_af&vis=$vis>".findtekst('638|Af', $sprog_id)."</a></b></td>\n";}
+else {print "<td title='".findtekst('1606|Klik her for at sortere på bogført af', $sprog_id)."' align='center'><b><a href=kladdeliste.php?sort=bogfort_af&vis=$vis>".findtekst('638|Af', $sprog_id)."</a></b></td>\n";}
 print "</tr>\n";
 $tjek=0;
 #$sqhost = "localhost";
