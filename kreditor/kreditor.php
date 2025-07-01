@@ -30,6 +30,7 @@
 // 20210705 LOE Created switch case function for box6 to translate langue and also reassigned valg variable for creditor
 // 20230323 PBLM Fixed minor errors
 // 20230522 PHR php8
+// 01072025 PBLM Added openKreditorKort function to open creditor card in same window
 
 
 #ob_start();
@@ -51,6 +52,10 @@ function MasseFakt(tekst)
 		return true ;
 	else
     return false ;
+}
+function openKreditorKort(kreditorId) {
+    // Open creditor card in same window
+    window.location.href = 'kreditorkort.php?id=' + kreditorId + '&returside=kreditor.php';
 }
 // -->
 </script>
@@ -200,7 +205,7 @@ if ($valg == "$kreditor1") {
 } #20210705
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
-	: 'javascript:window.history.go(-2);';
+	: '../index/dashboard.php';
 
 if ($popup) $returside = "../includes/luk.php";
 else $returside = $backUrl;
@@ -526,8 +531,8 @@ for ($i = 0; $i < $dgcount; $i++) {
 					$linjebg = $bgcolor5;
 					$color = '#000000';
 				}
-				print "<tr bgcolor=\"$linjebg\"><td></td>";
-				print "<td align=$justering[0] $javascript> $linjetext $understreg $row[kontonr]$hrefslut</span><br></td>";
+				print "<tr bgcolor=\"$linjebg\" onclick='javascript:openKreditorKort(".$row["id"].");'><td></td>";
+				print "<td align=$justering[0] $javascript> $linjetext $row[kontonr]</span><br></td>";
 				for ($x = 1; $x < count($vis_felt); $x++) {
 					print "<td align=$justering[$x]>";
 					$tmp = $vis_felt[$x];

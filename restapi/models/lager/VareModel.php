@@ -116,7 +116,7 @@ class VareModel
     /**
      * Get all products
      */
-    public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC')
+    public static function getAllItems($orderBy = 'id', $orderDirection = 'ASC', $limit)
     {
         // Validate orderBy to prevent SQL injection
         $allowedOrderBy = ['id', 'varenr', 'beskrivelse', 'modtime'];
@@ -129,7 +129,7 @@ class VareModel
             $orderDirection = 'ASC';
         }
         
-        $query = "SELECT * FROM varer ORDER BY $orderBy $orderDirection";
+        $query = "SELECT * FROM varer ORDER BY $orderBy $orderDirection LIMIT $limit";
         $result = db_select($query, __FILE__ . " line " . __LINE__);
         
         $items = [];

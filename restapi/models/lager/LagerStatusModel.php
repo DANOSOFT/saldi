@@ -108,7 +108,14 @@ class LagerStatusModel {
                 '$this->lok', '$this->variant_id'
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            
+            $query = db_select("SELECT id FROM lagerstatus WHERE 
+                lager = '$this->lager' AND vare_id = '$this->vare_id' 
+                AND lok1 = '$this->lok' AND variant_id = '$this->variant_id' 
+                ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+            if (db_num_rows($query) > 0) {
+                $r = db_fetch_array($query);
+                $this->id = (int)$r['id']; // Set the new ID
+            }
             // If insert is successful, get the new ID
             return explode("\t", $q)[0] == "0";
         }
