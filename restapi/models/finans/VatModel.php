@@ -144,6 +144,15 @@ class VatModel
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
+            $query = db_select("SELECT id FROM grupper WHERE art = '" . $this->momskode . "M' AND fiscal_year = $regnaar AND kodenr = '$this->nr' AND kode = '$this->momskode'", __FILE__ . " linje " . __LINE__);
+
+            if(db_num_rows($query) > 0) {
+                // Get the last inserted ID
+                $this->id = db_fetch_array($query)['id'];
+            } else {
+                // If insert failed, return false
+                return false;
+            }
             // If insert is successful, set the new ID
             return explode("\t", $q)[0] == "0";
         }
