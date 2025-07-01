@@ -28,8 +28,8 @@
 // Definer første og sidste dag for regnskabsåret
 $firstDayOfYear = date('Y-m-d', strtotime($regnstart)); // Første dag i regnskabsåret
 $lastDayOfYear = date('Y-m-d', strtotime($regnslut)); // Sidste dag i regnskabsåret
-if ($regnstart < '1970-01-01') $regnstart = date("Y")."-01-01");
-if ($regnsslut < '1970-01-01') $regnslut = date("Y")."-12-31");
+if ($regnstart < '1970-01-01') $regnstart = date("Y")."-01-01";
+if ($regnsslut < '1970-01-01') $regnslut = date("Y")."-12-31";
 
 // Hent dags dato (kun måned og dag)
 $currentMonthDay = date('-m-d');
