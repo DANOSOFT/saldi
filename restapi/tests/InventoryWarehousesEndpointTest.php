@@ -16,14 +16,14 @@ class InventoryWarehousesEndpointTest
     public function __construct()
     {
         // Configure your API base URL and headers
-        $this->baseUrl = 'https://yourdomain.com/restapi/endpoints/v1/inventory/warehouses/';
+        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/inventory/warehouses/';
         
         // Set your actual authorization headers - UPDATE THESE VALUES
         $this->headers = [
             'Content-Type: application/json',
-            'Authorization: YOUR_API_KEY_HERE',
-            'X-SaldiUser: YOUR_USERNAME_HERE',
-            'X-DB: YOUR_DATABASE_HERE'
+            'Authorization: 4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD',
+            'X-SaldiUser: api',
+            'X-DB: test_4'
         ];
     }
 

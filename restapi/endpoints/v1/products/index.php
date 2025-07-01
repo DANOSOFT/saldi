@@ -27,13 +27,17 @@ class ProductsEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
+                $limit = $_GET['limit'] ?? 20;
+                if($limit > 100 || $limit < 1) {
+                    $limit = 20; // Enforce a maximum limit
+                }
                 
                 if ($field && $value) {
                     // Search by specific field
                     $products = VareModel::findBy($field, $value);
                 } else {
                     // Get all products
-                    $products = VareModel::getAllItems($orderBy, $orderDirection);
+                    $products = VareModel::getAllItems($orderBy, $orderDirection, $limit);
                 }
                 
                 $items = [];
