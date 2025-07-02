@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 4.1.1 --- 2025-06-29 --
+// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 4.1.1 --- 2025-07-02 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------------
 // 20250629 - PHR $basecurrency  & some cleanup
+// 20250702 - PHR Updated deletion of fiscal year
 
 function deleteFinancialYear($year) {
 	
@@ -62,7 +63,7 @@ function deleteFinancialYear($year) {
 	}
 	$qtxt = "update grupper set box10 = '' where box10 is NULL and art = 'RA'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "select * from grupper where art = 'RA' and id < '$groupId' and box10 != 'on' order by id limit 1";
+	$qtxt = "select * from grupper where art = 'RA' and id < '$groupId' and box10 = '' order by id limit 1";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		alert("Regnskabsår $r[kodenr] skal slettes først");
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../systemdata/regnskabsaar.php\">";
@@ -241,7 +242,7 @@ function deleteFinancialYear($year) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from kontoplan where regnskabsaar ='$year'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "update grupper set box10 = 'on' where art = 'RA' and kodenr ='$year'";
+	$qtxt = "update grupper set box10 = '".date('U')."' where art = 'RA' and kodenr ='$year'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "delete from grupper where fiscal_year = '$year'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
