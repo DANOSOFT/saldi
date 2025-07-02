@@ -65,7 +65,7 @@ include("../includes/row-hover-style.js.php");
 print '<script src="../javascript/chart.js"></script>';
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
-: 'javascript:window.history.go(-2);';
+: '../index/menu.php';
 $beregn_lager=if_isset($_POST['beregn_lager']);
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
