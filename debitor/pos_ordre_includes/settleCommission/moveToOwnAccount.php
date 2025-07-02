@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 // 20230912 corrected error in VAT sign (was positve when is should be negative)
 // 20231120	PHR Added checkLineId to avoid same line counnted more than once.
-// 20250701 PHR PHPP8
+// 20250701 PHR PHP8
 
 $minDate=$fakturadate[0];
 $a=count($fakturadate)-1;

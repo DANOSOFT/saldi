@@ -216,7 +216,7 @@
 // 20240415 PHR Moved function delbetal to pos_ordre_includes/paymentFunc/partPayment.php
 // 20250526 PHR added "if ($returside == 'kassespor.php') .... " to function primary_menu as 'retur til kassespor' didn't work
 // 20250619 PHR proforma button can nov be called anything - not nessecary 'proforma'
-
+// 20250701 PHR Updated call to 'moveToOwnAccount' who work without 'moveToCustomerAccount' set
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2803,7 +2803,7 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	$qtxt = "insert into report (date,type,description,count,total,report_number) ";
 	$qtxt.= "values ('$dd','Head line','Cash count, box $kasse','0','0','$reportNumber')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	if (count($fakturadate) && (($ownCommissionAccountNew && $commissionAccountNew) || ($ownCommissionAccountUsed && $commissionAccountUsed))) {
+	if (count($fakturadate) && (($ownCommissionAccountNew) || ($ownCommissionAccountUsed))) {
 		include('pos_ordre_includes/settleCommission/moveToOwnAccount.php');
 	}
 	if (($settleCommission || $createPayList) && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
