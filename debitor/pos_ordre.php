@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-06-19--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-07-02--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -217,7 +217,7 @@
 // 20250526 PHR added "if ($returside == 'kassespor.php') .... " to function primary_menu as 'retur til kassespor' didn't work
 // 20250619 PHR proforma button can nov be called anything - not nessecary 'proforma'
 // 20250701 PHR Updated call to 'moveToOwnAccount' who work without 'moveToCustomerAccount' set
-@session_start();
+// 20250701 PHR Check if order exits. if not set id to 0
 $s_id = session_id();
 ob_start();
 $modulnr = 5;
@@ -1674,6 +1674,10 @@ if ($vare_id) {
 
 ############################
 $x = 0;
+if ($id) {
+	$qtxt = "select id from ordrer where id = '$id' and art = 'PO'";
+	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $id = 0;
+}
 if ($id && $gem) {
 	if (!$afd) { #20150302
 		$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
