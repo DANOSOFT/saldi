@@ -112,7 +112,7 @@ if (isset($_POST['gem'])) {
 }
 
 if ($db != $sqdb) {
-	$txt1 = findtekst(1905, $sprog_id);
+	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
 	print "<BODY onLoad=\"javascript:alert('$txt1')\">\n";
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">\n";
 	exit;
@@ -164,14 +164,14 @@ while ($r=db_fetch_array($q)) {
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>\n";
-print "  <td $top_bund width=\"10%\"><a href='../index/admin_menu.php'>".findtekst(30, $sprog_id)."</a></td>\n"; 
+print "  <td $top_bund width=\"10%\"><a href='../index/admin_menu.php'>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n"; 
 print "  <td $top_bund width=\"35%\">&nbsp;</td>\n";
 print "  <td $top_bund width=\"10%\" align = \"center\"></td>\n";
 print "<td $top_bund width=\"35%\">&nbsp;</td>";
 print "<td $top_bund width=\"10%\" align = \"right\"></td>\n";
 print "</tr></tbody></table></td></tr>\n<tr><td align=\"center\" valign=\"center\">\n";
 $td=" align=\"center\" height=\"35\"";
-$txt = findtekst(1926, $sprog_id); #20210917
+$txt = findtekst('1926|ikke fundet!', $sprog_id); #20210917
 if ($ps2pdf && !file_exists($ps2pdf)) echo "$ps2pdf $txt";
 if ($html2pdf && !file_exists($html2pdf)) echo "$html2pdf $txt";
 if ($pdfmerge && !file_exists($pdfmerge)) echo "$pdfmerge $txt";
@@ -192,7 +192,7 @@ if (!$dbdump) {
 if (!$zip) $zip=system("which gzip");
 if (!$unzip) $unzip=system("which gunzip");
 if (!$tar) $tar=system("which tar");
-if (!$alertText) $alertText=findtekst(534, $sprog_id); #20210917
+if (!$alertText) $alertText=findtekst('534|Uforudset hændelse, kontakt salditeamet på telefon 4690 2208', $sprog_id); #20210917
 $newssnippet = get_settings_value("nyhed", "dashboard", "");
 
 #include("../includes/languages.php"); #20210920
@@ -210,19 +210,19 @@ print "<table align=\"center\" border=\"0\" cellspacing=\"5\" cellpadding=\"0\">
 print "<tr><td colspan=\"2\" height=\"35\" align=\"center\" background=\"../img/blaa2hvid_bg.gif\">";
 print "<big<big><big><b>SALDI</b></big></big></big></td></tr>";
 print "<tr><td  colspan=\"2\" height=\"35\" align=\"center\"><b><big>Indstillinger</big></b></td></tr>";
-print "<tr><td>".findtekst(1917, $sprog_id)."</td><td><input style='width:400px' name='ps2pdf' value='$ps2pdf'></td></tr>"; 
-print "<tr><td>".findtekst(1918, $sprog_id)."</td><td><input style='width:400px' name='html2pdf' value='$html2pdf'></td></tr>"; 
-print "<tr><td>".findtekst(1919, $sprog_id)."</td><td><input style='width:400px' name='pdfmerge' value='$pdfmerge'></td></tr>"; 
-print "<tr><td>".findtekst(1920, $sprog_id)."</td><td><input style='width:400px' name='ftp' value='$ftp'></td></tr>"; 
-print "<tr><td>".findtekst(1921, $sprog_id)."</td><td><input style='width:400px' name='dbdump' value='$dbdump'></td></tr>";
-print "<tr><td>".findtekst(1922, $sprog_id)."</td><td><input style='width:400px' name='zip' value='$zip'></td></tr>";
-print "<tr><td>".findtekst(1923, $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
-print "<tr><td>".findtekst(1924, $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
-print "<tr><td>".findtekst(1925, $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
-print "<tr><td>".findtekst(3064, $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
+print "<tr><td>".findtekst('1917|Program til konvertering af PostScript til PDF', $sprog_id)."</td><td><input style='width:400px' name='ps2pdf' value='$ps2pdf'></td></tr>"; 
+print "<tr><td>".findtekst('1918|Program til konvertering af HTML til PDF', $sprog_id)."</td><td><input style='width:400px' name='html2pdf' value='$html2pdf'></td></tr>"; 
+print "<tr><td>".findtekst('1919|Program til sammenlægning af PDF filer', $sprog_id)."</td><td><input style='width:400px' name='pdfmerge' value='$pdfmerge'></td></tr>"; 
+print "<tr><td>".findtekst('1920|Program til FTP', $sprog_id)."</td><td><input style='width:400px' name='ftp' value='$ftp'></td></tr>"; 
+print "<tr><td>".findtekst('1921|Program til databasedump', $sprog_id)."</td><td><input style='width:400px' name='dbdump' value='$dbdump'></td></tr>";
+print "<tr><td>".findtekst('1922|Program til komprimering af filer', $sprog_id)."</td><td><input style='width:400px' name='zip' value='$zip'></td></tr>";
+print "<tr><td>".findtekst('1923|Program til dekomprimering af filer', $sprog_id)."</td><td><input style='width:400px' name='unzip' value='$unzip'></td></tr>";
+print "<tr><td>".findtekst('1924|Program til pakning af filer', $sprog_id)."</td><td><input style='width:400px' name='tar' value='$tar'></td></tr>";
+print "<tr><td>".findtekst('1925|Tekst ved \'uforudset hændelse\'', $sprog_id)."</td><td><input style='width:400px' name='alertText' value='$alertText'></td></tr>";
+print "<tr><td>".findtekst('1099|Slet', $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
 
 ##################### #20210920
-print "<tr><td title='".findtekst(2, $sprog_id)."'>".findtekst(436, $sprog_id)." ".findtekst(801, $sprog_id)."</td>";
+print "<tr><td title='".findtekst('2|Vælg aktivt sprog', $sprog_id)."'>".findtekst('436|Skift', $sprog_id)." ".findtekst('801|Sprog', $sprog_id)."</td>";
 print"<td> <SELECT class ='inputbox' NAME = 'LanguageId' title=''>";
 /*
 foreach ($languages as $k => $v) {

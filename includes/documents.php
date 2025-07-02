@@ -75,8 +75,8 @@ elseif (file_exists('../documents')) $docFolder = '../documents';
 
 if ($dokument) {
 	if (file_exists("$docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId")) {
-			include("docsIncludes/convertOldDoc.php");
-		} else print "$dokument Ikke fundet";
+		include("docsIncludes/convertOldDoc.php");
+	} else print "$dokument ".findtekst('1740|ikke fundet', $sprog_id);
 }
 #$openPool,$sourceId,$source,$bilag,$fokus,$poolFile,$docFolder
 #echo $poolParams;
@@ -117,18 +117,18 @@ $poolParams =
 	"source=$source";
 $targetPage = "documents.php?" . $poolParams;
 #****************
-print "<br>Bilag kan sendes til<br>";
+print "<br>".findtekst('2591|Bilag kan sendes til', $sprog_id)."<br>";
 print "<a href='mailto:bilag_".$db."@".$_SERVER['SERVER_NAME']."'>";
 print "bilag_".$db."@".$_SERVER['SERVER_NAME']."</a><br><br>\n";
 print '<a href="' . $targetPage . '">';
-print "<button id=\"emailD\">Dokument pulje</button>";
+print "<button id=\"emailD\">".findtekst('2592|Dokumentpulje',$sprog_id)."</button>";
 print '</a><br>';
 ;
 
 
 
 $dropZone = "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' style='width: 200px; height: 150px; border: 2px dashed #ccc; text-align: center; padding: 20px;'>
-    <span id='dropText'>Drop pdf file here</span>
+    <span id='dropText'>".findtekst('2593|Træk og slip PDF-fil her', $sprog_id)."</span>
 </div>";
 
 $clipImage = "<span class='clip-image drop-zone-container' title='Drag and Drop the file here'>

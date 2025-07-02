@@ -1405,7 +1405,7 @@
 1405	Der kan kun være 1 kolonne med Dato	There can only be 1 column with Date	Det kan bare være en kolonne med dato
 1406	Der kan kun være 1 kolonne med Beskrivelse	There can only be 1 column with Description	Det kan bare være en kolonne med beskrivelse
 1407	Der kan kun være 1 kolonne med Beløb	There can only be 1 column with Amount	Det kan bare være 1 kolonne med beløp
-1408	Kassebillag	Cash bill	Kontantregning
+1408	Kassebilag	Cash voucher	Kassebilag
 1409	Mappe til bilag ikke fundet	Folder for attachments not found	Mappen for vedlegg ble ikke funnet
 1410	Der tillades kun bilag af typen PDF	Only PDF attachments are allowed	Bare PDF-vedlegg er tillatt
 1411	Vedhæft bilag	Attach attachment	Legg vedlegg
@@ -1902,7 +1902,7 @@
 1902	Begræns bruger IP	Restrict User IP	Begrens bruker IP
 1903	Gendan brugers IP	Restore User IP	Gjenopprett bruker IP
 1904	Angiv brugerens tilladte IP adresser	Enter IP address to restrict	Skriv inn IP for å begrense
-1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you have shown nothing to do here! Your IP number, username and accounts are registered!	Hmm du har ikke vist noe å gjøre her! Ditt IP -nummer, brukernavn og kontoer er registrert!
+1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you are not supposed to be here! Your IP number, username and accounts are registered!	Hmm, du har visst ikke noe å gjøre her! Din IP-adresse, brukernavn og regnskap er registrert!
 1906	Skjul Luk	Hide Close	Skjul Lukk
 1907	Vis Luk	Show Close	Vis Lukk
 1908	Lås	Lock	Lås
@@ -2330,12 +2330,12 @@
 2330	For at udskrive en csv skal de	To print a csv, the	For å skrive ut en csv må de
 2331	nedenstående kontonumre mappes til <u>standard kontonumre</u>.	account numbers below must be mapped to <u>standard account numbers</u>.	kontonumrene nedenfor tilordnes <u>standard kontonumre</u>.
 2332	Inde i	Inside	Inne i
-2333	systemdata &#8658	 diverse &#8658	 Import & Export	system data &#8658	 miscellaneous &#8658	 Import & Export	systemdata &#8658	 diverse &#8658	 Import & Export
-2334	kan du under	you can under	kan du under
+2333	Systemdata &#8658 Diverse &#8658 Import & Export	System data &#8658 Miscellaneous &#8658 Import & Export	Systemdata &#8658 Diverse &#8658 Import & Export
+2334	kan du under	under	kan du under
 2335	Indlæs/udlæs kontoplan	Load/Export chart of accounts	Laste/Eksportere kontoplan
-2336	Importer mappingfil til offentlig standard kontoplan	Import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
+2336	Importer mappingfil til offentlig standard kontoplan	you can import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
 2337	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
-2338	systemdata &#8658	 kontoplan	system data &#8658	 chart of accounts	systemdata &#8658	 kontoplan	
+2338	Systemdata &#8658 Kontoplan	System data &#8658 Chart of accounts	Systemdata &#8658 Kontoplan	
 2339	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
 2340	Map til	Map to	Map til
 2341	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
@@ -2588,9 +2588,9 @@
 2588	Omsætning baseret på varegrupper i det gældene regnskabsår	Revenue based on product groups in the current fiscal year	Omsetning basert på varegrupper i det gjeldende regnskapsåret
 2589	u/m	n/v	u/m
 2590	Betalings- kort	Payment card	Betalings- kort
-2591	
-2592	
-2593	
+2591	Bilag kan sendes til	Attachments can be sent to	Vedlegg kan sendes til
+2592	Dokumentpulje	Document batch	Dokumentpulje
+2593	Træk og slip PDF-fil her	Drop PDF file here	Dra og slipp PDF-fil her
 2594	
 2595	
 2596	
