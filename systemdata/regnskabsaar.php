@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 4.1.1 --- 2025-07-02 --
+// --- systemdata/regnskabsaar.php --- ver 4.1.1 --- 2025-05-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,7 +33,6 @@
 // 20220501 PHR - Corrected error in set all.
 // 20240524 PHR - Fiscal year can now be deleted.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
-// 20250702 PHR - Updated deletion of fiscal year
 
 @session_start();
 $s_id = session_id();
@@ -120,7 +119,6 @@ $deleted = array();
 $query = db_select("select * from grupper where art = 'RA' order by box2,box1", __FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
 	$x++;
-	$tmp = date('Y')-5;
 	if ($row['box10'] == '' && $row['box4'] < date('Y')-5) {
 		$qtxt = "select id from kontoplan where regnskabsaar = '$x'";
 		if (!$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -153,7 +151,7 @@ while ($row = db_fetch_array($query)) {
 	print "<td> $row[box4]<br></td>";
 	(date('Y') - $row['box4'] > 5)?$showDelete=1:$showDelete=0;
 	if ($deleted[$x]) {
-		print "<td> Slettet</td><td>$deleteDate[$x]<br></td><td></td>";
+		print "<td> Slettet</td><td>$deleteDate[$x]<br></td>";
 	} elseif ($row['kodenr'] != $regnaar && $row['box5'] == 'on') {
 		print "<td><a href='regnskabsaar.php?aktiver=$row[kodenr]'> " . findtekst('1213|Sæt aktivt', $sprog_id) . "</a><br></td><td></td>";
 	} elseif ($row['kodenr'] != $regnaar) {
