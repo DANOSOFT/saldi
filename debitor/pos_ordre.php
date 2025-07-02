@@ -218,6 +218,7 @@
 // 20250619 PHR proforma button can nov be called anything - not nessecary 'proforma'
 // 20250701 PHR Updated call to 'moveToOwnAccount' who work without 'moveToCustomerAccount' set
 // 20250701 PHR Check if order exits. if not set id to 0
+@session_start();
 $s_id = session_id();
 ob_start();
 $modulnr = 5;
