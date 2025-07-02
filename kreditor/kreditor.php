@@ -205,7 +205,7 @@ if ($valg == "$kreditor1") {
 } #20210705
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
-	: '../index/dashboard.php';
+	: '../index/menu.php';
 
 if ($popup) $returside = "../includes/luk.php";
 else $returside = $backUrl;

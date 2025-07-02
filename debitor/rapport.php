@@ -49,6 +49,33 @@ include("../includes/autoudlign.php");
 include("../includes/rapportfunc.php");
 include("../includes/row-hover-style-with-links.js.php");
 
+
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
+
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+<?php
+
 print '
 <style>
 .hover-highlight:hover {
@@ -93,18 +120,22 @@ document.addEventListener("DOMContentLoaded", function () {
 global $sprog_id; //2021
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
-	: 'javascript:window.history.go(-2);';
+	: '../index/menu.php';
 if ($popup)
 	$returside = "../includes/luk.php";
 else
 	$returside = $backUrl;
 
-if (!isset($rapportart))
+if(isset($_GET["rapportart"]) && $_GET["rapportart"] == "openpost") {
+	$openpost = true;
+}
+
+if (!isset($_GET["rapportart"]))
 	$rapportart = NULL;
 if (!isset($_GET['submit']))
 	$_GET['submit'] = NULL;
-if (!isset($_GET['returside']))
-	$_GET['returside'] = NULL;
+/* if (!isset($_GET['returside']))
+	$_GET['returside'] = NULL; */
 if (!isset($_GET['udlign']))
 	$_GET['udlign'] = NULL;
 
@@ -116,7 +147,7 @@ if (isset($_GET['ny_rykker'])) {
 	#	$regnaar=$_GET['regnaar'];
 	openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
 	exit;
-} elseif ($rapportart = if_isset($_GET['rapportart'])) {
+} elseif (isset($_GET['rapportart']) && $_GET['rapportart'] != 'openpost') {
 	$dato_fra = if_isset($_GET['dato_fra']);
 	$dato_til = if_isset($_GET['dato_til']);
 	$konto_fra = if_isset($_GET['konto_fra']);
@@ -138,7 +169,7 @@ include("../includes/row-hover-style-with-link-no-input.js.php");
 	exit;
 }
 $rapportart = NULL;
-if (isset($_POST['openpost']))
+if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
 if (isset($_POST['kontosaldo']))
 	$rapportart = 'kontosaldo';

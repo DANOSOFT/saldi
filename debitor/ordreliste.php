@@ -966,7 +966,7 @@ while ($r0=db_fetch_array($q0)) {
 		if ($r0['art']=='DK') {
 			print "<td align=$justering[0] $javascript style='color:$color'>(KN)&nbsp;$linjetext $understreg $r0[ordrenr]</div><br></td>";
 		} else if ($r0['restordre']=='1') {
-			print "<td align=$justering[0] $javascript style='color:$color'>(R)&nbsp;$linjetext $understreg $r0[ordrenr]</div><br></td>";
+			print "<td align=$justering[0] $javascript style='color:$color' title='Restordre'>(R)&nbsp;$linjetext $understreg $r0[ordrenr]</div><br></td>";
 		} else {
 			print "<td align=$justering[0] ";
 			if ($popup) print " $javascript";

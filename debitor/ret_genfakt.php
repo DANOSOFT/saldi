@@ -70,6 +70,31 @@ $gl_dato=NULL;$ny_dato=NULL;
 $ny_betalingsbet=NULL;$ny_betalingsdage=NULL;
 $gl_genfakt=NULL;$ny_genfakt=NULL;
 
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
+
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+<?php
 
 $returside=if_isset($_GET['returside']);
 if ($popup) $returside="../includes/luk.php";

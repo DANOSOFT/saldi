@@ -82,7 +82,7 @@ if (isset($_GET['returside'])) {
 }
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
-	: '../index/dashboard.php';
+	: '../index/menu.php';
 
 if ($returside == 'ordreliste.php') $returside = NULL;
 if (!$returside) {

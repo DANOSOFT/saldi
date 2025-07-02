@@ -7,7 +7,7 @@ $TableBG = "bgcolor=$bgcolor";
 if(isset($_GET['returside'])){
 	$backUrl = $_GET['returside'];
 }else{
-	$backUrl = '../index/dashboard.php';
+	$backUrl = '../index/menu.php';
 }
 
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
