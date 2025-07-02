@@ -38,6 +38,20 @@ class AccountModel {
     }
 
     /**
+     * Get the current fiscal year from the database
+     *
+     * @return int|null Fiscal year or null if not found
+     */
+    private function getFiscalYear(){
+        $query = db_select("SELECT kodenr FROM grupper WHERE art = 'RA' ORDER BY kodenr DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+        if (db_num_rows($query) > 0) {
+            $r = db_fetch_array($query);
+            return (int)$r['kodenr'];
+        }
+        return null;
+    }
+
+    /**
      * Load account details from database by ID
      *
      * @param int $id
@@ -123,7 +137,6 @@ class AccountModel {
                 lukket = '$this->lukket', 
                 primo = '$this->primo', 
                 saldo = '$this->saldo', 
-                regnskabsaar = '$this->regnskabsaar', 
                 genvej = '$this->genvej', 
                 overfor_til = '$this->overfor_til', 
                 anvendelse = '$this->anvendelse', 
@@ -154,7 +167,7 @@ class AccountModel {
                     $this->valuta = 0; // Default to 0 if no currency found
                 }
             }
-
+            $regnaar = self::getFiscalYear();
             // Insert new account
             $qtxt = "INSERT INTO kontoplan (
                 kontonr, beskrivelse, kontotype, moms, fra_kto, til_kto, 
@@ -164,7 +177,7 @@ class AccountModel {
                 '$this->kontonr', '$this->beskrivelse', '$this->kontotype', 
                 '$this->moms', '$this->fra_kto', '$this->til_kto', 
                 '$this->lukket', '$this->primo', '$this->saldo', 
-                '$this->regnskabsaar', '$this->genvej', '$this->overfor_til', 
+                '$regnaar', '$this->genvej', '$this->overfor_til', 
                 '$this->anvendelse', '$this->modkonto', '$this->valuta', 
                 '$this->valutakurs', '$this->map_to'
             )";
@@ -248,7 +261,6 @@ class AccountModel {
             'lukket' => $this->lukket,
             'primo' => $this->primo,
             'saldo' => $this->saldo,
-            'regnskabsaar' => $this->regnskabsaar,
             'genvej' => $this->genvej,
             'overfor_til' => $this->overfor_til,
             'anvendelse' => $this->anvendelse,

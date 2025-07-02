@@ -63,7 +63,6 @@ class VatEndpoint extends BaseEndpoint
             if (isset($data->momskode)) $vatItem->setMomskode($data->momskode);
             if (isset($data->nr)) $vatItem->setNr($data->nr);
             if (isset($data->beskrivelse)) $vatItem->setBeskrivelse($data->beskrivelse);
-            if (isset($data->fiscal_year)) $vatItem->setFiscalYear($data->fiscal_year);
             
             // Set VAT specific properties
             if (isset($data->account)) $vatItem->setAccount($data->account);
@@ -86,6 +85,11 @@ class VatEndpoint extends BaseEndpoint
     protected function handlePut($data)
     {
         try {
+            // If ID is in GET parameters, add it to data instead of overwriting
+            if(isset($_GET["id"])){
+                $data->id = $_GET["id"];
+            }
+
             // Validate required fields
             $this->validateData($data, ['id']);
             
@@ -99,7 +103,6 @@ class VatEndpoint extends BaseEndpoint
             if (isset($data->momskode)) $vatItem->setMomskode($data->momskode);
             if (isset($data->nr)) $vatItem->setNr($data->nr);
             if (isset($data->beskrivelse)) $vatItem->setBeskrivelse($data->beskrivelse);
-            if (isset($data->fiscal_year)) $vatItem->setFiscalYear($data->fiscal_year);
             if (isset($data->account)) $vatItem->setAccount($data->account);
             if (isset($data->sats)) $vatItem->setSats($data->sats);
             if (isset($data->modkonto)) $vatItem->setModkonto($data->modkonto);
@@ -120,6 +123,11 @@ class VatEndpoint extends BaseEndpoint
     protected function handleDelete($data)
     {
         try {
+            // If ID is in GET parameters, add it to data instead of overwriting
+            if(isset($_GET["id"])){
+                $data->id = $_GET["id"];
+            }
+
             // Validate required fields
             $this->validateData($data, ['id']);
             

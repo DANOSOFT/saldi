@@ -69,7 +69,6 @@ class AccountsEndpoint extends BaseEndpoint
             if (isset($data->lukket)) $account->setLukket($data->lukket);
 			$account->setPrimo(isset($data->primo) ? $data->primo : 0);
 			$account->setSaldo(isset($data->saldo) ? $data->saldo : 0);
-            if (isset($data->regnskabsaar)) $account->setRegnskabsaar($data->regnskabsaar);
             if (isset($data->genvej)) $account->setGenvej($data->genvej);
 			$account->setOverforTil(isset($data->overfor_til) ? $data->overfor_til : 0);
             if (isset($data->anvendelse)) $account->setAnvendelse($data->anvendelse);
@@ -112,7 +111,6 @@ class AccountsEndpoint extends BaseEndpoint
             if (isset($data->lukket)) $account->setLukket($data->lukket);
 			$account->setPrimo(isset($data->primo) ? $data->primo : 0);
 			$account->setSaldo(isset($data->saldo) ? $data->saldo : 0);
-            if (isset($data->regnskabsaar)) $account->setRegnskabsaar($data->regnskabsaar);
             if (isset($data->genvej)) $account->setGenvej($data->genvej);
 			$account->setOverforTil(isset($data->overfor_til) ? $data->overfor_til : 0);
             if (isset($data->anvendelse)) $account->setAnvendelse($data->anvendelse);

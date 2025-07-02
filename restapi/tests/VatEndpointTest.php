@@ -70,7 +70,6 @@ class VatEndpointTest
             'momskode' => 'S',
             'nr' => '25',
             'beskrivelse' => 'Standard VAT 25%',
-            'fiscal_year' => 2024,
             'account' => 1001,
             'sats' => 25.0,
             'modkonto' => 2001,

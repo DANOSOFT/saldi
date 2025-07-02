@@ -5,6 +5,7 @@ include_once __DIR__ . "/../../includes/connect.php";
 include_once __DIR__ . "/../../includes/std_func.php";
 include_once __DIR__ . "/auth.php";
 include_once __DIR__ . "/logging.php";
+require_once __DIR__ . '/ApiException.php';
 
 
 abstract class BaseEndpoint
@@ -169,24 +170,31 @@ abstract class BaseEndpoint
     protected function handleError($exception = null)
     {
         $errorMessage = $exception ? $exception->getMessage() : "Internal Server Error";
-
-        // Log the error (you'd typically use a proper logging mechanism)
+        $statusCode = 500;
+        
+        if ($exception instanceof ApiException) {
+            $statusCode = $exception->getStatusCode();
+        }
+        
+        // Log the error
         error_log($errorMessage);
-
-        $this->sendResponse(false, null, $errorMessage, 500);
+        
+        $this->sendResponse(false, null, $errorMessage, $statusCode);
     }
 
     // Utility method for data validation
-    protected function validateData($data, $requiredFields = [])
+    protected function validateData($data, $requiredFields)
     {
-        if (!$data) {
-            throw new Exception("No data provided");
-        }
-
+        $missingFields = [];
+        
         foreach ($requiredFields as $field) {
-            if (!isset($data->$field)) {
-                throw new Exception("Missing required field: $field");
+            if (!isset($data->$field) || empty($data->$field)) {
+                $missingFields[] = $field;
             }
+        }
+        
+        if (!empty($missingFields)) {
+            throw new ApiException("Missing required fields: " . implode(', ', $missingFields), 400);
         }
     }
 }
