@@ -243,7 +243,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (!is_dir("../temp/$db/pulje")) mkdir("../temp/$db/pulje");
 		system("cd ../temp/$db/pulje\nrm *\ncp $tmp .\n");
 	} else {
-		$ccalert= __line__." ".findtekst(1416, $sprog_id);
+		$ccalert= __line__." ".findtekst('1416|Ingen bilag i puljen', $sprog_id);
 		print "<BODY onLoad=\"javascript:alert('$ccalert')\">\n";
 		$tmp="documents.php?$params";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
@@ -410,9 +410,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
 	name=\"rename\" value=\"Ret filnavn\"</tr>\n";
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
-	name=\"insertFile\" value=\"".findtekst(1415, $sprog_id)."\"</tr>\n";
+	name=\"insertFile\" value=\"".findtekst('1415|Indsæt', $sprog_id)."\"</tr>\n";
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
-	name=\"unlink\" value=\"".findtekst(1099, $sprog_id)."\"</tr>\n";
+	name=\"unlink\" value=\"".findtekst('1099|Slet', $sprog_id)."\"</tr>\n";
 	print "<tr><td>Bilag&nbsp;</td>";
 	if ($readOnly) print "<td>$bilag</td><tr>";
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"bilag\" value=\"$bilag\"</td></tr>\n";

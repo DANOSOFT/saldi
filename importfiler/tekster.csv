@@ -517,7 +517,7 @@
 517	Balance	Balance	Balanse
 518	Resultat	Result	Resultat
 519	Resultat/budget	Result / budget	Resultat / budsjett
-520	Momsangivelse	VAT return	Mva-retur
+520	Momsangivelse	VAT return	MVA-melding
 521	Sikkerhedskopi	Backup	Sikkerhetskopiering
 522	Anvend topmenu	Use top menu	Bruk toppmeny
 523	Hvis dette felt afmærkes vil der fremkomme en menu i toppen af skærmen som letter navigationen	and reduces the working height	Hvis dette feltet er merket av, vil det vises en meny øverst på skjermen som letter navigering
@@ -1061,13 +1061,13 @@
 1061	Når en ordre oprettes flyttes debitors kontonummer over på ordren, hvis der ikke er angivet et telefonnummer på debitorkortet. Kan dog rettes på ordren efterfølgende.	When an order is created, the debtor's account number is transferred to the order if a telephone number is not specified on the debtor card. Can, however, be corrected on the order afterwards.	Når en ordre opprettes, overføres skyldnerens kontonummer til bestillingen hvis et telefonnummer ikke er spesifisert på gjeldskortet. Kan imidlertid korrigeres på bestillingen etterpå.
 1062	Klik her for at synkronisere debitorkort med debitor-informationer fra ordren	Click here to synchronize debtor cards with debtor information from the order	Klikk her for å synkronisere debitorkort med debitorinformasjon fra bestillingen
 1063	Klik her for at synkronisere ordren med debitor-informationer fra debitorkort	Click here to synchronize the order with debtor information from debtor cards	Klikk her for å synkronisere ordren med debitorinformasjon fra debitorkort
-1064	Simuler	Simulate	Simuler
+1064	Simulér	Simulate	Simuler
 1065	Bogfør	Post	Bokfør
 1066	Udlign	Equalize	Utjevner
 1067	Budget	Budget	 Budsjett
 1068	Bilagstekst	Attachment text	Vedleggstekst
 1069	Valuta	Currency	Valuta  
-1070	Forfald	Due_date	Tidsfrist
+1070	Forfald	Due date	Tidsfrist
 1071	Betal	Pay	Betale
 1072	Kassekladde 	Cash journal	Kontantjournal
 1073	Saldo	Balance	Saldo
@@ -1088,7 +1088,7 @@
 1088	Finansbevægelser	Financial movements	Økonomiske bevegelser
 1089	Simulerede kladder	Simulated drafts	Simulerte utkast
 1090	Annuller simulering	Cancel simulation	Avbryt simulering
-1091	Opdater	Update	Oppdater
+1091	Opdatér	Update	Oppdater
 1092	Kundeordre	Sales order	Salgsordre
 1093	Bogførte kladder	Posted drafts	Skrevet utkast
 1094	Fakturadato	Invoice date	Fakturadato
@@ -1405,7 +1405,7 @@
 1405	Der kan kun være 1 kolonne med Dato	There can only be 1 column with Date	Det kan bare være en kolonne med dato
 1406	Der kan kun være 1 kolonne med Beskrivelse	There can only be 1 column with Description	Det kan bare være en kolonne med beskrivelse
 1407	Der kan kun være 1 kolonne med Beløb	There can only be 1 column with Amount	Det kan bare være 1 kolonne med beløp
-1408	Kassebillag	Cash bill	Kontantregning
+1408	Kassebilag	Cash voucher	Kassebilag
 1409	Mappe til bilag ikke fundet	Folder for attachments not found	Mappen for vedlegg ble ikke funnet
 1410	Der tillades kun bilag af typen PDF	Only PDF attachments are allowed	Bare PDF-vedlegg er tillatt
 1411	Vedhæft bilag	Attach attachment	Legg vedlegg
@@ -1451,8 +1451,8 @@
 1451	Kun ved fakturering/kreditering	Only for invoicing/crediting	Kun ved fakturering/kreditering
 1452	Opkræves via betalingsservice	Charged via BS payment service	Charged via BS payment service
 1453	Gem en kopi og vedhæft kundens historik	Save a copy and attach the customer's history	Lagre en kopi og legg ved kundens historie
-1454	klik her for at åbne bilaget	click here to open the attachment	Klikk her for å åpne vedlegget
-1455	klik her for at vedhæfte et bilag	click here to add an attachment	Klikk her for å legge ved et vedlegg
+1454	Klik her for at åbne bilaget	Click here to open the attachment	Klikk her for å åpne bilaget
+1455	Klik her for at vedhæfte et bilag	Click here to add an attachment	Klikk her for å legge ved et bilag
 1456	Projektnummer. Vises for ordrelinjer tilknyttet et projekt.	Project number. Appears for order lines associated with a project.	Prosjektnummer. Vises for ordrelinjer tilknyttet et prosjekt.
 1457	Kun denne ordre: når dette felt er afmærket udelades ordrelinjen ved genfakturering	Only this order: when this field is checked, the order line is omitted for re-invoicing	Kun denne ordre: når dette feltet er merket, utelates ordrelinjen for omfakturering
 1458	Hvis feltet vises er kunden underlagt reglerne for omvendt betalingspligt. Er varen afmærkeret er der ikke opkrævet moms for den pågældende vare.	If the field is shown, the customer is subject to the rules for reverse charge. If the item is marked, no VAT has been charged for the item in question.	Hvis feltet vises, er kunden underlagt reglene for omvendt gebyr. Hvis varen er merket, er det ikke belastet merverdiavgift for den aktuelle varen.
@@ -1540,7 +1540,7 @@
 1540	Handicappet	Disabled	Funksjonshemmet
 1541	Vælg betalingsmåde	Select payment method	Velg betalingsmåte
 1542	Ordren er i brug af	The order is in use by	Bestillingen er i bruk av
-1543	Angiv belob - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
+1543	Angiv beløb - klik på opslag for at slå op i åbne poster	Enter amount - click on lookup to look up open records	Angi beløp - klikk på oppslag for å slå opp åpne poster
 1544	Klik her for at gemme	Click here to save	Klikk her for å lagre
 1545	Opslag - din markørs placering angiver hvilken tabel, opslag foretages i	Lookup - your cursor&apos;s location indicates which table the lookup is in	Oppslag - markørens plassering indikerer hvilken tabell oppslaget er i
 1546	Simulering af bogføring viser bevægelser i kontoplanen	Posting simulation shows movements in the chart of accounts	Bokføringssimulering viser bevegelser i kontoplanen
@@ -1558,27 +1558,27 @@
 1558	Klik her for at lukke kassekladden	Click here to close the checkout journal	Klikk her for at lukke kassekladden
 1559	Her kan skrives en bemærkning til kladden	A comment on the journal can be written here	Hennes kan skrives og bemærkning til kladden
 1560	Angiv kontonummer til kontrol af kontobevægelser	Enter account number to control account movements	Angiv kontonummer til kontrol af kontobevægelser
-1561	Klik her for at opdatere	Click here to update	Klikk på henne for at opdatere
-1562	Skriv - (minus) for at slette en linje	Type - (minus) to delete a line	Skriv - (minus) for at slette en linje
-1563	Angiv dato som ddmmyy (f.eks 241205)	Enter date as ddmmyy (eg 241205)	Angiv dato som ddmmyy (f.eks. 241205)
-1564	Angiv D for debitor, K for kreditor eller F for finanspostering	Enter D for debtor, K for creditor or F for financial posting	Angiv D for debitor, K for kreditor eller F for finanspostering
-1565	Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek	Type D or K and click on [Lookup] for lookups in the debtor or creditor directory, respectively	Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek
-1566	Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning	Enter invoice number - click on lookup to look up in open records. Write a minus here to suppress automatic equalization	Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus henne for at undertrykke automatisk udligning
-1567	Angiv hvilken afdeling posteringen hører under	Specify which department the posting belongs to	Angiv hvilken afdeling posteringen hører under
-1568	Angiv hvilket ansatejder posteringen hører under	Indicate which employee owner the posting belongs to	Angiv hvilken ansatejder posteringen hører under
-1569	Angiv hvilket projekt posteringen hører under	Specify which project the posting belongs to	Angiv hvilket projekt posteringen hører under
-1570	Angiv valuta for posteringen	Enter currency for posting	Angiv valuta for posteringen
-1571	Betalingsdato for debitor eller kreditorfaktura	Payment date for debtor or creditor invoice	Betalingsdato for debitor eller kreditorfaktura
-1572	Betalingsid fra girokort - Kun nummeret skal skrives	Payment ID from giro card - Only the number must be written	Betalingsid fra girokort - Kun nummeret skal skrives
-1573	Afmærk her, hvis der ikke skal trækkes moms	Check here if VAT is not to be deducted	Afmærk her, hvis der ikke skal trækkes moms
-1574	Tilbagefør postering	Return posting	Tilbagefør postering
+1561	Klik her for at opdatere	Click here to update	Klikk her for å oppdatere
+1562	Skriv - (minus) for at slette en linje	Enter - (minus) to delete a line	Skriv - (minus) for at slette en linje
+1563	Angiv dato som ddmmåå (f.eks 241205)	Enter date as ddmmyy (eg 241205)	Angi dato som ddmmåå (f.eks. 241205)
+1564	Angiv D for debitor, K for kreditor eller F for finanspostering	Enter D for debtor, K for creditor, or F for financial posting	Angi D for debitor, K for kreditor eller F for finanspostering
+1565	Skriv D eller K, og klik på [Opslag] for opslag i hhv. debitor- eller kreditorkartotek	Enter D or K and click on [Lookup] to search in the debtor or creditor directory, respectively	Skriv D eller K, og klikk på [Oppslag] for oppslag i hhv. debitor- eller kreditorkartotek
+1566	Angiv fakturanummer - klik på [Opslag] for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning	Enter invoice number - click on [Lookup] to search in open records. Enter a minus here to suppress automatic equalization	Angi fakturanummer - klikk på [Oppslag] for at søke i åpne poster. Skriv et minus her for å undertrykke automatisk utligning
+1567	Angiv hvilken afdeling posteringen hører under	Specify which department the posting belongs to	Angi hvilken avdeling posteringen hører til
+1568	Angiv hvilken ansat posteringen hører under	Specify which employee the posting belongs to	Angi hvilken ansatt posteringen hører til
+1569	Angiv hvilket projekt posteringen hører under	Specify which project the posting belongs to	Angi hvilket prosjekt posteringen hører til
+1570	Angiv valuta for posteringen	Enter the currency for the posting	Angi valuta for posteringen
+1571	Betalingsdato for debitor- eller kreditorfaktura	Payment date for debtor or creditor invoice	Betalingsdato for debitor- eller kreditorfaktura
+1572	Betalings-ID fra girokort - kun nummeret skal skrives	Payment ID from giro slip - only enter the number	Betalings-ID fra girokort - kun nummeret skal oppgis
+1573	Afmærk her, hvis der ikke skal trækkes moms	Mark here if VAT is not to be deducted	Merk av her hvis det ikke skal beregnes merverdiavgift
+1574	Tilbagefør postering	Return posting	Tilbakefør postering
 1575	En tilsvarende postering er også ført på kladde	A similar entry is also entered on the draft	En tilsvarende postering er også ført på kladde
 1576	Importer data fra DocuBizz?	Import data from DocuBizz?	Importørdata fra DocuBizz?
 1577	Kladden er i brug af	The draft is in use	Kladden er i brug af
 1578	Ulovlig værdi i debetfelt (Bilag nr	Illegal value in debit field (Attachment no	Ulovlig verdi i debetfelt (Bilag nr
 1579	kladde ikke gemt!	draft not saved!	kladde ikke gemt!
 1580	Ulovlig værdi i kreditfelt (Bilag nr	Illegal value in credit field (Attachment no	Ulovlig verdi i kreditfelt (Bilag nr
-1581	Forskellige datoer i bilag	Different dates in appendices	Forskellige datoer i bilag
+1581	Forskellige datoer i bilag	Different dates in attachments	Forskellige datoer i bilag
 1582	Ulovlig værdi i bilagsfelt (Bilag nr	Illegal value in attachment field (Attachment no	Ulovlig verdi i bilagsfelt (Bilag nr
 1583	Brug af refresh konstateret - handling ignoreret	Use of refresh detected - action ignored	Brug af refresh konstateret - håndtering av ignoreret
 1584	Kladden er allerede bogført - kladden lukkes	The journal is already posted - the journal is closed	Kladden er allerede bogført - kladden lukkes
@@ -1602,8 +1602,8 @@
 1602	Klik her for at sortere på ID	Click here to sort by ID	Klikk her for å sortere etter ID
 1603	Klik her for at sortere på dato	Click here to sort by date	Klikk her for å sortere etter dato
 1604	Klik her for at sortere på ejer (den der har oprettet kassekladden)	Click here to sort by owner (the one who created the cash journal)	Klikk her for å sortere etter eier (den som opprettet kontantjournalen)
-1605	Klik her for at sortere på bemårkning	Click here to sort by remark	Klikk her for å sortere etter kommentar
-1606	Klik her for at sortere på \&apos;bogført af	Click here to sort by \ &apos;posted by	Klikk her for å sortere etter \ &apos;skrevet av
+1605	Klik her for at sortere på bemærkning	Click here to sort by remark	Klikk her for å sortere etter kommentar
+1606	Klik her for at sortere på &apos;bogført af&apos;	Click here to sort by &apos;posted by&apos;	Klikk her for å sortere etter &apos;bokført av&apos;
 1607	Kladde er låst af	Draft is locked off	Utkast er låst av
 1608	Klik her for at komme til forsiden af rapporter	Click here to get to the front page of reports	Klikk her for å komme til forsiden av rapporter
 1609	Angiv maksimale antal linjer, som skal vises pr. side	Specify the maximum number of lines to be displayed per page	Angi maksimalt antall linjer som skal vises pr side
@@ -1682,7 +1682,7 @@
 1682	Der er sat	There is set	Det er satt
 1683	til levering men valgt	for delivery but selected	for levering men valgt
 1684	til returnering men valgt	for return but selected	for retur men valgt
-1685	Vare tilhrer ikke nogen varegruppe - kontroller vare og indstillinger!	Item does not belong to any item group - check item and settings!	Varen tilhører ikke noen varegruppe - sjekk element og innstillinger!
+1685	Vare tilhører ikke nogen varegruppe - kontroller vare og indstillinger!	Item does not belong to any item group - check item and settings!	Varen tilhører ikke noen varegruppe - sjekk element og innstillinger!
 1686	Varegruppe ikke opsat korrekt, pos nr	Item group not set up correctly, item no	Varegruppe er ikke riktig konfigurert, varenr
 1687	mangler kontonummer for varekøb og/eller varesalg (Indstillinger -> Varegrp)	missing account number for item purchases and/or item sales (Settings -> Item group)	manglende kontonummer for varekjøp og/eller varesalg (Innstillinger -> Varegruppe)
 1688	Reserveret antal stemmer ikke overens med antal til levering	Reserved number does not match quantity for delivery	Reservert nummer samsvarer ikke med antall for levering
@@ -1793,7 +1793,7 @@
 1793	Klik her for at redigere/opdatere regnskabsår	Click here to edit / update fiscal year	Klikk her for å redigere / oppdatere regnskapsår
 1794	Klik for at sætte regnskabsår	Click to set fiscal year	Klikk for å angi regnskapsår
 1795	aktivt for alle brugere	active for all users	aktiv for alle brukere
-1796	Sæt regnskabsår	Set fiscal year	Sett regnskapsår
+1796	Sæt regnskabsår til	Set fiscal year to	Sett regnskapsår til
 1797	Klik for at se ændringer i perioder eller mailadresser	Click to see changes in periods or email addresses	Klikk for å se endringer i perioder eller e -postadresser
 1798	Send som html. Emne og mailtekst kan ikke ændres.	Send as html. Subject and email text cannot be changed.	Send som html. Emne og e -posttekst kan ikke endres.
 1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen \&apos;Kontoudtog\&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form \ &apos;Account statement\&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet \ &apos;Kontoutskrift\&apos;
@@ -1902,7 +1902,7 @@
 1902	Begræns bruger IP	Restrict User IP	Begrens bruker IP
 1903	Gendan brugers IP	Restore User IP	Gjenopprett bruker IP
 1904	Angiv brugerens tilladte IP adresser	Enter IP address to restrict	Skriv inn IP for å begrense
-1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you have shown nothing to do here! Your IP number, username and accounts are registered!	Hmm du har ikke vist noe å gjøre her! Ditt IP -nummer, brukernavn og kontoer er registrert!
+1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you are not supposed to be here! Your IP number, username and accounts are registered!	Hmm, du har visst ikke noe å gjøre her! Din IP-adresse, brukernavn og regnskap er registrert!
 1906	Skjul Luk	Hide Close	Skjul Lukk
 1907	Vis Luk	Show Close	Vis Lukk
 1908	Lås	Lock	Lås
@@ -2084,7 +2084,7 @@
 2084	Klik her for at eksportere til csv	Click here to export to csv	Klikk her for å eksportere til csv
 2085	Vejl.pris	Retail price	Vejl.pris
 2086	Vejledende pris	Retail price	Vejledende pris
-2087	Vis	View	Visa
+2087	Vis	View	Vis
 2088	B2B salgspris	B2B sales price	B2B försäljningspris
 2089	B2B salgsprisen	B2B sales price	B2B försäljningspris
 2090	Vis skjulte produkter	View hidden products	Visa dolda varor
@@ -2134,12 +2134,12 @@
 2134	Udtaget fra kasse	Withdrawn from cash register	Tatt ut av kassa
 2135	Salg på konto	Sales on account	Salg på konto
 2136	Godkend optælling	Approve count	Godkjenn telling
-2137	Udlejnings oversigt	Rental overview	Utleieoversikt
+2137	Udlejningsoversigt	Rental overview	Utleieoversikt
 2138	Daglig oversigt	Daily overview	Daglig oversikt
 2139	Indstillinger	Settings	Instillinger
 2140	Lukkedage	Closed days	Stengte dager
 2141	Udlejningsvare	Rental product	Utleieprodukt
-2142	Søg kunde historik	Search customer history	Søk kundehistorikk
+2142	Søg kundehistorik	Search customer history	Søk kundehistorikk
 2143	Ekstern booking	Remote booking	Ekstern booking
 2144	Intern note	Internal note	Internt notat
 2145	Webfragt	Webfragt	Webfragt
@@ -2249,7 +2249,7 @@
 2249	Skriv bonnummer eller 'S' for sidste bon	Enter receipt number or 'S' for last receipt	Skriv bonnummer eller 'S' for siste bon
 2250	Bon	Receipt	Bon
 2251	Vælg brugernavn og angiv adgangskode	Choose a username and enter a password	Velg brukernavn og angi passord
-2252	Ekspedient	Clerk	Ekspeditør
+2252	Ekspedient	Cashier	Ekspeditør
 2253	Vælg kasse	Choose cash register	Velg kasse
 2254	Indtast nummer	Enter number	Skriv inn nummer
 2255	Gavekortnummer	Gift card number	Gavekortnummer
@@ -2293,12 +2293,12 @@
 2293	Kopier fra	Copy from	Kopier fra
 2294	POS-ordre	POS order	POS-ordre
 2295	Kontoopslag	Account lookup	Kontooppslag
-2296	Retur	Return	Retur
+2296	Retur	Change	Tilbake
 2297	Gl. saldo	Old balance	Gl. saldo
 2298	Ny saldo	New balance	Ny saldo
 2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
 2300	Den maxlimale længde en label kan have i bokstaver, over 40 skal saldi teamet kontaktes for at udvidde databaseplads	 The maximum length a label can have in letters, above 40 balances the team must be contacted to expand database space	Den maksimale lengden en etikett kan ha i bokstaver, over 40 balanser må teamet kontaktes for å utvide databaseplassen
-2301	Momsangivelse for året	VAT return for the year	Mva-melding for året
+2301	Momsangivelse for året	VAT return for the year	MVA-melding for året
 2302	Vis enhed	View unit type	Visa enhet
 2303	Valuta	Currency	Valuta
 2304	Valuta hjælpetekst	Currency	Valuta
@@ -2330,12 +2330,12 @@
 2330	For at udskrive en csv skal de	To print a csv, the	For å skrive ut en csv må de
 2331	nedenstående kontonumre mappes til <u>standard kontonumre</u>.	account numbers below must be mapped to <u>standard account numbers</u>.	kontonumrene nedenfor tilordnes <u>standard kontonumre</u>.
 2332	Inde i	Inside	Inne i
-2333	systemdata &#8658	 diverse &#8658	 Import & Export	system data &#8658	 miscellaneous &#8658	 Import & Export	systemdata &#8658	 diverse &#8658	 Import & Export
-2334	kan du under	you can under	kan du under
+2333	Systemdata &#8658 Diverse &#8658 Import & Export	System data &#8658 Miscellaneous &#8658 Import & Export	Systemdata &#8658 Diverse &#8658 Import & Export
+2334	kan du under	under	kan du under
 2335	Indlæs/udlæs kontoplan	Load/Export chart of accounts	Laste/Eksportere kontoplan
-2336	Importer mappingfil til offentlig standard kontoplan	Import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
+2336	Importer mappingfil til offentlig standard kontoplan	you can import mapping file to public standard chart of accounts	Importere tilordningsfil til offentlig standard kontoplan
 2337	De kontonumre som <u>ikke</u> kan mappes ændres i	The account numbers that cannot be mapped can be changed in	Kontonumrene som ikke kan kartlegges kan endres i
-2338	systemdata &#8658	 kontoplan	system data &#8658	 chart of accounts	systemdata &#8658	 kontoplan	
+2338	Systemdata &#8658 Kontoplan	System data &#8658 Chart of accounts	Systemdata &#8658 Kontoplan	
 2339	Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet	Here, under the individual account number, you can add the standard account number in the field	Her kan du under det enkelte kontonummeret legge til standard kontonummer i feltet
 2340	Map til	Map to	Map til
 2341	Sidst på siden kan man se en udskrift af Standard Kontoplan	At the end of the page you can see a printout of the Standard Account Plan	På slutten av siden kan du se en utskrift av Standard Account Plan
@@ -2380,10 +2380,10 @@
 2380	Har været aktive inden for den sidste time	Have been active within the last hour	Har vært aktive innen den siste timen
 2381	Hvilket svarer til	Which is equivalent to	Som tilsvarer
 2382	ufaktureret	unbilled	ufakturert
-2383	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	
-2384	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	
-2385	mere end sidste år til dato	more than last year to date	
-2386	mindre end sidste år til dato	less than last year to date	
+2383	Omsætning for året, ekskl. moms	Turnover for the year, excl. VAT	Omsetning for året, ekskl. MVA
+2384	Omsætning denne måned, ekskl. moms	Turnover for this month, excl. VAT	Omsetning denne måneden, ekskl. MVA
+2385	mere end sidste år til dato	more than last year to date	mer enn i fjor til dato
+2386	mindre end sidste år til dato	less than last year to date	mindre enn i fjor til dato
 2387	Optæl kassebeholdning for kasse	Count the cash drawer for register	Telle opp kassebeholdningen for kasse
 2388	Antal mønter/sedler af hver slags	Number of coins/bills of each type	Antall mynter/sedler av hver type
 2389	Morgenbeholdning	Opening cash balance	Morgenbeholdning
@@ -2398,7 +2398,7 @@
 2398	Slet alt og start forfra	Clear all and start over	Slett alt og start på nytt
 2399	Ret	Edit	Rett
 2400	Ordrebek	OrderConf	Ordrebek
-2401	Overblik	Dashboard	Oversikt
+2401	Oversigt	Dashboard	Oversikt
 2402	Vælg hvilke varegrupper og kreditorer som skal vises i varelisten	Select which product groups and creditors are to be displayed in the product list	Velg hvilke produktgrupper og kreditorer som skal vises i produktlisten
 2403	Opret en ny vare	Create a new product	Opprett et nytt produkt
 2404	Luk varelisten og gå tilbage til hovedmenuen	Close the product list and go back to the main menu	Lukk produktlisten og gå tilbake til hovedmenyen
@@ -2564,33 +2564,33 @@
 2564	Hjælp	Help	Hjelp
 2565	Klik her for at rette nr. eller navn på projektet	Click here to edit the project number or name	Klikk her for å rette nr. eller navn på prosjektet
 2566	Klik her for at slette projektet	Click here to delete the project	Klikk her for å slette prosjektet
-2567	
-2568	
-2569	
-2570	
-2571	
-2572	
-2573	
-2574	
-2575	
-2576	
-2577	
-2578	
-2579	
-2580	
-2581	
-2582	
-2583	
-2584	
-2585	
-2586	
-2587	
-2588	
-2589	
-2590	
-2591	
-2592	
-2593	
+2567	Indbetaling	Deposit	Innbetaling
+2568	Det beløb, der skal indsættes på kontoen	The amount to be deposited into the account	Beløpet som skal settes inn på kontoen
+2569	Ved udbetaling skal beløbet være negativt	For withdrawals, the amount must be negative	Ved utbetaling må beløpet være negativt
+2570	Det beløb der betales, f.eks. hvis der betales	The amount paid, e.g. if payment is made by card,	Beløpet som betales, f.eks. hvis det betales med
+2571	med kort og kunden samtidig vil hæve kontant	and the customer also wants to withdraw cash	kort og kunden samtidig ønsker å ta ut kontanter
+2572	Feltet kan efterlades tomt for ind-/udbetaling på beløb	The field can be left empty for exact-amount deposits and withdrawals	Feltet kan stå tomt ved inn-/utbetaling av nøyaktig beløp
+2573	Ved udbetaling <b>skal</b> feltet efterlades tomt	For withdrawals, the field <b>must</b> be left empty	Ved utbetaling <b>må</b> feltet stå tomt
+2574	Velkommen	Welcome	Velkommen
+2575	Der er i øjeblikket intet aktivt regnskabsår. Aktivér et regnskabsår gennem System » Indstillinger » Regnskabsår	There is currently no active financial year. Activate a financial year through System » Settings » Financial year	Det er for øyeblikket intet aktivt regnskapsår. Aktiver et regnskapsår via System » Innstillinger » Regnskapsår
+2576	Varegruppeomsætning	Product group revenue	Varegruppeomsetning
+2577	Gennemsnitligt antal kunder pr. time de sidste	Average number of customers per hour over the past	Gjennomsnittlig antall kunder per time de siste
+2578	Dage	Days	Dagene
+2579	Lav	Low	Lav
+2580	Medium	Medium	Middels
+2581	Høj	High	Høy
+2582	Meget høj	Very high	Svært høy
+2583	Ekstrem	Extreme	Ekstrem
+2584	Åbn vareliste	Open product list	Åpne vareliste
+2585	Opret vare	Create product	Opprett vare
+2586	Menu opsætning	Menu setup	Menyoppsett
+2587	Åbn rapporter	Open reports	Åpne rapporter
+2588	Omsætning baseret på varegrupper i det gældene regnskabsår	Revenue based on product groups in the current fiscal year	Omsetning basert på varegrupper i det gjeldende regnskapsåret
+2589	u/m	n/v	u/m
+2590	Betalings- kort	Payment card	Betalings- kort
+2591	Bilag kan sendes til	Attachments can be sent to	Vedlegg kan sendes til
+2592	Dokumentpulje	Document batch	Dokumentpulje
+2593	Træk og slip PDF-fil her	Drop PDF file here	Dra og slipp PDF-fil her
 2594	
 2595	
 2596	

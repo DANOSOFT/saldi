@@ -1,9 +1,35 @@
 <?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.06.27 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2023 - 2025 Saldi.dk ApS
+// ----------------------------------------------------------------------
+//
+// 20250627 base currency anount was not calculated correct.
+
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
 
 //	global $connection;
-	global $bgcolor,$bgcolor5,$bruger_id,$db;
+	global $baseCurrency,$bgcolor,$bgcolor5,$bruger_id,$db;
 	global $md,$menu;
 	global $popup;
 	global $regnaar;
@@ -11,7 +37,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	global $top_bund;
 
 	$title = "Kontokort";
-	
+
 	$email=$forfaldsum=$fromdate=$kto_fra=$kto_til=$returside=$todate=NULL;
 
 		$unAlign = if_isset($_GET['unAlign'],NULL);
@@ -128,7 +154,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	
 		$r2 = db_fetch_array(db_select("select box3 from grupper where art='$art' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 		$valuta=trim($r2['box3']);
-		if (!$valuta) $valuta='DKK';
+		if (!$valuta) $valuta='$baseCurrency';
 		else {
 			$r2 = db_fetch_array(db_select("select kodenr from grupper where box1 = '$valuta' and art='VK'",__FILE__ . " linje " . __LINE__));
 			$valutakode=(!empty($r2) ? $r2['kodenr'] : 0);
@@ -170,9 +196,10 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			$oppvaluta[$y]=$r2['valuta'];
 			$faktnr[$y]=$r2['faktnr'];
 			if (!$oppvaluta[$y]) {
-				$oppvaluta[$y]='DKK';
+				$oppvaluta[$y]='$baseCurrency';
 				$valutakurs[$y]=100; //20140503
 			}
+			$dkkamount[$y]=$r2['amount']*$valutakurs[$y]/100;
 			$forfaldsdag[$y]=$r2['forfaldsdate'];
 			$kladde_id[$y]=$r2['kladde_id'];
 			($r2['projekt'])?$projekt[$y]=$r2['projekt']:$projekt[$y]='';
@@ -184,25 +211,25 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			$udlignet[$y]=$r2['udlignet'];
 			$udlign_id[$y]=$r2['udlign_id'];
 
-			if ($oppvaluta[$y]!='DKK' && $valutakurs[$y]==100) {
+			if ($oppvaluta[$y]!=$baseCurrency && $valutakurs[$y]==100) {
 				$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'",__FILE__ . " linje " . __LINE__));
 				$r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$r3[kodenr]' and valdate <= '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__));
 					$valutakurs[$y]=$r3['kurs']*1;
 					$dkkamount[$y]=$amount[$y]*$valutakurs[$y]/100;
-					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet fra DKK til $valuta".dkdecimal($dkkamount[$y],2).", kurs ".dkdecimal($valutakurs[$y],2).")";
-			} elseif ($valuta!="DKK" && $valutakurs[$y]==100) {
+					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet fra $baseCurrency til $valuta".dkdecimal($dkkamount[$y],2).", kurs ".dkdecimal($valutakurs[$y],2).")";
+			} elseif ($valuta!="$baseCurrency" && $valutakurs[$y]==100) {
 				if ($r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' and valdate <= '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
 					$dkkamount[$y]=$amount[$y];
 					$amount[$y]=$amount[$y]*100/$r3['kurs'];
-					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet til $valuta fra DKK ".dkdecimal($dkkamount[$y],2).", kurs ".dkdecimal($r3['kurs'],2).")";
+					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet til $valuta fra $baseCurrency ".dkdecimal($dkkamount[$y],2).", kurs ".dkdecimal($r3['kurs'],2).")";
 				} elseif ($r3=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' order by valdate",__FILE__ . " linje " . __LINE__))) {
 					$amount[$y]=$amount[$y]*100/$r3['kurs'];
-					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet til $valuta fra DKK ".dkdecimal($dkkamount[$y],2).", kurs ".dkdecimal($r3['kurs'],2).")";
+					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet til $valuta fra $baseCurrency ".dkdecimal($dkkamount[$y],2).", kurs ".dkdecimal($r3['kurs'],2).")";
 				}
-			} elseif (($oppvaluta[$y]!='DKK' && $valuta=="DKK" && $valutakurs[$y]!=100)) {
-					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet til DKK fra ".$oppvaluta[$y]." ".dkdecimal($amount[$y],2).", kurs ".dkdecimal($valutakurs[$y],2).")";
+			} elseif (($oppvaluta[$y]!='$baseCurrency' && $valuta=="$baseCurrency" && $valutakurs[$y]!=100)) {
+					$beskrivelse[$y] = $r2['beskrivelse']." - (Omregnet til $baseCurrency fra ".$oppvaluta[$y]." ".dkdecimal($amount[$y],2).", kurs ".dkdecimal($valutakurs[$y],2).")";
 					$amount[$y]=$amount[$y]*$valutakurs[$y]/100;
-			} elseif ($valuta!="DKK" && $valuta==$oppvaluta[$y] && $valutakurs[$y]!=100) {
+			} elseif ($valuta!="$baseCurrency" && $valuta==$oppvaluta[$y] && $valutakurs[$y]!=100) {
 				$valutakurs[$y]*=1;
 				if (!$valutakurs[$y] && $oppvaluta[$y] && $oppvaluta[$y]!='-') {
 					$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'",__FILE__ . " linje " . __LINE__));
@@ -211,9 +238,9 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 				} 
 				$dkkamount[$y]=$amount[$y]*$valutakurs[$y]/100;
 					if ($oppvaluta[$y]!='-' && abs($amount[$y])>=0.005) {
-						 if (!strpos($beskrivelse[$y],'Udligning af valutadiff')) $beskrivelse[$y] = $r2['beskrivelse']." - (DKK ".dkdecimal($dkkamount[$y],2).")";
+						 if (!strpos($beskrivelse[$y],'Udligning af valutadiff')) $beskrivelse[$y] = $r2['beskrivelse']." - ($baseCurrency ".dkdecimal($dkkamount[$y],2).")";
 					} elseif (abs($amount[$y])<0.005) $beskrivelse[$y] = $r2['beskrivelse'];
-					else $beskrivelse[$y] = $r2['beskrivelse']." - (DKK ".dkdecimal($amount[$y],2).")";
+					else $beskrivelse[$y] = $r2['beskrivelse']." - ($baseCurrency ".dkdecimal($amount[$y],2).")";
 					} elseif($oppvaluta[$y]!=$valuta && $oppvaluta[$y] != '-') {
 				if (!$valutakurs[$y]) {
 					$r3=db_fetch_array(db_select("select kodenr from grupper where box1 = '$oppvaluta[$y]' and art='VK'",__FILE__ . " linje " . __LINE__));
@@ -347,8 +374,8 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 				if ($primoprint[$x]==0) {
 					$tmp=dkdecimal($kontosum,2);
 					$tmp2="";
-					if ($valuta!='DKK') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra DKK";
-					print "<tr><td><br></td><td><br></td><td><br></td><td>".findtekst(1165,$sprog_id)." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
+					if ($valuta!='$baseCurrency') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra $baseCurrency";
+					print "<tr><td><br></td><td><br></td><td><br></td><td>".findtekst(1165,$sprog_id)." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
 					$primoprint[$x]=1;
 				}
 				if ($kladde_id[$y]) {
@@ -396,9 +423,9 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 				$dkksum=afrund($dkksum,2);
 				$tmp=dkdecimal($kontosum,2);
 				$dkktmp=dkdecimal($dkksum,2);
-				if ($valuta!='DKK' && $kontosum!=$dkksum) $title="DKK: $dkktmp";
+				if ($valuta!='$baseCurrency' && $kontosum!=$dkksum) $title="$baseCurrency: $dkktmp";
 				else $title="";
-				if ($valuta!='DKK' && !$difflink) {
+				if ($valuta!='$baseCurrency' && !$difflink) {
 					if ($r=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' and valdate <= '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
 						$dagskurs=$r['kurs'];
 						$chkamount=$kontosum*$dagskurs/100;
@@ -406,7 +433,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 					}
 				}
 				$regulering=afrund($diff,2);
-				if($regulering && !$difflink && $valuta!='DKK' && ($oppvaluta[$y]!='-' || $y==count($oppId)) && $transdate[$y]>=usdate($regnstart) && $transdate[$y]<=usdate($regnslut)) { // && $transdate>=$regnstart && $transdate<=$regnslut
+				if($regulering && !$difflink && $valuta!='$baseCurrency' && ($oppvaluta[$y]!='-' || $y==count($oppId)) && $transdate[$y]>=usdate($regnstart) && $transdate[$y]<=usdate($regnslut)) { // && $transdate>=$regnstart && $transdate<=$regnslut
 					$vis_difflink=1;
 					for ($i=1;$i<=count($oppId);$i++){
 						if ($transdate[$i]==$transdate[$y] && $oppvaluta[$i]=='-') $vis_difflink=0;
@@ -415,7 +442,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 						if ($oppId[$y]>=$max_valdif_id && ($vis_difflink && (abs($regulering)>0.01 || $y==count($oppId)))) {
 						$difflink=1;
 						if ($regnstart<=date("Y-m-d") && $regnslut>=date("Y-m-d")) {
-							$title.="Klik for at regulere værdien i DKK fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
+							$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
 							$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=$transdate[$y]&";
 							$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
 							$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
@@ -424,7 +451,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 						} else $title=NULL;
 					}
 				} elseif ($y==count($oppId) && abs($tmp)<0.01 && abs($dkksum) > 0.01 && $regnslut>=date("Y-m-d")) {
-					$title.="Klik for at regulere værdien i DKK fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
+					$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
 					$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=".date("Y-m-d")."&";
 					$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
 					$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
@@ -437,7 +464,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		}
 		if ($primoprint[$x]==0) {
 			$tmp=dkdecimal($kontosum,2);
-			print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK sum $dkktmp\">$tmp<br></td></tr>\n";
+			print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency sum $dkktmp\">$tmp<br></td></tr>\n";
 		}
 
 		print "</tbody><tfoot>";
@@ -467,14 +494,14 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 				$diff=0;
 				if ($transdate[$y]<$fromdate) {
 					 $primoprint[$x]=0;
-					 $kontosum+=$amount[$y];
+					 $kontosum+=afrund($amount[$y],2);
 					$dkksum+=$dkkamount[$y];
 					} else {
 					if ($primoprint[$x]==0) {
 						$tmp=dkdecimal($kontosum,2);
 						$tmp2="";
-						if ($valuta!='DKK') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra DKK";
-						print "<tr><td><br></td><td><br></td><td><br></td><td>".(isset($sprog_id) ? findtekst(1165,$sprog_id) : "")." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
+						if ($valuta!='$baseCurrency') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra $baseCurrency";
+						print "<tr><td><br></td><td><br></td><td><br></td><td>".(isset($sprog_id) ? findtekst(1165,$sprog_id) : "")." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
 						$primoprint[$x]=1;
 					}
 					if ($kladde_id[$y]) {
@@ -522,9 +549,9 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 					$dkksum=afrund($dkksum,2);
 					$tmp=dkdecimal($kontosum,2);
 					$dkktmp=dkdecimal($dkksum,2);
-					if ($valuta!='DKK' && $kontosum!=$dkksum) $title="DKK: $dkktmp";
+					if ($valuta!='$baseCurrency' && $kontosum!=$dkksum) $title="$baseCurrency: $dkktmp";
 					else $title="";
-					if ($valuta!='DKK' && !$difflink) {
+					if ($valuta!='$baseCurrency' && !$difflink) {
 						if ($r=db_fetch_array(db_select("select kurs from valuta where gruppe ='$valutakode' and valdate <= '$transdate[$y]' order by valdate desc",__FILE__ . " linje " . __LINE__))) {
 							$dagskurs=$r['kurs'];
 							$chkamount=$kontosum*$dagskurs/100;
@@ -532,7 +559,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 						}
 					}
 					$regulering=afrund($diff,2);
-					if($regulering && !$difflink && $valuta!='DKK' 
+					if($regulering && !$difflink && $valuta!='$baseCurrency'
 						&& ($oppvaluta[$y]!='-' || $y==count($oppId)) 
 						&& $transdate[$y]>=usdate($regnstart) 
 						&& $transdate[$y]<=usdate($regnslut)) { // && $transdate>=$regnstart && $transdate<=$regnslut
@@ -544,7 +571,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 							if ($oppId[$y]>=$max_valdif_id && ($vis_difflink && (abs($regulering)>0.01 || $y==count($oppId)))) {
 							$difflink=1;
 							if ($regnstart<=date("Y-m-d") && $regnslut>=date("Y-m-d")) {
-								$title.="Klik for at regulere værdien i DKK fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
+								$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".dkdato($transdate[$y]);
 								$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=$transdate[$y]&";
 								$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
 								$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
@@ -553,7 +580,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 							} else $title=NULL;
 						}
 					} elseif ($y==count($oppId) && abs(intval($tmp))<0.01 && abs($dkksum) > 0.01 && $regnslut>=date("Y-m-d")) {
-						$title.="Klik for at regulere værdien i DKK fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
+						$title.="Klik for at regulere værdien i $baseCurrency fra ".dkdecimal($dkksum,2)." til ".dkdecimal($dkksum+$regulering,2)." pr. ".date("d-m-Y");
 						$tmp2="<a href=\"../includes/ret_valutadiff.php?bfdate=".date("Y-m-d")."&";
 						$tmp2.="valuta=$valuta&diff=$regulering&post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&";
 						$tmp2.="konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\" ";
@@ -566,7 +593,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			}
 			if ($primoprint[$x]==0) {
 				$tmp=dkdecimal($kontosum,2);
-				print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"DKK sum ".(isset($dkktmp) ? $dkktmp : "")."\">$tmp<br></td></tr>\n";
+				print "<tr><td><br></td><td><br></td><td><br></td><td>Primosaldo<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency sum ".(isset($dkktmp) ? $dkktmp : "")."\">$tmp<br></td></tr>\n";
 			}
 			print "<tr><td colspan=9><hr></td></tr>\n";
 		}

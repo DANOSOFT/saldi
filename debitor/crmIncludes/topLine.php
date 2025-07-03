@@ -17,7 +17,7 @@ print "<tr><td height = '25' align = 'center' valign = 'top'>";
 // this handles cases where the browser added an intermediate "#" route step.
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
-	: 'javascript:window.history.go(-2);';
+	: '../index/menu.php';
 print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>"; # Tabel 1.1 ->
 
 print "<td width=10% style=$buttonStyle>

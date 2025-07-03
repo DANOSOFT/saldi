@@ -73,6 +73,21 @@ class LagerStatusModel {
      * @return bool Success status
      */
     public function save() {
+        // Validate required fields
+        if (empty($this->lager) || empty($this->vare_id) || !is_numeric($this->beholdning)) {
+            throw new Exception("Lager, vare_id, and beholdning are required fields.");
+        }
+
+        // Ensure lok is a string and variant_id is numeric
+        $this->lok = isset($this->lok) ? $this->lok : '';
+        $this->variant_id = isset($this->variant_id) ? (int)$this->variant_id : 0;
+        $this->beholdning = isset($this->beholdning) ? (float)$this->beholdning : 0.0;
+
+        // Prepare SQL query based on whether this is an update or insert
+        $this->lager = (int)$this->lager;
+        $this->vare_id = (int)$this->vare_id;
+
+        // If ID is set, we are updating; otherwise, we are inserting
         if ($this->id) {
             // Update existing record
             $qtxt = "UPDATE lagerstatus SET 
@@ -93,7 +108,14 @@ class LagerStatusModel {
                 '$this->lok', '$this->variant_id'
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-            
+            $query = db_select("SELECT id FROM lagerstatus WHERE 
+                lager = '$this->lager' AND vare_id = '$this->vare_id' 
+                AND lok1 = '$this->lok' AND variant_id = '$this->variant_id' 
+                ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+            if (db_num_rows($query) > 0) {
+                $r = db_fetch_array($query);
+                $this->id = (int)$r['id']; // Set the new ID
+            }
             // If insert is successful, get the new ID
             return explode("\t", $q)[0] == "0";
         }

@@ -4,9 +4,11 @@ include("../includes/topline_settings.php");
 
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
-$backUrl = isset($_GET['returside'])
-	? $_GET['returside']
-	: 'javascript:window.history.go(-2);';
+if(isset($_GET['returside'])){
+	$backUrl = $_GET['returside'];
+}else{
+	$backUrl = '../index/menu.php';
+}
 
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
 print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% style=$buttonStyle>"; # Tabel 1.1 ->

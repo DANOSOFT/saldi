@@ -88,7 +88,8 @@
 // 20230421 PHR Function modulus10 - cuts beginning of customer no instead of end, if too long
 // 20230712 PHR Added $creditedinvoice;
 // 20240918 PBLM Added function betalingslink
-// 20241002 PHR 'Kontant' in texts replacet by text ID 370
+// 20241002 PHR 'Kontant' in texts replaced by text ID 370
+// 20250630 PHR Somebody has removed brackets in line 2285 & 2289 - Why !!!
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
@@ -96,7 +97,6 @@
 if (!function_exists('skriv')) {
 	function skriv($id, $str, $fed, $italic, $color, $tekst, $tekstinfo, $x, $y, $format, $form_font, $formular, $line)
 	{
-
 		print "<!--function skriv start-->";
 		global $side;
 		global $connection;
@@ -289,7 +289,6 @@ if (!function_exists('skriv')) {
 							if ($tabel == "ordre") {
 								if ($variabel == 'creditedinvoice') {
 									$qtxt = "kred_ord_id from ordrer where id=$id";
-									echo db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 									exit;
 								}
 								if ($variabel == "rykkerdate")
@@ -402,8 +401,7 @@ if (!function_exists('skriv')) {
 			$i2 = NULL;
 		}
 		if ($x && $tekst && $y2 / 2.86 > $Opkt) {
-			if ($tekst == '891,42')
-				exit;
+#			if ($tekst == '891,42')	exit;
 			if ($x != '22')
 				fwrite($psfp, "/$form_font\n$str scalefont\nsetfont\nnewpath\n$x $y2 moveto (" . utf8_iso8859($tekst) . ") $format show\n");
 			$a = $x / 2.86;
@@ -534,9 +532,9 @@ if (!function_exists('find_form_tekst')) {
 					if ((substr($row['beskrivelse'], $x, 1) != " " && substr($row['beskrivelse'], $x, 1) != ";")) { # alm variabel opbygges
 						if (!isset($if[$y]))
 							$if[$y] = NULL;
-						if (($if[$y] == '1') && (substr($row['beskrivelse'], $x, 1) == ")")) { # opbygning af "if-variabel" slut  
+						if (($if[$y] == '1') && (substr($row['beskrivelse'], $x, 1) == ")")) { # opbygning af "if-variabel" slut
 							#						$streng[$y]=substr($streng[$y],0,strlen($streng[$y])-1);
-							list($if_tabel, $if_variabel) = explode("_", $streng[$y], 2); #07.10.2007 --> 
+							list($if_tabel, $if_variabel) = explode("_", $streng[$y], 2); #07.10.2007 -->
 							if (substr($if_tabel, 1) == "ordre") {
 								$qtxt = "select $if_variabel from ordrer where id=$id";
 								$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -558,7 +556,7 @@ if (!function_exists('find_form_tekst')) {
 								$streng[$y] = NULL;
 							$streng[$y] = $streng[$y] . substr($row['beskrivelse'], $x, 1);
 						}
-					} else { #alm variabel opbygning slut 
+					} else { #alm variabel opbygning slut
 						$y++;
 						$streng[$y] = NULL;
 						if (substr($row['beskrivelse'], $x, 1) == "(")
@@ -570,9 +568,9 @@ if (!function_exists('find_form_tekst')) {
 					if (!isset($streng[$y]))
 						$streng[$y] = NULL;
 					$streng[$y] .= substr($row['beskrivelse'], $x, 1);
-					if ($streng[$y] == 'if(') { #Så skal der tjekkes om variablen mellem i parantesen har en værdi 
+					if ($streng[$y] == 'if(') { #Så skal der tjekkes om variablen mellem i parantesen har en værdi
 						$if[$y] = '1'; # når $if[$y] skal variablen opbygges
-						$streng[$y] = ''; # 'if(' er ikke en del af variablen. 
+						$streng[$y] = ''; # 'if(' er ikke en del af variablen.
 					} elseif ($streng[$y] == 'if(!') {
 						$if[$y] = '2';
 						$streng[$y] = '';
@@ -656,12 +654,12 @@ if (!function_exists('find_form_tekst')) {
 						$q2 = NULL;
 						$sum = dkdecimal($opensum, 2);
 					} elseif ($tabel == "forfalden" || $tabel == "rykker") { # finder forfalden_sum på rykker - $tabel=="rykker" indsat 14.04.08
-						$qtxt = "select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='$formular')";
+						$qtxt = "select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog')";
 						$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						$gebyr = (float) $r2['salgspris'];
 						if ($deb_valutakurs != '100')
 							$gebyr *= 100 / $deb_valutakurs; #20140628
-						$r2 = db_fetch_array(db_select("select yb from formularer where beskrivelse='GEBYR' and formular='$formular'", __FILE__ . " linje " . __LINE__));
+						$r2 = db_fetch_array(db_select("select yb from formularer where beskrivelse='GEBYR' and formular='$formular' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__));
 						$rentevare = (int) $r2['yb'];
 						$rente = 0; #20141211
 						$q2 = db_select("select * from ordrelinjer where ordre_id = '$id' and vare_id = '$rentevare'", __FILE__ . " linje " . __LINE__);
@@ -801,7 +799,7 @@ if (!function_exists('find_form_tekst')) {
 			} # endif($ny_streng&&$udskriv)
 			$udskriv = 1;
 		} # endwhile
-		$y_pos = $y_pos - $linjeafstand;
+		if ($linjeafstand) $y_pos = $y_pos - $linjeafstand;
 		return ($y_pos);
 		print "<!--function find_form_tekst slut-->";
 	}
@@ -879,13 +877,14 @@ if (!function_exists('modulus_10')) {
 		print "<!--function modulus_10 start-->";
 		# Genererer betalingsid for kortart 71.
 		# Kortart 71 bestaar af 15 cifrer, hvor det sidste er kontrolciffer.
+		global $formularsprog;
 
 		$faktlen = 14;
 		$kontolen = 0;
-		if ($r = db_fetch_array(db_select("select xa,ya from formularer where formular=4 and art=0", __FILE__ . " linje " . __LINE__))) {
+		if ($r = db_fetch_array(db_select("select xa,ya from formularer where formular=4 and art=0 and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__))) {
 			$faktlen = (int) $r['xa'];
 			$kontolen = (int) $r['ya'];
-		} elseif ($r = db_fetch_array(db_select("select beskrivelse from formularer where formular=4 and beskrivelse like '%betalingsid(%'", __FILE__ . " linje " . __LINE__))) {
+		} elseif ($r = db_fetch_array(db_select("select beskrivelse from formularer where formular=4 and beskrivelse like '%betalingsid(%' and lower(sprog)='$formularsprog'", __FILE__ . " linje " . __LINE__))) {
 			$streng = $r['beskrivelse'];
 			$start = strpos($streng, 'betalingsid(') + 12; # 1 karakter efter startparantesen
 			$slut = strpos($streng, ')');
@@ -2032,7 +2031,7 @@ if (!function_exists('rykkerprint')) {
 		global $db, $db_id, $deb_valuta, $deb_valutakurs;
 		global $exec_path, $formularsprog, $psfp, $htmfp, $ialt, $valuta, $s_id;
 
-
+		if (!$formularsprog) $formularsprog = 'dansk';
 		$mailantal = 0;
 		$nomailantal = 0;
 		$formular = $rykkernr + 5;
@@ -2061,12 +2060,14 @@ if (!function_exists('rykkerprint')) {
 			$logo = "../logolib/$db_id/bg.ps";
 			$logoart = 'PS';
 		} else {
+/*
 			$formularsprog = strtolower($formularsprog);
 			if (!$formularsprog || $formularsprog == 'dansk')
 				$tmp = "'dansk' or sprog=''";
 			else
 				$tmp = "'" . $formularsprog . "'";
-			$qtxt = "select * from formularer where formular = '$formular' and art = '1' and beskrivelse = 'LOGO' and lower(sprog)=$tmp";
+*/
+			$qtxt = "select * from formularer where formular = '$formular' and art = '1' and beskrivelse = 'LOGO' and lower(sprog)='$formularsprog'";
 			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) {
 				$logo_X = $row['xa'] * 2.86;
@@ -2082,6 +2083,7 @@ if (!function_exists('rykkerprint')) {
 			$logoart = 'EPS';
 		}
 		print "-->\n";
+		$logoart = 'PDF';
 		if ($logoart != 'PDF') {
 			$fsize = filesize($logo);
 			$logofil = fopen($logo, "r");
@@ -2150,7 +2152,7 @@ if (!function_exists('rykkerprint')) {
 			#		$psfp=$psfp1;
 			#		$htmfp=$htmfp1;
 			$x = 0;
-			$qtxt = "select * from formularer where formular = $formular and art = 3";
+			$qtxt = "select * from formularer where formular = $formular and art = 3 and lower(sprog)='$formularsprog'";
 			$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
 				if ($row['beskrivelse'] == 'generelt') {
@@ -2280,10 +2282,11 @@ if (!function_exists('rykkerprint')) {
 								$z_belob = $z;
 								skriv($id, $str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", $belob, "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
 							}
-							if (strtolower($variabel[$z]) == "beskrivelse")
+							if (strtolower($variabel[$z]) == "beskrivelse") {
 								$z_beskrivelse = $z;
-							($laengde[$z]) ? $beskr = (substr($r1['beskrivelse'], 0, $laengde[$z])) : $beskr = $r1['beskrivelse']; #20190430
-							skriv($id, $str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskr", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+								($laengde[$z]) ? $beskr = (substr($r1['beskrivelse'], 0, $laengde[$z])) : $beskr = $r1['beskrivelse']; #20190430
+								skriv($id, $str[$z], "$fed[$z]", "$kursiv[$z]", "$color[$z]", "$beskr", "ordrelinjer_" . $Opkt, "$xa[$z]", "$y", "$justering[$z]", "$form_font[$z]", "$formular", __LINE__);
+							}
 						}
 					}
 					$y = $y - 4;
@@ -2418,7 +2421,7 @@ if (!function_exists('kontoprint')) {
 		for ($i = 0; $i < count($konto_id); $i++) {
 			$udskrevet = NULL;
 			$x = 0;
-			$qtxt = "select * from formularer where formular = '$formular' and art = '3'";
+			$qtxt = "select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($q)) {
 				if ($row['beskrivelse'] == 'generelt') {
@@ -2600,7 +2603,7 @@ if (!function_exists('kontoprint')) {
 							$ialt = dkdecimal($forfalden, 2);
 							find_form_tekst(0, "S", "$formular", "0", "$linjeafstand", "");
 							bundtekst(0);
-							$qtxt = "select * from formularer where formular = '$formular' and art = '3' and beskrivelse='generelt'";
+							$qtxt = "select * from formularer where formular = '$formular' and art = '3' and beskrivelse='generelt' and lower(sprog)='$formularsprog'";
 							$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$y = $r['ya'];
 							$udskrevet = $side - 1; #20150410

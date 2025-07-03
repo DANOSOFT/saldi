@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-06-19--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-07-02--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -216,7 +216,8 @@
 // 20240415 PHR Moved function delbetal to pos_ordre_includes/paymentFunc/partPayment.php
 // 20250526 PHR added "if ($returside == 'kassespor.php') .... " to function primary_menu as 'retur til kassespor' didn't work
 // 20250619 PHR proforma button can nov be called anything - not nessecary 'proforma'
-
+// 20250701 PHR Updated call to 'moveToOwnAccount' who work without 'moveToCustomerAccount' set
+// 20250701 PHR Check if order exits. if not set id to 0
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -366,7 +367,7 @@ if ($menu == 'T') {
 $receipt_id = if_isset($_GET['receipt_id'], 0);
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='ordrelinjer' and ";
-$qtxt .= "column_name = 'barcode'";
+$qtxt.= "column_name = 'barcode'";
 if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$qtxt = "ALTER TABLE ordrelinjer ADD COLUMN barcode varchar(20)";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -607,12 +608,12 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (isset($r['ev_type']) && $r['ev_type'] == '3002') {
 		$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-		$qtxt .= "values ";
-		$qtxt .= "('13001','" . date('U') . "','$kasse','$bruger_id','0','" . __FILE__ . "','" . __LINE__ . "')";
+		$qtxt.= "values ";
+		$qtxt.= "('13001','" . date('U') . "','$kasse','$bruger_id','0','" . __FILE__ . "','" . __LINE__ . "')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 	$qtxt = "select max(id) as id from ordrer where art='PO' and status < '3'";
-	$qtxt .= " and (hvem = '$brugernavn' or ordredate < '" . date("Y-m-d") . "')";
+	$qtxt.= " and (hvem = '$brugernavn' or ordredate < '" . date("Y-m-d") . "')";
 
 	# Check if the old system is in use.
 	$r = db_fetch_array(db_select("select box7 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -635,8 +636,8 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (strtotime($r['ordredate']) < date('U') - 60 * 60 * 48) {
 			$qtxt = "update ordrer set konto_id='0', kontonr='0',firmanavn='',addr1='',addr2='',postnr='',bynavn='',land='',betalingsdage='0',";
-			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',valuta='DKK',valutakurs='100',";
-			$qtxt .= "kundeordnr='',ordredate='" . date("Y-m-d") . "',hvem='',ref='',nr=NULL where id = '$id'";
+			$qtxt.= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',valuta='DKK',valutakurs='100',";
+			$qtxt.= "kundeordnr='',ordredate='" . date("Y-m-d") . "',hvem='',ref='',nr=NULL where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
 		}
@@ -673,7 +674,7 @@ if (!$id && !$bordnr && $bordnr != '0' && count($bord)) { #20141210 + #20150305
 	if (!$kasse)
 		$kasse = find_kasse(0);
 	$qtxt = "select id,nr,felt_5 from ordrer where art='PO' and status < '3' and hvem= '$brugernavn' and ordredate >= '2014-12-10'";
-	$qtxt .= " and (felt_5='$kasse' or felt_5='' or felt_5 is NULL)";
+	$qtxt.= " and (felt_5='$kasse' or felt_5='' or felt_5 is NULL)";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$bordnr = $r['nr']; #20140822
@@ -1674,6 +1675,10 @@ if ($vare_id) {
 
 ############################
 $x = 0;
+if ($id) {
+	$qtxt = "select id from ordrer where id = '$id' and art = 'PO'";
+	if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $id = 0;
+}
 if ($id && $gem) {
 	if (!$afd) { #20150302
 		$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr='1' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -2069,7 +2074,7 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 #			$retur=pos_afrund($retur*$betvalkurs/100);
 		}
 		#		if ($retur >= 0) {
-		print "<tr><td>Retur";
+		print "<tr><td>".findtekst('2296|Retur', $sprog_id);
 		if ($betvaluta != 'DKK')
 			print " (DKK)<br>";
 		$retur = pos_afrund($retur, $difkto, '');
@@ -2398,41 +2403,41 @@ function indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling)
 	print "<tr><td><b>$postnr_by</b></td></tr>\n";
 	print "<tr><td colspan=2 width=400px><hr></td></tr>\n";
 	#	while (strlen($saldo) < 10) $saldo=" ".$saldo;
-	$txt1073 = findtekst('1073|Saldo',$sprog_id);
+	$txt1073 = findtekst('1073|Saldo', $sprog_id);
 	print "<tr><td>$txt1073</td><td align=\"right\">$saldo</td></tr>\n";
 	print "<tr><td colspan=\"2\"><br></td></tr>";
-	print "<tr><td><b>Indbetaling</b>";
+	print "<tr><td><b>".findtekst('2567|Indbetaling', $sprog_id)."</b>";
 	if ($status < 3) {
-		$txt2300 = findtekst('2300|Det beløb der skal indsættes på kontoen!',$sprog_id);
-		print " - $txt2300</td><td rowspan=\"2\" align=\"right\">";
+		$txt2568 = findtekst('2568|Det beløb, der skal indsættes på kontoen', $sprog_id);
+		print " - $txt2568!</td><td rowspan=\"2\" align=\"right\">";
 		print "<input class=\"inputbox\" type=\"text\" style=\"width:80px;text-align:right;font-size:$ifs;background-color:$color\" ";
 		print "name=\"indbetaling\" value=\"$indbetaling\"></td></tr>\n";
-		$txt2301 = findtekst('2301|Ved udbetaling skal beløbet være negativt!',$sprog_id);
-		print "<td> $txt2301</td></tr>";
+		$txt2569 = findtekst('2569|Ved udbetaling skal beløbet være negativt', $sprog_id);
+		print "<td> $txt2569!</td></tr>";
 	} else {
 		print "</td><td align=\"right\">$indbetaling</td></tr>\n";
 	}
 	if ($status < 3) {
 		print "<tr><td colspan=\"2\"><br></td></tr>";
-		$txt1265 = findtekst('1265|Betalt',$sprog_id);
-		$txt2302 = findtekst('2302|Det beløb der betales f.eks. hvis der betales',$sprog_id);
-		$txt2303 = findtekst('2303|med kort og kunden samtidig vil hæve kontant.',$sprog_id);
-		print "<tr><td><b>Betalt</b> - $txt2302</td></tr><tr><td>$txt2303</td>";
+		$txt1265 = findtekst('1265|Betalt', $sprog_id);
+		$txt2570 = findtekst('2570|Det beløb der betales f.eks. hvis der betales', $sprog_id);
+		$txt2571 = findtekst('2571|med kort og kunden samtidig vil hæve kontant', $sprog_id);
+		print "<tr><td><b>$txt1265</b> - $txt2570</td></tr><tr><td>$txt2571.</td>";
 		print "<td rowspan=\"3\" valign=\"top\" align=\"right\">";
 		if (!$modtaget && $indbetaling && $fokus == 'modtaget') {
 			$placeholder = "placeholder=\"$betalt\"";
 		} else
 			$placeholder = NULL;
 		print "<input class=\"inputbox\" $placeholder type=\"text\" style=\"width:80px;text-align:right\" name=\"modtaget\" value=\"$modtaget\"></td></tr>\n";
-		$txt2304 = findtekst('2304|Feltet kan efterlades tomt for ind/udbetaling på beløb.',$sprog_id);
-		print "<tr><td>$txt2304</td></tr>";
-		$txt2305 = findtekst('2305|Ved udbetaling <b>skal</b> feltet efterlades tomt!',$sprog_id);
-		print "<tr><td>$txt2305</td></tr>";
+		$txt2572 = findtekst('2572|Feltet kan efterlades tomt for ind-/udbetaling på beløb', $sprog_id);
+		$txt2573 = findtekst('2573|Ved udbetaling <b>skal</b> feltet efterlades tomt', $sprog_id);
+		print "<tr><td>$txt2572.</td></tr>";
+		print "<tr><td>$txt2573!</td></tr>";
 	} else
 		print "<tr><td>Betalt</td><td align=\"right\">$modtaget</td></tr>\n";
 	print "<tr><td colspan=\"2\"><br></td></tr>";
-	print "<tr><td>Ny saldo</td><td align=\"right\">$ny_saldo</td></tr>\n";
-	print "<tr><td>Retur</td><td align=\"right\">$retur</td></tr>\n";
+	print "<tr><td>".findtekst('2298|Ny saldo', $sprog_id)."</td><td align=\"right\">$ny_saldo</td></tr>\n";
+	print "<tr><td>".findtekst('2296|Retur', $sprog_id)."</td><td align=\"right\">$retur</td></tr>\n";
 	print "<td colspan=\"6\"><input STYLE=\"width: 100%;height: 0.01em;\" type=submit name=\"OK\" value=\"\"></td></tr>\n";
 }
 
@@ -2525,7 +2530,7 @@ function find_kasse($kasse)
 
 		$stil = find_stil('select', 2, 1);
 		print "<center><table><tbody>";
-		#		print "<tr><td title='".findtekst(766,$sprog_id)."'>".findtekst(765,$sprog_id)."</td>";
+#		print "<tr><td title='".findtekst(766, $sprog_id)."'>".findtekst(765, $sprog_id)."</td>";
 #		print "<td><input class='inputbox' type='text' style='text-align:right;font-size:$ifs;width:25px' name='pfs' value='$pfs'></td></tr>";
 		if ($db == 'pos_73') {
 			for ($x = 0; $x < count($afd); $x++) {
@@ -2732,8 +2737,8 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 		$y = 0;
 		$betaling[$x] = array();
 		$qtxt = "select distinct(pos_betalinger.betalingstype) as betaling from pos_betalinger,ordrer where ";
-		$qtxt .= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' and ";
-		$qtxt .= "ordrer.id=pos_betalinger.ordre_id order by pos_betalinger.betalingstype";
+		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' and ";
+		$qtxt.= "ordrer.id=pos_betalinger.ordre_id order by pos_betalinger.betalingstype";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($r['betaling']) {
@@ -2793,17 +2798,17 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 	$ko_id = NULL; #Salg på konto
 	transaktion('begin');
 	$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-	$qtxt .= "values ";
-	$qtxt .= "('13009','" . date('U') . "','$kasse','$bruger_id','0','" . __FILE__ . "','" . __LINE__ . "')";
+	$qtxt.= "values ";
+	$qtxt.= "('13009','" . date('U') . "','$kasse','$bruger_id','0','" . __FILE__ . "','" . __LINE__ . "')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$dd = date("Y-m-d");
 	$qtxt = "select max(report_number) as repno from report";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	$reportNumber = $r['repno'] + 1;
 	$qtxt = "insert into report (date,type,description,count,total,report_number) ";
-	$qtxt .= "values ('$dd','Head line','Cash count, box $kasse','0','0','$reportNumber')";
+	$qtxt.= "values ('$dd','Head line','Cash count, box $kasse','0','0','$reportNumber')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	if (count($fakturadate) && (($ownCommissionAccountNew && $commissionAccountNew) || ($ownCommissionAccountUsed && $commissionAccountUsed))) {
+	if (count($fakturadate) && (($ownCommissionAccountNew) || ($ownCommissionAccountUsed))) {
 		include('pos_ordre_includes/settleCommission/moveToOwnAccount.php');
 	}
 	if (($settleCommission || $createPayList) && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
@@ -2881,14 +2886,14 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$kredit = 0;
 				}
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-				$qtxt .= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$kassekonto','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+				$qtxt.= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$kassekonto','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-				$qtxt .= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$mellemkonto','0','$kredit',";
-				$qtxt .= "'$debet',0,'$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+				$qtxt.= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$mellemkonto','0','$kredit',";
+				$qtxt.= "'$debet',0,'$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if ($kassekonto && $diffkonto && $kassediff) {
@@ -2908,9 +2913,9 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$kredit = $kassediff * -1;
 				}
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-				$qtxt .= "('0','$dd','Kassedifference, kasse $kasse','$kassekonto','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+				$qtxt.= "('0','$dd','Kassedifference, kasse $kasse','$kassekonto','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				if ($diffExVat > 0) {
 					$debet = 0;
@@ -2920,9 +2925,9 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$kredit = 0;
 				}
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-				$qtxt .= "('0','$dd','Kassedifference, kasse $kasse','$diffkonto','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','" . $diffVat * -1 . "')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+				$qtxt.= "('0','$dd','Kassedifference, kasse $kasse','$diffkonto','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','" . $diffVat * -1 . "')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				if ($diffVat) {
 					if ($diffVat > 0) {
@@ -2933,9 +2938,9 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 						$debet = $diffVat * -1;
 					}
 					$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-					$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-					$qtxt .= "('0','$dd','Kassedifference, kasse $kasse','$diffVatAccount','0','$debet','$kredit',";
-					$qtxt .= "0,'$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
+					$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+					$qtxt.= "('0','$dd','Kassedifference, kasse $kasse','$diffVatAccount','0','$debet','$kredit',";
+					$qtxt.= "0,'$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -2949,14 +2954,14 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$kredit = $ValutaTilgang[$z] * -1;
 				}
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-				$qtxt .= "('0','$dd','Kassesalg $valuta[$z], kasse $kasse','$ValutaKonti[$z]','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+				$qtxt.= "('0','$dd','Kassesalg $valuta[$z], kasse $kasse','$ValutaKonti[$z]','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-				$qtxt .= "('0','$dd','Kassesalg $valuta[$z], kasse $kasse','$kassekonto','0','$kredit','$debet',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+				$qtxt.= "('0','$dd','Kassesalg $valuta[$z], kasse $kasse','$kassekonto','0','$kredit','$debet',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if ($ValutaKonti[$z] && $ValutaMlKonti[$z] && $ValutaUdtages[$z]) {
@@ -2971,14 +2976,14 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$kredit = 0;
 				}
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-				$qtxt .= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$ValutaKonti[$z]','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+				$qtxt.= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$ValutaKonti[$z]','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-				$qtxt .= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$ValutaMlKonti[$z]','0','$kredit','$debet',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+				$qtxt.= "('0','$dd','Overført til $mellemnavn fra kasse $kasse','$ValutaMlKonti[$z]','0','$kredit','$debet',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			# --> 20140709
@@ -2996,9 +3001,9 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$kredit = $ValutaKasseDiff[$z] * -1;
 				}
 				$qtxt = "insert into transaktioner  (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-				$qtxt .= "('0','$dd','Kassedifference $valuta[$z], kasse $kasse','$ValutaKonti[$z]','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','$ValutaDiffVat[$z]')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+				$qtxt.= "('0','$dd','Kassedifference $valuta[$z], kasse $kasse','$ValutaKonti[$z]','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','$ValutaDiffVat[$z]')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				if ($ValutaKasseDiff[$z] < 0) {
 					$kredit = $ValutaKasseDiff[$z] * -1;
@@ -3008,9 +3013,9 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$debet = $ValutaKasseDiff[$z];
 				}
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-				$qtxt .= "('0','$dd','Kassedifference $valuta[$z], kasse $kasse','$ValutaDifKonti[$z]','0','$kredit','$debet',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','" . $ValutaDiffVat[$z] * -1 . "')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+				$qtxt.= "('0','$dd','Kassedifference $valuta[$z], kasse $kasse','$ValutaDifKonti[$z]','0','$kredit','$debet',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','" . $ValutaDiffVat[$z] * -1 . "')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 			if ($ValutaDiffVat[$z]) {
@@ -3022,9 +3027,9 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					$kredit = $ValutaDiffVat[$z] * -1;
 				}
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-				$qtxt .= "('0','$dd','Kassedifference, kasse $kasse','$ValutaDiffVatAccount[$z]','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+				$qtxt.= "('0','$dd','Kassedifference, kasse $kasse','$ValutaDiffVatAccount[$z]','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -3043,9 +3048,9 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 					($diff > 0) ? $debet = $diff : $kredit -= $diff;
 					$diffsum += $diff;
 					$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-					$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-					$qtxt .= "('0','$dd','Efterpost - bet.kort kasse $kasse','$kontkonto[$y]','0','$debet','$kredit',";
-					$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+					$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+					$qtxt.= "('0','$dd','Efterpost - bet.kort kasse $kasse','$kontkonto[$y]','0','$debet','$kredit',";
+					$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -3054,24 +3059,24 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 				$kredit = 0;
 				($diffsum > 0) ? $kredit = $diffsum : $debet -= $diffsum;
 				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt .= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-				$qtxt .= "('0','$dd','Efterpost - bet.kort kasse $kasse','$kassekonto','0','$debet','$kredit',";
-				$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+				$qtxt.= "('0','$dd','Efterpost - bet.kort kasse $kasse','$kassekonto','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		}
 		$logtime = date("U") + 60;
 		$logtime = date("H:i:s", $logtime);
 		$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-		$qtxt .= " kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
-		$qtxt .= "('0','$dd','Kasseoptaelling,kasse $kasse','0','0','0','0',";
-		$qtxt .= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
+		$qtxt.= " kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number) values ";
+		$qtxt.= "('0','$dd','Kasseoptaelling,kasse $kasse','0','0','0','0',";
+		$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__); # 20161116
 	}
 	#	transaktion('rollback');
 	$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
-	$qtxt .= "values ";
-	$qtxt .= "('13006','" . date('U') . "','$kasse','$bruger_id','0','" . __FILE__ . "','" . __LINE__ . "')";
+	$qtxt.= "values ";
+	$qtxt.= "('13006','" . date('U') . "','$kasse','$bruger_id','0','" . __FILE__ . "','" . __LINE__ . "')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	transaktion('commit');
 	# <-- 20140709
@@ -3161,7 +3166,7 @@ function kasseoptalling(
 	$qtxt = "select id from grupper where art = 'POS' and kodenr='2' and box7 != '' and fiscal_year = '$regnaar'";
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$qtxt = "select ordrer.id,ordrer.nr from ordrer,ordrelinjer where ordrer.art = 'PO' and ordrer.status < 3 and ";
-		$qtxt .= "ordrer.nr >= '0' and ordrer.felt_5 = '$kasse' and ordrelinjer.ordre_id=ordrer.id and ordrelinjer.id > 0";
+		$qtxt.= "ordrer.nr >= '0' and ordrer.felt_5 = '$kasse' and ordrelinjer.ordre_id=ordrer.id and ordrelinjer.id > 0";
 		$txt = '';
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$chk = array();

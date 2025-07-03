@@ -2,6 +2,7 @@
 
 
 function pos_row() {
+    global $sprog_id;
     ?>
 <style>
 .posbut {
@@ -31,10 +32,10 @@ function pos_row() {
         ">
 
             
-            <a href="../lager/varer.php?returside=../index/dashboard.php"><button class="posbut" type="button">Åben vareliste</button></a>
-            <a href="../lager/varekort.php?returside=../index/dashboard.php"><button class="posbut" type="button">Opret vare</button></a>
-            <a href="../systemdata/posmenuer.php"><button class="posbut" type="button">Menu opsætning</button></a>
-            <a href="../debitor/rapport.php"><button class="posbut" type="button">Åben rapporter</button></a>
+            <a href="../lager/varer.php?returside=../index/dashboard.php"><button class="posbut" type="button"><?php echo findtekst('2584|Åbn vareliste', $sprog_id);?></button></a>
+            <a href="../lager/varekort.php?returside=../index/dashboard.php"><button class="posbut" type="button"><?php echo findtekst('2585|Opret vare', $sprog_id);?></button></a>
+            <a href="../systemdata/posmenuer.php"><button class="posbut" type="button"><?php echo findtekst('2586|Menu opsætning', $sprog_id);?></button></a>
+            <a href="../debitor/rapport.php"><button class="posbut" type="button"><?php echo findtekst('2587|Åbn rapporter', $sprog_id);?></button></a>
         </div>
 	</div>
 	<?php

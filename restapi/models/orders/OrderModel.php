@@ -60,7 +60,8 @@ class OrderModel
         $qtxt = "SELECT * FROM ordrer WHERE id = $id AND art = '$art'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
-        if ($r = db_fetch_array($q)) {
+        if (db_num_rows($q) > 0) {
+            $r = db_fetch_array($q);
             $this->id = (int)$r['id'];
             $this->konto_id = (int)$r['konto_id'];
             $this->firmanavn = $r['firmanavn'];

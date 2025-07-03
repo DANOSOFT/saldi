@@ -69,7 +69,6 @@ if ($aktiver) {
 		db_modify("update brugere set regnskabsaar = '$aktiver' where id = '$bruger_id'", __FILE__ . " linje " . __LINE__);
 }
 if ($deleteYear) {
-	echo "Sletter";
 	print "<script>javascript:document.body.style.cursor = 'wait'</script>";
 	include_once("fiscalYearInc/deleteFiscalYear.php");
 	deleteFinancialYear($deleteYear);
@@ -120,28 +119,44 @@ $deleted = array();
 $query = db_select("select * from grupper where art = 'RA' order by box2,box1", __FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)) {
 	$x++;
-	($row['box10'] == 'on') ? $deleted[$x] = 1 : $deleted[$x] = 0;
+	if ($row['box10'] == '' && $row['box4'] < date('Y')-5) {
+		$qtxt = "select id from kontoplan where regnskabsaar = '$x'";
+		if (!$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			db_modify("update grupper set box10 = 'on' where id = '$row[id]'", __FILE__ . " linje " . __LINE__);
+			$row['box10'] = 'on';
+		}
+	}
+	if ($row['box10'] == 'on') {
+		$deleted[$x] = 1;
+		$deleteDate[$x] = 'før 2025-07-01';
+	} elseif ($row['box10'] > '1') {
+		$deleted[$x] = $row['box10'];
+		$deleteDate[$x] = date('Y-m-d',$deleted[$x]);
+	} else {
+		$deleted[$x] = $deleteDate[$x] = '';
+	}
 	($bgcolor1 != $bgcolor) ? $bgcolor1 = $bgcolor : $bgcolor1 = $bgcolor5;
 	print "<tr bgcolor=\"$bgcolor1\">";
 	$title = "" . findtekst('1793|Klik her for at redigere/opdatere regnskabsår', $sprog_id) . " $row[kodenr]";  #20210805
 	print "<td>";
-	if ($row['box10'] != 'on')
+	if ($row['box10'] == '')
 		print "<a href='regnskabskort.php?id=$row[id]' title=\"$title\"> $row[kodenr]</a>";
 	else
-		print $row['kodenr'];
+	print $row['kodenr'];
 	print "<br></td>";
 	print "<td> $row[beskrivelse]<br></td>";
 	print "<td> $row[box1]<br></td>";
 	print "<td> $row[box2]<br></td>";
 	print "<td> $row[box3]<br></td>";
 	print "<td> $row[box4]<br></td>";
-	if ($row['box10'] == 'on') {
-		print "<td> Slettet<br></td><td></td>";
+	(date('Y') - $row['box4'] > 5)?$showDelete=1:$showDelete=0;
+	if ($deleted[$x]) {
+		print "<td> Slettet</td><td>$deleteDate[$x]<br></td>";
 	} elseif ($row['kodenr'] != $regnaar && $row['box5'] == 'on') {
 		print "<td><a href='regnskabsaar.php?aktiver=$row[kodenr]'> " . findtekst('1213|Sæt aktivt', $sprog_id) . "</a><br></td><td></td>";
 	} elseif ($row['kodenr'] != $regnaar) {
 		print "<td>" . findtekst('387|Lukket', $sprog_id) . "</td><td>";
-		if (($x == 1 || $deleted[$x - 1] == '1') && $row['box5'] != 'on') {
+		if (($x == 1 || $deleted[$x - 1]) && $row['box5'] != 'on' && $showDelete) {
 			$txt1 = "Sletter transaktioner med tilhørende bilag, ordrer og fakturaer fra regnskabsåret, ";
 			$txt1.= "varer er oprettet i regnskabsåret og ikke har været handlet siden ";
 			$txt1.= "samt kunder og leverandører som er urørte i efterfølgende år";

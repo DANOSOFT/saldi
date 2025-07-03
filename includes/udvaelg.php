@@ -32,10 +32,16 @@
 // 20170509 PHR Søgning med wildcards i TXT'er
 // 20180228 PHR Fejlrettelse i ovenstående.
 // 20231113 PHR Added lower & upper to text search
+// 01072025 PBLM Added else $udvaelg= " and $key::text like '$tmp%'"; on line 97 for better search
 
 if (!function_exists('udvaelg')){
 	function udvaelg ($tmp, $key, $art){
+		$tmp = db_escape_string($tmp);
+		mb_internal_encoding('UTF-8');
+
+		if ($tmp) $tmp=trim($tmp,"'");
 		include("../includes/std_func.php");
+
 		$tmp=strtolower($tmp);
 		if ($art) { #20150105-1
 			if ($art!='BELOB') $tmp=str_replace(",",":",$tmp); #20150601
@@ -75,20 +81,23 @@ if (!function_exists('udvaelg')){
 				$tmp=str_replace("*","%",$tmp);
 				$tmp=db_escape_string($tmp);
 				$udvaelg= " and lower($key) like '$tmp'";
-				}	elseif ($art=="TEXT") {
-					if (strstr($tmp,'*')) {
-						$tmp=str_replace('*','%',$tmp);
-						$udvaelg = " and ($key like '$tmp'";
-						$udvaelg.= " or lower($key) like '".strtolower($tmp)."'";
-						$udvaelg.= " or upper($key) like '".strtoupper($tmp)."')";
-					} else {
-						$udvaelg = " and ($key = '$tmp'";
-						$udvaelg.= " or lower($key) like '".strtolower($tmp)."'";
-						$udvaelg.= " or upper($key) like '".strtoupper($tmp)."')";
-					}
-				} else $udvaelg= " and $key = '$tmp'";
+			} elseif ($art=="TEXT") {
+				if (strstr($tmp,'*')) {
+					$tmp=str_replace('*','%',$tmp);
+					$udvaelg = " and ($key like '$tmp'";
+					$udvaelg.= " or lower($key) like '".mb_strtolower($tmp)."'";
+					$udvaelg.= " or upper($key) like '".mb_strtoupper($tmp)."')";
+				} else {
+					$udvaelg = " and ($key = '$tmp'";
+					$udvaelg.= " or lower($key) like '".mb_strtolower($tmp)."'";
+					$udvaelg.= " or upper($key) like '".mb_strtoupper($tmp)."'";
+					$udvaelg.= " or lower($key) like '%".mb_strtolower($tmp)."%'";
+					$udvaelg.= " or upper($key) like '%".mb_strtoupper($tmp)."%')";
+				}
+			} else $udvaelg= " and $key::text like '$tmp%'";
 			}
 		return $udvaelg;
 	}
 }
+
 ?>

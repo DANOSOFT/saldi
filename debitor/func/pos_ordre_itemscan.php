@@ -336,20 +336,20 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 	} else $fokus="varenr_ny";
 	if ($kontonr) {
 		print "<tr><td><b>$kontonr</b></td><td colspan=\"2\">\n";
-		if ($status<3) print "Rekv.nr:&nbsp; <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
-		elseif ($kundeordnr) print "&nbsp; Rekv.nr:&nbsp; $kundeordnr</td>\n";
-		($bordnavn)?$tmp=" Bord: $bordnavn |":$tmp='';  
-		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">Ekspedient: $ref |$tmp Bon: $fakturanr</td>\n";
+		if ($status<3) print findtekst('2129|Rekv. nr.', $sprog_id).": <input type=\"text\" size=\"15\" name=\"kundeordnr\" value=\"$kundeordnr\">\n";
+		elseif ($kundeordnr) print findtekst('2129|Rekv. nr.', $sprog_id).": $kundeordnr</td>\n";
+		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		if ($status>=3) print "</td><td colspan=\"2\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref | $tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td>\n";
 		print "</tr>\n<tr><td colspan=\"2\"><b>$firmanavn</b></td>\n";
-		if ($status>=3) print "<td colspan=\"4\" align=\"right\">Kasse: $kasse | $fakturadato kl. $tidspkt</td></tr>\n";
+		if ($status>=3) print "<td colspan=\"4\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato, $tidspkt</td></tr>\n";
 		if (!$vis_saet) {
 			if ($betalingsbet!='Kontant') list($betalingsbet,$kreditmax,$saldo)=explode(";",find_saldo($konto_id,$sum,$moms));
-			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>Ingen kredit</b></td>\n";
+			if ($betalingsbet=='Kontant') print "<tr><td colspan=\"2\"><b>".findtekst('1866|Ingen kredit', $sprog_id)."</b></td>\n";
 		}
 	} elseif ($status>=3) {
-		($bordnavn)?$tmp=" Bord: $bordnavn |":$tmp='';  
-		print "<tr><td colspan=\"6\" align=\"right\">Ekspedient: $ref |$tmp Bon: $fakturanr</td></tr>\n";
-		print "<tr><td colspan=\"6\" align=\"right\">Kasse: $kasse | $fakturadato kl. $tidspkt</td></tr>\n";
+		($bordnavn)?$tmp=" ".findtekst('932|Bord', $sprog_id).": $bordnavn |":$tmp='';  
+		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('2252|Ekspedient', $sprog_id).": $ref |$tmp ".findtekst('2250|Bon', $sprog_id).": $fakturanr</td></tr>\n";
+		print "<tr><td colspan=\"6\" align=\"right\">".findtekst('931|Kasse', $sprog_id).": $kasse | $fakturadato, $tidspkt</td></tr>\n";
 	}
 	setItemHeaderTxt($lagerantal, $fokus);
 	if ($status < 3) {

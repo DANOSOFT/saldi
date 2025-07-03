@@ -32,7 +32,7 @@ class OrderEndpoint extends BaseEndpoint
             // get order based on dates 
             $fromDate = isset($_GET['fromDate']) ? $_GET['fromDate'] : null;
             $toDate = isset($_GET['toDate']) ? $_GET['toDate'] : null;
-            
+
             if ($fromDate && $toDate) {
                 // Validate date format
                 if (!DateTime::createFromFormat('Y-m-d', $fromDate) || !DateTime::createFromFormat('Y-m-d', $toDate)) {
@@ -44,7 +44,7 @@ class OrderEndpoint extends BaseEndpoint
                 $toDate = null;
             }
             // Get all orders with art = 'DO' for debitor
-            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate);
+            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate, $ordrenr);
             $items = [];
             foreach ($orders as $order) {
                 $items[] = $order->toArray();

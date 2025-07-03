@@ -695,7 +695,7 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 			    }
 		}
 </script>";
-$backUrl = isset($_GET['returside']) ? $_GET['returside'] : 'javascript:saldiSpecialBack()';
+$backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 
 
 	$husk = "";

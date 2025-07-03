@@ -38,6 +38,20 @@ class AccountModel {
     }
 
     /**
+     * Get the current fiscal year from the database
+     *
+     * @return int|null Fiscal year or null if not found
+     */
+    private function getFiscalYear(){
+        $query = db_select("SELECT kodenr FROM grupper WHERE art = 'RA' ORDER BY kodenr DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
+        if (db_num_rows($query) > 0) {
+            $r = db_fetch_array($query);
+            return (int)$r['kodenr'];
+        }
+        return null;
+    }
+
+    /**
      * Load account details from database by ID
      *
      * @param int $id
@@ -117,13 +131,12 @@ class AccountModel {
                 kontonr = '$this->kontonr', 
                 beskrivelse = '$this->beskrivelse', 
                 kontotype = '$this->kontotype', 
-                moms = '".($this->moms !== NULL ? $this->moms->momskode.$this->moms->nr : "")."', 
+                moms = '".($this->moms !== NULL ? $this->moms->getMomskode().$this->moms->getNr() : "")."',
                 fra_kto = '$this->fra_kto', 
                 til_kto = '$this->til_kto', 
                 lukket = '$this->lukket', 
                 primo = '$this->primo', 
                 saldo = '$this->saldo', 
-                regnskabsaar = '$this->regnskabsaar', 
                 genvej = '$this->genvej', 
                 overfor_til = '$this->overfor_til', 
                 anvendelse = '$this->anvendelse', 
@@ -135,22 +148,48 @@ class AccountModel {
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             return explode("\t", $q)[0] == "0";
         } else {
+
+            // get valutakurs from grupper where art = VK and box1 = $this->valuta
+            if ($this->valuta) {
+                $qtxt = "SELECT box2, kodenr FROM grupper WHERE art = 'VK' AND (UPPER(box1) = UPPER('$this->valuta'))";
+                $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+                if (db_num_rows($q) > 0) {
+                    $r = db_fetch_array($q);
+                    // if valutakurs is not given by the user use the one from the database
+                    if(!$this->valutakurs) {
+                        $this->valutakurs = (float)$r['box2'];
+                    }
+                    $this->valuta = $r['kodenr']; // Set the currency code from the database
+                } else {
+                    if(!$this->valutakurs) {
+                        $this->valutakurs = 100; // Default to 100 if no currency found
+                    }
+                    $this->valuta = 0; // Default to 0 if no currency found
+                }
+            }
+            $regnaar = self::getFiscalYear();
             // Insert new account
             $qtxt = "INSERT INTO kontoplan (
                 kontonr, beskrivelse, kontotype, moms, fra_kto, til_kto, 
                 lukket, primo, saldo, regnskabsaar, genvej, overfor_til, 
-                anvendelse, modkonto, valuta, valutakurs, system_account, 
-                account_group, map_to
+                anvendelse, modkonto, valuta, valutakurs, map_to
             ) VALUES (
                 '$this->kontonr', '$this->beskrivelse', '$this->kontotype', 
                 '$this->moms', '$this->fra_kto', '$this->til_kto', 
                 '$this->lukket', '$this->primo', '$this->saldo', 
-                '$this->regnskabsaar', '$this->genvej', '$this->overfor_til', 
+                '$regnaar', '$this->genvej', '$this->overfor_til', 
                 '$this->anvendelse', '$this->modkonto', '$this->valuta', 
                 '$this->valutakurs', '$this->map_to'
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             
+            $query = db_select("SELECT id FROM kontoplan WHERE 
+                kontonr = '$this->kontonr' AND regnskabsaar = '$this->regnskabsaar'", 
+                __FILE__ . " linje " . __LINE__);
+            if(db_num_rows($query) > 0) {
+                $r = db_fetch_array($query);
+                $this->id = (int)$r['id'];
+            }
             // If insert is successful, set the new ID
             return explode("\t", $q)[0] == "0";
         }
@@ -163,7 +202,7 @@ class AccountModel {
      * @param string $orderDirection Sort direction (default: ASC)
      * @return AccountModel[] Array of Account objects
      */
-    public static function getAllItems($orderBy = 'kontonr', $orderDirection = 'ASC') {
+    public static function getAllItems($orderBy = 'kontonr', $orderDirection = 'ASC', $limit) {
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'kontonr', 'beskrivelse', 'kontotype', 'regnskabsaar'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'kontonr';
@@ -171,7 +210,7 @@ class AccountModel {
         // Validate order direction
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
         
-        $qtxt = "SELECT id FROM kontoplan ORDER BY $orderBy $orderDirection";
+        $qtxt = "SELECT id FROM kontoplan ORDER BY $orderBy $orderDirection LIMIT $limit";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
         $items = [];
@@ -216,13 +255,12 @@ class AccountModel {
             'kontonr' => $this->kontonr,
             'beskrivelse' => $this->beskrivelse,
             'kontotype' => $this->kontotype,
-            'moms' => $this->moms !== NULL ? $this->moms->toarray() : NULL,
+            'moms' => $this->moms,
             'fra_kto' => $this->fra_kto,
             'til_kto' => $this->til_kto,
             'lukket' => $this->lukket,
             'primo' => $this->primo,
             'saldo' => $this->saldo,
-            'regnskabsaar' => $this->regnskabsaar,
             'genvej' => $this->genvej,
             'overfor_til' => $this->overfor_til,
             'anvendelse' => $this->anvendelse,

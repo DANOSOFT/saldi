@@ -152,36 +152,42 @@ class LagerModel
             return $validationResult;
         }
         
-        // Sanitize data
-        $beskrivelse = $this->sanitize($this->beskrivelse);
-        $nr = (int)$this->nr;
-        $fiscal_year = (int)$this->fiscal_year;
-        
+        // Sanitize text
+        $beskrivelse  = $this->sanitize($this->beskrivelse);
+
+        // Prepare integer fields: NULL if not numeric
+        $nr           = is_numeric($this->nr)          ? intval($this->nr)          : 'NULL';
+        $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : 'NULL';
+
         if ($this->id > 0) {
-            // Update existing item
-            $qtxt = "UPDATE " . self::TABLE_NAME . " SET 
-                beskrivelse = '$beskrivelse', 
-                kodenr = '$nr', 
-                fiscal_year = '$fiscal_year'
-            WHERE id = $this->id";
+            // UPDATE
+            $qtxt = "
+              UPDATE " . self::TABLE_NAME . " SET
+                beskrivelse  = '$beskrivelse',
+                kodenr       = $nr,
+                fiscal_year  = $fiscal_year
+              WHERE id = {$this->id}
+            ";
         } else {
-            // Insert new item
-            $qtxt = "INSERT INTO " . self::TABLE_NAME . " (
-                art, 
-                beskrivelse, 
-                kodenr, 
+            // INSERT
+            $qtxt = "
+              INSERT INTO " . self::TABLE_NAME . " (
+                art,
+                beskrivelse,
+                kodenr,
                 fiscal_year
-            ) VALUES (
+              ) VALUES (
                 '" . self::ART_TYPE . "',
-                '$beskrivelse', 
-                '$nr', 
-                '$fiscal_year'
-            )";
+                '$beskrivelse',
+                $nr,
+                $fiscal_year
+              )
+            ";
         }
         
-        $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        $result = explode("\t", $q)[0] == "0";
-        
+        $q      = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        $result = explode("\t", $q)[0] === "0";
+
         // If insert is successful and it was a new item, update the ID
         if ($result && $this->id <= 0) {
             // Get the last inserted ID - this is database specific and might need adjustment

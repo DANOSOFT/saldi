@@ -45,6 +45,13 @@ class CreditorEndpoint extends BaseEndpoint
 
     protected function handlePut($data)
     {
+
+        if(isset($_GET["id"])){
+            $data->id = $_GET["id"];
+        } else {
+            $this->sendResponse(false, null, 'Customer ID is required for update', 400);
+            return;
+        }
         $result = CustomerService::updateCustomer($data, 'K');
         
         if ($result['success']) {
@@ -56,12 +63,17 @@ class CreditorEndpoint extends BaseEndpoint
 
     protected function handleDelete($data)
     {
-        if (!isset($data->id)) {
+        // same pattern for delete
+        $id = isset($_GET['id'])
+            ? (int)$_GET['id']
+            : (isset($data->id) ? (int)$data->id : null);
+
+        if (!$id) {
             $this->sendResponse(false, null, 'Customer ID is required for deletion', 400);
             return;
         }
-
-        $customer = new CustomerModel($data->id, 'K');
+        
+        $customer = new CustomerModel($id, 'K');
         if (!$customer->getId()) {
             $this->sendResponse(false, null, 'Customer not found', 404);
             return;

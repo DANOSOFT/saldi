@@ -216,7 +216,7 @@ function accountNumberExist($mapToNumber, $standardAcountNumber)
     if ($mapToNumber == '0' || $mapToNumber == null) {
         return '';
     } else if (!in_array($mapToNumber, $standardAcountNumber)) {
-        return "$mapToNumber " . findtekst(2342, $sprog_id) . "";
+        return "$mapToNumber " . findtekst('2342|eksisterer ikke', $sprog_id) . "";
     }
 }
 
@@ -299,14 +299,14 @@ if ($kontoantal_check <= 0) {
 }
 
 if ($rapportart == "regnskabbasis")
-    $newTitle = findtekst(3025, $sprog_id);
+    $newTitle = findtekst('2326|Regnskab Basis', $sprog_id);
 if ($menu == 'T') {
     $title = "Rapport • $newTitle";
 
     include_once '../includes/top_header.php';
     include_once '../includes/top_menu.php';
     print "<div id=\"header\">";
-    print "<div class=\"headerbtnLft headLink\"><a href=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=&ansat_til=&projekt_fra=&projekt_til=&simulering=&lagerbev= accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>"; // &ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev
+    print "<div class=\"headerbtnLft headLink\"><a href=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=&ansat_til=&projekt_fra=&projekt_til=&simulering=&lagerbev= accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>"; // &ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev
     print "<div class=\"headerTxt\">$title</div>";
     print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
     print "</div>";
@@ -326,29 +326,31 @@ if ($menu == 'T') {
 }
 
 print "<table class=\"saftHeader\">\n";
-print "<tr><td rowspan=\"3\" class=\"saftTitle\">$newTitle</td><td>Regnskabs&aring;r</td><td>$regnaar.</td></tr>\n";
+print "<tr><td rowspan=\"3\" class=\"saftTitle\">$newTitle</td><td>".findtekst('778|Regnskabsår', $sprog_id)."</td><td>$regnaar.</td></tr>\n";
 if ($startdato < 10)
     $startdato = "0" . $startdato * 1;
-print "<tr><td rowspan=\"2\">Periode</td><td>Fra " . $startdato . ". $mf $aar_fra</td></tr>\n";
-print "<tr><td>Til " . $slutdato . ". $mt $aar_til</td></tr>";
+print "<tr><td rowspan=\"2\">".findtekst('899|Periode', $sprog_id)."</td><td>".ucfirst(findtekst('903|fra', $sprog_id))." " . $startdato . ". $mf $aar_fra</td></tr>\n";
+print "<tr><td>".ucfirst(findtekst('904|til', $sprog_id))." " . $slutdato . ". $mt $aar_til</td></tr>";
 print "<tr><td colspan=\"3\" class=\"saftFirmName\">$firmanavn</td>\n";
 if ($standardKontoCheck != true) {
     print "<tr><td colspan=\"3\"><hr></td></tr>";
-    print "<tr><td colspan=\"3\"><h2>" . findtekst(2328, $sprog_id) . "<h2></td></tr>";
+    print "<tr><td colspan=\"3\"><h2>" . findtekst('2328|Bemærk!', $sprog_id) . "<h2></td></tr>";
     if ($kontoantal_check <= 1) {
-        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2329, $sprog_id) . "</td></tr>"; // For at udskrive en csv skal nedenstående kontonummer mappes til standard kontonummer.
+        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst('2329|For at udskrive en csv skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.', $sprog_id) . "</td></tr>"; // For at udskrive en csv skal nedenstående kontonummer mappes til standard kontonummer.
     } else {
-        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2330, $sprog_id) . " <b>$kontoantal_check</b> " . findtekst(2331, $sprog_id) . "</td></tr>"; // For at udskrive en csv skal de <b>$kontoantal_check</b> nedenstående kontonumre mappes til <u>standard kontonumre</u>.
-    }
-    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2332, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2333, $sprog_id) . "</b></mark> " . findtekst(2334, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2335, $sprog_id) . "</b></mark> " . findtekst(2336, $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">Her</a></td></tr>"; // Inde i <mark class=\"mark\"><b>systemdata &#8658; diverse &#8658; Import & Export</b></mark> kan du under <mark class=\"mark\"><b>Indlæs/udlæs kontoplan</b></mark> Importer mappingfil til offentlig standard kontoplan
-    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2337, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2338, $sprog_id) . "</b></mark>. " . findtekst(2339, $sprog_id) . " <mark class=\"mark\"><b>" . findtekst(2340, $sprog_id) . "</b></mark>.</td></tr>"; // tekst skal ændres!!! tilføjes tekster.csv
-    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst(2341, $sprog_id) . ".</td></tr>";
+        print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst('2330|For at udskrive en csv skal de', $sprog_id) . " <b>$kontoantal_check</b> " . findtekst('2331|nedenstående kontonumre mappes til <u>standard kontonumre</u>.', $sprog_id) . "</td></tr>"; // For at udskrive en csv skal de <b>$kontoantal_check</b> nedenstående kontonumre mappes til <u>standard kontonumre</u>.
+   }
+    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst('2332|Inde i', $sprog_id) . " <mark class=\"mark\"><b>" . findtekst('2333|systemdata &#8658 > diverse &#8658 > Import & Export', $sprog_id) . "</b></mark> " . findtekst('2334|kan du under', $sprog_id) . " <mark class=\"mark\"><b>" . findtekst('2335|Indlæs/udlæs kontoplan', $sprog_id) . "</b></mark> " . findtekst('2336|Importer mappingfil til offentlig standard kontoplan', $sprog_id) . " <a href=\"../systemdata/diverse.php?sektion=div_io\" style=\"color:blue;\">".findtekst('2157|her', $sprog_id)."</a></td></tr>"; // Inde i <mark class=\"mark\"><b>systemdata &#8658; diverse &#8658; Import & Export</b></mark> kan du under <mark class=\"mark\"><b>Indlæs/udlæs kontoplan</b></mark> Importer mappingfil til offentlig standard kontoplan
+    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst('2337|De kontonumre som <u>ikke</u> kan mappes ændres i', $sprog_id) . " <mark class=\"mark\"><b>" . findtekst('2338|systemdata &#8658 > kontoplan', $sprog_id) . "</b></mark>. " . findtekst('2339|Her kan man under det enkelte kontonummer tilføje standard kontonummer i feltet', $sprog_id) . " <mark class=\"mark\"><b>" . findtekst('2340|Map til', $sprog_id) . "</b></mark>.</td></tr>"; // tekst skal ændres!!! tilføjes tekster.csv
+    print "<tr><td colspan=\"3\" style=\"padding-bottom:5px;\">" . findtekst('2341|Sidst på siden kan man se en udskrift af Standard Kontoplan', $sprog_id) . ".</td></tr>";
 }
 print "</table>\n";
 
 if ($standardKontoCheck) {
     print "<table style='width:100%;'>";
-    print "<tr><th>KONTONUMMER</th><th>KONTONAVN</th><th>VAERDI</th></tr>";
+    print "<tr><th>".strtoupper(findtekst('136|KONTONUMMER', $sprog_id))."</th>";
+    print "<th>".strtoupper(findtekst('805|KONTONAVN', $sprog_id))."</th>";
+    print "<th>".strtoupper(findtekst('476|VÆRDI', $sprog_id))."</th></tr>";
 
     for ($x = 1; $x <= $kontoantal; $x++) {
         ($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
@@ -361,7 +363,12 @@ if ($standardKontoCheck) {
     print "</table>";
 } else {
     print "<table style='width:100%;'>";
-    print "<tr><th>KONTONUMMER</th><th>MAP TIL</th><th>KONTONAVN</th><th>TYPE</th><th>MOMS</th><th>VAERDI</th></tr>";
+    print "<tr><th>".strtoupper(findtekst('136|KONTONUMMER', $sprog_id))."</th>";
+    print "<th>".strtoupper(findtekst('2340|MAP TIL', $sprog_id))."</th>";
+    print "<th>".strtoupper(findtekst('805|KONTONAVN', $sprog_id))."</th>";
+    print "<th>TYPE</th>";
+    print "<th>".strtoupper(findtekst('770|MOMS', $sprog_id))."</th>";
+    print "<th>".strtoupper(findtekst('476|VÆRDI', $sprog_id))."</th></tr>";
 
     for ($x = 1; $x <= $kontoantal_check; $x++) {
         ($linjebg != $bgcolor4) ? $linjebg = $bgcolor4 : $linjebg = $bgcolor;
@@ -397,9 +404,12 @@ if ($standardKontoCheck != true) {
     print "<hr style=\"border: 1px solid #9a9a9a;\">";
     print "<div class=\"rbButtonSpace\"><button onclick=\"showStandardKontoplan()\" id=\"showStandardKontoplan\">$showStandardAccountPlan</button></div>";
     print "<div id=\"standardKontoplan\">";
-    print "<h2 style=\"text-align: center;\">" . findtekst(2343, $sprog_id) . "</h2>";
+    print "<h2 style=\"text-align: center;\">" . findtekst('2343|Standard Kontoplan', $sprog_id) . "</h2>";
     print "<table style='width:100%;'>";
-    print "<tr><th>Kontonummer</th><th>Kontonavn</th><th>Type</th><th>Moms</th></tr>";
+    print "<tr><th>".findtekst('136|Kontonummer', $sprog_id)."</th>";
+    print "<th>".findtekst('805|Kontonavn', $sprog_id)."</th>";
+    print "<th>Type</th>";
+    print "<th>".findtekst('770|Moms', $sprog_id)."</th></tr>";
     for ($x = 0; $x < $csv_kontoantal; $x++) {
         ($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
         print "<tr bgcolor=\"$linjebg\">";
