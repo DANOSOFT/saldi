@@ -943,7 +943,7 @@ if (!function_exists('modulus_10')) {
 }
 
 if (!function_exists('formularprint')) {
-	function formularprint($id, $formular, $lev_nr, $charset, $udskriv_alle_til)
+	function formularprint($id, $formular, $lev_nr, $charset, $udskriv_alle_til, $background_file = null)
 	{
 		print "<!--function formularprint start-->";
 
@@ -1169,16 +1169,35 @@ if (!function_exists('formularprint')) {
 			}
 
 			#$bgr="bg";
-			if ($formular == 5 && file_exists("../logolib/$db_id/kreditnota_bg.pdf"))
-				$bgr = "kreditnota_bg";
-			elseif ($formular >= 3 && file_exists("../logolib/$db_id/faktura_bg.pdf"))
-				$bgr = "faktura_bg";
-			elseif ($formular == 2 && file_exists("../logolib/$db_id/ordrer_bg.pdf"))
-				$bgr = "ordrer_bg";
-			elseif ($formular <= 1 && file_exists("../logolib/$db_id/tilbud_bg.pdf"))
-				$bgr = "tilbud_bg";
-			elseif (file_exists("../logolib/$db_id/bg.pdf"))
-				$bgr = "bg";
+			// if ($formular == 5 && file_exists("../logolib/$db_id/kreditnota_bg.pdf"))
+			// 	$bgr = "kreditnota_bg";
+			// elseif ($formular >= 3 && file_exists("../logolib/$db_id/faktura_bg.pdf"))
+			// 	$bgr = "faktura_bg";
+			// elseif ($formular == 2 && file_exists("../logolib/$db_id/ordrer_bg.pdf"))
+			// 	$bgr = "ordrer_bg";
+			// elseif ($formular <= 1 && file_exists("../logolib/$db_id/tilbud_bg.pdf"))
+			// 	$bgr = "tilbud_bg";
+			// elseif (file_exists("../logolib/$db_id/bg.pdf"))
+			// 	$bgr = "bg";
+			// <?php
+if ($background_file && file_exists($background_file)) {
+    $bgr = basename($background_file, '.pdf'); // e.g. 'English_ordrer_bg'
+    $background_pdf_path = $background_file;
+} else {
+	alert('fallback');
+    // fallback to old logic if needed
+    if ($formular == 5 && file_exists("../logolib/$db_id/kreditnota_bg.pdf"))
+        $bgr = "kreditnota_bg";
+    elseif ($formular >= 3 && file_exists("../logolib/$db_id/faktura_bg.pdf"))
+        $bgr = "faktura_bg";
+    elseif ($formular == 2 && file_exists("../logolib/$db_id/ordrer_bg.pdf"))
+        $bgr = "ordrer_bg";
+    elseif ($formular <= 1 && file_exists("../logolib/$db_id/tilbud_bg.pdf"))
+        $bgr = "tilbud_bg";
+    elseif (file_exists("../logolib/$db_id/bg.pdf"))
+        $bgr = "bg";
+    $background_pdf_path = "../logolib/$db_id/$bgr.pdf";
+}
 			print "<!-- kommentar for at skjule uddata til siden \n";
 			if (!file_exists("../logolib/$db_id"))
 				mkdir("../logolib/$db_id");
@@ -1831,13 +1850,18 @@ if (!function_exists('formularprint')) {
 					system("$ps2pdf $mappe/$pfliste[$x].ps $mappe/$pfliste[$x].pdf");
 				}
 				#			print "--> \n";
-				if ($logoart == 'PDF') {
-					#			print "<!-- kommentar for at skjule uddata til siden \n";
-					$out = $mappe . "/" . $pfliste[$x] . "x.pdf";
-					system("$pdftk $mappe/$pfliste[$x].pdf background ../logolib/$db_id/$bgr.pdf output $out");
-					system("mv $out $mappe/$pfliste[$x].pdf");
-					#				print "--> \n";
-				}
+				// if ($logoart == 'PDF') {
+				// 	#			print "<!-- kommentar for at skjule uddata til siden \n";
+				// 	$out = $mappe . "/" . $pfliste[$x] . "x.pdf";
+				// 	system("$pdftk $mappe/$pfliste[$x].pdf background ../logolib/$db_id/$bgr.pdf output $out");
+				// 	system("mv $out $mappe/$pfliste[$x].pdf");
+				// 	#				print "--> \n";
+				// }
+					if ($logoart == 'PDF' && $background_pdf_path && file_exists($background_pdf_path)) {
+						$out = $mappe . "/" . $pfliste[$x] . "x.pdf";
+						system("$pdftk $mappe/$pfliste[$x].pdf background $background_pdf_path output $out");
+						system("mv $out $mappe/$pfliste[$x].pdf");
+					}
 				$o = $x - 1;
 				if ($inkasso) {
 					return ("$mappe/$pfliste[$x].pdf");
@@ -1848,7 +1872,8 @@ if (!function_exists('formularprint')) {
 		} elseif ($nomailantal > 0) {
 			print "<big><b>Vent - Udskrift genereres</b></big><br>";
 			$mappe = str_replace('../temp/', '', $mappe);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=$bgr&returside=$returside\">"; #20131202
+			// print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=$bgr&returside=$returside\">"; #20131202
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/udskriv.php?ps_fil=$mappe/$printfilnavn&amp;id=$id&amp;udskriv_til=$udskriv_til&amp;art=$art&amp;bgr=" . urlencode($background_pdf_path) . "&returside=$returside\">";
 		} elseif ($popup)
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
 		#else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";

@@ -49,8 +49,49 @@ if (isset($_GET['id']) && $_GET['id']){
 	$bg="nix";
 #	$subjekt=if_isset($_POST['subjekt']);
 #	$mailtext=if_isset($_POST['mailtext']);
-	if ($udskriv_til=='ingen') $svar='OK';
-	else $svar=formularprint($id,$formular,$lev_nr,$charset,$udskriv_til);
+
+$r = db_fetch_array(db_select("SELECT sprog FROM ordrer WHERE id='$id'", __FILE__ . " linje " . __LINE__));
+$sprog = isset($r['sprog']) ? $r['sprog'] : 'Dansk';
+
+global $db_id;
+if (!isset($db_id)) {
+    $db_id = isset($_SESSION['db_id']) ? $_SESSION['db_id'] : 'default';
+}
+
+$form_type = '';
+switch ($formular) {
+    case 1: $form_type = 'tilbud'; break;
+    case 2: $form_type = 'ordrer'; break;
+    case 4: $form_type = 'faktura'; break;
+    default: $form_type = 'bg'; // fallback
+}
+
+$sprog_prefix = ($sprog != 'Dansk') ? $sprog . '_' : '';
+$backgrounds = [
+    "../logolib/$db_id/{$sprog_prefix}{$form_type}_bg.pdf",
+    "../logolib/$db_id/{$form_type}_bg.pdf",
+    "../logolib/$db_id/{$sprog_prefix}bg.pdf",
+    "../logolib/$db_id/bg.pdf"
+];
+
+
+$background_file = null;
+foreach ($backgrounds as $bg) {
+    if (file_exists($bg)) {
+        $background_file = $bg;
+        break;
+    }
+}
+
+if ($background_file) {
+    // Remove this line in production, it's just for confirmation:
+    echo "<div style='margin:10px 0;'><b>Background selected:</b> " . basename($background_file) . "</div>";
+	alert("Baggrundsfil fundet: " . basename($background_file));
+}
+	// if ($udskriv_til=='ingen') $svar='OK';
+	// else $svar=formularprint($id,$formular,$lev_nr,$charset,$udskriv_til);
+if ($udskriv_til=='ingen') $svar='OK';
+else $svar=formularprint($id, $formular, $lev_nr, $charset, $udskriv_til, $background_file);
 	if ($svar && $svar!='OK') {
 		print "<BODY onLoad=\"javascript:alert('$svar')\">";
 		if ($returside) {
