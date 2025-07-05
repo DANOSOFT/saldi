@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-05-30 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-07-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -195,6 +195,7 @@
 // 20250228 LOE Casting of some variables to explicit int instead of using '*1'
 // 20250404 PHR Added call to updateOrderCost
 // 20250421 LOE A lot of array values updated with if_isset function to prevent numerous undefined errors, and some clean ups.
+// 20250705 PHR $afd is now set if afd exist
 
 @session_start();
 $s_id=session_id();
@@ -3953,6 +3954,8 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 				if ($afd_nr[$x]!=$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
 			} 
 			print "</select>";
+		} elseif (count($afd_nr)==1) {
+      		print "<input type = 'hidden' name = 'afd' value = '$afd_nr[0]'>";
 		}
 		print "</td></tr>\n";
 		$kasseantal=0;
