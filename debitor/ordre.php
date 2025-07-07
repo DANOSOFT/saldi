@@ -1835,8 +1835,8 @@ if ($status<3 && $b_submit) {
 				if (strlen($levdate)>6) $tmp=",levdate='$levdate'";
 				if (strlen($fakturadate)>6) $tmp=$tmp.",fakturadate='$fakturadate'";
 				if ($genfakt) $tmp=$tmp.",nextfakt='".usdate($genfakt)."'";
-				$afd*=1;
-				$status*=1;
+				$afd    = (int)$afd;
+				$status = (int)$status;
 				$qtxt = "update ordrer set kontonr='$kontonr',kundeordnr='$kundeordnr',firmanavn='$firmanavn',";
 				$qtxt.= "addr1='$addr1',addr2='$addr2',postnr='$postnr',bynavn='$bynavn',land='$land',kontakt='$kontakt',";
 				$qtxt.= "kontakt_tlf='$kontakt_tlf',lev_navn='$lev_navn',lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',";
