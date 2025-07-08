@@ -155,7 +155,7 @@
 155	Vil du slette denne ordre?	Do you want to delete this order?	Vil du slette denne bestillingen?
 156	Klik her for at slette hele ordren. Hvis du blot vil slette en ordrelinje skal du sætte - (minus) som pos.nr.	Click here to delete the entire order. If you just want to delete an order line	Klikk her for å slette hele bestillingen. Hvis du bare vil slette en ordrelinje, må du sette - (minus) som varenr.
 157	Kontonummer for samlekonto | kreditorgruppe ikke gyldig - (Indstillinger -> Deb/Kred-grp)	Account number for collective account | creditor group not valid - (Settings -> Deb / Credit Group)	Kontonummer på kundefordringer | kreditorgruppe ikke gyldig - (Innstillinger -> Deb / kredittgruppe)
-158	Klik på kladde_id for den kassekladde som posteringen skal tilbageføres til.	Click on draft_id for the cash journal to which the entry is to be returned.	Klikk på draft_id for kontantjournalen som oppføringen skal returneres til.
+158	Klik på kladde-ID for den kassekladde som posteringen skal tilbageføres til.	Click on draft-ID for the cash journal to which the entry is to be returned.	Klikk på utkast-ID for den kontantjournalen som posteringen skal føres tilbake til.
 159	Fortryd	Undo	Angre
 160	<- Klik her for at fortryde.	<- Click here to undo.	<- Klikk her for å angre.
 161	Klik her hvis du vil logge ud af SALDI	Click here to log out of SALDI	Klikk her for å logge av SALDI
@@ -955,7 +955,7 @@
 955	Alle varer fra lev.	All products from supl.	Alle varer fra lev.
 956	Kun mangler	Only missing	Bare mangler
 957	Vareliste	Item list	Vareliste
-958	Oprettet af	Created by	Laget av
+958	Oprettet af	Created by	Oprettet av
 959	Modtaget af	Received by	Mottatt av
 960	Modtagelsesdato	Date of receipt	Dato for kvitering
 961	Du opretter en ny modtagelse ved at klikke på <u>Ny</u> øverst til højre.	To create a new receipt, click <u>New</u> at the top right.	For å opprette et nytt mottak, klikk <u>Ny</u> øverst til høyre.
@@ -1196,7 +1196,7 @@
 1196	Specifikation for	Specification for	Spesifikasjon for
 1197	Kladdenr	Draft no	Utkast nr
 1198	Afd. nr	Dept. no	Gjeld. Nei
-1199	Projekt nr.	Project no.	Prosjekt nr.
+1199	Projektnr.	Project no.	Prosjektnr.
 1200	Næste	Next	Neste
 1201	Ordreliste • Kunder	Order list • Customers	Bestillingsliste • Kunder
 1202	Log	Log	Løk
@@ -2591,10 +2591,10 @@
 2591	Bilag kan sendes til	Attachments can be sent to	Vedlegg kan sendes til
 2592	Dokumentpulje	Document batch	Dokumentpulje
 2593	Træk og slip PDF-fil her	Drop PDF file here	Dra og slipp PDF-fil her
-2594	
-2595	
-2596	
-2597	
+2594	Projektopslag	Project lookup	Prosjektoppslag
+2595	Regnskab	Ledger	Regnskap
+2596	Posteringen er tilbageført på kladde	The entry has been reversed in journal	Posteringen er ført tilbake i utkast
+2597	Der skal først oprettes en kassekladde som posteringen kan tilbageføres til	A journal must first be created for the entry to be reversed to	Det må først opprettes en kontantjournal som posteringen kan føres tilbake til
 2598	
 2599	
 2600	

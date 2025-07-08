@@ -1084,18 +1084,18 @@ if (!$simuler) {
 
 			print "<td width='10%'>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-			print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+			print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>";
+			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 			print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
+
 			print "<td id='tutorial-help' width=5% style=$buttonStyle>
 			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 				".findtekst('2564|Hjælp', $sprog_id)."  
 			</button></td>";
-			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">
-				   $ny</button></a></td></tr>";
+
+			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>";
+			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">$ny</button></a></td></tr>";
 		} else {
 			print "<tr><td height='1%' align='center' valign='top'>";
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
@@ -1120,7 +1120,7 @@ if (!$udskriv) {
 	print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 
 	print "<tr><td width='100%' valign='top' height='1%\ align='center'>
-		<table width='100%' cellpadding='0' cellspacing='0' border='0' align = 'center' valign = 'top'>";
+		   <table width='100%' cellpadding='0' cellspacing='0' border='0' align = 'center' valign = 'top'>";
 	print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
 	print "<tr>";
 	print "<td width = '14%'></td>";
@@ -1190,11 +1190,11 @@ if (db_fetch_array(db_select("select id from kassekladde where kladde_id = '$kla
 print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
 print "<td align='center' width='60px'><b>Position</b></td>";
 if ($kontrolkonto) {
-	print "<td align='center' width='30px'><b>Saldo<br>Regnskab</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
+	print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 	$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
 	if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		print "<td style = 'width:20px'></td>";
-		print "<td align='center' width='30px'><b>Saldo<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
+		print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 	}
 }
 #print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
@@ -2641,7 +2641,7 @@ $qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id',
 			$x = 0;
 			print "<table border=\"1\"><tbody>";
 			print "<tr><td colspan=3>" . findtekst('158|Klik på kladde_id for den kassekladde som posteringen skal tilbageføres til.', $sprog_id) . "</td></tr>";
-			print "<tr><td>Kladde_id</td><td>Beskrivelse</td><td>Oprettet&nbsp;af</td></tr>";
+			print "<tr><td>".findtekst('1087|Kladde', $sprog_id)."-ID</td><td>".findtekst('914|Beskrivelse', $sprog_id)."</td><td>".findtekst('958|Oprettet af', $sprog_id)."</td></tr>";
 			print "<tr><td><a href=kassekladde.php?kladde_id=$kladde_id>" . findtekst('159|Fortryd', $sprog_id) . "</a></td><td>" . findtekst('160|<- Klik her for at fortryde.', $sprog_id) . "</td><td><br></td></tr>";
 			$q = db_select("select * from kladdeliste where bogfort='-'", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
@@ -2649,7 +2649,7 @@ $qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id',
 				print "<tr><td><a href=kassekladde.php?kladde_id=$kladde_id&ompost=$ompost&ompost_til=$r[id]>$r[id]</a></td><td>$r[kladdenote]</td><td>$r[oprettet_af]</td></tr>";
 			}
 			if ($x == 0) {
-				print "<body onLoad=\"javascript:alert('Der skal f&oslash;rst oprettes en kassekladde som posteringen kan tilbagef&oslash;res til')\">";
+				print "<body onLoad=\"javascript:alert('".findtekst('2597|Der skal først oprettes en kassekladde som posteringen kan tilbageføres til', $sprog_id)."')\">";
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=kassekladde.php?kladde_id=$kladde_id\">";
 			}
 			print "<tbody></table>";
@@ -2662,7 +2662,7 @@ $qtxt .= "'$r[faktura]', '$amount', '$momsfri', '$afd', '$projekt', '$ansat_id',
 			$valutakode = $r['valutakode'] * 1;
 			#20140718
 			db_modify("insert into kassekladde (bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,faktura,amount,momsfri,afd,ansat,projekt,valuta) values ('$r[bilag]','$ompost_til','$r[transdate]','" . db_escape_string(if_isset($r['beskrivelse'], '')) . "','$r[k_type]','$r[kredit]','$r[d_type]','$r[debet]','$r[faktura]','$r[amount]','$r[momsfri]','$afd','$ansat','$projekt','$valutakode')", __FILE__ . " linje " . __LINE__);
-			print "<body onLoad=\"javascript:alert('Posteringen er tilbagef&oslash;rt p&aring; kladde $ompost_til')\">";
+			print "<body onLoad=\"javascript:alert('".findtekst('2596|Posteringen er tilbageført på kladde', $sprog_id)." $ompost_til')\">";
 		}
 	} # endfunc ompost
 ##########################################################################################################
