@@ -1184,19 +1184,39 @@ if ($background_file && file_exists($background_file)) {
     $bgr = basename($background_file, '.pdf'); // e.g. 'English_ordrer_bg'
     $background_pdf_path = $background_file;
 } else {
-	alert('fallback');
-    // fallback to old logic if needed
-    if ($formular == 5 && file_exists("../logolib/$db_id/kreditnota_bg.pdf"))
-        $bgr = "kreditnota_bg";
-    elseif ($formular >= 3 && file_exists("../logolib/$db_id/faktura_bg.pdf"))
-        $bgr = "faktura_bg";
-    elseif ($formular == 2 && file_exists("../logolib/$db_id/ordrer_bg.pdf"))
-        $bgr = "ordrer_bg";
-    elseif ($formular <= 1 && file_exists("../logolib/$db_id/tilbud_bg.pdf"))
-        $bgr = "tilbud_bg";
-    elseif (file_exists("../logolib/$db_id/bg.pdf"))
-        $bgr = "bg";
-    $background_pdf_path = "../logolib/$db_id/$bgr.pdf";
+    // if ($formular == 5 && file_exists("../logolib/$db_id/kreditnota_bg.pdf"))
+    //     $bgr = "kreditnota_bg";
+    // elseif ($formular >= 3 && file_exists("../logolib/$db_id/faktura_bg.pdf"))
+    //     $bgr = "faktura_bg";
+    // elseif ($formular == 2 && file_exists("../logolib/$db_id/ordrer_bg.pdf"))
+    //     $bgr = "ordrer_bg";
+    // elseif ($formular <= 1 && file_exists("../logolib/$db_id/tilbud_bg.pdf"))
+    //     $bgr = "tilbud_bg";
+    // elseif (file_exists("../logolib/$db_id/bg.pdf"))
+    //     $bgr = "bg";
+    // $background_pdf_path = "../logolib/$db_id/$bgr.pdf";
+
+alert('Background file not specified or does not exist. Using default background.');
+	$bgr = 'bg'; // Default background
+	$background_pdf_path = "../logolib/$db_id/$bgr.pdf";
+	 if ($lang == 'english' && file_exists("../logolib/$db_id/bg_english.pdf")) {
+        $background_pdf_path = "../logolib/$db_id/bg_english.pdf";
+    } elseif ($lang == 'danish' && file_exists("../logolib/$db_id/bg_danish.pdf")) {
+        $background_pdf_path = "../logolib/$db_id/bg_danish.pdf";
+    } else {
+        if ($formular == 5 && file_exists("../logolib/$db_id/kreditnota_bg.pdf"))
+            $bgr = "kreditnota_bg";
+        elseif ($formular >= 3 && file_exists("../logolib/$db_id/faktura_bg.pdf"))
+            $bgr = "faktura_bg";
+        elseif ($formular == 2 && file_exists("../logolib/$db_id/ordrer_bg.pdf"))
+            $bgr = "ordrer_bg";
+        elseif ($formular <= 1 && file_exists("../logolib/$db_id/tilbud_bg.pdf"))
+            $bgr = "tilbud_bg";
+        elseif (file_exists("../logolib/$db_id/bg.pdf"))
+            $bgr = "bg";
+        $background_pdf_path = "../logolib/$db_id/$bgr.pdf";
+    }
+	
 }
 			print "<!-- kommentar for at skjule uddata til siden \n";
 			if (!file_exists("../logolib/$db_id"))
@@ -2375,7 +2395,7 @@ if (!function_exists('rykkerprint')) {
 } #endfunc rykkerprint
 #######################################################################################################
 if (!function_exists('kontoprint')) {
-	function kontoprint($konto_fra, $konto_til, $dato_fra, $dato_til, $kontoart, $email)
+	function kontoprint($konto_fra, $konto_til, $dato_fra, $dato_til, $kontoart, $email,  $lang = 'Dansk')
 	{
 		global $bruger_id;
 		global $db, $db_id;
