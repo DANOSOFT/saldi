@@ -83,11 +83,7 @@ foreach ($backgrounds as $bg) {
     }
 }
 
-if ($background_file) {
-    // Remove this line in production, it's just for confirmation:
-    echo "<div style='margin:10px 0;'><b>Background selected:</b> " . basename($background_file) . "</div>";
-	alert("Baggrundsfil fundet: " . basename($background_file));
-}
+
 	// if ($udskriv_til=='ingen') $svar='OK';
 	// else $svar=formularprint($id,$formular,$lev_nr,$charset,$udskriv_til);
 if ($udskriv_til=='ingen') $svar='OK';

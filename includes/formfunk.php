@@ -1196,7 +1196,6 @@ if ($background_file && file_exists($background_file)) {
     //     $bgr = "bg";
     // $background_pdf_path = "../logolib/$db_id/$bgr.pdf";
 
-alert('Background file not specified or does not exist. Using default background.');
 	$bgr = 'bg'; // Default background
 	$background_pdf_path = "../logolib/$db_id/$bgr.pdf";
 	 if ($lang == 'english' && file_exists("../logolib/$db_id/bg_english.pdf")) {

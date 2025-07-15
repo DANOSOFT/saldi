@@ -235,7 +235,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 	if (isset($_GET['bgr']) && $_GET['bgr']) {
     $bgr_param = urldecode($_GET['bgr']);
-	alert($bgr_param);
+	// alert($bgr_param);
     if (file_exists($bgr_param)) {
         $bg_fil = $bgr_param;
     }
