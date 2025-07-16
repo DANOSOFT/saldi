@@ -1,0 +1,36 @@
+table name "grupper"
+
+req fields
+{
+  "description": "string",
+  "vatGroup": "string" // box1 in the database
+  "currency": "string", // box3 in the database
+  "language": "string", // box4 in the database
+}
+
+system fields
+{
+  "kode": "string" // is always set to "K"
+  "kodenr": "int" // is always the next available number in the same fiscal_year
+  "art": "string" // is always set to "KG"
+  "fiscal_year": "int" // is taken from the database with this query "SELECT kodenr FROM grupper WHERE art = 'RA' ORDER BY kodenr DESC LIMIT 1"
+
+}
+
+optional fields
+{
+  "contraAccount": "string" // box5 in the database
+  "reversePayment": "boolean" // box6 in the database Has to be set to "on" if true and "" if false
+  "b2b": "boolean" // box9 in the database Has to be set to "on" if true and "" if false
+}
+
+Get // only get from current fiscal year which is set in the database "SELECT kodenr FROM grupper WHERE art = 'RA' ORDER BY kodenr DESC LIMIT 1"
+{
+  "description": "string",
+  "vatGroup": "string", // box1 in the database
+  "currency": "string", // box3 in the database
+  "language": "string", // box4 in the database
+  "contraAccount": "string", // box5 in the database
+  "reversePayment": "boolean", // box6 in the database Has to be set to "on" if true and "" if false
+  "b2b": "boolean" // box9 in the database Has to be set to "on" if true and "" if false
+}

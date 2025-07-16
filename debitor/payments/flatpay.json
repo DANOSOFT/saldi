@@ -1,0 +1,1895 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "Flatpay Socket API",
+		"description": "Flatpay Socket API",
+		"license": {
+			"name": "Apache 2.0",
+			"url": "socket-api.flatpay.dk"
+		},
+		"version": "v0.0.1"
+	},
+	"servers": [
+		{
+			"url": "http://socket-api.flatpay.dk",
+			"description": "Generated server url"
+		}
+	],
+	"tags": [
+		{
+			"name": "Report",
+			"description": "Report generation"
+		},
+		{
+			"name": "Webhook",
+			"description": "Webhook registration"
+		},
+		{
+			"name": "Terminal transaction",
+			"description": "Starting, Cancelling and Querying transactions"
+		}
+	],
+	"paths": {
+		"/socket/webhook/{webhookId}": {
+			"put": {
+				"tags": [
+					"Webhook"
+				],
+				"summary": "Updates a webhook for terminal and transaction notifications",
+				"operationId": "updateWebhook",
+				"parameters": [
+					{
+						"name": "webhookId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "guid",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/Model for updating a webhook"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "Webhook updated",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WebhookResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"Webhook"
+				],
+				"summary": "Deletes a webhook for terminal and transaction notifications",
+				"operationId": "deleteWebhook",
+				"parameters": [
+					{
+						"name": "webhookId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "guid",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Webhook deleted",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WebhookResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Webhook not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/terminal/uninstall/positive/{terminalId}": {
+			"post": {
+				"tags": [
+					"delete-positive-app-controller"
+				],
+				"operationId": "uninstallPositiveApp",
+				"parameters": [
+					{
+						"name": "terminalId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"$ref": "#/components/schemas/DeletePositiveApiModel"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/zreport": {
+			"post": {
+				"tags": [
+					"Report"
+				],
+				"operationId": "zReportDeferredResult",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/TermGuid"
+							}
+						},
+						"application/JSON": {
+							"schema": {
+								"$ref": "#/components/schemas/TermGuid"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReportResponse"
+								}
+							},
+							"application/JSON": {
+								"schema": {
+									"$ref": "#/components/schemas/ReportResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/xreport": {
+			"post": {
+				"tags": [
+					"Report"
+				],
+				"operationId": "xReportDefferedResult",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/TermGuid"
+							}
+						},
+						"application/JSON": {
+							"schema": {
+								"$ref": "#/components/schemas/TermGuid"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ReportResponse"
+								}
+							},
+							"application/JSON": {
+								"schema": {
+									"$ref": "#/components/schemas/ReportResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/webhook": {
+			"get": {
+				"tags": [
+					"Webhook"
+				],
+				"summary": "Gets all webhooks for terminal and transaction notifications",
+				"operationId": "getWebhooks",
+				"parameters": [
+					{
+						"name": "guid",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GetWebhooksResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"Webhook"
+				],
+				"summary": "Creates a webhook for terminal and transaction notifications",
+				"description": "<h1>Webhook setup</h1>\nFor setting up a webhook, we require the following from the WebhookUrl:\n1. The endpoint must be a POST endpoint\n2. The endpoint must accept application/json as request body\n3. The endpoint must not require authentication, see 'Verification' below for more details\n\nWebhook key\nThe WebhookKey will only be visible at creation, as in only in the response body of the POST call /socket/webhook\n\nVerification\nWhen receiving webhook notifications, use the WebhookKey to verify the request body against the provided signature found in the header 'flatpay-signature'\nThe signature sent from FlatPay is a HmacSHA512 generated signature using the WebhookKey\n\nWhen verifying the payload received from Flatpay, the payload will have to be verified using a compact JSON format, such that spaces, newlines and all NULL properties are removed\nExample of the payload:\n```\n{\"transactionReference\":\"2c8d91d0-5b7a-4646-b4f7-6b6084003734\",\"transaction\":{\"id\":10401,\"terminalId\":\"1850767075\",\"reference\":\"reference-123\",\"language\":\"da_DK\",\"amount\":1000,\"type\":\"SALE\",\"externalPaymentReference\":\"3e0910b9-92aa-42c7-9854-3b574e4e86f5\",\"transactionReference\":\"2c8d91d0-5b7a-4646-b4f7-6b6084003734\",\"status\":\"COMPLETED\",\"amountGratuity\":0,\"cardPan\":\"************0043\",\"cardScheme\":\"Visa\",\"uti\":\"2c8d91d0-5b7a-4646-b4f7-6b6084003734\",\"createdAt\":\"2025-06-19 06:00:15\",\"updatedAt\":\"2025-06-19 06:00:31\",\"cid\":2091,\"amountSurcharge\":0,\"acquirerPaymentId\":\"3e0910b9-92aa-42c7-9854-3b574e4e86f5\",\"acquirerTerminalId\":\"12345678\",\"applicationId\":\"A0000000031010\",\"responseCode\":\"A\",\"authorizationCode\":\"OK972Z\",\"cryptogramType\":\"ARQC\",\"cardType\":\"CTLS\"}}\n```\n\n<h1>Webhook notification payloads</h1>\nExample of TRANSACTION_RESPONSE scope notification Where the 'transaction' field is the same object as received from /socket/transaction/query\n```\n{\n  \"transactionReference\": \"2c8d91d0-5b7a-4646-b4f7-6b6084003734\",\n  \"transaction\": {\n    \"id\": 10401,\n    \"terminalId\": \"1850767075\",\n    \"reference\": \"reference-123\",\n    \"language\": \"da_DK\",\n    \"amount\": 1000,\n    \"type\": \"SALE\",\n    \"externalPaymentReference\": \"3e0910b9-92aa-42c7-9854-3b574e4e86f5\",\n    \"transactionReference\": \"2c8d91d0-5b7a-4646-b4f7-6b6084003734\",\n    \"status\": \"COMPLETED\",\n    \"amountGratuity\": 0,\n    \"cardPan\": \"************0043\",\n    \"cardScheme\": \"Visa\",\n    \"uti\": \"2c8d91d0-5b7a-4646-b4f7-6b6084003734\",\n    \"createdAt\": \"2025-06-19 06:00:15\",\n    \"updatedAt\": \"2025-06-19 06:00:31\",\n    \"cid\": 2091,\n    \"amountSurcharge\": 0,\n    \"acquirerPaymentId\": \"3e0910b9-92aa-42c7-9854-3b574e4e86f5\",\n    \"acquirerTerminalId\": \"12345678\",\n    \"applicationId\": \"A0000000031010\",\n    \"responseCode\": \"A\",\n    \"authorizationCode\": \"OK972Z\",\n    \"cryptogramType\": \"ARQC\",\n    \"cardType\": \"CTLS\"\n  }\n}\n```\n\nWith a corresponding signature header, where the WebhookKey is '22jQkZauMvNO9ZkK589+wI8YzsjZVX2zQsc3eYfZKFOVNccyIjFNNN0sv1h2E28/C0OYFipThi69LHE3dq9JjQ==':\n```\nflatpay-signature: FJNFHgc1z6Ct6HrWTdUK4baYGe53/OCH+lf5YRHN71m2eVMRWfGennHaEwUL36o2CIMM91lkvFEigxjMlsgZYQ==\n```\n\nExample of TRANSACTION_STATUS scope notification\n```\n{\"transactionReference\":\"9339b96a-5cee-469d-942e-f5e5b5f97e66\",\"transactionStatus\":\"Transaction Started\",\"createdAt\":\"2025-03-05 08:23:35\"}\n```\n\nWith a corresponding signature header, where the WebhookKey is '22jQkZauMvNO9ZkK589+wI8YzsjZVX2zQsc3eYfZKFOVNccyIjFNNN0sv1h2E28/C0OYFipThi69LHE3dq9JjQ==':\n```\nflatpay-signature: XTVw2kwkmGUG7F8hSFKZSCgRsGYYKURt8ew61syXaKqOCk4P0VXDe83hPWpber95QXaTEqnnWPhvv+Xyfg84vA==\n```\n\nExample of TERMINAL_STATUS scope notification\n```\n{\"transactionReference\":\"56e021b1-8656-41ed-9389-51328416d197\",\"terminalStatus\":\"Transaction in progress\"}\n```\n\nWith a corresponding signature header, where the WebhookKey is '22jQkZauMvNO9ZkK589+wI8YzsjZVX2zQsc3eYfZKFOVNccyIjFNNN0sv1h2E28/C0OYFipThi69LHE3dq9JjQ==':\n```\nflatpay-signature: zzjbTDBD8DmVASgrFcbokLRsAPUSdOq5HZ9jU2S13xAaRj6K792RHZb9IfgiC5Hj0WrnDNbnEMWaCdd2oRhd2w==\n```\n",
+				"operationId": "createWebhook",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateWebhookRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "Webhook created",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CreateWebhookResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Service unavailable",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/transactionlistener": {
+			"post": {
+				"tags": [
+					"Legacy Terminal transaction"
+				],
+				"operationId": "transactionDeferredResult",
+				"parameters": [
+					{
+						"name": "Hardware-Serial",
+						"in": "header",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/Transaction"
+							}
+						},
+						"application/JSON": {
+							"schema": {
+								"$ref": "#/components/schemas/Transaction"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TransactionResponse"
+								}
+							},
+							"application/JSON": {
+								"schema": {
+									"$ref": "#/components/schemas/TransactionResponse"
+								}
+							}
+						}
+					}
+				},
+				"deprecated": true
+			}
+		},
+		"/socket/transaction/start": {
+			"post": {
+				"tags": [
+					"Terminal transaction"
+				],
+				"summary": "Starts a transaction",
+				"operationId": "startTransaction",
+				"parameters": [
+					{
+						"name": "Hardware-Serial",
+						"in": "header",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/Start Transaction model"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "Transaction started",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/StartTransactionResponse"
+								}
+							}
+						}
+					},
+					"202": {
+						"description": "Transaction already started/completed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/StartTransactionResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Terminal is Disconnected",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Terminal has a pending transaction",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/transaction/cancel": {
+			"post": {
+				"tags": [
+					"Terminal transaction"
+				],
+				"summary": "Cancels a pending transaction",
+				"operationId": "cancelTransaction",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CancelTransactionRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GetTransactionApiModel"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Transaction Not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"408": {
+						"description": "Request timeout",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/guid": {
+			"post": {
+				"tags": [
+					"GUID"
+				],
+				"operationId": "fetchTokenForUser",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginDto"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/cancel": {
+			"post": {
+				"tags": [
+					"Legacy Terminal transaction"
+				],
+				"operationId": "socketCancel",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/TermGuid"
+							}
+						},
+						"application/JSON": {
+							"schema": {
+								"$ref": "#/components/schemas/TermGuid"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "string"
+								}
+							},
+							"application/JSON": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					}
+				},
+				"deprecated": true
+			}
+		},
+		"/socket/transaction/status": {
+			"get": {
+				"tags": [
+					"Miscellaneous"
+				],
+				"operationId": "getTransactionStatus",
+				"parameters": [
+					{
+						"name": "guid",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "paymentId",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"$ref": "#/components/schemas/TransactionStatusApiModel"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/transaction/response": {
+			"get": {
+				"tags": [
+					"Terminal transaction"
+				],
+				"summary": "Gets a transaction response",
+				"operationId": "getTransactionStatus_1",
+				"parameters": [
+					{
+						"name": "transactionReference",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"format": "uuid"
+						}
+					},
+					{
+						"name": "guid",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "terminalId",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GetTransactionApiModel"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Transaction not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Transaction could not start",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ErrorResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/terminals": {
+			"get": {
+				"tags": [
+					"Miscellaneous"
+				],
+				"operationId": "getTerminalsFromGuid",
+				"parameters": [
+					{
+						"name": "guid",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"type": "object"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/terminals/transaction-status": {
+			"get": {
+				"tags": [
+					"Miscellaneous"
+				],
+				"operationId": "getActiveTransactionStatus",
+				"parameters": [
+					{
+						"name": "terminalId",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "externalReference",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "transactionReference",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"$ref": "#/components/schemas/TransactionResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/terminal/connection": {
+			"get": {
+				"tags": [
+					"Miscellaneous"
+				],
+				"operationId": "getTerminalConnection",
+				"parameters": [
+					{
+						"name": "terminalId",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "guid",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"$ref": "#/components/schemas/TerminalConnectionApiModel"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/healthcheck": {
+			"get": {
+				"tags": [
+					"Miscellaneous"
+				],
+				"operationId": "healthCheck",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/guid/list": {
+			"get": {
+				"tags": [
+					"GUID"
+				],
+				"operationId": "getGuidList",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"$ref": "#/components/schemas/GuidApiModel"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/getguid": {
+			"get": {
+				"tags": [
+					"GUID"
+				],
+				"operationId": "getActiveGuid",
+				"parameters": [
+					{
+						"name": "mid",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"type": "string"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/socket/documentation": {
+			"get": {
+				"tags": [
+					"Miscellaneous"
+				],
+				"operationId": "downloadDocumentation",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"*/*": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"Model for updating a webhook": {
+				"type": "object",
+				"description": "Any non-null value will be treated as an update request, leaving value as null will ignore the property for updates",
+				"properties": {
+					"webhookUrl": {
+						"type": "string",
+						"description": "New url for the webhook"
+					},
+					"enabled": {
+						"type": "boolean",
+						"description": "Enables or Disables a webhook"
+					},
+					"scopes": {
+						"type": "array",
+						"description": "Set of Scopes to receive notification for",
+						"enum": [
+							"TRANSACTION_RESPONSE",
+							"TRANSACTION_STATUS",
+							"TERMINAL_STATUS"
+						],
+						"examples": [
+							"TRANSACTION_RESPONSE",
+							"TRANSACTION_STATUS"
+						],
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"WebhookResponse": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "ID of the webhook",
+						"example": "a312d317-23b3-442c-87bf-ef53ac843a85"
+					},
+					"webhookUrl": {
+						"type": "string",
+						"description": "URL of the webhook",
+						"example": "https://127.0.0.1/webhook/notifications"
+					},
+					"enabled": {
+						"type": "boolean",
+						"description": "State of the webhook",
+						"example": true
+					},
+					"scopes": {
+						"type": "array",
+						"description": "Set of Scopes the webhook should receive notifications about",
+						"enum": [
+							"TRANSACTION_RESPONSE",
+							"TRANSACTION_STATUS",
+							"TERMINAL_STATUS"
+						],
+						"example": "[TRANSACTION_RESPONSE, TRANSACTION_STATUS]",
+						"items": {
+							"type": "string",
+							"enum": [
+								"TRANSACTION_RESPONSE",
+								"TRANSACTION_STATUS",
+								"TERMINAL_STATUS"
+							]
+						},
+						"uniqueItems": true
+					}
+				}
+			},
+			"ErrorResponse": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "integer",
+						"format": "int32",
+						"description": "Http status code",
+						"example": 404
+					},
+					"message": {
+						"type": "string",
+						"description": "Error message",
+						"example": "Not found"
+					},
+					"developerCode": {
+						"type": "string",
+						"description": "Developer error code",
+						"example": "not.found"
+					},
+					"traceId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Error Trace ID",
+						"example": "26e7f7b2-5f76-49dc-9e2e-bbfd62b79383"
+					}
+				}
+			},
+			"DeletePositiveApiModel": {
+				"type": "object",
+				"properties": {
+					"terminal": {
+						"type": "string"
+					},
+					"message": {
+						"type": "string"
+					}
+				}
+			},
+			"TermGuid": {
+				"type": "object",
+				"properties": {
+					"terminalId": {
+						"type": "string"
+					},
+					"guid": {
+						"type": "string"
+					},
+					"objectType": {
+						"type": "string"
+					},
+					"disableTerminalPrints": {
+						"type": "boolean"
+					}
+				},
+				"required": [
+					"disableTerminalPrints",
+					"guid",
+					"objectType",
+					"terminalId"
+				]
+			},
+			"ReportResponse": {
+				"type": "object",
+				"properties": {
+					"resultType": {
+						"type": "string"
+					},
+					"reportType": {
+						"type": "string"
+					},
+					"reportResponse": {
+						"type": "boolean"
+					},
+					"saleCount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"saleAmount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"refundCount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"refundAmount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"completionCount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"completionAmount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"cashbackCount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"cashbackAmount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"gratuityCount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"gratuityAmount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"surchargeAmount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"surchargeCount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"sequentialId": {
+						"type": "integer",
+						"format": "int32"
+					}
+				}
+			},
+			"CreateWebhookRequest": {
+				"type": "object",
+				"properties": {
+					"guid": {
+						"type": "string"
+					},
+					"webhookUrl": {
+						"type": "string",
+						"description": "URL to receive webhook notifications on",
+						"example": "https://127.0.0.1/webhook/notifications"
+					},
+					"scopes": {
+						"type": "array",
+						"description": "Scopes to get notifications for",
+						"enum": [
+							"TRANSACTION_RESPONSE",
+							"TRANSACTION_STATUS",
+							"TERMINAL_STATUS"
+						],
+						"examples": [
+							"[TRANSACTION_RESPONSE]"
+						],
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"CreateWebhookResponse": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "ID of the webhook",
+						"example": "a312d317-23b3-442c-87bf-ef53ac843a85"
+					},
+					"webhookUrl": {
+						"type": "string",
+						"description": "URL of the webhook",
+						"example": "https://127.0.0.1/webhook/notifications"
+					},
+					"enabled": {
+						"type": "boolean",
+						"description": "State of the webhook",
+						"example": true
+					},
+					"scopes": {
+						"type": "array",
+						"description": "Set of Scopes the webhook should receive notifications about",
+						"enum": [
+							"TRANSACTION_RESPONSE",
+							"TRANSACTION_STATUS",
+							"TERMINAL_STATUS"
+						],
+						"example": "[TRANSACTION_RESPONSE, TRANSACTION_STATUS]",
+						"items": {
+							"type": "string",
+							"enum": [
+								"TRANSACTION_RESPONSE",
+								"TRANSACTION_STATUS",
+								"TERMINAL_STATUS"
+							]
+						},
+						"uniqueItems": true
+					},
+					"webhookKey": {
+						"type": "string",
+						"description": "Key for verifying signature, this will value will only be available at the creation of the webhook",
+						"example": "NTYzZWFlZjAtMzQ5Yi00MmYwLWE0YzEtNmQ5MTgyOTczMjQxNTYzZWFlZjAtMzQ5Yi00MmYwLWE0YzEtNmQ5MTgyOTczMjQx=="
+					}
+				}
+			},
+			"Transaction": {
+				"type": "object",
+				"properties": {
+					"terminalId": {
+						"type": "string"
+					},
+					"transactionType": {
+						"type": "string"
+					},
+					"amount": {
+						"type": "string"
+					},
+					"guid": {
+						"type": "string"
+					},
+					"disableTerminalPrints": {
+						"type": "boolean"
+					},
+					"language": {
+						"type": "string"
+					},
+					"reference": {
+						"type": "string"
+					},
+					"externalReference": {
+						"type": "string"
+					},
+					"transactionReference": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"amount",
+					"disableTerminalPrints",
+					"guid",
+					"language",
+					"reference",
+					"terminalId",
+					"transactionType"
+				]
+			},
+			"TransactionResponse": {
+				"type": "object",
+				"properties": {
+					"transType": {
+						"type": "string"
+					},
+					"transResponse": {
+						"type": "boolean"
+					},
+					"transDetails": {
+						"type": "boolean"
+					},
+					"transApproved": {
+						"type": "boolean"
+					},
+					"transPartiallyApproved": {
+						"type": "boolean"
+					},
+					"transCancelled": {
+						"type": "boolean"
+					},
+					"amountTrans": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"amountGratuity": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"amountCashback": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"amountDiscount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"amountSurcharge": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"surchargeRate": {
+						"type": "number",
+						"format": "float"
+					},
+					"cvmSigRequired": {
+						"type": "boolean"
+					},
+					"cvmPinVerified": {
+						"type": "boolean"
+					},
+					"transCurrencyCode": {
+						"type": "string"
+					},
+					"terminalId": {
+						"type": "string"
+					},
+					"merchantId": {
+						"type": "string"
+					},
+					"softwareVersion": {
+						"type": "string"
+					},
+					"merchantReference": {
+						"type": "string"
+					},
+					"receiptNumber": {
+						"type": "integer",
+						"format": "int32"
+					},
+					"receiptNumberString": {
+						"type": "string"
+					},
+					"retrievalReferenceNumber": {
+						"type": "string"
+					},
+					"responseCode": {
+						"type": "string"
+					},
+					"stan": {
+						"type": "string"
+					},
+					"authorisationCode": {
+						"type": "string"
+					},
+					"merchantTokenId": {
+						"type": "string"
+					},
+					"cardPan": {
+						"type": "string"
+					},
+					"cardExpiryDate": {
+						"type": "string"
+					},
+					"cardStartDate": {
+						"type": "string"
+					},
+					"cardScheme": {
+						"type": "string"
+					},
+					"cardPanSequenceNumber": {
+						"type": "string"
+					},
+					"cardType": {
+						"type": "string"
+					},
+					"paymentId": {
+						"type": "string"
+					},
+					"shortPaymentId": {
+						"type": "string"
+					},
+					"fingerPrint": {
+						"type": "string"
+					},
+					"emvAid": {
+						"type": "string"
+					},
+					"emvTsi": {
+						"type": "string"
+					},
+					"emvTvr": {
+						"type": "string"
+					},
+					"emvCardholderName": {
+						"type": "string"
+					},
+					"emvCryptogram": {
+						"type": "string",
+						"format": "byte"
+					},
+					"emvCryptogramType": {
+						"type": "string"
+					},
+					"error": {
+						"type": "string",
+						"enum": [
+							"NO_ERROR",
+							"INVALID_ARG",
+							"TRANSACTION_NOT_FOUND"
+						]
+					},
+					"errorText": {
+						"type": "string"
+					},
+					"errorCode": {
+						"type": "string"
+					},
+					"cardholderReceipt": {
+						"type": "array",
+						"deprecated": true,
+						"items": {
+							"type": "string",
+							"deprecated": true
+						}
+					},
+					"merchantReceipt": {
+						"type": "array",
+						"deprecated": true,
+						"items": {
+							"type": "string",
+							"deprecated": true
+						}
+					},
+					"cardTypeExtra": {
+						"type": "string"
+					},
+					"transDateTimeEpoch": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"transDateTime": {
+						"type": "string"
+					},
+					"penniesAmount": {
+						"type": "integer",
+						"format": "int64"
+					},
+					"cardToken": {
+						"type": "string"
+					},
+					"merchantName": {
+						"type": "string"
+					},
+					"merchantLocation": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"messageNo": {
+						"type": "string"
+					},
+					"digitalSignature": {
+						"type": "string",
+						"format": "byte"
+					},
+					"transactionId": {
+						"type": "integer",
+						"format": "int32"
+					},
+					"uti": {
+						"type": "string"
+					},
+					"l4PTokenId": {
+						"type": "string"
+					}
+				}
+			},
+			"Start Transaction model": {
+				"type": "object",
+				"description": "Model for starting a transaction on a terminal",
+				"properties": {
+					"pendingPaymentId": {
+						"type": "integer",
+						"format": "int32",
+						"readOnly": true
+					},
+					"terminalId": {
+						"type": "string",
+						"description": "Id of the terminal to start the transaction on",
+						"example": 11111111
+					},
+					"transactionType": {
+						"type": "string",
+						"description": "Type of transaction to start",
+						"enum": [
+							"SALE",
+							"REFUND"
+						],
+						"example": "SALE"
+					},
+					"amount": {
+						"type": "string",
+						"description": "Transaction amount in lowest denomination",
+						"example": 1995
+					},
+					"guid": {
+						"type": "string",
+						"description": "Partner access token",
+						"example": "0526186c-5a84-4cd4-ad4d-d399db96c372"
+					},
+					"disableTerminalPrints": {
+						"type": "boolean",
+						"description": "Disables or enables terminal printing",
+						"example": true
+					},
+					"language": {
+						"type": "string",
+						"description": "Language displayed on terminal",
+						"enum": [
+							"da_DK",
+							"fi_FI",
+							"de_DE",
+							"en_GB"
+						],
+						"example": "da_DK"
+					},
+					"reference": {
+						"type": "string",
+						"description": "Reference added to receipt data",
+						"example": "Order 1234"
+					},
+					"externalReference": {
+						"type": "string",
+						"example": "ref-123"
+					},
+					"transactionReference": {
+						"type": "string",
+						"description": "UUID unique identifier for transaction",
+						"example": "632fc894-169f-42f1-951e-caa2672db158"
+					}
+				}
+			},
+			"StartTransactionResponse": {
+				"type": "object",
+				"properties": {
+					"pendingPaymentId": {
+						"type": "integer",
+						"format": "int32",
+						"readOnly": true
+					},
+					"terminalId": {
+						"type": "string",
+						"example": 11111111
+					},
+					"transactionType": {
+						"type": "string",
+						"example": "SALE"
+					},
+					"amount": {
+						"type": "string",
+						"example": 1995
+					},
+					"guid": {
+						"type": "string",
+						"example": "0526186c-5a84-4cd4-ad4d-d399db96c372"
+					},
+					"disableTerminalPrints": {
+						"type": "boolean",
+						"example": false
+					},
+					"language": {
+						"type": "string",
+						"example": "da_DK"
+					},
+					"reference": {
+						"type": "string",
+						"example": "Order 1234"
+					},
+					"externalReference": {
+						"type": "string",
+						"example": "ref-123"
+					},
+					"transactionReference": {
+						"type": "string",
+						"example": "632fc894-169f-42f1-951e-caa2672db158"
+					},
+					"status": {
+						"type": "string",
+						"description": "Status of the transaction",
+						"enum": [
+							"COMPLETED",
+							"FAILED_CREATING",
+							"CANCELLED",
+							"PENDING",
+							"DECLINED"
+						],
+						"example": "PENDING"
+					}
+				}
+			},
+			"CancelTransactionRequest": {
+				"type": "object",
+				"properties": {
+					"transactionReference": {
+						"type": "string",
+						"description": "UUID - unique identifier for transaction started",
+						"example": "4f9cb4f5-444a-4761-ad9c-809b21cb0542"
+					},
+					"terminalId": {
+						"type": "string",
+						"description": "ID of the terminal on which the transaction is started",
+						"example": 11111111
+					},
+					"guid": {
+						"type": "string",
+						"description": "Partner access token",
+						"example": "e3c943df-0557-47da-b41c-0220a2f4cd6f"
+					}
+				}
+			},
+			"GetTransactionApiModel": {
+				"type": "object",
+				"properties": {
+					"terminalId": {
+						"type": "string",
+						"description": "ID of the terminal on which the transaction is started",
+						"example": 11111111
+					},
+					"reference": {
+						"type": "string",
+						"example": "Order 1234"
+					},
+					"amount": {
+						"type": "integer",
+						"format": "int64",
+						"example": 1995
+					},
+					"transactionType": {
+						"type": "string",
+						"example": "SALE"
+					},
+					"externalPaymentReference": {
+						"type": "string",
+						"example": "d171d3bb-ffc0-40d5-8acd-e2bba08c33dd"
+					},
+					"transactionReference": {
+						"type": "string",
+						"example": "632fc894-169f-42f1-951e-caa2672db158"
+					},
+					"paymentId": {
+						"type": "integer",
+						"format": "int32",
+						"readOnly": true
+					},
+					"status": {
+						"type": "string",
+						"description": "Status of the transaction",
+						"enum": [
+							"COMPLETED",
+							"FAILED_CREATING",
+							"CANCELLED",
+							"PENDING",
+							"DECLINED"
+						],
+						"example": "PENDING"
+					},
+					"createdAt": {
+						"type": "string",
+						"description": "UTC Time of transaction creation",
+						"example": "2024-06-26 08:00:00"
+					},
+					"updatedAt": {
+						"type": "string",
+						"description": "UTC Time of latest transaction update",
+						"example": "2024-06-26 08:00:00"
+					},
+					"amountGratuity": {
+						"type": "integer",
+						"format": "int64",
+						"example": 100
+					},
+					"amountSurcharge": {
+						"type": "integer",
+						"format": "int64",
+						"description": "Amount of surcharge in lowest denomination",
+						"example": 100
+					},
+					"cardPan": {
+						"type": "string",
+						"example": "************1234"
+					},
+					"cardScheme": {
+						"type": "string",
+						"example": "VISA"
+					},
+					"digitalSignaturId": {
+						"type": "string",
+						"readOnly": true
+					},
+					"digitalSignature": {
+						"type": "string",
+						"description": "Base64 encoded string of the digital signature provided on terminal"
+					},
+					"uti": {
+						"type": "string",
+						"description": "Unique identifier of the transaction on the terminal",
+						"example": "003F9AFC-8451-4CD5-9F48-C98F9B3654B2"
+					},
+					"errorText": {
+						"type": "string",
+						"description": "Error text provided by terminal",
+						"example": "Transaction type is invalid"
+					},
+					"errorCode": {
+						"type": "string",
+						"description": "Error code provided by terminal",
+						"example": "TRANS_TYPE_INVALID"
+					},
+					"cardholderReceipt": {
+						"type": "array",
+						"deprecated": true,
+						"description": "Cardholder's receipt data - [Deprecated] Will be removed",
+						"items": {
+							"type": "string",
+							"deprecated": true
+						}
+					},
+					"merchantReceipt": {
+						"type": "array",
+						"deprecated": true,
+						"description": "Merchant's receipt data - [Deprecated] Will be removed",
+						"items": {
+							"type": "string",
+							"deprecated": true
+						}
+					},
+					"receiptNumber": {
+						"type": "string"
+					},
+					"acquirerPaymentId": {
+						"type": "string"
+					},
+					"acquirerTerminalId": {
+						"type": "string"
+					},
+					"applicationId": {
+						"type": "string"
+					},
+					"responseCode": {
+						"type": "string"
+					},
+					"authorizationCode": {
+						"type": "string"
+					},
+					"cryptogramType": {
+						"type": "string"
+					},
+					"cardType": {
+						"type": "string"
+					}
+				}
+			},
+			"LoginDto": {
+				"type": "object",
+				"properties": {
+					"username": {
+						"type": "string"
+					},
+					"password": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"password",
+					"username"
+				]
+			},
+			"GetWebhooksResponse": {
+				"type": "object",
+				"properties": {
+					"webhooks": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/WebhookResponse"
+						}
+					}
+				}
+			},
+			"TransactionStatusApiModel": {
+				"type": "object",
+				"properties": {
+					"transactionStatus": {
+						"type": "string"
+					}
+				}
+			},
+			"TerminalConnectionApiModel": {
+				"type": "object",
+				"properties": {
+					"isTerminalConnected": {
+						"type": "boolean"
+					}
+				}
+			},
+			"GuidApiModel": {
+				"type": "object",
+				"properties": {
+					"guid": {
+						"type": "string"
+					},
+					"companyName": {
+						"type": "string"
+					},
+					"terminalList": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TerminalAPIModel"
+						}
+					}
+				}
+			},
+			"TerminalAPIModel": {
+				"type": "object",
+				"properties": {
+					"tid": {
+						"type": "string"
+					}
+				}
+			}
+		}
+	}
+}

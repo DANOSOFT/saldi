@@ -22,8 +22,8 @@ print "<tr><td height = '25' align = 'center' valign = 'top'>";
 // 	: '../index/menu.php';
 
 $backUrl = isset($_GET['returside'])
-    ? $_GET['returside']
-    : 'javascript:history.back();';
+	? $_GET['returside']
+	: '../index/menu.php';
 
 
 print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>"; # Tabel 1.1 ->

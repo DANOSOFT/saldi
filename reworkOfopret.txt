@@ -1,0 +1,12 @@
+ændres på alle formularer
+
+vælg mellem 1, 3, 6, 12 måneder
+beregn pris her efter
+
+ssl5 opret: Basis, Proff
+ssl9 opret: Mini
+
+data sendes til ssl3 
+kunde oprettes
+ordre oprettes med fakturadato en måned frem
+slet betalingslink
