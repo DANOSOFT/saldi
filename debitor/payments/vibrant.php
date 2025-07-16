@@ -68,7 +68,15 @@ print "<div id='bg'></div>";
 
 $type = ($raw_amount < 0) ? "process_refund" : "process_payment_intent";
 $amount = abs($raw_amount) * 100;
-
+echo $ordre_id;
+if($type == "process_refund") {
+  $query = db_select("SELECT betalings_id FROM ordrer WHERE id = $ordre_id", __FILE__ . " linje " . __LINE__);
+  $row = db_fetch_array($query);
+  $payment_id = $row['betalings_id'];
+  // Also store receipt_id to extract chargeId if needed
+  $receipt_parts = explode('-', isset($row['receipt_id']) ? $row['receipt_id'] : '');
+  $charge_id = ($receipt_parts[0]) ? $receipt_parts[0] : '';
+}
 # Get settings
 $q = db_select("select var_value from settings where var_name = 'vibrant_auth'", __FILE__ . " linje " . __LINE__);
 $APIKEY = db_fetch_array($q)[0];
@@ -88,36 +96,20 @@ if (file_exists("../../temp/$db/receipt_$kasse.txt"))
 $printfile = 'https://' . $_SERVER['SERVER_NAME'];
 $printfile .= str_replace('debitor/payments/vibrant.php', "temp/$db/receipt_$kasse.txt", $_SERVER['PHP_SELF']);
 
-$logfile = __DIR__ . "/../../temp/{$db}/vibrant_log.log";
-file_put_contents($logfile,
-  date('c') . " START order={$ordre_id} amount={$raw_amount} kasse={$kasse} terminal={$terminal_id}\n",
-  FILE_APPEND
-);
 ?>
 
 <script>
-  function logServer(msg) {
-    const db = '<?php print $db; ?>';
-    fetch('log_vibrant.php', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({message: msg, db: db})
-    })
-  }
-
-  var count = 40 - 1;
-  var paused = false;
-  var receipt_id = 'None';
-
+  var count = 40 - 1
+  var paused = false
+  var receipt_id = 'None'
   const successed = (event) => {
     console.log(cardScheme);
-    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&payment_id=${payment_id}&receipt_id=${receipt_id}`)
-  };
+    window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&receipt_id=${receipt_id}&payment_id=${payment_id}`);
+  }
 
   const failed = (event) => {
     console.log('Failed click');
-    logServer('User clicked failed – redirecting to afvist');
-    window.location.replace(/* … */);
+    window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
   }
 
   function countdown(i) {
@@ -156,28 +148,281 @@ file_put_contents($logfile,
       }
     }, 1000)
   }
-
-  if ('$type' == 'process_refund') {
-    paused = true;
-    var elm = document.getElementById('status');
-    elm.style.backgroundColor = '#ea3a3a';
-    elm.innerText = `Fejl: Negativt beløb, kan ikke tages retur på denne terminal`;
-    document.getElementById('bg').style.backgroundColor = '#fb9389';
-    document.getElementById('continue').style.display = 'block';
-    document.getElementById('continue').disabled = false;
-
-    /*
-    var data = {
+ const type = "<?php print $type; ?>";
+  if (type == 'process_refund') {
+    console.log('=== REFUND DEBUGGING STARTED ===');
+    console.log('Setting refund data');
+    console.log('Order ID:', '<?php print $ordre_id; ?>');
+    console.log('Amount:', <?php print $amount; ?>);
+    console.log('Payment ID:', '<?php print $payment_id; ?>');
+    console.log('Charge ID:', '<?php print ($charge_id) ? $charge_id : "N/A"; ?>');
+    console.log('Terminal ID:', '<?php print $terminal_id; ?>');
+    
+    var refundData = {
       'refund': {
-        'amount': $amount,
-        'description': 'Bon $ordre_id',
+        'amount': <?php print $amount; ?>,
+        'paymentIntentId': '<?php print $payment_id; ?>',
+        <?php if (!empty($charge_id)) echo "'chargeId': '$charge_id',"; ?>
+        'description': 'Refund Bon <?php print $ordre_id; ?>',
         'reason': 'requested_by_customer',
         'metadata': {
-          'correlationId': '$ordre_id'
+          'orderId': '<?php print $ordre_id; ?>'
         }
       }
     }
-    */
+    
+    console.log('Refund data object:', refundData);
+    
+    var cardScheme = 'unknown';
+    var refund_id = null;
+    var refund_check_count = 0;
+    var max_refund_checks = 60; // 3 minutes at 3-second intervals
+    
+    // Function to check refund status
+    async function get_refund_update(refundId) {
+      refund_check_count++;
+      console.log(`=== REFUND STATUS CHECK #${refund_check_count} ===`);
+      console.log('Checking refund ID:', refundId);
+      console.log('Time:', new Date().toISOString());
+      
+      if (refund_check_count > max_refund_checks) {
+        console.error('Max refund checks exceeded, stopping');
+        paused = true;
+        var elm = document.getElementById('status');
+        elm.style.backgroundColor = '#ea3a3a';
+        elm.innerText = 'Timeout: Refund status kunne ikke bekræftes';
+        document.getElementById('bg').style.backgroundColor = '#fb9389';
+        document.getElementById('continue').style.display = 'block';
+        document.getElementById('continue').disabled = false;
+        return;
+      }
+      
+      setTimeout(async () => {
+        try {
+          console.log('Making API request to check refund status...');
+          var res = await fetch(
+            `https://pos.api.vibrant.app/pos/v1/refunds/${refundId}`,
+            {
+              method: 'get',
+              headers: {
+                'apikey': '<?php print $APIKEY; ?>'
+              }
+            }
+          );
+          
+          if (!res.ok) {
+            paused = true;
+            var elm = document.getElementById('status');
+            elm.style.backgroundColor = '#ea3a3a';
+            elm.innerText = `Fejl ved kontrol af refund: ${res.status} ${res.statusText}`;
+            document.getElementById('bg').style.backgroundColor = '#fb9389';
+            document.getElementById('continue').style.display = 'block';
+            document.getElementById('continue').disabled = false;
+            return;
+          }
+          
+          var json_data = await res.json();
+
+          if (json_data['status'] == 'succeeded') {
+
+            // Refund was successful
+            paused = true;
+            var elm = document.getElementById('status');
+            elm.style.backgroundColor = '#51e87d';
+            elm.innerText = 'Refund gennemført og bekræftet';
+            
+            try {
+              var receiptResponse = await fetch(
+                'save_receipt.php',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    data: json_data,
+                    id: '<?php print $ordre_id; ?>',
+                    type: 'vibrant_refund'
+                  })
+                }
+              );
+              console.log('Receipt save response status:', receiptResponse.status);
+              if (!receiptResponse.ok) {
+                console.error('Failed to save receipt:', receiptResponse.statusText);
+              } else {
+                console.log('✅ Receipt saved successfully');
+              }
+            } catch (receiptError) {
+              console.error('Error saving receipt:', receiptError);
+            }
+            
+            countdown(1);
+            document.getElementById('continue-success').style.display = 'block';
+            document.getElementById('continue').style.display = 'none';
+            return;
+            
+          } else if (json_data['status'] == 'failed') {
+            
+            // Refund failed
+            paused = true;
+            var elm = document.getElementById('status');
+            elm.style.backgroundColor = '#ea3a3a';
+            elm.innerText = `Refund fejlede: ${json_data['failureReason'] || json_data['errorCode'] || 'Ukendt fejl'}`;
+            document.getElementById('bg').style.backgroundColor = '#fb9389';
+            document.getElementById('continue').style.display = 'block';
+            document.getElementById('continue').disabled = false;
+            return;
+            
+          } else if (json_data['status'] == 'canceled') {
+            console.warn('⚠️ REFUND CANCELED');
+            
+            // Refund was canceled
+            paused = true;
+            var elm = document.getElementById('status');
+            elm.style.backgroundColor = '#ea3a3a';
+            elm.innerText = 'Refund blev annulleret';
+            document.getElementById('bg').style.backgroundColor = '#fb9389';
+            document.getElementById('continue').style.display = 'block';
+            document.getElementById('continue').disabled = false;
+            return;
+            
+          } else if (json_data['status'] == 'pending' || json_data['status'] == 'processing' || json_data["status"] == "requires_payment_method") {
+            console.log(`⏳ Refund still ${json_data['status']}, continuing to check...`);
+            
+            // Still processing, check again
+            var elm = document.getElementById('status');
+            elm.style.backgroundColor = '#fbbc04';
+            if(json_data['status'] == 'requires_payment_method') {
+              elm.innerText = `Refund afventer bekræftelse...`;
+            } else {
+              elm.innerText = `Behandler refund... (${json_data['status']})`;
+            }
+            get_refund_update(refundId);
+            
+          } else {
+            console.warn('⚠️ Unknown refund status:', json_data['status']);
+            console.log('Will continue checking...');
+            
+            // Unknown status, keep checking but update UI
+            var elm = document.getElementById('status');
+            elm.style.backgroundColor = '#fbbc04';
+            elm.innerText = `Ukendt status: ${json_data['status']}`;
+            get_refund_update(refundId);
+          }
+          
+        } catch (error) {
+          
+          // Continue checking on error, but show warning
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#fbbc04';
+          elm.innerText = `Netværksfejl, prøver igen... (${refund_check_count}/${max_refund_checks})`;
+          
+          get_refund_update(refundId);
+        }
+      }, 3000); // Check every 3 seconds
+    }
+    
+    async function process_refund() {
+      console.log('=== STARTING REFUND PROCESS ===');
+      
+      if ("<?php print $terminal_id; ?>" == "dummy") {
+        console.log('🧪 DUMMY MODE: Simulating successful refund');
+        cardScheme = "Dankort";
+        payment_id = "pi_dummy_refund";
+        receipt_id = "pi_dummy_refund-dummy";
+        setTimeout(() => {
+          console.log('Dummy refund completed, calling success');
+          successed();
+        }, 2000);
+        return;
+      }
+      
+      try {
+        console.log('Making refund request to Vibrant API...');
+        console.log('Endpoint:', `https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund`);
+        console.log('Request body:', JSON.stringify(refundData, null, 2));
+        
+        var res = await fetch(
+          'https://pos.api.vibrant.app/pos/v1/terminals/<?php print $terminal_id; ?>/process_refund',
+          {
+            method: 'post',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': '<?php print $APIKEY; ?>'
+            },
+            body: JSON.stringify(refundData),
+          }
+        );
+        
+        console.log('=== REFUND REQUEST RESPONSE ===');
+        console.log('Response status:', res.status);
+        console.log('Response OK:', res.ok);
+        console.log('Response status text:', res.statusText);
+        console.log('Response headers:', Object.fromEntries(res.headers.entries()));
+        
+        if (!res.ok) {
+          console.error('❌ Refund request failed');
+          console.error('Status:', res.status);
+          console.error('Status text:', res.statusText);
+          
+          // Try to get error details from response body
+          try {
+            var errorData = await res.text();
+            console.error('Error response body:', errorData);
+          } catch (e) {
+            console.error('Could not read error response body');
+          }
+          
+          paused = true;
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#ea3a3a';
+          elm.innerText = `Fejl: ${res.status} ${res.statusText}`;
+          document.getElementById('bg').style.backgroundColor = '#fb9389';
+          document.getElementById('continue').style.display = 'block';
+          document.getElementById('continue').disabled = false;
+          return;
+        }
+        
+        if (res.status == 201) {
+          var json_data = await res.json();
+          console.log('✅ Refund request accepted');
+          console.log('Response data:', json_data);
+          
+          refund_id = json_data['objectIdToProcess'];
+          console.log('Refund ID assigned:', refund_id);
+          
+          // Update status to show we're processing
+          var elm = document.getElementById('status');
+          elm.style.backgroundColor = '#fbbc04';
+          elm.innerText = 'Refund startet, afventer bekræftelse...';
+          
+          console.log('Starting refund status monitoring...');
+          // Start checking refund status
+          get_refund_update(refund_id);
+        } else {
+          console.warn('⚠️ Unexpected response status:', res.status);
+          var responseText = await res.text();
+          console.log('Response body:', responseText);
+        }
+        
+      } catch (error) {
+        console.error('❌ CRITICAL ERROR in process_refund:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        paused = true;
+        var elm = document.getElementById('status');
+        elm.style.backgroundColor = '#ea3a3a';
+        elm.innerText = `Kritisk fejl: ${error.message}`;
+        document.getElementById('bg').style.backgroundColor = '#fb9389';
+        document.getElementById('continue').style.display = 'block';
+        document.getElementById('continue').disabled = false;
+      }
+    }
+    
+    console.log('Initiating refund process...');
+    process_refund();
   } else {
     console.log('Setting data')
     var data = {
@@ -191,10 +436,11 @@ file_put_contents($logfile,
     }
 
     var cardScheme = 'unkowen';
-    var payment_id = 'null'
+    var payment_id = 'null';
 
 
     async function get_payment_update(pid) {
+        payment_id = pid; // Store the payment intent ID
       setTimeout(async () => {
         var res = await fetch(
           `https://pos.api.vibrant.app/pos/v1/payment_intents/${pid}`,
@@ -208,7 +454,6 @@ file_put_contents($logfile,
 
         if (!res.ok) {
           paused = true;
-          logServer(`get_payment_update() bad response: ${res.status}`);
           var elm = document.getElementById('status');
           elm.style.backgroundColor = '#ea3a3a';
           elm.innerText = `Fejl: ${res.error}`;
@@ -265,7 +510,6 @@ file_put_contents($logfile,
           return;
         } else if (json_data['lastPaymentError'] != null) {
           paused = true;
-          logServer("payment failed: " + json_data['lastPaymentError']['message']);
           var elm = document.getElementById('status');
           elm.style.backgroundColor = '#ea3a3a';
           elm.innerText = `Fejl: ${json_data['lastPaymentError']['message']}`;
@@ -291,10 +535,11 @@ file_put_contents($logfile,
 
     var idx = 0;
     async function get_pos() {
-      if ("<?php print $printserver; ?>" == "dummy") {
+      if ("<?php print $terminal_id; ?>" == "dummy") {
         cardScheme = "Dankort"
         payment_id = "pi_dummy"
         receipt_id = "pi_dummy-dummy"
+        payment_id = "payment_id_dummy"
         successed();
         return;
       }
@@ -315,7 +560,6 @@ file_put_contents($logfile,
         console.log(res);
         if (!res.ok) {
           paused = true;
-          logServer(`get_pos() bad response: ${res.status} ${res.statusText}`);
           var elm = document.getElementById('status');
           elm.style.backgroundColor = '#ea3a3a';
           elm.innerText = `Fejl: ${res.statusText}`;
@@ -338,7 +582,8 @@ file_put_contents($logfile,
 
       } catch (error) {
         console.log(error);
-        logServer("get_pos() exception: " + error);
+        //console.log('Retrying');
+        //await get_pos();
       }
     }
 
