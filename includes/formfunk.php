@@ -210,7 +210,7 @@ if (!function_exists('skriv')) {
 		$tmp3 = substr($color, -3, 3) / 100;
 		$color = "$tmp1 $tmp2 $tmp3 setrgbcolor";
 		$x = $x * 2.86;
-		$y2 = $y * 2.86;
+		$y2 = (int) $y * 2.86;
 
 		if ($format == 'H') {
 			$format = "$color dup stringwidth pop\nneg 0 rmoveto";
