@@ -222,11 +222,28 @@ if ($valg) {
 
 		fwrite($log,__line__." if (file_exists(\"../temp/$ps_fil.pdf\")\n");
 		$ps_fil=str_replace("../temp/$db","",$ps_fil);
-		if (file_exists("../temp/$ps_fil.pdf")) {
-			if (strpos($ps_fil,'tilbud') && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bg_fil="../logolib/$db_id/tilbud_bg.pdf";
-			elseif (strpos($ps_fil,'ordre') && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
-			elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
-			elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
+		// if (file_exists("../temp/$ps_fil.pdf")) {
+		// 	if (strpos($ps_fil,'tilbud') && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bg_fil="../logolib/$db_id/tilbud_bg.pdf";
+		// 	elseif (strpos($ps_fil,'ordre') && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
+		// 	elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
+		// 	elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
+if (file_exists("../temp/$ps_fil.pdf")) {
+    // Use the background file from GET if provided and exists
+    // if (isset($_GET['bgr']) && $_GET['bgr'] && file_exists($_GET['bgr'])) {
+    //     $bg_fil = $_GET['bgr'];
+    // }
+
+	if (isset($_GET['bgr']) && $_GET['bgr']) {
+    $bgr_param = urldecode($_GET['bgr']);
+	// alert($bgr_param);
+    if (file_exists($bgr_param)) {
+        $bg_fil = $bgr_param;
+    }
+}
+	 elseif (strpos($ps_fil,'tilbud') && file_exists("../logolib/$db_id/tilbud_bg.pdf")) $bg_fil="../logolib/$db_id/tilbud_bg.pdf";
+    elseif (strpos($ps_fil,'ordre') && file_exists("../logolib/$db_id/ordrer_bg.pdf")) $bg_fil="../logolib/$db_id/ordrer_bg.pdf";
+    elseif (strpos($ps_fil,'fakt') && file_exists("../logolib/$db_id/faktura_bg.pdf")) $bg_fil="../logolib/$db_id/faktura_bg.pdf";
+    elseif (file_exists("../logolib/$db_id/bg.pdf")) $bg_fil="../logolib/$db_id/bg.pdf";
 			print "<!-- kommentar for at skjule uddata til siden \n";
 			if (system("which pdftk") && file_exists($bg_fil) && $udskriv_til != 'PDF-tekst' && $udskriv_til != 'fil') {
 				$out="../temp/".$ps_fil."x.pdf";

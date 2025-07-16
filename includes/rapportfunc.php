@@ -782,7 +782,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 	global $regnaar;
 	global $sprog_id;
 	global $top_bund;
-
+alert('isn here ..........');
 	$title = "Kontokort";
 
 	$email = $forfaldsum = $fromdate = $kto_fra = $kto_til = $returside = $todate = NULL;
@@ -1062,8 +1062,15 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 			print "<td width ='80%' align = 'center' style='$topStyle'>$tekst</td>";
 
 			($kontoantal == 1) ? $w = 5 : $w = 10;
-			print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
+			// print "<td width=\"w%\" align='center' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
+			// 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Udskriv kontoudtog som PDF (Åbner i popup)\">" . findtekst(880, $sprog_id) . "</button></td>\n";
+				   
+			print "<td width=\"w%\" align='center'>
+				<button style='$buttonStyle; width:100%' 
+					onMouseOver=\"this.style.cursor = 'pointer'\" 
+					title=\"Udskriv kontoudtog som PDF (Åbner i popup)\"
+					onclick=\"showLangModalKontoprint()\">" . findtekst(880, $sprog_id) . "</button>
+			</td>\n";
 			if ($kontoantal == 1) { # 2019-11-07
 				if ($fromdate)
 					$firstdate = $fromdate;
@@ -1395,6 +1402,36 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 		}
 	}
 	print "</tbody></table>";
+
+print '
+<div id="langModalKontoprint" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3);">
+  <div style="background:#fff; padding:30px; border-radius:8px; width:300px; margin:10% auto; box-shadow:0 2px 10px #0003;">
+    <h3>Select Language</h3>
+    <select id="langSelectKontoprint" style="width:100%; padding:8px;">
+     <option value="danish">Dansk</option>
+     <option value="english">English</option>
+    </select>
+    <div style="margin-top:20px; text-align:right;">
+      <button type="button" onclick="closeLangModalKontoprint()">Cancel</button>
+      <button type="button" onclick="proceedKontoprint()">Print</button>
+    </div>
+  </div>
+</div>
+<script>
+function showLangModalKontoprint() {
+  document.getElementById("langModalKontoprint").style.display = "block";
+}
+function closeLangModalKontoprint() {
+  document.getElementById("langModalKontoprint").style.display = "none";
+}
+function proceedKontoprint() {
+  var lang = document.getElementById("langSelectKontoprint").value;
+  var url = "kontoprint.php?dato_fra=' . $dato_fra . '&dato_til=' . $dato_til . '&konto_fra=' . $konto_fra . '&konto_til=' . $konto_til . '&kontoart=' . $kontoart . '&lang=" + lang;
+  window.open(url, "kontoprint", "left=0,top=0,width=1000,height=700,scrollbars=yes,resizable=yes,menubar=no,location=no");
+  closeLangModalKontoprint();
+}
+</script>
+';
 
 	if ($menu == 'T') {
 		include_once '../includes/topmenu/footer.php';
