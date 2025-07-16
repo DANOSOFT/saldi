@@ -93,6 +93,8 @@ include("../includes/row-hover-style.js.php");
 
 $id = if_isset($_GET,NULL,'id');
 $returside=if_isset($_GET,NULL,'returside');
+
+
 $valg= strtolower(if_isset($_GET,NULL,'valg'));
 $sort = if_isset($_GET, NULL, 'sort');
 $start = if_isset($_GET, NULL, 'start');
