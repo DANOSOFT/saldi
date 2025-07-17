@@ -15,7 +15,7 @@ print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbod
 print "<a href=$backUrl accesskey='L'>
 
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>";
-print "<td style=$topStyle align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
+print "<td style='$topStyle' align=center><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
 if ($valg == 'debitor') {
 	print "<td id='debitore' width = '100px' align=center>
