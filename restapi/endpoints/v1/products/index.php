@@ -152,14 +152,17 @@ class ProductsEndpoint extends BaseEndpoint
     protected function handleDelete($data)
     {
         try {
-            if(isset($_GET["id"])){
-                $data['id'] = $_GET["id"];
-            }
+            $id = isset($_GET['id'])
+            ? (int)$_GET['id']
+            : (isset($data->id) ? (int)$data->id : null);
 
             // Validate required fields
             $this->validateData($data, ['id']);
-            
-            $product = new VareModel($data->id);
+            if (!$id) {
+                $this->sendResponse(false, null, 'Product ID is required for deletion', 400);
+                return;
+            }
+            $product = new VareModel($id);
             if (!$product->getId()) {
                 $this->sendResponse(false, null, 'Product not found', 404);
                 return;
