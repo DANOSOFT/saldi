@@ -677,6 +677,8 @@ function forside($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kon
 	global $menu;
 	global $rettigheder;
 	global $sprog_id;
+	global $buttonColor;
+	global $buttonTxtColor;
 	print "<script>
 		function saldiSpecialBack() {
 		const params = new URLSearchParams(window.location.search);
@@ -718,9 +720,8 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 	// ($popup) ? $returside = "../includes/luk.php" : $returside = "../index/menu.php";
 	($popup) ? $returside = "../includes/luk.php" : $returside = $backUrl;
 
-
 	include("../includes/topline_settings.php");
-
+	
 	if ($menu == 'T') {
 		include_once '../includes/top_header.php';
 		include_once '../includes/top_menu.php';
@@ -741,7 +742,7 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 
 		print "<td width='10%' align='center' style='$topStyle''><br></td>";
 
-		print "</tr><tr><td height=99%><br></td></td>";
+		print "</tr><tr class='noHover'><td height=99%><br></td></td>";
 		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
 		print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
 	} else {

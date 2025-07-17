@@ -5,7 +5,6 @@
 		$konto = $konto_fra;
 		if ($konto_til)
 			$konto .= ":$konto_til";
-
 		$tekst1 = findtekst(437, $sprog_id);
 		$tekst2 = findtekst(438, $sprog_id);
 		$tekst3 = findtekst(439, $sprog_id);
