@@ -256,6 +256,18 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				db_modify("update grupper set box1='$jsvars' where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
 			}
 		}
+		$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	$buttonColor = $r['var_value'];
+} else {
+	$buttonColor = '#114691'; // Default button color
+}
+$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	$buttonTxtColor = $r['var_value'];
+} else {
+	$buttonTxtColor = '#ffffff'; // Default button text color
+}
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
 		$textcolor3 = "#6666aa"; # Svagere tekst til det som er mindre vigtigt
@@ -459,3 +471,4 @@ if ($bg != 'nix') {
 }
 
 ?>
+

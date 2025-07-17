@@ -164,7 +164,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify("insert into grupper (beskrivelse, kodenr, art, box1, box2, box3, box4) values ('Provisionsrapport', '1', 'DIV', '$box1', '$box2', '$box3', '$box4')", __FILE__ . " linje " . __LINE__);
 		} elseif ($id > 0) db_modify("update grupper set  box1 = '$box1', box2 = '$box2', box3 = '$box3' , box4 = '$box4' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
 		#######################################################################################
-	} elseif ($sektion == 'personlige_valg') {
+	} elseif ($sektion == 'userSettings') {
 		$refresh_opener = NULL;
 		$id             = $_POST['id'];
 		$jsvars         = $_POST['jsvars'];
@@ -176,6 +176,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		else $menu      = '';
 		$bgcolor        = "#" . $_POST['bgcolor'];
 		$nuance         = $_POST['nuance'];
+		$buttonColor    = $_POST["buttonColor"];
+		$buttonTxtColor = $_POST["buttonTxtColor"];
 
 		$qtxt = "select id from grupper WHERE art = 'USET' and kodenr='$bruger_id'";
 		if (($id == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
@@ -188,6 +190,22 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt = "update grupper set box1='$jsvars',box2='$popup',box3='$menu',box4='$bgcolor',box5='$nuance' WHERE id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+		$qtxt = "select id from settings where var_grp='colors' and user_id='$bruger_id' and var_name='buttonColor'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "update settings set var_value='$buttonColor ' where id='$r[id]'";
+		} else {
+			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
+			$qtxt.= "('colors','buttonColor','$buttonColor ','Background color for user settings','$bruger_id')";
+		}
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		$qtxt = "select id from settings where var_grp='colors' and user_id='$bruger_id' and var_name='buttonTxtColor'";
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "update settings set var_value='$buttonTxtColor' where id='$r[id]'";
+		} else {
+			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
+			$qtxt.= "('colors','buttonTxtColor','$buttonTxtColor','Button color for user settings','$bruger_id')";
+		}
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		if ($refresh_opener) {
 			print "<BODY onLoad=\"javascript:opener.location.reload();\">";
 		}
