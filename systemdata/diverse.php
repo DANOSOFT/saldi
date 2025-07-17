@@ -171,13 +171,17 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$popup          = if_isset($_POST['popup']);
 		if ($popup && $_POST['popup'] == '') $refresh_opener = "on";
 		$menu           = $_POST['menu'];
-		if ($menu == "sidemenu") $menu = 'S';
-		elseif ($menu == "topmenu") $menu = 'T';
-		else $menu      = '';
 		$bgcolor        = "#" . $_POST['bgcolor'];
 		$nuance         = $_POST['nuance'];
 		$buttonColor    = $_POST["buttonColor"];
 		$buttonTxtColor = $_POST["buttonTxtColor"];
+		// make sure $buttonColor and $buttonTxtColor are valid hex colors and are 6 characters long
+		if (strlen($buttonColor) != 6 || !ctype_xdigit($buttonColor)) {
+			$buttonColor = '114691'; // default color
+		}
+		if (strlen($buttonTxtColor) != 6 || !ctype_xdigit($buttonTxtColor)) {
+			$buttonTxtColor = 'ffffff'; // default text color
+		}
 
 		$qtxt = "select id from grupper WHERE art = 'USET' and kodenr='$bruger_id'";
 		if (($id == 0) && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
@@ -206,9 +210,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt.= "('colors','buttonTxtColor','$buttonTxtColor','Button color for user settings','$bruger_id')";
 		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-		if ($refresh_opener) {
-			print "<BODY onLoad=\"javascript:opener.location.reload();\">";
-		}
+		$cookie_name = "refresh_opener";
+		$cookie_value = "true";
+		setcookie($cookie_name, $cookie_value, time() + 30, "/"); // 30 seconds expiry
+
+
 	#######################################################################################
 	} elseif ($sektion == 'div_valg') {
 		$id      = (int) $_POST['id'];

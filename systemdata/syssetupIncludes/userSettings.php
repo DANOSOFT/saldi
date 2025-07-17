@@ -54,7 +54,7 @@ function userSettings() {
 		print "<tr><td title='".findtekst(523,$sprog_id)."'><!--Tekst 523-->Anvend sidemenu<!--Tekst 522--></td><td><input class='inputbox' type='radio' name='menu' value='sidemenu' $sidemenu></td></tr>";
 #	}	else $gl_menu='checked';
 	print "<tr><td title='".findtekst(525,$sprog_id)."'><!--Tekst 525-->".findtekst(524,$sprog_id)."<!--Tekst 524--></td><td><input class='inputbox' type='radio' name='menu'  value='gl_menu' $gl_menu></td></tr>";
-} else print "<input type = 'hidden' name = 'menu' value='gl_menu'>";
+} else print "<input type = 'hidden' name = 'menu' value='$menu'>";
 	print "<tr><td title='".findtekst(209,$sprog_id)."'>".findtekst(210,$sprog_id)."</td><td colspan='4'><input class='inputbox' type='text' style='width:600px' name='jsvars' value='$jsvars'></td></tr>";
 	if ($menu=='T') {
 		print "<input type='hidden' name='bgcolor' value='".substr($bgcolor,1,6)."'>";

@@ -67,18 +67,46 @@ function brightenColor($color, $amount = 0.2) {
 }
 
 ?>
+
+<script>
+// Simple cookie-based refresh listener
+function checkRefreshCookie() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'refresh_opener' && value === 'true') {
+            // Clear the cookie and reload
+            document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+            location.reload();
+            return;
+        }
+    }
+}
+
+// Check every 1000ms for the cookie
+setInterval(checkRefreshCookie, 1000);
+</script>
+
+// Check every 500ms
+setInterval(checkRefreshCookie, 500);
+</script>
 <style>
   .showMenu{
-    background: <?php echo $buttonColor; ?>;
-    color: <?php echo $buttonTxtColor; ?>;
+    background: <?php echo $buttonColor; ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
   }
 
   .nav-links{
-    background: <?php echo $buttonColor; ?> !important;
+    background-color: <?php echo $buttonColor; ?> !important;
     color: <?php echo $buttonTxtColor; ?> !important;
   }
   .sidebar .nav-links li:hover, .sidebar :not(.closed) .nav-links li.showMenu, .sidebar ul.nav-links li.active {
     background: <?php echo brightenColor($buttonColor, 0.2); ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .sidebar{
+    background-color: <?php echo $buttonColor; ?> !important;
     color: <?php echo $buttonTxtColor; ?> !important;
   }
 </style>
@@ -94,7 +122,7 @@ function brightenColor($color, $amount = 0.2) {
     document.getElementsByClassName('sidebar')[0].style.width=''; 
     document.getElementsByClassName('modalbg')[0].style.display='none'; 
   "></div>
-<div class="sidebar" style="background: <?php echo $buttonColor; ?>; color: <?php echo $buttonTxtColor; ?>;">
+<div class="sidebar">
 
   <div class="logo wide">
     <img class="logo-img" src="../img/sidebar_logo.png">
@@ -109,10 +137,10 @@ function brightenColor($color, $amount = 0.2) {
     <i id="icon-open" class='bx bxs-arrow-from-right'></i>
   </div>
 
-  <ul class="nav-links top-links" style='margin-top: 1em; background: <?php echo $buttonColor; ?>; color: <?php echo $buttonTxtColor; ?>;'>
+  <ul class="nav-links top-links" style='margin-top: 1em; background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;'>
     <!-- Finans -->
     <li class="active">
-      <a href="#" id="dashboard" style="background: <?php echo $buttonColor; ?>; color: <?php echo $buttonTxtColor; ?>;" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
+      <a href="#" id="dashboard" style="background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
         <span class="link_name"><?php print findtekst('2224|Oversigt', $sprog_id); ?></span>
       </a>
