@@ -13,7 +13,13 @@ class OrderService
     public static function createOrder($data)
     {
         // Validate required fields
-        $required = ['firmanavn', 'telefon', 'email', 'momssats'];
+        // firmanavn, telefon, email is only required if konto_id is not provided
+        if (!isset($data->konto_id) || empty($data->konto_id)) {
+            $required = ['firmanavn', 'telefon', 'email', 'momssats'];
+        } else {
+            // If konto_id is provided, we can skip firmanavn, telefon, email
+            $required = ['momssats'];
+        }
         foreach ($required as $field) {
             if (!isset($data->$field) || empty($data->$field)) {
                 return ['success' => false, 'message' => "Required field missing: $field"];
@@ -124,9 +130,38 @@ class OrderService
                 'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8
             ];
         } else {
-            // User doesn't exist, create new debtor
-            return self::createNewDebtor($data);
+            $existingDebtor = self::getUserByKontoId($data->konto_id);
+
+            if ($existingDebtor) {
+                // User exists by konto_id, return their info
+                return [
+                    'id' => $existingDebtor['id'],
+                    'kontonr' => $existingDebtor['kontonr'],
+                    'betalingsbet' => $existingDebtor['betalingsbet'] ?: 'netto',
+                    'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8
+                ];
+            } else {
+                // User doesn't exist, create new debtor
+                return self::createNewDebtor($data);
+            }
         }
+    }
+
+
+    /**
+     * Get user by konto_id from adresser table
+     * 
+     * @param int $konto_id Konto ID
+     * @return array|null User data or null if not found
+     */
+    private static function getUserByKontoId($konto_id)
+    {
+        $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage FROM adresser WHERE id = '$konto_id'";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__); 
+        if ($r = db_fetch_array($q)) {
+            return $r;
+        }
+        return null;
     }
 
     /**
@@ -155,10 +190,9 @@ class OrderService
      */
     private static function createNewDebtor($data)
     {
-        // Get next kontonr
-        $nextKontonr = self::getNextKontonr();
-        if ($nextKontonr === false) {
-            return false;
+
+        if(!isset($data->kontonr)){
+            $data->kontonr = self::getNextKontonr();
         }
 
         // Prepare address data with defaults

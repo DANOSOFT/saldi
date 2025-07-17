@@ -95,6 +95,7 @@ class OrderModel
             $this->status = (int)$r['status'];
             $this->ordrenr = (int)$r['ordrenr'];
             $this->valutakurs = (float)$r['valutakurs'];
+            $this->fakturadate = $r['fakturadate'];
 
             return true;
         }
@@ -114,7 +115,7 @@ class OrderModel
             konto_id, firmanavn, phone, email, momssats, addr1, addr2, postnr, bynavn, land,
             lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, ean, cvrnr,
             ordredate, notes, betalt, sum, kostpris, moms, valuta, betalingsbet, betalingsdage,
-            kontonr, ref, status, ordrenr, valutakurs, art
+            kontonr, ref, status, ordrenr, valutakurs, art, fakturadate
         ) VALUES (
             '$this->konto_id', '$this->firmanavn', '$this->telefon', '$this->email', '$this->momssats',
             '$this->addr1', '$this->addr2', '$this->postnr', '$this->bynavn', '$this->land',
@@ -122,7 +123,7 @@ class OrderModel
             '$this->lev_land', '$this->ean', '$this->cvrnr', '$this->ordredate', '$this->notes',
             '$this->betalt', '$this->sum', '$this->kostpris', '$this->moms', '$this->valuta',
             '$this->betalingsbet', '$this->betalingsdage', '$this->kontonr', '$this->ref',
-            '$this->status', '$this->ordrenr', '$this->valutakurs', '$this->art'
+            '$this->status', '$this->ordrenr', '$this->valutakurs', '$this->art', '$this->fakturadate'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -318,6 +319,7 @@ class OrderModel
             'ean' => $this->ean,
             'cvrnr' => $this->cvrnr,
             'ordredate' => $this->ordredate,
+            'fakturadate' => $this->fakturadate,
             'notes' => $this->notes,
             'betalt' => $this->betalt,
             'betalingsinfo' => array(
@@ -360,6 +362,20 @@ class OrderModel
     public function getOrdredate() { return $this->ordredate; }
     public function getNotes() { return $this->notes; }
     public function getArt() { return $this->art; }
+    public function getAddr1() { return $this->addr1; }
+    public function getAddr2() { return $this->addr2; }
+    public function getPostnr() { return $this->postnr; }
+    public function getBynavn() { return $this->bynavn; }
+    public function getLand() { return $this->land; }
+    public function getLevNavn() { return $this->lev_navn; }
+    public function getLevAddr1() { return $this->lev_addr1; }
+    public function getLevAddr2() { return $this->lev_addr2; }
+    public function getLevPostnr() { return $this->lev_postnr; }
+    public function getLevBynavn() { return $this->lev_bynavn; }
+    public function getLevLand() { return $this->lev_land; }
+    public function getEan() { return $this->ean; }
+    public function getCvrnr() { return $this->cvrnr; }
+    public function getFakturadate() { return $this->fakturadate; }
 
     // Setter methods - ALL REQUIRED SETTERS
     public function setKontoId($konto_id) { $this->konto_id = $konto_id; }
@@ -402,4 +418,5 @@ class OrderModel
     // Other setters
     public function setEan($ean) { $this->ean = $ean; }
     public function setCvrnr($cvrnr) { $this->cvrnr = $cvrnr; }
+    public function setFakturadate($fakturadate) { $this->fakturadate = $fakturadate; }
 }
