@@ -138,7 +138,11 @@ class ProductGroupsEndpoint extends BaseEndpoint
 
     protected function handleDelete($data)
     {
-        try {
+
+        // no delete method for product groups
+        $this->sendResponse(false, null, 'DELETE method is not supported for Product groups', 405);
+        return;
+        /* try {
 			// Take in id from URL parameters
 			if (isset($_GET['id'])) {
 				$data->id = $_GET['id'];
@@ -162,7 +166,7 @@ class ProductGroupsEndpoint extends BaseEndpoint
             }
         } catch (Exception $e) {
             $this->handleError($e);
-        }
+        } */
     }
 }
 

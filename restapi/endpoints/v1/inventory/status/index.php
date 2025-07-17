@@ -175,7 +175,10 @@ class InventoryStatusEndpoint extends BaseEndpoint
 
     protected function handleDelete($data)
     {
-        try {
+
+        // no deletion for inventory status
+        $this->sendResponse(false, null, 'DELETE method is not supported for Inventory Status', 405);
+        /* try {
             // For inventory status, we typically don't delete records but set quantity to 0
             // However, if deletion is needed:
             $this->validateData($data, ['id']);
@@ -196,7 +199,7 @@ class InventoryStatusEndpoint extends BaseEndpoint
             }
         } catch (Exception $e) {
             $this->handleError($e);
-        }
+        } */
     }
 }
 

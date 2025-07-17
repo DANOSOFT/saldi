@@ -104,7 +104,12 @@ class WarehousesEndpoint extends BaseEndpoint
 
     protected function handleDelete($data)
     {
-        try {
+
+        // no deletion for warehouses
+        $this->sendResponse(false, null, 'DELETE method is not supported for Warehouses', 405);
+        return;
+
+        /* try {
             // Validate required fields
             $this->validateData($data, ['id']);
             
@@ -123,7 +128,7 @@ class WarehousesEndpoint extends BaseEndpoint
             }
         } catch (Exception $e) {
             $this->handleError($e);
-        }
+        } */
     }
 }
 
