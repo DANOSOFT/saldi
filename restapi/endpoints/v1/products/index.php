@@ -152,6 +152,10 @@ class ProductsEndpoint extends BaseEndpoint
     protected function handleDelete($data)
     {
         try {
+            if(isset($_GET["id"])){
+                $data['id'] = $_GET["id"];
+            }
+
             // Validate required fields
             $this->validateData($data, ['id']);
             
