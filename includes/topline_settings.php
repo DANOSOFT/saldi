@@ -1,5 +1,6 @@
 <?php
-
+global $buttonColor;
+global $buttonTxtColor;
 
 $topCol       = $buttonColor;
 $butDownCol   = brightenColor($buttonColor, 0.2);
