@@ -79,7 +79,7 @@ class CreditorEndpoint extends BaseEndpoint
             return;
         }
 
-        if ($customer->delete()) {
+        if ($customer->delete("K")) {
             $this->sendResponse(true, null, 'Customer deleted successfully');
         } else {
             $this->sendResponse(false, null, 'Failed to delete customer', 500);

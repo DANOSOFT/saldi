@@ -84,7 +84,7 @@ class CustomerEndpoint extends BaseEndpoint
             return;
         }
 
-        if ($customer->delete()) {
+        if ($customer->delete("D")) {
             $this->sendResponse(true, null, 'Customer deleted successfully');
         } else {
             $this->sendResponse(false, null, 'Failed to delete customer', 500);

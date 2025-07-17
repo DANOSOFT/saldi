@@ -237,13 +237,13 @@ class CustomerModel
      * 
      * @return bool Success status
      */
-    public function delete()
+    public function delete($art)
     {
         if (!$this->id) {
             return false;
         }
 
-        $qtxt = "DELETE FROM adresser WHERE id = $this->id AND art = 'D'";
+        $qtxt = "DELETE FROM adresser WHERE id = $this->id AND art = '$art'";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";

@@ -246,3 +246,7 @@ Test3 Cost Price: 575.000 Item No: 002438
 Test2 Cost Price: 575.000 Item No: 002438
 Test3 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
 Test3 Cost Price: 575.000 Item No: 
+Test2 Sales Price: 425.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
+Test2 Cost Price: 285.000 Item No: 
+Test2 Sales Price: 425.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
+Test2 Cost Price: 285.000 Item No: 
