@@ -155,9 +155,7 @@ class ProductsEndpoint extends BaseEndpoint
             $id = isset($_GET['id'])
             ? (int)$_GET['id']
             : (isset($data->id) ? (int)$data->id : null);
-
-            // Validate required fields
-            $this->validateData($data, ['id']);
+            
             if (!$id) {
                 $this->sendResponse(false, null, 'Product ID is required for deletion', 400);
                 return;
