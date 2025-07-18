@@ -37,6 +37,7 @@ class OrderModel
     private $ordrenr;
     private $valutakurs;
     private $art;
+    private $fakturadate;
     /**
      * Constructor - can create an empty Order or load an existing one by ID
      * 

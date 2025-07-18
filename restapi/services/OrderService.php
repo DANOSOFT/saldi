@@ -29,11 +29,13 @@ class OrderService
         $order = new OrderModel();
         
         // Set required fields
-        $order->setFirmanavn($data->firmanavn);
-        $order->setTelefon($data->telefon);
-        $order->setEmail($data->email);
         $order->setMomssats($data->momssats);
         $order->setArt($data->art); // Default to 'DO' if not set
+        if(!isset($data->konto_id)){
+            $order->setFirmanavn($data->firmanavn);
+            $order->setTelefon($data->telefon);
+            $order->setEmail($data->email);
+        }
 
         // Check if user exists by phone number and get/create konto_id and kontonr
         $debtorInfo = self::getOrCreateDebtor($data);
@@ -43,7 +45,13 @@ class OrderService
         
         $order->setKontoId($debtorInfo['id']);
         $order->setKontonr($debtorInfo['kontonr']);
-        
+        $order->setBynavn($debtorInfo['bynavn']);
+        $order->setAddr1($debtorInfo['addr1']);
+        $order->setPostnr($debtorInfo['postnr']);
+        $order->setTelefon($debtorInfo['tlf']);
+        $order->setEmail($debtorInfo['email']);
+        $order->setFirmanavn($debtorInfo['firmanavn']);
+
         // Use existing user payment terms or set defaults
         $order->setBetalingsbet(isset($data->betalingsbet) ? $data->betalingsbet : $debtorInfo['betalingsbet']);
         $order->setBetalingsdage(isset($data->betalingsdage) ? $data->betalingsdage : $debtorInfo['betalingsdage']);
@@ -89,7 +97,8 @@ class OrderService
         // if orderdate is not set, use current date
         if (isset($data->ordredate)) $order->setOrdredate($data->ordredate);
         else $order->setOrdredate(date('Y-m-d H:i:s'));
-
+        if (isset($data->fakturadate)) $order->setFakturadate($data->fakturadate);
+        else $order->setFakturadate(date('Y-m-d H:i:s')); // Default to current date if not provided
         if (isset($data->notes)) $order->setNotes($data->notes);
 
         // Handle betalt field
@@ -119,15 +128,24 @@ class OrderService
     private static function getOrCreateDebtor($data)
     {
         // First, check if user exists by phone number
-        $existingDebtor = self::getUserByPhone($data->telefon);
-        
+        $existingDebtor = null;
+        if(isset($data->telefon)) {
+            $existingDebtor = self::getUserByPhone($data->telefon);
+        }
+
         if ($existingDebtor) {
             // User exists, return their info
             return [
                 'id' => $existingDebtor['id'],
                 'kontonr' => $existingDebtor['kontonr'],
                 'betalingsbet' => $existingDebtor['betalingsbet'] ?: 'netto',
-                'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8
+                'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8,
+                'addr1' => $existingDebtor['addr1'] ?: '',
+                'bynavn' => $existingDebtor['bynavn'] ?: '',
+                'tlf' => $existingDebtor['tlf'] ?: '',
+                'email' => $existingDebtor['email'] ?: '',
+                'postnr' => $existingDebtor['postnr'] ?: '',
+                'firmanavn' => $existingDebtor['firmanavn'] ?: ''
             ];
         } else {
             $existingDebtor = self::getUserByKontoId($data->konto_id);
@@ -138,7 +156,13 @@ class OrderService
                     'id' => $existingDebtor['id'],
                     'kontonr' => $existingDebtor['kontonr'],
                     'betalingsbet' => $existingDebtor['betalingsbet'] ?: 'netto',
-                    'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8
+                    'betalingsdage' => $existingDebtor['betalingsdage'] ?: 8,
+                    'addr1' => $existingDebtor['addr1'] ?: '',
+                    'bynavn' => $existingDebtor['bynavn'] ?: '',
+                    'tlf' => $existingDebtor['tlf'] ?: '',
+                    'email' => $existingDebtor['email'] ?: '',
+                    'postnr' => $existingDebtor['postnr'] ?: '',
+                    'firmanavn' => $existingDebtor['firmanavn'] ?: ''
                 ];
             } else {
                 // User doesn't exist, create new debtor
@@ -156,8 +180,8 @@ class OrderService
      */
     private static function getUserByKontoId($konto_id)
     {
-        $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage FROM adresser WHERE id = '$konto_id'";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__); 
+        $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage, addr1, bynavn, tlf, email, postnr, firmanavn FROM adresser WHERE id = '$konto_id'";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($r = db_fetch_array($q)) {
             return $r;
         }
@@ -172,7 +196,7 @@ class OrderService
      */
     private static function getUserByPhone($phone)
     {
-        $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage FROM adresser WHERE tlf = '$phone'";
+        $qtxt = "SELECT id, kontonr, betalingsbet, betalingsdage, addr1, bynavn, tlf, email, postnr, firmanavn FROM adresser WHERE tlf = '$phone'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
         if ($r = db_fetch_array($q)) {

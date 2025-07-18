@@ -23,6 +23,7 @@ class OrderLineModel
     private $vat_account;
     private $lager;
     private $serienr;
+    private $kontonr;
 
     public function __construct($id = null)
     {

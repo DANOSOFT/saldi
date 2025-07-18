@@ -34,6 +34,7 @@ class CustomerModel
     private $kontakt;
     private $art;
     private $gruppe;
+    private $kontonr;
 
     /**
      * Constructor - can create an empty customer or load an existing one by ID
