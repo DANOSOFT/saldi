@@ -157,7 +157,7 @@ class VatModel
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
-            $query = db_select("SELECT id FROM grupper WHERE art = '" . $this->momskode . "M' AND fiscal_year = $regnaar AND kodenr = '$this->nr' AND kode = '$this->momskode'", __FILE__ . " linje " . __LINE__);
+            $query = db_select("SELECT id FROM grupper WHERE art = '" . $this->momskode . "M' AND fiscal_year = $regnaar AND kodenr = '$this->nr' AND kode = '$this->momskode' ORDER BY id DESC", __FILE__ . " linje " . __LINE__);
 
             if(db_num_rows($query) > 0) {
                 // Get the last inserted ID
