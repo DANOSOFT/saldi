@@ -13,9 +13,19 @@ class VatEndpoint extends BaseEndpoint
     protected function handleGet($id = null)
     {
         try {
+            $vatcode = $_GET['vatcode'] ?? null;
+            
             if ($id) {
-                // Get single VAT item
+                // Get single VAT item by ID
                 $vatItem = new VatModel($id);
+                if ($vatItem->getId()) {
+                    $this->sendResponse(true, $vatItem->toArray());
+                } else {
+                    $this->sendResponse(false, null, 'VAT item not found', 404);
+                }
+            } elseif ($vatcode) {
+                // Get single VAT item by vatcode
+                $vatItem = new VatModel(null, $vatcode);
                 if ($vatItem->getId()) {
                     $this->sendResponse(true, $vatItem->toArray());
                 } else {
