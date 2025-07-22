@@ -79,34 +79,29 @@ class VatModel
      * Load item details from database by kodenr
      * 
      * @param int $kodenr
-     * @return bool Success status
+     * @return VatModel[] Array of VatModel objects
      */
-    private function loadFromVatcode($vatcode)
+    public static function loadFromVatcode($vatcode)
     {
         $regnaar = self::getFiscalYear();
 
-        $momskode = $vatcode[0];
-        $nr = substr($vatcode, 1);
-
-        $qtxt = "SELECT * FROM grupper WHERE fiscal_year = $regnaar AND art IN ('SM','KM','EM','YM') AND kodenr = '$nr' AND kode='$momskode'";
+        $qtxt = "SELECT id FROM grupper WHERE fiscal_year = $regnaar AND art IN ('SM','KM','EM','YM') AND kode = '$vatcode'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
-        if ($r = db_fetch_array($q)) {
-            $this->id = (int)$r['id'];
-            $this->beskrivelse = $r['beskrivelse'];
-            $this->momskode = $r['kode'];
-            $this->nr = $r['kodenr'];
-            $this->fiscal_year = $r['fiscal_year'];
-
-            $this->account = $r['box1'];
-            $this->sats = (float)$r['box2'];
-            $this->modkonto = $r['box3'];
-            $this->map = $r['box4'];
-
-            return true;
+        // Check if query succeeded
+        if ($q === false) {
+            return [];
         }
 
-        return false;
+        if (db_num_rows($q) > 0) {
+            $items = [];
+            while ($r = db_fetch_array($q)) {
+                $items[] = new VatModel($r['id']);
+            }
+            return $items;
+        }
+
+        return [];
     }
 
 

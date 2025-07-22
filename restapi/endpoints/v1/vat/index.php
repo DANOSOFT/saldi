@@ -17,17 +17,23 @@ class VatEndpoint extends BaseEndpoint
             
             if ($id) {
                 // Get single VAT item by ID
-                $vatItem = new VatModel($id);
+                $vatItem = new VatModel($id, null);
                 if ($vatItem->getId()) {
                     $this->sendResponse(true, $vatItem->toArray());
                 } else {
                     $this->sendResponse(false, null, 'VAT item not found', 404);
                 }
             } elseif ($vatcode) {
-                // Get single VAT item by vatcode
-                $vatItem = new VatModel(null, $vatcode);
-                if ($vatItem->getId()) {
-                    $this->sendResponse(true, $vatItem->toArray());
+                // Get VAT items by vatcode
+                $vatItems = VatModel::loadFromVatcode($vatcode);
+                
+                $items = [];
+                foreach ($vatItems as $vatItem) {
+                    $items[] = $vatItem->toArray();
+                }
+                
+                if(count($items) > 0) {
+                    $this->sendResponse(true, $items);
                 } else {
                     $this->sendResponse(false, null, 'VAT item not found', 404);
                 }
