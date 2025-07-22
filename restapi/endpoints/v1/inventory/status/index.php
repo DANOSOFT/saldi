@@ -81,6 +81,10 @@ class InventoryStatusEndpoint extends BaseEndpoint
     protected function handlePut($data)
     {
         try {
+            if(isset($_GET["id"])){
+                $data->id = $_GET["id"];
+            }
+
             // Validate required fields
             $this->validateData($data, ['id']);
             
@@ -112,6 +116,10 @@ class InventoryStatusEndpoint extends BaseEndpoint
     protected function handlePatch($data)
     {
         try {
+            if(isset($_GET["id"])){
+                $data->id = $_GET["id"];
+            }
+            
             // Handle inventory adjustments
             if (isset($data->action)) {
                 switch ($data->action) {
