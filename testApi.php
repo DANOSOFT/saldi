@@ -1,9 +1,9 @@
 <?php
 
-$saldiuser='patrick'; #En bruger i har i saldi uden nogen rettigheder
-$api_key='4M1Sl;prEv82hhtl2KSfCFOs4*BzLY,gAdUD'; #Findes under Indstillinger ->  Diverse -> API
-$serverurl="https://dev.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
-$db='develop_8';#' #Findes under Indstillinger ->  Diverse -> API 
+$saldiuser='api'; #En bruger i har i saldi uden nogen rettigheder
+$api_key='4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD'; #Findes under Indstillinger ->  Diverse -> API
+$serverurl="https://ssl12.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
+$db='test_4';#' #Findes under Indstillinger ->  Diverse -> API 
 
  // Build the Saldi API request URL with order information
  $url = "action=insert_shop_order";

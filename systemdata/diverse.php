@@ -940,14 +940,15 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$box3 = db_escape_string(if_isset($_POST['api_bruger']));
 		$box4 = db_escape_string(if_isset($_POST['api_fil']));
 		$box5 = db_escape_string(if_isset($_POST["api_fil2"]));
+		$box6 = db_escape_string(if_isset($_POST["api_fil3"]));
 
 		$qtxt = NULL;
 		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'API' and kodenr='1'", __FILE__ . " linje " . __LINE__))))
 			$id = $r['id'];
 		if (!$id) {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5) values ('API valg','1','API','$box1','$box2','$box3','$box4', '$box5')";
+			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6) values ('API valg','1','API','$box1','$box2','$box3','$box4', '$box5', '$box6')";
 		} elseif ($id > 0) {
-			$qtxt = "update grupper set box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5' WHERE id = '$id'";
+			$qtxt = "update grupper set box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6' WHERE id = '$id'";
 		}
 		if ($qtxt)
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);

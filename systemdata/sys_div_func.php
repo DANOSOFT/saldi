@@ -1844,6 +1844,7 @@ function api_valg() {
 	$api_bruger = trim($r['box3']);
 	$api_fil = trim($r['box4']);
 	$api_fil2 = trim($r['box5']);
+	$api_fil3 = trim($r['box6']);
 
 	$x = 0;
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
@@ -1873,11 +1874,13 @@ function api_valg() {
 			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
+			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil3' value = '$api_fil3'></td></tr>";
 		} else {
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_key' value = '$api_key'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil2' value= '$api_fil2'>";
+			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil3' value= '$api_fil3'>";
 		}
 		print "<tr><td title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824-->".findtekst('225|Brugernavn', $sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
 		if ($api_bruger) {
