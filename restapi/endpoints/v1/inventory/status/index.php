@@ -14,7 +14,6 @@ class InventoryStatusEndpoint extends BaseEndpoint
     {
         try {
             if ($id) {
-                file_put_contents("status.log", "Fetching inventory status for ID: $id\n", FILE_APPEND);
                 // Get single inventory status
                 $status = new LagerStatusModel($id);
                 if ($status->getId()) {
@@ -23,7 +22,6 @@ class InventoryStatusEndpoint extends BaseEndpoint
                     $this->sendResponse(false, null, 'Inventory status not found', 404);
                 }
             } else {
-                file_put_contents("status.log", "Url Parameters: " . json_encode($_GET) . "\n", FILE_APPEND);
                 // Get all inventory status with optional filtering
                 $orderBy = $_GET['orderBy'] ?? 'id';
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';

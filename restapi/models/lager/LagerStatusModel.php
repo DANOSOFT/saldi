@@ -179,7 +179,7 @@ class LagerStatusModel {
     public static function getWarehouseInventory($lager_nr) {
         $qtxt = "SELECT id FROM lagerstatus WHERE lager = '$lager_nr'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-        file_put_contents("status.log", "Query " . $qtxt . "\n", FILE_APPEND);
+        
         $items = [];
         while ($r = db_fetch_array($q)) {
             
