@@ -85,6 +85,11 @@ class VatModel
     {
         $regnaar = self::getFiscalYear();
 
+        /* $momskode = $vatcode[0];
+        $nr = substr($vatcode, 1);
+
+        $qtxt = "SELECT * FROM grupper WHERE fiscal_year = $regnaar AND art IN ('SM','KM','EM','YM') AND kodenr = '$nr' AND kode='$momskode'"; */
+        
         $qtxt = "SELECT id FROM grupper WHERE fiscal_year = $regnaar AND art IN ('SM','KM','EM','YM') AND kode = '$vatcode'";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
