@@ -74,7 +74,7 @@ class LagerStatusModel {
      */
     public function save() {
         // Validate required fields
-        if (empty($this->lager) || empty($this->vare_id) || !is_numeric($this->beholdning)) {
+        if (!isset($this->lager) || empty($this->vare_id) || !is_numeric($this->beholdning)) {
             throw new Exception("Lager, vare_id, and beholdning are required fields.");
         }
 
