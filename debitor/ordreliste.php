@@ -1248,8 +1248,10 @@ if ($valg=="ordrer") {
 	}
 }	
 
-if ($r=db_fetch_array(db_select("select box4, box5 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
+if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
 	$api_fil=trim($r['box4']);
+	$api_fil2=trim($r['box5']);
+	$api_fil3=trim($r['box6']);
 	if (file_exists("../temp/$db/shoptidspkt.txt")) {
 		$fp=fopen("../temp/$db/shoptidspkt.txt","r");
 		$tidspkt=fgets($fp);
@@ -1267,8 +1269,16 @@ if ($r=db_fetch_array(db_select("select box4, box5 from grupper where art='API' 
 		if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
 		elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
 		exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-		if($r["box5"]){
+		if($api_fil2){
 			$api_txt="$r[box5]?put_new_orders=1";
+	//		$api_encode='utf-8';
+			if ($api_encode) $api_txt.="&encode=$api_encode";
+			if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+			elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+			exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		}
+		if($api_fil3){
+			$api_txt="$r[box6]?put_new_orders=1";
 	//		$api_encode='utf-8';
 			if ($api_encode) $api_txt.="&encode=$api_encode";
 			if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";

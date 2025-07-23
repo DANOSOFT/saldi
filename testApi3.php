@@ -48,7 +48,6 @@ $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
 // The response should be the Saldi order ID if successful
 // Remove quotes and whitespace before converting to integer
 $saldi_ordre_id = intval(trim($response, " \t\n\r\0\x0B\""));
-file_put_contents('saldi_order_response.txt', "Saldi Order ID: $saldi_ordre_id\nResponse: $response\n", FILE_APPEND);
 // Add each order line to Saldi
 
 	$urltxt = "action=insert_shop_orderline";
@@ -113,7 +112,6 @@ if(isset($_GET["update_price"])){
 	$retailPrice = $_GET["retailPrice"];
 	$webFragt = $_GET["webFragt"];
 	$barcode = $_GET["barcode"];
-	file_put_contents("price.txt", "Test3 Sales Price: $salesPrice Discount Type: $discountType Discount: $discount Item No: $itemNo Cost Price: $costPrice Retail Price: $retailPrice Web Fragt: $webFragt Barcode: $barcode\n", FILE_APPEND);
 }
 
 if(isset($_GET["stock"])){
@@ -121,10 +119,8 @@ if(isset($_GET["stock"])){
 	$stockno = $_GET["stockno"];
 	$stockvalue = $_GET["stockvalue"];
 	$update_stock = $_GET["update_stock"];
-	file_put_contents("price.txt", "Test3 Stock: $stock Stock No: $stockno Stock Value: $stockvalue Update Stock: $update_stock\n", FILE_APPEND);
 }
 if(isset($_GET["costPrice"])){
 	$costPrice = $_GET["costPrice"];
 	$itemNo = $_GET["sku"];
-	file_put_contents("price.txt", "Test3 Cost Price: $costPrice Item No: $itemNo\n", FILE_APPEND);
 }

@@ -1002,10 +1002,11 @@ function lagerreguler($vare_id,$ny_beholdning,$kostpris,$lager,$transdate,$varia
 
 #if ($db == 'pos_85') echo "lagerreguler($vare_id,$ny_beholdning,$kostpris,$lager,$transdate,$variant_id)<br>";
 
- 	$qtxt="select box4 from grupper where art='API'";
+ 	$qtxt="select box4, box5, box6 from grupper where art='API'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$api_fil=trim($r['box4']);
-
+	$api_fil2=trim($r["box5"]);
+	$api_fil3=trim($r["box6"]);
 	if ($lager<1) $lager=1;
 	$ny_beholdning = (float)$ny_beholdning;
 	$vare_id       = (int)$vare_id;
@@ -1144,8 +1145,10 @@ function find_beholdning($vare_id, $udskriv) {
 if (!function_exists('hent_shop_ordrer')) {
 function hent_shop_ordrer($shop_ordre_id,$from_date) {
 	global $db;
-	$qtxt = "select box4 from grupper where art='API'";
+	$qtxt = "select box4, box5, box6 from grupper where art='API'";
 	($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$api_fil=trim($r['box4']):$api_fil=0;
+	($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$api_fil2=trim($r['box5']):$api_fil2=0;
+	($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$api_fil3=trim($r['box6']):$api_fil3=0;
 	if ($api_fil) {
 		if (file_exists("../temp/$db/shoptidspkt.txt")) {
 			$fp=fopen("../temp/$db/shoptidspkt.txt","r");
@@ -1158,6 +1161,40 @@ function hent_shop_ordrer($shop_ordre_id,$from_date) {
 			fclose ($fp);
 			$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
 			$api_txt="$api_fil?put_new_orders=1";
+			if ($shop_ordre_id) $api_txt.="&ordre_id=$shop_ordre_id";
+			if ($from_date) $api_txt.="&from_date=$from_date";
+			exec ("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		}	
+	}
+	if($api_fil2){
+		if (file_exists("../temp/$db/shoptidspkt.txt")) {
+			$fp=fopen("../temp/$db/shoptidspkt.txt","r");
+			$tidspkt=fgets($fp);
+		} else $tidspkt = 0;
+		fclose ($fp);
+		if ($tidspkt < date("U")-300 || $shop_ordre_id) {
+			$fp=fopen("../temp/$db/shoptidspkt.txt","w");
+			fwrite($fp,date("U"));
+			fclose ($fp);
+			$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+			$api_txt="$api_fil2?put_new_orders=1";
+			if ($shop_ordre_id) $api_txt.="&ordre_id=$shop_ordre_id";
+			if ($from_date) $api_txt.="&from_date=$from_date";
+			exec ("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+		}	
+	}
+	if($api_fil3){
+		if (file_exists("../temp/$db/shoptidspkt.txt")) {
+			$fp=fopen("../temp/$db/shoptidspkt.txt","r");
+			$tidspkt=fgets($fp);
+		} else $tidspkt = 0;
+		fclose ($fp);
+		if ($tidspkt < date("U")-300 || $shop_ordre_id) {
+			$fp=fopen("../temp/$db/shoptidspkt.txt","w");
+			fwrite($fp,date("U"));
+			fclose ($fp);
+			$header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+			$api_txt="$api_fil3?put_new_orders=1";
 			if ($shop_ordre_id) $api_txt.="&ordre_id=$shop_ordre_id";
 			if ($from_date) $api_txt.="&from_date=$from_date";
 			exec ("nohup /usr/bin/wget  -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");

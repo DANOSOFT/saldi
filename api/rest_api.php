@@ -1117,10 +1117,11 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$lager= if_isset($_GET['lager']);
 			$variant= if_isset($_GET['variant']);
 			$varegruppe= if_isset($_GET['varegruppe']);
+			$discountType= if_isset($_GET['discountType']);
 			$params="$brugernavn,$ordre_id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$variant,$varegruppe";
 			fwrite($log,__line__." insert_shop_ordeline($params)\n");
 			fclose ($log);
-			$value = insert_shop_orderline($brugernavn,$ordre_id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$variant,$varegruppe);
+			$value = insert_shop_orderline($brugernavn,$ordre_id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$variant,$varegruppe,$discountType);
 ##############################################
 		} elseif ($action=='fakturer_ordre') {
 			$ordre_id= if_isset($_GET['saldi_ordre_id']);

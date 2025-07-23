@@ -48,7 +48,6 @@ $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
 // The response should be the Saldi order ID if successful
 // Remove quotes and whitespace before converting to integer
 $saldi_ordre_id = intval(trim($response, " \t\n\r\0\x0B\""));
-file_put_contents('saldi_order_response.txt', "Saldi Order ID: $saldi_ordre_id\nResponse: $response\n", FILE_APPEND);
 // Add each order line to Saldi
 
 	$urltxt = "action=insert_shop_orderline";

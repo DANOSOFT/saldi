@@ -1732,7 +1732,7 @@ if (!function_exists('hent_shop_ordrer')) {
 	  $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	  $api_fil = isset($r['box4']) ? trim($r['box4']) : 0;
 	  if ($api_fil) {
-		file_put_contents("../temp/$db/ny_shop.txt", $r["box5"]);
+		file_put_contents("../temp/$db/ny_shop.json", json_encode($r));
 		if (file_exists("../temp/$db/shoptidspkt.txt")) {
 		  $tidspkt = trim(file_get_contents("../temp/$db/shoptidspkt.txt"));
 		} else

@@ -22,7 +22,7 @@ $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
  $url .= "&gruppe=" . urlencode(1); // Example customer group
  
  // Add order details
- $url .= "&shop_ordre_id=" . urlencode("3485745"); // Example shop order ID
+ $url .= "&shop_ordre_id=" . urlencode("3485748"); // Example shop order ID
  $url .= "&shop_status=" . urlencode("New Order");
  $url .= "&nettosum=" . urlencode("104.00"); // Example net amount
  $url .= "&momssum=" . urlencode("25.00"); // Example VAT amount
@@ -44,7 +44,7 @@ $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
 	 error_log(curl_error($ch));
  }
  curl_close($ch);
- 
+ file_put_contents("price.txt", $response); // Log response for debugging
 // The response should be the Saldi order ID if successful
 // Remove quotes and whitespace before converting to integer
 $saldi_ordre_id = intval(trim($response, " \t\n\r\0\x0B\""));
@@ -112,7 +112,6 @@ if(isset($_GET["update_price"])){
 	$retailPrice = $_GET["retailPrice"];
 	$webFragt = $_GET["webFragt"];
 	$barcode = $_GET["barcode"];
-	file_put_contents("price.txt", "Test2 Sales Price: $salesPrice Discount Type: $discountType Discount: $discount Item No: $itemNo Cost Price: $costPrice Retail Price: $retailPrice Web Fragt: $webFragt Barcode: $barcode\n", FILE_APPEND);
 }
 
 if(isset($_GET["stock"])){
@@ -120,11 +119,9 @@ if(isset($_GET["stock"])){
 	$stockno = $_GET["stockno"];
 	$stockvalue = $_GET["stockvalue"];
 	$update_stock = $_GET["update_stock"];
-	file_put_contents("price.txt", "Test2 Stock: $stock Stock No: $stockno Stock Value: $stockvalue Update Stock: $update_stock\n", FILE_APPEND);
 }
 
 if(isset($_GET["costPrice"])){
 	$costPrice = $_GET["costPrice"];
 	$itemNo = $_GET["sku"];
-	file_put_contents("price.txt", "Test2 Cost Price: $costPrice Item No: $itemNo\n", FILE_APPEND);
 }
