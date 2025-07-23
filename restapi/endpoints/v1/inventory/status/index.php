@@ -27,7 +27,7 @@ class InventoryStatusEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
-                $lager_nr = $_GET['lager_nr'] ?? null;
+                $lager_nr = $_GET['inventoryNr'] ?? null;
                 
                 if ($lager_nr || $lager_nr === '0') {
                     // Get inventory for specific warehouse
