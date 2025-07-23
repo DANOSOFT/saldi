@@ -27,7 +27,7 @@ class WarehousesEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
-                $vare_id = $_GET['vare_id'] ?? null;
+                $vare_id = $_GET['product_id'] ?? null;
                 
                 if ($field && $value) {
                     // Search by specific field
