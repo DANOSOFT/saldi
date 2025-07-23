@@ -1,252 +1,144 @@
-Test1 Sales Price: 420.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 425.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 425.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 425.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 9.300 Discount Type: percent Discount:  Item No: 020071 Cost Price: 3.100 Retail Price: 9.300 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 9.300 Discount Type: percent Discount:  Item No: 020071 Cost Price: 3.100 Retail Price: 9.300 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 9.300 Discount Type: percent Discount:  Item No: 020071 Cost Price: 3.100 Retail Price: 9.300 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 9513.000 Discount Type: percent Discount:  Item No: 200107 Cost Price: 2718.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 9513.000 Discount Type: percent Discount:  Item No: 200107 Cost Price: 2718.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 9513.000 Discount Type: percent Discount:  Item No: 200107 Cost Price: 2718.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 59840.000 Discount Type:  Discount:  Item No: 380-209 Cost Price: 0.000 Retail Price:  Web Fragt: 0 Barcode: 4054783225538
-Test2 Sales Price: 59840.000 Discount Type:  Discount:  Item No: 380-209 Cost Price: 0.000 Retail Price:  Web Fragt: 0 Barcode: 4054783225538
-Test3 Sales Price: 59840.000 Discount Type:  Discount:  Item No: 380-209 Cost Price: 0.000 Retail Price:  Web Fragt: 0 Barcode: 4054783225538
-Test3 Sales Price: 6.800 Discount Type: percent Discount:  Item No: 020070 Cost Price: 2.150 Retail Price: 6.800 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 6.800 Discount Type: percent Discount:  Item No: 020070 Cost Price: 2.150 Retail Price: 6.800 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 6.800 Discount Type: percent Discount:  Item No: 020070 Cost Price: 2.150 Retail Price: 6.800 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 9.300 Discount Type: percent Discount:  Item No: 020071 Cost Price: 3.100 Retail Price: 9.300 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 9.300 Discount Type: percent Discount:  Item No: 020071 Cost Price: 3.100 Retail Price: 9.300 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 9.300 Discount Type: percent Discount:  Item No: 020071 Cost Price: 3.100 Retail Price: 9.300 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 1200.000 Discount Type:  Discount:  Item No: 002438 Cost Price: 575.000 Retail Price:  Web Fragt: 0 Barcode: 
-Test1 Sales Price: 1200.000 Discount Type:  Discount:  Item No: 002438 Cost Price: 575.000 Retail Price:  Web Fragt: 0 Barcode: 
-Test3 Sales Price: 1200.000 Discount Type:  Discount:  Item No: 002438 Cost Price: 575.000 Retail Price:  Web Fragt: 0 Barcode: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 5026.000 Discount Type:  Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price:  Web Fragt: 0 Barcode: 
-Test2 Sales Price: 5026.000 Discount Type:  Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price:  Web Fragt: 0 Barcode: 
-Test1 Sales Price: 5026.000 Discount Type:  Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price:  Web Fragt: 0 Barcode: 
-Test3 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Stock: 5 Stock No: 1 Stock Value:  Update Stock: 0
-Test3 Stock: 5 Stock No: 1 Stock Value:  Update Stock: 0
-Test2 Stock: 5 Stock No: 1 Stock Value:  Update Stock: 0
-Test1 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test3 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test2 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test1 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test2 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test3 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test2 Sales Price: 79.200 Discount Type:  Discount:  Item No: 0028005 Cost Price: 0.000 Retail Price:  Web Fragt: 0 Barcode: 0028005
-Test2 Cost Price: 0.000 Item No: 
-Test1 Sales Price: 79.200 Discount Type:  Discount:  Item No: 0028005 Cost Price: 0.000 Retail Price:  Web Fragt: 0 Barcode: 0028005
-Test1 Cost Price: 0.000 Item No: 
-Test3 Sales Price: 79.200 Discount Type:  Discount:  Item No: 0028005 Cost Price: 0.000 Retail Price:  Web Fragt: 0 Barcode: 0028005
-Test3 Cost Price: 0.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 555.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 555.000 Item No: 
-Test1 Cost Price: 555.000 Item No: 002438
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 555.000 Item No: 
-Test2 Cost Price: 555.000 Item No: 002438
-Test3 Cost Price: 555.000 Item No: 002438
-Test1 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test1 Cost Price: 555.000 Item No: 
-Test2 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test2 Cost Price: 555.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 555.000 Item No: 
-Test3 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test3 Cost Price: 555.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 555.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 555.000 Item No: 
-Test1 Cost Price: 555.000 Item No: 002438
-Test2 Cost Price: 555.000 Item No: 002438
-Test3 Cost Price: 555.000 Item No: 002438
-Test1 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test1 Cost Price: 555.000 Item No: 
-Test2 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test2 Cost Price: 555.000 Item No: 
-Test3 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test3 Cost Price: 555.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 555.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 555.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 555.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 555.000 Item No: 
-Test1 Cost Price: 555.000 Item No: 002438
-Test2 Cost Price: 555.000 Item No: 002438
-Test3 Cost Price: 555.000 Item No: 002438
-Test1 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test1 Cost Price: 555.000 Item No: 
-Test2 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test2 Cost Price: 555.000 Item No: 
-Test3 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test3 Cost Price: 555.000 Item No: 
-
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 575.000 Item No: 
-Test1 Cost Price: 575.000 Item No: 002438
-Test2 Cost Price: 575.000 Item No: 002438
-Test3 Cost Price: 575.000 Item No: 002438
-Test1 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test1 Cost Price: 575.000 Item No: 
-Test2 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test2 Cost Price: 575.000 Item No: 
-Test3 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test3 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 575.000 Item No: 
-Test1 Cost Price: 575.000 Item No: 002438
-Test2 Cost Price: 575.000 Item No: 002438
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 575.000 Item No: 
-Test3 Cost Price: 575.000 Item No: 002438
-Test1 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test1 Cost Price: 575.000 Item No: 
-Test2 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test2 Cost Price: 575.000 Item No: 
-Test3 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test3 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 575.000 Item No: 
-Test1 Cost Price: 575.000 Item No: 002438
-Test2 Cost Price: 575.000 Item No: 002438
-Test3 Cost Price: 575.000 Item No: 002438
-Test1 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test1 Cost Price: 575.000 Item No: 
-Test2 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test2 Cost Price: 575.000 Item No: 
-Test3 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test3 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 0.000 Discount Type: percent Discount:  Item No: 010920 Cost Price: 0.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 0.000 Item No: 
-Test3 Sales Price: 0.000 Discount Type: percent Discount:  Item No: 010920 Cost Price: 0.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 0.000 Item No: 
-Test1 Cost Price: 0.000 Item No: 010920
-Test2 Sales Price: 0.000 Discount Type: percent Discount:  Item No: 010920 Cost Price: 0.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 0.000 Item No: 
-Test2 Cost Price: 0.000 Item No: 010920
-Test3 Cost Price: 0.000 Item No: 010920
-Test1 Stock: 0 Stock No: 1 Stock Value:  Update Stock: 0
-Test1 Cost Price: 0.000 Item No: 
-Test2 Stock: 0 Stock No: 1 Stock Value:  Update Stock: 0
-Test2 Cost Price: 0.000 Item No: 
-Test3 Stock: 0 Stock No: 1 Stock Value:  Update Stock: 0
-Test3 Cost Price: 0.000 Item No: 
-Test1 Sales Price: 1175.000 Discount Type: percent Discount:  Item No: 010012 Cost Price: 370.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 370.000 Item No: 
-Test2 Sales Price: 1175.000 Discount Type: percent Discount:  Item No: 010012 Cost Price: 370.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 370.000 Item No: 
-Test3 Sales Price: 1175.000 Discount Type: percent Discount:  Item No: 010012 Cost Price: 370.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 370.000 Item No: 
-Test2 Cost Price: 370.000 Item No: 010012
-Test1 Cost Price: 370.000 Item No: 010012
-Test3 Cost Price: 370.000 Item No: 010012
-Test2 Stock: 0 Stock No: 1 Stock Value:  Update Stock: 0
-Test2 Cost Price: 370.000 Item No: 
-Test1 Stock: 0 Stock No: 1 Stock Value:  Update Stock: 0
-Test1 Cost Price: 370.000 Item No: 
-Test3 Stock: 0 Stock No: 1 Stock Value:  Update Stock: 0
-Test3 Cost Price: 370.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 3267.000 Item No: 
-Test2 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 3267.000 Item No: 
-Test1 Sales Price: 5026.000 Discount Type: percent Discount:  Item No: 002800 Cost Price: 3267.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 3267.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test1 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test3 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test3 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test1 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test2 Cost Price: 575.000 Item No: 
-Test1 Cost Price: 575.000 Item No: 002438
-Test3 Cost Price: 575.000 Item No: 002438
-Test2 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test2 Cost Price: 575.000 Item No: 
-Test2 Cost Price: 575.000 Item No: 002438
-Test1 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test1 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test1 Cost Price: 575.000 Item No: 
-Test3 Stock: 2 Stock No: 1 Stock Value:  Update Stock: 0
-Test3 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test2 Cost Price: 575.000 Item No: 
-Test1 Cost Price: 575.000 Item No: 002438
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test3 Cost Price: 575.000 Item No: 
-Test2 Cost Price: 575.000 Item No: 002438
-Test3 Cost Price: 575.000 Item No: 002438
-Test1 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test1 Cost Price: 575.000 Item No: 
-Test2 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test2 Cost Price: 575.000 Item No: 
-Test3 Stock: 0 Stock No: 2 Stock Value:  Update Stock: 0
-Test3 Cost Price: 575.000 Item No: 
-Test1 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test1 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test2 Cost Price: 575.000 Item No: 
-Test3 Sales Price: 1200.000 Discount Type: percent Discount:  Item No: 002438 Cost Price: 575.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 5555555
-Test3 Cost Price: 575.000 Item No: 
-Test1 Cost Price: 575.000 Item No: 002438
-Test2 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test2 Cost Price: 575.000 Item No: 
-Test1 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test1 Cost Price: 575.000 Item No: 
-Test3 Cost Price: 575.000 Item No: 002438
-Test2 Cost Price: 575.000 Item No: 002438
-Test3 Stock: 0 Stock No: 3 Stock Value:  Update Stock: 0
-Test3 Cost Price: 575.000 Item No: 
-Test2 Sales Price: 425.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 285.000 Item No: 
-Test2 Sales Price: 425.000 Discount Type: percent Discount:  Item No: 003014 Cost Price: 285.000 Retail Price: 0.000 Web Fragt: 0 Barcode: 
-Test2 Cost Price: 285.000 Item No: 
+testApi2: SalesPrice: 263.200 DiscountType:  Discount:  ItemNo: 015204 CostPrice: 148.800 RetailPrice:  WebFragt: 0 Barcode: 
+testApi2: CostPrice: 148.800 ItemNo: 
+testApi3: SalesPrice: 263.200 DiscountType:  Discount:  ItemNo: 015204 CostPrice: 148.800 RetailPrice:  WebFragt: 0 Barcode: 
+testApi3: CostPrice: 148.800 ItemNo: 
+testApi1: SalesPrice: 263.200 DiscountType:  Discount:  ItemNo: 015204 CostPrice: 148.800 RetailPrice:  WebFragt: 0 Barcode: 
+testApi1: CostPrice: 148.800 ItemNo: 
+testApi1: SalesPrice: 265.200 DiscountType: percent Discount:  ItemNo: 015204 CostPrice: 148.800 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi1: CostPrice: 148.800 ItemNo: 
+testApi2: SalesPrice: 265.200 DiscountType: percent Discount:  ItemNo: 015204 CostPrice: 148.800 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi2: CostPrice: 148.800 ItemNo: 
+testApi3: SalesPrice: 265.200 DiscountType: percent Discount:  ItemNo: 015204 CostPrice: 148.800 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi3: CostPrice: 148.800 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 5026.000 DiscountType: percent Discount:  ItemNo: 002800 CostPrice: 3267.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi2: CostPrice: 3267.000 ItemNo: 
+testApi3: SalesPrice: 5026.000 DiscountType: percent Discount:  ItemNo: 002800 CostPrice: 3267.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi3: CostPrice: 3267.000 ItemNo: 
+testApi1: SalesPrice: 5026.000 DiscountType: percent Discount:  ItemNo: 002800 CostPrice: 3267.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi1: CostPrice: 3267.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 5026.000 DiscountType: percent Discount:  ItemNo: 002800 CostPrice: 3267.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi1: CostPrice: 3267.000 ItemNo: 
+testApi2: SalesPrice: 5026.000 DiscountType: percent Discount:  ItemNo: 002800 CostPrice: 3267.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi2: CostPrice: 3267.000 ItemNo: 
+testApi3: SalesPrice: 5026.000 DiscountType: percent Discount:  ItemNo: 002800 CostPrice: 3267.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi3: CostPrice: 3267.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: CostPrice: 575.000 ItemNo: 002438
+testApi1: Stock: 3 StockNo: 1 StockValue:  UpdateStock: 0
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: CostPrice: 575.000 ItemNo: 002438
+testApi3: Stock: 3 StockNo: 1 StockValue:  UpdateStock: 0
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi2: Stock: 3 StockNo: 1 StockValue:  UpdateStock: 0
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi1: CostPrice: 575.000 ItemNo: 002438
+testApi2: CostPrice: 575.000 ItemNo: 002438
+testApi1: Stock: 0 StockNo: 2 StockValue:  UpdateStock: 0
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi2: Stock: 0 StockNo: 2 StockValue:  UpdateStock: 0
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi3: Stock: 0 StockNo: 2 StockValue:  UpdateStock: 0
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi1: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 1200.000 DiscountType: percent Discount:  ItemNo: 002438 CostPrice: 575.000 RetailPrice: 0.000 WebFragt: 0 Barcode: 5555555
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi2: CostPrice: 575.000 ItemNo: 002438
+testApi2: Stock: 0 StockNo: 3 StockValue:  UpdateStock: 0
+testApi2: CostPrice: 575.000 ItemNo: 
+testApi1: CostPrice: 575.000 ItemNo: 002438
+testApi1: Stock: 0 StockNo: 3 StockValue:  UpdateStock: 0
+testApi1: CostPrice: 575.000 ItemNo: 
+testApi3: Stock: 0 StockNo: 3 StockValue:  UpdateStock: 0
+testApi3: CostPrice: 575.000 ItemNo: 
