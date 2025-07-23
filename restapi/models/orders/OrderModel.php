@@ -64,39 +64,39 @@ class OrderModel
         if (db_num_rows($q) > 0) {
             $r = db_fetch_array($q);
             $this->id = (int)$r['id'];
-            $this->konto_id = (int)$r['konto_id'];
-            $this->firmanavn = $r['firmanavn'];
+            $this->konto_id = (int)$r['accountId'];
+            $this->firmanavn = $r['firmName'];
             $this->telefon = $r['phone'];
             $this->email = $r['email'];
-            $this->momssats = (float)$r['momssats'];
+            $this->momssats = (float)$r['vatRate'];
             $this->addr1 = $r['addr1'];
             $this->addr2 = $r['addr2'];
-            $this->postnr = $r['postnr'];
-            $this->bynavn = $r['bynavn'];
-            $this->land = $r['land'];
-            $this->lev_navn = $r['lev_navn'];
-            $this->lev_addr1 = $r['lev_addr1'];
-            $this->lev_addr2 = $r['lev_addr2'];
-            $this->lev_postnr = $r['lev_postnr'];
-            $this->lev_bynavn = $r['lev_bynavn'];
-            $this->lev_land = $r['lev_land'];
+            $this->postnr = $r['zipcode'];
+            $this->bynavn = $r['city'];
+            $this->land = $r['country'];
+            $this->lev_navn = $r['delivery_name'];
+            $this->lev_addr1 = $r['delivery_addr1'];
+            $this->lev_addr2 = $r['delivery_addr2'];
+            $this->lev_postnr = $r['delivery_zipcode'];
+            $this->lev_bynavn = $r['delivery_city'];
+            $this->lev_land = $r['delivery_country'];
             $this->ean = $r['ean'];
-            $this->cvrnr = $r['cvrnr'];
-            $this->ordredate = $r['ordredate'];
+            $this->cvrnr = $r['cvrNo'];
+            $this->ordredate = $r['orderDate'];
             $this->notes = $r['notes'];
-            $this->betalt = $r['betalt'];
+            $this->betalt = $r['paid'];
             $this->sum = (float)$r['sum'];
-            $this->kostpris = (float)$r['kostpris'];
-            $this->moms = (float)$r['moms'];
-            $this->valuta = $r['valuta'];
-            $this->betalingsbet = $r['betalingsbet'];
-            $this->betalingsdage = (int)$r['betalingsdage'];
-            $this->kontonr = $r['kontonr'];
-            $this->ref = $r['ref'];
+            $this->kostpris = (float)$r['costPrice'];
+            $this->moms = (float)$r['vat'];
+            $this->valuta = $r['currency'];
+            $this->betalingsbet = $r['paymentTerms'];
+            $this->betalingsdage = (int)$r['paymentDays'];
+            $this->kontonr = $r['accountNumber'];
+            $this->ref = $r['reference'];
             $this->status = (int)$r['status'];
-            $this->ordrenr = (int)$r['ordrenr'];
-            $this->valutakurs = (float)$r['valutakurs'];
-            $this->fakturadate = $r['fakturadate'];
+            $this->ordrenr = (int)$r['orderNo'];
+            $this->valutakurs = (float)$r['currencyRate'];
+            $this->fakturadate = $r['invoiceDate'];
 
             return true;
         }
@@ -297,47 +297,47 @@ class OrderModel
     {
         return array(
             'id' => $this->id,
-            'konto_id' => $this->konto_id,
-            'firmanavn' => $this->firmanavn,
-            'telefon' => $this->telefon,
+            'accountId' => $this->konto_id,
+            'firmName' => $this->firmanavn,
+            'phone' => $this->telefon,
             'email' => $this->email,
-            'momssats' => $this->momssats,
-            'adresse' => array(
+            'vatRate' => $this->momssats,
+            'address' => array(
                 'addr1' => $this->addr1,
                 'addr2' => $this->addr2,
-                'postnr' => $this->postnr,
-                'bynavn' => $this->bynavn,
-                'land' => $this->land
+                'zipcode' => $this->postnr,
+                'city' => $this->bynavn,
+                'country' => $this->land
             ),
-            'levering' => array(
-                'lev_navn' => $this->lev_navn,
-                'lev_addr1' => $this->lev_addr1,
-                'lev_addr2' => $this->lev_addr2,
-                'lev_postnr' => $this->lev_postnr,
-                'lev_bynavn' => $this->lev_bynavn,
-                'lev_land' => $this->lev_land
+            'delivery' => array(
+                'name' => $this->lev_navn,
+                'addr1' => $this->lev_addr1,
+                'addr2' => $this->lev_addr2,
+                'zipcode' => $this->lev_postnr,
+                'city' => $this->lev_bynavn,
+                'country' => $this->lev_land
             ),
             'ean' => $this->ean,
-            'cvrnr' => $this->cvrnr,
-            'ordredate' => $this->ordredate,
-            'fakturadate' => $this->fakturadate,
+            'cvr' => $this->cvrnr,
+            'orderDate' => $this->ordredate,
+            'invoiceDate' => $this->fakturadate,
             'notes' => $this->notes,
-            'betalt' => $this->betalt,
-            'betalingsinfo' => array(
-                'betalingsbet' => $this->betalingsbet,
-                'betalingsdage' => $this->betalingsdage
+            'paid' => $this->betalt,
+            'paymentInfo' => array(
+                'paymentTerms' => $this->betalingsbet,
+                'paymentDays' => $this->betalingsdage
             ),
-            'okonomi' => array(
+            'economic' => array(
                 'sum' => $this->sum,
-                'kostpris' => $this->kostpris,
-                'moms' => $this->moms,
-                'valuta' => $this->valuta,
-                'valutakurs' => $this->valutakurs
+                'costPrice' => $this->kostpris,
+                'vat' => $this->moms,
+                'currency' => $this->valuta,
+                'currencyRate' => $this->valutakurs
             ),
-            'kontonr' => $this->kontonr,
-            'ref' => $this->ref,
+            'accountNumber' => $this->kontonr,
+            'reference' => $this->ref,
             'status' => $this->status,
-            'ordrenr' => $this->ordrenr
+            'orderNo' => $this->ordrenr
         );
     }
 

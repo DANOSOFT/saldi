@@ -21,14 +21,14 @@ class LagerModel
      * @param int|null $kodenr Optional code number to load existing item
      * @param int|null $vare_id Optional product ID to associate with storage status
      */
-    public function __construct($id = null, $kodenr = null, $vare_id = null)
+    public function __construct($id = null, $kodenr = null, $vare_id = null, $nr = 1)
     {
         global $regnaar;
 
         // Initialize default values
         $this->id = -1;
         $this->beskrivelse = "";
-        $this->nr = 1;
+        $this->nr = $nr;
         $this->fiscal_year = $regnaar;
         
         // Load existing data if provided
@@ -157,7 +157,7 @@ class LagerModel
 
         // Prepare integer fields: NULL if not numeric
         $nr           = is_numeric($this->nr)          ? intval($this->nr)          : 'NULL';
-        $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : 'NULL';
+        $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : $regnaar;
 
         if ($this->id > 0) {
             // UPDATE
@@ -226,7 +226,7 @@ class LagerModel
      * @param string $orderDirection Sort direction (default: ASC)
      * @return LagerModel[] Array of LagerModel objects
      */
-    public static function getAllItems($vare_id = null, $orderBy = 'kodenr', $orderDirection = 'ASC')
+    public static function getAllItems($vare_id = null, $orderBy = 'kodenr', $orderDirection = 'ASC', $nr = 1)
     {
         global $regnaar;
 
@@ -243,12 +243,12 @@ class LagerModel
 
         $items = [];
         while ($r = db_fetch_array($q)) {
-            $items[] = new LagerModel($r['id'], null, $vare_id);
+            $items[] = new LagerModel($r['id'], null, $vare_id, $nr);
         }
 
         // Create a default item if no items exist
         if (count($items) == 0) {
-            $items[] = new LagerModel(null, null, $vare_id);
+            $items[] = new LagerModel(null, null, $vare_id, $nr);
         }
 
         return $items;

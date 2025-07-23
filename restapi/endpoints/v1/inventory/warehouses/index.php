@@ -28,13 +28,13 @@ class WarehousesEndpoint extends BaseEndpoint
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
                 $vare_id = $_GET['productId'] ?? null;
-                
+                $nr = $_GET["inventory"] ?? 1;
                 if ($field && $value) {
                     // Search by specific field
                     $warehouses = LagerModel::findBy($field, $value);
                 } else {
                     // Get all warehouses
-                    $warehouses = LagerModel::getAllItems($vare_id, $orderBy, $orderDirection);
+                    $warehouses = LagerModel::getAllItems($vare_id, $orderBy, $orderDirection, $nr);
                 }
                 
                 $items = [];

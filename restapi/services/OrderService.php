@@ -15,10 +15,10 @@ class OrderService
         // Validate required fields
         // firmanavn, telefon, email is only required if konto_id is not provided
         if (!isset($data->konto_id) || empty($data->konto_id)) {
-            $required = ['firmanavn', 'telefon', 'email', 'momssats'];
+            $required = ['firmName', 'phone', 'email', 'vatRate'];
         } else {
             // If konto_id is provided, we can skip firmanavn, telefon, email
-            $required = ['momssats'];
+            $required = ['vatRate'];
         }
         foreach ($required as $field) {
             if (!isset($data->$field) || empty($data->$field)) {

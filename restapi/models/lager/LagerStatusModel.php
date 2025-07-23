@@ -100,6 +100,16 @@ class LagerStatusModel {
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             return explode("\t", $q)[0] == "0";
         } else {
+            // Check if vare_id and lager already have a record
+            if ($this->vare_id) {
+                $existing = LagerStatusModel::findBy('vare_id', $this->vare_id);
+                foreach ($existing as $item) {
+                    if ($item->getLager() == $this->lager && $item->getVariantId() == $this->variant_id) {
+                        // give error message
+                        throw new Exception("Inventory record already exists for this vare_id and lager.");
+                    }
+                }
+            }
             // Insert new record
             $qtxt = "INSERT INTO lagerstatus (
                 lager, vare_id, beholdning, lok1, variant_id
