@@ -57,7 +57,7 @@ class LagerModel
         }
         
         $id = (int)$id; // Ensure integer type
-        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = $id";
+        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = $id AND art = '" . self::ART_TYPE . "' AND fiscal_year = " . $this->fiscal_year;
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         return $this->populateFromResult($q);
@@ -212,7 +212,7 @@ class LagerModel
             return false;
         }
 
-        $qtxt = "DELETE FROM " . self::TABLE_NAME . " WHERE id = $this->id";
+        $qtxt = "DELETE FROM " . self::TABLE_NAME . " WHERE id = $this->id AND art = '" . self::ART_TYPE . "' AND fiscal_year = " . $this->fiscal_year;
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
