@@ -26,7 +26,7 @@ security:
 
 paths:
   # Debitor Orders
-  /debitor/orders:
+  /debitor/orders/:
     get:
       tags:
         - Debitor Orders
@@ -143,7 +143,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Creditor Orders
-  /creditor/orders:
+  /creditor/orders/:
     get:
       tags:
         - Creditor Orders
@@ -248,7 +248,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Order Lines - Debitor
-  /debitor/orderlines:
+  /debitor/orderlines/:
     get:
       tags:
         - Order Lines
@@ -333,7 +333,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Order Lines - Creditor
-  /creditor/orderlines:
+  /creditor/orderlines/:
     get:
       tags:
         - Order Lines
@@ -385,7 +385,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Customers (Debitors)
-  /debitor/customers:
+  /debitor/customers/:
     get:
       tags:
         - Customers
@@ -514,7 +514,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Creditors
-  /creditor/creditors:
+  /creditor/creditors/:
     get:
       tags:
         - Creditors
@@ -639,7 +639,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Products
-  /products:
+  /products/:
     get:
       tags:
         - Products
@@ -769,7 +769,7 @@ paths:
 # Add these paths to the existing paths section
 
   # Inventory - Warehouses
-  /inventory/warehouses:
+  /inventory/warehouses/:
     get:
       tags:
         - Inventory
@@ -1265,7 +1265,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
                 # VAT Management
-  /vat:
+  /vat/:
     get:
       tags:
         - VAT
@@ -1465,7 +1465,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Accounts Management
-  /accounts:
+  /accounts/:
     get:
       tags:
         - Accounts
@@ -1626,7 +1626,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Accounting Year
-  /accountingYear:
+  /accountingYear/:
     get:
       tags:
         - Accounting Year
