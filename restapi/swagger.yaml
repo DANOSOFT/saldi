@@ -14,7 +14,7 @@ info:
   contact:
     name: API Support
 servers:
-  - url: http://ssl12.saldi.dk/pblm/restapi/endpoints/v1
+  - url: https://ssl12.saldi.dk/pblm/restapi/endpoints/v1
     description: Local development server
   - url: https://saldi.dk/v1
     description: Production server
