@@ -73,13 +73,13 @@ function userSettings() {
 	print "<tr><td title='textcolor'>Farve på Knapper</td>";
 	print "<td colspan='4'>
 	<input class='inputbox' type='text' style='width:100px;background-color:$buttonColor;color:$buttonTxtColor;'
-	name='buttonColor' value='".substr($buttonColor,1,6)."'>
+	name='buttonColor' value='".substr($buttonColor,0,6)."'>
 	</td></tr>";
 
 	print "<tr><td title='textcolor'>Tekst farve på Knapper</td>";
 	print "<td colspan='4'>
 	<input class='inputbox' type='text' style='width:100px;background-color:$buttonColor;color:$buttonTxtColor;'
-	name='buttonTxtColor=' value='".substr($buttonTxtColor,1,6)."'>
+	name='buttonTxtColor=' value='".substr($buttonTxtColor,0,6)."'>
 	</td></tr>";
 
 /*
