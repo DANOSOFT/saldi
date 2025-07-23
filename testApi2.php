@@ -112,6 +112,7 @@ if(isset($_GET["update_price"])){
 	$retailPrice = $_GET["retailPrice"];
 	$webFragt = $_GET["webFragt"];
 	$barcode = $_GET["barcode"];
+	file_put_contents("price.txt", "testApi2: SalesPrice: ".$salesPrice." DiscountType: ".$discountType." Discount: ".$discount." ItemNo: ".$itemNo." CostPrice: ".$costPrice." RetailPrice: ".$retailPrice." WebFragt: ".$webFragt." Barcode: ".$barcode."\n", FILE_APPEND); // Log sales price for debugging
 }
 
 if(isset($_GET["stock"])){
@@ -119,9 +120,11 @@ if(isset($_GET["stock"])){
 	$stockno = $_GET["stockno"];
 	$stockvalue = $_GET["stockvalue"];
 	$update_stock = $_GET["update_stock"];
+	file_put_contents("price.txt", "testApi2: Stock: ".$stock." StockNo: ".$stockno." StockValue: ".$stockvalue." UpdateStock: ".$update_stock."\n", FILE_APPEND); // Log stock details for debugging
 }
 
 if(isset($_GET["costPrice"])){
 	$costPrice = $_GET["costPrice"];
 	$itemNo = $_GET["sku"];
+	file_put_contents("price.txt", "testApi2: CostPrice: ".$costPrice." ItemNo: ".$itemNo."\n", FILE_APPEND); // Log cost price for debugging
 }

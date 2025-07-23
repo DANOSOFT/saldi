@@ -1,5 +1,5 @@
 <?php
-
+if(isset($_GET["put_new_orders"])){
 $saldiuser='api'; #En bruger i har i saldi uden nogen rettigheder
 $api_key='4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD'; #Findes under Indstillinger ->  Diverse -> API
 $serverurl="https://ssl12.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
@@ -102,3 +102,29 @@ curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $res = curl_exec($ch);
 curl_close($ch); */
+}
+if(isset($_GET["update_price"])){
+	$salesPrice = $_GET["salesPrice"];
+	$discountType = $_GET["discountType"];
+	$discount = $_GET["discount"];
+	$itemNo = $_GET["itemNo"];
+	$costPrice = $_GET["costPrice"];
+	$retailPrice = $_GET["retailPrice"];
+	$webFragt = $_GET["webFragt"];
+	$barcode = $_GET["barcode"];
+	file_put_contents("price.txt", "testApi1: SalesPrice: ".$salesPrice." DiscountType: ".$discountType." Discount: ".$discount." ItemNo: ".$itemNo." CostPrice: ".$costPrice." RetailPrice: ".$retailPrice." WebFragt: ".$webFragt." Barcode: ".$barcode."\n", FILE_APPEND); // Log sales price for debugging
+}
+
+if(isset($_GET["stock"])){
+	$stock = $_GET["stock"];
+	$stockno = $_GET["stockno"];
+	$stockvalue = $_GET["stockvalue"];
+	$update_stock = $_GET["update_stock"];
+	file_put_contents("price.txt", "testApi1: Stock: ".$stock." StockNo: ".$stockno." StockValue: ".$stockvalue." UpdateStock: ".$update_stock."\n", FILE_APPEND); // Log stock details for debugging
+}
+
+if(isset($_GET["costPrice"])){
+	$costPrice = $_GET["costPrice"];
+	$itemNo = $_GET["sku"];
+	file_put_contents("price.txt", "testApi1: CostPrice: ".$costPrice." ItemNo: ".$itemNo."\n", FILE_APPEND); // Log cost price for debugging
+}
