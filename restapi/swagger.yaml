@@ -8,7 +8,7 @@ info:
     All endpoints require authentication via headers:
     - `x-db`: Database identifier
     - `x-saldiuser`: User identifier
-    - `x-apikey`: API key for authentication
+    - `Authorization`: API key for authentication
     
   version: 1.0.0
   contact:
@@ -1677,7 +1677,7 @@ components:
     ApiKeyAuth:
       type: apiKey
       in: header
-      name: x-apikey
+      name: Authorization
       description: API key for authentication
 
   parameters:
@@ -1698,7 +1698,7 @@ components:
         type: string
         example: "user123"
     ApiKeyHeader:
-      name: x-apikey
+      name: Authorization
       in: header
       required: true
       description: API key for authentication
