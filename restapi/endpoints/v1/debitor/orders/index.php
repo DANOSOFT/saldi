@@ -44,7 +44,7 @@ class OrderEndpoint extends BaseEndpoint
                 $toDate = null;
             }
             // Get all orders with art = 'DO' for debitor
-            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate, $ordrenr);
+            $orders = OrderModel::getAllItems('DO', $limit, $orderBy, $orderDirection, $fromDate, $toDate);
             $items = [];
             foreach ($orders as $order) {
                 $items[] = $order->toArray();
