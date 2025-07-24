@@ -7,7 +7,7 @@
  * including validation, boolean options, and account settings.
  */
 
-class InventoryProductGroupsEndpointTest
+class ProductGroupsEndpointTest
 {
     private $baseUrl;
     private $headers;
@@ -16,7 +16,7 @@ class InventoryProductGroupsEndpointTest
     public function __construct()
     {
         // Configure your API base URL and headers
-        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/inventory/groups/';
+        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/products/groups/';
         
         // Set your actual authorization headers - UPDATE THESE VALUES
         $this->headers = [
@@ -611,6 +611,6 @@ class InventoryProductGroupsEndpointTest
 
 // Run tests if this file is executed directly
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'])) {
-    $test = new InventoryProductGroupsEndpointTest();
+    $test = new ProductGroupsEndpointTest();
     $test->runAllTests();
 }
