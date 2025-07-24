@@ -51,29 +51,29 @@ class ProductGroupsEndpoint extends BaseEndpoint
     {
         try {
             // Validate required fields
-            $this->validateData($data, ['kodenr', 'beskrivelse']);
+            $this->validateData($data, ['codeNo', 'description']);
             
             $group = new VareGruppeModel();
             
-            // Set basic properties
-            if (isset($data->kodenr)) $group->setKodenr($data->kodenr);
-            if (isset($data->beskrivelse)) $group->setBeskrivelse($data->beskrivelse);
-            if (isset($data->fiscal_year)) $group->setFiscalYear($data->fiscal_year);
-            
-            // Set boolean options
-            if (isset($data->omv_bet)) $group->setOmvBet($data->omv_bet);
-            if (isset($data->moms_fri)) $group->setMomsFri($data->moms_fri);
-            if (isset($data->lager)) $group->setLager($data->lager);
+            // Update basic properties
+            if (isset($data->codeNo)) $group->setCodeNo($data->codeNo);
+            if (isset($data->description)) $group->setDescription($data->description);
+            if (isset($data->fiscalYear)) $group->setFiscalYear($data->fiscalYear);
+
+            // Update boolean options
+            if (isset($data->reversePayment)) $group->setReversePayment($data->reversePayment);
+            if (isset($data->taxFree)) $group->setTaxFree($data->taxFree);
+            if (isset($data->inventory)) $group->setInventory($data->inventory);
             if (isset($data->batch)) $group->setBatch($data->batch);
             if (isset($data->operation)) $group->setOperation($data->operation);
             
-            // Set account properties
-            if (isset($data->buy_account)) $group->setBuyAccount($data->buy_account);
-            if (isset($data->sell_account)) $group->setSellAccount($data->sell_account);
-            if (isset($data->buy_eu_account)) $group->setBuyEuAccount($data->buy_eu_account);
-            if (isset($data->sell_eu_account)) $group->setSellEuAccount($data->sell_eu_account);
-            if (isset($data->buy_outside_eu_account)) $group->setBuyOutsideEuAccount($data->buy_outside_eu_account);
-            if (isset($data->sell_outside_eu_account)) $group->setSellOutsideEuAccount($data->sell_outside_eu_account);
+            // Update account properties
+            if (isset($data->buyAccount)) $group->setBuyAccount($data->buyAccount);
+            if (isset($data->sellAccount)) $group->setSellAccount($data->sellAccount);
+            if (isset($data->buyEuAccount)) $group->setBuyEuAccount($data->buyEuAccount);
+            if (isset($data->sellEuAccount)) $group->setSellEuAccount($data->sellEuAccount);
+            if (isset($data->buyOutsideEuAccount)) $group->setBuyOutsideEuAccount($data->buyOutsideEuAccount);
+            if (isset($data->sellOutsideEuAccount)) $group->setSellOutsideEuAccount($data->sellOutsideEuAccount);
             
             $result = $group->save();
             
@@ -105,24 +105,24 @@ class ProductGroupsEndpoint extends BaseEndpoint
             }
             
             // Update basic properties
-            if (isset($data->kodenr)) $group->setKodenr($data->kodenr);
-            if (isset($data->beskrivelse)) $group->setBeskrivelse($data->beskrivelse);
-            if (isset($data->fiscal_year)) $group->setFiscalYear($data->fiscal_year);
-            
+            if (isset($data->codeNo)) $group->setCodeNo($data->codeNo);
+            if (isset($data->description)) $group->setDescription($data->description);
+            if (isset($data->fiscalYear)) $group->setFiscalYear($data->fiscalYear);
+
             // Update boolean options
-            if (isset($data->omv_bet)) $group->setOmvBet($data->omv_bet);
-            if (isset($data->moms_fri)) $group->setMomsFri($data->moms_fri);
-            if (isset($data->lager)) $group->setLager($data->lager);
+            if (isset($data->reversePayment)) $group->setReversePayment($data->reversePayment);
+            if (isset($data->taxFree)) $group->setTaxFree($data->taxFree);
+            if (isset($data->inventory)) $group->setInventory($data->inventory);
             if (isset($data->batch)) $group->setBatch($data->batch);
             if (isset($data->operation)) $group->setOperation($data->operation);
             
             // Update account properties
-            if (isset($data->buy_account)) $group->setBuyAccount($data->buy_account);
-            if (isset($data->sell_account)) $group->setSellAccount($data->sell_account);
-            if (isset($data->buy_eu_account)) $group->setBuyEuAccount($data->buy_eu_account);
-            if (isset($data->sell_eu_account)) $group->setSellEuAccount($data->sell_eu_account);
-            if (isset($data->buy_outside_eu_account)) $group->setBuyOutsideEuAccount($data->buy_outside_eu_account);
-            if (isset($data->sell_outside_eu_account)) $group->setSellOutsideEuAccount($data->sell_outside_eu_account);
+            if (isset($data->buyAccount)) $group->setBuyAccount($data->buyAccount);
+            if (isset($data->sellAccount)) $group->setSellAccount($data->sellAccount);
+            if (isset($data->buyEuAccount)) $group->setBuyEuAccount($data->buyEuAccount);
+            if (isset($data->sellEuAccount)) $group->setSellEuAccount($data->sellEuAccount);
+            if (isset($data->buyOutsideEuAccount)) $group->setBuyOutsideEuAccount($data->buyOutsideEuAccount);
+            if (isset($data->sellOutsideEuAccount)) $group->setSellOutsideEuAccount($data->sellOutsideEuAccount);
             
             $result = $group->save();
             
