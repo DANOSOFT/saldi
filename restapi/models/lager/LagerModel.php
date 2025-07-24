@@ -5,11 +5,11 @@ class LagerModel
 {
     // Properties to match database columns
     private $id;
-    private $beskrivelse;
-    private $nr;
+    private $description;
+    private $number;
     private $fiscal_year;
-    private $lagerstatus;
-    
+    private $inventory;
+
     // Constants for better code maintenance
     const TABLE_NAME = 'grupper';
     const ART_TYPE = 'LG';
@@ -27,8 +27,8 @@ class LagerModel
 
         // Initialize default values
         $this->id = -1;
-        $this->beskrivelse = "";
-        $this->nr = $nr;
+        $this->description = "";
+        $this->number = $nr;
         $this->fiscal_year = $regnaar;
         
         // Load existing data if provided
@@ -40,7 +40,7 @@ class LagerModel
 
         // Initialize inventory if vare_id is provided
         if ($vare_id !== null) {
-            $this->inventory = new LagerStatusModel(null, $vare_id, $this->nr);
+            $this->inventory = new LagerStatusModel(null, $vare_id, $this->number);
         }
     }
 
