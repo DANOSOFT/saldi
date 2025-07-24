@@ -38,9 +38,9 @@ class LagerModel
             $this->loadFromKodenr((int)$kodenr);
         }
 
-        // Initialize lagerstatus if vare_id is provided
+        // Initialize inventory if vare_id is provided
         if ($vare_id !== null) {
-            $this->lagerstatus = new LagerStatusModel(null, $vare_id, $this->nr);
+            $this->inventory = new LagerStatusModel(null, $vare_id, $this->nr);
         }
     }
 
@@ -153,18 +153,18 @@ class LagerModel
         }
         
         // Sanitize text
-        $beskrivelse  = $this->sanitize($this->beskrivelse);
+        $description  = $this->sanitize($this->description);
 
         // Prepare integer fields: NULL if not numeric
-        $nr           = is_numeric($this->nr)          ? intval($this->nr)          : 'NULL';
+        $number       = is_numeric($this->number)       ? intval($this->number)       : 'NULL';
         $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : $regnaar;
 
         if ($this->id > 0) {
             // UPDATE
             $qtxt = "
               UPDATE " . self::TABLE_NAME . " SET
-                beskrivelse  = '$beskrivelse',
-                kodenr       = $nr,
+                beskrivelse  = '$description',
+                kodenr       = $number,
                 fiscal_year  = $fiscal_year
               WHERE id = {$this->id}
             ";
@@ -178,8 +178,8 @@ class LagerModel
                 fiscal_year
               ) VALUES (
                 '" . self::ART_TYPE . "',
-                '$beskrivelse',
-                $nr,
+                '$description',
+                $number,
                 $fiscal_year
               )
             ";
@@ -294,15 +294,15 @@ class LagerModel
     {
         $data = [
             'id' => $this->id,
-            'beskrivelse' => $this->beskrivelse,
-            'nr' => $this->nr,
+            'description' => $this->description,
+            'number' => $this->number,
             'fiscal_year' => $this->fiscal_year,
         ];
 
-        if (isset($this->lagerstatus) && $this->lagerstatus->getId() !== null) {
-            $data["lagerstatus"] = $this->lagerstatus->toArray();
+        if (isset($this->inventory) && $this->inventory->getId() !== null) {
+            $data["inventory"] = $this->inventory->toArray();
         } else {
-            $data["lagerstatus"] = null;
+            $data["inventory"] = null;
         }
 
         return $data;
@@ -314,44 +314,44 @@ class LagerModel
         return $this->id;
     }
 
-    public function getBeskrivelse()
+    public function getDescription()
     {
-        return $this->beskrivelse;
+        return $this->description;
     }
 
-    public function getNr()
+    public function getNumber()
     {
-        return $this->nr;
+        return $this->number;
     }
 
     public function getFiscalYear()
     {
         return $this->fiscal_year;
     }
-    
-    public function getLagerstatus()
+
+    public function getInventory()
     {
-        return $this->lagerstatus;
+        return $this->inventory;
     }
 
     // Setter methods
-    public function setBeskrivelse($beskrivelse)
+    public function setDescription($description)
     {
-        $this->beskrivelse = $beskrivelse;
+        $this->description = $description;
     }
 
-    public function setNr($nr)
+    public function setNumber($number)
     {
-        $this->nr = (int)$nr;
+        $this->number = (int)$number;
     }
 
     public function setFiscalYear($fiscal_year)
     {
         $this->fiscal_year = (int)$fiscal_year;
     }
-    
-    public function setLagerstatus($lagerstatus)
+
+    public function setInventory($inventory)
     {
-        $this->lagerstatus = $lagerstatus;
+        $this->inventory = $inventory;
     }
 }

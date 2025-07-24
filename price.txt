@@ -142,3 +142,15 @@ testApi1: Stock: 0 StockNo: 3 StockValue:  UpdateStock: 0
 testApi1: CostPrice: 575.000 ItemNo: 
 testApi3: Stock: 0 StockNo: 3 StockValue:  UpdateStock: 0
 testApi3: CostPrice: 575.000 ItemNo: 
+testApi2: SalesPrice: 15.000 DiscountType: percent Discount:  ItemNo: 020101 CostPrice: 5.560 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi2: CostPrice: 5.560 ItemNo: 
+testApi1: SalesPrice: 15.000 DiscountType: percent Discount:  ItemNo: 020101 CostPrice: 5.560 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi1: CostPrice: 5.560 ItemNo: 
+testApi3: SalesPrice: 15.000 DiscountType: percent Discount:  ItemNo: 020101 CostPrice: 5.560 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi3: CostPrice: 5.560 ItemNo: 
+testApi3: SalesPrice: 15.000 DiscountType: percent Discount:  ItemNo: 020101 CostPrice: 5.560 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi3: CostPrice: 5.560 ItemNo: 
+testApi2: SalesPrice: 15.000 DiscountType: percent Discount:  ItemNo: 020101 CostPrice: 5.560 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi2: CostPrice: 5.560 ItemNo: 
+testApi1: SalesPrice: 15.000 DiscountType: percent Discount:  ItemNo: 020101 CostPrice: 5.560 RetailPrice: 0.000 WebFragt: 0 Barcode: 
+testApi1: CostPrice: 5.560 ItemNo: 

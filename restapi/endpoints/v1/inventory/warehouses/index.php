@@ -52,15 +52,14 @@ class WarehousesEndpoint extends BaseEndpoint
     {
         try {
             // Validate required fields
-            $this->validateData($data, ['beskrivelse', 'nr']);
-            
+            $this->validateData($data, ['description', 'number']);
             $warehouse = new LagerModel();
-            
+
             // Set properties
-            if (isset($data->beskrivelse)) $warehouse->setBeskrivelse($data->beskrivelse);
-            if (isset($data->nr)) $warehouse->setNr($data->nr);
+            if (isset($data->description)) $warehouse->setDescription($data->description);
+            if (isset($data->number)) $warehouse->setNumber($data->number);
             if (isset($data->fiscal_year)) $warehouse->setFiscalYear($data->fiscal_year);
-            
+
             $result = $warehouse->save();
             
             if ($result === true) {
@@ -84,14 +83,13 @@ class WarehousesEndpoint extends BaseEndpoint
                 $this->sendResponse(false, null, 'Warehouse not found', 404);
                 return;
             }
-            
             // Update properties
-            if (isset($data->beskrivelse)) $warehouse->setBeskrivelse($data->beskrivelse);
-            if (isset($data->nr)) $warehouse->setNr($data->nr);
+            if (isset($data->description)) $warehouse->setDescription($data->description);
+            if (isset($data->number)) $warehouse->setNumber($data->number);
             if (isset($data->fiscal_year)) $warehouse->setFiscalYear($data->fiscal_year);
-            
+
             $result = $warehouse->save();
-            
+
             if ($result === true) {
                 $this->sendResponse(true, $warehouse->toArray(), 'Warehouse updated successfully');
             } else {
