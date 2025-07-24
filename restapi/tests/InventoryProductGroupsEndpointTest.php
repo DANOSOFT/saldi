@@ -69,8 +69,8 @@ class InventoryProductGroupsEndpointTest
         echo "Testing: Create Basic Product Group\n";
         
         $groupData = [
-            'kodenr' => 1234, // kodenr is an integer
-            'beskrivelse' => 'Test Product Group'
+            'codeNo' => 1234, // kodenr is an integer
+            'description' => 'Test Product Group'
         ];
 
         $response = $this->makeRequest('POST', $groupData);
@@ -78,15 +78,14 @@ class InventoryProductGroupsEndpointTest
         if ($response['success'] && isset($response['data']['id'])) {
             $this->createdGroupIds[] = $response['data']['id'];
             echo "✓ Product group created successfully with ID: " . $response['data']['id'] . "\n";
-            
             // Verify group data
-            if ($response['data']['kodenr'] === $groupData['kodenr']) {
+            if ($response['data']['codeNo'] === $groupData['codeNo']) {
                 echo "✓ Group code correctly set\n";
             } else {
                 throw new Exception("Group code mismatch");
             }
-            
-            if ($response['data']['beskrivelse'] === $groupData['beskrivelse']) {
+
+            if ($response['data']['description'] === $groupData['description']) {
                 echo "✓ Group description correctly set\n";
             } else {
                 throw new Exception("Group description mismatch");
@@ -106,20 +105,20 @@ class InventoryProductGroupsEndpointTest
         echo "Testing: Create Product Group with Full Data\n";
         
         $groupData = [
-            'kodenr' => 4567,
-            'beskrivelse' => 'Test Full Product Group',
-            'fiscal_year' => 2024,
-            'omv_bet' => true,
-            'moms_fri' => false,
-            'lager' => true,
+            'codeNo' => 4567,
+            'description' => 'Test Full Product Group',
+            'fiscalYear' => 2024,
+            'reversePayment' => true,
+            'taxFree' => false,
+            'inventory' => true,
             'batch' => false,
             'operation' => true,
-            'buy_account' => 1000,
-            'sell_account' => 2000,
-            'buy_eu_account' => 1100,
-            'sell_eu_account' => 2100,
-            'buy_outside_eu_account' => 1200,
-            'sell_outside_eu_account' => 2200
+            'buyAccount' => 1000,
+            'sellAccount' => 2000,
+            'buyEuAccount' => 1100,
+            'sellEuAccount' => 2100,
+            'buyOutsideEuAccount' => 1200,
+            'sellOutsideEuAccount' => 2200
         ];
 
         $response = $this->makeRequest('POST', $groupData);
@@ -130,13 +129,13 @@ class InventoryProductGroupsEndpointTest
             
             // Verify key fields
             $data = $response['data'];
-            if ($data['fiscal_year'] == $groupData['fiscal_year']) {
+            if ($data['fiscalYear'] == $groupData['fiscalYear']) {
                 echo "✓ Fiscal year correctly set\n";
             }
-            if ($data['omv_bet'] === $groupData['omv_bet']) {
+            if ($data['reversePayment'] === $groupData['reversePayment']) {
                 echo "✓ Boolean option correctly set\n";
             }
-            if ($data['buy_account'] == $groupData['buy_account']) {
+            if ($data["accounts"]['buyAccount'] == $groupData['buyAccount']) {
                 echo "✓ Account settings correctly set\n";
             }
         } else {
@@ -219,7 +218,7 @@ class InventoryProductGroupsEndpointTest
             
             // Verify search results contain our search term
             foreach ($response['data'] as $group) {
-                if (strpos($group['beskrivelse'], 'Test Product Group') !== false) {
+                if (strpos($group['description'], 'Test Product Group') !== false) {
                     echo "✓ Search result contains search term\n";
                     break;
                 }
@@ -246,9 +245,8 @@ class InventoryProductGroupsEndpointTest
         
         if ($response['success'] && is_array($response['data']) && count($response['data']) > 1) {
             echo "✓ Ordered product groups retrieved\n";
-            
             // Check if ordering is working (first item should be >= second alphabetically)
-            if ($response['data'][0]['kodenr'] >= $response['data'][1]['kodenr']) {
+            if ($response['data'][0]['codeNo'] >= $response['data'][1]['codeNo']) {
                 echo "✓ Product groups correctly ordered DESC by code\n";
             }
         } else {
@@ -272,8 +270,8 @@ class InventoryProductGroupsEndpointTest
         $groupId = $this->createdGroupIds[0];
         $updateData = [
             'id' => $groupId,
-            'beskrivelse' => 'Updated Test Product Group Description',
-            'fiscal_year' => 2025
+            'description' => 'Updated Test Product Group Description',
+            'fiscalYear' => 2025
         ];
 
         $response = $this->makeRequest('PUT', $updateData);
@@ -283,10 +281,10 @@ class InventoryProductGroupsEndpointTest
             
             // Verify the update
             $getResponse = $this->makeRequest('GET', null, ['id' => $groupId]);
-            if ($getResponse['success'] && $getResponse['data']['beskrivelse'] === $updateData['beskrivelse']) {
+            if ($getResponse['success'] && $getResponse['data']['description'] === $updateData['description']) {
                 echo "✓ Product group description correctly updated\n";
             }
-            if ($getResponse['success'] && $getResponse['data']['fiscal_year'] == $updateData['fiscal_year']) {
+            if ($getResponse['success'] && $getResponse['data']['fiscalYear'] == $updateData['fiscalYear']) {
                 echo "✓ Fiscal year correctly updated\n";
             }
         } else {
@@ -311,9 +309,9 @@ class InventoryProductGroupsEndpointTest
         $groupId = $this->createdGroupIds[1];
         $updateData = [
             'id' => $groupId,
-            'omv_bet' => false,
-            'moms_fri' => true,
-            'lager' => false,
+            'reversePayment' => false,
+            'taxFree' => true,
+            'inventory' => false,
             'batch' => true,
             'operation' => false
         ];
@@ -327,10 +325,10 @@ class InventoryProductGroupsEndpointTest
             $getResponse = $this->makeRequest('GET', null, ['id' => $groupId]);
             if ($getResponse['success']) {
                 $data = $getResponse['data'];
-                if ($data['omv_bet'] === $updateData['omv_bet'] && $data['moms_fri'] === $updateData['moms_fri']) {
+                if ($data['reversePayment'] === $updateData['reversePayment'] && $data['taxFree'] === $updateData['taxFree']) {
                     echo "✓ Boolean options correctly updated\n";
                 }
-                if ($data['lager'] === $updateData['lager'] && $data['batch'] === $updateData['batch']) {
+                if ($data['inventory'] === $updateData['inventory'] && $data['batch'] === $updateData['batch']) {
                     echo "✓ Additional boolean options correctly updated\n";
                 }
             }
@@ -356,10 +354,10 @@ class InventoryProductGroupsEndpointTest
         $groupId = $this->createdGroupIds[1];
         $updateData = [
             'id' => $groupId,
-            'buy_account' => 5000,
-            'sell_account' => 6000,
-            'buy_eu_account' => 5100,
-            'sell_eu_account' => 6100
+            'buyAccount' => 5000,
+            'sellAccount' => 6000,
+            'buyEuAccount' => 5100,
+            'sellEuAccount' => 6100
         ];
 
         $response = $this->makeRequest('PUT', $updateData);
@@ -371,10 +369,10 @@ class InventoryProductGroupsEndpointTest
             $getResponse = $this->makeRequest('GET', null, ['id' => $groupId]);
             if ($getResponse['success']) {
                 $data = $getResponse['data'];
-                if ($data['buy_account'] == $updateData['buy_account'] && $data['sell_account'] == $updateData['sell_account']) {
+                if ($data['buyAccount'] == $updateData['buyAccount'] && $data['sellAccount'] == $updateData['sellAccount']) {
                     echo "✓ Buy/sell accounts correctly updated\n";
                 }
-                if ($data['buy_eu_account'] == $updateData['buy_eu_account'] && $data['sell_eu_account'] == $updateData['sell_eu_account']) {
+                if ($data['buyEuAccount'] == $updateData['buyEuAccount'] && $data['sellEuAccount'] == $updateData['sellEuAccount']) {
                     echo "✓ EU accounts correctly updated\n";
                 }
             }
@@ -403,7 +401,7 @@ class InventoryProductGroupsEndpointTest
         }
         
         $duplicateData = [
-            'kodenr' => $firstGroupResponse['data']['kodenr'], // Use same group code
+            'codeNo' => $firstGroupResponse['data']['codeNo'], // Use same group code
             'beskrivelse' => 'Duplicate Group Test'
         ];
 
@@ -503,7 +501,7 @@ class InventoryProductGroupsEndpointTest
         
         $updateData = [
             'id' => 999999,
-            'beskrivelse' => 'This should fail'
+            'description' => 'This should fail'
         ];
 
         $response = $this->makeRequest('PUT', $updateData);
