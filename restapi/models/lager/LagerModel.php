@@ -122,11 +122,11 @@ class LagerModel
      */
     private function validate()
     {
-        if (empty($this->beskrivelse)) {
+        if (empty($this->description)) {
             return "Description cannot be empty";
         }
         
-        if (!is_numeric($this->nr) || $this->nr <= 0) {
+        if (!is_numeric($this->number) || $this->number <= 0) {
             return "Number must be a positive integer";
         }
         
