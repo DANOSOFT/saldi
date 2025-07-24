@@ -67,9 +67,9 @@ class ProductEndpointTest
         echo "Testing: Create Basic Product\n";
         
         $productData = [
-            'varenr' => 'TEST-PROD-001',
-            'stregkode' => '1234567890123',
-            'beskrivelse' => 'Test Product Basic'
+            'sku' => 'TEST-PROD-001',
+            'barcode' => '1234567890123',
+            'description' => 'Test Product Basic'
         ];
 
         $response = $this->makeRequest('POST', $productData);
@@ -92,26 +92,12 @@ class ProductEndpointTest
         echo "Testing: Create Product with Size Data\n";
         
         $productData = [
-            'varenr' => 'TEST-PROD-002',
-            'stregkode' => '1234567890124',
-            'beskrivelse' => 'Test Product with Size',
-            'size' => [
-                'dimensions' => [
-                    'width' => 10.5,
-                    'height' => 20.0,
-                    'length' => 15.5
-                ],
-                'weights' => [
-                    'net' => [
-                        'value' => 2.5,
-                        'unit' => 'kg'
-                    ],
-                    'gross' => [
-                        'value' => 3.0,
-                        'unit' => 'kg'
-                    ]
-                ]
-            ]
+            'sku' => 'TEST-PROD-002',
+            'barcode' => '1234567890124',
+            'description' => 'Test Product with Size',
+            'width' => 10.5,
+            'height' => 20.0,
+            'length' => 15.5
         ];
 
         $response = $this->makeRequest('POST', $productData);
@@ -121,7 +107,9 @@ class ProductEndpointTest
             echo "✓ Product with size created successfully with ID: " . $response['data']['id'] . "\n";
             
             // Verify size data was saved correctly
-            if (isset($response['data']['size'])) {
+            if (isset($response['data']['width']) &&
+                isset($response['data']['height']) &&
+                isset($response['data']['length'])) {
                 echo "✓ Size data included in response\n";
             }
         } else {
@@ -181,14 +169,14 @@ class ProductEndpointTest
         echo "Testing: Create Product with Duplicate Varenr\n";
         
         $productData = [
-            'varenr' => 'TEST-PROD-001', // Same varenr as first product
-            'stregkode' => '1234567890125',
-            'beskrivelse' => 'Duplicate Varenr Test'
+            'sku' => 'TEST-PROD-001', // Same sku as first product
+            'barcode' => '1234567890125',
+            'description' => 'Duplicate Varenr Test'
         ];
 
         $response = $this->makeRequest('POST', $productData);
-        
-        // Note: This test assumes duplicate varenr validation exists
+
+        // Note: This test assumes duplicate sku validation exists
         // If not implemented, this test will need to be adjusted
         if (!$response['success'] && strpos($response['message'], 'already exists') !== false) {
             echo "✓ Correctly rejected duplicate varenr\n";
@@ -217,9 +205,9 @@ class ProductEndpointTest
         
         $productId = $this->createdProductIds[0];
         $updateData = [
-            'varenr' => 'TEST-PROD-001-UPDATED',
-            'beskrivelse' => 'Updated Test Product Basic',
-            'stregkode' => '1234567890999'
+            'sku' => 'TEST-PROD-001-UPDATED',
+            'description' => 'Updated Test Product Basic',
+            'barcode' => '1234567890999'
         ];
 
         $response = $this->makeRequest('PUT', $updateData, $productId);
@@ -247,24 +235,10 @@ class ProductEndpointTest
         
         $productId = $this->createdProductIds[1]; // Product with size
         $updateData = [
-            'beskrivelse' => 'Updated Product with Size',
-            'size' => [
-                'dimensions' => [
-                    'width' => 12.0,
-                    'height' => 25.0,
-                    'length' => 18.0
-                ],
-                'weights' => [
-                    'net' => [
-                        'value' => 3.0,
-                        'unit' => 'kg'
-                    ],
-                    'gross' => [
-                        'value' => 3.5,
-                        'unit' => 'kg'
-                    ]
-                ]
-            ]
+            'description' => 'Updated Product with Size',
+            'width' => 12.0,
+            'height' => 25.0,
+            'length' => 18.0
         ];
 
         $response = $this->makeRequest('PUT', $updateData, $productId);
@@ -314,17 +288,17 @@ class ProductEndpointTest
         echo "Testing: Create Product with Missing Required Fields\n";
         
         $productData = [
-            'stregkode' => '1234567890126',
-            'beskrivelse' => 'Product Missing Varenr'
-            // Missing required 'varenr' field
+            'barcode' => '1234567890126',
+            'description' => 'Product Missing Varenr'
+            // Missing required 'sku' field
         ];
 
         $response = $this->makeRequest('POST', $productData);
         
-        if (!$response['success'] && strpos($response['message'], 'varenr') !== false) {
-            echo "✓ Correctly rejected product with missing varenr\n";
+        if (!$response['success'] && strpos($response['message'], 'sku') !== false) {
+            echo "✓ Correctly rejected product with missing sku\n";
         } else {
-            throw new Exception("Should have rejected product with missing varenr");
+            throw new Exception("Should have rejected product with missing sku");
         }
         
         echo "\n";
@@ -356,8 +330,8 @@ class ProductEndpointTest
         echo "Testing: Update Non-Existent Product\n";
         
         $updateData = [
-            'varenr' => 'NON-EXISTENT',
-            'beskrivelse' => 'This should fail'
+            'sku' => 'NON-EXISTENT',
+            'description' => 'This should fail'
         ];
 
         $response = $this->makeRequest('PUT', $updateData, '999999');

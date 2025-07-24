@@ -1118,7 +1118,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   # Product Groups
-  /inventory/groups/:
+  /products/groups/:
     get:
       tags:
         - Product Groups

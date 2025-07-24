@@ -55,26 +55,26 @@ class ProductsEndpoint extends BaseEndpoint
     {
         try {
             // Validate required fields
-            $this->validateData($data, ['varenr', 'beskrivelse']);
+            $this->validateData($data, ['sku', 'description']);
             
             $product = new VareModel();
             
             // Set basic properties
-            if (isset($data->varenr)) $product->setVarenr($data->varenr);
-            if (isset($data->stregkode)) $product->setStregkode($data->stregkode);
-            if (isset($data->beskrivelse)) $product->setBeskrivelse($data->beskrivelse);
-            if (isset($data->salgspris)) $product->setSalgspris($data->salgspris);
-            if (isset($data->kostpris)) $product->setKostpris($data->kostpris);
+            if (isset($data->sku)) $product->setVarenr($data->sku);
+            if (isset($data->barcode)) $product->setStregkode($data->barcode);
+            if (isset($data->description)) $product->setBeskrivelse($data->description);
+            if (isset($data->salesPrice)) $product->setSalgspris($data->salesPrice);
+            if (isset($data->costPrice)) $product->setKostpris($data->costPrice);
             
             // Set additional properties
             if (isset($data->notes)) $product->setNotes($data->notes);
-            if (isset($data->serienr)) $product->setSerienr($data->serienr);
-            if (isset($data->samlevare)) $product->setSamlevare($data->samlevare);
-            if (isset($data->delvare)) $product->setDelvare($data->delvare);
-            if (isset($data->min_lager)) $product->setMinLager($data->min_lager);
-            if (isset($data->max_lager)) $product->setMaxLager($data->max_lager);
+            if (isset($data->serialNumber)) $product->setSerienr($data->serialNumber);
+            if (isset($data->collectionOfItems)) $product->setSamlevare($data->collectionOfItems);
+            if (isset($data->partialItem)) $product->setDelvare($data->partialItem);
+            if (isset($data->minInventory)) $product->setMinLager($data->minInventory);
+            if (isset($data->maxInventory)) $product->setMaxLager($data->maxInventory);
             if (isset($data->location)) $product->setLocation($data->location);
-            if (isset($data->gruppe)) $product->setGruppe($data->gruppe);
+            if (isset($data->group)) $product->setGruppe($data->group);
             
             // Set size/weight properties
             if (isset($data->netweight)) $product->setNetweight($data->netweight);
@@ -84,7 +84,7 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->length)) $product->setLength($data->length);
             if (isset($data->width)) $product->setWidth($data->width);
             if (isset($data->height)) $product->setHeight($data->height);
-            if (isset($data->colli_webfragt)) $product->setColliWebfragt($data->colli_webfragt);
+            if (isset($data->colli_webfreight)) $product->setColliWebfragt($data->colli_webfreight);
             
             $result = $product->save();
             
@@ -110,24 +110,24 @@ class ProductsEndpoint extends BaseEndpoint
                 return;
             }
             
-            // Update properties
-            if (isset($data->varenr)) $product->setVarenr($data->varenr);
-            if (isset($data->stregkode)) $product->setStregkode($data->stregkode);
-            if (isset($data->beskrivelse)) $product->setBeskrivelse($data->beskrivelse);
-            if (isset($data->salgspris)) $product->setSalgspris($data->salgspris);
-            if (isset($data->kostpris)) $product->setKostpris($data->kostpris);
+            // Set basic properties
+            if (isset($data->sku)) $product->setVarenr($data->sku);
+            if (isset($data->barcode)) $product->setStregkode($data->barcode);
+            if (isset($data->description)) $product->setBeskrivelse($data->description);
+            if (isset($data->salesPrice)) $product->setSalgspris($data->salesPrice);
+            if (isset($data->costPrice)) $product->setKostpris($data->costPrice);
             
-            // Update additional properties
+            // Set additional properties
             if (isset($data->notes)) $product->setNotes($data->notes);
-            if (isset($data->serienr)) $product->setSerienr($data->serienr);
-            if (isset($data->samlevare)) $product->setSamlevare($data->samlevare);
-            if (isset($data->delvare)) $product->setDelvare($data->delvare);
-            if (isset($data->min_lager)) $product->setMinLager($data->min_lager);
-            if (isset($data->max_lager)) $product->setMaxLager($data->max_lager);
+            if (isset($data->serialNumber)) $product->setSerienr($data->serialNumber);
+            if (isset($data->collectionOfItems)) $product->setSamlevare($data->collectionOfItems);
+            if (isset($data->partialItem)) $product->setDelvare($data->partialItem);
+            if (isset($data->minInventory)) $product->setMinLager($data->minInventory);
+            if (isset($data->maxInventory)) $product->setMaxLager($data->maxInventory);
             if (isset($data->location)) $product->setLocation($data->location);
-            if (isset($data->gruppe)) $product->setGruppe($data->gruppe);
+            if (isset($data->group)) $product->setGruppe($data->group);
             
-            // Update size/weight properties
+            // Set size/weight properties
             if (isset($data->netweight)) $product->setNetweight($data->netweight);
             if (isset($data->netweightunit)) $product->setNetweightunit($data->netweightunit);
             if (isset($data->grossweight)) $product->setGrossweight($data->grossweight);
@@ -135,7 +135,7 @@ class ProductsEndpoint extends BaseEndpoint
             if (isset($data->length)) $product->setLength($data->length);
             if (isset($data->width)) $product->setWidth($data->width);
             if (isset($data->height)) $product->setHeight($data->height);
-            if (isset($data->colli_webfragt)) $product->setColliWebfragt($data->colli_webfragt);
+            if (isset($data->colli_webfreight)) $product->setColliWebfragt($data->colli_webfreight);
             
             $result = $product->save();
             
