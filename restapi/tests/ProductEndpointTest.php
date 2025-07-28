@@ -16,7 +16,7 @@ class ProductEndpointTest
     public function __construct()
     {
         // Configure your API base URL and headers
-        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/Products/';
+        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/products/';
         
         // Set your actual authorization headers
         $this->headers = [
@@ -73,7 +73,7 @@ class ProductEndpointTest
         ];
 
         $response = $this->makeRequest('POST', $productData);
-        
+        print_r($response);
         if ($response['success'] && isset($response['data']['id'])) {
             $this->createdProductIds[] = $response['data']['id'];
             echo "✓ Basic product created successfully with ID: " . $response['data']['id'] . "\n";
@@ -200,7 +200,7 @@ class ProductEndpointTest
             echo "Skipping: Update Product (no product created)\n\n";
             return;
         }
-
+        
         echo "Testing: Update Product\n";
         
         $productId = $this->createdProductIds[0];

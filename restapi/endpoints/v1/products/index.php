@@ -60,11 +60,11 @@ class ProductsEndpoint extends BaseEndpoint
             $product = new VareModel();
             
             // Set basic properties
-            if (isset($data->sku)) $product->setVarenr($data->sku);
-            if (isset($data->barcode)) $product->setStregkode($data->barcode);
-            if (isset($data->description)) $product->setBeskrivelse($data->description);
-            if (isset($data->salesPrice)) $product->setSalgspris($data->salesPrice);
-            if (isset($data->costPrice)) $product->setKostpris($data->costPrice);
+            if (isset($data->sku)) $product->setSku($data->sku);
+            if (isset($data->barcode)) $product->setBarcode($data->barcode);
+            if (isset($data->description)) $product->setDescription($data->description);
+            if (isset($data->salesPrice)) $product->setSalesPrice($data->salesPrice);
+            if (isset($data->costPrice)) $product->setCostPrice($data->costPrice);
             
             // Set additional properties
             if (isset($data->notes)) $product->setNotes($data->notes);
@@ -111,11 +111,11 @@ class ProductsEndpoint extends BaseEndpoint
             }
             
             // Set basic properties
-            if (isset($data->sku)) $product->setVarenr($data->sku);
-            if (isset($data->barcode)) $product->setStregkode($data->barcode);
-            if (isset($data->description)) $product->setBeskrivelse($data->description);
-            if (isset($data->salesPrice)) $product->setSalgspris($data->salesPrice);
-            if (isset($data->costPrice)) $product->setKostpris($data->costPrice);
+            if (isset($data->sku)) $product->setSku($data->sku);
+            if (isset($data->barcode)) $product->setBarcode($data->barcode);
+            if (isset($data->description)) $product->setDescription($data->description);
+            if (isset($data->salesPrice)) $product->setSalesPrice($data->salesPrice);
+            if (isset($data->costPrice)) $product->setCostPrice($data->costPrice);
             
             // Set additional properties
             if (isset($data->notes)) $product->setNotes($data->notes);

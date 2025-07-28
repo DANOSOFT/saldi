@@ -157,6 +157,13 @@ class VareModel
                 return $this->updateRecord();
             } else {
                 // INSERT new record
+                // check if sku already exists
+                if ($this->sku) {
+                    $existing = self::findBy('varenr', $this->sku);
+                    if (count($existing) > 0) {
+                        throw new Exception("Product with SKU '{$this->sku}' already exists.");
+                    }
+                }
                 return $this->insertRecord();
             }
         } catch (Exception $e) {
