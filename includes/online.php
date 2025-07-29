@@ -475,10 +475,10 @@ if ($bg != 'nix') {
 	/* type submit and type button */
 	input[type="submit"],
 	input[type="button"] {
-		background: <?php echo $buttonColor; ?> !important;
-		background-color: <?php echo $buttonColor; ?> !important;
-		color: <?php echo $buttonTxtColor; ?> !important;
-		border: 1px solid <?php echo $buttonColor; ?> !important;
+		background: #<?php echo $buttonColor; ?> !important;
+		background-color: #<?php echo $buttonColor; ?> !important;
+		color: #<?php echo $buttonTxtColor; ?> !important;
+		border: 1px solid #<?php echo $buttonColor; ?> !important;
 		cursor: pointer;
 	}
 </style>
