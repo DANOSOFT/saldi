@@ -305,7 +305,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('801|Sprog', $sprog_id)."</button></a></span></td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."'><a href=logoupload.php?upload=yes accesskey='u'>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Upload</button></a></span></td>\n";#20210804
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
 
 	print "</tbody></table></td></tr>\n";
 } else {
@@ -323,7 +323,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<td width=\"12%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=$returside accesskey=\"l\">".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
 	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('573|Formularkort', $sprog_id)."</td>\n";
 	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\"><a href=formularkort.php?nyt_sprog=yes accesskey=\"s\">".findtekst('801|Sprog', $sprog_id)."</a></span></td>\n";
-	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">Upload</a></span></td>\n";#20210804
+	print "<td width=\"6%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><span title=\"".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."\"><a href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></span></td>\n";#20210804
 	print "</tbody></table></td></tr>\n";
 }
 
