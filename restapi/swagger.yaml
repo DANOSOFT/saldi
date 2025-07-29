@@ -1660,7 +1660,154 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+                
+# Attachment Management
+  /attachment:
+    get:
+      tags:
+        - Attachments
+      summary: Get all files or a specific file
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: file
+          in: query
+          schema:
+            type: string
+          description: Filename to retrieve (optional)
+          example: "document.pdf"
+        - name: download
+          in: query
+          schema:
+            type: boolean
+          description: Set to true to download the file content
+          example: true
+      responses:
+        '200':
+          description: List of files or specific file details/content
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AttachmentListResponse'
+                  - $ref: '#/components/schemas/AttachmentResponse'
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: File content when download=true
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Attachments
+      summary: Upload a new file
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to upload
+                filename:
+                  type: string
+                  description: Custom filename (optional)
+                  example: "my_document.pdf"
+            encoding:
+              file:
+                contentType: '*/*'
+      responses:
+        '201':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentUploadResponse'
+        '400':
+          description: Bad request - invalid file or upload error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error during upload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Attachments
+      summary: Delete a file
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: file
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Filename to delete
+          example: "document.pdf"
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - filename required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error during deletion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:
@@ -2766,6 +2913,105 @@ components:
         message:
           type: string
           example: "Current fiscal year retrieved successfully"
+          
+          # Attachment Schemas
+    AttachmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            filename:
+              type: string
+              example: "document.pdf"
+            filepath:
+              type: string
+              example: "/var/www/html/pblm/bilag/test_4/pulje/document.pdf"
+            size:
+              type: integer
+              description: File size in bytes
+              example: 2048576
+            mimeType:
+              type: string
+              example: "application/pdf"
+            uploadDate:
+              type: string
+              format: date-time
+              example: "2025-07-29T10:30:00Z"
+            downloadUrl:
+              type: string
+              description: URL to download the file
+              example: "/attachment?file=document.pdf&download=true"
+
+    AttachmentListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+                example: "document.pdf"
+              filepath:
+                type: string
+                example: "/var/www/html/pblm/bilag/test_4/pulje/document.pdf"
+              size:
+                type: integer
+                example: 2048576
+              mimeType:
+                type: string
+                example: "application/pdf"
+              uploadDate:
+                type: string
+                format: date-time
+                example: "2025-07-29T10:30:00Z"
+              downloadUrl:
+                type: string
+                example: "/attachment?file=document.pdf&download=true"
+
+    AttachmentUploadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "File uploaded successfully"
+        data:
+          type: object
+          properties:
+            filename:
+              type: string
+              example: "document.pdf"
+            originalFilename:
+              type: string
+              example: "my_document.pdf"
+            size:
+              type: integer
+              example: 2048576
+            mimeType:
+              type: string
+              example: "application/pdf"
+            uploadDate:
+              type: string
+              format: date-time
+              example: "2025-07-29T10:30:00Z"
+            converted:
+              type: boolean
+              description: Whether the file was converted (e.g., image to PDF)
+              example: false
+            downloadUrl:
+              type: string
+              example: "/attachment?file=document.pdf&download=true"
 
     # Common Response Schemas
     ErrorResponse:
@@ -2821,3 +3067,5 @@ tags:
     description: Operations for chart of accounts
   - name: Accounting Year
     description: Operations for fiscal year information
+  - name: Attachments
+    description: Operations for file attachment management (upload, download, delete)
