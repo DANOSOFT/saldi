@@ -11,7 +11,7 @@ if(isset($_GET['returside'])){
 }
 
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
-print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% style=$buttonStyle>"; # Tabel 1.1 ->
+print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% style='$buttonStyle'>"; # Tabel 1.1 ->
 print "<a href=$backUrl accesskey='L'>
 
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>";
@@ -62,11 +62,11 @@ if ($jobkort) print "<td width = '100px' align=center>
 
 print "</tbody></table></td>\n";
 
-print "<td id='tutorial-help' width=5% style=$buttonStyle>
+print "<td id='tutorial-help' width=5% style='$buttonStyle'>
 		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 			Hjælp  
 		</button></td>";
-print "<td width=5% style=$buttonStyle><a accesskey=V href=debitorvisning.php?valg=$valg>
+print "<td width=5% style='$buttonStyle'><a accesskey=V href=debitorvisning.php?valg=$valg>
 		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 	. findtekst(813, $sprog_id) . "</button></a></td>\n";
 
