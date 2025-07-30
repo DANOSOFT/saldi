@@ -2114,15 +2114,15 @@ components:
     CreateCustomerRequest:
       type: object
       required:
-        - firmanavn
-        - tlf
+        - companyName
+        - phone
         - email
       properties:
-        firmanavn:
+        companyName:
           type: string
           description: Company name
           example: "ACME Corporation"
-        tlf:
+        phone:
           type: string
           description: Phone number
           example: "+45 12345678"
@@ -2131,66 +2131,86 @@ components:
           format: email
           description: Email address
           example: "contact@acme.com"
-        addr1:
-          type: string
-          description: Address line 1
-          example: "Main Street 123"
-        addr2:
-          type: string
-          description: Address line 2
-          example: "Suite 456"
-        postnr:
-          type: string
-          description: Postal code
-          example: "1234"
-        bynavn:
-          type: string
-          description: City name
-          example: "Copenhagen"
-        cvrnr:
-          type: string
-          description: CVR number
-          example: "12345678"
-        land:
-          type: string
-          description: Country
-          example: "Denmark"
-        bank_navn:
-          type: string
-          description: Bank name
-          example: "Danske Bank"
-        bank_reg:
-          type: string
-          description: Bank registration
-          example: "1234"
-        bank_konto:
-          type: string
-          description: Bank account
-          example: "567890123"
-        notes:
-          type: string
-          description: Notes
-          example: "VIP customer"
-        betalingsbet:
-          type: string
-          description: Payment terms
-          example: "netto"
-        betalingsdage:
-          type: integer
-          description: Payment days
-          example: 30
-        ean:
-          type: string
-          description: EAN number
-          example: "1234567890123"
-        fornavn:
+        firstName:
           type: string
           description: First name
           example: "John"
-        efternavn:
+        lastName:
           type: string
           description: Last name
           example: "Doe"
+        address1:
+          type: string
+          description: Primary address
+          example: "Main Street 123"
+        address2:
+          type: string
+          description: Secondary address
+          example: "Suite 456"
+        postalCode:
+          type: string
+          description: Postal code
+          example: "1234"
+        city:
+          type: string
+          description: City
+          example: "Copenhagen"
+        country:
+          type: string
+          description: Country
+          example: "Denmark"
+        vatNumber:
+          type: string
+          description: VAT number
+          example: "DK12345678"
+        bankName:
+          type: string
+          description: Bank name
+          example: "Danske Bank"
+        bankReg:
+          type: string
+          description: Bank registration number
+          example: "1234"
+        bankAccount:
+          type: string
+          description: Bank account number
+          example: "567890123"
+        paymentTerms:
+          type: string
+          description: Payment terms
+          example: "Net 30"
+        paymentDays:
+          type: integer
+          description: Payment days
+          example: 30
+        contact:
+          type: string
+          description: Contact person
+          example: "Jane Smith"
+        notes:
+          type: string
+          description: Additional notes
+          example: "Important customer"
+        group:
+          type: integer
+          description: Customer group
+          example: 1
+        deliveryCompanyName:
+          type: string
+          description: Delivery company name
+          example: "ACME Warehouse"
+        deliveryAddress1:
+          type: string
+          description: Delivery address line 1
+          example: "Warehouse Street 789"
+        deliveryCity:
+          type: string
+          description: Delivery city
+          example: "Aarhus"
+        deliveryPhone:
+          type: string
+          description: Delivery phone
+          example: "+45 87654321"
 
     UpdateCustomerRequest:
       allOf:
@@ -2884,6 +2904,7 @@ components:
           example: true
         data:
           type: object
+
           properties:
             fiscal_year:
               type: integer

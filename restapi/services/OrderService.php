@@ -13,11 +13,11 @@ class OrderService
     public static function createOrder($data)
     {
         // Validate required fields
-        // firmanavn, telefon, email is only required if konto_id is not provided
+        // companyName, phone, email is only required if konto_id is not provided
         if (!isset($data->konto_id) || empty($data->konto_id)) {
-            $required = ['firmName', 'phone', 'email', 'vatRate'];
+            $required = ['companyName', 'phone', 'email', 'vatRate'];
         } else {
-            // If konto_id is provided, we can skip firmanavn, telefon, email
+            // If konto_id is provided, we can skip companyName, phone, email
             $required = ['vatRate'];
         }
         foreach ($required as $field) {
