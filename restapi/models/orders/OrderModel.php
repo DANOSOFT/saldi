@@ -297,7 +297,7 @@ class OrderModel
         return array(
             'id' => $this->id,
             'accountId' => $this->konto_id,
-            'firmName' => $this->firmanavn,
+            'companyName' => $this->firmanavn,
             'phone' => $this->telefon,
             'email' => $this->email,
             'vatRate' => $this->momssats,

@@ -244,7 +244,7 @@ class VatModel
     }
 
     /**
-     * Method to convert object to array
+     * Method to convert object to array with English field names
      *
      * @return array Associative array of item properties
      */
@@ -252,13 +252,14 @@ class VatModel
     {
         return [
             'id' => $this->id,
-            'beskrivelse' => $this->beskrivelse,
-            'momskode' => $this->momskode,
-            'nr' => $this->nr,
+            'description' => $this->beskrivelse,
+            'vatCode' => $this->momskode,
+            'number' => $this->nr,
+            'fiscalYear' => $this->fiscal_year,
             'account' => $this->account,
-            'sats' => $this->sats,
-            'modkonto' => $this->modkonto,
-            'map' => $this->map
+            'rate' => $this->sats,
+            'contraAccount' => $this->modkonto,
+            'mapping' => $this->map
         ];
     }
 
@@ -303,6 +304,37 @@ class VatModel
         return $this->map;
     }
 
+    // Additional English getters for consistency
+    public function getDescription()
+    {
+        return $this->beskrivelse;
+    }
+
+    public function getVatCode()
+    {
+        return $this->momskode;
+    }
+
+    public function getNumber()
+    {
+        return $this->nr;
+    }
+
+    public function getRate()
+    {
+        return $this->sats;
+    }
+
+    public function getContraAccount()
+    {
+        return $this->modkonto;
+    }
+
+    public function getMapping()
+    {
+        return $this->map;
+    }
+
     // Setter methods
     public function setBeskrivelse($beskrivelse)
     {
@@ -342,5 +374,36 @@ class VatModel
     public function setMap($map)
     {
         $this->map = $map;
+    }
+
+    // Additional English setters for consistency
+    public function setDescription($description)
+    {
+        $this->beskrivelse = $description;
+    }
+
+    public function setVatCode($vatCode)
+    {
+        $this->momskode = $vatCode;
+    }
+
+    public function setNumber($number)
+    {
+        $this->nr = $number;
+    }
+
+    public function setRate($rate)
+    {
+        $this->sats = $rate;
+    }
+
+    public function setContraAccount($contraAccount)
+    {
+        $this->modkonto = $contraAccount;
+    }
+
+    public function setMapping($mapping)
+    {
+        $this->map = $mapping;
     }
 }
