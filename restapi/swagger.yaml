@@ -68,12 +68,89 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrderListResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                all_orders:
+                  summary: All Debitor Orders
+                  description: Get all debitor orders with English field names
+                  value:
+                    success: true
+                    data:
+                      - id: 1001
+                        accountId: 201
+                        companyName: "ACME Corporation"
+                        phone: "+45 12345678"
+                        email: "contact@acme.com"
+                        vatRate: 25.0
+                        address:
+                          addr1: "Main Street 123"
+                          addr2: "Suite 456"
+                          zipcode: "1234"
+                          city: "Copenhagen"
+                          country: "Denmark"
+                        delivery:
+                          name: "ACME Warehouse"
+                          addr1: "Industrial Road 789"
+                          addr2: "Building B"
+                          zipcode: "5678"
+                          city: "Aarhus"
+                          country: "Denmark"
+                        ean: "1234567890123"
+                        cvr: "12345678"
+                        orderDate: "2025-06-20"
+                        invoiceDate: "2025-06-21"
+                        notes: "Urgent delivery required"
+                        paid: false
+                        paymentInfo:
+                          paymentTerms: "Net 30"
+                          paymentDays: 30
+                        economic:
+                          sum: 1250.00
+                          costPrice: 1000.00
+                          vat: 250.00
+                          currency: "DKK"
+                          currencyRate: 1.0
+                        accountNumber: "1000"
+                        reference: "user123"
+                        status: 0
+                        orderNo: 2025001
+                      - id: 1002
+                        accountId: 202
+                        companyName: "TechCorp Ltd"
+                        phone: "+45 87654321"
+                        email: "orders@techcorp.com"
+                        vatRate: 25.0
+                        address:
+                          addr1: "Tech Street 456"
+                          addr2: ""
+                          zipcode: "2345"
+                          city: "Odense"
+                          country: "Denmark"
+                        delivery:
+                          name: "TechCorp Office"
+                          addr1: "Tech Street 456"
+                          addr2: ""
+                          zipcode: "2345"
+                          city: "Odense"
+                          country: "Denmark"
+                        ean: ""
+                        cvr: "87654321"
+                        orderDate: "2025-06-19"
+                        invoiceDate: null
+                        notes: ""
+                        paid: false
+                        paymentInfo:
+                          paymentTerms: "Net 14"
+                          paymentDays: 14
+                        economic:
+                          sum: 750.00
+                          costPrice: 600.00
+                          vat: 150.00
+                          currency: "DKK"
+                          currencyRate: 1.0
+                        accountNumber: "1001"
+                        reference: "user456"
+                        status: 0
+                        orderNo: 2025002
     post:
       tags:
         - Debitor Orders
@@ -88,25 +165,122 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateOrderRequest'
+            examples:
+              basic_debitor_order:
+                summary: Basic Debitor Order
+                description: Create a debitor order with minimal required fields
+                value:
+                  accountId: 201
+                  companyName: "ACME Corporation"
+                  phone: "+45 12345678"
+                  email: "contact@acme.com"
+                  vatRate: 25.0
+                  orderDate: "2025-06-20"
+                  sum: 1250.00
+                  costPrice: 1000.00
+                  vat: 250.00
+              detailed_debitor_order:
+                summary: Detailed Debitor Order
+                description: Create a debitor order with all available fields
+                value:
+                  accountId: 201
+                  companyName: "ACME Corporation"
+                  phone: "+45 12345678"
+                  email: "contact@acme.com"
+                  vatRate: 25.0
+                  address:
+                    addr1: "Main Street 123"
+                    addr2: "Suite 456"
+                    zipcode: "1234"
+                    city: "Copenhagen"
+                    country: "Denmark"
+                  delivery:
+                    name: "ACME Warehouse"
+                    addr1: "Industrial Road 789"
+                    addr2: "Building B"
+                    zipcode: "5678"
+                    city: "Aarhus"
+                    country: "Denmark"
+                  ean: "1234567890123"
+                  cvr: "12345678"
+                  orderDate: "2025-06-20"
+                  invoiceDate: "2025-06-21"
+                  notes: "Urgent delivery required"
+                  paid: false
+                  paymentInfo:
+                    paymentTerms: "Net 30"
+                    paymentDays: 30
+                  economic:
+                    sum: 1250.00
+                    costPrice: 1000.00
+                    vat: 250.00
+                    currency: "DKK"
+                    currencyRate: 1.0
+                  accountNumber: "1000"
+                  reference: "user123"
+                  status: 0
+                  orderNo: 2025001
       responses:
         '201':
           description: Order created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Debitor order created successfully"
+                  data:
+                    $ref: '#/components/schemas/OrderResponse'
+              examples:
+                created_order:
+                  summary: Created Debitor Order
+                  value:
+                    success: true
+                    message: "Debitor order created successfully"
+                    data:
+                      id: 1001
+                      accountId: 201
+                      companyName: "ACME Corporation"
+                      phone: "+45 12345678"
+                      email: "contact@acme.com"
+                      vatRate: 25.0
+                      address:
+                        addr1: "Main Street 123"
+                        addr2: "Suite 456"
+                        zipcode: "1234"
+                        city: "Copenhagen"
+                        country: "Denmark"
+                      delivery:
+                        name: "ACME Warehouse"
+                        addr1: "Industrial Road 789"
+                        addr2: "Building B"
+                        zipcode: "5678"
+                        city: "Aarhus"
+                        country: "Denmark"
+                      ean: "1234567890123"
+                      cvr: "12345678"
+                      orderDate: "2025-06-20"
+                      invoiceDate: "2025-06-21"
+                      notes: "Urgent delivery required"
+                      paid: false
+                      paymentInfo:
+                        paymentTerms: "Net 30"
+                        paymentDays: 30
+                      economic:
+                        sum: 1250.00
+                        costPrice: 1000.00
+                        vat: 250.00
+                        currency: "DKK"
+                        currencyRate: 1.0
+                      accountNumber: "1000"
+                      reference: "user123"
+                      status: 0
+                      orderNo: 2025001
 
   /debitor/orders/{id}:
     get:
@@ -128,7 +302,57 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OrderResponse'
+              examples:
+                single_order:
+                  summary: Single Debitor Order
+                  value:
+                    success: true
+                    data:
+                      id: 1001
+                      accountId: 201
+                      companyName: "ACME Corporation"
+                      phone: "+45 12345678"
+                      email: "contact@acme.com"
+                      vatRate: 25.0
+                      address:
+                        addr1: "Main Street 123"
+                        addr2: "Suite 456"
+                        zipcode: "1234"
+                        city: "Copenhagen"
+                        country: "Denmark"
+                      delivery:
+                        name: "ACME Warehouse"
+                        addr1: "Industrial Road 789"
+                        addr2: "Building B"
+                        zipcode: "5678"
+                        city: "Aarhus"
+                        country: "Denmark"
+                      ean: "1234567890123"
+                      cvr: "12345678"
+                      orderDate: "2025-06-20"
+                      invoiceDate: "2025-06-21"
+                      notes: "Urgent delivery required"
+                      paid: false
+                      paymentInfo:
+                        paymentTerms: "Net 30"
+                        paymentDays: 30
+                      economic:
+                        sum: 1250.00
+                        costPrice: 1000.00
+                        vat: 250.00
+                        currency: "DKK"
+                        currencyRate: 1.0
+                      accountNumber: "1000"
+                      reference: "user123"
+                      status: 0
+                      orderNo: 2025001
         '401':
           description: Authentication failed
           content:
@@ -185,12 +409,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrderListResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                all_creditor_orders:
+                  summary: All Creditor Orders
+                  description: Get all creditor orders with English field names
+                  value:
+                    success: true
+                    data:
+                      - id: 2001
+                        accountId: 301
+                        companyName: "Supplier ABC"
+                        phone: "+45 11223344"
+                        email: "orders@supplierabc.com"
+                        vatRate: 25.0
+                        address:
+                          addr1: "Supplier Street 789"
+                          addr2: ""
+                          zipcode: "3456"
+                          city: "Copenhagen"
+                          country: "Denmark"
+                        delivery:
+                          name: "Our Warehouse"
+                          addr1: "Warehouse Road 123"
+                          addr2: "Gate A"
+                          zipcode: "1234"
+                          city: "Copenhagen"
+                          country: "Denmark"
+                        ean: ""
+                        cvr: "11223344"
+                        orderDate: "2025-06-18"
+                        invoiceDate: null
+                        notes: "Standard delivery"
+                        paid: false
+                        paymentInfo:
+                          paymentTerms: "Net 30"
+                          paymentDays: 30
+                        economic:
+                          sum: 2500.00
+                          costPrice: 2000.00
+                          vat: 500.00
+                          currency: "DKK"
+                          currencyRate: 1.0
+                        accountNumber: "4000"
+                        reference: "buyer123"
+                        status: 0
+                        orderNo: 2025050
     post:
       tags:
         - Creditor Orders
@@ -205,13 +468,122 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateOrderRequest'
+            examples:
+              basic_creditor_order:
+                summary: Basic Creditor Order
+                description: Create a creditor order with minimal required fields
+                value:
+                  accountId: 301
+                  companyName: "Supplier ABC"
+                  phone: "+45 11223344"
+                  email: "orders@supplierabc.com"
+                  vatRate: 25.0
+                  orderDate: "2025-06-18"
+                  sum: 2500.00
+                  costPrice: 2000.00
+                  vat: 500.00
+              detailed_creditor_order:
+                summary: Detailed Creditor Order
+                description: Create a creditor order with all available fields
+                value:
+                  accountId: 301
+                  companyName: "Supplier ABC"
+                  phone: "+45 11223344"
+                  email: "orders@supplierabc.com"
+                  vatRate: 25.0
+                  address:
+                    addr1: "Supplier Street 789"
+                    addr2: ""
+                    zipcode: "3456"
+                    city: "Copenhagen"
+                    country: "Denmark"
+                  delivery:
+                    name: "Our Warehouse"
+                    addr1: "Warehouse Road 123"
+                    addr2: "Gate A"
+                    zipcode: "1234"
+                    city: "Copenhagen"
+                    country: "Denmark"
+                  ean: ""
+                  cvr: "11223344"
+                  orderDate: "2025-06-18"
+                  invoiceDate: null
+                  notes: "Standard delivery"
+                  paid: false
+                  paymentInfo:
+                    paymentTerms: "Net 30"
+                    paymentDays: 30
+                  economic:
+                    sum: 2500.00
+                    costPrice: 2000.00
+                    vat: 500.00
+                    currency: "DKK"
+                    currencyRate: 1.0
+                  accountNumber: "4000"
+                  reference: "buyer123"
+                  status: 0
+                  orderNo: 2025050
       responses:
         '201':
           description: Order created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Creditor order created successfully"
+                  data:
+                    $ref: '#/components/schemas/OrderResponse'
+              examples:
+                created_order:
+                  summary: Created Creditor Order
+                  value:
+                    success: true
+                    message: "Creditor order created successfully"
+                    data:
+                      id: 2001
+                      accountId: 301
+                      companyName: "Supplier ABC"
+                      phone: "+45 11223344"
+                      email: "orders@supplierabc.com"
+                      vatRate: 25.0
+                      address:
+                        addr1: "Supplier Street 789"
+                        addr2: ""
+                        zipcode: "3456"
+                        city: "Copenhagen"
+                        country: "Denmark"
+                      delivery:
+                        name: "Our Warehouse"
+                        addr1: "Warehouse Road 123"
+                        addr2: "Gate A"
+                        zipcode: "1234"
+                        city: "Copenhagen"
+                        country: "Denmark"
+                      ean: ""
+                      cvr: "11223344"
+                      orderDate: "2025-06-18"
+                      invoiceDate: null
+                      notes: "Standard delivery"
+                      paid: false
+                      paymentInfo:
+                        paymentTerms: "Net 30"
+                        paymentDays: 30
+                      economic:
+                        sum: 2500.00
+                        costPrice: 2000.00
+                        vat: 500.00
+                        currency: "DKK"
+                        currencyRate: 1.0
+                      accountNumber: "4000"
+                      reference: "buyer123"
+                      status: 0
+                      orderNo: 2025050
         '401':
           description: Authentication failed
           content:
@@ -239,7 +611,57 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OrderResponse'
+              examples:
+                single_creditor_order:
+                  summary: Single Creditor Order
+                  value:
+                    success: true
+                    data:
+                      id: 2001
+                      accountId: 301
+                      companyName: "Supplier ABC"
+                      phone: "+45 11223344"
+                      email: "orders@supplierabc.com"
+                      vatRate: 25.0
+                      address:
+                        addr1: "Supplier Street 789"
+                        addr2: ""
+                        zipcode: "3456"
+                        city: "Copenhagen"
+                        country: "Denmark"
+                      delivery:
+                        name: "Our Warehouse"
+                        addr1: "Warehouse Road 123"
+                        addr2: "Gate A"
+                        zipcode: "1234"
+                        city: "Copenhagen"
+                        country: "Denmark"
+                      ean: ""
+                      cvr: "11223344"
+                      orderDate: "2025-06-18"
+                      invoiceDate: null
+                      notes: "Standard delivery"
+                      paid: false
+                      paymentInfo:
+                        paymentTerms: "Net 30"
+                        paymentDays: 30
+                      economic:
+                        sum: 2500.00
+                        costPrice: 2000.00
+                        vat: 500.00
+                        currency: "DKK"
+                        currencyRate: 1.0
+                      accountNumber: "4000"
+                      reference: "buyer123"
+                      status: 0
+                      orderNo: 2025050
         '401':
           description: Authentication failed
           content:
@@ -3163,40 +3585,146 @@ components:
       properties:
         id:
           type: integer
+          description: Order ID
           example: 1001
-        ordrenr:
+        accountId:
           type: integer
-          example: 2025001
-        firmanavn:
+          description: Account ID
+          example: 201
+        companyName:
           type: string
+          description: Company name
           example: "ACME Corporation"
-        telefon:
+        phone:
           type: string
+          description: Phone number
           example: "+45 12345678"
         email:
           type: string
+          description: Email address
           example: "contact@acme.com"
-        momssats:
+        vatRate:
           type: number
           format: float
+          description: VAT rate
           example: 25.0
-        sum:
-          type: number
-          format: float
-          example: 1250.00
-        status:
-          type: integer
-          example: 0
-        ordredate:
+        address:
+          type: object
+          description: Billing address
+          properties:
+            addr1:
+              type: string
+              example: "Main Street 123"
+            addr2:
+              type: string
+              example: "Suite 456"
+            zipcode:
+              type: string
+              example: "1234"
+            city:
+              type: string
+              example: "Copenhagen"
+            country:
+              type: string
+              example: "Denmark"
+        delivery:
+          type: object
+          description: Delivery address
+          properties:
+            name:
+              type: string
+              example: "ACME Warehouse"
+            addr1:
+              type: string
+              example: "Industrial Road 789"
+            addr2:
+              type: string
+              example: "Building B"
+            zipcode:
+              type: string
+              example: "5678"
+            city:
+              type: string
+              example: "Aarhus"
+            country:
+              type: string
+              example: "Denmark"
+        ean:
+          type: string
+          description: EAN number
+          example: "1234567890123"
+        cvr:
+          type: string
+          description: CVR number
+          example: "12345678"
+        orderDate:
           type: string
           format: date
+          description: Order date
           example: "2025-06-20"
-        valuta:
+        invoiceDate:
           type: string
-          example: "DKK"
-        ref:
+          format: date
+          nullable: true
+          description: Invoice date
+          example: "2025-06-21"
+        notes:
           type: string
+          description: Order notes
+          example: "Urgent delivery required"
+        paid:
+          type: boolean
+          description: Payment status
+          example: false
+        paymentInfo:
+          type: object
+          description: Payment information
+          properties:
+            paymentTerms:
+              type: string
+              example: "Net 30"
+            paymentDays:
+              type: integer
+              example: 30
+        economic:
+          type: object
+          description: Economic information
+          properties:
+            sum:
+              type: number
+              format: float
+              example: 1250.00
+            costPrice:
+              type: number
+              format: float
+              example: 1000.00
+            vat:
+              type: number
+              format: float
+              example: 250.00
+            currency:
+              type: string
+              example: "DKK"
+            currencyRate:
+              type: number
+              format: float
+              example: 1.0
+        accountNumber:
+          type: string
+          description: Account number
+          example: "1000"
+        reference:
+          type: string
+          description: Reference/user
           example: "user123"
+        status:
+          type: integer
+          description: Order status
+          example: 0
+        orderNo:
+          type: integer
+          description: Order number
+          example: 2025001
 
     OrderListResponse:
       type: object
