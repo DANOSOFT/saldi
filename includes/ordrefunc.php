@@ -4987,17 +4987,16 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		if (!strstr($returside, "ordre.php")) {
 			print "<td width='10%'><a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				. findtekst(30, $sprog_id) . "</button></a></td>";
+				. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 		} else {
 			print "<td width='10%'><a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				. findtekst(30, $sprog_id) . "</button></a></td>";
+				. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
-		print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Hjælp  
-		</button></td>";
+		print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+		print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+		print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 		print "<td width='10%'>
 			   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>
 			   <button type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(39, $sprog_id) . "</button></a></td>";

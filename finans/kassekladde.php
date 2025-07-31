@@ -2787,27 +2787,28 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 	$steps = array();
 	$steps[] = array(
 		"selector" => "#clip",
-		"content" => "Her kan du tilføje bilag til kladden.",
+		"content" => findtekst('2600|Her kan du tilføje bilag til kladden', $sprog_id).".",
 	);
 	$steps[] = array(
 		"selector" => "#undo",
-		"content" => "Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde.",
+		"content" => findtekst('2601|"Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde', $sprog_id).".",
 	);
 	$steps[] = array(
 		"selector" => "#questionmark",
-		"content" => "Klik her for yderligere hjælp.",
+		"content" => findtekst('2602|Klik her for yderligere hjælp', $sprog_id).".",
 	);
 	$steps[] = array(
 		"selector" => "[name^=debe], [name^=kred]",
-		"content" => "Du kan slå op i Debet/Kredit-felterne: Hvis D/K-feltet er tomt eller indeholder 'F', søger systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søges der i henholdsvis kunder eller leverandører. Du kan også selv skrive 'D' eller 'K' for at vælge, hvor der skal søges. Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.",
+		"content" => findtekst('2603|Du kan slå op i Debet/Kredit-felterne: Hvis D/K-feltet er tomt eller indeholder \'F\', søger systemet i kontoplanen. Hvis feltet viser \'D\' (debitor) eller \'K\' (kreditor), søges der i henholdsvis kunder eller leverandører.', $sprog_id) ."<br>".
+					 findtekst('2604|Du kan også selv skrive \'D\' eller \'K\' for at vælge, hvor der skal søges. Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.', $sprog_id),
 	);
 	$steps[] = array(
 		"selector" => "[name^=fakt]",
-		"content" => "Her kan du tilføje et fakturanummer til bilaget. Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen 'Opslag' i bunden, mens feltet er markeret.",
+		"content" => findtekst('2605|Her kan du tilføje et fakturanummer til bilaget. Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen \'Opslag\' i bunden, mens feltet er markeret', $sprog_id),
 	);
 	$steps[] = array(
 		"selector" => "[name=bila1]",
-		"content" => "Du kan slette linjen ved at skrive '-' i feltet i stedet for et tal og trykke Enter.",
+		"content" => findtekst('2606|Du kan slette linjen ved at skrive \'-\' i feltet i stedet for et tal og trykke Enter', $sprog_id).".",
 	);
 
 	

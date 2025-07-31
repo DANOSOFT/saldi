@@ -611,7 +611,7 @@
 611	Systemdata	System data	Systemdata
 612	Kontoplan	Chart of Accounts	Kontooversikt
 613	Indstillinger	Settings	Innstillinger
-614	Sikkerhedskopi	Backup	Sikkerhetskopiering
+614	Backup	Backup	Backup
 615	Ved at afmærke her får du op til 14 ekstra felter på egne ansattes stamkort	Checking this field enables up to 14 additional fields on the master cards of your own employees	Ved å merke av her får du opptil 14 ekstra felt på ansattes stamkort
 616	Tilføj ekstra felter på ansatte	Add extra fields on employees	Legg til ekstra felt på ansatte
 617	Kørekort Ja/nej	Driving license Yes / no	Førerkort Ja / nei
@@ -2595,15 +2595,15 @@
 2595	Regnskab	Ledger	Regnskap
 2596	Posteringen er tilbageført på kladde	The entry has been reversed in journal	Posteringen er ført tilbake i utkast
 2597	Der skal først oprettes en kassekladde som posteringen kan tilbageføres til	A journal must first be created for the entry to be reversed to	Det må først opprettes en kontantjournal som posteringen kan føres tilbake til
-2598	
-2599	
-2600	
-2601	
-2602	
-2603	
-2604	
-2605	
-2606	
+2598	Forrige	Previous	Forrige
+2599	Færdig	Done	Ferdig
+2600	Her kan du tilføje bilag til kladden	Here you can add attachments to the draft	Her kan du legge til bilag i kladden
+2601	Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde	Click here to reverse this entry as a reclassification in an open cash journal	Klikk her for å tilbakeføre denne posteringen som en ompostering i en åpen kassekladde
+2602	Klik her for yderligere hjælp	Click here for further help	Klikk her for ytterligere hjelp
+2603	Du kan slå op i Debet/Kredit-felterne:<br>Hvis D/K-feltet er tomt eller indeholder 'F', søger systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søges der i henholdsvis kunder eller leverandører.	You can look up values in the Debit/Credit fields:<br>If the D/K field is empty or contains an 'F', the system searches in the chart of accounts.<br>If the field shows 'D' (debtor) or 'K' (creditor), the system searches in customers or suppliers, respectively.	Du kan slå opp i Debet/Kredit-feltene: Hvis D/K-feltet er tomt eller inneholder 'F', søker systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søker systemet henholdsvis i kunder eller leverandører.
+2604	Du kan også selv skrive 'D' eller 'K' for at vælge, hvor der skal søges.<br>Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.	You can also manually enter 'D' or 'K' to choose where the search should be performed.<br>As you begin typing a name or account number, only relevant suggestions will be shown.	Du kan også selv skrive inn 'D' eller 'K' for å velge hvor det skal søkes.<br>Når du begynner å skrive inn et navn eller kontonummer, vises kun relevante forslag.
+2605	Her kan du tilføje et fakturanummer til bilaget.<br>Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen 'Opslag' i bunden, mens feltet er markeret.	Here you can add an invoice number to the entry.<br>You can also look up open (unsettled) invoices by clicking the ‘Lookup’ button at the bottom while the field is selected.	Her kan du legge til et fakturanummer på bilaget.<br>Du kan også slå opp i ikke-utlignede fakturaer ved å klikke på knappen ‘Oppslag’ nederst mens feltet er markert.
+2606	Du kan slette linjen ved at skrive '-' i feltet i stedet for et tal og trykke Enter	You can delete the line by typing '-' in the field instead of a number and pressing Enter	Du kan slette linjen ved å skrive '-' i feltet i stedet for et tall og trykke Enter
 2607	
 2608	
 2609	

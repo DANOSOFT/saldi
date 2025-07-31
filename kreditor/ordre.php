@@ -1623,13 +1623,12 @@ if ($menu=='T') {
 		  else print "<td width=\"10%\">$color
 					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>
 					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-					  .findtekst(30, $sprog_id)."</button></a></td>";
+					  .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
 	print "<td width=\"80%\" align='center' style='$topStyle'>$color$tekst</td>";
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>
-	<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-		Hjælp  
-	</button></td>";
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
 		print "<td width=\"10%\">$color
 			   <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>

@@ -62,10 +62,10 @@ if ($jobkort) print "<td width = '100px' align=center>
 
 print "</tbody></table></td>\n";
 
-print "<td id='tutorial-help' width=5% style='$buttonStyle'>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Hjælp  
-		</button></td>";
+print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
+
 print "<td width=5% style='$buttonStyle'><a accesskey=V href=debitorvisning.php?valg=$valg>
 		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 	. findtekst(813, $sprog_id) . "</button></a></td>\n";
