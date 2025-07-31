@@ -2610,6 +2610,388 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  # VAT Management
+  /vat/:
+    get:
+      tags:
+        - VAT
+      summary: Get all VAT items
+      description: |
+        Get all VAT items with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        
+        **English Field Names:**
+        - `description` - VAT description
+        - `vatCode` - VAT code
+        - `number` - VAT number
+        - `fiscalYear` - Fiscal year
+        - `account` - Account ID
+        - `rate` - VAT rate percentage
+        - `contraAccount` - Contra account ID
+        - `mapping` - Mapping information
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+            default: number
+            enum: [id, number, description, vatCode, fiscalYear, rate]
+          description: Field to order by
+          example: "number"
+        - name: orderDirection
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+          description: Sort direction
+        - name: field
+          in: query
+          schema:
+            type: string
+            enum: [id, number, description, vatCode, fiscalYear, rate]
+          description: Field to filter by
+          example: "description"
+        - name: value
+          in: query
+          schema:
+            type: string
+          description: Value to filter by
+          example: "Standard VAT"
+        - name: vatcode
+          in: query
+          schema:
+            type: string
+          description: VAT code to search for
+          example: "A25"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+            minimum: 1
+          description: Maximum number of VAT items to return
+          example: 20
+      responses:
+        '200':
+          description: List of VAT items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VatListResponse'
+              examples:
+                all_vat_items:
+                  summary: All VAT Items
+                  description: Get all VAT items with basic information
+                  value:
+                    success: true
+                    data:
+                      - id: 1
+                        description: "Standard VAT 25%"
+                        vatCode: "A"
+                        number: 25
+                        fiscalYear: 2025
+                        account: 1520
+                        rate: 25.0
+                        contraAccount: 0
+                        mapping: ""
+                      - id: 2
+                        description: "Reduced VAT 5%"
+                        vatCode: "B"
+                        number: 5
+                        fiscalYear: 2025
+                        account: 1521
+                        rate: 5.0
+                        contraAccount: 0
+                        mapping: ""
+                filtered_by_vatcode:
+                  summary: Filtered by VAT Code
+                  description: Get VAT items filtered by VAT code
+                  value:
+                    success: true
+                    data:
+                      - id: 1
+                        description: "Standard VAT 25%"
+                        vatCode: "A"
+                        number: 25
+                        fiscalYear: 2025
+                        account: 1520
+                        rate: 25.0
+                        contraAccount: 0
+                        mapping: ""
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - VAT
+      summary: Create a new VAT item
+      description: |
+        Create a new VAT item using English field names. The API accepts both English and Danish field names for backward compatibility.
+        
+        **Example Request:**
+        ```json
+        {
+          "description": "Standard VAT 25%",
+          "vatCode": "A",
+          "number": 25,
+          "account": 1520,
+          "rate": 25.0,
+          "contraAccount": 0,
+          "mapping": ""
+        }
+        ```
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVatRequest'
+            examples:
+              basic_vat:
+                summary: Basic VAT Item
+                description: Create a VAT item with minimal required fields
+                value:
+                  description: "Standard VAT 25%"
+                  vatCode: "A"
+                  number: 25
+              detailed_vat:
+                summary: Detailed VAT Item
+                description: Create a VAT item with all available fields
+                value:
+                  description: "Standard VAT 25%"
+                  vatCode: "A"
+                  number: 25
+                  account: 1520
+                  rate: 25.0
+                  contraAccount: 0
+                  mapping: "EU-VAT"
+      responses:
+        '201':
+          description: VAT item created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "VAT item created successfully"
+                  data:
+                    $ref: '#/components/schemas/VatResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_required_fields:
+                  summary: Missing Required Fields
+                  value:
+                    success: false
+                    message: "VAT code, number, and description are required"
+                    data: null
+                duplicate_vat_code:
+                  summary: Duplicate VAT Code
+                  value:
+                    success: false
+                    message: "VAT item with code 'A25' already exists"
+                    data: null
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /vat/{id}:
+    get:
+      tags:
+        - VAT
+      summary: Get a specific VAT item
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: VAT item ID
+          example: 1
+      responses:
+        '200':
+          description: VAT item details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/VatResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: VAT item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - VAT
+      summary: Update a VAT item
+      description: |
+        Update an existing VAT item using English field names.
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: VAT item ID
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVatRequest'
+            examples:
+              update_description:
+                summary: Update Description
+                value:
+                  id: 1
+                  description: "Updated Standard VAT 25%"
+              update_rate:
+                summary: Update Rate
+                value:
+                  id: 1
+                  rate: 27.0
+              update_all:
+                summary: Update All Fields
+                value:
+                  id: 1
+                  description: "Standard VAT 25%"
+                  vatCode: "A"
+                  number: 25
+                  account: 1520
+                  rate: 25.0
+                  contraAccount: 0
+                  mapping: "Updated mapping"
+      responses:
+        '200':
+          description: VAT item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "VAT item updated successfully"
+                  data:
+                    $ref: '#/components/schemas/VatResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: VAT item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - VAT
+      summary: Delete a VAT item
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: VAT item ID
+          example: 1
+      responses:
+        '200':
+          description: VAT item deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "VAT item deleted successfully"
+        '400':
+          description: Bad request - VAT item may be referenced by other records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                vat_in_use:
+                  summary: VAT Item In Use
+                  value:
+                    success: false
+                    message: "Cannot delete VAT item as it is referenced by existing transactions"
+                    data: null
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: VAT item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:
@@ -3582,6 +3964,161 @@ components:
         message:
           type: string
           example: "Warehouses retrieved successfully"
+          
+# VAT Schemas
+    CreateVatRequest:
+      type: object
+      required:
+        - description
+        - vatCode
+        - number
+      properties:
+        description:
+          type: string
+          description: VAT description
+          example: "Standard VAT 25%"
+          minLength: 1
+          maxLength: 255
+        vatCode:
+          type: string
+          description: VAT code (single letter)
+          example: "A"
+          pattern: "^[A-Z]$"
+        number:
+          type: integer
+          description: VAT number/rate identifier
+          example: 25
+          minimum: 0
+          maximum: 100
+        account:
+          type: integer
+          description: Associated account ID
+          example: 1520
+          minimum: 0
+        rate:
+          type: number
+          format: float
+          description: VAT rate percentage
+          example: 25.0
+          minimum: 0
+          maximum: 100
+        contraAccount:
+          type: integer
+          description: Contra account ID
+          example: 0
+          minimum: 0
+        mapping:
+          type: string
+          description: Mapping information
+          example: ""
+          maxLength: 255
+
+    UpdateVatRequest:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: VAT item ID
+          example: 1
+          minimum: 1
+        description:
+          type: string
+          description: VAT description
+          example: "Standard VAT 25%"
+          minLength: 1
+          maxLength: 255
+        vatCode:
+          type: string
+          description: VAT code (single letter)
+          example: "A"
+          pattern: "^[A-Z]$"
+        number:
+          type: integer
+          description: VAT number/rate identifier
+          example: 25
+          minimum: 0
+          maximum: 100
+        account:
+          type: integer
+          description: Associated account ID
+          example: 1520
+          minimum: 0
+        rate:
+          type: number
+          format: float
+          description: VAT rate percentage
+          example: 25.0
+          minimum: 0
+          maximum: 100
+        contraAccount:
+          type: integer
+          description: Contra account ID
+          example: 0
+          minimum: 0
+        mapping:
+          type: string
+          description: Mapping information
+          example: ""
+          maxLength: 255
+
+    VatResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: VAT item ID
+          example: 1
+        description:
+          type: string
+          description: VAT description
+          example: "Standard VAT 25%"
+        vatCode:
+          type: string
+          description: VAT code
+          example: "A"
+        number:
+          type: integer
+          description: VAT number/rate identifier
+          example: 25
+        fiscalYear:
+          type: integer
+          description: Fiscal year
+          example: 2025
+        account:
+          type: integer
+          description: Associated account ID
+          example: 1520
+        rate:
+          type: number
+          format: float
+          description: VAT rate percentage
+          example: 25.0
+        contraAccount:
+          type: integer
+          description: Contra account ID
+          example: 0
+        mapping:
+          type: string
+          description: Mapping information
+          example: ""
+
+    VatListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/VatResponse'
+          description: Array of VAT objects
+        message:
+          type: string
+          example: "VAT items retrieved successfully"
+
         # Inventory Status Schemas
     CreateInventoryStatusRequest:
       type: object
