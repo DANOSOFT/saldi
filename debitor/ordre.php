@@ -4612,11 +4612,14 @@ print "<tr class='ordrelinje' data-line-id='$x'>\n";
 print "<td style='width:30px; background:#f9f9f9;'></td>"; // Empty cell for input row
 print "<td valign='top'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='posn0' value='$posnr[0]'></td>\n";
 if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"readonly\" size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
-else  print "<td valign = 'top'><input class = 'inputbox' type = 'text' size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"".$varenr[0]."\"></td>\n";
-print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px\" name=\"dkan0\" placeholder=\"$antal[0]\"></td>\n";
-print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee\" readonly=\"readonly\" size=\"4px\"></td>\n";
+else  
+print "<td valign = 'top'>";
+
+// <input class = 'inputbox' type = 'text' size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"".$varenr[0]."\"></td>\n";
+// print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px\" name=\"dkan0\" placeholder=\"$antal[0]\"></td>\n";
+// print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee\" readonly=\"readonly\" size=\"4px\"></td>\n";
         if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"readonly\" size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
-        else  print "<td valign = 'top'><input class = 'inputbox' type = 'text' size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"".$varenr[0]."\"></td>\n"; #20180305
+        else  print "<td valign = 'top'><input class = 'inputbox' style=\"padding:2px;\" type = 'text' size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"".$varenr[0]."\"></td>\n"; #20180305
         print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px\" name=\"dkan0\" placeholder=\"$antal[0]\"></td>\n";
         print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee\" readonly=\"readonly\" size=\"4px\"></td>\n"; #enhed0
         //print "<td valign = 'top'><input class = 'inputbox' type = 'text' size=\"58\" name=\"beskrivelse0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
@@ -5508,219 +5511,10 @@ if ($menu=='T') {
 
 
 
-<style>
-.drag-handle {
-    cursor: move !important;
-    user-select: none;
-    color: #666;
-    font-weight: bold;
-    padding: 8px 4px;
-    text-align: center !important;
-    vertical-align: middle !important;
-    width: 30px !important;
-    min-width: 30px !important;
-    max-width: 30px !important;
-    border-right: 1px solid #ddd;
-}
-
-.drag-handle:hover {
-    background-color: #e9e9e9 !important;
-    color: #333;
-}
-
-.dataTableForm {
-    table-layout: fixed;
-    width: 100%;
-}
-
-.dataTableForm td:first-child {
-    width: 30px !important;
-}
-
-.dataTableForm td:nth-child(2) {
-    width: 60px !important;
-    text-align: center;
-}
-
-.dataTableForm input[name^="posn"] {
-    text-align: right !important;
-    width: 50px !important;
-}
-
-.sortable-ghost {
-    opacity: 0.4;
-}
-
-.sortable-chosen {
-    background-color: #f0f0f0;
-}
-
-.dragging {
-    opacity: 0.5;
-}
-
-.success-message {
-    background-color: #d4edda;
-    color: #155724;
-    padding: 10px;
-    border: 1px solid #c3e6cb;
-    border-radius: 4px;
-    margin: 10px 0;
-}
-
-.error-message {
-    background-color: #f8d7da;
-    color: #721c24;
-    padding: 10px;
-    border: 1px solid #f5c6cb;
-    border-radius: 4px;
-    margin: 10px 0;
-}
-
-.info-message {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    padding: 10px;
-    border: 1px solid #bee5eb;
-    border-radius: 4px;
-    margin: 10px 0;
-}
-</style>
-
+<link rel="stylesheet" href="orderIncludes/ordre_dragdrop.css">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    console.log('=== DRAG AND DROP INITIALIZATION ===');
+<script src="orderIncludes/ordre_dragdrop.js"></script>
 
-    let orderTableBody = null;
-    document.querySelectorAll('table').forEach(table => {
-        const candidate = table.querySelector('tbody');
-        if (candidate && candidate.querySelector('tr.ordrelinje')) {
-            orderTableBody = candidate;
-        }
-    });
-
-    if (!orderTableBody) {
-        console.error('No table with .ordrelinje rows found!');
-        showMessage(' Table with order lines not found!', 'error');
-        return;
-    }
-
-    console.log('Found order table body:', orderTableBody);
-
-    const ordreIdInput = document.querySelector('input[name="id"]');
-    const ordreId = ordreIdInput ? ordreIdInput.value : null;
-    console.log('Current ordre_id detected:', ordreId);
-
-    const sortable = new Sortable(orderTableBody, {
-        handle: '.drag-handle',
-        draggable: '.ordrelinje',
-        ghostClass: 'sortable-ghost',
-        chosenClass: 'sortable-chosen',
-        animation: 150,
-
-        onStart(evt) {
-            evt.item.classList.add('dragging');
-            console.log('=== DRAG STARTED ===');
-        },
-
-        onEnd(evt) {
-            evt.item.classList.remove('dragging');
-            console.log('=== DRAG ENDED ===');
-            updatePositionNumbers();
-            const success = submitOrderForm();
-            if (success) {
-                showMessage('Order updated and saved.', 'success');
-            } else {
-                showMessage('Drag updated, but form save failed.', 'error');
-            }
-
-            if (typeof docChange !== 'undefined') {
-                docChange = true;
-            }
-        }
-    });
-
-    function updatePositionNumbers() {
-        const orderRows = orderTableBody.querySelectorAll('tr.ordrelinje');
-        console.log('=== UPDATING POSITION NUMBERS for ordre_id:', ordreId, '===');
-
-        let step = 100;
-        if (orderRows.length > 1) {
-            const firstVal = parseInt(orderRows[0].querySelector('input[name^="posn"]:not([name="posn0"])')?.value || '0', 10);
-            const secondVal = parseInt(orderRows[1].querySelector('input[name^="posn"]:not([name="posn0"])')?.value || '0', 10);
-            const detectedStep = secondVal - firstVal;
-            if (detectedStep > 0) step = detectedStep;
-        }
-
-        console.log('ℹ Step size used:', step);
-
-        orderRows.forEach((row, index) => {
-            const posInput = row.querySelector('input[name^="posn"]:not([name="posn0"])');
-            if (posInput) {
-                const newPos = (index + 1) * step;
-                posInput.value = newPos;
-                console.log(`Row ${index + 1} → posnr=${newPos}`);
-            } else {
-                console.warn(`Row ${index + 1} missing pos input`);
-            }
-        });
-    }
-
-    function submitOrderForm() {
-        const form = document.querySelector('form[name="ordre"]');
-        if (!form) {
-            console.error('Could not find form[name="ordre"]');
-            return false;
-        }
-
-        const saveBtn = form.querySelector('input[type="submit"][id="submit"][name="save"]');
-        if (saveBtn) {
-            console.log(' Clicking Saldi save button');
-            saveBtn.click();
-            return true;
-        } else {
-            console.warn(' Save button not found, fallback to native submit');
-            try {
-                HTMLFormElement.prototype.submit.call(form);
-                return true;
-            } catch (err) {
-                console.error(' Submit failed:', err);
-                return false;
-            }
-        }
-    }
-
-    // ✅ Show a message (info, success, or error)
-    function showMessage(msg, type) {
-        // Remove old messages
-        document.querySelectorAll('.success-message,.error-message,.info-message').forEach(el => el.remove());
-
-        const div = document.createElement('div');
-        div.textContent = msg;
-        div.className = type === 'success' ? 'success-message'
-                      : type === 'error' ? 'error-message'
-                      : 'info-message';
-        div.style.padding = '8px';
-        div.style.margin = '10px 0';
-        div.style.borderRadius = '5px';
-        div.style.color = '#fff';
-        div.style.fontWeight = 'bold';
-        div.style.backgroundColor =
-            type === 'success' ? 'green' :
-            type === 'error' ? 'crimson' :
-            '#0066cc';
-
-        const form = document.querySelector('form[name="ordre"]');
-        if (form) {
-            form.insertBefore(div, form.firstChild);
-            if (type !== 'error') {
-                setTimeout(() => div.remove(), 4000);
-            }
-        }
-    }
-});
-</script>
 
 
 
