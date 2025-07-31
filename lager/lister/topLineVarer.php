@@ -112,11 +112,10 @@
 		$icon $valg 
 		</button></td>";*/
 
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-		 	$help_icon
-			Hjælp  
-		</button></td>";
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print $help_icon;
+	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	if ($valg=="Vareliste") {
 		print "<td id='create-new' width=5% style=$buttonStyle>
 			<a href=../varekort.php accesskey='L'>

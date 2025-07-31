@@ -747,14 +747,13 @@ if ($menu == 'T') {
 	print "<td width='10%'>
 		   <a href=\"$returside\" accesskey=L>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst(30, $sprog_id) . "</button></a></td>\n";
+		. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
 	print "<td width='80%' style='$topStyle' align='center'>" . findtekst(356, $sprog_id) . "</td>\n";
 
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Hjælp  
-		</button></td>";
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 
 	print "<td width='10%'>
 		   <a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>

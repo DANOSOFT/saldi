@@ -241,10 +241,9 @@ if ($menu == 'T') {
 		print "</td>";
 	}
 	print "</tbody></table></td>";
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Hjælp  
-		</button></td>";
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	print "<td width=10% style='$buttonStyle'><a href=ordre.php?returside=ordreliste.php>
 		   <button style='$buttonStyle; width: 100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td>";
 	print "</tbody></table>";
