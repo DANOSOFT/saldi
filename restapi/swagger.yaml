@@ -644,10 +644,57 @@ paths:
       tags:
         - Products
       summary: Get all products
+      description: |
+        Get all products with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        
+        **English Field Names:**
+        - `sku` - Product SKU/number
+        - `barcode` - Product barcode
+        - `description` - Product description
+        - `salesPrice` - Sales price
+        - `costPrice` - Cost price
+        - `group` - Product group ID
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
         - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+            default: id
+            enum: [id, sku, description, salesPrice, costPrice, group]
+          description: Field to order by
+          example: "sku"
+        - name: orderDirection
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+          description: Sort direction
+        - name: field
+          in: query
+          schema:
+            type: string
+            enum: [id, sku, barcode, description, salesPrice, costPrice, group]
+          description: Field to filter by
+          example: "description"
+        - name: value
+          in: query
+          schema:
+            type: string
+          description: Value to filter by
+          example: "Premium"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+            minimum: 1
+          description: Maximum number of products to return
+          example: 20
       responses:
         '200':
           description: List of products
@@ -655,6 +702,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductListResponse'
+              examples:
+                all_products:
+                  summary: All Products
+                  description: Get all products with basic information
+                  value:
+                    success: true
+                    data:
+                      - id: 301
+                        sku: "PROD001"
+                        barcode: "1234567890123"
+                        description: "Premium Product"
+                        salesPrice: 250.00
+                        costPrice: 200.00
+                        group: 1
+                      - id: 302
+                        sku: "PROD002"
+                        barcode: "1234567890124"
+                        description: "Standard Product"
+                        salesPrice: 150.00
+                        costPrice: 120.00
+                        group: 1
+                filtered_products:
+                  summary: Filtered Products
+                  description: Get products filtered by description
+                  value:
+                    success: true
+                    data:
+                      - id: 301
+                        sku: "PROD001"
+                        barcode: "1234567890123"
+                        description: "Premium Product"
+                        salesPrice: 250.00
+                        costPrice: 200.00
+                        group: 1
         '401':
           description: Authentication failed
           content:
@@ -665,6 +746,24 @@ paths:
       tags:
         - Products
       summary: Create a new product
+      description: |
+        Create a new product using English field names. The API accepts both English and Danish field names for backward compatibility.
+        
+        **Example Request:**
+        ```json
+        {
+          "sku": "PROD001",
+          "barcode": "1234567890123",
+          "description": "Premium Product",
+          "salesPrice": 250.00,
+          "costPrice": 200.00,
+          "unit": "pcs",
+          "group": 1,
+          "minInventory": 10.0,
+          "maxInventory": 100.0,
+          "location": "A1-01"
+        }
+        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -675,13 +774,72 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateProductRequest'
+            examples:
+              basic_product:
+                summary: Basic Product
+                description: Create a product with minimal required fields
+                value:
+                  sku: "PROD001"
+                  description: "Basic Product"
+                  salesPrice: 100.00
+              detailed_product:
+                summary: Detailed Product
+                description: Create a product with all available fields
+                value:
+                  sku: "PROD001"
+                  barcode: "1234567890123"
+                  description: "Premium Product with full specifications"
+                  unit: "pcs"
+                  unit2: "box"
+                  salesPrice: 250.00
+                  costPrice: 200.00
+                  notes: "High quality premium product"
+                  minInventory: 10.0
+                  maxInventory: 100.0
+                  location: "A1-01"
+                  group: 1
+                  netweight: 1.2
+                  netweightunit: "kg"
+                  grossweight: 1.5
+                  grossweightunit: "kg"
+                  length: 15.8
+                  width: 10.5
+                  height: 5.2
       responses:
         '201':
           description: Product created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product created successfully"
+                  data:
+                    $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_sku:
+                  summary: Missing SKU
+                  value:
+                    success: false
+                    message: "SKU is required"
+                    data: null
+                duplicate_sku:
+                  summary: Duplicate SKU
+                  value:
+                    success: false
+                    message: "Product with SKU 'PROD001' already exists."
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -703,15 +861,29 @@ paths:
           required: true
           schema:
             type: integer
+          description: Product ID
+          example: 301
       responses:
         '200':
           description: Product details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductResponse'
         '401':
           description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
           content:
             application/json:
               schema:
@@ -720,6 +892,8 @@ paths:
       tags:
         - Products
       summary: Update a product
+      description: |
+        Update an existing product using English field names.
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -729,17 +903,70 @@ paths:
           required: true
           schema:
             type: integer
+          description: Product ID
+          example: 301
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateProductRequest'
+            examples:
+              update_price:
+                summary: Update Price
+                value:
+                  id: 301
+                  salesPrice: 275.00
+                  costPrice: 220.00
+              update_description:
+                summary: Update Description
+                value:
+                  id: 301
+                  description: "Updated Premium Product"
+                  notes: "Updated product information"
+              update_all:
+                summary: Update All Fields
+                value:
+                  id: 301
+                  sku: "PROD001"
+                  barcode: "1234567890123"
+                  description: "Updated Premium Product"
+                  salesPrice: 275.00
+                  costPrice: 220.00
+                  unit: "pcs"
+                  group: 2
+                  minInventory: 15.0
+                  maxInventory: 150.0
       responses:
         '200':
           description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product updated successfully"
+                  data:
+                    $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
           content:
             application/json:
               schema:
@@ -757,16 +984,40 @@ paths:
           required: true
           schema:
             type: integer
+          description: Product ID
+          example: 301
       responses:
         '200':
           description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product deleted successfully"
         '401':
           description: Authentication failed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-# Add these paths to the existing paths section
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot delete - product is referenced by other records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # Inventory - Warehouses
   /inventory/warehouses/:
@@ -1040,6 +1291,15 @@ paths:
       tags:
         - Inventory
       summary: Get inventory status
+      description: |
+        Get inventory status records with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        
+        **English Field Names:**
+        - `inventory` - Warehouse/inventory number
+        - `productId` - Product ID
+        - `quantity` - Stock quantity
+        - `location` - Primary location within warehouse
+        - `variantId` - Product variant ID
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1049,32 +1309,76 @@ paths:
           schema:
             type: string
             default: id
+            enum: [id, inventory, productId, quantity, location, variantId]
+          description: Field to order by
         - name: orderDirection
           in: query
           schema:
             type: string
             enum: [ASC, DESC]
             default: ASC
+          description: Sort direction
         - name: field
           in: query
           schema:
             type: string
+            enum: [id, inventory, productId, quantity, location, variantId]
+          description: Field to filter by
+          example: "productId"
         - name: value
           in: query
           schema:
             type: string
-        - name: lager_nr
+          description: Value to filter by
+          example: "301"
+        - name: inventoryNr
           in: query
           schema:
-            type: string
-          description: Warehouse number to filter by
+            type: integer
+          description: Warehouse/inventory number to filter by
+          example: 1
       responses:
         '200':
-          description: List of inventory status
+          description: List of inventory status records
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/InventoryStatusListResponse'
+              examples:
+                all_inventory:
+                  summary: All Inventory Status
+                  description: Get all inventory status records
+                  value:
+                    success: true
+                    data:
+                      - id: 1
+                        inventory: 1
+                        productId: 301
+                        quantity: 100.0
+                        location: "A1-01"
+                        location2: ""
+                        location3: ""
+                        location4: ""
+                        location5: ""
+                        variantId: 0
+                warehouse_inventory:
+                  summary: Warehouse Specific Inventory
+                  description: Get inventory for a specific warehouse
+                  value:
+                    success: true
+                    data:
+                      - id: 1
+                        inventory: 1
+                        productId: 301
+                        quantity: 50.0
+                        location: "A1-01"
+                        variantId: 0
+                      - id: 2
+                        inventory: 1
+                        productId: 302
+                        quantity: 25.0
+                        location: "A1-02"
+                        variantId: 0
         '401':
           description: Authentication failed
           content:
@@ -1085,6 +1389,19 @@ paths:
       tags:
         - Inventory
       summary: Create new inventory status
+      description: |
+        Create a new inventory status record using English field names. The API accepts both English and Danish field names for backward compatibility.
+        
+        **Example Request:**
+        ```json
+        {
+          "inventory": 1,
+          "productId": 301,
+          "quantity": 100.0,
+          "location": "A1-01",
+          "variantId": 0
+        }
+        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1095,19 +1412,59 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateInventoryStatusRequest'
+            examples:
+              basic_inventory:
+                summary: Basic Inventory Status
+                description: Create an inventory status with required fields only
+                value:
+                  inventory: 1
+                  productId: 301
+                  quantity: 100.0
+              detailed_inventory:
+                summary: Detailed Inventory Status
+                description: Create an inventory status with all available fields
+                value:
+                  inventory: 1
+                  productId: 301
+                  quantity: 100.0
+                  location: "A1-01"
+                  location2: "B1-02"
+                  variantId: 1
       responses:
         '201':
           description: Inventory status created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryStatusResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Inventory status created successfully"
+                  data:
+                    $ref: '#/components/schemas/InventoryStatusResponse'
         '400':
-          description: Bad request
+          description: Bad request - validation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_fields:
+                  summary: Missing Required Fields
+                  value:
+                    success: false
+                    message: "Inventory, productId, and quantity are required fields."
+                    data: null
+                duplicate_record:
+                  summary: Duplicate Record
+                  value:
+                    success: false
+                    message: "Record with vare_id and lager already exists."
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -1129,13 +1486,21 @@ paths:
           required: true
           schema:
             type: integer
+          description: Inventory status ID
+          example: 1
       responses:
         '200':
           description: Inventory status details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryStatusResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/InventoryStatusResponse'
         '401':
           description: Authentication failed
           content:
@@ -1152,6 +1517,8 @@ paths:
       tags:
         - Inventory
       summary: Update inventory status
+      description: |
+        Update an existing inventory status record using English field names.
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1161,19 +1528,57 @@ paths:
           required: true
           schema:
             type: integer
+          description: Inventory status ID
+          example: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateInventoryStatusRequest'
+            examples:
+              update_quantity:
+                summary: Update Quantity
+                value:
+                  id: 1
+                  quantity: 150.0
+              update_location:
+                summary: Update Location
+                value:
+                  id: 1
+                  location: "B2-01"
+                  location2: "B2-02"
+              update_all:
+                summary: Update All Fields
+                value:
+                  id: 1
+                  inventory: 1
+                  productId: 301
+                  quantity: 200.0
+                  location: "C3-01"
+                  variantId: 2
       responses:
         '200':
           description: Inventory status updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryStatusResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Inventory status updated successfully"
+                  data:
+                    $ref: '#/components/schemas/InventoryStatusResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication failed
           content:
@@ -1190,6 +1595,33 @@ paths:
       tags:
         - Inventory
       summary: Adjust inventory quantities
+      description: |
+        Adjust inventory quantities using specific actions. Supports both adding/subtracting amounts and setting absolute quantities.
+        
+        **Actions:**
+        - `adjust_quantity`: Add or subtract an amount from current quantity
+        - `set_quantity`: Set the quantity to a specific value
+        
+        **Examples:**
+        ```json
+        // Add 10 to current quantity
+        {
+          "action": "adjust_quantity",
+          "amount": 10.0
+        }
+        
+        // Subtract 5 from current quantity
+        {
+          "action": "adjust_quantity",
+          "amount": -5.0
+        }
+        
+        // Set quantity to exactly 50
+        {
+          "action": "set_quantity",
+          "quantity": 50.0
+        }
+        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1199,25 +1631,68 @@ paths:
           required: true
           schema:
             type: integer
+          description: Inventory status ID
+          example: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/InventoryAdjustmentRequest'
+            examples:
+              add_stock:
+                summary: Add Stock
+                description: Add 25 units to current inventory
+                value:
+                  action: "adjust_quantity"
+                  amount: 25.0
+              remove_stock:
+                summary: Remove Stock  
+                description: Remove 10 units from current inventory
+                value:
+                  action: "adjust_quantity"
+                  amount: -10.0
+              set_stock:
+                summary: Set Absolute Stock
+                description: Set inventory to exactly 100 units
+                value:
+                  action: "set_quantity"
+                  quantity: 100.0
       responses:
         '200':
           description: Inventory quantity adjusted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryStatusResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Inventory quantity adjusted successfully"
+                  data:
+                    $ref: '#/components/schemas/InventoryStatusResponse'
         '400':
-          description: Bad request
+          description: Bad request - invalid action or missing parameters
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_action:
+                  summary: Invalid Action
+                  value:
+                    success: false
+                    message: "Invalid action specified"
+                    data: null
+                missing_parameter:
+                  summary: Missing Parameter
+                  value:
+                    success: false
+                    message: "Action parameter required for PATCH requests"
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -1237,6 +1712,18 @@ paths:
       tags:
         - Product Groups
       summary: Get all product groups
+      description: |
+        Get all product groups with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        
+        **English Field Names:**
+        - `codeNo` - Group code number
+        - `description` - Group description
+        - `fiscalYear` - Fiscal year
+        - `reversePayment` - Reverse charge flag
+        - `taxFree` - VAT exempt flag
+        - `inventory` - Inventory tracked flag
+        - `batch` - Batch tracking flag
+        - `operation` - Operation flag
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1245,21 +1732,30 @@ paths:
           in: query
           schema:
             type: string
-            default: kodenr
+            default: codeNo
+            enum: [id, codeNo, description, fiscalYear]
+          description: Field to order by
+          example: "codeNo"
         - name: orderDirection
           in: query
           schema:
             type: string
             enum: [ASC, DESC]
             default: ASC
+          description: Sort direction
         - name: field
           in: query
           schema:
             type: string
+            enum: [id, codeNo, description, fiscalYear]
+          description: Field to filter by
+          example: "description"
         - name: value
           in: query
           schema:
             type: string
+          description: Value to filter by
+          example: "Electronics"
       responses:
         '200':
           description: List of product groups
@@ -1267,6 +1763,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductGroupListResponse'
+              examples:
+                all_groups:
+                  summary: All Product Groups
+                  description: Get all product groups with basic information
+                  value:
+                    success: true
+                    data:
+                      - id: 1
+                        codeNo: 1
+                        description: "Electronics"
+                        fiscalYear: 2025
+                        reversePayment: false
+                        taxFree: false
+                        inventory: true
+                        batch: false
+                        operation: false
+                        accounts:
+                          buyAccount: 
+                            id: 1
+                            kontonr: "4000"
+                            beskrivelse: "Purchase Account"
+                          sellAccount:
+                            id: 2
+                            kontonr: "1000"
+                            beskrivelse: "Sales Account"
+                          buyEuAccount: null
+                          sellEuAccount: null
+                          buyOutsideEuAccount: null
+                          sellOutsideEuAccount: null
+                      - id: 2
+                        codeNo: 2
+                        description: "Office Supplies"
+                        fiscalYear: 2025
+                        reversePayment: false
+                        taxFree: false
+                        inventory: true
+                        batch: false
+                        operation: false
         '401':
           description: Authentication failed
           content:
@@ -1277,6 +1811,25 @@ paths:
       tags:
         - Product Groups
       summary: Create a new product group
+      description: |
+        Create a new product group using English field names. The API accepts both English and Danish field names for backward compatibility.
+        
+        **Example Request:**
+        ```json
+        {
+          "codeNo": 1,
+          "description": "Electronics",
+          "reversePayment": false,
+          "taxFree": false,
+          "inventory": true,
+          "batch": false,
+          "operation": false,
+          "buyAccount": "4000",
+          "sellAccount": "1000",
+          "buyEuAccount": "4010",
+          "sellEuAccount": "1010"
+        }
+        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1287,19 +1840,71 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateProductGroupRequest'
+            examples:
+              basic_group:
+                summary: Basic Product Group
+                description: Create a product group with minimal required fields
+                value:
+                  codeNo: 1
+                  description: "Electronics"
+              detailed_group:
+                summary: Detailed Product Group
+                description: Create a product group with all available fields
+                value:
+                  codeNo: 1
+                  description: "Electronics & Components"
+                  reversePayment: false
+                  taxFree: false
+                  inventory: true
+                  batch: false
+                  operation: false
+                  buyAccount: "4000"
+                  sellAccount: "1000"
+                  buyEuAccount: "4010"
+                  sellEuAccount: "1010"
+                  buyOutsideEuAccount: "4020"
+                  sellOutsideEuAccount: "1020"
       responses:
         '201':
           description: Product group created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductGroupResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product group created successfully"
+                  data:
+                    $ref: '#/components/schemas/ProductGroupResponse'
         '400':
-          description: Bad request
+          description: Bad request - validation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_codeno:
+                  summary: Missing Code Number
+                  value:
+                    success: false
+                    message: "Code number is required"
+                    data: null
+                missing_description:
+                  summary: Missing Description
+                  value:
+                    success: false
+                    message: "Description is required"
+                    data: null
+                duplicate_codeno:
+                  summary: Duplicate Code Number
+                  value:
+                    success: false
+                    message: "Product group with code number '1' already exists"
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -1307,7 +1912,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /inventory/groups/{id}:
+  /products/groups/{id}:
     get:
       tags:
         - Product Groups
@@ -1321,13 +1926,21 @@ paths:
           required: true
           schema:
             type: integer
+          description: Product group ID
+          example: 1
       responses:
         '200':
           description: Product group details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductGroupResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProductGroupResponse'
         '401':
           description: Authentication failed
           content:
@@ -1344,6 +1957,8 @@ paths:
       tags:
         - Product Groups
       summary: Update a product group
+      description: |
+        Update an existing product group using English field names.
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1353,19 +1968,66 @@ paths:
           required: true
           schema:
             type: integer
+          description: Product group ID
+          example: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateProductGroupRequest'
+            examples:
+              update_description:
+                summary: Update Description
+                value:
+                  id: 1
+                  description: "Updated Electronics"
+              update_accounts:
+                summary: Update Accounts
+                value:
+                  id: 1
+                  description: "Electronics & Components"
+                  buyAccount: "4005"
+                  sellAccount: "1005"
+              update_all:
+                summary: Update All Fields
+                value:
+                  id: 1
+                  codeNo: 1
+                  description: "Electronics & Components"
+                  reversePayment: false
+                  taxFree: false
+                  inventory: true
+                  batch: true
+                  operation: false
+                  buyAccount: "4000"
+                  sellAccount: "1000"
+                  buyEuAccount: "4010"
+                  sellEuAccount: "1010"
+                  buyOutsideEuAccount: "4020"
+                  sellOutsideEuAccount: "1020"
       responses:
         '200':
           description: Product group updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductGroupResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product group updated successfully"
+                  data:
+                    $ref: '#/components/schemas/ProductGroupResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication failed
           content:
@@ -1378,175 +2040,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-                # VAT Management
-  /vat/:
-    get:
-      tags:
-        - VAT
-      summary: Get all VAT items
-      parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
-        - name: orderBy
-          in: query
-          schema:
-            type: string
-            default: kodenr
-        - name: orderDirection
-          in: query
-          schema:
-            type: string
-            enum: [ASC, DESC]
-            default: ASC
-        - name: field
-          in: query
-          schema:
-            type: string
-        - name: value
-          in: query
-          schema:
-            type: string
-        - name: vatcode
-          in: query
-          schema:
-            type: string
-          description: VAT code to filter by
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-            maximum: 200
-            minimum: 1
-      responses:
-        '200':
-          description: List of VAT items
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VatListResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    post:
-      tags:
-        - VAT
-      summary: Create a new VAT item
-      parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateVatRequest'
-      responses:
-        '201':
-          description: VAT item created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VatResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /vat/{id}:
-    get:
-      tags:
-        - VAT
-      summary: Get a specific VAT item
-      parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: VAT item details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VatResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: VAT item not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    put:
-      tags:
-        - VAT
-      summary: Update a VAT item
-      parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateVatRequest'
-      responses:
-        '200':
-          description: VAT item updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VatResponse'
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: VAT item not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
-        - VAT
-      summary: Delete a VAT item
+        - Product Groups
+      summary: Delete a product group
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1556,15 +2053,35 @@ paths:
           required: true
           schema:
             type: integer
+          description: Product group ID
+          example: 1
       responses:
         '200':
-          description: VAT item deleted successfully
+          description: Product group deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Product group deleted successfully"
         '400':
-          description: Bad request
+          description: Bad request - group may be referenced by products
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                group_in_use:
+                  summary: Group In Use
+                  value:
+                    success: false
+                    message: "Cannot delete product group as it is referenced by existing products"
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -1572,7 +2089,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: VAT item not found
+          description: Product group not found
           content:
             application/json:
               schema:
@@ -2390,93 +2907,381 @@ components:
     CreateProductRequest:
       type: object
       required:
-        - varenr
+        - sku
       properties:
-        varenr:
+        sku:
           type: string
-          description: Product number
+          description: Product SKU/number
           example: "PROD001"
-        stregkode:
+          minLength: 1
+          maxLength: 50
+        barcode:
           type: string
-          description: Barcode
+          description: Product barcode
           example: "1234567890123"
-        beskrivelse:
+          maxLength: 50
+        description:
           type: string
-          description: Description
+          description: Product description
           example: "Premium Product"
-        salgspris:
+          maxLength: 255
+        unit:
+          type: string
+          description: Primary unit of measure
+          example: "pcs"
+          maxLength: 10
+        unit2:
+          type: string
+          description: Secondary unit of measure
+          example: "box"
+          maxLength: 10
+        salesPrice:
           type: number
           format: float
           description: Sales price
           example: 250.00
-        kostpris:
+          minimum: 0
+        costPrice:
           type: number
           format: float
           description: Cost price
           example: 200.00
-        size:
-          type: object
-          properties:
-            width:
-              type: number
-              format: float
-              example: 10.5
-            height:
-              type: number
-              format: float
-              example: 5.2
-            length:
-              type: number
-              format: float
-              example: 15.8
-            netWeight:
-              type: number
-              format: float
-              example: 1.2
-            grossWeight:
-              type: number
-              format: float
-              example: 1.5
+          minimum: 0
+        notes:
+          type: string
+          description: Product notes
+          example: "High quality product"
+          maxLength: 500
+        serialNumber:
+          type: string
+          description: Serial number
+          example: "SN123456"
+          maxLength: 50
+        collectionOfItems:
+          type: string
+          description: Collection of items flag
+          example: "N"
+          enum: ["Y", "N"]
+        partialItem:
+          type: string
+          description: Partial item flag
+          example: "N"
+          enum: ["Y", "N"]
+        minInventory:
+          type: number
+          format: float
+          description: Minimum inventory level
+          example: 10.0
+          minimum: 0
+        maxInventory:
+          type: number
+          format: float
+          description: Maximum inventory level
+          example: 100.0
+          minimum: 0
+        location:
+          type: string
+          description: Default storage location
+          example: "A1-01"
+          maxLength: 20
+        group:
+          type: integer
+          description: Product group ID
+          example: 1
+          minimum: 0
+        netweight:
+          type: number
+          format: float
+          description: Net weight
+          example: 1.2
+          minimum: 0
+        netweightunit:
+          type: string
+          description: Net weight unit
+          example: "kg"
+          maxLength: 10
+        grossweight:
+          type: number
+          format: float
+          description: Gross weight
+          example: 1.5
+          minimum: 0
+        grossweightunit:
+          type: string
+          description: Gross weight unit
+          example: "kg"
+          maxLength: 10
+        length:
+          type: number
+          format: float
+          description: Product length
+          example: 15.8
+          minimum: 0
+        width:
+          type: number
+          format: float
+          description: Product width
+          example: 10.5
+          minimum: 0
+        height:
+          type: number
+          format: float
+          description: Product height
+          example: 5.2
+          minimum: 0
+        colli_webfreight:
+          type: number
+          format: float
+          description: Web freight colli value
+          example: 0.0
+          minimum: 0
 
     UpdateProductRequest:
-      allOf:
-        - $ref: '#/components/schemas/CreateProductRequest'
-        - type: object
-          required:
-            - id
-          properties:
-            id:
-              type: integer
-              description: Product ID
-              example: 301
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: Product ID
+          example: 301
+          minimum: 1
+        sku:
+          type: string
+          description: Product SKU/number
+          example: "PROD001"
+          minLength: 1
+          maxLength: 50
+        barcode:
+          type: string
+          description: Product barcode
+          example: "1234567890123"
+          maxLength: 50
+        description:
+          type: string
+          description: Product description
+          example: "Premium Product"
+          maxLength: 255
+        unit:
+          type: string
+          description: Primary unit of measure
+          example: "pcs"
+          maxLength: 10
+        unit2:
+          type: string
+          description: Secondary unit of measure
+          example: "box"
+          maxLength: 10
+        salesPrice:
+          type: number
+          format: float
+          description: Sales price
+          example: 250.00
+          minimum: 0
+        costPrice:
+          type: number
+          format: float
+          description: Cost price
+          example: 200.00
+          minimum: 0
+        notes:
+          type: string
+          description: Product notes
+          example: "High quality product"
+          maxLength: 500
+        serialNumber:
+          type: string
+          description: Serial number
+          example: "SN123456"
+          maxLength: 50
+        collectionOfItems:
+          type: string
+          description: Collection of items flag
+          example: "N"
+          enum: ["Y", "N"]
+        partialItem:
+          type: string
+          description: Partial item flag
+          example: "N"
+          enum: ["Y", "N"]
+        minInventory:
+          type: number
+          format: float
+          description: Minimum inventory level
+          example: 10.0
+          minimum: 0
+        maxInventory:
+          type: number
+          format: float
+          description: Maximum inventory level
+          example: 100.0
+          minimum: 0
+        location:
+          type: string
+          description: Default storage location
+          example: "A1-01"
+          maxLength: 20
+        group:
+          type: integer
+          description: Product group ID
+          example: 1
+          minimum: 0
+        netweight:
+          type: number
+          format: float
+          description: Net weight
+          example: 1.2
+          minimum: 0
+        netweightunit:
+          type: string
+          description: Net weight unit
+          example: "kg"
+          maxLength: 10
+        grossweight:
+          type: number
+          format: float
+          description: Gross weight
+          example: 1.5
+          minimum: 0
+        grossweightunit:
+          type: string
+          description: Gross weight unit
+          example: "kg"
+          maxLength: 10
+        length:
+          type: number
+          format: float
+          description: Product length
+          example: 15.8
+          minimum: 0
+        width:
+          type: number
+          format: float
+          description: Product width
+          example: 10.5
+          minimum: 0
+        height:
+          type: number
+          format: float
+          description: Product height
+          example: 5.2
+          minimum: 0
+        colli_webfreight:
+          type: number
+          format: float
+          description: Web freight colli value
+          example: 0.0
+          minimum: 0
 
     ProductResponse:
       type: object
       properties:
         id:
           type: integer
+          description: Product ID
           example: 301
-        varenr:
+        sku:
           type: string
+          description: Product SKU/number
           example: "PROD001"
-        stregkode:
+        barcode:
           type: string
+          description: Product barcode
           example: "1234567890123"
-        beskrivelse:
+        description:
           type: string
+          description: Product description
           example: "Premium Product"
-        salgspris:
-          type: number
-          format: float
-          example: 250.00
-        kostpris:
-          type: number
-          format: float
-          example: 200.00
-        modtime:
+        unit:
           type: string
-          format: date-time
-          example: "2025-06-20T10:30:00Z"
+          description: Primary unit of measure
+          example: "pcs"
+        unit2:
+          type: string
+          description: Secondary unit of measure
+          example: "box"
+        salesPrice:
+          type: number
+          format: float
+          description: Sales price
+          example: 250.00
+        costPrice:
+          type: number
+          format: float
+          description: Cost price
+          example: 200.00
+        notes:
+          type: string
+          description: Product notes
+          example: "High quality product"
+        serialNumber:
+          type: string
+          description: Serial number
+          example: "SN123456"
+        collectionOfItems:
+          type: string
+          description: Collection of items flag
+          example: "N"
+        partialItem:
+          type: string
+          description: Partial item flag
+          example: "N"
+        minInventory:
+          type: number
+          format: float
+          description: Minimum inventory level
+          example: 10.0
+        maxInventory:
+          type: number
+          format: float
+          description: Maximum inventory level
+          example: 100.0
+        location:
+          type: string
+          description: Default storage location
+          example: "A1-01"
+        group:
+          type: integer
+          description: Product group ID
+          example: 1
+        netweight:
+          type: number
+          format: float
+          description: Net weight
+          example: 1.2
+        netweightunit:
+          type: string
+          description: Net weight unit
+          example: "kg"
+        grossweight:
+          type: number
+          format: float
+          description: Gross weight
+          example: 1.5
+        grossweightunit:
+          type: string
+          description: Gross weight unit
+          example: "kg"
+        length:
+          type: number
+          format: float
+          description: Product length
+          example: 15.8
+        width:
+          type: number
+          format: float
+          description: Product width
+          example: 10.5
+        height:
+          type: number
+          format: float
+          description: Product height
+          example: 5.2
+        colli_webfreight:
+          type: number
+          format: float
+          description: Web freight colli value
+          example: 0.0
 
     ProductListResponse:
       type: object
@@ -2488,6 +3293,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductResponse'
+          description: Array of product objects
+        message:
+          type: string
+          example: "Products retrieved successfully"
 
     # Warehouse Schemas
     CreateWarehouseRequest:
@@ -2602,45 +3411,98 @@ components:
         message:
           type: string
           example: "Warehouses retrieved successfully"
-    # Inventory Status Schemas
+        # Inventory Status Schemas
     CreateInventoryStatusRequest:
       type: object
       required:
-        - lager
-        - vare_id
-        - beholdning
+        - inventory
+        - productId
+        - quantity
       properties:
-        lager:
-          type: string
-          description: Warehouse identifier
-          example: "001"
-        vare_id:
+        inventory:
+          type: integer
+          description: Warehouse/inventory number
+          example: 1
+        productId:
           type: integer
           description: Product ID
           example: 301
-        beholdning:
+        quantity:
           type: number
           format: float
           description: Stock quantity
           example: 100.0
-        lok:
+        location:
           type: string
-          description: Location within warehouse
+          description: Primary location within warehouse
           example: "A1-01"
-        variant_id:
+        location2:
+          type: string
+          description: Secondary location
+          example: "B1-02"
+        location3:
+          type: string
+          description: Third location
+          example: "C1-03"
+        location4:
+          type: string
+          description: Fourth location
+          example: "D1-04"
+        location5:
+          type: string
+          description: Fifth location
+          example: "E1-05"
+        variantId:
           type: integer
           description: Product variant ID
           example: 1
 
     UpdateInventoryStatusRequest:
-      allOf:
-        - $ref: '#/components/schemas/CreateInventoryStatusRequest'
-        - type: object
-          properties:
-            id:
-              type: integer
-              description: Inventory status ID
-              example: 1
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: Inventory status ID
+          example: 1
+        inventory:
+          type: integer
+          description: Warehouse/inventory number
+          example: 1
+        productId:
+          type: integer
+          description: Product ID
+          example: 301
+        quantity:
+          type: number
+          format: float
+          description: Stock quantity
+          example: 100.0
+        location:
+          type: string
+          description: Primary location within warehouse
+          example: "A1-01"
+        location2:
+          type: string
+          description: Secondary location
+          example: "B1-02"
+        location3:
+          type: string
+          description: Third location
+          example: "C1-03"
+        location4:
+          type: string
+          description: Fourth location
+          example: "D1-04"
+        location5:
+          type: string
+          description: Fifth location
+          example: "E1-05"
+        variantId:
+          type: integer
+          description: Product variant ID
+          example: 1
 
     InventoryAdjustmentRequest:
       type: object
@@ -2655,12 +3517,12 @@ components:
         amount:
           type: number
           format: float
-          description: Amount to adjust (for adjust_quantity)
+          description: Amount to adjust (for adjust_quantity) - can be positive or negative
           example: 10.0
         quantity:
           type: number
           format: float
-          description: New quantity (for set_quantity)
+          description: New quantity to set (for set_quantity)
           example: 50.0
 
     InventoryStatusResponse:
@@ -2668,22 +3530,44 @@ components:
       properties:
         id:
           type: integer
+          description: Inventory status ID
           example: 1
-        lager:
-          type: string
-          example: "001"
-        vare_id:
+        inventory:
           type: integer
+          description: Warehouse/inventory number
+          example: 1
+        productId:
+          type: integer
+          description: Product ID
           example: 301
-        beholdning:
+        quantity:
           type: number
           format: float
+          description: Current stock quantity
           example: 100.0
-        lok:
+        location:
           type: string
+          description: Primary location within warehouse
           example: "A1-01"
-        variant_id:
+        location2:
+          type: string
+          description: Secondary location
+          example: "B1-02"
+        location3:
+          type: string
+          description: Third location
+          example: "C1-03"
+        location4:
+          type: string
+          description: Fourth location
+          example: "D1-04"
+        location5:
+          type: string
+          description: Fifth location
+          example: "E1-05"
+        variantId:
           type: integer
+          description: Product variant ID
           example: 1
 
     InventoryStatusListResponse:
@@ -2696,117 +3580,276 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/InventoryStatusResponse'
+          description: Array of inventory status objects
 
     # Product Group Schemas
     CreateProductGroupRequest:
       type: object
       required:
-        - kodenr
-        - beskrivelse
+        - codeNo
+        - description
       properties:
-        kodenr:
-          type: string
-          description: Group code
-          example: "ELEC"
-        beskrivelse:
+        codeNo:
+          type: integer
+          description: Group code number
+          example: 1
+          minimum: 1
+        description:
           type: string
           description: Group description
           example: "Electronics"
-        fiscal_year:
-          type: integer
-          description: Fiscal year
-          example: 2025
-        omv_bet:
+          minLength: 1
+          maxLength: 255
+        reversePayment:
           type: boolean
-          description: Reverse charge
+          description: Reverse charge flag
           example: false
-        moms_fri:
+        taxFree:
           type: boolean
-          description: VAT exempt
+          description: VAT exempt flag
           example: false
-        lager:
+        inventory:
           type: boolean
-          description: Inventory tracked
+          description: Inventory tracked flag
           example: true
         batch:
           type: boolean
-          description: Batch tracking
+          description: Batch tracking flag
           example: false
         operation:
           type: boolean
-          description: Operation
+          description: Operation flag
           example: false
-        buy_account:
+        buyAccount:
           type: string
-          description: Purchase account
+          description: Purchase account number
           example: "4000"
-        sell_account:
+          pattern: "^[0-9]+$"
+        sellAccount:
           type: string
-          description: Sales account
+          description: Sales account number
           example: "1000"
-        buy_eu_account:
+          pattern: "^[0-9]+$"
+        buyEuAccount:
           type: string
-          description: EU purchase account
+          description: EU purchase account number
           example: "4010"
-        sell_eu_account:
+          pattern: "^[0-9]+$"
+        sellEuAccount:
           type: string
-          description: EU sales account
+          description: EU sales account number
           example: "1010"
-        buy_outside_eu_account:
+          pattern: "^[0-9]+$"
+        buyOutsideEuAccount:
           type: string
-          description: Non-EU purchase account
+          description: Non-EU purchase account number
           example: "4020"
-        sell_outside_eu_account:
+          pattern: "^[0-9]+$"
+        sellOutsideEuAccount:
           type: string
-          description: Non-EU sales account
+          description: Non-EU sales account number
           example: "1020"
+          pattern: "^[0-9]+$"
 
     UpdateProductGroupRequest:
-      allOf:
-        - $ref: '#/components/schemas/CreateProductGroupRequest'
-        - type: object
-          properties:
-            id:
-              type: integer
-              description: Product group ID
-              example: 1
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: Product group ID
+          example: 1
+          minimum: 1
+        codeNo:
+          type: integer
+          description: Group code number
+          example: 1
+          minimum: 1
+        description:
+          type: string
+          description: Group description
+          example: "Electronics"
+          minLength: 1
+          maxLength: 255
+        reversePayment:
+          type: boolean
+          description: Reverse charge flag
+          example: false
+        taxFree:
+          type: boolean
+          description: VAT exempt flag
+          example: false
+        inventory:
+          type: boolean
+          description: Inventory tracked flag
+          example: true
+        batch:
+          type: boolean
+          description: Batch tracking flag
+          example: false
+        operation:
+          type: boolean
+          description: Operation flag
+          example: false
+        buyAccount:
+          type: string
+          description: Purchase account number
+          example: "4000"
+          pattern: "^[0-9]+$"
+        sellAccount:
+          type: string
+          description: Sales account number
+          example: "1000"
+          pattern: "^[0-9]+$"
+        buyEuAccount:
+          type: string
+          description: EU purchase account number
+          example: "4010"
+          pattern: "^[0-9]+$"
+        sellEuAccount:
+          type: string
+          description: EU sales account number
+          example: "1010"
+          pattern: "^[0-9]+$"
+        buyOutsideEuAccount:
+          type: string
+          description: Non-EU purchase account number
+          example: "4020"
+          pattern: "^[0-9]+$"
+        sellOutsideEuAccount:
+          type: string
+          description: Non-EU sales account number
+          example: "1020"
+          pattern: "^[0-9]+$"
 
     ProductGroupResponse:
       type: object
       properties:
         id:
           type: integer
+          description: Product group ID
           example: 1
-        kodenr:
-          type: string
-          example: "ELEC"
-        beskrivelse:
-          type: string
-          example: "Electronics"
-        fiscal_year:
+        codeNo:
           type: integer
+          description: Group code number
+          example: 1
+        description:
+          type: string
+          description: Group description
+          example: "Electronics"
+        fiscalYear:
+          type: integer
+          description: Fiscal year
           example: 2025
-        omv_bet:
+        reversePayment:
           type: boolean
+          description: Reverse charge flag
           example: false
-        moms_fri:
+        taxFree:
           type: boolean
+          description: VAT exempt flag
           example: false
-        lager:
+        inventory:
           type: boolean
+          description: Inventory tracked flag
           example: true
         batch:
           type: boolean
+          description: Batch tracking flag
           example: false
         operation:
           type: boolean
+          description: Operation flag
           example: false
-        buy_account:
-          type: string
-          example: "4000"
-        sell_account:
-          type: string
-          example: "1000"
+        accounts:
+          type: object
+          description: Associated account information
+          properties:
+            buyAccount:
+              type: object
+              nullable: true
+              description: Purchase account details
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                kontonr:
+                  type: string
+                  example: "4000"
+                beskrivelse:
+                  type: string
+                  example: "Purchase Account"
+            sellAccount:
+              type: object
+              nullable: true
+              description: Sales account details
+              properties:
+                id:
+                  type: integer
+                  example: 2
+                kontonr:
+                  type: string
+                  example: "1000"
+                beskrivelse:
+                  type: string
+                  example: "Sales Account"
+            buyEuAccount:
+              type: object
+              nullable: true
+              description: EU purchase account details
+              properties:
+                id:
+                  type: integer
+                  example: 3
+                kontonr:
+                  type: string
+                  example: "4010"
+                beskrivelse:
+                  type: string
+                  example: "EU Purchase Account"
+            sellEuAccount:
+              type: object
+              nullable: true
+              description: EU sales account details
+              properties:
+                id:
+                  type: integer
+                  example: 4
+                kontonr:
+                  type: string
+                  example: "1010"
+                beskrivelse:
+                  type: string
+                  example: "EU Sales Account"
+            buyOutsideEuAccount:
+              type: object
+              nullable: true
+              description: Non-EU purchase account details
+              properties:
+                id:
+                  type: integer
+                  example: 5
+                kontonr:
+                  type: string
+                  example: "4020"
+                beskrivelse:
+                  type: string
+                  example: "Non-EU Purchase Account"
+            sellOutsideEuAccount:
+              type: object
+              nullable: true
+              description: Non-EU sales account details
+              properties:
+                id:
+                  type: integer
+                  example: 6
+                kontonr:
+                  type: string
+                  example: "1020"
+                beskrivelse:
+                  type: string
+                  example: "Non-EU Sales Account"
 
     ProductGroupListResponse:
       type: object
@@ -2818,96 +3861,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductGroupResponse'
-            # VAT Schemas
-    CreateVatRequest:
-      type: object
-      required:
-        - momskode
-        - nr
-        - beskrivelse
-      properties:
-        momskode:
+          description: Array of product group objects
+        message:
           type: string
-          description: VAT code
-          example: "A"
-        nr:
-          type: string
-          description: VAT number
-          example: "25"
-        beskrivelse:
-          type: string
-          description: VAT description
-          example: "Standard VAT 25%"
-        account:
-          type: string
-          description: Account number
-          example: "2510"
-        sats:
-          type: number
-          format: float
-          description: VAT rate
-          example: 25.0
-        modkonto:
-          type: string
-          description: Contra account
-          example: "2520"
-        map:
-          type: string
-          description: Mapping
-          example: "1"
-
-    UpdateVatRequest:
-      allOf:
-        - $ref: '#/components/schemas/CreateVatRequest'
-        - type: object
-          properties:
-            id:
-              type: integer
-              description: VAT item ID
-              example: 1
-
-    VatResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1
-        momskode:
-          type: string
-          example: "A"
-        nr:
-          type: string
-          example: "25"
-        beskrivelse:
-          type: string
-          example: "Standard VAT 25%"
-        fiscal_year:
-          type: integer
-          example: 2025
-        account:
-          type: string
-          example: "2510"
-        sats:
-          type: number
-          format: float
-          example: 25.0
-        modkonto:
-          type: string
-          example: "2520"
-        map:
-          type: string
-          example: "1"
-
-    VatListResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/VatResponse'
+          example: "Product groups retrieved successfully"
 
     # Account Schemas
     CreateAccountRequest:
