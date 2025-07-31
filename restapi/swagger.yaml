@@ -774,6 +774,14 @@ paths:
       tags:
         - Inventory
       summary: Get all warehouses
+      description: |
+        Get all warehouses with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        
+        **English Field Names:**
+        - `description` - Warehouse description
+        - `number` - Warehouse number
+        - `fiscalYear` - Fiscal year
+        - `productId` - Product ID for inventory association
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -782,25 +790,43 @@ paths:
           in: query
           schema:
             type: string
-            default: kodenr
+            default: number
+            enum: [id, number, description, fiscalYear]
+          description: Field to order by
+          example: "number"
         - name: orderDirection
           in: query
           schema:
             type: string
             enum: [ASC, DESC]
             default: ASC
+          description: Sort direction
         - name: field
           in: query
           schema:
             type: string
+            enum: [id, number, description, fiscalYear]
+          description: Field to filter by
+          example: "description"
         - name: value
           in: query
           schema:
             type: string
-        - name: vare_id
+          description: Value to filter by
+          example: "Main Warehouse"
+        - name: productId
           in: query
           schema:
             type: integer
+          description: Product ID to associate with warehouse inventory
+          example: 301
+        - name: inventory
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Inventory number
+          example: 1
       responses:
         '200':
           description: List of warehouses
@@ -818,6 +844,17 @@ paths:
       tags:
         - Inventory
       summary: Create a new warehouse
+      description: |
+        Create a new warehouse using English field names. The API accepts both English and Danish field names for backward compatibility.
+        
+        **Example Request:**
+        ```json
+        {
+          "description": "Main Warehouse",
+          "number": "001",
+          "fiscalYear": 2025
+        }
+        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -828,19 +865,55 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateWarehouseRequest'
+            examples:
+              basic_warehouse:
+                summary: Basic Warehouse
+                description: Create a warehouse with required fields only
+                value:
+                  description: "Main Warehouse"
+                  number: "001"
+              detailed_warehouse:
+                summary: Detailed Warehouse
+                description: Create a warehouse with all available fields
+                value:
+                  description: "Main Distribution Center"
+                  number: "001"
+                  fiscalYear: 2025
       responses:
         '201':
           description: Warehouse created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WarehouseResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Warehouse created successfully"
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
         '400':
-          description: Bad request
+          description: Bad request - validation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_description:
+                  summary: Missing Description
+                  value:
+                    success: false
+                    message: "Missing required field: description"
+                    data: null
+                missing_number:
+                  summary: Missing Number
+                  value:
+                    success: false
+                    message: "Missing required field: number"
+                    data: null
         '401':
           description: Authentication failed
           content:
@@ -862,13 +935,21 @@ paths:
           required: true
           schema:
             type: integer
+          description: Warehouse ID
+          example: 1
       responses:
         '200':
           description: Warehouse details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WarehouseResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
         '401':
           description: Authentication failed
           content:
@@ -885,6 +966,8 @@ paths:
       tags:
         - Inventory
       summary: Update a warehouse
+      description: |
+        Update an existing warehouse using English field names.
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -894,19 +977,50 @@ paths:
           required: true
           schema:
             type: integer
+          description: Warehouse ID
+          example: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateWarehouseRequest'
+            examples:
+              update_description:
+                summary: Update Description
+                value:
+                  id: 1
+                  description: "Updated Main Warehouse"
+                  number: "001"
+              update_all:
+                summary: Update All Fields
+                value:
+                  id: 1
+                  description: "Central Distribution Hub"
+                  number: "001"
+                  fiscalYear: 2025
       responses:
         '200':
           description: Warehouse updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WarehouseResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Warehouse updated successfully"
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Authentication failed
           content:
@@ -2379,47 +2493,100 @@ components:
     CreateWarehouseRequest:
       type: object
       required:
-        - beskrivelse
-        - nr
+        - description
+        - number
       properties:
-        beskrivelse:
+        description:
           type: string
           description: Warehouse description
           example: "Main Warehouse"
-        nr:
+          minLength: 1
+          maxLength: 255
+        number:
           type: string
-          description: Warehouse number
+          description: Warehouse number/code
           example: "001"
-        fiscal_year:
+          pattern: "^[A-Za-z0-9_-]+$"
+        fiscalYear:
           type: integer
           description: Fiscal year
           example: 2025
+          minimum: 2000
+          maximum: 2100
 
     UpdateWarehouseRequest:
-      allOf:
-        - $ref: '#/components/schemas/CreateWarehouseRequest'
-        - type: object
-          properties:
-            id:
-              type: integer
-              description: Warehouse ID
-              example: 1
+      type: object
+      required:
+        - id
+        - description
+        - number
+      properties:
+        id:
+          type: integer
+          description: Warehouse ID
+          example: 1
+          minimum: 1
+        description:
+          type: string
+          description: Warehouse description
+          example: "Updated Main Warehouse"
+          minLength: 1
+          maxLength: 255
+        number:
+          type: string
+          description: Warehouse number/code
+          example: "001"
+          pattern: "^[A-Za-z0-9_-]+$"
+        fiscalYear:
+          type: integer
+          description: Fiscal year
+          example: 2025
+          minimum: 2000
+          maximum: 2100
 
     WarehouseResponse:
       type: object
       properties:
         id:
           type: integer
+          description: Warehouse ID
           example: 1
-        beskrivelse:
+        description:
           type: string
+          description: Warehouse description
           example: "Main Warehouse"
-        nr:
+        number:
           type: string
+          description: Warehouse number/code
           example: "001"
-        fiscal_year:
+        fiscalYear:
           type: integer
+          description: Fiscal year
           example: 2025
+        inventory:
+          type: object
+          nullable: true
+          description: Associated inventory status (when productId is provided)
+          properties:
+            id:
+              type: integer
+              example: 1
+            warehouseNumber:
+              type: string
+              example: "001"
+            productId:
+              type: integer
+              example: 301
+            quantity:
+              type: number
+              format: float
+              example: 100.0
+            location:
+              type: string
+              example: "A1-01"
+            variantId:
+              type: integer
+              example: 1
 
     WarehouseListResponse:
       type: object
@@ -2431,7 +2598,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WarehouseResponse'
-
+          description: Array of warehouse objects
+        message:
+          type: string
+          example: "Warehouses retrieved successfully"
     # Inventory Status Schemas
     CreateInventoryStatusRequest:
       type: object
