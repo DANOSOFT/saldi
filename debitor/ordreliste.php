@@ -444,16 +444,16 @@ else include_once 'ordLstIncludes/oldTopLine.php';
 $steps = array();
 $steps[] = array(
 	"selector" => "#ordrer",
-	"content" => "Her ser du en liste af alle dine ordrer."
+	"content" => findtekst('2610|Her ser du en liste af alle dine ordrer', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#ny",
-    "content" => "For at oprette en ny ordre, klik her."
+    "content" => findtekst('2611|For at oprette en ny ordre, klik her', $sprog_id)."."
 );
 
 $steps[] = array(
     "selector" => "#visning",
-    "content" => "For at ændre, hvad der vises i oversigten, klik her."
+    "content" => findtekst('2612|For at ændre, hvad der vises i oversigten, klik her', $sprog_id)."."
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
@@ -723,7 +723,7 @@ print "<tr><td></td>";
 	}
 	print "</td>\n";  
 print "<td align=center><input class='button blue small ok' type=submit value=\"OK\" name=\"submit\"></td>";
-print "<td align=center><input class='button blue small ' type=submit value=\"Ryd\" name=\"clear\"></td>";
+print "<td align=center><input class='button blue small ' type=submit value=\"".findtekst('2117|Ryd', $sprog_id)."\" name=\"clear\"></td>";
 print "</form></tr>\n";
 
 print "

@@ -288,15 +288,15 @@ if ($menu=='T') {
 $steps = array();
 $steps[] = array(
 	"selector" => "#ny",
-	"content" => "Opret ny kassekladde ved at klikke her",
+	"content" => findtekst('2607|Opret ny kassekladde ved at klikke her', $sprog_id).".",
 );
 $steps[] = array(
 	"selector" => "[name=digital]",
-	"content" => "Digital godkendelse af fakturaer gennem nemhandel.",
+	"content" => findtekst('2608|Digital godkendelse af fakturaer gennem NemHandel', $sprog_id).".",
 );
 $steps[] = array(
 	"selector" => "#visalle",
-	"content" => "Du kan se dine kollegers kladder ved at klikke her",
+	"content" => findtekst('2609|Du kan se dine kollegers kladder ved at klikke her', $sprog_id).".",
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
