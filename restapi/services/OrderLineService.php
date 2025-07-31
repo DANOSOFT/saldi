@@ -15,20 +15,67 @@ class OrderLineService
     }
 
     /**
+     * Map English property names to Danish database column names
+     */
+    private static function mapApiToDanish($data)
+    {
+        $mapping = [
+            // Order line fields
+            'orderId' => 'ordre_id',
+            'productId' => 'vare_id',
+            'sku' => 'varenr',
+            'unit' => 'enhed',
+            'description' => 'beskrivelse',
+            'quantity' => 'antal',
+            'discount' => 'rabat',
+            'percentage' => 'procent',
+            'price' => 'pris',
+            'vatPrice' => 'vat_price',
+            'costPrice' => 'kostpris',
+            'vatFree' => 'momsfri',
+            'vatRate' => 'momssats',
+            'positionNumber' => 'posnr',
+            'variantId' => 'variant_id',
+            'accountingAccount' => 'bogf_konto',
+            'vatAccount' => 'vat_account',
+            'warehouse' => 'lager',
+            'serialNumber' => 'serienr'
+        ];
+        
+        $mappedData = new stdClass();
+        
+        // Map English properties to Danish, but keep Danish properties as-is for backward compatibility
+        foreach ($data as $key => $value) {
+            if (isset($mapping[$key])) {
+                // Map English to Danish
+                $mappedData->{$mapping[$key]} = $value;
+            } else {
+                // Keep original key (for backward compatibility with Danish names)
+                $mappedData->{$key} = $value;
+            }
+        }
+        
+        return $mappedData;
+    }
+
+    /**
      * Main function to create order line for REST API
      */
     public function createOrderLine($data, $db = 'unknown') 
     {
         try {
+            // Map English field names to Danish
+            $mappedData = self::mapApiToDanish($data);
+            
             // Convert object to array for easier processing
-            $params = (array) $data;
+            $params = (array) $mappedData;
             
             // Validate required fields
             if (empty($params['ordre_id'])) {
                 return [
                     'success' => false, 
-                    'message' => 'Missing required field: ordre_id',
-                    'status_code' => 400  // Make sure this is included
+                    'message' => 'Missing required field: ordre_id (or orderId)',
+                    'status_code' => 400
                 ];
             }
 
