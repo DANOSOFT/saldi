@@ -64,39 +64,39 @@ class OrderModel
         if (db_num_rows($q) > 0) {
             $r = db_fetch_array($q);
             $this->id = (int)$r['id'];
-            $this->konto_id = (int)$r['accountId'];
-            $this->firmanavn = $r['firmName'];
-            $this->telefon = $r['phone'];
+            $this->konto_id = (int)$r['konto_id'];
+            $this->firmanavn = $r['firmanavn'];
+            $this->telefon = $r['tlf'];
             $this->email = $r['email'];
-            $this->momssats = (float)$r['vatRate'];
+            $this->momssats = (float)$r['momssats'];
             $this->addr1 = $r['addr1'];
             $this->addr2 = $r['addr2'];
-            $this->postnr = $r['zipcode'];
-            $this->bynavn = $r['city'];
-            $this->land = $r['country'];
-            $this->lev_navn = $r['delivery_name'];
-            $this->lev_addr1 = $r['delivery_addr1'];
-            $this->lev_addr2 = $r['delivery_addr2'];
-            $this->lev_postnr = $r['delivery_zipcode'];
-            $this->lev_bynavn = $r['delivery_city'];
-            $this->lev_land = $r['delivery_country'];
+            $this->postnr = $r['postnr'];
+            $this->bynavn = $r['bynavn'];
+            $this->land = $r['land'];
+            $this->lev_navn = $r['lev_navn'];
+            $this->lev_addr1 = $r['lev_addr1'];
+            $this->lev_addr2 = $r['lev_addr2'];
+            $this->lev_postnr = $r['lev_postnr'];
+            $this->lev_bynavn = $r['lev_bynavn'];
+            $this->lev_land = $r['lev_land'];
             $this->ean = $r['ean'];
-            $this->cvrnr = $r['cvrNo'];
-            $this->ordredate = $r['orderDate'];
+            $this->cvrnr = $r['cvrnr'];
+            $this->ordredate = $r['ordredate'];
             $this->notes = $r['notes'];
-            $this->betalt = $r['paid'];
+            $this->betalt = $r['betalt'];
             $this->sum = (float)$r['sum'];
-            $this->kostpris = (float)$r['costPrice'];
-            $this->moms = (float)$r['vat'];
-            $this->valuta = $r['currency'];
-            $this->betalingsbet = $r['paymentTerms'];
-            $this->betalingsdage = (int)$r['paymentDays'];
-            $this->kontonr = $r['accountNumber'];
+            $this->kostpris = (float)$r['costkostprisPrice'];
+            $this->moms = (float)$r['moms'];
+            $this->valuta = $r['valuta'];
+            $this->betalingsbet = $r['betalingsbet'];
+            $this->betalingsdage = (int)$r['betalingsdage'];
+            $this->kontonr = $r['kontonr'];
             $this->ref = $r['reference'];
             $this->status = (int)$r['status'];
-            $this->ordrenr = (int)$r['orderNo'];
-            $this->valutakurs = (float)$r['currencyRate'];
-            $this->fakturadate = $r['invoiceDate'];
+            $this->ordrenr = (int)$r['ordrenr'];
+            $this->valutakurs = (float)$r['valutakurs'];
+            $this->fakturadate = $r['fakturadate'];
 
             return true;
         }
@@ -111,14 +111,14 @@ class OrderModel
      */
     public function save()
     {
-        // Insert new order
+        // Insert new order - fix the field names to match database
         $qtxt = "INSERT INTO ordrer (
-            konto_id, firmanavn, phone, email, momssats, addr1, addr2, postnr, bynavn, land,
+            konto_id, firmanavn, email, momssats, addr1, addr2, postnr, bynavn, land,
             lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, ean, cvrnr,
             ordredate, notes, betalt, sum, kostpris, moms, valuta, betalingsbet, betalingsdage,
             kontonr, ref, status, ordrenr, valutakurs, art, fakturadate
         ) VALUES (
-            '$this->konto_id', '$this->firmanavn', '$this->telefon', '$this->email', '$this->momssats',
+            '$this->konto_id', '$this->firmanavn', '$this->email', '$this->momssats',
             '$this->addr1', '$this->addr2', '$this->postnr', '$this->bynavn', '$this->land',
             '$this->lev_navn', '$this->lev_addr1', '$this->lev_addr2', '$this->lev_postnr', '$this->lev_bynavn',
             '$this->lev_land', '$this->ean', '$this->cvrnr', '$this->ordredate', '$this->notes',
@@ -133,7 +133,6 @@ class OrderModel
         // Check if insert was successful
         if ($resultArray[0] == "0") {
             // Insert was successful, now get the inserted ID
-            // Use PostgreSQL's CURRVAL() to get the last value from the sequence
             $qtxt = "SELECT CURRVAL(pg_get_serial_sequence('ordrer', 'id')) AS id";
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
             

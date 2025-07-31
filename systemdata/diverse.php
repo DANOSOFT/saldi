@@ -941,7 +941,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$box4 = db_escape_string(if_isset($_POST['api_fil']));
 		$box5 = db_escape_string(if_isset($_POST["api_fil2"]));
 		$box6 = db_escape_string(if_isset($_POST["api_fil3"]));
-
+		
 		$qtxt = NULL;
 		if ((!$id) && ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'API' and kodenr='1'", __FILE__ . " linje " . __LINE__))))
 			$id = $r['id'];

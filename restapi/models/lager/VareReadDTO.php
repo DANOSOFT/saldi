@@ -6,13 +6,13 @@
  */
 class VareReadDTO
 {
-    // Essential properties
+    // Essential properties using English names to match VareModel
     private $id;
-    private $varenr;
-    private $stregkode;
-    private $beskrivelse;
-    private $salgspris;
-    private $kostpris;
+    private $sku;
+    private $barcode;
+    private $description;
+    private $salesPrice;
+    private $costPrice;
     private $modtime;
 
     /**
@@ -39,32 +39,33 @@ class VareReadDTO
     private function loadFromVareModel(VareModel $vare)
     {
         $this->id = $vare->getId();
-        $this->varenr = $vare->getVarenr();
-        $this->stregkode = $vare->getStregkode();
-        $this->beskrivelse = $vare->getBeskrivelse();
-        $this->salgspris = $vare->getSalgsPris();
-        $this->kostpris = $vare->getKostPris();
-        // Assuming we need to add getModTime() to VareModel
+        $this->sku = $vare->getSku();
+        $this->barcode = $vare->getBarcode();
+        $this->description = $vare->getDescription();
+        $this->salesPrice = $vare->getSalesPrice();
+        $this->costPrice = $vare->getCostPrice();
+        // Note: VareModel doesn't have getModTime() method, so we'll set it to null
+        $this->modtime = null;
     }
 
     /**
-     * Load data from database row
+     * Load data from database row (still uses Danish column names from DB)
      * 
      * @param array $row Database row
      */
     private function loadFromArray(array $row)
     {
         $this->id = isset($row['id']) ? (int)$row['id'] : null;
-        $this->varenr = isset($row['varenr']) ? $row['varenr'] : null;
-        $this->stregkode = isset($row['stregkode']) ? $row['stregkode'] : null;
-        $this->beskrivelse = isset($row['beskrivelse']) ? $row['beskrivelse'] : null;
-        $this->salgspris = isset($row['salgspris']) ? (float)$row['salgspris'] : null;
-        $this->kostpris = isset($row['kostpris']) ? (float)$row['kostpris'] : null;
+        $this->sku = isset($row['varenr']) ? $row['varenr'] : null;
+        $this->barcode = isset($row['stregkode']) ? $row['stregkode'] : null;
+        $this->description = isset($row['beskrivelse']) ? $row['beskrivelse'] : null;
+        $this->salesPrice = isset($row['salgspris']) ? (float)$row['salgspris'] : null;
+        $this->costPrice = isset($row['kostpris']) ? (float)$row['kostpris'] : null;
         $this->modtime = isset($row['modtime']) ? $row['modtime'] : null;
     }
 
     /**
-     * Convert to array representation
+     * Convert to array representation using English field names
      * 
      * @return array
      */
@@ -72,21 +73,55 @@ class VareReadDTO
     {
         return [
             'id' => $this->id,
-            'varenr' => $this->varenr,
-            'stregkode' => $this->stregkode,
-            'beskrivelse' => $this->beskrivelse,
-            'salgspris' => $this->salgspris,
-            'kostpris' => $this->kostpris,
+            'sku' => $this->sku,
+            'barcode' => $this->barcode,
+            'description' => $this->description,
+            'salesPrice' => $this->salesPrice,
+            'costPrice' => $this->costPrice,
             'modtime' => $this->modtime
         ];
     }
 
-    // Getters
+    /**
+     * Convert to array with Danish field names for backward compatibility
+     * 
+     * @return array
+     */
+    public function toDanishArray()
+    {
+        return [
+            'id' => $this->id,
+            'varenr' => $this->sku,
+            'stregkode' => $this->barcode,
+            'beskrivelse' => $this->description,
+            'salgspris' => $this->salesPrice,
+            'kostpris' => $this->costPrice,
+            'modtime' => $this->modtime
+        ];
+    }
+
+    // Getters using English names
     public function getId() { return $this->id; }
-    public function getVarenr() { return $this->varenr; }
-    public function getStregkode() { return $this->stregkode; }
-    public function getBeskrivelse() { return $this->beskrivelse; }
-    public function getSalgsPris() { return $this->salgspris; }
-    public function getKostPris() { return $this->kostpris; }
+    public function getSku() { return $this->sku; }
+    public function getBarcode() { return $this->barcode; }
+    public function getDescription() { return $this->description; }
+    public function getSalesPrice() { return $this->salesPrice; }
+    public function getCostPrice() { return $this->costPrice; }
     public function getModTime() { return $this->modtime; }
+    
+    // Legacy getters for backward compatibility (Danish names)
+    public function getVarenr() { return $this->sku; }
+    public function getStregkode() { return $this->barcode; }
+    public function getBeskrivelse() { return $this->description; }
+    public function getSalgsPris() { return $this->salesPrice; }
+    public function getKostPris() { return $this->costPrice; }
+
+    // Setters using English names
+    public function setId($id) { $this->id = $id; }
+    public function setSku($sku) { $this->sku = $sku; }
+    public function setBarcode($barcode) { $this->barcode = $barcode; }
+    public function setDescription($description) { $this->description = $description; }
+    public function setSalesPrice($salesPrice) { $this->salesPrice = (float)$salesPrice; }
+    public function setCostPrice($costPrice) { $this->costPrice = (float)$costPrice; }
+    public function setModTime($modtime) { $this->modtime = $modtime; }
 }

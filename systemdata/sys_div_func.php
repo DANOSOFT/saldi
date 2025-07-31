@@ -1836,7 +1836,7 @@ function shop_valg() {
 } # endfunc shop_valg
 
 function api_valg() {
-	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id;
+	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id, $buttonStyle;
 	$r = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$api_key = trim($r['box1']);
@@ -1856,7 +1856,7 @@ function api_valg() {
 		}
 	}
 	if (!$api_key) {
-		$chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_!#+-*.:,;';
+		$chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 		$api_key = '';
 		for ($x = 0; $x < 36; $x++) $api_key .= substr($chars, rand(0, strlen($chars) - 1), 1);
 	}
@@ -1870,7 +1870,8 @@ function api_valg() {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key'></td></tr>";
+			print "<tr><td>Swagger: </td><td td colspan='3'><button style='$buttonStyle'>Swagger</button></td></tr>";
+			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key' readonly></td></tr>";
 			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
