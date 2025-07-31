@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: PBLM REST API
+  title: SALDI REST API
   description: |
     A comprehensive REST API for managing orders, customers, products, and inventory.
     
