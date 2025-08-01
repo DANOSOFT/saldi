@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ny_rykker.php --- lap 4.0.6 --- 2022.08.18 ---
+// --- debitor/ny_rykker.php --- lap 4.1.1 --- 2025.07.31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2022 Saldi.dk ApS
+// Copyright (c) 2003 - 2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20121105 Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
 // 20140628 Valuta og valutakurs indsættes nu ved oprettelse af ny rykker. Søg 20140628 
@@ -30,6 +30,7 @@
 // 20210422 PHR currency now included in reminder  
 // 20210507 PHR Added dec limit 1 to query as it took the oldest currency and not the newest. 2021057 
 // 20220818 PHR Added db_escape_string at line ~247 
+// 20250731 PHR PHP8
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -67,9 +68,9 @@ while ($r = db_fetch_array($q)) {
 	elseif ($r['formular']==8) $rentesats_3=$r['str'];
 }
 $r = db_fetch_array(db_select("select box5,box6,box7,box8 from grupper where art='DIV' and kodenr= '4'",__FILE__ . " linje " . __LINE__));
-$ffdage1=$r['box5']*1;
-$ffdage2=$r['box6']*1;
-$ffdage3=$r['box7']*1;
+$ffdage1=(int)$r['box5'];
+$ffdage2=(int)$r['box6'];
+$ffdage3=(int)$r['box7'];
 $rykkerfrist1=usdate(forfaldsdag($dd,'netto',$ffdage1));
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
