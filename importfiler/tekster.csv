@@ -2604,17 +2604,17 @@
 2604	Du kan også selv skrive 'D' eller 'K' for at vælge, hvor der skal søges.<br>Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.	You can also manually enter 'D' or 'K' to choose where the search should be performed.<br>As you begin typing a name or account number, only relevant suggestions will be shown.	Du kan også selv skrive inn 'D' eller 'K' for å velge hvor det skal søkes.<br>Når du begynner å skrive inn et navn eller kontonummer, vises kun relevante forslag.
 2605	Her kan du tilføje et fakturanummer til bilaget.<br>Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen 'Opslag' i bunden, mens feltet er markeret.	Here you can add an invoice number to the entry.<br>You can also look up open (unsettled) invoices by clicking the ‘Lookup’ button at the bottom while the field is selected.	Her kan du legge til et fakturanummer på bilaget.<br>Du kan også slå opp i ikke-utlignede fakturaer ved å klikke på knappen ‘Oppslag’ nederst mens feltet er markert.
 2606	Du kan slette linjen ved at skrive '-' i feltet i stedet for et tal og trykke Enter	You can delete the line by typing '-' in the field instead of a number and pressing Enter	Du kan slette linjen ved å skrive '-' i feltet i stedet for et tall og trykke Enter
-2607	
-2608	
-2609	
-2610	
-2611	
-2612	
-2613	
-2614	
-2615	
-2616	
-2617	
+2607	Opret ny kassekladde ved at klikke her	Create a new journal entry by clicking here	Opprett ny kassekladde ved å klikke her
+2608	Digital godkendelse af fakturaer gennem NemHandel	Digital approval of invoices via NemHandel	Digital godkjenning av fakturaer gjennom NemHandel
+2609	Du kan se dine kollegers' kladder ved at klikke her	You can view your colleagues' entries by clicking here	Du kan se dine kollegers' kladder ved å klikke her
+2610	Her ser du en liste af alle dine ordrer	Here you can see a list of all your orders	Her ser du en liste over alle dine ordre
+2611	For at oprette en ny ordre, klik her	To create a new order, click here	For å opprette en ny ordre, klikk her.
+2612	For at ændre, hvad der vises i oversigten, klik her	To create a new order, click here	For å endre hva som vises i oversikten, klikk her
+2613	Når dette felt er aktivt, kan du trykke Enter med det samme for at søge i kundekataloget, eller du kan indtaste et nyt kontonummer og derefter trykke Enter for at oprette en ny kunde	When this input field is active, you can press Enter right away to search the customer catalog, or you can enter a new account number and then press Enter to create a new customer	Når dette feltet er aktivt, kan du trykke Enter med en gang for å søke i kundekatalogen, eller du kan skrive inn et nytt kontonummer og deretter trykke Enter for å opprette en ny kunde
+2614	Når du har oprettet en ordre, kan du klikke her for at se kundens stamdata	After creating an order, you can click here to view the customer's master data	Når du har opprettet en ordre, kan du klikke her for å se kundens stamdata
+2615	Her kan du indtaste et varenummer for at tilføje en vare til ordren	Here you can enter an item number in order to add a product to the order	Her kan du skrive inn et varenummer for å legge til en vare i ordren
+2616	Når et varenummerfelt er aktivt, kan du foretage et opslag af alle dine varer ved at klikke her	When an item number field is active, you can click here to look up all your products	Når et varenummerfelt er aktivt, kan du klikke her for å slå opp alle varene dine
+2617	Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den – f.eks. til mail, som PDF eller sendt gennem NemHandel med digital fakturering	Here you can select how to print or send the order when invoicing – for example by email, as a PDF, or via NemHandel with digital invoicing	Her kan du velge hvordan ordren skal skrives ut når du fakturerer – for eksempel på e-post, som PDF, eller sendt via NemHandel med digital fakturering
 2618	
 2619	
 2620	

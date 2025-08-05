@@ -223,11 +223,11 @@ $sletslut=$sletstart=0;
 
 $modulnr=5;
 
-$title='txt1092';
-
 $css="../css/standard.css";
 #$css="../css/ordre.css";
 include("../includes/std_func.php");
+
+$title = findtekst('1092|Kundeordre', $sprog_id);
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -235,8 +235,6 @@ include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
 include("../includes/tid2decimal.php");
 
-
-$title = findtekst('1092|Kundeordre', $sprog_id);
 $txt370 = findtekst('370|Kontant',$sprog_id);
 $txt283 = findtekst('283|Kreditkort',$sprog_id);
 
@@ -469,23 +467,23 @@ if($status < 3){
 	$steps = array();
 	$steps[] = array(
 		"selector" => "[name=kontonr]",
-		"content" => "Når feltet er markeret, kan du trykke Enter for at søge i kundekataloget. Alternativt kan du indtaste et nyt kontonummer for at oprette en ny kunde – dette bekræftes ligeledes med Enter."
+		"content" => findtekst('2613|Når dette felt er aktivt, kan du trykke Enter med det samme for at søge i kundekataloget, eller du kan indtaste et nyt kontonummer og derefter trykke Enter for at oprette en ny kunde', $sprog_id)."."
 	);
 	$steps[] = array(
 		"selector" => "#debitorkort",
-		"content" => "Når du har oprettet en ordre, kan du klikke her for at se kundens stamdata."
+		"content" => findtekst('2614|Når du har oprettet en ordre, kan du klikke her for at se kundens stamdata', $sprog_id)."."
 	);
 	$steps[] = array(
 		"selector" => "[name=vare0]",
-		"content" => "Her kan du indtaste et varenummer for at tilføje en vare til ordren."
+		"content" => findtekst('2615|Her kan du indtaste et varenummer for at tilføje en vare til ordren', $sprog_id)."."
 	);
 	$steps[] = array(
 		"selector" => "[name=lookUp]",
-		"content" => "Når et varenummerfelt er markeret, kan du foretage et opslag af alle dine varer ved at klikke her."
+		"content" => findtekst('2616|Når et varenummerfelt er aktivt, kan du foretage et opslag af alle dine varer ved at klikke her', $sprog_id)."."
 	);
 	$steps[] = array(
 		"selector" => "[name=udskriv_til]",
-		"content" => "Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den – f.eks. til mail, som PDF eller sendt gennem NemHandel med digital fakturering."
+		"content" => findtekst('2617|Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den – f.eks. til mail, som PDF eller sendt gennem NemHandel med digital fakturering', $sprog_id)."."
 	);
 	$steps[] = array(
 		"selector" => "[name=betalingsbet]",
