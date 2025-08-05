@@ -6,6 +6,7 @@ class CurrencyModel
     private $id;
     private $description;  // beskrivelse in database
     private $currencyCode; // box1 in database
+    private $exchangeRate; // box2 in database
     
     /**
      * Constructor - can create an empty Currency or load an existing one by ID
@@ -34,6 +35,7 @@ class CurrencyModel
             $this->id = (int)$r['id'];
             $this->description = $r['beskrivelse'];
             $this->currencyCode = $r['box1'];
+            $this->exchangeRate = $r['box2'];
             return true;
         }
         
@@ -114,7 +116,8 @@ class CurrencyModel
     {
         return [
             'description' => $this->description,
-            'currencyCode' => $this->currencyCode
+            'currencyCode' => $this->currencyCode,
+            'exchangeRate' => $this->exchangeRate
         ];
     }
     
@@ -122,8 +125,10 @@ class CurrencyModel
     public function getId() { return $this->id; }
     public function getDescription() { return $this->description; }
     public function getCurrencyCode() { return $this->currencyCode; }
+    public function getExchangeRate() { return $this->exchangeRate; }
     
     // Setter methods (though not used in read-only endpoint)
     public function setDescription($description) { $this->description = $description; }
     public function setCurrencyCode($currencyCode) { $this->currencyCode = $currencyCode; }
+    public function setExchangeRate($exchangeRate) { $this->exchangeRate = $exchangeRate; }
 }

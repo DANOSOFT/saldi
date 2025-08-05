@@ -954,72 +954,132 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'labels') {
+		// Generate template from form data
 		$valg = if_isset($_GET['valg']);
-		$labelText = if_isset($_POST['labelText']);
-		$labelName = if_isset($_POST['labelName']);
-		$labelType = if_isset($_POST['labelType']);
-		$labelTemplate = if_isset($_POST['labelTemplate']);
-		$createNewLabel = if_isset($_POST['createNewLabel']);
-		$newLabelName = if_isset($_POST['newLabelName']);
-		$saveLabel = if_isset($_POST['saveLabel']);
-		$deleteLabel = if_isset($_POST['deleteLabel']);
+    $labelName = if_isset($_POST['labelName']);
+    $newLabelName = if_isset($_POST['newLabelName']);
+    $labelTemplate = if_isset($_POST['labelTemplate']);
+    $saveLabel = if_isset($_POST['saveLabel']);
+    $saveRawHTML = if_isset($_POST['saveRawHTML']);
+    $deleteLabel = if_isset($_POST['deleteLabel']);
+    $createNewLabel = if_isset($_POST['createNewLabel']);
+    $switchToVisual = if_isset($_POST['switchToVisual']);
+        // Ensure labelName is preserved when switching between editors
+    if ($switchToVisual && !$labelName) {
+        $labelName = if_isset($_GET['labelName'], 'Standard');
+    }
+	
+    if ($createNewLabel && $newLabelName && $labelTemplate) {
+        // Create new label from template
+        $templateFile = "../importfiler/$labelTemplate";
+        if (file_exists($templateFile)) {
+            $templateContent = file_get_contents($templateFile);
+            $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$newLabelName', 'sheet', '" . db_escape_string($templateContent) . "')";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+            $labelName = $newLabelName;
+        }
+    } elseif ($saveRawHTML) {
+        // Save raw HTML
+        $rawHTML = if_isset($_POST['rawHTML'], '');
+        $labelType = if_isset($_POST['labelType'], 'sheet');
+        
+        if ($labelName == 'Standard') {
+            // Update the standard label in grupper table
+            $qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
+            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                $qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($rawHTML) . "' WHERE id = '$r[id]'";
+            } else {
+                $qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($rawHTML) . "')";
+            }
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        } else {
+            // Update or create custom label in labels table
+            $qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
+            if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                $qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($rawHTML) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
+            } else {
+                $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($rawHTML) . "')";
+            }
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
 
-		$php_slut = "?" . ">"; # Hack til løsning af syntakshighlightning, så det ikke bliver set af redigeringsværktøjet som en afslutning af PHP-kode
-		$noGo = array('<?php', '<?', $php_slut); # Hack benyttes her
-		for ($x = 0; $x < count($noGo); $x++) {
-			if (strstr($labelText, $noGo[$x])) {
-				$labelText = str_replace($noGo[$x], '', $labelText);
-				$alert = findtekst('1738|Illegal værdi i labeltekst', $sprog_id);
-				print "<BODY onLoad=\"JavaScript:alert('$alert')\">";
+    } elseif ($switchToVisual) {
+		// When switching from raw HTML to visual editor, we need to save the raw HTML first
+		$rawHTML = if_isset($_POST['rawHTML'], '');
+		$labelType = if_isset($_POST['labelType'], 'sheet');
+		
+		if ($labelName == 'Standard') {
+			// Update the standard label in grupper table
+			$qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($rawHTML) . "' WHERE id = '$r[id]'";
+			} else {
+				$qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($rawHTML) . "')";
 			}
-		}
-		if ($createNewLabel && !$newLabelName) {
-			$alert1 = findtekst('1739|Beskrivelse mangler, label ikke oprettet', $sprog_id); #20210802
-			if ($labelTemplate)
-				$newLabelName = str_replace('.txt', '', $labelTemplate);
-			else
-				alert($alert1);
-		}
-		if ($createNewLabel && $newLabelName) {
-			if ($labelTemplate) {
-				$fn = "../importfiler/$labelTemplate";
-				$fp = fopen($fn, "r");
-				$labelText = fread($fp, filesize($fn));
-				fclose($fp);
-			}
-			$qtxt = "insert into labels (labelname,account_id,labeltype,labeltext) values ";
-			$qtxt.= "('" . db_escape_string($newLabelName) . "','0','$labelType','" . db_escape_string($labelText) . "')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			$labelName = $newLabelName;
-		} elseif ($saveLabel) {
-			if ($labelName) {
-				$qtxt = "select id from labels WHERE labelname='$labelName' and account_id='0'";
-				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				if ($r['id'])
-					$qtxt = "update labels set labeltype='$labelType',labeltext='" . db_escape_string($labelText) . "' where id = '$r[id]'";
-				else {
-					$qtxt = "insert into labels (labelname,account_id,labeltype,labeltext) values ";
-					$qtxt.= "('$labelName','0','$labelType','" . db_escape_string($labelText) . "')";
-				}
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		} else {
+			// Update or create custom label in labels table
+			$qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
+			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				$qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($rawHTML) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
+			} else {
+				$qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($rawHTML) . "')";
 			}
-			if ($labelName == 'Standard') {
-				$r = db_fetch_array(db_select("select id from grupper WHERE art = 'LABEL'", __FILE__ . " linje " . __LINE__));
-				$id = $r['id'];
-				if ($id) {
-					$qtxt = "update grupper set $valg='" . db_escape_string($labelText) . "' WHERE id = '$id'";
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				} else {
-					$qtxt = "insert into grupper (beskrivelse,kodenr,art,$valg) values ";
-					$qtxt.= "('Label layout','1','LABEL','" . db_escape_string($labelText) . "')";
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				}
-			}
-		}
-		if ($deleteLabel) {
-			$qtxt = "delete from labels where labelname='$labelName' and account_id='0'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			print "<meta http-equiv=\"refresh\" content=\"0;URL='diverse.php?sektion=labels&valg=$valg'\">";
+		}
+	} elseif ($saveLabel) {
+            // Generate template from form data (visual editor)
+    $formData = array(
+        'cols' => if_isset($_POST['cols'], 1),
+        'rows' => if_isset($_POST['rows'], 1),
+        'txtlen' => if_isset($_POST['txtlen'], 50),
+        'width' => if_isset($_POST['width'], '38.1'),
+        'height' => if_isset($_POST['height'], '21.2'),
+        'font_size' => if_isset($_POST['font_size'], '12'),
+        'margin_top' => if_isset($_POST['margin_top'], '7'),
+        'margin_left' => if_isset($_POST['margin_left'], '3'),
+        'show_varenr' => if_isset($_POST['show_varenr']) == 'on',
+        'show_varemrk' => if_isset($_POST['show_varemrk']) == 'on',
+        'show_beskrivelse' => if_isset($_POST['show_beskrivelse']) == 'on',
+        'show_pris' => if_isset($_POST['show_pris']) == 'on',
+        'show_barcode' => if_isset($_POST['show_barcode']) == 'on',
+        // Individual font sizes for each element
+        'varenr_font_size' => if_isset($_POST['varenr_font_size'], if_isset($_POST['font_size'], '12')),
+        'varemrk_font_size' => if_isset($_POST['varemrk_font_size'], if_isset($_POST['font_size'], '12')),
+        'beskrivelse_font_size' => if_isset($_POST['beskrivelse_font_size'], if_isset($_POST['font_size'], '12')),
+        'pris_font_size' => if_isset($_POST['pris_font_size'], if_isset($_POST['font_size'], '12'))
+    );
+    
+    // Add custom text lines with individual font sizes
+    for ($i = 1; $i <= 5; $i++) {
+        $formData["custom_text_$i"] = if_isset($_POST["custom_text_$i"], '');
+        $formData["custom_text_{$i}_size"] = if_isset($_POST["custom_text_{$i}_size"], $formData['font_size']);
+    }
+    
+    $generatedTemplate = generateLabelTemplate($formData);
+    $labelType = if_isset($_POST['labelType'], 'sheet');
+    
+        $qtxt = "SELECT id FROM grupper WHERE art = 'LABEL'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $qtxt = "UPDATE grupper SET $valg = '" . db_escape_string($generatedTemplate) . "' WHERE id = '$r[id]'";
+        } else {
+            $qtxt = "INSERT INTO grupper (art, $valg) VALUES ('LABEL', '" . db_escape_string($generatedTemplate) . "')";
+        }
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+
+        // Update or create custom label in labels table
+        $qtxt = "SELECT id FROM labels WHERE labelname = '$labelName'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+            $qtxt = "UPDATE labels SET labeltext = '" . db_escape_string($generatedTemplate) . "', labeltype = '$labelType' WHERE id = '$r[id]'";
+        } else {
+            $qtxt = "INSERT INTO labels (labelname, labeltype, labeltext) VALUES ('$labelName', '$labelType', '" . db_escape_string($generatedTemplate) . "')";
+        }
+        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+    
+		} elseif ($deleteLabel && $labelName != 'Standard') {
+			$qtxt = "DELETE FROM labels WHERE labelname = '$labelName'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			$labelName = 'Standard';
 		}
 		#######################################################################################
 	} elseif ($pricelists) {

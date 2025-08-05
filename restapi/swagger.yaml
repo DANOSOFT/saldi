@@ -2875,6 +2875,143 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # Currencies Management (Read-only)
+  /currencies/:
+    get:
+      tags:
+        - Currencies
+      summary: Get all currencies
+      description: |
+        Get all currencies with optional filtering and sorting. This is a read-only endpoint.
+        
+        **English Field Names:**
+        - `description` - Currency description
+        - `currencyCode` - Currency code (3-letter code like USD, EUR, DKK)
+        - `exchangeRate` - Exchange rate against the base currency
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: orderBy
+          in: query
+          schema:
+            type: string
+            default: description
+            enum: [id, description, currencyCode, exchangeRate]
+          description: Field to order by
+          example: "description"
+        - name: orderDirection
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+          description: Sort direction
+        - name: field
+          in: query
+          schema:
+            type: string
+            enum: [id, description, currencyCode, exchangeRate]
+          description: Field to filter by
+          example: "description"
+        - name: value
+          in: query
+          schema:
+            type: string
+          description: Value to filter by
+          example: "Danish Krone"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+            minimum: 1
+          description: Maximum number of currencies to return
+          example: 20
+      responses:
+        '200':
+          description: List of currencies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyListResponse'
+              examples:
+                all_currencies:
+                  summary: All Currencies
+                  description: Get all currencies with basic information
+                  value:
+                    success: true
+                    data:
+                      - description: "Danish Krone"
+                        currencyCode: "DKK"
+                        exchangeRate: 1.0
+                      - description: "Euro"
+                        currencyCode: "EUR"
+                        exchangeRate: 0.85
+                      - description: "US Dollar"
+                        currencyCode: "USD"
+                        exchangeRate: 1.1
+                      - description: "British Pound"
+                        currencyCode: "GBP"
+                        exchangeRate: 0.75
+                filtered_currencies:
+                  summary: Filtered Currencies
+                  description: Get currencies filtered by description
+                  value:
+                    success: true
+                    data:
+                      - description: "Danish Krone"
+                        currencyCode: "DKK"
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /currencies/{id}:
+    get:
+      tags:
+        - Currencies
+      summary: Get a specific currency
+      parameters:
+        - $ref: '#/components/parameters/DatabaseHeader'
+        - $ref: '#/components/parameters/UserHeader'
+        - $ref: '#/components/parameters/ApiKeyHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Currency ID
+          example: 1
+      responses:
+        '200':
+          description: Currency details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/CurrencyResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Currency not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # Accounting Year
   /accountingYear/:
     get:
@@ -5056,6 +5193,34 @@ components:
           items:
             $ref: '#/components/schemas/InventoryStatusResponse'
           description: Array of inventory status objects
+
+    # Currency Schemas (Read-only)
+    CurrencyResponse:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Currency description
+          example: "Danish Krone"
+        currencyCode:
+          type: string
+          description: Currency code (3-letter ISO code)
+          example: "DKK"
+
+    CurrencyListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrencyResponse'
+          description: Array of currency objects
+        message:
+          type: string
+          example: "Currencies retrieved successfully"
 
     # Product Group Schemas
     CreateProductGroupRequest:
