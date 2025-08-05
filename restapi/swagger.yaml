@@ -166,60 +166,96 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateOrderRequest'
             examples:
-              basic_debitor_order:
-                summary: Basic Debitor Order
-                description: Create a debitor order with minimal required fields
+              basic_debitor_order_new_customer:
+                summary: Basic Order (New Customer)
+                description: Create a debitor order for a new customer using English field names
                 value:
-                  accountId: 201
                   companyName: "ACME Corporation"
                   phone: "+45 12345678"
                   email: "contact@acme.com"
                   vatRate: 25.0
-                  orderDate: "2025-06-20"
                   sum: 1250.00
                   costPrice: 1000.00
                   vat: 250.00
-              detailed_debitor_order:
-                summary: Detailed Debitor Order
-                description: Create a debitor order with all available fields
+                  currency: "DKK"
+                  paymentTerms: "netto"
+                  paymentDays: 30
+                  address1: "Main Street 123"
+                  address2: "Suite 456"
+                  postalCode: "1234"
+                  city: "Copenhagen"
+                  country: "Denmark"
+                  deliveryName: "ACME Warehouse"
+                  deliveryAddress1: "Industrial Road 789"
+                  deliveryAddress2: "Building B"
+                  deliveryPostalCode: "5678"
+                  deliveryCity: "Aarhus"
+                  deliveryCountry: "Denmark"
+                  ean: "1234567890123"
+                  cvrNo: "12345678"
+                  orderDate: "2025-07-31"
+                  invoiceDate: "2025-07-31"
+                  notes: "Urgent delivery required"
+                  paid: false
+                  customerGroup: 1
+                  type: "DO"
+              basic_debitor_order_existing_customer:
+                summary: Basic Order (Existing Customer)
+                description: Create a debitor order for an existing customer using account ID
                 value:
                   accountId: 201
+                  vatRate: 25.0
+                  sum: 1250.00
+                  costPrice: 1000.00
+                  vat: 250.00
+                  orderDate: "2025-07-31"
+                  notes: "Rush order"
+              detailed_debitor_order:
+                summary: Detailed Order with Full Information
+                description: Create a debitor order with all available fields
+                value:
                   companyName: "ACME Corporation"
                   phone: "+45 12345678"
                   email: "contact@acme.com"
                   vatRate: 25.0
-                  address:
-                    addr1: "Main Street 123"
-                    addr2: "Suite 456"
-                    zipcode: "1234"
-                    city: "Copenhagen"
-                    country: "Denmark"
-                  delivery:
-                    name: "ACME Warehouse"
-                    addr1: "Industrial Road 789"
-                    addr2: "Building B"
-                    zipcode: "5678"
-                    city: "Aarhus"
-                    country: "Denmark"
+                  sum: 1250.00
+                  costPrice: 1000.00
+                  vat: 250.00
+                  currency: "DKK"
+                  paymentTerms: "netto"
+                  paymentDays: 30
+                  address1: "Main Street 123"
+                  address2: "Suite 456"
+                  postalCode: "1234"
+                  city: "Copenhagen"
+                  country: "Denmark"
+                  deliveryName: "ACME Warehouse"
+                  deliveryAddress1: "Industrial Road 789"
+                  deliveryAddress2: "Building B"
+                  deliveryPostalCode: "5678"
+                  deliveryCity: "Aarhus"
+                  deliveryCountry: "Denmark"
                   ean: "1234567890123"
-                  cvr: "12345678"
-                  orderDate: "2025-06-20"
-                  invoiceDate: "2025-06-21"
+                  cvrNo: "12345678"
+                  orderDate: "2025-07-31"
+                  invoiceDate: "2025-07-31"
                   notes: "Urgent delivery required"
                   paid: false
-                  paymentInfo:
-                    paymentTerms: "Net 30"
-                    paymentDays: 30
-                  economic:
-                    sum: 1250.00
-                    costPrice: 1000.00
-                    vat: 250.00
-                    currency: "DKK"
-                    currencyRate: 1.0
-                  accountNumber: "1000"
-                  reference: "user123"
-                  status: 0
-                  orderNo: 2025001
+                  customerGroup: 1
+                  type: "DO"
+              danish_field_names_example:
+                summary: Using Danish Field Names (Backward Compatibility)
+                description: Example using Danish field names for backward compatibility
+                value:
+                  firmanavn: "ACME Corporation"
+                  telefon: "+45 12345678"
+                  email: "contact@acme.com"
+                  momssats: 25.0
+                  sum: 1250.00
+                  kostpris: 1000.00
+                  moms: 250.00
+                  ordredate: "2025-07-31"
+                  art: "DO"
       responses:
         '201':
           description: Order created successfully
@@ -469,60 +505,97 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateOrderRequest'
             examples:
-              basic_creditor_order:
-                summary: Basic Creditor Order
-                description: Create a creditor order with minimal required fields
+              basic_creditor_order_new_supplier:
+                summary: Basic Order (New Supplier)
+                description: Create a creditor order for a new supplier using English field names
                 value:
-                  accountId: 301
                   companyName: "Supplier ABC"
                   phone: "+45 11223344"
                   email: "orders@supplierabc.com"
                   vatRate: 25.0
-                  orderDate: "2025-06-18"
                   sum: 2500.00
                   costPrice: 2000.00
                   vat: 500.00
-              detailed_creditor_order:
-                summary: Detailed Creditor Order
-                description: Create a creditor order with all available fields
+                  currency: "DKK"
+                  paymentTerms: "netto"
+                  paymentDays: 30
+                  address1: "Supplier Street 789"
+                  address2: ""
+                  postalCode: "3456"
+                  city: "Copenhagen"
+                  country: "Denmark"
+                  deliveryName: "Our Warehouse"
+                  deliveryAddress1: "Warehouse Road 123"
+                  deliveryAddress2: "Gate A"
+                  deliveryPostalCode: "1234"
+                  deliveryCity: "Copenhagen"
+                  deliveryCountry: "Denmark"
+                  ean: ""
+                  cvrNo: "11223344"
+                  orderDate: "2025-07-31"
+                  invoiceDate: null
+                  notes: "Standard delivery"
+                  paid: false
+                  type: "KO"
+                  customerGroup: 1
+              basic_creditor_order_existing_supplier:
+                summary: Basic Order (Existing Supplier)
+                description: Create a creditor order for an existing supplier using account ID
                 value:
                   accountId: 301
+                  vatRate: 25.0
+                  sum: 2500.00
+                  costPrice: 2000.00
+                  vat: 500.00
+                  type: "KO"
+                  orderDate: "2025-07-31"
+                  notes: "Monthly supply order"
+              detailed_creditor_order:
+                summary: Detailed Order with Full Information
+                description: Create a creditor order with all available fields
+                value:
                   companyName: "Supplier ABC"
                   phone: "+45 11223344"
                   email: "orders@supplierabc.com"
                   vatRate: 25.0
-                  address:
-                    addr1: "Supplier Street 789"
-                    addr2: ""
-                    zipcode: "3456"
-                    city: "Copenhagen"
-                    country: "Denmark"
-                  delivery:
-                    name: "Our Warehouse"
-                    addr1: "Warehouse Road 123"
-                    addr2: "Gate A"
-                    zipcode: "1234"
-                    city: "Copenhagen"
-                    country: "Denmark"
+                  sum: 2500.00
+                  costPrice: 2000.00
+                  vat: 500.00
+                  currency: "DKK"
+                  paymentTerms: "netto"
+                  paymentDays: 30
+                  address1: "Supplier Street 789"
+                  address2: ""
+                  postalCode: "3456"
+                  city: "Copenhagen"
+                  country: "Denmark"
+                  deliveryName: "Our Warehouse"
+                  deliveryAddress1: "Warehouse Road 123"
+                  deliveryAddress2: "Gate A"
+                  deliveryPostalCode: "1234"
+                  deliveryCity: "Copenhagen"
+                  deliveryCountry: "Denmark"
                   ean: ""
-                  cvr: "11223344"
-                  orderDate: "2025-06-18"
+                  cvrNo: "11223344"
+                  orderDate: "2025-07-31"
                   invoiceDate: null
                   notes: "Standard delivery"
                   paid: false
-                  paymentInfo:
-                    paymentTerms: "Net 30"
-                    paymentDays: 30
-                  economic:
-                    sum: 2500.00
-                    costPrice: 2000.00
-                    vat: 500.00
-                    currency: "DKK"
-                    currencyRate: 1.0
-                  accountNumber: "4000"
-                  reference: "buyer123"
-                  status: 0
-                  orderNo: 2025050
+                  type: "KO"
+                  customerGroup: 1
+              danish_field_names_example:
+                summary: Using Danish Field Names (Backward Compatibility)
+                description: Example using Danish field names for backward compatibility
+                value:
+                  firmanavn: "Supplier ABC"
+                  telefon: "+45 11223344"
+                  email: "orders@supplierabc.com"
+                  momssats: 25.0
+                  sum: 2500.00
+                  kostpris: 2000.00
+                  moms: 500.00
+                  ordredate: "2025-07-31"
+                  art: "KO"
       responses:
         '201':
           description: Order created successfully
@@ -1168,24 +1241,6 @@ paths:
       tags:
         - Products
       summary: Create a new product
-      description: |
-        Create a new product using English field names. The API accepts both English and Danish field names for backward compatibility.
-        
-        **Example Request:**
-        ```json
-        {
-          "sku": "PROD001",
-          "barcode": "1234567890123",
-          "description": "Premium Product",
-          "salesPrice": 250.00,
-          "costPrice": 200.00,
-          "unit": "pcs",
-          "group": 1,
-          "minInventory": 10.0,
-          "maxInventory": 100.0,
-          "location": "A1-01"
-        }
-        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1208,14 +1263,17 @@ paths:
                 summary: Detailed Product
                 description: Create a product with all available fields
                 value:
-                  sku: "PROD001"
-                  barcode: "1234567890123"
+                  sku: "PROD002"
+                  barcode: "1234567890124"
                   description: "Premium Product with full specifications"
                   unit: "pcs"
                   unit2: "box"
                   salesPrice: 250.00
                   costPrice: 200.00
                   notes: "High quality premium product"
+                  serialNumber: ""
+                  collectionOfItems: "N"
+                  partialItem: "N"
                   minInventory: 10.0
                   maxInventory: 100.0
                   location: "A1-01"
@@ -1227,6 +1285,61 @@ paths:
                   length: 15.8
                   width: 10.5
                   height: 5.2
+                  colli_webfreight: 0.0
+              electronic_component:
+                summary: Electronic Component
+                description: Create an electronic component product
+                value:
+                  sku: "ELEC001"
+                  barcode: "5901234567890"
+                  description: "Arduino Uno R3 Microcontroller"
+                  unit: "pcs"
+                  unit2: ""
+                  salesPrice: 299.95
+                  costPrice: 180.00
+                  notes: "Compatible with Arduino IDE"
+                  serialNumber: ""
+                  collectionOfItems: "N"
+                  partialItem: "N"
+                  minInventory: 5.0
+                  maxInventory: 50.0
+                  location: "E1-A5"
+                  group: 1
+                  netweight: 0.025
+                  netweightunit: "kg"
+                  grossweight: 0.030
+                  grossweightunit: "kg"
+                  length: 6.8
+                  width: 5.3
+                  height: 1.5
+                  colli_webfreight: 0.0
+              office_supply:
+                summary: Office Supply
+                description: Create an office supply product
+                value:
+                  sku: "OFF001"
+                  barcode: ""
+                  description: "A4 Copy Paper - 500 sheets"
+                  unit: "ream"
+                  unit2: "box"
+                  salesPrice: 45.00
+                  costPrice: 32.00
+                  notes: "80gsm white paper"
+                  serialNumber: ""
+                  collectionOfItems: "N"
+                  partialItem: "N"
+                  minInventory: 20.0
+                  maxInventory: 200.0
+                  location: "B2-15"
+                  group: 2
+                  netweight: 2.5
+                  netweightunit: "kg"
+                  grossweight: 2.8
+                  grossweightunit: "kg"
+                  length: 21.0
+                  width: 29.7
+                  height: 5.0
+                  colli_webfreight: 0.0
       responses:
         '201':
           description: Product created successfully
@@ -1517,17 +1630,6 @@ paths:
       tags:
         - Inventory
       summary: Create a new warehouse
-      description: |
-        Create a new warehouse using English field names. The API accepts both English and Danish field names for backward compatibility.
-        
-        **Example Request:**
-        ```json
-        {
-          "description": "Main Warehouse",
-          "number": "001",
-          "fiscalYear": 2025
-        }
-        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -1811,19 +1913,6 @@ paths:
       tags:
         - Inventory
       summary: Create new inventory status
-      description: |
-        Create a new inventory status record using English field names. The API accepts both English and Danish field names for backward compatibility.
-        
-        **Example Request:**
-        ```json
-        {
-          "inventory": 1,
-          "productId": 301,
-          "quantity": 100.0,
-          "location": "A1-01",
-          "variantId": 0
-        }
-        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -2017,33 +2106,6 @@ paths:
       tags:
         - Inventory
       summary: Adjust inventory quantities
-      description: |
-        Adjust inventory quantities using specific actions. Supports both adding/subtracting amounts and setting absolute quantities.
-        
-        **Actions:**
-        - `adjust_quantity`: Add or subtract an amount from current quantity
-        - `set_quantity`: Set the quantity to a specific value
-        
-        **Examples:**
-        ```json
-        // Add 10 to current quantity
-        {
-          "action": "adjust_quantity",
-          "amount": 10.0
-        }
-        
-        // Subtract 5 from current quantity
-        {
-          "action": "adjust_quantity",
-          "amount": -5.0
-        }
-        
-        // Set quantity to exactly 50
-        {
-          "action": "set_quantity",
-          "quantity": 50.0
-        }
-        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -2233,25 +2295,6 @@ paths:
       tags:
         - Product Groups
       summary: Create a new product group
-      description: |
-        Create a new product group using English field names. The API accepts both English and Danish field names for backward compatibility.
-        
-        **Example Request:**
-        ```json
-        {
-          "codeNo": 1,
-          "description": "Electronics",
-          "reversePayment": false,
-          "taxFree": false,
-          "inventory": true,
-          "batch": false,
-          "operation": false,
-          "buyAccount": "4000",
-          "sellAccount": "1000",
-          "buyEuAccount": "4010",
-          "sellEuAccount": "1010"
-        }
-        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -2628,21 +2671,6 @@ paths:
       tags:
         - Accounts
       summary: Create a new account
-      description: |
-        Create a new account using English field names. The API accepts both English and Danish field names for backward compatibility.
-        
-        **Example Request:**
-        ```json
-        {
-          "accountNumber": "1500",
-          "description": "Petty Cash",
-          "accountType": "A",
-          "vat": "A25",
-          "openingBalance": 1000.0,
-          "balance": 1000.0,
-          "usage": "Cash operations"
-        }
-        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -2767,8 +2795,6 @@ paths:
       tags:
         - Accounts
       summary: Update an account
-      description: |
-        Update an existing account using English field names.
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -3154,21 +3180,6 @@ paths:
       tags:
         - VAT
       summary: Create a new VAT item
-      description: |
-        Create a new VAT item using English field names. The API accepts both English and Danish field names for backward compatibility.
-        
-        **Example Request:**
-        ```json
-        {
-          "description": "Standard VAT 25%",
-          "vatCode": "A",
-          "number": 25,
-          "account": 1520,
-          "rate": 25.0,
-          "contraAccount": 0,
-          "mapping": ""
-        }
-        ```
       parameters:
         - $ref: '#/components/parameters/DatabaseHeader'
         - $ref: '#/components/parameters/UserHeader'
@@ -3463,211 +3474,186 @@ components:
     # Order Schemas
     CreateOrderRequest:
       type: object
-      required:
-        - firmanavn
-        - telefon
-        - email
-        - momssats
+      description: |
+        Create a new order. The API accepts both English and Danish field names for backward compatibility.
+        
+        **Required for new customers:**
+        - `companyName` (or `firmanavn`) - Company name
+        - `phone` (or `telefon`) - Phone number  
+        - `email` - Email address
+        - `vatRate` (or `momssats`) - VAT rate
+        
+        **Required for existing customers:**
+        - `accountId` (or `konto_id`) - Existing customer account ID
+        - `vatRate` (or `momssats`) - VAT rate
+        
+        **English to Danish Field Mapping:**
+        - `accountId` → `konto_id`
+        - `companyName` → `firmanavn`
+        - `phone` → `telefon`
+        - `vatRate` → `momssats`
+        - `orderNumber` → `ordrenr`
+        - `orderDate` → `ordredate`
+        - `invoiceDate` → `fakturadate`
+        - `paid` → `betalt`
+        - `costPrice` → `kostpris`
+        - `vat` → `moms`
+        - `currency` → `valuta`
+        - `currencyRate` → `valutakurs`
+        - `paymentTerms` → `betalingsbet`
+        - `paymentDays` → `betalingsdage`
+        - `accountNumber` → `kontonr`
+        - `reference` → `ref`
+        - `type` → `art`
+        - `address1` → `addr1`
+        - `address2` → `addr2`
+        - `postalCode` → `postnr`
+        - `city` → `bynavn`
+        - `country` → `land`
+        - `deliveryName` → `lev_navn`
+        - `deliveryAddress1` → `lev_addr1`
+        - `deliveryAddress2` → `lev_addr2`
+        - `deliveryPostalCode` → `lev_postnr`
+        - `deliveryCity` → `lev_bynavn`
+        - `deliveryCountry` → `lev_land`
+        - `cvrNo` → `cvrnr`
+        - `customerGroup` → `kundegruppe`
       properties:
-        firmanavn:
+        # Customer identification (either accountId OR customer details required)
+        accountId:
+          type: integer
+          description: Existing customer/supplier account ID (use this for existing customers)
+          example: 201
+        companyName:
           type: string
-          description: Company name
+          description: Company name (required for new customers)
           example: "ACME Corporation"
-        telefon:
+        phone:
           type: string
-          description: Phone number
+          description: Phone number (required for new customers)
           example: "+45 12345678"
         email:
           type: string
           format: email
-          description: Email address
+          description: Email address (required for new customers)
           example: "contact@acme.com"
-        momssats:
+        
+        # Required fields
+        vatRate:
           type: number
           format: float
-          description: VAT rate
+          description: VAT rate percentage (required)
           example: 25.0
+        
+        # Financial information
         sum:
           type: number
           format: float
-          description: Order total
+          description: Order total amount
           example: 1250.00
-        kostpris:
+        costPrice:
           type: number
           format: float
           description: Cost price
           example: 1000.00
-        moms:
+        vat:
           type: number
           format: float
           description: VAT amount
           example: 250.00
-        valuta:
+        currency:
           type: string
-          description: Currency code
+          description: Currency code (defaults to base currency if not provided)
           example: "DKK"
-        betalingsbet:
+        currencyRate:
+          type: number
+          format: float
+          description: Currency exchange rate (auto-calculated if not provided)
+          example: 100.0
+        
+        # Payment terms
+        paymentTerms:
           type: string
-          description: Payment terms
+          description: Payment terms (defaults to 'netto' or customer's default)
           example: "netto"
-        betalingsdage:
+        paymentDays:
           type: integer
-          description: Payment days
-          example: 8
-        addr1:
+          description: Payment days (defaults to 8 or customer's default)
+          example: 30
+        
+        # Billing address
+        address1:
           type: string
           description: Address line 1
           example: "Main Street 123"
-        addr2:
+        address2:
           type: string
           description: Address line 2
           example: "Suite 456"
-        postnr:
+        postalCode:
           type: string
           description: Postal code
           example: "1234"
-        bynavn:
+        city:
           type: string
           description: City name
           example: "Copenhagen"
-        land:
+        country:
           type: string
           description: Country
           example: "Denmark"
-        lev_navn:
+        
+        # Delivery address
+        deliveryName:
           type: string
-          description: Delivery name
+          description: Delivery contact name
           example: "ACME Warehouse"
-        lev_addr1:
+        deliveryAddress1:
           type: string
           description: Delivery address 1
           example: "Industrial Road 789"
-        lev_addr2:
+        deliveryAddress2:
           type: string
           description: Delivery address 2
           example: "Building B"
-        lev_postnr:
+        deliveryPostalCode:
           type: string
           description: Delivery postal code
           example: "5678"
-        lev_bynavn:
+        deliveryCity:
           type: string
           description: Delivery city
           example: "Aarhus"
-        lev_land:
+        deliveryCountry:
           type: string
           description: Delivery country
           example: "Denmark"
+        
+        # Other customer information
         ean:
           type: string
           description: EAN number
           example: "1234567890123"
-        cvrnr:
+        cvrNo:
           type: string
           description: CVR number
           example: "12345678"
-        ordredate:
-          type: string
-          format: date
-          description: Order date
-          example: "2025-06-20"
-        notes:
-          type: string
-          description: Notes
-          example: "Urgent delivery required"
-        betalt:
-          type: boolean
-          description: Paid status
-          example: false
-
-    OrderResponse:
-      type: object
-      properties:
-        id:
+        customerGroup:
           type: integer
-          description: Order ID
-          example: 1001
-        accountId:
-          type: integer
-          description: Account ID
-          example: 201
-        companyName:
-          type: string
-          description: Company name
-          example: "ACME Corporation"
-        phone:
-          type: string
-          description: Phone number
-          example: "+45 12345678"
-        email:
-          type: string
-          description: Email address
-          example: "contact@acme.com"
-        vatRate:
-          type: number
-          format: float
-          description: VAT rate
-          example: 25.0
-        address:
-          type: object
-          description: Billing address
-          properties:
-            addr1:
-              type: string
-              example: "Main Street 123"
-            addr2:
-              type: string
-              example: "Suite 456"
-            zipcode:
-              type: string
-              example: "1234"
-            city:
-              type: string
-              example: "Copenhagen"
-            country:
-              type: string
-              example: "Denmark"
-        delivery:
-          type: object
-          description: Delivery address
-          properties:
-            name:
-              type: string
-              example: "ACME Warehouse"
-            addr1:
-              type: string
-              example: "Industrial Road 789"
-            addr2:
-              type: string
-              example: "Building B"
-            zipcode:
-              type: string
-              example: "5678"
-            city:
-              type: string
-              example: "Aarhus"
-            country:
-              type: string
-              example: "Denmark"
-        ean:
-          type: string
-          description: EAN number
-          example: "1234567890123"
-        cvr:
-          type: string
-          description: CVR number
-          example: "12345678"
+          description: Customer group (defaults to 1 for new customers)
+          example: 1
+        
+        # Order information
         orderDate:
           type: string
-          format: date
-          description: Order date
-          example: "2025-06-20"
+          format: date-time
+          description: Order date (defaults to current date/time)
+          example: "2025-07-31T10:30:00"
         invoiceDate:
           type: string
-          format: date
-          nullable: true
-          description: Invoice date
-          example: "2025-06-21"
+          format: date-time
+          description: Invoice date (defaults to current date/time)
+          example: "2025-07-31T10:30:00"
         notes:
           type: string
           description: Order notes
@@ -3676,56 +3662,159 @@ components:
           type: boolean
           description: Payment status
           example: false
-        paymentInfo:
-          type: object
-          description: Payment information
-          properties:
-            paymentTerms:
-              type: string
-              example: "Net 30"
-            paymentDays:
-              type: integer
-              example: 30
-        economic:
-          type: object
-          description: Economic information
-          properties:
-            sum:
-              type: number
-              format: float
-              example: 1250.00
-            costPrice:
-              type: number
-              format: float
-              example: 1000.00
-            vat:
-              type: number
-              format: float
-              example: 250.00
-            currency:
-              type: string
-              example: "DKK"
-            currencyRate:
-              type: number
-              format: float
-              example: 1.0
-        accountNumber:
+        type:
           type: string
-          description: Account number
-          example: "1000"
-        reference:
-          type: string
-          description: Reference/user
-          example: "user123"
+          description: Order type ('DO' for debitor, 'KO' for creditor)
+          example: "DO"
+          enum: ["DO", "KO"]
         status:
           type: integer
-          description: Order status
+          description: Order status (defaults to 0)
           example: 0
-        orderNo:
+        
+        # Auto-generated fields (usually not provided in request)
+        accountNumber:
+          type: string
+          description: Account number (auto-generated for new customers)
+          example: "1001"
+        reference:
+          type: string
+          description: Reference/user (auto-set from x-saldiuser header)
+          example: "user123"
+        orderNumber:
           type: integer
-          description: Order number
+          description: Order number (auto-generated)
           example: 2025001
-
+        
+        # Danish field names (for backward compatibility)
+        konto_id:
+          type: integer
+          description: "[Danish] Existing customer account ID"
+          example: 201
+        firmanavn:
+          type: string
+          description: "[Danish] Company name"
+          example: "ACME Corporation"
+        telefon:
+          type: string
+          description: "[Danish] Phone number"
+          example: "+45 12345678"
+        momssats:
+          type: number
+          format: float
+          description: "[Danish] VAT rate"
+          example: 25.0
+        kostpris:
+          type: number
+          format: float
+          description: "[Danish] Cost price"
+          example: 1000.00
+        moms:
+          type: number
+          format: float
+          description: "[Danish] VAT amount"
+          example: 250.00
+        valuta:
+          type: string
+          description: "[Danish] Currency"
+          example: "DKK"
+        valutakurs:
+          type: number
+          format: float
+          description: "[Danish] Exchange rate"
+          example: 100.0
+        betalingsbet:
+          type: string
+          description: "[Danish] Payment terms"
+          example: "netto"
+        betalingsdage:
+          type: integer
+          description: "[Danish] Payment days"
+          example: 8
+        kontonr:
+          type: string
+          description: "[Danish] Account number"
+          example: "1001"
+        ref:
+          type: string
+          description: "[Danish] Reference"
+          example: "user123"
+        art:
+          type: string
+          description: "[Danish] Order type"
+          example: "DO"
+          enum: ["DO", "KO"]
+        addr1:
+          type: string
+          description: "[Danish] Address line 1"
+          example: "Main Street 123"
+        addr2:
+          type: string
+          description: "[Danish] Address line 2"
+          example: "Suite 456"
+        postnr:
+          type: string
+          description: "[Danish] Postal code"
+          example: "1234"
+        bynavn:
+          type: string
+          description: "[Danish] City"
+          example: "Copenhagen"
+        land:
+          type: string
+          description: "[Danish] Country"
+          example: "Denmark"
+        lev_navn:
+          type: string
+          description: "[Danish] Delivery name"
+          example: "ACME Warehouse"
+        lev_addr1:
+          type: string
+          description: "[Danish] Delivery address 1"
+          example: "Industrial Road 789"
+        lev_addr2:
+          type: string
+          description: "[Danish] Delivery address 2"
+          example: "Building B"
+        lev_postnr:
+          type: string
+          description: "[Danish] Delivery postal code"
+          example: "5678"
+        lev_bynavn:
+          type: string
+          description: "[Danish] Delivery city"
+          example: "Aarhus"
+        lev_land:
+          type: string
+          description: "[Danish] Delivery country"
+          example: "Denmark"
+        cvrnr:
+          type: string
+          description: "[Danish] CVR number"
+          example: "12345678"
+        kundegruppe:
+          type: integer
+          description: "[Danish] Customer group"
+          example: 1
+        ordredate:
+          type: string
+          format: date-time
+          description: "[Danish] Order date"
+          example: "2025-07-31T10:30:00"
+        fakturadate:
+          type: string
+          format: date-time
+          description: "[Danish] Invoice date"
+          example: "2025-07-31T10:30:00"
+        betalt:
+          type: boolean
+          description: "[Danish] Paid status"
+          example: false
+        ordrenr:
+          type: integer
+          description: "[Danish] Order number"
+          example: 2025001
+      
     OrderListResponse:
       type: object
       properties:
@@ -3736,6 +3825,156 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OrderResponse'
+          description: Array of order objects
+        message:
+          type: string
+          example: "Orders retrieved successfully"
+
+    OrderResponse:
+        type: object
+        properties:
+          id:
+            type: integer
+            description: Order ID
+            example: 1001
+          accountId:
+            type: integer
+            description: Account ID
+            example: 201
+          companyName:
+            type: string
+            description: Company name
+            example: "ACME Corporation"
+          phone:
+            type: string
+            description: Phone number
+            example: "+45 12345678"
+          email:
+            type: string
+            description: Email address
+            example: "contact@acme.com"
+          vatRate:
+            type: number
+            format: float
+            description: VAT rate
+            example: 25.0
+          address:
+            type: object
+            description: Billing address
+            properties:
+              addr1:
+                type: string
+                example: "Main Street 123"
+              addr2:
+                type: string
+                example: "Suite 456"
+              zipcode:
+                type: string
+                example: "1234"
+              city:
+                type: string
+                example: "Copenhagen"
+              country:
+                type: string
+                example: "Denmark"
+          delivery:
+            type: object
+            description: Delivery address
+            properties:
+              name:
+                type: string
+                example: "ACME Warehouse"
+              addr1:
+                type: string
+                example: "Industrial Road 789"
+              addr2:
+                type: string
+                example: "Building B"
+              zipcode:
+                type: string
+                example: "5678"
+              city:
+                type: string
+                example: "Aarhus"
+              country:
+                type: string
+                example: "Denmark"
+          ean:
+            type: string
+            description: EAN number
+            example: "1234567890123"
+          cvr:
+            type: string
+            description: CVR number
+            example: "12345678"
+          orderDate:
+            type: string
+            format: date
+            description: Order date
+            example: "2025-06-20"
+          invoiceDate:
+            type: string
+            format: date
+            nullable: true
+            description: Invoice date
+            example: "2025-06-21"
+          notes:
+            type: string
+            description: Order notes
+            example: "Urgent delivery required"
+          paid:
+            type: boolean
+            description: Payment status
+            example: false
+          paymentInfo:
+            type: object
+            description: Payment information
+            properties:
+              paymentTerms:
+                type: string
+                example: "Net 30"
+              paymentDays:
+                type: integer
+                example: 30
+          economic:
+            type: object
+            description: Economic information
+            properties:
+              sum:
+                type: number
+                format: float
+                example: 1250.00
+              costPrice:
+                type: number
+                format: float
+                example: 1000.00
+              vat:
+                type: number
+                format: float
+                example: 250.00
+              currency:
+                type: string
+                example: "DKK"
+              currencyRate:
+                type: number
+                format: float
+                example: 1.0
+          accountNumber:
+            type: string
+            description: Account number
+            example: "1000"
+          reference:
+            type: string
+            description: Reference/user
+            example: "user123"
+          status:
+            type: integer
+            description: Order status
+            example: 0
+          orderNo:
+            type: integer
+            description: Order number
+            example: 2025001
 
     # Order Line Schemas
     CreateOrderLineRequest:
