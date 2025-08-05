@@ -393,27 +393,27 @@ else include_once 'debLstIncludes/oldTopLine.php';
 $steps = array();
 $steps[] = array(
     "selector" => "#debitore",
-    "content" => "Her ser du en liste af alle dine kunder."
+    "content" => findtekst('2621|Her ser du en liste af alle dine kunder', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#opret-ny",
-    "content" => "For at oprette en ny kunde, klik her."
+    "content" => findtekst('2622|For at oprette en ny kunde, klik her', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#kommission",
-    "content" => "Tilmeld dine kunder til kommissionssalgssystemet her."
+    "content" => findtekst('2623|Tilmeld dine kunder til kommissionssalgssystemet her', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => 'input[type="checkbox"][name^="mySale["], input[type="submit"][name="kommission"]',
-    "content" => "Før du kan invitere en kunde til mitsalg, skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK."
+    "content" => findtekst('2624|Før du kan invitere en kunde til \'Mit Salg\', skal du aktivere deres konto. Sæt hak i \'aktiver\' og tryk OK.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".kommission-link",
-    "content" => "Når en kunde er aktiveret kan du åbne deres konto her."
+    "content" => findtekst('2625|Når en kunde er aktiveret kan du åbne deres konto her', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => 'input[type="checkbox"][name^="invite["], input[type="submit"][name="kommission"]',
-    "content" => "Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. <br><br>De vil her få et link til mitsalg og kan oprette deres labels derigennem. <br><br>Det er <b>kun</b> muligt at invitere en kunde, hvis de har en e-mail sat op på deres kontokort."
+    "content" => findtekst('2626|Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. De vil her få et link til \'Mit Salg\' og kan oprette deres labels derigennem. Det er kun muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.', $sprog_id)
 );
 
 include(__DIR__ . "/../includes/tutorial.php");

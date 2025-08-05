@@ -487,15 +487,15 @@ if($status < 3){
 	);
 	$steps[] = array(
 		"selector" => "[name=betalingsbet]",
-		"content" => "Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kundens opsætning."
+		"content" => findtekst('2618|Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kundens opsætning.', $sprog_id)
 	);
 	$steps[] = array(
 		"selector" => "[name=betalingsdage]",
-		"content" => "Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kundens opsætning."
+		"content" => findtekst('2619|Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kundens opsætning.', $sprog_id)
 	);
 	$steps[] = array(
 		"selector" => "[name=ean]",
-		"content" => "Her kan du indtaste EAN-nummeret, hvis du handler med f.eks. kommuner. Hvis du bruger digital fakturering, kan du indtast et identifikationsnummer (som f.eks. GLN eller EAN) efterfulgt af det specifikke nummer, f.eks. 'GLN:123456789102'."
+		"content" => findtekst('2620|Her kan du indtaste et identifikationsnummer (f.eks. GLN eller EAN), for eksempel hvis du fakturerer offentlige instanser såsom kommuner eller bruger digitale faktureringssystemer. Angiv typen og nummeret, f.eks. \'GLN:123456789102\'', $sprog_id)
 	);
 
 	include(__DIR__ . "/../includes/tutorial.php");
@@ -4702,10 +4702,10 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 			if ($hurtigfakt=='on' && $fakturadato) print "<input type=\"hidden\" name=\"levdato\" value=\"$fakturadato\">\n";
 			print "<input type=\"hidden\" name=\"valutakurs\" value=\"$valutakurs\">\n";
 			print "<input type=\"hidden\" name=\"status\" value=\"$status\">\n";
-			$txt = findtekst('3|Gem',$sprog_id);
+			$txt = findtekst('3|Gem', $sprog_id);
 			print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button green medium\" id=\"submit\" style=\"width:75px;\" accesskey=\"g\" value=\"$txt\" name = 'save' onclick=\"javascript:docChange = false;\"></td>\n";
 			if ($art!='OT') { # Fjerner knappen opslag hvis art er = OT (original tilbud) #20140716
-			$txt = findtekst('644|Opslag',$sprog_id);
+			$txt = findtekst('644|Opslag', $sprog_id);
 			print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button blue medium\" style=\"width:75px;\" accesskey=\"o\" value=\"$txt\" name ='lookUp' "; #
 				if ( $art == "DK" ) print "disabled=\"disabled\" ";
 				print "onclick=\"javascript:docChange = false;\"></td>\n";
