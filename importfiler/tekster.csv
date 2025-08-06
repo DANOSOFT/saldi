@@ -351,7 +351,7 @@
 351	Kontonummer findes allerede	not changed	Kontonummer eksisterer allerede
 352	Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson	Hint! You must set a - (minus) as item no to delete a contact	Hint! Du må sette et - (minus) som varenr for å slette en kontakt
 353	Privat	Private	Privat
-354	Erhverv	profession	yrke
+354	Erhverv	Business	Virksomhet
 355	Vis leveringsadresse	Show delivery address	Vis leveringsadresse
 356	Debitorkort	Debtor card	Debitorkort
 357	Kundenr.	Customer no.	Kundenr.
@@ -363,7 +363,7 @@
 363	Postnr./By	Zipcode/City	Postnummer/By
 364	Land	Country	Land
 365	E-mail / brug mail	Email / use mail	Send e-post / bruk e-post
-366	Afmærk her hvis modtageren skal modtage tilbud	order	Sjekk her om mottakeren skal motta et tilbud
+366	Afmærk her hvis modtageren skal modtage tilbud	Check here if the recipient should receive offers	Sjekk her om mottakeren skal motta et tilbud
 367	Hjemmeside	Homepage	Hjemmeside
 368	Betalingsbetingelse	Payment terms	Betalingsbetingelser
 369	Forud	Prior	I forkant
@@ -392,7 +392,7 @@
 392	Kontaktpersoner	Contact persons	Kontaktpersoner
 393	Positionsnummer. Primær kontakt har nummer 1	Position number. Primary contact has number 1	Posisjonsnummer. Primærkontakt har nummer 1
 394	Pos.	Pos.	Pos.
-395	Sæt flueben her for at knytte $firmanavn til denne kategori	Check here to associate $firmanavn name with this category	Sjekk her for å knytte $firmanavn til denne kategorien
+395	Afmærk her for at knytte $firmanavn til denne kategori	Check here to associate $firmanavn name with this category	Sjekk her for å knytte $firmanavn til denne kategorien
 396	Klik her for at omdøbe denne kategori	Click here to rename this category	Klikk her for å gi nytt navn til denne kategorien
 397	Klik her for at slette denne kategori	Click here to delete this category	Klikk her for å slette denne kategorien
 398	Kontakt	Contact	Kontakt
@@ -2621,7 +2621,7 @@
 2621	Her ser du en liste over alle dine kunder	Here you can see a list of all your customers	Her ser du en liste over alle kundene dine
 2622	For at oprette en ny kunde, klik her	To add a new customer, click here	For å opprette en ny kunde, klikk her
 2623	Tilmeld dine kunder til kommissionssalgssystemet her	Register your customers in the commission sales system here	Meld inn kundene dine i kommisjonssalgssystemet her
-2624	Før du kan invitere en kunde til 'Mit Salg', skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK.	Before you can invite a customer to 'My Sales', you need to activate their account. Check 'Activate' and click OK.	Før du kan invitere en kunde til 'Mitt Salg', må du aktivere kontoen deres. Huk av for 'aktiver' og trykk OK.
+2624	Før du kan inviterer en kunde til 'Mit Salg', skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK.	Before you can invite a customer to 'My Sales', you need to activate their account. Check 'Activate' and click OK.	Før du kan invitere en kunde til 'Mitt Salg', må du aktivere kontoen deres. Huk av for 'aktiver' og trykk OK.
 2625	Når en kunde er aktiveret kan du åbne deres konto her	Once a customer is activated, you can view their account here	Når en kunde er aktivert, kan du åpne kontoen deres her
 2626	Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. <br><br>De vil her få et link til 'Mit Salg' og kan oprette deres labels derigennem. <br><br>Det er <b>kun</b> muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.	Once the customer is activated, you will be able to send them an invitation by email.<br><br>They will receive a link to 'My Sales' and can create their labels through it.<br><br>It is <b>only</b> possible to invite a customer if they have an email address set up in their customer profile.	Når kunden er aktivert, vil det være mulig å sende dem en invitasjon på e-post.<br><br>De vil da få en lenke til 'Mitt Salg' og kan opprette etikettene sine der.<br><br>Det er <b>kun</b> mulig å invitere en kunde dersom de har en e-postadresse registrert på stamkortet sitt.
 2627	

@@ -405,7 +405,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => 'input[type="checkbox"][name^="mySale["], input[type="submit"][name="kommission"]',
-    "content" => findtekst('2624|Før du kan invitere en kunde til \'Mit Salg\', skal du aktivere deres konto. Sæt hak i \'aktiver\' og tryk OK.', $sprog_id)
+    "content" => findtekst('2624|Før du kan inviterer en kunde til \'Mit Salg\', skal du aktivere deres konto. Sæt hak i \'aktiver\' og tryk OK.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".kommission-link",
@@ -670,7 +670,7 @@ if ($valg == 'kommission' || $valg == 'historik') {
 	else print "<input style='width:100px;' type='submit' name='historik' value='Send'>";
 	print "</td></tr>";
 	print "<tr><td colspan='$colspan'>";
-	print "<td colspan='2' align='right'><input style='width:100px;' type='submit' name='chooseAll' value='Vælg alle'></td>";
+	print "<td colspan='2' align='right'><input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'></td>";
 	print "</form>";
 }
 print "</tr>\n";
