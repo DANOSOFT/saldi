@@ -126,7 +126,7 @@ class LagerStatusModel {
                 foreach ($existing as $item) {
                     if ($item->getInventory() == $this->inventory && $item->getVariantId() == $this->variantId) {
                         // give error message
-                        return "Record with vare_id and lager already exists.";
+                        return "Record with productId and inventory already exists.";
                     }
                 }
             }
