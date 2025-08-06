@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/showPosLinesFunc.php --- lap 4.0.9 --- 2023.11.10 ---
+// --- debitor/pos_ordre_includes/showPosLines/showPosLinesFunc.php --- lap 4.1.1 --- 2025.08.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 20190508 LN Move function vis_pos_linjer here
@@ -30,18 +30,20 @@
 // 20210822 PHR Added $discounttxt as global in function vis_pos_linjer
 // 20221123 PHR Remove Vat if less than 0.1
 // 20231110 PHR $kasse is now shown as background if less than 3 orderlines.
+// 20240725 PHR Replaced 'DKK' with $baseCurrency.
+// 20250805 PHR Inserted fetch of status.
 
 #Called from pos_ordre.php & pos_ordre_itemscan.php
 function vis_pos_linjer($id,$momssats,$status,$pris_ny,$show) {
 	print "\n<!-- Function vis_pos_linjer (start)-->\n";
 	global $afd,$afd_lager,$afd_navn,$afslut;
-	global $bgcolor,$bgcolor5,$bordnr,$brugernavn,$betvaluta,$betvalkurs,$betvalsum;
+	global $baseCurrency,$bgcolor,$bgcolor5,$bordnr,$brugernavn,$betvaluta,$betvalkurs,$betvalsum;
 	global $del_bord,$difkto,$db,$db_id,$discounttxt;
 	global $fokus;
 	global $ifs;
 	global $kasse,$koekken,$kundedisplay;
 	global $lager_ny,$lagerantal,$lagernavn,$lagernr;
-	global $regnaar;
+	global $rabatart, $regnaar;
 	global $sprog_id,$status,$svnr;
 	global $tilfravalgNy;
 	global $varelinjer,$varenr_ny,$vis_saet;
@@ -55,12 +57,14 @@ function vis_pos_linjer($id,$momssats,$status,$pris_ny,$show) {
 
 	if ($id) {
 		$qtxt = "select status from ordrer where id = '$id'";
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$status = $r['status'];
+		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $status = $r['status'];
+	} else {
+		return 'Missing ID';
+		exit;
 	}
 	
 	if (isset($_POST['betvaluta'])) $betvaluta=$_POST['betvaluta'];
-	else $betvaluta='DKK';
+	else $betvaluta=$baseCurrency;
 
 	$samlet_pris=if_isset($_POST['samlet_pris']);
 	if ($vis_saet && !$samlet_pris && isset($_GET['samlet_pris'])) $samlet_pris=dkdecimal($_GET['samlet_pris']); #20170622-1
@@ -181,7 +185,7 @@ function vis_pos_linjer($id,$momssats,$status,$pris_ny,$show) {
 				$a[$x]*=-1;
 			}
 			print "<tr><td colspan=\"4\">$b[$x]</td><td align=\"right\">";
-			if ($c[$x]!='DKK') print "($c[$x] ".dkdecimal($a[$x]*100/$d[$x],2).") ";
+			if ($c[$x]!=$baseCurrency) print "($c[$x] ".dkdecimal($a[$x]*100/$d[$x],2).") ";
 			print dkdecimal($a[$x],2)."</td></tr>\n";
 		}
 		if ($status < '3') {

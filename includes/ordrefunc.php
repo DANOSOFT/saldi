@@ -2151,8 +2151,7 @@ function batch_kob($id, $art)
 	}
 } # endfunc batch_kob
 ###############################################################
-function bogfor_indbetaling($id, $webservice)
-{
+function bogfor_indbetaling($id, $webservice) {
 	include("../includes/genberegn.php");
 	include("../includes/forfaldsdag.php");
 	global $baseCurrency;
@@ -2257,11 +2256,11 @@ function bogfor_indbetaling($id, $webservice)
 			$tmparray = explode(chr(9), $r['box2']);
 			$kassekonto = $tmparray[$kasse - 1] * 1;
 			$kortantal = $r['box4'] * 1;
-			$korttyper = explode(chr(9), $r['box5']);
+			$korttyper = explode(chr(9), strtolower($r['box5']));
 			$kortkonti = explode(chr(9), $r['box6']);
 			$kortnavn = NULL;
 			if ($div_kort_kto) { #20140129
-				if (!in_array($betaling, $korttyper)) {
+				if (!in_array(strtolower($betaling), $korttyper)) {
 					$korttyper[$kortantal] = $betaling;
 					$kortkonti[$kortantal] = $div_kort_kto;
 					$kortantal++;
@@ -2312,7 +2311,6 @@ function bogfor_indbetaling($id, $webservice)
 			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0','0','$logdate','$logtime','0','0','$id','$kasse')", __FILE__ . " linje " . __LINE__);
 		db_modify("update ordrer set status=4, valutakurs=$valutakurs where id=$id", __FILE__ . " linje " . __LINE__);
 	}
-	#xit;
 	transaktion("commit");
 	return ('OK');
 }
