@@ -351,7 +351,7 @@
 351	Kontonummer findes allerede	not changed	Kontonummer eksisterer allerede
 352	Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson	Hint! You must set a - (minus) as item no to delete a contact	Hint! Du må sette et - (minus) som varenr for å slette en kontakt
 353	Privat	Private	Privat
-354	Erhverv	Business	Virksomhet
+354	Erhverv	Business	Bedrift
 355	Vis leveringsadresse	Show delivery address	Vis leveringsadresse
 356	Debitorkort	Debtor card	Debitorkort
 357	Kundenr.	Customer no.	Kundenr.
@@ -362,7 +362,7 @@
 362	Adresse 2	Address 2	Adresse 2
 363	Postnr./By	Zipcode/City	Postnummer/By
 364	Land	Country	Land
-365	E-mail / brug mail	Email / use mail	Send e-post / bruk e-post
+365	E-mail / brug mail	Email / use email	Send e-post / bruk e-post
 366	Afmærk her hvis modtageren skal modtage tilbud	Check here if the recipient should receive offers	Sjekk her om mottakeren skal motta et tilbud
 367	Hjemmeside	Homepage	Hjemmeside
 368	Betalingsbetingelse	Payment terms	Betalingsbetingelser
@@ -2624,14 +2624,14 @@
 2624	Før du kan inviterer en kunde til 'Mit Salg', skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK.	Before you can invite a customer to 'My Sales', you need to activate their account. Check 'Activate' and click OK.	Før du kan invitere en kunde til 'Mitt Salg', må du aktivere kontoen deres. Huk av for 'aktiver' og trykk OK.
 2625	Når en kunde er aktiveret kan du åbne deres konto her	Once a customer is activated, you can view their account here	Når en kunde er aktivert, kan du åpne kontoen deres her
 2626	Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. <br><br>De vil her få et link til 'Mit Salg' og kan oprette deres labels derigennem. <br><br>Det er <b>kun</b> muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.	Once the customer is activated, you will be able to send them an invitation by email.<br><br>They will receive a link to 'My Sales' and can create their labels through it.<br><br>It is <b>only</b> possible to invite a customer if they have an email address set up in their customer profile.	Når kunden er aktivert, vil det være mulig å sende dem en invitasjon på e-post.<br><br>De vil da få en lenke til 'Mitt Salg' og kan opprette etikettene sine der.<br><br>Det er <b>kun</b> mulig å invitere en kunde dersom de har en e-postadresse registrert på stamkortet sitt.
-2627	
-2628	
-2629	
-2630	
-2631	
-2632	
-2633	
-2634	
+2627	Her vælger du kundetype (privat eller erhverv)	Here you select the customer type (private or business)	Her velger du kundetype (privat eller bedrift)
+2628	Indsæt kontonummer, eller lad systemet gøre det for dig ved at hoppe videre til næste felt	Enter the account number, or let the system do it for you by moving to the next field	Skriv inn kontonummer, eller la systemet gjøre det for deg ved å gå videre til neste felt
+2629	Angiv kundens navn	Enter the customer's name	Angi kundens navn
+2630	Angiv kundens firmanavn	Enter the customer's company name	Angi kundens firmanavn
+2631	Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i 'Brug mail'	Enter the customer's email here. If you want the system to send emails by default when invoicing an order, you can check 'Use email'	Kundens e-post skrives inn her. Hvis du ønsker at systemet skal sende e-poster som standard når du fakturerer en ordre, kan du krysse av for 'Bruk e-post'
+2632	Du kan opstille kundens betalingsbetingelser her	You can set the customer's payment terms here	Du kan sette opp kundens betalingsbetingelser her
+2633	Når du indtaster en ny kunde, kan du lave et CVR-opslag ved at sætte '/' før og efter CVR-nummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>	For danish companies: When entering a new customer, you can perform a CVR lookup by placing '/' before and after the CVR number.<br><br>Try, for example, <b>/20756438/</b>	For danske selskaper: Når du registrerer en ny kunde, kan du gjøre et CVR-oppslag ved å sette '/' foran og etter CVR-nummeret.<br><br>Prøv for eksempel <b>/20756438/</b>
+2634	Her kan du oprette op til 5 selvdefinerede felter. Du kan kontakte Saldi-teamet, hvis du ønsker at tilpasse felternes tekst, så den passer til indholdet.	Here you can create up to 5 custom fields. You can contact the Saldi team if you want to adjust the field labels to match the content.	Her kan du opprette opptil 5 egendefinerte felt. Du kan kontakte Saldi-teamet hvis du ønsker å tilpasse feltnavnene så de passer til innholdet.
 2635	
 2636	
 2637	

@@ -1317,35 +1317,35 @@ if ($menu == 'T') {
 $steps = array();
 $steps[] = array(
 	"selector" => 'select[name="kontotype"]',
-	"content" => "Vælg om det skal være privat eller erhverv her."
+	"content" => findtekst('2627|Her vælger du kundetype (privat eller erhverv)', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="ny_kontonr"]',
-	"content" => "Indsæt konto nr. eller lad systemet gøre det for dig ved at hoppe videre til næste felt."
+	"content" => findtekst('2628|Indsæt kontonummer, eller lad systemet gøre det for dig ved at hoppe videre til næste felt', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="fornavn"], input[type="text"][name="efternavn"]',
-	"content" => "Angiv kundens navn."
+	"content" => findtekst('2629|Angiv kundens navn', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="firmanavn"]',
-	"content" => "Angiv kundens firmanavn."
+	"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="email"], input[type="checkbox"][name="mailfakt"]',
-	"content" => "Kundens email tastes her, hvis du gerne vil have at systemet sender emails som standard når du fakturere ordre, kan du sætte hak i brug mail."
+	"content" => findtekst('2631|Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i \'Brug mail\'', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'select[name="betalingsbet"], input[type="text"][name="betalingsdage"]',
-	"content" => "Du kan opstille kundens betalingsbetingelser her."
+	"content" => findtekst('2632|Du kan opstille kundens betalingsbetingelser her', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="cvrnr"]',
-	"content" => "Når du indtaster en ny kunde kan du lave et cvr opslag ved at sætte / før og efter cvrnummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>"
+	"content" => findtekst('2633|Når du indtaster en ny kunde, kan du lave et CVR-opslag ved at sætte \'/\' før og efter CVR-nummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="felt_1"], input[type="text"][name="felt_5"]',
-	"content" => "Du kan lave 5 selvdefinerede felter, du kan kontakte salditeamet hvis du gerne vil have rette felternes tekst så det passter til indeholdet"
+	"content" => findtekst('2634|Her kan du oprette op til 5 selvdefinerede felter. Du kan kontakte Saldi-teamet, hvis du ønsker at tilpasse felternes tekst, så den passer til indholdet.', $sprog_id)
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
