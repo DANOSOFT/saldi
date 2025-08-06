@@ -299,7 +299,7 @@ if ($menu=='T') {  # 20150331 start
 	print "<td width='12%'><a href=$returside accesskey='l'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
 
-	print "<td width='80%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
+	print "<td width='76%' align='center' style='$topStyle'>".findtekst('573|Formularkort', $sprog_id)."</td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('801|Sprog', $sprog_id)."</button></a></span></td>\n";
