@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-07-02--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-08-06--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -217,7 +217,8 @@
 // 20250526 PHR added "if ($returside == 'kassespor.php') .... " to function primary_menu as 'retur til kassespor' didn't work
 // 20250619 PHR proforma button can nov be called anything - not nessecary 'proforma'
 // 20250701 PHR Updated call to 'moveToOwnAccount' who work without 'moveToCustomerAccount' set
-// 20250701 PHR Check if order exits. if not set id to 0
+// 20250701 PHR Check if order exists. if not set id to 0
+// 20250806 PHR php8 issue in sizeof($_POST)
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -1087,7 +1088,8 @@ $vis_saet = trim($r['box12']);
 if ($vare_id) {
 	$r = db_fetch_array(db_select("select varenr from varer where id = '$vare_id'", __FILE__ . " linje " . __LINE__));
 	$varenr_ny = $r['varenr'];
-} elseif (sizeof($_POST) > 1) {
+} elseif (sizeof($_POST) > 1 || (isset($_GET['fokus']) && $_GET['fokus'] == 'kontonr')) {
+  // (isset($_GET['fokus']) && $_GET['fokus'] == 'kontonr') inserted as sizeof($_POST) (in php8) is 0 after account lookup in php8 ??
 	$ny_bruger = if_isset($_POST['ny_bruger']);
 	$kode = if_isset($_POST['kode']);
 	if (isset($_SESSION['creditType'])) {
@@ -1213,7 +1215,7 @@ if ($vare_id) {
 		$antal_ny = 1;
 		$afslut = NULL;
 	}
-	$sum *= 1;
+	$sum = (float)$sum;
 	if ($kundeordnr && $id)
 		db_modify("update ordrer set kundeordnr = '$kundeordnr' where id='$id'", __FILE__ . " linje " . __LINE__);
 
