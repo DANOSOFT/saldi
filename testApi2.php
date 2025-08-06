@@ -103,7 +103,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $res = curl_exec($ch);
 curl_close($ch); */
 }
-if(isset($_GET["update_price"])){
+/* if(isset($_GET["update_price"])){
 	$salesPrice = $_GET["salesPrice"];
 	$discountType = $_GET["discountType"];
 	$discount = $_GET["discount"];
@@ -113,18 +113,31 @@ if(isset($_GET["update_price"])){
 	$webFragt = $_GET["webFragt"];
 	$barcode = $_GET["barcode"];
 	file_put_contents("price.txt", "testApi2: SalesPrice: ".$salesPrice." DiscountType: ".$discountType." Discount: ".$discount." ItemNo: ".$itemNo." CostPrice: ".$costPrice." RetailPrice: ".$retailPrice." WebFragt: ".$webFragt." Barcode: ".$barcode."\n", FILE_APPEND); // Log sales price for debugging
-}
+} */
 
 if(isset($_GET["stock"])){
-	$stock = $_GET["stock"];
 	$stockno = $_GET["stockno"];
 	$stockvalue = $_GET["stockvalue"];
 	$update_stock = $_GET["update_stock"];
-	file_put_contents("price.txt", "testApi2: Stock: ".$stock." StockNo: ".$stockno." StockValue: ".$stockvalue." UpdateStock: ".$update_stock."\n", FILE_APPEND); // Log stock details for debugging
+	$total_stock = $_GET["totalStock"];
+	// read from file
+    // Read current stock from file
+    $currentStock = file_get_contents("stock.txt");
+    $currentStock = intval($currentStock); // Convert to integer
+    
+    // Calculate the difference (patch amount)
+    $stockDifference = $total_stock - $currentStock;
+    
+    // Apply the patch to make stock.txt match $total_stock
+    $newStock = $currentStock + $stockDifference;
+    
+    // Update stock.txt to match $total_stock
+    file_put_contents("stock.txt", $newStock);
+	file_put_contents("price.txt", "testApi2: Stock: ".$stock." StockNo: ".$stockno." StockValue: ".$stockvalue." UpdateStock: ".$update_stock." TotalStock: ".$total_stock."\n", FILE_APPEND); // Log stock details for debugging
 }
 
-if(isset($_GET["costPrice"])){
+/* if(isset($_GET["costPrice"])){
 	$costPrice = $_GET["costPrice"];
 	$itemNo = $_GET["sku"];
 	file_put_contents("price.txt", "testApi2: CostPrice: ".$costPrice." ItemNo: ".$itemNo."\n", FILE_APPEND); // Log cost price for debugging
-}
+} */

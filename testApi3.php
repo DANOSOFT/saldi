@@ -103,7 +103,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $res = curl_exec($ch);
 curl_close($ch); */
 }
-if(isset($_GET["update_price"])){
+/* if(isset($_GET["update_price"])){
 	$salesPrice = $_GET["salesPrice"];
 	$discountType = $_GET["discountType"];
 	$discount = $_GET["discount"];
@@ -126,4 +126,4 @@ if(isset($_GET["costPrice"])){
 	$costPrice = $_GET["costPrice"];
 	$itemNo = $_GET["sku"];
 	file_put_contents("price.txt", "testApi3: CostPrice: ".$costPrice." ItemNo: ".$itemNo."\n", FILE_APPEND); // Log cost price for debugging
-}
+} */
