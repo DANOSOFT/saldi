@@ -11,18 +11,40 @@ class CurrencyModel
     /**
      * Constructor - can create an empty Currency or load an existing one by ID
      * 
-     * @param int|null $id Optional ID to load existing currency
+     * @param int|null $currencyCode Optional currency code to load existing currency
      */
-    public function __construct($id = null)
+    public function __construct($currencyCode = null)
     {
-        if ($id !== null) {
-            $this->loadFromId($id);
+        if ($currencyCode !== null) {
+            $this->loadFromCurrencyCode($currencyCode);
         }
     }
     
     /**
+     * Load currency details from database by currency code
+     *
+     * @param string $currencyCode
+     * @return bool Success status
+     */
+    private function loadFromCurrencyCode($currencyCode)
+    {
+        $qtxt = "SELECT * FROM grupper WHERE box1 = '$currencyCode' AND art = 'VK'";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+
+        if ($r = db_fetch_array($q)) {
+            $this->id = (int)$r['id'];
+            $this->description = $r['beskrivelse'];
+            $this->currencyCode = $r['box1'];
+            $this->exchangeRate = $r['box2'];
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Load currency details from database by ID
-     * 
+     *
      * @param int $id
      * @return bool Success status
      */

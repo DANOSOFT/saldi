@@ -10,12 +10,12 @@ class CurrenciesEndpoint extends BaseEndpoint
         parent::__construct();
     }
 
-    protected function handleGet($id = null)
+    protected function handleGet($currencyCode = null)
     {
         try {
-            if ($id) {
+            if ($currencyCode) {
                 // Get single currency
-                $currency = new CurrencyModel($id);
+                $currency = new CurrencyModel($currencyCode);
                 if ($currency->getId()) {
                     $this->sendResponse(true, $currency->toArray());
                 } else {
