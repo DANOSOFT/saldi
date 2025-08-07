@@ -361,7 +361,7 @@ print "<th style='padding-top: 20px; width:100px; text-align:right'><b><a href='
 // print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(428, $sprog_id) . "</b></th>\n";
 
 // print "<th style='padding-top: 20px; width:100px; text-align:right'><b>BA</b></th>\n";
-print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst(937, $sprog_id) . "</b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findtekst('2296|Byttepenge', $sprog_id) . "</b></th>\n";
 if ($rabat_varenr && $vis_saet) {
     print "<th style='padding-top: 20px; width:100px; text-align:right'><b>Rabat</b></th>\n";
 }
