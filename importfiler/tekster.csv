@@ -2636,12 +2636,12 @@
 2636	Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den	Here you can select how to print or send the order when invoicing	Her kan du velge hvordan ordren skal skrives ut når du fakturerer den
 2637	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment terms. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsbetingelser. Disse hentes automatisk fra kreditoroppsettet
 2638	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment days. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsdager. Disse hentes automatisk fra kreditoroppsettet
-2639	
-2640	
-2641	
-2642	
-2643	
-2644	
+2639	<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer.	<b>Product list:</b> The list you see below.<br><br><b>Order view:</b> See which orders your products are included in.<br><br><b>Purchasing:</b> Quickly create purchase lists automatically or manually.<br><br><b>Serial numbers:</b> Tracking and management of serial-numbered products.	<b>Vareliste:</b> Listen du ser nedenfor.<br><br><b>Ordrevisning:</b> Se hvilke ordre varene dine inngår i.<br><br><b>Innkjøp:</b> Opprett raskt innkjøpslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administrasjon av produkter med serienummer.
+2640	Klik her for at oprette en ny vare	 Click here to add a new product	Klikk her for å opprette et nytt produkt
+2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click a item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
+2642	Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder	Click on a stock quantity to perform an internal transfer of inventory units	Klikk på et lagerantall for å utføre en intern overføring av lagerenheter
+2643	Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>"10"</b> – Shows items with a stock quantity of exactly 10.<br><b>"1:10"</b> – Shows items with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellom 1 og 10.
+2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your items to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
 2645	
 2646	
 2647	
