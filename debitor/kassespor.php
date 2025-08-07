@@ -708,7 +708,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 				        } else  {
 						print "<td align=right><br></td>\n";
 						}
-					    print "<td></td>";
+					    /* print "<td></td>"; */
 				}
 			}
 		}
