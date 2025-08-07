@@ -671,7 +671,7 @@ if (!$id && $konto_id && $kontonr) {
 	if ($sku != null) {
 		$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1",__FILE__ . " linje " . __LINE__);
 		$ordre = db_fetch_array($query);
-		$query = db_select("select * from varer where varenr='$sku' limit 1",__FILE__ . " linje " . __LINE__);
+		$query = db_select("select * from varer where varenr='$sku' or varenr_alias='$sku' or stregkode='$sku' limit 1",__FILE__ . " linje " . __LINE__);
 		$vare = db_fetch_array($query);
 		opret_ordrelinje($ordre["id"], $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
 	}
@@ -1560,7 +1560,7 @@ if ($status<3 && $b_submit) {
 		if ($sku != null) {
 			$query = db_select("select id from ordrer where ordrenr='$ordrenr' and art='DO' limit 1",__FILE__ . " linje " . __LINE__);
 			$ordre = db_fetch_array($query);
-			$query = db_select("select * from varer where varenr='$sku' limit 1",__FILE__ . " linje " . __LINE__);
+			$query = db_select("select * from varer where varenr='$sku' or varenr_alias='$sku' or stregkode='$sku' limit 1",__FILE__ . " linje " . __LINE__);
 			$vare = db_fetch_array($query);
 			opret_ordrelinje($ordre["id"], $vare["id"], $vare["varenr"], 1, $vare["beskrivelse"], $vare["salgspris"], 0, 0, "DO", "", "", "", "", "", "", "", "", "", "", "", "");
 		}
@@ -1799,7 +1799,7 @@ if ($status<3 && $b_submit) {
 			if ($varenr[0]) {
 				$samlevare[0]='';
 				if ($brugsamletpris) {
-					$r=db_fetch_array(db_select("SELECT id,samlevare,salgspris FROM varer WHERE varenr = '$varenr[0]'",__FILE__ . " linje " . __LINE__));
+					$r=db_fetch_array(db_select("SELECT id,samlevare,salgspris FROM varer WHERE varenr = '$varenr[0]' or varenr_alias = '$varenr[0]' or stregkode = '$varenr[0]'",__FILE__ . " linje " . __LINE__));
 					$samlevare[0]=$r['samlevare'];
 				}
 				if ($brugsamletpris && $samlevare[0]) {
@@ -1965,7 +1965,7 @@ if ((strstr($b_submit,'Kopi'))||(strstr($b_submit,'Kred')))  {
 	}		
 	for($x=1; $x<=$linjeantal; $x++) {
 		if (!$vare_id[$x] && $antal[$x] && $varenr[$x]) {
-			$qtxt = "select from varer where varenr = '$varenr[$x]'";
+			$qtxt = "select id from varer where varenr = '$varenr[$x]' or varenr_alias = '$varenr[$x]' or stregkode = '$varenr[$x]'";
 			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) $vare_id[$x]=$row['id'];
 		}
@@ -3208,7 +3208,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		for ($x=1; $x<=$linjeantal; $x++) {
 			$dkantal[$x] = $dk_kostpris[$x] = $lineCost[$x] = 0;
 			if (!$vare_id[$x]) {
-				$query = db_select("select id from varer where varenr = '$varenr[$x]'",__FILE__ . " linje " . __LINE__);
+				$query = db_select("select id from varer where varenr = '$varenr[$x]' or varenr_alias = '$varenr[$x]' or stregkode = '$varenr[$x]'",__FILE__ . " linje " . __LINE__);
 				if ($row = db_fetch_array($query)) {$vare_id[$x]=$row['id'];}
 			}
 			if (($varenr[$x])&&($vare_id[$x])) {
@@ -4497,7 +4497,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
       $tmp=$sum+$moms;
       if ($samlet_rabat) {
         $ms=afrund($moms*100/($sum+$moms),2); #20150318
-        $r=db_fetch_array(db_select("select id,beskrivelse from varer where varenr = '$rvnr'",__FILE__ . " linje " . __LINE__));
+        $r=db_fetch_array(db_select("select id,beskrivelse from varer where varenr = '$rvnr' or varenr_alias = '$rvnr' or stregkode = '$rvnr'",__FILE__ . " linje " . __LINE__));
         opret_ordrelinje($id,$r['id'],$rvnr,1,$r['beskrivelse'],$diff,$ms,100,'DO','','','0','','','','','','0' ,'0'  ,$lager[0],__LINE__);
         $r=db_fetch_array(db_select("select * from ordrelinjer where ordre_id = '$id' and varenr = '$rvnr'",__FILE__ . " linje " . __LINE__));
         $vist_rabat=$samlet_pris-$bruttosaetsum."|".$samlet_pris;
@@ -4537,7 +4537,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
           
           #print "<input type=\"hidden\" name=\"indsat\" value=\"".$_GET['vare_id']."\">"; //For external file, this would be from?
         }else{
-          $r=db_fetch_array(db_select("select * from varer where varenr='$varenr[0]'",__FILE__ . " linje " . __LINE__));
+          $r=db_fetch_array(db_select("select * from varer where varenr='$varenr[0]' or varenr_alias='$varenr[0]' or stregkode='$varenr[0]'",__FILE__ . " linje " . __LINE__));
           $beskrivelse[0]=$r['beskrivelse'];
           $gruppe = $r['gruppe'];
           $pris[0]=$r['salgspris'];
@@ -4607,7 +4607,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
         print "</tr>\n";
       }
       if ($procenttillag) {
-        $r=db_fetch_array(db_select("select beskrivelse from varer where varenr = '$procentvare'",__FILE__ . " linje " . __LINE__));
+        $r=db_fetch_array(db_select("select beskrivelse from varer where varenr = '$procentvare' or varenr_alias = '$procentvare' or stregkode = '$procentvare'",__FILE__ . " linje " . __LINE__));
         $tillag=$sum*$procenttillag/100;
         $beskr=var2str($r['beskrivelse'],$id,$posnr[$x],$varenr[$x],$dkantal[$x],$enhed[$x],$dkpris,$dkprocent,$serienr[$x],$varemomssats[$x],$dkrabat[$x]);
         $beskr=str_replace('$procenttillæg;',dkdecimal($procenttillag,2),$beskr);
@@ -5354,7 +5354,7 @@ function ordrelinjer($x,$sum,$dbsum,$blandet_moms,$moms,$antal_ialt,$leveres_ial
 } # endfunc ordrelinjer;
 
 function find_vare_id ($varenr) {
-	$query = db_select("select id from varer where varenr = '$varenr'",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select id from varer where varenr = '$varenr' or varenr_alias = '$varenr' or stregkode = '$varenr'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {return $row[id];}
 }
 

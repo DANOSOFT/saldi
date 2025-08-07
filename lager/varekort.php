@@ -1500,11 +1500,16 @@ for ($x = 1; $x <= $vare_sprogantal; $x++) {
 }
 
 ($noEdit) ? $href = NULL : $href = "ret_varenr.php?id=$id";
-
+$query = db_select("SELECT varenr_alias FROM varer WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+$varenrAlias = db_fetch_array($query)['varenr_alias'];
 if (substr($rettigheder,7,1) && $id) {
     print "<tr><td colspan=\"1\"></td>\n";
-    print "<td colspan=\"1\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b></td>\n";
-
+    print "<td colspan=\"1\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b>";
+    if($varenrAlias) { 
+        print "<b style='margin-left: 1rem;'>Varenr alias: <a href='ret_varenralias.php?id=$id' >$varenrAlias</a></b></td>";
+    }else{
+        print "<a href='ret_varenralias.php?id=$id' style='margin-left: 1rem;'><b>Tilføj varenr alias</b></a></td>";
+    }
     $query = db_select("select * from vare_lev where vare_id='$id'", __FILE__ . " linje " . __LINE__);
     if (db_fetch_array($query)) {
         print "<td colspan=\"1\" align=\"right\">

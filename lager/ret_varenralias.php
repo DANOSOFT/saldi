@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------lager/ret_varenr.php-------------patch 3.9.1 -- 20200612 ----------
+// ----------lager/ret_varenralias.php-------------patch 3.9.1 -- 20200612 ----------
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -25,11 +25,12 @@
 // 2015.12.08 Tilføjet flet funtion til sammenlægning af varer.
 // 2018.05.15 Kontrol mod flet af styklister og vares som indgår.
 // 2020.06.12 PHR Added pattern match on item no (varenr).
+// 2025.08.07 Modified to support varenr_alias instead of varenr.
 
 @session_start();
 $s_id=session_id();
 
-$title="Ret varenummer";
+$title="Ret varenummer alias";
 $modulnr=9;
 $css="../css/standard.css";
 
@@ -41,8 +42,9 @@ if (isset($_GET['id'])) $id = $_GET['id'];
 elseif(isset($_POST['id'])) {
 	$id = $_POST['id'];
 	$varenr = $_POST['varenr'];
+	$varenr_alias = $_POST['varenr_alias'];
 	$stregkode = $_POST['stregkode'];
-	$nyt_varenr = db_escape_string(trim($_POST['nyt_varenr']));
+	$nyt_varenr_alias = db_escape_string(trim($_POST['nyt_varenr_alias']));
 }
 
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
@@ -56,100 +58,105 @@ print "</td></tr>\n";
 print "<tr><td>\n";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=100% valign = \"center\" align = \"center\"><tbody>\n";
 
-if (($nyt_varenr) && ($nyt_varenr!=$varenr)) {
-	if ($r=db_fetch_array(db_select("select id from varer where varenr = '$nyt_varenr' or stregkode = '$nyt_varenr' or varenr_alias = '$nyt_varenr'",__FILE__ . " linje " . __LINE__))) {
-		print tekstboks('Varenummer: $nyt_varenr er i brug, varenummer ikke &aelig;ndret');
-	}	elseif (substr($nyt_varenr,0,1)=='=') {
-		$fletvnr=substr($nyt_varenr,1); 
-		if ($varenr == $fletvnr || $stregkode == $fletvnr) {
-			$txt="Varenummer: $varenr kan ikke sammenlægges med sig selv";
+if (($nyt_varenr_alias) && ($nyt_varenr_alias!=$varenr_alias)) {
+	if ($r=db_fetch_array(db_select("select id from varer where varenr = '$nyt_varenr_alias' or stregkode = '$nyt_varenr_alias' or varenr_alias = '$nyt_varenr_alias'",__FILE__ . " linje " . __LINE__))) {
+		print tekstboks('Varenummer alias: $nyt_varenr_alias er i brug, varenummer alias ikke &aelig;ndret');
+	}	elseif (substr($nyt_varenr_alias,0,1)=='=') {
+		$fletvnr=substr($nyt_varenr_alias,1); 
+		if ($varenr == $fletvnr || $varenr_alias == $fletvnr || $stregkode == $fletvnr) {
+			$txt="Varenummer alias: $varenr_alias kan ikke sammenlægges med sig selv";
 			print "javascript:alert(\"$txt\")";
 			print "<meta http-equiv=\"refresh\" content=\"2;URL=varekort.php?id=$id\">";
 			exit;
 		} elseif ($r=db_fetch_array(db_select("select id from styklister where vare_id = '$id' or indgaar_i = '$id'",__FILE__ . " linje " . __LINE__))) {
-			$txt="Varenummer: $varenr er del af en stykliste og kan ikke sammenlægges med andre varer";
+			$txt="Varenummer alias: $varenr_alias er del af en stykliste og kan ikke sammenlægges med andre varer";
 			alert($txt);
 			print "<meta http-equiv=\"refresh\" content=\"2;URL=varekort.php?id=$id\">";
 			exit;
 #		} elseif ($r=db_fetch_array(db_select("select styklister.id from styklister,varer where varer.varenr = '$fletvnr' or varer.stregkode = '$fletvnr' and styklister.vare_id = varer.id or styklister.indgaar_i = varer.id",__FILE__ . " linje " . __LINE__))) {
-#			$txt="Varenummer: $fletvnr er del af en stykliste hvorfor $varenr ikke kan ikke sammenlægges med denne";
+#			$txt="Varenummer alias: $fletvnr er del af en stykliste hvorfor $varenr_alias ikke kan ikke sammenlægges med denne";
 #			print tekstboks("$txt");
 #			print "<meta http-equiv=\"refresh\" content=\"2;URL=varekort.php?id=$id\">";
 #			exit;
-		} elseif ($r=db_fetch_array(db_select("select id,varenr,stregkode from varer where varenr = '$fletvnr' or stregkode = '$fletvnr'",__FILE__ . " linje " . __LINE__))) {
-			$txt="Varenummer:$varenr sammenlægges med vnr $r[varenr]";
+		} elseif ($r=db_fetch_array(db_select("select id,varenr,stregkode,varenr_alias from varer where varenr = '$fletvnr' or stregkode = '$fletvnr' or varenr_alias = '$fletvnr'",__FILE__ . " linje " . __LINE__))) {
+			$txt="Varenummer alias:$varenr_alias sammenlægges med vnr $r[varenr]";
+			if ($r['varenr_alias']) $txt.=" (Alias $r[varenr_alias])";
 			if ($r['stregkode']) $txt.=" (Stregkode $r[stregkode])";
 			alert($txt);
-			flet($id,$varenr,$r['id'],$r['varenr'],'');
+			flet($id,$varenr_alias,$r['id'],$r['varenr'],'');
 			exit;
 		} elseif ($r=db_fetch_array(db_select("select id,vare_id from variant_varer where variant_stregkode = '$fletvnr'",__FILE__ . " linje " . __LINE__))) {
-			$qtxt="select varenr from varer where id = '$r[vare_id]'";
+			$qtxt="select varenr,varenr_alias from varer where id = '$r[vare_id]'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$txt="Varenummer:$varenr sammenlægges med variant $fletvnr under varenr $r2[varenr]";#
+			$txt="Varenummer alias:$varenr_alias sammenlægges med variant $fletvnr under varenr $r2[varenr]";
+			if ($r2['varenr_alias']) $txt.=" (Alias $r2[varenr_alias])";
 			alert($txt);
-			flet($id,$varenr,$r['id'],$r['varenr'],$fletvnr);
+			flet($id,$varenr_alias,$r['id'],$r['varenr'],$fletvnr);
 			exit;
 		} else {
-			$txt="Varenr $fletvnr ikke fundet";
+			$txt="Varenr/alias $fletvnr ikke fundet";
 			alert($txt);
 			print "<meta http-equiv=\"refresh\" content=\"2;URL=varekort.php?id=$id\">";
 			exit;
 		}
 	}	else {
-		db_modify("update varer set varenr='$nyt_varenr' where id='$id'",__FILE__ . " linje " . __LINE__);
+		db_modify("update varer set varenr_alias='$nyt_varenr_alias' where id='$id'",__FILE__ . " linje " . __LINE__);
 		$x=0;
 		$q=db_select("select ordrelinjer.id as ordrelinje_id, ordrer.art as art, ordrer.ordrenr as ordrenr from ordrelinjer, ordrer where ordrer.status<3 and ordrelinjer.ordre_id = ordrer.id and ordrelinjer.vare_id = '$id'",__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
 			$x++;
-			db_modify("update ordrelinjer set varenr='$nyt_varenr' where id='$r[ordrelinje_id]'",__FILE__ . " linje " . __LINE__);
-			if ($x==1) echo "<tr><td>Varenummer rettet i f&oslash;lgende ordrer: $r[ordrenr]";
+			// Note: ordrelinjer table typically stores varenr, not varenr_alias, so we might not need to update it
+			// db_modify("update ordrelinjer set varenr='$nyt_varenr_alias' where id='$r[ordrelinje_id]'",__FILE__ . " linje " . __LINE__);
+			if ($x==1) echo "<tr><td>Varenummer alias rettet for vare i f&oslash;lgende ordrer: $r[ordrenr]";
 			else echo ", $r[ordrenr]";
 		}
 		if ($x>=1)echo "</td></tr><tr><td><hr></td></tr>";
-		print "<BODY onLoad=\"javascript:alert('Varenummer er rettet fra $varenr til $nyt_varenr')\">";
+		print "<BODY onLoad=\"javascript:alert('Varenummer alias er rettet fra $varenr_alias til $nyt_varenr_alias')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=varekort.php?id=$id\">";
 
 	}
-} elseif ($nyt_varenr) {
-	$txt="Varenummer: $varenr kan ikke sammenlægges med sig selv";
+} elseif ($nyt_varenr_alias) {
+	$txt="Varenummer alias: $varenr_alias kan ikke sammenlægges med sig selv";
 	alert($txt);
 	print "<meta http-equiv=\"refresh\" content=\"2;URL=varekort.php?id=$id\">";
 
 }
 
-if ($r=db_fetch_array(db_select("select varenr,stregkode from varer where id = '$id'",__FILE__ . " linje " . __LINE__))) {
+if ($r=db_fetch_array(db_select("select varenr,varenr_alias,stregkode from varer where id = '$id'",__FILE__ . " linje " . __LINE__))) {
 	$varenr=$r['varenr'];
+	$varenr_alias=$r['varenr_alias'];
 	$stregkode=$r['stregkode'];
 }	
-print "<form name=ret_varenr action=ret_varenr.php method=post>"
+print "<form name=ret_varenralias action=ret_varenralias.php method=post>"
 ;
-print "<tr><td align=center>Varenummer rettes i alle uafsluttede ordrer, tilbud, indk&oslash;bsforslag og indk&oslash;bsordrer</td></tr>";
-print "<tr><td align=center>Bem&aelig;rk at hvis der er brugere som er ved at redigere en ordre kan dette bevirke at varenummeret ikke &aelig;ndres</td></tr>";
+print "<tr><td align=center>Varenummer alias rettes for varen i alle uafsluttede ordrer, tilbud, indk&oslash;bsforslag og indk&oslash;bsordrer</td></tr>";
+print "<tr><td align=center>Bem&aelig;rk at hvis der er brugere som er ved at redigere en ordre kan dette bevirke at varenummer alias ikke &aelig;ndres</td></tr>";
 print "<tr><td align=center>i den p&aring;g&aelig;ldende ordre. Det anbefales derfor at tilse at &oslash;vrige brugere lukker alle ordrevinduer.</td></tr>";
-print "<tr><td align=center>&AElig;ndring af varenummer har ingen indflydelse p&aring; varestatestik eller andet, bortset fra at varen vil figurere</td></tr>";
-print "<tr><td align=center>med det gamle varenummer i ordrer som er afsluttet f&oslash;r &aelig;ndringsdatoen.</td></tr>";
+print "<tr><td align=center>&AElig;ndring af varenummer alias har ingen indflydelse p&aring; varestatestik eller andet, bortset fra at varen vil figurere</td></tr>";
+print "<tr><td align=center>med det gamle varenummer alias i ordrer som er afsluttet f&oslash;r &aelig;ndringsdatoen.</td></tr>";
 print "<tr><td align=center><hr></td></tr>";
-print "<tr><td align=center>Det er også muligt at sammenlægger 2 varenumre til 1. Hef skal du skrive det varenummer som du vil lægge denne</td></tr>";
+print "<tr><td align=center>Det er også muligt at sammenlægger 2 varenumre/alias til 1. Her skal du skrive det varenummer/alias som du vil lægge denne</td></tr>";
 print "<tr><td align=center>ind i og sætter et lighedstegn foran, f.eks.: '=100' </td></tr>";
-print "<tr><td align=center>Så vil al historik mm, varebeholdning og evt.leverandør og shop bindinger blive lagt sammen til 1 vare, og varenr $varenummer vil blive slettet</td></tr>";
+print "<tr><td align=center>Så vil al historik mm, varebeholdning og evt.leverandør og shop bindinger blive lagt sammen til 1 vare, og varenr alias $varenr_alias vil blive slettet</td></tr>";
 
 print "<tr><td align=center><hr width=50%></td></tr>";
-print "<tr><td align=center>Ret varenummer $varenr til: ";
-print "<input type='text' name='nyt_varenr' pattern='^[a-zA-Z0-9=+._ -][a-zA-Z0-9+._ -]+' width='30' value='$varenr'></td></tr>";
+print "<tr><td align=center>Ret varenummer alias fra '$varenr_alias' til: ";
+print "<input type='text' name='nyt_varenr_alias' pattern='^[a-zA-Z0-9=+._ -][a-zA-Z0-9+._ -]+' width='30' value='$varenr_alias'></td></tr>";
 print "<tr><td align=center>Tilladte tegn er: a-z A-Z 0-9 . + - _</td></tr>";
 print "<input type=hidden name='id' value='$id'>";
 print "<input type=hidden name='varenr' value=\"$varenr\">";
+print "<input type=hidden name='varenr_alias' value=\"$varenr_alias\">";
 print "<input type=hidden name='stregkode' value=\"$stregkode\">";
-print "<tr><td align=center><input type='submit' value='Ret' name=\"submit\"></td></tr>";
+print "<tr><td align=center><input type='submit' value='Ret alias' name=\"submit\"></td></tr>";
 print "</form>";
 
 print "</tbody></table";
 print "</td></tr>\n";
 print "</tbody></table";
 
-function flet($id,$varenr,$flet_id,$flet_vnr,$stregkode){
+function flet($id,$varenr_alias,$flet_id,$flet_vnr,$stregkode){
 // $id: ID for den vare som skal indgå i anden vare
-// $varenr: Varenr for den vare som skal indgå i anden vare
+// $varenr_alias: Varenr alias for den vare som skal indgå i anden vare
 // $flet_id: ID for den vare som denne vare skal indgå i.
 // $flet_vnr: Varenr for den vare som denne vare skal indgå i.
 // $stregkode: Stregkode for den variant som denne vare skal indgå i.
@@ -159,7 +166,7 @@ $fletbeholdning=0;
 	$qtxt="update varer set beholdning = 0 where beholdning is NULL";
 echo "$qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-echo "($id,$varenr,$flet_id,$flet_vnr,$stregkode)<br>";
+echo "($id,$varenr_alias,$flet_id,$flet_vnr,$stregkode)<br>";
 if ($stregkode) {
 		$qtxt="select id,vare_id from variant_varer where variant_stregkode='$stregkode'";
 echo "$qtxt<br>";
@@ -171,7 +178,7 @@ echo "$qtxt<br>";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$shop_id=$r['shop_id'];
 		transaktion('begin');
-		print tekstboks("Varenummer: $varenr sammenlægges med $stregkode");
+		print tekstboks("Varenummer alias: $varenr_alias sammenlægges med $stregkode");
 		$qtxt="select beholdning from varer where id = '$id'";
 echo "$qtxt<br>";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -191,7 +198,7 @@ echo "$qtxt<br>";
 	$qtxt="update batch_kob set vare_id = '$flet_vare_id',variant_id = '$flet_variant_id' where vare_id = '$id'";
 echo "$qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt="update ordrelinjer set vare_id = '$flet_vare_id', varenr = '$flet_vnr' where vare_id = '$id' and variant_id='0'";
+	$qtxt="update ordrelinjer set vare_id = '$flet_vare_id' where vare_id = '$id' and variant_id='0'";
 echo "$qtxt<br>";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="update vare_lev set vare_id = '$flet_vare_id' where vare_id = '$id'";
@@ -238,14 +245,14 @@ echo $url;
 		$fletsamlevare=$r['samlevare'];
 		if ($r=db_fetch_array(db_select("select id,shop_id from shop_varer where saldi_id = '$flet_id'",__FILE__ . " linje " . __LINE__))) {
 			if ($shop_id!=$r['shop_id']) {
-				print tekstboks("Varenummer: $varenr har en shop_relation til shop vare med id: $shop_id og $fletvnr relaterer til shop vare $r[shop_id]<br> Sammenlægning kan ikke gennemføres");
+				print tekstboks("Varenummer alias: $varenr_alias har en shop_relation til shop vare med id: $shop_id og $fletvnr relaterer til shop vare $r[shop_id]<br> Sammenlægning kan ikke gennemføres");
 				print "<meta http-equiv=\"refresh\" content=\"2;URL=varekort.php?id=$id\">";
 				exit;	
 			}
 		}
 	}
 	transaktion('begin');
-#	print tekstboks("Varenummer: $varenr sammenlægges med $fletvnr");
+#	print tekstboks("Varenummer alias: $varenr_alias sammenlægges med $fletvnr");
 	$r=db_fetch_array(db_select("select beholdning from varer where id = '$id'",__FILE__ . " linje " . __LINE__));
 	if ($r['beholdning']) {
 		$fletbeholdning=$r['beholdning'];
@@ -269,7 +276,7 @@ echo $url;
 	}
 	db_modify("update batch_salg set vare_id = '$flet_id' where vare_id = '$id'",__FILE__ . " linje " . __LINE__);
 	db_modify("update batch_kob set vare_id = '$flet_id' where vare_id = '$id'",__FILE__ . " linje " . __LINE__);
-	db_modify("update ordrelinjer set vare_id = '$flet_id', varenr = '$flet_vnr' where vare_id = '$id'",__FILE__ . " linje " . __LINE__);
+	db_modify("update ordrelinjer set vare_id = '$flet_id' where vare_id = '$id'",__FILE__ . " linje " . __LINE__);
 	db_modify("update vare_lev set vare_id = '$flet_id' where vare_id = '$id'",__FILE__ . " linje " . __LINE__);
 	$r=db_fetch_array(db_select("select id from shop_varer where saldi_id = '$flet_id'",__FILE__ . " linje " . __LINE__));
 	if (!$r['saldi_id']) db_modify("update shop_varer set saldi_id = '$flet_id' where saldi_id = '$id'",__FILE__ . " linje " . __LINE__);

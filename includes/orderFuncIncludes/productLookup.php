@@ -105,21 +105,29 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 			$find = str_replace("*", "", $find);
 			$ord = array();
 			$ord = explode("+", $find);
-			$find = NULL;
+			$qString = NULL;
 			for ($f = 0; $f < count($ord); $f++) {
 				if ($ord[$f]) {
-					if ($find)
-						$find .= "and lower($fokus) like '%$ord[$f]%'";
-					else
-						$find = "and (lower($fokus) like '%$ord[$f]%'";
+					if ($qString) {
+						if ($fokus == 'varenr')
+							$qString .= " and (lower($fokus) like '%$ord[$f]%' or lower(varenr_alias) like '%$ord[$f]%' or lower(stregkode) like '%$ord[$f]%')";
+						else
+							$qString .= " and lower($fokus) like '%$ord[$f]%'";
+					} else {
+						if ($fokus == 'varenr')
+							$qString = "and (lower($fokus) like '%$ord[$f]%' or lower(varenr_alias) like '%$ord[$f]%' or lower(stregkode) like '%$ord[$f]%')";
+						else
+							$qString = "and lower($fokus) like '%$ord[$f]%'";
+					}
 				}
 			}
-			if ($find)
-				$find .= ")";
-		} elseif ($find)
+		} elseif ($find) {
 			$qString = "and lower($fokus) like '" . str_replace("*", "%", $find) . "'";
-		if ($fokus == 'beskrivelse' && $find)
-			$qString .= " or lower(trademark) like '" . str_replace("*", "%", $find) . "'";
+			if ($fokus == 'beskrivelse')
+				$qString .= " or lower(trademark) like '" . str_replace("*", "%", $find) . "'";
+			if ($fokus == 'varenr')
+				$qString .= " or lower(varenr_alias) like '" . str_replace("*", "%", $find) . "' or lower(stregkode) like '" . str_replace("*", "%", $find) . "'";
+		}
 		#		$focus="lower($focus)";
 	}
 	if ($art == 'PO' && !strpos($_SERVER['PHP_SELF'], 'pos_ordre'))
@@ -207,7 +215,7 @@ function filterRows() {
   }
 </script>
 	<?php
-	print "<tr><td colspan=10><input type='text' id='filterInput' size='100' placeholder='Søg efter vare nr eller vare beskrivelse' oninput='filterRows()'></input></td></tr>";
+	print "<tr><td colspan=10><input type='text' id='filterInput' size='100' placeholder='Søg efter vare nr, vare alias eller vare beskrivelse' oninput='filterRows()'></input></td></tr>";
 	($sort == 'varenr') ? $txt = '<i>Varenr</i>' : $txt = 'Varenr';
 	print "<td><a href=$href?sort=varenr&funktion=vareOpslag&fokus=$fokus&id=$id&vis_kost=$vis_kost&bordnr=$bordnr><b>$txt</b></a></td>";
 	print "<td><b> Enhed</b></td>";
@@ -306,7 +314,7 @@ function filterRows() {
 		print "<tr  bgcolor=\"$linjebg\" >";
 		#		($art=='PO')?$hreftxt="$href?vare_id=$row[id]&fokus=$fokus&id=$id&bordnr=$bordnr":$hreftxt="";
 		$hreftxt = "$href?vare_id=$row[id]&fokus=$fokus&id=$id&bordnr=$bordnr&lager=$afd_lager";#"$href?vare_id=$row[id]&fokus=$fokus&id=$id&bordnr=$bordnr";
-		print "<td $rowheight $onclick><a class='no-outline' onfocus=\"this.style.fontSize = '20px';\" onblur=\"this.style.fontSize = '12px';\" id=\"opslag_$x\" href=\"$hreftxt\">$row[varenr]</a></td>";
+		print "<td $rowheight $onclick><a class='no-outline' onfocus=\"this.style.fontSize = '20px';\" onblur=\"this.style.fontSize = '12px';\" id=\"opslag_$x\" href=\"$hreftxt\">$row[varenr]</a><span style='display:none;'>$row[varenr_alias] $row[stregkode]</span></td>";
 		print "<td $onclick>$row[enhed]<br></td>";
 		print "<td $onclick>$row[beskrivelse]<br></td>";
 		if ($incl_moms && !in_array($row['gruppe'], $momsfri)) {
