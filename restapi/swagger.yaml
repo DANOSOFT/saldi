@@ -32,9 +32,9 @@ paths:
         - Debitor Orders
       summary: Get all debitor orders
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: limit
           in: query
           schema:
@@ -71,7 +71,7 @@ paths:
               examples:
                 all_orders:
                   summary: All Debitor Orders
-                  description: Get all debitor orders with English field names
+                  description: Get all debitor orders
                   value:
                     success: true
                     data:
@@ -156,9 +156,9 @@ paths:
         - Debitor Orders
       summary: Create a new debitor order
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -168,7 +168,7 @@ paths:
             examples:
               basic_debitor_order_new_customer:
                 summary: Basic Order (New Customer)
-                description: Create a debitor order for a new customer using English field names
+                description: Create a debitor order for a new customer
                 value:
                   companyName: "ACME Corporation"
                   phone: "+45 12345678"
@@ -324,9 +324,9 @@ paths:
         - Debitor Orders
       summary: Get a specific debitor order
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -409,9 +409,9 @@ paths:
         - Creditor Orders
       summary: Get all creditor orders
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: limit
           in: query
           schema:
@@ -448,7 +448,7 @@ paths:
               examples:
                 all_creditor_orders:
                   summary: All Creditor Orders
-                  description: Get all creditor orders with English field names
+                  description: Get all creditor orders
                   value:
                     success: true
                     data:
@@ -495,9 +495,9 @@ paths:
         - Creditor Orders
       summary: Create a new creditor order
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -507,7 +507,7 @@ paths:
             examples:
               basic_creditor_order_new_supplier:
                 summary: Basic Order (New Supplier)
-                description: Create a creditor order for a new supplier using English field names
+                description: Create a creditor order for a new supplier
                 value:
                   companyName: "Supplier ABC"
                   phone: "+45 11223344"
@@ -670,9 +670,9 @@ paths:
         - Creditor Orders
       summary: Get a specific creditor order
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -749,9 +749,9 @@ paths:
         - Order Lines
       summary: Get order lines
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: order_id
           in: query
           required: true
@@ -776,9 +776,9 @@ paths:
         - Order Lines
       summary: Create a new order line
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -805,9 +805,9 @@ paths:
         - Order Lines
       summary: Get a specific order line
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -834,9 +834,9 @@ paths:
         - Order Lines
       summary: Get creditor order lines
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: order_id
           in: query
           required: true
@@ -860,9 +860,9 @@ paths:
         - Order Lines
       summary: Create a new creditor order line
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -886,9 +886,9 @@ paths:
         - Customers
       summary: Get all customers
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       responses:
         '200':
           description: List of customers
@@ -907,9 +907,9 @@ paths:
         - Customers
       summary: Create a new customer
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -936,9 +936,9 @@ paths:
         - Customers
       summary: Get a specific customer
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -962,9 +962,9 @@ paths:
         - Customers
       summary: Update a customer
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -990,9 +990,9 @@ paths:
         - Customers
       summary: Delete a customer
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1015,9 +1015,9 @@ paths:
         - Creditors
       summary: Get all creditors
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       responses:
         '200':
           description: List of creditors
@@ -1036,9 +1036,9 @@ paths:
         - Creditors
       summary: Create a new creditor
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -1061,9 +1061,9 @@ paths:
         - Creditors
       summary: Get a specific creditor
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1087,9 +1087,9 @@ paths:
         - Creditors
       summary: Update a creditor
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1115,9 +1115,9 @@ paths:
         - Creditors
       summary: Delete a creditor
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1140,9 +1140,9 @@ paths:
         - Products
       summary: Get all products
       description: |
-        Get all products with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        Get all products with optional filtering and sorting.
         
-        **English Field Names:**
+        
         - `sku` - Product SKU/number
         - `barcode` - Product barcode
         - `description` - Product description
@@ -1150,9 +1150,9 @@ paths:
         - `costPrice` - Cost price
         - `group` - Product group ID
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: orderBy
           in: query
           schema:
@@ -1242,9 +1242,9 @@ paths:
         - Products
       summary: Create a new product
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -1388,9 +1388,9 @@ paths:
         - Products
       summary: Get a specific product
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1428,11 +1428,11 @@ paths:
         - Products
       summary: Update a product
       description: |
-        Update an existing product using English field names.
+        Update an existing product
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1511,9 +1511,9 @@ paths:
         - Products
       summary: Delete a product
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1561,17 +1561,17 @@ paths:
         - Inventory
       summary: Get all warehouses
       description: |
-        Get all warehouses with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        Get all warehouses with optional filtering and sorting.
         
-        **English Field Names:**
+        
         - `description` - Warehouse description
         - `number` - Warehouse number
         - `fiscalYear` - Fiscal year
         - `productId` - Product ID for inventory association
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: orderBy
           in: query
           schema:
@@ -1631,9 +1631,9 @@ paths:
         - Inventory
       summary: Create a new warehouse
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -1702,9 +1702,9 @@ paths:
         - Inventory
       summary: Get a specific warehouse
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1742,11 +1742,11 @@ paths:
         - Inventory
       summary: Update a warehouse
       description: |
-        Update an existing warehouse using English field names.
+        Update an existing warehouse
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -1816,18 +1816,18 @@ paths:
         - Inventory
       summary: Get inventory status
       description: |
-        Get inventory status records with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        Get inventory status records with optional filtering and sorting.
         
-        **English Field Names:**
+        
         - `inventory` - Warehouse/inventory number
         - `productId` - Product ID
         - `quantity` - Stock quantity
         - `location` - Primary location within warehouse
         - `variantId` - Product variant ID
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: orderBy
           in: query
           schema:
@@ -1914,9 +1914,9 @@ paths:
         - Inventory
       summary: Create new inventory status
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -1989,9 +1989,9 @@ paths:
         - Inventory
       summary: Get specific inventory status
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2029,11 +2029,11 @@ paths:
         - Inventory
       summary: Update inventory status
       description: |
-        Update an existing inventory status record using English field names.
+        Update an existing inventory status record
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2107,9 +2107,9 @@ paths:
         - Inventory
       summary: Adjust inventory quantities
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2197,9 +2197,9 @@ paths:
         - Product Groups
       summary: Get all product groups
       description: |
-        Get all product groups with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        Get all product groups with optional filtering and sorting.
         
-        **English Field Names:**
+        
         - `codeNo` - Group code number
         - `description` - Group description
         - `fiscalYear` - Fiscal year
@@ -2209,9 +2209,9 @@ paths:
         - `batch` - Batch tracking flag
         - `operation` - Operation flag
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: orderBy
           in: query
           schema:
@@ -2296,9 +2296,9 @@ paths:
         - Product Groups
       summary: Create a new product group
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -2383,9 +2383,9 @@ paths:
         - Product Groups
       summary: Get a specific product group
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2423,11 +2423,11 @@ paths:
         - Product Groups
       summary: Update a product group
       description: |
-        Update an existing product group using English field names.
+        Update an existing product group
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2510,9 +2510,9 @@ paths:
         - Product Groups
       summary: Delete a product group
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2567,9 +2567,8 @@ paths:
         - Accounts
       summary: Get all accounts
       description: |
-        Get all accounts with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        Get all accounts with optional filtering and sorting.
         
-        **English Field Names:**
         - `accountNumber` - Account number
         - `description` - Account description
         - `accountType` - Account type
@@ -2587,9 +2586,9 @@ paths:
         - `exchangeRate` - Exchange rate
         - `mapTo` - Map to account
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: orderBy
           in: query
           schema:
@@ -2672,9 +2671,9 @@ paths:
         - Accounts
       summary: Create a new account
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -2756,9 +2755,9 @@ paths:
         - Accounts
       summary: Get a specific account
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2796,9 +2795,9 @@ paths:
         - Accounts
       summary: Update an account
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -2884,14 +2883,10 @@ paths:
       description: |
         Get all currencies with optional filtering and sorting. This is a read-only endpoint.
         
-        **English Field Names:**
         - `description` - Currency description
         - `currencyCode` - Currency code (3-letter code like USD, EUR, DKK)
         - `exchangeRate` - Exchange rate against the base currency
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
         - name: orderBy
           in: query
           schema:
@@ -2970,22 +2965,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /currencies/{id}:
+  /currencies/{currencyCode}:
     get:
       tags:
         - Currencies
       summary: Get a specific currency
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
-        - name: id
+        - name: currencyCode
           in: path
           required: true
           schema:
             type: integer
-          description: Currency ID
-          example: 1
+          description: Currency Code
+          example: "DKK"
       responses:
         '200':
           description: Currency details
@@ -3019,9 +3011,6 @@ paths:
         - Accounting Year
       summary: Get current fiscal year information
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
       responses:
         '200':
           description: Current fiscal year information
@@ -3055,9 +3044,6 @@ paths:
         - Attachments
       summary: Get all files or a specific file
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
         - name: file
           in: query
           schema:
@@ -3101,9 +3087,6 @@ paths:
         - Attachments
       summary: Upload a new file
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
       requestBody:
         required: true
         content:
@@ -3154,9 +3137,9 @@ paths:
         - Attachments
       summary: Delete a file
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: file
           in: query
           required: true
@@ -3202,9 +3185,9 @@ paths:
         - VAT
       summary: Get all VAT items
       description: |
-        Get all VAT items with optional filtering and sorting. The API accepts both English and Danish field names for backward compatibility.
+        Get all VAT items with optional filtering and sorting.
         
-        **English Field Names:**
+
         - `description` - VAT description
         - `vatCode` - VAT code
         - `number` - VAT number
@@ -3214,9 +3197,9 @@ paths:
         - `contraAccount` - Contra account ID
         - `mapping` - Mapping information
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: orderBy
           in: query
           schema:
@@ -3318,9 +3301,9 @@ paths:
         - VAT
       summary: Create a new VAT item
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
       requestBody:
         required: true
         content:
@@ -3394,9 +3377,9 @@ paths:
         - VAT
       summary: Get a specific VAT item
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -3434,11 +3417,11 @@ paths:
         - VAT
       summary: Update a VAT item
       description: |
-        Update an existing VAT item using English field names.
+        Update an existing VAT item
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -3513,9 +3496,9 @@ paths:
         - VAT
       summary: Delete a VAT item
       parameters:
-        - $ref: '#/components/parameters/DatabaseHeader'
-        - $ref: '#/components/parameters/UserHeader'
-        - $ref: '#/components/parameters/ApiKeyHeader'
+        
+        
+        
         - name: id
           in: path
           required: true
@@ -3612,7 +3595,7 @@ components:
     CreateOrderRequest:
       type: object
       description: |
-        Create a new order. The API accepts both English and Danish field names for backward compatibility.
+        Create a new order.
         
         **Required for new customers:**
         - `companyName` (or `firmanavn`) - Company name
@@ -3624,7 +3607,7 @@ components:
         - `accountId` (or `konto_id`) - Existing customer account ID
         - `vatRate` (or `momssats`) - VAT rate
         
-        **English to Danish Field Mapping:**
+        **Common fields:**
         - `accountId` → `konto_id`
         - `companyName` → `firmanavn`
         - `phone` → `telefon`

@@ -67,7 +67,7 @@ abstract class BaseEndpoint
                     $this->handlePost($data);
                     break;
                 case 'GET':
-                    $id = $_GET['id'] ?? null;
+                    $id = $_GET['id'] ?? $_GET["currencyCode"] ?? null;
                     $this->handleGet($id);
                     break;
                 case 'PUT':
