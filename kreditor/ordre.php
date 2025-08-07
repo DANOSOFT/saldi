@@ -268,27 +268,27 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 $steps = array();
 $steps[] = array(
 	"selector" => "[name=kontonr]",
-	"content" => "Indtast kontonummeret på kreditor, og klik 'Gem' for at hente kreditors oplysninger."
+	"content" => findtekst('2635|Indtast kontonummeret på kreditor, og klik \'Gem\' for at hente kreditors oplysninger', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "[name=vare0]",
-    "content" => "Her kan du indtaste et varenummer for at tilføje en vare til ordren."
+    "content" => findtekst('2615|Her kan du indtaste et varenummer for at tilføje en vare til ordren', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "[name=lookup]",
-    "content" => "Når et varenummerfelt er markeret, kan du foretage et opslag af alle dine varer ved at klikke her."
+    "content" => findtekst('2616|Når et varenummerfelt er aktivt, kan du foretage et opslag af alle dine varer ved at klikke her', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "[name=udskriv_til]",
-    "content" => "Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den."
+    "content" => findtekst('2636|Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "[name=betalingsbet]",
-    "content" => "Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning."
+    "content" => findtekst('2637|Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "[name=betalingsdage]",
-    "content" => "Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning."
+    "content" => findtekst('2638|Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning', $sprog_id)."."
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
