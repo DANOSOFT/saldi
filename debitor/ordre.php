@@ -196,6 +196,7 @@
 // 20250404 PHR Added call to updateOrderCost
 // 20250421 LOE A lot of array values updated with if_isset function to prevent numerous undefined errors, and some clean ups.
 // 20250705 PHR $afd is now set if afd exist
+// 20250811 PHR Corrected wrong text numbers
 
 @session_start();
 $s_id=session_id();
@@ -3361,7 +3362,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		print "<tr><td colspan='11'><table bordercolor='#FFFFFF' border='1' cellspacing='0' cellpadding='0' width='100%'><tbody>\n"; #Tabel 2.5.1 ->
 		print "<tr class='tableTexting'>\n";
 #		print "<td align=\"center\">".dkdecimal($procenttillag,2)."% tillæg ".dkdecimal($tillag,2)." </td>\n";
-		print "<td width=\"20%\" align=\"center\">".findtekst('3071|Nettosum', $sprog_id).": ".dkdecimal($sum,2)."</td>\n";
+		print "<td width=\"20%\" align=\"center\">".findtekst('2372|Nettosum', $sprog_id).": ".dkdecimal($sum,2)."</td>\n";
 		print "<td width=\"20%\" align=\"center\" title=\"".findtekst('2537|Dækningsbidrag', $sprog_id).": ".dkdecimal($dbsum,2)."\">";
 		if (!$vis_saet) print findtekst('2537|Dækningsbidrag', $sprog_id).": ".dkdecimal($dbsum,2);
 		print "</td>\n";
@@ -4651,7 +4652,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
       print findtekst("2373|I alt",$sprog_id)." ".rtrim(rtrim(dkdecimal($r["total"], 3), '0'), ",")." / ";
       print number_format($tVolume, 0, ',', '.') ." cm&sup3;</td>\n";
       print "<td align=\"center\">";
-      print findtekst('3071|Nettosum',$sprog_id) ." ".dkdecimal($sum,2)."</td>\n";
+      print findtekst('2372|Nettosum',$sprog_id) ." ".dkdecimal($sum,2)."</td>\n";
       if ($vis_saet) $dkb=$sum-$kostsum;
       else $dkb=$dbsum;
       print "<td width=\"14.2%\" align=\"center\"  title=\"DB: $baseCurrency ".dkdecimal($dkb*$valutakurs/100,2)."\">";
@@ -4809,7 +4810,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
         print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px;\" value=\"$txt\" name=\"$b_name\" $tmp title=\"$tekst2\" onclick=\"javascript:docChange = false;\"></td>\n";
 			}
 		if ($art!='DK') print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" style=\"width:75px;\" value=\"".findtekst('1100|Kopier', $sprog_id)."\" name=\"copy\" title=\"".findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog_id)."\"></td>\n";
-		$txt = findtekst('3074|Sæt',$sprog_id);
+		$txt = findtekst('2375|Sæt',$sprog_id);
 		if ($status<3 && !$betalt && $vis_saet && $konto_id) {
 			print "<td align=\"center\" width=$width><input type=\"button\" class=\"button gray medium\" style=\"width:75px;\" value=\"$txt\" name=\"ret_saet\" title=\"".findtekst('1498|Klik her for at oprette eller rette i varesæt', $sprog_id)."\" onclick=\"jacascript:window.location.href='saetpris.php?id=$id'\"></td>\n";
 		} elseif ($status<3 && $brugsamletpris && $svnr && $konto_id) {
