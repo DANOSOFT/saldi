@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---patch 4.1.1 ----2025-05-10--------------
+// --- includes/db_query.php ---patch 4.1.1 ----2025-08-08--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,7 +38,7 @@
 // 20250121 connection as first parameter in pg_*
 // 20250510 LOE Replaced mysql_query() with mysqli_query() to adjust for php7&above
 // 20250510 LOE Added check for empty database and added error message if database is empty
-
+// 20050808 PHR replaced if_isset by if(isset()
 
 if (!function_exists('get_relative')) {
     function get_relative() {
@@ -154,7 +154,7 @@ if (!function_exists('db_modify')) {
 		}
 #20190704 END
 		
-		$db=trim(if_isset($db, ''));
+		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1) {
 				$fp=fopen("$temp/.ht_modify.log","a");
 				fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor.": ".$db_skriv_id."\n");
