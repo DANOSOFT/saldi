@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-04-15 ---
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-08-11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -118,7 +118,7 @@
 // 20250323 LOE Checks if input is set, ensures it doesn't exceed 80 characters, and sanitizes it to prevent XSS attacks.
 // 20250405 LOE if_isset() updated and to check explicitly if array keys exist if they are arrays.
 // 20250630 PHR Minor change in transtjek
-
+// 20250811 PHR Another minor change in transtjek
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
@@ -781,9 +781,12 @@ if (!function_exists('transtjek')) {
 		 *       The email contains details of the database and the imbalance amount.
 		 */
 
-		global $db;
-		$yearback = date('Y') -1 ."-". date('m-d');
-		$qtxt = "select sum(round(debet,2)) as debet,sum(round(kredit,2)) as kredit from transaktioner";
+		global $db,$regnaar;
+		$qtxt = "select box1,box2 from grupper where art = 'RA' and kodenr = '$regnaar'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$countFrom = $r['box2'] ."-". $r['box1'] ."-01";
+
+		$qtxt = "select sum(round(debet,2)) as debet,sum(round(kredit,2)) as kredit from transaktioner where transdate >= '$countFrom'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$diff = abs(afrund($r['debet'] - $r['kredit'], 2));
 
