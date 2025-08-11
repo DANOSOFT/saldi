@@ -512,6 +512,30 @@ if($status < 3){
 
 
 
+// Handle invoice drag and drop reordering
+if (isset($_POST['invoice_dragdrop']) && $_POST['invoice_dragdrop'] == '1' && $id) {
+    // Process position updates for invoices
+    $linjeantal = (int)if_isset($_POST, 0, 'linjeantal');
+    
+    for ($x = 1; $x <= $linjeantal; $x++) {
+        $linje_id_val = if_isset($_POST, NULL, "linje_id")[$x] ?? 0;
+        $posn_val = if_isset($_POST, NULL, "posn$x") ?? 0;
+        
+        if ($linje_id_val && is_numeric($posn_val)) {
+            $qtxt = "UPDATE ordrelinjer SET posnr = '$posn_val' WHERE id = '$linje_id_val' AND ordre_id = '$id'";
+            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+        }
+    }
+    
+    // For invoices, we might need to update costs or other calculations
+    if (function_exists('updateOrderCost')) {
+        updateOrderCost($id);
+    }
+    
+    // Redirect back to the same page to show updated order
+    print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&returside=$returside\">\n";
+    exit;
+}
 if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 2008.05.11  Bliver kaldt ved skift af kontonr for ordrern
 	$konto_id=$_GET['konto_id'];
 	$q = db_select("select * from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
@@ -2852,9 +2876,15 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 	}
   if (!$status)  $status=0;
 	if ($status>=3) {
-		print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n"; 
+		    print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
+
+		// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n"; 
+		    print "<form name=\"ordre\" id=\"invoice-form\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n"; 
+
 		
 print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
+    print '<input type="hidden" name="invoice_dragdrop" value="1">'; // NEW: Flag for invoice drag
+
 print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
 		print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 		print "<input type=\"hidden\" name=\"id\" value=\"$id\">";
@@ -3127,20 +3157,20 @@ print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
 		//print "<tr><td colspan='7'></td></tr>\n<tr>\n"; # udkommenteret 20140502
 		// print "<td align='center' class='tableHeader'><b>Pos.</b></td><td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
 	
-// print "<td align='center' class='tableHeader' style='width:30px;'><b>⋮⋮</b></td><td align='center' class='tableHeader'><b>Pos.</b></td><td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
-print "<td align='center' class='tableHeader' style='width:30px;'><b>⋮⋮</b></td>";
-print "<td align='center' class='tableHeader'><b>Pos....................</b></td>";
-print "<td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
+print "<td align='center' class='tableHeader' style='width:30px;'><b>⋮⋮</b></td><td align='center' class='tableHeader'><b>Pos.</b></td><td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
+// print "<td align='center' class='tableHeader' style=''><b>⋮⋮</b></td>";
+// print "<td align='center' class='tableHeader'><b>Pos.</b></td>";
+// print "<td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
 print "<td align='center' class='tableHeader'><b>".findtekst('916|Antal', $sprog_id)."</b></td>";
 print "<td align='center' class='tableHeader'><b>".findtekst('945|Enhed', $sprog_id)."</b></td>";
 if ($lagerantal>1) print "<td class='tableHeader' style='text-align:center'><b>".findtekst('608|Lager', $sprog_id)."</b></td>";
 print "<td class='tableHeader' align='center'><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></td>";
 print "<td class='tableHeader' align='center'><b>".findtekst('915|Pris', $sprog_id)."</b></td>";
 print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog_id)."</b></td>";
-		print "<td align='center' class='tableHeader'><b>".findtekst('916|Antal', $sprog_id)."</b></td>";
-		print "<td align=\"center\" class='tableHeader'><b>".findtekst('945|Enhed', $sprog_id)."</b></td>";
-		if ($lagerantal>1) print "<td class='tableHeader' style=\"text-align:center\"><b>".findtekst('608|Lager', $sprog_id)."</b></td>";
-		print "<td class='tableHeader' align=\"center\"><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></td><td class='tableHeader' align=\"center\"><b>".findtekst('915|Pris', $sprog_id)."</b></td><td align=\"center\" class='tableHeader'><b>".findtekst('428|Rabat', $sprog_id)."</b></td>\n";
+		// print "<td align='center' class='tableHeader'><b>".findtekst('916|Antal', $sprog_id)."</b></td>";
+		// print "<td align=\"center\" class='tableHeader'><b>".findtekst('945|Enhed', $sprog_id)."</b></td>";
+		// if ($lagerantal>1) print "<td class='tableHeader' style=\"text-align:center\"><b>".findtekst('608|Lager', $sprog_id)."</b></td>";
+		// print "<td class='tableHeader' align=\"center\"><b>".findtekst('914|Beskrivelse', $sprog_id)."</b></td><td class='tableHeader' align=\"center\"><b>".findtekst('915|Pris', $sprog_id)."</b></td><td align=\"center\" class='tableHeader'><b>".findtekst('428|Rabat', $sprog_id)."</b></td>\n";
 #    print "<td align=\"center\"><b>Pos.</b></td><td align=\"center\"><b>Varenr.</b></td><td align=\"center\"><b>Antal</b></td><td align=\"center\"><b>Enhed</b></td><td align=\"center\"><b>Beskrivelse</b></td><td align=\"center\"><b>Pris</b></td><td align=\"center\"><b>Rabat</b></td>";
 		if ($procentfakt) print "<td class='tableHeader' align=\"center\"><b>".findtekst('1481|Procent', $sprog_id)."</b></td>\n";
 		print "<td align=\"center\" class='tableHeader'><b>".findtekst('2373|I alt', $sprog_id)."</b></td>\n";
@@ -3283,7 +3313,12 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				continue;
 			}
 			$title=var2str($beskrivelse[$x],$id,$posnr[$x],$varenr[$x],$dkantal[$x],$enhed[$x],$dkpris,$dkprocent,$serienr[$x],$varemomssats[$x],$rabat[$x]);
-			print "<tr bgcolor='$linjebg'>\n";
+			// print "<tr  class='ordrelinje'  >\n";
+			print "<tr class='ordrelinje' bgcolor='$linjebg' data-line-id='$x'>\n";
+
+			print "<td class='drag-handle' style='cursor: move; text-align: center;'>⋮⋮</td>\n"; // Drag handle
+
+			// print "<td class='drag-handle' style='cursor: move; text-align: center; padding: 4px;'>☰</td>\n";
 			print "<input type='hidden' name='linje_id[$x]' value='$linje_id[$x]'>\n";
 			print "<input type='hidden' name='posn$x' value='$posnr[$x]'><td align='right'>$posnr[$x]</td>\n";
  			print "<input type='hidden' name='vare$x' value='$varenr[$x]'><td>$varenr[$x]<br></td>\n";
@@ -4251,7 +4286,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		print "<tr><td align=\"center\" colspan=\"3\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # Tabel 4.5 ->
  		if ($kontonr) {
 			print "<tr class=\"tr4-spacing\" >";
-			print "<td class=\"pos-spacing\" align=\"center\" style=\"width:30px;\"><b>⋮⋮</b></td>";
+			print "<td class=\"pos-spacing\" align=\"center\"><b>⋮⋮</b></td>";
 
 
 			print "<td class=\"pos-spacing\" align=\"center\" title=\"".findtekst('1477|Positionsnummer. Rækkefølgen ændres ved at overskrive positionsnumrene (1,5 hvis mellem 1 og 2). En enkelt linje slettes ved at skrive minustegn som positionsnummer.', $sprog_id)."\">";
@@ -4609,15 +4644,11 @@ print "<tr class='ordrelinje' data-line-id='$x'>\n";
         #print "<td colspan = '2' valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px;\" name=\"posn0\" value=\"$posnr[0]\"></td>\n";
         // print "<td colspan = '0' valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px;\" name=\"posn0\" value=\"$posnr[0]\"></td>\n"; #20240426
 //  print "<td valign = 'top'>";
-print "<td style='width:30px; background:#f9f9f9;'></td>"; // Empty cell for input row
+
+print "<td style='background:#f9f9f9;'></td>"; // Empty cell for input row
 print "<td valign='top'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='posn0' value='$posnr[0]'></td>\n";
 if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"readonly\" size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
- 
 
-
-// <input class = 'inputbox' type = 'text' size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"".$varenr[0]."\"></td>\n";
-// print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px\" name=\"dkan0\" placeholder=\"$antal[0]\"></td>\n";
-// print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee\" readonly=\"readonly\" size=\"4px\"></td>\n";
         if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"readonly\" size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
         else  print "<td valign = 'top'><input class = 'inputbox' style=\"padding:2px;\" type = 'text' size=\"12\" name=\"vare0\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"".$varenr[0]."\"></td>\n"; #20180305
         print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:50px\" name=\"dkan0\" placeholder=\"$antal[0]\"></td>\n";
@@ -5153,8 +5184,9 @@ function ordrelinjer($x,$sum,$dbsum,$blandet_moms,$moms,$antal_ialt,$leveres_ial
 print "<tr class='ordrelinje' data-line-id='$x'>\n";
 #    print "<td valign = 'top'><div onClick='this.form.submit();'><a>X</a></div></td>";
     // print "<input class = 'inputbox' type = 'text' $readonly style=\"text-align:right;width:50px;\" name=\"posn$x\" value=\"$ny_pos\" $disabled></td>\n";
+    print "<td class='drag-handle' style='cursor:move; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
 
-print "<td class='drag-handle' style='cursor:move; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
+// print "<td class='drag-handle' style='cursor:move; text-align:center; vertical-align:middle; width:30px; background:#f5f5f5;'>⋮⋮</td>";
 print "<td valign='top'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='posn$x' value='$ny_pos' $disabled></td>\n";
 		$title = "Nt/Bt ". number_format($grossWeight, 1, ',', '.') ."/". number_format($netWeight, 1, ',', '.') ." kg. ";
 		$title.= "L: ". number_format($itemLength, 0, ',', '.') ." B: ". number_format($itemWidth, 0, ',', '.') ." ";
@@ -5514,6 +5546,7 @@ if ($menu=='T') {
 <link rel="stylesheet" href="orderIncludes/ordre_dragdrop.css">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="orderIncludes/ordre_dragdrop.js"></script>
+<script src ="orderIncludes/invoice_dragdrop.js"></script>
 
 
 

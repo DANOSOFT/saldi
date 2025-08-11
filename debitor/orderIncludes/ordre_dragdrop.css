@@ -3,12 +3,12 @@
     user-select: none;
     color: #666;
     font-weight: bold;
-    padding: 8px 4px;
+    /* padding: 8px 4px; */
     text-align: center !important;
     vertical-align: middle !important;
-    width: 30px !important;
-    min-width: 30px !important;
-    max-width: 30px !important;
+    /* width: 30px !important; */
+    /* min-width: 30px !important; */
+    /* max-width: 30px !important; */
     border-right: 1px solid #ddd;
 }
 .drag-handle:hover {
@@ -20,15 +20,15 @@
     width: 100%;
 }
 .dataTableForm td:first-child {
-    width: 30px !important;
+    /* width: 30px !important; */
 }
 .dataTableForm td:nth-child(2) {
-    width: 60px !important;
+    /* width: 60px !important; */
     text-align: center;
 }
 .dataTableForm input[name^="posn"] {
     text-align: right !important;
-    width: 50px !important;
+    /* width: 50px !important; */
 }
 .sortable-ghost {
     opacity: 0.4;
