@@ -83,7 +83,7 @@ if ($charset=="UTF-8") $overskrift=mb_convert_encoding($overskrift, 'ISO-8859-1'
 
 if (fwrite($fp, "$overskrift\r\n")) {
 	$z=0;
-	$q=db_select("select varer.id,varer.varenr,varer.beskrivelse,variant_varer.variant_stregkode,variant_varer.variant_type,variant_varer.variant_salgspris,variant_varer.variant_kostpris,variant_varer.variant_vejlpris from varer,variant_varer where varer.id=variant_varer.vare_id order by varer.varenr,variant_varer.variant_stregkode",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select varer.id,varer.varenr,varer.beskrivelse,varer.varenr_alias,variant_varer.variant_stregkode,variant_varer.variant_type,variant_varer.variant_salgspris,variant_varer.variant_kostpris,variant_varer.variant_vejlpris from varer,variant_varer where varer.id=variant_varer.vare_id order by varer.varenr,variant_varer.variant_stregkode",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$z++;
 		if ($z>=$start && $z<=$slut) {
@@ -91,10 +91,11 @@ if (fwrite($fp, "$overskrift\r\n")) {
 			$varenr=$r['varenr'];
 			$beskrivelse=$r['beskrivelse'];
 			$variant_stregkode=$r['variant_stregkode'];
+			$varenr_alias=$r['varenr_alias'];
 			$variant_type=explode(chr(9),$r['variant_type']);
 
 #			$variant_lager=$r['lager'];
-			$linje='"'.$varenr.'"'.chr(9).'"'.$beskrivelse.'"'.chr(9).'"'.$variant_stregkode.'"'.chr(9).dkdecimal($r['variant_kostpris']).chr(9).dkdecimal($r['variant_salgspris']).chr(9).dkdecimal($r['variant_vejlpris']);
+			$linje='"'.$varenr.'"'.chr(9).'"'.$beskrivelse.'"'.chr(9).'"'.$variant_stregkode.'"'.$varenr_alias.'"'.chr(9).dkdecimal($r['variant_kostpris']).chr(9).dkdecimal($r['variant_salgspris']).chr(9).dkdecimal($r['variant_vejlpris']);
 			for ($x=0;$x<count($varianter_id);$x++) {
 #			$linje.=chr(9)."$varianter_beskrivelse[$x]";
 				$tmp=NULL;

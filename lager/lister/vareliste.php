@@ -79,8 +79,13 @@ $columns[] = array(
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
-    "sqlOverride" => "v.varenr"
+    "sqlOverride" => "v.varenr",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        return "(v.varenr ILIKE '%$term%' OR v.varenr_alias ILIKE '%$term%')";
+    },
 );
+
 $columns[] = array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
