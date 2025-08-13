@@ -32,7 +32,7 @@ include("../includes/online.php");
 include("../includes/db_query.php");
 include("../includes/formularimport.php");
 include("../includes/std_func.php"); #20210713 
-
+include("../includes/topline_settings.php");
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1

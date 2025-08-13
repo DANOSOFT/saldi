@@ -28,7 +28,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
+include("../includes/topline_settings.php");
 $regnskabsaar=$_GET['aar'];
 
 $returside="diverse.php?sektion=div_io";
