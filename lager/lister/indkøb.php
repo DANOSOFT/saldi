@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         &nbsp;
         <button type="button" id="bestilBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg>
-            Bestil
+            <?php echo findtekst('2218|Bestil', $sprog_id);?>
         </button>
     </div>
 </form>
@@ -873,43 +873,43 @@ function genbestil($vare_id, $antal) {
 $steps = array();
 $steps[] = array(
     "selector" => "#back-btn",
-    "content" => "Klik her for at vende tilbage til varelisten."
+    "content" => findtekst('2645|Klik her for at vende tilbage til varelisten', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".leverandør",
-    "content" => "Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør. <br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører."
+    "content" => findtekst('2650|Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => "Viser hvor mange varer der er i tilbud, ordre eller indkøbsforslag. <br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer."
+    "content" => findtekst('2646|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",
-    "content" => "Viser, hvor mange enheder du har på lager af varen."
+    "content" => findtekst('2647|Viser hvor mange enheder af varen der er på lager', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".min_lager,.max_lager",
-    "content" => "Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum."
+    "content" => findtekst('2651|Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".volume_lager",
-    "content" => "Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i f.eks. batches af 8."
+    "content" => findtekst('2652|Hvis produktet skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.', $sprog_id)." 8."
 );
 $steps[] = array(
     "selector" => ".genbestil",
-    "content" => "Her ser du, hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordre og andre faktorer."
+    "content" => findtekst('2648|Her ser du, hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".sales_last_6_months,.sales_last_1_month",
-    "content" => "Se, hvor meget du har solgt af varen over de sidste 6 måneder, 3 måneder eller 1 måned."
+    "content" => findtekst('2649|Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#autoudfyldBtn",
-    "content" => "Klik for at autoudfylde alle beregnede genbestillingsværdier."
+    "content" => findtekst('2653|Klik for at autoudfylde alle beregnede genbestillingsværdier', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#bestilBtn",
-    "content" => "Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato."
+    "content" => findtekst('2654|Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.', $sprog_id)
 );
 
 include (get_relative()."includes/tutorial.php");

@@ -353,23 +353,23 @@ HTML;
 $steps = array();
 $steps[] = array(
     "selector" => "#back-btn",
-    "content" => "Klik her for at vende tilbage til varelisten."
+    "content" => findtekst('2645|Klik her for at vende tilbage til varelisten', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".serienr",
-    "content" => "Søg efter et eksisterende serienummer i dit system."
+    "content" => findtekst('2655|Søg efter et eksisterende serienummer i dit system', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".lager_total",
-    "content" => "Viser, hvor mange enheder af varen der er på lager."
+    "content" => findtekst('2647|Viser hvor mange enheder af varen der er på lager', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".kobs_kontonr,.kobs_ordre",
-    "content" => "Her kan du se, hvor varen blev købt, hvilken leverandør det var, og ordrenummeret."
+    "content" => findtekst('2656|Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".salgs_kontonr,.salgs_ordre_nr",
-    "content" => "Her kan du finde oplysninger om, hvor varen blev solgt, hvem køberen var, og ordrenummeret."
+    "content" => findtekst('2657|Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".salgs_kontonr,.salgs_ordre_nr,#tmp",

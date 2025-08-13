@@ -2640,22 +2640,22 @@
 2640	Klik her for at oprette en ny vare	 Click here to add a new product	Klikk her for å opprette et nytt produkt
 2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click a item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
 2642	Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder	Click on a stock quantity to perform an internal transfer of inventory units	Klikk på et lagerantall for å utføre en intern overføring av lagerenheter
-2643	Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>"10"</b> – Shows items with a stock quantity of exactly 10.<br><b>"1:10"</b> – Shows items with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellom 1 og 10.
-2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your items to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
-2645	
-2646	
-2647	
-2648	
-2649	
-2650	
-2651	
-2652	
-2653	
-2654	
-2655	
-2656	
-2657	
-2658	
+2643	Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>"10"</b> – Shows products with a stock quantity of exactly 10.<br><b>"1:10"</b> – Shows products with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellom 1 og 10.
+2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your products to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
+2645	Klik her for at vende tilbage til varelisten	Click here to return to the product list	Klikk her for å gå tilbake til varelisten
+2646	Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Order status shows how many products are in offers, orders, or purchase suggestions.<br><br>Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Ordrestatus viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.<br><br>Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
+2647	Viser hvor mange enheder af varen der er på lager	Shows how many units of the product are in stock	Viser hvor mange enheter av varen som er på lager
+2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
+2649	Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned	See how much of the product you have sold over the past 6 months, 3 months, or the most recent month	Se hvor mye du har solgt av varen i løpet av de siste 6 månedene, 3 månedene eller den siste måneden
+2650	Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.	When you create a new purchase list, only products with an associated supplier will be shown.<br><br>Order suggestions will automatically be linked to the top supplier on the product card if multiple suppliers are listed.	Når du oppretter en ny innkjøpsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag blir automatisk knyttet til den øverste leverandøren på varekortet hvis det finnes flere leverandører.
+2651	Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.	These are used for reordering. When the stock level drops below the minimum, the system suggests reordering enough to reach the maximum.	Disse brukes til gjenbestilling. Når beholdningen faller under minimum, foreslår systemet å bestille nok til å nå maksimum.
+2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.
+2653	Klik for at autoudfylde alle beregnede genbestillingsværdier	Click to auto-fill all calculated reorder values	Klikk for å autofylle alle beregnede gjenbestillingsverdier
+2654	Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.	Create a purchase suggestion based on the entered product values. It will either create a new order for the supplier or add the product to an open purchase suggestion with today’s date.	Opprett et innkjøpsforslag basert på de registrerte vareverdiene. Det oppretter enten en ny ordre til leverandøren eller legger varen til et åpent innkjøpsforslag med dagens dato.
+2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
+2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
+2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
+2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
 2659	
 2660	
 2661	
