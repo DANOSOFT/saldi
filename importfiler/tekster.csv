@@ -1163,7 +1163,7 @@
 1163	Tekst	Text	Tekst
 1164	Forfaldsdato	Due date	Tidsfrist
 1165	Primosaldo	Opening Balance	Åpningssaldo
-1166	Omsætning	Turnover	Omsetning
+1166	Omsætning	Revenue	Omsetning
 1167	Skriv fra & til dato som mmddåå:mmddå&å. Hvis der kun skrives én dato, sættes dato til dags dato.	Write from & to date as mmddåå: mmddå & å. If only one date is written, the date is set to today's date.	Skriv fra & til dags dato som mmddåå: mmddå & å. Hvis det bare skrives en dato, settes datoen til dagens dato.
 1168	Vælg period	Select period	Velg periode
 1169	Kreditor	Creditor	Kreditor
@@ -2666,17 +2666,17 @@
 2666	Her kan du oprette spærringer. En spærring er en slags 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret.
 2667	Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato.
 2668	Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer.
-2669	
-2670	
-2671	
-2672	
-2673	
-2674	
-2675	
-2676	
-2677	
-2678	
-2679	
+2669	Uge	Week	Uke
+2670	Din daglige omsætning sammenlignet med sidste år, ekskl. moms	Your daily revenue compared to last year, excl. VAT	Din daglige omsetning sammenlignet med i fjor, ekskl. mva
+2671	Mandag	Monday	Måndag
+2672	Tirsdag	Tuesday	Tirsdag
+2673	Onsdag	Wednesday	Onsdag
+2674	Torsdag	Thursday	Torsdag
+2675	Fredag	Friday	Fredag
+2676	Lørdag	Saturday	Lørdag
+2677	Søndag	Sunday	Søndag
+2678	Graf over ugentlig omsætning	Weekly revenue graph	Graf over ukentlig omsetning
+2679	Omsætning denne uge, ekskl. moms	Revenue this week, excl. VAT	Omsetning denne uke, ekskl. mva
 2680	
 2681	
 2682	
