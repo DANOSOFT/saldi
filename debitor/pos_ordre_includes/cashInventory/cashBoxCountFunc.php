@@ -28,6 +28,9 @@
 // 20250813 PHr Added findtekst 440 
 
 function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
+	echo "<!-- function kasseoptalling in cashBoxCountFunc.php Begin -->\n";
+	
+	
 	global $bordnr;
 	global $bruger_id;
 	global $db;
@@ -201,7 +204,9 @@ function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,
 	}
 	setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_kortsum, $ifs, $kortdiff, $omsatning, $log, $id);
 	print "</tr></tbody></table>\n";
+	echo "<!-- function kasseoptalling in cashBoxCountFunc.php End -->\n";
 	exit;
+
 }
 
 
