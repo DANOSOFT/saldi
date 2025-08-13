@@ -41,18 +41,18 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
-$returside="../diverse.php";
+include("../includes/topline_settings.php");
+$returside="diverse.php?sektion=div_io";
 
 $filnavn="../temp/$db/varer.csv";
 
 $fp=fopen($filnavn,"w");
 
-$overskrift='"varenr";"stregkode";"varemærke";"beskrivelse";"kostpris";"salgspris";"vejl_pris";"notes";"enhed";"udgået";"gruppe";"min_lager";"max_lager";"lokation"';
+$overskrift='"varenr";"stregkode";"varemærke";"beskrivelse";"kostpris";"salgspris";"vejl_pris";"notes";"enhed";"udgået";"gruppe";"min_lager";"max_lager";"lokation";"varenr_alias";"lager_antal"';
 if ($charset=="UTF-8") $overskrift=mb_convert_encoding($overskrift, 'ISO-8859-1', 'UTF-8');
 
 if (fwrite($fp, "$overskrift\r\n")) {
-	$q=db_select("select varenr,stregkode,trademark,beskrivelse,kostpris,salgspris,retail_price,notes,enhed,lukket,gruppe,min_lager,max_lager,location from varer order by varenr",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id,varenr,stregkode,trademark,beskrivelse,kostpris,salgspris,retail_price,notes,enhed,lukket,gruppe,min_lager,max_lager,location,varenr_alias from varer order by varenr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$varenr=$r['varenr'];
 		$lukket=$r['lukket'];
@@ -63,8 +63,13 @@ if (fwrite($fp, "$overskrift\r\n")) {
 		$retail_price=dkdecimal($r['retail_price'],2);#*1;
 		$min_lager=dkdecimal($r['min_lager'],2);#*1;
 		$max_lager=dkdecimal($r['max_lager'],2);#*1;
-
-		$linje='"'.$varenr.'";"'.$stregkode.'";"'.$r['trademark'].'";"'.$beskrivelse.'"'.';'.$kostpris.';'.$salgspris.';'.$retail_price.';'.'"'.$r['notes'].'";"'.$r['enhed'].'"'.';"'.$r['lukket'].'"'.';'.$r['gruppe'].';'.$min_lager.';'.$max_lager.';'.'"'.$r['location'].'"';
+		$lager_antal = 0;
+		$query = db_select("SELECT COALESCE(SUM(beholdning), 0) AS lager_antal FROM lagerstatus WHERE vare_id = '$r[id]'", __FILE__ . " line " . __LINE__);
+		if (db_num_rows($query) > 0) {
+			$row = db_fetch_array($query);
+			$lager_antal = $row['lager_antal'];
+		}
+		$linje='"'.$varenr.'";"'.$stregkode.'";"'.$r['trademark'].'";"'.$beskrivelse.'"'.';'.$kostpris.';'.$salgspris.';'.$retail_price.';'.'"'.$r['notes'].'";"'.$r['enhed'].'"'.';"'.$r['lukket'].'"'.';'.$r['gruppe'].';'.$min_lager.';'.$max_lager.';'.'"'.$r['location'].'";"'.$r['varenr_alias'].'";'.$lager_antal;
 		$linje=str_replace("\n","",$linje);
 		if ($charset=="UTF-8") $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 		fwrite($fp, $linje."\r\n");
@@ -72,14 +77,20 @@ if (fwrite($fp, "$overskrift\r\n")) {
 } 
 fclose($fp);
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=diverse.php?sektion=div_io accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210714
-print "<td width=\"80%\" $top_bund>".findtekst(1383, $sprog_id)."</td>";
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
+
+       <td align='center' style='$topStyle'>".findtekst(1383, $sprog_id)."<br></td>
+
+       <td width=\"170px\" style='$topStyle'><br></td></tr>
+       </tbody></table></td></tr>"; # <- tabel 1.1.1
+
+print "</tr></tbody></table></td></tr>";
 print "<td align=center valign=top>";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 $x =findtekst(1363, $sprog_id);

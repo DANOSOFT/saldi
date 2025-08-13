@@ -1,6 +1,7 @@
 api/rest_api.php
 lager/varekort.php
 debitor/ordre.php
+lager/lister/vareliste.php
 lager/ret_varenr.php
 lager/ret_varenralias.php
 includes/orderFuncIncludes/productLookup.php

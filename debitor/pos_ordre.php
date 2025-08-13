@@ -214,6 +214,7 @@
 // 20230617 PHR php8
 // 20231223 PHR find_kassesalg omdøbt og flyttet til findBoxSale
 // 20240415 PHR Moved function delbetal to pos_ordre_includes/paymentFunc/partPayment.php
+// 20240723 PHR added fiscal_year in queries for art = 'POS'
 // 20250526 PHR added "if ($returside == 'kassespor.php') .... " to function primary_menu as 'retur til kassespor' didn't work
 // 20250619 PHR proforma button can nov be called anything - not nessecary 'proforma'
 // 20250701 PHR Updated call to 'moveToOwnAccount' who work without 'moveToCustomerAccount' set
@@ -239,7 +240,7 @@ $obstxt = NULL;
 $pre_bordnr = $pris_ny = NULL;
 $rabat_ny = $ref = NULL;
 $saldi_bet = $skift_bruger = $status = $svar = $svnr = NULL;
-$valuta = 'DKK';
+#$valuta = 'DKK';
 $valutakurs = '100';
 $vare_id = $vis_kassenr = NULL;
 
@@ -637,7 +638,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		if (strtotime($r['ordredate']) < date('U') - 60 * 60 * 48) {
 			$qtxt = "update ordrer set konto_id='0', kontonr='0',firmanavn='',addr1='',addr2='',postnr='',bynavn='',land='',betalingsdage='0',";
-			$qtxt.= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',valuta='DKK',valutakurs='100',";
+			$qtxt.= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',valuta='$baseCurrency',valutakurs='100',";
 			$qtxt.= "kundeordnr='',ordredate='" . date("Y-m-d") . "',hvem='',ref='',nr=NULL where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1380,7 +1381,7 @@ if ($vare_id) {
 			#$nr*=1;
 			$dd = date("Y-m-d");
 			$qtxt = "update ordrer set konto_id='0', kontonr='0',firmanavn='',addr1='',addr2='',postnr='',bynavn='',land='',betalingsdage='0',";
-			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',valuta='DKK',valutakurs='100',";
+			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',valuta='$baseCurrency',valutakurs='100',";
 			$qtxt .= "kundeordnr='',ordredate='$dd',hvem='',momssats='$momssats',ref='' where id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			db_modify("delete from ordrelinjer where ordre_id='$id'", __FILE__ . " linje " . __LINE__);
@@ -1917,7 +1918,7 @@ if ($delayLoad == true) {
 function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, $kasse)
 {
 	print "\n<!-- Function betaling (start)-->\n";
-	global $betalingsbet;
+	global $baseCurrency,$betalingsbet;
 	global $fokus;
 	global $ifs;
 	global $kontonr;
@@ -1937,7 +1938,7 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 		$prevalkurs=if_isset($_POST['betvalkurs']);	
 		if (!$prevalkurs) $prevalkurs=100;
 		
-		if ($betvaluta && $betvaluta!='DKK') {
+		if ($betvaluta && $betvaluta!='$baseCurrency') {
 			$dd=date("Y-m-d");
 			$qtxt="select kodenr from grupper where art = 'VK' and box1 = '$betvaluta'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -2032,7 +2033,7 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 		else
 			print "<input type=\"hidden\" name=\"modtaget\" value=\"\">\n";
 	} elseif (substr($betaling, 0, 9) != 'Kontant p') {
-		if ($betvaluta != 'DKK') {
+		if ($betvaluta != $baseCurrency) {
 			$betaling = 'Kontant';
 		}
 		if ($delbetaling) {
@@ -2077,8 +2078,8 @@ function betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, 
 		}
 		#		if ($retur >= 0) {
 		print "<tr><td>".findtekst('2296|Retur', $sprog_id);
-		if ($betvaluta != 'DKK')
-			print " (DKK)<br>";
+		if ($betvaluta != $baseCurrency)
+			print " ()<br>";
 		$retur = pos_afrund($retur, $difkto, '');
 		print "</td><td colspan= \"4\" align=\"right\"><span style=\"$color\">" . dkdecimal($retur, 2) . "</span></td></tr>\n";
 		#		}
@@ -2220,8 +2221,7 @@ function find_bon($bon)
 
 function opret_posordre($konto_id, $kasse)
 {
-	global $bordnr, $bruger_id;
-	$brugernavn;
+	global $baseCurrency, $bordnr, $bruger_id, $brugernavn;
 	global $db;
 	global $firmanavn;
 	global $kontonr;
@@ -2304,7 +2304,7 @@ function opret_posordre($konto_id, $kasse)
 	$qtxt .= "ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,pbs,status,nr,felt_5)";
 	$qtxt .= "	values ";
 	$qtxt .= "('$ordrenr','0','$kontonr','$firmanavn','','','','','','0','Kontant','','','','','','$notes','PO',";
-	$qtxt .= "'$ordredate','$momssats','$brugernavn','$tidspkt','$brugernavn','DKK','','','','0','$bordnr','$kasse')";
+	$qtxt .= "'$ordredate','$momssats','$brugernavn','$tidspkt','$brugernavn','$baseCurrency','','','','0','$bordnr','$kasse')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	$qtxt = "select id from ordrer where hvem='$brugernavn' and tidspkt='$tidspkt' order by id desc";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2449,7 +2449,7 @@ function indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling)
 function opdater_konto($konto_id, $kontonr, $id)
 {
 	#Opdaterer kontoinformation på ordren
-	global $db, $kasse;
+	global $baseCurrency, $db, $kasse;
 	global $kundeordnr;
 
 	if (!$id || $id == 0)
@@ -2477,7 +2477,7 @@ function opdater_konto($konto_id, $kontonr, $id)
 		$qtxt .= "bynavn='" . db_escape_string($r['bynavn']) . "',land='" . db_escape_string($r['land']) . "',";
 		$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='" . db_escape_string($r['cvrnr']) . "',";
 		$qtxt .= "ean='" . db_escape_string($r['ean']) . "',institution='" . db_escape_string($r['institution']) . "',";
-		$qtxt .= "email='" . db_escape_string($r['email']) . "',kontakt='" . db_escape_string($r['kontakt']) . "',art='PO',valuta='DKK',valutakurs='100' ";
+		$qtxt .= "email='" . db_escape_string($r['email']) . "',kontakt='" . db_escape_string($r['kontakt']) . "',art='PO',valuta='$baseCurrency',valutakurs='100' ";
 		$qtxt .= "where id = '$id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
@@ -2626,7 +2626,7 @@ function fejl($id, $fejltekst)
 function posbogfor($kasse, $regnstart, $reportNumber)
 {
 	global $afd;
-	global $bruger_id, $brugernavn;
+	global $baseCurrency, $bruger_id, $brugernavn;
 	global $db;
 	global $regnaar, $reportNumber;
 	global $vis_saet;
@@ -2783,8 +2783,8 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 		}
 	}
 	$x = count($valuta);
-	$valuta[$x] = 'DKK';
-	db_modify("update pos_betalinger set valuta = 'DKK' where valuta is NULL or valuta = ''", __FILE__ . " linje " . __LINE__);
+	$valuta[$x] = $baseCurrency;
+	db_modify("update pos_betalinger set valuta = '$baseCurrency' where valuta is NULL or valuta = ''", __FILE__ . " linje " . __LINE__);
 
 	#20161010
 /*
@@ -2873,7 +2873,7 @@ function posbogfor($kasse, $regnstart, $reportNumber)
 				}
 			}
 		}
-		if ($valuta[$z] == 'DKK' || !$valuta[$z]) {
+		if ($valuta[$z] == $baseCurrency || !$valuta[$z]) {
 			if ($kassekonto && $mellemkonto && $udtages) {
 				# --> 20140709
 				$qtxt = "select beskrivelse from kontoplan where kontonr = '$mellemkonto' and regnskabsaar = '$regnaar'";
@@ -3120,7 +3120,7 @@ function kasseoptalling(
 	$kr_1000 = (int) $kr_1000;
 	$kr_andet = (float) $kr_andet;
 
-	global $bordnr, $bruger_id;
+	global $baseCurrency, $bordnr, $bruger_id;
 	global $db;
 	global $id, $ifs;
 	global $log;
@@ -3186,19 +3186,21 @@ function kasseoptalling(
 		}
 	}
 	include_once("pos_ordre_includes/boxCountMethods/findBoxSale.php");
-	$svar = findBoxSale($kasse, $optalt, 'DKK');
+	$svar = findBoxSale($kasse, $optalt, $baseCurrency);
 	$byttepenge = $svar[0];
-	$tilgang = $svar[1];
+	$tilgang = (float)$svar[1];
 	$diff = $svar[2];
 	$kortantal = $svar[3];
 	$kontkonto = explode(chr(9), $svar[4]);
 	$kortnavn = explode(chr(9), $svar[5]);
 	$kortsum = explode(chr(9), $svar[6]);
-	$kontosum = $svar[7];
+	$kontosum = (float)$svar[7];
 	($svar[10]) ? $vatRates = explode(chr(9), $svar[10]) : $vatRates = array();
 	($svar[11]) ? $vatAmounts = explode(chr(9), $svar[11]) : $vatAmounts = array();
 	$accountPayment = $svar[12];
+echo __line__." $tilgang + $kontosum<br>";
 	$omsatning = $tilgang + $kontosum;
+echo __line__." $tilgang + $kontosum<br>";
 
 	$r = db_fetch_array(db_select("select box8,box9,box14 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 	$mellemkonti = explode(chr(9), $r['box8']);
@@ -3210,7 +3212,10 @@ function kasseoptalling(
 	$kortdiff = 0;
 	if ($change_cardvalue) {
 		for ($x = 0; $x < count($kortsum); $x++) {
+			if (!is_numeric($kortsum[$x])) $kortsum[$x] = 0;
+			echo __line__." $kortsum[$x] | $ny_kortsum[$x]<br>";
 			$kortdiff += $kortsum[$x] - usdecimal($ny_kortsum[$x], 2);
+			echo __line__." $kortsum[$x] | $ny_kortsum[$x]<br>";
 		}
 		$kortdiff = afrund($kortdiff, 2);
 	}
@@ -3259,6 +3264,10 @@ function kasseoptalling(
 		}
 		$kr = $ot = NULL;
 	}
+	$optalt = (float)$optalt;
+	$byttepenge = (float)$byttepenge;
+
+echo "$optalt - ($byttepenge + $tilgang)<br>";
 	$kassediff = $optalt - ($byttepenge + $tilgang);
 	$kassediff -= $kortdiff;
 
@@ -3309,7 +3318,7 @@ function kasseoptalling(
 				file_put_contents($logfil, "Morgenbeholdning $byttepenge\n", FILE_APPEND);
 				file_put_contents($logfil, "Dagens tilgang $tilgang\n", FILE_APPEND);
 				file_put_contents($logfil, "Forventet beholdning " . $byttepenge + $tilgang . "\n", FILE_APPEND);
-				file_put_contents($logfil, "Optalt beholdning $optalt DKK\n", FILE_APPEND);
+				file_put_contents($logfil, "Optalt beholdning $optalt $baseCurrency\n", FILE_APPEND);
 				file_put_contents($logfil, "Difference $ValutaKasseDiff[$x]\n", FILE_APPEND);
 			} else { #20160824
 				print "<tr><td colspan=\"2\" align=\"center\">$svar</td></tr>\n";
@@ -3381,10 +3390,9 @@ function kasseoptalling(
 		print "<input $disabled style = 'width:135px;' type = 'submit' name = 'optael' value = \"$calcTxtArr[accept]\" ";
 		print "onclick = \"javascript:return confirm('$acceptPrint')\"></td></tr>\n";
 	}
-	if (!count($valuta) && $tilgang != '0,00')
-		displayLine('Kontant', $tilgang, 'DKK');
+	if (!count($valuta) && $tilgang != '0,00') displayLine(findtekst('370|Kontant',$sprog_id),$tilgang,$baseCurrency);
 	if ($kontosum) {
-		print "<tr><td colspan='2'><b>" . findtekst(592, $sprog_id) . "</b></td><td align='right'><b>" . dkdecimal($kontosum, 2) . "</b> DKK</td></tr>\n";
+		print "<tr><td colspan='2'><b>" . findtekst(592, $sprog_id) . "</b></td><td align='right'><b>" . dkdecimal($kontosum, 2) . "</b>  $baseCurrency</td></tr>\n";
 		if ($log)
 			file_put_contents($logfil, "Konto $kontosum\n", FILE_APPEND);
 	}
@@ -3588,7 +3596,7 @@ function udskriv_kasseopg($id, $kasse, $pfnavn)
 
 function posvaluta($modtaget)
 {
-	global $db;
+	global $baseCurrency, $db;
 
 	$betvaluta = if_isset($_POST['betvaluta']);
 	$betvalsum = if_isset($_POST['betvalsum']);
@@ -3596,7 +3604,7 @@ function posvaluta($modtaget)
 	if (!$prevalkurs)
 		$prevalkurs = 100;
 	$valmodt = $modtaget;
-	if ($betvaluta && $betvaluta != 'DKK') {
+	if ($betvaluta && $betvaluta != $baseCurrency) {
 		$dd = date("Y-m-d");
 		$qtxt = "select kodenr from grupper where art = 'VK' and box1 = '$betvaluta'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -3605,7 +3613,7 @@ function posvaluta($modtaget)
 		$betvalkurs = $r['kurs'];
 	} else {
 		$betvalkurs = 100;
-		$betvaluta = 'DKK';
+		$betvaluta = $baseCurrency;
 	}
 	if ($betvalkurs != $prevalkurs) {
 		$modtaget = NULL;
