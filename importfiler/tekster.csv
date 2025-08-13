@@ -2656,19 +2656,19 @@
 2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
 2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
 2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
-2659	Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen.
-2660	Klik her for at tilføje nye stande.
-2661	Når du har ændret navn på en eller flere stand så klik her for at gemme.
-2662	Søg efter stand navne, seperer med komma for at søge efter flere.
-2663	Se dage, klik på dem for at se ledige stande på den valgte dag
-2664	De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag/stand.
-2665	Klik på et standnavn for at se bookinger, oprette nye eller spærre standen.
-2666	Her kan du oprette spærringer. En spærring er en slags 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret.
-2667	Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato.
-2668	Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer.
+2659	Søg efter standnavne. Adskil med komma for at søge efter flere.	Search for stall names. Separate with commas to search for multiple.	Søk etter standnavn. Skill med komma for å søke etter flere.
+2660	Se dage, og klik på en dag for at se ledige stande	View days and click on a day to see available stalls	Se dager, og klikk på en dag for å se ledige stander
+2661	Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.	Green dots indicate available days, and red dots indicate booked days. Click on a green dot to create a booking for a specific day and stall.	Grønne prikker viser ledige dager, og røde prikker viser bookede dager. Klikk på en grønn prikk for å opprette en booking for en bestemt dag og stand.
+2662	Klik på et standnavn for at se eller oprette bookinger, eller for at spærre standen	Click on a stall name to view or create bookings, or to block the stall	Klikk på et standnavn for å se eller opprette bookinger, eller for å sperre standen
+2663	Her kan du oprette spærringer. En spærring er en form for 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du ønsker at vente med at booke standen, fordi den nuværende lejer muligvis vil forlænge. Standen kan stadig bookes, selvom den er spærret.	Here you can create temporary holds. A hold is a type of 'soft booking' that marks the stall with a yellow dot and serves as a warning. This can be useful if you want to wait before booking the stall, for example because the current tenant may wish to extend. The stall can still be booked, even if it is on hold.	Her kan du opprette sperringer. En sperring er en form for 'soft booking' som markerer standen med en gul prikk og fungerer som en advarsel. Dette kan for eksempel brukes hvis du ønsker å vente med å booke standen fordi den nåværende leietakeren muligens vil forlenge. Standen kan fortsatt bookes, selv om den er sperret.
+2664	Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato.	Select a day to view move-ins and move-outs on the selected day. The green one indicates today's date.	Velg en dag for å se inn- og utflyttinger på den valgte dagen. Den grønne markerer dagens dato.
+2665	Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen.
+2666	Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer.
+2667	Klik her for at tilføje nye stande.
+2668	Når du har ændret navn på en eller flere stand så klik her for at gemme.
 2669	Uge	Week	Uke
 2670	Din daglige omsætning sammenlignet med sidste år, ekskl. moms	Your daily revenue compared to last year, excl. VAT	Din daglige omsetning sammenlignet med i fjor, ekskl. mva
-2671	Mandag	Monday	Måndag
+2671	Mandag	Monday	Mandag
 2672	Tirsdag	Tuesday	Tirsdag
 2673	Onsdag	Wednesday	Onsdag
 2674	Torsdag	Thursday	Torsdag
