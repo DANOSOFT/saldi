@@ -31,7 +31,7 @@ include("../includes/std_func.php");
 
 $regnskabsaar=$_GET['aar'];
 
-$returside="../diverse.php";
+$returside="diverse.php?sektion=div_io";
 
 $filnavn="../temp/".$db."/"."formularer_".date("Y-m-d").".csv";
 
@@ -48,14 +48,20 @@ if (fwrite($fp,"formular".chr(9)."art".chr(9)."beskrivelse".chr(9)."justering".c
 } 
 fclose($fp);
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=diverse.php?sektion=div_io accesskey=L>".findtekst(30, $sprog_id)."</a></td>";  #20210713
-print "<td width=\"80%\" $top_bund>".findtekst(1374, $sprog_id)."</td>";
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
+
+       <td align='center' style='$topStyle'>".findtekst(1374, $sprog_id)."<br></td>
+
+       <td width=\"170px\" style='$topStyle'><br></td></tr>
+       </tbody></table></td></tr>"; # <- tabel 1.1.1
+
+print "</tr></tbody></table></td></tr>";
 print "<td align=center valign=top>";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 

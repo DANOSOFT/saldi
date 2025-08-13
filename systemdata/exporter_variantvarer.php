@@ -33,8 +33,8 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
-$returside="../diverse.php";
+include("../includes/topline_settings.php");
+$returside="diverse.php?sektion=div_io";
 
 $filnavn="../temp/variantvarer.csv";
 (isset($_GET['start']))?$start=$_GET['start']:$start=1;
@@ -122,14 +122,20 @@ if ($z>$slut) {
 }			
 
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=diverse.php?sektion=div_io accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210714
-print "<td width=\"80%\" $top_bund>".findtekst(1375, $sprog_id)."</td>"; 
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
+
+       <td align='center' style='$topStyle'>".findtekst(1375, $sprog_id)."<br></td>
+
+       <td width=\"170px\" style='$topStyle'><br></td></tr>
+       </tbody></table></td></tr>"; # <- tabel 1.1.1
+
+print "</tr></tbody></table></td></tr>";
 print "<td align=center valign=top>";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 $xa=findtekst(1375, $sprog_id); $variantvarer = explode(" ", $xa);
