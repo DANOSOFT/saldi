@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 		$stregkode_index = array_search('stregkode', $header);
 		$varemærke_index = array_search('varemærke', $header);
 		$salgspris_index = array_search('salgspris', $header);
+		$lager_antal_index = array_search('lager_antal', $header);
 
 		if ($varenr_index === false || $kostpris_index === false) {
 			die("CSV file must contain 'varenr' and 'kostpris' columns.");
@@ -46,24 +47,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 			$varenr = trim($data[$varenr_index]);
 			$varenr_alias = isset($data[$varenr_alias_index]) ? db_escape_string(trim($data[$varenr_alias_index])) : '';
 			// Convert Danish price format to SQL numeric (e.g. "3.267,00" -> "3267.00")
-			$kostpris_raw = trim($data[$kostpris_index]);
+			$kostpris_raw = trim($data[$kostpris_index]); // Fix: use kostpris_raw first
 			$kostpris = str_replace('.', '', $kostpris_raw); // Remove thousand separators
 			$kostpris = str_replace(',', '.', $kostpris);    // Convert decimal comma to dot
-
+			$lager_antal = trim($data[$lager_antal_index]);
+			$old_lager_antal = 0;
+			
 			// Check if varenr exists in the database
 			$sql = "SELECT id, kostpris FROM varer WHERE varenr = '$varenr'";
 			$result = db_select($sql, __FILE__ . " line " . __LINE__);
 			
-			if ($row = db_fetch_array($result)) {
+			if (db_num_rows($result) > 0) {
+				$row = db_fetch_array($result);
+				$vare_id = $row['id']; // Fix: get the vare_id from the result
 				$old_kostpris = $row['kostpris'];
+				
+				// Fix: use $vare_id instead of $r[id]
+				$query = db_select("SELECT COALESCE(SUM(beholdning), 0) AS lager_antal FROM lagerstatus WHERE vare_id = '$vare_id'", __FILE__ . " line " . __LINE__);
+				if ($lager_row = db_fetch_array($query)) {
+					$old_lager_antal = $lager_row['lager_antal'];
+				}
+				
 				// Update kostpris
-				$new_kostpris = ($old_kostpris + $kostpris) / 2; // Average the old and new kostpris
+				if($lager_antal > 0 && $old_lager_antal > 0) {
+					$new_kostpris = ($old_kostpris * $old_lager_antal + $kostpris * $lager_antal) / ($old_lager_antal + $lager_antal);
+				} elseif($lager_antal > 0) {
+					$new_kostpris = $kostpris;
+				} else {
+					$new_kostpris = $old_kostpris; // No change if no new stock
+				}
 				echo "Updating kostpris for varenr: $varenr from $old_kostpris - $kostpris new $new_kostpris<br>";
-				$update_sql = "UPDATE varer SET kostpris = $new_kostpris WHERE id = $row[id]";
+				$update_sql = "UPDATE varer SET kostpris = $new_kostpris WHERE id = $vare_id";
 				db_modify($update_sql, __FILE__ . " line " . __LINE__);
 				
 				// Add old varenr as alias
-				$alias_sql = "UPDATE varer SET varenr_alias = '$varenr_alias' WHERE id = $row[id]";
+				$alias_sql = "UPDATE varer SET varenr_alias = '$varenr_alias' WHERE id = $vare_id";
 				db_modify($alias_sql, __FILE__ . " line " . __LINE__);
 				
 				echo "Updated kostpris for varenr: $varenr<br>";
