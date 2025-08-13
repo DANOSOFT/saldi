@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.1.1 - 2024.10.07 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/boxCount.php --- lap 4.1.1 - 2025.08.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190215 Make function to count the box when submitting
@@ -37,6 +37,10 @@
 // 20240729 + 20241007 PHR Various translations
 // 20250428 PHR Added fiscal_year / $regnaar
 // 20250812 PHR Changed DKK to $baseCurrency
+// 20250813 PHR Compared and merged changes from ssl7
+
+
+
 function setSpecifiedCashText() {
 	global $baseCurrency,$sprog_id;
 	#  $country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
@@ -44,7 +48,7 @@ function setSpecifiedCashText() {
 		return ["tenth" => "10 ¢", "fiveth" => "20 ¢", "half" => "50 ¢", "one" => "1 €", "two" => "2 €", "five" => "5 €", "ten" => "10 €",
 		"twenty" => "20 €", "fifty" => "50 €", "hundred" => "100 €", "twoHundred" => "200 €",
 		"fiveHundred" => "500 €", "other" => findtekst('630|Andet',$sprog_id),
-		"turnover" => findtekst('2673|Dagens omsætning',$sprog_id), "headline" => findtekst('2387|Optæl kassebeholdning for kasse',$sprog_id),
+		"turnover" => findtekst('2373|Dagens omsætning',$sprog_id), "headline" => findtekst('2387|Optæl kassebeholdning for kasse',$sprog_id),
 		"subline" => "(". findtekst('2388|Antal mønter/sedler af hver slags',$sprog_id) .")"];
 	} else {
 		return ["half" => "50 øre", "one" => "1 kr", "two" => "2 kr", "five" => "5 kr", "ten" => "10 kr",
@@ -57,9 +61,9 @@ function setSpecifiedCashText() {
 
  function setCashCountText() {
  	global $baseCurrency,$sprog_id;
- 		echo "<!-- setCashCountText Begin -->\n";
- 		$country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
-     if ($country == "Switzerland") {
+	echo "<!-- setCashCountText Begin -->\n";
+ 	$country = db_fetch_array(db_select("select land from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))['land'];
+    if ($country == "Switzerland") {
          return ["portfolio" => "Morgen portfolio", "newPortfolio" => "Neues morgen portfolio", "dayApproach" => "Heutiger Ansatz",
                  "expInv" => "Erwartetes inventar", "countInv" => "Gezähltes inventar", "diff" => "Unterschied", "fromBox" => "Aus der Box genommen", "currency" => "SFR", "calculate" => "Berechnen", "cancel" => "Rückgängig", "printLast" => "Zuletzt drucken",
                  "accept" => "Genehmigen","drawer" => "Schublade"];
@@ -67,8 +71,8 @@ function setSpecifiedCashText() {
          return ["portfolio" => "Morgenbeholdning", "newPortfolio" => "Ny Morgenbeholdning", "dayApproach" => "Dagens tilgang",
                  "expInv" => "Forventet beholdning", "countInv" => "Optalt beholdning", "diff" => "Difference", "fromBox" => "Udtages fra kasse", "currency" => "DKK", "calculate" => "Beregn", "cancel" => "Fortryd", "printLast" => "Udskriv sidste",
                  "accept" => "Godkend","drawer" => "Skuffe"];
-      }
- 		echo "<!-- setCashCountText End -->\n";
+		}
+		echo "<!-- setCashCountText End -->\n";
   }
 
 function specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
