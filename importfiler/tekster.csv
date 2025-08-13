@@ -2656,16 +2656,16 @@
 2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
 2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
 2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
-2659	
-2660	
-2661	
-2662	
-2663	
-2664	
-2665	
-2666	
-2667	
-2668	
+2659	Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen.
+2660	Klik her for at tilføje nye stande.
+2661	Når du har ændret navn på en eller flere stand så klik her for at gemme.
+2662	Søg efter stand navne, seperer med komma for at søge efter flere.
+2663	Se dage, klik på dem for at se ledige stande på den valgte dag
+2664	De grønne prikker viser ledige dage, og de røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag/stand.
+2665	Klik på et standnavn for at se bookinger, oprette nye eller spærre standen.
+2666	Her kan du oprette spærringer. En spærring er en slags 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du vil vente med at booke standen, fordi den nuværende lejer måske ønsker at forlænge. Standen kan stadig bookes, selvom den er spærret.
+2667	Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato.
+2668	Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer.
 2669	
 2670	
 2671	
