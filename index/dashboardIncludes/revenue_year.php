@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/financialYearInc/createAccountPrimo --- ver 4.1.1 --- 2025-06-29 --
+// --- systemdata/financialYearInc/createAccountPrimo --- ver 4.1.1 --- 2025-08-06 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,12 +24,12 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------------
 // 20250629 - PHR setting $regnstart & $regnsslut if not set
-
+// 20250806 LOE changed $regnsslut to $regnslut
 // Definer første og sidste dag for regnskabsåret
 $firstDayOfYear = date('Y-m-d', strtotime($regnstart)); // Første dag i regnskabsåret
 $lastDayOfYear = date('Y-m-d', strtotime($regnslut)); // Sidste dag i regnskabsåret
 if ($regnstart < '1970-01-01') $regnstart = date("Y")."-01-01";
-if ($regnsslut < '1970-01-01') $regnslut = date("Y")."-12-31";
+if ($regnslut < '1970-01-01') $regnslut = date("Y")."-12-31";
 
 // Hent dags dato (kun måned og dag)
 $currentMonthDay = date('-m-d');
