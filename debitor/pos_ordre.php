@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-08-06--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-08-13--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -222,6 +222,7 @@
 // 20250701 PHR Updated call to 'moveToOwnAccount' who work without 'moveToCustomerAccount' set
 // 20250701 PHR Check if order exists. if not set id to 0
 // 20250806 PHR php8 issue in sizeof($_POST)
+// 20250813 PHR Compared and merged changes from ssl7
 
 @session_start();
 $s_id = session_id();
