@@ -332,9 +332,9 @@
 332	Kan slette regnskaber	Can delete accounts	Kan slette kontoer
 333	Ny bruger	New user	Ny bruker
 334	Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til	separated by commas	Sett * for tilgang til alle kontoer, eller skriv en liste med ID for kontoene den må være tilgjengelig for
-335	Afmærk her hvis brugeren er skal have administratorrettigheder	Check here if the user is to have administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
-336	Afmærk her hvis brugeren er skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here if the user is to be able to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
-337	Afmærk her hvis brugeren er skal kunne slette de regnskaber	this has access to	Sjekk her om brukeren skal kunne slette disse kontoene
+335	Afmærk her, hvis brugeren skal have administratorrettigheder	Check to grant the user administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
+336	Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here if the user is to be able to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
+337	Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til	Check here to allow the user to delete the accounts they have access to	Huk av her hvis brukeren skal kunne slette regnskapene de har tilgang til
 338	Brugernavn	Username	Brukernavn
 339	Opret regnskab	Create accounts	Opprett kontoer
 340	Vis regnskaber	View accounts	Vis kontoer
@@ -1925,7 +1925,7 @@
 1925	Tekst ved 'uforudset hændelse'	Text of 'unforeseen event'	Tekst av 'uforutsett hendelse'
 1926	ikke fundet!	not found!	ikke funnet!
 1927	Admin brugere	Admin users	Administratorbrukere
-1928	Der findes allerede en bruger med brugenavn	A username already exists	Et brukernavn finnes allerede
+1928	Der findes allerede en bruger med dette brugernavn	A user with this username already exists	Det finnes allerede en bruker med dette brukernavnet
 1929	Anonymisér	Anonymize	Anonymiser
 1930	Anonymiser konto $kontonr? \r\nNavn, adresse og telefonnummer fjernes på dette kort og på alle ordrer, rykkere mm. \r\nEventuelle kontakter slettes.	Anonymize account $kontonr?\r\nThe name, address and phone number are removed on this card and on all orders, reminders, etc.\r\nAny contacts will be deleted.	Anonymisere konto $kontonr?\r\nNavn, adresse og telefonnummer fjernes på dette kortet og på alle bestillinger, påminnelser osv.\r\nAlle kontakter vil bli slettet.
 1931	Anvend Paperflow til aflæsning af bilag, Se priser på saldi.dk/paperflow	Use Paperflow til aflæsning af bilag, Check prices at saldi.dk/paperflow	Bruk Paperflow til å lese dokumenter, Se priser på saldi.dk/paperflow
@@ -2677,7 +2677,7 @@
 2677	Søndag	Sunday	Søndag
 2678	Graf over ugentlig omsætning	Weekly revenue graph	Graf over ukentlig omsetning
 2679	Omsætning denne uge, ekskl. moms	Revenue this week, excl. VAT	Omsetning denne uke, ekskl. mva
-2680	
+2680	Gl. design	Old design	Gl. design
 2681	
 2682	
 2683	
