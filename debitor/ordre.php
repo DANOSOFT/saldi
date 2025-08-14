@@ -3085,7 +3085,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		print "</tbody></table></td>\n"; # <- Tabel 2.2
     print "<td width=\"31%\" valign = 'top'><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" valign = 'top'>\n"; #Tabel 2.3 ->
   $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
-    if (!$kontonr || $vis_addr == "on") {
+    if (!$kontonr || $vis_lev_addr == "on") {
       $txt28 = findtekst('28|Firmanavn',$sprog_id);
       $txt140 = findtekst('140|Adresse', $sprog_id);
 			print "<tr class='tableTexting'><td><b>".findtekst('554|Leveringsadresse', $sprog_id)."</b><br />&nbsp;</td><td align=\"center\">$jobkort $debitorkort</td></tr>\n";
