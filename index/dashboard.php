@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/dashboard.php --- lap 4.1.0 --- 2025.04.15 ---
+// ---- index/dashboard.php --- lap 4.1.1 --- 2025.08.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 //20241004 MMK  
 //20241018 LOE checks that some variables are set before using. 
 //20250513 Sawaneh display number of users online. 
+//20250805 LOE added close button to settings popup. and also added weekly graph snippet
 @session_start();
 $s_id = session_id();
 
@@ -86,6 +87,7 @@ $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
 include ("dashboardIncludes/revenue_graph.php");
 include ("dashboardIncludes/customer_graph.php");
+
 include ("dashboardIncludes/pos_row.php");
 
 
@@ -148,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    $data = file_get_contents("php://input");
    update_settings_value("kontomin",         "dashboard_values", if_isset($_POST['kontomin'],          "0"),    "Show the revenue this month per last month");
    update_settings_value("kontomaks",        "dashboard_values", if_isset($_POST['kontomaks'],         "2000"), "Show the revenue this month per last month");
-
+   update_settings_value("revweek",          "dashboard_toggles", if_isset($_POST['revweek'],          "off"),  "Show the revenue this week per last week");
    update_settings_value("revmonth",         "dashboard_toggles", if_isset($_POST['revmonth'],         "off"),  "Show the revenue this month per last month");
    update_settings_value("revyear",          "dashboard_toggles", if_isset($_POST['revyear'],          "off"),  "Show the revenue this year per last year");
    update_settings_value("ordercount",       "dashboard_toggles", if_isset($_POST['ordercount'],       "off"),  "Show the amount of orders currently active that are not older than 30 days");
@@ -172,6 +174,7 @@ if (isset($_GET['hidden']) && $_GET['hidden'] == '0') {
 $kontomin = get_settings_value("kontomin", "dashboard_values", 0);
 $kontomaks = get_settings_value("kontomaks", "dashboard_values", 2000);
 
+$revweek = get_settings_value("revweek", "dashboard_toggles", "on");
 $revmonth = get_settings_value("revmonth", "dashboard_toggles", "on");
 $revyear = get_settings_value("revyear", "dashboard_toggles", "on");
 $ordercount = get_settings_value("ordercount", "dashboard_toggles", "on");
@@ -282,6 +285,13 @@ if ($hide_dash === "1" || is_null($regnaar)) {
 print "<div style='display: flex; gap: 2em; flex-wrap: wrap'>";
 
 # #######################################
+#  Omsætning for ugen         
+# #######################################
+if( $revweek === "on") {
+  include("./dashboardIncludes/revenue_week.php");
+}
+
+# #######################################
 #
 #	Samlet for Måneden
 #
@@ -365,6 +375,11 @@ if ($customergraph === "on") {
 	customer_graph();
 }
 
+if ($revweek === "on") {
+  include ("dashboardIncludes/weekly_graph.php");
+	weekly_graph($regnstart, $regnslut);
+}
+
 if ($varegrp_doughnut === "on") {
   include("dashboardIncludes/varegrp_doughnut.php");
   varegrp_doughnut( $regnstart, $regnslut);
@@ -388,12 +403,16 @@ print "</div>";
 print "
 <div style='display: none' id='settingpopup'>
   <!-- Popup Background -->
-  <div style='top: 0; position: fixed; height: 100vh; width: 100vw; background-color: #00000030'></div>
+  <div onclick=\"document.getElementById('settingpopup').style.display='none'\" style='top: 0; position: fixed; height: 100vh; width: 100vw; background-color: #00000030'></div>
   
   <!-- Popup Content -->
-  <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em'>
-    <h3>".findtekst('2151|Opsæt din oversigt', $sprog_id)."</h3>
+  <div style='width: 600px; position: absolute; left: 50%; top: 50%; background-color: #fff; transform: translate(-50%, -50%); padding: 2em; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed;'>
+    <!-- Close Button -->
+    <button onclick=\"document.getElementById('settingpopup').style.display='none'\"
+        style='position: absolute; top: 0.5em; right: 0.5em; border: none; background: transparent; font-size: 1.2em; cursor: pointer; color: #e00;'>&times;</button>
 
+    
+    <h3>" . findtekst('2151|Opsæt din oversigt', $sprog_id) . "</h3>
 <form method='post'>
   <table>
         <!-- Kontonumre Section -->
@@ -442,6 +461,10 @@ print "
     <tr>
       <th>".findtekst('2162|Grafer', $sprog_id)."</th>
       <th></th>
+    </tr>
+    <tr>
+          <td>".findtekst('2678|Graf over ugentlig omsætning', $sprog_id)."</td> 
+          <td><input type='checkbox' name='revweek' " . ($revweek === "on" ? "checked" : "") . " /></td>
     </tr>
     <tr>
       <td>".findtekst('2163|Omsætningsgraf', $sprog_id)."</td>
