@@ -88,6 +88,28 @@ name='buttonTxtColor' id='buttonTxtColor_text' value='".substr($buttonTxtColor,0
 </td></tr>";
 ?>
 <script>
+// Prevent form submission on Enter key in color inputs
+function preventEnterSubmit(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    }
+}
+
+// Add event listeners to all color inputs
+document.addEventListener('DOMContentLoaded', function() {
+    const colorInputs = document.querySelectorAll('input[type="color"]');
+    colorInputs.forEach(function(input) {
+        input.addEventListener('keydown', preventEnterSubmit);
+    });
+    
+    const textInputs = document.querySelectorAll('#bgcolor_text, #fgcolor_text, #buttonColor_text, #buttonTxtColor_text');
+    textInputs.forEach(function(input) {
+        input.addEventListener('keydown', preventEnterSubmit);
+    });
+});
+
 // Sync color picker with text input for bgcolor
 document.getElementById('bgcolor_color').addEventListener('change', function() {
     document.getElementById('bgcolor_text').value = this.value.substring(1);
