@@ -646,7 +646,7 @@ if ($id > 0) {
 	$bb = NULL;
 	$x = 0;
 	$bd = array();
-	$q = db_select("select distinct(betalingsdage) as betalingsdage from adresser", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select distinct(betalingsdage) as betalingsdage from adresser WHERE betalingsdage != 0", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$bd[$x] = $r['betalingsdage'];
 		$x++;

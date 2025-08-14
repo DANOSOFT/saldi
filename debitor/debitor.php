@@ -449,22 +449,25 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 if ($skjul_lukkede) $udvaelg = " and lukket != 'on'";
 for ($x=0;$x<$vis_feltantal;$x++) {
-	if (isset($find[$x])) {
-		$find[$x]=trim($find[$x]);
-		$tmp=$vis_felt[$x];
-		if ($tmp) {
-			if ($find[$x] && in_array($tmp, array('invoiced', 'kontaktet', 'kontaktes'))) {
-				$tmp2="adresser.".$tmp;
-				$udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
-			} elseif ($find[$x] && !in_array($tmp,$numfelter)) {
-				$tmp2="adresser.".$tmp;
-				$udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
-			} elseif ($find[$x]||$find[$x]=="0") {
-				$tmp2="adresser.".$tmp;
-				$udvaelg.=udvaelg(db_escape_string($find[$x]),$tmp2, 'NR');
-			}
-		}
-	}
+    if (isset($find[$x])) {
+        $find[$x]=trim($find[$x]);
+        $tmp=$vis_felt[$x];
+        if ($tmp) {
+            if ($find[$x] && in_array($tmp, array('invoiced', 'kontaktet', 'kontaktes'))) {
+                $tmp2="adresser.".$tmp;
+                $udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
+            } elseif ($tmp == 'kontakt' && $find[$x]) {
+                // Special handling for kontakt field - search in ansatte table (case-insensitive)
+                $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+            } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
+                $tmp2="adresser.".$tmp;
+                $udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
+            } elseif ($find[$x]||$find[$x]=="0") {
+                $tmp2="adresser.".$tmp;
+                $udvaelg.=udvaelg(db_escape_string($find[$x]),$tmp2, 'NR');
+            }
+        }
+    }
 }
 
 if (count($dg_liste)) {
@@ -496,6 +499,7 @@ $adresserantal=0;
 
 $qtxt = "select count(id) as antal from adresser where art = 'D' $udvaelg";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+
 $antal=$r['antal'];
 if ($menu=='T'){
 	print "<table class='dataTableBooking' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
@@ -614,11 +618,22 @@ if (!$start) {
 			$tmp=$vis_felt[$x];
 			print "<SELECT NAME=\"find[$x]\">";
 			print "<option>".stripslashes($find[$x])."</option>";
-			$qtxt = "select distinct($tmp) from adresser where art = 'D'";
+			
+			// Special handling for kontakt field to search all employees
+			if ($tmp == 'kontakt') {
+				$qtxt = "select distinct(ansatte.navn) as kontakt from ansatte, adresser where adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.navn";
+			} else {
+				$qtxt = "select distinct($tmp) from adresser where art = 'D'";
+			}
+			
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($find[$x]) print "<option></option>";
 			while ($r=db_fetch_array($q)) {
-				print "<option>$r[$tmp]</option>";
+				if ($tmp == 'kontakt') {
+					print "<option>$r[kontakt]</option>";
+				} else {
+					print "<option>$r[$tmp]</option>";
+				}
 			}
 			print "</SELECT></td>\n";
 		} else {
