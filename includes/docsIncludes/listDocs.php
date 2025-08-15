@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/listDocs.php-----patch 4.1.0 ----2024-03-23--------
+// --- includes/docsIncludes/listDocs.php-----patch 4.1.1 ----2025-08-15--------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,13 +16,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20220510 PHR Not attatchments from not invoiced orders can now be deleted. 
 // 20230705 LOE Made some modifications 20230724+20230801
 // 20240117 LOE Minor modification
 // 20240305 PHR Varioous corrections
 // 20240323 PHR Minor design changes
+// 20250815 LOE Further improvements
 
 $fileName = NULL;
 isset($_GET['bilag_id'])? $bilag_id = $_GET['bilag_id']: $bilag_id = null;
@@ -39,6 +40,10 @@ if ($dokument) {
 	
 }
 */
+if (!isset($sourceId) || $sourceId === '') {
+		error_log("no files to list in listDocs.php");
+		exit;
+}
 
 $qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -110,6 +115,10 @@ if ($source == 'creditor') {
 	}
 }
 if ($sourceId || $sourceId == 0) {
+	if (!isset($sourceId) || $sourceId === '') {
+		alert("no files to show");
+		exit;
+	}
 	$qtxt = "select art from documents where source = '$source' and source_id = '$sourceId'";
 	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
 	$qtxt = "select timestamp from documents where source = '$source' and source_id = '$sourceId'";

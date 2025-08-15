@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php -----patch 4.1.0 ----2024-04-13------------
+// --- includes/documents.php -----patch 4.1.1 ----2025-08-15------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,10 +16,11 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
-//20230622 - LOE  Updated file path and some related modifications.
+//20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
+//20250815 - LOE Create 'bilag' file specifically for kassekladde and , others can be created based  on what is needed
 
 @session_start();
 $s_id=session_id();
@@ -28,7 +29,9 @@ $css="../css/std.css";
 $title="Documents";
 print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 print '<link rel="stylesheet" type="text/css" href="../css/dragAndDrop.css">';
-print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"../javascript/dragAndDrop.js\"></script>";
+$jsFile = '../javascript/dragAndDrop.js';
+$version = file_exists($jsFile) ? filemtime($jsFile) : time();
+print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?v={$version}\"></script>";
 
 
 include("../includes/connect.php");
@@ -59,6 +62,7 @@ if(($_GET)||($_POST)) {
 	if (isset($_POST['sourceId'])) {
 		$sourceId  = $_POST['sourceId'];
 		$source    = $_POST['source'];	
+		$kladde_id = $_POST['kladde_id'];
 	}
 }
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
@@ -67,16 +71,28 @@ if (isset($_GET['test'])) exit;
 #xit;
 $qtxt = "select var_value from settings where var_name = 'globalId'";
 if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $globalId = $r['var_value'];
-else alert ('Missing global ID');
+#else alert ('Missing global ID');
 
 if (file_exists('../owncloud')) $docFolder = '../owncloud';
 elseif (file_exists('../bilag')) $docFolder = '../bilag';
 elseif (file_exists('../documents')) $docFolder = '../documents';
 
+
+if ($source === 'kassekladde' && empty($docFolder)) {  
+    $docFolder = "../bilag";
+    
+    if (!file_exists($docFolder)) {
+        mkdir($docFolder, 0755, true); 
+    }
+}
+
+
+
 if ($dokument) {
 	if (file_exists("$docFolder/$db/bilag/kladde_$kladde_id/bilag_$sourceId")) {
 		include("docsIncludes/convertOldDoc.php");
-	} else print "$dokument ".findtekst('1740|ikke fundet', $sprog_id);
+	}
+	# else print "dokument ".findtekst('1740|ikke fundet', $sprog_id);
 }
 #$openPool,$sourceId,$source,$bilag,$fokus,$poolFile,$docFolder
 #echo $poolParams;
@@ -137,18 +153,10 @@ $clipImage = "<span class='clip-image drop-zone-container' title='Drag and Drop 
 
 print $clipImage;
 
-// Check if the confirm flag is set
-if (isset($_GET['confirm_upload']) && $_GET['confirm_upload'] == 'true') {
-    // reload the page after upload
-	header('Location: ' . $_SERVER['REQUEST_URI']);
-
-}
-
 
 
 
 print "</td></tr>";
-
 
 
 
