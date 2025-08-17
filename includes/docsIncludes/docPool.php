@@ -412,7 +412,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
 	name=\"insertFile\" value=\"".findtekst('1415|Indsæt', $sprog_id)."\"</tr>\n";
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
-	name=\"unlink\" value=\"".findtekst('1099|Slet', $sprog_id)."\"</tr>\n";
+	name=\"unlink\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('Er du sikker på at du vil slette?')\"></tr>\n";
 	print "<tr><td>Bilag&nbsp;</td>";
 	if ($readOnly) print "<td>$bilag</td><tr>";
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"bilag\" value=\"$bilag\"</td></tr>\n";
