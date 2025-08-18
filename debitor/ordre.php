@@ -377,7 +377,6 @@ if (isset($_GET['kundeordnr']) && $_GET['kundeordnr']) { #20200407
 $returside=if_isset($_GET,NULL,'returside');
 if (isset($sag_id)) { // Returside sættes til 'sager' fra sager.php #20210715
 #  $returside=urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id");
-	$returside="../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id";
 }
 if ($popup) $returside="../includes/luk.php?id=$id&tabel=ordrer";
 
@@ -2877,9 +2876,32 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
   if (!$status)  $status=0;
 	if ($status>=3) {
 		    print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
+    $actionUrl = "ordre.php?id=$id";
+// if (!empty($sag_id)) {
+//     $actionUrl .= "&sag_id=$sag_id";
+// } else {
+// 	if (!empty($returside)) {
+// 		$actionUrl .= "&returside=" . urlencode($returside);
+// 	}
 
+// }
+
+
+
+
+// print "<form name=\"ordre\" id=\"invoice-form\" action=\"$actionUrl\" method=\"post\">\n";
+
+if ($type == 'order' || $type == 'ordre') {
+    $formAction = "ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside";
+    //   $formAction = $actionUrl;
+    $formId = "1";
+} else {
+    $formAction = $actionUrl;
+    $formId = "invoice-form";
+}
+
+print "<form name=\"ordre\" id=\"$formId\" action=\"$formAction\" method=\"post\">\n";
 		// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n"; 
-		    print "<form name=\"ordre\" id=\"invoice-form\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n"; 
 
 		
 print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
@@ -3641,6 +3663,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				print "onfocus='document.forms[0].fokus.value=this.name;' value=\"$kontonr\">";
 				$title = findtekst('1463|Klik her for at skifte kunde på denne ordre', $sprog_id);
 				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside&art=$art&swap_account=swap'>";
+				// print "<a style='text-decoration: none' href='ordre.php?id=$id&returside=$returside'>";
 				print "<button class='button gray small' type='button' title='$title' style='width:50px;'>".findtekst('436|Skift', $sprog_id)."";
 			}
     	}  else {

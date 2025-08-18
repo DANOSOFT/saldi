@@ -9,14 +9,13 @@ document.addEventListener('DOMContentLoaded', function () {
     
     if (status < 3) {
         console.log('This is an ORDER (status < 3) - invoice_dragdrop.js will NOT initialize');
-        return; // Exit for orders
+        return;
     }
 
     console.log('This is an INVOICE (status >= 3) - invoice_dragdrop.js will initialize');
 
     let invoiceTableBody = null;
 
-    // Find the correct table body for invoices
     document.querySelectorAll('table').forEach(table => {
         const candidate = table.querySelector('tbody');
         if (candidate && candidate.querySelector('tr.ordrelinje')) {
@@ -96,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return false;
     }
 
-    // Add the invoice dragdrop flag
+
     let invoiceFlag = form.querySelector('input[name="invoice_dragdrop"]');
     if (!invoiceFlag) {
         invoiceFlag = document.createElement('input');
@@ -106,7 +105,6 @@ document.addEventListener('DOMContentLoaded', function () {
         form.appendChild(invoiceFlag);
     }
 
-    // For invoices, try different save mechanisms
     const saveBtn = form.querySelector('input[type="submit"][name="save"]') ||
                    form.querySelector('input[type="submit"][value*="Gem"]') ||
                    form.querySelector('input[type="submit"][id="submit"]') ||
@@ -119,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         console.warn('No save button found, submitting form directly');
         try {
-            // Submit the form with the invoice flag
+       
             form.submit();
             return true;
         } catch (err) {

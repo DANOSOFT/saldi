@@ -93,6 +93,7 @@
 // 20250415 LOE Updated some variables using if_isset
 // 20250605	PHR Removed konto_id from href
 // 26062025 PBLM Added link to the whole line almost
+// 14082025 Sawaneh Fix invoicelist for english language
 
 #ob_start();
 @session_start();
@@ -228,6 +229,7 @@ $r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " li
 
 if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'",__FILE__ . " linje " . __LINE__))) $hurtigfakt='on';
 if ($valg=="tilbud" && $hurtigfakt) $valg="ordrer"; //20210323
+if ($valg == 'invoice') $valg = 'faktura';
 if (!$valg) $valg="ordrer";//
 $tjek=array("tilbud","ordrer","faktura","pbs");//
 //if (!in_array($valg,$tjek)) $valg='ordrer';
