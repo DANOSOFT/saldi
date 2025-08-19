@@ -78,14 +78,14 @@ class OrderReadDTO
     {
         return [
             'id' => $this->id,
-            'ordrenr' => $this->ordrenr,
-            'firmanavn' => $this->firmanavn,
-            'telefon' => $this->telefon,
+            'orderNo' => $this->ordrenr,
+            'firmName' => $this->firmanavn,
+            'phone' => $this->telefon,
             'email' => $this->email,
-            'ordredate' => $this->ordredate,
+            'orderDate' => $this->ordredate,
             'sum' => $this->sum,
             'status' => $this->status,
-            'valuta' => $this->valuta
+            'currency' => $this->valuta
         ];
     }
 

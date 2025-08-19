@@ -16,7 +16,7 @@ class OrderEndpointTest
     public function __construct()
     {
         // Configure your API base URL and headers
-        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/creditor/orders/';
+        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/debitor/orders/';
         
         // Set your actual authorization headers
         $this->headers = [
@@ -66,13 +66,13 @@ class OrderEndpointTest
         echo "Testing: Create Order (New Debtor)\n";
         
         $orderData = [
-            'firmanavn' => 'Test Order Company A',
-            'telefon' => '12345678',
+            'companyName' => 'Test Order Company A',
+            'phone' => '12345678',
             'email' => 'test-order@company-a.com',
-            'momssats' => 25.0,
+            'vatRate' => 25.0,
             'addr1' => 'Order Street 123',
-            'postnr' => '2000',
-            'bynavn' => 'Order City',
+            'zipcode' => '2000',
+            'city' => 'Order City',
             'notes' => 'This is a test order'
         ];
 

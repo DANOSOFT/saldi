@@ -35,7 +35,7 @@ $modulnr=2;
 $title="kladdeliste";	
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
-: 'javascript:window.history.go(-2);';
+: '../index/menu.php';
 include("../includes/connect.php");
 include("../includes/std_func.php");
 $query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
@@ -81,7 +81,7 @@ if ($menu=='T') {
 
 	print "<td width='10%'  title='".findtekst('1599|Klik her for at lukke kladdelisten', $sprog_id)."'>"; #20210721
 	print "<a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-	print "<td width=70% style=$topStyle align=center>".findtekst('639|Kladdeliste', $sprog_id)."</td>";
+	print "<td width=70% style='$topStyle' align=center>".findtekst('639|Kladdeliste', $sprog_id)."</td>";
 	print "<td id='tutorial-help' width=5% style=$buttonStyle>
 	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 		".findtekst('2564|Hjælp', $sprog_id)."
@@ -288,15 +288,15 @@ if ($menu=='T') {
 $steps = array();
 $steps[] = array(
 	"selector" => "#ny",
-	"content" => "Opret ny kassekladde ved at klikke her",
+	"content" => findtekst('2607|Opret ny kassekladde ved at klikke her', $sprog_id).".",
 );
 $steps[] = array(
 	"selector" => "[name=digital]",
-	"content" => "Digital godkendelse af fakturaer gennem nemhandel.",
+	"content" => findtekst('2608|Digital godkendelse af fakturaer gennem NemHandel', $sprog_id).".",
 );
 $steps[] = array(
 	"selector" => "#visalle",
-	"content" => "Du kan se dine kollegers kladder ved at klikke her",
+	"content" => findtekst('2609|Du kan se dine kollegers kladder ved at klikke her', $sprog_id).".",
 );
 
 include(__DIR__ . "/../includes/tutorial.php");

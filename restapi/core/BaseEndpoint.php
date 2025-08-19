@@ -67,7 +67,7 @@ abstract class BaseEndpoint
                     $this->handlePost($data);
                     break;
                 case 'GET':
-                    $id = $_GET['id'] ?? null;
+                    $id = $_GET['id'] ?? $_GET["currencyCode"] ?? null;
                     $this->handleGet($id);
                     break;
                 case 'PUT':
@@ -188,7 +188,7 @@ abstract class BaseEndpoint
         $missingFields = [];
         
         foreach ($requiredFields as $field) {
-            if (!isset($data->$field) || empty($data->$field)) {
+            if (!isset($data->$field)) {
                 $missingFields[] = $field;
             }
         }

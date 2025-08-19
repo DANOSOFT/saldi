@@ -2151,8 +2151,7 @@ function batch_kob($id, $art)
 	}
 } # endfunc batch_kob
 ###############################################################
-function bogfor_indbetaling($id, $webservice)
-{
+function bogfor_indbetaling($id, $webservice) {
 	include("../includes/genberegn.php");
 	include("../includes/forfaldsdag.php");
 	global $baseCurrency;
@@ -2257,11 +2256,11 @@ function bogfor_indbetaling($id, $webservice)
 			$tmparray = explode(chr(9), $r['box2']);
 			$kassekonto = $tmparray[$kasse - 1] * 1;
 			$kortantal = $r['box4'] * 1;
-			$korttyper = explode(chr(9), $r['box5']);
+			$korttyper = explode(chr(9), strtolower($r['box5']));
 			$kortkonti = explode(chr(9), $r['box6']);
 			$kortnavn = NULL;
 			if ($div_kort_kto) { #20140129
-				if (!in_array($betaling, $korttyper)) {
+				if (!in_array(strtolower($betaling), $korttyper)) {
 					$korttyper[$kortantal] = $betaling;
 					$kortkonti[$kortantal] = $div_kort_kto;
 					$kortantal++;
@@ -2312,7 +2311,6 @@ function bogfor_indbetaling($id, $webservice)
 			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0','0','$logdate','$logtime','0','0','$id','$kasse')", __FILE__ . " linje " . __LINE__);
 		db_modify("update ordrer set status=4, valutakurs=$valutakurs where id=$id", __FILE__ . " linje " . __LINE__);
 	}
-	#xit;
 	transaktion("commit");
 	return ('OK');
 }
@@ -4987,17 +4985,16 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		if (!strstr($returside, "ordre.php")) {
 			print "<td width='10%'><a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				. findtekst(30, $sprog_id) . "</button></a></td>";
+				. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 		} else {
 			print "<td width='10%'><a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>
 				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				. findtekst(30, $sprog_id) . "</button></a></td>";
+				. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
 		}
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
-		print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Hjælp  
-		</button></td>";
+		print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+		print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+		print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 		print "<td width='10%'>
 			   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>
 			   <button type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(39, $sprog_id) . "</button></a></td>";

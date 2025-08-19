@@ -3,8 +3,6 @@
  *20240112 LOE created the file
  */
 
-
-
    // Function to handle drag enter event
    function handleDragEnter(event) {
     event.preventDefault();
@@ -37,15 +35,7 @@
       var file = files[0];
 		// Check if the dropped file is a PDF
 		if (file.type === 'application/pdf') {
-      // Extract variables from $clipImage URL
-		// var clipVariables = {
-		// 	sourceId: '<?php echo $id[$y]; ?>',
-		// 	kladde_id: '<?php echo $kladde_id; ?>',
-		// 	bilag: '<?php echo $bilag[$y]; ?>',
-		// 	dokument: '<?php echo $dokument[$y]; ?>',
-		// 	bilag_id: '<?php echo $id[$y]; ?>',
-		// 	fokus: 'bila<?php echo $y; ?>'
-		// };
+     
 
 		// Handle the file asynchronously (AJAX)
     jQuery(document).ready(function($) {
@@ -88,27 +78,15 @@
       processData: false,
       contentType: false,
       success: function(response) {
-        //console.log('File uploaded successfully:', response);
-        //console.log('File uploaded successfully:', response);
-//alert('File uploaded successfully')
-
-        // Handle the response as needed
-            // Reload the PHP file 
-            // if (confirm('File uploaded successfully')) {
-              
-            //    window.location.reload();
-            // }
+      
                   // Confirm the upload using JavaScript
             var confirmUpload = confirm('upload successful');
 
             // If confirmed, set the flag and reload the page
             if (confirmUpload) {
-              // Set the flag in the URL
-              window.location.href = window.location.href + '?confirm_upload=true';
-            }
+              window.location.reload(); 
 
-        
-      
+            }
 
       },
       error: function(xhr, status, error) {

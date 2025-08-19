@@ -48,7 +48,69 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   header('Location: ../debitoripad/await.php');
 }
 
+function brightenColor($color, $amount = 0.2) {
+    // Remove # if present
+    $color = ltrim($color, '#');
+    
+    // Convert hex to RGB
+    $r = hexdec(substr($color, 0, 2));
+    $g = hexdec(substr($color, 2, 2));
+    $b = hexdec(substr($color, 4, 2));
+    
+    // Brighten each component
+    $r = min(255, $r + ($amount * (255 - $r)));
+    $g = min(255, $g + ($amount * (255 - $g)));
+    $b = min(255, $b + ($amount * (255 - $b)));
+    
+    // Convert back to hex
+    return '#' . sprintf('%02x%02x%02x', round($r), round($g), round($b));
+}
+
 ?>
+
+<script>
+// Simple cookie-based refresh listener
+function checkRefreshCookie() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'refresh_opener' && value === 'true') {
+            // Clear the cookie and reload
+            document.cookie = 'refresh_opener=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+            location.reload();
+            return;
+        }
+    }
+}
+
+// Check every 1000ms for the cookie
+setInterval(checkRefreshCookie, 1000);
+</script>
+
+// Check every 500ms
+setInterval(checkRefreshCookie, 500);
+</script>
+<style>
+  .showMenu{
+    background: <?php echo $buttonColor; ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .nav-links{
+    background-color: <?php echo $buttonColor; ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+  .sidebar .nav-links li:hover, .sidebar :not(.closed) .nav-links li.showMenu, .sidebar ul.nav-links li.active {
+    background: <?php echo brightenColor($buttonColor, 0.2); ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+
+  .sidebar{
+    background-color: <?php echo $buttonColor; ?> !important;
+    color: <?php echo $buttonTxtColor; ?> !important;
+  }
+</style>
+
 <meta charset="utf-8">
 <title>Sidebar</title>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
@@ -75,10 +137,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     <i id="icon-open" class='bx bxs-arrow-from-right'></i>
   </div>
 
-  <ul class="nav-links top-links" style='margin-top: 1em'>
+  <ul class="nav-links top-links" style='margin-top: 1em; background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;'>
     <!-- Finans -->
     <li class="active">
-      <a href="#" id="dashboard" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
+      <a href="#" id="dashboard" style="background: <?php echo $buttonColor; ?> !important; color: <?php echo $buttonTxtColor; ?> !important;" onclick='clear_sidebar(); this.parentElement.classList.add("active"); update_iframe("/index/dashboard.php")'>
         <i class='bx bxs-dashboard'></i>
         <span class="link_name"><?php print findtekst('2224|Oversigt', $sprog_id); ?></span>
       </a>
@@ -304,7 +366,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   <div id="desc-line">
     <a href="#" onclick="window.frames['iframe_a'].focus();
                            window.frames['iframe_a'].print();">Print</a>
-    <p><a href="menu.php?useMain=off">Gl. design</a></p>
+    <p><a href="menu.php?useMain=off"><?php echo findtekst('2680|Gl. design', $sprog_id);?></a></p>
     <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
   </div>
 </div>

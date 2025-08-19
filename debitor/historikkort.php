@@ -1,5 +1,5 @@
 <?php
-// -----------debitor/historikkort.php-----patch 4.0.8 ----2023-07-12----
+// --- debitor/historikkort.php --- patch 4.1.1 --- 2025-08-08 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,13 +16,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20190213 MSC - Rettet isset fejl og db fejl + rettet topmenu design til
 // 20190215 MSC - Rettet topmenu design
 // 20210728 LOE - Updated some texts with translated ones 
 // 20220719 MSC - Implementing new design
 // 20241009 MMK - Added datepicker functionalaty
+// 20250808 PHR - Added $id to returside 
 
 @session_start();
 $s_id = session_id();
@@ -226,7 +227,8 @@ function processHistorikRecord($inputs, $employeeIds) {
 
 function updateOprettet($id, $oprettet) {
 	if (isset($oprettet)) {
-        db_modify("UPDATE adresser 
+      if (!$oprettet) $oprettet = date('Y-m-d');
+      db_modify("UPDATE adresser
             SET oprettet = '{$oprettet}' 
             WHERE id = {$id}", 
             __FILE__ . " linje " . __LINE__
@@ -269,6 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ############################ DISPLAY TOP HEADER #################################
 if (!$id) print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/dashboard.php\">";
 if (strstr($returside, 'historikkort.php')) $returside = "historik.php";
+if ($returside == 'debitorkort.php') $returside.= "?id=$id";
 
 if ($menu == 'T') {
 	$center = "align=center";
@@ -289,7 +292,6 @@ if ($menu == 'T') {
 	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
 
 	$tekst = findtekst(154, $sprog_id);
-
 	print "<td width='10%' align=center><a href=\"javascript:confirmClose('$returside')\" accesskey=L>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>\n";
 

@@ -6,7 +6,6 @@ function cashBalance ($kasse,$optalt,$godkendt,$cookievalue) {
 	global $regnaar,$reportNumber;
 	global $tracelog;
 	global $vis_saet;
-echo __line__."<br>";
 
 	$dd=date("Y-m-d");
 	$tid=date("H:i");

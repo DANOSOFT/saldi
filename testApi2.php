@@ -1,6 +1,6 @@
 <?php
 if(isset($_GET["put_new_orders"])){
-$saldiuser='api'; #En bruger i har i saldi uden nogen rettigheder
+$saldiuser='hej'; #En bruger i har i saldi uden nogen rettigheder
 $api_key='4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD'; #Findes under Indstillinger ->  Diverse -> API
 $serverurl="https://ssl12.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
 $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API 
@@ -22,7 +22,7 @@ $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
  $url .= "&gruppe=" . urlencode(1); // Example customer group
  
  // Add order details
- $url .= "&shop_ordre_id=" . urlencode("3485745"); // Example shop order ID
+ $url .= "&shop_ordre_id=" . urlencode("3485748"); // Example shop order ID
  $url .= "&shop_status=" . urlencode("New Order");
  $url .= "&nettosum=" . urlencode("104.00"); // Example net amount
  $url .= "&momssum=" . urlencode("25.00"); // Example VAT amount
@@ -44,11 +44,10 @@ $db='test_4';#' #Findes under Indstillinger ->  Diverse -> API
 	 error_log(curl_error($ch));
  }
  curl_close($ch);
- 
+ file_put_contents("price.txt", $response); // Log response for debugging
 // The response should be the Saldi order ID if successful
 // Remove quotes and whitespace before converting to integer
 $saldi_ordre_id = intval(trim($response, " \t\n\r\0\x0B\""));
-file_put_contents('saldi_order_response.txt', "Saldi Order ID: $saldi_ordre_id\nResponse: $response\n", FILE_APPEND);
 // Add each order line to Saldi
 
 	$urltxt = "action=insert_shop_orderline";
@@ -104,7 +103,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $res = curl_exec($ch);
 curl_close($ch); */
 }
-if(isset($_GET["update_price"])){
+/* if(isset($_GET["update_price"])){
 	$salesPrice = $_GET["salesPrice"];
 	$discountType = $_GET["discountType"];
 	$discount = $_GET["discount"];
@@ -113,19 +112,32 @@ if(isset($_GET["update_price"])){
 	$retailPrice = $_GET["retailPrice"];
 	$webFragt = $_GET["webFragt"];
 	$barcode = $_GET["barcode"];
-	file_put_contents("price.txt", "Test2 Sales Price: $salesPrice Discount Type: $discountType Discount: $discount Item No: $itemNo Cost Price: $costPrice Retail Price: $retailPrice Web Fragt: $webFragt Barcode: $barcode\n", FILE_APPEND);
-}
+	file_put_contents("price.txt", "testApi2: SalesPrice: ".$salesPrice." DiscountType: ".$discountType." Discount: ".$discount." ItemNo: ".$itemNo." CostPrice: ".$costPrice." RetailPrice: ".$retailPrice." WebFragt: ".$webFragt." Barcode: ".$barcode."\n", FILE_APPEND); // Log sales price for debugging
+} */
 
 if(isset($_GET["stock"])){
-	$stock = $_GET["stock"];
 	$stockno = $_GET["stockno"];
 	$stockvalue = $_GET["stockvalue"];
 	$update_stock = $_GET["update_stock"];
-	file_put_contents("price.txt", "Test2 Stock: $stock Stock No: $stockno Stock Value: $stockvalue Update Stock: $update_stock\n", FILE_APPEND);
+	$total_stock = $_GET["totalStock"];
+	// read from file
+    // Read current stock from file
+    $currentStock = file_get_contents("stock.txt");
+    $currentStock = intval($currentStock); // Convert to integer
+    
+    // Calculate the difference (patch amount)
+    $stockDifference = $total_stock - $currentStock;
+    
+    // Apply the patch to make stock.txt match $total_stock
+    $newStock = $currentStock + $stockDifference;
+    
+    // Update stock.txt to match $total_stock
+    file_put_contents("stock.txt", $newStock);
+	file_put_contents("price.txt", "testApi2: Stock: ".$stock." StockNo: ".$stockno." StockValue: ".$stockvalue." UpdateStock: ".$update_stock." TotalStock: ".$total_stock."\n", FILE_APPEND); // Log stock details for debugging
 }
 
-if(isset($_GET["costPrice"])){
+/* if(isset($_GET["costPrice"])){
 	$costPrice = $_GET["costPrice"];
 	$itemNo = $_GET["sku"];
-	file_put_contents("price.txt", "Test2 Cost Price: $costPrice Item No: $itemNo\n", FILE_APPEND);
-}
+	file_put_contents("price.txt", "testApi2: CostPrice: ".$costPrice." ItemNo: ".$itemNo."\n", FILE_APPEND); // Log cost price for debugging
+} */

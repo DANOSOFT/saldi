@@ -39,7 +39,7 @@ include("../includes/row-hover-style.js.php");
 
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
-: 'javascript:window.history.go(-2);';
+: '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 else $returside=$backUrl;
 

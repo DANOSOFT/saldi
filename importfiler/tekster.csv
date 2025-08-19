@@ -332,9 +332,9 @@
 332	Kan slette regnskaber	Can delete accounts	Kan slette kontoer
 333	Ny bruger	New user	Ny bruker
 334	Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til	separated by commas	Sett * for tilgang til alle kontoer, eller skriv en liste med ID for kontoene den må være tilgjengelig for
-335	Afmærk her hvis brugeren er skal have administratorrettigheder	Check here if the user is to have administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
-336	Afmærk her hvis brugeren er skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here if the user is to be able to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
-337	Afmærk her hvis brugeren er skal kunne slette de regnskaber	this has access to	Sjekk her om brukeren skal kunne slette disse kontoene
+335	Afmærk her, hvis brugeren skal have administratorrettigheder	Check to grant the user administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
+336	Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here if the user is to be able to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
+337	Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til	Check here to allow the user to delete the accounts they have access to	Huk av her hvis brukeren skal kunne slette regnskapene de har tilgang til
 338	Brugernavn	Username	Brukernavn
 339	Opret regnskab	Create accounts	Opprett kontoer
 340	Vis regnskaber	View accounts	Vis kontoer
@@ -351,7 +351,7 @@
 351	Kontonummer findes allerede	not changed	Kontonummer eksisterer allerede
 352	Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson	Hint! You must set a - (minus) as item no to delete a contact	Hint! Du må sette et - (minus) som varenr for å slette en kontakt
 353	Privat	Private	Privat
-354	Erhverv	profession	yrke
+354	Erhverv	Business	Bedrift
 355	Vis leveringsadresse	Show delivery address	Vis leveringsadresse
 356	Debitorkort	Debtor card	Debitorkort
 357	Kundenr.	Customer no.	Kundenr.
@@ -362,8 +362,8 @@
 362	Adresse 2	Address 2	Adresse 2
 363	Postnr./By	Zipcode/City	Postnummer/By
 364	Land	Country	Land
-365	E-mail / brug mail	Email / use mail	Send e-post / bruk e-post
-366	Afmærk her hvis modtageren skal modtage tilbud	order	Sjekk her om mottakeren skal motta et tilbud
+365	E-mail / brug mail	Email / use email	Send e-post / bruk e-post
+366	Afmærk her hvis modtageren skal modtage tilbud	Check here if the recipient should receive offers	Sjekk her om mottakeren skal motta et tilbud
 367	Hjemmeside	Homepage	Hjemmeside
 368	Betalingsbetingelse	Payment terms	Betalingsbetingelser
 369	Forud	Prior	I forkant
@@ -392,7 +392,7 @@
 392	Kontaktpersoner	Contact persons	Kontaktpersoner
 393	Positionsnummer. Primær kontakt har nummer 1	Position number. Primary contact has number 1	Posisjonsnummer. Primærkontakt har nummer 1
 394	Pos.	Pos.	Pos.
-395	Sæt flueben her for at knytte $firmanavn til denne kategori	Check here to associate $firmanavn name with this category	Sjekk her for å knytte $firmanavn til denne kategorien
+395	Afmærk her for at knytte $firmanavn til denne kategori	Check here to associate $firmanavn name with this category	Sjekk her for å knytte $firmanavn til denne kategorien
 396	Klik her for at omdøbe denne kategori	Click here to rename this category	Klikk her for å gi nytt navn til denne kategorien
 397	Klik her for at slette denne kategori	Click here to delete this category	Klikk her for å slette denne kategorien
 398	Kontakt	Contact	Kontakt
@@ -611,7 +611,7 @@
 611	Systemdata	System data	Systemdata
 612	Kontoplan	Chart of Accounts	Kontooversikt
 613	Indstillinger	Settings	Innstillinger
-614	Sikkerhedskopi	Backup	Sikkerhetskopiering
+614	Backup	Backup	Backup
 615	Ved at afmærke her får du op til 14 ekstra felter på egne ansattes stamkort	Checking this field enables up to 14 additional fields on the master cards of your own employees	Ved å merke av her får du opptil 14 ekstra felt på ansattes stamkort
 616	Tilføj ekstra felter på ansatte	Add extra fields on employees	Legg til ekstra felt på ansatte
 617	Kørekort Ja/nej	Driving license Yes / no	Førerkort Ja / nei
@@ -1163,7 +1163,7 @@
 1163	Tekst	Text	Tekst
 1164	Forfaldsdato	Due date	Tidsfrist
 1165	Primosaldo	Opening Balance	Åpningssaldo
-1166	Omsætning	Turnover	Omsetning
+1166	Omsætning	Revenue	Omsetning
 1167	Skriv fra & til dato som mmddåå:mmddå&å. Hvis der kun skrives én dato, sættes dato til dags dato.	Write from & to date as mmddåå: mmddå & å. If only one date is written, the date is set to today's date.	Skriv fra & til dags dato som mmddåå: mmddå & å. Hvis det bare skrives en dato, settes datoen til dagens dato.
 1168	Vælg period	Select period	Velg periode
 1169	Kreditor	Creditor	Kreditor
@@ -1925,7 +1925,7 @@
 1925	Tekst ved 'uforudset hændelse'	Text of 'unforeseen event'	Tekst av 'uforutsett hendelse'
 1926	ikke fundet!	not found!	ikke funnet!
 1927	Admin brugere	Admin users	Administratorbrukere
-1928	Der findes allerede en bruger med brugenavn	A username already exists	Et brukernavn finnes allerede
+1928	Der findes allerede en bruger med dette brugernavn	A user with this username already exists	Det finnes allerede en bruker med dette brukernavnet
 1929	Anonymisér	Anonymize	Anonymiser
 1930	Anonymiser konto $kontonr? \r\nNavn, adresse og telefonnummer fjernes på dette kort og på alle ordrer, rykkere mm. \r\nEventuelle kontakter slettes.	Anonymize account $kontonr?\r\nThe name, address and phone number are removed on this card and on all orders, reminders, etc.\r\nAny contacts will be deleted.	Anonymisere konto $kontonr?\r\nNavn, adresse og telefonnummer fjernes på dette kortet og på alle bestillinger, påminnelser osv.\r\nAlle kontakter vil bli slettet.
 1931	Anvend Paperflow til aflæsning af bilag, Se priser på saldi.dk/paperflow	Use Paperflow til aflæsning af bilag, Check prices at saldi.dk/paperflow	Bruk Paperflow til å lese dokumenter, Se priser på saldi.dk/paperflow
@@ -2293,7 +2293,7 @@
 2293	Kopier fra	Copy from	Kopier fra
 2294	POS-ordre	POS order	POS-ordre
 2295	Kontoopslag	Account lookup	Kontooppslag
-2296	Retur	Change	Tilbake
+2296	Byttepenge	Change	Byttepenge
 2297	Gl. saldo	Old balance	Gl. saldo
 2298	Ny saldo	New balance	Ny saldo
 2299	Indbetaling - (Det beløb der skal indsættes på kontoen!)	Deposit - (The amount to be deposited into the account!)	Innskudd - (Beløpet som skal settes inn på kontoen!)
@@ -2595,89 +2595,89 @@
 2595	Regnskab	Ledger	Regnskap
 2596	Posteringen er tilbageført på kladde	The entry has been reversed in journal	Posteringen er ført tilbake i utkast
 2597	Der skal først oprettes en kassekladde som posteringen kan tilbageføres til	A journal must first be created for the entry to be reversed to	Det må først opprettes en kontantjournal som posteringen kan føres tilbake til
-2598	
-2599	
-2600	
-2601	
-2602	
-2603	
-2604	
-2605	
-2606	
-2607	
-2608	
-2609	
-2610	
-2611	
-2612	
-2613	
-2614	
-2615	
-2616	
-2617	
-2618	
-2619	
-2620	
-2621	
-2622	
-2623	
-2624	
-2625	
-2626	
-2627	
-2628	
-2629	
-2630	
-2631	
-2632	
-2633	
-2634	
-2635	
-2636	
-2637	
-2638	
-2639	
-2640	
-2641	
-2642	
-2643	
-2644	
-2645	
-2646	
-2647	
-2648	
-2649	
-2650	
-2651	
-2652	
-2653	
-2654	
-2655	
-2656	
-2657	
-2658	
-2659	
-2660	
-2661	
-2662	
-2663	
-2664	
-2665	
-2666	
-2667	
-2668	
-2669	
-2670	
-2671	
-2672	
-2673	
-2674	
-2675	
-2676	
-2677	
-2678	
-2679	
-2680	
+2598	Forrige	Previous	Forrige
+2599	Færdig	Done	Ferdig
+2600	Her kan du tilføje bilag til kladden	Here you can add attachments to the draft	Her kan du legge til bilag i kladden
+2601	Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde	Click here to reverse this entry as a reclassification in an open cash journal	Klikk her for å tilbakeføre denne posteringen som en ompostering i en åpen kassekladde
+2602	Klik her for yderligere hjælp	Click here for further help	Klikk her for ytterligere hjelp
+2603	Du kan slå op i Debet/Kredit-felterne:<br>Hvis D/K-feltet er tomt eller indeholder 'F', søger systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søges der i henholdsvis kunder eller leverandører.	You can look up values in the Debit/Credit fields:<br>If the D/K field is empty or contains an 'F', the system searches in the chart of accounts.<br>If the field shows 'D' (debtor) or 'K' (creditor), the system searches in customers or suppliers, respectively.	Du kan slå opp i Debet/Kredit-feltene: Hvis D/K-feltet er tomt eller inneholder 'F', søker systemet i kontoplanen. Hvis feltet viser 'D' (debitor) eller 'K' (kreditor), søker systemet henholdsvis i kunder eller leverandører.
+2604	Du kan også selv skrive 'D' eller 'K' for at vælge, hvor der skal søges.<br>Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.	You can also manually enter 'D' or 'K' to choose where the search should be performed.<br>As you begin typing a name or account number, only relevant suggestions will be shown.	Du kan også selv skrive inn 'D' eller 'K' for å velge hvor det skal søkes.<br>Når du begynner å skrive inn et navn eller kontonummer, vises kun relevante forslag.
+2605	Her kan du tilføje et fakturanummer til bilaget.<br>Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen 'Opslag' i bunden, mens feltet er markeret.	Here you can add an invoice number to the entry.<br>You can also look up open (unsettled) invoices by clicking the ‘Lookup’ button at the bottom while the field is selected.	Her kan du legge til et fakturanummer på bilaget.<br>Du kan også slå opp i ikke-utlignede fakturaer ved å klikke på knappen ‘Oppslag’ nederst mens feltet er markert.
+2606	Du kan slette linjen ved at skrive '-' i feltet i stedet for et tal og trykke Enter	You can delete the line by typing '-' in the field instead of a number and pressing Enter	Du kan slette linjen ved å skrive '-' i feltet i stedet for et tall og trykke Enter
+2607	Opret ny kassekladde ved at klikke her	Create a new journal entry by clicking here	Opprett ny kassekladde ved å klikke her
+2608	Digital godkendelse af fakturaer gennem NemHandel	Digital approval of invoices via NemHandel	Digital godkjenning av fakturaer gjennom NemHandel
+2609	Du kan se dine kollegers' kladder ved at klikke her	You can view your colleagues' entries by clicking here	Du kan se dine kollegers' kladder ved å klikke her
+2610	Her ser du en liste af alle dine ordrer	Here you can see a list of all your orders	Her ser du en liste over alle ordrene dine
+2611	For at oprette en ny ordre, klik her	To create a new order, click here	For å opprette en ny ordre, klikk her.
+2612	For at ændre, hvad der vises i oversigten, klik her	To create a new order, click here	For å endre hva som vises i oversikten, klikk her
+2613	Når dette felt er aktivt, kan du trykke Enter med det samme for at søge i kundekataloget, eller du kan indtaste et nyt kontonummer og derefter trykke Enter for at oprette en ny kunde	When this input field is active, you can press Enter right away to search the customer catalog, or you can enter a new account number and then press Enter to create a new customer	Når dette feltet er aktivt, kan du trykke Enter med en gang for å søke i kundekatalogen, eller du kan skrive inn et nytt kontonummer og deretter trykke Enter for å opprette en ny kunde
+2614	Når du har oprettet en ordre, kan du klikke her for at se kundens stamdata	After creating an order, you can click here to view the customer's master data	Når du har opprettet en ordre, kan du klikke her for å se kundens stamdata
+2615	Her kan du indtaste et varenummer for at tilføje en vare til ordren	Here you can enter an item number to add a product to the order	Her kan du angi et varenummer for å legge til en vare i ordren
+2616	Når et varenummerfelt er aktivt, kan du foretage et opslag af alle dine varer ved at klikke her	When an item number field is active, you can search through all your products by clicking here	Når et varenummerfelt er aktivt, kan du søke blant alle varene dine ved å klikke her
+2617	Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den – f.eks. til mail, som PDF eller sendt gennem NemHandel med digital fakturering	Here you can select how to print or send the order when invoicing – for example by email, as a PDF, or via NemHandel with digital invoicing	Her kan du velge hvordan ordren skal skrives ut når du fakturerer den – for eksempel på e-post, som PDF, eller sendt via NemHandel med digital fakturering
+2618	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kundens opsætning.	Here you can select your payment terms. These are automatically retrieved from the customer's settings.	Her kan du velge betalingsbetingelsene dine. Disse hentes automatisk fra kundens oppsett.
+2619	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kundens opsætning.	Here you can select your payment days. These are automatically retrieved from the customer's settings.	Her kan du velge betalingsdagene dine. Disse hentes automatisk fra kundens oppsett.
+2620	Her kan du indtaste et identifikationsnummer (f.eks. GLN eller EAN), for eksempel hvis du fakturerer offentlige instanser såsom kommuner eller bruger digitale faktureringssystemer. Angiv typen og nummeret, f.eks. 'GLN:123456789102'.	Here you can enter an identification number (such as a GLN or EAN), for example if you are invoicing public institutions or using digital invoicing systems. Enter the type and number, e.g., 'GLN:123456789102'.	Her kan du skrive inn et identifikasjonsnummer (for eksempel GLN eller EAN), for eksempel hvis du fakturerer offentlige instanser slik som kommuner eller bruker digitale faktureringssystemer. Skriv inn typen og nummeret, for eksempel 'GLN:123456789102'.
+2621	Her ser du en liste over alle dine kunder	Here you can see a list of all your customers	Her ser du en liste over alle kundene dine
+2622	For at oprette en ny kunde, klik her	To add a new customer, click here	For å opprette en ny kunde, klikk her
+2623	Tilmeld dine kunder til kommissionssalgssystemet her	Register your customers in the commission sales system here	Meld inn kundene dine i kommisjonssalgssystemet her
+2624	Før du kan inviterer en kunde til 'Mit Salg', skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK.	Before you can invite a customer to 'My Sales', you need to activate their account. Check 'Activate' and click OK.	Før du kan invitere en kunde til 'Mitt Salg', må du aktivere kontoen deres. Huk av for 'aktiver' og trykk OK.
+2625	Når en kunde er aktiveret kan du åbne deres konto her	Once a customer is activated, you can view their account here	Når en kunde er aktivert, kan du åpne kontoen deres her
+2626	Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. <br><br>De vil her få et link til 'Mit Salg' og kan oprette deres labels derigennem. <br><br>Det er <b>kun</b> muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.	Once the customer is activated, you will be able to send them an invitation by email.<br><br>They will receive a link to 'My Sales' and can create their labels through it.<br><br>It is <b>only</b> possible to invite a customer if they have an email address set up in their customer profile.	Når kunden er aktivert, vil det være mulig å sende dem en invitasjon på e-post.<br><br>De vil da få en lenke til 'Mitt Salg' og kan opprette etikettene sine der.<br><br>Det er <b>kun</b> mulig å invitere en kunde dersom de har en e-postadresse registrert på stamkortet sitt.
+2627	Her vælger du kundetype (privat eller erhverv)	Here you select the customer type (private or business)	Her velger du kundetype (privat eller bedrift)
+2628	Indsæt kontonummer, eller lad systemet gøre det for dig ved at hoppe videre til næste felt	Enter the account number, or let the system do it for you by moving to the next field	Skriv inn kontonummer, eller la systemet gjøre det for deg ved å gå videre til neste felt
+2629	Angiv kundens navn	Enter the customer's name	Angi kundens navn
+2630	Angiv kundens firmanavn	Enter the customer's company name	Angi kundens firmanavn
+2631	Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i 'Brug mail'	Enter the customer's email here. If you want the system to send emails by default when invoicing an order, you can check 'Use email'	Kundens e-post skrives inn her. Hvis du ønsker at systemet skal sende e-poster som standard når du fakturerer en ordre, kan du krysse av for 'Bruk e-post'
+2632	Du kan opstille kundens betalingsbetingelser her	You can set the customer's payment terms here	Du kan sette opp kundens betalingsbetingelser her
+2633	Når du indtaster en ny kunde, kan du lave et CVR-opslag ved at sætte '/' før og efter CVR-nummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>	For danish companies: When entering a new customer, you can perform a CVR lookup by placing '/' before and after the CVR number.<br><br>Try, for example, <b>/20756438/</b>	For danske selskaper: Når du registrerer en ny kunde, kan du gjøre et CVR-oppslag ved å sette '/' foran og etter CVR-nummeret.<br><br>Prøv for eksempel <b>/20756438/</b>
+2634	Her kan du oprette op til 5 selvdefinerede felter. Du kan kontakte Saldi-teamet, hvis du ønsker at tilpasse felternes tekst, så den passer til indholdet.	Here you can create up to 5 custom fields. You can contact the Saldi team if you want to adjust the field labels to match the content.	Her kan du opprette opptil 5 egendefinerte felt. Du kan kontakte Saldi-teamet hvis du ønsker å tilpasse feltnavnene så de passer til innholdet.
+2635	Indtast kontonummeret på kreditor, og klik 'Gem' for at hente kreditors oplysninger	Enter the creditor's account number and click 'Save' to retrieve the creditor's information	Angi kontonummeret til kreditor, og klikk på 'Lagre' for å hente kreditors opplysninger
+2636	Her kan du vælge, hvordan ordren skal udskrives, når du fakturerer den	Here you can select how to print or send the order when invoicing	Her kan du velge hvordan ordren skal skrives ut når du fakturerer den
+2637	Her kan du vælge dine betalingsbetingelser. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment terms. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsbetingelser. Disse hentes automatisk fra kreditoroppsettet
+2638	Her kan du vælge dine betalingsdage. Disse trækkes automatisk fra kreditor opsætning	Here you can select your payment days. These are automatically retrieved from the creditor setup	Her kan du velge dine betalingsdager. Disse hentes automatisk fra kreditoroppsettet
+2639	<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer.	<b>Product list:</b> The list you see below.<br><br><b>Order view:</b> See which orders your products are included in.<br><br><b>Purchasing:</b> Quickly create purchase lists automatically or manually.<br><br><b>Serial numbers:</b> Tracking and management of serial-numbered products.	<b>Vareliste:</b> Listen du ser nedenfor.<br><br><b>Ordrevisning:</b> Se hvilke ordre varene dine inngår i.<br><br><b>Innkjøp:</b> Opprett raskt innkjøpslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administrasjon av produkter med serienummer.
+2640	Klik her for at oprette en ny vare	 Click here to add a new product	Klikk her for å opprette et nytt produkt
+2641	Din vareliste vises her. Klik på et varenummer for at åbne det.	Your product list is displayed here. Click a item number to open it.	Varelisten din vises her. Klikk på et varenummer for å åpne det.
+2642	Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder	Click on a stock quantity to perform an internal transfer of inventory units	Klikk på et lagerantall for å utføre en intern overføring av lagerenheter
+2643	Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.	Search by stock quantity. For example:<br><b>"10"</b> – Shows products with a stock quantity of exactly 10.<br><b>"1:10"</b> – Shows products with a stock quantity between 1 and 10.	Søk etter lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på nøyaktig 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellom 1 og 10.
+2644	Undersøg dækningsgraden for dine varer, for at finde eventuelle optimeringer	Inspect the contribution margin of your products to find potential optimizations	Undersøk dekningsgraden for varene dine for å finne mulige forbedringer
+2645	Klik her for at vende tilbage til varelisten	Click here to return to the product list	Klikk her for å gå tilbake til varelisten
+2646	Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.	Order status shows how many products are in offers, orders, or purchase suggestions.<br><br>Hover over a stock number to see which orders the product is included in. You will get a list with order numbers and dates.	Ordrestatus viser hvor mange varer som er i tilbud, ordrer eller innkjøpsforslag.<br><br>Hold musepekeren over et beholdningstall for å se hvilke ordrer varen er inkludert i. Du får en liste med ordrenumre og datoer.
+2647	Viser hvor mange enheder af varen der er på lager	Shows how many units of the product are in stock	Viser hvor mange enheter av varen som er på lager
+2648	Her ser du hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.	Here you can see how much the system recommends you to reorder. This is calculated based on stock levels, orders, and other factors.	Her ser du hvor mye systemet anbefaler at du bestiller på nytt. Dette beregnes ut fra lagerbeholdning, ordrer og andre faktorer.
+2649	Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned	See how much of the product you have sold over the past 6 months, 3 months, or the most recent month	Se hvor mye du har solgt av varen i løpet av de siste 6 månedene, 3 månedene eller den siste måneden
+2650	Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.	When you create a new purchase list, only products with an associated supplier will be shown.<br><br>Order suggestions will automatically be linked to the top supplier on the product card if multiple suppliers are listed.	Når du oppretter en ny innkjøpsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag blir automatisk knyttet til den øverste leverandøren på varekortet hvis det finnes flere leverandører.
+2651	Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.	These are used for reordering. When the stock level drops below the minimum, the system suggests reordering enough to reach the maximum.	Disse brukes til gjenbestilling. Når beholdningen faller under minimum, foreslår systemet å bestille nok til å nå maksimum.
+2652	Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.	If the product needs to be ordered in specific quantities, you can configure the system to order in batches of, for example,	Hvis varen skal bestilles i bestemte mengder, kan du sette opp systemet til å bestille i for eksempel partier på f.eks.
+2653	Klik for at autoudfylde alle beregnede genbestillingsværdier	Click to auto-fill all calculated reorder values	Klikk for å autofylle alle beregnede gjenbestillingsverdier
+2654	Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.	Create a purchase suggestion based on the entered product values. It will either create a new order for the supplier or add the product to an open purchase suggestion with today’s date.	Opprett et innkjøpsforslag basert på de registrerte vareverdiene. Det oppretter enten en ny ordre til leverandøren eller legger varen til et åpent innkjøpsforslag med dagens dato.
+2655	Søg efter et eksisterende serienummer i dit system	Search for an existing serial number in your system	Søk etter et eksisterende serienummer i systemet ditt
+2656	Her kan du se hvor varen blev købt, hvilken leverandør den blev købt hos, og ordrenummeret	Here you can see where the product was purchased, which supplier it was purchased from, and the order number	Her kan du se hvor produktet ble kjøpt, hvilken leverandør det ble kjøpt fra, og ordrenummeret
+2657	Her kan du finde oplysninger om hvor varen blev solgt, hvem køberen var, og ordrenummeret	Here you can find information about where the product was sold, who the buyer was, and the order number	Her kan du finne informasjon om hvor produktet ble solgt, hvem kjøperen var, og ordrenummeret
+2658	Hvis serienummeret ikke er solgt, kan du slette eller redigere det
+2659	Søg efter standnavne. Adskil med komma for at søge efter flere.	Search for stall names. Separate with commas to search for multiple.	Søk etter standnavn. Skill med komma for å søke etter flere.
+2660	Se dage, og klik på en dag for at se ledige stande	View days and click on a day to see available stalls	Se dager, og klikk på en dag for å se ledige stander
+2661	Grønne prikker viser ledige dage, og røde prikker viser bookede dage. Klik på en grøn prik for at oprette en booking for en given dag og stand.	Green dots indicate available days, and red dots indicate booked days. Click on a green dot to create a booking for a specific day and stall.	Grønne prikker viser ledige dager, og røde prikker viser bookede dager. Klikk på en grønn prikk for å opprette en booking for en bestemt dag og stand.
+2662	Klik på et standnavn for at se eller oprette bookinger, eller for at spærre standen	Click on a stall name to view or create bookings, or to block the stall	Klikk på et standnavn for å se eller opprette bookinger, eller for å sperre standen
+2663	Her kan du oprette spærringer. En spærring er en form for 'soft booking', som markerer standen med en gul prik og fungerer som en advarsel. Det kan f.eks. bruges, hvis du ønsker at vente med at booke standen, fordi den nuværende lejer muligvis vil forlænge. Standen kan stadig bookes, selvom den er spærret.	Here you can create temporary holds. A hold is a type of 'soft booking' that marks the stall with a yellow dot and serves as a warning. This can be useful if you want to wait before booking the stall, for example because the current tenant may wish to extend. The stall can still be booked, even if it is on hold.	Her kan du opprette sperringer. En sperring er en form for 'soft booking' som markerer standen med en gul prikk og fungerer som en advarsel. Dette kan for eksempel brukes hvis du ønsker å vente med å booke standen fordi den nåværende leietakeren muligens vil forlenge. Standen kan fortsatt bookes, selv om den er sperret.
+2664	Vælg en dag for at se ind- og udflytninger på den pågældende dag. Den grønne markerer dags dato.	Select a day to view move-ins and move-outs on the selected day. The green one indicates today's date.	Velg en dag for å se inn- og utflyttinger på den valgte dagen. Den grønne markerer dagens dato.
+2665	Vælg de dage, hvor butikken har lukket – så kan systemet guide dig, når du opretter bookinger. Hvis en booking falder hen over lukkedage, bliver disse automatisk fratrukket prisen.	Set the days when your store is closed – the system will then guide you when creating bookings. If a booking includes any of these days, they’ll automatically be excluded from the price.	Velg dagene butikken holder stengt – da kan systemet veilede deg når du oppretter bookinger. Hvis en booking overlapper med stengte dager, trekkes disse automatisk fra prisen.
+2666	Her kan du se en liste over de varer, du har sat til udlejning. Klik på 'Rediger' for at oprette stande under de enkelte varer.	Here you can see a list of the items you’ve made available for rental. Click ‘Edit’ to create stalls under each item.	Her kan du se en liste over varene du har gjort tilgjengelige for utleie. Klikk på ‘Rediger’ for å opprette stander under de enkelte varene.
+2667	Klik her for at tilføje nye stande	Click here to add new stalls	Klikk her for å legge til nye stander
+2668	Når du har ændret navnet på én eller flere stande, klik her for at gemme	Once you’ve changed the name of one or more stalls, click here to save	Når du har endret navnet på én eller flere stander, klikk her for å lagre
+2669	Uge	Week	Uke
+2670	Din daglige omsætning sammenlignet med sidste år, ekskl. moms	Your daily revenue compared to last year, excl. VAT	Din daglige omsetning sammenlignet med i fjor, ekskl. mva
+2671	Mandag	Monday	Mandag
+2672	Tirsdag	Tuesday	Tirsdag
+2673	Onsdag	Wednesday	Onsdag
+2674	Torsdag	Thursday	Torsdag
+2675	Fredag	Friday	Fredag
+2676	Lørdag	Saturday	Lørdag
+2677	Søndag	Sunday	Søndag
+2678	Graf over ugentlig omsætning	Weekly revenue graph	Graf over ukentlig omsetning
+2679	Omsætning denne uge, ekskl. moms	Revenue this week, excl. VAT	Omsetning denne uke, ekskl. mva
+2680	Gl. design	Old design	Gl. design
 2681	
 2682	
 2683	

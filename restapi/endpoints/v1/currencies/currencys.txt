@@ -1,8 +1,0 @@
-table grupper'
-// only make GET no post put or delete
-get all where art = "VK"
-take out
-{
-	"beskrivelse": "string",
-	"currencyCode": "string", // box1 in the database
-}

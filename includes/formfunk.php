@@ -724,8 +724,17 @@ if (!function_exists('find_form_tekst')) {
 						} elseif ($variabel == "afd" && $r2[$variabel]) {
 							$r3 = db_fetch_array(db_select("select beskrivelse from grupper where art = 'AFD' and kodenr = '$r2[$variabel]'", __FILE__ . " linje " . __LINE__));
 							($r3['beskrivelse']) ? $streng[$x] = $r3['beskrivelse'] : $streng[$x] = $r2[$variabel];
-						} else
+						} else {
 							$streng[$x] = $r2[$variabel];
+							if ($variabel == 'betalingsbet' && strtolower($formularsprog) == 'engelsk')
+							if ($streng[$x] == 'Netto') $streng[$x] = "Net";
+							elseif ($streng[$x] == 'Forud') $streng[$x] = "Prepayment";
+							elseif ($streng[$x] == 'Kontant') $streng[$x] = "Cash";
+							elseif ($streng[$x] == 'Kreditkort') $streng[$x] = "Credit Card";
+							elseif ($streng[$x] == 'Efterkrav') $streng[$x] = "Cash on Delivery";
+							elseif ($streng[$x] == 'Lb.Md') $streng[$x] = "Current month";
+							
+						}
 					} else {
 						if ($variabel == 'date')
 							$streng[$x] = date("d-m-Y");

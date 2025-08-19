@@ -1,5 +1,0 @@
-give back list of all files in bilag/db/pulje
-
-insert file into bilag/db/pulje
-
-get single file from bilag/db/pulje

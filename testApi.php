@@ -1,9 +1,9 @@
 <?php
-
-$saldiuser='patrick'; #En bruger i har i saldi uden nogen rettigheder
-$api_key='4M1Sl;prEv82hhtl2KSfCFOs4*BzLY,gAdUD'; #Findes under Indstillinger ->  Diverse -> API
-$serverurl="https://dev.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
-$db='develop_8';#' #Findes under Indstillinger ->  Diverse -> API 
+if(isset($_GET["put_new_orders"])){
+$saldiuser='api'; #En bruger i har i saldi uden nogen rettigheder
+$api_key='4M1SlprEv82hhtl2KSfCFOs4BzLYgAdUD'; #Findes under Indstillinger ->  Diverse -> API
+$serverurl="https://ssl12.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
+$db='test_4';#' #Findes under Indstillinger ->  Diverse -> API 
 
  // Build the Saldi API request URL with order information
  $url = "action=insert_shop_order";
@@ -48,7 +48,6 @@ $db='develop_8';#' #Findes under Indstillinger ->  Diverse -> API
 // The response should be the Saldi order ID if successful
 // Remove quotes and whitespace before converting to integer
 $saldi_ordre_id = intval(trim($response, " \t\n\r\0\x0B\""));
-file_put_contents('saldi_order_response.txt', "Saldi Order ID: $saldi_ordre_id\nResponse: $response\n", FILE_APPEND);
 // Add each order line to Saldi
 
 	$urltxt = "action=insert_shop_orderline";
@@ -103,3 +102,29 @@ curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $res = curl_exec($ch);
 curl_close($ch); */
+}
+/* if(isset($_GET["update_price"])){
+	$salesPrice = $_GET["salesPrice"];
+	$discountType = $_GET["discountType"];
+	$discount = $_GET["discount"];
+	$itemNo = $_GET["itemNo"];
+	$costPrice = $_GET["costPrice"];
+	$retailPrice = $_GET["retailPrice"];
+	$webFragt = $_GET["webFragt"];
+	$barcode = $_GET["barcode"];
+	file_put_contents("price.txt", "testApi1: SalesPrice: ".$salesPrice." DiscountType: ".$discountType." Discount: ".$discount." ItemNo: ".$itemNo." CostPrice: ".$costPrice." RetailPrice: ".$retailPrice." WebFragt: ".$webFragt." Barcode: ".$barcode."\n", FILE_APPEND); // Log sales price for debugging
+} */
+
+/* if(isset($_GET["stock"])){
+	$stock = $_GET["stock"];
+	$stockno = $_GET["stockno"];
+	$stockvalue = $_GET["stockvalue"];
+	$update_stock = $_GET["update_stock"];
+	file_put_contents("price.txt", "testApi1: Stock: ".$stock." StockNo: ".$stockno." StockValue: ".$stockvalue." UpdateStock: ".$update_stock."\n", FILE_APPEND); // Log stock details for debugging
+} */
+
+/* if(isset($_GET["costPrice"])){
+	$costPrice = $_GET["costPrice"];
+	$itemNo = $_GET["sku"];
+	file_put_contents("price.txt", "testApi1: CostPrice: ".$costPrice." ItemNo: ".$itemNo."\n", FILE_APPEND); // Log cost price for debugging
+} */

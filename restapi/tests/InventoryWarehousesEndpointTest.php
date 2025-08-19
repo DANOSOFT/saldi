@@ -67,8 +67,8 @@ class InventoryWarehousesEndpointTest
         echo "Testing: Create Basic Warehouse\n";
         
         $warehouseData = [
-            'beskrivelse' => 'Test Warehouse ' . time(),
-            'nr' => time() % 1000 // Use timestamp to ensure uniqueness
+            'description' => 'Test Warehouse ' . time(),
+            'number' => time() % 1000 // Use timestamp to ensure uniqueness
         ];
 
         $response = $this->makeRequest('POST', $warehouseData);
@@ -78,13 +78,13 @@ class InventoryWarehousesEndpointTest
             echo "✓ Warehouse created successfully with ID: " . $response['data']['id'] . "\n";
             
             // Verify warehouse data
-            if ($response['data']['beskrivelse'] === $warehouseData['beskrivelse']) {
+            if ($response['data']['description'] === $warehouseData['description']) {
                 echo "✓ Warehouse description correctly set\n";
             } else {
                 throw new Exception("Warehouse description mismatch");
             }
-            
-            if ($response['data']['nr'] == $warehouseData['nr']) {
+
+            if ($response['data']['number'] == $warehouseData['number']) {
                 echo "✓ Warehouse number correctly set\n";
             } else {
                 throw new Exception("Warehouse number mismatch");
@@ -104,8 +104,8 @@ class InventoryWarehousesEndpointTest
         echo "Testing: Create Warehouse with Fiscal Year\n";
         
         $warehouseData = [
-            'beskrivelse' => 'Test Warehouse FY ' . time(),
-            'nr' => (time() % 1000) + 1,
+            'description' => 'Test Warehouse FY ' . time(),
+            'number' => (time() % 1000) + 1,
             'fiscal_year' => 2024
         ];
 
@@ -199,7 +199,7 @@ class InventoryWarehousesEndpointTest
             
             // Verify search results contain our search term
             foreach ($response['data'] as $warehouse) {
-                if (strpos($warehouse['beskrivelse'], 'Test Warehouse') !== false) {
+                if (strpos($warehouse['description'], 'Test Warehouse') !== false) {
                     echo "✓ Search result contains search term\n";
                     break;
                 }
@@ -226,9 +226,8 @@ class InventoryWarehousesEndpointTest
         
         if ($response['success'] && is_array($response['data']) && count($response['data']) > 1) {
             echo "✓ Ordered warehouses retrieved\n";
-            
             // Check if ordering is working (first item number should be >= second)
-            if ($response['data'][0]['nr'] >= $response['data'][1]['nr']) {
+            if ($response['data'][0]['number'] >= $response['data'][1]['number']) {
                 echo "✓ Warehouses correctly ordered DESC by number\n";
             }
         } else {
@@ -252,8 +251,8 @@ class InventoryWarehousesEndpointTest
         $warehouseId = $this->createdWarehouseIds[0];
         $updateData = [
             'id' => $warehouseId,
-            'beskrivelse' => 'Updated Test Warehouse Description',
-            'nr' => 999
+            'description' => 'Updated Test Warehouse Description',
+            'number' => 999
         ];
 
         $response = $this->makeRequest('PUT', $updateData);
@@ -294,8 +293,8 @@ class InventoryWarehousesEndpointTest
         }
         
         $duplicateData = [
-            'beskrivelse' => 'Duplicate Warehouse Test',
-            'nr' => $firstWarehouseResponse['data']['nr'] // Use same warehouse number
+            'description' => 'Duplicate Warehouse Test',
+            'number' => $firstWarehouseResponse['data']['nr'] // Use same warehouse number
         ];
 
         $response = $this->makeRequest('POST', $duplicateData);
@@ -352,8 +351,8 @@ class InventoryWarehousesEndpointTest
         echo "Testing: Create Warehouse Missing Required Fields\n";
         
         $incompleteData = [
-            'beskrivelse' => 'Warehouse without number'
-            // Missing required 'nr' field
+            'description' => 'Warehouse without number'
+            // Missing required 'number' field
         ];
 
         $response = $this->makeRequest('POST', $incompleteData);
@@ -394,7 +393,7 @@ class InventoryWarehousesEndpointTest
         
         $updateData = [
             'id' => 999999,
-            'beskrivelse' => 'This should fail'
+            'description' => 'This should fail'
         ];
 
         $response = $this->makeRequest('PUT', $updateData);

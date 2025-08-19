@@ -65,8 +65,8 @@ class CustomerEndpointTest
         echo "Testing: Create Customer\n";
         
         $customerData = [
-            'firmanavn' => 'Test Company A',
-            'tlf' => '59842689',
+            'companyName' => 'Test Company A',
+            'phone' => '59842689',
             'email' => 'test2@company-a.com',
             'addr1' => 'Test Street 123',
             'postnr' => '1234',

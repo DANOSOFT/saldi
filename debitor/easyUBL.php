@@ -2,11 +2,32 @@
 
     // This file is used to receive webhooks from EasyUBL
 
-    /* require '../vendor/autoload.php';
-    use PHPMailer\PHPMailer\PHPMailer;
-    use PHPMailer\PHPMailer\SMTP;
-    use PHPMailer\PHPMailer\Exception; */
     include("../includes/connect.php");
+    // Mail function
+    function sendSimpleMail($to, $subject, $message, $from = null) {
+        // Set default sender if not provided
+        if ($from === null) {
+            $from = 'noreply@' . $_SERVER['HTTP_HOST'];
+        }
+        
+        // Email headers
+        $headers = array(
+            'From' => $from,
+            'Reply-To' => $from,
+            'X-Mailer' => 'PHP/' . phpversion(),
+            'Content-Type' => 'text/html; charset=UTF-8'
+        );
+        
+        // Convert headers array to string
+        $headerString = '';
+        foreach ($headers as $key => $value) {
+            $headerString .= $key . ': ' . $value . "\r\n";
+        }
+        
+        // Send email
+        return mail($to, $subject, $message, $headerString);
+    }
+
     // Retrieving webhook data
     $webhookData = file_get_contents('php://input');
     /* echo $randomString; */
@@ -41,17 +62,18 @@
         $db = $output["db_name"];
         $dbLocation = $output["db_location"];
         $connection=db_connect($sqhost,$squser,$sqpass,$db);
-        file_put_contents("../temp/$db/connection-$timestamp.text", $connection);
-        file_put_contents("../temp/$db/db-$timestamp.text", "$sqhost | $squser | $sqpass | $db");
-        $email = $output["email"];
-        
+        $query = db_select("SELECT email FROM adresser WHERE art = 'S'");
+        $r = db_fetch_array($query);
+        $email = $r["email"];
         if(!file_exists("../temp/$db")){
             mkdir("../temp/$db");
         }
-        /* file_put_contents("../temp/$db/db-$timestamp.json", $jsonOutPut); */
+        file_put_contents("../temp/$db/db-$timestamp.json", $jsonOutPut);
         
         // send notification to user
         $decoded = base64_decode($base64["base64EncodedMessage"]);
+        
+        
         /* if($decoded != ""){
             db_modify("INSERT INTO notifications (msg, read_status) VALUES ('$decoded', 0)",  __FILE__ . " linje " . __LINE__);
         }
@@ -110,13 +132,7 @@
         // increase invoice number
         $newData = ["db" => $db, "db_location" => explode("/", $dbLocation)[2], "invoice" => $decoded];
         $newData = json_encode($newData);
-        // file_put_contents("../temp/$db/error-$timestamp.json", $newData);
-        //$ch = curl_init();
-        //curl_setopt($ch, CURLOPT_URL, "$serverName/laja/debitor/increaseInvoiceNumber.php?db=$db");
-        //curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        //$res = curl_exec($ch);
-        //curl_close($ch);
-        // file_put_contents("../temp/$db/iin-$timestamp.json", $res);
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "https://storage.saldi.dk/getInvoice.php");
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -125,27 +141,35 @@
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $res = curl_exec($ch);
         curl_close($ch);
-        // send mail to reciever of invoice with phpmailer
-        /* $mail = new PHPMailer(true);
-        //Server settings
-        try{
-        $mail->SMTPDebug = SMTP::DEBUG_OFF;                      // Enable verbose debug output
-        $mail->isSMTP();                                            // Send using SMTP
-        $mail->Host       = $_SERVER['SERVER_NAME'];                       // Set the SMTP server to send through                       
-        //$mail->SMTPSecure = 'tls';         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` also accepted
-        //$mail->Port       = 587;                                    // TCP port to connect to
-        //Recipients
-        $mail->setFrom("$db@$_SERVER[SERVER_NAME]", 'Saldi');
-        $mail->addAddress($email);     // Add a recipient
-        // Content
-        $mail->isHTML(true);                                  // Set email format to HTML
-        $mail->Subject = 'Faktura';
-        $mail->Body    = 'Hej,<br><br>Du har modtaget en faktura i Saldi, du kan se den under bilag.<br><br>Venlig hilsen<br>Saldi';
-        $mail->AltBody = 'Hej, Du har modtaget en faktura. Venlig hilsen Saldi';
-        $mail->send();
-        }catch(Exception $e){
-            file_put_contents("../temp/$db/error-$timestamp.json", $e->errorMessage());
-        } */
+        // send mail to reciever of invoice 
+        $res = json_decode($res, true);
+        if($res["msg"] == "File saved"){
+            if($base64["documentStatusCode"] == 5210){
+                $emailSubject = "Ny faktura modtaget";
+                $emailMessage = "
+                <html>
+                <head>
+                    <title>Faktura notification</title>
+                </head>
+                <body>
+                    <h2>Du har modtaget en ny faktura</h2>
+                    <p>Der er modtaget en ny faktura i systemet.</p>
+                    <p>Tidspunkt: " . date('Y-m-d H:i:s') . "</p>
+                </body>
+                </html>
+                ";
+                
+                // Send the email
+                $mailSent = sendSimpleMail($email, $emailSubject, $emailMessage);
+                
+                // Log the result
+                if($mailSent) {
+                    error_log("Email notification sent successfully for invoice: " . $base64['externalIdentifier']);
+                } else {
+                    error_log("Failed to send email notification for invoice: " . $base64['externalIdentifier']);
+                }
+            }
+        }
         file_put_contents("../temp/$db/storage-$timestamp.json", $res);
     }else{
         // not sure what to do here yet (other responses) 

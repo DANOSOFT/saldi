@@ -9,23 +9,23 @@ class VareModel
 {
     // Properties to match database columns
     private $id;
-    private $varenr;
-    private $stregkode;
-    private $beskrivelse;
-    private $enhed;
-    private $enhed2;
-    private $salgspris;
-    private $kostpris;
+    private $sku;
+    private $barcode;
+    private $description;
+    private $unit;
+    private $unit2;
+    private $salesPrice;
+    private $costPrice;
 
     // — new columns —
     private $notes;
-    private $serienr;
-    private $samlevare;
-    private $delvare;
-    private $min_lager;
-    private $max_lager;
+    private $serialNumber;
+    private $collectionOfItems;
+    private $partialItem;
+    private $minInventory;
+    private $maxInventory;
     private $location;
-    private $gruppe;
+    private $group;
     private $netweight;
     private $netweightunit;
     private $grossweight;
@@ -33,10 +33,10 @@ class VareModel
     private $length;
     private $width;
     private $height;
-    private $colli_webfragt;
+    private $colli_webfreight;
 
-    private $lager;
-    private $gruppeObj;
+    private $inventory;
+    private $groupObject;
     private $size;
     private $modtime;
 
@@ -157,6 +157,13 @@ class VareModel
                 return $this->updateRecord();
             } else {
                 // INSERT new record
+                // check if sku already exists
+                if ($this->sku) {
+                    $existing = self::findBy('varenr', $this->sku);
+                    if (count($existing) > 0) {
+                        throw new Exception("Product with SKU '{$this->sku}' already exists.");
+                    }
+                }
                 return $this->insertRecord();
             }
         } catch (Exception $e) {
@@ -173,20 +180,20 @@ class VareModel
         $this->modtime = date('Y-m-d H:i:s');
         
         // Escape values to prevent SQL injection
-        $varenr = pg_escape_string($this->varenr ?? '');
-        $stregkode = pg_escape_string($this->stregkode ?? '');
-        $beskrivelse = pg_escape_string($this->beskrivelse ?? '');
-        $salgspris = floatval($this->salgspris ?? 0);
-        $kostpris = floatval($this->kostpris ?? 0);
+        $varenr = pg_escape_string($this->sku ?? '');
+        $stregkode = pg_escape_string($this->barcode ?? '');
+        $beskrivelse = pg_escape_string($this->description ?? '');
+        $salgspris = floatval($this->salesPrice ?? 0);
+        $kostpris = floatval($this->costPrice ?? 0);
         $modtime = pg_escape_string($this->modtime);
         $notes            = pg_escape_string($this->notes            ?? '');
-        $serienr          = pg_escape_string($this->serienr          ?? '');
-        $samlevare        = pg_escape_string($this->samlevare        ?? '');
-        $delvare          = pg_escape_string($this->delvare          ?? '');
-        $min_lager        = floatval($this->min_lager        ?? 0);
-        $max_lager        = floatval($this->max_lager        ?? 0);
+        $serienr          = pg_escape_string($this->serialNumber          ?? '');
+        $samlevare        = pg_escape_string($this->collectionOfItems        ?? '');
+        $delvare          = pg_escape_string($this->partialItem          ?? '');
+        $min_lager        = floatval($this->minInventory        ?? 0);
+        $max_lager        = floatval($this->maxInventory        ?? 0);
         $location         = pg_escape_string($this->location         ?? '');
-        $gruppe           = intval($this->gruppe           ?? 0);
+        $gruppe           = intval($this->group           ?? 0);
         $netweight        = floatval($this->netweight        ?? 0);
         $netweightunit    = pg_escape_string($this->netweightunit    ?? '');
         $grossweight      = floatval($this->grossweight      ?? 0);
@@ -194,9 +201,9 @@ class VareModel
         $length           = floatval($this->length           ?? 0);
         $width            = floatval($this->width            ?? 0);
         $height           = floatval($this->height           ?? 0);
-        $colli_webfragt   = floatval($this->colli_webfragt   ?? 0);
-        $enhed = pg_escape_string($this->enhed ?? '');
-        $enhed2 = pg_escape_string($this->enhed2 ?? '');
+        $colli_webfragt   = floatval($this->colli_webfreight   ?? 0);
+        $enhed = pg_escape_string($this->unit ?? '');
+        $enhed2 = pg_escape_string($this->unit2 ?? '');
 
         $query = "INSERT INTO varer (
                     varenr, stregkode, beskrivelse, enhed, enhed2,
@@ -231,21 +238,21 @@ class VareModel
         $this->modtime = date('Y-m-d H:i:s');
         
         // Escape values to prevent SQL injection
-        $varenr = pg_escape_string($this->varenr ?? '');
-        $stregkode = pg_escape_string($this->stregkode ?? '');
-        $beskrivelse = pg_escape_string($this->beskrivelse ?? '');
-        $salgspris = floatval($this->salgspris ?? 0);
-        $kostpris = floatval($this->kostpris ?? 0);
+        $varenr = pg_escape_string($this->sku ?? '');
+        $stregkode = pg_escape_string($this->barcode ?? '');
+        $beskrivelse = pg_escape_string($this->description ?? '');
+        $salgspris = floatval($this->salesPrice ?? 0);
+        $kostpris = floatval($this->costPrice ?? 0);
         $modtime = pg_escape_string($this->modtime);
         $id = intval($this->id);
         $notes           = pg_escape_string($this->notes           ?? '');
-        $serienr         = pg_escape_string($this->serienr         ?? '');
-        $samlevare       = pg_escape_string($this->samlevare       ?? '');
-        $delvare         = pg_escape_string($this->delvare         ?? '');
-        $min_lager       = floatval($this->min_lager       ?? 0);
-        $max_lager       = floatval($this->max_lager       ?? 0);
+        $serienr         = pg_escape_string($this->serialNumber         ?? '');
+        $samlevare       = pg_escape_string($this->collectionOfItems       ?? '');
+        $delvare         = pg_escape_string($this->partialItem         ?? '');
+        $min_lager       = floatval($this->minInventory       ?? 0);
+        $max_lager       = floatval($this->maxInventory       ?? 0);
         $location        = pg_escape_string($this->location        ?? '');
-        $gruppe          = intval($this->gruppe          ?? 0);
+        $gruppe          = intval($this->group          ?? 0);
         $netweight       = floatval($this->netweight       ?? 0);
         $netweightunit   = pg_escape_string($this->netweightunit   ?? '');
         $grossweight     = floatval($this->grossweight     ?? 0);
@@ -253,10 +260,10 @@ class VareModel
         $length          = floatval($this->length          ?? 0);
         $width           = floatval($this->width           ?? 0);
         $height          = floatval($this->height          ?? 0);
-        $colli_webfragt  = floatval($this->colli_webfragt  ?? 0);
-        $enhed = pg_escape_string($this->enhed ?? '');
-        $enhed2 = pg_escape_string($this->enhed2 ?? '');
-        
+        $colli_webfragt  = floatval($this->colli_webfreight  ?? 0);
+        $enhed = pg_escape_string($this->unit ?? '');
+        $enhed2 = pg_escape_string($this->unit2 ?? '');
+
         $query = "UPDATE varer SET
                     varenr          = '$varenr',
                     stregkode       = '$stregkode',
@@ -295,9 +302,9 @@ class VareModel
     private function loadLastInsertedId()
     {
         try {
-            if ($this->varenr) {
-                $varenr = pg_escape_string($this->varenr);
-                $query = "SELECT id FROM varer WHERE varenr = '$varenr' ORDER BY id DESC LIMIT 1";
+            if ($this->sku) {
+                $sku = pg_escape_string($this->sku);
+                $query = "SELECT id FROM varer WHERE varenr = '$sku' ORDER BY id DESC LIMIT 1";
                 $result = db_select($query, __FILE__ . " line " . __LINE__);
                 
                 if ($result && db_num_rows($result) > 0) {
@@ -339,22 +346,22 @@ class VareModel
     private function loadFromArray($row)
     {
         $this->id = $row['id'] ?? null;
-        $this->varenr = $row['varenr'] ?? null;
-        $this->stregkode = $row['stregkode'] ?? null;
-        $this->beskrivelse = $row['beskrivelse'] ?? null;
-        $this->enhed = $row['enhed'] ?? null;
-        $this->enhed2 = $row['enhed2'] ?? null;
-        $this->salgspris = $row['salgspris'] ?? null;
-        $this->kostpris = $row['kostpris'] ?? null;
+        $this->sku = $row['varenr'] ?? null;
+        $this->barcode = $row['stregkode'] ?? null;
+        $this->description = $row['beskrivelse'] ?? null;
+        $this->unit = $row['enhed'] ?? null;
+        $this->unit2 = $row['enhed2'] ?? null;
+        $this->salesPrice = $row['salgspris'] ?? null;
+        $this->costPrice = $row['kostpris'] ?? null;
         // — load new columns —
         $this->notes           = $row['notes']         ?? null;
-        $this->serienr         = $row['serienr']       ?? null;
-        $this->samlevare       = $row['samlevare']     ?? null;
-        $this->delvare         = $row['delvare']       ?? null;
-        $this->min_lager       = $row['min_lager']     ?? null;
-        $this->max_lager       = $row['max_lager']     ?? null;
+        $this->serialNumber         = $row['serienr']       ?? null;
+        $this->collectionOfItems       = $row['samlevare']     ?? null;
+        $this->partialItem         = $row['delvare']       ?? null;
+        $this->minInventory       = $row['min_lager']     ?? null;
+        $this->maxInventory       = $row['max_lager']     ?? null;
         $this->location        = $row['location']      ?? null;
-        $this->gruppe          = $row['gruppe']        ?? null;
+        $this->group          = $row['gruppe']        ?? null;
         $this->netweight       = $row['netweight']     ?? null;
         $this->netweightunit   = $row['netweightunit'] ?? null;
         $this->grossweight     = $row['grossweight']   ?? null;
@@ -362,7 +369,7 @@ class VareModel
         $this->length          = $row['length']        ?? null;
         $this->width           = $row['width']         ?? null;
         $this->height          = $row['height']        ?? null;
-        $this->colli_webfragt  = $row['colli_webfragt']?? null;
+        $this->colli_webfreight  = $row['colli_webfragt']?? null;
         // …other fields…
     }
 
@@ -373,22 +380,22 @@ class VareModel
     {
         return [
             'id'                => $this->id,
-            'varenr'            => $this->varenr,
-            'stregkode'         => $this->stregkode,
-            'beskrivelse'       => $this->beskrivelse,
-            'enhed'             => $this->enhed,
-            'enhed2'            => $this->enhed2,
-            'salgspris'         => $this->salgspris,
-            'kostpris'          => $this->kostpris,
+            'sku'               => $this->sku,
+            'barcode'           => $this->barcode,
+            'description'       => $this->description,
+            'unit'              => $this->unit,
+            'unit2'             => $this->unit2,
+            'salesPrice'        => $this->salesPrice,
+            'costPrice'         => $this->costPrice,
             // — new columns —
             'notes'             => $this->notes,
-            'serienr'           => $this->serienr,
-            'samlevare'         => $this->samlevare,
-            'delvare'           => $this->delvare,
-            'min_lager'         => $this->min_lager,
-            'max_lager'         => $this->max_lager,
+            'serialNumber'      => $this->serialNumber,
+            'collectionOfItems' => $this->collectionOfItems,
+            'partialItem'       => $this->partialItem,
+            'minInventory'      => $this->minInventory,
+            'maxInventory'      => $this->maxInventory,
             'location'          => $this->location,
-            'gruppe'            => $this->gruppe,
+            'group'             => $this->group,
             'netweight'         => $this->netweight,
             'netweightunit'     => $this->netweightunit,
             'grossweight'       => $this->grossweight,
@@ -396,7 +403,7 @@ class VareModel
             'length'            => $this->length,
             'width'             => $this->width,
             'height'            => $this->height,
-            'colli_webfragt'    => $this->colli_webfragt,
+            'colli_webfreight'  => $this->colli_webfreight,
             // …other relations…
         ];
     }
@@ -406,38 +413,38 @@ class VareModel
     {
         return $this->id;
     }
-    public function getVarenr()
+    public function getSku()
     {
-        return $this->varenr;
+        return $this->sku;
     }
-    public function getStregkode()
+    public function getBarcode()
     {
-        return $this->stregkode;
+        return $this->barcode;
     }
-    public function getBeskrivelse()
+    public function getDescription()
     {
-        return $this->beskrivelse;
+        return $this->description;
     }
-    public function getSalgsPris()
+    public function getSalesPrice()
     {
-        return $this->salgspris;
+        return $this->salesPrice;
     }
     public function getPrisInklMoms()
     {
-        if ($this->gruppe->getMomsFri() || $this->gruppe->getSellAccount() === null) {
-            return $this->salgspris;
+        if ($this->group->getMomsFri() || $this->group->getSellAccount() === null) {
+            return $this->salesPrice;
         }
 
-        $vatRate = $this->gruppe->getSellAccount()->getMoms()->getSats();
-        $priceWithVat = $this->salgspris * (1 + ($vatRate / 100));
+        $vatRate = $this->group->getSellAccount()->getMoms()->getSats();
+        $priceWithVat = $this->salesPrice * (1 + ($vatRate / 100));
         
         return $priceWithVat;
     }
-    public function getKostPris()
+    public function getCostPrice()
     {
-        return $this->kostpris;
+        return $this->costPrice;
     }
-    
+
     /**
      * Get size object
      * 
@@ -449,31 +456,31 @@ class VareModel
     }
 
     // Setter methods
-    public function setVarenr($varenr)
+    public function setSku($sku)
     {
-        $this->varenr = $varenr;
+        $this->sku = $sku;
     }
 
-    public function setStregkode($stregkode)
+    public function setBarcode($barcode)
     {
-        $this->stregkode = $stregkode;
+        $this->barcode = $barcode;
     }
 
-    public function setBeskrivelse($beskrivelse)
+    public function setDescription($description)
     {
-        $this->beskrivelse = $beskrivelse;
+        $this->description = $description;
     }
 
-    public function setSalgspris($salgspris)
+    public function setSalesPrice($salesPrice)
     {
-        $this->salgspris = (float) $salgspris;
+        $this->salesPrice = (float) $salesPrice;
     }
 
-    public function setKostpris($kostpris)
+    public function setCostPrice($costPrice)
     {
-        $this->kostpris = (float) $kostpris;
+        $this->costPrice = (float) $costPrice;
     }
-    
+
     /**
      * Set size object
      * 
@@ -488,13 +495,13 @@ class VareModel
 
     // — add getters/setters for each new prop —
     public function setNotes($v)           { $this->notes           = $v; }
-    public function setSerienr($v)         { $this->serienr         = $v; }
-    public function setSamlevare($v)       { $this->samlevare       = $v; }
-    public function setDelvare($v)         { $this->delvare         = $v; }
-    public function setMinLager($v)        { $this->min_lager       = (float)$v; }
-    public function setMaxLager($v)        { $this->max_lager       = (float)$v; }
+    public function setSerialNumber($v)    { $this->serialNumber    = $v; }
+    public function setCollectionOfItems($v){ $this->collectionOfItems = $v; }
+    public function setPartialItem($v)     { $this->partialItem     = $v; }
+    public function setMinInventory($v)    { $this->minInventory    = (float)$v; }
+    public function setMaxInventory($v)    { $this->maxInventory    = (float)$v; }
     public function setLocation($v)        { $this->location        = $v; }
-    public function setGruppe($v)          { $this->gruppe          = (int)$v; }
+    public function setGroup($v)          { $this->group          = (int)$v; }
     public function setNetweight($v)       { $this->netweight       = (float)$v; }
     public function setNetweightunit($v)   { $this->netweightunit   = $v; }
     public function setGrossweight($v)     { $this->grossweight     = (float)$v; }
@@ -502,7 +509,7 @@ class VareModel
     public function setLength($v)          { $this->length          = (float)$v; }
     public function setWidth($v)           { $this->width           = (float)$v; }
     public function setHeight($v)          { $this->height          = (float)$v; }
-    public function setColliWebfragt($v)   { $this->colli_webfragt  = (float)$v; }
-
-    // …rest of class…
+    public function setColliWebfreight($v) { $this->colli_webfreight = (float)$v; }
+    public function setUnit($v)            { $this->unit            = $v; }
+    public function setUnit2($v)           { $this->unit2           = $v; }
 }

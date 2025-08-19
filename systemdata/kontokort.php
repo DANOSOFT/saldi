@@ -144,7 +144,7 @@ if (isset($_POST['slet'])) {
 	$konto_til = if_isset($_POST['konto_til']);
 	$rapportart = if_isset($_POST['rapportart']);
 
-	if ($kontotype != 'Sum' && $kontotype != 'Resultat') {
+	if ($kontotype != 'Z' && $kontotype != 'R') {
 		$fra_kto = 0;
 		$til_kto = 0;
 	}

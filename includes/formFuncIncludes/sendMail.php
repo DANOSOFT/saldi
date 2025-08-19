@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 4.1.1 --- 2025-06-03 ---
+// --- includes/formFuncIncludes/sendMail.php --- patch 4.1.1 --- 2025-0607-31 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -230,7 +230,6 @@ print "<!--function send_mails start-->";
 			$chk[$x]=$line;
 		}
 	}
-#	echo "XX<br>";
 	require_once "../../vendor/autoload.php"; //PHPMailer Object
 	$mail = new  PHPMailer\PHPMailer\PHPMailer();
 	$mail->SMTPOptions = array( 
@@ -311,6 +310,7 @@ print "<!--function send_mails start-->";
 			alert($tekst);
 		}
 	}
+	echo "Mail sent to $email<br>";
 	return("Mail sent to $email");
 	print "<!--function send_mails slut-->";
 }

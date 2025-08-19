@@ -34,6 +34,7 @@ class CustomerModel
     private $kontakt;
     private $art;
     private $gruppe;
+    private $kontonr;
 
     /**
      * Constructor - can create an empty customer or load an existing one by ID
@@ -147,6 +148,7 @@ class CustomerModel
         $lev_land = db_escape_string($this->lev_land ?: '');
         $kontakt = db_escape_string($this->kontakt ?: '');
         $art = db_escape_string($this->art ?: '');
+        $kontonr = db_escape_string($this->kontonr ?: $tlf); // Default to phone number if not set
 
         // If ID is set, we are updating an existing customer
         if ($this->id) {
@@ -202,13 +204,13 @@ class CustomerModel
             firmanavn, tlf, email, addr1, addr2, postnr, bynavn, cvrnr, land,
             bank_navn, bank_reg, bank_konto, bank_fi, notes, betalingsbet, betalingsdage,
             ean, fornavn, efternavn, lev_firmanavn, lev_addr1, lev_addr2, lev_postnr,
-            lev_bynavn, lev_tlf, lev_email, lev_land, kontakt, art, gruppe
+            lev_bynavn, lev_tlf, lev_email, lev_land, kontakt, art, gruppe, kontonr
         ) VALUES (
             '$firmanavn', '$tlf', '$email', '$addr1', '$addr2', '$postnr', '$bynavn',
             '$cvrnr', '$land', '$bank_navn', '$bank_reg', '$bank_konto', '$bank_fi',
             '$notes', '$betalingsbet', $betalingsdage, '$ean', '$fornavn',
             '$efternavn', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr',
-            '$lev_bynavn', '$lev_tlf', '$lev_email', '$lev_land', '$kontakt', '$art', $gruppe
+            '$lev_bynavn', '$lev_tlf', '$lev_email', '$lev_land', '$kontakt', '$art', $gruppe, '$kontonr'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -236,13 +238,13 @@ class CustomerModel
      * 
      * @return bool Success status
      */
-    public function delete()
+    public function delete($art)
     {
         if (!$this->id) {
             return false;
         }
 
-        $qtxt = "DELETE FROM adresser WHERE id = $this->id AND art = 'D'";
+        $qtxt = "DELETE FROM adresser WHERE id = $this->id AND art = '$art'";
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
@@ -437,6 +439,7 @@ class CustomerModel
     public function setEfternavn($efternavn) { $this->efternavn = $efternavn; }
     public function setKontakt($kontakt) { $this->kontakt = $kontakt; }
     public function setGruppe($gruppe) { $this->gruppe = $gruppe; }
+    public function setKontonr($kontonr) { $this->kontonr = $kontonr; }
 
     // Delivery address setters
     public function setLevFirmanavn($lev_firmanavn) { $this->lev_firmanavn = $lev_firmanavn; }

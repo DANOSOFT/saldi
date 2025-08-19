@@ -29,6 +29,9 @@ includes/connect.php
 kreditor/betalinger_old.php
 logolib/
 
+#test
+price.txt
+
 paperpdf/
 temp/
 utils/

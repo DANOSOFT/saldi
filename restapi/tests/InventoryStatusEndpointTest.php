@@ -204,8 +204,8 @@ class InventoryStatusEndpointTest
         echo "Testing: Get Warehouse Inventory\n";
         
         // Get inventory for warehouse 1
-        $response = $this->makeRequest('GET', null, ['lager_nr' => 1]);
-        
+        $response = $this->makeRequest('GET', null, ['lager_nr' => 0]);
+        print_r($response);
         if ($response['success'] && is_array($response['data'])) {
             echo "✓ Retrieved warehouse inventory with " . count($response['data']) . " items\n";
             
