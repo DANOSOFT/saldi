@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-07-05 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-08-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -197,6 +197,7 @@
 // 20250421 LOE A lot of array values updated with if_isset function to prevent numerous undefined errors, and some clean ups.
 // 20250705 PHR $afd is now set if afd exist
 // 20250811 PHR Corrected wrong text numbers
+// 20250819 LOE $afd checked strictly before usage
 
 @session_start();
 $s_id=session_id();
@@ -4085,9 +4086,11 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				if ($afd_nr[$x]!=$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
 			} 
 			print "</select>";
-		} elseif (count($afd_nr)==1) {
-      		print "<input type = 'hidden' name = 'afd' value = '$afd_nr[0]'>";
+		} elseif (count($afd_nr) === 1 && isset($afd_nr[0]) && !is_array($afd_nr[0])) {
+			$value = htmlspecialchars($afd_nr[0]);
+			print "<input type='hidden' name='afd' value='$value'>"; #20250816
 		}
+
 		print "</td></tr>\n";
 		$kasseantal=0;
 		if ($vis_saet && $afd) {
