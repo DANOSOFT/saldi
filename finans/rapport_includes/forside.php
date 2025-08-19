@@ -53,6 +53,9 @@ function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_f
 	global $revisor;
 	global $sprog_id;
 	global $top_bund;
+	global $buttonColor;
+	global $buttonTxtColor;
+	
     $backUrl = isset($_GET['returside'])
     ? $_GET['returside']
     : 'javascript:window.history.go(-2);';

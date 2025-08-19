@@ -393,27 +393,27 @@ else include_once 'debLstIncludes/oldTopLine.php';
 $steps = array();
 $steps[] = array(
     "selector" => "#debitore",
-    "content" => "Her ser du en liste af alle dine kunder."
+    "content" => findtekst('2621|Her ser du en liste af alle dine kunder', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#opret-ny",
-    "content" => "For at oprette en ny kunde, klik her."
+    "content" => findtekst('2622|For at oprette en ny kunde, klik her', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => "#kommission",
-    "content" => "Tilmeld dine kunder til kommissionssalgssystemet her."
+    "content" => findtekst('2623|Tilmeld dine kunder til kommissionssalgssystemet her', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => 'input[type="checkbox"][name^="mySale["], input[type="submit"][name="kommission"]',
-    "content" => "Før du kan invitere en kunde til mitsalg, skal du aktivere deres konto. Sæt hak i 'aktiver' og tryk OK."
+    "content" => findtekst('2624|Før du kan inviterer en kunde til \'Mit Salg\', skal du aktivere deres konto. Sæt hak i \'aktiver\' og tryk OK.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".kommission-link",
-    "content" => "Når en kunde er aktiveret kan du åbne deres konto her."
+    "content" => findtekst('2625|Når en kunde er aktiveret kan du åbne deres konto her', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => 'input[type="checkbox"][name^="invite["], input[type="submit"][name="kommission"]',
-    "content" => "Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. <br><br>De vil her få et link til mitsalg og kan oprette deres labels derigennem. <br><br>Det er <b>kun</b> muligt at invitere en kunde, hvis de har en e-mail sat op på deres kontokort."
+    "content" => findtekst('2626|Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. De vil her få et link til \'Mit Salg\' og kan oprette deres labels derigennem. Det er kun muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.', $sprog_id)
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
@@ -449,22 +449,25 @@ db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 if ($skjul_lukkede) $udvaelg = " and lukket != 'on'";
 for ($x=0;$x<$vis_feltantal;$x++) {
-	if (isset($find[$x])) {
-		$find[$x]=trim($find[$x]);
-		$tmp=$vis_felt[$x];
-		if ($tmp) {
-			if ($find[$x] && in_array($tmp, array('invoiced', 'kontaktet', 'kontaktes'))) {
-				$tmp2="adresser.".$tmp;
-				$udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
-			} elseif ($find[$x] && !in_array($tmp,$numfelter)) {
-				$tmp2="adresser.".$tmp;
-				$udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
-			} elseif ($find[$x]||$find[$x]=="0") {
-				$tmp2="adresser.".$tmp;
-				$udvaelg.=udvaelg(db_escape_string($find[$x]),$tmp2, 'NR');
-			}
-		}
-	}
+    if (isset($find[$x])) {
+        $find[$x]=trim($find[$x]);
+        $tmp=$vis_felt[$x];
+        if ($tmp) {
+            if ($find[$x] && in_array($tmp, array('invoiced', 'kontaktet', 'kontaktes'))) {
+                $tmp2="adresser.".$tmp;
+                $udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
+            } elseif ($tmp == 'kontakt' && $find[$x]) {
+                // Special handling for kontakt field - search in ansatte table (case-insensitive)
+                $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+            } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
+                $tmp2="adresser.".$tmp;
+                $udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
+            } elseif ($find[$x]||$find[$x]=="0") {
+                $tmp2="adresser.".$tmp;
+                $udvaelg.=udvaelg(db_escape_string($find[$x]),$tmp2, 'NR');
+            }
+        }
+    }
 }
 
 if (count($dg_liste)) {
@@ -496,6 +499,7 @@ $adresserantal=0;
 
 $qtxt = "select count(id) as antal from adresser where art = 'D' $udvaelg";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+
 $antal=$r['antal'];
 if ($menu=='T'){
 	print "<table class='dataTableBooking' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
@@ -614,11 +618,22 @@ if (!$start) {
 			$tmp=$vis_felt[$x];
 			print "<SELECT NAME=\"find[$x]\">";
 			print "<option>".stripslashes($find[$x])."</option>";
-			$qtxt = "select distinct($tmp) from adresser where art = 'D'";
+			
+			// Special handling for kontakt field to search all employees
+			if ($tmp == 'kontakt') {
+				$qtxt = "select distinct(ansatte.navn) as kontakt from ansatte, adresser where adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.navn";
+			} else {
+				$qtxt = "select distinct($tmp) from adresser where art = 'D'";
+			}
+			
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if ($find[$x]) print "<option></option>";
 			while ($r=db_fetch_array($q)) {
-				print "<option>$r[$tmp]</option>";
+				if ($tmp == 'kontakt') {
+					print "<option>$r[kontakt]</option>";
+				} else {
+					print "<option>$r[$tmp]</option>";
+				}
 			}
 			print "</SELECT></td>\n";
 		} else {
@@ -670,7 +685,7 @@ if ($valg == 'kommission' || $valg == 'historik') {
 	else print "<input style='width:100px;' type='submit' name='historik' value='Send'>";
 	print "</td></tr>";
 	print "<tr><td colspan='$colspan'>";
-	print "<td colspan='2' align='right'><input style='width:100px;' type='submit' name='chooseAll' value='Vælg alle'></td>";
+	print "<td colspan='2' align='right'><input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'></td>";
 	print "</form>";
 }
 print "</tr>\n";

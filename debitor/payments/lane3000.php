@@ -151,15 +151,17 @@ function leave(cardScheme) {
 
 // GET API KEY
 async function get_api_key(baseurl) {
-    logToServer('Starting API key request', 'INFO');
+    const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
+    
     const data = {
         "username": "<?php print get_settings_value("username", "move3500", "");?>",
         "password": "<?php print get_settings_value("password", "move3500", "");?>"
     }
+    console.log(data)
     
     try {
-        var res = await fetch(
+        const fetchPromise = fetch(
             `${baseurl}login`,
             {
                 method: 'post',
@@ -169,32 +171,64 @@ async function get_api_key(baseurl) {
                 body: JSON.stringify(data),
             }
         );
-
-        var jsondata = await res.json();
+        // Wait for both initial logging and fetch request
+        const [logResult, fetchResult] = await Promise.allSettled([initialLogPromise, fetchPromise]);
+        console.log(logResult, fetchResult);
+        // Check if initial logging failed
+        if (logResult.status === 'rejected') {
+            console.error('Initial logging failed:', logResult.reason);
+        }
         
-        logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-
-        if (res.status != 200) {
-            logToServer(`API key request failed - Status: ${res.status}, Error: ${jsondata.error}`, 'ERROR');
-            fail(jsondata.error);
+        // Check if fetch failed
+        if (fetchResult.status === 'rejected') {
+            const errorMsg = `Network error: ${fetchResult.reason.message}`;
+            await Promise.allSettled([
+                logToServer(`API key request exception: ${fetchResult.reason.message}`, 'ERROR'),
+                Promise.resolve(fail(errorMsg))
+            ]);
             return null;
         }
 
-        logToServer('API key retrieved successfully', 'INFO');
+        const res = fetchResult.value;
+        const jsondata = await res.json();
+        
+        // Log the response (don't wait for it to complete)
+        const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
+        
+        if (res.status != 200) {
+            // Wait for both error logging and fail function
+            await Promise.allSettled([
+                logToServer(`API key request failed - Status: ${res.status}, Error: ${jsondata.error}`, 'ERROR'),
+                Promise.resolve(fail(jsondata.error))
+            ]);
+            return null;
+        }
+
+        // Wait for both success logging and response logging to complete
+        await Promise.allSettled([
+            logToServer('API key retrieved successfully', 'INFO'),
+            responseLogPromise
+        ]);
+        
         return jsondata.token;
+        
     } catch (error) {
-        logToServer(`API key request exception: ${error.message}`, 'ERROR');
-        fail(`Network error: ${error.message}`);
+        // Handle any unexpected errors
+        const errorMsg = `Network error: ${error.message}`;
+        await Promise.allSettled([
+            logToServer(`API key request exception: ${error.message}`, 'ERROR'),
+            Promise.resolve(fail(errorMsg))
+        ]);
         return null;
     }
 }
 
 async function print_str(baseurl, apikey, data) {
-    logToServer('Starting receipt printing', 'INFO');
+    const initialLogPromise = logToServer('Starting receipt printing', 'INFO');
     document.getElementById('status').innerText = "Printer...";
     
     try {
-        await fetch(
+        const saveReceiptPromise = fetch(
             'save_receipt.php',
             {
                 method: 'POST',
@@ -209,12 +243,41 @@ async function print_str(baseurl, apikey, data) {
             }
         );
         
-        logToServer('Receipt saved successfully', 'INFO');
+        // Wait for both initial logging and save receipt request
+        const [logResult, saveResult] = await Promise.allSettled([initialLogPromise, saveReceiptPromise]);
+        
+        // Check if initial logging failed
+        if (logResult.status === 'rejected') {
+            console.error('Initial print logging failed:', logResult.reason);
+        }
+        
+        // Check if save receipt failed
+        if (saveResult.status === 'rejected') {
+            await Promise.allSettled([
+                logToServer(`Receipt saving failed: ${saveResult.reason.message}`, 'ERROR'),
+                Promise.resolve() // Continue anyway
+            ]);
+        } else {
+            // Wait for success logging to complete
+            await Promise.allSettled([
+                logToServer('Receipt saved successfully', 'INFO')
+            ]);
+        }
+        
+        // Open print window and log it
         window.open("http://localhost/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
-        logToServer('Print command sent', 'INFO');
+        
+        await Promise.allSettled([
+            logToServer('Print command sent', 'INFO')
+        ]);
+        
         finished = true;
+        
     } catch (error) {
-        logToServer(`Receipt printing failed: ${error.message}`, 'ERROR');
+        // Handle any unexpected errors
+        await Promise.allSettled([
+            logToServer(`Receipt printing failed: ${error.message}`, 'ERROR')
+        ]);
         // Continue anyway, don't fail the whole transaction
         finished = true;
     }
@@ -273,7 +336,8 @@ async function start_payment(baseurl, apikey, amount) {
 
 async function start() {
     logToServer('Payment process started', 'INFO');
-    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
+    // https://connectcloud-test.aws.nets.eu/v1/
+    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);

@@ -203,7 +203,8 @@ $sprog_valg = $_POST['sprog_valg'];
  		} else {
 
  		#			print "<!-- kommentar for at skjule uddata til siden \n";
-			$pdftk=system("which pdftk");
+             $pdftk = shell_exec("which pdftk");
+
 #			print "-->\n";
 			if ($pdftk) {
 				$alert= findtekst('1751|Siden er indlæst.', $sprog_id);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/footer.php --- lap 4.0.8 --- 2023-10-05 ---
+// --- sager/loenIncludes/footer.php --- lap 4.0.8 --- 2025-08-12 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 // 20231005 PHR php8
+// 20250812 PHR Some variables set to 0 if empty  ($aa[$c], $a50[$c], $a100[$c]$as1[$c] & $as2[$c])
+
 
 function fod_log($string)
 {
@@ -148,6 +150,7 @@ function fod_felter_vis_titel($titel, $bold) {
 }
 
 function fod_felter_vis_beloeb($obj, $visallefelter, $bold) {
+
 	$startbold = $bold?"<b>":"";
 	$endbold = $bold?"</b>":"";
 
@@ -286,10 +289,12 @@ function fod_indsaml_data($periode) {
 	for ($d = 0;$d<count($pre_d);$d++) {
 		$predatoer.=$pre_d[$d];
 		$datoliste[$d] = $pre_d[$d];
+#cho "D1 $datoliste[$d]<br>";
 	}
 	$tmp = $periode;
 	for ($d = count($pre_d);$d<14+count($pre_d);$d++) {
 		$datoliste[$d] = date("Y-m-d",$tmp);
+#cho "D2 $datoliste[$d]<br>";
 		$tmp += 86400;
 	}
 	
@@ -298,6 +303,7 @@ function fod_indsaml_data($periode) {
 	for ($d = $a;$d<$b;$d++) {
 		$postdatoer.=$post_d[$d-$a];
 		$datoliste[$d] = $post_d[$d-$a];
+#cho "D3 $datoliste[$d]<br>";
 	}
 
 	$foddage = $loen_id = $sag_id = array();
@@ -361,6 +367,7 @@ function fod_indsaml_data($periode) {
 		$afregnet_af = $r['afregnet_af'];
 		$loen_id[$x] = $r['id'];
 		$loen_nr[$x] = $r['nummer']*1;
+#cho "No: $loen_nr[$x]<br>";
 		$loen_tekst[$x] = $r['tekst'];
 		$fordeling[$x] = $r['fordeling'];
 		$loen_art[$x] = $r['art'];
@@ -375,6 +382,7 @@ function fod_indsaml_data($periode) {
 		($r['afsluttet'])?$afsluttet[$x] = $r['afsluttet']:$afsluttet[$x] = '';
 		($r['godkendt'])?$godkendt[$x] = $r['godkendt']:$godkendt[$x] = '';
 		($r['afvist'])?$afvist[$x] = $r['afvist']:$afvist[$x] = '';
+#cho "GS $godkendt[$x] $sag_nr[$x]<br>";
 		$sum[$x] = $r['sum'];
 		$ansatte[$x] = $r['ansatte'];
 		$fordeling[$x] = $r['fordeling'];
@@ -383,21 +391,27 @@ function fod_indsaml_data($periode) {
 		$datoer[$x] = $r['datoer'];
 		$ans = explode(chr(9),$ansatte[$x]);
 		//print_r($ans);
+#cho "ansatte: $ansatte[$x]<br>";
 		
 		
+#cho "ans $ans[0] $ansatte[$x]<br>";
 		$aa = explode(chr(9),$r['loen']);
 		$ad = explode(chr(9),$datoer[$x]);
 #	for ($d = 0;$d<count($ad);$d++) {
+#cho ", $ad[$d]";
 #	}
+#cho "<br>";
 		$at = explode(chr(9),$r['timer']);
 		$af = explode(chr(9),$fordeling[$x]);
 		$am = explode(chr(9),$mentor[$x]);
+		#cho "AT".$r['timer']."<br>";
 		$a50=explode(chr(9),$r['t50pct']);
 		$a100=explode(chr(9),$r['t100pct']);
 		$loentimer[$x] = 0;
 		$tr_timer[$x] = 0; #tr=trainee;
 		$akkord[$x] = 0;
 		for ($y = 0;$y<count($at);$y++) {
+			$at[$y] = (float)$at[$y];
 			if (!isset($ad[$y])) $ad[$y] = $r['loendate'];
 			$loentimer[$x] += $at[$y];
 		}
@@ -485,7 +499,10 @@ function fod_indsaml_data($periode) {
 			}
 
 			if ($loen_art[$x]=='akktimer' || $loen_art[$x]=='akkord') {
-				$fodopgave->loen_dyrtid += $aa[$c]*$at[$c];
+				if (!$aa[$c]) $aa[$c] = 0;
+				if (!$a50[$c]) $a50[$c] = 0;
+				if (!$a100[$c]) $a100[$c] = 0;
+				$fodopgave->loen_dyrtid += $aa[$c]*(float)$at[$c];
 				$fodopgave->dt_timer += $at[$c];
 				$fodopgave->loen_50pct += $overtid_50pct*$a50[$c];
 				$fodopgave->loen_100pct += $overtid_100pct*$a100[$c];
@@ -523,6 +540,8 @@ function fod_indsaml_data($periode) {
 				$fodopgave->skole += $aa[$c]*$at[$c];
 				$fodopgave->antal_skole += $at[$c];
 			} if ($loen_art[$x]!='akk_afr') {
+				if (!$as1[$c]) $as1[$c] = 0;
+				if (!$as2[$c]) $as2[$c] = 0;
 				$fodtmpkorsel_km += $ak[$c];
 				$fodopgave->skur1 += $as1[$c];
 				$fodopgave->skur2 += $as2[$c];

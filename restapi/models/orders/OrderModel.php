@@ -37,6 +37,7 @@ class OrderModel
     private $ordrenr;
     private $valutakurs;
     private $art;
+    private $fakturadate;
     /**
      * Constructor - can create an empty Order or load an existing one by ID
      * 
@@ -65,7 +66,7 @@ class OrderModel
             $this->id = (int)$r['id'];
             $this->konto_id = (int)$r['konto_id'];
             $this->firmanavn = $r['firmanavn'];
-            $this->telefon = $r['phone'];
+            $this->telefon = $r['tlf'];
             $this->email = $r['email'];
             $this->momssats = (float)$r['momssats'];
             $this->addr1 = $r['addr1'];
@@ -85,16 +86,17 @@ class OrderModel
             $this->notes = $r['notes'];
             $this->betalt = $r['betalt'];
             $this->sum = (float)$r['sum'];
-            $this->kostpris = (float)$r['kostpris'];
+            $this->kostpris = (float)$r['costkostprisPrice'];
             $this->moms = (float)$r['moms'];
             $this->valuta = $r['valuta'];
             $this->betalingsbet = $r['betalingsbet'];
             $this->betalingsdage = (int)$r['betalingsdage'];
             $this->kontonr = $r['kontonr'];
-            $this->ref = $r['ref'];
+            $this->ref = $r['reference'];
             $this->status = (int)$r['status'];
             $this->ordrenr = (int)$r['ordrenr'];
             $this->valutakurs = (float)$r['valutakurs'];
+            $this->fakturadate = $r['fakturadate'];
 
             return true;
         }
@@ -109,20 +111,20 @@ class OrderModel
      */
     public function save()
     {
-        // Insert new order
+        // Insert new order - fix the field names to match database
         $qtxt = "INSERT INTO ordrer (
-            konto_id, firmanavn, phone, email, momssats, addr1, addr2, postnr, bynavn, land,
+            konto_id, firmanavn, email, momssats, addr1, addr2, postnr, bynavn, land,
             lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_land, ean, cvrnr,
             ordredate, notes, betalt, sum, kostpris, moms, valuta, betalingsbet, betalingsdage,
-            kontonr, ref, status, ordrenr, valutakurs, art
+            kontonr, ref, status, ordrenr, valutakurs, art, fakturadate
         ) VALUES (
-            '$this->konto_id', '$this->firmanavn', '$this->telefon', '$this->email', '$this->momssats',
+            '$this->konto_id', '$this->firmanavn', '$this->email', '$this->momssats',
             '$this->addr1', '$this->addr2', '$this->postnr', '$this->bynavn', '$this->land',
             '$this->lev_navn', '$this->lev_addr1', '$this->lev_addr2', '$this->lev_postnr', '$this->lev_bynavn',
             '$this->lev_land', '$this->ean', '$this->cvrnr', '$this->ordredate', '$this->notes',
             '$this->betalt', '$this->sum', '$this->kostpris', '$this->moms', '$this->valuta',
             '$this->betalingsbet', '$this->betalingsdage', '$this->kontonr', '$this->ref',
-            '$this->status', '$this->ordrenr', '$this->valutakurs', '$this->art'
+            '$this->status', '$this->ordrenr', '$this->valutakurs', '$this->art', '$this->fakturadate'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -131,7 +133,6 @@ class OrderModel
         // Check if insert was successful
         if ($resultArray[0] == "0") {
             // Insert was successful, now get the inserted ID
-            // Use PostgreSQL's CURRVAL() to get the last value from the sequence
             $qtxt = "SELECT CURRVAL(pg_get_serial_sequence('ordrer', 'id')) AS id";
             $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
             
@@ -295,46 +296,47 @@ class OrderModel
     {
         return array(
             'id' => $this->id,
-            'konto_id' => $this->konto_id,
-            'firmanavn' => $this->firmanavn,
-            'telefon' => $this->telefon,
+            'accountId' => $this->konto_id,
+            'companyName' => $this->firmanavn,
+            'phone' => $this->telefon,
             'email' => $this->email,
-            'momssats' => $this->momssats,
-            'adresse' => array(
+            'vatRate' => $this->momssats,
+            'address' => array(
                 'addr1' => $this->addr1,
                 'addr2' => $this->addr2,
-                'postnr' => $this->postnr,
-                'bynavn' => $this->bynavn,
-                'land' => $this->land
+                'zipcode' => $this->postnr,
+                'city' => $this->bynavn,
+                'country' => $this->land
             ),
-            'levering' => array(
-                'lev_navn' => $this->lev_navn,
-                'lev_addr1' => $this->lev_addr1,
-                'lev_addr2' => $this->lev_addr2,
-                'lev_postnr' => $this->lev_postnr,
-                'lev_bynavn' => $this->lev_bynavn,
-                'lev_land' => $this->lev_land
+            'delivery' => array(
+                'name' => $this->lev_navn,
+                'addr1' => $this->lev_addr1,
+                'addr2' => $this->lev_addr2,
+                'zipcode' => $this->lev_postnr,
+                'city' => $this->lev_bynavn,
+                'country' => $this->lev_land
             ),
             'ean' => $this->ean,
-            'cvrnr' => $this->cvrnr,
-            'ordredate' => $this->ordredate,
+            'cvr' => $this->cvrnr,
+            'orderDate' => $this->ordredate,
+            'invoiceDate' => $this->fakturadate,
             'notes' => $this->notes,
-            'betalt' => $this->betalt,
-            'betalingsinfo' => array(
-                'betalingsbet' => $this->betalingsbet,
-                'betalingsdage' => $this->betalingsdage
+            'paid' => $this->betalt,
+            'paymentInfo' => array(
+                'paymentTerms' => $this->betalingsbet,
+                'paymentDays' => $this->betalingsdage
             ),
-            'okonomi' => array(
+            'economic' => array(
                 'sum' => $this->sum,
-                'kostpris' => $this->kostpris,
-                'moms' => $this->moms,
-                'valuta' => $this->valuta,
-                'valutakurs' => $this->valutakurs
+                'costPrice' => $this->kostpris,
+                'vat' => $this->moms,
+                'currency' => $this->valuta,
+                'currencyRate' => $this->valutakurs
             ),
-            'kontonr' => $this->kontonr,
-            'ref' => $this->ref,
+            'accountNumber' => $this->kontonr,
+            'reference' => $this->ref,
             'status' => $this->status,
-            'ordrenr' => $this->ordrenr
+            'orderNo' => $this->ordrenr
         );
     }
 
@@ -360,6 +362,20 @@ class OrderModel
     public function getOrdredate() { return $this->ordredate; }
     public function getNotes() { return $this->notes; }
     public function getArt() { return $this->art; }
+    public function getAddr1() { return $this->addr1; }
+    public function getAddr2() { return $this->addr2; }
+    public function getPostnr() { return $this->postnr; }
+    public function getBynavn() { return $this->bynavn; }
+    public function getLand() { return $this->land; }
+    public function getLevNavn() { return $this->lev_navn; }
+    public function getLevAddr1() { return $this->lev_addr1; }
+    public function getLevAddr2() { return $this->lev_addr2; }
+    public function getLevPostnr() { return $this->lev_postnr; }
+    public function getLevBynavn() { return $this->lev_bynavn; }
+    public function getLevLand() { return $this->lev_land; }
+    public function getEan() { return $this->ean; }
+    public function getCvrnr() { return $this->cvrnr; }
+    public function getFakturadate() { return $this->fakturadate; }
 
     // Setter methods - ALL REQUIRED SETTERS
     public function setKontoId($konto_id) { $this->konto_id = $konto_id; }
@@ -402,4 +418,5 @@ class OrderModel
     // Other setters
     public function setEan($ean) { $this->ean = $ean; }
     public function setCvrnr($cvrnr) { $this->cvrnr = $cvrnr; }
+    public function setFakturadate($fakturadate) { $this->fakturadate = $fakturadate; }
 }

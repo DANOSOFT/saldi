@@ -79,8 +79,13 @@ $columns[] = array(
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
-    "sqlOverride" => "v.varenr"
+    "sqlOverride" => "v.varenr",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        return "(v.varenr ILIKE '%$term%' OR v.varenr_alias ILIKE '%$term%')";
+    },
 );
+
 $columns[] = array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
@@ -429,29 +434,29 @@ log_performance("Grid rendering completed", $grid_render_start);
 $steps = array();
 $steps[] = array(
     "selector" => ".navbtn-top",
-    "content" => "<b>Vareliste:</b> Den liste du ser forneden.<br><br><b>Ordrevisning:</b> Se, hvilke ordrer dine varer indgår i.<br><br><b>Indkøb:</b> Opret hurtigt indkøbslister automatisk eller manuelt.<br><br><b>Serienumre:</b> Sporing og administration af serienummer-varer."
+    "content" => findtekst('2639|Vareliste: Den liste du ser forneden. Ordrevisning: Se, hvilke ordrer dine varer indgår i. Indkøb: Opret hurtigt indkøbslister automatisk eller manuelt. Serienumre: Sporing og administration af serienummer-varer', $sprog_id)
 );
 $steps[] = array(
     "selector" => "#create-new",
-    "content" => "Klik her for at oprette en ny vare."
+    "content" => findtekst('2640|Klik her for at oprette en ny vare', $sprog_id)."."
 );
 $steps[] = array(
     "selector" => ".varenr,.beskrivelse",
-    "content" => "Din vareliste vises her. Klik på et varenummer for at åbne det."
+    "content" => findtekst('2641|Din vareliste vises her. Klik på et varenummer for at åbne det.', $sprog_id)
 );
 if ($lagere) {
     $steps[] = array(
         "selector" => "." . implode(",.", $lagere),
-        "content" => "Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerværdier"
+        "content" => findtekst('2642|Klik på et lagerbeholdningstal for at lave en intern overførsel af lagerenheder', $sprog_id)."."
     );
 }
 $steps[] = array(
     "selector" => ".lager_total",
-    "content" => "Søg på lagerbeholdning. For eksempel:<br><b>'10'</b> - Vis varer med præcis 10 på lager.<br><b>'1:10'</b> - Vis varer med lager mellem 1 og 10."
+    "content" => findtekst('2643|Søg på lagerbeholdning. For eksempel:<br><b>"10"</b> – Viser varer med lagerbeholdning på præcist 10.<br><b>"1:10"</b> – Viser varer med lagerbeholdning mellem 1 og 10.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".dg",
-    "content" => "Undersøg dækningsgraden for dine vare, for at finde eventuelle optimeringer."
+    "content" => findtekst('2644|Undersøg dækningsgraden for dine vare, for at finde eventuelle optimeringer', $sprog_id)."."
 );
 
 

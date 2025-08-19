@@ -5,24 +5,24 @@ class VareGruppeModel
 {
     // Properties to match database columns
     private $id;
-    private $beskrivelse;
-    private $kodenr;
-    private $fiscal_year;
+    private $description;
+    private $codeNo;
+    private $fiscalYear;
 
     # Boolean options
-    private $omv_bet;
-    private $moms_fri;
-    private $lager;
+    private $reversePayment;
+    private $taxFree;
+    private $inventory;
     private $batch;
     private $operation;
 
     # Konti
-    private $buy_account;
-    private $sell_account;
-    private $buy_eu_account;
-    private $sell_eu_account;
-    private $buy_outside_eu_account;
-    private $sell_outside_eu_account;
+    private $buyAccount;
+    private $sellAccount;
+    private $buyEuAccount;
+    private $sellEuAccount;
+    private $buyOutsideEuAccount;
+    private $sellOutsideEuAccount;
 
     /**
      * Constructor - can create an empty Vare or load an existing one by ID
@@ -54,22 +54,22 @@ class VareGruppeModel
 
         if ($r = db_fetch_array($q)) {
             $this->id = (int)$r['id'];
-            $this->beskrivelse = $r['beskrivelse'];
-            $this->kodenr = (int)$r['kodenr'];
-            $this->fiscal_year = (int)$r['fiscal_year'];
+            $this->description = $r['beskrivelse'];
+            $this->codeNo = (int)$r['kodenr'];
+            $this->fiscalYear = (int)$r['fiscal_year'];
 
-            $this->omv_bet = $r['box6'];
-            $this->moms_fri = $r['box7'];
-            $this->lager = $r['box8'];
+            $this->reversePayment = $r['box6'];
+            $this->taxFree = $r['box7'];
+            $this->inventory = $r['box8'];
             $this->batch = $r['box9'];
             $this->operation = $r['box10'];
 
-            $this->buy_account = $r['box3'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box3']) : NULL;
-            $this->sell_account = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
-            $this->buy_eu_account = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
-            $this->sell_eu_account = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
-            $this->buy_outside_eu_account = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
-            $this->sell_outside_eu_account = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
+            $this->buyAccount = $r['box3'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box3']) : NULL;
+            $this->sellAccount = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
+            $this->buyEuAccount = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
+            $this->sellEuAccount = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
+            $this->buyOutsideEuAccount = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
+            $this->sellOutsideEuAccount = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
 
             return true;
         }
@@ -92,22 +92,22 @@ class VareGruppeModel
 
         if ($r = db_fetch_array($q)) {
             $this->id = (int)$r['id'];
-            $this->beskrivelse = $r['beskrivelse'];
-            $this->kodenr = (int)$r['kodenr'];
-            $this->fiscal_year = (int)$r['fiscal_year'];
+            $this->description = $r['beskrivelse'];
+            $this->codeNo = (int)$r['kodenr'];
+            $this->fiscalYear = (int)$r['fiscal_year'];
 
-            $this->omv_bet = $r['box6'];
-            $this->moms_fri = $r['box7'];
-            $this->lager = $r['box8'];
+            $this->reversePayment = $r['box6'];
+            $this->taxFree = $r['box7'];
+            $this->inventory = $r['box8'];
             $this->batch = $r['box9'];
             $this->operation = $r['box10'];
 
-            $this->buy_account = $r['box3'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box3']) : NULL;
-            $this->sell_account = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
-            $this->buy_eu_account = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
-            $this->sell_eu_account = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
-            $this->buy_outside_eu_account = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
-            $this->sell_outside_eu_account = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
+            $this->buyAccount = $r['box3'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box3']) : NULL;
+            $this->sellAccount = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
+            $this->buyEuAccount = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
+            $this->sellEuAccount = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
+            $this->buyOutsideEuAccount = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
+            $this->sellOutsideEuAccount = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
 
             return true;
         }
@@ -125,20 +125,20 @@ class VareGruppeModel
     {
         global $regnaar;        if ($this->id) {
             // Update existing item
-            $buy_account_val = is_object($this->buy_account) ? $this->buy_account->getKontonr() : $this->buy_account;
-            $sell_account_val = is_object($this->sell_account) ? $this->sell_account->getKontonr() : $this->sell_account;
-            $buy_eu_account_val = is_object($this->buy_eu_account) ? $this->buy_eu_account->getKontonr() : $this->buy_eu_account;
-            $sell_eu_account_val = is_object($this->sell_eu_account) ? $this->sell_eu_account->getKontonr() : $this->sell_eu_account;
-            $buy_outside_eu_account_val = is_object($this->buy_outside_eu_account) ? $this->buy_outside_eu_account->getKontonr() : $this->buy_outside_eu_account;
-            $sell_outside_eu_account_val = is_object($this->sell_outside_eu_account) ? $this->sell_outside_eu_account->getKontonr() : $this->sell_outside_eu_account;
+            $buy_account_val = is_object($this->buyAccount) ? $this->buyAccount->getKontonr() : $this->buyAccount;
+            $sell_account_val = is_object($this->sellAccount) ? $this->sellAccount->getKontonr() : $this->sellAccount;
+            $buy_eu_account_val = is_object($this->buyEuAccount) ? $this->buyEuAccount->getKontonr() : $this->buyEuAccount;
+            $sell_eu_account_val = is_object($this->sellEuAccount) ? $this->sellEuAccount->getKontonr() : $this->sellEuAccount;
+            $buy_outside_eu_account_val = is_object($this->buyOutsideEuAccount) ? $this->buyOutsideEuAccount->getKontonr() : $this->buyOutsideEuAccount;
+            $sell_outside_eu_account_val = is_object($this->sellOutsideEuAccount) ? $this->sellOutsideEuAccount->getKontonr() : $this->sellOutsideEuAccount;
             
             $qtxt = "UPDATE grupper SET 
-                beskrivelse = '$this->beskrivelse', 
-                kodenr = '$this->kodenr', 
-                fiscal_year = '$this->fiscal_year', 
-                box6 = '$this->omv_bet', 
-                box7 = '$this->moms_fri', 
-                box8 = '$this->lager', 
+                beskrivelse = '$this->description', 
+                kodenr = '$this->codeNo', 
+                fiscal_year = '$this->fiscalYear', 
+                box6 = '$this->reversePayment', 
+                box7 = '$this->taxFree', 
+                box8 = '$this->inventory', 
                 box9 = '$this->batch', 
                 box10 = '$this->operation', 
                 box3 = '$buy_account_val', 
@@ -153,13 +153,13 @@ class VareGruppeModel
             return explode("\t", $q)[0] == "0";
         } else {
             // Insert new item
-            $buy_account_val = is_object($this->buy_account) ? $this->buy_account->getKontonr() : $this->buy_account;
-            $sell_account_val = is_object($this->sell_account) ? $this->sell_account->getKontonr() : $this->sell_account;
-            $buy_eu_account_val = is_object($this->buy_eu_account) ? $this->buy_eu_account->getKontonr() : $this->buy_eu_account;
-            $sell_eu_account_val = is_object($this->sell_eu_account) ? $this->sell_eu_account->getKontonr() : $this->sell_eu_account;
-            $buy_outside_eu_account_val = is_object($this->buy_outside_eu_account) ? $this->buy_outside_eu_account->getKontonr() : $this->buy_outside_eu_account;
-            $sell_outside_eu_account_val = is_object($this->sell_outside_eu_account) ? $this->sell_outside_eu_account->getKontonr() : $this->sell_outside_eu_account;
-            
+            $buy_account_val = is_object($this->buyAccount) ? $this->buyAccount->getKontonr() : $this->buyAccount;
+            $sell_account_val = is_object($this->sellAccount) ? $this->sellAccount->getKontonr() : $this->sellAccount;
+            $buy_eu_account_val = is_object($this->buyEuAccount) ? $this->buyEuAccount->getKontonr() : $this->buyEuAccount;
+            $sell_eu_account_val = is_object($this->sellEuAccount) ? $this->sellEuAccount->getKontonr() : $this->sellEuAccount;
+            $buy_outside_eu_account_val = is_object($this->buyOutsideEuAccount) ? $this->buyOutsideEuAccount->getKontonr() : $this->buyOutsideEuAccount;
+            $sell_outside_eu_account_val = is_object($this->sellOutsideEuAccount) ? $this->sellOutsideEuAccount->getKontonr() : $this->sellOutsideEuAccount;
+
             $qtxt = "INSERT INTO grupper (
                 art, 
                 beskrivelse, 
@@ -178,12 +178,12 @@ class VareGruppeModel
                 box14
             ) VALUES (
                 'VG',
-                '$this->beskrivelse', 
-                '$this->kodenr', 
+                '$this->description', 
+                '$this->codeNo', 
                 '$regnaar', 
-                '$this->omv_bet', 
-                '$this->moms_fri', 
-                '$this->lager', 
+                '$this->reversePayment', 
+                '$this->taxFree', 
+                '$this->inventory', 
                 '$this->batch', 
                 '$this->operation', 
                 '$buy_account_val', 
@@ -287,21 +287,21 @@ class VareGruppeModel
     {
         return array(
             'id' => $this->id,
-            'kodenr' => $this->kodenr,
-            'beskrivelse' => $this->beskrivelse,
-            'fiscal_year' => $this->fiscal_year,
-            'omv_bet' => $this->omv_bet == "on",
-            'moms_fri' => $this->moms_fri == "on",
-            'lager' => $this->lager == "on",
+            'codeNo' => $this->codeNo,
+            'description' => $this->description,
+            'fiscalYear' => $this->fiscalYear,
+            'reversePayment' => $this->reversePayment == "on",
+            'taxFree' => $this->taxFree == "on",
+            'inventory' => $this->inventory == "on",
             'batch' => $this->batch == "on",
             'operation' => $this->operation == "on",
             'accounts' => array(
-                'buy_account' => ($this->buy_account !== NULL && is_object($this->buy_account)) ? $this->buy_account->toArray() : $this->buy_account,
-                'sell_account' => ($this->sell_account !== NULL && is_object($this->sell_account)) ? $this->sell_account->toArray() : $this->sell_account,
-                'buy_eu_account' => ($this->buy_eu_account !== NULL && is_object($this->buy_eu_account)) ? $this->buy_eu_account->toArray() : $this->buy_eu_account,
-                'sell_eu_account' => ($this->sell_eu_account !== NULL && is_object($this->sell_eu_account)) ? $this->sell_eu_account->toArray() : $this->sell_eu_account,
-                'buy_outside_eu_account' => ($this->buy_outside_eu_account !== NULL && is_object($this->buy_outside_eu_account)) ? $this->buy_outside_eu_account->toArray() : $this->buy_outside_eu_account,
-                'sell_outside_eu_account' => ($this->sell_outside_eu_account !== NULL && is_object($this->sell_outside_eu_account)) ? $this->sell_outside_eu_account->toArray() : $this->sell_outside_eu_account
+                'buyAccount' => ($this->buyAccount !== NULL && is_object($this->buyAccount)) ? $this->buyAccount->toArray() : $this->buyAccount,
+                'sellAccount' => ($this->sellAccount !== NULL && is_object($this->sellAccount)) ? $this->sellAccount->toArray() : $this->sellAccount,
+                'buyEuAccount' => ($this->buyEuAccount !== NULL && is_object($this->buyEuAccount)) ? $this->buyEuAccount->toArray() : $this->buyEuAccount,
+                'sellEuAccount' => ($this->sellEuAccount !== NULL && is_object($this->sellEuAccount)) ? $this->sellEuAccount->toArray() : $this->sellEuAccount,
+                'buyOutsideEuAccount' => ($this->buyOutsideEuAccount !== NULL && is_object($this->buyOutsideEuAccount)) ? $this->buyOutsideEuAccount->toArray() : $this->buyOutsideEuAccount,
+                'sellOutsideEuAccount' => ($this->sellOutsideEuAccount !== NULL && is_object($this->sellOutsideEuAccount)) ? $this->sellOutsideEuAccount->toArray() : $this->sellOutsideEuAccount
             )
         );
     }
@@ -311,29 +311,29 @@ class VareGruppeModel
     {
         return $this->id;
     }
-    public function getKodenr()
+    public function getCodeNo()
     {
-        return $this->kodenr;
+        return $this->codeNo;
     }
     public function getFiscalYear()
     {
-        return $this->fiscal_year;
+        return $this->fiscalYear;
     }
-    public function getBeskrivelse()
+    public function getDescription()
     {
-        return $this->beskrivelse;
+        return $this->description;
     }
-    public function getOmvBet()
+    public function getReversePayment()
     {
-        return $this->omv_bet;
+        return $this->reversePayment;
     }
-    public function getMomsFri()
+    public function getTaxFree()
     {
-        return $this->moms_fri;
+        return $this->taxFree;
     }
-    public function getLager()
+    public function getInventory()
     {
-        return $this->lager;
+        return $this->inventory;
     }
     public function getBatch()
     {
@@ -345,53 +345,53 @@ class VareGruppeModel
     }
     public function getBuyAccount()
     {
-        return $this->buy_account;
+        return $this->buyAccount;
     }
     public function getSellAccount()
     {
-        return $this->sell_account;
+        return $this->sellAccount;
     }
     public function getBuyEuAccount()
     {
-        return $this->buy_eu_account;
+        return $this->buyEuAccount;
     }
     public function getSellEuAccount()
     {
-        return $this->sell_eu_account;
+        return $this->sellEuAccount;
     }
     public function getBuyOutsideEuAccount()
     {
-        return $this->buy_outside_eu_account;
+        return $this->buyOutsideEuAccount;
     }
     public function getSellOutsideEuAccount()
     {
-        return $this->sell_outside_eu_account;
+        return $this->sellOutsideEuAccount;
     }
 
     // Setter methods
-    public function setKodenr($kodenr)
+    public function setCodeNo($codeNo)
     {
-        $this->kodenr = $kodenr;
+        $this->codeNo = $codeNo;
     }
-    public function setFiscalYear($fiscal_year)
+    public function setFiscalYear($fiscalYear)
     {
-        $this->fiscal_year = $fiscal_year;
+        $this->fiscalYear = $fiscalYear;
     }
-    public function setBeskrivelse($beskrivelse)
+    public function setDescription($description)
     {
-        $this->beskrivelse = $beskrivelse;
+        $this->description = $description;
     }
-    public function setOmvBet($omv_bet)
+    public function setReversePayment($reversePayment)
     {
-        $this->omv_bet = $omv_bet;
+        $this->reversePayment = $reversePayment;
     }
-    public function setMomsFri($moms_fri)
+    public function setTaxFree($taxFree)
     {
-        $this->moms_fri = $moms_fri;
+        $this->taxFree = $taxFree;
     }
-    public function setLager($lager)
+    public function setInventory($inventory)
     {
-        $this->lager = $lager;
+        $this->inventory = $inventory;
     }
     public function setBatch($batch)
     {
@@ -401,64 +401,64 @@ class VareGruppeModel
     {
         $this->operation = $operation;
     }
-    public function setBuyAccount($buy_account)
+    public function setBuyAccount($buyAccount)
     {
-        if (is_numeric($buy_account) && $buy_account != "") {
-            $this->buy_account = new AccountModel($id = NULL, $kontonr = $buy_account);
-        } elseif (is_object($buy_account)) {
-            $this->buy_account = $buy_account;
+        if (is_numeric($buyAccount) && $buyAccount != "") {
+            $this->buyAccount = new AccountModel($id = NULL, $kontonr = $buyAccount);
+        } elseif (is_object($buyAccount)) {
+            $this->buyAccount = $buyAccount;
         } else {
-            $this->buy_account = NULL;
+            $this->buyAccount = NULL;
         }
     }
-    public function setSellAccount($sell_account)
+    public function setSellAccount($sellAccount)
     {
-        if (is_numeric($sell_account) && $sell_account != "") {
-            $this->sell_account = new AccountModel($id = NULL, $kontonr = $sell_account);
-        } elseif (is_object($sell_account)) {
-            $this->sell_account = $sell_account;
+        if (is_numeric($sellAccount) && $sellAccount != "") {
+            $this->sellAccount = new AccountModel($id = NULL, $kontonr = $sellAccount);
+        } elseif (is_object($sellAccount)) {
+            $this->sellAccount = $sellAccount;
         } else {
-            $this->sell_account = NULL;
+            $this->sellAccount = NULL;
         }
     }
-    public function setBuyEuAccount($buy_eu_account)
+    public function setBuyEuAccount($buyEuAccount)
     {
-        if (is_numeric($buy_eu_account) && $buy_eu_account != "") {
-            $this->buy_eu_account = new AccountModel($id = NULL, $kontonr = $buy_eu_account);
-        } elseif (is_object($buy_eu_account)) {
-            $this->buy_eu_account = $buy_eu_account;
+        if (is_numeric($buyEuAccount) && $buyEuAccount != "") {
+            $this->buyEuAccount = new AccountModel($id = NULL, $kontonr = $buyEuAccount);
+        } elseif (is_object($buyEuAccount)) {
+            $this->buyEuAccount = $buyEuAccount;
         } else {
-            $this->buy_eu_account = NULL;
+            $this->buyEuAccount = NULL;
         }
     }
-    public function setSellEuAccount($sell_eu_account)
+    public function setSellEuAccount($sellEuAccount)
     {
-        if (is_numeric($sell_eu_account) && $sell_eu_account != "") {
-            $this->sell_eu_account = new AccountModel($id = NULL, $kontonr = $sell_eu_account);
-        } elseif (is_object($sell_eu_account)) {
-            $this->sell_eu_account = $sell_eu_account;
+        if (is_numeric($sellEuAccount) && $sellEuAccount != "") {
+            $this->sellEuAccount = new AccountModel($id = NULL, $kontonr = $sellEuAccount);
+        } elseif (is_object($sellEuAccount)) {
+            $this->sellEuAccount = $sellEuAccount;
         } else {
-            $this->sell_eu_account = NULL;
+            $this->sellEuAccount = NULL;
         }
     }
-    public function setBuyOutsideEuAccount($buy_outside_eu_account)
+    public function setBuyOutsideEuAccount($buyOutsideEuAccount)
     {
-        if (is_numeric($buy_outside_eu_account) && $buy_outside_eu_account != "") {
-            $this->buy_outside_eu_account = new AccountModel($id = NULL, $kontonr = $buy_outside_eu_account);
-        } elseif (is_object($buy_outside_eu_account)) {
-            $this->buy_outside_eu_account = $buy_outside_eu_account;
+        if (is_numeric($buyOutsideEuAccount) && $buyOutsideEuAccount != "") {
+            $this->buyOutsideEuAccount = new AccountModel($id = NULL, $kontonr = $buyOutsideEuAccount);
+        } elseif (is_object($buyOutsideEuAccount)) {
+            $this->buyOutsideEuAccount = $buyOutsideEuAccount;
         } else {
-            $this->buy_outside_eu_account = NULL;
+            $this->buyOutsideEuAccount = NULL;
         }
     }
-    public function setSellOutsideEuAccount($sell_outside_eu_account)
+    public function setSellOutsideEuAccount($sellOutsideEuAccount)
     {
-        if (is_numeric($sell_outside_eu_account) && $sell_outside_eu_account != "") {
-            $this->sell_outside_eu_account = new AccountModel($id = NULL, $kontonr = $sell_outside_eu_account);
-        } elseif (is_object($sell_outside_eu_account)) {
-            $this->sell_outside_eu_account = $sell_outside_eu_account;
+        if (is_numeric($sellOutsideEuAccount) && $sellOutsideEuAccount != "") {
+            $this->sellOutsideEuAccount = new AccountModel($id = NULL, $kontonr = $sellOutsideEuAccount);
+        } elseif (is_object($sellOutsideEuAccount)) {
+            $this->sellOutsideEuAccount = $sellOutsideEuAccount;
         } else {
-            $this->sell_outside_eu_account = NULL;
+            $this->sellOutsideEuAccount = NULL;
         }
     }
 }

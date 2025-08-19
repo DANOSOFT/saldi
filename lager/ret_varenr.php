@@ -57,7 +57,7 @@ print "<tr><td>\n";
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=100% valign = \"center\" align = \"center\"><tbody>\n";
 
 if (($nyt_varenr) && ($nyt_varenr!=$varenr)) {
-	if ($r=db_fetch_array(db_select("select id from varer where varenr = '$nyt_varenr' or stregkode = '$nyt_varenr'",__FILE__ . " linje " . __LINE__))) {
+	if ($r=db_fetch_array(db_select("select id from varer where varenr = '$nyt_varenr' or stregkode = '$nyt_varenr' or varenr_alias = '$nyt_varenr'",__FILE__ . " linje " . __LINE__))) {
 		print tekstboks('Varenummer: $nyt_varenr er i brug, varenummer ikke &aelig;ndret');
 	}	elseif (substr($nyt_varenr,0,1)=='=') {
 		$fletvnr=substr($nyt_varenr,1); 

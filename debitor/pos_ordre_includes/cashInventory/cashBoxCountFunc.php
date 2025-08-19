@@ -4,31 +4,33 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- debitor/pos_ordre_includes/cashInventory/cashBoxCountFunc.php ---------- lap 3.7.9----2019.05.09-------
-// LICENS
+// --- debitor/pos_ordre_includes/cashInventory/cashBoxCountFunc.php --- rel 4.1.1----2025.08.13 ---
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// En dansk oversaettelse af licensen kan laeses her:
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2019 saldi.dk aps
+// Copyright (c) 2003-2025 Saldi.dk ApS) 2004-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // LN 20190310 LN Set the function kasseoptalling here
+// 20250813 PHr Added findtekst 440 
 
 function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,$kr_50,$kr_100,$kr_200,$kr_500,$kr_1000,$kr_andet,$optval, $fiveRappen = 0, $tenRappen = 0, $twentyRappen = 0) {
+	echo "<!-- function kasseoptalling in cashBoxCountFunc.php Begin -->\n";
+	
+	
 	global $bordnr;
 	global $bruger_id;
 	global $db;
@@ -197,12 +199,14 @@ function kasseoptalling ($kasse,$optalt,$ore_50,$kr_1,$kr_2,$kr_5,$kr_10,$kr_20,
         $acceptPrint = acceptPrint();
 		print "<tr><td align='center' colspan='3' title='$title'><input $disabled type='submit' name='optael' value=\"$calcTxtArr[accept]\" onclick=\"javascript:return confirm('$acceptPrint')\"></td></tr>\n";	}
 	if ($kontosum) {
-		print "<tr><td colspan=\"2\"><b>Konto</b></td><td align=\"right\"><b>".dkdecimal($kontosum,2)."</b> DKK</td></tr>\n";
+		print "<tr><td colspan=\"2\"><b>".findtekst('440|Konto', $sprog_id)."</b></td><td align=\"right\"><b>".dkdecimal($kontosum,2)."</b> DKK</td></tr>\n";
 		fwrite($log,"Konto $kontosum\n");
 	}
 	setCreditCards($kontkonto, $kortnavn, $change_cardvalue, $kortsum, $ny_kortsum, $ifs, $kortdiff, $omsatning, $log, $id);
 	print "</tr></tbody></table>\n";
+	echo "<!-- function kasseoptalling in cashBoxCountFunc.php End -->\n";
 	exit;
+
 }
 
 

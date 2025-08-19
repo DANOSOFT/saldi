@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const tds = row.querySelectorAll('td');
       if (tds.length <= 1) return;
       if (row.offsetParent === null) return;
-
+      if (row.classList.contains('noHover')) return;
+      
       let hasLabel = false;
       let skip = false;
 

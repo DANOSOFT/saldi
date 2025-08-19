@@ -241,10 +241,9 @@ if ($menu == 'T') {
 		print "</td>";
 	}
 	print "</tbody></table></td>";
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Hjælp  
-		</button></td>";
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	print "<td width=10% style='$buttonStyle'><a href=ordre.php?returside=ordreliste.php>
 		   <button style='$buttonStyle; width: 100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td>";
 	print "</tbody></table>";
@@ -292,11 +291,11 @@ if ($menu == 'T') {
 $steps = array();
 $steps[] = array(
 	"selector" => "#ordrer",
-	"content" => "Her ser du en liste af alle dine ordrer."
+	"content" => findtekst('2610|Her ser du en liste af alle dine ordrer', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => "#ny",
-	"content" => "For at oprette en ny ordre, klik her."
+	"content" => findtekst('2611|For at oprette en ny ordre, klik her', $sprog_id)."."
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
@@ -308,7 +307,7 @@ print " </td></tr>\n<tr><td align=center valign=top>";
 if ($valg != 'skanBilag') {
 	print "<table cellpadding=1 cellspacing=1 border=0 width=100% valign = top class='dataTable'>";
 	print "<tbody>";
-	print "	<tr>";
+	print "<tr>";
 	print "<td align=right><b><a href='ordreliste.php?nysort=ordrenr&sort=$sort&valg=$valg$hreftext' title='Ordrenummer'>" . findtekst('500|Ordrenr.', $sprog_id) . "</b></td>";
 	if ($valg == 'faktura') {
 		print " <td align=right width=50><b><a href='ordreliste.php?nysort=modtagelse&sort=$sort&valg=$valg$hreftext' title='Modtagelsesnummer'>" . findtekst('940|Modt.nr.', $sprog_id) . "</b></td>";

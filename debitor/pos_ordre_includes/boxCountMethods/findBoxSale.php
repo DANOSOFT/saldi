@@ -1,10 +1,10 @@
 <?php
+// PHR Changed DKK to $baseCurrency
 function findBoxSale ($kasse,$optalt,$valuta) {
 	echo "<!-- function findBoxSale begin -->"; 
-  	global $db,$regnaar;
+  	global $baseCurrency,$db,$regnaar;
 	global $sprog_id,$straksbogfor;
 	global $vis_saet;
-	
 	$retur=0;
 	$dd=date("Y-m-d");
 	$r=db_fetch_array(db_select("select * from grupper where art = 'RA' and kodenr = '$regnaar'",__FILE__ . " linje " . __LINE__));
@@ -31,7 +31,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 	$kortkonto=explode(chr(9),$kortkonti);
 	$straksbogfor=$r['box9'];
 	$o_liste=NULL; #20150519
-	if ($valuta!='DKK') {
+	if ($valuta!=$baseCurrency) {
 		$kortantal=0;
 		$kortnavn=array();
 	}
@@ -69,7 +69,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 		}
 		$kortsum[$i] = 0;
 	}
-	if ($valuta!='DKK') {
+	if ($valuta!=$baseCurrency) {
 		$r = db_fetch_array(db_select("select * from grupper where art = 'VK' and box1='$valuta'",__FILE__ . " linje " . __LINE__));
 		$kassekonti=explode(chr(9),$r['box4']);
 		if (!$kassekonti[$kasse-1]) {
@@ -185,9 +185,9 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 				}
 #					if (strtolower($r['betalingstype'])=='konto') $kontosalg.=$oid[$b].chr(9);
 				if (strtolower($r['betalingstype'])=='konto') $kontosum+=$r['amount'];
-				elseif ($valuta=='DKK' && $r['betalingstype']=='Kontant' && ($r['valuta'] == $valuta || $r['valuta'] == '')) {
+				elseif ($valuta==$baseCurrency && $r['betalingstype']=='Kontant' && ($r['valuta'] == $valuta || $r['valuta'] == '')) {
 					$tilgang+=$r['amount'];
-				} elseif ($valuta!='DKK' && $r['betalingstype']=='Kontant' && $r['valuta'] == $valuta) {
+				} elseif ($valuta!=$baseCurrency && $r['betalingstype']=='Kontant' && $r['valuta'] == $valuta) {
 					$tilgang+=$r['amount'];
 				} else {
 					if (!in_array(strtolower($betalingstype),$l_cardName)) {
@@ -248,7 +248,7 @@ function findBoxSale ($kasse,$optalt,$valuta) {
 			$vatAmounts = $vatAmount[$i];
 		}
 	}
-	if ($valuta=='DKK') $tilgang-=$retur;
+	if ($valuta==$baseCurrency) $tilgang-=$retur;
 	}
 	if ($straksbogfor && $kortantal) { #20150121b
 		for ($x=0;$x<$kortantal;$x++) {

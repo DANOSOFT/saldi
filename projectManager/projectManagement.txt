@@ -1,0 +1,74 @@
+user table is called brugere and i setup like this:
+Column	Type	Comment
+id	integer Auto Increment [nextval('brugere_id_seq')]	
+brugernavn	text NULL	
+kode	text NULL	
+email	text NULL	
+twofactor	boolean NULL [false]	
+tmp_kode	text NULL	
+status	boolean NULL	
+regnskabsaar	integer NULL	
+rettigheder	text NULL	
+ansat_id	integer NULL	
+sprog_id	integer NULL	
+ip_address	character varying(45) NULL
+
+PROJECT MANAGEMENT SYSTEM INSTALLED
+===================================
+
+I've created a comprehensive project management system with the following files:
+
+1. project_management_schema.sql - Complete database schema
+   - Projects table for organizing work
+   - Issues table for tasks, bugs, features
+   - Sprints for agile development
+   - Teams and collaboration features
+   - Time tracking and work logs
+   - Notifications system
+   - Custom fields support
+
+2. sample_project_data.sql - Sample data for testing
+   - Example projects (ERP, Portal, Mobile)
+   - Sample issues and tasks
+   - Work logs and comments
+   - Team assignments
+
+3. includes/ProjectManager.php - PHP helper class
+   - Easy API for project management
+   - Issue creation and updates
+   - Time tracking
+   - Notifications
+   - Statistics and reporting
+
+4. PROJECT_MANAGEMENT_README.md - Complete documentation
+   - Schema explanation
+   - Usage examples
+   - Integration guide
+
+5. install_project_management.php - Web-based installer
+   - Automated installation
+   - Database verification
+   - Sample data option
+
+CORE FEATURES IMPLEMENTED:
+- Issue tracking (bugs, features, tasks, stories, epics)
+- Agile project management (sprints, story points, boards)
+- Team collaboration (comments, attachments, notifications)
+- Time tracking and work logs
+- Project organization and member management
+- Customizable workflows and statuses
+- Activity logging and audit trails
+- Real-time notifications
+- Dashboard and reporting capabilities
+
+INTEGRATION:
+- Uses existing 'brugere' table for users
+- Compatible with PostgreSQL database
+- Follows existing code patterns
+- No breaking changes to current system
+
+TO INSTALL:
+1. Visit: /install_project_management.php
+2. Run the installation
+3. Start creating projects and issues
+

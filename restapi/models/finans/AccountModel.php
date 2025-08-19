@@ -184,7 +184,7 @@ class AccountModel {
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             
             $query = db_select("SELECT id FROM kontoplan WHERE 
-                kontonr = '$this->kontonr' AND regnskabsaar = '$this->regnskabsaar'", 
+                kontonr = '$this->kontonr' AND regnskabsaar = '$regnaar'", 
                 __FILE__ . " linje " . __LINE__);
             if(db_num_rows($query) > 0) {
                 $r = db_fetch_array($query);

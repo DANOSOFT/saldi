@@ -34,7 +34,7 @@ function userSettings() {
 	elseif (!$fgcolor) $fgcolor = '#eeeef0';
 	$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $buttonColor = $r['var_value'];
-	else $buttonColor = '#009578';
+	else $buttonColor = '#114691';
 	$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $buttonTxtColor = $r['var_value'];
 	else $buttonTxtColor = '#ffffff';
@@ -54,34 +54,111 @@ function userSettings() {
 		print "<tr><td title='".findtekst(523,$sprog_id)."'><!--Tekst 523-->Anvend sidemenu<!--Tekst 522--></td><td><input class='inputbox' type='radio' name='menu' value='sidemenu' $sidemenu></td></tr>";
 #	}	else $gl_menu='checked';
 	print "<tr><td title='".findtekst(525,$sprog_id)."'><!--Tekst 525-->".findtekst(524,$sprog_id)."<!--Tekst 524--></td><td><input class='inputbox' type='radio' name='menu'  value='gl_menu' $gl_menu></td></tr>";
-} else print "<input type = 'hidden' name = 'menu' value='gl_menu'>";
+} else print "<input type = 'hidden' name = 'menu' value='$menu'>";
 	print "<tr><td title='".findtekst(209,$sprog_id)."'>".findtekst(210,$sprog_id)."</td><td colspan='4'><input class='inputbox' type='text' style='width:600px' name='jsvars' value='$jsvars'></td></tr>";
 	if ($menu=='T') {
 		print "<input type='hidden' name='bgcolor' value='".substr($bgcolor,1,6)."'>";
 		print "<input type='hidden' name='nuance' value='$fgcolor'>\n";
 	}
+
 	print "<tr><td title='".findtekst(318,$sprog_id)."'>".findtekst(317,$sprog_id)."</td>";
-	print "<td colspan='4'>
-	<input class='inputbox' type='text' style='width:100px' name='bgcolor' value='".substr($bgcolor,1,6)."'>
-	</td></tr>";
+print "<td colspan='4'>
+<input class='inputbox' type='text' style='width:100px' name='bgcolor' id='bgcolor_text' value='".substr($bgcolor,1,6)."'>
+<input type='color' id='bgcolor_color' value='$bgcolor' style='width:50px;height:30px;margin-left:10px;'>
+</td></tr>";
 
-	print "<tr><td title='".findtekst(416,$sprog_id)."'>".findtekst(415,$sprog_id)."</td>";
-	print "<td colspan='4'>
-	<input class='inputbox' type='text' style='width:100px' name='fgcolor' value='".substr($fgcolor,1,6)."'>
-	</td></tr>";
+print "<tr><td title='".findtekst(416,$sprog_id)."'>".findtekst(415,$sprog_id)."</td>";
+print "<td colspan='4'>
+<input class='inputbox' type='text' style='width:100px' name='fgcolor' id='fgcolor_text' value='".substr($fgcolor,1,6)."'>
+<input type='color' id='fgcolor_color' value='$fgcolor' style='width:50px;height:30px;margin-left:10px;'>
+</td></tr>";
 
-	print "<tr><td title='textcolor'>Farve på Knapper</td>";
-	print "<td colspan='4'>
-	<input class='inputbox' type='text' style='width:100px;background-color:$buttonColor;color:$buttonTxtColor;'
-	name='buttonColor' value='".substr($buttonColor,1,6)."'>
-	</td></tr>";
+print "<tr><td title='textcolor'>Farve på Knapper</td>";
+print "<td colspan='4'>
+<input class='inputbox' type='text' style='width:100px;background-color:$buttonColor;color:$buttonTxtColor;'
+name='buttonColor' id='buttonColor_text' value='".substr($buttonColor,0,6)."'>
+<input type='color' id='buttonColor_color' value='#".substr($buttonColor,0,6)."' style='width:50px;height:30px;margin-left:10px;'>
+</td></tr>";
 
-	print "<tr><td title='textcolor'>Tekst farve på Knapper</td>";
-	print "<td colspan='4'>
-	<input class='inputbox' type='text' style='width:100px;background-color:$buttonColor;color:$buttonTxtColor;'
-	name='buttonTxtColor=' value='".substr($buttonTxtColor,1,6)."'>
-	</td></tr>";
+print "<tr><td title='textcolor'>Tekst farve på Knapper</td>";
+print "<td colspan='4'>
+<input class='inputbox' type='text' style='width:100px;background-color:$buttonColor;color:$buttonTxtColor;'
+name='buttonTxtColor' id='buttonTxtColor_text' value='".substr($buttonTxtColor,0,6)."'>
+<input type='color' id='buttonTxtColor_color' value='#$buttonTxtColor' style='width:50px;height:30px;margin-left:10px;'>
+</td></tr>";
+?>
+<script>
+// Prevent form submission on Enter key in color inputs
+function preventEnterSubmit(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    }
+}
 
+// Add event listeners to all color inputs
+document.addEventListener('DOMContentLoaded', function() {
+    const colorInputs = document.querySelectorAll('input[type="color"]');
+    colorInputs.forEach(function(input) {
+        input.addEventListener('keydown', preventEnterSubmit);
+    });
+    
+    const textInputs = document.querySelectorAll('#bgcolor_text, #fgcolor_text, #buttonColor_text, #buttonTxtColor_text');
+    textInputs.forEach(function(input) {
+        input.addEventListener('keydown', preventEnterSubmit);
+    });
+});
+
+// Sync color picker with text input for bgcolor
+document.getElementById('bgcolor_color').addEventListener('change', function() {
+    document.getElementById('bgcolor_text').value = this.value.substring(1);
+});
+
+document.getElementById('bgcolor_text').addEventListener('input', function() {
+    let value = this.value;
+    if (value.length === 6 && /^[0-9A-Fa-f]{6}$/.test(value)) {
+        document.getElementById('bgcolor_color').value = '#' + value;
+    }
+});
+
+// Sync color picker with text input for fgcolor
+document.getElementById('fgcolor_color').addEventListener('change', function() {
+    document.getElementById('fgcolor_text').value = this.value.substring(1);
+});
+
+document.getElementById('fgcolor_text').addEventListener('input', function() {
+    let value = this.value;
+    if (value.length === 6 && /^[0-9A-Fa-f]{6}$/.test(value)) {
+        document.getElementById('fgcolor_color').value = '#' + value;
+    }
+});
+
+// Sync color picker with text input for buttonColor
+document.getElementById('buttonColor_color').addEventListener('change', function() {
+    document.getElementById('buttonColor_text').value = this.value.substring(1);
+});
+
+document.getElementById('buttonColor_text').addEventListener('input', function() {
+    let value = this.value;
+    if (value.length === 6 && /^[0-9A-Fa-f]{6}$/.test(value)) {
+        document.getElementById('buttonColor_color').value = '#' + value;
+    }
+});
+
+// Sync color picker with text input for buttonTxtColor
+document.getElementById('buttonTxtColor_color').addEventListener('change', function() {
+    document.getElementById('buttonTxtColor_text').value = this.value.substring(1);
+});
+
+document.getElementById('buttonTxtColor_text').addEventListener('input', function() {
+    let value = this.value;
+    if (value.length === 6 && /^[0-9A-Fa-f]{6}$/.test(value)) {
+        document.getElementById('buttonTxtColor_color').value = '#' + value;
+    }
+});
+</script>
+<?php
 /*
 		<select name='nuance' title='".findtekst(417,$sprog_id)."'>\n";
 	if ( ! $fgcolor ) {

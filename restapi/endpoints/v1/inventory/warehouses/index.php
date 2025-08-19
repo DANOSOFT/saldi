@@ -27,14 +27,14 @@ class WarehousesEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
-                $vare_id = $_GET['vare_id'] ?? null;
-                
+                $vare_id = $_GET['productId'] ?? null;
+                $nr = $_GET["inventory"] ?? 1;
                 if ($field && $value) {
                     // Search by specific field
                     $warehouses = LagerModel::findBy($field, $value);
                 } else {
                     // Get all warehouses
-                    $warehouses = LagerModel::getAllItems($vare_id, $orderBy, $orderDirection);
+                    $warehouses = LagerModel::getAllItems($vare_id, $orderBy, $orderDirection, $nr);
                 }
                 
                 $items = [];
@@ -52,15 +52,14 @@ class WarehousesEndpoint extends BaseEndpoint
     {
         try {
             // Validate required fields
-            $this->validateData($data, ['beskrivelse', 'nr']);
-            
+            $this->validateData($data, ['description', 'number']);
             $warehouse = new LagerModel();
-            
+
             // Set properties
-            if (isset($data->beskrivelse)) $warehouse->setBeskrivelse($data->beskrivelse);
-            if (isset($data->nr)) $warehouse->setNr($data->nr);
+            if (isset($data->description)) $warehouse->setDescription($data->description);
+            if (isset($data->number)) $warehouse->setNumber($data->number);
             if (isset($data->fiscal_year)) $warehouse->setFiscalYear($data->fiscal_year);
-            
+
             $result = $warehouse->save();
             
             if ($result === true) {
@@ -84,14 +83,13 @@ class WarehousesEndpoint extends BaseEndpoint
                 $this->sendResponse(false, null, 'Warehouse not found', 404);
                 return;
             }
-            
             // Update properties
-            if (isset($data->beskrivelse)) $warehouse->setBeskrivelse($data->beskrivelse);
-            if (isset($data->nr)) $warehouse->setNr($data->nr);
+            if (isset($data->description)) $warehouse->setDescription($data->description);
+            if (isset($data->number)) $warehouse->setNumber($data->number);
             if (isset($data->fiscal_year)) $warehouse->setFiscalYear($data->fiscal_year);
-            
+
             $result = $warehouse->save();
-            
+
             if ($result === true) {
                 $this->sendResponse(true, $warehouse->toArray(), 'Warehouse updated successfully');
             } else {
@@ -104,7 +102,12 @@ class WarehousesEndpoint extends BaseEndpoint
 
     protected function handleDelete($data)
     {
-        try {
+
+        // no deletion for warehouses
+        $this->sendResponse(false, null, 'DELETE method is not supported for Warehouses', 405);
+        return;
+
+        /* try {
             // Validate required fields
             $this->validateData($data, ['id']);
             
@@ -123,7 +126,7 @@ class WarehousesEndpoint extends BaseEndpoint
             }
         } catch (Exception $e) {
             $this->handleError($e);
-        }
+        } */
     }
 }
 

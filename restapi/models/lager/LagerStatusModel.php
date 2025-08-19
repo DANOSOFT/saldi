@@ -3,11 +3,15 @@
 class LagerStatusModel {
     // Private properties matching database columns
     private $id;
-    private $lager;
-    private $vare_id;
-    private $beholdning;
-    private $lok;
-    private $variant_id;
+    private $inventory;
+    private $productId;
+    private $quantity;
+    private $location;
+    private $location2;
+    private $location3;
+    private $location4;
+    private $location5;
+    private $variantId;
 
     /**
      * Constructor - can create an empty LagerStatus or load an existing one
@@ -35,11 +39,15 @@ class LagerStatusModel {
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($r = db_fetch_array($q)) {
             $this->id = (int)$r['id'];
-            $this->lager = (int)$r['lager'];
-            $this->vare_id = (int)$r['vare_id'];
-            $this->beholdning = (float)$r['beholdning'];
-            $this->lok = $r['lok1'];
-            $this->variant_id = (int)$r['variant_id'];
+            $this->inventory = (int)$r['lager'];
+            $this->productId = (int)$r['vare_id'];
+            $this->quantity = (float)$r['beholdning'];
+            $this->location = $r['lok1'];
+            $this->location2 = $r['lok2'] ?? '';
+            $this->location3 = $r['lok3'] ?? '';
+            $this->location4 = $r['lok4'] ?? '';
+            $this->location5 = $r['lok5'] ?? '';
+            $this->variantId = (int)$r['variant_id'];
             return true;
         }
         return false;
@@ -57,11 +65,15 @@ class LagerStatusModel {
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         if ($r = db_fetch_array($q)) {
             $this->id = (int)$r['id'];
-            $this->lager = (int)$r['lager'];
-            $this->vare_id = (int)$r['vare_id'];
-            $this->beholdning = (float)$r['beholdning'];
-            $this->lok = $r['lok1'];
-            $this->variant_id = (int)$r['variant_id'];
+            $this->inventory = (int)$r['lager'];
+            $this->productId = (int)$r['vare_id'];
+            $this->quantity = (float)$r['beholdning'];
+            $this->location = $r['lok1'];
+            $this->location2 = $r['lok2'] ?? '';
+            $this->location3 = $r['lok3'] ?? '';
+            $this->location4 = $r['lok4'] ?? '';
+            $this->location5 = $r['lok5'] ?? '';
+            $this->variantId = (int)$r['variant_id'];
             return true;
         }
         return false;
@@ -74,43 +86,61 @@ class LagerStatusModel {
      */
     public function save() {
         // Validate required fields
-        if (empty($this->lager) || empty($this->vare_id) || !is_numeric($this->beholdning)) {
-            throw new Exception("Lager, vare_id, and beholdning are required fields.");
+        if (!isset($this->inventory) || empty($this->productId) || !is_numeric($this->quantity)) {
+            throw new Exception("Inventory, productId, and quantity are required fields.");
         }
 
-        // Ensure lok is a string and variant_id is numeric
-        $this->lok = isset($this->lok) ? $this->lok : '';
-        $this->variant_id = isset($this->variant_id) ? (int)$this->variant_id : 0;
-        $this->beholdning = isset($this->beholdning) ? (float)$this->beholdning : 0.0;
+        // Ensure location is a string and variantId is numeric
+        $this->location = isset($this->location) ? $this->location : '';
+        $this->location2 = isset($this->location2) ? $this->location2 : '';
+        $this->location3 = isset($this->location3) ? $this->location3 : '';
+        $this->location4 = isset($this->location4) ? $this->location4 : '';
+        $this->location5 = isset($this->location5) ? $this->location5 : '';
+        $this->variantId = isset($this->variantId) ? (int)$this->variantId : 0;
+        $this->quantity = isset($this->quantity) ? (float)$this->quantity : 0.0;
 
         // Prepare SQL query based on whether this is an update or insert
-        $this->lager = (int)$this->lager;
-        $this->vare_id = (int)$this->vare_id;
+        $this->inventory = (int)$this->inventory;
+        $this->productId = (int)$this->productId;
 
         // If ID is set, we are updating; otherwise, we are inserting
         if ($this->id) {
             // Update existing record
             $qtxt = "UPDATE lagerstatus SET 
-                lager = '$this->lager', 
-                vare_id = '$this->vare_id', 
-                beholdning = '$this->beholdning', 
-                lok1 = '$this->lok', 
-                variant_id = '$this->variant_id'
+                lager = '$this->inventory', 
+                vare_id = '$this->productId', 
+                beholdning = '$this->quantity', 
+                lok1 = '$this->location',
+                lok2 = '$this->location2',
+                lok3 = '$this->location3',
+                lok4 = '$this->location4',
+                lok5 = '$this->location5',
+                variant_id = '$this->variantId'
                 WHERE id = $this->id";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             return explode("\t", $q)[0] == "0";
         } else {
+            // Check if productId and lager already have a record
+            if ($this->productId) {
+                $existing = LagerStatusModel::findBy('vare_id', $this->productId);
+                foreach ($existing as $item) {
+                    if ($item->getInventory() == $this->inventory && $item->getVariantId() == $this->variantId) {
+                        // give error message
+                        return "Record with productId and inventory already exists.";
+                    }
+                }
+            }
             // Insert new record
             $qtxt = "INSERT INTO lagerstatus (
-                lager, vare_id, beholdning, lok1, variant_id
+                lager, vare_id, beholdning, lok1, lok2, lok3, lok4, lok5, variant_id
             ) VALUES (
-                '$this->lager', '$this->vare_id', '$this->beholdning', 
-                '$this->lok', '$this->variant_id'
+                '$this->inventory', '$this->productId', '$this->quantity', 
+                '$this->location', '$this->location2', '$this->location3', '$this->location4', '$this->location5', '$this->variantId'
             )";
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             $query = db_select("SELECT id FROM lagerstatus WHERE 
-                lager = '$this->lager' AND vare_id = '$this->vare_id' 
-                AND lok1 = '$this->lok' AND variant_id = '$this->variant_id' 
+                lager = '$this->inventory' AND vare_id = '$this->productId' 
+                AND lok1 = '$this->location' AND variant_id = '$this->variantId' 
                 ORDER BY id DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
             if (db_num_rows($query) > 0) {
                 $r = db_fetch_array($query);
@@ -182,6 +212,7 @@ class LagerStatusModel {
         
         $items = [];
         while ($r = db_fetch_array($q)) {
+            
             $items[] = new LagerStatusModel($r['id']);
         }
         return $items;
@@ -194,7 +225,7 @@ class LagerStatusModel {
      * @return bool Success status
      */
     public function updateQuantity($quantity) {
-        $this->beholdning = $quantity;
+        $this->quantity = $quantity;
         return $this->save();
     }
 
@@ -205,7 +236,7 @@ class LagerStatusModel {
      * @return bool Success status
      */
     public function adjustQuantity($amount) {
-        $this->beholdning += $amount;
+        $this->quantity += $amount;
         return $this->save();
     }
 
@@ -217,26 +248,38 @@ class LagerStatusModel {
     public function toArray() {
         return array(
             'id' => $this->id,
-            'lager' => $this->lager,
-            'vare_id' => $this->vare_id,
-            'beholdning' => $this->beholdning,
-            'lok' => $this->lok,
-            'variant_id' => $this->variant_id
+            'inventory' => $this->inventory,
+            'productId' => $this->productId,
+            'quantity' => $this->quantity,
+            'location' => $this->location,
+            'location2' => $this->location2,
+            'location3' => $this->location3,
+            'location4' => $this->location4,
+            'location5' => $this->location5,
+            'variantId' => $this->variantId
         );
     }
 
     // Getter methods
     public function getId() { return $this->id; }
-    public function getLager() { return $this->lager; }
-    public function getVareId() { return $this->vare_id; }
-    public function getBeholdning() { return $this->beholdning; }
-    public function getLok() { return $this->lok; }
-    public function getVariantId() { return $this->variant_id; }
+    public function getInventory() { return $this->inventory; }
+    public function getProductId() { return $this->productId; }
+    public function getQuantity() { return $this->quantity; }
+    public function getLocation() { return $this->location; }
+    public function getLocation2() { return $this->location2; }
+    public function getLocation3() { return $this->location3; }
+    public function getLocation4() { return $this->location4; }
+    public function getLocation5() { return $this->location5; }
+    public function getVariantId() { return $this->variantId; }
 
     // Setter methods
-    public function setLager($lager) { $this->lager = $lager; }
-    public function setVareId($vare_id) { $this->vare_id = $vare_id; }
-    public function setBeholdning($beholdning) { $this->beholdning = $beholdning; }
-    public function setLok($lok) { $this->lok = $lok; }
-    public function setVariantId($variant_id) { $this->variant_id = $variant_id; }
+    public function setInventory($inventory) { $this->inventory = $inventory; }
+    public function setProductId($productId) { $this->productId = $productId; }
+    public function setQuantity($quantity) { $this->quantity = $quantity; }
+    public function setLocation($location) { $this->location = $location; }
+    public function setLocation2($location2) { $this->location2 = $location2; }
+    public function setLocation3($location3) { $this->location3 = $location3; }
+    public function setLocation4($location4) { $this->location4 = $location4; }
+    public function setLocation5($location5) { $this->location5 = $location5; }
+    public function setVariantId($variantId) { $this->variantId = $variantId; }
 }

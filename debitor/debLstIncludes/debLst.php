@@ -118,7 +118,7 @@ for($i=0;$i<$dgcount;$i++) {
 				$linjetext="";
 				if ($linjebg!=$bgcolor) {$linjebg=$bgcolor; $color='#000000';}
 				else {$linjebg=$bgcolor5; $color='#000000';}
-				print "<tr bgcolor=\"$linjebg\"><td></td>\n";
+				print "<tr bgcolor=\"$linjebg\" onclick='window.location.href=\"".$valg."kort.php?tjek=$row[id]&id=$row[id]&returside=debitor.php\"'><td></td>\n";
 				print "<td align=$justering[0] $javascript> $linjetext $understreg $row[kontonr]$hrefslut</span><br></td>\n";
 				for ($x=1;$x<$vis_feltantal;$x++) {
 					print "<td align=$justering[$x]>";

@@ -30,15 +30,23 @@ include("../includes/online.php");
 include("../includes/db_query.php");
 include("../includes/posmenu_import.php");
 include("../includes/std_func.php"); #20210713 
+include("../includes/topline_settings.php");
+$returside="diverse.php?sektion=div_io";
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href='posmenuer.php' accesskey='L'>".findtekst(30, $sprog_id)."</a></td>"; # Close
-print "<td width=\"80%\" $top_bund>".findtekst(1934, $sprog_id)."</td>"; # Import POS menus
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
+
+       <td align='center' style='$topStyle'>".findtekst(1934, $sprog_id)."<br></td>
+
+       <td width=\"170px\" style='$topStyle'><br></td></tr>
+       </tbody></table></td></tr>"; # <- tabel 1.1.1
+
+print "</tr></tbody></table></td></tr>";
 
 if ($_POST) {
 	$submit=$_POST['submit'];

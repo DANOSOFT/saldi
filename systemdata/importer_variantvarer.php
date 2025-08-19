@@ -36,18 +36,25 @@ $title="Importer_variantvarer";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
+include("../includes/topline_settings.php");
+$returside="diverse.php?sektion=div_io";
 print "<div align=\"center\">\n";
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
-if ($popup) print "<td width=\"10%\" $top_bund><a href=../includes/luk.php accesskey=L>".findtekst(30, $sprog_id)."</a></td>\n"; 
-else print "<td width=\"10%\" $top_bund><a href=diverse.php?sektion=div_io accesskey=L>".findtekst(30, $sprog_id)."</a></td>\n";
-print "<td width=\"80%\" $top_bund>".findtekst(1371, $sprog_id)."</td>\n";
-print "<td width=\"10%\" $top_bund><br></td>\n";
-print "</tbody></table>\n";
-print "</td></tr>\n";
+
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=\"170px\"><a href=\"$returside\" accesskey=\"L\">
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>
+
+       <td align='center' style='$topStyle'>".findtekst(1371, $sprog_id)."<br></td>
+
+       <td width=\"170px\" style='$topStyle'><br></td></tr>
+       </tbody></table></td></tr>"; # <- tabel 1.1.1
+
+print "</tr></tbody></table></td></tr>";
 
 $submit=if_isset($_POST['submit']);
 if($submit) {

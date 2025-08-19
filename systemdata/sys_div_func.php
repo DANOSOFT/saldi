@@ -1836,7 +1836,7 @@ function shop_valg() {
 } # endfunc shop_valg
 
 function api_valg() {
-	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id;
+	global $bgcolor, $bgcolor5, $bruger_id, $db, $sprog_id, $buttonStyle;
 	$r = db_fetch_array(db_select("select * from grupper where art = 'API' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$api_key = trim($r['box1']);
@@ -1844,6 +1844,7 @@ function api_valg() {
 	$api_bruger = trim($r['box3']);
 	$api_fil = trim($r['box4']);
 	$api_fil2 = trim($r['box5']);
+	$api_fil3 = trim($r['box6']);
 
 	$x = 0;
 	$q = db_select("select * from brugere order by brugernavn", __FILE__ . " linje " . __LINE__);
@@ -1855,7 +1856,7 @@ function api_valg() {
 		}
 	}
 	if (!$api_key) {
-		$chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_!#+-*.:,;';
+		$chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 		$api_key = '';
 		for ($x = 0; $x < 36; $x++) $api_key .= substr($chars, rand(0, strlen($chars) - 1), 1);
 	}
@@ -1869,15 +1870,18 @@ function api_valg() {
 		if ($api_bruger) {
 			print "<tr><td title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->".findtekst('831|Saldi DB:', $sprog_id)."<!--tekst 831--></td><td colspan='3' title='".findtekst('832|Skal sættes som variablen $db i api klienten', $sprog_id)."'><!--tekst 832-->$db</td></tr>";
 			print "<tr><td title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->".findtekst('835|Saldi URL:', $sprog_id)."<!--tekst 835--></td><td colspan='3' title='".findtekst('836|Skal sættes som variablen $url i api klienten', $sprog_id)."'><!--tekst 836-->$url</td></tr>";
-			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key'></td></tr>";
+			print "<tr><td>Swagger: </td><td td colspan='3'><a href='https://ssl12.saldi.dk/pblm/restapi/swagger-ui.html#/' target='_blank' style='$buttonStyle; text-decoration:none; display: inline-block; padding: 2px;'>Swagger</a></td></tr>";
+			print "<tr><td title='".findtekst('820|API nøglen er en unik nøgle til verificering af din adgang til regnskabet.', $sprog_id)."'><!--tekst 820-->".findtekst('819|API Nøgle', $sprog_id)."<!--tekst 819--></td><td colspan='3' title='".findtekst('819|API Nøgle', $sprog_id)."'><!--tekst 819--><input type='text' style='text-align:left;width:300px;' name='api_key' value = '$api_key' readonly></td></tr>";
 			print "<tr><td title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822-->".findtekst('821|Tilladte IP adresser', $sprog_id)."<!--tekst 821--></td><td colspan='3' title='".findtekst('822|Angiv hvilke IP adresser der har adgang til at bruge API`et. Brug komma som separator.', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'></td></tr>";
 			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil2' value = '$api_fil2'></td></tr>";
+			print "<tr><td title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 830-->".findtekst('829|API Klient', $sprog_id)."<!--tekst 829--></td><td colspan='3' title='".findtekst('830|Hvis der skal integreres med webshop skal du her angive den fulde url til api klienten', $sprog_id)."'><!--tekst 822--><input type='text' style='text-align:left;width:300px;' name='api_fil3' value = '$api_fil3'></td></tr>";
 		} else {
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_key' value = '$api_key'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='ip_list' value = '$ip_list'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil' value = '$api_fil'>";
 			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil2' value= '$api_fil2'>";
+			print "<input type='hidden' style='text-align:left;width:300px;' name='api_fil3' value= '$api_fil3'>";
 		}
 		print "<tr><td title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824-->".findtekst('225|Brugernavn', $sprog_id)."<!--tekst 823--></td><td colspan='3' title='".findtekst('824|Vælg den bruger som anvendes som reference til ordrer og logs mm. OBS. Brugeren skal være specielt oprettet til API', $sprog_id)."'><!--tekst 824--><select style='text-align:left;width:300px;' name='api_bruger'>";
 		if ($api_bruger) {
@@ -1905,104 +1909,503 @@ function api_valg() {
 } # endfunc api_valg
 
 function labels($valg) {
-	global $sprog_id;
-	global $bgcolor;
-	global $bgcolor5;
-	global $db;
-	global $labelName;
-	global $labelprint;
+    global $sprog_id;
+    global $bgcolor;
+    global $bgcolor5;
+    global $db;
+    global $labelName;
+    global $labelprint;
 
-	if (!$labelName) {
-		$labelName = if_isset($_POST['labelName']);
-		if (isset($_POST['newLabelName'])) $labelName = $_POST['newLabelName'];
-	}
-	($valg == 'box1') ? $txt = 'Vare' : $txt = 'Adresse';
-	if (isset($_POST['newLabel'])) {
-		print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
-		print "<tr bgcolor='$bgcolor5'><td colspan='6' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.', $sprog_id)."'><!--tekst 737-->";
-		print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
-		$qtxt = "select $valg from grupper where art = 'LABEL'";
-		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $labelText = $r['box1'];
-		print "<tr><td><br><br></td></tr>";
-		print "<tr><td  valign='top' align='left' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><b>".findtekst('914|Beskrivelse', $sprog_id)."</b><br>";
-		print "<input type='text' style='width:200px' name='newLabelName' pattern='[a-zA-Z0-9+.-]+'><br>";
-		print "".findtekst('1309|Tilladte tegn er: a-z A-Z 0-9', $sprog_id)."</td>";
-		print "<td valign='top' align = 'left'><b>".findtekst('803|Skabelon', $sprog_id)."</b><br><select style='width:200px' name='labelTemplate'>";
-		print "<option value=''></option>";
-		print "<option value='A4Label38x21_ens.txt'>".findtekst('1310|A4 38,1 x 21,2 mm, ens labels', $sprog_id)."</option>";
-		print "<option value='A4Label38x21.txt'>".findtekst('1311|A4 38,1 x 21,2 mm, mit salg', $sprog_id)."</option>";
-		print "<option value='BrotherLabel22606.txt'>".findtekst('1312|Brother 22606', $sprog_id)."</option>";
-		print "<option value='BrotherLabel22606MS.txt'>".findtekst('1313|Brother 22606 mit salg', $sprog_id)."</option>";
-		print "<option value='DymoLabelArt11354.txt'>Dymo 11354</option>";
-		print "<option value='DymoLabelArt11354MS.txt'>".findtekst('1314|Dymo 11354 mit salg', $sprog_id)."</option>";
-		print "</td></select></td>";
-		print "<td valign='top' align = 'center'>&nbsp<br>";
-		print "<input type='submit' style='width:200px' accesskey='s' value='".findtekst('1232|Opret', $sprog_id)."' name='createNewLabel'>";
-		print "</td></tr></form>";
-	} elseif ($valg) {
-		$x = 0;
-		$labelNames = array();
-		$qtxt = "select id, labeltype, labelname from labels order by labelname";
-		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
-			$labelNames[$x] = $r['labelname'];
-			$x++;
-		}
-		if (!$labelName) $labelName = 'Standard';
-		$txt .= " - $labelName";
-		print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.', $sprog_id)."'><!--tekst 737-->";
-		print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
-		if ($valg == 'box1') {
-			$qtxt = "select id, labeltype, labeltext from labels where labelname = '$labelName' ";
-			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			$labelText = $r['labeltext'];
-			$labelType = $r['labeltype'];
-		}
-		if (empty($labelType)) $labelType = 'sheet';                 #20210712
-		if ($labelName == 'Standard' && empty($labelText)) {
-			$qtxt = "select $valg from grupper where art = 'LABEL'";
-			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $labelText = $r[$valg];
-		}
-		if ($valg == 'box1') {
-			if (count($labelNames) > 1) {
-				print "<form name='labelvalg' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
-				print "<tr><td align='center' colspan='4'>";
-				print "Vælg label <select style='width:200px' name='labelName' onchange='javascript:this.form.submit()'>";
-				for ($x = 0; $x < count($labelNames); $x++) {
-					if ($labelName == $labelNames[$x]) print "<option value='$labelNames[$x]'>$labelNames[$x]</option>";
+    if (!$labelName) {
+        $labelName = if_isset($_POST['labelName']);
+        if (isset($_POST['newLabelName'])) $labelName = $_POST['newLabelName'];
+    }
+    ($valg == 'box1') ? $txt = 'Vare' : $txt = 'Adresse';
+    
+    // Check if user wants to edit raw HTML
+    $editRawHTML = isset($_POST['editRawHTML']) || isset($_GET['editRawHTML']);
+    
+    if (isset($_POST['newLabel'])) {
+        print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
+        print "<tr bgcolor='$bgcolor5'><td colspan='6' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips og tricks.', $sprog_id)."'><!--tekst 737-->";
+        print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
+        $qtxt = "select $valg from grupper where art = 'LABEL'";
+        if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $labelText = $r['box1'];
+        print "<tr><td><br><br></td></tr>";
+        print "<tr><td  valign='top' align='left' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><b>".findtekst('914|Beskrivelse', $sprog_id)."</b><br>";
+        print "<input type='text' style='width:200px' name='newLabelName' pattern='[a-zA-Z0-9+.-]+' required><br>";
+        print "".findtekst('1309|Tilladte tegn er: a-z A-Z 0-9', $sprog_id)."</td>";
+        print "<td valign='top' align = 'left'><b>".findtekst('803|Skabelon', $sprog_id)."</b><br><select style='width:200px' name='labelTemplate'>";
+        print "<option value='A4Label38x21_ens.txt'>".findtekst('1310|A4 38,1 x 21,2 mm, ens labels', $sprog_id)."</option>";
+        print "<option value='A4Label38x21.txt'>".findtekst('1311|A4 38,1 x 21,2 mm, mit salg', $sprog_id)."</option>";
+        print "<option value='BrotherLabel22606.txt'>".findtekst('1312|Brother 22606', $sprog_id)."</option>";
+        print "<option value='BrotherLabel22606MS.txt'>".findtekst('1313|Brother 22606 mit salg', $sprog_id)."</option>";
+        print "<option value='DymoLabelArt11354.txt'>Dymo 11354</option>";
+        print "<option value='DymoLabelArt11354MS.txt'>".findtekst('1314|Dymo 11354 mit salg', $sprog_id)."</option>";
+        print "</td></select></td>";
+        print "<td valign='top' align = 'center'>&nbsp<br>";
+        print "<input type='submit' style='width:200px' accesskey='s' value='".findtekst('1232|Opret', $sprog_id)."' name='createNewLabel'>";
+        print "</td></tr></form>";
+    } elseif ($valg) {
+        $x = 0;
+        $labelNames = array();
+        $qtxt = "select id, labeltype, labelname from labels order by labelname";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        while ($r = db_fetch_array($q)) {
+            $labelNames[$x] = $r['labelname'];
+            $x++;
+        }
+        if (!$labelName) $labelName = 'Standard';
+        $txt .= " - $labelName";
+        print "<tr bgcolor='$bgcolor5'><td colspan='4' title='".findtekst('737|Her indsættes html kode til formatering af labelprint i varekort. Du kan finde eksempler på <a href=http://forum.saldi.dk/viewtopic.php?f=17&t=1159>Saldi forum</a> under tips och tricks.', $sprog_id)."'><!--tekst 737-->";
+        print "<b><u>".findtekst('736|Labelprint', $sprog_id)."<!--tekst 736--> ($txt)</u></b></td></tr>";
+        
+        // **FIX: Add proper database retrieval here**
+        if ($valg == 'box1') {
+			if (in_array($labelName, $labelNames)) {
+				$qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
+				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$labelText = $r['labeltext'];
+					$labelType = $r['labeltype'];
 				}
-				for ($x = 0; $x < count($labelNames); $x++) {
-					if ($labelName != $labelNames[$x]) print "<option value='$labelNames[$x]'>$labelNames[$x]</option>";
+            } else {
+                $qtxt = "select labeltext, labeltype from labels where labelname = '$labelName'";
+                if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+                    $labelText = $r['labeltext'];
+                    $labelType = $r['labeltype'];
 				}
-				print "</select><br>";
-			}
-			print "<input type='submit' style='border:0px;width:100%;height:1px' value=' ' name='labelvalg'></form></td></tr>";
-		}
+            }
+        }
+        
+        if (empty($labelType)) $labelType = 'sheet';
+        if ($labelName == 'Standard' && empty($labelText)) {
+            $labelText = '$cols=1;
+$rows=1;
+$txtlen=50;
+<top>
+<style>
+#main {
+width: 100%;
+overflow:hidden;
+margin-top: 7mm;
+margin-bottom: 0mm;
+margin-right: 0mm;
+margin-left: 3mm;}
+
+p {
+width: 38.1mm;
+display: inline-block;
+height: 21.2mm;
+padding-bottom:0px;
+margin-top: 0mm;
+margin-bottom: 0mm;
+margin-right: 0mm;
+margin-left: 1mm;
+font-size: 12px}
+
+img {
+width: 90%;
+height: 5mm;
+margin-left:-4px}
+</style>	
+<div id="main">
+</top>
+
+<p>
+$varenr<br>
+$beskrivelse<br>
+Pris $pris<br>
+<img src=\'$img\'><br>
+</p>
+
+<bottom>
+</div>
+/bottom;';
+        }
+        
+        if ($valg == 'box1') {
+            // Label selection dropdown - only show if there are custom labels
+            $hasMultipleOptions = count($labelNames) > 1 || (count($labelNames) == 1 && $labelName != 'Standard');
+            
+            if (count($labelNames) > 0) {
+                print "<form name='labelvalg' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
+                print "<tr><td align='center' colspan='4'>";
+                print "Choose Label: <select style='width:200px' name='labelName' onchange='javascript:this.form.submit()'";
+                
+                // Grey out (disable) if there's only one meaningful option
+                if (!$hasMultipleOptions) {
+                    print " disabled style='width:200px; background-color:#f0f0f0; color:#999;'";
+                }
+                
+                print ">";
+                for ($x = 0; $x < count($labelNames); $x++) {
+                    $selected = ($labelName == $labelNames[$x]) ? ' selected' : '';
+                    print "<option value='{$labelNames[$x]}'$selected>{$labelNames[$x]}</option>";
+                }
+                print "</select>";
+                
+                // Add a hidden field to ensure form submission still works when dropdown is disabled
+                if (!$hasMultipleOptions) {
+                    print "<input type='hidden' name='labelName' value='$labelName'>";
+                }
+                
+                print "<br>";
+                print "<input type='submit' style='border:0px;width:100%;height:1px' value=' ' name='labelvalg'></form></td></tr>";
+            }
+        }
+        
 		print "<form name='diverse' action='diverse.php?sektion=labels&valg=$valg' method='post'>";
-		print "<input type='hidden' name='labelName' value='$labelName'></a></td></tr>";
-		print "<tr><td align='center' colspan='4' title='".findtekst('503|Hvis der benyttes API til webshop skrives URL til shoppens funktionsmappe her.', $sprog_id)."'><!--tekst 503-->";
-		print "<textarea style='width:100%;height:500px' name='labelText'>$labelText</textarea></td></tr>";
-		print "<td  align='center' colspan='4'>";
-		print "<select name='labelType' style='width:100px'>";
-		if ($labelType == 'sheet') print "<option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option><option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option>";
-		else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
-		print "</select>";
-		print "<input type=submit style='width:200px' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveLabel'><!--tekst 471-->";
-		if ($valg == 'box1') {
-			print "&nbsp;<input type=submit style='width:200px' accesskey='n' value='".findtekst('39|Ny', $sprog_id)." ".lcfirst(findtekst('1316|Label', $sprog_id))."' name='newLabel'>";
+		print "<input type='hidden' name='labelName' value='$labelName'>";
+		
+		if ($editRawHTML) {
+			// Raw HTML editing mode
+			print "<tr><td colspan='4'>";
+			print "<div style='margin-bottom: 10px;'>";
+			print "<h3>Rå HTML Editor</h3>";
+			print "<p style='color: #666; font-size: 12px;'>Du kan redigere den komplette HTML skabelon her. Brug variabler som \$varenr, \$beskrivelse, \$pris, \$img, osv.</p>";
+			print "</div>";
+			print "<textarea name='rawHTML' style='width: 100%; height: 400px; font-family: monospace; font-size: 12px;'>" . htmlspecialchars($labelText) . "</textarea>";
+			print "</td></tr>";
+			
+			print "<tr><td align='center' colspan='4'>";
+			print "<select name='labelType' style='width:100px'>";
+			if ($labelType == 'sheet') print "<option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option><option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option>";
+			else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
+			print "</select>";
+			print "<input type='submit' style='width:150px' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveRawHTML'>";
+			print "&nbsp;<input type='submit' style='width:150px' value='Skift til Visuel Editor' name='switchToVisual'>";
+			if ($valg == 'box1') {
+			print "&nbsp;<input type='submit' style='width:150px' value='".findtekst('39|Ny', $sprog_id)." Label' name='newLabel'>";
 			if ($labelName != 'Standard') {
-				$txt = "".findtekst('1317|Vil du slette label', $sprog_id)." $labelName ?";
-				print "&nbsp;<input type=submit style='width:200px' value='".findtekst('1099|Slet', $sprog_id)." ".lcfirst(findtekst('1316|Label', $sprog_id))."' name='deleteLabel' onclick=\"return confirm('$txt')\">";
+				$txt = "Er du sikker på du vil slette label $labelName ?";
+				print "&nbsp;<input type='submit' style='width:150px' value='Slet Label' name='deleteLabel' onclick=\"return confirm('$txt')\">";
 			}
+			}
+			print "</td></tr>";
+			
+		} else {
+			// Visual editing mode
+			// Parse the label template for user-friendly editing
+			$parsedLabel = parseLabelTemplate($labelText);
+			
+			// Display user-friendly form fields
+			print "<tr><td colspan='4'>";
+			print "<div style='display: flex; gap: 20px;'>";
+			
+			// Left column - Label dimensions and settings
+			print "<div style='flex: 1;'>";
+			print "<h3>Label ".findtekst('2139|Indstillinger', $sprog_id)."</h3>";
+			print "<table>";
+			print "<tr><td>Kolonner:</td><td><input type='number' name='cols' value='".$parsedLabel['cols']."' min='1' max='10' style='width:60px;'></td></tr>";
+			print "<tr><td>Rækker:</td><td><input type='number' name='rows' value='".$parsedLabel['rows']."' min='1' max='20' style='width:60px;'></td></tr>";
+			print "<tr><td>".findtekst("2504|Tekstlængde", $sprog_id)."</td><td><input type='number' name='txtlen' value='".$parsedLabel['txtlen']."' min='10' max='100' style='width:60px;'></td></tr>";
+			print "</table>";
+			
+			print "<h3>Styling</h3>";
+			print "<table>";
+			print "<tr><td>".findtekst("2411|Bredde", $sprog_id)."</td><td><input type='text' name='width' value='".$parsedLabel['width']."' style='width:80px;'> mm</td></tr>";
+			print "<tr><td>".findtekst("1790|Højde", $sprog_id)."</td><td><input type='text' name='height' value='".$parsedLabel['height']."' style='width:80px;'> mm</td></tr>";
+			print "<tr><td>Standard ".findtekst('765|Skriftstørrelse', $sprog_id).":</td><td><input type='text' name='font_size' value='".$parsedLabel['font_size']."' style='width:80px;'> px</td></tr>";
+			print "<tr><td>Margin Top:</td><td><input type='text' name='margin_top' value='".$parsedLabel['margin_top']."' style='width:80px;'> mm</td></tr>";
+			print "<tr><td>Margin ".findtekst("2511|Venstre", $sprog_id).":</td><td><input type='text' name='margin_left' value='".$parsedLabel['margin_left']."' style='width:80px;'> mm</td></tr>";
+			print "</table>";
+			print "</div>";
+			
+			// Middle column - Label Content with individual font sizes
+			print "<div style='flex: 1;'>";
+			print "<h3>Label Indhold & Skriftstørrelser</h3>";
+			print "<table>";
+			print "<tr><td colspan='3'><strong>Element</strong></td><td><strong>".findtekst('1133|Vis', $sprog_id)."</strong></td><td><strong>".findtekst('765|Skriftstørrelse', $sprog_id)." (px)</strong></td></tr>";
+
+			print "<tr><td colspan='3'>".findtekst("320|Varenummer", $sprog_id)."</td><td><input type='checkbox' name='show_varenr' ".($parsedLabel['show_varenr'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='varenr_font_size' value='".$parsedLabel['varenr_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>Mærke</td><td><input type='checkbox' name='show_varemrk' ".($parsedLabel['show_varemrk'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='varemrk_font_size' value='".$parsedLabel['varemrk_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>".findtekst("914|Beskrivelse", $sprog_id)."</td><td><input type='checkbox' name='show_beskrivelse' ".($parsedLabel['show_beskrivelse'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='beskrivelse_font_size' value='".$parsedLabel['beskrivelse_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>".findtekst("915|Pris", $sprog_id)."</td><td><input type='checkbox' name='show_pris' ".($parsedLabel['show_pris'] ? 'checked' : '')."></td>";
+			print "<td><input type='number' name='pris_font_size' value='".$parsedLabel['pris_font_size']."' style='width:60px;' min='6' max='72'></td></tr>";
+			
+			print "<tr><td colspan='3'>".findtekst("2016|Stregkode", $sprog_id)."</td><td><input type='checkbox' name='show_barcode' ".($parsedLabel['show_barcode'] ? 'checked' : '')."></td>";
+			print "<td>N/A</td></tr>";
+			
+			print "</table>";
+			print "</div>";
+			
+			// Right column - Custom Text Lines with individual font sizes
+			print "<div style='flex: 1;'>";
+			print "<h3>Brugerdefinerede Tekstlinjer</h3>";
+			print "<div>";
+			for ($i = 1; $i <= 5; $i++) {
+			$textValue = isset($parsedLabel["custom_text_$i"]) ? $parsedLabel["custom_text_$i"] : '';
+			$fontSize = isset($parsedLabel["custom_text_{$i}_size"]) ? $parsedLabel["custom_text_{$i}_size"] : $parsedLabel['font_size'];
+			print "<div style='margin-bottom: 10px; border: 1px solid #ccc; padding: 8px;'>";
+			print "<label><strong>Linje $i:</strong></label><br>";
+			print "<input type='text' name='custom_text_$i' value='$textValue' placeholder='Brugerdefineret tekst' style='width:150px; margin-bottom: 5px;'><br>";
+			print "<label>".findtekst('765|Skriftstørrelse', $sprog_id).":</label>";
+			print "<input type='number' name='custom_text_{$i}_size' value='$fontSize' style='width:60px;' min='6' max='72'> px";
+			print "</div>";
+			}
+			print "</div>";
+			print "</div>";
+			
+			print "</div>";
+			print "</td></tr>";
+			
+			print "<tr><td align='center' colspan='4'>";
+			print "<select name='labelType' style='width:100px'>";
+			if ($labelType == 'sheet') print "<option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option><option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option>";
+			else print "<option value='label'>".findtekst('1315|Enkel labels', $sprog_id)."</option><option value='sheet'>".findtekst('2547|A4 ark', $sprog_id)."</option>";
+			print "</select>";
+			print "<input type='submit' style='width:150px' accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='saveLabel'>";
+			print "&nbsp;<input type='submit' style='width:150px' value='Rediger Rå HTML' name='editRawHTML'>";
+			if ($valg == 'box1') {
+			print "&nbsp;<input type='submit' style='width:150px' accesskey='n' value='".findtekst('39|Ny', $sprog_id)." Label' name='newLabel'>";
+			if ($labelName != 'Standard') {
+				$txt = "Er du sikker på du vil slette label $labelName ?";
+				print "&nbsp;<input type='submit' style='width:150px' value='Slet Label' name='deleteLabel' onclick=\"return confirm('$txt')\">";
+			}
+			}
+			print "</td></tr>";
 		}
-		print "</td></form>";
-	} else {
+		
+		print "</form>";
+		} else {
 		print "<tr><td>".findtekst('1308|Klik på den labeltype du vil redigere', $sprog_id)."</td><td>";
 		print "<a href='diverse.php?sektion=labels&valg=box1'>";
 		print "<input type='button'  style='width:100px' value='".findtekst('110|Varer', $sprog_id)."'></a></td></tr>";
 		print "<tr><td></td><td><a href=diverse.php?sektion=labels&valg=box2>";
 		print "<input type='button' style='width:100px' value='".findtekst('361|Adresse', $sprog_id)."'></a></td></tr>";
-	}
+    }
+}
+
+function parseLabelTemplate($labelText) {
+    $parsed = array(
+        'cols' => 1,
+        'rows' => 1,
+        'txtlen' => 50,
+        'width' => '38.1',
+        'height' => '21.2',
+        'font_size' => '12',
+        'margin_top' => '7',
+        'margin_left' => '3',
+        'show_varenr' => false,
+        'show_varemrk' => false,
+        'show_beskrivelse' => false,
+        'show_pris' => false,
+        'show_barcode' => false,
+        'varenr_font_size' => '12',
+        'varemrk_font_size' => '12',
+        'beskrivelse_font_size' => '12',
+        'pris_font_size' => '12'
+    );
+    
+    if (empty($labelText)) return $parsed;
+    
+    // Parse $cols, $rows, $txtlen from first lines
+    if (preg_match('/\$cols=(\d+);/', $labelText, $matches)) {
+        $parsed['cols'] = $matches[1];
+    }
+    if (preg_match('/\$rows=(\d+);/', $labelText, $matches)) {
+        $parsed['rows'] = $matches[1];
+    }
+    if (preg_match('/\$txtlen=(\d+);/', $labelText, $matches)) {
+        $parsed['txtlen'] = $matches[1];
+    }
+    
+    // Parse CSS dimensions
+    if (preg_match('/width:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['width'] = $matches[1];
+    }
+    if (preg_match('/height:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['height'] = $matches[1];
+    }
+    if (preg_match('/font-size:\s*([0-9.]+)px/', $labelText, $matches)) {
+        $parsed['font_size'] = $matches[1];
+        // Set default font sizes for all elements
+        $parsed['varenr_font_size'] = $matches[1];
+        $parsed['varemrk_font_size'] = $matches[1];
+        $parsed['beskrivelse_font_size'] = $matches[1];
+        $parsed['pris_font_size'] = $matches[1];
+    }
+    if (preg_match('/margin-top:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['margin_top'] = $matches[1];
+    }
+    if (preg_match('/margin-left:\s*([0-9.]+)mm/', $labelText, $matches)) {
+        $parsed['margin_left'] = $matches[1];
+    }
+    
+    // Check what fields are shown
+    $parsed['show_varenr'] = strpos($labelText, '$varenr') !== false;
+    $parsed['show_varemrk'] = strpos($labelText, '$varemrk') !== false;
+    $parsed['show_beskrivelse'] = (strpos($labelText, '$beskrivelse') !== false || strpos($labelText, '$minbeskrivelse') !== false);
+    $parsed['show_pris'] = (strpos($labelText, '$pris') !== false || strpos($labelText, '$minpris') !== false);
+    $parsed['show_barcode'] = strpos($labelText, '$img') !== false;
+    
+    // Parse individual font sizes for each element
+    if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
+        $content = $matches[1];
+        $lines = explode('<br>', $content);
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Check for varenr with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$varenr.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['varenr_font_size'] = $fontMatches[1];
+            }
+            
+            // Check for varemrk with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$varemrk.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['varemrk_font_size'] = $fontMatches[1];
+            }
+            
+            // Check for beskrivelse with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?\$(min)?beskrivelse.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['beskrivelse_font_size'] = $fontMatches[1];
+            }
+            
+            // Check for pris with specific font size
+            if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>.*?[Pp]ris.*?\$(min)?pris.*?<\/span>/i', $line, $fontMatches)) {
+                $parsed['pris_font_size'] = $fontMatches[1];
+            }
+        }
+    }
+    
+    // Extract custom text with individual font sizes
+    if (preg_match('/<p>(.*?)<\/p>/s', $labelText, $matches)) {
+        $content = $matches[1];
+        $lines = explode('<br>', $content);
+        $customLineCount = 1;
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (!empty($line) && 
+                !preg_match('/\$/', $line) && 
+                !preg_match('/<img/', $line) && 
+                !preg_match('/[Pp]ris/', $line)) {
+                
+                // Check if this line has a specific font-size
+                if (preg_match('/<span[^>]*font-size:\s*([0-9.]+)px[^>]*>(.*?)<\/span>/i', $line, $spanMatches)) {
+                    $parsed["custom_text_$customLineCount"] = trim(strip_tags($spanMatches[2]));
+                    $parsed["custom_text_{$customLineCount}_size"] = $spanMatches[1];
+                } else {
+                    $parsed["custom_text_$customLineCount"] = trim(strip_tags($line));
+                    $parsed["custom_text_{$customLineCount}_size"] = $parsed['font_size'];
+                }
+                $customLineCount++;
+                if ($customLineCount > 5) break;
+            }
+        }
+    }
+    
+    return $parsed;
+}
+
+function generateLabelTemplate($data) {
+    $template = "\$cols={$data['cols']};\n";
+    $template .= "\$rows={$data['rows']};\n";
+    $template .= "\$txtlen={$data['txtlen']};\n";
+    $template .= "<top>\n<style>\n";
+    $template .= "#main {\n";
+    $template .= "width: 100%;\n";
+    $template .= "overflow:hidden;\n";
+    $template .= "margin-top: {$data['margin_top']}mm;\n";
+    $template .= "margin-bottom: 0mm;\n";
+    $template .= "margin-right: 0mm;\n";
+    $template .= "margin-left: {$data['margin_left']}mm;}\n\n";
+    
+    $template .= "p {\n";
+    $template .= "width: {$data['width']}mm;\n";
+    $template .= "display: inline-block;\n";
+    $template .= "height: {$data['height']}mm;\n";
+    $template .= "padding-bottom:0px;\n";
+    $template .= "margin-top: 0mm;\n";
+    $template .= "margin-bottom: 0mm;\n";
+    $template .= "margin-right: 0mm;\n";
+    $template .= "margin-left: 1mm;\n";
+    $template .= "font-size: {$data['font_size']}px}\n\n";
+    
+    if ($data['show_barcode']) {
+        $template .= "img {\n";
+        $template .= "width: 90%;\n";
+        $template .= "height: 5mm;\n";
+        $template .= "margin-left:-4px}\n";
+    }
+    
+    $template .= "</style>\t\n";
+    $template .= "<div id=\"main\">\n";
+    $template .= "</top>\n\n";
+    
+    $template .= "<p>\n";
+    
+    // Add content based on selections with individual font sizes
+    if ($data['show_varenr'] && $data['show_varemrk']) {
+        $varenrSize = $data['varenr_font_size'];
+        $varemrkSize = $data['varemrk_font_size'];
+        if ($varenrSize == $varemrkSize && $varenrSize == $data['font_size']) {
+            $template .= "\$varenr / \$varemrk<br>\n";
+        } else {
+            $template .= "<span style='font-size: {$varenrSize}px'>\$varenr</span> / <span style='font-size: {$varemrkSize}px'>\$varemrk</span><br>\n";
+        }
+    } elseif ($data['show_varenr']) {
+        $fontSize = $data['varenr_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>\$varenr</span><br>\n";
+        } else {
+            $template .= "\$varenr<br>\n";
+        }
+    } elseif ($data['show_varemrk']) {
+        $fontSize = $data['varemrk_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>\$varemrk</span><br>\n";
+        } else {
+            $template .= "\$varemrk<br>\n";
+        }
+    }
+    
+    if ($data['show_beskrivelse']) {
+        $fontSize = $data['beskrivelse_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>\$minbeskrivelse</span><br>\n";
+        } else {
+            $template .= "\$minbeskrivelse<br>\n";
+        }
+    }
+    
+    // Add custom text lines with individual font sizes
+    for ($i = 1; $i <= 5; $i++) {
+        if (!empty($data["custom_text_$i"])) {
+            $fontSize = isset($data["custom_text_{$i}_size"]) ? $data["custom_text_{$i}_size"] : $data['font_size'];
+            if ($fontSize != $data['font_size']) {
+                $template .= "<span style='font-size: {$fontSize}px'>{$data["custom_text_$i"]}</span><br>\n";
+            } else {
+                $template .= "{$data["custom_text_$i"]}<br>\n";
+            }
+        }
+    }
+    
+    if ($data['show_pris']) {
+        $fontSize = $data['pris_font_size'];
+        if ($fontSize != $data['font_size']) {
+            $template .= "<span style='font-size: {$fontSize}px'>Pris \$minpris</span><br>\n";
+        } else {
+            $template .= "Pris \$minpris<br>\n";
+        }
+    }
+    
+    if ($data['show_barcode']) {
+        $template .= "<img src='\$img'><br>\n";
+    }
+    
+    $template .= "</p>\n\n";
+    $template .= "<bottom>\n";
+    $template .= "</div>\n";
+    $template .= "/bottom;";
+    
+    return $template;
 } # endfunc labels
 
 function prislister()

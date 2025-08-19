@@ -27,9 +27,9 @@ class InventoryStatusEndpoint extends BaseEndpoint
                 $orderDirection = $_GET['orderDirection'] ?? 'ASC';
                 $field = $_GET['field'] ?? null;
                 $value = $_GET['value'] ?? null;
-                $lager_nr = $_GET['lager_nr'] ?? null;
+                $lager_nr = $_GET['inventoryNr'] ?? null;
                 
-                if ($lager_nr) {
+                if ($lager_nr || $lager_nr === '0') {
                     // Get inventory for specific warehouse
                     $items = LagerStatusModel::getWarehouseInventory($lager_nr);
                 } elseif ($field && $value) {
@@ -55,17 +55,21 @@ class InventoryStatusEndpoint extends BaseEndpoint
     {
         try {
             // Validate required fields
-            $this->validateData($data, ['lager', 'vare_id', 'beholdning']);
+            $this->validateData($data, ['inventory', 'productId', 'quantity']);
             
             $status = new LagerStatusModel();
             
             // Set properties
-            if (isset($data->lager)) $status->setLager($data->lager);
-            if (isset($data->vare_id)) $status->setVareId($data->vare_id);
-            if (isset($data->beholdning)) $status->setBeholdning($data->beholdning);
-            if (isset($data->lok)) $status->setLok($data->lok);
-            if (isset($data->variant_id)) $status->setVariantId($data->variant_id);
-            
+            if (isset($data->inventory)) $status->setInventory($data->inventory);
+            if (isset($data->productId)) $status->setProductId($data->productId);
+            if (isset($data->quantity)) $status->setQuantity($data->quantity);
+            if (isset($data->location)) $status->setLocation($data->location);
+            if (isset($data->location2)) $status->setLocation2($data->location2);
+            if (isset($data->location3)) $status->setLocation3($data->location3);
+            if (isset($data->location4)) $status->setLocation4($data->location4);
+            if (isset($data->location5)) $status->setLocation5($data->location5);
+            if (isset($data->variantId)) $status->setVariantId($data->variantId);
+
             $result = $status->save();
             
             if ($result === true) {
@@ -81,6 +85,10 @@ class InventoryStatusEndpoint extends BaseEndpoint
     protected function handlePut($data)
     {
         try {
+            if(isset($_GET["id"])){
+                $data->id = $_GET["id"];
+            }
+
             // Validate required fields
             $this->validateData($data, ['id']);
             
@@ -89,13 +97,17 @@ class InventoryStatusEndpoint extends BaseEndpoint
                 $this->sendResponse(false, null, 'Inventory status not found', 404);
                 return;
             }
-            
+
             // Update properties
-            if (isset($data->lager)) $status->setLager($data->lager);
-            if (isset($data->vare_id)) $status->setVareId($data->vare_id);
-            if (isset($data->beholdning)) $status->setBeholdning($data->beholdning);
-            if (isset($data->lok)) $status->setLok($data->lok);
-            if (isset($data->variant_id)) $status->setVariantId($data->variant_id);
+            if (isset($data->inventory)) $status->setInventory($data->inventory);
+            if (isset($data->productId)) $status->setProductId($data->productId);
+            if (isset($data->quantity)) $status->setQuantity($data->quantity);
+            if (isset($data->location)) $status->setLocation($data->location);
+            if (isset($data->location2)) $status->setLocation2($data->location2);
+            if (isset($data->location3)) $status->setLocation3($data->location3);
+            if (isset($data->location4)) $status->setLocation4($data->location4);
+            if (isset($data->location5)) $status->setLocation5($data->location5);
+            if (isset($data->variantId)) $status->setVariantId($data->variantId);
             
             $result = $status->save();
             
@@ -112,6 +124,10 @@ class InventoryStatusEndpoint extends BaseEndpoint
     protected function handlePatch($data)
     {
         try {
+            if(isset($_GET["id"])){
+                $data->id = $_GET["id"];
+            }
+            
             // Handle inventory adjustments
             if (isset($data->action)) {
                 switch ($data->action) {
@@ -175,7 +191,10 @@ class InventoryStatusEndpoint extends BaseEndpoint
 
     protected function handleDelete($data)
     {
-        try {
+
+        // no deletion for inventory status
+        $this->sendResponse(false, null, 'DELETE method is not supported for Inventory Status', 405);
+        /* try {
             // For inventory status, we typically don't delete records but set quantity to 0
             // However, if deletion is needed:
             $this->validateData($data, ['id']);
@@ -196,7 +215,7 @@ class InventoryStatusEndpoint extends BaseEndpoint
             }
         } catch (Exception $e) {
             $this->handleError($e);
-        }
+        } */
     }
 }
 

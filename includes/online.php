@@ -56,6 +56,16 @@
 // 23-05-2024 PBLM Setup notification from easyUBL
 
 #include("../includes/connect.php"); #20211001
+$url = $_SERVER['REQUEST_URI'];
+$questionMarkPos = strpos($url, '?');
+if ($questionMarkPos !== false) {
+	$path = substr($url, 0, $questionMarkPos);
+} else {
+	$path = $url;
+}
+$slashCount = substr_count($path, '/');
+$relativePath = str_repeat('../', max(0, $slashCount - 2));
+
 if (isset($_COOKIE['timezone'])) { #20190110
 	$timezone = $_COOKIE['timezone'];
 	date_default_timezone_set($timezone);
@@ -130,7 +140,8 @@ if ($r = db_fetch_array($q)) {
 		if (!isset($nextver))
 			$nextver = NULL;
 		if (!$nextver) { # 20150125
-			include("../includes/std_func.php");
+			// check if std_func exists in the includes folder
+			include($relativePath . "includes/std_func.php");
 			$txt = '&nbsp;Din session er udl&oslash;bet - du skal logge ind igen';
 			print tekstboks($txt);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/logud.php\">";
@@ -145,7 +156,7 @@ if ($sqdb == 'udvikling') $labelprint = 1;
 $kundedisplay = 0;
 
 if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	include("../includes/std_func.php");
+	include($relativePath . "includes/std_func.php");
 	$txt = 'Du har logget ud - vinduet lukkes';
 	print tekstboks($txt);
 	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
@@ -256,6 +267,18 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				db_modify("update grupper set box1='$jsvars' where  art = 'USET' and kodenr = '$bruger_id'", __FILE__ . " linje " . __LINE__);
 			}
 		}
+		$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	$buttonColor = $r['var_value'];
+} else {
+	$buttonColor = '#114691'; // Default button color
+}
+$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+	$buttonTxtColor = $r['var_value'];
+} else {
+	$buttonTxtColor = '#ffffff'; // Default button text color
+}
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
 		$textcolor3 = "#6666aa"; # Svagere tekst til det som er mindre vigtigt
@@ -288,7 +311,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		$css = NULL;
 	}
 	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
-		include("../includes/std_func.php");
+		include($relativePath . "includes/std_func.php");
 		$txt = "Du har ikke nogen rettigheder her - din aktivitet er blevet logget";
 		print tekstboks($txt);
 		exit;
@@ -459,3 +482,14 @@ if ($bg != 'nix') {
 }
 
 ?>
+<style>
+	/* type submit and type button */
+	input[type="submit"],
+	input[type="button"] {
+		background: #<?php echo $buttonColor; ?> !important;
+		background-color: #<?php echo $buttonColor; ?> !important;
+		color: #<?php echo $buttonTxtColor; ?> !important;
+		border: 1px solid #<?php echo $buttonColor; ?> !important;
+		cursor: pointer;
+	}
+</style>

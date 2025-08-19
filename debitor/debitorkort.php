@@ -204,7 +204,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 			exit;
 		}
 		if (!$id && !$firmanavn && !$ny_kontonr) {
-			if (findtekst(255, $sprog_id) == 'Regnskab' && $felt_1 > 1 && is_numeric($felt_1)) {
+			if (findtekst('255|Ekstrafelt 1', $sprog_id) == 'Regnskab' && $felt_1 > 1 && is_numeric($felt_1)) {
 				include("../includes/connect.php");
 				if ($r = db_fetch_array($q = db_select("select * from regnskab where id='$felt_1'", __FILE__ . " linje " . __LINE__))) {
 					$regnskab = db_escape_string($r['regnskab']);
@@ -253,14 +253,14 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		}
 
 		// Retrieve the placeholder text for a new category name based on the language ID
-		$tmp = findtekst(343, $sprog_id);
+		$tmp = findtekst('343|Skriv evt. ny kategori her', $sprog_id);
 
 		// Check if a new category name was provided and it does not match the placeholder text
 		if ($newCatName && $newCatName != $tmp) {
 			// Check for duplicate category names if not renaming
 			if (!is_numeric($rename_category) && in_array($newCatName, $cat_beskrivelse)) {
 				// Set an alert message if the new name already exists
-				$alerttekst = findtekst(344, $sprog_id);
+				$alerttekst = findtekst('344|Kategorien $ny_kategori eksisterer allerede', $sprog_id);
 			} else {
 				$isRenamed = false; // Track if renaming occurred
 
@@ -319,7 +319,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		}
 		if ($ny_status) {
 			if (!$rename_status && in_array($ny_status,$status_beskrivelse)) {
-				$alerttekst=findtekst(344,$sprog_id);
+				$alerttekst=findtekst('344|Kategorien $ny_kategori eksisterer allerede', $sprog_id);
 			} else {
 				if (!$rename_status) {
 					$x=1;
@@ -362,7 +362,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		// Handle new status
 		if ($ny_status) {
 			if (!$rename_status && in_array($ny_status, $status_beskrivelse)) {
-				$alerttekst = findtekst(344, $sprog_id);
+				$alerttekst = findtekst('344|Kategorien $ny_kategori eksisterer allerede', $sprog_id);
 			} else {
 				if (!$rename_status) {
 					$x = 1;
@@ -406,7 +406,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		}
 		$tmp2 = (float)$tmp2;
 		if ($tmp2 != $ny_kontonr) {
-			$alerttekst = findtekst(345, $sprog_id);
+			$alerttekst = findtekst('345|Kontonummer må kun bestå af heltal uden mellemrum', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 345-->";
 		}
 		$ny_kontonr = $tmp2;
@@ -427,14 +427,14 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 		if (!$id && $ny_kontonr) {
 			$qtxt = "select id from adresser where kontonr = '$ny_kontonr' and art = 'D'";
 			if ($ny_kontonr && db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$alerttekst = findtekst(350, $sprog_id);
+				$alerttekst = findtekst('350|Der findes allerede en debitor med Kontonr: $ny_kontonr', $sprog_id);
 				$alerttekst = str_replace('$ny_kontonr', $ny_kontonr, $alerttekst);
 				print "<BODY onLoad=\"javascript:alert('$alerttekst')\">"; #<!--tekst 350-->\n";
 				$ny_kontonr = '!';
 			}
 		}
 		if (!$firmanavn) {
-			$alerttekst = findtekst(346, $sprog_id);
+			$alerttekst = findtekst('346|Navn skal angives', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\">"; #<!--tekst 346-->\n";
 			$kontonr = $ny_kontonr;
 		}
@@ -445,12 +445,12 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 				if ($r = db_fetch_array(db_select("select id from ansatte where initialer = '$kontoansvarlig' and konto_id='$r[id]'", __FILE__ . " linje " . __LINE__))) $kontoansvarlig = $r['id'];
 			}
 		} elseif ($r = db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box2 = 'on'", __FILE__ . " linje " . __LINE__))) {
-			$alerttekst = findtekst(347, $sprog_id);
+			$alerttekst = findtekst('347|Kundeansvarlig ikke valgt!', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 347-->\n";
 		}
 		if (!$kontoansvarlig) $kontoansvarlig = '0';
 		if (!$gruppe) {
-			$alerttekst = findtekst(348, $sprog_id);
+			$alerttekst = findtekst('348|Debitorgruppe ikke valgt!', $sprog_id);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 348-->\n";
 			$gruppe = '0';
 		}
@@ -467,7 +467,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 			}
 			$ny_kontonr = 1000;
 			while (in_array($ny_kontonr, $ktoliste)) $ny_kontonr++;
-			$alerttekst = findtekst(349, $sprog_id);
+			$alerttekst = findtekst('349|Kontonummer $ny_kontonr tildelt automatisk!', $sprog_id);
 			$alerttekst = str_replace('$ny_kontonr', $ny_kontonr, $alerttekst);
 			print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 349-->\n";
 		}
@@ -509,7 +509,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 					$ktoliste[$x] = $r['kontonr'];
 				}
 				if (in_array($ny_kontonr, $ktoliste)) {
-					$alerttekst = findtekst(351, $sprog_id);
+					$alerttekst = findtekst('351|Kontonummer findes allerede', $sprog_id);
 					print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 351-->\n";
 				} else {
 					$kontonr = $ny_kontonr;
@@ -537,7 +537,7 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 				elseif (($y == "-") && ($ans_id[$x])) {
 					db_modify("delete from ansatte 	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
 				} else {
-					$alerttekst = findtekst(352, $sprog_id);
+					$alerttekst = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
 					print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
 				}
 			}
@@ -646,7 +646,7 @@ if ($id > 0) {
 	$bb = NULL;
 	$x = 0;
 	$bd = array();
-	$q = db_select("select distinct(betalingsdage) as betalingsdage from adresser", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select distinct(betalingsdage) as betalingsdage from adresser WHERE betalingsdage != 0", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$bd[$x] = $r['betalingsdage'];
 		$x++;
@@ -711,13 +711,13 @@ if (!isset($felt_4)) $felt_4 = NULL;
 if (!isset($felt_5)) $felt_5 = NULL;
 if (!isset($kontonr)) $kontonr = NULL;
 
-$tekst = findtekst(154, $sprog_id);
+$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
 	## add onClick=\"JavaScript:opener.location.reload();\" but still get style from headlink MALENE
-	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a>";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a>";
 	if ($jobkort) {
 		print "&nbsp;&nbsp;";
 	} else {
@@ -725,14 +725,14 @@ if ($menu == 'T') {
 	}
 	print "</div>";
 	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst(131, $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst(133, $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
+	print "<div class=\"headerbtnRght headLink\"><a href='historikkort.php?id=$id&returside=debitorkort.php' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;<a href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
 	if (substr($rettigheder, 5, 1) == '1') {
-		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst(134, $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
+		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
 	} else {
 		print "";
 	}
 	if ($jobkort) {
-		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst(38, $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
+		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=debitorkort.php' title='" . findtekst('38|Stillingsliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
 	} else {
 		print "";
 	}
@@ -747,19 +747,18 @@ if ($menu == 'T') {
 	print "<td width='10%'>
 		   <a href=\"$returside\" accesskey=L>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst(30, $sprog_id) . "</button></a></td>\n";
+		. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
-	print "<td width='80%' style='$topStyle' align='center'>" . findtekst(356, $sprog_id) . "</td>\n";
+	print "<td width='80%' style='$topStyle' align='center'>" . findtekst('356|Debitorkort', $sprog_id) . "</td>\n";
 
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-			Hjælp  
-		</button></td>";
+	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 
 	print "<td width='10%'>
 		   <a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst(39, $sprog_id) . "</button></a></td>\n";
+		. findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
 
 	print "</tbody></table>"; # <- TABEL 1.1
 	print "</td></tr>\n";
@@ -770,10 +769,10 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "<!--tekst 30--></a></td>\n";
-	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst(30, $sprog_id) . "<!--tekst 30--></a></td>\n";
-	print "<td width=\"80%\"$top_bund>" . findtekst(356, $sprog_id) . "<!--tekst 356--></td>\n";
-	print "<td width=\"10%\"$top_bund><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N><!--tekst 154-->" . findtekst(39, $sprog_id) . "<!--tekst 39--></a></td>\n";
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	print "<td width=\"80%\"$top_bund>" . findtekst('356|Debitorkort', $sprog_id) . "<!--tekst 356--></td>\n";
+	print "<td width=\"10%\"$top_bund><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N><!--tekst 154-->" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></a></td>\n";
 	print "</tbody></table>"; # <- TABEL 1.1
 	print "</td></tr>\n";
 	print "<tr><td align = center valign = center>\n";
@@ -817,20 +816,20 @@ print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 
 $bg = $bgcolor5;
 print "<input type=hidden name=gl_kontotype value='$kontotype'>\n";
-print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst(1149, $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true;\">\n";
+print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true;\">\n";
 if ($kontotype == 'privat') {
 
-	print "<option value=privat>" . findtekst(353, $sprog_id) . "<!--tekst 353--></option>\n";
-	print "<option value=erhverv>" . findtekst(354, $sprog_id) . "<!--tekst 354--></option>\n";
+	print "<option value=privat>" . findtekst('353|Privat', $sprog_id) . "<!--tekst 353--></option>\n";
+	print "<option value=erhverv>" . findtekst('354|Erhverv', $sprog_id) . "<!--tekst 354--></option>\n";
 } else {
-	print "<option value=erhverv>" . findtekst(354, $sprog_id) . "<!--tekst 354--></option>\n";
-	print "<option value=privat>" . findtekst(353, $sprog_id) . "<!--tekst 353--></option>\n";
+	print "<option value=erhverv>" . findtekst('354|Erhverv', $sprog_id) . "<!--tekst 354--></option>\n";
+	print "<option value=privat>" . findtekst('353|Privat', $sprog_id) . "<!--tekst 353--></option>\n";
 }
 print "</select></td>\n";
-print "<td align=right>" . findtekst(355, $sprog_id) . "<!--tekst 355--><input class='inputbox' type=\"checkbox\" name=\"vis_lev_addr\" $vis_lev_addr> <a href=\"labelprint.php?id=$id\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td></tr>\n";
+print "<td align=right>" . findtekst('355|Vis leveringsadresse', $sprog_id) . "<!--tekst 355--><input class='inputbox' type=\"checkbox\" name=\"vis_lev_addr\" $vis_lev_addr> <a href=\"labelprint.php?id=$id\" target=\"blank\"><img src=\"../ikoner/print.png\" style=\"border: 0px solid;\"></a></td></tr>\n";
 print "<tr><td valign=top height=250px><table border=0 width=100%><tbody>"; # TABEL 1.2.1 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst(357, $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('357|Kundenr.', $sprog_id) . "<!--tekst 357--></td><td><input class='inputbox' type='text' size='25' name=ny_kontonr value=\"$kontonr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 
 if (!isset($firmanavn)) $firmanavn = NULL;
 if (!isset($addr1)) $addr1 = NULL;
@@ -864,48 +863,48 @@ if (!isset($notes)) $notes = NULL;
 if ($kontotype == 'privat') {
 	print "<input type=\"hidden\" name=\"firmanavn\" value=\"$firmanavn\">\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(358, $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(359, $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 } else {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(360, $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 }
 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(361, $sprog_id) . "<!--tekst 361--></td><td><input class='inputbox' type='text' size='25' ";
+print "<tr bgcolor=$bg><td>" . findtekst('361|Adresse', $sprog_id) . "<!--tekst 361--></td><td><input class='inputbox' type='text' size='25' ";
 print "name='addr1' value=\"$addr1\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(362, $sprog_id) . "<!--tekst 362--></td><td><input class='inputbox' type='text' size='25' ";
+print "<tr bgcolor=$bg><td>" . findtekst('362|Adresse 2', $sprog_id) . "<!--tekst 362--></td><td><input class='inputbox' type='text' size='25' ";
 print "name='addr2' value=\"$addr2\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(363, $sprog_id) . "<!--tekst 363--></td><td><input class='inputbox' type='text' size='3' ";
+print "<tr bgcolor=$bg><td>" . findtekst('363|Postnr./By', $sprog_id) . "<!--tekst 363--></td><td><input class='inputbox' type='text' size='3' ";
 print "name='postnr' value=\"$postnr\" onchange=\"javascript:docChange = true;\">\n";
 print "<input class='inputbox' type='text' size=19 name=bynavn value=\"$bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr gcolor=$bg><td>" . findtekst(364, $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' ";
+print "<tr gcolor=$bg><td>" . findtekst('364|Land', $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' ";
 print "name='land' value=\"$land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(365, $sprog_id) . "<!--tekst 365--></td><td><input class='inputbox' type='text' size='22' ";
+print "<tr bgcolor=$bg><td>" . findtekst('365|E-mail / brug mail', $sprog_id) . "<!--tekst 365--></td><td><input class='inputbox' type='text' size='22' ";
 print "name='email' value=\"$email\" onchange=\"javascript:docChange = true;\">\n";
 if ($email && $mailfakt) $mailfakt = "checked";
-print "<span title=\"" . findtekst(366, $sprog_id) . "\"><!--tekst 366--><input class='inputbox' type=checkbox name='mailfakt' $mailfakt>";
+print "<span title=\"" . findtekst('366|Afmærk her hvis modtageren skal modtage tilbud', $sprog_id) . "\"><!--tekst 366--><input class='inputbox' type=checkbox name='mailfakt' $mailfakt>";
 print "</span></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(367, $sprog_id) . "<!--tekst 367--></td>";
+	print "<tr bgcolor=$bg><td>" . findtekst('367|Hjemmeside', $sprog_id) . "<!--tekst 367--></td>";
 	print "<td><input class='inputbox' type='text' size='25' name='web' value=\"$web\" ";
 	print "onchange=\"javascript:docChange = true;\"></td></tr>\n";
 } else print "<input type = 'hidden' name = 'web' value = \"$web\">";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(368, $sprog_id) . "<!--tekst 368--></td>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('368|Betalingsbetingelse', $sprog_id) . "<!--tekst 368--></td>\n";
 print "<td><select class='inputbox' NAME=betalingsbet onchange=\"javascript:docChange = true;\" >\n";
 print "<option>$betalingsbet</option>\n";
-if ($betalingsbet != 'Forud') print "<option value=\"Forud\">" . findtekst(369, $sprog_id) . "<!--tekst 369--></option>\n";
-if ($betalingsbet != 'Kontant') print "<option value=\"Kontant\">" . findtekst(370, $sprog_id) . "<!--tekst 370--></option>\n";
-if ($betalingsbet != 'Efterkrav') print "<option value=\"Efterkrav\">" . findtekst(371, $sprog_id) . "<!--tekst 371--></option>\n";
-if ($betalingsbet != 'Netto') print "<option value=\"Netto\">" . findtekst(372, $sprog_id) . "<!--tekst 372--></option>\n";
-if ($betalingsbet != 'Lb. md.')  print "<option value=\"Lb. md.\">" . findtekst(373, $sprog_id) . "<!--tekst 373--></option>\n";
+if ($betalingsbet != 'Forud') print "<option value=\"Forud\">" . findtekst('369|Forud', $sprog_id) . "<!--tekst 369--></option>\n";
+if ($betalingsbet != 'Kontant') print "<option value=\"Kontant\">" . findtekst('370|Kontant', $sprog_id) . "<!--tekst 370--></option>\n";
+if ($betalingsbet != 'Efterkrav') print "<option value=\"Efterkrav\">" . findtekst('371|Efterkrav', $sprog_id) . "<!--tekst 371--></option>\n";
+if ($betalingsbet != 'Netto') print "<option value=\"Netto\">" . findtekst('372|Netto', $sprog_id) . "<!--tekst 372--></option>\n";
+if ($betalingsbet != 'Lb. md.')  print "<option value=\"Lb. md.\">" . findtekst('373|Lb. md.', $sprog_id) . "<!--tekst 373--></option>\n";
 if (($betalingsbet == 'Kontant') || ($betalingsbet == 'Efterkrav') || ($betalingsbet == 'Forud')) $betalingsdage = '';
 
 elseif (!$betalingsdage) {
@@ -918,7 +917,7 @@ if ($betalingsdage) {
 	print "</SELECT>&nbsp;+<input class='inputbox' type='text' size='2' style='text-align:right' name='betalingsdage' value=\"$betalingsdage\" onchange=\"javascript:docChange = true;\"></td>\n";
 } else print "</SELECT></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(374, $sprog_id) . "<!--tekst 374--></td>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('374|Debitorgruppe', $sprog_id) . "<!--tekst 374--></td>\n";
 if (!$gruppe) {
 	if (db_fetch_array(db_select("select id from grupper where art='DIV' and kodenr='2' and box1='on'", __FILE__ . " linje " . __LINE__))) $gruppe = '0';
 	else $gruppe = 1;
@@ -945,7 +944,7 @@ while ($r = db_fetch_array($q)) {
 }
 if ($drg = $x) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<td>" . findtekst(375, $sprog_id) . "<!--tekst 375--></td>\n";
+	print "<td>" . findtekst('375|Rabatgruppe', $sprog_id) . "<!--tekst 375--></td>\n";
 	print "<td><select class='inputbox' NAME=rabatgruppe onchange=\"javascript:docChange = true;\">\n";
 	for ($x = 1; $x <= $drg; $x++) {
 		if ($rabatgruppe == $drg_nr[$x]) print "<option value=\"$rabatgruppe\">$drg_navn[$x]</option>\n";
@@ -960,19 +959,19 @@ if ($drg = $x) {
 print "</tbody></table></td>"; # <- TABEL 1.2.1
 print "<td valign=top><table border=0 width=100%><tbody>"; # TABEL 1.2.2 ->
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td>" . findtekst(376, $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('376|CVR-nr.', $sprog_id) . "<!--tekst 376--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=cvrnr value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" title=\"Tast CVR-nr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(377, $sprog_id) . "<!--tekst 377-->";
+print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377-->";
 print "</td><td><input class=\"inputbox\" type='text' style='width:100px' name=tlf value=\"$tlf\" onchange=\"javascript:docChange = true;\" title=\"Tast telefonnr. omsluttet af *, +, eller / for at importere data fra Erhvervsstyrelsen (Data leveres af CVR API)\" style=\"background-image: url('../img/search-white.png'); background-repeat: no-repeat; background-position: right;\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(378, $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('378|Telefax', $sprog_id) . "<!--tekst 378--></td><td><input class=\"inputbox\" type='text' style='width:100px' name=fax value=\"$fax\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 if ($kontotype == 'erhverv') {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(379, $sprog_id) . "<!--tekst 379--></td>";
+	print "<tr bgcolor=$bg><td>" . findtekst('379|EAN-nr.', $sprog_id) . "<!--tekst 379--></td>";
 	print "<td><input class=\"inputbox\" type='text' style='width:100px' name='ean' value=\"$ean\" ";
 	print "onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(380, $sprog_id) . "<!--tekst 380--></td>";
+	print "<tr bgcolor=$bg><td>" . findtekst('380|Institutionsnr.', $sprog_id) . "<!--tekst 380--></td>";
 	print "<td><input class=\"inputbox\" type='text' style='width:100px' name='institution' value=\"$institution\" ";
 	print "onchange=\"javascript:docChange = true;\"></td></tr>\n";
 } else {
@@ -980,25 +979,25 @@ if ($kontotype == 'erhverv') {
 	print "<input type = 'hidden' name = 'institution' value=\"$institution\">";
 }
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(381, $sprog_id) . "<!--tekst 381--></td><td><input class='inputbox' type='text' style='width:100px' ";
+print "<tr bgcolor=$bg><td>" . findtekst('381|Kreditmax', $sprog_id) . "<!--tekst 381--></td><td><input class='inputbox' type='text' style='width:100px' ";
 print "name='kreditmax' value=\"$kreditmax\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(382, $sprog_id) . "<!--tekst 382--></td><td><input class='inputbox' type='text' style='width:100px' ";
+print "<tr bgcolor=$bg><td>" . findtekst('382|Bank reg.', $sprog_id) . "<!--tekst 382--></td><td><input class='inputbox' type='text' style='width:100px' ";
 print "name=bank_reg value=\"$bank_reg\"></td></tr>\n";
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(383, $sprog_id) . "<!--tekst 383--></td><td><input class='inputbox' type='text' style='width:100px' name=bank_konto value=\"$bank_konto\"></td></tr>\n";
-print "<tr bgcolor=$bg><td>" . findtekst(769, $sprog_id) . "<!--tekst 769--></td><td><input class='inputbox' type='text' style='width:100px' name='swift' value=\"$swift\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('383|Bank konto', $sprog_id) . "<!--tekst 383--></td><td><input class='inputbox' type='text' style='width:100px' name=bank_konto value=\"$bank_konto\"></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('769|Bank BIC', $sprog_id) . "<!--tekst 769--></td><td><input class='inputbox' type='text' style='width:100px' name='swift' value=\"$swift\"></td></tr>\n";
 ##################### PBS ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 if (!isset($pbs)) $pbs = NULL;
 if ($pbs) {
-	print "<tr bgcolor=$bg><td height=25px>" . findtekst(384, $sprog_id) . "<!--tekst 384--></td><td><input class='inputbox' type=checkbox name=pbs $pbs><input class='inputbox' size=\"8\" type=\"text\" name=\"pbs_nr\" value=\"$pbs_nr\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td height=25px>" . findtekst('384|BS-nr.', $sprog_id) . "<!--tekst 384--></td><td><input class='inputbox' type=checkbox name=pbs $pbs><input class='inputbox' size=\"8\" type=\"text\" name=\"pbs_nr\" value=\"$pbs_nr\"></td></tr>\n";
 } else {
-	print "<tr bgcolor=$bg><td height=25px>" . findtekst(385, $sprog_id) . "<!--tekst 385--></td><td><input class='inputbox' type=checkbox name=pbs $pbs></td></tr>\n";
+	print "<tr bgcolor=$bg><td height=25px>" . findtekst('385|BS', $sprog_id) . "<!--tekst 385--></td><td><input class='inputbox' type=checkbox name=pbs $pbs></td></tr>\n";
 }
 ##################### KONTOANSVARLIG ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(386, $sprog_id) . "<!--tekst 386--></td>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('386|Kundeansvarlig', $sprog_id) . "<!--tekst 386--></td>\n";
 print "<td><select class='inputbox' NAME=kontoansvarlig value=\"$kontoansvarlig\"  onchange=\"javascript:docChange = true;\">\n";
 if ($r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__))) {
 	$r = db_fetch_array(db_select("select initialer from ansatte where id='$kontoansvarlig'", __FILE__ . " linje " . __LINE__));
@@ -1018,9 +1017,9 @@ for ($x = 0; $x < $status_antal; $x++) {
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 if (!isset($new_status)) $new_status = NULL;
 if ($new_status) {
-	print "<tr bgcolor=$bg title=\"" . findtekst(497, $sprog_id) . "\"><!--tekst 497--><td height=\"25px\">" . findtekst(494, $sprog_id) . "<!--tekst 494--></td><td><input class='inputbox' type='text' style='width:100px' name=ny_status></td></tr>\n";
+	print "<tr bgcolor=$bg title=\"" . findtekst('497|Navn på ny status.', $sprog_id) . "\"><!--tekst 497--><td height=\"25px\">" . findtekst('494|Status', $sprog_id) . "<!--tekst 494--></td><td><input class='inputbox' type='text' style='width:100px' name=ny_status></td></tr>\n";
 } else {
-	print "<tr bgcolor=$bg><td title='" . findtekst(496, $sprog_id) . "'  height=\"25px\"><!--tekst 496-->" . findtekst(494, $sprog_id) . "<!--tekst 494--></td>\n";
+	print "<tr bgcolor=$bg><td title='" . findtekst('496|Vælg \'Ny Status\' for at tilføje en ny status', $sprog_id) . "'  height=\"25px\"><!--tekst 496-->" . findtekst('494|Status', $sprog_id) . "<!--tekst 494--></td>\n";
 	print "<td><select class='inputbox' NAME=status onchange=\"javascript:docChange = true;\">\n";
 	if (!$status) print "<option></option>\n";
 	for ($x = 0; $x < $status_antal; $x++) {
@@ -1030,53 +1029,53 @@ if ($new_status) {
 		if ($status != $status_id[$x]) print "<option value=\"$status_id[$x]\">$status_beskrivelse[$x]</option>\n";
 	}
 	if ($status) print "<option></option>\n";
-	print "<option value=\"new_status\">" . findtekst(495, $sprog_id) . "<!--tekst 495--></option>\n";
+	print "<option value=\"new_status\">" . findtekst('495|Ny status', $sprog_id) . "<!--tekst 495--></option>\n";
 	print "</SELECT></td></tr>\n";
 }
 ##################### LUKKET ##################### 
 ($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-print "<tr bgcolor=$bg><td>" . findtekst(387, $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
+print "<tr bgcolor=$bg><td>" . findtekst('387|Lukket', $sprog_id) . "<!--tekst 387--></td><td><input class='inputbox' type=checkbox name=lukket $lukket></td></tr>\n";
 print "</tbody></table></td>"; # <- TABEL 1.2.2
 print "<td valign=top><table border='0' width='100%'><tbody>"; # TABEL 1.2.3 ->
 $bg = $bgcolor5;
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 if ($vis_addr == "on") {
-	print "<tr bgcolor=$bg><td colspan=2 align=center height=25px><b>" . findtekst(1148, $sprog_id) . "</b></td></tr>\n"; #20210702
+	print "<tr bgcolor=$bg><td colspan=2 align=center height=25px><b>" . findtekst('1148|Levering', $sprog_id) . "</b></td></tr>\n"; #20210702
 	if ($kontotype == 'privat') {
 		print "<input type=\"hidden\" name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td>" . findtekst(358, $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=lev_fornavn value=\"$lev_fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+		print "<tr bgcolor=$bg><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=lev_fornavn value=\"$lev_fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td>" . findtekst(359, $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=lev_efternavn value=\"$lev_efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+		print "<tr bgcolor=$bg><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=lev_efternavn value=\"$lev_efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	} else {
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td>" . findtekst(360, $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=lev_firmanavn value=\"$lev_firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+		print "<tr bgcolor=$bg><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=lev_firmanavn value=\"$lev_firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	}
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(361, $sprog_id) . "<!--tekst 361--></td><td><input class='inputbox' type='text' size='25' name=lev_addr1 value=\"$lev_addr1\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('361|Adresse', $sprog_id) . "<!--tekst 361--></td><td><input class='inputbox' type='text' size='25' name=lev_addr1 value=\"$lev_addr1\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(362, $sprog_id) . "<!--tekst 362--></td><td><input class='inputbox' type='text' size='25' name=lev_addr2 value=\"$lev_addr2\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('362|Adresse 2', $sprog_id) . "<!--tekst 362--></td><td><input class='inputbox' type='text' size='25' name=lev_addr2 value=\"$lev_addr2\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(363, $sprog_id) . "<!--tekst 363--></td><td><input class='inputbox' type='text' size=3 name=lev_postnr value=\"$lev_postnr\" onchange=\"javascript:docChange = true;\">\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('363|Postnr./By', $sprog_id) . "<!--tekst 363--></td><td><input class='inputbox' type='text' size=3 name=lev_postnr value=\"$lev_postnr\" onchange=\"javascript:docChange = true;\">\n";
 	print "<input class='inputbox' type='text' size=19 name=lev_bynavn value=\"$lev_bynavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(364, $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' name=lev_land value=\"$lev_land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('364|Land', $sprog_id) . "<!--tekst 364--></td><td><input class='inputbox' type='text' size='25' name=lev_land value=\"$lev_land\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td  height=\"25px\">" . findtekst(502, $sprog_id) . "<!--tekst 502--></td><td height=\"25px\"><input class='inputbox' type='text' size=\"25px\" name=lev_kontakt value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\">\n";
+	print "<tr bgcolor=$bg><td  height=\"25px\">" . findtekst('502|Kontakt', $sprog_id) . "<!--tekst 502--></td><td height=\"25px\"><input class='inputbox' type='text' size=\"25px\" name=lev_kontakt value=\"$lev_kontakt\" onchange=\"javascript:docChange = true;\">\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst(377, $sprog_id) . "<!--tekst 377--></td><td><input class='inputbox' type='text' size='25' name=lev_tlf value=\"$lev_tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td>" . findtekst('377|Telefon', $sprog_id) . "<!--tekst 377--></td><td><input class='inputbox' type='text' size='25' name=lev_tlf value=\"$lev_tlf\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 } else {
-	print "<tr bgcolor=$bg><td colspan=2 height=25px align=center><b>" . findtekst(254, $sprog_id) . "<!--tekst 254--></b></tr>\n";
+	print "<tr bgcolor=$bg><td colspan=2 height=25px align=center><b>" . findtekst('254|Ekstrafelter', $sprog_id) . "<!--tekst 254--></b></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst(260, $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 260-->" . findtekst(255, $sprog_id) . "<!--tekst 255--></td><td><input class='inputbox' type='text' name=\"felt_1\" size=\"25\" value=\"$felt_1\"></span></td></tr>\n";
+	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst('260|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 255 & 260.', $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 260-->" . findtekst('255|Ekstrafelt 1', $sprog_id) . "<!--tekst 255--></td><td><input class='inputbox' type='text' name=\"felt_1\" size=\"25\" value=\"$felt_1\"></span></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst(261, $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 261-->" . findtekst(256, $sprog_id) . "<!--tekst 256--></td><td><input class='inputbox' type='text' name=\"felt_2\" size=\"25\" value=\"$felt_2\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst('261|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 256 & 261.', $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 261-->" . findtekst('256|Ekstrafelt 2', $sprog_id) . "<!--tekst 256--></td><td><input class='inputbox' type='text' name=\"felt_2\" size=\"25\" value=\"$felt_2\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst(262, $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 262-->" . findtekst(257, $sprog_id) . "<!--tekst 257--></td><td><input type='text' class='inputbox' name=\"felt_3\" size=\"25\" value=\"$felt_3\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst('262|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 257 & 262.', $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 262-->" . findtekst('257|Ekstrafelt 3', $sprog_id) . "<!--tekst 257--></td><td><input type='text' class='inputbox' name=\"felt_3\" size=\"25\" value=\"$felt_3\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst(263, $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 263-->" . findtekst(258, $sprog_id) . "<!--tekst 258--></td><td><input class='inputbox' type='text' name=\"felt_4\" size=\"25\" value=\"$felt_4\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst('263|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 258 & 263.', $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 263-->" . findtekst('258|Ekstrafelt 4', $sprog_id) . "<!--tekst 258--></td><td><input class='inputbox' type='text' name=\"felt_4\" size=\"25\" value=\"$felt_4\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst(264, $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 264-->" . findtekst(259, $sprog_id) . "<!--tekst 259--></td><td><input type='text' class='inputbox' name=\"felt_5\" size=\"25\" value=\"$felt_5\"></td></tr>\n";
+	print "<tr bgcolor=$bg><td><span onmouseover=\"return overlib('" . findtekst('264|Denne tekst kan rettes under <i>Indstillinger</i> -> <i>Diverse</i> -> <i>Sprog</i><br>Find Id 259 & 264.', $sprog_id) . "', WIDTH=600);\" onmouseout=\"return nd();\"><!--tekst 264-->" . findtekst('259|Ekstrafelt 5', $sprog_id) . "<!--tekst 259--></td><td><input type='text' class='inputbox' name=\"felt_5\" size=\"25\" value=\"$felt_5\"></td></tr>\n";
 }
 
 $qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
@@ -1101,7 +1100,7 @@ print "<tr><td valign=\"top\"><table cellpadding=\"0\" cellspacing=\"1\" border=
 
 
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">" . findtekst(388, $sprog_id) . "<!--tekst 388--></td></tr>\n";
+print "<tr bgcolor=$bg><td colspan=\"4\" valign=\"top\">" . findtekst('388|Kategorier', $sprog_id) . "<!--tekst 388--></td></tr>\n";
 $x = 0;
 if (!is_numeric($rename_category)) {
 	for ($x = 0; $x < count($cat_id); $x++) {
@@ -1111,11 +1110,11 @@ if (!is_numeric($rename_category)) {
 				if ($cat_id[$x] == $kategori[$y]) $checked = "checked";
 			}
 			print "<tr><td>$cat_beskrivelse[$x]</td>\n";
-			$tekst = findtekst(395, $sprog_id);
+			$tekst = findtekst('395|Afmærk her for at knytte $firmanavn til denne kategori', $sprog_id);
 			$tekst = str_replace('$firmanavn', $firmanavn, $tekst);
 			print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"cat_valg[$x]\" $checked></td>\n";
-			print "<td title=\"" . findtekst(396, $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&rename_category=$cat_id[$x]\" id=\"rename_category-$x\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-			print "<td title=\"" . findtekst(397, $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&delete_category=$cat_id[$x]\" id=\"delete_category-$x\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+			print "<td title=\"" . findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&rename_category=$cat_id[$x]\" id=\"rename_category-$x\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+			print "<td title=\"" . findtekst('397|Klik her for at slette denne kategori', $sprog_id) . "\"><!--tekst 396--><a href=\"debitorkort.php?id=$id&delete_category=$cat_id[$x]\" id=\"delete_category-$x\" onclick=\"return confirm('Vil du slette denne kategori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
 			print "</tr>\n";
 			print "<input type=\"hidden\" name=\"cat_id[$x]\" value=\"$cat_id[$x]\">\n";
 			print "<input type=\"hidden\" name=\"cat_beskrivelse[$x]\" value=\"$cat_beskrivelse[$x]\">\n";
@@ -1145,7 +1144,7 @@ if (is_numeric($rename_category)) {
 } else {
 	// If not renaming a category, display a text input field for creating a new category
 	// Use placeholders and titles for better user guidance
-	print "<tr><td colspan=\"4\" title=\"" . findtekst(390, $sprog_id) . "\"><!--tekst 390--><input class='inputbox' type=\"text\" size=\"25\" name=\"newCatName\" placeholder=\"" . findtekst(343, $sprog_id) . "\"></td></tr>\n";
+	print "<tr><td colspan=\"4\" title=\"" . findtekst('390|For at oprette en ny kategori skrives navnet på kategorien her. For at oprette en underkategori skrives id på den overstående kategori foran navnet med | som adskillelse', $sprog_id) . "\"><!--tekst 390--><input class='inputbox' type=\"text\" size=\"25\" name=\"newCatName\" placeholder=\"" . findtekst('343|Skriv evt. ny kategori her', $sprog_id) . "\"></td></tr>\n";
 }
 
 
@@ -1153,7 +1152,7 @@ print "</tbody></table></td>"; # <- TABEL 1.2.4.1
 print "<td><table border=0 width='100%'><tbody>"; # TABEL 1.2.4.2 ->
 
 $bg = $bgcolor5;
-print "<tr bgcolor=$bg><td colspan=\"5\" valign=\"top\"><b>" . findtekst(391, $sprog_id) . ":</b><br><!--tekst 391--> <div class='textwrapper'><textarea name=\"notes\" rows=\"6\" cols=\"85\" style='width:100%;'>$notes</textarea></div></td></tr>\n";
+print "<tr bgcolor=$bg><td colspan=\"5\" valign=\"top\"><b>" . findtekst('391|Bemærkning', $sprog_id) . ":</b><br><!--tekst 391--> <div class='textwrapper'><textarea name=\"notes\" rows=\"6\" cols=\"85\" style='width:100%;'>$notes</textarea></div></td></tr>\n";
 #print "<tr><td> <a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id>Kontaktperson</a></td><td><br></td>\n";
 print "</tbody></table></td></tr>"; # <- TABEL 1.2.4.2
 print "<tr><td colspan=2><table border=\"0\" width=\"100%\"><tbody>"; # TABEL 1.2.4.3 ->
@@ -1161,10 +1160,10 @@ print "<tr><td colspan=2><table border=\"0\" width=\"100%\"><tbody>"; # TABEL 1.
 print "<tr><td colspan=6></td></tr>\n";
 $x = 0;
 if ($kontotype == 'erhverv') {
-	print "<tr bgcolor=$bg><td colspan=6><b>" . findtekst(392, $sprog_id) . "<!--tekst 392--></b></td></tr>\n";
+	print "<tr bgcolor=$bg><td colspan=6><b>" . findtekst('392|Kontaktpersoner', $sprog_id) . "<!--tekst 392--></b></td></tr>\n";
 	if ($id) {
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-		print "<tr bgcolor=$bg><td title=\"" . findtekst(393, $sprog_id) . "\"><!--tekst 393-->" . findtekst(394, $sprog_id) . "<!--tekst 394--></td><td>" . findtekst(398, $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst(399, $sprog_id) . "\"><!--tekst 399-->" . findtekst(400, $sprog_id) . "<!--tekst 400--></td><td>" . findtekst(401, $sprog_id) . "<!--tekst 401--></td><td>" . findtekst(402, $sprog_id) . "<!--tekst 402--></td><td><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id>" . findtekst(39, $sprog_id) . "<!--tekst 39--></a></td></tr>\n";
+		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id>" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></a></td></tr>\n";
 		$x = 0;
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -1194,16 +1193,16 @@ if (!isset($slet)) $slet = NULL;
 if ($slet == "NO") {
 	print "<td colspan='6' align = 'center'>";
 	print "<input type='submit' 'style=width:200px' accesskey='g' ";
-	print "value=" . findtekst(471, $sprog_id) . " name='submit' onclick='javascript:docChange = false;'>";
+	print "value=" . findtekst('471|Gem/opdatér', $sprog_id) . " name='submit' onclick='javascript:docChange = false;'>";
 	print "&nbsp;<input type='submit' 'style=width:200px' ";
-	print "name='anonymize' value='" . findtekst(1929, $sprog_id) . "' ";
-	$txt = str_replace('$kontonr', $kontonr, findtekst(1930, $sprog_id));
+	print "name='anonymize' value='" . findtekst('1929|Anonymisér', $sprog_id) . "' ";
+	$txt = str_replace('$kontonr', $kontonr, findtekst('1930|Anonymiser konto $kontonr? \r\nNavn, adresse og telefonnummer fjernes på dette kort og på alle ordrer, rykkere mm. \r\nEventuelle kontakter slettes.', $sprog_id));
 	print "onclick=\"return confirm('$txt')\">";
 	print "</td>";
 } else {
 	print "<td><br><td align = center>";
 	print "<input class='button green medium' 'style=width:200px' type=submit accesskey=\"g\" ";
-	print "value=\"" . findtekst(471, $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>";
+	print "value=\"" . findtekst('471|Gem/opdatér', $sprog_id) . "\" name=\"submit\" onclick=\"javascript:docChange = false;\"></td>";
 	print "<td><br></td><td><input class='button rosy medium' type='submit' accesskey='s'";
 	print "value='" . findtekst('1099|Slet', $sprog_id) . "' name='submit' onclick='return confirm('" . findtekst('1099|Slet', $sprog_id) . " $firmanavn?')'></td>";
 }
@@ -1218,39 +1217,39 @@ if ($menu == 'T') {
 } elseif ($menu == 'S') {
 	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
 	print "<td width='25%' align=center style='$topStyle'>&nbsp;</td>\n";
-	$tekst = findtekst(130, $sprog_id);
+	$tekst = findtekst('130|Vis historik.', $sprog_id);
 	if ($popup) {
 		print "<td width='10%' onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php', title='$tekst'>
-		<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(131, $sprog_id) . "</button></td>\n";
+		<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></td>\n";
 	} elseif ($returside != "historikkort.php") {
 		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id&returside=debitorkort.php>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(131, $sprog_id) . "</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
 	} else {
 		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(131, $sprog_id) . "</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
 	}
-	$tekst = findtekst(132, $sprog_id);
+	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
 	print "<td width='10%' title='$tekst'>
 		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(133, $sprog_id) . "</button></a></td>\n";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('133|Kontokort', $sprog_id) . "</button></a></td>\n";
 
-	$tekst = findtekst(129, $sprog_id);
+	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
 	if (substr($rettigheder, 5, 1) == '1') {
 		print "<td width='10%' title='$tekst'>
 			   <a href=ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(134, $sprog_id) . "</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('134|Fakturaliste', $sprog_id) . "</button></a></td>\n";
 	} else {
-		print "<td width='10%' align='center' style='$topStyle'><span style=\"color:#999;\">" . findtekst(134, $sprog_id) . "</span></td>\n";
+		print "<td width='10%' align='center' style='$topStyle'><span style=\"color:#999;\">" . findtekst('134|Fakturaliste', $sprog_id) . "</span></td>\n";
 	}
 
 	$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
 	$jobkort = $r['box7'];
 	if ($jobkort) {
-		$tekst = findtekst(312, $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
+		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
 
 		print "<td width='10%' title='$tekst'><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(38, $sprog_id) . "</button></td>\n";
-	} else print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst(38, $sprog_id) . "</span></td>\n";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('38|Stillingsliste', $sprog_id) . "</button></td>\n";
+	} else print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst('38|Stillingsliste', $sprog_id) . "</span></td>\n";
 
 	print "<td width='25%' style='$topStyle'>&nbsp;</td>\n";
 
@@ -1259,33 +1258,33 @@ if ($menu == 'T') {
 } else {
 	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
 	print "<td width='25%' $top_bund>&nbsp;</td>\n";
-	$tekst = findtekst(130, $sprog_id);
+	$tekst = findtekst('130|Vis historik.', $sprog_id);
 	if ($popup) {
 		print "<td width='10%' $top_bund ";
 		print "onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php',";
 		print "'historik','" . $jsvars . "');historik.focus();' onMouseOver=\"this.style.cursor = 'pointer'\" ";
-		print "title='$tekst'>" . findtekst(131, $sprog_id) . "<!--tekst 131--></td>\n";
+		print "title='$tekst'>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	} elseif ($returside != "historikkort.php") {
 		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
-		print "<a href=historikkort.php?id=$id&returside=debitorkort.php>" . findtekst(131, $sprog_id) . "<!--tekst 131--></td>\n";
+		print "<a href=historikkort.php?id=$id&returside=debitorkort.php>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	} else {
 		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
-		print "<a href=historikkort.php?id=$id>" . findtekst(131, $sprog_id) . "<!--tekst 131--></td>\n";
+		print "<a href=historikkort.php?id=$id>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
 	}
-	$tekst = findtekst(132, $sprog_id);
-	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst(133, $sprog_id) . "<!--tekst 133--></td>\n";
-	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>" . findtekst(133, $sprog_id) . "<!--tekst 133--></td>\n";
-	$tekst = findtekst(129, $sprog_id);
+	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
+	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
+	else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 132--><a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
+	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
 	if (substr($rettigheder, 5, 1) == '1') {
-		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&valg=faktura&returside=../includes/luk.php','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst(134, $sprog_id) . "<!--tekst 134--></td>\n";
-		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 129--><a href=ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id>" . findtekst(134, $sprog_id) . "<!--tekst 134--></td>\n";
-	} else print "<td width=\"10%\" $top_bund><span style=\"color:#999;\">" . findtekst(134, $sprog_id) . "<!--tekst 134--></span></td>\n";
+		if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:d_ordrer=window.open('ordreliste.php?konto_id=$id&valg=faktura&returside=../includes/luk.php','d_ordrer','" . $jsvars . "');d_ordrer.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
+		else print "<td width=\"10%\" $top_bund  title=\"$tekst\"><!--tekst 129--><a href=ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id>" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></td>\n";
+	} else print "<td width=\"10%\" $top_bund><span style=\"color:#999;\">" . findtekst('134|Fakturaliste', $sprog_id) . "<!--tekst 134--></span></td>\n";
 	$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
 	$jobkort = $r['box7'];
 	if ($jobkort) {
-		$tekst = findtekst(312, $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
-		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst(38, $sprog_id) . "<!--tekst 38--></td>\n";
-	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst(38, $sprog_id) . "<!--tekst 38--></span></td>\n";
+		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
+		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></td>\n";
+	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
 	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3
 	print "</tbody></table>"; # <- TABEL 1
@@ -1318,35 +1317,35 @@ if ($menu == 'T') {
 $steps = array();
 $steps[] = array(
 	"selector" => 'select[name="kontotype"]',
-	"content" => "Vælg om det skal være privat eller erhverv her."
+	"content" => findtekst('2627|Her vælger du kundetype (privat eller erhverv)', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="ny_kontonr"]',
-	"content" => "Indsæt konto nr. eller lad systemet gøre det for dig ved at hoppe videre til næste felt."
+	"content" => findtekst('2628|Indsæt kontonummer, eller lad systemet gøre det for dig ved at hoppe videre til næste felt', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="fornavn"], input[type="text"][name="efternavn"]',
-	"content" => "Angiv kundens navn."
+	"content" => findtekst('2629|Angiv kundens navn', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="firmanavn"]',
-	"content" => "Angiv kundens firmanavn."
+	"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="email"], input[type="checkbox"][name="mailfakt"]',
-	"content" => "Kundens email tastes her, hvis du gerne vil have at systemet sender emails som standard når du fakturere ordre, kan du sætte hak i brug mail."
+	"content" => findtekst('2631|Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i \'Brug mail\'', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'select[name="betalingsbet"], input[type="text"][name="betalingsdage"]',
-	"content" => "Du kan opstille kundens betalingsbetingelser her."
+	"content" => findtekst('2632|Du kan opstille kundens betalingsbetingelser her', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="cvrnr"]',
-	"content" => "Når du indtaster en ny kunde kan du lave et cvr opslag ved at sætte / før og efter cvrnummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>"
+	"content" => findtekst('2633|Når du indtaster en ny kunde, kan du lave et CVR-opslag ved at sætte \'/\' før og efter CVR-nummeret.<br><br>Prøv f.eks. med <b>/20756438/</b>', $sprog_id)."."
 );
 $steps[] = array(
 	"selector" => 'input[type="text"][name="felt_1"], input[type="text"][name="felt_5"]',
-	"content" => "Du kan lave 5 selvdefinerede felter, du kan kontakte salditeamet hvis du gerne vil have rette felternes tekst så det passter til indeholdet"
+	"content" => findtekst('2634|Her kan du oprette op til 5 selvdefinerede felter. Du kan kontakte Saldi-teamet, hvis du ønsker at tilpasse felternes tekst, så den passer til indholdet.', $sprog_id)
 );
 
 include(__DIR__ . "/../includes/tutorial.php");

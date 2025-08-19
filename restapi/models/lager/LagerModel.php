@@ -5,11 +5,11 @@ class LagerModel
 {
     // Properties to match database columns
     private $id;
-    private $beskrivelse;
-    private $nr;
+    private $description;
+    private $number;
     private $fiscal_year;
-    private $lagerstatus;
-    
+    private $inventory;
+
     // Constants for better code maintenance
     const TABLE_NAME = 'grupper';
     const ART_TYPE = 'LG';
@@ -21,14 +21,14 @@ class LagerModel
      * @param int|null $kodenr Optional code number to load existing item
      * @param int|null $vare_id Optional product ID to associate with storage status
      */
-    public function __construct($id = null, $kodenr = null, $vare_id = null)
+    public function __construct($id = null, $kodenr = null, $vare_id = null, $nr = 1)
     {
         global $regnaar;
 
         // Initialize default values
         $this->id = -1;
-        $this->beskrivelse = "";
-        $this->nr = 1;
+        $this->description = "";
+        $this->number = $nr;
         $this->fiscal_year = $regnaar;
         
         // Load existing data if provided
@@ -38,9 +38,9 @@ class LagerModel
             $this->loadFromKodenr((int)$kodenr);
         }
 
-        // Initialize lagerstatus if vare_id is provided
+        // Initialize inventory if vare_id is provided
         if ($vare_id !== null) {
-            $this->lagerstatus = new LagerStatusModel(null, $vare_id, $this->nr);
+            $this->inventory = new LagerStatusModel(null, $vare_id, $this->number);
         }
     }
 
@@ -57,7 +57,7 @@ class LagerModel
         }
         
         $id = (int)$id; // Ensure integer type
-        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = $id";
+        $qtxt = "SELECT * FROM " . self::TABLE_NAME . " WHERE id = $id AND art = '" . self::ART_TYPE . "' AND fiscal_year = " . $this->fiscal_year;
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         return $this->populateFromResult($q);
@@ -122,11 +122,11 @@ class LagerModel
      */
     private function validate()
     {
-        if (empty($this->beskrivelse)) {
+        if (empty($this->description)) {
             return "Description cannot be empty";
         }
         
-        if (!is_numeric($this->nr) || $this->nr <= 0) {
+        if (!is_numeric($this->number) || $this->number <= 0) {
             return "Number must be a positive integer";
         }
         
@@ -153,18 +153,18 @@ class LagerModel
         }
         
         // Sanitize text
-        $beskrivelse  = $this->sanitize($this->beskrivelse);
+        $description  = $this->sanitize($this->description);
 
         // Prepare integer fields: NULL if not numeric
-        $nr           = is_numeric($this->nr)          ? intval($this->nr)          : 'NULL';
-        $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : 'NULL';
+        $number       = is_numeric($this->number)       ? intval($this->number)       : 'NULL';
+        $fiscal_year  = is_numeric($this->fiscal_year) ? intval($this->fiscal_year) : $regnaar;
 
         if ($this->id > 0) {
             // UPDATE
             $qtxt = "
               UPDATE " . self::TABLE_NAME . " SET
-                beskrivelse  = '$beskrivelse',
-                kodenr       = $nr,
+                beskrivelse  = '$description',
+                kodenr       = $number,
                 fiscal_year  = $fiscal_year
               WHERE id = {$this->id}
             ";
@@ -178,8 +178,8 @@ class LagerModel
                 fiscal_year
               ) VALUES (
                 '" . self::ART_TYPE . "',
-                '$beskrivelse',
-                $nr,
+                '$description',
+                $number,
                 $fiscal_year
               )
             ";
@@ -212,7 +212,7 @@ class LagerModel
             return false;
         }
 
-        $qtxt = "DELETE FROM " . self::TABLE_NAME . " WHERE id = $this->id";
+        $qtxt = "DELETE FROM " . self::TABLE_NAME . " WHERE id = $this->id AND art = '" . self::ART_TYPE . "' AND fiscal_year = " . $this->fiscal_year;
         $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
         return explode("\t", $q)[0] == "0";
@@ -226,7 +226,7 @@ class LagerModel
      * @param string $orderDirection Sort direction (default: ASC)
      * @return LagerModel[] Array of LagerModel objects
      */
-    public static function getAllItems($vare_id = null, $orderBy = 'kodenr', $orderDirection = 'ASC')
+    public static function getAllItems($vare_id = null, $orderBy = 'kodenr', $orderDirection = 'ASC', $nr = 1)
     {
         global $regnaar;
 
@@ -243,12 +243,12 @@ class LagerModel
 
         $items = [];
         while ($r = db_fetch_array($q)) {
-            $items[] = new LagerModel($r['id'], null, $vare_id);
+            $items[] = new LagerModel($r['id'], null, $vare_id, $nr);
         }
 
         // Create a default item if no items exist
         if (count($items) == 0) {
-            $items[] = new LagerModel(null, null, $vare_id);
+            $items[] = new LagerModel(null, null, $vare_id, $nr);
         }
 
         return $items;
@@ -294,15 +294,15 @@ class LagerModel
     {
         $data = [
             'id' => $this->id,
-            'beskrivelse' => $this->beskrivelse,
-            'nr' => $this->nr,
+            'description' => $this->description,
+            'number' => $this->number,
             'fiscal_year' => $this->fiscal_year,
         ];
 
-        if (isset($this->lagerstatus) && $this->lagerstatus->getId() !== null) {
-            $data["lagerstatus"] = $this->lagerstatus->toArray();
+        if (isset($this->inventory) && $this->inventory->getId() !== null) {
+            $data["inventory"] = $this->inventory->toArray();
         } else {
-            $data["lagerstatus"] = null;
+            $data["inventory"] = null;
         }
 
         return $data;
@@ -314,44 +314,44 @@ class LagerModel
         return $this->id;
     }
 
-    public function getBeskrivelse()
+    public function getDescription()
     {
-        return $this->beskrivelse;
+        return $this->description;
     }
 
-    public function getNr()
+    public function getNumber()
     {
-        return $this->nr;
+        return $this->number;
     }
 
     public function getFiscalYear()
     {
         return $this->fiscal_year;
     }
-    
-    public function getLagerstatus()
+
+    public function getInventory()
     {
-        return $this->lagerstatus;
+        return $this->inventory;
     }
 
     // Setter methods
-    public function setBeskrivelse($beskrivelse)
+    public function setDescription($description)
     {
-        $this->beskrivelse = $beskrivelse;
+        $this->description = $description;
     }
 
-    public function setNr($nr)
+    public function setNumber($number)
     {
-        $this->nr = (int)$nr;
+        $this->number = (int)$number;
     }
 
     public function setFiscalYear($fiscal_year)
     {
         $this->fiscal_year = (int)$fiscal_year;
     }
-    
-    public function setLagerstatus($lagerstatus)
+
+    public function setInventory($inventory)
     {
-        $this->lagerstatus = $lagerstatus;
+        $this->inventory = $inventory;
     }
 }

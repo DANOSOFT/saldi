@@ -40,6 +40,7 @@ class VatEndpointTest
             $this->testGetSingleVatItem();
             $this->testCreateDuplicateVatCode();
             $this->testUpdateVatItem();
+            $this->testFilterByVatcode();
             $this->testUpdateWithDuplicateVatCode();
             $this->testDeleteVatItem();
             $this->testCreateVatItemMissingFields();
@@ -173,7 +174,7 @@ class VatEndpointTest
             'momskode' => 'S', // Same code as first VAT item
             'nr' => '25',      // Same nr as first VAT item
             'beskrivelse' => 'Duplicate Standard VAT',
-            'fiscal_year' => 2024,
+            'fiscal_year' => 4,
             'sats' => 25.0
         ];
 
@@ -249,7 +250,7 @@ class VatEndpointTest
                 'momskode' => 'R',
                 'nr' => '0',
                 'beskrivelse' => 'Reduced VAT 0%',
-                'fiscal_year' => 2024,
+                'fiscal_year' => 4,
                 'sats' => 0.0
             ];
             
@@ -371,6 +372,28 @@ class VatEndpointTest
         echo "\n";
     }
 
+    public function testFilterByVatcode(){
+        echo "Testing: Filter VAT Items by Vatcode\n";
+        
+        // Test filtering by vatcode
+        $response = $this->makeRequest('GET', null, "?vatcode=S");
+
+        if ($response['success'] && is_array($response['data'])) {
+            echo "✓ Filter by vatcode=S returned " . count($response['data']) . " VAT items\n";
+            
+            // Verify all returned items have vatcode 'S'
+            foreach ($response['data'] as $vatItem) {
+                if ($vatItem['momskode'] !== 'S') {
+                    throw new Exception("Filter returned VAT item with wrong vatcode");
+                }
+            }
+        } else {
+            echo "⚠ Warning: Filter by vatcode functionality may not be implemented\n";
+        }
+        
+        echo "\n";
+    }
+
     /**
      * Test VAT validation
      */
@@ -426,7 +449,7 @@ class VatEndpointTest
             'nr' => '0',
             'beskrivelse' => 'Zero VAT',
             'sats' => 0.0,
-            'fiscal_year' => 2024
+            'fiscal_year' => 4
         ];
 
         $response = $this->makeRequest('POST', $zeroVatData);
@@ -444,7 +467,7 @@ class VatEndpointTest
             'nr' => '50',
             'beskrivelse' => 'High VAT 50%',
             'sats' => 50.0,
-            'fiscal_year' => 2024
+            'fiscal_year' => 4
         ];
 
         $response = $this->makeRequest('POST', $highVatData);

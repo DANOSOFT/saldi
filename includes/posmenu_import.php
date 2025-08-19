@@ -1,5 +1,5 @@
 <?php
-// --- /systemdata/posmenu_import.php ---------- vers. 4.0.5 -- 2022-03-07 --
+// --- /systemdata/posmenu_import.php ---------- vers. 4.1.1 -- 2025-08-06 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,11 +15,12 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2005-2022 Saldi.dk ApS
+// Copyright (c) 2005-2025 Saldi.dk ApS
 // --------------------------------------------------------------------------
 // 20211124 CA  Import POS menus from a file
 // 20220307 PHR Set db_escape_string on 'beskrivelse'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250806 PHR - PHP8 (*1 -> (int))
 
 function posmenu_import($filnavn) {
 
@@ -52,10 +53,10 @@ if ($fp) {
 				if ((substr($rowspan,0,1))=="'"&&(substr($rowspan,-1))=="'") $rowspan=(substr($rowspan,1,strlen($rowspan)-2));
 				$beskrivelse=addslashes($beskrivelse);
 				$color=trim($color); 
-				$menu_id=$menu_id*1; $col= $col*1; $row= $row*1; $colspan= $colspan*1; $rowspan=$rowspan*1; $funktion=$funktion*1; $vare_id=$vare_id*1;
+				$menu_id=(int)$menu_id; $col=(int)$col; $row=(int)$row; $colspan=(int)$colspan; $rowspan=(int)$rowspan; $funktion=(int)$funktion; $vare_id=(int)$vare_id;
 				$qtxt = "insert into pos_buttons (menu_id,row,col,beskrivelse,color,funktion,vare_id,colspan,rowspan) values ";
 				$qtxt.= "('$menu_id','$row','$col','". db_escape_string($beskrivelse) ."','$color','$funktion','$vare_id','$colspan','$rowspan')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			} else if ( $importtable===2 ) { # Import table grupper
 				list($beskrivelse, $art, $kode, $kodenr, $box1, $box2, $box3, $box4, $box5, $box6, $box7, $box8, $box9, $box10, $box11, $box12) = explode(chr(9),$linje);
 				if ((substr($beskrivelse,0,1))=="'"&&(substr($menu_id,-1))=="'") $menu_id=(substr($menu_id,1,strlen($menu_id)-2));
@@ -76,10 +77,14 @@ if ($fp) {
 				if ((substr($box12,0,1))=="'"&&(substr($box12,-1))=="'") $box12=(substr($box12,1,strlen($box12)-2));
 				$beskrivelse=addslashes($beskrivelse);
 				$art=trim($art); $box1=trim($box1); $box6=trim($box6); $box7=trim($box7); $box8=trim($box8); $box9=trim($box); $box12=trim($box12);
-				$xa= $xa*1; $ya= $ya*1; $xb= $xb*1; $yb=$yb*1; $str=$str*1; $color=$color*1;
+				$xa=(int)$xa; $ya=(int)$ya; $xb=(int)$xb* $yb=(int)$yb; $str=(int)$str; $color=(int)$color;
 				if ($beskrivelse != 'beskrivelse') {
 					$box1 = db_escape_string($box1);
-					db_modify("insert into grupper (beskrivelse,art,kode,kodenr,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12)values('$beskrivelse','$art','$kode','$kodenr','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')",__FILE__ . " linje " . __LINE__);
+					$qtxt = "insert into grupper ";
+					$qtxt.= "(beskrivelse,art,kode,kodenr,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,box12) ";
+					$qtxt.= "values ";
+					$qtxt.= "('$beskrivelse','$art','$kode','$kodenr','$box1','$box2','$box3','$box4','$box5','$box6','$box7','$box8','$box9','$box10','$box11','$box12')";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}
 		}
