@@ -147,6 +147,39 @@ include("../includes/online.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style-with-links.js.php");
 
+/* 
+* check for popup blocker 
+*/
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
+
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+<?php
+/* 
+* end check for popup blocker 
+*/
+
+
 # >> Date picker scripts <<
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
