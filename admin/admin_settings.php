@@ -164,9 +164,9 @@ while ($r=db_fetch_array($q)) {
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 print "<tr><td align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>\n";
-print "  <td $top_bund width=\"10%\"><a href='../index/admin_menu.php'>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n"; 
-print "  <td $top_bund width=\"35%\">&nbsp;</td>\n";
-print "  <td $top_bund width=\"10%\" align = \"center\"></td>\n";
+print "<td $top_bund width=\"10%\"><a href='../index/admin_menu.php'>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n"; 
+print "<td $top_bund width=\"35%\">&nbsp;</td>\n";
+print "<td $top_bund width=\"10%\" align = \"center\"></td>\n";
 print "<td $top_bund width=\"35%\">&nbsp;</td>";
 print "<td $top_bund width=\"10%\" align = \"right\"></td>\n";
 print "</tr></tbody></table></td></tr>\n<tr><td align=\"center\" valign=\"center\">\n";
@@ -209,7 +209,7 @@ print "<input type='hidden' name='alertTextId' value='$alertTextId'>";
 print "<table align=\"center\" border=\"0\" cellspacing=\"5\" cellpadding=\"0\"><tbody>";
 print "<tr><td colspan=\"2\" height=\"35\" align=\"center\" background=\"../img/blaa2hvid_bg.gif\">";
 print "<big<big><big><b>SALDI</b></big></big></big></td></tr>";
-print "<tr><td  colspan=\"2\" height=\"35\" align=\"center\"><b><big>Indstillinger</big></b></td></tr>";
+print "<tr><td  colspan=\"2\" height=\"35\" align=\"center\"><b><big>".findtekst('122|Indstillinger', $sprog_id)."</big></b></td></tr>";
 print "<tr><td>".findtekst('1917|Program til konvertering af PostScript til PDF', $sprog_id)."</td><td><input style='width:400px' name='ps2pdf' value='$ps2pdf'></td></tr>"; 
 print "<tr><td>".findtekst('1918|Program til konvertering af HTML til PDF', $sprog_id)."</td><td><input style='width:400px' name='html2pdf' value='$html2pdf'></td></tr>"; 
 print "<tr><td>".findtekst('1919|Program til sammenlægning af PDF filer', $sprog_id)."</td><td><input style='width:400px' name='pdfmerge' value='$pdfmerge'></td></tr>"; 
@@ -222,7 +222,7 @@ print "<tr><td>".findtekst('1925|Tekst ved \'uforudset hændelse\'', $sprog_id).
 print "<tr><td>".findtekst('1099|Slet', $sprog_id)."</td><td><input style='width:400px' name='newssnippet' value='$newssnippet'></td></tr>";
 
 ##################### #20210920
-print "<tr><td title='".findtekst('2|Vælg aktivt sprog', $sprog_id)."'>".findtekst('436|Skift', $sprog_id)." ".findtekst('801|Sprog', $sprog_id)."</td>";
+print "<tr><td title='".findtekst('2|Vælg aktivt sprog', $sprog_id)."'>".findtekst('436|Skift', $sprog_id)." ".lcfirst(findtekst('801|Sprog', $sprog_id))."</td>";
 print"<td> <SELECT class ='inputbox' NAME = 'LanguageId' title=''>";
 /*
 foreach ($languages as $k => $v) {
@@ -238,7 +238,7 @@ for ($l=1;$l<count($languages);$l++) {
 }
 print "</SELECT></td></tr>";
 #####################
-print "<tr><td colspan=\"2\" height=\"35\" align=\"center\"><input type='submit' name='gem' value='gem'></b></td></tr>";
+print "<tr><td colspan=\"2\" height=\"35\" align=\"center\"><input type='submit' name='gem' value='".findtekst('3|Gem', $sprog_id)."'></b></td></tr>";
 print "</tbody></table>";
 print "</form>";
 print "</td></tr>";

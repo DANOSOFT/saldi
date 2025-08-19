@@ -328,17 +328,17 @@
 328	Gentag adgangskode	Repeat password	Gjenta passord
 329	Adgang til	Access to	Tilgang til
 330	Administrator	Administrator	Administrator
-331	Kan oprette regnskaber	Can create accounts	Kan opprette kontoer
-332	Kan slette regnskaber	Can delete accounts	Kan slette kontoer
+331	Kan oprette regnskaber	Can create accounts	Kan opprette regnskaper
+332	Kan slette regnskaber	Can delete accounts	Kan slette regnskaper
 333	Ny bruger	New user	Ny bruker
 334	Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til	separated by commas	Sett * for tilgang til alle kontoer, eller skriv en liste med ID for kontoene den må være tilgjengelig for
-335	Afmærk her, hvis brugeren skal have administratorrettigheder	Check to grant the user administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
-336	Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here if the user is to be able to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
+335	Afmærk her, hvis brugeren skal have administratorrettigheder	Check here to grant the user administrator rights	Sjekk her om brukeren skal ha administratorrettigheter
+336	Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse	Check here to allow the user to create accounts and subsequently have access to these	Sjekk her om brukeren skal kunne opprette kontoer og deretter få tilgang til disse
 337	Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til	Check here to allow the user to delete the accounts they have access to	Huk av her hvis brukeren skal kunne slette regnskapene de har tilgang til
 338	Brugernavn	Username	Brukernavn
-339	Opret regnskab	Create accounts	Opprett kontoer
-340	Vis regnskaber	View accounts	Vis kontoer
-341	Slet regnskab	Delete accounts	Slett kontoer
+339	Opret regnskab	Create account	Opprett regnskap
+340	Vis regnskaber	View accounts	Vis regnskaper
+341	Slet regnskab	Delete account	Slett regnskap
 342	Uforudset hændelse - Kontakt venligst SALDI-teamet på telefon 46 90 22 08.	Unforeseen event - Please contact the SALDI team on telephone 46 90 22 08.	Uforutsett hendelse - Ta kontakt med SALDI-teamet på telefon 46 90 22 08.
 343	Skriv evt. ny kategori her	Write if necessary. new category here	Skriv om nødvendig. ny kategori her
 344	Kategorien $ny_kategori eksisterer allerede	The category $ny_kategori already exists	Kategorien $ny_kategori  eksisterer allerede
@@ -1342,7 +1342,7 @@
 1342	Intern opbevaring	Internal storage	Intern lagring
 1343	Egen FTP server	Own FTP server	Egen FTP-server
 1344	Ingen opbevaring	No storage	Ingen lagring
-1345	Begge adgangskoder skal være ens.	Both passwords must be the same.	Begge passordene må være de samme.
+1345	Begge adgangskoder skal være ens	Both passwords must be the same	Begge passordene må være de samme
 1346	Navn eller IP-nummer på ftp-server	Name or IP number of ftp server	Navn eller IP-nummer på ftp-serveren
 1347	Brugernavn på ftpserver	Username on ftpserver	Brukernavn på ftpserver
 1348	Adgangskode til ftpserver	Password for ftpserver	Passord for ftpserver
@@ -2678,10 +2678,10 @@
 2678	Graf over ugentlig omsætning	Weekly revenue graph	Graf over ukentlig omsetning
 2679	Omsætning denne uge, ekskl. moms	Revenue this week, excl. VAT	Omsetning denne uke, ekskl. mva
 2680	Gl. design	Old design	Gl. design
-2681	
-2682	
-2683	
-2684	
+2681	Klik på brugernavn for at ændre password eller slette bruger	Click the username to change the password or delete the user	Klikk på brukernavn for å endre passord eller slette bruker
+2682	Regnskab	Account	Regnskap
+2683	findes allerede	already exists	finnes allerede
+2684	Alle felter SKAL udfyldes	All fields MUST be filled out	Alle felter MÅ fylles ut
 2685	
 2686	
 2687	

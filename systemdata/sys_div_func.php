@@ -2836,8 +2836,8 @@ function docubizz() {
 		<!--
 		function Form1_Validator(docubizz) {
 			if (docubizz.box3.value != docubizz.pw2.value) {
-				alert("".findtekst('1345|Begge adgangskoder skal være ens.', $sprog_id).
-					"");
+				alert("".findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).
+					".");
 				docubizz.box3.focus();
 				return (false);
 			}
@@ -2894,7 +2894,7 @@ function bilag()
 		<!--
 		function Form1_Validator(ftp) {
 			if (ftp.box3.value != ftp.pw2.value) {
-				$alert = findtekst('1345|Begge adgangskoder skal være ens.', $sprog_id);
+				$alert = findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).".";
 				alert($alert);
 				ftp.box3.focus();
 				return (false);

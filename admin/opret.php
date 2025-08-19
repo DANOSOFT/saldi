@@ -130,8 +130,8 @@ $fra_formular=NULL;
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
 	<tr><td align=\"center\" valign=\"top\" height=\"25\">
 		<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>
-			<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=../index/admin_menu.php accesskey=L>Luk</a></td>
-			<td width=\"80%\" $top_bund align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Opret regnskab</td>
+			<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=../index/admin_menu.php accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></td>
+			<td width=\"80%\" $top_bund align=\"center\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('339|Opret regnskab', $sprog_id)."</td>
 			<td width=\"10%\" $top_bund align = \"right\"><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>
 		</tbody></table>
 	</td></tr>
@@ -191,11 +191,11 @@ if ($_POST){
 #	$tmp=db_escape_string($regnskab);
 	$query = db_select("select * from regnskab where regnskab='$regnskab'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
-		print "<BODY onLoad=\"javascript:alert('Regnskab $regnskab findes allerede')\">";
+		print "<BODY onLoad=\"javascript:alert('".findtekst('2682|Regnskab', $sprog_id)." $regnskab ".findtekst('2683|findes allerede', $sprog_id)."')\">";
 		forside($regnskab,$brugernavn);
 		exit;
 	} elseif ((!$revisorregnskab && (!$brugernavn||!$passwd)) || (!$regnskab))  {
-		print "<BODY onLoad=\"javascript:alert('Alle felter SKAL udfyldes')\">";
+		print "<BODY onLoad=\"javascript:alert('".findtekst('2684|Alle felter SKAL udfyldes', $sprog_id)."')\">";
 		forside($regnskab,$brugernavn);
 		exit();
 	} else {

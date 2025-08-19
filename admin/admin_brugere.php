@@ -69,7 +69,7 @@ if ($_POST) {
 	$rettigheder="$admin,$oprette,$slette,$adgang_til";
 
 	if ($kode && $kode != $kode2) {
-			$alerttext="Adgangskoder er ikke ens";
+			$alerttext=findtekst('1345|Begge adgangskoder skal være ens', $sprog_id).".";
 			print "<BODY onLoad=\"javascript:alert('$alerttext')\">";
 			$kode=NULL;
 			$ret_id=$id;
@@ -108,7 +108,7 @@ $td="width=\"8px\" align=\"center\"";
 print "<tr><td colspan=\"2\"></td><td title=\"".findtekst('337|Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til', $sprog_id)."\" colspan=\"4\" bgcolor=\"$bgcolor2\">".findtekst('332|Kan slette regnskaber', $sprog_id)."</td></tr>\n";
 print "<tr><td colspan=\"2\"></td><td title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\" colspan=\"3\" >".findtekst('331|Kan oprette regnskaber', $sprog_id)."</td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
 print "<tr><td colspan=\"2\"></td><td title=\"".findtekst('335|Afmærk her, hvis brugeren skal have administratorrettigheder', $sprog_id)."\" colspan=\"2\" bgcolor=\"$bgcolor2\">".findtekst('330|Administrator', $sprog_id)."</td><td></td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
-print "<tr><td><br></td><td  style=\"width:170px\" title='Klik p&aring; brugernavn for at &aelig;ndre password eller slette bruger'><b>".findtekst('225|Brugernavn', $sprog_id)."</b></td>\n";
+print "<tr><td><br></td><td  style=\"width:170px\" title='".findtekst('2681|Klik på brugernavn for at ændre password eller slette bruger', $sprog_id)."'><b>".findtekst('225|Brugernavn', $sprog_id)."</b></td>\n";
 print "<td title=\"".findtekst('334|Sæt * for adgang til alle regnskaber eller skriv en liste med ID på de regnskaber det skal være adgang til', $sprog_id)."\">".findtekst('329|Adgang til', $sprog_id)."</td><td bgcolor=\"$bgcolor2\"></td><td></td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
 
 print "<tr><td height=\"10px\" colspan=\"3\"><br></td><td bgcolor=\"$bgcolor2\"></td><td></td><td bgcolor=\"$bgcolor2\"></td></tr>\n";
@@ -156,7 +156,7 @@ if ($ret_id) {
 	print "<td title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\"><input type=\"checkbox\" name=\"oprette\" $oprette $disabled></td>\n";
 	print "<td title=\"".findtekst('337|Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til', $sprog_id)."\" bgcolor=\"$bgcolor2\"><input type=\"checkbox\" name=\"slette\" $slette $disabled></td></tr>\n";
 	print "<tr><td>".findtekst('324|Adgangskode', $sprog_id)."</td><td><input type=\"password\" style=\"width:170px\" name=\"kode\" value=\"********************\"></td>\n";
-	print "<tr><td>".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input type=\"password\" style=\"width:170px\" name=\"kode2\" value=\"********************\"></td></tr>\n";
+	print "<tr><td style='padding-right: 5px;'>".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input type=\"password\" style=\"width:170px\" name=\"kode2\" value=\"********************\"></td></tr>\n";
 
 	if ($disabled) {
 		print "<input type=\"hidden\" name=\"adgang_til\" value=\"$adgang_til\"></td>\n";
@@ -178,8 +178,8 @@ if ($ret_id) {
 	print "<td title=\"".findtekst('336|Afmærk her, hvis brugeren skal kunne oprette regnskaber og efterfølgende have adgang til disse', $sprog_id)."\"><input type=\"checkbox\" name=\"oprette\" checked></td>\n";
 	print "<td title=\"".findtekst('337|Afmærk her, hvis brugeren skal kunne slette de regnskaber, de har adgang til', $sprog_id)."\" bgcolor=\"$bgcolor2\"><input type=\"checkbox\" name=\"slette\" checked></td></tr>\n";
 	print "<tr><td>".findtekst('324|Adgangskode', $sprog_id)."</td><td><input type=\"password\"  style=\"width:170px\" name=\"kode\" value=\"\"></td></tr>\n";
-	print "<tr><td>".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input type=\"password\"  style=\"width:170px\" name=\"kode2\" value=\"\"></td></tr>\n";
-	print "<td colspan=12 align = center><input type=submit value=\"Tilf&oslash;j\" name=\"submit\"></td>";
+	print "<tr><td style='padding-right: 5px;'>".findtekst('328|Gentag adgangskode', $sprog_id)."</td><td><input type=\"password\"  style=\"width:170px\" name=\"kode2\" value=\"\"></td></tr>\n";
+	print "<td colspan=12 align = center><input type=submit value=\"".findtekst('1175|Tilføj', $sprog_id)."\" name=\"submit\"></td>";
 }
 print "</tr>\n";
 # print "</tbody></table></td></tr>\n";
