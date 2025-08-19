@@ -40,23 +40,10 @@ include ("topLineVarer.php");
 
 include (get_relative()."includes/grid.php");
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    ################################################################
-    #
-    # Genbestil Opret bestillingsordre
-    #
-    ################################################################
-    if (isset($_POST['genbestil_data'])) {
-        $genbestil_data = json_decode($_POST['genbestil_data'], true);
+$vatOnItemCard = get_settings_value("vatOnItemCard", "items", "on") == "on"
+    ? true : false;
 
-        foreach ($genbestil_data as $item) {
-            $vare_id = $item['id'];
-            $amount = usdecimal($item['value']);
-
-            genbestil($vare_id, $amount);
-        }
-    }
-}
+// Form handling removed - now using AJAX calls to orderapi.php
 
 ################################################################
 #
@@ -65,9 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 ################################################################
 
 ?>
-<form id="bestilForm" method="POST">
-    <!-- Add a hidden input to hold the collected data -->
-    <input type="hidden" name="genbestil_data" id="genbestilData">
+<div id="bestilForm">
+    <!-- Using AJAX calls to orderapi.php instead of form submission -->
     <div style="width:100%; display: flex; justify-content: flex-end">
         <button type="button" id="autoudfyldBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="m422-232 207-248H469l29-227-185 267h139l-30 208ZM320-80l40-280H160l360-520h80l-40 320h240L400-80h-80Zm151-390Z"/></svg>
@@ -76,10 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         &nbsp;
         <button type="button" id="bestilBtn" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg>
-            <?php echo findtekst('2218|Bestil', $sprog_id);?>
+            Bestil
         </button>
     </div>
-</form>
+</div>
 
 <script>
     document.getElementById('autoudfyldBtn').addEventListener('click', function () {
@@ -108,16 +94,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         });
 
         if (data.length > 0) {
-            // Convert the collected data to a JSON string
-            const jsonData = JSON.stringify(data);
-            // Set the hidden input value
-            document.getElementById('genbestilData').value = jsonData;
-            // Submit the form
-            document.getElementById('bestilForm').submit();
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = 'Bestiller...';
+            
+            // Process each item with AJAX calls to orderapi.php
+            processOrders(data).then(() => {
+                // Reset button
+                this.disabled = false;
+                this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> Bestil';
+                // Clear all input values
+                inputs.forEach(input => {
+                    input.value = '';
+                });
+                alert('Bestillinger oprettet!');
+            }).catch((error) => {
+                // Reset button on error
+                this.disabled = false;
+                this.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-80q-33 0-56.5-23.5T200-160q0-33 23.5-56.5T280-240q33 0 56.5 23.5T360-160q0 33-23.5 56.5T280-80Zm400 0q-33 0-56.5-23.5T600-160q0-33 23.5-56.5T680-240q33 0 56.5 23.5T760-160q0 33-23.5 56.5T680-80ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg> Bestil';
+                alert('Fejl ved oprettelse af bestillinger!');
+            });
         } else {
             alert('No values to submit!');
         }
     });
+
+    async function processOrders(data) {
+        const promises = data.map(item => {
+            return fetch('../../lager/orderapi.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `vare_id=${encodeURIComponent(item.id)}&antal=${encodeURIComponent(item.value)}`
+            });
+        });
+
+        try {
+            await Promise.all(promises);
+        } catch (error) {
+            console.error('Error processing orders:', error);
+            throw error;
+        }
+    }
 </script>
 
 
@@ -133,25 +152,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 $columns = array();
 
-$columns[] =    array(
+$columns[] = array(
     "field" => "varenr",
     "headerName" => "Vare Nr.",
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
 
-        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
-        return "<td title='$notes' align='$column[align]'><a href='$url'>$value</a></td>";
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
     "sqlOverride" => "v.varenr"
 );
-$columns[] =    array(
+$columns[] = array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
     "width" => "3",
     "render" => function ($value, $row, $column) {
         $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
 
-        $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
     "sqlOverride" => "v.beskrivelse"
@@ -738,105 +757,6 @@ print "<div style='width: 100%; height: calc(100vh - 30px - 34px - 16px);'>";
 create_datagrid("indkøb", $data);
 print "</div>";
 
-function genbestil($vare_id, $antal) {
-	global $brugernavn,$db,$regnaar,$sprog_id;
-	
-	# Hent ansant til ordre ref
-	$r = db_fetch_array(db_select("select ansat_id from brugere where brugernavn = '$brugernavn'",__FILE__ . " linje " . __LINE__));
-	if ($r) {
-		$r = db_fetch_array(db_select("select navn from ansatte where id = $r[ansat_id]",__FILE__ . " linje " . __LINE__));
-		($r['navn'])?$ref=$r['navn']:$ref=NULL;
-	} else {
-        $ref = NULL;
-    }
-
-	# Find leverandøre til vare id'et
-	$qtxt="select * from vare_lev where vare_id = '$vare_id' order by posnr";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$lev_id=$r['lev_id'];
-		$lev_varenr=$r['lev_varenr'];
-		$pris=(int)$r['kostpris'];
-		$ordredate=date("Y-m-d");
-
-		# Se om der er et åben't forslag med ordredato i dag
-		$qtxt="select id, sum from ordrer where konto_id = $lev_id and art = 'KO' and status < 1 and ordredate = '$ordredate'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$sum=(int)$r['sum'];
-			$ordre_id=$r['id'];
-		} else {
-			# Get latest ordrenr
-			$qtxt="select ordrenr from ordrer where art='KO' or art='KK' order by ordrenr desc";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $ordrenr=$r['ordrenr']+1;
-			else $ordrenr=1;
-			
-			# Fetch info on the kreditor
-			$qtxt="select * from adresser where id = $lev_id";
-			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			# Check if the kreditor is part of a kreditor group to see what momssats should be used
-			if ($r['gruppe']) {
-				$qtxt = "select box1 from grupper ";
-				$qtxt.= "where kode = 'K' and art = 'KG' and kodenr = '$r[gruppe]' and fiscal_year = '$regnaar'";
-				$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				# Fetch the momskode
-				$kode=substr($r1['box1'],0,1); 
-                $kodenr=substr($r1['box1'],1);
-			}	else {
-				$qtxt="select varenr from varer where id = '$vare_id'";
-				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				print "<BODY onLoad=\"javascript:alert('Leverand&oslash;rgruppe ikke korrekt opsat for varenr $r[varenr]')\">";
-                return;
-			}
-
-			# Fetch the momssats from the momskode
-            if ($kode) {
-                $qtxt = "select box2 from grupper where art = 'KM' and kode = '$kode' and kodenr = '$kodenr' and fiscal_year = '$regnaar'";
-                $r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-                $momssats=(int)$r1['box2'];
-            } else {
-                $momssats = 0;
-            }
-
-			# Create the order
-			$qtxt="insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,"; #218180822
-			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref)";
-			$qtxt.=" values ";
-			$qtxt.="('$ordrenr','$r[id]','$r[kontonr]','".db_escape_string($r['firmanavn'])."','".db_escape_string($r['addr1'])."',";
-			$qtxt.= "'".db_escape_string($r['addr2'])."','".db_escape_string($r['postnr'])."','".db_escape_string($r['bynavn'])."',";
-			$qtxt.= "'".db_escape_string($r['land]'])."','$r[betalingsdage]','$r[betalingsbet]','$r[cvrnr]','".db_escape_string($r['notes'])."',";
-			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
-			# Fetch the dynamically generated ordrenr
-			$qtxt="select id from ordrer where ordrenr='$ordrenr' and art = 'KO'";
-			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$ordre_id=$r['id'];
-		}
-		# Get the vare information
-		$qtxt="select varer.varenr as varenr,varer.beskrivelse as beskrivelse,varer.enhed as enhed,";
-		$qtxt.="vare_lev.lev_varenr as lev_varenr,grupper.box7 as momsfri ";
-		$qtxt.="from varer,vare_lev,grupper where ";
-		$qtxt.="varer.id='$vare_id' and vare_lev.vare_id='$vare_id' and grupper.art='VG' and grupper.kodenr=varer.gruppe"; #20190313
-	
-		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$varenr=db_escape_string($r['varenr']);
-		$lev_varenr=db_escape_string($r['lev_varenr']);
-		$enhed=db_escape_string($r['enhed']);
-		$beskrivelse=db_escape_string($r['beskrivelse']);
-		$momsfri=$r['momsfri'];
-		
-		# Add the vare to the order
-		$qtxt="insert into ordrelinjer (ordre_id, posnr, varenr, vare_id, beskrivelse, enhed, pris, lev_varenr, antal, momsfri)";
-		$qtxt.=" values ";
-		$qtxt.="('$ordre_id', '1000', '$varenr', '$vare_id', '$beskrivelse', '$enhed', '$pris', '$lev_varenr', '$antal', '$momsfri')";
-		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		$sum=$sum+$pris*$antal;	
-		db_modify("update ordrer set sum = '$sum' where id = $ordre_id",__FILE__ . " linje " . __LINE__);	
-	} else { 
-		# Ingen leverandør
-		$r = db_fetch_array(db_select("select varenr from varer where id = '$vare_id'",__FILE__ . " linje " . __LINE__));
-		print "".findtekst(951,$sprog_id)." findes ikke (Varenr: $r[varenr])<br>";
-	}
-}
 ?>
 
 <style>
@@ -873,43 +793,43 @@ function genbestil($vare_id, $antal) {
 $steps = array();
 $steps[] = array(
     "selector" => "#back-btn",
-    "content" => findtekst('2645|Klik her for at vende tilbage til varelisten', $sprog_id)."."
+    "content" => "Klik her for at vende tilbage til varelisten."
 );
 $steps[] = array(
     "selector" => ".leverandør",
-    "content" => findtekst('2650|Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør.<br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører.', $sprog_id)
+    "content" => "Når du laver en ny indkøbsliste, vises kun varer med en tilknyttet leverandør. <br><br>Bestillingsforslag vil automatisk blive knyttet til den øverste leverandør på varekortet, hvis der er flere leverandører."
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => findtekst('2646|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
+    "content" => "Viser hvor mange varer der er i tilbud, ordre eller indkøbsforslag. <br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer."
 );
 $steps[] = array(
     "selector" => ".lager_total",
-    "content" => findtekst('2647|Viser hvor mange enheder af varen der er på lager', $sprog_id)."."
+    "content" => "Viser, hvor mange enheder du har på lager af varen."
 );
 $steps[] = array(
     "selector" => ".min_lager,.max_lager",
-    "content" => findtekst('2651|Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum.', $sprog_id)
+    "content" => "Disse bruges til genbestilling. Når beholdningen falder under minimum, foreslår systemet at genbestille nok til at nå maksimum."
 );
 $steps[] = array(
     "selector" => ".volume_lager",
-    "content" => findtekst('2652|Hvis produktet skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i partier af f.eks.', $sprog_id)." 8."
+    "content" => "Hvis varen skal bestilles i bestemte mængder, kan du sætte systemet op til at bestille i f.eks. batches af 8."
 );
 $steps[] = array(
     "selector" => ".genbestil",
-    "content" => findtekst('2648|Her ser du, hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordrer og andre faktorer.', $sprog_id)
+    "content" => "Her ser du, hvor meget systemet anbefaler, at du genbestiller. Dette beregnes ud fra lagerbeholdning, ordre og andre faktorer."
 );
 $steps[] = array(
     "selector" => ".sales_last_6_months,.sales_last_1_month",
-    "content" => findtekst('2649|Se, hvor meget du har solgt af varen i løbet af de sidste 6 måneder, 3 måneder eller den seneste måned', $sprog_id)."."
+    "content" => "Se, hvor meget du har solgt af varen over de sidste 6 måneder, 3 måneder eller 1 måned."
 );
 $steps[] = array(
     "selector" => "#autoudfyldBtn",
-    "content" => findtekst('2653|Klik for at autoudfylde alle beregnede genbestillingsværdier', $sprog_id)."."
+    "content" => "Klik for at autoudfylde alle beregnede genbestillingsværdier."
 );
 $steps[] = array(
     "selector" => "#bestilBtn",
-    "content" => findtekst('2654|Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato.', $sprog_id)
+    "content" => "Opret et indkøbsforslag baseret på de indtastede vareværdier. Det opretter en ny ordre til leverandøren eller tilføjer varen til et åbent indkøbsforslag med dagens dato."
 );
 
 include (get_relative()."includes/tutorial.php");

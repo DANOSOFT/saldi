@@ -93,6 +93,7 @@
 // 20250415 LOE Updated some variables using if_isset
 // 20250605	PHR Removed konto_id from href
 // 26062025 PBLM Added link to the whole line almost
+// 14082025 Sawaneh Fix invoicelist for english language
 
 #ob_start();
 @session_start();
@@ -145,6 +146,39 @@ $title=findtekst('1201|Ordreliste • Kunder', $sprog_id);
 include("../includes/online.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style-with-links.js.php");
+
+/* 
+* check for popup blocker 
+*/
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
+
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+<?php
+/* 
+* end check for popup blocker 
+*/
+
 
 # >> Date picker scripts <<
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
@@ -228,6 +262,7 @@ $r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " li
 
 if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'",__FILE__ . " linje " . __LINE__))) $hurtigfakt='on';
 if ($valg=="tilbud" && $hurtigfakt) $valg="ordrer"; //20210323
+if ($valg == 'invoice') $valg = 'faktura';
 if (!$valg) $valg="ordrer";//
 $tjek=array("tilbud","ordrer","faktura","pbs");//
 //if (!in_array($valg,$tjek)) $valg='ordrer';

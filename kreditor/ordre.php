@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-03-22---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-08-15---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,7 +62,7 @@
 // 20231025 PHR Added call to sync_shop_vare.
 // 20231219 MSC - Copy pasted new design into code
 // 20240626 PHR Added 'fiscal_year' in queries
-
+// 20250715 PHR Removed '//' at line above '/* saul ??'
 @session_start();
 $s_id=session_id();
 
@@ -465,7 +465,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 			if ($x>0 && !$rabat[$x]) $rabat=0;
 #			$y="ialt".$x;
 #			$ialt[$x]=if_isset($_POST[$y]);
-			if ($godkend == "on" && $status==0) $leveres[$x]=$antal[$x];
+			if ($godkend == "on" && $status == 0) $leveres[$x]=$antal[$x];
 			if (!$sletslut && $posnr_ny[$x]=="->") $sletstart=$x;
 			if ($sletstart && $posnr_ny[$x]=="<-") $sletslut=$x;
 			$projekt[$x] = if_isset($projekt, NULL,$x);
@@ -513,7 +513,6 @@ if ($betalingsdage === null || $betalingsdage === '') {
 			elseif ($status==1) $status=2;
 		}
 		if (strlen($ordredate)<6) $ordredate=date("Y-m-d");
-
 		if (($kontonr)&&(!$firmanavn)) {
 			$query = db_select("select * from adresser where kontonr = '$kontonr' and art = 'K'",__FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($query)) {
@@ -889,7 +888,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 				$qtxt.="lev_kontakt='$lev_kontakt',betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',";
 				$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
 				if (strlen($levdate)>=6)$qtxt.="levdate='$levdate',";
-				// $qtxt.="status=$status,ref='$ref',afd='$afd',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
+				$qtxt.="status=$status,ref='$ref',afd='$afd',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
 /* saul ??
 				$condition = prepareSearchTerm($fakturanr);
  				$qtxt = "select * from ordrer where fakturanr $condition";
