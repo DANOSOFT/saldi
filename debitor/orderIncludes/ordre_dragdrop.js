@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         onEnd(evt) {
+        evt.preventDefault();
+
             evt.item.classList.remove('dragging');
             console.log('=== DRAG ENDED ===');
             updatePositionNumbers();
