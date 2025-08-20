@@ -157,6 +157,13 @@ document.getElementById('buttonTxtColor_text').addEventListener('input', functio
         document.getElementById('buttonTxtColor_color').value = '#' + value;
     }
 });
+
+const submit = document.querySelector('input[type="submit"]');
+submit.addEventListener('click', function(event) {
+	// Validate color inputs
+	submit.disabled = true;
+});
+
 </script>
 <?php
 /*
