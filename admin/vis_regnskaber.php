@@ -46,7 +46,7 @@ $desc       = if_isset($_GET, NULL, 'desc');
 $modulnr    = 102;
 
 if ($db != $sqdb) {
-	$alert = findtekst(1905, $sprog_id); #20210916
+	$alert = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id); #20210916
 	print "<BODY onLoad=\"javascript:alert('$alert')\">";
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
 	exit;
@@ -98,28 +98,28 @@ if ($menu=='S') {
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
 	print "<td width='10%'><a href=../index/admin_menu.php accesskey=L>
-		    <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+		    <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-	print "<td width='80%' align='center' style='$topStyle'>".findtekst(340, $sprog_id)."</td>";#Vis regnskaber
+	print "<td width='80%' align='center' style='$topStyle'>".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
 	print "<td width='5%' align = 'center' style='$topStyle'>";
 
 	if ($showClosed) {
 		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(1906, $sprog_id)."</button></a>";#Skjul Luk
+			   .findtekst('1906|Skjul \'Luk\'', $sprog_id)."</button></a>";#Skjul Luk
 	} else {
 		print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>
 			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-			   .findtekst(1907, $sprog_id)."</button></a>";#Vis Luk
+			   .findtekst('1907|Vis \'Luk\'', $sprog_id)."</button></a>";#Vis Luk
 	}
 	print "</td><td align='center' style='$topStyle'>";
 
 	if ($rediger) {
 		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' >
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(1908, $sprog_id)."</button></a>"; #Lås
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1908|Lås', $sprog_id)."</button></a>"; #Lås
 	} else {
 		print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R>
-			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(1206, $sprog_id)."</button></a>";#Ret
+			   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('1206|Ret', $sprog_id)."</button></a>";#Ret
 	}
 	print "</td>";
 	print "</tbody></table>";
@@ -131,14 +131,14 @@ if ($menu=='S') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\" valign=\"top\" height=\"25px\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=../index/admin_menu.php accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund align=\"center\">".findtekst(340, $sprog_id)."</td>";#Vis regnskaber
+	print "<td width=\"10%\" $top_bund><a href=../index/admin_menu.php accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund align=\"center\">".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
 	print "<td width=\"5%\" $top_bund align = \"center\">";
-	if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>".findtekst(1906, $sprog_id)." </a>";#Skjul Luk
-	else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>".findtekst(1907, $sprog_id)." </a>";#Vis Luk
+	if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>".findtekst('1906|Skjul \'Luk\'', $sprog_id)." </a>";#Skjul Luk
+	else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>".findtekst('1907|Vis \'Luk\'', $sprog_id)." </a>";#Vis Luk
 	print "</td><td $top_bund align = \"center\">";
-	if ($rediger) print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' > ".findtekst(1908, $sprog_id)."</a>"; #Lås
-	else print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R> ".findtekst(1206, $sprog_id)."</a>";#Ret
+	if ($rediger) print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed' > ".findtekst('1908|Lås', $sprog_id)."</a>"; #Lås
+	else print "<a href='vis_regnskaber.php?sort=$sort&showClosed=$showClosed&rediger=on' accesskey=R> ".findtekst('1206|Ret', $sprog_id)."</a>";#Ret
 	print "</td>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -167,17 +167,17 @@ if ($sort==$sort2) {
 }
 
 print "<tr><td><b><a href=vis_regnskaber.php?sort=id&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>id</a></b></td>
-	<td><b><a href=vis_regnskaber.php?sort=regnskab&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(849, $sprog_id)."</a></b></td> 
-	<td><a href=vis_regnskaber.php?sort=brugerantal&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(909, $sprog_id)."</a></td>
-	<td><a href=vis_regnskaber.php?sort=posteringer&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(1910, $sprog_id)."</a></td>
-	<td><a href=vis_regnskaber.php?sort=posteret&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(1911, $sprog_id)."</a></td>
-	<td><a href=vis_regnskaber.php?sort=sidst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(1912, $sprog_id)."</a></td>";
+	<td><b><a href=vis_regnskaber.php?sort=regnskab&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('2682|Regnskab', $sprog_id)."</a></b></td> 
+	<td><a href=vis_regnskaber.php?sort=brugerantal&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('909|Kommission', $sprog_id)."</a></td>
+	<td><a href=vis_regnskaber.php?sort=posteringer&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1910|Posteringer', $sprog_id)."</a></td>
+	<td><a href=vis_regnskaber.php?sort=posteret&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1911|Posteret', $sprog_id)."</a></td>
+	<td><a href=vis_regnskaber.php?sort=sidst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1912|Sidst', $sprog_id)."</a></td>";
 	
-if ($showClosed) print "<td><a href=vis_regnskaber.php?sort=lukket&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(387, $sprog_id)."</a></td>";
+if ($showClosed) print "<td><a href=vis_regnskaber.php?sort=lukket&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('387|Lukket', $sprog_id)."</a></td>";
 if ($saldiregnskab) {
-	print "<td><a href=vis_regnskaber.php?sort=lukkes&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(1913, $sprog_id)."</a></td>
-		<td><a href=vis_regnskaber.php?sort=betalt_til&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(1914, $sprog_id)."</a></td>
-		<td><a href=vis_regnskaber.php?sort=logintekst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst(1915, $sprog_id)."</a></td>";
+	print "<td><a href=vis_regnskaber.php?sort=lukkes&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1913|Lukkes', $sprog_id)."</a></td>
+		<td><a href=vis_regnskaber.php?sort=betalt_til&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1914|Betalt til', $sprog_id)."</a></td>
+		<td><a href=vis_regnskaber.php?sort=logintekst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1915|Logintekst', $sprog_id)."</a></td>";
 }
 print "</tr>";
 
@@ -321,11 +321,11 @@ if ($rediger) {
 	if ($saldiregnskab) $colspan=10;
 	else $colspan=7;
 	print "<input type=hidden name=\"db_antal\" value=\"$x\">";
-	print "<tr><td colspan=\"$colspan\" align=\"center\"><input type=\"submit\" value=\"Opdater\" name=\"submit\"></td></tr>";
+	print "<tr><td colspan=\"$colspan\" align=\"center\"><input type=\"submit\" value=\"".findtekst('898|Opdatér', $sprog_id)."\" name=\"submit\"></td></tr>";
 	print "</form></tbody></table>";
 } else {
 	print "</tbody></table>";
-	print "<a href=\"vis_regnskaber.php?beregn=1\">".findtekst(1916, $sprog_id)."</a>"; 
+	print "<a href=\"vis_regnskaber.php?beregn=1\">".findtekst('1916|Genberegn posteringer', $sprog_id)."</a>"; 
 }
 ?>
 </body></html>

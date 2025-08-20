@@ -34,7 +34,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 if ($db != $sqdb) {
-	print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at g&oslash;re her! Dit IP nummer, brugernavn og regnskab er registreret!')\">";
+	print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
 	exit;
 }
@@ -62,9 +62,9 @@ if (!$top_bund) $top_bund="style=\"border: 1px solid rgb(0, 0, 0); padding: 0pt 
 <table width="100%" height="100%" border="0" cellspacing="0" cellpadding="0"><tbody>
 	<tr><td align="center" valign="top" height="25">
 		<table width="100%" align="center" border="0" cellspacing="2" cellpadding="0"><tbody>
-			<td width="10%" <?php echo $top_bund ?>><a href=../index/admin_menu.php accesskey=L>Luk</a></td>
-			<td width="80%" <?php echo $top_bund ?> align="center">Slet regnskab</td>
-			<td width="10%" <?php echo $top_bund ?> align = "right"><br></td>
+			<td width="10%" <?php echo $top_bund?>><a href=../index/admin_menu.php accesskey=L><?php echo findtekst('2172|Luk', $sprog_id)?></a></td>
+			<td width="80%" <?php echo $top_bund?> align="center"><?php echo findtekst('341|Slet regnskab', $sprog_id)?></td>
+			<td width="10%" <?php echo $top_bund?> align = "right"><br></td>
 		</tbody></table>
 	</td></tr>
 <td align = center valign = center>

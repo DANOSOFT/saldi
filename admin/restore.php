@@ -53,12 +53,15 @@ function confirmSubmit(messageProvider) {
 // -->
 </script>
 <?php
-$title="SALDI - genindl&aelig;s sikkerhedskopi";
+
+include("../includes/connect.php");
+include("../includes/std_func.php");
+
+$title=findtekst('1247|Indlæs sikkerhedskopi', $sprog_id);
 $modulnr=11;
 $css="../css/standard.css";
 $backupdate=$backupdb=$backupver=$backupnavn=$filnavn=$menu=$regnskab=$timezone=$popup=NULL;
 
-include("../includes/connect.php");
 if (isset($_GET['db']) && $_GET['db']) {
 	$db=$sqdb;
 	$tmpDb=$_GET['db'];
@@ -136,12 +139,14 @@ $translations = [
 
 ####################
 
+include("../includes/topline_settings.php");
+
 print "<div align=\"center\">";
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=backup.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerbtnLft headLink\"><a href=backup.php accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";     
 	print "<div class=\"headerTxt\">$title</div>";     
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
@@ -152,12 +157,25 @@ if ($menu=='T') {
 	print "<div class=\"maincontentLargeHolder\">\n";
 	print "<div class='divSys'>";
 	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTableSys\"><tbody>"; # -> 1
+} elseif ($menu=='S') {
+	print "<table width='100%' height='30%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+	print "<tr><td height = '25' align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+	print "<td width='10%'<a href='$returside' accesskey=L>";
+	print "<button style='$buttonStyle; width:100%'onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
+
+	print "<td width='80%' style='$topStyle' align='center'>".findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)."</td>";
+
+	print "<td width='10%' style='$topStyle' align='center'<br></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
 } else {
 	print "<table width=\"100%\" height=\"30%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"$returside\" accesskey=L>Luk</a></td>";
-	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">Indl&aelig;s sikkerhedskopi</td>";
+	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><a href=\"$returside\" accesskey=L>".findtekst('2172|Luk', $sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\">".findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund><font face=\"Helvetica, Arial, sans-serif\" color=\"#000066\"><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";
@@ -349,15 +367,15 @@ if ($menu=='T') {
 				$backupnavn=trim($backupnavn);
 				$regnskab=trim($regnskab);
 				if ($backupnavn && $backupnavn!=$regnskab) {
-					print "<tr><td colspan=2>".findtekst(2422, $sprog_id).": $regnskab<br>".findtekst(2423, $sprog_id).": $backupnavn "."fra den"."$backupdato kl. $backuptid.</td></tr>";	
+					print "<tr><td colspan=2>".findtekst('2422|Du er ved at overskrive dit regnskab', $sprog_id).": $regnskab<br>".findtekst('2423|med en sikkerhedskopi af regnskabet', $sprog_id).": $backupnavn "."fra den"."$backupdato kl. $backuptid.</td></tr>";	
 					print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
 					print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
 				} elseif ($backupdate) {
-					print "<tr><td colspan=2>".findtekst(2422, $sprog_id).": $regnskab<br>".findtekst(2426, $sprog_id)."$backupdato kl. $backuptid.</td></tr>";	
+					print "<tr><td colspan=2>".findtekst('2422|Du er ved at overskrive dit regnskab', $sprog_id).": $regnskab<br>".findtekst('2426|med en sikkerhedskopi fra den', $sprog_id)."$backupdato kl. $backuptid.</td></tr>";	
 					print "<input type=\"hidden\" name=\"backup_encode\" value=\"$backup_encode\">";
 					print "<input type=\"hidden\" name=\"filnavn\" value=\"$backupfil\">";
 				} else {
-					print "<tr><td colspan=2>".findtekst(2422, $sprog_id).": $regnskab.</td></tr>";	
+					print "<tr><td colspan=2>".findtekst('2422|Du er ved at overskrive dit regnskab', $sprog_id).": $regnskab.</td></tr>";	
 					print "<input type=\"hidden\" name=\"filnavn\" value=\"$filnavn\">";
 				}
 				print "<tr><td colspan=2><hr></td></tr>";	

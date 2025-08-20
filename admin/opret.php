@@ -118,7 +118,7 @@ $modulnr=101;
 if (!isset($_POST['regnskab'])||!$_POST['brugernavn']||!$_POST['passwd']||!$_POST['passwd2']) {
 	include("../includes/online.php");
 	if ($db != $sqdb) {
-		print "<BODY onLoad=\"javascript:alert('Hmm du har vist ikke noget at g&oslash;re her! Dit IP nummer, brugernavn og regnskab er registreret!')\">";
+		print "<BODY onLoad=\"javascript:alert('".findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id)."')\">";
 		print "<meta http-equiv=\"refresh\" content=\"1;URL=../index/logud.php\">";
 		exit;
 	}
@@ -234,15 +234,16 @@ print "</tbody></table";
 
 function forside($regnskab,$brugernavn) {
 	global $charset;
+	global $sprog_id;
 
 	print "<form name=debitorkort action=opret.php method=post>";
-	print "<tr><td> Navn p&aring; regnskab</td><td><br></td><td><input type=text size=25 name=regnskab value='$regnskab'></td></tr>";
-	print "<tr><td> Administrators navn</td><td><br></td><td><input type=text size=25 name=brugernavn value='$brugernavn'></td></tr>";
-	print "<tr><td> Administrators adgangskode</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
-	print "<tr><td> Gentag adgangskode</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
-	print "<tr><td> Opret standardkontoplan</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";
+	print "<tr><td>".findtekst('2685|Navn på regnskab', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=regnskab value='$regnskab'></td></tr>";
+	print "<tr><td>".findtekst('2686|Administrators navn', $sprog_id)."</td><td><br></td><td><input type=text size=25 name=brugernavn value='$brugernavn'></td></tr>";
+	print "<tr><td>".findtekst('2687|Administrators adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd></td></tr>";
+	print "<tr><td>".findtekst('2688|Gentag adgangskode', $sprog_id)."</td><td><br></td><td><input type=password size=25 name=passwd2></td></tr>";
+	print "<tr><td>".findtekst('2689|Opret standardkontoplan', $sprog_id)."</td><td><br></td><td><input type=checkbox name=std_kto_plan checked></td></tr>";
 	print "<tr><td><br></td></tr><tr><td><br></td></tr><tr><td><br></td></tr>";
-	print "<tr><td colspan=3 align = center><input type=submit accesskey=\"g\" value=\"Gem/opdat&eacute;r\" name=\"submit\"></td></tr>";
+	print "<tr><td colspan=3 align = center><input type=submit accesskey=\"g\" value=\"".findtekst('471|Gem/opdatér', $sprog_id)."\" name=\"submit\"></td></tr>";
 	print "</form>";
 }
 
