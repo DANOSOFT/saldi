@@ -319,11 +319,10 @@ if ($menu=='T') {
 				if (isset($commands[$mimeType])) {
 					
 					system($commands[$mimeType], $exitCode);
-
 					if ($exitCode === 0) {
 						error_log("✅ Extraction successful.\n");
 					} else {
-						echo "❌ Extraction failed (exit code: $exitCode)\n";
+						error_log("❌ Extraction failed with exit code $exitCode.\n");
 					}
 				} else {
 					echo "⚠️Unsupported or unknown file type: $mimeType\n";

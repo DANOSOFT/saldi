@@ -41,14 +41,66 @@ try {
             exit;
         }
         
-        if ($project_id) {
-            $filters = [];
-            if (isset($_GET['status_id'])) $filters['status_id'] = (int)$_GET['status_id'];
-            if (isset($_GET['assignee_id'])) $filters['assignee_id'] = (int)$_GET['assignee_id'];
-            if (isset($_GET['priority_id'])) $filters['priority_id'] = (int)$_GET['priority_id'];
+        // Check if project_id is valid and not zero - ADD DEBUGGING
+        error_log("Issues API: project_id received: " . var_export($project_id, true));
+        error_log("Issues API: GET parameters: " . var_export($_GET, true));
+        
+        if ($project_id && $project_id > 0) {
+            // Build the WHERE clause properly
+            $where_conditions = ["i.project_id = " . (int)$project_id];
             
-            $issues = $pm->getProjectIssues($project_id, $filters);
+            if (isset($_GET['status_id']) && $_GET['status_id'] !== '' && $_GET['status_id'] !== '0') {
+                $status_id = (int)$_GET['status_id'];
+                $where_conditions[] = "i.status_id = " . $status_id;
+            }
+            
+            if (isset($_GET['assignee_id']) && $_GET['assignee_id'] !== '') {
+                $assignee_id = (int)$_GET['assignee_id'];
+                if ($assignee_id == -1) {
+                    $where_conditions[] = "i.assignee_id IS NULL";
+                } else if ($assignee_id > 0) {
+                    $where_conditions[] = "i.assignee_id = " . $assignee_id;
+                }
+            }
+            
+            if (isset($_GET['priority_id']) && $_GET['priority_id'] !== '' && $_GET['priority_id'] !== '0') {
+                $priority_id = (int)$_GET['priority_id'];
+                $where_conditions[] = "i.priority_id = " . $priority_id;
+            }
+            
+            $where_clause = implode(' AND ', $where_conditions);
+            
+            // Add debugging for the SQL query
+            error_log("Issues API: WHERE clause: " . $where_clause);
+            
+            $sql = "SELECT i.*, 
+                           it.name as issue_type,
+                           ip.name as priority_name,
+                           ist.name as status_name,
+                           b.brugernavn as assignee_name
+                    FROM issues i
+                    LEFT JOIN issue_types it ON i.issue_type_id = it.id
+                    LEFT JOIN issue_priorities ip ON i.priority_id = ip.id
+                    LEFT JOIN issue_statuses ist ON i.status_id = ist.id
+                    LEFT JOIN brugere b ON i.assignee_id = b.id
+                    WHERE $where_clause
+                    ORDER BY i.created_at DESC";
+            
+            error_log("Issues API: Final SQL: " . $sql);
+            
+            $result = db_select($sql, __FILE__ . " line " . __LINE__);
+            
+            $issues = [];
+            while ($row = db_fetch_array($result)) {
+                $issues[] = $row;
+            }
+            
             echo json_encode(['issues' => $issues]);
+            exit;
+        } else {
+            // If no valid project_id specified, return empty array with debug info
+            error_log("Issues API: No valid project_id, returning empty array. Received: " . var_export($project_id, true));
+            echo json_encode(['issues' => [], 'debug' => 'No valid project_id']);
             exit;
         }
     }
@@ -124,6 +176,7 @@ try {
     }
     
 } catch (Exception $e) {
+    error_log("Issues API Error: " . $e->getMessage());
     echo json_encode(['error' => $e->getMessage()]);
 }
 ?>
