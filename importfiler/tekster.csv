@@ -1903,17 +1903,17 @@
 1903	Gendan brugers IP	Restore User IP	Gjenopprett bruker IP
 1904	Angiv brugerens tilladte IP adresser	Enter IP address to restrict	Skriv inn IP for å begrense
 1905	Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!	Hmm you are not supposed to be here! Your IP number, username and accounts are registered!	Hmm, du har visst ikke noe å gjøre her! Din IP-adresse, brukernavn og regnskap er registrert!
-1906	Skjul Luk	Hide Close	Skjul Lukk
-1907	Vis Luk	Show Close	Vis Lukk
+1906	Skjul 'Luk'	Hide 'Close'	Skjul 'Lukk'
+1907	Vis 'Luk'	Show 'Close'	Vis 'Lukk'
 1908	Lås	Lock	Lås
 1909	Brugerantal	Number of users	Antall brukere
-1910	Posteringer	Entries	Innganger
-1911	Posteret	The poster	Plakaten
+1910	Posteringer	Entries	Posteringer
+1911	Posteret	Posted	Postert
 1912	Sidst	Last	Siste
 1913	Lukkes	Closes	Stenger
 1914	Betalt til	Paid to	Betalt til
 1915	Logintekst	Login text	Innloggingstekst
-1916	Genberegn posteringer	Recalculate entries	Beregn oppføringer på nytt
+1916	Genberegn posteringer	Recalculate entries	Gjenberegn posteringer
 1917	Program til konvertering af PostScript til PDF	Program for converting PostScript to PDF	Program for å konvertere PostScript til PDF
 1918	Program til konvertering af HTML til PDF	HTML to PDF conversion program	Konverteringsprogram for HTML til PDF
 1919	Program til sammenlægning af PDF filer	Program for merging PDF files	Program for sammenslåing av PDF -filer
@@ -2682,14 +2682,14 @@
 2682	Regnskab	Account	Regnskap
 2683	findes allerede	already exists	finnes allerede
 2684	Alle felter SKAL udfyldes	All fields MUST be filled out	Alle felter MÅ fylles ut
-2685	
-2686	
-2687	
-2688	
-2689	
-2690	
-2691	
-2692	
+2685	Navn på regnskab	Name of account	Navn på regnskap
+2686	Administrators navn	Administrator's name	Administrators navn
+2687	Administrators adgangskode	Administrator's password	Administrators passord
+2688	Gentag adgangskode	Repeat password	Gjenta passord
+2689	Opret standardkontoplan	Create default chart of accounts	Oppret standard kontoplan
+2690	Regnskab med ID	Account with ID	Regnskap med ID
+2691	mangler indhold	has no content	mangler innhold
+2692	Tilbage til oversigt	Back to overview	Tilbake til oversikt
 2693	
 2694	
 2695	

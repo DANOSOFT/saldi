@@ -4,39 +4,38 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------debitor/pbsfile.php------- patch 3.7.1---2018-01-17------
-// LICENS
+// --- debitor/pbsfile.php --- patch 4.1.1 --- 2025-08-20 ---
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2018 saldi.dk aps
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
-// 23.08.2012 Tilretning til Leverandørservice 
+// 23.08.2012 Tilretning til Leverandørservice
 // 25.08.2012 Tilfojet mulighed for at slette fakturaer fra listen.
 // 24.10.2012 Tilføjet afmelding af leverandservice kunder. (funktion l_stop_aftale)
 // 21.01.2014 Indsat else da der ikke må indsættes andre debittor oplysninger end aftalenummer i basisløsning  20140121
-// 22.01.2014 Flyttet variabeltilpasning over if / else. Søg 20140122 
+// 22.01.2014 Flyttet variabeltilpasning over if / else. Søg 20140122
 // 2014.02.07 PNS nr ændret fra '' til '000000000' 20140207
 // 2014.04.22	Kunde slettes fra pbs_kunder ved afmelding #20140422
 // 2017.01.02	Ved betalingsbet Kontant røg man i evig løkke 20170102
 // 2017.04.20 Indsat db_escape_string. Søg db_escape_string
 // 2018.01.17 Tjekker ordrestatus - hvis ikke faktureret slettes filen fra listen. 20180117
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250820 PHP8
 
 
 @session_start();
@@ -59,15 +58,14 @@ $slet_ordreid=if_isset($_GET['slet_ordreid']);
 $usdd=date("ymd");
 $dkdd=date("dmy");
 $x=0;
-$lnr=0;	
+$lnr=0;
 $delsystem="BS1"; # Ved test skal delsystem vaere KR9
 #$debitorgruppe='00750';
 
-#if ($afslut) { #remmet 2010-06-15 pga manglende mulighed for afslutning af id 4 regnskab 319. 
+#if ($afslut) { #remmet 2010-06-15 pga manglende mulighed for afslutning af id 4 regnskab 319.
 #	$r=db_fetch_array(db_select("select max(id) as id from pbs_liste where ",__FILE__ . " linje " . __LINE__));
 #	if ($r['id'] == $id) $afslut=0;  # saa er den allerede afsluttet.
-#}	
-#echo "B $afslut<br>";
+#}
 
 PRINT "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 <html>\n
@@ -78,9 +76,9 @@ PRINT "</head>";
 if ($slet_ordreid) db_modify("delete from pbs_ordrer where ordre_id='$slet_ordreid'",__FILE__ . " linje " . __LINE__);
 
 print "<table width=\"100%\" border=\"0\"><tbody>";
-######## TOPLINJE #########	
+######## TOPLINJE #########
 if ($popup) $returside="../includes/luk.php";
-else $returside="ordreliste.php?valg=pbs"; 
+else $returside="ordreliste.php?valg=pbs";
 
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -104,17 +102,17 @@ if ($r=db_fetch_array(db_select("select afsendt from pbs_liste where id = '$id'"
 if (!$afsendt) {
 /*
 	if ($r=db_fetch_array(db_select("select * from pbs_liste where id = '$id'",__FILE__ . " linje " . __LINE__))) {
-		$listedate=$r['liste_date'];	
-		$afsendt=$r['afsendt'];	
+		$listedate=$r['liste_date'];
+		$afsendt=$r['afsendt'];
 	} else {
 		$tmp=date('Y-m-d');
 		db_modify("insert into pbs_liste (liste_date) values ('$tmp')",__FILE__ . " linje " . __LINE__);
 	}
-*/	
+*/
 	$r=db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
-	$cvrnr[0]=$r['cvrnr'];	
-	$bank_reg[0]=$r['bank_reg'];	
-	$bank_konto[0]=$r['bank_konto'];	
+	$cvrnr[0]=$r['cvrnr'];
+	$bank_reg[0]=$r['bank_reg'];
+	$bank_konto[0]=$r['bank_konto'];
 	$pbs_nr[0]=$r['pbs_nr'];
 	$lev_pbs=$r['pbs'];
 	$debitorgruppe=$r['gruppe']*1;
@@ -132,7 +130,6 @@ if (!$afsendt) {
 	}
 
 ########## sektion start  - betalingsaftaler #############
-	
 	$x=0;
 	$q=db_select("select * from adresser where pbs_nr='' and pbs = 'on' order by id",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)){
@@ -149,25 +146,27 @@ if (!$afsendt) {
 
 	if ($afslut) {
 		for ($x=1;$x<=$antal_nye;$x++) {
-			db_modify("update adresser set pbs_nr='000000000' where id = '$ny_pbs_aftale[$x]'",__FILE__ . " linje " . __LINE__); 
-			db_modify("insert into pbs_kunder (konto_id,kontonr,pbs_nr) values ('$ny_pbs_aftale[$x]','$kontonr[$x]','')",__FILE__ . " linje " . __LINE__); 
+			db_modify("update adresser set pbs_nr='000000000' where id = '$ny_pbs_aftale[$x]'",__FILE__ . " linje " . __LINE__);
+			db_modify("insert into pbs_kunder (konto_id,kontonr,pbs_nr) values ('$ny_pbs_aftale[$x]','$kontonr[$x]','')",__FILE__ . " linje " . __LINE__);
 		}
 	}
-	
+
 	$leverance_id=$id;
 	while(strlen($leverance_id)<10) $leverance_id="0".$leverance_id;
-	
+
 	if ($lev_pbs!='L') {
 		$lnr++;
 		$linje[$lnr]="BS002".$cvrnr[0]."BS10605".$leverance_id.filler(19," ").$dkdd."\n";
 		$linjeoid[$lnr]=0;
 		if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 	}
-	
+
 	if ($antal_nye>0) opret_nye($antal_nye,$leverance_id,$dkdd,$cvrnr,$bank_reg,$bank_konto,$pbs_nr,$ny_pbs_aftale,$kontonr);
 
 	$x=0;
-	$q=db_select("select adresser.kontonr as ny_kontonr, adresser.pbs_nr as pbs_nr, adresser.gruppe as gruppe, pbs_kunder.kontonr as kontonr from adresser,pbs_kunder where adresser.id=pbs_kunder.konto_id and adresser.kontonr!=pbs_kunder.kontonr order by adresser.id",__FILE__ . " linje " . __LINE__);
+	$qtxt = "select adresser.kontonr as ny_kontonr, adresser.pbs_nr as pbs_nr, adresser.gruppe as gruppe, pbs_kunder.kontonr as kontonr ";
+	$qtxt.= "from adresser,pbs_kunder where adresser.id=pbs_kunder.konto_id and adresser.kontonr!=pbs_kunder.kontonr order by adresser.id";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)){
 		$x++;
 		$ny_konto_nr[$x]=$r['ny_kontonr'];
@@ -199,19 +198,17 @@ if (!$afsendt) {
 	}
 	$antal_stoppes=$x;
 #	$antal_stoppes=0;
-# echo "stoppes $antal_stoppes $slet_konto_id[$x]<br>";
-	
 	if ($antal_stoppes>0 && $lev_pbs=='L') l_stop_aftale($antal_stoppes,$leverance_id,$dkdd,$cvrnr,$pbs_nr,$kontonr,$slet_konto_id);
 	elseif ($antal_stoppes>0) l_stop_aftale($antal_stoppes,$leverance_id,$dkdd,$cvrnr,$pbs_nr,$kontonr,$slet_konto_id);
-	
+
 	$antal=$antal_nye+$antal_rettes+$antal_stoppes;
 	while(strlen($antal)<11) $antal="0".$antal;
 	while(strlen($bank_reg[$x])<4) $bank_reg[$x]="0".$bank_reg[$x];
 	while(strlen($bank_konto[$x])<10) $bank_konto[$x]="0".$bank_konto[$x];
 	$sektioner=0;
 	if ($antal_nye>0)$sektioner++;
-	if ($antal_rettes>0)$sektioner++;	
-	if ($antal_stoppes>0)$sektioner++;	
+	if ($antal_rettes>0)$sektioner++;
+	if ($antal_stoppes>0)$sektioner++;
 	while(strlen($sektioner)<11) $sektioner="0".$sektioner;
 	if ($lev_pbs!='L') {
 		$lnr++;
@@ -220,12 +217,14 @@ if (!$afsendt) {
 		elseif ($afslut) db_modify("delete from pbs_linjer where liste_id = '$id'",__FILE__ . " linje " . __LINE__);
 		if ($antal==0) $lnr=0;
 	}
-	
+
 ########## sektion slut  - betalingsaftaler #############
 	$x=0;
 #	if ($lev_pbs=='L') $antal_nye=0;
-	if (!$antal_nye && !$antal_rettes && !$antal_stoppes) {
-		$q=db_select("select pbs_ordrer.ordre_id,ordrer.konto_id,ordrer.ordrenr,ordrer.status from pbs_ordrer,ordrer where pbs_ordrer.liste_id = $id and ordrer.id=pbs_ordrer.ordre_id order by pbs_ordrer.id",__FILE__ . " linje " . __LINE__);
+	if ($antal_nye == 0 && $antal_rettes == 0 && $antal_stoppes == 0) {
+		$qtxt = "select pbs_ordrer.ordre_id,ordrer.konto_id,ordrer.ordrenr,ordrer.status ";
+		$qtxt.= "from pbs_ordrer,ordrer where pbs_ordrer.liste_id = $id and ordrer.id=pbs_ordrer.ordre_id order by pbs_ordrer.id";
+		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)){
 			if ($r['status']<3) { #20180117
 				Print "<b><big>Ordre nr: $r[ordrenr] ikke faktureret - Fjernet fra liste</big></b><br>";
@@ -244,16 +243,14 @@ if (!$afsendt) {
 		}
 	} elseif ($afslut) {
 		$tmp=$id+1;
-#		echo "update pbs_ordrer set liste_id='$tmp' where liste_id='$id'<br>";
 		db_modify("update pbs_ordrer set liste_id='$tmp' where liste_id='$id'");
 	}
 	$antal_ordrer=$x;
-
 	if ($antal_ordrer>0) {
 		if ($lev_pbs=='L') l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_reg,$bank_konto,$pbs_nr);
 		else inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_reg,$bank_konto,$pbs_nr,$ny_pbs_aftale,$kontonr);
 	}
-	if ($afslut && ($antal_ordrer || $antal_nye || $antal_rettes || $antal_stoppes)) {	
+	if ($afslut && ($antal_ordrer || $antal_nye || $antal_rettes || $antal_stoppes)) {
 		$filnavn="../temp/".$db."/PBS_Leverance".$id.".txt";
 		$fp=fopen("$filnavn","w");
 		$q=db_select("select linje from pbs_linjer where liste_id = $id order by id",__FILE__ . " linje " . __LINE__);
@@ -274,7 +271,8 @@ if (!$afsendt) {
 }	else {
 	$filnavn="../temp/".$db."/PBS_Leverance".$id.".txt";
 	$fp=fopen("$filnavn","w");
-	$q=db_select("select linje from pbs_linjer where liste_id = $id order by id",__FILE__ . " linje " . __LINE__);
+	$qtxt = "select linje from pbs_linjer where liste_id = '$id' order by id";
+	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)){
 			if ($charset=="UTF-8") $linje=mb_convert_encoding(stripslashes($r['linje']), 'ISO-8859-1', 'UTF-8');
 			else $linje=$r['linje'];
@@ -283,7 +281,6 @@ if (!$afsendt) {
 		}
 		fclose($fp);
 }
-
 $tmp1="";$tmp2="";
 if (!$afslut) for ($x=1;$x<=$lnr;$x++)	{
 	if ($lev_pbs=='L') $tmp1=substr($linje[$x],0,3);
@@ -298,7 +295,7 @@ if (!$afslut) for ($x=1;$x<=$lnr;$x++)	{
 	$tmp2=substr($linje[$x],0,5);
 }
 if ($afslut || $afsendt) print "<tr><td title=\"Klik for at &aring;bne PBS filen. H&oslash;jreklik for at gemme.\" align=center> H&oslash;jreklik <b><a href=\"$filnavn\" target=\"blank\">her</a></b> for at gemme PBS filen</td></tr>";
-	
+
 function opret_nye ($antal_nye,$leverance_id,$dkdd,$cvrnr,$bank_reg,$bank_konto,$pbs_nr,$ny_pbs_aftale,$kontonr) {
 	global $id;
 	global $lnr;
@@ -308,7 +305,7 @@ function opret_nye ($antal_nye,$leverance_id,$dkdd,$cvrnr,$bank_reg,$bank_konto,
 	global $lev_pbs;
 
 	$lnr++;
-	
+
 	if ($lev_pbs=='L') $linje[$lnr]="001".$pbs_nr[0].filler(15,"0").filler(6,"0").filler(14,"0").filler(37," ")."\n";
 	else $linje[$lnr]="BS012".$pbs_nr[0]."0120".filler(3,"0").filler(15,"0").filler(9," ").filler(6,"0")."\n";
 	if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
@@ -324,7 +321,7 @@ function opret_nye ($antal_nye,$leverance_id,$dkdd,$cvrnr,$bank_reg,$bank_konto,
 		if ($lev_pbs=='L') $linje[$lnr]="510".$pbs_nr[0].$kontonr[$x].$bank_reg[$x].$bank_konto[$x].$cvrnr[$x].filler(35," ")."\n";
 		else $linje[$lnr]="BS042".$pbs_nr[0]."0200".filler(3,"0").$debitorgruppe.$kontonr[$x].filler(9,"0").filler(6,"0").filler(6,"0").$cvrnr[$x].filler(10," ").$bank_reg[$x].filler(4," ").$bank_konto[$x].filler(10," ")."0".filler(4,"0")."\n";
 		if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
-	
+
 	}
 	if ($lev_pbs!='L') {
 		$lnr++;
@@ -340,7 +337,7 @@ function ret_exist ($antal_rettes,$leverance_id,$dkdd,$cvrnr,$pbs_nr,$ny_kontonr
 	global $afslut;
 	global $linje;
 	global $debitorgruppe;
-	
+
 	$lnr++;
 	$linje[$lnr]="BS012".$pbs_nr[0]."0125".filler(3,"0").filler(15,"0").filler(9," ").filler(6,"0")."\n";
 	if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
@@ -352,7 +349,7 @@ function ret_exist ($antal_rettes,$leverance_id,$dkdd,$cvrnr,$pbs_nr,$ny_kontonr
 		$lnr++;
 		$linje[$lnr]="BS042".$pbs_nr[0]."0272".filler(3,"0").$debitorgruppe.$kontonr[$x].$pbs_nr[$x].$dkdd.filler(6,"0").$ny_kontonr[$x].filler(53," ")."\n";
 		if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
-	
+
 	}
 	while(strlen($antal_rettes)<11) $antal_rettes="0".$antal_rettes;
 	$lnr++;
@@ -395,7 +392,7 @@ function l_stop_aftale ($antal_stoppes,$leverance_id,$dkdd,$cvrnr,$pbs_nr,$konto
 	global $afslut;
 	global $linje;
 	global $debitorgruppe;
-	
+
 	$lnr++;
 	$linje[$lnr]="001".$pbs_nr[0].filler(15,"0").filler(6,"0").filler(14,"0").filler(37," ")."\n";
 	for ($x=1;$x<=$antal_stoppes;$x++) {
@@ -430,7 +427,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 	$r022lin=0;
 	$r052lin=0;
 
-	
+
 	$forfaldsdage=array();
 	$kontonumre=array();
 	$fx=0;
@@ -440,22 +437,22 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		$fakturadate=$r['fakturadate'];
 		$betalingsbet=$r['betalingsbet'];
 		$betalingsdage=$r['betalingsdage'];
-		list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));	
+		list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));
 		$forfaldsdag=substr($yy,-2).$mm.$dd;
 		if ($betalingsbet != 'Kontant') { #20170102
 			while ($forfaldsdag<=$usdd) {
 				$betalingsdage++;
-				list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));	
+				list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));
 				$forfaldsdag=substr($yy,-2).$mm.$dd;
 			}
-		}	
+		}
 		$ut=mktime(12,0,0,$mm,$dd,$yy);
-	
+
 		$dw=date("w",$ut);
 		while ($dw==6||$dw==0) {
 			$ut+=(3600*24);
 			$dw=date("w",$ut);
-		}  
+		}
 		$forfaldsdag=date("ymd",$ut);
 		if (!in_array($forfaldsdag,$forfaldsdage)) {
 			$fx++;
@@ -463,7 +460,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 			$o_id[$fx]=$ordre_id[$x];
 		} else {
 			for ($y=1;$y<=$fx;$y++) {
-				if ($forfaldsdage[$y]==$forfaldsdage[$fx]) $o_id[$fx].=",".$ordre_id[$x]; 
+				if ($forfaldsdage[$y]==$forfaldsdage[$fx]) $o_id[$fx].=",".$ordre_id[$x];
 			}
 		}
 	}
@@ -481,7 +478,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		$x=0;
 		$kontonr=array();
 		$total[$fx]=0;
-		
+
 		$q=db_select("select * from ordrer order by konto_id",__FILE__ . " linje " . __LINE__);
 		while($r=db_fetch_array($q)) {
 			if (in_array($r['id'],$tjek)) {
@@ -495,7 +492,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 				$total[$fx]+=round(($r['sum']+$r['moms'])*100,0);
 			}
 		}
-		$kontoantal=0;		
+		$kontoantal=0;
 		$x=1;
 		while ($kontonr[$x]) {
 			$kontoantal++;
@@ -525,7 +522,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		$fx++;
 	}
 
-/*	
+/*
 	for ($x=1;$x<=$antal_ordrer;$x++) {
 		$r=db_fetch_array(db_select("select * from ordrer where id='$ordre_id[$x]'",__FILE__ . " linje " . __LINE__));
 		$fakturanr=$r['fakturanr'];
@@ -543,7 +540,7 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		$betalingsbet=$r['betalingsbet'];
 		$betalingsdage=$r['betalingsdage'];
 
-		$udskriv_til=$r['udskriv_til']; # tilfoejet 20.03.2011 
+		$udskriv_til=$r['udskriv_til']; # tilfoejet 20.03.2011
 		if ($lev_pbs=='B') {
 			$firmanavn='';$adresse='';$postnr='';$ean='';$institution='';
 		}
@@ -554,15 +551,15 @@ function l_inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank
 		}
 		while(strlen($belob)<11) $belob="0".$belob;
 		while(strlen($kontonr)<15) $kontonr="0".$kontonr;
-		list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));	
+		list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));
 		$yy=substr($yy,-2,2);
 		$forfaldsdag=$yy.$mm.$dd;
 		while ($forfaldsdag<=$usdd) {
 			$betalingsdage++;
-			list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));	
+			list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));
 			$yy=substr($yy,-2,2);
 			$forfaldsdag=$yy.$mm.$dd;
-		}	
+		}
 		$lnr++;
 		$linje[$lnr]="001".$pbs_nr[0].filler(15,"0").$forfaldsdag.filler(14,"0").filler(37," ")."\n";
 		if ($afslut) {
@@ -597,7 +594,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 	global $charset;
 	global $lev_pbs;
 	global $debitorgruppe;
-	
+
 	include("../includes/forfaldsdag.php");
 	$r042sum=0;
 	$r022lin=0;
@@ -628,11 +625,11 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 		$betalingsbet=$r['betalingsbet'];
 		$betalingsdage=$r['betalingsdage'];
 
-		$udskriv_til=$r['udskriv_til']; # tilfoejet 20.03.2011 
+		$udskriv_til=$r['udskriv_til']; # tilfoejet 20.03.2011
 
-		while(strlen($kontonr)<15) $kontonr="0".$kontonr; # 20140122 Denne + næste 3 linjer flyttet over nedenstående else 
+		while(strlen($kontonr)<15) $kontonr="0".$kontonr; # 20140122 Denne + næste 3 linjer flyttet over nedenstående else
 		while(strlen($pbs_nr[$x])<9) $pbs_nr[$x]="0".$pbs_nr[$x];
-		list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));	
+		list($dd,$mm,$yy)=explode("-",forfaldsdag($fakturadate, $betalingsbet, $betalingsdage));
 		$forfaldsdag=$dd.$mm.$yy;
 
 		if ($lev_pbs=='B') {
@@ -674,8 +671,8 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 			$linje[$lnr]="BS022".$pbs_nr[0]."0240"."00009".$debitorgruppe.$kontonr.$pbs_nr[$x].filler(15," ").$postnr."\n";
 			$linjeoid[$lnr]="$ordre_id[$x]";
 			if ($afslut) db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
-		}	
-		if ($belob>0) $felt10="1";	
+		}
+		if ($belob>0) $felt10="1";
 		elseif ($belob<0) {
 			$felt10="2";
 			$belob=$belob*-1;
@@ -730,7 +727,13 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 		while($r=db_fetch_array($q)) {
 			$y++;
 			$r052lin++;
-			$beskrivelse=var2str($r['beskrivelse'],$ordre_id[$x]);
+			$antal=$r['antal']*1;
+			$pris=dkdecimal($r['pris']);
+			$belob=dkdecimal($r['pris']*$r['antal']);
+			$procent = dkdecimal($r['procent']);
+			$momssats = dkdecimal($r['momssats']);
+
+			$beskrivelse=var2str($r['beskrivelse'],$ordre_id[$x],$r['posnr'],$r['varenr'],$antal,$r['enhed'],$pris,$procent,'',$momssats,$rabat);
 			$antal=$r['antal']*1;
 			$pris=dkdecimal($r['pris']);
 			$belob=dkdecimal($r['pris']*$r['antal']);
@@ -751,7 +754,7 @@ function inset_ordrer($antal_ordrer,$leverance_id,$dkdd,$ordre_id,$cvrnr,$bank_r
 				if ($charset=="UTF-8") $linje[$lnr]=mb_convert_encoding($linje[$lnr], 'UTF-8', 'ISO-8859-1');
 				db_modify("insert into pbs_linjer (liste_id,linje) values ('$id','$linje[$lnr]')",__FILE__ . " linje " . __LINE__);
 			}
-		}		
+		}
 		if ($sum) {
 			$r052lin++;
 			$recordnr++;

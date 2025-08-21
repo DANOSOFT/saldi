@@ -44,8 +44,8 @@ while ($row = db_fetch_array($result)) {
     $recent_activity[] = $row;
 }
 
-// Get assigned issues
-$assigned_issues = $pm->getProjectIssues(null, ['assignee_id' => $user_id]);
+// Get assigned issues - use getUserIssues instead of getProjectIssues
+$assigned_issues = $pm->getUserIssues($user_id, 10);
 
 // Get notifications
 $notifications = $pm->getUserNotifications($user_id, 5);

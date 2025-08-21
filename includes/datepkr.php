@@ -73,7 +73,7 @@ function date_picker($date, $dateElmName, $formName, $justering = "right", $widt
                     $('input[name=\"$dateElmName\"]').val(start.format('DDMMYY') + ':' + end.format('DDMMYY'));
                     $('input[name=\"$dateElmName-pkr\"]').val(start.format('DDMMYY') + ':' + end.format('DDMMYY'));
 
-                    document.getElementsByName('sogefelter')[0].submit.click();
+                    document.getElementsByName('$formName')[0].submit.click();
                 }
             );
         });

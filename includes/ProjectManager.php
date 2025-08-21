@@ -12,6 +12,7 @@ class ProjectManager {
     
     private $user_id;
     private $username;
+    private $is_developer = false;
     
     public function __construct() {
         // Get user from ERP global variables (set by online.php)
@@ -20,9 +21,52 @@ class ProjectManager {
         $this->user_id = $bruger_id ?? $_SESSION['bruger_id'] ?? null;
         $this->username = $brugernavn ?? $_SESSION['brugernavn'] ?? null;
         
-        if (!$this->user_id) {
-            throw new Exception('User not authenticated');
+        // Debug: Check what we actually have
+        error_log("ProjectManager: bruger_id=$bruger_id, session_bruger_id=" . ($_SESSION['bruger_id'] ?? 'null') . ", final_user_id={$this->user_id}");
+        
+        // Handle developer login (bruger_id = -1)
+        if ($this->user_id == -1) {
+            // Developer is logged in - use a special developer mode
+            $this->is_developer = true;
+            $this->user_id = $this->getDeveloperUserId(); // Get or create a developer user ID
+            error_log("ProjectManager: Developer login detected, using developer user ID: {$this->user_id}");
+        } else if (!$this->user_id || $this->user_id <= 0) {
+            // No valid user ID
+            $this->user_id = null;
+            $this->is_developer = false;
+            error_log("ProjectManager: No valid user ID found, setting to null");
+        } else {
+            $this->is_developer = false;
         }
+    }
+    
+    /**
+     * Get or create a developer user ID for project management
+     */
+    private function getDeveloperUserId() {
+        // Check if developer user exists
+        $developer = db_fetch_array(db_select("SELECT id FROM brugere WHERE brugernavn = 'developer' OR email = 'developer@system.local'", __FILE__ . " linje " . __LINE__));
+        
+        if ($developer) {
+            return $developer['id'];
+        } else {
+            // Create a developer user if it doesn't exist - using correct column names
+            $sql = "INSERT INTO brugere (brugernavn, email) VALUES ('developer', 'developer@system.local')";
+            $result = db_modify($sql, __FILE__ . " linje " . __LINE__);
+            if ($result) {
+                return db_insert_id();
+            }
+        }
+        
+        // Fallback: return 1 (admin user) if creation fails
+        return 1;
+    }
+    
+    /**
+     * Check if current user is developer
+     */
+    public function isDeveloper() {
+        return $this->is_developer ?? false;
     }
     
     /**
@@ -175,46 +219,95 @@ class ProjectManager {
     }
     
     /**
-     * Get user's projects
+     * Get user's projects - modified for developer access
      */
     public function getUserProjects($user_id = null) {
         if (!$user_id) $user_id = $this->user_id;
         
-        $sql = "SELECT p.*, u.navn as manager_name 
-                FROM projects p 
-                LEFT JOIN brugere u ON p.project_manager_id = u.id 
-                WHERE p.id IN (SELECT project_id FROM project_members WHERE user_id = $user_id) 
-                ORDER BY p.updated_at DESC";
+        // If no valid user_id, return empty array
+        if (!$user_id || $user_id <= 0) {
+            error_log("ProjectManager getUserProjects: No valid user_id (was: $user_id), returning empty array");
+            return [];
+        }
+        
+        // Developer gets access to all projects
+        if ($this->isDeveloper()) {
+            $sql = "SELECT p.*, u.brugernavn as manager_name 
+                    FROM projects p 
+                    LEFT JOIN brugere u ON p.project_manager_id = u.id 
+                    ORDER BY p.updated_at DESC";
+        } else {
+            $sql = "SELECT p.*, u.brugernavn as manager_name 
+                    FROM projects p 
+                    LEFT JOIN brugere u ON p.project_manager_id = u.id 
+                    WHERE p.id IN (SELECT project_id FROM project_members WHERE user_id = $user_id) 
+                    ORDER BY p.updated_at DESC";
+        }
         
         $projects = [];
-        $query = db_select($sql, __FILE__ . " linje " . __LINE__);
-        while ($row = db_fetch_array($query)) {
-            $projects[] = $row;
+        try {
+            $query = db_select($sql, __FILE__ . " linje " . __LINE__);
+            if ($query) {
+                while ($row = db_fetch_array($query)) {
+                    $projects[] = $row;
+                }
+            }
+        } catch (Exception $e) {
+            error_log("ProjectManager getUserProjects error: " . $e->getMessage());
+            return [];
         }
         
         return $projects;
     }
     
     /**
-     * Get user's assigned issues
+     * Get user's assigned issues - modified for developer access
      */
     public function getUserIssues($user_id = null, $limit = 10) {
         if (!$user_id) $user_id = $this->user_id;
         
-        $sql = "SELECT i.*, p.project_name, p.project_key, t.name as type_name, pr.name as priority_name, s.name as status_name 
-                FROM issues i 
-                JOIN projects p ON i.project_id = p.id 
-                LEFT JOIN issue_types t ON i.issue_type_id = t.id 
-                LEFT JOIN issue_priorities pr ON i.priority_id = pr.id 
-                LEFT JOIN issue_statuses s ON i.status_id = s.id 
-                WHERE i.assignee_id = $user_id AND s.status_type != 'done' 
-                ORDER BY i.updated_at DESC 
-                LIMIT $limit";
+        // If no valid user_id, return empty array
+        if (!$user_id || $user_id <= 0) {
+            error_log("ProjectManager getUserIssues: No valid user_id (was: $user_id), returning empty array");
+            return [];
+        }
+        
+        // Developer gets to see all open issues
+        if ($this->isDeveloper()) {
+            $sql = "SELECT i.*, p.project_name, p.project_key, t.name as type_name, pr.name as priority_name, s.name as status_name,
+                           u.brugernavn as assignee_name
+                    FROM issues i 
+                    JOIN projects p ON i.project_id = p.id 
+                    LEFT JOIN issue_types t ON i.issue_type_id = t.id 
+                    LEFT JOIN issue_priorities pr ON i.priority_id = pr.id 
+                    LEFT JOIN issue_statuses s ON i.status_id = s.id 
+                    LEFT JOIN brugere u ON i.assignee_id = u.id
+                    WHERE s.status_type != 'done' 
+                    ORDER BY i.updated_at DESC 
+                    LIMIT $limit";
+        } else {
+            $sql = "SELECT i.*, p.project_name, p.project_key, t.name as type_name, pr.name as priority_name, s.name as status_name 
+                    FROM issues i 
+                    JOIN projects p ON i.project_id = p.id 
+                    LEFT JOIN issue_types t ON i.issue_type_id = t.id 
+                    LEFT JOIN issue_priorities pr ON i.priority_id = pr.id 
+                    LEFT JOIN issue_statuses s ON i.status_id = s.id 
+                    WHERE i.assignee_id = $user_id AND s.status_type != 'done' 
+                    ORDER BY i.updated_at DESC 
+                    LIMIT $limit";
+        }
         
         $issues = [];
-        $query = db_select($sql, __FILE__ . " linje " . __LINE__);
-        while ($row = db_fetch_array($query)) {
-            $issues[] = $row;
+        try {
+            $query = db_select($sql, __FILE__ . " linje " . __LINE__);
+            if ($query) {
+                while ($row = db_fetch_array($query)) {
+                    $issues[] = $row;
+                }
+            }
+        } catch (Exception $e) {
+            error_log("ProjectManager getUserIssues error: " . $e->getMessage());
+            return [];
         }
         
         return $issues;
@@ -288,7 +381,7 @@ class ProjectManager {
      * Get project details
      */
     public function getProject($project_id) {
-        $sql = "SELECT p.*, u.navn as manager_name 
+        $sql = "SELECT p.*, u.brugernavn as manager_name 
                 FROM projects p 
                 LEFT JOIN brugere u ON p.project_manager_id = u.id 
                 WHERE p.id = $project_id";
@@ -300,9 +393,14 @@ class ProjectManager {
      * Get project issues
      */
     public function getProjectIssues($project_id, $filters = []) {
-        $where_conditions = ["i.project_id = $project_id"];
+        $where_conditions = [];
         
-        if (isset($filters['assignee_id'])) {
+        // Only add project_id condition if it's provided and valid
+        if ($project_id && $project_id > 0) {
+            $where_conditions[] = "i.project_id = $project_id";
+        }
+        
+        if (isset($filters['assignee_id']) && $filters['assignee_id'] > 0) {
             $where_conditions[] = "i.assignee_id = " . $filters['assignee_id'];
         }
         
@@ -310,19 +408,24 @@ class ProjectManager {
             $where_conditions[] = "s.status_type = '" . $filters['status_type'] . "'";
         }
         
+        // If no conditions, return empty array to avoid invalid SQL
+        if (empty($where_conditions)) {
+            return [];
+        }
+        
         $where_clause = implode(' AND ', $where_conditions);
         
         $sql = "SELECT i.*, t.name as type_name, pr.name as priority_name, s.name as status_name, s.status_type, 
-                       u1.navn as assignee_name, u2.navn as reporter_name 
-                FROM issues i 
-                LEFT JOIN issue_types t ON i.issue_type_id = t.id 
-                LEFT JOIN issue_priorities pr ON i.priority_id = pr.id 
-                LEFT JOIN issue_statuses s ON i.status_id = s.id 
-                LEFT JOIN brugere u1 ON i.assignee_id = u1.id 
-                LEFT JOIN brugere u2 ON i.reporter_id = u2.id 
-                WHERE $where_clause
-                ORDER BY i.created_at DESC";
-        
+                   u1.brugernavn as assignee_name, u2.brugernavn as reporter_name 
+            FROM issues i 
+            LEFT JOIN issue_types t ON i.issue_type_id = t.id 
+            LEFT JOIN issue_priorities pr ON i.priority_id = pr.id 
+            LEFT JOIN issue_statuses s ON i.status_id = s.id 
+            LEFT JOIN brugere u1 ON i.assignee_id = u1.id 
+            LEFT JOIN brugere u2 ON i.reporter_id = u2.id 
+            WHERE $where_clause
+            ORDER BY i.created_at DESC";
+
         $issues = [];
         try {
             $query = db_select($sql, __FILE__ . " linje " . __LINE__);
@@ -343,16 +446,23 @@ class ProjectManager {
      * Get project members
      */
     public function getProjectMembers($project_id) {
-        $sql = "SELECT pm.*, u.navn as user_name, u.brugernavn as username 
+        $sql = "SELECT pm.*, u.brugernavn as user_name, u.brugernavn as username 
                 FROM project_members pm 
                 JOIN brugere u ON pm.user_id = u.id 
                 WHERE pm.project_id = $project_id 
-                ORDER BY pm.role, u.navn";
+                ORDER BY pm.role, u.brugernavn";
         
         $members = [];
-        $query = db_select($sql, __FILE__ . " linje " . __LINE__);
-        while ($row = db_fetch_array($query)) {
-            $members[] = $row;
+        try {
+            $query = db_select($sql, __FILE__ . " linje " . __LINE__);
+            if ($query) {
+                while ($row = db_fetch_array($query)) {
+                    $members[] = $row;
+                }
+            }
+        } catch (Exception $e) {
+            error_log("ProjectManager getProjectMembers error: " . $e->getMessage());
+            return [];
         }
         
         return $members;
@@ -379,12 +489,19 @@ class ProjectManager {
      * Get all users for assignment
      */
     public function getAllUsers() {
-        $sql = "SELECT id, navn as name, brugernavn as username FROM brugere WHERE lukket != 1 ORDER BY navn";
+        $sql = "SELECT id, brugernavn as name, brugernavn as username FROM brugere ORDER BY brugernavn";
         
         $users = [];
-        $query = db_select($sql, __FILE__ . " linje " . __LINE__);
-        while ($row = db_fetch_array($query)) {
-            $users[] = $row;
+        try {
+            $query = db_select($sql, __FILE__ . " linje " . __LINE__);
+            if ($query) {
+                while ($row = db_fetch_array($query)) {
+                    $users[] = $row;
+                }
+            }
+        } catch (Exception $e) {
+            error_log("ProjectManager getAllUsers error: " . $e->getMessage());
+            return [];
         }
         
         return $users;
@@ -446,10 +563,15 @@ class ProjectManager {
     }
     
     /**
-     * Check if user has access to project
+     * Check if user has access to project - modified for developer access
      */
     public function hasProjectAccess($project_id, $user_id = null) {
         if (!$user_id) $user_id = $this->user_id;
+        
+        // Developer has access to all projects
+        if ($this->isDeveloper()) {
+            return true;
+        }
         
         $result = db_fetch_array(db_select("SELECT id FROM project_members WHERE project_id = $project_id AND user_id = $user_id", __FILE__ . " linje " . __LINE__));
         return (bool)$result;

@@ -229,7 +229,6 @@ $css="../css/standard.css";
 #$css="../css/ordre.css";
 include("../includes/std_func.php");
 
-$title = findtekst('1092|Kundeordre', $sprog_id);
 
 include("../includes/connect.php");
 include("../includes/online.php");
@@ -237,6 +236,7 @@ include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
 include("../includes/tid2decimal.php");
 
+$title = findtekst('1092|Kundeordre', $sprog_id);
 $txt370 = findtekst('370|Kontant',$sprog_id);
 $txt283 = findtekst('283|Kreditkort',$sprog_id);
 
@@ -2923,6 +2923,8 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 
 	}
   if (!$status)  $status=0;
+
+
 	if ($status>=3) {
 		    print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
     $actionUrl = "ordre.php?id=$id";
