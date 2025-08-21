@@ -2924,7 +2924,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 	}
   if (!$status)  $status=0;
 
-  echo "<script>console.log('valg: $levnr');</script>";
+
 	if ($status>=3) {
 		    print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
     $actionUrl = "ordre.php?id=$id";

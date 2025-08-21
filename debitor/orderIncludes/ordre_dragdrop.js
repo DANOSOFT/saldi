@@ -1,4 +1,16 @@
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('Order drag-and-drop script loading...');
+
+    // Check if this is an invoice page (status >= 3) - if so, don't initialize
+    const statusInput = document.querySelector('input[name="status"]');
+    const status = statusInput ? parseInt(statusInput.value) : 0;
+    
+    if (status >= 3) {
+        console.log('This is an INVOICE (status >= 3) - ordre_dragdrop.js will NOT initialize');
+        return;
+    }
+
+    console.log('This is an ORDER (status < 3) - ordre_dragdrop.js will initialize');
 
     let orderTableBody = null;
     document.querySelectorAll('table').forEach(table => {
@@ -9,12 +21,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (!orderTableBody) {
-        console.error('No table with .ordrelinje rows found!');
-        showMessage(' Table with order lines not found!', 'error');
+        console.log('No order lines found yet - this is normal for new orders');
         return;
     }
 
-    console.log('Found order table body:', orderTableBody);
+    console.log('Found order table body with existing order lines:', orderTableBody);
 
     const ordreIdInput = document.querySelector('input[name="id"]');
     const ordreId = ordreIdInput ? ordreIdInput.value : null;
@@ -33,8 +44,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         onEnd(evt) {
-        evt.preventDefault();
-
+            evt.preventDefault();
             evt.item.classList.remove('dragging');
             console.log('=== DRAG ENDED ===');
             updatePositionNumbers();
@@ -89,12 +99,12 @@ document.addEventListener('DOMContentLoaded', function () {
             saveBtn.click();
             return true;
         } else {
-            console.warn(' Save button not found, fallback to native submit');
+            console.warn('Save button not found, fallback to native submit');
             try {
                 HTMLFormElement.prototype.submit.call(form);
                 return true;
             } catch (err) {
-                console.error(' Submit failed:', err);
+                console.error('Submit failed:', err);
                 return false;
             }
         }

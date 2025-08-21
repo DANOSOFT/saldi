@@ -205,7 +205,7 @@ $tjek=0;
 		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td align = center>$row[bogfort]<br></td>";
-	     print "<td></td>";
+	    //  print "<td></td>";
 
 		print "<td></td>";
  
@@ -253,7 +253,7 @@ $tjek=0;
 		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td align = center>$row[bogfort]<br></td>";
-		print "<td></td>";
+		// print "<td></td>";
 		print "<td align='center'>";
 		if ($row['bogfort'] == '-') {
 			print "<button onclick=\"deleteKladde($row[id])\" style='
@@ -304,7 +304,7 @@ print "</td>";
 		}
 		else {print "<td align = center>$row[bogfort]<br></td>";}
 		print "<td>$row[bogfort_af]<br></td>";
-        print "<td></td>"; 
+        // print "<td></td>"; 
 
 		print "</tr>";
 	}
@@ -332,7 +332,7 @@ print "</td>";
 		}
 		else {print "<td align = center>$row[bogfort]<br></td>";}
 		print "<td>$row[bogfort_af]<br></td>";
-        print "<td></td>";
+        // print "<td></td>";
 
 		print "</tr>"; 
 	}
