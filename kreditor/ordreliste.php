@@ -45,6 +45,13 @@ include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
+print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
+include("../includes/datepkr.php");
+$show_date_pkr = get_settings_value("datepicker", "personlige", "on");
+$script = "";
 
 global $menu;
 
@@ -175,7 +182,7 @@ if ($submit == "Udskriv") {
 }
 if (isset($_POST['check']) || isset($_POST['uncheck'])) {
 	$ordre_antal = if_isset($_POST['ordre_antal']);
-	$ordre_id = if_isset($_POST['ordre_id']);
+	$ordre_id = if_isset($_POST, NULL, 'ordre_id');
 	if (isset($_POST['check'])) $check_all = 'on';
 }
 
@@ -241,7 +248,7 @@ if ($menu == 'T') {
 		print "</td>";
 	}
 	print "</tbody></table></td>";
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
+	print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
 	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	print "<td width=10% style='$buttonStyle'><a href=ordre.php?returside=ordreliste.php>
@@ -351,12 +358,21 @@ if ($valg != 'skanBilag') {
 		print "<td align=right><span title= '" . findtekst('1616|Angiv et fakturanummer, eller angiv to adskilt af kolon (f.eks 345:350))', $sprog_id) . "'><input class=\"inputbox\" type=text size=5 name=fakturanumre value=$fakturanumre></td>";
 	}
 	print "<td width=50></td>";
-	print "<td><span title= '" . findtekst('1611|Angiv en dato, eller angiv to adskilt af kolon (f.eks 010605:300605)', $sprog_id) . "'><input class=\"inputbox\" type=text size=10 name=ordredatoer value=$ordredatoer></td>";
+	print "<td><span title= '" . findtekst('1611|Angiv en dato, eller angiv to adskilt af kolon (f.eks 010605:300605)', $sprog_id) . "'>";
+	print "<input type='text' name=ordredatoer value='$ordredatoer' id='ordredatoer' hidden>";
+	date_picker($ordredatoer, "ordredatoer", "ordreliste", "left", "width:120px");
+	print "</span></td>";
 	if ($valg != 'forslag') {
-		print "<td><span title= '" . findtekst('1611|Angiv en dato, eller angiv to adskilt af kolon (f.eks 010605:300605)', $sprog_id) . "'><input class=\"inputbox\" type=text size=10 name=lev_datoer value=$lev_datoer></td>";
+		print "<td><span title= '" . findtekst('1611|Angiv en dato, eller angiv to adskilt af kolon (f.eks 010605:300605)', $sprog_id) . "'>";
+		print "<input type='text' name=lev_datoer value='$lev_datoer' id='lev_datoer' hidden>";
+		date_picker($lev_datoer, "lev_datoer", "ordreliste", "left", "width:120px");
+		print "</span></td>";
 	}
 	if ($valg == 'faktura') {
-		print "<td><span title= '" . findtekst('1611|Angiv en dato, eller angiv to adskilt af kolon (f.eks 010605:300605)', $sprog_id) . "'><input class=\"inputbox\" type=text size=10 name=fakturadatoer value=$fakturadatoer></td>";
+		print "<td><span title= '" . findtekst('1611|Angiv en dato, eller angiv to adskilt af kolon (f.eks 010605:300605)', $sprog_id) . "'>";
+		print "<input type='text' name=fakturadatoer value='$fakturadatoer' id='fakturadatoer' hidden>";
+		date_picker($fakturadatoer, "fakturadatoer", "ordreliste", "left", "width:120px");
+		print "</span></td>";
 	}
 	print "<td><span title= '" . findtekst('1615|Angiv et kontonummer, eller angiv to adskilt af kolon (f.eks 345:350)', $sprog_id) . "'><input class=\"inputbox\" type=text size=10 name=kontonumre value=$kontonumre></td>";
 
@@ -436,6 +452,7 @@ if ($valg != 'skanBilag') {
 	print "<td align=right><span title= '" . findtekst('1617|Angiv et beløb, eller angiv to adskilt af kolon (f.eks 10000,00:14999,99))', $sprog_id) . "'><input class=\"inputbox\" type=text size=10 name=summer value=$summer></td>";
 	print "<td><input class=\"inputbox\" type=submit value=\"OK\" name=\"submit\"></td>";
 	print "</form></tr>\n";
+	print "\n<script>\n\twindow.onload = function() {\n\t\t$script\n\t};\n</script>\n";
 	####################################################################################
 	$udvaelg = '';
 	if ($ordrenumre) {
