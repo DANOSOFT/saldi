@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php -----patch 4.1.1 ----2025-08-22------------
+// --- includes/documents.php -----patch 4.1.1 ----2025-08-24------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 //20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
 //20250815 - LOE Create 'bilag' file specifically for kassekladde and , others can be created based  on what is needed
-
+//20250824 - LOE Clean up to reduce the error logs with if_isset()
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -44,20 +44,20 @@ print "<div align=\"center\">";
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=null;
 if(($_GET)||($_POST)) {
 
-	$funktion=if_isset($_GET['funktion']);
+	$funktion=if_isset($_GET,NULL,'funktion');
 	if (isset($_GET['sourceId'])) {
-		$bilag		  = if_isset($_GET['bilag']);
-		$fokus		  = if_isset($_GET['fokus']);
-		$docFocus	  = if_isset($_GET['docFocus']);
-		$sourceId   = if_isset($_GET['sourceId'],0);
-		$source     = if_isset($_GET['source']);
-		$showDoc    = if_isset($_GET['showDoc']);
-		$deleteDoc  = if_isset($_GET['deleteDoc']);
-		$moveDoc  	= if_isset($_GET['moveDoc']);
-		$kladde_id  = if_isset($_GET['kladde_id']);
-		$dokument   = if_isset($_GET['dokument']);
-		$openPool    = if_isset($_GET['openPool']);
-		$poolFile    = if_isset($_GET['poolFile']);
+		$bilag		  = if_isset($_GET, NULL,'bilag');
+		$fokus		  = if_isset($_GET, NULL,'fokus');
+		$docFocus	  = if_isset($_GET, NULL,'docFocus');
+		$sourceId   = if_isset($_GET, NULL,'sourceId');
+		$source     = if_isset($_GET, NULL,'source');
+		$showDoc    = if_isset($_GET, NULL,'showDoc');
+		$deleteDoc  = if_isset($_GET, NULL,'deleteDoc');
+		$moveDoc  	= if_isset($_GET, NULL,'moveDoc');
+		$kladde_id  = if_isset($_GET, NULL,'kladde_id');
+		$dokument   = if_isset($_GET, NULL,'dokument');
+		$openPool    = if_isset($_GET, NULL,'openPool');
+		$poolFile    = if_isset($_GET, NULL,'poolFile');
 	}
 	if (isset($_POST['sourceId'])) {
 		$sourceId  = $_POST['sourceId'];
@@ -65,210 +65,6 @@ if(($_GET)||($_POST)) {
 		$kladde_id = $_POST['kladde_id'];
 	}
 }
-
-########################
-
-//++++++++++++++++++++++++++++==
-function renameFileWithPermissionFix($oldPath, $newPath) {
-	global $db;
-    error_log("INPUT oldPath: $oldPath");
-    error_log("INPUT newPath: $newPath");
-    error_log("---- DEBUG START ----");
-    $baseDir = realpath(__DIR__ . '/../../');
-	if (!$baseDir) {
-    error_log("ERROR: baseDir not found via realpath");
-    return false;
-	}
-	error_log("Base directory: $baseDir");
-    // Extract the first directory after 'html' from oldPath
-    $firstDirOld = getDbPrefix($db);
-    $firstDirNew = getDbPrefix($db);
-
-    // If none found, default to 'saldi' (or whatever your actual directory is)
-	error_log("First old Directory : $firstDirOld");
-	error_log("First new Directory : $firstDirNew");
-
-    // Strip leading slashes and normalize relative path
-    $oldPathNormalized = ltrim($oldPath, '/');
-    $newPathNormalized = ltrim($newPath, '/');
-	$fileName = basename($newPathNormalized);
-
-    // Prepend directory after html if missing
-    if (strpos($oldPathNormalized, $firstDirOld) !== 0) {
-    	$oldPathNormalized = $firstDirOld . '/bilag/' . $oldPathNormalized;
-	}
-	if (strpos($newPathNormalized, $firstDirNew) !== 0) {
-		$newPathNormalized = $firstDirNew . '/bilag/' . $newPathNormalized;
-	}
-
-    // Build full paths
-    $oldFullPath = $baseDir . DIRECTORY_SEPARATOR . $oldPathNormalized;
-    $newDirPath  = $baseDir . DIRECTORY_SEPARATOR . dirname($newPathNormalized);
-    $newFilePath = $newDirPath . DIRECTORY_SEPARATOR . basename($newPathNormalized);
-
-    error_log("Unresolved Old Full Path: $oldFullPath");
-    error_log("Unresolved New Dir Path: $newDirPath");
-    error_log("Unresolved New File Path: $newDirPath/$fileName");
-
-    // Normalize paths (remove '/../' etc.)
-    $oldFullPath = normalizePath($oldFullPath,$firstDirOld);
-    $newDirPath  = normalizePath($newDirPath,$firstDirNew);
-    $newFilePath = $newDirPath . DIRECTORY_SEPARATOR . $fileName;
-
-    error_log("Normalized Old Full Path: $oldFullPath");
-    error_log("Normalized New Dir Path: $newDirPath");
-    error_log("Normalized New File Path: $newFilePath");
-
-    // Check existence
-    if (!file_exists($oldFullPath)) {
-        error_log("Resolved Old File Absolute Path: NOT FOUND");
-        return false;
-    }
-    if (!is_dir($newDirPath)) {
-        error_log("Resolved Target Directory Path: NOT FOUND");
-        return false;
-    }
-
-    // Permissions
-    if (!is_readable($oldFullPath)) {
-        error_log("Source file not readable: $oldFullPath");
-        return false;
-    }
-    if (!is_writable($newDirPath)) {
-		error_log("Target directory not writable, attempting to change permissions: $newDirPath");
-		@chmod($newDirPath, 0777);
-
-		// Re-check if writable after chmod
-		if (!is_writable($newDirPath)) {
-			error_log("Failed to make target directory writable: $newDirPath");
-			return false;
-		}
-	}
-	if (file_exists($newFilePath)) {
-		error_log("Target file already exists: $newFilePath");
-		return false;
-	}
-
-    // Attempt rename
-    if (@rename($oldFullPath, $newFilePath)) {
-        error_log("Rename succeeded");
-        return true;
-    }
-
-    error_log("Rename failed, trying copy + unlink fallback...");
-
-    // Fallback
-    if (@copy($oldFullPath, $newFilePath)) {
-        if (@unlink($oldFullPath)) {
-            error_log("Copy + unlink fallback succeeded");
-            return true;
-        } else {
-            error_log("Failed to unlink after copy");
-            @unlink($newFilePath);
-            return false;
-        }
-    } else {
-        $err = error_get_last();
-        error_log("Copy failed: " . ($err['message'] ?? 'Unknown error'));
-        return false;
-    }
-}
-
-// Utility to normalize paths (resolve '../' and './' manually)
-function normalizePath($path, $insertAfterHtml = null) {
-    $isAbsolute = strpos($path, '/') === 0;
-    $parts = [];
-
-    foreach (explode('/', str_replace('\\', '/', $path)) as $segment) {
-        if ($segment === '' || $segment === '.') {
-            continue;
-        }
-        if ($segment === '..') {
-            array_pop($parts);
-        } else {
-            $parts[] = $segment;
-        }
-    }
-
-    // If insertAfterHtml is set, find 'html' and ensure it’s followed by that string
-    if ($insertAfterHtml !== null) {
-        $htmlIndex = array_search('html', $parts);
-        if ($htmlIndex !== false) {
-            // Ensure the next part is the desired one
-            if (isset($parts[$htmlIndex + 1])) {
-                $parts[$htmlIndex + 1] = $insertAfterHtml;
-            } else {
-                // If nothing follows html, insert it
-                array_splice($parts, $htmlIndex + 1, 0, $insertAfterHtml);
-            }
-        }
-        // Optional: else do nothing if html is not found
-    }
-
-    return ($isAbsolute ? '/' : '') . implode('/', $parts);
-}
-
-
-function getDbPrefix($db) {
-    $parts = explode('_', $db);
-    return $parts[0];
-}
-
-
-
-
-//+++++++++++++++++++++++++++==
-
-
-
-
-if (isset($_GET['renameDoc']) && isset($_POST['newFileName']) && isset($_POST['oldFileName'])) {
-	$oldFile = basename($_POST['oldFileName']);
-	$newFile = basename($_POST['newFileName']);  // sanitize to avoid directory traversal
-	
-	if(!$sourceId && $source){
-		$sourceId = $_GET['sourceId'] ?? '';
-		$source = $_GET['source'] ?? '';  
-	}
-	
-
-	$docDir = "../bilag/$db/pulje"; 
-	$oldPath = "$docDir/$oldFile";
-	$newPath = "$docDir/$newFile";
-	error_log("OldPatheeeeeeeeeeeeeee: $oldPath, NewPath: $newPath");
-	// Rename on disk
-	error_log("old path before using relapath: $oldPath");
-	#$oldPath = realpath($oldPath);
-	error_log("xxxxxxxiiiiiiiiiiiiiiiii: New path : $newPath, Old path: $oldPath");
-	#$newPath = realpath(dirname($newPath)) . DIRECTORY_SEPARATOR . basename($newPath);
-	if (file_exists($oldPath) && !file_exists($newPath)) {
-		if (renameFileWithPermissionFix($oldPath, $newPath)) {
-			// Update database after successful rename/copy+unlink
-			$oldFileEsc = db_escape_string($oldFile);
-			$newFileEsc = db_escape_string($newFile);
-
-			$updateQ = "UPDATE documents 
-						SET filename = '$newFileEsc', filepath = 'pulje'
-						WHERE filename = '$oldFileEsc' AND source = '$source' AND source_id = '$sourceId'";
-
-			if (db_modify($updateQ, __FILE__ . " linje " . __LINE__)) {
-				echo "<div style='color:green;'>Filnavn opdateret: pulje</div>";
-			} else {
-				echo "<div style='color:red;'>Kunne ikke opdatere databasen.</div>";
-			}
-		} else {
-			echo "<div style='color:red;'>Kunne ikke omdøbe filen på disken.</div>";
-		}
-
-	} else {
-		echo "<div style='color:red;'>Fil findes ikke, eller nyt navn eksisterer allerede.</div>";
-	}
-}
-########################
-
-
-
-
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
 
 if (isset($_GET['test'])) exit;
@@ -289,7 +85,6 @@ if ($source === 'kassekladde' && empty($docFolder)) {
         mkdir($docFolder, 0755, true); 
     }
 }
-
 
 
 

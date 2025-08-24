@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/listDocs.php-----patch 4.1.1 ----2025-08-22--------
+// --- includes/docsIncludes/listDocs.php-----patch 4.1.1 ----2025-08-23--------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,91 +40,10 @@ if ($dokument) {
 	
 }
 */
-
-
-
-//Insert files from pulje if the exist
-if ($source == 'kassekladde') {
-		echo error_log("#Docfolder: $docFolder/$db, Source: $source, sourceId: $sourceId");
-
-		$sourceId = (int)$sourceId;
-
-		$directory = $docFolder . '/' . $db . '/pulje';
-
-		// Read all PDF files in the directory
-		$pdfFiles = glob($directory . '/*.pdf');
-		// Fetch existing filenames from the database
-		$qtxt = "SELECT filename FROM documents WHERE source = '$source' AND source_id = $sourceId";
-		$existingRecords = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-         
-		// Normalize existing filenames
-		$existingFilenames = [];
-                $rowCount=0;
-			if ($existingRecords !== false) {
-				
-				
-				while ($r = db_fetch_array($existingRecords)) {
-					$rowCount++;
-					#error_log("Fetched row: " . print_r($r, true));
-					if (!empty($r['filename'])) {
-						$normalized = trim(strtolower($r['filename']));
-						$existingFilenames[$normalized] = true;
-					}
-				}
-			
-			}
-			if (empty($existingFilenames)) {
-				error_log("No existing filenames found in DB.");
-			}
-			
-		if (!empty($existingRecords) && is_array($existingRecords)) {
-			foreach ($existingRecords as $rec) {
-				$raw = $rec['filename'];
-				$normalized = strtolower(trim($raw));
-				$existingFilenames[] = $normalized;
-				
-			}
-		} else {
-			error_log("No existing filenames found in DB.");
-		}
-		$existingFilenamesMap = array_flip(
-			array_filter($existingFilenames, function($val) {
-				return is_string($val) || is_int($val);
-			})
-		);
-
-		// Loop through the files and insert missing ones
-		foreach ($pdfFiles as $filePath) {
-			$filename = basename($filePath);
-			$normalized = trim(strtolower($filename));
-		
-		  if (!isset($existingFilenames[$normalized])) {
-    		error_log("-> Inserting: $filename");
-
-				// Sanitize inputs to prevent SQL injection
-				$filenameEsc = addslashes($filename);
-				$filePathEsc = 'pulje';
-				$insertQ = "INSERT INTO documents (filename, filepath, source, source_id)
-							VALUES ('$filenameEsc', '$filePathEsc', '$source', '$sourceId')";
-				$success = db_modify($insertQ, __FILE__ . " linje " . __LINE__);
-
-				if (!$success) {
-					error_log("!! Insert failed for: $filename");
-				}
-			}
-		}
-	}
-
-//end insert files from pulje
-
-
 if (!isset($sourceId) || $sourceId === '') {
 		error_log("no files to list in listDocs.php");
 		exit;
 }
-
-	
-
 
 $qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -200,31 +119,22 @@ if ($sourceId || $sourceId == 0) {
 		alert("no files to show");
 		exit;
 	}
-	$qtxt = "SELECT timestamp FROM documents WHERE source = '$source' AND source_id = '$sourceId'";
-	$qtxt .= " AND filename = '" . db_escape_string($fileName) . "'";
-
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	$qtxt = "select art from documents where source = '$source' and source_id = '$sourceId'";
+	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
+	$qtxt = "select timestamp from documents where source = '$source' and source_id = '$sourceId'";
+	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
+	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		if ($locked == 0 || date('U') - $r['timestamp'] < 60*60*24) {
-			print "<tr><td valign='top' align='center'>";
-			print "<a href='documents.php?$params&deleteDoc=" . urlencode($showDoc) . "' onclick=\"return confirm('Slet $fileName?')\">";
-			print "<button style='width:90%;height:35px;'>Slet dokument</button></a>";
+			print "<tr><td valign='top' align = 'center'>";
+			print "<a href = 'documents.php?$params&deleteDoc=".urlencode($showDoc)."' onclick=\"return confirm('Slet $fileName?')\">";
+			print "<button style = 'width:90%;height:35px;'>Slet dokument</button></a>";
+			print "</td></tr>";
+			print "<tr><td valign='top' align = 'center'>";
+			print "<a href = 'documents.php?$params&moveDoc=".urlencode($showDoc)."' onclick=\"return confirm('Flyt $fileName til pulje?')\">";
+			print "<button style = 'width:90%;height:35px;'>Flyt dokument til pulje</button></a>";
 			print "</td></tr>";
 
-			print "<tr><td valign='top' align='center'>";
-			print "<a href='documents.php?$params&moveDoc=" . urlencode($showDoc) . "' onclick=\"return confirm('Flyt $fileName til pulje?')\">";
-			print "<button style='width:90%;height:35px;'>Flyt dokument til pulje</button></a>";
-			print "</td></tr>";
-
-			// === Rename form ===
-			print "<tr><td valign='top' align='center'>";
-			print "<form method='POST' action='documents.php?$params&renameDoc=" . urlencode($showDoc) . "' onsubmit=\"return confirm('Omdøb dokumentet?')\">";
-			print "<input type='text' name='newFileName' value='" . htmlspecialchars($fileName, ENT_QUOTES) . "' style='width:90%;height:30px;margin-top:10px;' />";
-			print "<input type='hidden' name='oldFileName' value='" . htmlspecialchars($fileName, ENT_QUOTES) . "' />";
-			print "<input type='submit' value='Omdøb fil' style='width:90%;height:30px;margin-top:5px;' />";
-			print "</form>";
-			print "</td></tr>";
 		}
 	}
-
 }
 ?>
