@@ -9,6 +9,15 @@ $dir = $_GET['dir'] ?? null;
 $params = isset($_GET['params']) ? urldecode($_GET['params']) : '';
 $poolParams = isset($_GET['poolParams']) ? urldecode($_GET['poolParams']) : '';
 #global $dir;
+
+$dir = isset($_GET['dir']) ? realpath($_GET['dir']) : null;
+$sum = isset($_GET['sum']) ? urldecode($_GET['sum']) : '';
+
+
+if (!$dir || !is_dir($dir)) {
+    echo json_encode(['error' => 'Invalid directory']);
+    exit;
+}
 $files = scandir($dir);
 $data = [];
 
@@ -18,12 +27,6 @@ foreach ($files as $file) {
     $baseNameCounts[$base] = ($baseNameCounts[$base] ?? 0) + 1;
 }
 
-$dir = isset($_GET['dir']) ? realpath($_GET['dir']) : null;
-
-if (!$dir || !is_dir($dir)) {
-    echo json_encode(['error' => 'Invalid directory']);
-    exit;
-}
 
 $data = [];
 
@@ -90,15 +93,18 @@ foreach ($files as $file) {
     // --- Attempt to read matching .info file ---
     $infoFile = "$dir/{$base}.info";
     $subject = $account = $amount = "";
-
-    if (file_exists($infoFile)) { //only process those having file info
+     
+   if (file_exists($infoFile)) { //only process those having file info
         $lines = file($infoFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         $subject = $lines[0] ?? '';
         $account = $lines[1] ?? '';
         $amount  = $lines[2] ?? '';
+    }
             if (!empty($subject)) {
+              //To rename, it must first be handled at mobile upload files directly from subject
+              //so this doesn't prevent from renaming directly from here. Refer to docPool.php
                     // Sanitize subject to make it filename-safe
-                    $safeSubject = preg_replace('/[^A-Za-z0-9_\-]/', '_', $subject);
+                    $safeSubject = preg_replace('/[^A-Za-z0-9_\-]/', '_', $subject); 
 
                     // Get directory and extensions
                     $dir = dirname($infoFile);
@@ -110,6 +116,7 @@ foreach ($files as $file) {
 
                     // Rename .info file 
                     if ($infoFile !== $newInfoFile && !file_exists($newInfoFile)) {
+                        
                         rename($infoFile, $newInfoFile);
                         $infoFile = $newInfoFile; // Update path for future use 
                     }
@@ -121,11 +128,21 @@ foreach ($files as $file) {
                 
             } 
          
-    }else{
-        continue;
-    }
+    // }else{
+    //     continue;
+    // }
+  
 
-    $modDate = date("Y-m-d H:i:s", filemtime("$dir/$file"));
+        
+        $fullPath = "$dir/$file";
+        if (file_exists($fullPath)) {
+            sleep(0.1); // slight delay to ensure file system updates
+            $modDate = date("Y-m-d H:i:s", filemtime($fullPath)); 
+        } else {
+            error_log("⚠️ File does not exist (yet?): $fullPath");
+        }
+
+
 
     $fil_nr++;
     #$hreftxt = "../includes/documents.php?$params&docFocus=$fil_nr&poolFile=" . urlencode($file);
@@ -138,7 +155,7 @@ foreach ($files as $file) {
         'amount' => $amount,
         'date' => $modDate,
         'href' => $hreftxt,
-        'fil_nr' => $fil_nr
+        'fil_nr' => $fil_nr,
     ];
 
 }
@@ -152,5 +169,6 @@ header('Content-Type: application/json');
 usort($data, fn($a, $b) => strcmp($b['date'], $a['date'])); // Default sort by date DESC
 
 echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
 exit;
 

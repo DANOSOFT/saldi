@@ -25,7 +25,7 @@
 // 20250510 PHR Added 'w' to $legalChars
 // 20250519 PHR '&' replaced by '_' in filenames
 // 20250823 LOE Applied if_isset properly to prevent excessive error logging plus other improvements
-// 20250824 _docPoolData.php added to this file for improved data handling
+// 20250824 _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 	global $bruger_id,$db,$exec_path;
@@ -72,6 +72,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			if (!$sum)         $sum         = dkdecimal(if_isset($r,0,'amount')); 
 		}
 	}
+
 	if ($rename && $newFileName && $newFileName != $poolFile) {
 	  $legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
@@ -103,62 +104,76 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		// $poolFile = $newFileName;
 		##########also rename other file with the same base names
 		//  Get extension of the original pool file
-			$tmpA = explode('.', $poolFile);
-			$ext = (count($tmpA) > 1) ? end($tmpA) : NULL;
-			//  Clean and check new file name
-			$newFileName = trim($newFileName, ' ._');
-			$tmpA = explode('.', $newFileName);
-			$newExt = (count($tmpA) > 1) ? end($tmpA) : NULL;
+			// Ensure the new filename is clean and has the correct extension
+			$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
+			$origBase = pathinfo($poolFile, PATHINFO_FILENAME);
 
-			// If new name lacks proper extension, add original one
-			if (strtolower($ext) != strtolower($newExt)) {
+			// Clean the new file name
+			$newFileName = trim($newFileName, ' ._');
+			$newExt = pathinfo($newFileName, PATHINFO_EXTENSION);
+
+			// If extension missing or mismatched, add original
+			if (strtolower($ext) !== strtolower($newExt)) {
 				$newFileName .= ".$ext";
 			}
-			$newFileName = trim($newFileName, ' ._');
-
-			//  Extract original and new base names
-			$origBase = pathinfo($poolFile, PATHINFO_FILENAME);
 			$newBase = pathinfo($newFileName, PATHINFO_FILENAME);
 
-			// Path to directory
+			// Define the pulje directory path
 			$puljePath = "$docFolder/$db/pulje";
+			error_log("🔍 Checking files in: $puljePath");
 
-			// Rename all matching files with same base name
-			$allFiles = scandir($puljePath);
-			foreach ($allFiles as $file) {
-				if (in_array($file, ['.', '..'])) continue;
+			$renamedPoolFile = $poolFile;
 
-				$fileBase = pathinfo($file, PATHINFO_FILENAME);
-				$fileExt  = pathinfo($file, PATHINFO_EXTENSION);
+			if (!is_dir($puljePath)) {
+				error_log("❌ Directory does not exist: $puljePath");
+			} else {
+				$allFiles = scandir($puljePath);
+				foreach ($allFiles as $file) {
+					if (in_array($file, ['.', '..'])) continue;
 
-				if ($fileBase === $origBase) {
-					$oldPath = "$puljePath/$file";
-					$newPath = "$puljePath/$newBase.$fileExt";
+					$fileBase = pathinfo($file, PATHINFO_FILENAME);
+					$fileExt  = pathinfo($file, PATHINFO_EXTENSION);
 
-					rename($oldPath, $newPath);
+					// Rename all files with the same base name (e.g., PDF and .info)
+					if ($fileBase === $origBase) {
+						$oldPath = "$puljePath/$file";
+						$newPath = "$puljePath/$newBase.$fileExt";
 
-					// If this was the main file, update $poolFile
-					if ($file === $poolFile) {
-						$poolFile = "$newBase.$fileExt";
+						if (!file_exists($oldPath)) {
+							error_log("⚠️ Skipped missing file: $oldPath");
+						} elseif (!is_writable(dirname($newPath))) {
+							error_log("❌ Cannot write to: " . dirname($newPath));
+						} else {
+							if (rename($oldPath, $newPath)) {
+								error_log("✅ Renamed: $oldPath → $newPath");
+
+								// Update the poolFile variable
+								if ($file === $poolFile) {
+									$renamedPoolFile = "$newBase.$fileExt";
+								}
+							} else {
+								error_log("❌ Rename failed: $oldPath → $newPath");
+							}
+						}
 					}
 				}
+
+				// Update poolFile to reflect renamed main file
+				$poolFile = $renamedPoolFile;
 			}
 
 
 		###############
 	}
 	if ($unlink && $unlinkFile) {
-		error_log("Unlinking file: $unlinkFile, descFile: $descFile, poolFile: " . $_POST['poolFile']);
-
+		
 		#if ($descFile) unlink("../".$docFolder."/$db/pulje/$descFile");
 		if ($unlinkFile) {
 			
 				$puljePath = "$docFolder/$db/pulje";
 				$origBase = pathinfo($unlinkFile, PATHINFO_FILENAME); 
 
-				// Log the unlink operation
-				error_log("Unlinking files for base: $origBase, from path: $puljePath, unlinkFile: $unlinkFile");
-
+				
 				// Define the extensions you want to delete
 				$extensionsToDelete = ['pdf', 'info'];
 
@@ -203,30 +218,52 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		($r['status'] >= '3')?$readOnly=1:$readOnly=0;
 	}
+	
 	$dir=$docFolder."/".$db."/pulje";
 	$url="://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF'];
 	$url=str_replace("/includes/documents.php","/temp/$db/pulje/",$url);
 	$httpS = if_isset($_SERVER,NULL,'HTTPS');
 	if ($httpS) $url="s".$url;
 	$url="http".$url;
+	#$poolFile = null;
+	$latestTime = 0;
 	if (!$poolFile) {
 		if (is_dir($dir)) {
 			if ($dh = opendir($dir)) {
 				while (($file = readdir($dh)) !== false) {
-					if (substr($file,0,1)!='.' && substr($file,-5)!='.desc') {
-						if (!$poolFile) $poolFile=$file;
+					// Check for .pdf file (case-insensitive), skip hidden files
+					if (substr($file, 0, 1) != '.' && preg_match('/\.pdf$/i', $file)) {
+						$filePath = rtrim($dir, '/') . '/' . $file;
+						$modTime = filemtime($filePath);
+
+						if ($modTime > $latestTime) {
+							$latestTime = $modTime;
+							$poolFile = $file;
+						}
 					}
 				}
 				closedir($dh);
 			}
 		}
 	}
+
+	// $poolParams =
+	// "openPool=1&".
+	// "docFolder=$docFolder&".
+	// "poolFile=$poolFile&".
+	// "fokus=$fokus&".
+	// "bilag=$bilag";
+
 	$poolParams =
-	"openPool=1&".
-	"docFolder=$docFolder&".
-	"poolFile=$poolFile&".
-	"fokus=$fokus&".
-	"bilag=$bilag";
+	"openPool=1"."&".
+	"kladde_id=$kladde_id"."&".
+	"bilag=$bilag"."&".
+	"fokus=$fokus"."&".
+	"poolFile=$poolFile"."&".
+	"docFolder=$docFolder"."&".
+	"sourceId=$sourceId"."&".
+	"source=$source";
+
 	print "<form name=\"gennemse\" action=\"documents.php?$params&$poolParams\" method=\"post\">\n";
 
 #####
@@ -237,19 +274,12 @@ print "<tr><td id='fileListContainer'>Loading files...</td></tr>";
 
 print "</tbody></table></td></tr>\n";
 
-$poolParams =
-	"openPool=1"."&".
-	"kladde_id=$kladde_id"."&".
-	"bilag=$bilag"."&".
-	"fokus=$fokus"."&".
-	"poolFile=$poolFile"."&".
-	"docFolder=$docFolder"."&".
-	"sourceId=$sourceId"."&".
-	"source=$source";
+
 
 // $combinedParams = $params . '&' . $poolParams; 
 $encodedDir = urlencode($dir);
-
+$poolFileJs = json_encode($poolFile); // safely escapes quotes
+$JsSum = json_encode($sum); // safely escapes quotes
 
 print <<<JS
 <script>
@@ -257,9 +287,11 @@ print <<<JS
     let docData = [];
     let currentSort = { field: 'date', asc: false };
     const containerId = 'fileListContainer';
+	 const poolFile = {$poolFileJs};
+	 const totalSum = {$JsSum};
 
     async function fetchFiles() {
-        const dir = '{$encodedDir}';
+        const dir = '{$encodedDir}'; 
       
 
         try {
@@ -296,28 +328,49 @@ print <<<JS
 				"</tr></thead><tbody>";
 
 			for (const row of docData) {
-				// Optional: format date for better readability
-				const dateFormatted = escapeHTML(row.date); 
+    			const dateFormatted = escapeHTML(row.date); 
+    			const fileLinkText = "View PDF";
+                 //It is assumed here that the last file is always the active one from the Url//
+				// Parse URL and get all 'poolFile' params
+				const url = new URL(row.href, window.location.origin);
+				const allPoolFiles = url.searchParams.getAll('poolFile');
 
-				// Shorten file display text
-				const fileLinkText = "View PDF";
+				// Get the last 'poolFile' value
+				const lastPoolFile = allPoolFiles.length ? allPoolFiles[allPoolFiles.length - 1] : null;
 
-				html += "<tr style='border-bottom:1px solid #ddd;'>" +
+				// Compare with PHP-passed poolFile
+				const isMatch = lastPoolFile === poolFile;
+
+				console.log("Comparing last poolFile:", lastPoolFile, "to PHP poolFile:", poolFile, "=>", isMatch);
+
+				// Apply highlight style if match
+				const rowStyle = isMatch
+					? "background-color: #ffebcc; font-weight: bold;"
+					: "border-bottom:1px solid #ddd;";
+
+				let boldAmount = (parseFloat(row.amount) === parseFloat(totalSum))
+					? "<strong>" + escapeHTML(row.amount) + "</strong>"
+					: escapeHTML(row.amount);
+
+				html += "<tr style='" + rowStyle + "'>" +
 					"<td style='padding:8px; border:1px solid #ddd;'>" + escapeHTML(row.subject) + "</td>" +
 					"<td style='padding:8px; border:1px solid #ddd;'>" + escapeHTML(row.account) + "</td>" +
-					"<td style='padding:8px; border:1px solid #ddd;'>" + escapeHTML(row.amount) + "</td>" +
+					"<td style='padding:8px; border:1px solid #ddd;'>" + boldAmount + "</td>" +
 					"<td style='padding:8px; border:1px solid #ddd;'>" + dateFormatted + "</td>" +
 					"<td style='padding:8px; border:1px solid #ddd;'>" +
 						"<a href='" + row.href + "' id='" + row.hreftxt + "' style='color:#007BFF; text-decoration:none;' onmouseover=\"this.style.textDecoration='underline'\" onmouseout=\"this.style.textDecoration='none'\">" +
 						fileLinkText + "</a></td>" +
 				"</tr>";
+
 			}
+
+
 
 			html += "</tbody></table>";
 
-			// Optionally add hover style via CSS if you can include it:
+			// hover style 
 			html += "<style>\
-				table tbody tr:hover { background-color: #f9f9f9; }\
+				table tbody tr:hover { background-color: #edf3e8ff; }\
 			</style>";
 
 		
@@ -563,7 +616,7 @@ if ($poolFile) {
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"fakturanr\" value=\"$fakturanr\"</td></tr>\n";
 	 print "<tr><td>Sum&nbsp;</td>";
 	if ($readOnly) print "<td> $sum</td><tr>";
-	else print "<td><input type=\"text\" style=\"width:150px\" name=\"sum\" value=\"$sum\"</td></tr>\n";
+	else  print "<td><input type=\"text\" id=\"sumInput\" style=\"width:150px\" name=\"sum\" value=\"$sum\"></td></tr>\n";
 	print "<tr><td>Sag&nbsp;</td>";
 	if ($readOnly) print "<td> $sag</td><tr>";
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"sag\" value=\"$sag\"</td></tr>\n";
@@ -580,7 +633,11 @@ if ($poolFile) {
 	print "<script language=\"javascript\">";
 	print "document.gennemse.$docFocus.focus();";
 	print "</script>";
+
 	exit;
+
+
+	
 
 } # endfunc gennemse
 ?>
