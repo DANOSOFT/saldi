@@ -46,6 +46,23 @@ include("../includes/row-hover-style.js.php");
 
 if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
 
+// delete functionality for cash journals - 2025-10-18
+if (isset($_POST['delete_kladde'])) {
+    $kladde_id = (int)$_POST['delete_kladde'];
+    
+    $check_query = db_select("SELECT bogfort FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+    if ($check_row = db_fetch_array($check_query)) {
+        if ($check_row['bogfort'] == '-' || $check_row['bogfort'] == '!') {
+            db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+            
+            db_modify("DELETE FROM kassekladde WHERE kladde_id = $kladde_id", __FILE__ . " linje " . __LINE__);
+            
+            header("Location: kladdeliste.php?sort=$sort&rf=$rf&vis=$vis");
+            exit;
+        }
+    }
+}
+
 $sort=isset($_GET['sort'])? $_GET['sort']:Null;
 $rf=isset($_GET['rf'])? $_GET['rf']:Null;
 $vis=isset($_GET['vis'])? $_GET['vis']:Null;
@@ -158,6 +175,8 @@ if (($sort == 'bogforingsdate')&&(!$rf)) {print "<td align=center><b><a href=kla
 else {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&vis=$vis>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";}
 if (($sort == 'bogfort_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=bogfort_af&rf=desc&vis=$vis>Af</a></b></td>\n";}
 else {print "<td title='".findtekst('1606|Klik her for at sortere på bogført af', $sprog_id)."' align='center'><b><a href=kladdeliste.php?sort=bogfort_af&vis=$vis>".findtekst('638|Af', $sprog_id)."</a></b></td>\n";}
+print "<td align='center'><b>".findtekst('1099|Slet', $sprog_id)."</b></td>\n"; // delete column header added- 2025-10-18
+
 print "</tr>\n";
 $tjek=0;
 #$sqhost = "localhost";
@@ -186,7 +205,35 @@ $tjek=0;
 		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td align = center>$row[bogfort]<br></td>";
-		print "<td></td></tr>";
+	    //  print "<td></td>";
+
+		print "<td></td>";
+ 
+		print "<td align='center'>";
+		if ($row['bogfort'] == '-') {
+			print "<button onclick=\"deleteKladde($row[id])\" style='
+				background-color: #dc3545;
+				color: white;
+				border: none;
+				padding: 6px 10px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 11px;
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+				transition: background-color 0.2s ease;
+			' 
+			onmouseover=\"this.style.backgroundColor='#c82333';\"
+			onmouseout=\"this.style.backgroundColor='#dc3545';\"
+			title='".findtekst('1099|Slet', $sprog_id)." kassekladde'>
+			<i class='fa fa-trash-o' style='font-size: 12px;'></i>
+			".findtekst('1099|Slet', $sprog_id)."
+			</button>";
+		}
+		print "</td>";
+
+		print "</tr>";
 	}
 #	print "<tr><td colspan=6><hr></td></tr>";
 	$query = db_select("select * from kladdeliste where bogfort = '!' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
@@ -206,6 +253,31 @@ $tjek=0;
 		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td align = center>$row[bogfort]<br></td>";
+		// print "<td></td>";
+		print "<td align='center'>";
+		if ($row['bogfort'] == '-') {
+			print "<button onclick=\"deleteKladde($row[id])\" style='
+				background-color: #dc3545;
+				color: white;
+				border: none;
+				padding: 6px 10px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 11px;
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+				transition: background-color 0.2s ease;
+			' 
+			onmouseover=\"this.style.backgroundColor='#c82333';\"
+			onmouseout=\"this.style.backgroundColor='#dc3545';\"
+			title='".findtekst('1099|Slet', $sprog_id)." kassekladde'>
+			<i class='fa fa-trash-o' style='font-size: 12px;'></i>
+			".findtekst('1099|Slet', $sprog_id)."
+			</button>";
+		}
+print "</td>";
+        print "</td>";
 		print "</tr>";
 	}
 	$query = db_select("select * from kladdeliste where bogfort = 'S' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
@@ -232,6 +304,7 @@ $tjek=0;
 		}
 		else {print "<td align = center>$row[bogfort]<br></td>";}
 		print "<td>$row[bogfort_af]<br></td>";
+        // print "<td></td>"; 
 
 		print "</tr>";
 	}
@@ -259,8 +332,9 @@ $tjek=0;
 		}
 		else {print "<td align = center>$row[bogfort]<br></td>";}
 		print "<td>$row[bogfort_af]<br></td>";
+        // print "<td></td>";
 
-		print "</tr>";
+		print "</tr>"; 
 	}
 	if ($menu=='T') {
 		$newbutton= "<i class='fa fa-plus-square fa-lg'></i>";
@@ -298,6 +372,28 @@ $steps[] = array(
 	"selector" => "#visalle",
 	"content" => findtekst('2609|Du kan se dine kollegers kladder ved at klikke her', $sprog_id).".",
 );
+
+
+print("<script>
+function deleteKladde(kladdeId) {
+    if (confirm(\"".findtekst('155|Vil du slette denne ordre?', $sprog_id)."\")) {
+        // Create a form and submit it
+        var form = document.createElement(\"form\");
+        form.method = \"POST\";
+        form.action = \"kladdeliste.php\";
+
+        var input = document.createElement(\"input\");
+        input.type = \"hidden\";
+        input.name = \"delete_kladde\";
+        input.value = kladdeId;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>");
+
 
 include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("kladlist", $steps);

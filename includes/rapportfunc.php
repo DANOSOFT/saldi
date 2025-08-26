@@ -783,7 +783,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 	global $regnaar;
 	global $sprog_id;
 	global $top_bund;
-alert('isn here ..........');
+
 	$title = "Kontokort";
 
 	$email = $forfaldsum = $fromdate = $kto_fra = $kto_til = $returside = $todate = NULL;

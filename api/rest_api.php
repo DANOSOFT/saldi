@@ -867,6 +867,7 @@ function get_all_labels() {
     ml.sold, 
     ml.hidden,
 	ml.barcode,
+	ml.lastprint,
     a.firmanavn, 
 	a.kontonr,
     a.email

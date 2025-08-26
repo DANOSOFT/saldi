@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor(debLstIncludes/debLst.php --- lap 4.1.1 --- 2025-02-23 ----
+// --- debitor(debLstIncludes/debLst.php --- lap 4.1.1 --- 2025-08-22 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,6 +26,7 @@
 // 20211102 MSC Implementing new top menu design 
 // 20230401 PHR	Changed category viewing and fixed some errors
 // 20250223 PHR if groups were set in 'visning' and search for one ore more debitors it went into endless loop.
+// 20250822 PHR	$sortering set to kontonr if $sortering is an array
 
 include("../includes/pagination.php");
 $qtxt = "select id,box1,box2,box11 from grupper where art = 'DLV' and kode ='$valg' and kodenr = '$bruger_id'";
@@ -81,6 +82,10 @@ for($i=0;$i<$dgcount;$i++) {
 		if ($udv2) $i=0; #20250223 added: if ($udv2)
 		if (!$udv2) $udv2=$udv1;	
 		if (!$udv2) $udv2=$udvaelg;	
+		if (strpos($sortering,' ')) {
+			list($a,$b) = explode(' ',$sortering);
+			if (is_array($a)) $sortering = 'kontonr';
+		}
 		if (strpos($sortering,'kontaktet desc')) $udv2.=' and adresser.kontaktet is not NULL';
 		$qtxt="select * from adresser where art = 'D' $udv2 order by $sortering";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);

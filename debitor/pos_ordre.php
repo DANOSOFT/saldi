@@ -259,6 +259,7 @@ include("../includes/ordrefunc.php");
 include("../includes/posmenufunc.php");
 include("../debitor/func/pos_ordre_itemscan.php"); # 20190215
 
+
 include("pos_ordre_includes/boxCountMethods/boxCount.php"); #20190219
 include("pos_ordre_includes/boxCountMethods/printBoxCount.php"); #20190219
 include("pos_ordre_includes/boxCountMethods/boxCountText.php"); #20190219
@@ -616,9 +617,7 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 			}
 		}
 	}
-
-	if ($kasse)
-		$qtxt .= " and felt_5 = '$kasse' "; #20210826
+	if ($kasse) $qtxt .= " and felt_5 = '$kasse' "; #20210826
 	($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $id = $r['id'] : $id = 0;
 	if ($id && !count($bord)) {
 		$qtxt = "select ordredate from ordrer where id='$id'";
@@ -659,10 +658,8 @@ if (!$id && !$bordnr && $bordnr != '0') { #20150305
 } if (!$bordnr && $bordnr != '0') $bordnr=$_COOKIE['saldi_bordnr']; #20150505-2
 */
 if (!$id && !$bordnr && $bordnr != '0' && count($bord)) { #20141210 + #20150305
-	if (!$kasse)
-		$kasse = if_isset($_POST['kasse']);
-	if (!$kasse)
-		$kasse = find_kasse(0);
+	if (!$kasse) $kasse = if_isset($_POST['kasse']);
+	if (!$kasse) $kasse = find_kasse(0);
 	$qtxt = "select id,nr,felt_5 from ordrer where art='PO' and status < '3' and hvem= '$brugernavn' and ordredate >= '2014-12-10'";
 	$qtxt.= " and (felt_5='$kasse' or felt_5='' or felt_5 is NULL)";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -707,6 +704,10 @@ while ($r = db_fetch_array($q)) {
 	$l++;
 }
 $lagerantal = $l;
+if (!$id || $id == 0) {
+	$id = 0;
+	include("pos_ordre_includes/showPosLines/productLines.php");
+}
 
 $r = db_fetch_array(db_select("select box2 from grupper where art='OreDif'", __FILE__ . " linje " . __LINE__));
 $difkto = if_isset($r['box2'], NULL);
@@ -929,6 +930,8 @@ if ($vare_id_ny && !$vare_id) {
 } elseif (($vare_id_ny && $vare_id) || (!$id && isset($_POST['afslut']) && $_POST['afslut'])) { #20161014-4
 	if (!$id || $id == 0)
 		$id = opret_posordre(NULL, $kasse);
+#		include("pos_ordre_includes/showPosLines/productLines.php");
+#echo "pos_ordre_includes/showPosLines/productLines.php<br>";
 	if (!isset($momssats)) { #20140526
 		$r = db_fetch_array(db_select("select momssats from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
 		$momssats = $r['momssats'];
