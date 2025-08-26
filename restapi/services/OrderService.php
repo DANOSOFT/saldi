@@ -32,6 +32,7 @@ class OrderService
             'reference' => 'ref',
             'status' => 'status', // same
             'type' => 'art',
+            'contact' => 'kontakt',
             
             // Address fields
             'address1' => 'addr1',
@@ -308,17 +309,17 @@ class OrderService
         $land = $mappedData->land ?? '';
         $ean = $mappedData->ean ?? '';
         $cvrnr = $mappedData->cvrnr ?? '';
-
+        $kontakt = $mappedData->kontakt ?? '';
         // Handle kundegruppe - default to 1 if not provided
         $kundegruppe = $mappedData->kundegruppe ?? 1;
 
         // Insert new debitor
         $qtxt = "INSERT INTO adresser (
             firmanavn, tlf, email, addr1, addr2, postnr, bynavn, land, 
-            ean, cvrnr, kontonr, betalingsbet, betalingsdage, art, gruppe
+            ean, cvrnr, kontonr, betalingsbet, betalingsdage, art, gruppe, kontakt
         ) VALUES (
             '{$mappedData->firmanavn}', '{$mappedData->telefon}', '{$mappedData->email}', '$addr1', '$addr2', 
-            '$postnr', '$bynavn', '$land', '$ean', '$cvrnr', '$nextKontonr', 'netto', 8, 'D', '$kundegruppe'
+            '$postnr', '$bynavn', '$land', '$ean', '$cvrnr', '$nextKontonr', 'netto', 8, 'D', '$kundegruppe', '$kontakt'
         )";
 
         $result = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
