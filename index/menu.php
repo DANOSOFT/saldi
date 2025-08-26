@@ -75,7 +75,32 @@ parent.location.href = \"../index/menu.php\";
 } 
 </script>";
 }
+?>
+<script>
+function checkPopupBlocked() {
+    var popup = window.open('', 'test', 'width=1,height=1');
+    
+    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+        // Popup blocked
+        return true;
+    } else {
+        // Popup allowed - close test popup
+        popup.close();
+        return false;
+    }
+}
 
+const res = checkPopupBlocked();
+if (res) {
+	// Alert the user about the popup blocker (Dansk translation)
+	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+} else {
+	// Proceed with the report functionality
+	console.log("Pop-up allowed, proceeding with report functionality.");
+}
+</script>
+
+<?php
 $provision=0;
 if (trim($ansat_id)) {
 	$ansat_id=$ansat_id*1;
