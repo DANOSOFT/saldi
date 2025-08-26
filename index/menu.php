@@ -93,7 +93,7 @@ function checkPopupBlocked() {
 const res = checkPopupBlocked();
 if (res) {
 	// Alert the user about the popup blocker (Dansk translation)
-	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+	alert("Din browser blokerer pop-up vinduer. Saldi bruger pop-up vinduer til en del funktioner, så for at de funktioner skal virke, bliver du nødt til at tillade dem.");
 } else {
 	// Proceed with the report functionality
 	console.log("Pop-up allowed, proceeding with report functionality.");
