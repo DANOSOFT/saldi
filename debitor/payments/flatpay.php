@@ -62,6 +62,15 @@ $guid = db_fetch_array($q)[0];
 $q = db_select("select var_value from settings where var_name = 'flatpay_print'", __FILE__ . " linje " . __LINE__);
 $flatpayPrint = db_fetch_array($q)[0];
 
+$q = db_select("select var_value from settings where var_name = 'flatpay_terminal_print'", __FILE__ . " linje " . __LINE__);
+$terminal_print = db_fetch_array($q)[0];
+
+if($terminal_print == 0){
+  $terminal_print = true;
+} else {
+  $terminal_print = false;
+}
+
 // Fetch printserver
 $r = db_fetch_array(db_select("select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 $x = $kasse - 1;
