@@ -214,7 +214,8 @@ db_modify("update grupper set box9='$sort' where art = 'KLV' and kode='$valg' an
 
 $tidspkt = date("U");
 
-if ($submit = if_isset($_POST['submit'])) {
+// Handle search submit like debitor
+if ($search = if_isset($_POST, NULL, 'search')) {
 	$find = if_isset($_POST['find']);
 	$valg = if_isset($_POST['valg']);
 	$sort = if_isset($_POST['sort']);
@@ -298,7 +299,7 @@ for ($x = 0; $x <= count($vis_felt); $x++) {
 	}
 }
 
-$numfelter = array("rabat", "momskonto", "kreditmax", "betalingsdage", "gruppe", "kontoansvarlig");
+$numfelter = array("rabat", "momskonto", "kreditmax", "betalingsdage", "gruppe", "kontoansvarlig", "postnr", "kontonr");
 ####################################################################################
 $udvaelg = NULL;
 $tmp = trim(if_isset($find[0], NULL));
@@ -312,12 +313,15 @@ if ($skjul_lukkede) $udvaelg = " and lukket != 'on'";
 for ($x = 0; $x < count($vis_felt); $x++) {
 	$find[$x] = addslashes(trim($find[$x]));
 	$tmp = $vis_felt[$x];
-	if ($find[$x] && !in_array($tmp, $numfelter)) {
-		$tmp2 = "adresser." . $tmp . "";
-		$udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, '');
+	if ($find[$x] && $tmp == 'kontakt') {
+		// Search in ansatte table for employee name (case-insensitive) like debitor
+		$udvaelg .= " and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+	} elseif ($find[$x] && !in_array($tmp, $numfelter)) {
+		$tmp2 = "adresser." . $tmp;
+		$udvaelg .= udvaelg($find[$x], $tmp2, 'TEXT');
 	} elseif ($find[$x] || $find[$x] == "0") {
-		$tmp2 = "adresser." . $tmp . "";
-		$udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, 'NR');
+		$tmp2 = "adresser." . $tmp;
+		$udvaelg .= udvaelg($find[$x], $tmp2, 'NR');
 	}
 }
 
@@ -429,11 +433,17 @@ if (!$start) {
 		} elseif (in_array($vis_felt[$x], $selectfelter)) {
 			$tmp = $vis_felt[$x];
 			print "<SELECT NAME=\"find[$x]\">";
-			$q = db_select("select distinct($tmp) from adresser where art = 'K'");
 			print "<option>" . stripslashes($find[$x]) . "</option>";
+			// Special handling for kontakt: list all employee names
+			if ($tmp == 'kontakt') {
+				$q = db_select("select distinct(ansatte.navn) as kontakt from ansatte, adresser where adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.navn", __FILE__ . " linje " . __LINE__);
+			} else {
+				$q = db_select("select distinct($tmp) from adresser where art = 'K'", __FILE__ . " linje " . __LINE__);
+			}
 			if ($find[$x]) print "<option></option>";
 			while ($r = db_fetch_array($q)) {
-				print "<option>$r[$tmp]</option>";
+				if ($tmp == 'kontakt') print "<option>$r[kontakt]</option>";
+				else print "<option>$r[$tmp]</option>";
 			}
 			print "</SELECT></td>";
 		} else {
@@ -445,7 +455,7 @@ if (!$start) {
 		}
 	}
 	print "</td>\n";
-	print "<td><input type=submit value=\"OK\" name=\"submit\"></td>";
+	print "<td><input type=submit value=\"".findtekst('913|Søg', $sprog_id)."\" name=\"search\"></td>";
 	print "</form></tr><td></td>\n";
 }
 ######################################################################################################################
