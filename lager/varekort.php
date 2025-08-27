@@ -108,7 +108,7 @@ $styklister = 1;
 $title = "Varekort";
 
 $ant_indg_i = 0;
-$batchItem = $beholdning = $beskrivelse[0] = $betalingsdage = $betegnelse = $box8 = NULL;
+$batchItem = $beholdning = $beskrivelse[0] = $betalingsdage = $betegnelse = $box8 = $beskrivelseAlias = NULL;
 $commissionItem = $confirmDescriptionChange = $confirmStockChange = $copyId = $ean13 = $enhed = NULL;
 $fejl = $find = $fokus = $folgevarenr = NULL;
 $grossWeight = $gruppe = NULL;
@@ -280,6 +280,7 @@ if ($saveItem || $submit = trim($submit)) {
     $beskrivelse = if_isset($_POST['beskrivelse']);
     $beskrivelse[0] = trim(if_isset($_POST['beskrivelse0'])); # fordi fokus ikke fungerer på array navne
     $grossWeight = usdecimal((isset($_POST['grossWeight']) ? $_POST['grossWeight'] : 0), 3);
+    $beskrivelseAlias = if_isset($_POST['beskrivelseAlias']);
     $grossWeightUnit = if_isset($_POST['grossWeightUnit'], '');
     $varenr = db_escape_string(trim(if_isset($_POST['varenr'])));
     $stregkode = db_escape_string(trim(if_isset($_POST['stregkode'])));
@@ -1137,6 +1138,12 @@ elseif (strstr($submit, "Vare")) {
         $fokus = "varenr";
     vareopslag($sort, $fokus, $id, $vis_kost, $ref, $find, "varekort.php");
 }
+
+if ($saveItem && $beskrivelseAlias != $oldBeskrivelseAlias) {
+    $qtxt = "update varer set beskrivelse_alias = '" . db_escape_string($beskrivelseAlias) . "' where id= '$id'";
+    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+}
+
 if ($saveItem && $beskrivelse[0] != $oldDescription) {
     if ($confirmDescriptionChange)
         include("productCardIncludes/changeDescription.php");
@@ -1221,6 +1228,7 @@ if ($id > 0) {
     $varenr = $row['varenr'];
     $stregkode = $row['stregkode'];
     $beskrivelse[0] = $row['beskrivelse'];
+    $beskrivelseAlias = $row['beskrivelse_alias'];
     $enhed = $row['enhed'];
     $enhed2 = $row['enhed2'];
     $indhold = $row['indhold'];

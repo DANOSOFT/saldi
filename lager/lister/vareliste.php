@@ -96,7 +96,11 @@ $columns[] = array(
         $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
-    "sqlOverride" => "v.beskrivelse"
+    "sqlOverride" => "v.beskrivelse",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        return "(v.beskrivelse ILIKE '%$term%' OR v.beskrivelse_alias ILIKE '%$term%')";
+    },
 );
 $columns[] = array(
     "field" => "trademark",
