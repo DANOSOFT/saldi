@@ -769,6 +769,9 @@ JS;
 	</tr>
 
 	HTML; 
+	if($Amount) $sum = $Amount;  //set these for updating the previous data if needed
+	if($Subject) $beskrivelse = $Subject;
+	if($Date) $dato = $Date;
 	//##################
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
 	name=\"insertFile\" value=\"".findtekst('1415|Indsæt', $sprog_id)."\"</tr>\n";
