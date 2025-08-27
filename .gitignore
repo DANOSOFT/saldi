@@ -5,8 +5,6 @@ logolib/*
 nedlagte regnskaber/*
 nedlagte_regnskaber/*
 certs/*
-opret/*
-*/opret/*
 includes/connect.php
 testshop.php
 saldiinfo.php
