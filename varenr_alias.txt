@@ -6,3 +6,4 @@ lager/ret_varenr.php
 lager/ret_varenralias.php
 includes/orderFuncIncludes/productLookup.php
 includes/betweenupdates.php også beskrivelse alias
+lager/productCardIncludes/showInfo.php kun beskrivelse alias
