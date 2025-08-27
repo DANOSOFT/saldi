@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php -----patch 4.1.1 ----2025-08-24------------
+// --- includes/documents.php -----patch 4.1.1 ----2025-08-27------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 //20240412 - PHR Various modifications
 //20250815 - LOE Create 'bilag' file specifically for kassekladde and , others can be created based  on what is needed
 //20250824 - LOE Clean up to reduce the error logs with if_isset()
+//20250827 - LOE Implement creating .info files for existing pool pdf without it.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -110,6 +111,49 @@ print "</td></tr><tr><td width = '20%'>";
 // ---------- Left table start ---------
 print "<table width=\"100%\" height=\"98%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 if ($openPool) {
+	$finalDestination = "$docFolder/$db/pulje";
+		#############
+		if (is_dir($docFolder)) {
+			$dbFolder = "$docFolder/$db";
+			if (is_dir($dbFolder)) {
+				if (is_dir($finalDestination)) {
+					// Get all PDF files in the final destination
+					$pdfFiles = glob($finalDestination . '/*.pdf');
+					
+					if (!empty($pdfFiles)) {
+						foreach ($pdfFiles as $pdfPath) {
+							$pdfFilename = basename($pdfPath);
+							$baseName = pathinfo($pdfFilename, PATHINFO_FILENAME);
+							$infoFile = $finalDestination . '/' . $baseName . '.info';
+
+							// Log the PDF file
+							error_log("Found PDF file: $pdfFilename");
+
+							// Check if .info file exists
+							if (!file_exists($infoFile)) {
+								// Attempt to create the file
+								if (file_put_contents($infoFile, "") !== false) {
+									// Set writable permissions (e.g., 0666 without umask interference)
+									chmod($infoFile, 0666);
+									error_log("Created .info file: $infoFile and set writable permissions.");
+								} else {
+									error_log("Failed to create .info file: $infoFile in document.php");
+								}
+							} else {
+								error_log(".info file already exists: $infoFile");
+							}
+						}
+					} else {
+						error_log("No PDF files found in: $finalDestination");
+					}
+				} else {
+					error_log("Directory does not exist: $finalDestination");
+				}
+			} else {
+				error_log("Directory does not exist: $dbFolder");
+			}
+		} 
+
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 4.1.1 --- 2025-08-24 ---
+// --- includes/docsIncludes/docPool.php --- ver 4.1.1 --- 2025-08-24 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,9 +23,10 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20250510 PHR Added 'w' to $legalChars
-// 20250519 PHR '&' replaced by '_' in filenames
+// 20250519 PHR '&' replaced by '_' in filenames 
 // 20250823 LOE Applied if_isset properly to prevent excessive error logging plus other improvements
-// 20250824 _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default
+// 20250824 LOE _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default. Update .info subject 
+// 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 	global $bruger_id,$db,$exec_path;
@@ -40,6 +41,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$insertFile   = if_isset($_POST,NULL,'insertFile');
 	$newFileName  = if_isset($_POST,NULL,'newFileName');
 	$descFile     = if_isset($_POST,NULL,'descFile');
+	$newSubject   = if_isset($_POST,NULL,'newSubject');
+	$newAccount	= if_isset($_POST,NULL,'newAccount');
+	$newAmount	= if_isset($_POST,NULL,'newAmount');
 
 	$afd         = if_isset($_POST,NULL,'afd');
 	$bilag       = if_isset($_POST,NULL,'bilag');
@@ -73,7 +77,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		}
 	}
 
-	if ($rename && $newFileName && $newFileName != $poolFile) {
+	if ($rename && $newFileName && $newFileName != $poolFile || ($rename &&($newAccount||$newAmount||$newSubject))) {
+		
 	  $legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
 		$nfn = trim($newFileName);
@@ -105,45 +110,53 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		##########also rename other file with the same base names
 		//  Get extension of the original pool file
 			// Ensure the new filename is clean and has the correct extension
+			#below rename the filename for both the pdf and the subject of .info file
 			$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
-			$origBase = pathinfo($poolFile, PATHINFO_FILENAME);
+				$origBase = pathinfo($poolFile, PATHINFO_FILENAME);
 
-			// Clean the new file name
-			$newFileName = trim($newFileName, ' ._');
-			$newExt = pathinfo($newFileName, PATHINFO_EXTENSION);
+				// Clean the new file name
+				$newFileName = trim($newFileName, ' ._');
+				$newExt = pathinfo($newFileName, PATHINFO_EXTENSION);
 
-			// If extension missing or mismatched, add original
-			if (strtolower($ext) !== strtolower($newExt)) {
-				$newFileName .= ".$ext";
-			}
-			$newBase = pathinfo($newFileName, PATHINFO_FILENAME);
+				// If extension missing or mismatched, add original
+				if (strtolower($ext) !== strtolower($newExt)) {
+					$newFileName .= ".$ext";
+				}
+				$newBase = pathinfo($newFileName, PATHINFO_FILENAME);
 
-			// Define the pulje directory path
-			$puljePath = "$docFolder/$db/pulje";
-			error_log("🔍 Checking files in: $puljePath");
+				// Define the pulje directory path
+				$puljePath = "$docFolder/$db/pulje";
+				
 
-			$renamedPoolFile = $poolFile;
+				$renamedPoolFile = $poolFile;
 
-			if (!is_dir($puljePath)) {
-				error_log("❌ Directory does not exist: $puljePath");
-			} else {
-				$allFiles = scandir($puljePath);
-				foreach ($allFiles as $file) {
-					if (in_array($file, ['.', '..'])) continue;
+				if (!is_dir($puljePath)) {
+					error_log("❌ Directory does not exist: $puljePath");
+				} else {
+					$allFiles = scandir($puljePath);
+					foreach ($allFiles as $file) {
+						if (in_array($file, ['.', '..'])) continue;
+						if(!in_array($newExt, ['pdf', 'info'])) continue;
 
-					$fileBase = pathinfo($file, PATHINFO_FILENAME);
-					$fileExt  = pathinfo($file, PATHINFO_EXTENSION);
+						$fileBase = pathinfo($file, PATHINFO_FILENAME);
+						$fileExt  = pathinfo($file, PATHINFO_EXTENSION);
+						
+						// Rename all files with the same base name (e.g., PDF and .info)
+						if ($fileBase === $origBase) {
+							$oldPath = "$puljePath/$file";
+							$newPath = "$puljePath/$newBase.$fileExt";
 
-					// Rename all files with the same base name (e.g., PDF and .info)
-					if ($fileBase === $origBase) {
-						$oldPath = "$puljePath/$file";
-						$newPath = "$puljePath/$newBase.$fileExt";
+							if (!file_exists($oldPath)) {
+								error_log("⚠️ Skipped missing file: $oldPath");
+								continue;
+							}
 
-						if (!file_exists($oldPath)) {
-							error_log("⚠️ Skipped missing file: $oldPath");
-						} elseif (!is_writable(dirname($newPath))) {
-							error_log("❌ Cannot write to: " . dirname($newPath));
-						} else {
+							if (!is_writable(dirname($newPath))) {
+								error_log("❌ Cannot write to: " . dirname($newPath));
+								continue;
+							}
+
+							// Rename the file
 							if (rename($oldPath, $newPath)) {
 								error_log("✅ Renamed: $oldPath → $newPath");
 
@@ -151,16 +164,68 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 								if ($file === $poolFile) {
 									$renamedPoolFile = "$newBase.$fileExt";
 								}
+								// ✅ If this is the .info file, update subject, account, and amount
+									if (strtolower($fileExt) === 'info') {
+									// Set subject to newBase if it's empty
+													if (empty($newSubject || $newFileName != $poolFile)) {
+														$newSubject = $newBase; 
+													}
+
+										// Build new contents 
+										$infoLines = [
+											$newSubject ?? '',
+											$newAccount ?? '',
+											$newAmount ?? ''
+										];
+
+										// Write to the file
+										if (file_put_contents($newPath, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
+											
+										} else {
+											error_log("❌ Failed to update .info file: $newPath");
+										}
+									}
+								//
 							} else {
 								error_log("❌ Rename failed: $oldPath → $newPath");
 							}
 						}
 					}
+
+					// ✅ Example: Check if PDF exists before further use
+					$pdfPath = "$puljePath/$newBase.pdf";
+					if (!file_exists($pdfPath)) {
+						#error_log("⚠️ PDF file does not exist after renaming: $pdfPath");
+					} else {
+						// e.g. copy to saldibilag if needed
+						$targetPath = str_replace('/bilag/', '/saldibilag/', $pdfPath);
+						if (!file_exists($targetPath)) {
+							if (copy($pdfPath, $targetPath)) {
+								error_log("✅ Copied PDF to: $targetPath");
+							} else {
+								error_log("❌ Failed to copy PDF to: $targetPath");
+							}
+						}
+					}
+
+					// ✅ Safe file deletion (instead of `rm '*'`)
+					/*
+					$cleanupFiles = glob("$puljePath/tmp_*"); // example pattern
+					foreach ($cleanupFiles as $fileToRemove) {
+						if (is_file($fileToRemove)) {
+							unlink($fileToRemove);
+							error_log("🗑️ Deleted: $fileToRemove");
+						}
+					}
+					*/
+
+					// Update poolFile to reflect renamed main file
+					$poolFile = $renamedPoolFile;
 				}
 
-				// Update poolFile to reflect renamed main file
-				$poolFile = $renamedPoolFile;
-			}
+				// ✅ Prevent undefined variable warnings
+				$modDate = $modDate ?? '';
+
 
 
 		###############
@@ -378,26 +443,33 @@ print <<<JS
         document.getElementById(containerId).innerHTML = html;
     }
 
-    function sortFiles(field) {
-        const asc = currentSort.field === field ? !currentSort.asc : true;
-        docData.sort((a, b) => {
-            let valA = a[field];
-            let valB = b[field];
+	
+		function sortFiles(field) {
+			const asc = currentSort.field === field ? !currentSort.asc : true;
 
-            if (field === 'amount') {
-                valA = parseFloat(valA) || 0;
-                valB = parseFloat(valB) || 0;
-            } else if (field === 'date') {
-                valA = new Date(valA);
-                valB = new Date(valB);
-            }
+			docData.sort((a, b) => {
+				let valA = a[field];
+				let valB = b[field];
 
-            return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-        });
+				if (field === 'amount') {
+						valA = parseFloat(valA) || 0;
+						valB = parseFloat(valB) || 0;
+				} else if (field === 'date') {
+						valA = new Date(valA).getTime() || 0;
+						valB = new Date(valB).getTime() || 0;
+				} else {
+						if (typeof valA === 'string') valA = valA.toLowerCase();
+						if (typeof valB === 'string') valB = valB.toLowerCase();
+				}
 
-        currentSort = { field, asc };
-        renderFiles();
-    }
+				if (valA === valB) return 0;
+				return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+			});
+
+			currentSort = { field, asc };
+			renderFiles();
+		}
+
 
     function escapeHTML(str) {
         if (typeof str !== 'string') return str;
@@ -417,17 +489,34 @@ print <<<JS
 JS;
 
 #####
-if ($poolFile) {
-		$tmp="../".$docFolder."/$db/pulje/$poolFile";
-		if (!is_dir("../temp/$db/pulje")) mkdir("../temp/$db/pulje");
-		system("cd ../temp/$db/pulje\nrm *\ncp $tmp .\n");
-	} else {
-		$ccalert= __line__." ".findtekst('1416|Ingen bilag i puljen', $sprog_id);
-		print "<BODY onLoad=\"javascript:alert('$ccalert')\">\n";
-		$tmp="documents.php?$params";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
-		exit;
+	// if ($poolFile) { //#*rm: cannot remove '*': No such file or directory
+	//# cp: cannot stat '../..error .... when documents.php loads*//
+	// 	$tmp="../".$docFolder."/$db/pulje/$poolFile";
+	// 	if (!is_dir("../temp/$db/pulje")) mkdir("../temp/$db/pulje");
+	// 	system("cd ../temp/$db/pulje\nrm *\ncp $tmp .\n");
+	// } else {
+	// 	$ccalert= __line__." ".findtekst('1416|Ingen bilag i puljen', $sprog_id);
+	// 	print "<BODY onLoad=\"javascript:alert('$ccalert')\">\n";
+	// 	$tmp="documents.php?$params";
+	// 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
+	// 	exit;
+	// }
+	if ($poolFile) {
+		$tmp = "../" . $docFolder . "/$db/pulje/$poolFile";
+
+		if (!is_dir("../temp/$db/pulje")) {
+			mkdir("../temp/$db/pulje", 0777, true);
+		}
+
+		// Remove all files safely (ignore error if empty)
+		system("cd ../temp/$db/pulje && rm -f -- *");
+
+		// Copy file only if it exists
+		if (file_exists($tmp)) {
+			system("cp " . escapeshellarg($tmp) . " .");
+		} 
 	}
+
 	print "</td></tr>\n";
 
 
@@ -586,12 +675,101 @@ if ($poolFile) {
 		$r=db_fetch_array(db_select("select max(bilag) as bilag from kassekladde where kladde_id='$sourceId'",__FILE__ . " linje " . __LINE__));
 		$bilag=$r['bilag']+1;
 	}
+	#####get the corresponding .info content of the pdf file
+	if ($fullName) {
+		//Check if the fullname exists or already deleted:
+
+			if (!file_exists($fullName)) {
+			
+				
+				// Attempt to get the first .pdf file in the same directory
+				$directory = dirname($fullName);
+				$pdfFiles = glob($directory . '/*.pdf');
+
+				if (!empty($pdfFiles)) {
+					$fullName = $pdfFiles[0]; // First PDF found 
+
+					$poolFile = basename($pdfFiles[0]);
+					
+				} else {
+					error_log("❌ No PDF files found in directory: $directory");
+					$fullName = null; // Optional: unset it if nothing is found
+				}
+			}
+
+		// Ensure it's a .pdf file
+		if (strtolower(pathinfo($fullName, PATHINFO_EXTENSION)) === 'pdf') {
+			$baseName = pathinfo($fullName, PATHINFO_FILENAME);
+			$directory = dirname($fullName);
+			$infoFile = "$directory/$baseName.info";
+
+			if (file_exists($infoFile)) {
+				// Check that it's not empty
+				if (filesize($infoFile) > 0) {
+					$lines = file($infoFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+					// Default values
+					$Subject = $lines[0] ?? '';
+					$Account = $lines[1] ?? '';
+					$Amount  = $lines[2] ?? '';
+					
+				} else {
+					$Subject = if_isset($newSubject,NULL);
+					$Account = if_isset($newAccount,NULL);
+					$Amount  = if_isset($newAmount,NULL);
+
+				}
+			} 
+		} else {
+			error_log("Invalid file extension (expected .pdf): $fullName");
+		}
+	}
+
+	#####################################end .info part
 	
 	if (!$dato) $dato=date("d-m-Y");
-	print "<tr><td>Filnavn</td><td><input type=\"text\" style=\"width:150px\"
-	name=\"newFileName\" value=\"$poolFile\"</td></tr>\n";
-	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
-	name=\"rename\" value=\"Ret filnavn\"</tr>\n";
+     //#################
+	 print <<<HTML
+	<script>
+	function updateSubjectFromFilename() {
+		const fileInput = document.querySelector('input[name="newFileName"]');
+		const subjectInput = document.querySelector('input[name="newSubject"]');
+		if (fileInput && subjectInput) {
+			// Extract the base name (without path and extension)
+			let filename = fileInput.value.split(/[\\\\/]/).pop(); // handles both \ and /
+			let baseName = filename.replace(/\\.[^/.]+$/, ""); // remove extension
+			subjectInput.value = baseName;
+		}
+	}
+	</script>
+
+	<tr>
+		<td>Filnavn</td>
+		<td><input type="text" style="width:150px"
+			name="newFileName" value="$poolFile" oninput="updateSubjectFromFilename()"></td>
+	</tr>
+	<tr>
+		<td>Subject</td>
+		<td><input type="text" style="width:150px"
+			name="newSubject" value="$Subject"></td>
+	</tr>
+	<tr>
+		<td>Account</td>
+		<td><input type="text" style="width:150px"
+			name="newAccount" value="$Account"></td>
+	</tr>
+	<tr>
+		<td>Amount</td>
+		<td><input type="text" style="width:150px"
+			name="newAmount" value="$Amount"></td>
+	</tr>
+	<tr>
+		<td colspan="2"><input style="width:100%" type="submit"
+			name="rename" value="Ret filnavn"></td>
+	</tr>
+
+	HTML; 
+	//##################
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
 	name=\"insertFile\" value=\"".findtekst('1415|Indsæt', $sprog_id)."\"</tr>\n";
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
@@ -630,9 +808,13 @@ if ($poolFile) {
 	print "<input type=\"hidden\" style=\"width:150px\" name=\"unlinkFile\" value=\"$fullName\"</td></tr>\n";
 	print "<input type=\"hidden\" style=\"width:150px\" name=\"descFile\" value=\"$descFile\"</td></tr>\n";
 	print "</form>";
+	if($docFocus) {
 	print "<script language=\"javascript\">";
 	print "document.gennemse.$docFocus.focus();";
 	print "</script>";
+	}else{
+		alert("Please click 'View' to proceed");
+	}
 
 	exit;
 
