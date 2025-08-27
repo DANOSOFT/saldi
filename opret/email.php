@@ -129,7 +129,7 @@ $emailTemp = <<<EOD
   <tr>
   <td class="pad" style="padding-left:60px;padding-right:60px;padding-top:60px;">
   <div style="color:#FFFFFF;font-family:'Oswald','Lucida Sans Unicode','Lucida Grande',sans-serif;font-size:34px;line-height:180%;text-align:center;mso-line-height-alt:61.2px;">
-  <p style="margin: 0; word-break: break-word;"><span><span>Velkommen </span><strong><span><span style="background-color: #ffffff;"><span style="color: #003300; background-color: #ffffff;"> <span style="color: #2566ff;">$name</span> </span></span>, </span></strong></span></p>
+  <p style="margin: 0; word-break: break-word;"><span><span>Velkommen </span><strong><span><span style="background-color: #ffffff;"><span style="color: #003300; background-color: #ffffff;"> <span style="color: #2566ff;">$navn</span> </span></span>, </span></strong></span></p>
   </div>
   </td>
   </tr>
@@ -237,7 +237,7 @@ $emailTemp = <<<EOD
   <td class="pad">
   <div style="font-family: sans-serif">
   <div class="" style="font-size: 12px; font-family: 'Oxygen', 'Trebuchet MS', Helvetica, sans-serif; mso-line-height-alt: 14.399999999999999px; color: #555555; line-height: 1.2;">
-  <p style="margin: 0; font-size: 14px; text-align: center; mso-line-height-alt: 16.8px;"><span style="color:#999999;font-size:14px;">Total:</span> <strong>$amount kr.</strong></p>
+  <p style="margin: 0; font-size: 14px; text-align: center; mso-line-height-alt: 16.8px;"><span style="color:#999999;font-size:14px;">Total:</span> <strong>$unitPrice kr.</strong></p>
   </div>
   </div>
   </td>
@@ -335,7 +335,7 @@ $emailTemp = <<<EOD
   <tr>
   <td class="pad">
   <div style="color:#555555;font-family:'Oxygen', 'Trebuchet MS', Helvetica, sans-serif;font-size:14px;line-height:120%;text-align:center;mso-line-height-alt:16.8px;">
-  <p style="margin: 0; word-break: break-word;"><strong>$amount kr</strong></p>
+  <p style="margin: 0; word-break: break-word;"><strong>$unitPrice kr</strong></p>
   </div>
   </td>
   </tr>
@@ -509,15 +509,6 @@ $emailTemp = <<<EOD
   </td>
   </tr>
   </tbody></table>
-  <table border="0" cellpadding="0" cellspacing="0" class="paragraph_block block-2" role="presentation" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; word-break: break-word;" width="100%">
-  <tbody><tr>
-  <td class="pad" style="">
-  <div style="text-align:center !important;color:#000;font-family:'Oxygen', 'Trebuchet MS', Helvetica, sans-serif;font-size:16px;line-height:120%;text-align:left;mso-line-height-alt:16.8px;">
-  <p style="margin: 0;"><a data-brz-link-type="external" style="text-decoration: underline; color: #0068A5;" href="$betalingsLink">her</a></p>
-  </div>
-  </td>
-  </tr>
-  </tbody></table>
   </td>
   <td class="column column-3" style="mso-table-lspace: 0pt; mso-table-rspace: 0pt; font-weight: 400; text-align: left; background-color: #2566ff; border-left: 1px solid #DFDFDF; padding-bottom: 5px; padding-top: 10px; vertical-align: top; border-top: 0px; border-right: 0px; border-bottom: 0px;" width="33.333333333333336%">
   <div class="spacer_block block-1" style="height:20px;line-height:20px;font-size:1px;"> </div>
@@ -525,7 +516,7 @@ $emailTemp = <<<EOD
   <tr>
   <td class="pad" style="padding-bottom:25px;padding-left:10px;padding-right:10px;">
   <div style="color:#FFFFFF;font-family:'Oxygen', 'Trebuchet MS', Helvetica, sans-serif;font-size:18px;line-height:120%;text-align:center;mso-line-height-alt:21.599999999999998px;">
-  <p style="margin: 0; word-break: break-word;"><span><strong>$amount kr.</strong></span></p>
+  <p style="margin: 0; word-break: break-word;"><span><strong>$unitPrice kr.</strong></span></p>
   </div>
   </td>
   </tr>

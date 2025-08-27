@@ -74,6 +74,13 @@ textarea{height:80px;width:150px;}
 
 include "../includes/connect.php";
 include "../includes/db_query.php";
+include "../../vendor/autoload.php";
+
+// Import PHPMailer classes into the global namespace
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
 $pakke="0"; $returadresse="";
 $betaling_1=NULL;$betaling_2=NULL;$betaling_3=NULL;$betaling_4=NULL;
 if (isset($_GET['pakke'])) {
@@ -162,8 +169,8 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 		$months = isset($_POST['month']) ? (int)$_POST['month'] : 1;
 		if ($months < 1) $months = 1;
 		$sku = 'B' . $months;
-		$unitPrice = 149; // DKK per month
-		$quantity = $months;
+		$date = date('Y-m-d');
+		$unitPrice = 149*$months; // DKK per month
 		$apiBase = 'https://ssl12.saldi.dk/pblm/restapi/endpoint/v1';
 		$ordersUrl = $apiBase . '/debitor/orders/';
 		$orderLinesUrl = $apiBase . '/debitor/orderlines/';
@@ -190,7 +197,7 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 
 		// 1) Create order (DO)
 		$orderPayload = [
-			'companyName' => $firma ?: ($navn ?: 'Basis kunde'),
+			'companyName' => $firma,
 			'phone' => $telefon,
 			'email' => $email,
 			'cvrNo' => $cvr,
@@ -214,14 +221,14 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 				'orderId' => $orderId,
 				'sku' => $sku,
 				'description' => 'Basis package ' . $months . ' month(s)',
-				'quantity' => $quantity,
+				'quantity' => 1,
 				'price' => $unitPrice,
 				'vatFree' => 0
 			];
 			list($code2, $body2, $err2) = do_post($orderLinesUrl, $headers, $orderLinePayload);
-			// Optionally, you could check $code2/$err2 and act on failure
 		}
 		
+		$linkadresse="https://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF']."?kontrol_id=".$kontrol_id;
 		$ordreLinjer = array("Standard regnskabspakke", "");
 		$ordreNr = $kontrol_id;
 		($eventuelt) ? $placeholder = "<p style='margin: 0;'>Eventuelt: ".stripslashes($eventuelt)."</p>" : $placeholder = "";
@@ -256,8 +263,7 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 
 #		$message=utf8_decode($message);
 
-		ini_set("include_path", ".:../phpmailer");
-		require("class.phpmailer.php");
+		
 
 		$mail = new PHPMailer();
 		$mail->SMTPDebug = false;
@@ -295,7 +301,7 @@ if (isset($_POST['navn']) && isset($_POST['email'])) {
 	 		exit;
 		}
 
-		db_modify("INSERT INTO create_temp (firmanavn,cvrnr,tlf,email,oprettet,kontrol_id,payment_intent_id, navn) values ('$firma','$cvr','$telefon' ,'$email','$dd','$kontrol_id','$paymentIntentId', '$navn')",__FILE__ . " linje " . __LINE__);
+		db_modify("INSERT INTO create_temp (firmanavn,cvrnr,tlf,email,oprettet,kontrol_id,navn) values ('$firma','$cvr','$telefon' ,'$email','$dd','$kontrol_id','$navn')",__FILE__ . " linje " . __LINE__);
 		print "<p>Tak for din tilmelding.<br>Der er sendt en e-mail til $email</p>";
 #		print "<p>Hvis du ikke har modtaget din tilmeldingsmail inden for 15 minutter, kan du kontrollere om mailen er blever filtreret som uønsket post af dit mailprogram</p>";
 #		if ($returadresse == "null") $returadresse="https://".$_SERVER['SERVER_NAME'].$_SERVER['PHP_SELF']."?returadresse=null";
