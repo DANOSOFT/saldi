@@ -313,11 +313,19 @@ for ($x = 0; $x < count($vis_felt); $x++) {
 	$find[$x] = addslashes(trim($find[$x]));
 	$tmp = $vis_felt[$x];
 	if ($find[$x] && !in_array($tmp, $numfelter)) {
+	 $searchTerm = "%" . $find[$x] . "%";
+
 		$tmp2 = "adresser." . $tmp . "";
-		$udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, '');
+		$udvaelg = $udvaelg . udvaelg($searchTerm, $tmp2, '');
+
+		// $udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, '');
 	} elseif ($find[$x] || $find[$x] == "0") {
+		$searchTerm = "%" . $find[$x] . "%";
+
 		$tmp2 = "adresser." . $tmp . "";
-		$udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, 'NR');
+		// $udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, 'NR');
+		$udvaelg = $udvaelg . udvaelg($searchTerm, $tmp2, 'NR');
+
 	}
 }
 

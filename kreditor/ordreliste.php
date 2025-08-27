@@ -461,17 +461,30 @@ if ($valg != 'skanBilag') {
 	if ($modtagelsesnumre) {
 		$udvaelg = $udvaelg .= udvaelg($modtagelsesnumre, 'modtagelse', 'NR');
 	}
+	// if ($fakturanumre) {
+	// 	# If it is a number range, preferm number search
+	// 	if (is_numeric(str_replace(":", "", $fakturanumre))) {
+	// 		# Split the lower and upper number
+	// 		list($a, $b) = explode(':', $fakturanumre);
+	// 		# Preform a search that excludes any non numeric invoice numbers from counting
+	// 		$udvaelg = $udvaelg . " AND (ORDRER.FAKTURANR ~ '^[0-9]+$' AND CAST(ORDRER.FAKTURANR AS NUMERIC) >= '" . usdecimal($a) . "' AND CAST(ORDRER.FAKTURANR AS NUMERIC) <= '" . usdecimal($b) . "')";
+	// 	} else {
+	// 		$udvaelg .= udvaelg($fakturanumre, 'fakturanr', 'TEXT');
+	// 	}
+	// }
+
 	if ($fakturanumre) {
-		# If it is a number range, preferm number search
-		if (is_numeric(str_replace(":", "", $fakturanumre))) {
-			# Split the lower and upper number
-			list($a, $b) = explode(':', $fakturanumre);
-			# Preform a search that excludes any non numeric invoice numbers from counting
-			$udvaelg = $udvaelg . " AND (ORDRER.FAKTURANR ~ '^[0-9]+$' AND CAST(ORDRER.FAKTURANR AS NUMERIC) >= '" . usdecimal($a) . "' AND CAST(ORDRER.FAKTURANR AS NUMERIC) <= '" . usdecimal($b) . "')";
-		} else {
-			$udvaelg .= udvaelg($fakturanumre, 'fakturanr', 'TEXT');
-		}
-	}
+    # If it is a number range, prefer number search
+    if (is_numeric(str_replace(":", "", $fakturanumre))) {
+        # Split the lower and upper number
+        list($a, $b) = explode(':', $fakturanumre);
+        # Perform a search that excludes any non numeric invoice numbers from counting
+        $udvaelg = $udvaelg . " AND (ORDRER.FAKTURANR ~ '^[0-9]+$' AND CAST(ORDRER.FAKTURANR AS NUMERIC) >= '" . usdecimal($a) . "' AND CAST(ORDRER.FAKTURANR AS NUMERIC) <= '" . usdecimal($b) . "')";
+    } else {
+        $searchTerm = "*" . str_replace(" ", "*", $fakturanumre) . "*";
+        $udvaelg .= udvaelg($searchTerm, 'fakturanr', 'TEXT');
+    }
+}
 	if ($kontonumre) {
 		$udvaelg = $udvaelg .= udvaelg($kontonumre, 'kontonr', 'NR');
 	}
@@ -487,9 +500,13 @@ if ($valg != 'skanBilag') {
 	if ($genfaktdatoer) {
 		$udvaelg = $udvaelg . udvaelg($genfaktdatoer, 'nextfakt', 'DATO');
 	}
+	// if ($ref[0]) {
+	// 	$udvaelg = $udvaelg . " and ref='$ref[0]'";
+	// }
 	if ($ref[0]) {
-		$udvaelg = $udvaelg . " and ref='$ref[0]'";
-	}
+    $searchTerm = "*" . str_replace(" ", "*", $ref[0]) . "*";
+    $udvaelg = $udvaelg . udvaelg($searchTerm, 'ref', 'TEXT');
+}
 	if ($projekt[0]) {
 		$udvaelg = $udvaelg . " and projekt='$projekt[0]'";
 	}
@@ -499,6 +516,12 @@ if ($valg != 'skanBilag') {
 
 	if ($kontoid) {
 		$udvaelg = $udvaelg . udvaelg($kontoid, 'konto_id', 'NR');
+	}
+
+	if ($lev_navne) {
+	$lev_navne = trim($lev_navne);
+    $searchTerm = "*" . str_replace(" ", "*", $lev_navne) . "*";
+    $udvaelg = $udvaelg . udvaelg($searchTerm, 'lev_navn', 'TEXT');
 	}
 
 	if ($valg == "forslag") {
@@ -832,6 +855,8 @@ print "</tbody>
 </table>
 	</td></tr>
 </tbody></table>";
+
+
 
 if ($menu == 'T') {
 	include_once '../includes/topmenu/footer.php';
