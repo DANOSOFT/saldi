@@ -142,8 +142,8 @@ if ($menu=='T') {
 		   <td width=\"10%\" align=center><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>
 
-		   <td width='80%' align=center style=$topStyle>$title</td>
-		   <td width='10%' align=center style=$topStyle><br></td></tr>
+		   <td width='80%' align=center style='$topStyle'>$title</td>
+		   <td width='10%' align=center style='$topStyle'><br></td></tr>
 		   </tr>
 		   </tbody></table>
 		   </td></tr>";
