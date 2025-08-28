@@ -255,7 +255,7 @@ if ($menu == 'T') {
 	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	print "<td width=5% style='$buttonStyle'><a href=ordrevisning.php?valg=$valg&sort=$sort>
-	       <button id='visning' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">Visning</button></a></td>";
+	       <button id='visning' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('813|Visning', $sprog_id)."</button></a></td>";
 	print "<td width=10% style='$buttonStyle'><a href=ordre.php?returside=ordreliste.php>
 		   <button style='$buttonStyle; width: 100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst('39|Ny', $sprog_id) . "</button></a></td>";
 	print "</tbody></table>";
@@ -286,7 +286,7 @@ if ($menu == 'T') {
 		print "</td>";
 	}
 	print "</tbody></table></td>";
-	print "<td width=10% $top_bund><a id='visning' href=ordrevisning.php?valg=$valg&sort=$sort>Visning</a></td>";
+	print "<td width=10% $top_bund><a id='visning' href=ordrevisning.php?valg=$valg&sort=$sort>".findtekst('813|Visning', $sprog_id)."</a></td>";
 	if ($popup) print "<td width=10% $top_bund onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php','ordre','scrollbars=1,resizable=1');ordre.focus();\"><a accesskey=N href=ordreliste.php?sort=$sort>Ny</a></td>";
 	else print "<td width=10% $top_bund><a href=ordre.php?returside=ordreliste.php>Ny</a></td>";
 	print "</td></tr>\n";
