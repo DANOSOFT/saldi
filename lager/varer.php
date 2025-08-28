@@ -299,11 +299,11 @@ if ($beskrivelse) { #20161206
 		$ord=explode("+",$find);
 		$find=NULL;
 		for($b=0;$b<count($ord);$b++){
-			$udvalg.="and lower(beskrivelse) like '%$ord[$b]%'";
+			$udvalg.="and lower(beskrivelse) like '%$ord[$b]%' OR lower(beskrivelse_alias) like '%$ord[$b]%'";
 		}
-	} elseif (strstr($find, "*")) $udvalg.="and lower(beskrivelse) like '".str_replace("*","%",$find)."'";
-	elseif (substr($find,0,1)=='"' && substr($find,-1)=='"') $udvalg.="and lower(beskrivelse) = '".str_replace('"','',$find)."'"; 
-	else $udvalg.="and lower(beskrivelse) like '%".$find."%'"; #20190423
+	} elseif (strstr($find, "*")) $udvalg.="and lower(beskrivelse) like '".str_replace("*","%",$find)."' OR lower(beskrivelse_alias) like '".str_replace("*","%",$find)."'";
+	elseif (substr($find,0,1)=='"' && substr($find,-1)=='"') $udvalg.="and lower(beskrivelse) = '".str_replace('"','',$find)."' OR lower(beskrivelse_alias) = '".str_replace('"','',$find)."'"; 
+	else $udvalg.="and lower(beskrivelse) like '%".$find."%' OR lower(beskrivelse_alias) like '%".$find."%'"; #20190423
 	/*
 	if ($beskrivelse == str_replace("*","",$beskrivelse) && !strpos($beskrivelse," ")) $beskrivelse="%".$beskrivelse."%"; #20150303
 	if (strstr($beskrivelse, "*")) {
@@ -566,7 +566,7 @@ if (!$makeSuggestion && !$csv) {
 	print "<td colspan=5 align=right></td></tr>\n";
 }
 #$udvalg="";
-if ($varenummer) {
+if ($varenummer) {	
 	if (strstr($varenummer, "*")) {
 		if (substr($varenummer,0,1)=='*'){
 			$varenummer="%".substr($varenummer,1);
@@ -588,9 +588,9 @@ if ($varenummer) {
 	}
 	$low=strtolower($varenummer);
 	$upp=strtoupper($varenummer);
-	$udvalg.=" and ((varenr LIKE '$varenummer' or lower(varenr) LIKE '$low' or upper(varenr) LIKE '$upp' or stregkode = '$varenummer')";
+	$udvalg.=" and ((varenr LIKE '$varenummer' or lower(varenr) LIKE '$low' or upper(varenr) LIKE '$upp' or lower(varenr_alias) LIKE '$low' or upper(varenr_alias) LIKE '$upp' or stregkode = '$varenummer')";
 	if (!strstr($varenummer,'%')) {
-		$udvalg.=" or lower(beskrivelse) like '%".strtolower($varenummer)."%'"; #20190612
+		$udvalg.=" or lower(beskrivelse) like '%".strtolower($varenummer)."%' or lower(beskrivelse_alias) like '%".strtolower($varenummer)."%'"; #20190612
 		$udvalg.=" or lower(trademark) like '%".strtolower($varenummer)."%')"; #20210211	
 	}
 	else $udvalg.=")";
