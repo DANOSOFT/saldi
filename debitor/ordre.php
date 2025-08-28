@@ -4077,22 +4077,6 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 			$afd_navn[$x]=$r['beskrivelse'];
 			$x++;
 		}
-		print "<input type = 'hidden' name='extAfd' value='$afd'>";
-		if (count($afd_nr)>1) {
-			print "</td><td></td>\n";
-			print "<td>".findtekst('1198|Afd.', $sprog_id)."</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
-			for ($x=0;$x<count($afd_nr);$x++) {
-				if ($afd_nr[$x]==$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
-			} 
-			for ($x=0;$x<count($afd_nr);$x++) {
-				if ($afd_nr[$x]!=$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
-			} 
-			print "</select>";
-		} elseif (count($afd_nr) === 1 && isset($afd_nr[0]) && !is_array($afd_nr[0])) {
-			$value = htmlspecialchars($afd_nr[0]);
-			print "<input type='hidden' name='afd' value='$value'>"; #20250816
-		}
-
 		print "</td></tr>\n";
 		$kasseantal=0;
 		if ($vis_saet && $afd) {
@@ -4139,7 +4123,23 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				if ($projekt[0]!=$list[$x]) print "<option title=\"$beskriv[$x]\">$list[$x]</option>\n";
 				else print "<option title=\"$beskriv[$x]\" selected=\"selected\">$list[$x]</option>\n";
 			}
-			print "</select></td></tr>\n";
+			print "</select>";
+			print "<input type = 'hidden' name='extAfd' value='$afd'>";
+		if (count($afd_nr)>1) {
+			print "</td><td></td>\n";
+			print "<td>".findtekst('1198|Afd.', $sprog_id)."</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
+			for ($x=0;$x<count($afd_nr);$x++) {
+				if ($afd_nr[$x]==$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
+			} 
+			for ($x=0;$x<count($afd_nr);$x++) {
+				if ($afd_nr[$x]!=$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
+			} 
+			print "</select>";
+		} elseif (count($afd_nr) === 1 && isset($afd_nr[0]) && !is_array($afd_nr[0])) {
+			$value = htmlspecialchars($afd_nr[0]);
+			print "<input type='hidden' name='afd' value='$value'>"; #20250816
+		}
+			print "</td></tr>\n";
 		} else print "<tr><td colspan=\"2\" width=\"200\"></tr>\n";
 		$txt555 = findtekst('555|Godkend', $sprog_id);
 		if ($status==0&&$hurtigfakt!="on") print "<tr><td>$txt555</td><td><input class = 'inputbox' type=\"checkbox\" name=\"godkend\" $disabled></td></tr>\n";
