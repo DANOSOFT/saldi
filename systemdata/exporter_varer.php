@@ -48,11 +48,11 @@ $filnavn="../temp/$db/varer.csv";
 
 $fp=fopen($filnavn,"w");
 
-$overskrift='"varenr";"stregkode";"varemærke";"beskrivelse";"kostpris";"salgspris";"vejl_pris";"notes";"enhed";"udgået";"gruppe";"min_lager";"max_lager";"lokation";"varenr_alias";"lager_antal"';
+$overskrift='"varenr";"stregkode";"varemærke";"beskrivelse";"kostpris";"salgspris";"vejl_pris";"notes";"enhed";"udgået";"gruppe";"min_lager";"max_lager";"lokation";"varenr_alias";"lager_antal";"beskrivelse_alias"';
 if ($charset=="UTF-8") $overskrift=mb_convert_encoding($overskrift, 'ISO-8859-1', 'UTF-8');
 
 if (fwrite($fp, "$overskrift\r\n")) {
-	$q=db_select("select id,varenr,stregkode,trademark,beskrivelse,kostpris,salgspris,retail_price,notes,enhed,lukket,gruppe,min_lager,max_lager,location,varenr_alias from varer order by varenr",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id,varenr,stregkode,trademark,beskrivelse,kostpris,salgspris,retail_price,notes,enhed,lukket,gruppe,min_lager,max_lager,location,varenr_alias,beskrivelse_alias from varer order by varenr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$varenr=$r['varenr'];
 		$lukket=$r['lukket'];
@@ -69,7 +69,7 @@ if (fwrite($fp, "$overskrift\r\n")) {
 			$row = db_fetch_array($query);
 			$lager_antal = $row['lager_antal'];
 		}
-		$linje='"'.$varenr.'";"'.$stregkode.'";"'.$r['trademark'].'";"'.$beskrivelse.'"'.';'.$kostpris.';'.$salgspris.';'.$retail_price.';'.'"'.$r['notes'].'";"'.$r['enhed'].'"'.';"'.$r['lukket'].'"'.';'.$r['gruppe'].';'.$min_lager.';'.$max_lager.';'.'"'.$r['location'].'";"'.$r['varenr_alias'].'";'.$lager_antal;
+		$linje='"'.$varenr.'";"'.$stregkode.'";"'.$r['trademark'].'";"'.$beskrivelse.'"'.';'.$kostpris.';'.$salgspris.';'.$retail_price.';'.'"'.$r['notes'].'";"'.$r['enhed'].'"'.';"'.$r['lukket'].'"'.';'.$r['gruppe'].';'.$min_lager.';'.$max_lager.';'.'"'.$r['location'].'";"'.$r['varenr_alias'].'";'.$lager_antal.';"'.$r['beskrivelse_alias'].'"';
 		$linje=str_replace("\n","",$linje);
 		if ($charset=="UTF-8") $linje=mb_convert_encoding($linje, 'ISO-8859-1', 'UTF-8');
 		fwrite($fp, $linje."\r\n");
