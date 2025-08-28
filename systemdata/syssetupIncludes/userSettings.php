@@ -16,8 +16,8 @@ function userSettings() {
 	if ($r['box3'] == 'S') $sidemenu='checked';
 	elseif ($r['box3'] == 'T') $topmenu='checked';
 	else $gl_menu='checked';
-	($r['box4'])?$bgcolor=$r['box4']:$bgcolor=NULL;
-	($r['box5'])?$fgcolor=$r['box5']:$fgcolor=NULL;
+	($r['box4'])?$bgcolor=$r['box4']:$bgcolor="#eeeef0";
+	($r['box5'])?$fgcolor=$r['box5']:$fgcolor="#eeeef0";
 
 	$nuancefarver[0]=findtekst(418,$sprog_id); $nuancekoder[0]="+00-22-22";
 	$nuancefarver[1]=findtekst(419,$sprog_id); $nuancekoder[1]="-22+00-22";
@@ -63,21 +63,21 @@ function userSettings() {
 
 	print "<tr><td title='".findtekst(318,$sprog_id)."'>".findtekst(317,$sprog_id)."</td>";
 print "<td colspan='4'>
-<input class='inputbox' type='text' style='width:100px' name='bgcolor' id='bgcolor_text' value='".substr($bgcolor,1,6)."'>
-<input type='color' id='bgcolor_color' value='$bgcolor' style='width:50px;height:30px;margin-left:10px;'>
+<input class='inputbox' type='text' style='width:100px' name='bgcolor' id='bgcolor_text' value='$bgcolor'>
+<input type='color' id='bgcolor_color' value='#$bgcolor' style='width:50px;height:30px;margin-left:10px;'>
 </td></tr>";
 
 print "<tr><td title='".findtekst(416,$sprog_id)."'>".findtekst(415,$sprog_id)."</td>";
 print "<td colspan='4'>
-<input class='inputbox' type='text' style='width:100px' name='fgcolor' id='fgcolor_text' value='".substr($fgcolor,1,6)."'>
-<input type='color' id='fgcolor_color' value='$fgcolor' style='width:50px;height:30px;margin-left:10px;'>
+<input class='inputbox' type='text' style='width:100px' name='fgcolor' id='fgcolor_text' value='$fgcolor'>
+<input type='color' id='fgcolor_color' value='#$fgcolor' style='width:50px;height:30px;margin-left:10px;'>
 </td></tr>";
 
 print "<tr><td title='textcolor'>Farve på Knapper</td>";
 print "<td colspan='4'>
 <input class='inputbox' type='text' style='width:100px;background-color:$buttonColor;color:$buttonTxtColor;'
 name='buttonColor' id='buttonColor_text' value='".substr($buttonColor,0,6)."'>
-<input type='color' id='buttonColor_color' value='#".substr($buttonColor,0,6)."' style='width:50px;height:30px;margin-left:10px;'>
+<input type='color' id='buttonColor_color' value='#$buttonColor' style='width:50px;height:30px;margin-left:10px;'>
 </td></tr>";
 
 print "<tr><td title='textcolor'>Tekst farve på Knapper</td>";
