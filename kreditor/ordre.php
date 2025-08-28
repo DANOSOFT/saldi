@@ -1269,7 +1269,46 @@ function kontoopslag($sort, $fokus, $id, $find){
 	sidehoved($id, "../kreditor/ordre.php", "../kreditor/kreditorkort.php", $fokus, "Leverand&oslash;rordre $id");
 #	print"<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #	print"<tr><td valign=\"top\">";
-	print"<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='dataTable'>";
+print "<script>
+		document.addEventListener('DOMContentLoaded', function () {
+		var input = document.getElementById('table-search');
+		if (!input) return;
+
+		var selector = input.getAttribute('data-target');
+		var table = selector ? document.querySelector(selector) : document.querySelector('.js-filter-table');
+		if (!table) return;
+
+		function getAllRows() {
+			var rows = [];
+			if (table.tBodies && table.tBodies.length) {
+			for (var i = 0; i < table.tBodies.length; i++) {
+				rows = rows.concat([].slice.call(table.tBodies[i].rows));
+			}
+			} else {
+			rows = [].slice.call(table.querySelectorAll('tr'));
+			}
+			return rows;
+		}
+
+		function filter() {
+			var q = (input.value || '').toLowerCase();
+			var rows = getAllRows();
+
+			for (var i = 0; i < rows.length; i++) {
+			// always show the first row (header or special row)
+			if (i === 0) { rows[i].style.display = ''; continue; }
+
+			var text = (rows[i].innerText || rows[i].textContent || '').toLowerCase();
+			rows[i].style.display = (q === '' || text.indexOf(q) !== -1) ? '' : 'none';
+			}
+		}
+
+		input.addEventListener('input', filter);
+		filter();
+		});
+		</script>";
+	print "<input type='text' id='table-search' name='search' placeholder='Søgning'>";
+	print"<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='dataTable js-filter-table'>";
 	print"<tbody><tr>";
 	print"<td><b><a href=ordre.php?sort=kontonr&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('357|Kundenr.', $sprog_id)."</b></td>";
 	print"<td><b><a href=ordre.php?sort=firmanavn&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('138|Navn', $sprog_id)."</b></td>";
