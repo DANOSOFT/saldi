@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 		$varemærke_index = array_search('varemærke', $header);
 		$salgspris_index = array_search('salgspris', $header);
 		$lager_antal_index = array_search('lager_antal', $header);
+		$beskrivelse_alias_index = array_search('beskrivelse_alias', $header);
 
 		if ($varenr_index === false || $kostpris_index === false) {
 			die("CSV file must contain 'varenr' and 'kostpris' columns.");
@@ -54,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 			$old_lager_antal = 0;
 			
 			// Check if varenr exists in the database
-			$sql = "SELECT id, kostpris FROM varer WHERE varenr = '$varenr'";
+			$sql = "SELECT id, kostpris FROM varer WHERE varenr = '$varenr_alias'";
 			$result = db_select($sql, __FILE__ . " line " . __LINE__);
 			
 			if (db_num_rows($result) > 0) {
@@ -81,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 				db_modify($update_sql, __FILE__ . " line " . __LINE__);
 				
 				// Add old varenr as alias
-				$alias_sql = "UPDATE varer SET varenr_alias = '$varenr_alias' WHERE id = $vare_id";
+				$alias_sql = "UPDATE varer SET varenr_alias = '$varenr' beskrivelse_alias = $beskrivelse WHERE id = $vare_id";
 				db_modify($alias_sql, __FILE__ . " line " . __LINE__);
 				
 				echo "Updated kostpris for varenr: $varenr<br>";
