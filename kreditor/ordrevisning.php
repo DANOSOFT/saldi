@@ -129,7 +129,7 @@ print "</div>";
 print "<div class='content-noside'>";
 } elseif ($menu=='S') {
 $classtable2 ="";
-print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n   <td width=\"10%\" align=center><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>\n   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>\n   <td width='80%' align=center style=$topStyle>$title</td>\n   <td width='10%' align=center style=$topStyle><br></td></tr>\n   </tr>\n   </tbody></table>\n   </td></tr>";
+print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n   <table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n   <td width=\"10%\" align=center><a href=ordreliste.php?valg=$valg&sort=$sort accesskey=L>\n   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage',$sprog_id)."</button></a></td>\n   <td width='80%' align=center style='$topStyle'>$title</td>\n   <td width='10%' align=center style='$topStyle'><br></td></tr>\n   </tr>\n   </tbody></table>\n   </td></tr>";
 print "<center>";
 } else {
 $classtable2 ="";
