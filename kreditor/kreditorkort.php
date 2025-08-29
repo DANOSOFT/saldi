@@ -452,8 +452,7 @@ if ($menu=='T') {
 	$tekst=findtekst(132,$sprog_id);
 
 	print "<td width='10%' title='$tekst'>
-		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(133,$sprog_id)."</button></a></td>\n";
+		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:100%; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>".findtekst(133,$sprog_id)."</a></td>\n";
 
 	if (substr($rettigheder,5,1)=='1') {
 		$tekst=findtekst(129,$sprog_id);

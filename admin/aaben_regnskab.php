@@ -58,7 +58,7 @@ $tmp_db=$r['db'];
 if (!db_exists($tmp_db)) {
 	print "<center><br><br>";
 	print "<center>".findtekst('2690|Regnskab med ID', $sprog_id).": $tmp_db_id ".findtekst('1594|eksisterer ikke', $sprog_id)."<br><br>";
-	print "<a href='vis_regnskaber.php'>".findtekst('2691|Tilbage til oversigt', $sprog_id)."</a><br><br>";
+	print "<a href='vis_regnskaber.php'>".findtekst('2692|Tilbage til oversigt', $sprog_id)."</a><br><br>";
 	print "<a href='restore.php?db=$tmp_db'>".findtekst('1247|Indlæs sikkerhedskopi', $sprog_id)."</a><br><br>";
 	exit;
 } else {

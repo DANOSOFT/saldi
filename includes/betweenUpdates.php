@@ -70,10 +70,17 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table varer ADD column colli_webfragt float DEFAULT 0", __FILE__ . " linje " . __LINE__);
 }
 
+// havemøbelshoppen 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='varenr_alias'";
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER table varer ADD column varenr_alias VARCHAR(255)", __FILE__ . " linje " . __LINE__);
 }
+
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='beskrivelse_alias'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER table varer ADD column beskrivelse_alias VARCHAR(255)", __FILE__ . " linje " . __LINE__);
+}
+//////////////////////
 
 
 //...... pos functionality to kassekladde table..........

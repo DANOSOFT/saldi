@@ -3719,8 +3719,47 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 		$find = "";
 		$fokus = "kontonr";
 	}
-	#	sidehoved($id, "ordre.php", "../debitor/debitorkort.php", $fokus, "Kundeordre $id - Kontoopslag");
-	print "<table class='dataTable' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign=\"top\">";
+	#	sidehoved($id, "ordre.php", "../debitor/debitorkort.php", $fokus, "Kundeordre $id - Kontoopslag");'
+	print "<script>
+		document.addEventListener('DOMContentLoaded', function () {
+		var input = document.getElementById('table-search');
+		if (!input) return;
+
+		var selector = input.getAttribute('data-target');
+		var table = selector ? document.querySelector(selector) : document.querySelector('.js-filter-table');
+		if (!table) return;
+
+		function getAllRows() {
+			var rows = [];
+			if (table.tBodies && table.tBodies.length) {
+			for (var i = 0; i < table.tBodies.length; i++) {
+				rows = rows.concat([].slice.call(table.tBodies[i].rows));
+			}
+			} else {
+			rows = [].slice.call(table.querySelectorAll('tr'));
+			}
+			return rows;
+		}
+
+		function filter() {
+			var q = (input.value || '').toLowerCase();
+			var rows = getAllRows();
+
+			for (var i = 0; i < rows.length; i++) {
+			// always show the first row (header or special row)
+			if (i === 0) { rows[i].style.display = ''; continue; }
+
+			var text = (rows[i].innerText || rows[i].textContent || '').toLowerCase();
+			rows[i].style.display = (q === '' || text.indexOf(q) !== -1) ? '' : 'none';
+			}
+		}
+
+		input.addEventListener('input', filter);
+		filter();
+		});
+		</script>";
+	print "<input type='text' id='table-search' name='search' placeholder='Søgning'>";
+	print "<table class='dataTable js-filter-table' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign=\"top\">";
 	print "<tbody><tr>";
 	print "<td><b><a href=$href?sort=kontonr&funktion=kontoOpslag&fokus=$fokus&id=$id>";
 	($o_art == 'KO') ? print "Leverandørnr" : print "$txt357";

@@ -148,23 +148,20 @@ abstract class BaseEndpoint
         return $result;
     }
 
-    protected function sendResponse($success, $data = null, $message = null, $code = 200)
+    protected function sendResponse($success, $data = null, $message = '', $httpCode = 200)
     {
-        http_response_code($code);
-
+        http_response_code($httpCode);
+        header('Content-Type: application/json');
+        
         $response = [
             'success' => $success,
+            'message' => $message,
+            'data' => $data
         ];
-
-        if ($message !== null) {
-            $response['message'] = $message;
-        }
-
-        if ($data !== null) {
-            $response['data'] = $data;
-        }
-
-        echo json_encode($response);
+        
+        // Pretty print JSON for better readability
+        echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit;
     }
 
     protected function handleError($exception = null)

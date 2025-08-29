@@ -171,8 +171,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$popup          = if_isset($_POST['popup']);
 		if ($popup && $_POST['popup'] == '') $refresh_opener = "on";
 		$menu           = $_POST['menu'];
-		$bgcolor        = "#" . $_POST['bgcolor'];
-		$nuance         = $_POST['nuance'];
+		$bgcolor        = $_POST['bgcolor'];
+		$nuance         = $_POST['fgcolor'];
 		$buttonColor    = $_POST["buttonColor"];
 		$buttonTxtColor = $_POST["buttonTxtColor"];
 		// make sure $buttonColor and $buttonTxtColor are valid hex colors and are 6 characters long
@@ -194,12 +194,38 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			$qtxt = "update grupper set box1='$jsvars',box2='$popup',box3='$menu',box4='$bgcolor',box5='$nuance' WHERE id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+		$qtxt = "select id from settings where var_name = 'bgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
+		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		if (db_num_rows($query) > 0){
+			$r = db_fetch_array($query);
+			if ($r['id']) { // Add this check to ensure ID exists
+				$qtxt = "UPDATE settings SET var_value='$bgcolor' WHERE id='$r[id]'";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			$qtxt = "INSERT INTO settings (var_grp,var_name,var_value,var_description,user_id) VALUES ";
+			$qtxt.= "('colors','bgcolor','$bgcolor','Background color for user settings','$bruger_id')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		$qtxt = "select id from settings where var_name = 'fgcolor' and var_grp = 'colors' and user_id = '$bruger_id'";
+		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		if (db_num_rows($query) > 0){
+			$r = db_fetch_array($query);
+			if ($r['id']) { // Add this check
+				$qtxt = "UPDATE settings SET var_value='$nuance' WHERE id='$r[id]'";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
+		} else {
+			$qtxt = "INSERT INTO settings (var_grp,var_name,var_value,var_description,user_id) VALUES ";
+			$qtxt.= "('colors','fgcolor','$nuance','Nuance color for user settings','$bruger_id')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
 		$qtxt = "select id from settings where var_grp='colors' and user_id='$bruger_id' and var_name='buttonColor'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			$qtxt = "update settings set var_value='$buttonColor ' where id='$r[id]'";
+			$qtxt = "update settings set var_value='$buttonColor' where id='$r[id]'";
 		} else {
 			$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-			$qtxt.= "('colors','buttonColor','$buttonColor ','Background color for user settings','$bruger_id')";
+			$qtxt.= "('colors','buttonColor','$buttonColor','Background color for user settings','$bruger_id')";
 		}
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = "select id from settings where var_grp='colors' and user_id='$bruger_id' and var_name='buttonTxtColor'";
