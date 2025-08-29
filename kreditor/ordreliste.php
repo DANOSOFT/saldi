@@ -321,8 +321,9 @@ if ($valg != 'skanBilag') {
 	print "<table cellpadding=1 cellspacing=1 border=0 width=100% valign = top class='dataTable'>";
 	print "<tbody>";
 	// Build headers from Visning config (OLV)
-	$cfg = db_fetch_array(db_select("select box3,box5,box6 from grupper where art='KOLV' and kode='$valg' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
+	$cfg = db_fetch_array(db_select("select box3,box4,box5,box6,box10 from grupper where art='KOLV' and kode='$valg' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
 	$vis_felt = $cfg && $cfg['box3'] ? explode(',', $cfg['box3']) : array();
+	$feltbredde = $cfg && $cfg['box4'] ? explode(',', $cfg['box4']) : array();
 	$justering = $cfg && $cfg['box5'] ? explode(',', $cfg['box5']) : array();
 	$feltnavn = $cfg && $cfg['box6'] ? explode(',', $cfg['box6']) : array();
 	if (count($vis_felt) < 1) {
@@ -344,7 +345,16 @@ if ($valg != 'skanBilag') {
 	for ($i=0; $i<count($vis_felt); $i++) {
 		$label = isset($feltnavn[$i]) && $feltnavn[$i] !== '' ? $feltnavn[$i] : $vis_felt[$i];
 		$align = isset($justering[$i]) && $justering[$i] !== '' ? $justering[$i] : 'left';
-		print "<td align=$align><b><a href='ordreliste.php?nysort={$vis_felt[$i]}&sort=$sort&valg=$valg$hreftext'>$label</a></b></td>";
+		
+		// Add width styling here - this was missing in kreditor version
+		$width_style = '';
+		if (isset($feltbredde[$i]) && $feltbredde[$i]) {
+			$width_px = $feltbredde[$i];
+			if ($width_px <= 10) $width_px *= 10; // Convert if needed
+			$width_style = " style=\"width:{$width_px}px;\"";
+		}
+		
+		print "<td align=$align$width_style><b><a href='ordreliste.php?nysort={$vis_felt[$i]}&sort=$sort&valg=$valg$hreftext'>$label</a></b></td>";
 	}
 	print "<td></td>";
 	print "</tr>\n";
@@ -375,14 +385,22 @@ if ($valg != 'skanBilag') {
 	for ($x=0; $x<count($vis_felt); $x++) {
 		$fname = trim($vis_felt[$x]);
 		$align = isset($justering[$x]) && $justering[$x] ? $justering[$x] : 'left';
+		
+		// Apply width to search fields too
 		$width = '';
+		if (isset($feltbredde[$x]) && $feltbredde[$x]) {
+			$width_px = $feltbredde[$x];
+			if ($width_px <= 10) $width_px *= 10;
+			$width = "width:{$width_px}px;";
+		}
+		
 		print "<td align=$align>";
 		if (strpos($fname,'date')!==false) {
 			$val = isset($find[$x]) ? $find[$x] : '';
 			print "<input type='text' name=find[$x] value='".htmlspecialchars($val,ENT_QUOTES)."' id='dateout$x' hidden>";
-			date_picker($val, "find[$x]", "ordreliste", $align, "width:120px");
+			date_picker($val, "find[$x]", "ordreliste", $align, $width);
 		} elseif (isset($dropDown[$x]) && $dropDown[$x]) {
-			print "<SELECT NAME=\"find[$x]\" class=\"inputbox\" style=\"$width;\">";
+			print "<SELECT NAME=\"find[$x]\" class=\"inputbox\" style=\"$width\">";
 			$qtxt = "select distinct($fname) as f from ordrer where (art='KO' or art='KK') and ($status) order by $fname";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			$cur = isset($find[$x]) ? stripslashes($find[$x]) : '';
@@ -718,7 +736,7 @@ if ($lev_navne) {
 						</svg></a>
 					<?php
 					if ($row['email']) {
-					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=13&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=13&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 								<path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z" />
 							</svg></a><?php
 									}
@@ -773,12 +791,12 @@ if ($lev_navne) {
 		?>
 			<td>
 				<div style="display:flex;gap:5px;">
-					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 							<path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z" />
 						</svg></a>
 					<?php
 					if ($row['email']) {
-					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 								<path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z" />
 							</svg></a><?php
 									}
