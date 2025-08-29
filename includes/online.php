@@ -481,6 +481,18 @@ if ($bg != 'nix') {
 	print "<body bgcolor=\"$bgcolor\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\">\n";
 }
 
+// Check if this is an API call
+$isApiCall = (
+    isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false ||
+    isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false ||
+    strpos($_SERVER['REQUEST_URI'], '/api/') !== false ||
+    strpos($_SERVER['REQUEST_URI'], '/restapi/') !== false ||
+    isset($_GET['api']) ||
+    isset($_POST['api'])
+);
+
+// Wrap the style output in the API check:
+if (!$isApiCall) {
 ?>
 <style>
 	/* type submit and type button */
@@ -493,3 +505,5 @@ if ($bg != 'nix') {
 		cursor: pointer;
 	}
 </style>
+<?php
+}
