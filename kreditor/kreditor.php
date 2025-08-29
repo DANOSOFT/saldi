@@ -313,15 +313,32 @@ if ($skjul_lukkede) $udvaelg = " and lukket != 'on'";
 for ($x = 0; $x < count($vis_felt); $x++) {
 	$find[$x] = addslashes(trim($find[$x]));
 	$tmp = $vis_felt[$x];
-	if ($find[$x] && $tmp == 'kontakt') {
+  
+	if ($find[$x] && !in_array($tmp, $numfelter)) {
+	 $searchTerm = "%" . $find[$x] . "%";
+
+		$tmp2 = "adresser." . $tmp . "";
+		$udvaelg = $udvaelg . udvaelg($searchTerm, $tmp2, '');
+
+		// $udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, '');
+	} elseif ($find[$x] || $find[$x] == "0") {
+		$searchTerm = "%" . $find[$x] . "%";
+
+		$tmp2 = "adresser." . $tmp . "";
+		// $udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, 'NR');
+		$udvaelg = $udvaelg . udvaelg($searchTerm, $tmp2, 'NR');
+
+// Old code start
+	/*if ($find[$x] && $tmp == 'kontakt') { */
 		// Search in ansatte table for employee name (case-insensitive) like debitor
-		$udvaelg .= " and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+	/*	$udvaelg .= " and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
 	} elseif ($find[$x] && !in_array($tmp, $numfelter)) {
 		$tmp2 = "adresser." . $tmp;
 		$udvaelg .= udvaelg($find[$x], $tmp2, 'TEXT');
 	} elseif ($find[$x] || $find[$x] == "0") {
 		$tmp2 = "adresser." . $tmp;
-		$udvaelg .= udvaelg($find[$x], $tmp2, 'NR');
+		$udvaelg .= udvaelg($find[$x], $tmp2, 'NR');*/
+// Old code end
 	}
 }
 
