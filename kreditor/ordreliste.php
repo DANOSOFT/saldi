@@ -270,7 +270,7 @@ if ($menu == 'T') {
 	if (!$hurtigfakt) {
 		print "<td width = 20% align=center ";
 		if ($valg == 'forslag') print $knap_ind . ">&nbsp;Forslag&nbsp;";
-		else print "<td width = 20% align=center><a href='ordreliste.php?sort=$sort&valg=forslag$hreftext'>&nbsp;Forslag&nbsp;</a>";
+		else print "<td width=20% align=center><a href='ordreliste.php?sort=$sort&valg=forslag$hreftext'>&nbsp;Forslag&nbsp;</a>";
 		print "</td>";
 	}
 	print "<td width = 20% align=center ";
@@ -396,31 +396,87 @@ if ($valg != 'skanBilag') {
 		}
 		print "</td>";
 	}
+	
 	print "<td align=center><input class='inputbox' type=submit value=\"OK\" name=\"submit\"></td>";
 	print "</form></tr>\n";
 	print "\n<script>\n\twindow.onload = function() {\n\t\t$script\n\t};\n</script>\n";
 	####################################################################################
-	$udvaelg = '';
+$udvaelg = '';
 
-	if ($ordrenumre) {
-		$udvaelg = $udvaelg . udvaelg($ordrenumre, 'ordrenr', 'NR');
-	}
-	if ($modtagelsesnumre) {
-		$udvaelg = $udvaelg .= udvaelg($modtagelsesnumre, 'modtagelse', 'NR');
-	}
-	// if ($fakturanumre) {
-	// 	# If it is a number range, preferm number search
-	// 	if (is_numeric(str_replace(":", "", $fakturanumre))) {
-	// 		# Split the lower and upper number
-	// 		list($a, $b) = explode(':', $fakturanumre);
-	// 		# Preform a search that excludes any non numeric invoice numbers from counting
-	// 		$udvaelg = $udvaelg . " AND (ORDRER.FAKTURANR ~ '^[0-9]+$' AND CAST(ORDRER.FAKTURANR AS NUMERIC) >= '" . usdecimal($a) . "' AND CAST(ORDRER.FAKTURANR AS NUMERIC) <= '" . usdecimal($b) . "')";
-	// 	} else {
-	// 		$udvaelg .= udvaelg($fakturanumre, 'fakturanr', 'TEXT');
-	// 	}
-	// }
+// Process dynamic search fields FIRST
+for ($x = 0; $x < count($vis_felt); $x++) {
+    $val = isset($find[$x]) ? trim($find[$x]) : '';
+    if ($val === '' || $val === '-') continue; // Skip empty fields
+    
+    $fname = trim($vis_felt[$x]);
+    $val = db_escape_string($val); // Escape for security
+    
+    // Process different field types
+    if ($fname == 'ordrenr') {
+        if (strlen($val) >= 11) $val = substr($val, 0, 10);
+        $val = (int)$val;
+        if (strpos($val, ':')) {
+            list($a, $b) = explode(':', $val);
+            $udvaelg .= " and ordrer.ordrenr >= '$a' and ordrer.ordrenr <= '$b'";
+        } else {
+            $udvaelg .= " and ordrer.ordrenr='$val'";
+        }
+    } elseif ($fname == 'kontonr') {
+        $val = (int)$val;
+        $udvaelg .= " and ordrer.kontonr='$val'";
+    } elseif ($fname == 'konto_id') {
+        $val = (int)$val;
+        $udvaelg .= " and ordrer.konto_id='$val'";
+    } elseif ($fname == 'modtagelse') {
+        $val = (int)$val;
+        if (strpos($val, ':')) {
+            list($a, $b) = explode(':', $val);
+            $udvaelg .= " and ordrer.modtagelse >= '$a' and ordrer.modtagelse <= '$b'";
+        } else {
+            $udvaelg .= " and ordrer.modtagelse='$val'";
+        }
+    } elseif ($fname == 'fakturanr') {
+        if (is_numeric(str_replace(":", "", $val))) {
+            // Handle numeric ranges
+            if (strpos($val, ':')) {
+                list($a, $b) = explode(':', $val);
+                $udvaelg .= " and (ordrer.fakturanr ~ '^[0-9]+\$' and cast(ordrer.fakturanr as numeric) >= '" . usdecimal($a) . "' and cast(ordrer.fakturanr as numeric) <= '" . usdecimal($b) . "')";
+            } else {
+                $udvaelg .= " and ordrer.fakturanr='" . $val . "'";
+            }
+        } else {
+            // Handle text search with wildcards
+            $udvaelg .= udvaelg($val, 'ordrer.fakturanr', 'TEXT');
+        }
+    } elseif ($fname == 'sum') {
+        $udvaelg .= udvaelg($val, 'ordrer.sum', 'BELOB');
+    } elseif (strpos($fname, 'date') !== false || $fname == 'nextfakt') {
+        $udvaelg .= udvaelg($val, 'ordrer.'.$fname, 'DATO');
+    } elseif ($fname == 'ref') {
+        $udvaelg .= udvaelg($val, 'ordrer.ref', 'TEXT');
+    } elseif ($fname == 'firmanavn' || $fname == 'lev_navn' || $fname == 'email' || $fname == 'addr1' || $fname == 'addr2' || $fname == 'kontakt') {
+        $udvaelg .= udvaelg($val, 'ordrer.'.$fname, 'TEXT');
+    } elseif (isset($dropDown[$x]) && $dropDown[$x] && $val) {
+        $udvaelg .= " and ordrer.$fname='$val'";
+    } else {
+        // Default handling for other fields
+        if (is_numeric($val)) {
+            $udvaelg .= udvaelg($val, 'ordrer.'.$fname, 'NR');
+        } else {
+            $udvaelg .= udvaelg($val, 'ordrer.'.$fname, 'TEXT');
+        }
+    }
+}
 
-	if ($fakturanumre) {
+// Then process the old search parameters (keep existing code)
+if ($ordrenumre) {
+    $udvaelg = $udvaelg . udvaelg($ordrenumre, 'ordrenr', 'NR');
+}
+if ($modtagelsesnumre) {
+    $udvaelg = $udvaelg .= udvaelg($modtagelsesnumre, 'modtagelse', 'NR');
+}
+
+if ($fakturanumre) {
     # If it is a number range, prefer number search
     if (is_numeric(str_replace(":", "", $fakturanumre))) {
         # Split the lower and upper number
@@ -432,62 +488,41 @@ if ($valg != 'skanBilag') {
         $udvaelg .= udvaelg($searchTerm, 'fakturanr', 'TEXT');
     }
 }
-	if ($kontonumre) {
-		$udvaelg = $udvaelg .= udvaelg($kontonumre, 'kontonr', 'NR');
-	}
-	if ($ordredatoer) {
-		$udvaelg = $udvaelg . udvaelg($ordredatoer, 'ordredate', 'DATO');
-	}
-	if ($lev_datoer) {
-		$udvaelg = $udvaelg . udvaelg($lev_datoer, 'levdate', 'DATO');
-	}
-	if ($fakturadatoer) {
-		$udvaelg = $udvaelg . udvaelg($fakturadatoer, 'fakturadate', 'DATO');
-	}
-	if ($genfaktdatoer) {
-		$udvaelg = $udvaelg . udvaelg($genfaktdatoer, 'nextfakt', 'DATO');
-	}
-	// if ($ref[0]) {
-	// 	$udvaelg = $udvaelg . " and ref='$ref[0]'";
-	// }
-	if ($ref[0]) {
+if ($kontonumre) {
+    $udvaelg = $udvaelg .= udvaelg($kontonumre, 'kontonr', 'NR');
+}
+if ($ordredatoer) {
+    $udvaelg = $udvaelg . udvaelg($ordredatoer, 'ordredate', 'DATO');
+}
+if ($lev_datoer) {
+    $udvaelg = $udvaelg . udvaelg($lev_datoer, 'levdate', 'DATO');
+}
+if ($fakturadatoer) {
+    $udvaelg = $udvaelg . udvaelg($fakturadatoer, 'fakturadate', 'DATO');
+}
+if ($genfaktdatoer) {
+    $udvaelg = $udvaelg . udvaelg($genfaktdatoer, 'nextfakt', 'DATO');
+}
+if ($ref[0]) {
     $searchTerm = "*" . str_replace(" ", "*", $ref[0]) . "*";
     $udvaelg = $udvaelg . udvaelg($searchTerm, 'ref', 'TEXT');
 }
-	if ($projekt[0]) {
-		$udvaelg = $udvaelg . " and projekt='$projekt[0]'";
-	}
-	if ($summer) {
-		$udvaelg = $udvaelg . udvaelg($summer, 'sum', 'BELOB');
-// Old code start
-	/*for ($x=0; $x<count($vis_felt); $x++) {
-		$val = isset($find[$x]) ? trim($find[$x]) : '';
-		if ($val === '' && $val !== '0') continue;
-		$fname = trim($vis_felt[$x]);
-		if ($fname == 'sum') {
-            $udvaelg .= udvaelg($val, 'sum', 'BELOB');
-        } elseif ($fname == 'fakturanr') {
-            if (strpos($val,':')) { list($a,$b)=explode(':',$val); $udvaelg .= " and fakturanr >= '".usdecimal($a)."' and fakturanr <= '".usdecimal($b)."'"; }
-            else $udvaelg .= udvaelg($val, 'fakturanr', 'TEXT');
-        } elseif ($fname=='ordrenr' || $fname=='kontonr' || $fname=='modtagelse' || $fname=='konto_id') {
-            $udvaelg .= udvaelg($val, $fname, 'NR');
-        } elseif (strpos($fname,'date')!==false || $fname=='nextfakt') {
-            $udvaelg .= udvaelg($val, $fname, 'DATO');
-        } else {
-            $udvaelg .= udvaelg($val, $fname, 'TEXT');
-        }*/
-// Old code end
-	}
+if ($projekt[0]) {
+    $udvaelg = $udvaelg . " and projekt='$projekt[0]'";
+}
+if ($summer) {
+    $udvaelg = $udvaelg . udvaelg($summer, 'sum', 'BELOB');
+}
 
-	if ($kontoid) {
-		$udvaelg = $udvaelg . udvaelg($kontoid, 'konto_id', 'NR');
-	}
+if ($kontoid) {
+    $udvaelg = $udvaelg . udvaelg($kontoid, 'konto_id', 'NR');
+}
 
-	if ($lev_navne) {
-	$lev_navne = trim($lev_navne);
+if ($lev_navne) {
+    $lev_navne = trim($lev_navne);
     $searchTerm = "*" . str_replace(" ", "*", $lev_navne) . "*";
     $udvaelg = $udvaelg . udvaelg($searchTerm, 'lev_navn', 'TEXT');
-	}
+}
 
 	if ($valg == "forslag") {
 		$ialt = 0;
@@ -743,7 +778,7 @@ if ($valg != 'skanBilag') {
 						</svg></a>
 					<?php
 					if ($row['email']) {
-					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 								<path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z" />
 							</svg></a><?php
 									}
