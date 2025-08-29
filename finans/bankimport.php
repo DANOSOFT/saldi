@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 4.1.1 --- 2025.03.22 ---
+// --- finans/bankimport.php --- patch 4.1.1 --- 2025.08.29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,6 +63,7 @@
 // 20231030	PHR Added 'Saldo'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250205 PHR Added "betalt = '0' or " and better recognition of FIK string
+// 20250829 PHR	Check for lineshift in description
 
 ini_set("auto_detect_line_endings", true);
 
@@ -276,10 +277,37 @@ if ($fp) {
 	elseif ($splitter=='Semikolon') $splittegn=";";
 	elseif ($splitter=='Tabulator') $splittegn=chr(9);
 	
+	// -> 20250829
+	while ($linje=fgets($fp)) {
+		if ($linje) {
+			$line[$i] = $linje;
+			$i++;
+		}
+	}
+	$y=0;
+	$newLine = array();
+	$tmp = '';
+	for ($i=0;$i<count($line);$i++){
+		$ok = 0;
+		$tmp .= str_replace("\n",'',$line[$i]);
+		$i2 = $i+1;
+		if ($feltnavn[0] != 'dato') $ok = 1;
+		elseif ($i2 == count($line))  $ok = 1;
+		elseif (is_numeric(substr($line[$i2],0,2)) && is_numeric(substr($line[$i2],5,4)) && substr($line[$i2],2,1) == '-') $ok = 1;
+		elseif (is_numeric(substr($line[$i2],0,4)) && substr($line[$i2],2,1) == '-') $ok = 1;
+		if ($ok) {
+			$newLine[$y] = $tmp;
+			$tmp = '';
+			$y++;
+		}
+	}
+	$line = NULL;
+// 20250829 <--
 	$y=0;
 	$feltantal=0;
-#	for ($y=1; $y<20; $y++) {
-	while ($linje=fgets($fp)) {
+#	while ($linje=fgets($fp)) {
+	for ($i=0;$i<count($newLine);$i++){
+		$linje = $newLine[$i];
 		if ($linje) {
 			$y++;
 			$ny_linje[$y]='';
