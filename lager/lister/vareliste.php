@@ -87,6 +87,22 @@ $columns[] = array(
 );
 
 $columns[] = array(
+    "field" => "varenr_alias",
+    "headerName" => "Vare Nr. (alias)",
+    "render" => function ($value, $row, $column) {
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
+    },
+    "sqlOverride" => "v.varenr",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        return "(v.varenr ILIKE '%$term%' OR v.varenr_alias ILIKE '%$term%')";
+    },
+);
+
+$columns[] = array(
     "field" => "beskrivelse",
     "headerName" => "Navn",
     "width" => "3",
@@ -102,6 +118,24 @@ $columns[] = array(
         return "(v.beskrivelse ILIKE '%$term%' OR v.beskrivelse_alias ILIKE '%$term%')";
     },
 );
+
+$columns[] = array(
+    "field" => "beskrivelse_alias",
+    "headerName" => "Navn (alias)",
+    "width" => "3",
+    "render" => function ($value, $row, $column) {
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
+
+        $notes = htmlspecialchars($row['notes'] ? $row["notes"] : '', ENT_QUOTES, 'UTF-8');
+        return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
+    },
+    "sqlOverride" => "v.beskrivelse",
+    "generateSearch" => function ($column, $term) {
+        $term = db_escape_string($term);
+        return "(v.beskrivelse ILIKE '%$term%' OR v.beskrivelse_alias ILIKE '%$term%')";
+    },
+);
+
 $columns[] = array(
     "field" => "trademark",
     "headerName" => "Varemærke",
@@ -366,9 +400,11 @@ lager_totals AS (
 )
 SELECT 
     v.id AS id,                     
-    v.varenr AS varenr,             
+    v.varenr AS varenr,
+    v.varenr_alias AS varenr_alias,
     v.lukket AS lukket,             
-    v.beskrivelse AS beskrivelse,   
+    v.beskrivelse AS beskrivelse,
+    v.beskrivelse_alias AS beskrivelse_alias,
     v.trademark AS trademark,       
     v.stregkode AS stregkode,       
     v.enhed AS enhed,               
