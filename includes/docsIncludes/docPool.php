@@ -78,7 +78,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	}
 
 	if ($rename && $newFileName && $newFileName != $poolFile || ($rename &&($newAccount||$newAmount||$newSubject))) {
-		
+	error_log("RenammmmmmmiiiiiiingggggMMMMMMMMMM7777: $rename, and $newAccount, $newAmount, $newSubject");	
 	  $legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
 		$nfn = trim($newFileName);
@@ -157,54 +157,62 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 							}
 
 							// Rename the file
-							if (rename($oldPath, $newPath)) {
-								error_log("✅ Renamed: $oldPath → $newPath");
+							#if($oldPath != $newPath){
+								if (rename($oldPath, $newPath)) {
+									error_log("++*++ Renamed: $oldPath → $newPath");
 
-								// Update the poolFile variable
-								if ($file === $poolFile) {
-									$renamedPoolFile = "$newBase.$fileExt";
-								}
-								// ✅ If this is the .info file, update subject, account, and amount
-									if (strtolower($fileExt) === 'info') {
-									// Set subject to newBase if it's empty
-													if (empty($newSubject || $newFileName != $poolFile)) {
-														$newSubject = $newBase; 
-													}
-
-										// Build new contents 
-										$infoLines = [
-											$newSubject ?? '',
-											$newAccount ?? '',
-											$newAmount ?? ''
-										];
-
-										// Write to the file
-										if (file_put_contents($newPath, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
-											
-										} else {
-											error_log("❌ Failed to update .info file: $newPath");
-										}
+									// Update the poolFile variable
+									if ($file === $poolFile) {
+										$renamedPoolFile = "$newBase.$fileExt";
 									}
-								//
-							} else {
-								error_log("❌ Rename failed: $oldPath → $newPath");
-							}
+									// ✅ If this is the .info file, update subject, account, and amount
+										if (strtolower($fileExt) === 'info') {
+										// Set subject to newBase if it's empty
+														if (empty($newSubject)) {
+															$newSubject = $newBase; 
+														}
+		
+											// Build new contents 
+											$infoLines = [
+												$newSubject ?? '',
+												$newAccount ?? '',
+												$newAmount ?? ''
+											];
+
+											// Write to the file
+											if (file_put_contents($newPath, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
+												
+											} else {
+												error_log("❌ Failed to update .info file: $newPath");
+											}
+										}
+									//
+								} else {
+									error_log("❌ Rename failed: $oldPath → $newPath");
+								}
+						    #}
 						}
 					}
 
-					// ✅ Example: Check if PDF exists before further use
+					// ✅ Example: Check if PDF exists before further use 
 					$pdfPath = "$puljePath/$newBase.pdf";
 					if (!file_exists($pdfPath)) {
 						#error_log("⚠️ PDF file does not exist after renaming: $pdfPath");
 					} else {
 						// e.g. copy to saldibilag if needed
-						$targetPath = str_replace('/bilag/', '/saldibilag/', $pdfPath);
+						$targetPath = str_replace('/bilag/', '/saldibilag/', $pdfPath); 
+						
+						//Remove only the first occurrence of '..'
+						$targetPath = preg_replace('/\.\./', '', $targetPath, 1); 
+						
 						if (!file_exists($targetPath)) {
 							if (copy($pdfPath, $targetPath)) {
-								error_log("✅ Copied PDF to: $targetPath");
+								#error_log("✅ Copied PDF to: $targetPath");
 							} else {
 								error_log("❌ Failed to copy PDF to: $targetPath");
 							}
+						}else{
+							#error_log("File already exists: $targetPath");
 						}
 					}
 
@@ -706,7 +714,7 @@ JS;
 			if (file_exists($infoFile)) {
 				// Check that it's not empty
 				if (filesize($infoFile) > 0) {
-					$lines = file($infoFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+					$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
 
 					// Default values
 					$Subject = $lines[0] ?? '';
@@ -729,49 +737,72 @@ JS;
 	
 	if (!$dato) $dato=date("d-m-Y");
      //#################
-	 print <<<HTML
-	<script>
-	function updateSubjectFromFilename() {
-		const fileInput = document.querySelector('input[name="newFileName"]');
-		const subjectInput = document.querySelector('input[name="newSubject"]');
-		if (fileInput && subjectInput) {
-			// Extract the base name (without path and extension)
-			let filename = fileInput.value.split(/[\\\\/]/).pop(); // handles both \ and /
-			let baseName = filename.replace(/\\.[^/.]+$/, ""); // remove extension
-			subjectInput.value = baseName;
+	print <<<HTML
+
+<script>
+function updateSubjectFromFilename() {
+    const fileInput = document.querySelector('input[name="newFileName"]');
+    const subjectInput = document.querySelector('input[name="newSubject"]');
+    if (fileInput && subjectInput) {
+        let filename = fileInput.value.split(/[\\/]/).pop(); // handles both \ and /
+        let baseName = filename.replace(/\.[^/.]+$/, ""); // remove extension
+
+        // Always update subject to basename when filename changes
+        subjectInput.value = baseName;
+    }
+}
+
+function updateFilenameFromSubject() {
+    const fileInput = document.querySelector('input[name="newFileName"]');
+    const subjectInput = document.querySelector('input[name="newSubject"]');
+    if (fileInput && subjectInput) {
+        let filename = fileInput.value;
+        let extension = "";
+
+        // Extract extension if any
+        const lastDot = filename.lastIndexOf(".");
+        if (lastDot !== -1) {
+            extension = filename.substring(lastDot);
+        }
+
+        // Always update filename's basename with the subject's value when subject changes
+        fileInput.value = subjectInput.value + extension;
+    }
+}
+</script>
+
+<tr>
+    <td>Filnavn</td>
+    <td><input type="text" style="width:150px"
+        name="newFileName" value="$poolFile" oninput="updateSubjectFromFilename()"></td>
+</tr>
+<tr>
+    <td>Subject</td>
+    <td><input type="text" style="width:150px"
+        name="newSubject" value="$Subject" oninput="updateFilenameFromSubject()"></td>
+</tr>
+<tr>
+    <td>Account</td>
+    <td><input type="text" style="width:150px"
+        name="newAccount" value="$Account"></td>
+</tr>
+<tr>
+    <td>Amount</td>
+    <td><input type="text" style="width:150px"
+        name="newAmount" value="$Amount"></td>
+</tr>
+<tr>
+    <td colspan="2"><input style="width:100%" type="submit"
+        name="rename" value="Ret filnavn"></td>
+</tr>
+
+HTML;
+
+		if(empty($sum) && empty($beskrivelse)) {
+			if($Amount) $sum = $Amount;  //set these for updating the previous data if needed
+			if($Subject) $beskrivelse = $Subject;
+			if($Date) $dato = $Date;
 		}
-	}
-	</script>
-
-	<tr>
-		<td>Filnavn</td>
-		<td><input type="text" style="width:150px"
-			name="newFileName" value="$poolFile" oninput="updateSubjectFromFilename()"></td>
-	</tr>
-	<tr>
-		<td>Subject</td>
-		<td><input type="text" style="width:150px"
-			name="newSubject" value="$Subject"></td>
-	</tr>
-	<tr>
-		<td>Account</td>
-		<td><input type="text" style="width:150px"
-			name="newAccount" value="$Account"></td>
-	</tr>
-	<tr>
-		<td>Amount</td>
-		<td><input type="text" style="width:150px"
-			name="newAmount" value="$Amount"></td>
-	</tr>
-	<tr>
-		<td colspan="2"><input style="width:100%" type="submit"
-			name="rename" value="Ret filnavn"></td>
-	</tr>
-
-	HTML; 
-	if($Amount) $sum = $Amount;  //set these for updating the previous data if needed
-	if($Subject) $beskrivelse = $Subject;
-	if($Date) $dato = $Date;
 	//##################
 	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
 	name=\"insertFile\" value=\"".findtekst('1415|Indsæt', $sprog_id)."\"</tr>\n";

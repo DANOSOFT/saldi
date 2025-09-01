@@ -135,6 +135,8 @@ if ($openPool) {
 								if (file_put_contents($infoFile, "") !== false) {
 									// Set writable permissions (e.g., 0666 without umask interference)
 									chmod($infoFile, 0666);
+									// Write the base name to the .info file as the subject
+									file_put_contents($infoFile, $baseName . PHP_EOL);
 									error_log("Created .info file: $infoFile and set writable permissions.");
 								} else {
 									error_log("Failed to create .info file: $infoFile in document.php");
