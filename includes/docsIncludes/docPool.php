@@ -421,9 +421,20 @@ print <<<JS
 					? "background-color: #ffebcc; font-weight: bold;"
 					: "border-bottom:1px solid #ddd;";
 
-				let boldAmount = (parseFloat(row.amount) === parseFloat(totalSum))
+			//
+
+				let normalizedTotal = parseFloat(
+					totalSum.replace(/\./g, '').replace(',', '.')
+				);
+
+				let normalizedAmount = parseFloat(row.amount);
+
+				let boldAmount = (normalizedAmount === normalizedTotal)
 					? "<strong>" + escapeHTML(row.amount) + "</strong>"
 					: escapeHTML(row.amount);
+
+
+			//
 
 				html += "<tr style='" + rowStyle + "'>" +
 					"<td style='padding:8px; border:1px solid #ddd;'>" + escapeHTML(row.subject) + "</td>" +
