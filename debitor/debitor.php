@@ -448,6 +448,28 @@ $qtxt="update grupper set box10='". db_escape_string($tmp) ."' where art = 'DLV'
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 
 if ($skjul_lukkede) $udvaelg = " and lukket != 'on'";
+// for ($x=0;$x<$vis_feltantal;$x++) {
+//     if (isset($find[$x])) {
+//         $find[$x]=trim($find[$x]);
+//         $tmp=$vis_felt[$x];
+//         if ($tmp) {
+//             if ($find[$x] && in_array($tmp, array('invoiced', 'kontaktet', 'kontaktes'))) {
+//                 $tmp2="adresser.".$tmp;
+//                 $udvaelg.=udvaelg($find[$x],$tmp2, 'DATO');
+//             } elseif ($tmp == 'kontakt' && $find[$x]) {
+//                 // Special handling for kontakt field - search in ansatte table (case-insensitive)
+//                 $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
+//             } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
+//                 $tmp2="adresser.".$tmp;
+//                 $udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
+//             } elseif ($find[$x]||$find[$x]=="0") {
+//                 $tmp2="adresser.".$tmp;
+//                 $udvaelg.=udvaelg(db_escape_string($find[$x]),$tmp2, 'NR');
+//             }
+//         }
+//     }
+// }
+
 for ($x=0;$x<$vis_feltantal;$x++) {
     if (isset($find[$x])) {
         $find[$x]=trim($find[$x]);
@@ -460,8 +482,10 @@ for ($x=0;$x<$vis_feltantal;$x++) {
                 // Special handling for kontakt field - search in ansatte table (case-insensitive)
                 $udvaelg.=" and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
             } elseif ($find[$x] && !in_array($tmp,$numfelter)) {
+                // Add wildcards for partial text search
+                $searchTerm = "*" . str_replace(" ", "*", $find[$x]) . "*";
                 $tmp2="adresser.".$tmp;
-                $udvaelg.=udvaelg($find[$x],$tmp2, 'TEXT');
+                $udvaelg.=udvaelg($searchTerm,$tmp2, 'TEXT');
             } elseif ($find[$x]||$find[$x]=="0") {
                 $tmp2="adresser.".$tmp;
                 $udvaelg.=udvaelg(db_escape_string($find[$x]),$tmp2, 'NR');
@@ -469,6 +493,7 @@ for ($x=0;$x<$vis_feltantal;$x++) {
         }
     }
 }
+// ...existing code...
 
 if (count($dg_liste)) {
 	$x=0;
@@ -502,9 +527,9 @@ $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 
 $antal=$r['antal'];
 if ($menu=='T'){
-	print "<table class='dataTableBooking' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
+	print "<table class='dataTableBooking' style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><thead>\n<tr>";
 } else {
-	print "<table cellpadding='1' cellspacing='1' border='0' valign='top' width='100%'><tbody>\n<tr>";
+	print "<table cellpadding='1'  style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap;' cellspacing='1' border='0' valign='top' width='100%'><tbody>\n<tr>";
 }
 if ($start>0) {
 	$prepil=$start-$linjeantal;
@@ -515,18 +540,20 @@ if ($start>0) {
 #	if (file_exists("rotary_addrsync.php")) print "<a href=\"rotary_addrsync.php\" target=\"blank\" title=\"".findtekst(1665, $sprog_id)."\">!</a>";
 	print "</td>";
 }
-if ($valg != 'rental' && $start == 0) {
+// if ($valg != 'rental' && $start == 0) {
+if ($valg != 'rental') { 
 	for ($x=0;$x<$vis_feltantal;$x++) {
 		if (substr($vis_felt[$x],0,4) == 'cat_') {
 			print "<td width=10px align=$justering[$x]><b>$feltnavn[$x]</b></td>\n";
 		} else {
 			if ($feltbredde[$x]) $width="width=$feltbredde[$x]";
 			else $width="";
-			print "<td align=$justering[$x] $width style='padding: 20px'><b><a href='debitor.php?nysort=$vis_felt[$x]&sort=$sort&valg=$valg'>$feltnavn[$x]</b></td>\n";
+			print "<td align=$justering[$x] $width style='padding: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'><b><a href='debitor.php?nysort=$vis_felt[$x]&sort=$sort&valg=$valg'>$feltnavn[$x]</b></td>\n";
 		}
 	}
 }
-if ($valg=='kommission'  && $start == 0) {
+// if ($valg=='kommission'  && $start == 0) {
+if ($valg=='kommission') {
 	$folder=trim($_SERVER['PHP_SELF'],'/');
 	$folder=str_replace('debitor/debitor.php','',$folder);
 	$myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
@@ -554,7 +581,7 @@ if ($dg_antal || $cat_antal) $linjeantal=0;
 
 
 print "<tr><td width=10px></td>"; #giver plase til venstrepil v. flere sider
-if (!$start) {
+// if (!$start) {
 	print "<form name=debitorliste action=debitor.php method=post>\n";	
 	print "<input type=hidden name=valg value=$valg>\n";
 	print "<input type=hidden name=sort value='$ny_sort'>\n";
@@ -648,7 +675,7 @@ if (!$start) {
 	print "<td colspan='1' align=right style='width:10px;'><input class='button blue medium' type='submit' value=".findtekst('913|Søg', $sprog_id)." name=\"search\"></td>";
 
 	print "</form></tr>\n";
-}
+// }
 
 if ($menu=='T') {
 	print "<tr><th colspan=20 style='padding: 0px; height: 1px;'></th></tr>";
