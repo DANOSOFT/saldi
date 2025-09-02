@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php -----patch 4.1.1 ----2025-08-15------------
+// --- includes/documents.php -----patch 4.1.1 ----2025-08-27------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,8 @@
 //20230622 - LOE Updated file path and some related modifications.
 //20240412 - PHR Various modifications
 //20250815 - LOE Create 'bilag' file specifically for kassekladde and , others can be created based  on what is needed
-
+//20250824 - LOE Clean up to reduce the error logs with if_isset()
+//20250827 - LOE Implement creating .info files for existing pool pdf without it.
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -44,20 +45,20 @@ print "<div align=\"center\">";
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=null;
 if(($_GET)||($_POST)) {
 
-	$funktion=if_isset($_GET['funktion']);
+	$funktion=if_isset($_GET,NULL,'funktion');
 	if (isset($_GET['sourceId'])) {
-		$bilag		  = if_isset($_GET['bilag']);
-		$fokus		  = if_isset($_GET['fokus']);
-		$docFocus	  = if_isset($_GET['docFocus']);
-		$sourceId   = if_isset($_GET['sourceId'],0);
-		$source     = if_isset($_GET['source']);
-		$showDoc    = if_isset($_GET['showDoc']);
-		$deleteDoc  = if_isset($_GET['deleteDoc']);
-		$moveDoc  	= if_isset($_GET['moveDoc']);
-		$kladde_id  = if_isset($_GET['kladde_id']);
-		$dokument   = if_isset($_GET['dokument']);
-		$openPool    = if_isset($_GET['openPool']);
-		$poolFile    = if_isset($_GET['poolFile']);
+		$bilag		  = if_isset($_GET, NULL,'bilag');
+		$fokus		  = if_isset($_GET, NULL,'fokus');
+		$docFocus	  = if_isset($_GET, NULL,'docFocus');
+		$sourceId   = if_isset($_GET, NULL,'sourceId');
+		$source     = if_isset($_GET, NULL,'source');
+		$showDoc    = if_isset($_GET, NULL,'showDoc');
+		$deleteDoc  = if_isset($_GET, NULL,'deleteDoc');
+		$moveDoc  	= if_isset($_GET, NULL,'moveDoc');
+		$kladde_id  = if_isset($_GET, NULL,'kladde_id');
+		$dokument   = if_isset($_GET, NULL,'dokument');
+		$openPool    = if_isset($_GET, NULL,'openPool');
+		$poolFile    = if_isset($_GET, NULL,'poolFile');
 	}
 	if (isset($_POST['sourceId'])) {
 		$sourceId  = $_POST['sourceId'];
@@ -110,6 +111,51 @@ print "</td></tr><tr><td width = '20%'>";
 // ---------- Left table start ---------
 print "<table width=\"100%\" height=\"98%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 if ($openPool) {
+	$finalDestination = "$docFolder/$db/pulje";
+		#############
+		if (is_dir($docFolder)) {
+			$dbFolder = "$docFolder/$db";
+			if (is_dir($dbFolder)) {
+				if (is_dir($finalDestination)) {
+					// Get all PDF files in the final destination
+					$pdfFiles = glob($finalDestination . '/*.pdf');
+					
+					if (!empty($pdfFiles)) {
+						foreach ($pdfFiles as $pdfPath) {
+							$pdfFilename = basename($pdfPath);
+							$baseName = pathinfo($pdfFilename, PATHINFO_FILENAME);
+							$infoFile = $finalDestination . '/' . $baseName . '.info';
+
+							// Log the PDF file
+							error_log("Found PDF file: $pdfFilename");
+
+							// Check if .info file exists
+							if (!file_exists($infoFile)) {
+								// Attempt to create the file
+								if (file_put_contents($infoFile, "") !== false) {
+									// Set writable permissions (e.g., 0666 without umask interference)
+									chmod($infoFile, 0666);
+									// Write the base name to the .info file as the subject
+									file_put_contents($infoFile, $baseName . PHP_EOL);
+									error_log("Created .info file: $infoFile and set writable permissions.");
+								} else {
+									error_log("Failed to create .info file: $infoFile in document.php");
+								}
+							} else {
+								error_log(".info file already exists: $infoFile");
+							}
+						}
+					} else {
+						error_log("No PDF files found in: $finalDestination");
+					}
+				} else {
+					error_log("Directory does not exist: $finalDestination");
+				}
+			} else {
+				error_log("Directory does not exist: $dbFolder");
+			}
+		} 
+
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;

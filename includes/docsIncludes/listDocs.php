@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/listDocs.php-----patch 4.1.1 ----2025-08-15--------
+// --- includes/docsIncludes/listDocs.php-----patch 4.1.1 ----2025-08-23--------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or

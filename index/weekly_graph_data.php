@@ -1,5 +1,5 @@
 <?php
-// filepath: /var/www/html/pblm/index/dashboardIncludes/weekly_graph_data.php
+// filepath: ../index/dashboardIncludes/weekly_graph_data.php
 
 // Start with a clean output buffer to avoid any other content
 ob_clean();
@@ -73,7 +73,7 @@ for ($i = 0; $i < 7; $i++) {
     $revenue_now[] = $value ?: 0;
     $currentDay1[] = $currentDay;
     $sameDayLastYear1[] = $sameDayLastYear;
-file_put_contents('query_log1.txt', "Query: $qxt\n", FILE_APPEND);
+
     // Last year's same weekday
     $qxt = "
         SELECT SUM(COALESCE(T.kredit, 0) - COALESCE(T.debet, 0))
@@ -85,7 +85,7 @@ file_put_contents('query_log1.txt', "Query: $qxt\n", FILE_APPEND);
     $q = db_select($qxt, __FILE__ . " linje " . __LINE__);
     $value = db_fetch_array($q)[0];
     $revenue_last[] = $value ?: 0;
-    file_put_contents('query_log.txt', "Query: $qxt\n", FILE_APPEND);
+   
 }
 
 
