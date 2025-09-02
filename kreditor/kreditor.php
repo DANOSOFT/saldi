@@ -403,7 +403,7 @@ print "<input type=hidden name=nysort value='$sort'>";
 print "<input type=hidden name=kontoid value=" . if_isset($kontoid, 0) . ">";
 
 print "<tr><td></td>"; #giver plads til venstrepil v. flere sider
-if (!$start) {
+// if (!$start) {
 	for ($x = 0; $x < count($vis_felt); $x++) {
 		$span = '';
 		print "<td align=$justering[$x]><span title= '$span'>";
@@ -474,7 +474,7 @@ if (!$start) {
 	print "</td>\n";
 	print "<td><input type=submit value=\"".findtekst('913|Søg', $sprog_id)."\" name=\"search\"></td>";
 	print "</form></tr><td></td>\n";
-}
+// }
 ######################################################################################################################
 $udv1    = $udvaelg;
 $colspan = count($vis_felt) + 1;
