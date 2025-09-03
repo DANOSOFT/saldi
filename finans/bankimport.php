@@ -291,12 +291,13 @@ if ($fp) {
 		$ok = 0;
 		$tmp .= str_replace("\n",'',$line[$i]);
 		$i2 = $i+1;
+		$datesplit = array('-','/','.',' ');
 		if ($feltnavn[0] != 'dato') $ok = 1;
 		elseif ($i2 == count($line))  $ok = 1;
-		elseif (is_numeric(substr($line[$i2],0,2)) && is_numeric(substr($line[$i2],5,4)) && substr($line[$i2],2,1) == '-') $ok = 1;
-		elseif (is_numeric(substr($line[$i2],0,4)) && substr($line[$i2],2,1) == '-') $ok = 1;
+		elseif (is_numeric(substr($line[$i2],0,2)) && is_numeric(substr($line[$i2],5,4)) && in_array(substr($line[$i2],2,1),$datesplit)) $ok = 1;
+		elseif (is_numeric(substr($line[$i2],0,4)) && is_numeric(substr($line[$i2],5,2)) && in_array(substr($line[$i2],4,1),$datesplit)) $ok = 1;
 		if ($ok) {
-			$newLine[$y] = $tmp;
+			$newLine[$y] = $tmp."\n";
 			$tmp = '';
 			$y++;
 		}
