@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/regnskabsaar.php --- ver 4.1.1 --- 2025-05-03 --
+// --- systemdata/regnskabsaar.php --- ver 4.1.1 --- 2025-09-03 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,6 +33,7 @@
 // 20220501 PHR - Corrected error in set all.
 // 20240524 PHR - Fiscal year can now be deleted.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
+// 20250903 PHR	Changed 5 year calculation to include months.
 
 @session_start();
 $s_id = session_id();
@@ -149,7 +150,7 @@ while ($row = db_fetch_array($query)) {
 	print "<td> $row[box2]<br></td>";
 	print "<td> $row[box3]<br></td>";
 	print "<td> $row[box4]<br></td>";
-	(date('Y') - $row['box4'] > 5)?$showDelete=1:$showDelete=0;
+	(date('Ym') - $row['box4'].$row['box3'] > 500)?$showDelete=1:$showDelete=0;
 	if ($deleted[$x]) {
 		print "<td> Slettet</td><td>$deleteDate[$x]<br></td>";
 	} elseif ($row['kodenr'] != $regnaar && $row['box5'] == 'on') {
