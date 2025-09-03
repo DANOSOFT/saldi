@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/retLoen.php --- lap 4.1.1 --- 2025-03-05 ---
+// --- sager/loenIncludes/retLoen.php --- lap 4.1.1 --- 2025-09-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,9 +22,10 @@
 //
 // Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
-// 20230703 PHR New up/down height add on's was omitted in new note (seddel) whe denied (afvist) 
+// 20230703 PHR New up/down height add on's was omitted in new note (seddel) whe denied (afvist)
 // 20231005 PHR mentor and km now omittet on hoursalary (timeløn)
 // 20250305 PHR Error if no employes in includes 'dyrtid'note.
+// 20250903 PHR changed dkdecimal($sum) to $sum
 
 function ret_loen() {
 	global $brugernavn;
@@ -32,7 +33,10 @@ function ret_loen() {
 	global $sag_rettigheder;
 	global $overtid_50pct,$overtid_100pct;
 	global $mentor,$regnaar;
-	
+
+	if (!is_numeric($overtid_50pct))  $overtid_50pct  = 0;
+	if (!is_numeric($overtid_100pct)) $overtid_100pct = 0;
+
 	$a_sum=$afvis=$afvist=$afvist_pga=$afs=$afregnet=$afslut=$afsluttet=$ansatte=NULL;
 	$beskyttet=NULL;
 	$datoer=$decimaler=NULL;
@@ -45,22 +49,22 @@ function ret_loen() {
 	$retskur=array();
 	$s_loendateFra=$s_loendateTil=$sag_ref=$soeg=$skur_1=$skur_2=$skur_sats1=$skur_sats2=NULL;
 	$t50pct=$t100pct=$timeArt=$timer=$timersum=NULL;
-	
+
 	$id = $loen_nr = $opg_id = $sag_id = $telt_antal = 0;
-	
+
 	$a_pct = $fratraek = $hourTypes = array();
 
 	if ($luk=if_isset($_POST['luk'])) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
 		exit;
-	}	
+	}
 	$id=if_isset($_GET['id']);
 	transaktion('begin');
 	if ($gem=if_isset($_POST['gem'])|| $afslut=if_isset($_POST['afslut']) || $afvis=if_isset($_POST['afvis'])) {
 		# 20160830 ->
 		$afs=if_isset($_POST['afs']);
 		$gemt=if_isset($_POST['gemt']);
-#cho "Gemt $gemt";		
+#cho "Gemt $gemt";
 		if ($afslut)
 		{
 			$afs++;
@@ -148,6 +152,7 @@ function ret_loen() {
 		$medarb_nr=if_isset($_POST['medarb_nr']);
 		$medarb_navn=if_isset($_POST['medarb_navn']);
 		$sum=if_isset($_POST['sum'],0);
+#		$hiddenSum = if_isset($_POST['hiddenSum'],0);
 		$dksum=if_isset($_POST['dksum']);
 		$a_id=if_isset($_POST['a_id']);
 		$a_stk=if_isset($_POST['a_stk'],array());
@@ -297,7 +302,7 @@ function ret_loen() {
 		}
 		if (!$oprettet) $oprettet=date('U');
 		#		$loendate=usdate($loendato);
-		
+
 		/* Validering af lønindtastning */ #20150623-1
 		if (!$loendato || $loendato=="01-01-1970") {
 			$loendato="01-01-1970";
@@ -378,15 +383,15 @@ function ret_loen() {
 				for ($i=0;$i<count($ansat_id);$i++) {
 #cho __line__." $i $loen_date[$i] ".$loen_date[$i-1]." select * from loen where loendate='".usdate($loen_date[$i])."' and art = 'akktimer' and sag_id='$sag_id' and opg_id='$opg_id' and (master_id is NULL or master_id='0')<br>";
 					if ($loen_date[$i] && $r=db_fetch_array(db_select("select * from loen where loendate='".usdate($loen_date[$i])."' and art = 'akktimer' and sag_id='$sag_id' and opg_id='$opg_id' and (master_id is NULL or master_id='0')",__FILE__ . " linje " . __LINE__))) {
-#cho __line__." $i|$r[id]<br>";		
+#cho __line__." $i|$r[id]<br>";
 #						if ($i<1 || $loen_date[$i]!=$loen_date[$i-1]) { 20151215
 							$t=explode(chr(9),$timer);
 							$match=1;
-#cho __line__." $r[id] -> $match<br>";		
+#cho __line__." $r[id] -> $match<br>";
 							for ($n=0;$n<count($t);$n++) {
 								if ($loen_timer[$n]!=$t[$n]) $match=0;
 							}
-#cho __line__." $match<br>";		
+#cho __line__." $match<br>";
 							if ($match) {
 								$qtxt="update loen set master_id='$id' where id='$r[id]'";
 #cho __line__." $qtxt<br>"	;
@@ -481,8 +486,8 @@ function ret_loen() {
 				$op_30m[$x]  = (int)str_replace(",",".",if_isset($op_30m[$x],0));
 				$ned_30m[$x] = (int)str_replace(",",".",if_isset($ned_30m[$x],0));
 
-#cho "$enhed_id[$x] Op $op[$x] Ned $ned[$x]<br>";				
-				
+#cho "$enhed_id[$x] Op $op[$x] Ned $ned[$x]<br>";
+
 #				$op[$x]*=1;$ned[$x]*=1;$op_25[$x]*=1;$ned_25[$x]*=1;$op_40[$x]*=1;$ned_40[$x]*=1;$op_60[$x]*=1;$ned_60[$x]*=1;$op_30m[$x]*=1;$ned_30m[$x]*=1;$pris_op[$x]*=1;$pris_ned[$x]*=1;
 				$pris_op[$x]  = afrund($pris_op[$x],2);
 				$pris_ned[$x]  = afrund($pris_ned[$x],2);
@@ -592,7 +597,7 @@ function ret_loen() {
 			transaktion('commit');
 			print "<BODY onLoad=\"javascript:alert('Sedlen er godkendt!')\">";
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=loen.php?funktion=loenliste\">";
-		}		
+		}
 	} elseif ($slet=if_isset($_POST['slet'])) {
 		if ($id=if_isset($_POST['id'])) {
 			db_modify("delete from loen where id='$id'",__FILE__ . " linje " . __LINE__);
@@ -645,7 +650,7 @@ function ret_loen() {
 			$skur2     = array();
 			$korsel    = NULL;
 #			$fordeling = NULL;
-		} else { 
+		} else {
 			$ansatte   = $r['ansatte'];
 			$datoer    = $r['datoer'];
 			$fordeling = $r['fordeling'];
@@ -709,20 +714,20 @@ function ret_loen() {
 	}
 
 	if ($loen_art=='akk_afr' && $sag_id && !$afsluttet) {
-	## 20130301 Finder ikke afvist selvom afvist er '' - derfor dette.	
+	## 20130301 Finder ikke afvist selvom afvist er '' - derfor dette.
 #		if ($opg_id) $qtxt="select * from loen where sag_id = '$sag_id' and opg_id='$opg_id' and art='akktimer' and afvist='' and (master_id='$id' or master_id=0 or master_id is NULL) and id != '$id' order by loendate";
 #		else $qtxt="select * from loen where sag_id = '$sag_id' and kategori = '$listevalg' and art='akktimer' and afsluttet='' and afvist='' and  and id != '$id' order by loendate";
 		#20131003 tilføjet and opg_id='$opg_id'
 		$qtxt="select * from loen where sag_id = '$sag_id' and opg_id='$opg_id' and art='akktimer' and id != '$id' and (master_id='$id' or master_id='0' or master_id is NULL) order by loendate";
-#cho "$qtxt<br>";
+if ($brugernavn == 'saldi') echo "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		$y;
 		while ($r=db_fetch_array($q)) {
-#cho "ID $r[id]<br>";
+if ($brugernavn == 'saldi') echo "ID $r[id]<br>";
 		#cho "(".!trim($r['afvist'])." and (".!trim($r['afsluttet'])," || ".$r['opg_id']."==$opg_id))";
-			if (!trim($r['afvist']) and ((!trim($r['afsluttet']) and $r['kategori']==$listevalg) || $r['opg_id']==$opg_id)) {	## 20130301 Query finder ikke afvist selvom afvist er '' - derfor dette.	
-# 			if (!trim($r['afvist']) and !trim($r['afsluttet']) and $r['opg_id']==$opg_id)) {	## 20130301 Query finder ikke afvist selvom afvist er '' - derfor dette.	
-				if ($ansatte){ # 20141103 
+			if (!trim($r['afvist']) and ((!trim($r['afsluttet']) and $r['kategori']==$listevalg) || $r['opg_id']==$opg_id)) {	## 20130301 Query finder ikke afvist selvom afvist er '' - derfor dette.
+# 			if (!trim($r['afvist']) and !trim($r['afsluttet']) and $r['opg_id']==$opg_id)) {	## 20130301 Query finder ikke afvist selvom afvist er '' - derfor dette.
+				if ($ansatte){ # 20141103
 					$ansatte.=   chr(9).$r['ansatte'];
 					$fordeling.= chr(9).$r['fordeling'];
 					$loen.=      chr(9).$r['loen'];
@@ -750,15 +755,18 @@ function ret_loen() {
 					list($k1,$km_sats,$km_fra) = explode("|",$r['korsel']);
 					$km = $k1;
 				}
-				for($x=0;$x<=substr_count($r['ansatte'],chr(9));$x++) ($ldate)?$ldate.=chr(9).$r['loendate']:$ldate=$r['loendate'];
+				for($x=0;$x<=substr_count($r['ansatte'],chr(9));$x++) {
+if ($brugernavn == 'saldi') echo "$r[loendate]<br>";
+					($ldate)?$ldate.=chr(9).$r['loendate']:$ldate=$r['loendate'];
+				}
 				$tmp=array(); #20131003 + næste 4 linjer
 				$tmp=explode(chr(9),$r['ansatte']);
-				for($x=0;$x<count($tmp);$x++) { 
+				for($x=0;$x<count($tmp);$x++) {
 					($akk_nr)?$akk_nr.=chr(9).$r['nummer']:$akk_nr=$r['nummer'];
 				}
 
 			}
-			#			$tmp=	
+			#			$tmp=
 		}
 		if ($ansatte) {
 			$akkord_nr=explode(chr(9),$akk_nr); #20131003
@@ -813,7 +821,7 @@ function ret_loen() {
 	if ($loen_art=='akk_afr' || $loen_art=='akkord') {
 		$q=db_select("SELECT * FROM loen_enheder WHERE loen_id = '$id'",__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			if (!in_array($r['vare_id'],$aa_v_id) || $r['vare_id']<0) { #20130607 
+			if (!in_array($r['vare_id'],$aa_v_id) || $r['vare_id']<0) { #20130607
 				if ($r['vare_id']) $aa_v_id[$x]=$r['vare_id'];
 				$aa_sum+=($r['op']*$r['pris_op']);
 				$aa_sum+=($r['op_25']*$r['pris_op']*0.25);
@@ -835,7 +843,7 @@ function ret_loen() {
 				$aa_sum+=($r['ned_30m']*$r['pris_ned']*0.1);
 				$x++;
 			} else db_modify("delete from loen_enheder WHERE id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-			
+
 #cho "$r[vare_id] || $r[tekst] $r[op] $r[ned]<br>";
 #cho "$r[op]*$r[pris_op] | $r[ned]*$r[pris_ned] |".$r['op']*$r['pris_op']."|".$r['ned']*$r['pris_ned']."| aa_sum $aa_sum<br>";
 		}
@@ -850,7 +858,7 @@ function ret_loen() {
 		$sag_nr   = 0;
 		$sag_addr = NULL;
 	}
-	
+
 	$x=0;
 	$qtxt="select * from settings where var_grp='casePayment'";
 	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -880,7 +888,7 @@ function ret_loen() {
 	($afsluttet)?$status="Afventer godk.":$status="Under indtast.";
 	if($godkendt)$status="Godkendt";
 	if($afvist)$status="Afvist";
-	
+
 	$y=0;
 #	$q=db_select("select id,kodenr,art,box1 from grupper where art ='V_CAT' order by box1",__FILE__ . " linje " . __LINE__);
 #	while ($r=db_fetch_array($q)) {
@@ -904,12 +912,12 @@ function ret_loen() {
 
 	$antal_cat=$y;
 	$datotext_error = $datotext_errortxt = NULL;
-	if($loendate=='1970-01-01') { 
+	if($loendate=='1970-01-01') {
 		$loendate='';
 		$loendato='';
 		$datotext_errortxt="<span style=\"color: red;\">Dato ikke udfyld</span>";
 		$datotext_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
-	} else { 
+	} else {
 /*
 		$weekdays = array('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday');
 		$ugedage  = array('Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag','Søndag');
@@ -931,14 +939,14 @@ function ret_loen() {
 			);
 			$fmt->setPattern('EEEE d. MMMM y');
 			$loen_datotext = $fmt->format(new DateTime($loendate));
-#			if ($db_encode=='UTF8') $loen_datotext=utf8_encode($loen_datotext); 
+#			if ($db_encode=='UTF8') $loen_datotext=utf8_encode($loen_datotext);
 
 			$dato = date('d-m-y');
 			$tid = date('H:i');
 		}
 	}
 	/* Validering når lønseddel indlæses */ #20150623-1
-	if (strstr($loen_art,'akk') && !$sag_nr) { 
+	if (strstr($loen_art,'akk') && !$sag_nr) {
 		$sagsnr_errortxt="<span style=\"color: red;\">Sagsnr ikke valgt</span>";
 		$sagsnr_error="style=\"border: 1px solid red;-webkit-padding-before: 1px;-webkit-padding-after: 1px;-webkit-padding-start: 1px;-webkit-padding-end: 1px;\"";
 	} else {
@@ -975,7 +983,7 @@ function ret_loen() {
 		$loentext_errortxt=NULL;
 		$loentext_error=NULL;
 	}
-	
+
 #######################################
 	print "<div id=\"printableArea\">\n";
 	print "<form name=\"loen\" action=\"loen.php?funktion=ret_loen\" method=\"post\">
@@ -999,8 +1007,8 @@ function ret_loen() {
 		}
 		for($x=0;$x<count($a_id);$x++) print "<input type=\"hidden\" name=\"a_id[$x]\" value=\"$a_id[$x]\">";
 		for ($x=0;$x<count($ansat_id);$x++) {
-			print "<input type=\"hidden\" name=\"ansat_id[$x]\" value=\"$ansat_id[$x]\">"; 
-			# print "<input type=\"hidden\" name=\"loen_id[$x]\" value=\"$loen_id[$x]\">"; 
+			print "<input type=\"hidden\" name=\"ansat_id[$x]\" value=\"$ansat_id[$x]\">";
+			# print "<input type=\"hidden\" name=\"loen_id[$x]\" value=\"$loen_id[$x]\">";
 		}
 		if ($db=='stillads_14' || $db=='udvikling_2') {
 			$loenart_1=array('akkord','timer','torretid','plads','skole','sygdom','barn_syg','ferie');
@@ -1014,7 +1022,7 @@ function ret_loen() {
 				<div class=\"contentA\" style=\"#width: 758px;\">
 					<div class=\"row\">
 						<div class=\"leftSmall\">Dato: </div>
-						<div class=\"rightSmall\"><input name=\"loendato\" id=\"datepicker\" type=\"text\" $readonly class=\"textMedium printBorderNone\" $datotext_error value=\"$loendato\"/></div><div class=\"rightNoWidth\"><p>$loen_datotext $datotext_errortxt</p></div> 
+						<div class=\"rightSmall\"><input name=\"loendato\" id=\"datepicker\" type=\"text\" $readonly class=\"textMedium printBorderNone\" $datotext_error value=\"$loendato\"/></div><div class=\"rightNoWidth\"><p>$loen_datotext $datotext_errortxt</p></div>
 						<div class=\"clear\"></div>
 					</div>
 					<div class=\"row\">
@@ -1064,19 +1072,19 @@ function ret_loen() {
 									if (!$listevalg) print "<option value=\"0\">Vælg type</option>";
 									for ($y=0;$y<$antal_cat;$y++) {
 										if ($cat_id[$y]==$listevalg) print "<option value=$cat_id[$y]>$cat_navn[$y]</option>";
-									}						  
+									}
 									if (!$readonly) {
 										for ($y=0;$y<$antal_cat;$y++) {
 											if ($cat_id[$y]!=$listevalg) print "<option value=$cat_id[$y]>$cat_navn[$y]</option>";
-										}						  
+										}
 									}
 								print "</select>
 							</div>
 							<div class=\"clear\"></div></div>";
-						} 
+						}
 						print "<input type=\"hidden\" name=\"listevalg\" value=\"$listevalg\">";
 #					print "</div>";
-					if ($loen_art!='sygdom' && $loen_art!='barn_syg' &&  $loen_art!='skole' &&  $loen_art!='plads' && $loen_art!='ferie') { #20140627 
+					if ($loen_art!='sygdom' && $loen_art!='barn_syg' &&  $loen_art!='skole' &&  $loen_art!='plads' && $loen_art!='ferie') { #20140627
 					if (!$sag_nr) $sag_nr = NULL;
 					print "<div class=\"row\">
 							<div class=\"leftSmall\">Sag:</div>
@@ -1086,16 +1094,16 @@ function ret_loen() {
 							<!--<div class=\"rightMedium\"><p id=\"message\">Ingen resultat fundet</p></div>-->
 							<div class=\"clear\"></div>
 						</div>";
-						if ($sag_id && $opgave_id) {	
+						if ($sag_id && $opgave_id) {
 							print "<div class=\"row\">
 								<div class=\"leftSmall\">Opgave:</div>
 								<div class=\"rightNoWidth\"><select $readonly $opgnr_error name=\"opg_id\" class=\"printSelect2\">";
 								for ($x=0;$x<count($opgave_id);$x++) {
-									if ($opg_id==$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>"; 
+									if ($opg_id==$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>";
 								}
 								if (!$opg_id) print "<option value=\"0\">&nbsp;</option>";
 								for ($x=0;$x<count($opgave_id);$x++) {
-									if ($opg_id!=$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>"; 
+									if ($opg_id!=$opgave_id[$x]) print "<option value=\"$opgave_id[$x]\">$opgave_nr[$x]: $opgave_beskrivelse[$x]</option>";
 								}
 								if ($opg_id) print "<option opg_id=\"0\">&nbsp;</option>";
 								print "</select></div>
@@ -1138,7 +1146,7 @@ function ret_loen() {
 					}
 					// Her er det kun de nye sedler efter de er blevet afvist #20161031
 					// ----------------------------------
-					if ($afvist_pga && !$afvist) { 
+					if ($afvist_pga && !$afvist) {
 						print "<div class=\"row\">
 							<div class=\"leftSmall\"><i>Afvist pga.:</i></div>";
 							print "<div class=\"right\"><i style=\"color: #cd3300;padding-left: 4px;\">$afvist_pga</i></div>
@@ -1153,9 +1161,9 @@ function ret_loen() {
 						<tr>
 							<td><b>Oprettet:</b></td><td>d.".date("d-m-Y",$oprettet)." kl. ".date("H:i",$oprettet)."</td>
 							<td><b>af:</b> $oprettet_af</td>
-							<td><b>Løbenr.:&nbsp;</b>$loen_nr</td>  
+							<td><b>Løbenr.:&nbsp;</b>$loen_nr</td>
 							<td><b>Status:&nbsp;</b>$status</td>
-							
+
 						</tr>";
 					if ($afsluttet) {
 						print "<tr><td><b>Overført:</b></td><td>d.".date("d-m-Y",$afsluttet)." kl. ".date("H:i",$afsluttet)."</td>
@@ -1164,7 +1172,7 @@ function ret_loen() {
 					if ($godkendt && !$afvist) { #20170524 Tilføjet '&& !$afvist'
 						print "<tr><td><b>Godkendt:</b></td><td>d.".date("d-m-Y",$godkendt)." kl. ".date("H:i",$godkendt)."</td>
 							<td><b>af:</b> $godkendt_af</td>";
- 							if ($master_nr) print "<td><b>Afr. på&nbsp; : </b>$master_nr</td>"; #20151215 
+ 							if ($master_nr) print "<td><b>Afr. på&nbsp; : </b>$master_nr</td>"; #20151215
 							print "</tr>";
 					}
 					if ($afvist) {
@@ -1181,7 +1189,7 @@ function ret_loen() {
 						if ($loen_art=='akk_afr') print "<th class=\"alignLeft\">Dato</th>";
 						print "<th class=\"alignLeft\">Nr</th>
 						<th class=\"alignLeft\">Navn</th>";
-						if ($loen_art=='timer') print "<th title='Anvendes hvis der anvendes anden sats end medarbejderens timeløn'>Type</th>"; 
+						if ($loen_art=='timer') print "<th title='Anvendes hvis der anvendes anden sats end medarbejderens timeløn'>Type</th>";
 						if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') print "<th>Timer</th>";
 						if ($loen_art=='akk_afr'||$loen_art=='akktimer'||$loen_art=='akkord'||$loen_art=='timer') {
 							print "<th>50%</th>
@@ -1204,7 +1212,7 @@ function ret_loen() {
 					</tr>
 					</thead>
 				<tbody class='akkordTableBody akkordTableBorderAll'>\n";
-				
+
 				$l_timer=0;
 				for($x=0;$x<=count($ansat_id);$x++) {
 #cho __line__." $loen_timer[$x]<br>";
@@ -1246,31 +1254,32 @@ function ret_loen() {
 					elseif ($loen_skur1[$x]>0) $l_skur1[$x]="checked='checked'";
 					$l_skur2[$x]=NULL;
 					if (!isset($loen_skur2[$x]) || !$loen_skur2[$x]) $loen_skur2[$x]=0;
-					elseif ($loen_skur2[$x]>0) $l_skur2[$x]="checked='checked'"; 
+					elseif ($loen_skur2[$x]>0) $l_skur2[$x]="checked='checked'";
 #					$l_mentor[$x]=NULL;
 #					if (!isset($loen_mentor[$x])) $loen_mentor[$x]=0;
-#					elseif ($loen_mentor[$x]>0) $l_mentor[$x]="checked='checked'"; 
+#					elseif ($loen_mentor[$x]>0) $l_mentor[$x]="checked='checked'";
 					$loen_mentor[$x] = (float)if_isset($loen_mentor[$x],0);
 					$loen_km[$x] = (float)if_isset($loen_km[$x],0);
 					if (!$afsluttet && $ansat_id[$x]) {
 						if ($loen_art=='sygdom') $loen_loen[$x]=$sygdom_sats;
-						elseif ($loen_art=='barn_syg') $loen_loen[$x]=$sygdom_sats;	
+						elseif ($loen_art=='barn_syg') $loen_loen[$x]=$sygdom_sats;
 						elseif ($loen_art=='skole') $loen_loen[$x]=$skole_sats;
 						elseif ($loen_art=='plads') $loen_loen[$x]=$plads_sats;
 						elseif ($loen_art=='timer') {
 							if ( $loen_timeArt[$x] ) {
 								for ( $h=0; $h < count($hourTypes); $h++) {
 									if ( $loen_timeArt[$x] == $hourTypes[$h]) $loen_loen[$x]=$hourValue[$h];
-								}	
+								}
 							} else $loen_loen[$x]=$medarb_loen[$x];#+$medarb_extraloen[$x];
 						} else $loen_loen[$x]=$medarb_extraloen[$x];
 					}
-					if (!is_numeric($loen_loen[$x]))  	$loen_loen[$x]  = 0;
+					if (!is_numeric($loen_loen[$x]))   $loen_loen[$x]   = 0;
 					if (!is_numeric($loen_timer[$x]))  $loen_timer[$x]  = 0;
+					if (!is_numeric($loen_50pct[$x]))  $loen_50pct[$x]  = 0;
 					if (!is_numeric($loen_100pct[$x])) $loen_100pct[$x] = 0;
 					$loen_mentor[$x] = (float)$loen_mentor[$x];
 
-					if (!isset($skur1[$x])) $skur1[$x] = 0;	
+					if (!isset($skur1[$x])) $skur1[$x] = 0;
 					if (!isset($skur2[$x])) $skur2[$x] = 0;
 
 					$t_belob[$x] =
@@ -1291,7 +1300,7 @@ function ret_loen() {
 						$tjek=0;
 						$qtxt = "select * from loen where (art='akktimer' or art='akkord' or art='timer') ";
 						$qtxt.= "and loendate='$loen_date[$x]' and nummer < '$loen_nr' and afvist = '' order by id";
-						$q=db_select($qtxt,__FILE__ . " linje " . __LINE__); # finder hvormeget kørsel personen har haft samme dag. (incl aktuelle seddel). 
+						$q=db_select($qtxt,__FILE__ . " linje " . __LINE__); # finder hvormeget kørsel personen har haft samme dag. (incl aktuelle seddel).
 						while ($r=db_fetch_array($q)) {
 							$a=explode(chr(9),$r['ansatte']);
 							if (in_array($ansat_id[$x],$a)) {
@@ -1308,13 +1317,13 @@ function ret_loen() {
 							if ($km_fra<=$loen_km[$x]) {
 								$fratraek[$x]=$km_fra;
 							}	else $fratraek[$x]=$loen_km[$x];
-						} elseif ($t_km-$loen_km[$x]<$km_fra) $fratraek[$x]=$km_fra-$t_km; # 20150928 
+						} elseif ($t_km-$loen_km[$x]<$km_fra) $fratraek[$x]=$km_fra-$t_km; # 20150928
 						if ($fratraek[$x]<0) $fratraek[$x]=0;
 					}
-					$fratraek[$x] = if_isset($fratraek[$x],0); 
+					if (!isset($fratraek[$x])) $fratraek[$x] = 0;
 					(float)$km_sats;
 					if (!$km_sats) $km_sats = 0;
-					if ($loen_km[$x] >= $fratraek[$x]) $loen_sum[$x]+=($loen_km[$x]-$fratraek[$x])*$km_sats; 
+					if ($loen_km[$x] >= $fratraek[$x]) $loen_sum[$x]+=($loen_km[$x]-$fratraek[$x])*$km_sats;
 					else $fratraek[$x]=$loen_km[$x]; # 20151009
 					if ($x<=count($ansat_id)) $sum+=$loen_sum[$x];
 					if ($x<=count($ansat_id)) $timersum += $loen_timer[$x]; # 20160819
@@ -1354,23 +1363,23 @@ function ret_loen() {
 						if ($loen_mentor[$x]  == 0.00)  $loen_mentor[$x] = 0;
 
 						if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') {
-							print "<td class=\"alignRight\"><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_timer[$x]\" 
+							print "<td class=\"alignRight\"><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_timer[$x]\"
 								class=\"zeroValue alignRight printBorderNone\" value=\"". str_replace(".",",",$loen_timer[$x]) ."\"
 								style=\"width:33px;\"></td>\n";
 						}
 						if ($loen_art=='akk_afr'||$loen_art=='akktimer'||$loen_art=='akkord'||$loen_art=='timer') {
-							print "<td><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_50pct[$x]\" 
+							print "<td><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_50pct[$x]\"
 								class=\"alignRight printBorderNone\" value=\"". str_replace(".",",",$loen_50pct[$x]) ."\"
 								style=\"width:33px;\"></td>";
-							print "<td><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_100pct[$x]\" 
+							print "<td><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"loen_100pct[$x]\"
 								class=\"alignRight printBorderNone\" value=\"". str_replace(".",",",$loen_100pct[$x]) ."\"
 								style=\"width:33px;\"></td>\n";
 							if ($beskyttet) { #($beskyttet || $retskur[$x])
-								print "<td class='alignCenter'><input name='skur1[$x]' disabled='disabled' 
+								print "<td class='alignCenter'><input name='skur1[$x]' disabled='disabled'
 									type='checkbox' $l_skur1[$x]></td>";
-								print "<td class='alignCenter'><input name='skur2[$x]' disabled='disabled' 
+								print "<td class='alignCenter'><input name='skur2[$x]' disabled='disabled'
 									type='checkbox' $l_skur2[$x]></td>\n";
-#								print "<td class='alignCenter'><input name='loen_mentor[$x]' disabled='disabled' 
+#								print "<td class='alignCenter'><input name='loen_mentor[$x]' disabled='disabled'
 #									type='checkbox' $l_mentor[$x]></td>\n";
 							} else {
 								print "<td class=\"alignCenter\"><input name=\"skur1[$x]\" type=\"checkbox\" $l_skur1[$x]></td>";
@@ -1398,7 +1407,7 @@ function ret_loen() {
 //						<!--<td><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"fordel_belob[$x]\" class=\"alignRight\" value=\"".dkdecimal($fordel_belob[$x])."\" style=\"width:60px;\"></td>-->
 						if ($loen_art=='aconto' || $loen_art=='regulering') print "<td class=\"alignRight\" ><input type=\"text\" $beskyttet placeholder=\"0,00\" name=\"dksum\" class=\"alignRight printBorderNone\" value=\"".dkdecimal($sum,2)."\" style=\"width:70px;\">\n";
 						elseif ($loen_art!='ferie') {
-						
+
 						if($hideSalary && $loen_art == 'timer'){
 							print "<td class=\"alignRight\" ><input type=\"text\" readonly=\"readonly\" name=\"hideSalary2\" class=\"alignRight placeholderLoen printBorderNone\" value=\"\" disabled=\"disabled\" style=\"width:50px;\">\n";
 							print "<input type=\"hidden\" name=\"loen_sum[$x]\" value=\"".dkdecimal($loen_sum[$x],2)."\">\n";
@@ -1417,22 +1426,22 @@ function ret_loen() {
 						}
 #						<!--<td><button class=\"xmark delRow \"></button></td>-->
 					print "</td></tr>\n";
-					
+
 				}
 				print "</tbody>\n";
 				if ($loen_art!='aconto' && $loen_art!='regulering' && $loen_art!='ferie') { # 20140627,20160819
 					print "<tbody class=\"akkordTableBody akkordTableBorderBottom\">";
-					if ($loen_art=='akktimer' || $loen_art=='akkord') {$colspan1=2;$colspan2=9;} 
-					elseif ($loen_art=='akk_afr' || $loen_art=='timer') {$colspan1=3;$colspan2=10;} 
+					if ($loen_art=='akktimer' || $loen_art=='akkord') {$colspan1=2;$colspan2=9;}
+					elseif ($loen_art=='akk_afr' || $loen_art=='timer') {$colspan1=3;$colspan2=10;}
 					else {$colspan1=2;$colspan2=1;}
-					
+
 					if($hideSalary && $loen_art == 'timer'){
 							print "<tr><td colspan=\"1\"><b>Sum</b></td>
 								<td class=\"alignRight\" colspan=\"$colspan1\"><b>". str_replace(".",",",$timersum). "</b></td>
 								<td class=\"alignRight\" colspan=\"$colspan2\">
 									<input type=\"hidden\" name=\"hiddenSum\" value=\"$sum\">
 								</td>";
-							print "<input type=\"hidden\" name=\"sum\" value=\"".dkdecimal($sum,2)."\">\n";
+								print "<input type=\"hidden\" name=\"sum\" value=\"".$sum."\">\n"; #20250903
 							}
 							else {
 							print "<tr><td colspan=\"1\"><b>Sum</b></td>
@@ -1441,7 +1450,7 @@ function ret_loen() {
 								<input type=\"hidden\" name=\"sum\" value=\"$sum\">
 							</td>";
 							}
-				
+
 					print "</tbody>";
 					//print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">";
 				}
@@ -1454,7 +1463,7 @@ function ret_loen() {
 #						<td><button class=\"cross addRow\" ></button></td>
 #					</tr>
 #				</tbody> -->
-		print "</table>  
+		print "</table>
 		</div><!-- end of content -->";
 		if ($godkendt && $loen_art == 'akkord') $sum = 0; # else sum is doubled
 		print "<div class=\"content link\">
@@ -1493,21 +1502,21 @@ function ret_loen() {
 							<th>Ned</th>
 							</tr>
 					</thead>";
-					
-				print "<tbody>"; 
+
+				print "<tbody>";
 				include('loenIncludes/visListe.php');
 				$sum=vis_liste($id,$listevalg,$afsluttet,$godkendt,$telt_antal);
 				print "<tr>
 					<td colspan=\"13\" class=\"tableSagerBorder\"><b>Lønlinjer ialt:</b></td>
-					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>						
+					<td colspan=\"2\" align=\"right\" class=\"tableSagerBorder\" style=\"padding-right: 1px;\"><b>".dkdecimal($sum,2)."</b></td>
 				</tr>
 			</tbody>
-			</table>"; 
+			</table>";
 			}
 			print "</div><!-- end of content -->";
 
 				if ($loen_art=='akk_afr' || $loen_art=='akkord') {
-					print "<div class=\"content\">				 
+					print "<div class=\"content\">
 						<hr>
 						<h3>Andet</h3>
 						<table class=\"akkordTable andetTable\">
@@ -1522,7 +1531,7 @@ function ret_loen() {
 									</tr>
 								</thead>
 								<tbody class=\"akkordTableBody akkordTableBorderAll\">";
-								$a_sum=0;	
+								$a_sum=0;
 								for($x=0;$x<=count($a_id);$x++) { # <= is as it must be to get an empty line.
 									if (!isset($a_stk[$x])) $a_stk[$x]=NULL;
 									if (!isset($a_pris[$x])) $a_pris[$x]=NULL;
@@ -1532,16 +1541,16 @@ function ret_loen() {
 									$a_sum+=$a_linjesum[$x];
 #									$a_id[$x] = if_isset($a_id[$x],NULL);
 									print "<tr>
-										<td><input type=\"text\" $readonly style=\"width:36px; text-align: right;\" 
+										<td><input type=\"text\" $readonly style=\"width:36px; text-align: right;\"
 										class=\"printBorderNone\" name=\"a_stk[$x]\" value=\"".str_replace(".",",",$a_stk[$x])."\"></td>
-										<td><input type=\"text\" $readonly 
-										style=\"width:596px; text-align: left;\" 
+										<td><input type=\"text\" $readonly
+										style=\"width:596px; text-align: left;\"
 										class=\"printBorderNone\" name=\"a_txt[$x]\" value=\"$a_txt[$x]\"></td>
-										<td><input type=\"text\" $readonly 
-										style=\"width:76px; text-align: right;\" class=\"printBorderNone\" placeholder=\"0,00\" 
+										<td><input type=\"text\" $readonly
+										style=\"width:76px; text-align: right;\" class=\"printBorderNone\" placeholder=\"0,00\"
 										name=\"a_pris[$x]\" value=\"".dkdecimal($a_pris[$x],2)."\"></td>";
-#										<!--<td><input type=\"text\" $readonly 
-#										style=\"width:76px; text-align: right;\" placeholder=\"100%\" 
+#										<!--<td><input type=\"text\" $readonly
+#										style=\"width:76px; text-align: right;\" placeholder=\"100%\"
 #										name=\"a_pct[$x]\" value=\"".str_replace(".",",",$a_pct[$x])."\"></td>-->
 									print "<td class=\"alignRight\">".dkdecimal($a_linjesum[$x],2);
 									if (isset($a_id[$x])) print "<input type=\"hidden\" name=\"a_id[$x]\" value=\"$a_id[$x]\">";
@@ -1561,7 +1570,7 @@ function ret_loen() {
 									</tr>
 									<tr>
 										<td colspan=\"3\"><b>Til fordeling:</b></td>
-										<td colspan=\"1\" class=\"alignRight\" style=\"#border-bottom: 3px double #444;\"><b>".dkdecimal($a_sum+$sum,2)."</b></td> 
+										<td colspan=\"1\" class=\"alignRight\" style=\"#border-bottom: 3px double #444;\"><b>".dkdecimal($a_sum+$sum,2)."</b></td>
 								</tr>
 								</tbody>
 						</table>
@@ -1573,28 +1582,28 @@ function ret_loen() {
 						if (!$afsluttet) { # 20140627
 							print "<input name=\"gem\" type=\"submit\" class=\"button gray medium\" value=\"Gem\" >";
 							if (!$sum && !$a_sum && $id) {
-								print "<input name=\"slet\" type=\"submit\" class=\"button gray medium textSpaceLarge\" 
+								print "<input name=\"slet\" type=\"submit\" class=\"button gray medium textSpaceLarge\"
 								value=\"Slet\" onclick=\"return confirm('Bekræft sletning')\">"; // Indsat $id, så slet først kommer frem efter der er trykket gem
 							}
 							print "<input name=\"luk\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Luk\">";
 							//if ((($loen_art && $loen_art!='akktimer') || $opg_id) && $sum) print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
-							if (($loen_art=='akktimer' || $loen_art=='akk_afr' || $loen_art=='akkord') 
+							if (($loen_art=='akktimer' || $loen_art=='akk_afr' || $loen_art=='akkord')
 							&& $sum && $loendato && $loen_tekst && ($opg_nr || ($sag_id && !$opgave_id)) && (!empty($medarb_nr[0]))) {
 								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
 							}
-							if (($loen_art=='timer' || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='kontor') 
-							&& $sum && $loendato && $loen_tekst && (!$sag_id || $opg_nr || ($sag_id && !$opgave_id)) 
+							if (($loen_art=='timer' || $loen_art=='aconto' || $loen_art=='regulering' || $loen_art=='kontor')
+							&& $sum && $loendato && $loen_tekst && (!$sag_id || $opg_nr || ($sag_id && !$opgave_id))
 							&& (!empty($medarb_nr[0]))) {
-								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" 
+								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\"
 								value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
 							}
-							if (($loen_art=='plads' || $loen_art=='sygdom' || $loen_art=='barn_syg' || $loen_art=='skole') 
+							if (($loen_art=='plads' || $loen_art=='sygdom' || $loen_art=='barn_syg' || $loen_art=='skole')
 							&& $sum && $loendato && (!empty($medarb_nr[0]))) {
-								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" 
+								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\"
 								value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
 							}
 							if ($loen_art=='ferie' && $feriefra && $ferietil && $loendato && (!empty($medarb_nr[0]))) {
-								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\" 
+								print "<input name=\"afslut\" type=\"submit\" class=\"button gray medium textSpaceLarge\"
 								value=\"Overfør\" onclick=\"return confirm('Bekræft overførsel')\">";
 							}
 							if ($afs) { #20160830
@@ -1615,16 +1624,16 @@ function ret_loen() {
 							print "<input name=\"godkend\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Godkend\" onclick=\"return confirm('Bekræft godkendelse')\">";
 							print "<input name=\"afvis\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Afvis\" onclick=\"return confirm('Bekræft afvisning')\">";
 						}
-						if (substr($sag_rettigheder,6,1) && $godkendt && !$afregnet && !$afvist) { #20170524 Tilføjet '&& !$afvist' 
+						if (substr($sag_rettigheder,6,1) && $godkendt && !$afregnet && !$afvist) { #20170524 Tilføjet '&& !$afvist'
 							print "<input name=\"afvis\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Afvis\" onclick=\"return confirm('Vil du afvise denne godkendte seddel???.')\">";
-#							print "<input name=\"tilbagefoer\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Tilbagef&oslash;r\" onclick=\"return confirm('Vil du tilbageføre denne seddel?')\">";						
+#							print "<input name=\"tilbagefoer\" type=\"submit\" class=\"button gray medium textSpaceLarge\" value=\"Tilbagef&oslash;r\" onclick=\"return confirm('Vil du tilbageføre denne seddel?')\">";
 						}
 						print "</div></div>
-					</form>";	
+					</form>";
 				if ($afvis && !$afvist_pga) {
 					$txt="Skriv årsag til afvisning og klik afvis igen!";
 					print "<BODY onLoad=\"javascript:alert('$txt')\">";
-				}	
+				}
 	print "</div><!-- end of printableArea -->";
 } # endfunc ret_loen
 
