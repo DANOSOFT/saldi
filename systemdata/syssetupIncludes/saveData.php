@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- systemdata/syssetupIncludes/saveData.php ---patch 4.1.0 ----2024-06-04 ---
+//--- systemdata/syssetupIncludes/saveData.php ---patch 4.1.1 ----2025-09-03 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,10 +22,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // -----------------------------------------------------------
 // 20240604 PHR PHP8
-
+// 20250903 PHR Definition of array $adr_konto_id
 if ($_POST){
 	$id=if_isset($_POST['id']);
 	$beskrivelse=if_isset($_POST['beskrivelse']);
@@ -122,6 +122,7 @@ if ($_POST){
 				$gl_smlkto=$r['box2'] ;
 				$z=0;
 				$gruppesum=0;
+				$adr_konto_id = array();
 				$qtxt="select id,kontonr from adresser where art = '".substr($art[$x],0,1)."' and gruppe='$kodenr[$x]'";
 				$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				while($r=db_fetch_array($q)){
