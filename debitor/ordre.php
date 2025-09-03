@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-08-19 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-09-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -198,6 +198,7 @@
 // 20250705 PHR $afd is now set if afd exist
 // 20250811 PHR Corrected wrong text numbers
 // 20250819 LOE $afd checked strictly before usage
+// 20250903 LOE Enabled orders to still works with account lookup when 'Offer' is active
 
 @session_start();
 $s_id=session_id();
@@ -283,6 +284,16 @@ if (isset($_POST['create_debtor'])) {
 	$grp=if_isset($_POST['grp']);
 	$ean=if_isset($_POST['ean']);
 	$betalingsbet=if_isset($_POST['betalingsbet'],'netto');
+
+	if(!$grp){ //if not checked, failed for new accounts. //20250903
+		if (!$grp) {
+			echo "<script>
+				alert('Group is required Goto: System->Settings->Debitor/Creditor Group');
+				window.location.href = '" . ($_SERVER['HTTP_REFERER'] ?? 'index.php') . "';
+			</script>";
+			exit;
+		}
+	}
   if ($betalingsbet == findtekst('370|Kontant',$sprog_id)) $betalingsbet = 'Kontant';
 	$betalingsdage=(int)if_isset($_POST['betalingsdage'],8);
 	$kontakt=if_isset($_POST['kontakt']);
@@ -2365,7 +2376,16 @@ if ($swap_account) {
       kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$kontakt,$email,$cvrnr,$ean,$betalingsbet,$betalingsdage);
     } elseif ((strstr($fokus,'kontonr'))&&(!$status || $hurtigfakt || $swap_account)) {
       kontoopslag($art,$sort,$fokus,$id,'','','','','','','','','','','','','');
-    }
+    // }elseif(!$hurtigfakt){
+	}elseif((strstr($fokus,'kontonr')) && $status == 1 && $art == 'DO'){
+		error_log("sort: $sort...........fokus: $fokus and artmmmmmmmmm: $art");
+		kontoopslag($art,$sort,$fokus,$id,'','','','','','','','','','','','','');
+		// echo "<script>
+		// 		alert('At least quick invoice is required Go to: System->Settings->Miscellaneous->Order related choices->Use fast invoices');
+		// 		window.location.href = '" . ($_SERVER['HTTP_REFERER'] ?? 'index.php') . "';
+		// 	</script>";
+		// 	exit;
+	}
   
 /*    
     if ((strstr($fokus,'firmanavn'))&&(!$id)) kontoopslag($art,$sort,$fokus,$id,$kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$kontakt);
