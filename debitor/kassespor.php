@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/kassespor.php -----patch 4.0.8 ----2023-09-07--------------
+// --- debitor/kassespor.php -----patch 4.1.1 ----2025-09-03--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20141119 PHR Tilføjet summer og bord
 // 20150305 PHR Tilføjet status.
@@ -47,6 +47,7 @@
 // 20230427 PHR Extendet cookie lifetime to 1 year.
 // 20230907 PHR PHP-8
 // 20243025 Sawaneh add rabat and gross profit columns
+// 20250903 PHR Added title for Bruttoavance
 
 ob_start();
 @session_start();
@@ -145,6 +146,8 @@ if ($logtid) {
 $tidspkt=date("U");
 
 $modulnr=2;
+
+$txt2694 = findtekst('2694|Bruttoavance',$sprog_id);
 
 if (!$sort) $sort = "tidspkt desc";
 elseif ($nysort==$sort) $sort=$sort." desc";
@@ -365,7 +368,7 @@ print "<th style='padding-top: 20px; width:100px; text-align:right'><b>" . findt
 if ($rabat_varenr && $vis_saet) {
     print "<th style='padding-top: 20px; width:100px; text-align:right'><b>Rabat</b></th>\n";
 }
-print "<th style='padding-top: 20px; width:100px; text-align:right'><b>BA</b></th>\n";
+print "<th style='padding-top: 20px; width:100px; text-align:right' title = '$txt2694'><b>BA</b></th>\n";
 print "<th style='width:30px;'></th>\n";
 print "</tr>\n";
 
