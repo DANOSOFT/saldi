@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-09-03 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-09-04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -198,7 +198,7 @@
 // 20250705 PHR $afd is now set if afd exist
 // 20250811 PHR Corrected wrong text numbers
 // 20250819 LOE $afd checked strictly before usage
-// 20250903 LOE Enabled orders to still works with account lookup when 'Offer' is active
+// 20250903 LOE Enabled order to still work with account lookup when 'Offer' is active
 
 @session_start();
 $s_id=session_id();
@@ -2377,14 +2377,15 @@ if ($swap_account) {
     } elseif ((strstr($fokus,'kontonr'))&&(!$status || $hurtigfakt || $swap_account)) {
       kontoopslag($art,$sort,$fokus,$id,'','','','','','','','','','','','','');
     // }elseif(!$hurtigfakt){
-	}elseif((strstr($fokus,'kontonr')) && $status == 1 && $art == 'DO'){
-		error_log("sort: $sort...........fokus: $fokus and artmmmmmmmmm: $art");
+	}elseif((strstr($fokus,'kontonr')) && ($status >= 1 && $status <= 3) && $art == 'DO'){
 		kontoopslag($art,$sort,$fokus,$id,'','','','','','','','','','','','','');
 		// echo "<script>
 		// 		alert('At least quick invoice is required Go to: System->Settings->Miscellaneous->Order related choices->Use fast invoices');
 		// 		window.location.href = '" . ($_SERVER['HTTP_REFERER'] ?? 'index.php') . "';
 		// 	</script>";
 		// 	exit;
+	}else{
+		error_log("sortxxxxxxxxxxx: $sort...........fokus: $fokus and artmmmmmmmmm: $art, id: $id, status: $status"); 
 	}
   
 /*    
