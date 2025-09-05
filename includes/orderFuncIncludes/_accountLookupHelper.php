@@ -70,6 +70,8 @@ const currentUrl = "{$currentUrl}";
 console.log("Current URL:", currentUrl);
 fokus = "{$fokus}";
 usedId = "{$id}";
+bgcolor = "{$bgcolor}";
+bgcolor5 = "{$bgcolor5}";
 
 // Footer control handlers
 document.addEventListener('DOMContentLoaded', () => {
@@ -191,8 +193,13 @@ function renderTable(entries) {
 
   if (noResultsForm) noResultsForm.style.display = 'none';
 
-  entries.forEach(function(entry) {
+   entries.forEach(function(entry, index) {
     const tr = document.createElement('tr');
+
+    // Alternate row background color using PHP-passed values
+    const rowColor = (index % 2 === 0) ? bgcolor : bgcolor5;
+    tr.style.backgroundColor = rowColor;
+
     tr.innerHTML =
       '<td><a href="ordre.php?fokus=' + fokus + '&id=' + usedId + '&konto_id=' + entry.id + '">' + entry.kontonr + '</a></td>' +
       '<td>' + entry.firmanavn + '</td>' +
@@ -203,6 +210,7 @@ function renderTable(entries) {
       '<td>' + entry.land + '</td>' +
       '<td>' + entry.kontakt + '</td>' +
       '<td>' + entry.tlf + '</td>';
+
     tbody.appendChild(tr);
   });
 }
