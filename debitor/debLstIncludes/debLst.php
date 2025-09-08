@@ -85,6 +85,7 @@ for($i=0;$i<$dgcount;$i++) {
 		if (strpos($sortering,' ')) {
 			list($a,$b) = explode(' ',$sortering);
 			if (is_array($a)) $sortering = 'kontonr';
+			if (is_array($b)) $sortering = $a;
 		}
 		if (strpos($sortering,'kontaktet desc')) $udv2.=' and adresser.kontaktet is not NULL';
 		$qtxt="select * from adresser where art = 'D' $udv2 order by $sortering";
