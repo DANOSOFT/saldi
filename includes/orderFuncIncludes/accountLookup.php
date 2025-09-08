@@ -76,9 +76,10 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 
     ####=====================================search functionality - input filter row
   	print "<table class='dataTable' cellpadding='1' cellspacing='1' border='0' width='100%' valign='top'>";
-	print "<thead>";
+	#print "<thead>";
 
-	
+	// Add ID to the thead so you can show/hide it
+	print "<thead id='headerAndFilterRows'>";
 
 	// Column headers
 	print "<tr>";
@@ -161,8 +162,20 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
             $x++;
             if($x>=1) break;
         }
+
+		
         if (!$x) {
-			
+
+			## No display of search boxes
+			 print "<script>
+				document.addEventListener('DOMContentLoaded', function() {
+					var header = document.getElementById('headerAndFilterRows');
+					if(header) {
+						header.style.display = 'none';
+					}
+				});
+			</script>";
+
 			# if no results found
 	     print "<tr id='noResultsForm' style='display:none;'>
          <td colspan='9' style='text-align: right; vertical-align: top;'>";
