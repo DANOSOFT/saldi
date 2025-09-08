@@ -72,13 +72,13 @@ if($terminal_print == 0){
 }
 
 // Fetch printserver
-$r = db_fetch_array(db_select("select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+$r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
 $x = $kasse - 1;
 $tmp = explode(chr(9), $r['box3']);
 $printserver = trim($tmp[$x]);
-if (!$printserver)
-	$printserver = 'localhost';
-if ($printserver == 'box' || $printserver == 'saldibox') {
+if (!$printserver) {
+  $printserver = 'localhost';
+} elseif ($printserver == 'box' || $printserver == 'saldibox') {
 	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
 	if ($fp = fopen($filnavn, 'r')) {
 		$printserver = trim(fgets($fp));
