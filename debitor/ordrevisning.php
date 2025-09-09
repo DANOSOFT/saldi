@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------debitor/ordrevisning.php-----lap 4.0.3-------2021.09.14-----------
+// --------debitor/ordrevisning.php-----lap 4.0.3-------2025.09.09-----------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2018.11.28	PHR Tilføjet kundegruppe som søgefelt
 // 2098.05.02	PHR Corrected error in first time '$vis_feltantal' 20190502
@@ -41,13 +41,17 @@ if (isset($_GET['valg'])) $valg=($_GET['valg']); //???
 else $valg="ordrer";
 
 if ($valg=="tilbud") {
-	$title=findtekst('545|Tilbudsvisning',$sprog_id);
+	#$title=findtekst('545|Tilbudsvisning',$sprog_id);
+	$title = 'Tilbudsvisning';
 } elseif ($valg=="ordrer") {
-	$title=findtekst('546|Ordrevisning',$sprog_id);
+	$title = 'Ordrevisning';
+	#$title=findtekst('546|Ordrevisning',$sprog_id);
 } elseif ($valg=="faktura") {
-	$title=findtekst('544|Fakturavisning', $sprog_id);
+	$title = 'Fakturavisning';
+	#$title=findtekst('544|Fakturavisning', $sprog_id);
 } else {
-	$title=findtekst('813|Visning', $sprog_id);
+	$title = 'Visning';
+	#$title=findtekst('813|Visning', $sprog_id);
 }
 
 $modulnr=6;
