@@ -42,7 +42,7 @@ $query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp
 $apiKey = db_fetch_array($query)["var_value"];
 include("../includes/online.php");
 include("../includes/topline_settings.php");
-include("../includes/row-hover-style.js.php");
+// include("../includes/row-hover-style.js.php");
 
 if (!isset ($_COOKIE['saldi_kladdeliste'])) $_COOKIE['saldi_kladdeliste'] = NULL;
 
@@ -162,7 +162,7 @@ else {
 	if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';
 }
 else {$linjebg=$bgcolor5; $color='#000000';}
-print "<tr bgcolor=\"$linjebg\">";
+print "<tr bgcolor=\"$linjebg\"  class='table-row-hover'>";
 if (($sort == 'id')&&(!$rf)) {print "<td width = 5%><b><a href=kladdeliste.php?sort=id&rf=desc&vis=$vis>Id</a></b></td>\n";}
 else {print "<td width = 5% title='".findtekst('1602|Klik her for at sortere på ID', $sprog_id)."'><b><a href=kladdeliste.php?sort=id&vis=$vis>ID</a></b></td>\n";}
 if (($sort == 'kladdedate')&&(!$rf)) {print "<td width = 10%><b><a href=kladdeliste.php?sort=kladdedate&rf=desc&vis=$vis>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";} //20210318
@@ -191,7 +191,7 @@ $tjek=0;
 		$kladde="kladde".$row['id'];
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
-		print "<tr bgcolor=\"$linjebg\">";
+		print "<tr bgcolor=\"$linjebg\"  class='table-row-hover' >";
 		if (strpos(' ',$row['tidspkt'])) list ($a,$b)=explode(" ",$row['tidspkt']);
 		elseif ($row['tidspkt']) $b=$row['tidspkt'];
 		else $b = 0;
@@ -241,7 +241,7 @@ $tjek=0;
 		$kladde="kladde".$row[id];
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
-		print "<tr bgcolor=\"$linjebg\">";
+		print "<tr bgcolor=\"$linjebg\" class='table-row-hover'>";
 		if (($tidspkt-($row[tidspkt])>3600)||($row[hvem]==$brugernavn)) {
 		if ($popup) print "<td  onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kladde=window.open('kassekladde.php?kladde_id=$row[id]&returside=kladdeliste.php','$kladde','".$jsvars."');$kladde.focus();\"><span style=\"text-decoration: underline;\">$row[id]</a></span></td>";
 		else print "<td><a href=kassekladde.php?tjek=$row[id]&kladde_id=$row[id]&returside=kladdeliste.php'>$row[id]</a></td>";
@@ -253,7 +253,7 @@ $tjek=0;
 		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td align = center>$row[bogfort]<br></td>";
-		// print "<td></td>";
+		print "<td></td>";
 		print "<td align='center'>";
 		if ($row['bogfort'] == '-') {
 			print "<button onclick=\"deleteKladde($row[id])\" style='
@@ -284,19 +284,22 @@ print "</td>";
 	$hr=$tjek;
 	while ($row = db_fetch_array($query)){
 		if ($hr==$tjek) {
-			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst('1089|Simulerede kladder', $sprog_id)."</b></td><td colspan=\"4\"><hr></td></tr>";
+			// print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst('1089|Simulerede kladder', $sprog_id)."</b></td><td colspan=\"4\"><hr></td></tr>";
+			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst('1089|Simulerede kladder', $sprog_id)."</b></td><td colspan=\"5\"><hr></td></tr>";
 		}
 		$tjek++;
 		$kladde="kladde".$row['id'];
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
-		print "<tr bgcolor=\"$linjebg\">";
+		print "<tr bgcolor=\"$linjebg\" class='table-row-hover'>";
 		if ($popup) print "<td  onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kladde=window.open('kassekladde.php?kladde_id=$row[id]&tjek=$row[id]&returside=kladdeliste.php','$kladde','".$jsvars."');$kladde.focus();\"><span style=\"text-decoration: underline;\">$row[id]</a></span></td>";
 		else print "<td><a href=kassekladde.php?kladde_id=$row[id]&tjek=$row[id]&returside=kladdeliste.php>$row[id]</a><br></td>";
 		$kladdedato=dkdato($row['kladdedate']);
 		print "<td>$kladdedato<br></td>";
 		print "<td>".htmlentities(stripslashes($row['oprettet_af']),ENT_QUOTES,$charset)."<br></td>";
 		print "<td>".htmlentities(stripslashes($row['kladdenote']),ENT_QUOTES,$charset)."<br></td>";
+		print "<td></td>";
+
 ## Da der ikke blev sat bogfringsdato foer ver. 0.23 skal det saettes hak ved kladder bogfrt fr denne version...
 		if ($row['bogforingsdate']){
 			$bogforingsdato=dkdato($row['bogforingsdate']);
@@ -304,7 +307,7 @@ print "</td>";
 		}
 		else {print "<td align = center>$row[bogfort]<br></td>";}
 		print "<td>$row[bogfort_af]<br></td>";
-        // print "<td></td>"; 
+        print "<td></td>"; 
 
 		print "</tr>";
 	}
@@ -312,13 +315,13 @@ print "</td>";
 	$hr=$tjek;
 	while ($row = db_fetch_array($query)){
 		if ($hr==$tjek) {
-			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst('1093|Bogførte kladder', $sprog_id)."</b></td><td colspan=\"4\"><hr></td></tr>";
+			print "<tr><td colspan=\"2\" align=\"center\"><b>".findtekst('1093|Bogførte kladder', $sprog_id)."</b></td><td colspan=\"5\"><hr></td></tr>";
 		}
 		$tjek++;
 		$kladde="kladde".$row['id'];
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 		else {$linjebg=$bgcolor5; $color='#000000';}
-		print "<tr bgcolor=\"$linjebg\">";
+		print "<tr bgcolor=\"$linjebg\" class='table-row-hover'>";
 		if ($popup) print "<td  onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:$kladde=window.open('kassekladde.php?kladde_id=$row[id]&returside=kladdeliste.php','$kladde','".$jsvars."');$kladde.focus();\"><span style=\"text-decoration: underline;\">$row[id]</a></span></td>";
 		else print "<td><a href=kassekladde.php?kladde_id=$row[id]&returside=kladdeliste.php>$row[id]</a><br></td>";
 		$kladdedato=dkdato($row['kladdedate']);
@@ -332,7 +335,7 @@ print "</td>";
 		}
 		else {print "<td align = center>$row[bogfort]<br></td>";}
 		print "<td>$row[bogfort_af]<br></td>";
-        // print "<td></td>";
+        print "<td></td>";
 
 		print "</tr>"; 
 	}
@@ -397,4 +400,137 @@ function deleteKladde(kladdeId) {
 
 include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("kladlist", $steps);
-?>
+
+print <<<HTML
+<style>
+.row-clickable:hover td:not(:last-child) {
+  background-color: #f9f9f9 !important;
+  outline: 2px solid #fff;
+}
+
+tr.header-row,
+tr.header-row td {
+  cursor: default !important;
+}
+
+tr.header-row:hover td {
+  cursor: default !important;
+}
+
+tr.nav-row,
+tr.nav-row:hover,
+tr.nav-row:hover td {
+  background-color: inherit !important;
+  cursor: default !important;
+}
+
+/* Button styling */
+.table-row-hover button,
+.hover-highlight button {
+  color: white !important;
+  border: none !important;
+  padding: 6px 10px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  font-size: 11px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  transition: background-color 0.2s ease !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+ 
+
+  const headerRgbColors = [
+    'rgb(17, 70, 145)', 
+    'rgba(17, 70, 145, 1)'
+  ];
+
+  document.querySelectorAll('table tr').forEach(row => {
+    const tds = Array.from(row.querySelectorAll('td'));
+    if (tds.length <= 1) return;
+
+    let isHeaderRow = false;
+
+    for (const td of tds) {
+      const inline = (td.getAttribute('style') || '').toLowerCase();
+      if (inline.includes('background-color') || inline.includes('border-radius')) {
+        isHeaderRow = true;
+        break;
+      }
+      const cs = window.getComputedStyle(td);
+      if (cs && cs.backgroundColor) {
+        const bg = cs.backgroundColor.replace(/\s+/g,'').toLowerCase();
+        for (const c of headerRgbColors) {
+          if (bg === c.replace(/\s+/g,'').toLowerCase()) {
+            isHeaderRow = true;
+            break;
+          }
+        }
+        if (isHeaderRow) break;
+      }
+    }
+
+    if (isHeaderRow) {
+      row.classList.add('header-row');
+      row.classList.remove('row-clickable', 'table-row-hover', 'hover-highlight');
+      row.dataset.saldiHeader = '1';
+      tds.forEach(td => {
+        td.style.cursor = 'default';
+      });
+    }
+  });
+
+  document.querySelectorAll('table tr').forEach(row => {
+    const tds = row.querySelectorAll('td');
+    if (tds.length <= 1) return;
+
+    if (row.dataset.saldiHeader === '1' || row.classList.contains('header-row')) {
+      row.style.cursor = 'default';
+      return;
+    }
+
+    if (row.offsetParent === null) return;
+
+    let targetHref = null;
+    const a = row.querySelector('a[href*="kassekladde.php"]');
+    if (a) {
+      const anchorInNestedTable = !!a.closest('table') && a.closest('table') !== row.closest('table');
+      if (!anchorInNestedTable) targetHref = a.getAttribute('href');
+      else return;
+    }
+
+    if (!targetHref) {
+      const onclickTd = Array.from(tds).find(td => td.getAttribute('onClick') || td.getAttribute('onclick'));
+      if (onclickTd) {
+        const onclick = onclickTd.getAttribute('onClick') || onclickTd.getAttribute('onclick') || '';
+        const match = onclick.match(/['"]([^'"]*kassekladde\.php[^'"]*)['"]/i);
+        if (match && match[1]) targetHref = match[1];
+      }
+    }
+
+    if (!targetHref) return;
+
+    try { targetHref = (new URL(targetHref, window.location.href)).href; } catch (e) {}
+
+    row.classList.add('row-clickable');
+    row.style.cursor = 'pointer';
+
+    row.addEventListener('click', function (ev) {
+      if (ev.target.closest('button') || ev.target.closest('a')) return;
+      window.location.href = targetHref;
+    });
+  });
+});
+</script>
+HTML;
+
+?>	
+
+
+
+
+
