@@ -63,6 +63,7 @@
 // 20231219 MSC - Copy pasted new design into code
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20250715 PHR Removed '//' at line above '/* saul ??'
+// 20250908 LOE Moved kontoosplag function to ../includes/kreditorOrderFuncIncludes/accountLookup.php
 @session_start();
 $s_id=session_id();
 
@@ -997,6 +998,8 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 ########################## OPSLAG / lookup ################################
 
 	if ($submit == 'lookup') {
+		include("../includes/kreditorOrderFuncIncludes/accountLookup.php");
+		
 		if ((strstr($fokus,'kontonr'))&&(!$id)) {kontoopslag($sort, $fokus, $id, $kontonr);}
 		if ((strstr($fokus,'firmanavn'))&&(!$id)) {kontoopslag($sort, $fokus, $id, $firmanavn);}
 		if ((strstr($fokus,'addr1'))&&(!$id)) {kontoopslag($sort, $fokus, $id, $addr1);}
@@ -1248,114 +1251,7 @@ function prepareSearchTerm($searchTerm) {
 		
 }# end function ordreside
 ######################################################################################################################################
-function kontoopslag($sort, $fokus, $id, $find){
 
-	global $bgcolor,$bgcolor5;
-	global $charset;
-	global $memu;
-	global $sprog_id;
-	global $x;
-
-	$linjebg = NULL;
-	$menu = if_isset($menu,NULL);
-	
- 	if ($menu=='T') {
- 		include_once '../includes/top_header.php';
- 		include_once '../includes/top_menu.php';
- 	}
- 	
-	if ($find) $find=str_replace("*","%",$find);
-
-	sidehoved($id, "../kreditor/ordre.php", "../kreditor/kreditorkort.php", $fokus, "Leverand&oslash;rordre $id");
-#	print"<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-#	print"<tr><td valign=\"top\">";
-print "<script>
-		document.addEventListener('DOMContentLoaded', function () {
-		var input = document.getElementById('table-search');
-		if (!input) return;
-
-		var selector = input.getAttribute('data-target');
-		var table = selector ? document.querySelector(selector) : document.querySelector('.js-filter-table');
-		if (!table) return;
-
-		function getAllRows() {
-			var rows = [];
-			if (table.tBodies && table.tBodies.length) {
-			for (var i = 0; i < table.tBodies.length; i++) {
-				rows = rows.concat([].slice.call(table.tBodies[i].rows));
-			}
-			} else {
-			rows = [].slice.call(table.querySelectorAll('tr'));
-			}
-			return rows;
-		}
-
-		function filter() {
-			var q = (input.value || '').toLowerCase();
-			var rows = getAllRows();
-
-			for (var i = 0; i < rows.length; i++) {
-			// always show the first row (header or special row)
-			if (i === 0) { rows[i].style.display = ''; continue; }
-
-			var text = (rows[i].innerText || rows[i].textContent || '').toLowerCase();
-			rows[i].style.display = (q === '' || text.indexOf(q) !== -1) ? '' : 'none';
-			}
-		}
-
-		input.addEventListener('input', filter);
-		filter();
-		});
-		</script>";
-	print "<input type='text' id='table-search' name='search' placeholder='Søgning'>";
-	print"<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='dataTable js-filter-table'>";
-	print"<tbody><tr>";
-	print"<td><b><a href=ordre.php?sort=kontonr&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('357|Kundenr.', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=firmanavn&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('138|Navn', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=addr1&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('648|Adresse', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=addr2&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('362|Adresse 2', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=postnr&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('36|Postnr.', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=bynavn&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('1055|By', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=land&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('364|Land', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=kontakt&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('632|Kontaktperson', $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=tlf&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('37|Telefon', $sprog_id)."</b></td>";
-	print" </tr>\n";
-
-
-	 $sort = if_isset($_GET['sort'],'firmanavn');
-	 if (!$sort) $sort = 'firmanavn';
-
-	 $qtxt = "select id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, tlf from adresser where art = 'K' ";
-	 if ($find) $qtxt.= "and $fokus like '$find' ";
-	 $qtxt.= "order by $sort";
-	 
-	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$kontonr=str_replace(" ","",$r['kontonr']);
-		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
-		else {$linjebg=$bgcolor5; $color='#000000';}
-		print "<tr bgcolor=\"$linjebg\">";
-		print "<td><a href=ordre.php?fokus=$fokus&id=$id&konto_id=$r[id]>$r[kontonr]</a></td>";
-		print "<td>".htmlentities($r['firmanavn'],ENT_COMPAT,$charset)."</td>";
-		print "<td>".htmlentities( $r['addr1'],ENT_COMPAT,$charset)."</td>";
-		print "<td>".htmlentities( $r['addr2'],ENT_COMPAT,$charset)."</td>";
-		print "<td> $r[postnr]</td>";
-		print "<td>".htmlentities( $r['bynavn'],ENT_COMPAT,$charset)."</td>";
-		print "<td> ".htmlentities($r['land'],ENT_COMPAT,$charset)."</td>";
-		print "<td>".htmlentities( $r['kontakt'],ENT_COMPAT,$charset)."</td>";
-		print "<td> $r[tlf]</td>";
-		print "</tr>\n";
-	}
-
-	print "</tbody></table></td></tr></tbody></table>";
-
-	if ($menu=='T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
-	}
-	exit;
-}
 ######################################################################################################################################
 function ansatopslag($sort, $fokus, $id){
 
