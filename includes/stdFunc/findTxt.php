@@ -2,6 +2,7 @@
 
  // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
  // 20250829 PHR Returns textId if table tekster doeesn't exist
+ // 20250909 LOE checks first that db functions exist and error log added
 if (!function_exists('findtekst')) {
 	function findtekst($textId, $languageID) {
 		
@@ -18,11 +19,24 @@ if (!function_exists('findtekst')) {
 			list($a,$b) = explode('|',$textId);
 			if (preg_match('/^[0-9]+$/', $a)) $textId = $a;
 		} #else $a = $textId;
-		$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
-		if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-			if ($b) return $b;
-			else return $textId;
+		 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tekster'";
+		// if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		// 	if ($b) return $b;
+		// 	else return $textId;
+		// }
+
+		########################
+		if (function_exists('db_fetch_array') && function_exists('db_select')) {
+			if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+				if ($b) return $b;
+				else return $textId;
+			}
+		} else {
+			// Handle the error gracefully if the function doesn't exist
+			error_log("Missing required database functions: db_fetch_array or db_select, textId: $textId");
+			return $textId; 
 		}
+		######################
 
 		if (!preg_match('/^[0-9]+$/', $textId)) {
 		$qtxt = "select tekst_id from tekster where tekst = '$textId'";
