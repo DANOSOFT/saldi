@@ -76,8 +76,28 @@ if ($valg == 'kommission' || $valg == 'historik') {
 			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		. findtekst(218, $sprog_id) . "</button></a></td>\n";
 } else {
-	print "<a id='opret-ny' href=debitorkort.php?returside=debitor.php>
+	if(!isset($jobkort)){
+
+		if ($popup) { #2025 LOE
+			print "<a id='opret-ny' 
+				onClick=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id',
+				'job','scrollbars=1,resizable=1');job.focus(); return false;\">
+				<button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+				. findtekst(39, $sprog_id) . "</button></a>\n";
+		} else {
+			print "<a id='opret-ny' 
+				href='jobkort.php?returside=jobkort.php&konto_id=$konto_id&ordre_id=$ordre_id'>
+				<button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+				. findtekst(39, $sprog_id) . "</button></a>\n";
+		}
+
+
+	}else{
+		print "<a id='opret-ny' href=debitorkort.php?returside=debitor.php>
 			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		. findtekst(39, $sprog_id) . "</button></a></td>\n";
+
+	}
+	
 }
 print "<center>"; #20141107
