@@ -1,25 +1,25 @@
 <?php
-// ------------debitor/jobliste.php---lap 3.2.2------2011-07-03----------
-// LICENS
+// ------------debitor/jobliste.php---patch 4.1.0 ----2025-09-10--------------
+//                           LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg.
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
-// 
-// Programmet er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
-// 
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.fundanemt.com/gpl_da.html
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
+// See GNU General Public License for more details.
+// http://www.saldi.dk/dok/GNU_GPL_v2.html
+//
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
+
+//20250910  LOE -Modified the top menu to sync with the rest of the system
 ob_start();
 @session_start();
 $s_id=session_id();
@@ -106,6 +106,32 @@ print "<tr><td height = 25 align=center valign=top>";
 print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
 #if ($popup) print "<td width=10% $top_bund><a href=../includes/luk.php?returside=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
 #else 
+
+#############
+if(isset($_GET['returside'])){
+			$returside = $_GET['returside'];
+		}else{
+			$returside = '../index/menu.php';
+		}
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";   
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">";
+	
+	print "<a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></div>"; 
+	print "<a href=debitor.php>".findtekst(34,$sprog_id)."</a></div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
+else include_once 'debLstIncludes/oldTopLine.php'; 
+
+##########
+
+
+/*
 print "<td width=10% $top_bund><a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
 print "<td width=30% $top_bund align=center><br></td>";
 print "<td width=10% $top_bund align=center><a href=debitor.php>".findtekst(34,$sprog_id)."</a></td>";
@@ -113,6 +139,7 @@ print "<td width=10% $knap_ind align=center>".findtekst(38,$sprog_id)."</td>";
 print "<td width=30% $top_bund align=center><br></td>";
 if ($popup) print "<td width=10% $top_bund onClick=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id','job','scrollbars=1,resizable=1');job.focus();\"><a accesskey=N href=jobliste.php?$parameter>".findtekst(39,$sprog_id)."</a></td>";
 else print "<td width=10% $top_bund><a href=jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
+*/
 print "</td></tr>\n";
 #print "<tr><td></td><td align=center><table border=1	cellspacing=0 cellpadding=0><tbody>";
 #print "<td width = 20%$top_bund align=center><a href=jobliste.php?valg=tilbud accesskey=T>Tilbud</a></td>";
@@ -140,6 +167,9 @@ print "</tr>\n";
 
 #################################### Sogefelter ##########################################
 
+
+
+
 print "<form name=\"jobliste\" action=\"jobliste.php?$parameter\" method=\"post\">";
 print "<input type=\"hidden\" name=\"valg\" value=\"$valg\">";
 print "<input type=\"hidden\" name=\"sort\" value=\"$sort\">";
@@ -159,7 +189,28 @@ print "<td><input type=submit value=\"OK\" name=\"submit\"></td>";
 print "</form></tr>\n";
 
 ####################################################################################
+#############
+if(isset($_GET['returside'])){
+			$returside = $_GET['returside'];
+		}else{
+			$returside = '../index/menu.php';
+		}
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";   
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">";
+	
+	print "<a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></div>"; 
+	print "<a href=debitor.php>".findtekst(34,$sprog_id)."</a></div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
+else include_once 'debLstIncludes/oldTopLine.php';
 
+##########
 $udvaelg='';
 if ($felt01) {
 	$udvaelg=$udvaelg.udvaelg($felt01, 'id', 'NR');
@@ -189,7 +240,7 @@ if ($felt08) {
 $ialt=0;
 if ($konto_id) $udvaelg.="and konto_id=$konto_id ";
 $qtxt="select * from jobkort where id > 0 $udvaelg order by $sort";
-echo "$qtxt<br>";
+#echo "$qtxt<br>";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($r =db_fetch_array($q)) {
 	$ialt++;
