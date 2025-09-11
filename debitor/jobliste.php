@@ -1,5 +1,5 @@
 <?php
-// ------------debitor/jobliste.php---patch 4.1.0 ----2025-09-10--------------
+// ------------debitor/jobliste.php---patch 4.1.0 ----2025-09-11--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -88,7 +88,6 @@ if ($nysort=='kolonne07') $nysort='felt_8';
 if ($nysort=='kolonne08') $nysort='felt_1';
 if ($felt08 && strlen($felt08)<2) $felt08='0'.$felt08;
 
-echo $felt08."<br>";
 ob_end_flush();	//Sender det "bufferede" output afsted...
 	
 if (!$nysort) $sort = "firmanavn";
@@ -104,9 +103,8 @@ $hreftext=NULL;
 print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>";
 print "<tr><td height = 25 align=center valign=top>";
 print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
-#if ($popup) print "<td width=10% $top_bund><a href=../includes/luk.php?returside=$returside accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-#else 
 
+print "</td></tr>\n";
 #############
 if(isset($_GET['returside'])){
 			$returside = $_GET['returside'];
@@ -129,23 +127,6 @@ if ($menu=='T') {
 else include_once 'debLstIncludes/oldTopLine.php'; 
 
 ##########
-
-
-/*
-print "<td width=10% $top_bund><a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></td>";
-print "<td width=30% $top_bund align=center><br></td>";
-print "<td width=10% $top_bund align=center><a href=debitor.php>".findtekst(34,$sprog_id)."</a></td>";
-print "<td width=10% $knap_ind align=center>".findtekst(38,$sprog_id)."</td>";
-print "<td width=30% $top_bund align=center><br></td>";
-if ($popup) print "<td width=10% $top_bund onClick=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id','job','scrollbars=1,resizable=1');job.focus();\"><a accesskey=N href=jobliste.php?$parameter>".findtekst(39,$sprog_id)."</a></td>";
-else print "<td width=10% $top_bund><a href=jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id accesskey=N>".findtekst(39,$sprog_id)."</a></td>";
-*/
-print "</td></tr>\n";
-#print "<tr><td></td><td align=center><table border=1	cellspacing=0 cellpadding=0><tbody>";
-#print "<td width = 20%$top_bund align=center><a href=jobliste.php?valg=tilbud accesskey=T>Tilbud</a></td>";
-#print "<td width = 20% bgcolor=$bgcolor5 align=center> jobr</td>";
-#print "<td width = 20% bgcolor=$bgcolor5 align=center> Faktura</td>";
-#print "</tbody></table></td><td></td</tr>\n";
 
 print "</tbody></table>";
 print " </td></tr><tr><td align=center valign=top>";

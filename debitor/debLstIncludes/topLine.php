@@ -54,22 +54,32 @@ if ($menu != "S") {
 			   <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		. findtekst(1116, $sprog_id) . "</button></a></td>";
 }
+
 $title = findtekst(1664, $sprog_id); #20210728
-if ($jobkort) print "<td width = '100px' align=center>
-						 <a href='jobliste.php' title ='$title'>
-						 <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+if ($jobkort) {
+	print "<td id='jobliste' width = '100px' align=center>
+	<a href='jobliste.php?valg=jobkort' title ='$title'>
+						 <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\" title ='$title'>"
+	. findtekst(38, $sprog_id) . "</button></td>";
+} else {
+	
+	print "<td width = '100px' align=center>
+						 <a href='jobliste.php?valg=jobkort' title ='$title'>
+						 <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 	. findtekst(38, $sprog_id) . "</button></a></td>";
+}
 
 print "</tbody></table></td>\n";
+	if($valg != 'jobkort'){
+		print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+		print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+		print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 
-print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
-print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
+		print "<td width=5% style='$buttonStyle'><a accesskey=V href=debitorvisning.php?valg=$valg>
+				<button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+			. findtekst(813, $sprog_id) . "</button></a></td>\n";
 
-print "<td width=5% style='$buttonStyle'><a accesskey=V href=debitorvisning.php?valg=$valg>
-		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-	. findtekst(813, $sprog_id) . "</button></a></td>\n";
-
+	}
 print "<td width=5% style=$butUpStyle>";
 if ($valg == 'kommission' || $valg == 'historik') {
 	print "<a href=mailTxt.php?valg=$valg&returside=debitor.php>
