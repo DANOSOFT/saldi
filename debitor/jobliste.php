@@ -102,7 +102,7 @@ $hreftext=NULL;
  
 print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>";
 print "<tr><td height = 25 align=center valign=top>";
-print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
+print "<table width=100% align=center border=0 cellspacing=0 cellpadding=0><tbody>";
 
 print "</td></tr>\n";
 #############
