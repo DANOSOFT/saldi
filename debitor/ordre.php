@@ -3491,7 +3491,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		}
 # 20150412
 		if ($brugsamletpris) {
-			print "<tr><td></td><td></td><td></td><td></td><td>";
+			print "<tr><td></td><td></td><td></td><td></td><td> <td></td>";
 			if ($lagerantal>1) print "</td><td>";
 			print "<textarea class=\"autosize inputbox ordreText comment\" id=\"comment\" rows=\"1\" cols=\"58\" ";
 			print "name=\"ekstratekst\" onfocus=\"document.forms[0].fokus.value=this.name; var val=this.value; this.value=''; this.value= val;\">";
@@ -4875,12 +4875,14 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
 			print "<input type=\"hidden\" name=\"status\" value=\"$status\">\n";
 			$txt = findtekst('3|Gem', $sprog_id);
 			print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button green medium\" id=\"submit\" style=\"width:75px;\" accesskey=\"g\" value=\"$txt\" name = 'save' onclick=\"javascript:docChange = false;\"></td>\n";
+			
 			if ($art!='OT') { # Fjerner knappen opslag hvis art er = OT (original tilbud) #20140716
 			$txt = findtekst('644|Opslag', $sprog_id);
 			print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button blue medium\" style=\"width:75px;\" accesskey=\"o\" value=\"$txt\" name ='lookUp' "; #
 				if ( $art == "DK" ) print "disabled=\"disabled\" ";
 				print "onclick=\"javascript:docChange = false;\"></td>\n";
 			}
+		
 			if ($status==1&&$bogfor!=0 && $hurtigfakt!='on' && $leveres_ialt) {
 				if ($art== 'DO') print "<td align=\"center\" width=$width><input type=\"submit\" class=\"button gray medium\" style=\"width:75px;\" accesskey=\"l\" value=\"".findtekst('1483|Levér', $sprog_id)."\" name=\"b_submit\" onclick=\"javascript:docChange = false;\"></td>\n";
 				else print "<td align=\"center\" width=$width title=\"".findtekst('1491|Klik her for at tage varer retur', $sprog_id)."\"><input type=\"submit\"  class=\"button gray medium\" style=\"width:75px;\" accesskey=\"l\" value=\"".findtekst('1485|Modtag', $sprog_id)."\" name=\"b_submit\" onclick=\"javascript:docChange = false;\"></td>\n";
@@ -5478,7 +5480,9 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 		}
   } elseif ($serienr) { 
     print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"".findtekst('1501|Vælg serienr', $sprog_id)."\"><img alt=\"".findtekst('1497|Serienummer', $sprog_id)."\" src=\"../ikoner/serienr.png\"></td>\n"; #20210715
+	
 	}
+
 #      if ($samlevare=='on') print "<td align=\"center\" onClick=\"stykliste($vare_id)\" title=\"Vis stykliste\"><img alt=\"Stykliste\" src=\"../ikoner/stykliste.png\"></td>\n";
 	if (!$saetnr) {
     $txt2130 = findtekst('2130|Slet ordrelinje', $sprog_id);
@@ -5511,7 +5515,7 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 		
 	}
   	if ($omkunde) print "<td valign = 'top'><input class = 'inputbox' type=\"checkbox\" style=\"background: none repeat scroll 0 0 #e4e4ee\" name=\"omvbet[$x]\" onchange=\"javascript:docChange = true;\" $omvbet></td>\n";
-
+      
 	print "</tr>\n";
 	if ($readonly) {
 		print "<input type=\"hidden\" name=\"posn$x\" value=\"$ny_pos\">\n";
