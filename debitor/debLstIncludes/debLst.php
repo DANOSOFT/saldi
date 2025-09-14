@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor(debLstIncludes/debLst.php --- lap 4.1.1 --- 2025-08-22 ----
+// --- debitor(debLstIncludes/debLst.php --- lap 4.1.1 --- 2025-09-14 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -141,7 +141,6 @@ for($i=0;$i<$dgcount;$i++) {
 					}
 
 					#############################
-					error_log("vis_felt[$x] is $vis_felt[$x] and the query is $qtxt");
 					print "<td align=$justering[$x]>";
 					$tmp=$vis_felt[$x];
 					if ($vis_felt[$x]=='kontoansvarlig') {
