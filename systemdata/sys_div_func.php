@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.05.26 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.09.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -93,6 +93,7 @@
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
 // 20250513 Sawaneh add max user update in kontoindstillinger()
 // 20250526 PHR 'nyt_navn' changed to 'newName' 
+// 20250911 LOE modified text 3023 to 2324
 
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
@@ -1194,7 +1195,7 @@ function div_valg() {
       <button type='button' onclick='alert(\"Dit login til din vibrant terminalen: \\n\\n$r[var_name] \\n$r[var_value]\")'>$ntxt</button>
     </td>\n</tr>\n";
 	} else { # No vibrant account in the system
-		$ytxt = findtekst('3023|Opret login', $sprog_id); # Create account
+		$ytxt = findtekst('2324|Opret login', $sprog_id); # Create account
 
 		print "<td title='$mtitle'>
       <button type='button' onclick='show_popup_vibrant()'>$ytxt</button>

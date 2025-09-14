@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 4.1.0 --- 2024-09-06 ---
+// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-09-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 
 // 20121023 ID slettes fra pbs_kunder hvis pbs ikke afmærket, søg 20121023
@@ -34,7 +34,7 @@
 // 20190423 PHR - Flyttet fejlmeddelse om 'Kontonr eksisterer' over 'firmanavn skal udfyldes'
 // 20200316 PHR - Some design update (Removed borders)
 // 20210523 PHR Added my sale password.
-// 20210702 LOE Translated these texts with findtekst() function
+// 20210702 LOE Translated these texts with findtekst() function 
 // 20210706 LOE Commented out for future modification
 // 20211006 PHR added 'anonymize'
 // 20221229 PHR some cleanup
@@ -42,6 +42,7 @@
 // 20230925 PHR php8
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
+// 20250911 LOE Create a contact employee if none exists for erhverv accounts 
 
 @session_start();
 $s_id = session_id();
@@ -72,6 +73,8 @@ db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 #if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
+$_private = if_isset($_GET,NULL,'privat');
+$_business = if_isset($_GET,NULL,'erhverv');
 
 $id = if_isset($_GET['id']);
 if (!$id) $id = if_isset($_GET['konto_id']);
@@ -109,7 +112,7 @@ $rename_category = isset($_GET['rename_category']) ? $_GET['rename_category'] : 
 if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 	$submit = if_isset($_POST['submit'], NULL);
 	$id     = $_POST['id'];
-	if (isset($_POST['anonymize']) && $id) {
+	if (isset($_POST['anonymize']) && $id) { 
 		include('anonymize.php');
 	} elseif ($submit != "Slet") {
 		$notes = $_POST['notes'];
@@ -502,6 +505,13 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 			$id = $r['id'];
 			if ($kontakt) db_modify("insert into ansatte(konto_id, navn) values ('$id', '$kontakt')", __FILE__ . " linje " . __LINE__);
 		} elseif ($id > 0) {
+							#######	
+								$q1 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+								$ar = db_fetch_array($q1);
+								$a_id = $ar['id'];
+							#######
+							  
+
 			if ($ny_kontonr != $kontonr) {
 				$q = db_select("select kontonr from adresser where art = 'D' order by kontonr", __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
@@ -515,33 +525,55 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 					$kontonr = $ny_kontonr;
 				}
 			}
-			$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
-			$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', fax = '$fax', ";
-			$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
-			$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
-			$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
-			$qtxt .= "kontoansvarlig='$kontoansvarlig',bank_reg='$bank_reg',bank_konto='$bank_konto',swift='$swift',";
-			$qtxt .= "pbs_nr = '$pbs_nr', pbs = '$pbs',kontotype='$kontotype',fornavn='$fornavn',efternavn='$efternavn',";
-			$qtxt .= "lev_firmanavn='$lev_firmanavn',lev_fornavn='$lev_fornavn',lev_efternavn='$lev_efternavn',";
-			$qtxt .= "lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
-			$qtxt .= "lev_land='$lev_land',lev_kontakt='$lev_kontakt',lev_tlf='$lev_tlf',lev_email='$lev_email',";
-			$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
-			$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
-			$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
-			#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
-			$qtxt .= "where id = '$id'";
-			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			for ($x = 1; $x <= $ans_ant; $x++) {
-				$y = trim($posnr[$x]);
-				if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-				elseif (($y == "-") && ($ans_id[$x])) {
-					db_modify("delete from ansatte 	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-				} else {
-					$alerttekst = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
-					print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
-				}
+            
+			          ####
+						$q2 = db_select("select kontotype from adresser where kontonr = '$kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
+						$r2 = db_fetch_array($q2);
+						$vkontotype = $r2['kontotype'];
+
+					  ####
+
+            if(($kontotype == $vkontotype) || (!isset($a_id)) ){
+					$qtxt = "update adresser set kontonr = '$kontonr', firmanavn = '$firmanavn', addr1 = '$addr1', addr2 = '$addr2', ";
+					$qtxt .= "postnr = '$postnr', bynavn = '$bynavn', land = '$land', kontakt = '$kontakt', tlf = '$tlf', fax = '$fax', ";
+					$qtxt .= "email = '$email', mailfakt = '$mailfakt', web = '$web', betalingsdage= '$betalingsdage', ";
+					$qtxt .= "kreditmax = '$kreditmax',betalingsbet = '$betalingsbet', cvrnr = '$cvrnr', ean = '$ean', ";
+					$qtxt .= "institution = '$institution', notes = '$notes',gruppe='$gruppe', ";
+					$qtxt .= "kontoansvarlig='$kontoansvarlig',bank_reg='$bank_reg',bank_konto='$bank_konto',swift='$swift',";
+					$qtxt .= "pbs_nr = '$pbs_nr', pbs = '$pbs',kontotype='$kontotype',fornavn='$fornavn',efternavn='$efternavn',";
+					$qtxt .= "lev_firmanavn='$lev_firmanavn',lev_fornavn='$lev_fornavn',lev_efternavn='$lev_efternavn',";
+					$qtxt .= "lev_addr1='$lev_addr1',lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
+					$qtxt .= "lev_land='$lev_land',lev_kontakt='$lev_kontakt',lev_tlf='$lev_tlf',lev_email='$lev_email',";
+					$qtxt .= "felt_1='$felt_1',felt_2='$felt_2',felt_3='$felt_3',felt_4='$felt_4',felt_5='$felt_5',";
+					$qtxt .= "vis_lev_addr='$vis_lev_addr',lukket='$lukket',kategori='$katString',";
+					$qtxt .= "rabatgruppe='$rabatgruppe',status='$status', productlimit = '" . usdecimal($productlimit) . "' ";
+					#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
+					$qtxt .= "where id = '$id'";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					for ($x = 1; $x <= $ans_ant; $x++) {
+						$y = trim($posnr[$x]);
+						if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
+						elseif (($y == "-") && ($ans_id[$x])) {
+							db_modify("delete from ansatte 	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
+						} else {
+							$alerttekst = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
+							print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
+						}
+					}
+					#			if (!$pbs) db_modify("delete from pbs_kunder where konto_id = $id",__FILE__ . " linje " . __LINE__); # 2012103
+				
+			}else{
+				           $alerttekst = "Please delete all contacts to proceed";
+							print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--....-->\n";
+
+							if($vkontotype=='erhverv'){
+							print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&privat=privat\">";
+							}elseif($vkontotype=='privat'){
+								print "<meta http-equiv=\"refresh\" content=\"0;URL=ansatte.php?id=$a_id&konto_id=$id&erhverv=erhverv\">";
+							}
+							exit;
+
 			}
-			#			if (!$pbs) db_modify("delete from pbs_kunder where konto_id = $id",__FILE__ . " linje " . __LINE__); # 2012103
 		}
 	} else {
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
@@ -1158,15 +1190,86 @@ print "</tbody></table></td></tr>"; # <- TABEL 1.2.4.2
 print "<tr><td colspan=2><table border=\"0\" width=\"100%\"><tbody>"; # TABEL 1.2.4.3 ->
 
 print "<tr><td colspan=6></td></tr>\n";
+
+#$_business == 'erhverv'
+#$_private=='privat'
+
+##############
+
+	$z2 = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
+	$y2 = db_fetch_array($z2);
+	$an_id = $y2['id'];
+							
+###########
+
+
+if((!$kontotype && !$_private && !isset($an_id))){ //insert erhverv as default if not set into adresser table
+	
+	db_modify("UPDATE adresser SET kontotype = 'erhverv' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
+	$kontotype = 'erhverv';
+	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>"; 
+
+}elseif(($kontotype && $_private) && !isset($an_id)){
+
+	db_modify("UPDATE adresser SET kontotype = 'privat' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
+	$kontotype = 'privat';
+     print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>"; 
+
+
+}elseif(($kontotype && $_business) && !isset($an_id)){
+
+	db_modify("UPDATE adresser SET kontotype = 'erhverv' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
+	$kontotype = 'erhverv';
+	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>"; 
+	
+
+}
+
+
+
 $x = 0;
-if ($kontotype == 'erhverv') {
+
 	print "<tr bgcolor=$bg><td colspan=6><b>" . findtekst('392|Kontaktpersoner', $sprog_id) . "<!--tekst 392--></b></td></tr>\n";
 	if ($id) {
+		
 		($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 		print "<tr bgcolor=$bg><td title=\"" . findtekst('393|Positionsnummer. Primær kontakt har nummer 1', $sprog_id) . "\"><!--tekst 393-->" . findtekst('394|Pos.', $sprog_id) . "<!--tekst 394--></td><td>" . findtekst('398|Kontakt', $sprog_id) . "<!--tekst 398--></td><td title=\"" . findtekst('399|Direkte telefonnummer eller lokalnummer', $sprog_id) . "\"><!--tekst 399-->" . findtekst('400|Direkte/lokal', $sprog_id) . "<!--tekst 400--></td><td>" . findtekst('401|Mobil', $sprog_id) . "<!--tekst 401--></td><td>" . findtekst('402|E-mail', $sprog_id) . "<!--tekst 402--></td><td><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id>" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></a></td></tr>\n";
 		$x = 0;
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
-		while ($r = db_fetch_array($q)) {
+		$r = db_fetch_array($q);
+		if ($r === false) { // no contacts exist, so we create one from the main address 2025
+			
+			$az = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
+			if ($azr = db_fetch_array($az)) {
+
+				##### 
+				if(!empty($azr['kontakt']) && !is_array($azr['kontakt'])) {
+					if (($kontotype == 'erhverv') && !$_private) { //sets to default if not exists and not private
+						error_log("No contacts found in ansatte table, creating one from main address for konto_id: $id"); 
+						$kontakt = $azr['kontakt'];
+					
+							$tlf     = isset($azr['tlf'])     && !is_array($azr['tlf'])     ? $azr['tlf']     : '';
+							$email   = isset($azr['email'])   && !is_array($azr['email'])   ? $azr['email']   : '';
+							$notes   = isset($azr['notes'])   && !is_array($azr['notes'])   ? $azr['notes']   : '';
+							$posnr   = isset($azr['postnr'])   && !is_array($azr['postnr'])   ? $azr['postnr']   : '0';
+							$addr1   = isset($azr['addr1'])   && !is_array($azr['addr1'])   ? $azr['addr1']   : '';
+							$addr2   = isset($azr['addr2'])   && !is_array($azr['addr2'])   ? $azr['addr2']   : '';
+
+							#####
+							db_modify("INSERT INTO ansatte (konto_id, navn, mobil, email, notes, posnr) 
+									VALUES ('$id', '$kontakt', '$tlf', '$email', '$notes', '$posnr')", 
+									__FILE__ . " linje " . __LINE__); 
+
+							$q = db_select("SELECT * FROM ansatte WHERE konto_id = '$id' ORDER BY posnr", 
+										__FILE__ . " linje " . __LINE__);
+
+							$r = db_fetch_array($q);
+					}
+			  }
+			}
+
+		} 
+		while ($r) {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 			print "<tr bgcolor=$bg>\n";
@@ -1176,10 +1279,12 @@ if ($kontotype == 'erhverv') {
 			if ($x == 1) {
 				print "<input class='inputbox' type=hidden name=kontakt value='$r[navn]'>";
 			}
+			//fetch next
+			$r = db_fetch_array($q);
 		}
 		print "<tr><td colspan=6><br></td></tr>\n";
 	}
-}
+
 print "<input type='hidden' name='ans_ant' value='$x'>\n";
 
 #print "<tr><td><br></td></tr>\n";
@@ -1247,7 +1352,7 @@ if ($menu == 'T') {
 	if ($jobkort) {
 		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
 
-		print "<td width='10%' title='$tekst'><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>
+		print "<td width='10%' title='$tekst'><a href=jobliste.php?konto_id=$id&returside=../debitor/debitorkort.php?id=$id> 
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('38|Stillingsliste', $sprog_id) . "</button></td>\n";
 	} else print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst('38|Stillingsliste', $sprog_id) . "</span></td>\n";
 
@@ -1286,7 +1391,7 @@ if ($menu == 'T') {
 		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></td>\n";
 	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Stillingsliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
-	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3
+	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3 
 	print "</tbody></table>"; # <- TABEL 1
 }
 
