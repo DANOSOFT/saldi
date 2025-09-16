@@ -402,6 +402,7 @@
 6910	Øvrige reserver	S		0	0	100
 6930	Andre reserver	Z		6810	0	100
 6931	Overført resultat	H		0	0	100
+6935	Årets resultat	R		4999	0	100
 6940	Overført resultat	S		0	0	100
 6950	Overført resultat	Z		6940	0	100
 6951	Foreslået udbytte indregnet under egenkapitalen	H		0	0	100
