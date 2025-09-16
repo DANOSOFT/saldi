@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-09-13 ---
+// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-09-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1203,7 +1203,7 @@ print "<tr><td colspan=6></td></tr>\n";
 ###########
 
 
-if((!$kontotype && !$_private && !isset($an_id))){ //insert erhverv as default if not set into adresser table
+if((!$kontotype && !$_private && !isset($an_id))){ //insert erhverv as default if not set in adresser table
 	
 	db_modify("UPDATE adresser SET kontotype = 'erhverv' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
 	$kontotype = 'erhverv';
@@ -1228,7 +1228,7 @@ if((!$kontotype && !$_private && !isset($an_id))){ //insert erhverv as default i
 
 
 $x = 0;
-
+if ($kontotype == 'erhverv') {
 	print "<tr bgcolor=$bg><td colspan=6><b>" . findtekst('392|Kontaktpersoner', $sprog_id) . "<!--tekst 392--></b></td></tr>\n";
 	if ($id) {
 		
@@ -1284,6 +1284,7 @@ $x = 0;
 		}
 		print "<tr><td colspan=6><br></td></tr>\n";
 	}
+}
 
 print "<input type='hidden' name='ans_ant' value='$x'>\n";
 
