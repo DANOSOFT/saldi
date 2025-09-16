@@ -1,6 +1,6 @@
 <?php
 
-// --- debitor/ansatte.php --- lap 4.1.1 --- 2025.09.13----------
+// --- debitor/ansatte.php --- lap 4.1.1 --- 2025.09.16----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -238,7 +238,7 @@ if($_private){
 }elseif($_business){
 	$value='erhverv';
 }
-
+$value= if_isset($value,'');
     while ($row = db_fetch_array($query)) {
         $navn_list = htmlentities($row['navn'], ENT_COMPAT, $charset);
         $id = (int)$row['id']; 
@@ -264,10 +264,7 @@ if($_private){
 
 
 ############### Footer section ###############
-print "</tbody></table></td></tr>"; # <- TABEL 1.2.4.3
-print "</tbody></table></td></tr>"; # <- TABEL 1.2.4
-
-print "</tbody></table></td></tr>"; # <- TABEL 1.2
+print "</tbody></table></td></tr>"; 
 print "<tr><td align = 'center' valign = 'bottom'>\n";
 
 if ($menu == 'T') {

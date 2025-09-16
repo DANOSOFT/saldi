@@ -623,6 +623,7 @@ if ($id > 0) {
 	$bank_konto = trim($r['bank_konto']);
 	$bank_reg = trim($r['bank_reg']);
 	$swift = trim($r['swift']);
+	$kontakt = htmlentities(trim($r['kontakt']), ENT_COMPAT, $charset);
 	if ($r['pbs'] == 'on') $pbs = "checked";
 	$pbs_nr = trim($r['pbs_nr']);
 	$pbs_date = trim($r['pbs_date']);
@@ -1223,6 +1224,10 @@ if((!$kontotype && !$_private && !isset($an_id))){ //insert erhverv as default i
 	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>"; 
 	
 
+}elseif(($kontotype && $_private) && isset($an_id)){
+	db_modify("UPDATE adresser SET kontotype = 'erhverv' WHERE id = '$id' ", __FILE__ . " linje " . __LINE__);
+	$kontotype = 'erhverv';
+	print "<meta http-equiv='refresh' content='0;url=debitorkort.php?id=$id'>"; 
 }
 
 
@@ -1237,38 +1242,7 @@ if ($kontotype == 'erhverv') {
 		$x = 0;
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
-		if ($r === false) { // no contacts exist, so we create one from the main address 2025
-			
-			$az = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
-			if ($azr = db_fetch_array($az)) {
-
-				##### 
-				if(!empty($azr['kontakt']) && !is_array($azr['kontakt'])) {
-					if (($kontotype == 'erhverv') && !$_private) { //sets to default if not exists and not private
-						error_log("No contacts found in ansatte table, creating one from main address for konto_id: $id"); 
-						$kontakt = $azr['kontakt'];
-					
-							$tlf     = isset($azr['tlf'])     && !is_array($azr['tlf'])     ? $azr['tlf']     : '';
-							$email   = isset($azr['email'])   && !is_array($azr['email'])   ? $azr['email']   : '';
-							$notes   = isset($azr['notes'])   && !is_array($azr['notes'])   ? $azr['notes']   : '';
-							$posnr   = isset($azr['postnr'])   && !is_array($azr['postnr'])   ? $azr['postnr']   : '0';
-							$addr1   = isset($azr['addr1'])   && !is_array($azr['addr1'])   ? $azr['addr1']   : '';
-							$addr2   = isset($azr['addr2'])   && !is_array($azr['addr2'])   ? $azr['addr2']   : '';
-
-							#####
-							db_modify("INSERT INTO ansatte (konto_id, navn, mobil, email, notes, posnr) 
-									VALUES ('$id', '$kontakt', '$tlf', '$email', '$notes', '$posnr')", 
-									__FILE__ . " linje " . __LINE__); 
-
-							$q = db_select("SELECT * FROM ansatte WHERE konto_id = '$id' ORDER BY posnr", 
-										__FILE__ . " linje " . __LINE__);
-
-							$r = db_fetch_array($q);
-					}
-			  }
-			}
-
-		} 
+		
 		while ($r) {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
