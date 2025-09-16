@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2025.05.23 ---
+// --- payments/flatpay.php --- lap 4.1.1 --- 2025.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20250512 Updated to use new Flatpay API endpoints
 // 20250523 printserver lookup
 // 20250531 PHR added $flatpayPrint
+// 20250912 PHR added print if canceled
 
 @session_start();
 $s_id = session_id();
@@ -76,9 +77,8 @@ $r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and ko
 $x = $kasse - 1;
 $tmp = explode(chr(9), $r['box3']);
 $printserver = trim($tmp[$x]);
-if (!$printserver) {
-  $printserver = 'localhost';
-} elseif ($printserver == 'box' || $printserver == 'saldibox') {
+if (!$printserver) $printserver = 'localhost';
+elseif ($printserver == 'box' || $printserver == 'saldibox') {
 	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
 	if ($fp = fopen($filnavn, 'r')) {
 		$printserver = trim(fgets($fp));
@@ -118,7 +118,7 @@ print "
     transactionType: '$type',
     amount: '$amount',
     guid: '$guid',
-    disableTerminalPrints: false,
+    disableTerminalPrints: $terminal_print,
     language: 'da_DK',
     reference: '$ordre_id',
     externalReference: '$ordre_id',
@@ -285,7 +285,25 @@ print "
         } else if (['CANCELLED', 'DECLINED', 'FAILED_CREATING'].includes(transaction.status)) {
           completed = true;
           paused = true;
-          
+
+          // Save receipt data
+          await fetch('save_receipt.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              data: transaction,
+              id: '$ordre_id',
+              type: 'flatpay'
+            })
+          });
+
+          // Print receipt if printfile is specified
+          if ('$printfile' !== '') {
+            window.open(\"http://$printserver/saldiprint.php?bruger_id=99&bonantal=1&printfil=$printfile&skuffe=0&gem=1\", '', 'width=200,height=100');
+          }
+
           // Update UI for failure
           updateUIForFailure(`Fejl: \${transaction.status}`, transaction.errorText);
         }
