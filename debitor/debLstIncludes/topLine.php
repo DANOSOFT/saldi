@@ -1,6 +1,10 @@
 <?php
+
+// 20250911 LOE Sets value of jobkort directly.
+
 include("../includes/oldDesign/header.php");
 include("../includes/topline_settings.php");
+
 
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
@@ -9,7 +13,13 @@ if(isset($_GET['returside'])){
 }else{
 	$backUrl = '../index/menu.php';
 }
-
+if(!isset($jobkort)){ #LOE
+	if(isset($_GET['jobkort'])){
+		$jobkort = $_GET['jobkort'];
+	}else{
+		$jobkort = null;
+	}
+}
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
 print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><td width=10% style='$buttonStyle'>"; # Tabel 1.1 ->
 print "<a href=$backUrl accesskey='L'>
@@ -55,18 +65,19 @@ if ($menu != "S") {
 		. findtekst(1116, $sprog_id) . "</button></a></td>";
 }
 
-$title = findtekst(1664, $sprog_id); #20210728
-if ($jobkort) {
+$title = findtekst(1664, $sprog_id); #20210728 
+if ($jobkort && $valg!='jobkort') { 
 	print "<td id='jobliste' width = '100px' align=center>
-	<a href='jobliste.php?valg=jobkort' title ='$title'>
+	<a href='jobliste.php?valg=jobkort&jobkort=$jobkort' title ='$title'>
 						 <button style='$butUpStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\" title ='$title'>"
 	. findtekst(38, $sprog_id) . "</button></td>";
-} else {
-	
-	print "<td width = '100px' align=center>
-						 <a href='jobliste.php?valg=jobkort' title ='$title'>
-						 <button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-	. findtekst(38, $sprog_id) . "</button></a></td>";
+} else{
+	if($jobkort && $valg=='jobkort'){
+		print "<td width = '100px' align=center>
+							<a href='jobliste.php?valg=jobkort' title ='$title'>
+							<button style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		. findtekst(38, $sprog_id) . "</button></a></td>";
+	}
 }
 
 print "</tbody></table></td>\n";
@@ -86,9 +97,9 @@ if ($valg == 'kommission' || $valg == 'historik') {
 			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
 		. findtekst(218, $sprog_id) . "</button></a></td>\n";
 } else {
-	if(!isset($jobkort)){
+	if(isset($jobkort) && $valg=='jobkort'){
 
-		if ($popup) { #2025 LOE
+		if ($popup) {  
 			print "<a id='opret-ny' 
 				onClick=\"javascript:job=window.open('jobkort.php?returside=jobliste.php&konto_id=$konto_id&ordre_id=$ordre_id',
 				'job','scrollbars=1,resizable=1');job.focus(); return false;\">
