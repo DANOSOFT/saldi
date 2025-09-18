@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-09-16 ---
+// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-09-17 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -43,6 +43,7 @@
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
+// 20250917 LOE Position methods for contacts updated for ansatte table and related queries
 
 @session_start();
 $s_id = session_id();
@@ -76,8 +77,8 @@ print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascr
 $_private = if_isset($_GET,NULL,'privat');
 $_business = if_isset($_GET,NULL,'erhverv');
 
-$id = if_isset($_GET['id']);
-if (!$id) $id = if_isset($_GET['konto_id']);
+$id = if_isset($_GET,NULL,'id');
+if (!$id) $id = if_isset($_GET,NULL,'konto_id');
 if (!isset($_GET['fokus'])) $_GET['fokus'] = NULL;
 if (!isset($_GET['ordre_id'])) $_GET['ordre_id'] = NULL;
 if (!isset($_GET['returside'])) $_GET['returside'] = NULL;
@@ -107,7 +108,29 @@ if (isset($_GET['delete_category'])) {
 	$delete_category = NULL;
 	db_modify("update grupper set box1='$box1',box2='$box2' where art = 'DebInfo'", __FILE__ . " linje " . __LINE__);
 }
-$rename_category = isset($_GET['rename_category']) ? $_GET['rename_category'] : NULL;
+#$rename_category = isset($_GET['rename_category']) ? $_GET['rename_category'] : NULL;
+
+$rename_category = if_isset($_GET,NULL,'rename_category');
+
+				############# 
+				   if($id){
+							$query = db_select("
+									SELECT navn 
+									FROM ansatte 
+									WHERE konto_id = '$id' 
+									AND posnr = 1
+								", __FILE__ . " linje " . __LINE__);
+
+								$row = db_fetch_array($query);
+							if ($row && isset($row['navn']) && $row['navn']) {
+								$navnA = $row['navn'];
+
+								// Update adresser where id = konto_id and set kontakt
+								db_modify("UPDATE adresser SET kontakt = '$navnA' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+							}
+				}
+
+				############
 
 if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 	$submit = if_isset($_POST['submit'], NULL);
@@ -530,7 +553,6 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 						$q2 = db_select("select kontotype from adresser where kontonr = '$kontonr' and art = 'D'", __FILE__ . " linje " . __LINE__);
 						$r2 = db_fetch_array($q2);
 						$vkontotype = $r2['kontotype'];
-
 					  ####
 
             if(($kontotype == $vkontotype) || (!isset($a_id)) ){
@@ -550,17 +572,156 @@ if (isset($_POST['id']) || isset($_POST['firmanavn'])) {
 					#if ($password != '**********') $qtxt.=",password = '". saldikrypt('$id','$password') ."' "; 20210706
 					$qtxt .= "where id = '$id'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					for ($x = 1; $x <= $ans_ant; $x++) {
-						$y = trim($posnr[$x]);
-						if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-						elseif (($y == "-") && ($ans_id[$x])) {
-							db_modify("delete from ansatte 	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
-						} else {
-							$alerttekst = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
-							print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
+					// for ($x = 1; $x <= $ans_ant; $x++) {
+					// 	$y = trim($posnr[$x]);
+					// 	if ($y && is_numeric($y) && $ans_id[$x]) db_modify("update ansatte set posnr = '$y' where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
+					// 	elseif (($y == "-") && ($ans_id[$x])) {
+					// 		db_modify("delete from ansatte 	where id = '$ans_id[$x]'", __FILE__ . " linje " . __LINE__);
+					// 	} else {
+					// 		$alerttekst = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
+					// 		print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
+					// 	}
+					// }
+					 //			if (!$pbs) db_modify("delete from pbs_kunder where konto_id = $id",__FILE__ . " linje " . __LINE__); # 2012103
+					 ###########################
+					
+						$seen_posnr = [];
+						$used_ids = [];
+						$errors = [];
+
+
+						// ----------  Validate inputs & check for duplicates ----------
+						for ($x = 1; $x <= $ans_ant; $x++) {
+							$y = trim($posnr[$x]);
+							$current_id = (int)$ans_id[$x];
+
+							
+
+							if (!$current_id) {
+								
+								continue;
+							}
+
+							// Handle deletion
+							if ($y === "-") {
+								
+								db_modify("DELETE FROM ansatte WHERE id = $current_id", __FILE__ . " linje " . __LINE__);
+
+
+
+								#######
+								$query = db_select("
+										SELECT navn 
+										FROM ansatte 
+										WHERE konto_id = '$id' 
+										AND posnr = 1
+									", __FILE__ . " linje " . __LINE__);
+
+									$row = db_fetch_array($query);
+									$navnA = $row['navn'];
+									if(!$navnA) $navnA = NULL;
+									//update adresser where id = id and set kontakt to kontakt
+								db_modify("update adresser set kontakt = '$navnA' where id = '$id'",__FILE__ . " linje " . __LINE__);
+								######
+								continue;
+							}
+
+							// Validate: must be numeric and within allowed range 
+							if (!is_numeric($y)) {
+								error_log("Invalid posnr input (not numeric) at index $x: '$y'");
+								$errors[] = findtekst('352|Hint! Du skal sætte et - (minus) som pos nr for at slette en kontaktperson', $sprog_id);
+								
+								continue;
+							}
+
+							// Now validate numeric range
+							if ($y < 1 || $y > $ans_ant) {
+								$errors[] = "Invalid position number: $y. It must be between 1 and $ans_ant.";
+								error_log("Invalid position number at index $x: $y");
+								continue;
+							}
+
+							// Check for duplicates in the input
+							if (isset($seen_posnr[$y])) {
+								$errors[] = "Duplicate position number detected: $y";
+								error_log("Duplicate position detected at index $x: $y");
+								continue;
+							}
+
+							// Store for 2nd pass
+							$seen_posnr[$y] = true;
+							$used_ids[$current_id] = (int)$y;
+
+							error_log("Accepted posnr $y for ansatte id $current_id at index $x");
 						}
-					}
-					#			if (!$pbs) db_modify("delete from pbs_kunder where konto_id = $id",__FILE__ . " linje " . __LINE__); # 2012103
+
+						foreach ($used_ids as $id => $pos) {
+							error_log("  id = $id => posnr = $pos");
+						}
+
+						// ---------- Error Handling ----------
+						if (!empty($errors)) {
+							foreach ($errors as $msg) {
+								error_log($msg);
+							}
+							$alerttekst = implode("\\n", $errors);
+							$alerttekst_js = addslashes($alerttekst); // escape for JS string
+
+							print <<<HTML
+						<script>
+							alert('$alerttekst_js');
+							if (document.referrer) {
+								window.location.href = document.referrer;
+							} else {
+								window.location.href = '/';
+							}
+						</script>
+						HTML;
+							exit; // stop execution
+						}
+
+						error_log("Clearing posnr for used IDs");
+						foreach ($used_ids as $id => $target_posnr) {
+							$id = (int)$id;
+							
+							db_modify("UPDATE ansatte SET posnr = NULL WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						}
+
+						
+						foreach ($used_ids as $id => $target_posnr) {
+							$id = (int)$id;
+							$target_posnr = (int)$target_posnr;
+
+							
+
+							// If position 1, update kontakt in adresser
+							if ($target_posnr == 1) {
+								$q_navn = db_select("SELECT navn FROM ansatte WHERE id = $id", __FILE__ . " linje " . __LINE__);
+								$r_navn = db_fetch_array($q_navn);
+								$navnT = $r_navn['navn'];
+
+								error_log("Position 1 detected for id $id; updating kontakt to '$navnT'");
+								db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $id", __FILE__ . " linje " . __LINE__);
+							}
+
+							db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $id", __FILE__ . " linje " . __LINE__);
+						}
+
+												print <<<HTML
+												<script>
+													if (document.referrer) {
+														window.location.href = document.referrer;
+													} else {
+														// fallback if no referrer available
+														window.location.href = '/'; 
+													}
+												</script>
+												HTML;
+
+												exit;
+
+
+					 ###########################
 				
 			}else{
 				           $alerttekst = "Please delete all contacts to proceed";

@@ -1,6 +1,6 @@
 <?php
 
-// --- debitor/ansatte.php --- lap 4.1.1 --- 2025.09.16----------
+// --- debitor/ansatte.php --- lap 4.1.1 --- 2025.09.18----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -63,9 +63,52 @@ if ($_POST){
  	$fokus=$_POST['fokus'];
 	$_private = if_isset($_POST,NULL,'privat');
 	$_business = if_isset($_POST,NULL,'erhverv');
+	$posnr = if_isset($_POST,NULL,'posnr');
 
  	if ($submit=="Slet") {
  	 	if ($id) db_modify("delete from ansatte where id = '$id'",__FILE__ . " linje " . __LINE__); 
+        //after deleting reassign values to posnr of each row  
+       
+		########
+
+		$sql = "SELECT id FROM ansatte WHERE konto_id = '$konto_id' ORDER BY 
+			CASE WHEN posnr IS NULL THEN 1 ELSE 0 END, 
+			posnr ASC";
+
+		// Execute the query (db_select should wrap pg_query)
+		$result = db_select($sql, __FILE__ . " linje " . __LINE__);
+
+		// Initialize counter
+		$counter = 1;
+
+		// Use while loop to fetch each row
+		while ($row = db_fetch_array($result)) {
+			$id = $row['id'];
+			db_modify("UPDATE ansatte SET posnr = '$counter' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+			$counter++;
+		}
+		
+		
+					$query = db_select("
+					SELECT navn 
+					FROM ansatte 
+					WHERE konto_id = '$konto_id' 
+					AND posnr = 1
+				", __FILE__ . " linje " . __LINE__);
+
+				$row = db_fetch_array($query);
+				$navnA = $row['navn'];
+                 if(!$navnA) $navnA = NULL;
+				//update adresser where id = konto_id and set kontakt to kontakt
+			db_modify("update adresser set kontakt = '$navnA' where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+		
+		#########
+
+
+
+
+
+
 		if($_private == 'privat'){
  			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus&privat=privat\">";
 		}elseif($_business == 'erhverv'){
@@ -77,6 +120,10 @@ if ($_POST){
 		
 		if ($konto_id) {
 			db_modify("delete from ansatte where konto_id = '$konto_id'", __FILE__ . " linje " . __LINE__);
+
+	        //Also set the value of kontakt in adresser table to null where id = konto_id
+			db_modify("update adresser set kontakt = NULL where id = '$konto_id'", __FILE__ . " linje " . __LINE__);
+		
 			 if($_private == 'privat'){
 			     print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus&privat=privat\">";
 			 }else{
@@ -86,16 +133,68 @@ if ($_POST){
 	   
 
 	}else {
+
+			##########
+
+			if(!$posnr){
+				//select the last posnr value from ansatte table where konto_id = $konto_id order by id desc limit 1
+				$query = db_select("
+					SELECT id, posnr 
+					FROM ansatte 
+					WHERE konto_id = '$konto_id' 
+					AND navn IS NOT NULL 
+					ORDER BY id ASC
+				", __FILE__ . " linje " . __LINE__);
+
+				$i = 2;
+				while ($row = db_fetch_array($query)) {
+					$ansatt_id = $row['id'];
+
+					// Update posnr with incrementing value
+					db_modify("
+						UPDATE ansatte 
+						SET posnr = '$i' 
+						WHERE id = '$ansatt_id'
+					", __FILE__ . " linje " . __LINE__);
+
+					$i++;
+				}
+
+              $posnr ='1';
+			}
+			#########
+
+
 			if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
 			if (($id==0)&&($navn)){
-				$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, fax, mobil, email, cprnr, notes, lukket) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$fax', '$mobil', '$email', '$cprnr', '$notes', '')",__FILE__ . " linje " . __LINE__);
+				$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, fax, mobil, email, cprnr, notes, lukket, posnr) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$fax', '$mobil', '$email', '$cprnr', '$notes', '','$posnr')",__FILE__ . " linje " . __LINE__);
 				$query = db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn' order by id desc",__FILE__ . " linje " . __LINE__);
 				$row = db_fetch_array($query);
 				$id = $row['id'];
 			}
 			elseif ($id > 0){
-				db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', fax = '$fax', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$id'",__FILE__ . " linje " . __LINE__);
+				db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', fax = '$fax', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '', posnr = '$posnr' where id = '$id'",__FILE__ . " linje " . __LINE__);
 			}
+
+			//select navn from ansatte where konto_id and posnr = 1;
+			#####
+			$query = db_select("
+					SELECT navn 
+					FROM ansatte 
+					WHERE konto_id = '$konto_id' 
+					AND posnr = 1
+				", __FILE__ . " linje " . __LINE__);
+
+				$row = db_fetch_array($query);
+				$navnA = $row['navn'];
+
+				//update adresser where id = konto_id and set kontakt to kontakt
+			db_modify("update adresser set kontakt = '$navnA' where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+			
+
+			####
+
+
 			
 			if (!empty($_SERVER['HTTP_REFERER'])) {
 				header("Location: " . $_SERVER['HTTP_REFERER']);
@@ -226,11 +325,11 @@ print "<tr><td><br></td></tr>";
 print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey=\"g\" value=\"Gem\" name=\"submit\"></td><td><br></td><td align = center><input type=submit accesskey=\"s\" value=\"Slet\" name=\"submit\"></td>";
 
 if (isset($konto_id) && !empty($konto_id)) {
-    $query = db_select("SELECT id, navn FROM ansatte WHERE konto_id = '$konto_id' ORDER BY navn", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT id, navn FROM ansatte WHERE konto_id = '$konto_id' ORDER BY posnr", __FILE__ . " linje " . __LINE__);
 
     echo '<tr><td colspan="7">';
     echo '<div class="employee-section">';
-    echo '<h3>Existing Employees:</h3>';
+    echo '<h3>Existing Employees:</h3>'; 
     echo '<ul class="employee-list">';
     
 if($_private){
