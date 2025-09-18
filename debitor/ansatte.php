@@ -46,6 +46,8 @@ include("../includes/topline_settings.php");
 if ($_POST){
  	$id=$_POST['id'];
  	$submit=addslashes(trim($_POST['submit']));
+	$delete= if_isset($_POST['delete'],NULL);
+	$deleteAll= if_isset($_POST['deleteAll'],NULL);
  	$konto_id=$_POST['konto_id'];
  	$navn=addslashes(trim($_POST['navn']));
  	$addr1=addslashes(trim($_POST['addr1']));
@@ -65,7 +67,7 @@ if ($_POST){
 	$_business = if_isset($_POST,NULL,'erhverv');
 	$posnr = if_isset($_POST,NULL,'posnr');
 
- 	if ($submit=="Slet") {
+ 	if ($delete) {
  	 	if ($id) db_modify("delete from ansatte where id = '$id'",__FILE__ . " linje " . __LINE__); 
         //after deleting reassign values to posnr of each row  
        
@@ -116,7 +118,7 @@ if ($_POST){
 		}else{
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?returside=$returside&ordre_id=$ordre_id&id=$konto_id&fokus=$fokus\">";
 		}
- 	}elseif ($submit == "Slet alle") {
+ 	} elseif ($deleteAll) {
 		
 		if ($konto_id) {
 			db_modify("delete from ansatte where konto_id = '$konto_id'", __FILE__ . " linje " . __LINE__);
@@ -304,25 +306,29 @@ if($_private == 'privat'){
 		print "<input type=\"hidden\" name=\"erhverv\" value=\"$_business\">"; 
 
 }
-print "<td>Navn</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=navn value=\"$navn\"></td></tr>";
-print "<tr><td>Adresse</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=addr1 value=\"$addr1\"></td>";
+print "<td>".findtekst('138|Navn', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=navn value=\"$navn\"></td></tr>";
+print "<tr><td>".findtekst('140|Adresse', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=addr1 value=\"$addr1\"></td>";
 print "<td><br></td>";
-print "<td>Adresse2</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=addr2 value=\"$addr2\"></td></tr>";
-print "<tr><td>Postnr</td><td><br></td><td><input class=\"inputbox\" type=text size=6 name=postnr value=\"$postnr\"></td>";
+print "<td>".findtekst('142|Adresse 2', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=addr2 value=\"$addr2\"></td></tr>";
+print "<tr><td>".findtekst('36|Postnr.', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=6 name=postnr value=\"$postnr\"></td>";
 print "<td><br></td>";
-print "<td>By</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=bynavn value=\"$bynavn\"></td></tr>";
-print "<tr><td>E-mail</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=email value=\"$email\"></td>";
+print "<td>".findtekst('46|By', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=bynavn value=\"$bynavn\"></td></tr>";
+print "<tr><td>".findtekst('52|E-mail', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=25 name=email value=\"$email\"></td>";
 print "<td><br></td>";
 #print "<td>CVR. nr.</td><td><br></td><td><input type=text size=10 name=cprnr value=\"$cprnr\"></td></tr>";
-print "<td>Mobil</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=mobil value=\"$mobil\"></td></tr>";
-print "<tr><td>Lokalnr.</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\"></td>";
+print "<td>".findtekst('401|Mobil', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=mobil value=\"$mobil\"></td></tr>";
+print "<tr><td>".findtekst('654|Lokalnr.', $sprog_id)."</td><td><br></td><td><input class=\"inputbox\" type=text size=10 name=tlf value=\"$tlf\"></td>";
 print "<td><br></td>";
-print "<td>Lokal fax</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=fax value=\"$fax\"></td></tr>";
+print "<td>".findtekst('655|Lokal fax', $sprog_id)."</td><td><br></td><td><input type=text class=\"inputbox\" size=10 name=fax value=\"$fax\"></td></tr>";
 print "<td><br></td>";
-print "<tr><td valign=top>Bem&aelig;rkning</td><td colspan=7><textarea class=\"inputbox\" name=\"notes\" rows=\"3\" cols=\"85\">$notes</textarea></td></tr>";
+print "<tr><td valign=top>".findtekst('659|Bemærkning', $sprog_id)."</td><td colspan=7><textarea class=\"inputbox\" name=\"notes\" rows=\"3\" cols=\"85\">$notes</textarea></td></tr>";
 print "<tr><td><br></td></tr>";
 print "<tr><td><br></td></tr>";
-print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey=\"g\" value=\"Gem\" name=\"submit\"></td><td><br></td><td align = center><input type=submit accesskey=\"s\" value=\"Slet\" name=\"submit\"></td>";
+print "<td><br></td><td><br></td><td><br></td>";
+print "<td align = center><input type=submit accesskey=\"g\" value='".findtekst('3|Gem', $sprog_id)."' name=\"submit\"></td>";
+print "<td><br></td>";
+$return_confirm = findtekst('2696|Er du sikker på, at du vil slette denne ansatte?', $sprog_id);
+print "<td align = center><input  type='submit' value='".findtekst('1099|Slet', $sprog_id)."' name='delete' onclick='return confirm(\"$return_confirm\");'></td>";
 
 if (isset($konto_id) && !empty($konto_id)) {
     $query = db_select("SELECT id, navn FROM ansatte WHERE konto_id = '$konto_id' ORDER BY posnr", __FILE__ . " linje " . __LINE__);
@@ -348,14 +354,15 @@ $value= if_isset($value,'');
         echo "<li><a href=\"$url\" title=\"View employee ID $id\">$navn_list</a></li>";
     }
 
-    echo '</ul>';
+    echo "</ul>";
+	$txt = findtekst('2698|Slet alt', $sprog_id);
+	$return_confirm = findtekst('2697|Er du sikker på, at du vil slette alle ansatte tilhørende denne konto?', $sprog_id);
+    echo "<div class='delete-button-wrapper'>";
+    echo "<input type='submit' accesskey='A' name='deleteAll' value='$txt' onclick='return confirm(\"$return_confirm\");'></td>";
+    echo "</div>";
 
-    echo '<div class="delete-button-wrapper">';
-    echo '<input type="submit" accesskey="a" value="Slet alle" name="submit" onclick="return confirm(\'Are you sure you want to delete all employees for this account?\');" />';
-    echo '</div>';
-
-    echo '</div>'; // .employee-section
-    echo '</td></tr>';
+    echo "</div>"; // .employee-section
+    echo "</td></form></tr>";
 }
 
 

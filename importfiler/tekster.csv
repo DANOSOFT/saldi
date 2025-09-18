@@ -33,7 +33,7 @@
 33	Skriv nyt tekstforslag	Write new text suggestion	Skriv nytt tekstforslag
 34	Debitorliste	Debtor list	Kundeliste
 35	Kunde	Customer	Kunde
-36	Postnr.	ZIP code	Post nr.
+36	Postnr.	ZIP code	Postnr.
 37	Telefon	Telephone	Telefon
 38	Stillingsliste	Job list	Stillingsliste
 39	Ny	New	Ny
@@ -1689,13 +1689,13 @@
 1689	Hmm - Indkbsordre kan ikke findes - levering kan ikke foretages - Kontakt systemadministrator	Hmm - Purchase order can not be found - delivery can not be made - Contact system administrator	Hmm - Innkjøpsordre kan ikke bli funnet - levering kan ikke gjøres - Kontakt systemadministrator
 1690	Der er observeret en uoverensstemmelse mellem mellem oprindelig ordre og denne	A discrepancy has been observed between the original order and this one	Det er observert et avvik mellom den opprinnelige ordren og denne
 1691	faktura allerede oprettet til ordre-id	invoice allready created for order id	faktura allerede opprettet for bestillings-ID
-1692	manglende faktureringsdato til ordre	missing invoicedate for order	mangler faktureringsdato for bestilling
+1692	manglende faktureringsdato til ordre	missing invoice date for order	mangler faktureringsdato for bestilling
 1693	(kursdiff) eksisterer ikke	(price difference) does not exist	(prisforskjell) eksisterer ikke
 1694	Der er ikke nogen valutakurs for	There is no exchange rate for	Det er ingen valutakurs for
 1695	Manglende leveringsdato	Missing deliverydate	Mangler leveringsdato
 1696	Leveringsdato inden ordredato	Deliverydate prior to orderdate	Leveringsdato før bestillingsdato
-2697	Faktureret inden ordredato	Invoicedate prior to orderdate	Fakturert før bestillingsdato
-1698	Næste_faktureret forud for fakturering	Next_invoicedate prior to invoicedate	Neste_fakturering før fakturering
+1697	Faktureret inden ordredato	Invoice date prior to orderdate	Fakturert før bestillingsdato
+1698	Genfaktureringsdato skal være senere end fakturadato	Next invoice date must be after invoice date	Gjenfaktureringsdato må være senere enn fakturadato
 1699	Kontonummer for Debitorgruppe	Account number for Debtor group	Kontonummer for debitorgruppe
 1700	er ikke gyldigt	is not valid	er ikke gyldig
 1701	Der er konstateret en uoverensstemmelse i posteringssummen, ordre	A discrepancy has been found in the posting sum, order	Det er funnet avvik i konteringssummen, bestillingen
@@ -2693,9 +2693,9 @@
 2693	Åbn regnskab	Open account	Åpne regnskap
 2694	Bruttoavance	Gross profit	Bruttoavance
 2695	Kreditorliste	Creditor list	Leverandørliste
-2696	
-2697	
-2698	
+2696	Er du sikker på, at du vil slette denne ansatte?	Are you sure you want to delete this employee?	Er du sikker på at du vil slette denne ansatte?
+2697	Er du sikker på, at du vil slette alle ansatte tilhørende denne konto?	Are you sure you want to delete all employees associated with this account?	Er du sikker på at du vil slette alle ansatte tilknyttet denne kontoen?
+2698	Slet alt	Delete all	Slett alt
 2699	
 2700	
 2701	
