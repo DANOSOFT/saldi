@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor(debLstIncludes/debLst.php --- lap 4.1.1 --- 2025-08-22 ----
+// --- debitor(debLstIncludes/debLst.php --- lap 4.1.1 --- 2025-09-14 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,6 +27,7 @@
 // 20230401 PHR	Changed category viewing and fixed some errors
 // 20250223 PHR if groups were set in 'visning' and search for one ore more debitors it went into endless loop.
 // 20250822 PHR	$sortering set to kontonr if $sortering is an array
+// 20250914 LOE Added code to update kontakt field in adresser table if match is found in ansatte table
 
 include("../includes/pagination.php");
 $qtxt = "select id,box1,box2,box11 from grupper where art = 'DLV' and kode ='$valg' and kodenr = '$bruger_id'";
@@ -127,6 +128,19 @@ for($i=0;$i<$dgcount;$i++) {
 				print "<tr bgcolor=\"$linjebg\" onclick='window.location.href=\"".$valg."kort.php?tjek=$row[id]&id=$row[id]&returside=debitor.php\"'><td></td>\n";
 				print "<td align=$justering[0] $javascript> $linjetext $understreg $row[kontonr]$hrefslut</span><br></td>\n";
 				for ($x=1;$x<$vis_feltantal;$x++) {
+
+
+					###############################20250914
+					//check ansatte tabble where konto_id is adresser.id. if the is a match and not exists in adresser table, update kontakt in adresser table
+					 
+					$ps = db_select("SELECT * FROM ansatte WHERE konto_id = $row[id]", __FILE__ . " linje " . __LINE__);
+					$ansat = db_fetch_array($ps);
+					if($ansat && !$row['kontakt']){
+						db_modify("UPDATE adresser SET kontakt = '".$ansat['navn']."' WHERE id = $row[id]", __FILE__ . " linje " . __LINE__);
+						$row['kontakt'] = $ansat['navn'];
+					}
+
+					#############################
 					print "<td align=$justering[$x]>";
 					$tmp=$vis_felt[$x];
 					if ($vis_felt[$x]=='kontoansvarlig') {
@@ -137,7 +151,8 @@ for($i=0;$i<$dgcount;$i++) {
 						for ($y=0;$y<=$status_antal;$y++) {
 							if ($row[$tmp] && $status_id[$y]==$row[$tmp]) print stripslashes($status_beskrivelse[$y]);
 						}
-					} elseif ($vis_felt[$x]=='invoiced' || $vis_felt[$x]=='kontaktet' || $vis_felt[$x]=='kontaktes') {
+				} elseif ($vis_felt[$x]=='invoiced' || $vis_felt[$x]=='kontaktet' || $vis_felt[$x]=='kontaktes') {
+					#} elseif ($vis_felt[$x]=='invoiced' || $vis_felt[$x]=='kontaktet' || $vis_felt[$x]=='kontaktes' || $vis_felt[$x]=='kontakt') { #20250914
 						if ($row[$tmp]=='1970-01-01') print "";
 						else print dkdato($row[$tmp]);
 					} 
