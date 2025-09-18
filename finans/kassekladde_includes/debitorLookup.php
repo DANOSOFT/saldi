@@ -49,7 +49,7 @@ function debitorLookup($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato
 		include_once '../includes/top_menu.php';
 		include_once '../includes/top_header.php';
 		print "<div id=\"header\"> 
-		<div class=\"headerbtnLft\"><a href='../finans/kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd' class=\"button red small left\" accesskey=L>".findtekst(30, $sprog_id)."</a></div>
+		<div class=\"headerbtnLft\"><a href='../finans/kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd' class=\"button red small left\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></div>
 		<span class=\"headerTxt\">Debitorliste</span>";     
 		print "<div class=\"headerbtnRght\"></div>";       
 		print "</div><!-- end of header -->
@@ -62,16 +62,16 @@ function debitorLookup($find,$sort,$fokus,$opslag_id,$id,$kladde_id,$bilag,$dato
 	print "<td width='80%' style='$topStyle' align='center'>".findtekst('34|Debitorliste', $sprog_id)."</td>";
 	print "<td width='10%' align='right'><a href='../finans/kassekladde.php?sort=$sort&funktion=debitorLookup&x=$x&fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr&find=$find'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"JavaScript:window.open('../debitor/debitorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\">";
-	print findtekst(39, $sprog_id)."</button></a></td>";
+	print findtekst('39|Ny', $sprog_id)."</button></a></td>";
 	print "</tbody></table>";
 	print "</td></tr>\n";
 	print "<tr><td valign='top'>";
 	print "<table class='dataTable2' cellpadding='1' cellspacing='1' border='0	' width='100%' valign = 'top'>";
 	} else {
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href='../finans/kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd' accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
+	print "<td width=\"10%\" $top_bund><a href='../finans/kassekladde.php?fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&momsfri=$momsfri&afd=$afd' accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 	print "<td width=\"80%\" $top_bund>Debitorliste</td>";
-	print "<td width=\"10%\" $top_bund align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"JavaScript:window.open('../debitor/debitorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\"><a href='../finans/kassekladde.php?sort=$sort&funktion=debitorLookup&x=$x&fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr&find=$find'><u>".findtekst(39, $sprog_id)."</u></a></td>";
+	print "<td width=\"10%\" $top_bund align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"JavaScript:window.open('../debitor/debitorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\"><a href='../finans/kassekladde.php?sort=$sort&funktion=debitorLookup&x=$x&fokus=$fokus&kladde_id=$kladde_id&id=$id&bilag=$bilag&dato=$dato&beskrivelse=$beskrivelse&d_type=$d_type&debet=$debet&k_type=$k_type&kredit=$kredit&faktura=$faktura&belob=$belob&belob=$belob&momsfri=$momsfri&afd=$afd&projekt=$projekt&ansat=$ansat&valuta=$valuta&lobenr=$lobenr&find=$find'><u>".findtekst('39|Ny', $sprog_id)."</u></a></td>";
 #	else print"<td width=\"10%\" $top_bund align=\"right\"><a href=../debitor/debitorkort.php?returside=../finans/kasseklade.php&id=$id accesskey=N>Ny</a></td>";
 	print "</tbody></table>";
 	print "</td></tr>\n";
