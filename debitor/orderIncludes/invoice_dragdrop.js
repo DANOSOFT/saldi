@@ -96,14 +96,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 
-    let invoiceFlag = form.querySelector('input[name="invoice_dragdrop"]');
-    if (!invoiceFlag) {
-        invoiceFlag = document.createElement('input');
-        invoiceFlag.type = 'hidden';
-        invoiceFlag.name = 'invoice_dragdrop';
-        invoiceFlag.value = '1';
-        form.appendChild(invoiceFlag);
-    }
+let invoiceFlag = form.querySelector('input[name="invoice_dragdrop"]');
+if (invoiceFlag) {
+    invoiceFlag.remove();
+}
+invoiceFlag = document.createElement('input');
+invoiceFlag.type = 'hidden';
+invoiceFlag.name = 'invoice_dragdrop';
+invoiceFlag.value = '1';
+form.appendChild(invoiceFlag);
 
     const saveBtn = form.querySelector('input[type="submit"][name="save"]') ||
                    form.querySelector('input[type="submit"][value*="Gem"]') ||

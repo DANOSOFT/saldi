@@ -522,31 +522,80 @@ if($status < 3){
 ////// Tutorial end //////
 
 
+// $other_actions = ['print_to', 'copy', 'print', 'credit', 'save', 'submit', 'localPrint',];
+// $has_other_action = false;
+// foreach ($other_actions as $action) {
+//     if (isset($_POST[$action])) {
+// 		
+//         $has_other_action = true;
+//         break;
+//     }
+// }
 
-// Handle invoice drag and drop reordering
-if (isset($_POST['invoice_dragdrop']) && $_POST['invoice_dragdrop'] == '1' && $id) {
-    // Process position updates for invoices
-    $linjeantal = (int)if_isset($_POST, 0, 'linjeantal');
+// if (isset($_POST['invoice_dragdrop']) && $_POST['invoice_dragdrop'] == '1' && $id && !$has_other_action) {
+//     $linjeantal = (int)if_isset($_POST, 0, 'linjeantal');
     
-    for ($x = 1; $x <= $linjeantal; $x++) {
-        $linje_id_val = if_isset($_POST, NULL, "linje_id")[$x] ?? 0;
-        $posn_val = if_isset($_POST, NULL, "posn$x") ?? 0;
+//     for ($x = 1; $x <= $linjeantal; $x++) {
+//         $linje_id_val = if_isset($_POST, NULL, "linje_id")[$x] ?? 0;
+//         $posn_val = if_isset($_POST, NULL, "posn$x") ?? 0;
         
-        if ($linje_id_val && is_numeric($posn_val)) {
-            $qtxt = "UPDATE ordrelinjer SET posnr = '$posn_val' WHERE id = '$linje_id_val' AND ordre_id = '$id'";
-            db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-        }
-    }
+//         if ($linje_id_val && is_numeric($posn_val)) {
+//             $qtxt = "UPDATE ordrelinjer SET posnr = '$posn_val' WHERE id = '$linje_id_val' AND ordre_id = '$id'";
+//             db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+//         }
+//     }
     
-    // For invoices, we might need to update costs or other calculations
-    if (function_exists('updateOrderCost')) {
-        updateOrderCost($id);
-    }
+//     
+//     if (function_exists('updateOrderCost')) {
+//         updateOrderCost($id);
+//     }
+
+// 	 if (isset($_POST['sprog'])) {
+//         $formularsprog = db_escape_string($_POST['sprog']);
+//         db_modify("UPDATE ordrer SET sprog = '$formularsprog' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+//     }
+
+//     if (isset($_POST['pbs'])) {
+//         $pbs_val = db_escape_string($_POST['pbs']);
+//         db_modify("UPDATE ordrer SET pbs = '$pbs_val' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+//     }
+
+// 	 if (isset($_POST['email'])) {
+//         $email_val = db_escape_string($_POST['email']);
+//         db_modify("UPDATE ordrer SET email = '$email_val' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+//     }
+
+// 	  if (isset($_POST['phone'])) {
+//         $phone_val = db_escape_string($_POST['phone']);
+//         db_modify("UPDATE ordrer SET phone = '$phone_val' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+//     }
+
+//     if (isset($_POST['udskriv_til'])) {
+//         $udskriv_til_val = db_escape_string($_POST['udskriv_til']);
+//         db_modify("UPDATE ordrer SET udskriv_til = '$udskriv_til_val' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+//     }
+
+
+
+	
+
+
+// 	if (isset($_POST['genfakt'])) {
+// 			$genfakt = trim($_POST['genfakt']);
+// 			if ($genfakt !== '') {
+// 				if ($genfakt !== '-') {
+// 					db_modify("UPDATE ordrer SET nextfakt='".usdate($genfakt)."' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
+// 				} else {
+// 					db_modify("UPDATE ordrer SET nextfakt=NULL WHERE id='$id'", __FILE__ . " linje " . __LINE__);
+// 				}
+// 			}
+// 		}
+
     
-    // Redirect back to the same page to show updated order
-    print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&returside=$returside\">\n";
-    exit;
-}
+// 
+//     // print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id&returside=$returside\">\n";
+//     // exit;
+// }
 if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 2008.05.11  Bliver kaldt ved skift af kontonr for ordrern
 	$konto_id=$_GET['konto_id'];
 	$q = db_select("select * from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__);
@@ -2813,7 +2862,7 @@ function ordreside($id,$regnskab) {
 				$dfm_prodcode = $form_prodcode;
 			}
 
-			if (empty($form_gooddes)) { // Delete this when a field is added in the dfm_go form with the same parameter
+			if (empty($form_gooddes)) { // Delete  this when a field is added in the dfm_go form with the same parameter
 				if (empty($dfm_gooddes)) { 
 					$dfm_gooddes="Beskriv godset..."; // Delete this when a field is added in the dfm_go form with the same parameter
 				}
@@ -2947,39 +2996,25 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 
 
 	if ($status>=3) {
-		    print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
+	print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
     $actionUrl = "ordre.php?id=$id";
-// if (!empty($sag_id)) {
-//     $actionUrl .= "&sag_id=$sag_id";
-// } else {
-// 	if (!empty($returside)) {
-// 		$actionUrl .= "&returside=" . urlencode($returside);
-// 	}
-
-// }
 
 
 
+	if ($b_submit == 'Kopier' || isset($_POST['copy'])) {
+		$formAction = "ordre.php?sag_id=$sag_id&amp;returside=$returside"; 
+	} else {
+		$formAction = "ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside";
+	}
+	print "<form name=\"ordre\" id=\"1\" action=\"$formAction\" method=\"post\">\n"; 
 
-// print "<form name=\"ordre\" id=\"invoice-form\" action=\"$actionUrl\" method=\"post\">\n";
+// print "<form name=\"ordre\" id=\"$formId\" action=\"$formAction\" method=\"post\">\n";
+// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
 
-if ($type == 'order' || $type == 'ordre') {
-    $formAction = "ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside";
-    //   $formAction = $actionUrl;
-    $formId = "1";
-} else {
-    $formAction = $actionUrl;
-    $formId = "invoice-form";
-}
+		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
+		print '<input type="hidden" name="invoice_dragdrop" value="10">';
 
-print "<form name=\"ordre\" id=\"$formId\" action=\"$formAction\" method=\"post\">\n";
-		// print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n"; 
-
-		
-print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
-    print '<input type="hidden" name="invoice_dragdrop" value="1">'; // NEW: Flag for invoice drag
-
-print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
+		print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
 		print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
 		print "<input type=\"hidden\" name=\"id\" value=\"$id\">";
 		print "<input type=\"hidden\" name=\"art\" value=\"$art\">";
@@ -3548,7 +3583,8 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		}	
 		if ($art!='DK') {
 			print "<td align=\"center\"><input type=\"submit\" class=\"button gray medium\" "; 
-			print "value=\"".findtekst('1100||Kopier', $sprog_id)."\" name=\"b_submit\" ";
+			// print "value=\"".findtekst('1100||Kopier', $sprog_id)."\" name=\"b_submit\" ";
+			print "value=\"".findtekst('1100||Kopier', $sprog_id)."\" name=\"copy\" ";
 			print "title=\"".findtekst('1459|Kopiér til ny ordre med samme indhold', $sprog)."\"></td>\n";
 		}
 		if ($mail_fakt) $tmp="value=\"&nbsp;Send&nbsp;\" onclick=\"return confirm('$confirm1 $email')\" title=\"".findtekst('1460|Send som e-mail med vedhæftet PDF-fil. Andre typer behandlinger er valgt fra \'Udskriv til\'', $sprog_id)."\"";
@@ -5647,7 +5683,7 @@ if ($menu=='T') {
 <link rel="stylesheet" href="orderIncludes/ordre_dragdrop.css">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="orderIncludes/ordre_dragdrop.js"></script>
-<script src ="orderIncludes/invoice_dragdrop.js"></script>
+<!-- <script src ="orderIncludes/invoice_dragdrop.js"></script> -->
 
 
 
