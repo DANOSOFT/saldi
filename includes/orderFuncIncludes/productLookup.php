@@ -35,6 +35,9 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 		$qtxt = "select var_value from settings where var_name='itemLookup' and var_grp='deb_order' and user_id='$bruger_id'";
 		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 			$sort = $r['var_value'];
+			if ($sort == "ordredate"){
+				$sort = "varenr";
+			}
 			$qtxt = NULL;
 		} else {
 			$sort = 'beskrivelse';
