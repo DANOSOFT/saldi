@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 4.1.0 --- 2024-05-22 ---
+// --- includes/rapportfunc.php --- patch 4.1.0 --- 2025-09-22 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20121106 Kontrol for aktivt regnskabsaar v. bogføring af rykker.Søg 20121106  
@@ -212,7 +212,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<tr><td width=100% height=\"8\">\n";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody><!--Tabel 1.2 start-->\n"; // tabel 1.2
 
-		print "<td width='10%'><a accesskey=l href=\"rapport.php\">
+		print "<td width='10%' style='$topStyle' ><a accesskey=l href=\"rapport.php\">
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
 		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
@@ -225,7 +225,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<td width=\"80%\" $top_bund>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
 		print "<td width=\"10%\" $top_bund>\n";
 	}
-	print "<div style='padding:5px;height:12px;'><center><select name=\"aabenpostmode\"
+	print "<div><center><select name=\"aabenpostmode\"
 		onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\"></div>\n";
 	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";

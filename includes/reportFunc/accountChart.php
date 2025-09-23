@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.06.27 ---
+// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.09.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // ----------------------------------------------------------------------
 //
 // 20250627 base currency anount was not calculated correct.
+// 2050923 LOE - Showing all records or only open records added. 
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -36,7 +37,17 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	global $sprog_id;
 	global $top_bund;
 
-	$title = "Kontokort";
+	$title = "Kontokort"; 
+	if(isset($_GET['kilde'])) {
+		
+		$OpenPost = if_isset($_GET['kilde'])=='openpost' ? 'on' : 'off';
+		$AllAcount = if_isset($_GET['kilde'])=='show_all' ? 'on' : 'off';
+		if($OpenPost != 'on' && $AllAcount != 'on') {
+			$OpenPost = 'on'; //default to open post
+		}
+	} 
+
+	
 
 	$email=$forfaldsum=$fromdate=$kto_fra=$kto_til=$returside=$todate=NULL;
 
@@ -76,12 +87,17 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		$dato_til=$r['box3'];
 		$konto_fra=$r['box4'];
 		$konto_til=$r['box5'];
-		$rapportart=$r['box6'];
+		if(isset($_GET['rapportart'])){
+			$rapportart= $_GET['rapportart']; #20250923
+		} else {
+			$rapportart=$r['box6'];
+		}
 	} 
 	if ($r=db_fetch_array(db_select("select id from grupper where art = 'PRJ'",__FILE__ . " linje " . __LINE__))) $prj='Projekt';
 	else $prj='';
 
 	if ($tmp && $tmp!=$konto_fra && !$returside) {
+		if( $rapportart == 'accountChart') $rapportart='openpost'; #20250923
 		$returside="rapport.php?rapportart=$rapportart"; //&submit=ok&regnaar=$regnaar&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 		$konto_fra=$tmp;
 		$konto_til=$konto_fra;
@@ -273,6 +289,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	} else {
 		print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	}
+	
 	if ($menu=='T' && $x==1) {
 		include_once ("../includes/topmenu/header.php");
 		print "<div class='$kund'>$title</div>
@@ -288,6 +305,29 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		else $tekst = findtekst(1141,$sprog_id) ." - ". lcfirst(findtekst('133|Kontokort',$sprog_id));
 
 		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>\n";
+		################
+			print "<td width='10%'>
+					<select name=\"typeSelect\" style=\"width:100%; height:100%; font-size:inherit;\"
+						onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\">\n";
+
+			if ($OpenPost == 'on') 
+				print "<option>Show open Records</option>\n";
+			elseif ($AllAcount == 'on') 
+				print "<option>Show all Records</option>\n";  
+			
+			if ($OpenPost != 'on') 
+				
+				print "<option value=\"rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra
+						&kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
+						&submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]\">Show Open Post</option>\n";
+			if ($AllAcount != 'on') 
+				print "<option value=\"rapport.php?rapportart=accountChart&kilde=show_all&kto_fra=$kto_fra
+						&kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
+						&submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]\">Show All</option>\n";
+			print "</select>
+				</td>\n";
+
+	      ############
 
 		($kontoantal==1)?$w=5:$w=10;
 		print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\">\n
@@ -322,6 +362,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "</tbody></table>"; //B slut
 		print "</td></tr>\n";
 	}
+	
 
 	if ($menu=='T') {
 
@@ -492,6 +533,19 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			$pre_openpost=0;
 			for ($y=1;$y<=count($oppId);$y++) {
 				$diff=0;
+				####################
+				# Filter Open Post
+				if($kontoart=='D'){
+                  if($OpenPost =='on' && $udlignet[$y] =='1' ) {
+					continue;
+				  } 
+				}elseif($kontoart=='K'){
+				  if($OpenPost =='on' && $udlignet[$y] =='1' ) {
+					continue;
+				  } 
+				}
+				####################
+
 				if ($transdate[$y]<$fromdate) {
 					 $primoprint[$x]=0;
 					 $kontosum+=afrund($amount[$y],2);
@@ -518,7 +572,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 					if (!$forfaldsdag[$y]) $forfaldsdag[$y]=usdate(forfaldsdag($transdate[$y], $betalingsbet, $betalingsdage));
 					if ($amount[$y]>0) {// (($kontoart=='D' && $amount>0) || ($kontoart=='K' && $amount<0)) {
 					($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
-					if ($udlignet[$y]!='1') {
+					   if ($udlignet[$y]!='1') {
 							$pre_openpost=1;
 							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
 						} else {

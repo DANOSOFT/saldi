@@ -31,6 +31,7 @@
 // 20190410 - PHR $konto_fra=$konto_fra=$konto rettet til $konto_fra=$konto_til=$konto;
 // 20190815 - PHR
 // 20210805 - LOE Translated some texts 
+// 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart
 
 
 @session_start();
@@ -152,6 +153,7 @@ if (isset($_GET['ny_rykker'])) {
 	$dato_til = if_isset($_GET['dato_til']);
 	$konto_fra = if_isset($_GET['konto_fra']);
 	$konto_til = if_isset($_GET['konto_til']);
+	$rapportart = $_GET['rapportart']; 
 	if (isset($_GET['udlign'])) {
 		$udlign = explode(",", $_GET['udlign']);
 		#		$autoudlign=array($udlign);
@@ -160,14 +162,16 @@ if (isset($_GET['ny_rykker'])) {
 		}
 	}
 	if ($rapportart == 'accountChart')
-include("../includes/row-hover-style-with-link-no-input.js.php");
-
-		$rapportart = 'kontokort';
+	include("../includes/row-hover-style-with-link-no-input.js.php");
+    else $rapportart = 'kontokort'; 
+	
 	if ($rapportart == 'accountChart')
 		include_once("../includes/reportFunc/accountChart.php");
 	$rapportart($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
+	
 	exit;
 }
+
 $rapportart = NULL;
 if (isset($_POST['openpost']) || $openpost)
 	$rapportart = 'openpost';
