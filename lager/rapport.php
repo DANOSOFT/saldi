@@ -88,7 +88,7 @@ if (!isset ($_GET['kun_salg'])) $_GET['kun_salg'] = NULL;
 if (!isset ($_GET['lagertal'])) $_GET['lagertal'] = NULL;
 $backUrl = isset($_GET['returside'])
 ? $_GET['returside']
-: 'javascript:window.history.go(-2);';
+: '../index/menu.php';
 if ($popup) $returside="../includes/luk.php";
 
 else $returside = $backUrl;
