@@ -286,6 +286,19 @@ print "
           completed = true;
           paused = true;
 
+          // tell the terminal to cancel the transaction
+          await fetch('https://socket-api.flatpay.dk/socket/transaction/cancel', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              transactionReference: transactionData.transactionReference,
+              terminalId: transactionData.terminalId,
+              guid: transactionData.guid
+            })
+          });
+
           // Save receipt data
           await fetch('save_receipt.php', {
             method: 'POST',

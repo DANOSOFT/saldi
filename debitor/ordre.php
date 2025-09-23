@@ -4201,6 +4201,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		$txt555 = findtekst('555|Godkend', $sprog_id);
 		if ($status==0&&$hurtigfakt!="on") print "<tr><td>$txt555</td><td><input class = 'inputbox' type=\"checkbox\" name=\"godkend\" $disabled></td></tr>\n";
 		elseif ($status<3&&$hurtigfakt!="on") {
+			
 			if ($restordre) $restordre="checked";
 			else $restordre = "";
       		print "<tr><td>".findtekst('2542|Restordre', $sprog_id)."</td><td><input class = 'inputbox' type=\"checkbox\" name=\"restordre\" $restordre></td>\n";
@@ -4807,6 +4808,11 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
         </td>\n";
         if ($vis_projekt && !$masterprojekt) print "<td></td>";  
         if ($genfakt) print "<td title=\"".findtekst('1488|Afmærk dette felt hvis ordrelinjen ikke skal med ved genfakturering / kopiering.', $sprog_id)."\"><input class = 'inputbox' name=\"kdo[0]\" type=\"checkbox\"></td>\n";
+		if($status  < 2){
+
+			print "<td> </td>"; // Empty cell for input row
+			print "<td> </td>"; // Empty cell for input row
+		}
         $txt1489 = str_replace('\n', "\n", findtekst('1489|Indsættes for at lave fed tekst. Sæt cursoren imellem <b> og </b>. (F.eks. <b>Lorem ipsum</b>)', $sprog_id));
         $txt1490 = str_replace('\n', "\n", findtekst('1490|Indsættes for at lave kursiv tekst. Sæt cursoren imellem <i> og </i>. (F.eks. <i>Lorem ipsum</i>) Kan også bruges til tom linje. Her insættes <i></i> uden tekst.', $sprog_id));
         print "<td valign = 'top' colspan=\"2\"><input type=\"button\" name=\"insert\" class=\"button white small bold\" value=\"B\" onClick=\"this.form.beskrivelse0.value=this.form.beskrivelse0.value.concat('<b></b>'); this.form.beskrivelse0.focus();\" title=\"$txt1489\">\n"; #2013.11.29 Sætter fokus på felt ved clik
@@ -5279,6 +5285,9 @@ function ordrelinjer($x,$sum,$dbsum,$blandet_moms,$moms,$antal_ialt,$leveres_ial
 		}
 #  }
 	$prplho=NULL;
+
+	print "<td></td>";
+
 	if ($fokus=='pris'.$x) { #20151019
 		if ($pris == 0) $prplho="placeholder=\"0,00\"";
 		else $fokus='vare0';
@@ -5494,6 +5503,7 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 			if (!$lagervare) $beholdning="ikke lagerført";
 			$tmp=afrund(abs($antal)-abs($tidl_lev),2); #20131004
 			if ($samlevare && $saet) {
+
 				$tmp=NULL;
 			} else {
 				if ($tmp) {
@@ -5511,12 +5521,26 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 					print "<td title=\"".findtekst('1500|Lagerbeholdning', $sprog_id).": $beholdning. Alt ".$lever_modtag."et.\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 					print "<td title=\"".findtekst('1495|Tidligere', $sprog_id)." ".$lever_modtag."et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
 				}
+
 				if ($linje_id && $leveret!=$tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id",__FILE__ . " linje " . __LINE__);
 			}
+
 		}
+     else {
+    print "<td></td>";
+    print "<td></td>";
+
+	 }
+ 
   } elseif ($serienr) { 
+
     print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"".findtekst('1501|Vælg serienr', $sprog_id)."\"><img alt=\"".findtekst('1497|Serienummer', $sprog_id)."\" src=\"../ikoner/serienr.png\"></td>\n"; #20210715
 	
+	}
+
+	else {
+    // print "<td></td>";
+
 	}
 
 #      if ($samlevare=='on') print "<td align=\"center\" onClick=\"stykliste($vare_id)\" title=\"Vis stykliste\"><img alt=\"Stykliste\" src=\"../ikoner/stykliste.png\"></td>\n";
@@ -5550,6 +5574,7 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 		print "<td><input class = 'inputbox' readonly=\"readonly\" style=\"text-align:right\" size=\"10\" value=\"".dkdecimal($m_rabat*$antal,2)."\"></td>\n";
 		
 	}
+
   	if ($omkunde) print "<td valign = 'top'><input class = 'inputbox' type=\"checkbox\" style=\"background: none repeat scroll 0 0 #e4e4ee\" name=\"omvbet[$x]\" onchange=\"javascript:docChange = true;\" $omvbet></td>\n";
       
 	print "</tr>\n";
