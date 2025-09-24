@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- ver 4.0.7 --- 2022-11-24 --
+// --- debitor/mail_kontoudtog.php --- ver 4.1.1 --- 2025-09-24 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 Saldi.DK ApS
+// Copyright (c) 2003-2025 Saldi.DK ApS
 // ----------------------------------------------------------------------
 // 20120906 break ændret til break 1
 // 20121004 Gmail afviser mails hvor 'from' ikke er *.saldi.dk søg 20121029
@@ -41,6 +41,7 @@
 // 20220809 PHR Changed if($charset=="UTF-8") to if($charset != "UTF-8") and utf8_decode to utf8_encode
 // 20221124 PHR Changed 'from' address to $db@$_SERVER_NAME  + added $mail->ReturnPath = $afsendermail;
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20250924 LOE Added static footer with email and period inputs + buttons
 
 @session_start();
 $s_id=session_id();
@@ -77,6 +78,35 @@ if (isset($_POST['retur']) && $_POST['retur']) {
 	$email=$_POST['email'];
 	$fra=$_POST['fra'];
 	$til=$_POST['til'];
+	##################
+	for ($x = 1; $x <= $kontoantal; $x++) {
+		// --------- FRA DATE ------------
+			if (!empty($fra[$x])) {
+				// Use per-row date if valid
+				$fra_dt = DateTime::createFromFormat('d-m-Y', $fra[$x]) ?: DateTime::createFromFormat('Y-m-d', $fra[$x]);
+				if ($fra_dt) {
+					$fra[$x] = $fra_dt->format('d-m-Y');
+				} else {
+					$fra[$x] = !empty($dato_fra) ? $dato_fra : date('d-m-Y');
+				}
+			} else {
+				$fra[$x] = !empty($dato_fra) ? $dato_fra : date('d-m-Y');
+			}
+
+			// --------- TIL DATE ------------
+			if (!empty($til[$x])) {
+				$til_dt = DateTime::createFromFormat('d-m-Y', $til[$x]) ?: DateTime::createFromFormat('Y-m-d', $til[$x]);
+				if ($til_dt) {
+					$til[$x] = $til_dt->format('d-m-Y');
+				} else {
+					$til[$x] = !empty($dato_til) ? $dato_til : date('d-m-Y');
+				}
+			} else {
+				$til[$x] = !empty($dato_til) ? $dato_til : date('d-m-Y');
+			}
+		}
+
+	################
 }
 else {
 	$kontoliste=if_isset($_GET['kontoliste']);
@@ -296,12 +326,115 @@ for($x=1; $x<=$kontoantal; $x++) {
 		$tmp=dkdecimal($kontosum,2);
 		print "<tr><td></td><td></td><td></td><td> ".findtekst(1165, $sprog_id)."</td><td></td><td></td><td></td><td align=right> $tmp</td></tr>";
 	}
-	print "<tr><td colspan=8><hr></td></tr>";
- 	print "<tr><td colspan=8> email til: <input type=text name=email[$x] value=$email[$x]> Periode: <input type=text style=\"text-align:right\" size=10 name=fra[$x] value=$fra[$x]> - <input type=text style=\"text-align:right\" size=10 name=til[$x] value=$til[$x]></td></tr>";
-	print "<tr><td colspan=8><hr style=\"height: 10px; background-color: rgb(200, 200, 200);\"></td></tr>";
-	print "<tr><td colspan=8><hr></td></tr>";
-	print "<input type = hidden name=konto_id[$x] value=$konto_id[$x]>";
+	#####
+	$footer_email     = htmlspecialchars($email[$x]);
+	$footer_fra       = htmlspecialchars($fra[$x]);
+	$footer_til       = htmlspecialchars($til[$x]);
+	$footer_konto_id  = htmlspecialchars($konto_id[$x]);
+	
+	####
 }
+###########
+$footer_fra = date('Y-m-d', strtotime($footer_fra));
+$footer_til = date('Y-m-d', strtotime($footer_til));
+?>
+
+<div id="fixedFooter" style="display:flex; justify-content:space-between; align-items:center;">
+
+<!-- Required Hidden Global Inputs -->
+<input type="hidden" name="kontoantal" value="<?php echo htmlspecialchars($kontoantal); ?>">
+<input type="hidden" name="dato_fra" value="<?php echo htmlspecialchars($dato_fra); ?>">
+<input type="hidden" name="dato_til" value="<?php echo htmlspecialchars($dato_til); ?>">
+<!-- <input type="hidden" name="regnaar" value="<?php echo htmlspecialchars($regnaar); ?>"> -->
+
+  <!-- Left: email + periode inputs -->
+  <div style="text-align:left;">
+    <hr style="margin: 0 0 4px 0;">
+    email til:
+    <input type="text" name="email[<?php echo $x - 1; ?>]" value="<?php echo htmlspecialchars($footer_email); ?>">
+    Periode:
+    <input type="date" style="text-align:right" size="10" name="fra[<?php echo $x - 1; ?>]" value="<?php echo htmlspecialchars($footer_fra); ?>"> -
+    <input type="date" style="text-align:right" size="10" name="til[<?php echo $x - 1; ?>]" value="<?php echo htmlspecialchars($footer_til); ?>">
+    <hr style="height:10px; background-color: rgb(200, 200, 200); margin: 4px 0;">
+    <hr style="margin: 4px 0 0 0;">
+    <input type="hidden" name="konto_id[<?php echo $x - 1; ?>]" value="<?php echo htmlspecialchars($footer_konto_id); ?>">
+  </div>
+
+  <!-- Right: buttons -->
+  <div style="text-align:right;">
+    <input type="submit" style="width:110px; margin-right:10px;" value="Opdatér" name="update" title="<?php echo findtekst(1797, $sprog_id); ?>">
+    <input type="submit" style="width:110px; margin-right:10px;" value="Send mail(s)" name="send_mails" title="<?php echo findtekst(1798, $sprog_id); ?>">
+
+    <?php
+    // Check if "Send som PDF" should be enabled
+    $disabled = 'disabled';
+    $spantxt = findtekst(1800, $sprog_id);
+
+    $qtxt = "SELECT * FROM formularer WHERE formular='11' AND art='5' AND LOWER(sprog)='dansk'";
+    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    $mailtext = $subjekt = NULL;
+
+    while ($r = db_fetch_array($q)) {
+      if (!$subjekt && $r['xa'] == '1') $subjekt = $r['beskrivelse'];
+      elseif (!$mailtext && $r['xa'] == '2') $mailtext = $r['beskrivelse'];
+    }
+
+    if ($mailtext && $subjekt) {
+      $disabled = '';
+      $spantxt = findtekst(1799, $sprog_id);
+    }
+    ?>
+
+    <input 
+      type="submit"
+      name="send_pdfs"
+      value="Send som PDF"
+      title="<?php echo $spantxt; ?>"
+      <?php echo $disabled; ?>
+      style="width:110px; margin-right:10px; <?php echo ($disabled ? 'background-color:#ccc; color:#666; cursor:not-allowed;' : ''); ?>"
+    >
+
+    <input type="submit" style="width:110px;" value="Retur" name="retur" title="<?php echo findtekst(1801, $sprog_id); ?>">
+  </div>
+</div>
+
+<style>
+  #fixedFooter {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    border-top: 2px solid #ccc;
+    padding: 10px 20px;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    z-index: 9999;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+  }
+
+  #fixedFooter input[type="text"],
+  #fixedFooter input[type="date"] {
+    margin-left: 4px;
+    margin-right: 8px;
+  }
+
+  #fixedFooter input[type="submit"] {
+    width: 110px;
+  }
+
+  input[type="submit"]:disabled {
+    background-color: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+  }
+</style>
+
+<?php
+
+ #########
 print "<input type = hidden name=kontoantal value=$kontoantal>";
 print "<input type = hidden name=dato_fra value=$dato_fra>";
 print "<input type = hidden name=dato_til value=$dato_til>";
