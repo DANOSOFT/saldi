@@ -94,6 +94,7 @@
 // 20250512 PHR - Corrected 'shopurl' fetch 	
 // 20250512 PHR - added feedback message after product creation 'shopurl' fetch 	
 // 26062025 PBLM - Changed alert text to danish
+// 20250924 PBLM - Alert for saved product is disabled
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -1089,9 +1090,11 @@ if ($saveItem || $submit = trim($submit)) {
         }
     }
     #   }
-    if ($saved) {
-        echo "<script>alert('" . $_SESSION['product_success'] . "');</script>";    
-    }
+    // alert for saved product is disabled
+/*     if ($saved) {
+        echo "<script>alert('" . $_SESSION['product_success'] . "');</script>";
+        $saved = false;
+    } */
     
 } elseif ($id && isset($_POST['ChangeDescription']) && $_POST['ChangeDescription'] == 'Ja') {
     $newDecsription = db_escape_string($_POST['newDecsription']);
