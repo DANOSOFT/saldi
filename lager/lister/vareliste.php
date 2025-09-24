@@ -100,6 +100,7 @@ $columns[] = array(
         $term = db_escape_string($term);
         return "(v.varenr ILIKE '%$term%' OR v.varenr_alias ILIKE '%$term%')";
     },
+    "hidden" => true,
 );
 
 $columns[] = array(
@@ -134,6 +135,7 @@ $columns[] = array(
         $term = db_escape_string($term);
         return "(v.beskrivelse ILIKE '%$term%' OR v.beskrivelse_alias ILIKE '%$term%')";
     },
+    "hidden" => true,
 );
 
 $columns[] = array(
