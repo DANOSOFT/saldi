@@ -1891,22 +1891,23 @@ if ($status<3 && $b_submit) {
           if (!$antal[0]) $antal[0] = 1;
         }
       }
-			if ($varenr[0]) {
-				$samlevare[0]='';
-				if ($brugsamletpris) {
-					$r=db_fetch_array(db_select("SELECT id,samlevare,salgspris FROM varer WHERE varenr = '$varenr[0]' or varenr_alias = '$varenr[0]' or stregkode = '$varenr[0]'",__FILE__ . " linje " . __LINE__));
-					$samlevare[0]=$r['samlevare'];
-				}
-				if ($brugsamletpris && $samlevare[0]) {
-					if ($incl_moms) $salgspris[0]=$r['salgspris']+$r['salgspris']*$momssats/100;
-					opret_saet($id,$r['id'],$salgspris[0],$momssats,$antal[0],$incl_moms,$lager[0]);#20170627
-				} else {
- 					$svar=opret_ordrelinje($id,"",$varenr[0],$antal[0],$beskrivelse[0],$pris[0],$rabat[0],$procent[0],$art,$momsfri[0],$posnr_ny[0],0,$incl_moms,"","",0,"","","",$lager[0],__LINE__);
-					if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
-					if (!$antal[0] && !isset($_POST['indsat'])) { #20151019
-						$fokus='dkan'.$x;
-					}
-				}
+	if ($varenr[0]) {
+		$samlevare[0]='';
+		if ($brugsamletpris) {
+			$r=db_fetch_array(db_select("SELECT id,samlevare,salgspris FROM varer WHERE varenr = '$varenr[0]' or varenr_alias = '$varenr[0]' or stregkode = '$varenr[0]'",__FILE__ . " linje " . __LINE__));
+			$samlevare[0]=$r['samlevare'];
+		}
+		if ($brugsamletpris && $samlevare[0]) {
+			if ($incl_moms) $salgspris[0]=$r['salgspris']+$r['salgspris']*$momssats/100;
+			opret_saet($id,$r['id'],$salgspris[0],$momssats,$antal[0],$incl_moms,$lager[0]);#20170627
+		} else {
+			$svar=opret_ordrelinje($id,"",$varenr[0],$antal[0],$beskrivelse[0],$pris[0],$rabat[0],$procent[0],$art,$momsfri[0],$posnr_ny[0],0,$incl_moms,"","",0,"","","",$lager[0],__LINE__);
+			
+			if (!is_numeric($svar)) print "<BODY onLoad=\"javascript:alert('$svar')\">";
+			if (!$antal[0] && !isset($_POST['indsat'])) { #20151019
+				$fokus='dkan'.$x;
+			}
+		}
       } elseif ($beskrivelse[0] && is_numeric($posnr_ny[0])) {
         db_modify("insert into ordrelinjer (ordre_id,posnr,beskrivelse,lager) values ('$id','$posnr_ny[0]','$beskrivelse[0]','$lager[0]')",__FILE__ . " linje " . __LINE__);
       }
@@ -4461,7 +4462,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 			$qtxt="select * from ordrelinjer where ordre_id = '$ordre_id' order by posnr";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($q)) {
-			if ($row['posnr']>0 && !is_numeric($row['samlevare']) && $row['samlevare'] <1) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
+			if ($row['posnr']>0 && !is_numeric($row['samlevare'])) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
 				$x++;
 				$linje_id[$x]        = $row['id'];
 				$kred_linje_id[$x]   = $row['kred_linje_id'];
