@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------patch 4.0.8 ----2023-07-22--------------
+// -------debitor/rapport.php------patch 4.1.1 ----2025-09-24--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
@@ -31,7 +31,7 @@
 // 20190410 - PHR $konto_fra=$konto_fra=$konto rettet til $konto_fra=$konto_til=$konto;
 // 20190815 - PHR
 // 20210805 - LOE Translated some texts 
-// 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart
+// 20250923 - LOE Sets rapportart to $rapportart = 'kontokort'; only if not accountChart 
 
 
 @session_start();
@@ -119,6 +119,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 #print "<script LANGUAGE=\"JavaScript\" TYPE=\"text/javascript\" SRC=\"../javascript/overlib.js\"></script>";
 global $sprog_id; //2021
+
 $backUrl = isset($_GET['returside'])
 	? $_GET['returside']
 	: '../index/menu.php';

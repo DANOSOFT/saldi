@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.09.23 ---
+// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.09.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -290,7 +290,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	}
 	
-	if ($menu=='T' && $x==1) {
+	if ($menu=='T' && $x==1) { 
 		include_once ("../includes/topmenu/header.php");
 		print "<div class='$kund'>$title</div>
 		<div class='content-noside'><br>";
@@ -308,7 +308,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		################
 			print "<td width='10%'>
 					<select name=\"typeSelect\" style=\"width:100%; height:100%; font-size:inherit;\"
-						onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\">\n";
+						 onchange=\"window.location.href = this.options[this.selectedIndex].value;\">\n";
 
 			if ($OpenPost == 'on') 
 				print "<option>Show open Records</option>\n";

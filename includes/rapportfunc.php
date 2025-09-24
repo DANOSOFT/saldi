@@ -76,13 +76,14 @@
 // 20230824 MSC - Copy pasted new design into code
 // 20240330 PHR	- Corrections in open post when fromdate != currentdate
 // 20250430 make sure the back button go back to the previous page rather going to the dashbaord
+// 20250924 LOE - Modify select url to use window.location.href instead of window.open to fit into main frame.
 
 include("../includes/reportFunc/showOpenPosts.php");
 
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $kontoart)
 {
 ?>
-	<script LANGUAGE="JavaScript">
+	<script LANGUAGE="JavaScript"> 
 		<!--
 		function confirmSubmit(tekst) {
 			var agree = confirm(tekst);
@@ -122,7 +123,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		//		$fromdate=usdate($dato_fra);
 		$todate = usdate($dato_fra);
 	}
-
+error_log("Returside is here ???????????????????????????: $returside");
 	($kontoart == 'D') ? $tekst = 'DRV' : $tekst = 'KRV';
 
 	db_modify("update ordrer set art = 'R1' where art = 'RB'", __FILE__ . " linje " . __LINE__); // 20091012 - er overfloedig
@@ -226,7 +227,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<td width=\"10%\" $top_bund>\n";
 	}
 	print "<div><center><select name=\"aabenpostmode\"
-		onchange=\"window.open(this.options[this.selectedIndex].value,'_top')\"></div>\n";
+		onchange=\"window.location.href = this.options[this.selectedIndex].value;\">\n";
 	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
 	elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";
