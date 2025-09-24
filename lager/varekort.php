@@ -1090,7 +1090,8 @@ if ($saveItem || $submit = trim($submit)) {
     }
     #   }
     if ($saved) {
-        echo "<script>alert('" . $_SESSION['product_success'] . "');</script>";    
+        echo "<script>alert('" . $_SESSION['product_success'] . "');</script>";
+        $saved = false;
     }
     
 } elseif ($id && isset($_POST['ChangeDescription']) && $_POST['ChangeDescription'] == 'Ja') {
