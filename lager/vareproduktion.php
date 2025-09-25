@@ -4,26 +4,23 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------lager/vareproduktion.php------------lap 3.8.1------2019-06-26---
-// LICENS
+// --- lager/vareproduktion.php --- lap 4.1.1------2025-09-25---
+// LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med saldi.dk aps eller anden rettighedshaver til programmet.
-// 
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.saldi.dk/dok/GNU_GPL_v2.html
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// Copyright (c) 2004-2019 saldi.dk aps
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2004-2025 saldi.dk aps
 // ----------------------------------------------------------------------
 //
 // 2012.10.16 Fejl i lagertræk v. varesalg efter produktionsordre med antal != 0. Søg 21121016
@@ -32,7 +29,7 @@
 // 2018.03.02 Gevaldig omskrivning
 // 2018.03.14 Lager blev ikke taget med fra form.
 // 2019.06.26 Fjernet kald til transtjek.
-
+// 2025.09-25 PHR PHP8
 
 @session_start();
 $s_id=session_id();
@@ -195,11 +192,14 @@ if ($_POST['OK']) {
 			print "<tr><td><input type = \"hidden\" name=\"id[$x]\" value = $id[$x]>";
 			print "<tr><td><input type = \"hidden\" name=\"ny_beholdning[$x]\" value = $ny_beholdning[$x]>";
 		}
-		print "<tr><td>Skriv bilagsnummer for regulering hvis værdiændringen skal bogføres i 'finans'</td></tr>";
-		print "<tr><td>Skrives bilagsnr bliver kostprisen for de varer som indgår, bogført som vare-/ ydelsessalg</td></tr>";
-		print "<tr><td>og den samlede vare bogført som varekøb</td></tr>";
-		print "<tr><td>Efterlades feltet tomt bliver reguleringen ikke bogført i 'finans'</td></tr>";
-		print "<tr><td><input type = \"tekst\" name=\"bilag\" value=\"\"></td></tr>";
+#		print "<tr><td>Skriv bilagsnummer for regulering hvis værdiændringen skal bogføres i 'finans'</td></tr>";
+#		print "<tr><td>Skrives bilagsnr bliver kostprisen for de varer som indgår, bogført som vare-/ ydelsessalg</td></tr>";
+#		print "<tr><td>og den samlede vare bogført som varekøb</td></tr>";
+#		print "<tr><td>Efterlades feltet tomt bliver reguleringen ikke bogført i 'finans'</td></tr>";
+#		print "<tr><td><input type = \"tekst\" name=\"bilag\" value=\"\"></td></tr>";
+		print "Ret lagerbeholdning til $ny_beholdning[0]?<br>";
+		print "<tr><td><input type = 'hidden' name='' value=''></td></tr>";
+
 		print "<tr><td><input type = \"submit\" name=\"OK\" value=\"OK\">&nbsp;";
 		print "<input type = \"submit\" name=\"cancel\" value=\"Afbryd\"></td></tr>";
 		print "</form>";
@@ -209,6 +209,9 @@ if ($_POST['OK']) {
 
 function samlevare ($v_id,$ny_v_beholdning) {
 	include ("../includes/fuld_stykliste.php");	
+
+echo "v_id $v_id<br<";
+
 	list($vare_id, $stk_antal, $antal) = fuld_stykliste($v_id, '', 'basisvarer');
 	$id[0]=$v_id;
 	$ny_beholdning[0]=$ny_v_beholdning;
