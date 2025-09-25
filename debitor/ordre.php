@@ -4351,9 +4351,12 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					for($x=0;$x<$kortantal;$x++) {
 						if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
 					}
-					if ($vis_betalingslink==1) {
-						$href="http://".$terminal_ip[(int)$felt_5-1]."/pointd/kvittering.php?url=$url&id=$id&&kommando=kortbetaling&";
-						$href.="belob=$dkfelt_2&betaling=&modtaget=$dkfelt_2&modtaget2=0&indbetaling=&tidspkt=".date("U");
+					if ($vis_betalingslink) {
+						// Use Lane3000 terminal instead of old terminal
+						$href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php";
+						if (isset($_GET['indbetaling'])) {
+							$href .= "&indbetaling=" . $_GET['indbetaling'];
+						}
 						print "<tr><td><br></td></tr><tr><td colspan='2' align='center'>";
 						print "<input type='button' style='width:100%' onclick=\"window.location.href='$href'\" value='Kortbetaling'>";
 						print "</td></tr>\n";

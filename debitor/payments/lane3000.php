@@ -52,6 +52,7 @@ $raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
 $pretty_amount = dkdecimal($raw_amount, 2);
 $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
+$return_url = if_isset($_GET['return_url'], 'pos_ordre.php'); // Default to pos_ordre.php for POS
 $kasse = $_COOKIE['saldi_pos'];
 
 // Log initialization
@@ -123,7 +124,7 @@ function countdown(i) {
 
 const failed = (event) => {
     logToServer('User clicked failed/back button', 'INFO');
-    window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
+    window.location.replace('../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=afvist')
 }
 
 // Variable used to check weather or not to leave the page
@@ -145,7 +146,7 @@ function leave(cardScheme) {
         setTimeout(function() { leave(cardScheme); }, 2500);
     } else {
         logToServer(`Payment successful, redirecting with card scheme: ${cardScheme}`, 'INFO');
-        window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
+        window.location.replace(`../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
     }
 }
 
@@ -337,7 +338,7 @@ async function start_payment(baseurl, apikey, amount) {
 async function start() {
     logToServer('Payment process started', 'INFO');
     // https://connectcloud-test.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
+    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);
