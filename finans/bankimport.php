@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 4.1.1 --- 2025.08.29 ---
+// --- finans/bankimport.php --- patch 4.1.1 --- 2025.09.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,8 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250205 PHR Added "betalt = '0' or " and better recognition of FIK string
 // 20250829 PHR	Check for lineshift in description
+// 20250918 PHR	More check for lineshift in description
+
 
 ini_set("auto_detect_line_endings", true);
 
@@ -170,7 +172,7 @@ if(($_GET)||($_POST)) {
 			if (!$feltantal) $feltantal=1;	
 			vis_data($kladde_id,$filnavn,'',$feltnavn,$feltantal,$kontonr,$gebyrkonto,$bilag,$vend,$valuta_kode,$afd);
 		} else {
-			echo findtekst(1370, $sprog_id)." >$uploadErr<<br>";
+#cho findtekst(1370, $sprog_id)." >$uploadErr<<br>";
 		}
 	}
 	elseif($show){
@@ -271,6 +273,7 @@ if ($fp) {
 }
 
 
+$i = 0;
 $fp=fopen("$filnavn","r");
 if ($fp) {
 	if ($splitter=='Komma') $splittegn=",";
@@ -284,7 +287,7 @@ if ($fp) {
 			$i++;
 		}
 	}
-	$y=0;
+	$y = 0;
 	$newLine = array();
 	$tmp = '';
 	for ($i=0;$i<count($line);$i++){
@@ -304,8 +307,8 @@ if ($fp) {
 	}
 	$line = NULL;
 // 20250829 <--
-	$y=0;
-	$feltantal=0;
+
+	$feltantal = $y = 0;
 #	while ($linje=fgets($fp)) {
 	for ($i=0;$i<count($newLine);$i++){
 		$linje = $newLine[$i];
@@ -346,11 +349,13 @@ if ($fp) {
 			if (!isset($felt[$x])) $felt[$x] = NULL;
 			$ny_linje[$y]=$ny_linje[$y].$felt[$x]."\n";
 		}
+#cho "$y $ny_linje[$y]<br>";
 	}
-}  
+}
 $linjeantal=$y;
 #$cols=$feltantal;
 fclose ($fp);
+#cho "$filnavn<br>";
 $fp=fopen($filnavn."2","w");
 if ($vend) {
  for ($y=$linjeantal;$y>=1;$y--) fwrite($fp,$ny_linje[$y]);
@@ -767,8 +772,8 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$qtxt.= "('$bilag','$transdate','$beskrivelse','F','$kontonr','$k_type','$kredit','$faktura','$amount','$kladde_id',";
 						$qtxt.= "'$valuta_kode','$afd','$saldo')";
 						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						$bilag++; #20170630 Flyttet fra over db_mod...
 					}
-					$bilag++;
 				} elseif ($amount < 0) {
 						$dtype=$ktype='F';
 						$debet=0;
@@ -825,7 +830,7 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 			}
 		}
 	}
-#xit;
+#
 	fclose($fp);
 	unlink($filnavn); # sletter filen.
 	unlink($filnavn."2"); # sletter filen.

@@ -35,11 +35,13 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 	global $menu;
 	global $sprog_id;
 
-	if (isset($_GET['showPBS'])) $showPBS = $_GET['showPBS'];
+	(isset($_GET['showPBS']))?$showPBS = $_GET['showPBS']:$showPBS=1;
 	$qtxt= "select id from adresser where art = 'S' and pbs_nr > '0'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $usePBS=1;
-	else $showPBS=$usePBS=0;
-	
+	else {
+		$showPBS = 0;
+		$usePBS  = 0;
+	}
 	if ($menu=='T') {
 		$top_bund = "";
 		$padding = "style='padding: 25px 20px 10px 20px;'";
@@ -61,9 +63,9 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,
 		print "<tr><td>Kontonr.</th>";
 		if ($usePBS) {
 			if ($showPBS) {
-				print "<th align=right title=\"Skjul PBS\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=0\">PBS</a></th>";
+				print "<td title='Skjul PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=0'>skjul BS</a></td>";
 			} else {
-				print "<th align=right title=\"Vis PBS\"><a href=\"rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=1\">PBS</a></th>";
+				print "<td title='Vis PBS kunder'><a href='rapport.php?submit=ok&rapportart=openpost&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&showPBS=1'>vis BS</a></td>";
 			}	
 		}
 		print "<td>".findtekst(360,$sprog_id)."</td><td align=right>>90</td><td align=right>60-90</td><td align=right>30-60</td><td align=right>8-30</td><td align=right>0-8</td><td align=right>I alt</td><td></td>";

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/showPosLines/sum.php --- lap 4.1.1 --- 2025.05.10 ---
+// --- debitor/pos_ordre_includes/showPosLines/sum.php --- lap 4.1.1 --- 2025.09.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,6 +28,7 @@
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240729 PHR Various translations
 // 20250510 LOE text_id updated from 3072 to 2373
+// 20250916 PHR replaced $vis_saet with $useTotalPrice, set in orderlinjerData.php
 
 	print "<!-- pos_ordre_includes/showPosLines/sum.php start -->";
 	if ($sum || $sum=='0' || $pris_ny) {
@@ -43,7 +44,7 @@
 						print "<td align=\"right\"></td><td></  td><td align=\"right\"></td>";
 		}
 		print "<td align=\"right\"><div title=\"$txt\">";
-		if ($vis_saet && $status < 3)  {
+		if ($useTotalPrice && $status < 3)  {
 			print "<input type=\"hidden\" name=\"sum\" value=\"$sum\"></b>\n";
 			print "<input type=\"hidden\" name=\"bruttosum\" value=\"$bruttosum\"></b>\n";
 			print "<input type=\"text\" class=\"inputbox\" style=\"width:100px;text-align:right;font-size:$ifs;\" ";

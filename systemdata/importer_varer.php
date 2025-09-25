@@ -4,7 +4,7 @@
 //                     \__ \/ _ \| |_| |) | | _ | |) |  <
 //                     |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_varer.php --- 4.1.1 --- 2025-05-26 ---
+// --- systemdata/importer_varer.php --- 4.1.1 --- 2025-09-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,15 +27,15 @@
 // 2014.07.18 Alle felter kan nu vælges v.import. Søg 20140718
 // 20150612 CA  Mindre rettelse af tekster og oprydning af HTML-kode.
 // 20151210 CA  Rettelse af stavefejl
-// 20160219 PHR Indsat "and art = 'K'" ved adresseopslag så den ikke fejlagtigt finder en kunde. 20160219 
-// 20160224 PHR Ændret $id til $vare_id. 
+// 20160219 PHR Indsat "and art = 'K'" ved adresseopslag så den ikke fejlagtigt finder en kunde. 20160219
+// 20160224 PHR Ændret $id til $vare_id.
 // 20161015 PHR Eksisterende varenumre som er numeriske og starter med 0 findes nu selvom et 0'et er fjernet af f.eks et regneark. 20161015
 // 20170509 Tilføjet varemærke (trademark);
 // 20171024 PHR Erstatter '<br>' med '\n' i notes 20171024
 // 20180404 PHR Lokationer skrives nu også i lagerstatus. 20180404
 // 20200602	PHR newlines (notes) in text is now handled. 20200602
 // 20210714 LOE - Translated some text.
-// 20220218 First item line was in somecases omittet. 
+// 20220218 First item line was in somecases omittet.
 // 20220628 PHR like 20220218 and corrected type in salgspris_ex_moms
 // 20221004 MLH added filterOption, salesPriceFromPurchasePrice, salesPriceRoundingMethod, salesPriceMethod, tierPriceFromPurchasePrice, tierPriceRoundingMethod, tierPriceMethod
 // 20221025 MLH fixed a programming issue regarding the value of POST variable "submit"
@@ -59,7 +59,7 @@ $feltnavn = array();
 
 print "<div align=\"center\">\n";
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
@@ -77,9 +77,9 @@ print "</tr></tbody></table></td></tr>";
 $itemGroup = NULL;
 $show_autocalculate = false;
 
-$submit=if_isset($_POST['submit']);
-
-if($submit) {
+$submit = if_isset($_POST['submit']);
+$import = if_isset($_POST['import'],NULL);
+if($submit || $import) {
 	$filnavn				= if_isset($_POST['filnavn'],NULL);
 	$splitter				= if_isset($_POST['splitter'],NULL);
 	$feltnavn				= if_isset($_POST['feltnavn'],array());
@@ -108,8 +108,8 @@ if($submit) {
 	if (($tmp == "st_rounding")||($tmp == "rounding_up")||($tmp == "round_down")){
 		$salesPriceRoundingMethod=$_POST['salesPriceRoundingMethod'];
 	}
-	//echo $salesPriceFromPurchasePrice." (salesPriceFromPurchasePrice)<br>";
-	//echo myAddToPriceFunc(1000, $salesPriceRoundingMethod, $salesPriceFromPurchasePrice, $salesPriceMethod)." (myAddToPriceFunc med 1000 i købspris)<br><br>";
+	//cho $salesPriceFromPurchasePrice." (salesPriceFromPurchasePrice)<br>";
+	//cho myAddToPriceFunc(1000, $salesPriceRoundingMethod, $salesPriceFromPurchasePrice, $salesPriceMethod)." (myAddToPriceFunc med 1000 i købspris)<br><br>";
 	if ($show_autocalculate) $tierPriceFromPurchasePrice=usdecimal(if_isset($_POST['tierPriceFromPurchasePrice']));
 	$tierPriceMethod="percentage";
 	$tmp = if_isset($_POST['tierPriceMethod'],NULL);
@@ -121,8 +121,8 @@ if($submit) {
 	if (($tmp=="st_rounding")||($tmp=="rounding_up")||($tmp=="round_down")){
 		$tierPriceRoundingMethod=$tmp;
 	}
-	//echo $tierPriceFromPurchasePrice." (tierPriceFromPurchasePrice)<br>";
-	//echo myAddToPriceFunc(1000, $tierPriceRoundingMethod, $tierPriceFromPurchasePrice, $tierPriceMethod)." (myAddToPriceFunc med 1000 i købspris)<br><br>";
+	//cho $tierPriceFromPurchasePrice." (tierPriceFromPurchasePrice)<br>";
+	//cho myAddToPriceFunc(1000, $tierPriceRoundingMethod, $tierPriceFromPurchasePrice, $tierPriceMethod)." (myAddToPriceFunc med 1000 i købspris)<br><br>";
 	if ($show_autocalculate) $retailPriceFromPurchasePrice=usdecimal(if_isset($_POST['retailPriceFromPurchasePrice']));
 	$retailPriceMethod="percentage";
 	$tmp = if_isset($_POST['retailPriceMethod'],NULL);
@@ -134,8 +134,8 @@ if($submit) {
 	if (($tmp=="st_rounding")||($tmp=="rounding_up")||($tmp=="round_down")){
 		$retailPriceRoundingMethod=$tmp;
 	}
-	//echo $retailPriceFromPurchasePrice." (retailPriceFromPurchasePrice)<br>";
-	//echo myAddToPriceFunc(1000, $retailPriceRoundingMethod, $retailPriceFromPurchasePrice, $retailPriceMethod)." (myAddToPriceFunc med 1000 i købspris)<br><br>";
+	//cho $retailPriceFromPurchasePrice." (retailPriceFromPurchasePrice)<br>";
+	//cho myAddToPriceFunc(1000, $retailPriceRoundingMethod, $retailPriceFromPurchasePrice, $retailPriceMethod)." (myAddToPriceFunc med 1000 i købspris)<br><br>";
 	//exit();
 	// END 20221004
 
@@ -154,9 +154,8 @@ if($submit) {
 		else vis_data($filnavn,$splitter,$feltnavn,$feltantal,$varenr,$csvFile,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod);
 	}
 } else {
-	$qtxt = "select box1, box2, beskrivelse from grupper where art='RA' and fiscal_year = '$regnaar' order by kodenr desc";
+	$qtxt = "select box1, box2, beskrivelse from grupper where art='RA' order by kodenr desc";
 	if (!$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		exit;
 	}
 	upload($csvFile);
 }
@@ -165,7 +164,7 @@ print "</body></html>";
 #####################################################################################################
 function upload($csvFile){
 	global $sprog_id;
-	
+
 	print "<form enctype='multipart/form-data' action='importer_varer.php' method='POST'>\n";
 	print "<tr><td width='100%' align='center'><table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
 	#print "<input type='hidden' name='MAX_FILE_SIZE' value='900000'>\n";
@@ -202,8 +201,8 @@ if ($fp) {
 	while ($tmp=substr(strstr($tmp,chr(9)),1)) {$tabulator++;}
 	$tmp='';
 	if (($komma>$semikolon)&& ($komma>$tabulator)) {$tmp='Komma'; $feltantal=$komma;}
-	elseif (($semikolon>$tabulator)&&($semikolon>$komma)) {$tmp='Semikolon'; $feltantal=$semikolon;}			
-	elseif (($tabulator>$semikolon)&&($tabulator>$komma)) {$tmp='Tabulator'; $feltantal=$tabulator;}			
+	elseif (($semikolon>$tabulator)&&($semikolon>$komma)) {$tmp='Semikolon'; $feltantal=$semikolon;}
+	elseif (($tabulator>$semikolon)&&($tabulator>$komma)) {$tmp='Tabulator'; $feltantal=$tabulator;}
 	if (!$splitter) {$splitter=$tmp;}
 	$cols=$feltantal+1;
 }
@@ -228,7 +227,7 @@ while($r=db_fetch_array($q)){
 }
 $vg = 0;
 $qtxt = "select * from grupper where art = 'VG' and fiscal_year = '$regnaar' order by kodenr";
-$q=db_select($qtxt,__FILE__ . " linje " . __LINE__); 
+$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while($r=db_fetch_array($q)){
 	$vGrNr[$vg]=$r['kodenr'];
 	$vGrTxt[$vg]=$r['beskrivelse'];
@@ -270,7 +269,7 @@ print "    <option value='only_existing_product'".(($filterOption=='only_existin
 print "    <option value='only_unknown_products'".(($filterOption=='only_unknown_products')?" selected='selected'":"").">".findtekst(2072, $sprog_id)."</option>\n";
 print "</select></span>\n";
 
-print "<span title='".findtekst(2070, $sprog_id)."'>&nbsp;".findtekst(2081, $sprog_id)."<input type='checkbox' name='show_autocalculate' ". (($show_autocalculate)?"checked='checked'":"") ."></span>\n"; 
+print "<span title='".findtekst(2070, $sprog_id)."'>&nbsp;".findtekst(2081, $sprog_id)."<input type='checkbox' name='show_autocalculate' ". (($show_autocalculate)?"checked='checked'":"") ."></span>\n";
 
 if ($show_autocalculate) {
 	print "<br>\n";
@@ -340,7 +339,7 @@ for ($y=0; $y<=$feltantal; $y++) {
 	}
 	if ($feltnavn[$y]=='varenr') $varenr=1;
 	if ($feltnavn[$y]=='beskrivelse') $beskrivelse=1;
-}		
+}
 
 if ($filnavn && $splitter && $varenr == 1) print "&nbsp; <input type=\"submit\" name=\"import\" value=\"".findtekst('1074|Importer', $sprog_id)."\" /></td></tr>\n";
 print "<tr><td colspan=$cols><hr></td></tr>\n";
@@ -396,7 +395,7 @@ if ($fp) {
 				$felt[$y]=trim($felt[$y]);
 				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
 				if ($feltnavn[$y]=='varenr') { #20161015
-					$varenr=trim($felt[$y]); 
+					$varenr=trim($felt[$y]);
 				}
 				if ($feltnavn[$y]=='vejl_pris' || $feltnavn[$y]=='vejl.pris') $feltnavn[$y]='retail_price';
 				if ($feltnavn[$y]=='varemærke') $feltnavn[$y]='trademark';
@@ -450,13 +449,13 @@ if ($fp) {
 					if (!$tmp=find_varegrp($felt[$y])) $feltfejl[$y]=1;
 				}
 				if ($feltnavn[$y]=='leverandor')	{
-					if ($felt[$y] && !$tmp=find_lev_id($felt[$y])) $feltfejl[$y]=1; 
+					if ($felt[$y] && !$tmp=find_lev_id($felt[$y])) $feltfejl[$y]=1;
 				}
 #				if ($feltnavn[$y]=='varenr'&&!is_numeric($felt[$y])) {
 #					$skriv_linje=2;
 #					print "<BODY onLoad=\"javascript:alert('R&oslash;de linjer indeholder fejl (kontonummer ikke numerisk) og bliver ikke importeret')\">";
 #					print "<BODY onLoad=\"javascript:alert('varenrnummer skal v&aelig;re numerisk')\">";
-#				} 
+#				}
 			}
  		}
  		}
@@ -485,7 +484,7 @@ print "</td></tr>";
 } # end function vis_data
 
 function overfoer_data($filnavn,$splitter,$feltnavn,$feltantal,$tegnset,$itemGroup,$filterOption,$show_autocalculate,$salesPriceFromPurchasePrice,$salesPriceMethod,$salesPriceRoundingMethod,$tierPriceFromPurchasePrice,$tierPriceMethod,$tierPriceRoundingMethod,$retailPriceFromPurchasePrice,$retailPriceMethod,$retailPriceRoundingMethod) {
-global $charset;
+global $charset,$regnaar;
 
 if ($itemGroup) {
 	$VATrate = 0;
@@ -513,7 +512,7 @@ if ($fp) {
 			list($postnr[$x],$bynavn[$x])=explode(chr(9),$linje);
 		}
 	}
-} 
+}
 fclose($fp);
 $postnr_antal=$x;
 $komma = $semikolon = $tabulator = 0;
@@ -586,7 +585,7 @@ if ($fp) {
 			}
 			if ($colNum && $cols) { # 20220628 '>=' changed to '&&'
 #				$preLine.= $linje;
-				
+
 #			}	else {
 				$x++;
 				if ($preLine) {
@@ -693,11 +692,11 @@ if ($fp) {
 					$levfelt=$y;
 				}
 				if ($feltnavn[$y]=='notes') { #20171024
-					$felt[$y]=str_replace("<br>","\n",$felt[$y]); 
+					$felt[$y]=str_replace("<br>","\n",$felt[$y]);
 				}
 				if ($feltnavn[$y]=='location') { #20180404
 					$lokation=1;
-					$location=$felt[$y]; 
+					$location=$felt[$y];
 				}
 				if ($feltnavn[$y]=='tier_price') {
 					$tier_price_isset=true;
@@ -726,7 +725,7 @@ if ($fp) {
 			if ($varenr && $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) { #20140201
 				$vare_id=$r['id'];
 			}
-			if (!$vare_id) {			
+			if (!$vare_id) {
 				for ($v=0;$v<count($v_id);$v++) { #20161015
 					if ($v_nr[$v]==$varenr)	$vare_id=$v_id[$v];
 				}
@@ -760,14 +759,14 @@ if ($fp) {
 					$qtxt="insert into varer($vare_a) values ($vare_b)";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	 				$qtxt = "select id from varer where varenr='". db_escape_string($varenr) ."'";
-					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
+					$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 					$vare_id=$r['id'];
 				}
 			}
 			if ($vare_id) {
 				if ($itemGroup) {
 						$qtxt = "update varer set gruppe = '$itemGroup' where id = '$vare_id'";
-					if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
+					if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 				if ($lokation) { #20180404
 					$qtxt="select id from lagerstatus where vare_id='$vare_id' and lager <= '1'";
@@ -786,7 +785,7 @@ if ($fp) {
 				}	elseif ($r['transdate'] == $dd && $r['kostpris'] != $kostpris) {
 					$qtxt="update kostpriser set kostpris=$kostpris where id = '$r[id]'";
 				} else $qtxt=NULL;
-				if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__); 
+				if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				if ($leverandor) {
 					if (!is_numeric($leverandor)) $leverandor = 0;
 					if ($r=db_fetch_array(db_select("select id from vare_lev where vare_id='$vare_id' and lev_id='$leverandor'",__FILE__ . " linje " . __LINE__))) {
@@ -860,13 +859,13 @@ function nummertjek ($nummer){
 	if ($retur) {
 		for ($x=0; $x<strlen($nummer); $x++) {
 			if ($nummer[$x]==',') $komma++;
-			elseif ($nummer[$x]=='.') $punktum++;		
+			elseif ($nummer[$x]=='.') $punktum++;
 		}
 		if ((!$komma)&&(!$punktum)) $retur='US';
 		elseif (($komma==1)&&(substr($nummer,-3,1)==',')) $retur='DK';
 		elseif (($punktum==1)&&(substr($nummer,-3,1)=='.')) $retur='US';
 		elseif (($komma==1)&&(!$punktum)) $retur='DK';
-		elseif (($punktum==1)&&(!$komma)) $retur='US';	
+		elseif (($punktum==1)&&(!$komma)) $retur='US';
 	}
 	return $retur=chr(32);
 }
@@ -877,7 +876,7 @@ function opdel ($splitter,$linje){
 
 	if (substr($linje,0,1)==chr(34)) {
 		$anftegn=1;
-		$x++;	
+		$x++;
  }
 	for($z=$x;$z<=strlen($linje);$z++) {
 		$tegn=substr($linje,$z,1);
@@ -900,13 +899,16 @@ function opdel ($splitter,$linje){
 }
 function find_lev_id($kontonr) {
 	global $regnaar;
+
 	$kontonr=trim($kontonr);
-	if (!is_numeric($kontonr)) $kontonr = 0; 
+	if (!is_numeric($kontonr)) $kontonr = 0;
 	$qtxt="select id from adresser where kontonr='$kontonr' and art='K'"; #20160219
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) return ($r['id']);
 	else return(0);
 }
 function find_varegrp($gruppe) {
+	global $regnaar;
+
 	$gruppe=trim($gruppe);
 	if (!is_numeric($gruppe)) {
 		$low=strtolower($gruppe);
