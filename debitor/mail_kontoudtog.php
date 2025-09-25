@@ -133,7 +133,7 @@ if(isset($_GET['kilde'])) {
 } else {
 	$kilde=NULL;
 }
-
+$current_kilde = $_GET['kilde'] ?? ''; # For dropdown/select 
 if ($send_mails) {
 	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
 	print "<form name=luk action=../includes/luk.php method=post>";	
@@ -366,61 +366,98 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
 
 #############
 ?>
-<div id="fixedFooter" style="display:flex; justify-content:space-between; align-items:center;">
-	<!-- Required Hidden Global Inputs -->
-<input type="hidden" name="kontoantal" value="<?php echo htmlspecialchars($kontoantal); ?>">
-<input type="hidden" name="dato_fra" value="<?php echo htmlspecialchars($dato_fra); ?>">
-<input type="hidden" name="dato_til" value="<?php echo htmlspecialchars($dato_til); ?>">
+<div id="fixedFooter" style="background-color: <?php echo $bgcolor; ?>;">
+    <!-- Required Hidden Global Inputs -->
+    <input type="hidden" name="kontoantal" value="<?php echo htmlspecialchars($kontoantal); ?>">
+    <input type="hidden" name="dato_fra" value="<?php echo htmlspecialchars($dato_fra); ?>">
+    <input type="hidden" name="dato_til" value="<?php echo htmlspecialchars($dato_til); ?>">
 
-  <!-- email + period inputs -->
-  <div style="text-align:left;">
-  <hr style="margin: 0 0 4px 0;">
-  email til: <input type="text" name="email[<?php echo $x-1; ?>]" value="<?php echo $footer_email; ?>">
-  Periode: 
-  <input type="date" style="text-align:right" size="10" name="fra[<?php echo $x-1; ?>]" value="<?php echo $footer_fra; ?>"> - 
-  <input type="date" style="text-align:right" size="10" name="til[<?php echo $x-1; ?>]" value="<?php echo $footer_til; ?>">
-  <hr style="height:10px; background-color: rgb(200, 200, 200); margin: 4px 0;">
-  <hr style="margin: 4px 0 0 0;">
-  <input type="hidden" name="konto_id[<?php echo $x-1; ?>]" value="<?php echo $footer_konto_id; ?>">
-  <input type="hidden" name="kilde" value="<?php echo $kilde; ?>">
+    <!-- Content Wrapper for vertical layout -->
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+
+        <!-- email + period inputs -->
+        <div style="text-align: center;">
+            <hr style="margin: 0 0 4px 0;">
+            email til: 
+            <input type="text" name="email[<?php echo $x-1; ?>]" value="<?php echo $footer_email; ?>">
+            Periode: 
+            <input type="date" style="text-align:right" size="10" name="fra[<?php echo $x-1; ?>]" value="<?php echo $footer_fra; ?>"> - 
+            <input type="date" style="text-align:right" size="10" name="til[<?php echo $x-1; ?>]" value="<?php echo $footer_til; ?>">
+            <hr style="height:10px; background-color: rgb(200, 200, 200); margin: 4px 0;">
+            <hr style="margin: 4px 0 0 0;">
+            <input type="hidden" name="konto_id[<?php echo $x-1; ?>]" value="<?php echo $footer_konto_id; ?>">
+            <input type="hidden" name="kilde" value="<?php echo $kilde; ?>">
+        </div>
+
+        <!-- Dropdown/select  -->
+		<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px;">
+			<select name="typeSelect" style="height:inherit; font-size:inherit;" onchange="location.href = this.value;">
+				<?php
+				
+				if ($OpenPost == 'on') {
+					$selected = ($current_kilde === 'openpost') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost\" $selected>Show open Records</option>\n";
+				}
+
+				// If $AllAcount is on, similarly for show_all
+				if ($AllAcount == 'on') {
+					$selected = ($current_kilde === 'show_all') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all\" $selected>Show all Records</option>\n";
+				}
+
+				
+				if ($OpenPost != 'on') {
+					$selected = ($current_kilde === 'openpost') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost\" $selected>Show Open Post</option>\n";
+				}
+
+			
+				if ($AllAcount != 'on') {
+					$selected = ($current_kilde === 'show_all') ? 'selected' : '';
+					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all\" $selected>Show All</option>\n";
+				}
+				?>
+			</select>
+
+			<input type="submit" value="Opdatér" name="update"
+				title="<?php echo findtekst(1797, $sprog_id); ?>">
+
+			<input type="submit" value="Send mail(s)" name="send_mails"
+				title="<?php echo findtekst(1798, $sprog_id); ?>">
+
+			<?php
+			// Logic for disabling send_pdfs button
+			$disabled = 'disabled';
+			$spantxt = findtekst(1800, $sprog_id);
+
+			$qtxt = "select * from formularer where formular='11' and art='5' and lower(sprog)='dansk'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			$mailtext = $subjekt = NULL;
+			while ($r = db_fetch_array($q)) {
+				if (!$subjekt && $r['xa'] == '1') $subjekt = $r['beskrivelse'];
+				elseif (!$mailtext && $r['xa'] == '2') $mailtext = $r['beskrivelse'];
+			}
+			if ($mailtext && $subjekt) {
+				$disabled = '';
+				$spantxt = findtekst(1799, $sprog_id);
+			}
+			?>
+
+			<input 
+				type="submit" 
+				style="<?php echo ($disabled ? 'background-color:#ccc; color:#666; cursor:not-allowed;' : ''); ?>" 
+				value="Send som PDF" 
+				name="send_pdfs" 
+				<?php echo $disabled; ?> 
+				title="<?php echo $spantxt; ?>">
+
+			<input type="submit" value="Retur" name="retur" title="<?php echo findtekst(1801, $sprog_id); ?>">
+		</div>
+
+ 
+    </div>
 </div>
 
-
-  <!--  submit buttons -->
-  <div style="text-align:right;">
-    <input type="submit" style="width:110px; margin-right:10px;" value="Opdatér" name="update" title="<?php echo findtekst(1797, $sprog_id); ?>">
-    <input type="submit" style="width:110px; margin-right:10px;" value="Send mail(s)" name="send_mails" title="<?php echo findtekst(1798, $sprog_id); ?>">
-    <?php
-      // Your existing logic for disabling send_pdfs button
-      $disabled = 'disabled';
-      $spantxt = findtekst(1800, $sprog_id);
-
-      $qtxt = "select * from formularer where formular='11' and art='5' and lower(sprog)='dansk'";
-      $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-      $mailtext = $subjekt = NULL;
-      while ($r = db_fetch_array($q)) {
-        if (!$subjekt && $r['xa'] == '1') $subjekt = $r['beskrivelse'];
-        elseif (!$mailtext && $r['xa'] == '2') $mailtext = $r['beskrivelse'];
-      }
-      if ($mailtext && $subjekt) {
-        $disabled = '';
-        $spantxt = findtekst(1799, $sprog_id);
-      }
-    ?>
-    <input 
-    type="submit" 
-    style="width:110px; margin-right:10px; <?php echo ($disabled ? 'background-color:#ccc; color:#666; cursor:not-allowed;' : ''); ?>" 
-    value="Send som PDF" 
-    name="send_pdfs" 
-    <?php echo $disabled; ?> 
-    title="<?php echo $spantxt; ?>">
-
-
-    <input type="submit" style="width:110px;" value="Retur" name="retur" title="<?php echo findtekst(1801, $sprog_id); ?>">
-</div>
-
-
-</div>
 <style>
   #fixedFooter {
     position: fixed;
@@ -432,30 +469,30 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
     padding: 10px 20px;
     box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
     z-index: 9999;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     font-size: 14px;
   }
+
   #fixedFooter input[type="text"] {
     margin-left: 4px;
     margin-right: 8px;
   }
+
   #fixedFooter input[type="submit"] {
     width: 110px;
   }
-  
+
   input[type="submit"]:disabled {
     background-color: #ccc !important;
     color: #666 !important;
     cursor: not-allowed !important;
   }
+
   body {
-  padding-bottom: 100px; /* Equal to or slightly more than the footer height */ 
-}
+    padding-bottom: 120px; /* Slightly more than footer height */
+  }
+</style>
 
 
-</style> 
 
 
 <?php
