@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_kontoudtog.php --- ver 4.1.1 --- 2025-09-24 --
+// --- debitor/mail_kontoudtog.php --- ver 4.1.1 --- 2025-09-25 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20220226 PHR function send_htmlmails, Added: $mail->CharSet = "$charset";
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250924 LOE Added static footer with email and period inputs + buttons
+// 20250925 LOE Kilde added to determine which emails to send
 
 @session_start();
 $s_id=session_id();
@@ -76,6 +77,7 @@ if (isset($_POST['retur']) && $_POST['retur']) {
 	$email=$_POST['email'];
 	$fra=$_POST['fra'];
 	$til=$_POST['til'];
+	
 	#################
 	
 	// for($x=1;$x<=$kontoantal;$x++) { #20250924 
@@ -124,7 +126,13 @@ else {
 		($dato_til)?$til[$x]=dkdato(usdate($dato_til)):$til[$x]=NULL;
 	}
 }
-
+if(isset($_GET['kilde'])) {
+	$kilde=if_isset($_GET['kilde']); #20250925
+} elseif(isset($_POST['kilde'])) {
+	$kilde=if_isset($_POST['kilde']); 
+} else {
+	$kilde=NULL;
+}
 
 if ($send_mails) {
 	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
@@ -289,6 +297,14 @@ for($x=1; $x<=$kontoantal; $x++) {
 			$forfaldsdate=$r['forfaldsdate'];
 			$forfaldsdag=dkdato($forfaldsdate);
 		}
+		####################
+				# Filter Open Post
+				
+                  if($kilde =='openpost' && $r['udlignet'] =='1' ) {
+					continue;
+				  } 
+				
+				####################
 		if ($r['transdate']<$fromdate[$x]) {
 			$primoprint=0;
 			
@@ -366,6 +382,7 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
   <hr style="height:10px; background-color: rgb(200, 200, 200); margin: 4px 0;">
   <hr style="margin: 4px 0 0 0;">
   <input type="hidden" name="konto_id[<?php echo $x-1; ?>]" value="<?php echo $footer_konto_id; ?>">
+  <input type="hidden" name="kilde" value="<?php echo $kilde; ?>">
 </div>
 
 
@@ -434,7 +451,7 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
     cursor: not-allowed !important;
   }
   body {
-  padding-bottom: 100px; /* Equal to or slightly more than the footer height */
+  padding-bottom: 100px; /* Equal to or slightly more than the footer height */ 
 }
 
 

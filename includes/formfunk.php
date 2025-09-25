@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formfunk.php --- patch 4.1.1 --- 2024-10-02 ---
+// --- includes/formfunk.php --- patch 4.1.1 --- 2025-09-25 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
 // 2012.09.06 Tilføjet mulighed for at vise momssats på ordrelinjer. 
@@ -90,6 +90,7 @@
 // 20240918 PBLM Added function betalingslink
 // 20241002 PHR 'Kontant' in texts replaced by text ID 370
 // 20250630 PHR Somebody has removed brackets in line 2285 & 2289 - Why !!!
+// 20250925 LOE Kilde added to kontoprint function and used to determine which records to print 
 
 #use PHPMailer\PHPMailer\PHPMailer;
 #use PHPMailer\PHPMailer\Exception;
@@ -2416,6 +2417,15 @@ if (!function_exists('kontoprint')) {
 		global $printfilnavn, $psfp, $regnaar, $y;
 		global $s_id;
 
+		if(isset($_GET['kilde'])) {
+			$kilde=if_isset($_GET['kilde']); #20250925
+		} elseif(isset($_POST['kilde'])) {
+			$kilde=if_isset($_POST['kilde']); 
+		} else {
+			$kilde=NULL;
+		}
+
+		
 		$dkkforfalden = $nomailantal = $mailantal = 0;
 		$mailsprog = 'Dansk';
 		($dato_fra) ? $dato_fra = usdate($dato_fra) : $dato_fra = "1970-01-01";
@@ -2572,6 +2582,20 @@ if (!function_exists('kontoprint')) {
 					$qxt = "select * from openpost where konto_id='$konto_id[$i]'  and transdate >= '$dato_fra' and transdate <= '$dato_til' order by transdate,id";
 					$q1 = db_select("$qxt", __FILE__ . " linje " . __LINE__);
 					while ($r1 = db_fetch_array($q1)) {
+
+						####################
+						# Filter Open Post
+						if($kontoart=='D'){
+							if($kilde =='openpost' && $r1['udlignet'] =='1' ) {
+								continue;
+							} 
+						}elseif($kontoart=='K'){
+							if($kilde =='openpost' && $r1['udlignet'] =='1' ) { 
+								continue;
+							} 
+						}
+						
+						####################
 
 						$valuta = $r1['valuta'];
 						$amount = $r1['amount'];

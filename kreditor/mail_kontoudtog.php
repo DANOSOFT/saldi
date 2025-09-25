@@ -42,6 +42,7 @@
 // 20221124 PHR Changed 'from' address to $db@$_SERVER_NAME  + added $mail->ReturnPath = $afsendermail;
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250924 LOE Added static footer with email and period inputs + buttons
+// 20250925 LOE Kilde added to determine which emails to send
 
 @session_start();
 $s_id=session_id();
@@ -78,7 +79,9 @@ if (isset($_POST['retur']) && $_POST['retur']) {
 	$email=$_POST['email'];
 	$fra=$_POST['fra'];
 	$til=$_POST['til'];
+	
 	##################
+	
 	for ($x = 1; $x <= $kontoantal; $x++) {
 		// --------- FRA DATE ------------
 			if (!empty($fra[$x])) {
@@ -119,6 +122,14 @@ else {
 		($dato_til)?$til[$x]=dkdato(usdate($dato_til)):$til[$x]=NULL;
 	}
 }
+if(isset($_GET['kilde'])) {
+	$kilde=if_isset($_GET['kilde']); #20250925
+} elseif(isset($_POST['kilde'])) {
+	$kilde=if_isset($_POST['kilde']); 
+} else {
+	$kilde=NULL;
+}
+
 
 if ($send_mails) {
 	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
@@ -279,6 +290,15 @@ for($x=1; $x<=$kontoantal; $x++) {
 		if (!$valutakurs) $valutakurs=100;
 		if ($valuta!=$kontovaluta[$x]) $DKKamount=$amount*$valutakurs/100;
 		else $DKKamount=$amount;
+			    ####################
+				# Filter Open Post
+				
+                  if($kilde =='openpost' && $r['udlignet'] =='1' ) {
+					continue;
+				  } 
+				
+				####################
+
 		if ($r['forfaldsdate']) {
 			$forfaldsdate=$r['forfaldsdate'];
 			$forfaldsdag=dkdato($forfaldsdate);
@@ -358,6 +378,7 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
     <hr style="height:10px; background-color: rgb(200, 200, 200); margin: 4px 0;">
     <hr style="margin: 4px 0 0 0;">
     <input type="hidden" name="konto_id[<?php echo $x - 1; ?>]" value="<?php echo htmlspecialchars($footer_konto_id); ?>">
+	<input type="hidden" name="kilde" value="<?php echo $kilde; ?>">
   </div>
 
   <!-- Right: buttons -->
@@ -430,38 +451,16 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
     color: #666 !important;
     cursor: not-allowed !important;
   }
+
+  body {
+    padding-bottom: 100px; /* Equal to or slightly more than the footer height */
+  }
 </style>
 
 <?php
 
- #########
-print "<input type = hidden name=kontoantal value=$kontoantal>";
-print "<input type = hidden name=dato_fra value=$dato_fra>";
-print "<input type = hidden name=dato_til value=$dato_til>";
-#print "<input type = hidden name=regnaar value=$regnaar>";
-print "<tr><td colspan=10 align=center>";
-$spantxt=findtekst(1797, $sprog_id); #20210805
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Opdat&eacute;r\" name=\"update\">&nbsp;</span>";
-$spantxt=findtekst(1798, $sprog_id); 
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Send mail(s)\" name=\"send_mails\">&nbsp;</span>";
-$qtxt="select * from formularer where formular='11' and art='5' and lower(sprog)='dansk'";
-$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-$mailtext=$subjekt=NULL;
-while ($r = db_fetch_array($q)) {
-	if (!$subjekt && $r['xa']=='1') $subjekt=$r['beskrivelse'];
-	elseif (!$mailtext && $r['xa']=='2') $mailtext=$r['beskrivelse'];
-}
-if ($mailtext && $subjekt) {
-	$disabled=NULL;
-	$spantxt=findtekst(1799, $sprog_id); 
-} else {
-	$disabled='disabled';
-	$spantxt=findtekst(1800, $sprog_id); 
-}
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Send som PDF\" name=\"send_pdfs\" $disabled>&nbsp;</span>";
-$spantxt=findtekst(1801, $sprog_id); 
-print "<span title='$spantxt'><input type=\"submit\" style=\"width:110px;\" value=\"Retur\" name=\"retur\"></td></span>";
-print "</form>\n";
+###########
+
 
 function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 	 
