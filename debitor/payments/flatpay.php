@@ -270,7 +270,8 @@ print "
             body: JSON.stringify({
               data: transaction, 
               id: '$ordre_id',
-              type: 'flatpay'
+              type: 'flatpay',
+              terminal_id: '$terminal_id'
             })
           });
           
@@ -308,7 +309,8 @@ print "
             body: JSON.stringify({
               data: transaction,
               id: '$ordre_id',
-              type: 'flatpay'
+              type: 'flatpay',
+              terminal_id: '$terminal_id'
             })
           });
 
