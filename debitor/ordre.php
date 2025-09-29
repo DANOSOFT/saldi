@@ -4111,7 +4111,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				$x++;
 			}
 			if (!in_array($ref,$ansat)) {
-				$r=db_fetch_array(db_select("select navn from ansatte,brugere where brugernavn='$ref' and ansatte.id=".nr_cast('brugere.ansat_id')."",__FILE__ . " linje " . __LINE__));
+				$r=db_fetch_array(db_select("select navn from ansatte,brugere where brugere.brugernavn='$ref' and ansatte.id=".nr_cast('brugere.ansat_id')."",__FILE__ . " linje " . __LINE__));
 				if (!empty($r['navn'])) $ref=$r['navn']; #20210715
 					
 			}
