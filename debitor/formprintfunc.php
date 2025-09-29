@@ -433,14 +433,40 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr,$charset) {
 	global $db;
 	global $mailantal;
 	
-	$q=db_select("select * from formularer where formular='$form_nr' and art='5'",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select * from formularer where formular='$form_nr' and art='5' and lower(sprog)='".strtolower($mailsprog)."'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['xa']=='1') $subjekt=$r['beskrivelse'];	
 		elseif ($r['xa']=='2') $mailtext=$r['beskrivelse'];
 	}
+	
+	# Load language-specific sender email from settings table
+	# Determine language ID: 0 for Danish/default, actual ID for other languages
+	$lang_id = 0; // Default to 0 for Danish
+	
+	if ($mailsprog && strtolower($mailsprog) != 'dansk') {
+		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$mailsprog')";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r) {
+			$lang_id = $r['kodenr'];
+		}
+	}
+	
+	error_log("DEBUG: mailsprog='$mailsprog', lang_id='$lang_id'");
+	
+	# Load sender email for this language
+	$lang_sender_email = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_email' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$lang_sender_email = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
 	$row = db_fetch_array(db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$row['email'];
 	$afsendernavn=$row['firmanavn'];
+	
+	# Use language-specific sender email if available, otherwise use default
+	if ($lang_sender_email && trim($lang_sender_email) != '') {
+		$afsendermail = $lang_sender_email;
+	}
 	if (!$afsendermail || !$afsendernavn) {
 		return("Missing sender mail");
 #		print "<BODY onLoad=\"javascript:alert('Firmanavn eller e-mail for afsender ikke udfyldt.\\nSe (Indstillinger -> stamdata).\\nMail ikke afsendt!')\">";

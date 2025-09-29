@@ -63,7 +63,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 	
-$art=$art_nr=$form_nr=$linjeantal=$nyt_sprog=$submit=$x=NULL;
+$art=$art_nr=$form_nr=$linjeantal=$nyt_sprog=$submit=$x=$form_sprog_id=NULL;
 $id=$db_id;
 	
 /*
@@ -137,6 +137,8 @@ if (isset($_POST) && $_POST) {
 			$form_sprog_id=$r['kodenr']+1;
 			db_modify("insert into grupper (beskrivelse,kodenr,art,box1) values ('Formular og varesprog','$form_sprog_id','VSPR','$formularsprog')");
 		}
+	}else{
+		$form_sprog_id = 0;
 	}
 	
 	if (isset($_POST['op']) || isset($_POST['hojre'])) { #Flytning af 0 punkt.
@@ -276,7 +278,8 @@ if ($menu=='T') {  # 20150331 start
 	print "<div id=\"header\">\n";
 	print "<div class=\"headerbtnLft\">";
     print "<a class='button blue small' class=\"button red small left\" href=\"formular_indlaes_std.php\">".findtekst('572|Genindlæs standardformularer', $sprog_id)."</a> &nbsp;";
-    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">".findtekst('801|Sprog', $sprog_id)."</a></div>\n";
+    print "<a title=\"".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."\" class='button blue small' class=\"button red small left\" href=\"formularkort.php?nyt_sprog=yes\" accesskey=\"s\">".findtekst('801|Sprog', $sprog_id)."</a> &nbsp;";
+    print "<a title=\"Email indstillinger for sprog\" class='button blue small' href=\"email_settings.php\" accesskey=\"e\">Email Settings</a></div>\n";
 	print "<span class=\"headerTxt\"></span>\n";     
 	print "<div class=\"headerbtnRght\"><a title=\"".findtekst('1780|Indlæs eller fjern baggrundsfil', $sprog_id)."\" class='button blue small' href=logoupload.php?upload=yes accesskey=\"u\">".findtekst('571|Baggrund', $sprog_id)."</a></div>";    
 	print "</div><!-- end of header -->";
@@ -303,6 +306,9 @@ if ($menu=='T') {  # 20150331 start
 
 	print "<td width='6%'><span title='".findtekst('1779|Opret eller nedlæg sprog', $sprog_id)."'><a href=formularkort.php?nyt_sprog=yes accesskey='s'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('801|Sprog', $sprog_id)."</button></a></span></td>\n";
+
+	print "<td width='6%'><span title='Email indstillinger for sprog'><a href=email_settings.php accesskey='e'>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email Settings</button></a></span></td>\n";
 
 	print "<td width='6%'><span title='".findtekst('1781|Indlæs eller fjern fil', $sprog_id)."'><a href=logoupload.php?upload=yes accesskey='u'>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('571|Baggrund', $sprog_id)."</button></a></span></td>\n";#20210804
@@ -516,7 +522,8 @@ $tmp = db_escape_string($formularsprog);
 		}
 	}
 	if (!$id1) {
-		for ($x=1;$x<=2;$x++) {
+		$max_fields = ($form_nr==1 || $form_nr==2 || $form_nr==4) ? 3 : 2; # Back to original field count
+		for ($x=1;$x<=$max_fields;$x++) {
 			$qtxt = "insert into formularer (xa, formular, art, sprog) values ('$x', '$form_nr',$art_nr,'$formularsprog')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt = "select max id as id from formularer where ";
@@ -539,6 +546,7 @@ $tmp = db_escape_string($formularsprog);
 	print "<td colspan = '4'  title=\"".findtekst('219|Skriv teksten til den email som bruges', $sprog_id)."\">";
 	print "<textarea name='beskrivelse[2]' rows='5' cols='100' onchange='javascript:docChange = true;'>";
 	print "$mailtext</textarea></td></tr>\n";
+	
 	if ($form_nr==1 || $form_nr==2 || $form_nr==4) {
 		print "<tr>";
 		print "<td title=\"".findtekst('672|Skriv navn til vedhæftet bilag', $sprog_id)."\">".findtekst('671|Bilag', $sprog_id)."&nbsp;</td>";
