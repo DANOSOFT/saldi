@@ -402,10 +402,15 @@ include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("kladlist", $steps);
 
 print <<<HTML
+
 <style>
-.row-clickable:hover td:not(:last-child) {
-  background-color: #f9f9f9 !important;
-  outline: 2px solid #fff;
+.row-clickable:hover td {
+  background-color: #f9f9f9;
+  cursor: pointer;
+}
+
+.row-clickable:hover {
+  outline: 2px solid #b2b2b2;
 }
 
 tr.header-row,
@@ -438,7 +443,52 @@ tr.nav-row:hover td {
   gap: 4px !important;
   transition: background-color 0.2s ease !important;
 }
+
+/* Ensure delete button maintains its own cursor */
+.row-clickable:hover td:last-child button {
+  cursor: pointer !important;
+}
+
 </style>
+
+<!-- <style>
+.row-clickable:hover td:not(:last-child) {
+ outline: 2px solid #b2b2b2;
+  background-color: #f9f9f9;
+  cursor: pointer;
+}
+
+tr.header-row,
+tr.header-row td {
+  cursor: default !important;
+}
+
+tr.header-row:hover td {
+  cursor: default !important;
+}
+
+tr.nav-row,
+tr.nav-row:hover,
+tr.nav-row:hover td {
+  background-color: inherit !important;
+  cursor: default !important;
+}
+
+/* Button styling */
+.table-row-hover button,
+.hover-highlight button {
+  color: white !important;
+  border: none !important;
+  padding: 6px 10px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  font-size: 11px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  transition: background-color 0.2s ease !important;
+}
+</style> -->
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
