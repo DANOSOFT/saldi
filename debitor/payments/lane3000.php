@@ -54,8 +54,6 @@ $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
 $return_url = if_isset($_GET['return_url'], 'pos_ordre.php'); // Default to pos_ordre.php for POS
 $kasse = $_COOKIE['saldi_pos'];
-echo $kasse;
-exit;
 
 // Log initialization
 writeLog("Lane3000 payment started - Amount: $raw_amount, Order ID: $ordre_id, Kasse: $kasse, Session: $s_id");
