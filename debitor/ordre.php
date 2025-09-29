@@ -4353,7 +4353,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					}
 					if ($vis_betalingslink) {
 						// Use Lane3000 terminal instead of old terminal
-						$href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php";
+						$href = "payments/lane3000-sim.php?amount=$dkfelt_2&id=$id&return_url=ordre.php";
 						if (isset($_GET['indbetaling'])) {
 							$href .= "&indbetaling=" . $_GET['indbetaling'];
 						}
