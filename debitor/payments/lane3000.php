@@ -146,7 +146,31 @@ function leave(cardScheme) {
         setTimeout(function() { leave(cardScheme); }, 2500);
     } else {
         logToServer(`Payment successful, redirecting with card scheme: ${cardScheme}`, 'INFO');
-        window.location.replace(`../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
+        
+        // Check if return_url is not pos_ordre.php
+        const returnUrl = '<?php print $return_url; ?>';
+        if (returnUrl !== 'pos_ordre.php') {
+            logToServer(`Return URL is not pos_ordre.php (${returnUrl}), making background call to pos_ordre.php first`, 'INFO');
+            
+            // Make background call to pos_ordre.php
+            fetch(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`, {
+                method: 'GET',
+                mode: 'no-cors' // Allow cross-origin request without CORS issues
+            }).then(() => {
+                logToServer('Background call to pos_ordre.php completed', 'INFO');
+            }).catch((error) => {
+                logToServer(`Background call to pos_ordre.php failed: ${error.message}`, 'WARNING');
+            });
+            
+            // Small delay to allow background call to complete, then redirect to actual return URL
+            setTimeout(() => {
+                logToServer(`Redirecting to actual return URL: ${returnUrl}`, 'INFO');
+                window.location.replace(`../${returnUrl}?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
+            }, 1000); // 1 second delay
+        } else {
+            // Direct redirect to pos_ordre.php
+            window.location.replace(`../${returnUrl}?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
+        }
     }
 }
 
