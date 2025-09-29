@@ -79,7 +79,7 @@ if (res) {
 print '
 <style>
 .hover-highlight:hover {
-  outline: 2px solid #000;
+  outline: 2px solid #b2b2b2;
   background-color: #f9f9f9;
   cursor: pointer;
 }
