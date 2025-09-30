@@ -123,7 +123,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		//		$fromdate=usdate($dato_fra);
 		$todate = usdate($dato_fra);
 	}
-error_log("Returside is here ???????????????????????????: $returside");
+
 	($kontoart == 'D') ? $tekst = 'DRV' : $tekst = 'KRV';
 
 	db_modify("update ordrer set art = 'R1' where art = 'RB'", __FILE__ . " linje " . __LINE__); // 20091012 - er overfloedig
@@ -1077,7 +1077,7 @@ function kontokort($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $k
 				if ($fromdate)
 					$firstdate = $fromdate;
 				if ($todate)
-					$lastdate = $todate;
+					$lastdate = $todate; 
 				print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=" . dkdato($firstdate) . 	"&dato_til=" . dkdato($lastdate) . "&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">
 					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Email</button></td>\n";
 			}
