@@ -3012,7 +3012,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 // print "<form name=\"ordre\" id=\"1\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
 
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
-		print '<input type="hidden" name="invoice_dragdrop" value="10">';
+		// print '<input type="hidden" name="invoice_dragdrop" value="10">';
 
 		print "<input type=\"hidden\" name=\"ordrenr\" value=\"$ordrenr\">";
 		print "<input type=\"hidden\" name=\"status\" value=\"$status\">";
@@ -3091,7 +3091,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 ##### pile ########
     $txt140 = findtekst('140|Adresse', $sprog_id);
     $txt666 = findtekst('666|Postnr & by', $sprog_id);
-		print "<table class='dataTableForm' cellpadding='0' cellspacing='0' bordercolor='#FFFFFF' width='100%' border='1' valign = 'top'><tbody>\n"; #Tabel 2 ->
+		print "<table class='dataTableForm' cellpadding='0' cellspacing='0' style='max-width:1400px;' bordercolor='#FFFFFF'  width='100%' border='1' valign = 'top'><tbody>\n"; #Tabel 2 ->
 		$ordre_id=$id;
 		print "<tr><td width='31%' valign='top'><table cellpadding='0' cellspacing='0' border='0' width='100%'>\n"; #Tabel 2.1 ->
 		print "<tr class='tableTexting'><td width='100'><b>".findtekst('43|Kontonr.', $sprog_id)."</b></td><td width='100'>$kontonr</td></tr>\n";
@@ -3184,7 +3184,8 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		} else print "</tr>\n";
 */
 		print "<tr class='tableTexting'><td width=\"100\"><b>".findtekst('881|Ordredato', $sprog_id)."</b></td><td width=\"100\">$ordredato</td>\n"; #20210629
-		print "<td><b>&nbsp;".findtekst('886|Lev. dato', $sprog_id)."</b></td><td>$levdato</td></tr>\n";
+		print "<td><b>".findtekst('886|Lev. dato', $sprog_id)."</b></td><td>$levdato</td></tr>\n";
+		// print "<td><b>&nbsp;".findtekst('886|Lev. dato', $sprog_id)."</b></td><td>$levdato</td></tr>\n";
 		print "<tr class='tableTexting'><td><b>".findtekst('1094|Fakturadato', $sprog_id)."</b></td><td>$fakturadato</td>";
 		if ($digitalStatus != null || $digitalStatus != "") {
 			print "<td><b>&nbsp;Digital Status</b></td><td>$digitalStatus</td></tr>\n";
@@ -3285,8 +3286,9 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		print "<tr><td align='center' colspan='3'><table class='dataTableForm' cellpadding='0' cellspacing='0' bordercolor='#FFFFFF' border='1' width='100%'><tbody>\n"; #Tabel 2.5 ->
 		//print "<tr><td colspan='7'></td></tr>\n<tr>\n"; # udkommenteret 20140502
 		// print "<td align='center' class='tableHeader'><b>Pos.</b></td><td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>
+print "<td align='center' class='tableHeader'><b>Pos.</b></td><td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
 	
-print "<td align='center' class='tableHeader' style='width:30px;'><b>⋮⋮</b></td><td align='center' class='tableHeader'><b>Pos.</b></td><td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
+// print "<td align='center' class='tableHeader' style='width:30px;'><b>⋮⋮</b></td><td align='center' class='tableHeader'><b>Pos.</b></td><td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
 // print "<td align='center' class='tableHeader' style=''><b>⋮⋮</b></td>";
 // print "<td align='center' class='tableHeader'><b>Pos.</b></td>";
 // print "<td align='center' class='tableHeader'><b>".findtekst('917|Varenr.', $sprog_id)."</b></td>";
@@ -3443,9 +3445,9 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 			}
 			$title=var2str($beskrivelse[$x],$id,$posnr[$x],$varenr[$x],$dkantal[$x],$enhed[$x],$dkpris,$dkprocent,$serienr[$x],$varemomssats[$x],$rabat[$x]);
 			// print "<tr  class='ordrelinje'  >\n";
-			print "<tr class='ordrelinje' bgcolor='$linjebg' data-line-id='$x'>\n";
+			print "<tr class='ordrelinje' bgcolor='$linjebg' style='max-width:800px' data-line-id='$x'>\n";
 
-			print "<td class='drag-handle' style='cursor: move; text-align: center;'>⋮⋮</td>\n"; // Drag handle
+			// print "<td class='drag-handle' style='cursor: move; text-align: center;'>⋮⋮</td>\n"; // Drag handle
 
 			// print "<td class='drag-handle' style='cursor: move; text-align: center; padding: 4px;'>☰</td>\n";
 			print "<input type='hidden' name='linje_id[$x]' value='$linje_id[$x]'>\n";
@@ -4420,6 +4422,8 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		print "<tr><td align=\"center\" colspan=\"3\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n"; # Tabel 4.5 ->
  		if ($kontonr) {
 			print "<tr class=\"tr4-spacing\" >";
+			// if its invoice (faktura) do not show the drag handle only showit for offer and orders
+			
 			print "<td class=\"pos-spacing\" align=\"center\"><b>⋮⋮</b></td>";
 
 
