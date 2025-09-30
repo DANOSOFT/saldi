@@ -134,6 +134,8 @@ if(isset($_GET['kilde'])) {
 	$kilde=NULL;
 }
 $current_kilde = $_GET['kilde'] ?? ''; # For dropdown/select 
+// $AllAcount = ($current_kilde === 'show_all') ? 'on' : '';
+// $OpenPost = ($current_kilde === 'openpost') ? 'on' : '';
 if ($send_mails) {
 	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
 	print "<form name=luk action=../includes/luk.php method=post>";	
@@ -375,16 +377,18 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
     <!-- Content Wrapper for vertical layout -->
     <div style="width: 100%; display: flex; flex-direction: column; align-items: center;">
 
-        <!-- email + period inputs -->
+        <!-- email + period inputs --> 
         <div style="text-align: center;">
-            <hr style="margin: 0 0 4px 0;">
+			<hr style="position: relative; left: 0; width: 100vw; height: 1px; background: #ccc; margin: 0 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
+
             email til: 
             <input type="text" name="email[<?php echo $x-1; ?>]" value="<?php echo $footer_email; ?>">
             Periode: 
             <input type="date" style="text-align:right" size="10" name="fra[<?php echo $x-1; ?>]" value="<?php echo $footer_fra; ?>"> - 
             <input type="date" style="text-align:right" size="10" name="til[<?php echo $x-1; ?>]" value="<?php echo $footer_til; ?>">
-            <hr style="height:10px; background-color: rgb(200, 200, 200); margin: 4px 0;">
-            <hr style="margin: 4px 0 0 0;">
+           <hr style="width: 100vw; height: 10px; background-color: rgb(200, 200, 200); margin: 4px 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
+			<hr style="width: 100vw; height: 1px; background-color: #ccc; margin: 0 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
+
             <input type="hidden" name="konto_id[<?php echo $x-1; ?>]" value="<?php echo $footer_konto_id; ?>">
             <input type="hidden" name="kilde" value="<?php echo $kilde; ?>">
         </div>
