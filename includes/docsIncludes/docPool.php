@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 4.1.1 --- 2025-08-24 --- 
+// --- includes/docsIncludes/docPool.php --- ver 4.1.1 --- 2025-09-30 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$newSubject   = if_isset($_POST,NULL,'newSubject');
 	$newAccount	= if_isset($_POST,NULL,'newAccount');
 	$newAmount	= if_isset($_POST,NULL,'newAmount');
+	$newDate	   = if_isset($_POST,NULL,'newDate');
 
 	$afd         = if_isset($_POST,NULL,'afd');
 	$bilag       = if_isset($_POST,NULL,'bilag');
@@ -57,6 +58,12 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$sum         = if_isset($_POST,NULL,'sum');
 
 	if ($insertFile && $poolFile) {
+		#if(!isset($dato )&& isset($newDate)) {
+			$formattedDate = date("d-m-Y", strtotime($newDate));
+			$dato = $formattedDate;
+			$_POST['dato']=$dato;
+		#}
+		
 		include ("docsIncludes/insertDoc.php");
 #		Echo "Indsltter $poolFile<br>";
 		exit;
@@ -78,8 +85,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	}
 
 	if ($rename && $newFileName && $newFileName != $poolFile || ($rename &&($newAccount||$newAmount||$newSubject))) {
-	error_log("RenammmmmmmiiiiiiingggggMMMMMMMMMM7777: $rename, and $newAccount, $newAmount, $newSubject");	
-	  $legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
+	
+	$legalChars = array('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z');
 		array_push($legalChars,'0','1','2','3','4','5','6','7','8','9','_','-','.','(',')');
 		$nfn = trim($newFileName);
 		$nfn = str_replace('æ','ae',$nfn);
@@ -176,8 +183,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 											$infoLines = [
 												$newSubject ?? '',
 												$newAccount ?? '',
-												$newAmount ?? ''
-											];
+												$newAmount ?? '',
+												$newDate ?? ''
+											]; 
 
 											// Write to the file
 											if (file_put_contents($newPath, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
@@ -373,6 +381,7 @@ print <<<JS
 
             if (data.error) {
                 document.getElementById(containerId).innerHTML = '<div style="color:red;">' + escapeHTML(data.error) + '</div>';
+				console.error(dir + ': ' + data.error);
                 return;
             }
 
@@ -385,82 +394,101 @@ print <<<JS
     }
 
     function renderFiles() {
-        if (!docData.length) {
-            document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
-            return;
-        }
-
-        let html = "<table style='border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 14px; border: 1px solid #ddd;'>"; 
-			html += "<thead style='background:#f4f4f4;'>" +
-				"<tr>" +
-					"<th onclick=\"sortFiles('subject')\" style='cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;'>Subject&#9660;</th>" +
-					"<th onclick=\"sortFiles('account')\" style='cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;'>Account&#9660;</th>" +
-					"<th onclick=\"sortFiles('amount')\" style='cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;'>Amount&#9660;</th>" +
-					"<th onclick=\"sortFiles('date')\" style='cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;'>Date&#9660;</th>" +
-					"<th style='padding:8px; border:1px solid #ddd; text-align:left;'>File</th>" +
-				"</tr></thead><tbody>";
-
-			for (const row of docData) {
-    			const dateFormatted = escapeHTML(row.date); 
-    			const fileLinkText = "View PDF";
-                 //It is assumed here that the last file is always the active one from the Url//
-				// Parse URL and get all 'poolFile' params
-				const url = new URL(row.href, window.location.origin);
-				const allPoolFiles = url.searchParams.getAll('poolFile');
-
-				// Get the last 'poolFile' value
-				const lastPoolFile = allPoolFiles.length ? allPoolFiles[allPoolFiles.length - 1] : null;
-
-				// Compare with PHP-passed poolFile
-				const isMatch = lastPoolFile === poolFile;
-
-				console.log("Comparing last poolFile:", lastPoolFile, "to PHP poolFile:", poolFile, "=>", isMatch);
-
-				// Apply highlight style if match
-				const rowStyle = isMatch
-					? "background-color: #ffebcc; font-weight: bold;"
-					: "border-bottom:1px solid #ddd;";
-
-			//
-
-				let normalizedTotal = parseFloat(
-					totalSum.replace(/\./g, '').replace(',', '.')
-				);
-
-				let normalizedAmount = parseFloat(row.amount);
-
-				let boldAmount = (normalizedAmount === normalizedTotal)
-					? "<strong>" + escapeHTML(row.amount) + "</strong>"
-					: escapeHTML(row.amount);
-
-
-			//
-
-				html += "<tr style='" + rowStyle + "'>" +
-					"<td style='padding:8px; border:1px solid #ddd;'>" + escapeHTML(row.subject) + "</td>" +
-					"<td style='padding:8px; border:1px solid #ddd;'>" + escapeHTML(row.account) + "</td>" +
-					"<td style='padding:8px; border:1px solid #ddd;'>" + boldAmount + "</td>" +
-					"<td style='padding:8px; border:1px solid #ddd;'>" + dateFormatted + "</td>" +
-					"<td style='padding:8px; border:1px solid #ddd;'>" +
-						"<a href='" + row.href + "' id='" + row.hreftxt + "' style='color:#007BFF; text-decoration:none;' onmouseover=\"this.style.textDecoration='underline'\" onmouseout=\"this.style.textDecoration='none'\">" +
-						fileLinkText + "</a></td>" +
-				"</tr>";
-
-			}
-
-
-
-			html += "</tbody></table>";
-
-			// hover style 
-			html += "<style>\
-				table tbody tr:hover { background-color: #edf3e8ff; }\
-			</style>";
-
-		
-
-        document.getElementById(containerId).innerHTML = html;
+    if (!docData.length) {
+        document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
+        return;
     }
+
+   let html = `
+<div style="max-height: 500px; overflow-y: auto;">
+<table style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 14px; border: 1px solid #ddd;">
+    <thead style="background:#f4f4f4; position: sticky; top: 0; z-index: 10;">
+        <tr>
+            <th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">Subject &#9660;</th>
+            <th onclick="sortFiles('account')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">Account &#9660;</th>
+            <th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">Amount &#9660;</th>
+            <th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">Date &#9660;</th>
+        </tr>
+    </thead>
+    <tbody>
+`;
+
+
+   let activeRows = '';
+let otherRows = '';
+
+for (const row of docData) {
+    const dateFormatted = escapeHTML(row.date.split(' ')[0]);
+	
+
+    const url = new URL(row.href, window.location.origin);
+    const allPoolFiles = url.searchParams.getAll('poolFile');
+    const lastPoolFile = allPoolFiles.length ? allPoolFiles[allPoolFiles.length - 1] : null;
+    const isMatch = lastPoolFile === poolFile;
+
+    const rowStyle = isMatch
+        ? "background-color: #ffebcc; font-weight: bold;"
+        : "border-bottom:1px solid #ddd;";
+
+    let normalizedTotal = parseFloat(totalSum.replace(/\./g, '').replace(',', '.'));
+    let normalizedAmount = parseFloat(row.amount);
+    let boldAmount = (normalizedAmount === normalizedTotal)
+        ? "<strong>" + escapeHTML(row.amount) + "</strong>"
+        : escapeHTML(row.amount);
+
+    const subjectCell = isMatch
+        ? "<input type='text' name='newSubject' value='" + escapeHTML(row.subject) + "' " +
+          "style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
+          "oninput='updateFilenameFromSubject();' onclick='event.stopPropagation();'>"
+        : escapeHTML(row.subject);
+
+    const accountCell = isMatch
+        ? "<input type='text' name='newAccount' value='" + escapeHTML(row.account) + "' " +
+          "style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
+          "onclick='event.stopPropagation();'>"
+        : escapeHTML(row.account);
+
+    const amountCell = isMatch
+        ? "<input type='text' name='newAmount' value='" + escapeHTML(row.amount) + "' " +
+          "style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
+          "onclick='event.stopPropagation();'>"
+        : boldAmount;
+
+    const dateCell = isMatch
+        ? "<input type='date' name='newDate' value='" + dateFormatted + "' " +
+          "style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
+          "onclick='event.stopPropagation();'>"
+        : dateFormatted;
+
+    const rowHTML = "<tr style='" + rowStyle + " cursor: pointer;' onclick=\"window.location.href='" + row.href + "'\">" +
+        "<td style='padding:8px; border:1px solid #ddd; max-width: 200px; overflow-x: auto; white-space: nowrap;'><div style='overflow-x: auto;'>" + subjectCell + "</div></td>" +
+        "<td style='padding:8px; border:1px solid #ddd; max-width: 150px; overflow-x: auto; white-space: nowrap;'><div style='overflow-x: auto;'>" + accountCell + "</div></td>" +
+        "<td style='padding:8px; border:1px solid #ddd; max-width: 120px; overflow-x: auto; white-space: nowrap;'><div style='overflow-x: auto;'>" + amountCell + "</div></td>" +
+        "<td style='padding:8px; border:1px solid #ddd; max-width: 120px; overflow-x: auto; white-space: nowrap;'><div style='overflow-x: auto;'>" + dateCell + "</div></td>" +
+        "</tr>";
+
+    if (isMatch) {
+        activeRows += rowHTML;
+    } else {
+        otherRows += rowHTML;
+    }
+}
+
+// Ensure active rows come first
+html += activeRows + otherRows;
+
+
+
+    html += "</tbody></table>";
+
+    // hover style 
+    html += "<style>\
+        table tbody tr:hover { background-color: #edf3e8ff; }\
+    </style>";
+
+    document.getElementById(containerId).innerHTML = html;
+}
+
 
 	
 		function sortFiles(field) {
@@ -504,6 +532,19 @@ print <<<JS
     fetchFiles();
     window.sortFiles = sortFiles;
 })();
+
+document.querySelector("form").addEventListener("submit", function () {
+    const subjectInput = document.querySelector("input[name='newSubject']");
+    const accountInput = document.querySelector("input[name='newAccount']");
+    const amountInput = document.querySelector("input[name='newAmount']");
+    const dateInput = document.querySelector("input[name='newDate']");
+
+    if (subjectInput) document.getElementById("hiddenSubject").value = subjectInput.value;
+    if (accountInput) document.getElementById("hiddenAccount").value = accountInput.value;
+    if (amountInput) document.getElementById("hiddenAmount").value = amountInput.value;
+    if (dateInput) document.getElementById("hiddenDate").value = dateInput.value;
+});
+
 </script>
 JS;
 
@@ -672,7 +713,30 @@ JS;
 		print "</iframe></td></tr>\n";
 	}
 	print "</tbody></table></td></tr>\n";
-	print "<tr><td><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid rgb(180, 180, 255); padding: 0pt 0pt 1px;\"><tbody>";
+
+	print "<tr><td id='fixedCell' style='position: relative; margin-bottom: 150px; padding-bottom: 150px;'>";
+
+	print "<div id='fixedBottom' style='position: fixed; bottom: 0; left: 0; width: 100px; /* temp */
+		height: 150px; border: 3px solid rgb(180, 180, 255); padding: 0 0 1px; 
+		background: white; box-sizing: border-box; overflow-y: auto;'>
+		<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'>
+			<tbody>";
+
+
+		echo "<script>
+		window.addEventListener('load', function() {
+		const fixedCell = document.getElementById('fixedCell');
+		const fixedDiv = document.getElementById('fixedBottom');
+
+		if(fixedCell && fixedDiv) {
+			const rect = fixedCell.getBoundingClientRect();
+			fixedDiv.style.left = rect.left + 'px';        // align left edge of div with cell
+			fixedDiv.style.width = rect.width + 'px';      // set width to cell's width
+		}
+		});
+		</script>";
+
+
 	$tmp="../".$dir."/".$descFile.".desc";
 	if (file_exists($tmp)) {
 		system("cd ../temp/$db/pulje\ncp $tmp .\n");
@@ -731,11 +795,13 @@ JS;
 					$Subject = $lines[0] ?? '';
 					$Account = $lines[1] ?? '';
 					$Amount  = $lines[2] ?? '';
+					$Date	= $lines[3] ?? '';
 					
 				} else {
 					$Subject = if_isset($newSubject,NULL);
 					$Account = if_isset($newAccount,NULL);
 					$Amount  = if_isset($newAmount,NULL);
+					$Date	= if_isset($newDate,NULL);	
 
 				}
 			} 
@@ -748,77 +814,110 @@ JS;
 	
 	if (!$dato) $dato=date("d-m-Y");
      //#################
-	print <<<HTML
+print <<<HTML
 
-<script>
-function updateSubjectFromFilename() {
-    const fileInput = document.querySelector('input[name="newFileName"]');
-    const subjectInput = document.querySelector('input[name="newSubject"]');
-    if (fileInput && subjectInput) {
-        let filename = fileInput.value.split(/[\\/]/).pop(); // handles both \ and /
-        let baseName = filename.replace(/\.[^/.]+$/, ""); // remove extension
+	<script>
 
-        // Always update subject to basename when filename changes
-        subjectInput.value = baseName;
-    }
-}
+	function updateSubjectFromFilename() {
+		const fileInput = document.querySelector('input[name="newFileName"]');
+		const subjectInput = document.querySelector('input[name="newSubject"]');
 
-function updateFilenameFromSubject() {
-    const fileInput = document.querySelector('input[name="newFileName"]');
-    const subjectInput = document.querySelector('input[name="newSubject"]');
-    if (fileInput && subjectInput) {
-        let filename = fileInput.value;
-        let extension = "";
+		if (fileInput) {
+			// Always strip .pdf from what the user types
+			fileInput.value = fileInput.value.replace(/\.pdf$/i, '');
 
-        // Extract extension if any
-        const lastDot = filename.lastIndexOf(".");
-        if (lastDot !== -1) {
-            extension = filename.substring(lastDot);
-        }
+			if (subjectInput) {
+				subjectInput.value = fileInput.value.trim();
+			}
+		}
+	}
 
-        // Always update filename's basename with the subject's value when subject changes
-        fileInput.value = subjectInput.value + extension;
-    }
-}
-</script>
+	// On page load: remove .pdf from value (if set by server)
+	document.addEventListener('DOMContentLoaded', function () {
+		const fileInput = document.querySelector('input[name="newFileName"]');
+		const subjectInput = document.querySelector('input[name="newSubject"]');
 
-<tr>
-    <td>Filnavn</td>
-    <td><input type="text" style="width:150px"
-        name="newFileName" value="$poolFile" oninput="updateSubjectFromFilename()"></td>
-</tr>
-<tr>
-    <td>Subject</td>
-    <td><input type="text" style="width:150px"
-        name="newSubject" value="$Subject" oninput="updateFilenameFromSubject()"></td>
-</tr>
-<tr>
-    <td>Account</td>
-    <td><input type="text" style="width:150px"
-        name="newAccount" value="$Account"></td>
-</tr>
-<tr>
-    <td>Amount</td>
-    <td><input type="text" style="width:150px"
-        name="newAmount" value="$Amount"></td>
-</tr>
-<tr>
-    <td colspan="2"><input style="width:100%" type="submit"
-        name="rename" value="Ret filnavn"></td>
-</tr>
+		if (fileInput) {
+			fileInput.value = fileInput.value.replace(/\.pdf$/i, '');
+			if (subjectInput) {
+				subjectInput.value = fileInput.value.trim();
+			}
+		}
+	});
+
+	// Before form submit, add .pdf back
+	document.querySelector('form')?.addEventListener('submit', function () {
+		const fileInput = document.querySelector('input[name="newFileName"]');
+		if (fileInput && !fileInput.value.endsWith('.pdf')) {
+			fileInput.value = fileInput.value.trim() + '.pdf';
+		}
+	});
+
+
+	function updateFilenameFromSubject() {
+		const fileInput = document.querySelector('input[name="newFileName"]');
+		const subjectInput = document.querySelector('input[name="newSubject"]');
+		if (fileInput && subjectInput) {
+			let filename = fileInput.value;
+			let extension = "";
+
+			// Extract extension if any
+			const lastDot = filename.lastIndexOf(".");
+			if (lastDot !== -1) {
+				extension = filename.substring(lastDot);
+			}
+
+			// Always update filename's basename with the subject's value when subject changes
+			fileInput.value = subjectInput.value + extension;
+		}
+	}
+	</script>
+
+
 
 HTML;
 
-		if(empty($sum) && empty($beskrivelse)) {
-			if($Amount) $sum = $Amount;  //set these for updating the previous data if needed
-			if($Subject) $beskrivelse = $Subject;
-			if($Date) $dato = $Date;
-		}
+		// if(empty($sum) && empty($beskrivelse)) {
+		// 	if($Amount) $sum = $Amount;  //set these for updating the previous data if needed
+		// 	if($Subject) $beskrivelse = $Subject;
+		// 	if($Date) $dato = $Date;
+		// }
 	//##################
-	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
-	name=\"insertFile\" value=\"".findtekst('1415|Indsæt', $sprog_id)."\"</tr>\n";
-	print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
-	name=\"unlink\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('Er du sikker på at du vil slette?')\"></tr>\n";
+	// print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
+	// name=\"insertFile\" value=\"".findtekst('1415|Indsæt', $sprog_id)."\"</tr>\n";
+	// print "<tr><td colspan=\"2\"><input style=\"width:100%\" type=\"submit\"
+	// name=\"unlink\" value=\"".findtekst('1099|Slet', $sprog_id)."\" onclick=\"return confirm('Er du sikker på at du vil slette?')\"></tr>\n";
+
+			print "<div id='activeRowContainer'></div>";
+
+			print "<div style=\"margin: 10px 0;\">
+				<label style=\"display:inline-block; width: 70px; vertical-align: middle;\">Filnavn</label>
+				<input type=\"text\" style=\"width:150px; vertical-align: middle;\"
+					name=\"newFileName\"
+					id=\"filenameInput\"
+					value=\"" . htmlspecialchars($poolFile, ENT_QUOTES) . "\"
+					readonly>
+			</div>
+
+			<div style=\"margin: 10px 0; text-align: center;\">
+
+				<input type=\"hidden\" name=\"newSubject\" id=\"hiddenSubject\">
+				<input type=\"hidden\" name=\"newAccount\" id=\"hiddenAccount\">
+				<input type=\"hidden\" name=\"newAmount\" id=\"hiddenAmount\">
+				<input type=\"hidden\" name=\"newDate\" id=\"hiddenDate\">
+
+				<input type=\"submit\" name=\"rename\" value=\"Ret filnavn\">
+				<input type=\"submit\" name=\"insertFile\" value=\"" . findtekst('1415|Indsæt', $sprog_id) . "\">
+				<input type=\"submit\" name=\"unlink\" value=\"" . findtekst('1099|Slet', $sprog_id) . "\" onclick=\"return confirm('Er du sikker på at du vil slette?')\">
+
+			</div>";
+
+
+
+
+	print "<tr><td colspan=\"2\"></td></tr>\n";
+
+
 	print "<tr><td>Bilag&nbsp;</td>";
 	if ($readOnly) print "<td>$bilag</td><tr>";
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"bilag\" value=\"$bilag\"</td></tr>\n";
@@ -850,15 +949,23 @@ HTML;
 	if ($readOnly) print "<td> $projekt</td><tr>";
 	else print "<td><input type=\"text\" style=\"width:150px\" name=\"projekt\" value=\"$projekt\"</td></tr>\n";
 	print "</tbody></table></td></tr>\n";
+	
 	print "<input type=\"hidden\" style=\"width:150px\" name=\"unlinkFile\" value=\"$fullName\"</td></tr>\n";
 	print "<input type=\"hidden\" style=\"width:150px\" name=\"descFile\" value=\"$descFile\"</td></tr>\n";
 	print "</form>";
-	if($docFocus) {
+	
+	if(!is_numeric($docFocus)) {
 	print "<script language=\"javascript\">";
 	print "document.gennemse.$docFocus.focus();";
 	print "</script>";
 	}else{
-		alert("Please click 'View' to proceed");
+		print '<script>';
+		print 'if (!sessionStorage.getItem("docAlertShown")) {'; 
+		print '    alert("Please click on the document to proceed");';
+		print '    sessionStorage.setItem("docAlertShown", "true");'; 
+		print '}';
+		print '</script>';
+
 	}
 
 	exit;

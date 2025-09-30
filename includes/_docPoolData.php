@@ -94,13 +94,19 @@ ob_start();
             // --- Attempt to read matching .info file ---
             $infoFile = "$dir/{$base}.info";
             $subject = $account = $amount = "";
-            
-        if (file_exists($infoFile)) { // Only process those having file info
-            $lines = file($infoFile, FILE_IGNORE_NEW_LINES);
-            $subject = $lines[0] ?? '';
-            $account = $lines[1] ?? '';
-            $amount  = $lines[2] ?? '';
-        }
+           
+            if (file_exists($infoFile)) { // Only process those having file info
+                $lines          = file($infoFile, FILE_IGNORE_NEW_LINES);
+                #set file creation date if non exists in the file
+                $modDate1 = date("Y-m-d H:i:s", filemtime($infoFile)); 
+                #
+                        
+                $subject = trim($lines[0] ?? '') !== '' ? trim($lines[0]) : $base;//default to filename
+                $account        = $lines[1] ?? '';
+                $amount         = $lines[2] ?? '';
+                $insertedDate   = $lines[3] ?? $modDate1; 
+                
+            }
 
         if (!empty($subject)) {
                 // Sanitize subject to make it filename-safe
@@ -142,6 +148,7 @@ ob_start();
                     $lines[0] = $safeSubject;
                     // Preserve any other existing lines
                     if (file_put_contents($infoFile, implode(PHP_EOL, $lines) . PHP_EOL) !== false) {
+
                         error_log("Updated .info file first line with subject: $safeSubject");
                     } else {
                         error_log("Failed to update first line of .info file: $infoFile");
@@ -166,8 +173,10 @@ ob_start();
             } else {
                 error_log("⚠️ File does not exist (yet?): $fullPath");
             }
-
-
+           
+          if(isset($insertedDate )){
+            $modDate = $insertedDate; 
+          }
 
         $fil_nr++;
         #$hreftxt = "../includes/documents.php?$params&docFocus=$fil_nr&poolFile=" . urlencode($file);
