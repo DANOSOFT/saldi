@@ -3182,7 +3182,10 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 			$title="Opkr&aelig;ves via PBS's betalingsservice";
 			if ($pbs_nr && !$pbs_fi) print "<td colspan=\"2\" title=\"$title\">Opkr&aelig;v via PBS (BS)</td><td title=\"$title\"><input class=\"inputbox\" type=\"checkbox\" name=\"pbs_bs\" \"$pbs_bs\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 		} else print "</tr>\n";
+		 
 */
+
+// 
 		print "<tr class='tableTexting'><td width=\"100\"><b>".findtekst('881|Ordredato', $sprog_id)."</b></td><td width=\"100\">$ordredato</td>\n"; #20210629
 		print "<td><b>".findtekst('886|Lev. dato', $sprog_id)."</b></td><td>$levdato</td></tr>\n";
 		// print "<td><b>&nbsp;".findtekst('886|Lev. dato', $sprog_id)."</b></td><td>$levdato</td></tr>\n";
