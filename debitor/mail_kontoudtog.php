@@ -139,7 +139,7 @@ $current_kilde = $_GET['kilde'] ?? ''; # For dropdown/select
 if ($send_mails) {
 	send_htmlmails($kontoantal, $konto_id, $email, $fra, $til);
 	print "<form name=luk action=../includes/luk.php method=post>";	
-	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
+	print "<div style='text-align: center;'><br><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
 	print "</form></div>";
 	exit;	
 } elseif ($send_pdfs) {
@@ -150,7 +150,7 @@ if ($send_mails) {
 		$svar=kontoprint($r['kontonr'],$r['kontonr'],$fra[$x],$til[$x],$r['art'],$email[$x]);
 	}
 	print "<form name=luk action=../includes/luk.php method=post>";	
-	print "<div style=\"text-align: center;\"><br><br><input type=submit value=\"Luk\" name=\"luk\">";
+	print "<div style='text-align: center;'><br><br><input type=submit value='".findtekst('2172|Luk', $sprog_id)."' name='luk'>";
 	print "</form></div>";
 	exit;
 }
@@ -177,7 +177,7 @@ while (!checkdate($slutmaaned,$slutdato,$slutaar))	{
 $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 */
-print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
+print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
 /*
 for ($x=1; $x<=12; $x++) {
 	if ($maaned_fra==$md[$x]){$maaned_fra=$x;}
@@ -246,16 +246,28 @@ for($x=1; $x<=$kontoantal; $x++) {
 	$r2=db_fetch_array(db_select("select box3 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 	$kontovaluta[$x]=$r2['box3'];
 	if (!$kontovaluta[$x]) $kontovaluta[$x]='DKK';
-	print "<tr><td colspan=8><hr style=\"height: 10px; background-color: rgb(200, 200, 200);\"></td></tr>";
-	print "<tr><td colspan=\"5\">$r[firmanavn]</td><td colspan=\"2\" align=\"right\">Dato</td><td align=right> ".date('d-m-Y')."</td></tr>\n";
-	print "<tr><td colspan=\"5\">$r[addr1]</td><td colspan=\"2\" align=\"right\">".findtekst(804, $sprog_id).".</td><td align=right> $r[kontonr]</td></tr>\n";
-	if ( $r['addr2'] ) print "<tr><td colspan=\"8\">$r[addr2]</td></tr>\n";
-	print "<tr><td colspan=\"8\">$r[postnr] $r[bynavn]</td></tr>\n";
-	print "<tr><td colspan=\"6\">Tlf. $r[tlf]</td><td align=right>".findtekst(776, $sprog_id)."</td><td align=right>$kontovaluta[$x]</td></tr>\n";
+	print "<tr><td colspan='8'><hr style='height: 10px; background-color: rgb(200, 200, 200);'></td></tr>";
+	print "<tr><td colspan='5'>$r[firmanavn]</td>";
+	print "<td colspan='2' align='right'>".findtekst('438|Dato', $sprog_id)."</td>";
+	print "<td align=right> ".date('d-m-Y')."</td></tr>\n";
+	print "<tr><td colspan='5'>$r[addr1]</td><td colspan='2' align='right'>".findtekst('804|Kontonr.', $sprog_id)."</td>";
+	print "<td align=right> $r[kontonr]</td></tr>\n";
+	if ($r['addr2'] ) print "<tr><td colspan='8'>$r[addr2]</td></tr>\n";
+	print "<tr><td colspan='8'>$r[postnr] $r[bynavn]</td></tr>\n";
+	print "<tr><td colspan='6'>".findtekst('49|Tlf', $sprog_id)." $r[tlf]</td>";
+	print "<td align=right>".findtekst('776|Valuta', $sprog_id)."</td>";
+	print "<td align=right>$kontovaluta[$x]</td></tr>\n";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
-	print "<tr><td width=10%> Dato</td><td width=5%> Bilag</td><td width=5%> Faktura</td><td width=40% align=center> Tekst</td><td> Forfaldsdato</td><td width=10% align=right> Debet</td><td width=10% align=right> Kredit</td><td width=10% align=right> Saldo</td></tr>";
-	print "<tr><td colspan=8><hr></td></tr>";
+	print "<tr><td width=10%>".findtekst('438|Dato', $sprog_id)."</td>";
+	print "<td width=5%>".findtekst('671|Bilag', $sprog_id)."</td>";
+	print "<td width=5%>".findtekst('643|Faktura', $sprog_id)."</td>";
+	print "<td width=40% align=center>".findtekst('1163|Tekst', $sprog_id)."</td>";
+	print "<td>".findtekst('1164|Forfaldsdato', $sprog_id)."</td>";
+	print "<td width=10% align=right>".findtekst('1000|Debet', $sprog_id)."</td>";
+	print "<td width=10% align=right>".findtekst('1001|Kredit', $sprog_id)."</td>";
+	print "<td width=10% align=right>".findtekst('1073|Saldo', $sprog_id)."</td></tr>";
+	print "<tr><td colspan='8'><hr></td></tr>";
 	$betalingsbet=trim($r['betalingsbet']);
 	$betalingsdage=$r['betalingsdage'];
 	$kontosum=0;
@@ -316,12 +328,12 @@ for($x=1; $x<=$kontoantal; $x++) {
 			if ($primoprint==0) {
 				$tmp=dkdecimal($kontosum,2);
 				$linjebg=$bgcolor5; $color='#000000';
-				print "<tr bgcolor=\"$linjebg\"><td colspan=\"3\"></td><td> ".findtekst(1165, $sprog_id)."</td><td colspan=\"3\"></td><td align=right> $tmp</td></tr>";
+				print "<tr bgcolor='$linjebg'><td colspan='3'></td><td>".findtekst('1165|Primosaldo', $sprog_id)."</td><td colspan='3'></td><td align=right> $tmp</td></tr>";
 				$primoprint=1;
 			}
 		    	if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 			elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
-			print "<tr bgcolor=\"$linjebg\"><td align=left> ".dkdato($r['transdate'])."&nbsp;</td><td> $r[refnr]</td>";
+			print "<tr bgcolor='$linjebg'><td align=left> ".dkdato($r['transdate'])."&nbsp;</td><td> $r[refnr]</td>";
 			print "<td align=right> $r[faktnr]&nbsp;</td><td> $r[beskrivelse]";
 			if ($kontovaluta[$x] != $valuta) print " ($valuta $amount)";
 			print "</td>";
@@ -348,7 +360,7 @@ for($x=1; $x<=$kontoantal; $x++) {
 	}
 	if ($primoprint==0) {
 		$tmp=dkdecimal($kontosum,2);
-		print "<tr><td></td><td></td><td></td><td> ".findtekst(1165, $sprog_id)."</td><td></td><td></td><td></td><td align=right> $tmp</td></tr>";
+		print "<tr><td></td><td></td><td></td><td> ".findtekst('1165|Primosaldo', $sprog_id)."</td><td></td><td></td><td></td><td align=right> $tmp</td></tr>";
 	}
 
 	################
@@ -381,12 +393,12 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
         <div style="text-align: center;">
 			<hr style="position: relative; left: 0; width: 100vw; height: 1px; background: #ccc; margin: 0 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
 
-            email til: 
+            <?php echo findtekst('2702|Email til', $sprog_id);?>: 
             <input type="text" name="email[<?php echo $x-1; ?>]" value="<?php echo $footer_email; ?>">
-            Periode: 
+            <?php echo findtekst('899|Periode', $sprog_id);?>: 
             <input type="date" style="text-align:right" size="10" name="fra[<?php echo $x-1; ?>]" value="<?php echo $footer_fra; ?>"> - 
             <input type="date" style="text-align:right" size="10" name="til[<?php echo $x-1; ?>]" value="<?php echo $footer_til; ?>">
-           <hr style="width: 100vw; height: 10px; background-color: rgb(200, 200, 200); margin: 4px 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
+            <hr style="width: 100vw; height: 10px; background-color: rgb(200, 200, 200); margin: 4px 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
 			<hr style="width: 100vw; height: 1px; background-color: #ccc; margin: 0 0 4px calc(-51.6vw + 50%); border: none; padding: 0;">
 
             <input type="hidden" name="konto_id[<?php echo $x-1; ?>]" value="<?php echo $footer_konto_id; ?>">
@@ -400,39 +412,39 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
 				
 				if ($OpenPost == 'on') {
 					$selected = ($current_kilde === 'openpost') ? 'selected' : '';
-					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost\" $selected>Show open Records</option>\n";
+					echo "<option value='mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost' $selected>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
 				}
 
 				// If $AllAcount is on, similarly for show_all
 				if ($AllAcount == 'on') {
 					$selected = ($current_kilde === 'show_all') ? 'selected' : '';
-					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all\" $selected>Show all Records</option>\n";
+					echo "<option value='mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all' $selected>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";
 				}
 
 				
 				if ($OpenPost != 'on') {
 					$selected = ($current_kilde === 'openpost') ? 'selected' : '';
-					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost\" $selected>Show Open Post</option>\n";
+					echo "<option value='mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=openpost' $selected>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
 				}
 
 			
 				if ($AllAcount != 'on') {
 					$selected = ($current_kilde === 'show_all') ? 'selected' : '';
-					echo "<option value=\"mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all\" $selected>Show All</option>\n";
+					echo "<option value='mail_kontoudtog.php?dato_fra=$dato_fra&dato_til=$dato_til&kontoantal=$kontoantal&kontoliste=$kontoliste&kilde=show_all' $selected>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";
 				}
 				?>
 			</select>
 
-			<input type="submit" value="Opdatér" name="update"
-				title="<?php echo findtekst(1797, $sprog_id); ?>">
+			<input type='submit' value='<?php echo findtekst('898|Opdatér', $sprog_id);?>' name='update'
+				title='<?php echo findtekst('1797|Klik for at se ændringer i perioder eller mailadresser', $sprog_id); ?>'>
 
-			<input type="submit" value="Send mail(s)" name="send_mails"
-				title="<?php echo findtekst(1798, $sprog_id); ?>">
+			<input type='submit' value='<?php echo findtekst('2700|Send mail(s)', $sprog_id);?>' name='send_mails'
+				title='<?php echo findtekst('1798|Send som html. Emne og mailtekst kan ikke ændres.', $sprog_id); ?>'>
 
 			<?php
 			// Logic for disabling send_pdfs button
 			$disabled = 'disabled';
-			$spantxt = findtekst(1800, $sprog_id);
+			$spantxt = findtekst('1800|Emne og mailtekst ikke udfyldt for formularen \'Kontoudtog\'', $sprog_id);
 
 			$qtxt = "select * from formularer where formular='11' and art='5' and lower(sprog)='dansk'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -443,19 +455,19 @@ $footer_til = date('Y-m-d', strtotime($footer_til));
 			}
 			if ($mailtext && $subjekt) {
 				$disabled = '';
-				$spantxt = findtekst(1799, $sprog_id);
+				$spantxt = findtekst('1798|Send som vedhæftet PDF. Emne og mailtekst jf. formularen \'Kontoudtog\'', $sprog_id);
 			}
 			?>
 
 			<input 
-				type="submit" 
-				style="<?php echo ($disabled ? 'background-color:#ccc; color:#666; cursor:not-allowed;' : ''); ?>" 
-				value="Send som PDF" 
-				name="send_pdfs" 
+				type='submit' 
+				style='<?php echo ($disabled ? 'background-color:#ccc; color:#666; cursor:not-allowed;' : ''); ?>' 
+				value='<?php echo findtekst('2701|Send som PDF', $sprog_id);?>'
+				name='send_pdfs' 
 				<?php echo $disabled; ?> 
-				title="<?php echo $spantxt; ?>">
+				title='<?php echo $spantxt; ?>'>
 
-			<input type="submit" value="Retur" name="retur" title="<?php echo findtekst(1801, $sprog_id); ?>">
+			<input type='submit' value='<?php echo findtekst('30|Tilbage', $sprog_id);?>' name='retur' title='<?php echo findtekst('1801|Klik for at lukke', $sprog_id); ?>'>
 		</div>
 
  
@@ -540,29 +552,38 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 
 	for($x=1; $x<=$kontoantal; $x++) {
 		if (!file_exists("$tmpmappe/$x")) mkdir("$tmpmappe/$x");
-		if (($konto_id[$x])&&($email[$x])&&($fra[$x])&&($til[$x])&&(strpos($email[$x], '@'))) {	
+		if (($konto_id[$x])&&($email[$x])&&($fra[$x])&&($til[$x])&&(strpos($email[$x], '@'))) {
 			$fromdate[$x]= usdate($fra[$x]);
 			$todate[$x]=usdate($til[$x]);
-			$mailtext = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTMP 4.01 Transitional//EN\">\n";
-			$mailtext .= "<html><head><meta content=\"text/html; charset=ISO-8859-15\" http-equiv=\"content-type\">\n";
-			$mailtext .= "<title>".findtekst(1802, $sprog_id)." $afsendernavn</title></head>\n";
+			$mailtext = "<!DOCTYPE html PUBLIC '-//W3C//DTD HTMP 4.01 Transitional//EN'>\n";
+			$mailtext .= "<html><head><meta content='text/html; charset=ISO-8859-15' http-equiv='content-type'>\n";
+			$mailtext .= "<title>".findtekst('1802|Kontoudtog fra', $sprog_id)." $afsendernavn</title></head>\n";
 		 	$mailtext .= "<body bgcolor=$bgcolor link='#000000' vlink='#000000' alink='#000000' center=''>\n";
-			$mailtext .= "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>\n";
-		 	$mailtext .= "<tr><td colspan=\"5\"><b>$afsendernavn</b></td><td colspan=\"2\" align=\"right\">".findtekst(635, $sprog_id)."</td><td align=right> ".date('d-m-Y')."</td></tr>\n";
+			$mailtext .= "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>\n";
+		 	$mailtext .= "<tr><td colspan='5'><b>$afsendernavn</b></td><td colspan='2' align='right'>".findtekst('438|Dato', $sprog_id)."3</td><td align=right> ".date('d-m-Y')."</td></tr>\n";
 			$mailtext .= "<tr><td colspan=8><hr></td></tr>\n";
-			$mailtext .= "<tr><td colspan=\"8\" style=\"font-size:115%;font-weight:bold\">".findtekst(1803, $sprog_id)."</td></tr>\n";
+			$mailtext .= "<tr><td colspan='8' style='font-size:115%;font-weight:bold'>".findtekst('1803|Kontoudtog', $sprog_id)."</td></tr>\n";
 			$r = db_fetch_array(db_select("select * from adresser where id=$konto_id[$x]",__FILE__ . " linje " . __LINE__));
 			$r2 = db_fetch_array(db_select("select box3 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
 			$kontovaluta[$x]=$r2['box3'];
 			if (!$kontovaluta[$x]) $kontovaluta[$x]='DKK';
-			$mailtext .= "<tr><td colspan=\"5\">$r[firmanavn]</td>";
-			$mailtext .= "<td colspan=\"2\" align=\"right\">".findtekst(804, $sprog_id).".</td><td align=right> $r[kontonr]</td></tr>\n";
-			$mailtext .= "<tr><td colspan=\"5\">$r[addr1]</td>";
-			$mailtext .= "<td colspan=\"2\" align=\"right\">".findtekst(1069, $sprog_id)."</td><td align=right> $kontovaluta[$x]</td></tr>\n";
-			if ( $r['addr2'] ) $mailtext .= "<tr><td colspan=\"8\">$r[addr2]</td></tr>\n";
-			$mailtext .= "<tr><td colspan=\"8\">$r[postnr] $r[bynavn]</td></tr>\n";
+			$mailtext .= "<tr><td colspan='5'>$r[firmanavn]</td>";
+			$mailtext .= "<td colspan='2' align='right'>".findtekst('804|Kontonr.', $sprog_id).".</td>";
+			$mailtext .= "<td align=right> $r[kontonr]</td></tr>\n";
+			$mailtext .= "<tr><td colspan='5'>$r[addr1]</td>";
+			$mailtext .= "<td colspan='2' align='right'>".findtekst('776|Valuta', $sprog_id)."</td>";
+			$mailtext .= "<td align=right> $kontovaluta[$x]</td></tr>\n";
+			if ( $r['addr2'] ) $mailtext .= "<tr><td colspan='8'>$r[addr2]</td></tr>\n";
+			$mailtext .= "<tr><td colspan='8'>$r[postnr] $r[bynavn]</td></tr>\n";
 			$mailtext .= "<tr><td><br></td></tr>\n";
-			$mailtext .= "<tr><td width=\"10%\"> ".findtekst(635, $sprog_id)."</td><td width=\"5%\"> ".findtekst(671, $sprog_id)."</td><td width=\"5%\"> ".findtekst(643, $sprog_id)."</td><td width=\"40%\" align=\"center\"> ".findtekst(1163, $sprog_id)."</td><td> ".findtekst(1164, $sprog_id)."</td><td width=\"10%\" align=\"right\">".findtekst(1000, $sprog_id)."</td><td width=\"10%\" align=\"right\"> ".findtekst(1001, $sprog_id)."</td><td width=\"10%\" align=\"right\"> ".findtekst(442, $sprog_id)."</td></tr>\n";
+			$mailtext .= "<tr><td width='10%'>".findtekst('438|Dato', $sprog_id)."4</td>";
+			$mailtext .= "<td width='5%'>".findtekst('671|Bilag', $sprog_id)."</td>";
+			$mailtext .= "<td width='5%'>".findtekst('643|Faktura', $sprog_id)."</td>";
+			$mailtext .= "<td width='40%' align='center'>".findtekst('1163|Tekst', $sprog_id)."</td>";
+			$mailtext .= "<td>".findtekst('1164|Forfaldsdato', $sprog_id)."</td>";
+			$mailtext .= "<td width='10%' align='right'>".findtekst('1000|Debet', $sprog_id)."</td>";
+			$mailtext .= "<td width='10%' align='right'>".findtekst('1001|Kredit', $sprog_id)."</td>";
+			$mailtext .= "<td width='10%' align='right'> ".findtekst('442|Kontosaldo', $sprog_id)."</td></tr>\n";
 			$mailtext .= "<tr><td colspan=8><hr></td></tr>\n";
 			$betalingsbet=trim($r['betalingsbet']);
 			$betalingsdage=$r['betalingsdage'];
@@ -589,12 +610,12 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 					if ($primoprint==0) {
 						$tmp=dkdecimal($kontosum,2);
 						$linjebg=$bgcolor5; $color='#000000';
-						$mailtext .= "<tr bgcolor=\"$linjebg\"><td colspan=\"3\"></td><td>".findtekst(1165, $sprog_id)."</td><td colspan=\"3\"></td><td align=right> $tmp</td></tr>\n"; #20210805
+						$mailtext .= "<tr bgcolor='$linjebg'><td colspan='3'></td><td>".findtekst('1165|Primosaldo', $sprog_id)."</td><td colspan='3'></td><td align=right> $tmp</td></tr>\n"; #20210805
 						$primoprint=1;
 					}
 				    	if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
 					elseif ($linjebg!=$bgcolor5){$linjebg=$bgcolor5; $color='#000000';}
-					$mailtext .= "<tr bgcolor=\"$linjebg\"><td> ".dkdato($r['transdate'])."&nbsp;</td><td> $r[refnr]&nbsp;</td>";
+					$mailtext .= "<tr bgcolor='$linjebg'><td> ".dkdato($r['transdate'])."&nbsp;</td><td> $r[refnr]&nbsp;</td>";
 					$mailtext .= "<td> $r[faktnr]&nbsp;</td><td> $r[beskrivelse]";
 					if ($kontovaluta[$x] != $valuta) $mailtext .= " ($valuta $amount)";
 					$mailtext .= "</td>\n";
@@ -618,11 +639,11 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 			}
 			if ($primoprint==0) {
 				$tmp=dkdecimal($kontosum,2);
-				$mailtext .= "<tr><td></td><td></td><td></td><td> ".findtekst(1165, $sprog_id)."</td><td></td><td></td><td></td><td align=right> $tmp</td></tr>\n";
+				$mailtext .= "<tr><td></td><td></td><td></td><td> ".findtekst('1165|Primosaldo', $sprog_id)."</td><td></td><td></td><td></td><td align=right> $tmp</td></tr>\n";
 			}
-			$mailtext .= "<tr><td colspan=\"8\"><hr></td></tr>\n";
+			$mailtext .= "<tr><td colspan='8'><hr></td></tr>\n";
 			$r = db_fetch_array(db_select("select * from adresser where art = 'S'",__FILE__ . " linje " . __LINE__));
-			$mailtext .= "<tr><td colspan=\"8\">\n";
+			$mailtext .= "<tr><td colspan='8'>\n";
 			if ( $r['bank_konto'] ) { 
 				$mailtext .= "<p>Et eventuelt udest&aring;ende bedes indbetalt hurtigst muligt p&aring; vores bankkonto med\n";
 				if ( $r['bank_reg'] ) $mailtext .= " reg.nr. ".$r['bank_reg']." og";
@@ -634,9 +655,9 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				$mailtext .= "<p>Hvis du har sp&oslash;rgsm&aring;l, s&aring; kontakt os p&aring; telefon ".$r['tlf'];
 				$mailtext .= ".</p>\n</td></tr>\n";
 			}
-			$mailtext .= "<tr><td colspan=\"8\"><hr></td></tr>\n";
-			$mailtext .= "<tr><td colspan=\"8\" align=\"center\">\n";
-			$mailtext .= "<p style=\"font-size:80%\">".$r['firmanavn'];
+			$mailtext .= "<tr><td colspan='8'><hr></td></tr>\n";
+			$mailtext .= "<tr><td colspan='8' align='center'>\n";
+			$mailtext .= "<p style='font-size:80%'>".$r['firmanavn'];
 			if ( $r['addr1'] ) $mailtext .= " * ".$r['addr1'];
 			if ( $r['addr2'] ) $mailtext .= " * ".$r['addr2'];
 			if ( $r['postnr'] ) $mailtext .= " * ".$r['postnr']." ".$r['bynavn'];

@@ -921,10 +921,10 @@
 921	Fortyd	Undo	Fortyd
 922	Salgstatsstik	Sales Statistics	Salgsstatistikk
 923	Multiroute	Multi-route	Flere ruter
-924	Vis åbne poster	Show open records	Vis åpne poster
+924	Vis åbne poster	Show open items	Vis åpne poster
 925	Kun konti i debet	Only accounts in debit	Bare kontoer som belastes
 926	Kun konti i kredit	Credit accounts only	Bare kredittkontoer
-927	Skjul åbne poster	Hide open entries	Skjul åpne oppføringer
+927	Skjul åbne poster	Hide open items	Skjul åpne poster
 928	Bonnr	Receipt no	Bonnr
 929	Bondato	Receipt Date	Bondato
 930	Tidspkt.	Time	Tid
@@ -1796,8 +1796,8 @@
 1796	Sæt regnskabsår til	Set fiscal year to	Sett regnskapsår til
 1797	Klik for at se ændringer i perioder eller mailadresser	Click to see changes in periods or email addresses	Klikk for å se endringer i perioder eller e -postadresser
 1798	Send som html. Emne og mailtekst kan ikke ændres.	Send as html. Subject and email text cannot be changed.	Send som html. Emne og e -posttekst kan ikke endres.
-1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen \&apos;Kontoudtog\&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form \ &apos;Account statement\&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet \ &apos;Kontoutskrift\&apos;
-1800	Emne og mailtekst ikke udfyldt for formularen \&apos;Kontoudtog\&apos;	Subject and email text not completed for the \ &apos;Bank Statement\&apos; form	Emne- og e -posttekst er ikke fullført for \ &apos;Kontoutskrift\&apos; -skjemaet
+1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen &apos;Kontoudtog&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form &apos;Account statement&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet &apos;Kontoutskrift&apos;
+1800	Emne og mailtekst ikke udfyldt for formularen &apos;Kontoudtog&apos;	Subject and email text not completed for the &apos;Bank Statement&apos; form	Emne- og e -posttekst er ikke fullført for &apos;Kontoutskrift&apos; -skjemaet
 1801	Klik for at lukke	Click to close	Klikk for å lukke
 1802	Kontoudtog fra	Account statement from	Kontoutskrift fra
 1803	Kontoudtog	account statement	kontoutskrift
@@ -2213,7 +2213,7 @@
 2213	Bankafstemning	Bank Reconciliation	Bankavstemming
 2214	Valutakurs	Exch. Rate	Valutakurs
 2215	Varegrænse	Product Limit	Varegrense
-2216	Udskriv kontoudtog som PDF (Åbner i popup)	Print statement as PDF (Opens in popup)	Skriv ut kontoutdrag som PDF (Åpnes i popup)
+2216	Udskriv kontoudtog som PDF (åbner i popup)	Print statement as PDF (opens in popup)	Skriv ut kontoutdrag som PDF (åpnes i popup)
 2217	Sæt grænse for, hvor mange varer en kunde kan oprette	Set a limit on how many items a customer can create	Sett grense for hvor mange varer en kunde kan opprette
 2218	Bestil	Order	Bestill
 2219	Skriv en søgetekst. Der søges efter varer, hvor teksten indgår.	Enter a search term. Products will be searched for where the term appears.	Skriv en søketekst. Det søkes etter varer hvor teksten inngår.
@@ -2696,11 +2696,11 @@
 2696	Er du sikker på, at du vil slette denne ansatte?	Are you sure you want to delete this employee?	Er du sikker på at du vil slette denne ansatte?
 2697	Er du sikker på, at du vil slette alle ansatte tilhørende denne konto?	Are you sure you want to delete all employees associated with this account?	Er du sikker på at du vil slette alle ansatte tilknyttet denne kontoen?
 2698	Slet alt	Delete all	Slett alt
-2699	
-2700	
-2701	
-2702	
-2703	
+2699	Vis alle poster	Show all items	Vis alle poster
+2700	Send mail(s)	Send email(s)	Send e-post(er)
+2701	Send som PDF	Send as PDF	Send som PDF
+2702	E-mail til	Email to	E-post til
+2703	Send som e-mail (åbner i popup)	Send as email (opens in popup)	Send som e-post (åpnes i popup)
 2704	
 2705	
 2706	
