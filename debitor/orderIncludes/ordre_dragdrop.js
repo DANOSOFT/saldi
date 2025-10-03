@@ -31,22 +31,53 @@ document.addEventListener('DOMContentLoaded', function () {
     const ordreId = ordreIdInput ? ordreIdInput.value : null;
     console.log('Current ordre_id detected:', ordreId);
 
+    // Function to remove empty rows
+    function removeEmptyRows() {
+        const emptyRows = orderTableBody.querySelectorAll('tr:not(.ordrelinje)');
+        emptyRows.forEach(row => {
+            // Check if row contains only empty cells or <br> tags
+            const cells = row.querySelectorAll('td');
+            let isEmpty = true;
+            
+            cells.forEach(cell => {
+                const content = cell.textContent.trim();
+                const hasInputs = cell.querySelectorAll('input, select, textarea').length > 0;
+                
+                if (content !== '' && content !== '\n' && hasInputs) {
+                    isEmpty = false;
+                }
+            });
+            
+            if (isEmpty) {
+                console.log('Removing empty row:', row);
+                row.remove();
+            }
+        });
+    }
+
     const sortable = new Sortable(orderTableBody, {
         handle: '.drag-handle',
         draggable: '.ordrelinje',
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
         animation: 150,
+        filter: 'tr:not(.ordrelinje)', // Prevent dragging non-order rows
 
         onStart(evt) {
             evt.item.classList.add('dragging');
             console.log('=== DRAG STARTED ===');
+            // Remove any empty rows before starting drag
+            removeEmptyRows();
         },
 
         onEnd(evt) {
             evt.preventDefault();
             evt.item.classList.remove('dragging');
             console.log('=== DRAG ENDED ===');
+            
+            // Remove empty rows that might have been created during drag
+            removeEmptyRows();
+            
             updatePositionNumbers();
             const success = submitOrderForm();
             if (success) {
@@ -58,10 +89,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof docChange !== 'undefined') {
                 docChange = true;
             }
+        },
+
+        onMove(evt) {
+            // Prevent moving to non-order line rows
+            return evt.related.classList.contains('ordrelinje');
         }
     });
 
     function updatePositionNumbers() {
+        // Remove any empty rows first
+        removeEmptyRows();
+        
         const orderRows = orderTableBody.querySelectorAll('tr.ordrelinje');
         console.log('=== UPDATING POSITION NUMBERS for ordre_id:', ordreId, '===');
 
@@ -136,4 +175,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     }
+
+    // Initial cleanup on load
+    removeEmptyRows();
 });
