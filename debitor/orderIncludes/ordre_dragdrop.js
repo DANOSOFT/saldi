@@ -48,10 +48,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
             
-            if (isEmpty) {
+            /* if (isEmpty) {
                 console.log('Removing empty row:', row);
                 row.remove();
-            }
+            } */
         });
     }
 
