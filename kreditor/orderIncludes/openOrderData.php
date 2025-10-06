@@ -194,7 +194,7 @@ if (!$ref) {
 }
 $q = db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__);
 if ($r = db_fetch_array($q)) {
-	$q2 = db_select("select navn,afd from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
+	$q2 = db_select("select navn from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
 	$x=0;
 	while ($r2 = db_fetch_array($q2)) {
 $x++;
@@ -208,14 +208,14 @@ if ($ref!=$r2['navn']) print "<option> $r2[navn]</option>";
 	}
 	print "</SELECT>";
 	if ($x) print "</td></tr>";
-if (count($afd_nr)) {
-	print "<tr><td>Afd.</td>";
-	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='afd'>";
-	for ($x=0;$x<count($afd_nr);$x++) {
-if ($afd==$afd_nr[$x]) print "<option value='$afd_nr[$x]'>$afd_nr[$x]: $afd_navn[$x]</option>";
+if (count($lager_nr)) {
+	print "<tr><td>Lager</td>";
+	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='lager'>";
+	for ($x=0;$x<count($lager_nr);$x++) {
+if ($lager==$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
-	for ($x=0;$x<count($afd_nr);$x++) {
-if ($afd!=$afd_nr[$x]) print "<option value='$afd_nr[$x]'>$afd_nr[$x]: $afd_navn[$x]</option>";
+	for ($x=0;$x<count($lager_nr);$x++) {
+if ($lager!=$lager_nr[$x]) print "<option value='$lager_nr[$x]'>$lager_nr[$x]: $lager_navn[$x]</option>";
 	}
 	print "</td></tr>";
 }

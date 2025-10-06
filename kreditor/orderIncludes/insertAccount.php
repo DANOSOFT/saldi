@@ -30,7 +30,7 @@
 
 if (!function_exists('insertAccount')) {
 function insertAccount($id, $konto_id) {
-	global $addr1,$addr2,$afd,$art;
+	global $addr1,$addr2,$art;
 	global $betalingsbet,$betalingsdate,$brugernavn,$bynavn;
 	global $cvrnr;
 	global $gruppe;
@@ -46,7 +46,6 @@ function insertAccount($id, $konto_id) {
 		return 0;
 		exit;
 	}
-	if (!$afd)         $afd         = 0;
 	if (!$id)          $id          = 0;
 	if (!$kred_ord_id) $kred_ord_id = 0;
 	if (!$lager)       $lager       = 0;
@@ -101,12 +100,12 @@ function insertAccount($id, $konto_id) {
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,lev_addr1,";
 		$qtxt.= "lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,notes,art,ordredate,";
-		$qtxt.= "email,momssats,status,ref,afd,lager,sum,hvem,tidspkt,valuta,kred_ord_id,omvbet)";
+		$qtxt.= "email,momssats,status,ref,lager,sum,hvem,tidspkt,valuta,kred_ord_id,omvbet)";
 		$qtxt.= " values ";
 		$qtxt.= "($ordrenr,$konto_id,'$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn',";
 		$qtxt.= "'$land','$kontakt','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt',";
 		$qtxt.= "'$betalingsdage','$betalingsbet','$cvrnr','$notes','$art','$ordredate','$email','$momssats',$status,";
-		$qtxt.="'$brugernavn','$afd','$lager','$sum','$brugernavn','$tidspkt','$valuta','$kred_ord_id','$omlev')";
+		$qtxt.="'$brugernavn','$lager','$sum','$brugernavn','$tidspkt','$valuta','$kred_ord_id','$omlev')";
 /*		
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land,betalingsdage,  ";
