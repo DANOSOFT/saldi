@@ -151,25 +151,7 @@ function leave(cardScheme) {
         const returnUrl = '<?php print $return_url; ?>';
         if (returnUrl !== 'pos_ordre.php') {
             logToServer(`Return URL is not pos_ordre.php (${returnUrl}), making background call to pos_ordre.php first`, 'INFO');
-            
-            // Make background call to pos_ordre.php
-            fetch(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`, {
-                method: 'GET',
-                mode: 'no-cors' // Allow cross-origin request without CORS issues
-            }).then(() => {
-                logToServer('Background call to pos_ordre.php completed', 'INFO');
-            }).catch((error) => {
-                logToServer(`Background call to pos_ordre.php failed: ${error.message}`, 'WARNING');
-            });
-            
-            // Small delay to allow background call to complete, then redirect to actual return URL
-            setTimeout(() => {
-                logToServer(`Redirecting to actual return URL: ${returnUrl}`, 'INFO');
-                window.location.replace(`../${returnUrl}?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
-            }, 1000); // 1 second delay
-        } else {
-            // Direct redirect to pos_ordre.php
-            window.location.replace(`../${returnUrl}?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
+            window.location.replace(`../${returnUrl}?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&modtaget=<?php print $raw_amount; ?>`);
         }
     }
 }
@@ -178,7 +160,6 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
-    
     const data = {
         "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
         "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"

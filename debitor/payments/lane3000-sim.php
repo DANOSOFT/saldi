@@ -146,31 +146,7 @@ function leave(cardScheme) {
         setTimeout(function() { leave(cardScheme); }, 2500);
     } else {
         logToServer(`Payment successful, redirecting with card scheme: ${cardScheme}`, 'INFO');
-        
-        // Check if return_url is not pos_order.php
-        const returnUrl = '<?php print $return_url; ?>';
-        if (returnUrl !== 'pos_order.php') {
-            logToServer(`Return URL is not pos_order.php (${returnUrl}), making background call to pos_order.php first`, 'INFO');
-            
-            // Make background call to pos_order.php
-            fetch(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`, {
-                method: 'GET',
-                mode: 'no-cors' // Allow cross-origin request without CORS issues
-            }).then(() => {
-                logToServer('Background call to pos_order.php completed', 'INFO');
-            }).catch((error) => {
-                logToServer(`Background call to pos_order.php failed: ${error.message}`, 'WARNING');
-            });
-            
-            // Small delay to allow background call to complete, then redirect to actual return URL
-            setTimeout(() => {
-                logToServer(`Redirecting to actual return URL: ${returnUrl}`, 'INFO');
-                window.location.replace(`../${returnUrl}?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
-            }, 1000); // 1 second delay
-        } else {
-            // Direct redirect to pos_order.php
-            window.location.replace(`../${returnUrl}?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
-        }
+        window.location.replace(`../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&modtaget=<?php print $raw_amount; ?>`);
     }
 }
 

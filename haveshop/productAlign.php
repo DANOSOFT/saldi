@@ -31,11 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 		$min_lager_index = array_search('min_lager', $header);
 		$max_lager_index = array_search('max_lager', $header);
 		$lokation_index = array_search('lokation', $header);
-		$udgået_index = array_search('udgået', $header);
+		$lukket_index = array_search('lukket', $header);
 		$varenr_alias_index = array_search('varenr_alias', $header);
 		$notes_index = array_search('notes', $header);
 		$stregkode_index = array_search('stregkode', $header);
-		$varemærke_index = array_search('varemærke', $header);
+		$trademark_index = array_search('trademark', $header);
 		$salgspris_index = array_search('salgspris', $header);
 		$lager_antal_index = array_search('lager_antal', $header);
 		$beskrivelse_alias_index = array_search('beskrivelse_alias', $header);
@@ -47,11 +47,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 		while (($data = fgetcsv($handle, 1000, ';')) !== FALSE) {
 			$varenr = trim($data[$varenr_index]);
 			$varenr_alias = isset($data[$varenr_alias_index]) ? db_escape_string(trim($data[$varenr_alias_index])) : '';
-			// Convert Danish price format to SQL numeric (e.g. "3.267,00" -> "3267.00")
-			$kostpris_raw = trim($data[$kostpris_index]); // Fix: use kostpris_raw first
+			// Convert Danish price format to SQL numeric (e.g. "1.492,86" -> "1492.86")
+			$kostpris_raw = trim($data[$kostpris_index]);
+			echo "Debug kostpris_raw: '$kostpris_raw'<br>";
 			$kostpris = str_replace('.', '', $kostpris_raw); // Remove thousand separators
 			$kostpris = str_replace(',', '.', $kostpris);    // Convert decimal comma to dot
-			$lager_antal = trim($data[$lager_antal_index]);
+			$kostpris = is_numeric($kostpris) ? $kostpris : 0; // Ensure it's numeric
+			echo "Debug kostpris processed: '$kostpris'<br>";
+			$lager_antal_raw = isset($data[$lager_antal_index]) ? trim($data[$lager_antal_index]) : '0';
+			$lager_antal = empty($lager_antal_raw) ? 0 : floatval(str_replace(',', '.', $lager_antal_raw));
 			$old_lager_antal = 0;
 			
 			// Check if varenr exists in the database
@@ -62,6 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 				$row = db_fetch_array($result);
 				$vare_id = $row['id']; // Fix: get the vare_id from the result
 				$old_kostpris = $row['kostpris'];
+				
+				// Handle null kostpris from database
+				if ($old_kostpris === null || $old_kostpris === '') {
+					$old_kostpris = 0;
+				}
 				
 				// Fix: use $vare_id instead of $r[id]
 				$query = db_select("SELECT COALESCE(SUM(beholdning), 0) AS lager_antal FROM lagerstatus WHERE vare_id = '$vare_id'", __FILE__ . " line " . __LINE__);
@@ -77,12 +86,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 				} else {
 					$new_kostpris = $old_kostpris; // No change if no new stock
 				}
+				
+				// Final safety check - ensure new_kostpris is never null or empty
+				if ($new_kostpris === null || $new_kostpris === '' || !is_numeric($new_kostpris)) {
+					$new_kostpris = $kostpris; // Use the CSV kostpris as fallback
+				}
+				
 				echo "Updating kostpris for varenr: $varenr from $old_kostpris - $kostpris new $new_kostpris<br>";
 				$update_sql = "UPDATE varer SET kostpris = $new_kostpris WHERE id = $vare_id";
 				db_modify($update_sql, __FILE__ . " line " . __LINE__);
 				
 				// Add old varenr as alias
-				$alias_sql = "UPDATE varer SET varenr_alias = '$varenr' beskrivelse_alias = $beskrivelse WHERE id = $vare_id";
+				$alias_sql = "UPDATE varer SET varenr_alias = '$varenr', beskrivelse_alias = '$beskrivelse' WHERE id = $vare_id";
 				db_modify($alias_sql, __FILE__ . " line " . __LINE__);
 				
 				echo "Updated kostpris for varenr: $varenr<br>";
@@ -97,16 +112,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['product_file'])) {
 				$min_lager = isset($data[$min_lager_index]) ? intval(trim($data[$min_lager_index])) : 0;
 				$max_lager = isset($data[$max_lager_index]) ? intval(trim($data[$max_lager_index])) : 0;
 				$lokation = isset($data[$lokation_index]) ? db_escape_string(trim($data[$lokation_index])) : '';
-				$udgået = isset($data[$udgået_index]) ? intval(trim($data[$udgået_index])) : 0;
+				$lukket = isset($data[$lukket_index]) ? intval(trim($data[$lukket_index])) : 0;
 				$notes = isset($data[$notes_index]) ? db_escape_string(trim($data[$notes_index])) : '';
 				$stregkode = isset($data[$stregkode_index]) ? db_escape_string(trim($data[$stregkode_index])) : '';
 				$varenr_alias = isset($data[$varenr_alias_index]) ? db_escape_string(trim($data[$varenr_alias_index])) : '';
-				$salgspris_raw = isset($data[$salgspris_index]) ? trim($data[$salgspris_index]) : '';
+				$salgspris_raw = isset($data[$salgspris_index]) ? trim($data[$salgspris_index]) : '0';
 				$salgspris = str_replace('.', '', $salgspris_raw);
 				$salgspris = str_replace(',', '.', $salgspris);
-				$trademark = isset($data[array_search('varemærke', $header)]) ? db_escape_string(trim($data[array_search('varemærke', $header)])) : '';
-				$insert_sql = "INSERT INTO varer (varenr, beskrivelse, kostpris, enhed, gruppe, min_lager, max_lager, location, lukket, notes, stregkode, varenr_alias, trademark, salgspris) 
-							   VALUES ('$varenr', '$beskrivelse', $kostpris, '$enhed', '$gruppe', $min_lager, $max_lager, '$lokation', $udgået, '$notes', '$stregkode', '$varenr_alias', '$trademark', $salgspris)";
+				$salgspris = empty($salgspris) ? '0' : $salgspris;
+				$salgspris = is_numeric($salgspris) ? $salgspris : '0';
+				
+				// vejl_pris is not a column in the varer table, so we skip it
+				$trademark_index = array_search('trademark', $header);
+				$trademark = ($trademark_index !== false && isset($data[$trademark_index])) ? db_escape_string(trim($data[$trademark_index])) : '';
+				
+				// Build SQL more carefully to avoid trailing commas
+				$columns = array('varenr', 'beskrivelse', 'kostpris', 'enhed', 'gruppe', 'min_lager', 'max_lager', 'location', 'lukket', 'notes', 'stregkode', 'varenr_alias', 'trademark', 'salgspris');
+				$values = array(
+					"'$varenr'",
+					"'$beskrivelse'", 
+					$kostpris,
+					"'$enhed'",
+					$gruppe,
+					$min_lager,
+					$max_lager,
+					"'$lokation'",
+					$lukket,
+					"'$notes'",
+					"'$stregkode'",
+					"'$varenr_alias'",
+					"'$trademark'",
+					$salgspris
+				);
+				
+				$insert_sql = "INSERT INTO varer (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $values) . ")";
+				// Debug: Print the SQL before execution
+				echo "Debug SQL: " . htmlspecialchars($insert_sql) . "<br>";
 				db_modify($insert_sql, __FILE__ . " line " . __LINE__);
 				echo "Inserted new product with varenr: $varenr<br>";
 			}

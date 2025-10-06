@@ -4267,10 +4267,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					$betalt=usdecimal($_GET['modtaget'],2);
 					if ($_GET['kortnavn']) $felt_1=$_GET['kortnavn'];
 					db_modify("update ordrer set betalt='$betalt',felt_1='$felt_1' where id = '$id'",__FILE__ . " linje " . __LINE__);
-
-#        }  elseif ($r=db_fetch_array(db_select("select betalt from ordrer where id=$id and betalt='$dkfelt_2'",__FILE__ . " linje " . __LINE__))) {
-#          $betalt=$r['modtaget'];
-#        } else $betalt=NULL;
+					db_modify("INSERT INTO pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) VALUES ('$id','$felt_1','$betalt','DKK','100')",__FILE__ . " linje " . __LINE__);
 				}
 				if ($betalt) {
 					$disabled='disabled';
@@ -4335,6 +4332,9 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				print "<input type='hidden' name='felt_1' value='$felt_1'>\n";
 				print "<input type='hidden' name='felt_2' value='$dkfelt_2'>\n";
 				}
+				if(!$felt_5){
+					$felt_5=1;
+				}
 				if (isset($terminal_ip[(int)$felt_5-1])) {
 					if ($_SERVER['HTTPS']) $url='https://';
 					else $url='http://';
@@ -4352,6 +4352,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					if($felt_1 == ""){
 						$felt_1 = "Betalingskort";
 					}
+
 					($felt_1=='Betalingskort')?$vis_betalingslink=1:$vis_betalingslink=0;
 					for($x=0;$x<$kortantal;$x++) {
 						if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
@@ -4878,17 +4879,29 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
       print findtekst('2372|Nettosum',$sprog_id) ." ".dkdecimal($sum,2)."</td>\n";
       if ($vis_saet) $dkb=$sum-$kostsum;
       else $dkb=$dbsum;
-      print "<td width=\"14.2%\" align=\"center\"  title=\"DB: $baseCurrency ".dkdecimal($dkb*$valutakurs/100,2)."\">";
-      if (!$vis_saet) print "DB: ".dkdecimal($dkb,2);
+	  if(get_settings_value("showDB", "ordre", "") != "on"){
+      	print "<td width=\"14.2%\" align=\"center\"  title=\"DB: $baseCurrency ".dkdecimal($dkb*$valutakurs/100,2)."\">";
+		if (!$vis_saet) print "DB: ".dkdecimal($dkb,2);
+	  }else{
+		print "<td width=\"14.2%\" align=\"center\" >";
+	  }
       print "</td>\n";
       if ($sum) $dg_sum=($dkb*100/$sum);
       else $dg_sum=dkdecimal(0,2);
-      print "<td width=\"14.2%\" align=\"center\"  title=\"DG:".dkdecimal($dg_sum,2)."%\">";
-      if (!$vis_saet) print "DG: ".dkdecimal($dg_sum,2)."%";
+	  if(get_settings_value("showDG", "ordre", "") != "on"){
+      	print "<td width=\"14.2%\" align=\"center\"  title=\"DG:".dkdecimal($dg_sum,2)."%\">";
+		if (!$vis_saet) print "DG: ".dkdecimal($dg_sum,2)."%";
+	  }else{
+		print "<td width=\"14.2%\" align=\"center\" >";
+	  }
       print "</td>\n";
       print "<td width=\"14.2%\" align=\"center\" align=\"center\">";
       print findtekst('770|Moms', $sprog_id).":&nbsp;".dkdecimal($moms,2)."</td>\n";
+	  if(get_settings_value("showDG", "ordre", "") != "on"){
       print "<td width=\"14.2%\" align=\"center\" align=\"center\" title=\"DG:".dkdecimal($dg_sum,2)."%\">";
+	  }else{
+		print "<td width=\"14.2%\" align=\"center\" align=\"center\" >";
+	  }
       print findtekst('2373|I alt',$sprog_id) .":";
       if ($brugsamletpris && $art=='DO') {
         print "<input type=\"hidden\" name=\"ordresum\" value=\"".afrund($ialt,2)."\">";
