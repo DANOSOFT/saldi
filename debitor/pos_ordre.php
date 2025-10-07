@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php -----patch 4.1.0 ----2025-08-16--------------
+// --- debitor/pos_ordre.php -----patch 4.1.1 ----2025-10-07--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,6 +223,7 @@
 // 20250701 PHR Check if order exists. if not set id to 0
 // 20250806 PHR php8 issue in sizeof($_POST)
 // 20250816 PHR Compared and merged changes from ssl7
+// 20251007 PHR Changed "$_POST['proforma'] == 'Proforma')" to "$_POST['proforma'])" 
 
 @session_start();
 $s_id = session_id();
@@ -1229,7 +1230,7 @@ if ($vare_id) {
 	$zReport = (isset($_POST['zRapport']) && $_POST['zRapport'] == "Z-Rapport") ? True : False;
 	if (!$id && !$varenr_ny && $kundedisplay)
 		kundedisplay('**** Velkommen ****', '', '1');
-	if ((isset($_POST['kopi']) && $_POST['kopi'] == "Kopier") || (isset($_POST['proforma']) && $_POST['proforma'] == 'Proforma') || (isset($_POST['udskriv']) && $_POST['udskriv']) || $xReport || $zReport) {
+	if ((isset($_POST['kopi']) && $_POST['kopi'] == "Kopier") || (isset($_POST['proforma']) && $_POST['proforma']) || (isset($_POST['udskriv']) && $_POST['udskriv']) || $xReport || $zReport) {
 		$momssats = (float) $momssats;
 		if ($id && (!$xReport && !$zReport)) {
 			if ($tracelog)
