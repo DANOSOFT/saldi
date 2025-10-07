@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-06-25 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-10-07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -237,6 +237,7 @@
 // 20250529 PHR Function vareopslag moved to includes/orderFuncIncludes/productLookup.php
 // 20250625 PHR Omitting errors from sort by by enhancing whitelist.
 // 20250902 LOE Moved function kontoOpslag to includes/orderFuncIncludes/accountLookup.php
+// 20251007 PHR Lookup for varenr_alias
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -3898,17 +3899,18 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		$qtxt = "select * from varer where id='$vare_id'";
 	elseif ($varenr) {
 		$qtxt = "select * from varer where lower(varenr) = '$varenr_low' or upper(varenr) = '$varenr_up' ";
-		$qtxt .= "or varenr LIKE '$varenr' or lower(stregkode) = '$varenr_low' or upper(stregkode) = '$varenr_up' ";
-		$qtxt .= "or stregkode LIKE '$varenr'";
+		$qtxt.= "or varenr LIKE '$varenr' or lower(stregkode) = '$varenr_low' or upper(stregkode) = '$varenr_up' ";
+		$qtxt.= "or lower(varenr_alias) = '$varenr_low' or upper(varenr_alias) = '$varenr_up' or varenr_alias LIKE '$varenr_ny'";
+		$qtxt.= "or stregkode LIKE '$varenr'";
 		if (strlen($varenr) == 12 && is_numeric($varenr))
 			$qtxt .= " or stregkode='0$varenr'";
 	} elseif ($id && $beskrivelse && $posnr) {
 		$qtxt = "insert into ordrelinjer ";
-		$qtxt .= "(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,pris,kostpris,momsfri,momssats,";
-		$qtxt .= "posnr,projekt,folgevare,rabatgruppe,bogf_konto,kred_linje_id,kdo,serienr,variant_id,leveres,samlevare,omvbet,";
-		$qtxt .= "saet,fast_db,tilfravalg,lager) values ";
-		$qtxt .= "('$id','0','','','$beskrivelse','0','0','','100','0','0','0','','0','$posnr','0','0','0','0','0','','','0','0',";
-		$qtxt .= "'','$omvbet','$saet','$fast_db','',$lager)";
+		$qtxt.= "(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,pris,kostpris,momsfri,momssats,";
+		$qtxt.= "posnr,projekt,folgevare,rabatgruppe,bogf_konto,kred_linje_id,kdo,serienr,variant_id,leveres,samlevare,omvbet,";
+		$qtxt.= "saet,fast_db,tilfravalg,lager) values ";
+		$qtxt.= "('$id','0','','','$beskrivelse','0','0','','100','0','0','0','','0','$posnr','0','0','0','0','0','','','0','0',";
+		$qtxt.= "'','$omvbet','$saet','$fast_db','',$lager)";
 		fwrite($log, __linr__ . " $qtxt\n");
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$qtxt = NULL;
