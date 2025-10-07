@@ -37,6 +37,7 @@ include("../includes/top.php");
 
 # Process form submission
 if ($_POST['submit']) {
+	# Process sender emails
 	foreach ($_POST['sender_email'] as $lang_id => $email) {
 		$email = trim($email);
 		
@@ -59,6 +60,33 @@ if ($_POST['submit']) {
 		}
 		
 		if ($email || $r) {
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		}
+	}
+	
+	# Process sender names
+	foreach ($_POST['sender_name'] as $lang_id => $name) {
+		$name = trim($name);
+		
+		# Check if setting exists
+		$qtxt = "select id from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		
+		if ($r) {
+			# Update existing setting
+			if ($name) {
+				$qtxt = "update settings set var_value = '".db_escape_string($name)."' where id = ".$r['id'];
+			} else {
+				$qtxt = "delete from settings where id = ".$r['id'];
+			}
+		} else {
+			# Insert new setting
+			if ($name) {
+				$qtxt = "insert into settings (var_name, var_grp, var_value, var_description, group_id) values ('sender_name', 'email_settings', '".db_escape_string($name)."', 'Language-specific sender name', '$lang_id')";
+			}
+		}
+		
+		if ($name || $r) {
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -127,21 +155,38 @@ while ($r = db_fetch_array($q)) {
 	$current_emails[$r['group_id']] = $r['var_value'];
 }
 
+# Get current sender name settings
+$qtxt = "select group_id, var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings'";
+$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+
+$current_names = array();
+while ($r = db_fetch_array($q)) {
+	$current_names[$r['group_id']] = $r['var_value'];
+}
+
 print "<form method='post'>";
 print "<table width='100%' border='0' cellpadding='2' cellspacing='0'>";
-print "<tr><td colspan='2'><h2>Sprogspecifikke Afsender Email Indstillinger</h2></td></tr>";
-print "<tr><td colspan='2'><p>Konfigurer afsender email adressen for hvert sprog. Emails vil blive sendt fra disse adresser baseret på det sprog der er valgt for formularen.</p></td></tr>";
+print "<tr><td colspan='3'><h2>Sprogspecifikke Afsender Email Indstillinger</h2></td></tr>";
+print "<tr><td colspan='3'><p>Konfigurer afsender email adresse og navn for hvert sprog. Emails vil blive sendt fra disse adresser med de angivne navne baseret på det sprog der er valgt for formularen.</p></td></tr>";
+
+print "<tr>";
+print "<td width='200'><strong>Sprog</strong></td>";
+print "<td width='300'><strong>Email Adresse</strong></td>";
+print "<td><strong>Afsender Navn</strong></td>";
+print "</tr>";
 
 foreach ($languages as $lang_id => $lang_name) {
 	$current_email = isset($current_emails[$lang_id]) ? $current_emails[$lang_id] : '';
+	$current_name = isset($current_names[$lang_id]) ? $current_names[$lang_id] : '';
 	
 	print "<tr>";
-	print "<td width='200'><strong>$lang_name</strong></td>";
-	print "<td><input type='email' name='sender_email[$lang_id]' value='$current_email' placeholder='Indtast email adresse' style='width:300px;'></td>";
+	print "<td><strong>$lang_name</strong></td>";
+	print "<td><input type='email' name='sender_email[$lang_id]' value='$current_email' placeholder='Indtast email adresse' style='width:280px;'></td>";
+	print "<td><input type='text' name='sender_name[$lang_id]' value='$current_name' placeholder='Indtast afsender navn' style='width:280px;'></td>";
 	print "</tr>";
 }
 
-print "<tr><td colspan='2'><br><input type='submit' name='submit' value='Gem Indstillinger' class='button'></td></tr>";
+print "<tr><td colspan='3'><br><input type='submit' name='submit' value='Gem Indstillinger' class='button'></td></tr>";
 print "</table>";
 print "</form>";
 

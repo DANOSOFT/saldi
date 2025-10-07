@@ -439,7 +439,7 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr,$charset) {
 		elseif ($r['xa']=='2') $mailtext=$r['beskrivelse'];
 	}
 	
-	# Load language-specific sender email from settings table
+	# Load language-specific sender email and name from settings table
 	# Determine language ID: 0 for Danish/default, actual ID for other languages
 	$lang_id = 0; // Default to 0 for Danish
 	
@@ -459,6 +459,14 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr,$charset) {
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$lang_sender_email = $r['var_value'];
 	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
+	
+	# Load sender name for this language
+	$lang_sender_name = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$lang_sender_name = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_name='$lang_sender_name' for lang_id='$lang_id'");
+	
 	$row = db_fetch_array(db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$row['email'];
 	$afsendernavn=$row['firmanavn'];
@@ -466,6 +474,11 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr,$charset) {
 	# Use language-specific sender email if available, otherwise use default
 	if ($lang_sender_email && trim($lang_sender_email) != '') {
 		$afsendermail = $lang_sender_email;
+	}
+	
+	# Use language-specific sender name if available, otherwise use default
+	if ($lang_sender_name && trim($lang_sender_name) != '') {
+		$afsendernavn = $lang_sender_name;
 	}
 	if (!$afsendermail || !$afsendernavn) {
 		return("Missing sender mail");
