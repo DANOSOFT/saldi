@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- payments/flatpay.php --- lap 4.1.0 --- 2024.02.27 ---
+// --- payments/lane3000.php --- lap 4.1.1 --- 2025.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -54,6 +54,26 @@ $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
 $return_url = if_isset($_GET['return_url'], 'pos_ordre.php'); // Default to pos_ordre.php for POS
 $kasse = $_COOKIE['saldi_pos'];
+
+$qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
+#echo "$qtxt<br>";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
+#echo "$printserver<br>";
+if (!$printserver) $printserver = 'localhost';
+elseif ($printserver == 'box' || $printserver == 'saldibox') {
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	if ($fp = fopen($filnavn, 'r')) {
+		$printserver = trim(fgets($fp));
+		fclose($fp);
+	}
+}
+if (!$printserver || $printserver == 'box') {
+#		print "<BODY onLoad=\"javascript:alert('print_receipt.php $printserver ikke fundet')\">";
+    $printserver = 'localhost';
+}
 
 // Log initialization
 writeLog("Lane3000 payment started - Amount: $raw_amount, Order ID: $ordre_id, Kasse: $kasse, Session: $s_id");
@@ -160,12 +180,15 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
+
     const data = {
+        "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
+        "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
         "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
         "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
     }
     console.log(data)
-    
+
     try {
         const fetchPromise = fetch(
             `${baseurl}login`,
@@ -184,7 +207,7 @@ async function get_api_key(baseurl) {
         if (logResult.status === 'rejected') {
             console.error('Initial logging failed:', logResult.reason);
         }
-        
+
         // Check if fetch failed
         if (fetchResult.status === 'rejected') {
             const errorMsg = `Network error: ${fetchResult.reason.message}`;
@@ -197,10 +220,10 @@ async function get_api_key(baseurl) {
 
         const res = fetchResult.value;
         const jsondata = await res.json();
-        
+
         // Log the response (don't wait for it to complete)
         const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-        
+
         if (res.status != 200) {
             // Wait for both error logging and fail function
             await Promise.allSettled([
@@ -215,9 +238,9 @@ async function get_api_key(baseurl) {
             logToServer('API key retrieved successfully', 'INFO'),
             responseLogPromise
         ]);
-        
+
         return jsondata.token;
-        
+
     } catch (error) {
         // Handle any unexpected errors
         const errorMsg = `Network error: ${error.message}`;
@@ -232,7 +255,7 @@ async function get_api_key(baseurl) {
 async function print_str(baseurl, apikey, data) {
     const initialLogPromise = logToServer('Starting receipt printing', 'INFO');
     document.getElementById('status').innerText = "Printer...";
-    
+
     try {
         const saveReceiptPromise = fetch(
             'save_receipt.php',
@@ -242,21 +265,21 @@ async function print_str(baseurl, apikey, data) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    data: data, 
+                    data: data,
                     id: '<?php print $ordre_id; ?>',
                     type: 'move3500'
                 })
             }
         );
-        
+
         // Wait for both initial logging and save receipt request
         const [logResult, saveResult] = await Promise.allSettled([initialLogPromise, saveReceiptPromise]);
-        
+
         // Check if initial logging failed
         if (logResult.status === 'rejected') {
             console.error('Initial print logging failed:', logResult.reason);
         }
-        
+
         // Check if save receipt failed
         if (saveResult.status === 'rejected') {
             await Promise.allSettled([
@@ -269,16 +292,16 @@ async function print_str(baseurl, apikey, data) {
                 logToServer('Receipt saved successfully', 'INFO')
             ]);
         }
-        
+
         // Open print window and log it
-        window.open("http://localhost/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
-        
+        window.open("http://<?php print $printserver; ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
+
         await Promise.allSettled([
             logToServer('Print command sent', 'INFO')
         ]);
-        
+
         finished = true;
-        
+
     } catch (error) {
         // Handle any unexpected errors
         await Promise.allSettled([
@@ -296,7 +319,7 @@ async function start_payment(baseurl, apikey, amount) {
         "transactionType": "<?php print $type; ?>",
         "amount": <?php print $amount; ?>
     }
-    
+
     try {
         var res = await fetch(
             `${baseurl}terminal/<?php print $terminal_id; ?>/transaction`,
@@ -312,16 +335,16 @@ async function start_payment(baseurl, apikey, amount) {
 
         counting = false;
         var jsondata = await res.json();
-        
+
         logToServer(`Payment response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
-        
+
         if (res.status != 201) {
             logToServer(`Payment failed - Status: ${res.status}, Error: ${jsondata.failure?.error || 'Unknown error'}`, 'ERROR');
             fail(jsondata.failure?.error || 'Payment failed');
         } else {
             const cardScheme = jsondata.result[0].cardType;
             logToServer(`Payment successful - Card type: ${cardScheme}`, 'INFO');
-            
+
             jsondata.result[0].customerReceipt.replace("\r", "");
             var lines = jsondata.result[0].customerReceipt.split("\r\n");
             lines = lines.join("\n");
@@ -331,7 +354,7 @@ async function start_payment(baseurl, apikey, amount) {
             } else {
                 finished = true;
             }
-            
+
             leave(cardScheme);
         }
     } catch (error) {
@@ -344,6 +367,7 @@ async function start() {
     logToServer('Payment process started', 'INFO');
     // https://connectcloud-test.aws.nets.eu/v1/
     const baseurl = "https://connectcloud.aws.nets.eu/v1/";
+    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);
@@ -351,7 +375,7 @@ async function start() {
         logToServer('Failed to get API key, stopping process', 'ERROR');
         return;
     }
-    
+
     counting = true;
     countdown(121);
     document.getElementById('status').innerText = "Afventer kort...";
@@ -360,7 +384,7 @@ async function start() {
         logToServer('Payment process completed with error', 'ERROR');
         return;
     }
-    
+
     logToServer('Payment process completed successfully', 'INFO');
 }
 

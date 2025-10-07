@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- payments/print_receipt.php --- lap 4.1.0 --- 2024.03.01 ---
+// ---- payments/print_receipt.php --- lap 4.1.1 --- 2025.10.07 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,48 +20,121 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2024-2024 saldi.dk aps
+// Copyright (c) 2024-2025 saldi.dk aps
 // ----------------------------------------------------------------------
+// 20251005 PHR some cleanup.
 
 if (isset($_GET['id']))       $id       = $_GET['id'];
 if (isset($_GET['filename'])) $filename = $_GET['filename'];
 
-if (!$kasse) $kasse = $_COOKIE['saldi_pos'];
+$kasse = $_COOKIE["saldi_pos"];
 
 if (!$printserver) {
-  $r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
-  $x = $kasse - 1;
-  $tmp = explode(chr(9), $r['box3']);
-  $printserver = trim($tmp[$x]);
-  if (!$printserver) {
+$qtxt = "select box3,box4,box5,box6 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'";
+#cho "$qtxt<br>";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
+#cho "$printserver<br>";
+if (!$printserver) $printserver = 'localhost';
+elseif ($printserver == 'box' || $printserver == 'saldibox') {
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	if ($fp = fopen($filnavn, 'r')) {
+		$printserver = trim(fgets($fp));
+		fclose($fp);
+	}
+}
+if (!$printserver || $printserver == 'box') {
+#		print "<BODY onLoad=\"javascript:alert('print_receipt.php $printserver ikke fundet')\">";
     $printserver = 'localhost';
-  }
 }
-if ($printserver == 'box' || $printserver == 'saldibox') {
-  $filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
-  if ($fp = fopen($filnavn, 'r')) {
-    $printserver = trim(fgets($fp));
-    fclose($fp);
-  }
-}
-
 $bon = '';
+// Get company info from database
+$qtxt = "select * from adresser where art = 'S'";
+$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+
+// Format company header
+$txt = $r['firmanavn'];
+while (strlen($txt) < 40) $txt = ' '.$txt.' ';
+$bon = "$txt\n";
+
+$txt = $r['addr1'];
+while (strlen($txt) < 40) $txt = ' '.$txt.' ';
+$bon.= "$txt\n";
+
+$txt = $r['postnr'].' '.$r['bynavn'];
+while (strlen($txt) < 40) $txt = ' '.$txt.' ';
+$bon.= $txt."\n";
+
+$txt = "Cvr: ".$r['cvrnr'];
+while (strlen($txt) < 40) $txt = ' '.$txt.' ';
+$bon.= $txt."\n";
+
+    // Separator line
+$txt = '_';
+while (strlen($txt) < 40) $txt.= '_';
+$bon.= "$txt\n";
+
 if ($type == 'flatpay') {
-  $data=explode('[',file_get_contents($filename));
-  $data=explode('","',$data[1]);
-  for($i=0;$i<count($data);$i++) {
-    if (strpos($data[$i],']')) {
-      list($data[$i],$tmp)=explode(']',$data[$i]);
-    }
-    $data[$i]=trim($data[$i],'"');
-    $data[$i]=str_replace('\u00E6','æ',$data[$i]);
-    $data[$i]=str_replace('\u00F8','ø',$data[$i]);
-    $data[$i]=str_replace('\u00E5','å',$data[$i]);
-    $data[$i]=str_replace('\u00C6','Æ',$data[$i]);
-    $data[$i]=str_replace('\u00d8','Ø',$data[$i]);
-    $data[$i]=str_replace('\u00C5','Å',$data[$i]);
-    if ($data[$i]) $bon.= $data[$i]."\n\r";
+  $jsonData = file_get_contents($filename);
+  file_put_contents("../../temp/$db/check.txt", "$jsonData\n", FILE_APPEND);
+
+  // Parse JSON data
+  $data = json_decode($jsonData, true);
+
+  if ($data && is_array($data)) {
+
+    // Transaction details
+/*
+    $createdTime = strtotime($data['createdAt']);
+    $txt = date('Y-m-d H:i', $createdTime);
+*/
+    $txt = date('Y-m-d H:i');
+    while (strlen("Terminal ".$data['terminalId'].$txt) < 40) $txt = ' '.$txt;
+    $bon.= "Terminal ".$data['terminalId'].$txt."\n";
+
+    $bon.= "ID: ".$data['transactionReference']."\n";
+    $bon.= "OrderID: ".$id."\n";
+    $bon.= $data['cardScheme']." ".$data['cardPan']."\n";
+    if ($data['transactionType'] == 'SALE') $bon.= "KØB\n";
+    else $bon.= "RETUR\n";
+    $bon.= "DKK ".number_format($data['amount']/100, 2, ',', '.')."\n";
+
+    $txt = strtoupper($data['status']);
+    while (strlen($txt) < 40) $txt = ' '.$txt.' ';
+    $bon.= "$txt\n";
+
+    // Bottom separator
+    $txt = '_';
+    while (strlen($txt) < 40) $txt.= '_';
+    $bon.= "$txt\n";
+
+    file_put_contents("../../temp/$db/bon.txt", $bon, FILE_APPEND);
   }
+} else if ($type == 'move3500') {
+        $data=file_get_contents($filename);
+        # Fix unicode seq
+        $data=str_replace('\u00E6','æ',$data);
+        $data=str_replace('\u00e6','æ',$data);
+        $data=str_replace('\u00F8','ø',$data);
+        $data=str_replace('\u00E5','å',$data);
+        $data=str_replace('\u00C6','Æ',$data);
+        $data=str_replace('\u00d8','Ø',$data);
+        $data=str_replace('\u00C5','Å',$data);
+        $data=str_replace('\u00c3\u0098','Ø',$data);
+        $data=str_replace('\u000e','',$data);
+        $bon2 = $data;
+        # Strip escape charecters
+        $bon2 = str_replace('\n', "\n", $bon2);
+        $bon2 = str_replace('\r', "", $bon2);
+        $bon2 = str_replace('\f', "", $bon2);
+
+        # Strip first and last char
+        if (strlen($bon2) > 2) {
+                $bon2 = substr($bon2, 1, -1);
+        }
+        $bon .= "\n".$bon2;
 } else {
   unlink("$directory/check.txt");
   $content=trim(file_get_contents($filename),'{}');
@@ -86,6 +159,7 @@ file_put_contents("$directory/check.txt","$contents[$i]\n",FILE_APPEND);
 		elseif (trim($data[$i][0]) == 'accountId') $r_accountId = trim($data[$i][1]);
 		elseif (trim($data[$i][0]) == 'updated') $r_updated = substr(trim($data[$i][1]),0,10);
 	}
+/*
 	$qtxt = "select * from adresser where art = 'S'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$txt = $r['firmanavn'];
@@ -103,6 +177,7 @@ file_put_contents("$directory/check.txt","$contents[$i]\n",FILE_APPEND);
 	$txt = '_';
   while (strlen($txt) < 40) $txt.= '_';
  	$bon.= "$txt\n";
+*/
 	$txt = date('Y-m-d H:i',$r_updated);
   while (strlen("Terminal $r_terminalId".$txt) < 40) $txt = ' '.$txt;
   $bon.= "Terminal $r_terminalId".$txt."\n";
