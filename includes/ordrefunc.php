@@ -3900,7 +3900,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 	elseif ($varenr) {
 		$qtxt = "select * from varer where lower(varenr) = '$varenr_low' or upper(varenr) = '$varenr_up' ";
 		$qtxt.= "or varenr LIKE '$varenr' or lower(stregkode) = '$varenr_low' or upper(stregkode) = '$varenr_up' ";
-		$qtxt.= "or lower(varenr_alias) = '$varenr_low' or upper(varenr_alias) = '$varenr_up' or varenr_alias LIKE '$varenr_ny'";
+		$qtxt.= "or lower(varenr_alias) = '$varenr_low' or upper(varenr_alias) = '$varenr_up' or varenr_alias LIKE '$varenr'";
 		$qtxt.= "or stregkode LIKE '$varenr'";
 		if (strlen($varenr) == 12 && is_numeric($varenr))
 			$qtxt .= " or stregkode='0$varenr'";
