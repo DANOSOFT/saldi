@@ -226,8 +226,7 @@ function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ko
 		print "<td width=\"80%\" $top_bund>" . findtekst('1142|Rapport', $sprog_id) . " - $rapportart</td>\n";
 		print "<td width=\"10%\" $top_bund>\n";
 	}
-	print "<div><center><select name=\"aabenpostmode\"
-		onchange=\"window.location.href = this.options[this.selectedIndex].value;\">\n";
+	print "<div><center><select name='aabenpostmode' style='$topStyle' onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
 	if ($kun_debet == 'on') print "<option>" . findtekst('925|Kun konti i debet', $sprog_id) . "</option>\n";
 	elseif ($kun_kredit == 'on') print "<option>" . findtekst('926|Kun konti i kredit', $sprog_id) . "</option>\n";
 	elseif ($vis_aabenpost == 'on') print "<option>" . findtekst('924|Vis åbne poster', $sprog_id) . "</option>\n";

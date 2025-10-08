@@ -42,6 +42,7 @@ include("../includes/online.php");
 include("../includes/settings.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 
 $dato_fra=if_isset($_GET['dato_fra']);
@@ -82,7 +83,7 @@ $tmp=$year-1;
 if ($tmp<10) $tmp="0".$tmp;
 list($fra,$til)=(isset($periode) ? explode(":",$periode) : 0);
 if (!$til) $til=date("dmY");
-$rtekst="Klik her for at v&aelig;lge en anden periode";
+$rtekst=findtekst('1813|Klik her for at vælge en anden periode', $sprog_id);
 
 if ($popup) $luk="../includes/luk.php";
 elseif ($art=='D') $luk="../debitor/rapport.php";
@@ -92,20 +93,34 @@ if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\"><a href=$luk accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerbtnLft headLink\"><a href=$luk accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";     
 	print "<div class=\"headerTxt\">$title</div>";     
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
+	include_once '../includes/oldDesign/header.php';
+	print "<table width = 100% cellpadding='0' cellspacing='0' border='0'><tbody>";
+	print "<tr><td colspan='4' height='8'>";
+	print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>"; #B
+	$tekst=findtekst('2704|Klik her for at lukke \"Top100\"', $sprog_id);
+	print "<td width='10%' title='$tekst'><a href='$luk' accesskey=L><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+	print "<td width='80%' style='$topStyle' align='center'>".findtekst('922|Salgstatsstik', $sprog_id)."</td>";
+	print "<td width='10%' title='$rtekst'><a href=salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on accesskey=B>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('913|Søg', $sprog_id)."<br></button></a></td>";
+	print "</tbody></table>";
+	print "</td></tr>\n";
+	print "<tr><td width='100%'>"; 
 } else {
 	include_once '../includes/oldDesign/header.php';
 	print "<table width = 100% cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tbody>";
 	print "<tr><td colspan=\"4\" height=\"8\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
 	$tekst="Klik her for at lukke \"Top100\"";
-	print "<td width=\"10%\" $top_bund title='$tekst'><a href=\"$luk\" accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund>".findtekst(922,$sprog_id)."</td>";
-	print "<td width=\"10%\" $top_bund title='$rtekst'><a href=salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on accesskey=B>".findtekst(913,$sprog_id)."<br></a></td>";
+	print "<td width=\"10%\" $top_bund title='$tekst'><a href=\"$luk\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+	print "<td width=\"80%\" $top_bund>".findtekst('922|Salgstatsstik', $sprog_id)."</td>";
+	print "<td width=\"10%\" $top_bund title='$rtekst'><a href=salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art&ret=on accesskey=B>".findtekst('913|Søg', $sprog_id)."<br></a></td>";
 	print "</tbody></table>";
 	print "</td></tr>\n";
 	print "<tr><td width=\"100%\">"; 
@@ -175,7 +190,7 @@ while($r=db_fetch_array($q)){
 } 
 ($summeret)?$cols='5':$cols='7';
 if ($menu=='T') {
-	print "<center style='padding-bottom:5px;'>	<input onclick=\"location.href='#nav'\" style='width:450px;' type=\"button\" title='Klik her for at søge' value=\"".findtekst(913,$sprog_id)."\">";
+	print "<center style='padding-bottom:5px;'>	<input onclick=\"location.href='#nav'\" style='width:450px;' type=\"button\" title='Klik her for at søge' value=\"".findtekst('913|Søg', $sprog_id)."\">";
 	print "<div class='expandableSearch' id='nav' style='padding-top:5px;'>";
 	begraens($dato_fra,$dato_til,$konto_fra,$konto_til,$kontonr,$firmanavn,$adresse,$postnr,$bynavn,$varenr,$varetekst,$detaljer,$art);
 	print "</div>";
@@ -192,11 +207,11 @@ for ($x=0;$x<count($q_konto_id);$x++) {
 	} else {
 		if ($x) print "<tr><td colspan=\"$cols\"><hr></td></tr>";
 	}
-	print "<tr><td width=10%><b>".findtekst(284,$sprog_id).":</b></td><td>$q_kontonr[$x]</td></tr>";
-	print "<tr><td width=10%><b>".findtekst(360,$sprog_id).":</b></td><td>$q_firmanavn[$x]</td></tr>";
-	if (isset($periode)) print "<tr><td><b>".findtekst(899,$sprog_id)."</b></td><td>$periode</td></tr>";
+	print "<tr><td width=10%><b>".findtekst('284|Kontonr', $sprog_id).":</b></td><td>$q_kontonr[$x]</td></tr>";
+	print "<tr><td width=10%><b>".findtekst('360|Firmanavn', $sprog_id).":</b></td><td>$q_firmanavn[$x]</td></tr>";
+	if (isset($periode)) print "<tr><td><b>".findtekst('899|Periode.', $sprog_id)."</b></td><td>$periode</td></tr>";
 	print "<tr>";
-	if (!$summeret) print "</td><td align=\"left\"><b>".findtekst(635,$sprog_id)."</b></td>";
+	if (!$summeret) print "</td><td align=\"left\"><b>".findtekst('635|Dato', $sprog_id)."</b></td>";
 
 	if ($menu=='T') {
 		print "<tr><td colspan=10 class='border-hr-bottom'></td></tr>\n";
@@ -205,8 +220,8 @@ for ($x=0;$x<count($q_konto_id);$x++) {
 	}
 
 	print"<table width=\"100%\" class='dataTableNTH'><thead>";
-	print "<th>".findtekst(917,$sprog_id)."</th><th>".findtekst(914,$sprog_id)."</th><th class='text-right'>".findtekst(916,$sprog_id)."</th><th class='text-right'>".findtekst(915,$sprog_id)."</th>";
-	if (!$summeret) print "<th class='text-right'>".findtekst(428,$sprog_id)."</th>";
+	print "<th>".findtekst('917|Varenr.', $sprog_id)."</th><th>".findtekst('914|Beskrivelse', $sprog_id)."</th><th class='text-right'>".findtekst('916|Antal', $sprog_id)."</th><th class='text-right'>".findtekst('915|Pris', $sprog_id)."</th>";
+	if (!$summeret) print "<th class='text-right'>".findtekst('428|Rabat', $sprog_id)."</th>";
 	print "<th class='text-right'>Sum</th></tr></thead><tbody>";
 	for ($y=0;$y<count($q_vare_id[$x]);$y++) {
 		print "<tr>";
@@ -237,26 +252,26 @@ function begraens($dato_fra,$dato_til,$konto_fra,$konto_til,$kontonr,$firmanavn,
 	global $menu;
 	($detaljer)?$detaljer='checked':$detaljer=NULL;
 	print "<center>";
-	print "<form name=\"".findtekst(918,$sprog_id)."\" action=\"salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art\" method=\"post\">";
+	print "<form name=\"".findtekst('918|Salgsstat', $sprog_id)."\" action=\"salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontonr=$kontonr&firmanavn=$firmanavn&adresse=$adresse&postnr=$postnr&bynavn=$bynavn&varenr=$varenr&varetekst=$varetekst&detaljer=$detaljer&art=$art\" method=\"post\">";
 	print "<table width=25%><tbody>";
-	print "<tr><td width=50%><b>".findtekst(284,$sprog_id).":</b></td><td><input type=\"text\" name=\"kontonr\" value=\"$kontonr\"></td></tr>"; #20210329
-	print "<tr><td width=50%><b>".findtekst(360,$sprog_id).":</b></td><td><input type=\"text\" name=\"firmanavn\" value=\"$firmanavn\"></td></tr>";
-	print "<tr><td width=50%><b>".findtekst(140,$sprog_id).":</b></td><td><input type=\"text\" name=\"adresse\" value=\"$adresse\"></td></tr>";
-	print "<tr><td width=50%><b>".findtekst(650,$sprog_id).":</b></td><td><input type=\"text\" name=\"postnr\" value=\"$postnr\"></td></tr>";
-	print "<tr><td width=50%><b>".findtekst(910,$sprog_id).":</b></td><td><input type=\"text\" name=\"bynavn\" value=\"$bynavn\"></td></tr>";
-	print "<tr><td width=50%><b>".findtekst(917,$sprog_id).":</b></td><td><input type=\"text\" name=\"varenr\" value=\"$varenr\"></td></tr>";
-	print "<tr><td width=50%><b>".findtekst(919,$sprog_id).":</b></td><td><input type=\"text\" name=\"varetekst\" value=\"$varetekst\"></td></tr>";
-	print "<tr><td width=50%><b>".findtekst(920,$sprog_id).":</b></td><td align=\"right\"><label class='checkContainerVisning' style='padding-left: 20px;'><input type=\"checkbox\" name=\"detaljer\" $detaljer><span class='checkmarkVisning'></span></label></td></tr>";
+	print "<tr><td width=50%><b>".findtekst('284|Kontonr', $sprog_id).":</b></td><td><input type=\"text\" name=\"kontonr\" value=\"$kontonr\"></td></tr>"; #20210329
+	print "<tr><td width=50%><b>".findtekst('360|Firmanavn', $sprog_id).":</b></td><td><input type=\"text\" name=\"firmanavn\" value=\"$firmanavn\"></td></tr>";
+	print "<tr><td width=50%><b>".findtekst('140|Adresse', $sprog_id).":</b></td><td><input type=\"text\" name=\"adresse\" value=\"$adresse\"></td></tr>";
+	print "<tr><td width=50%><b>".findtekst('650|Postnr.', $sprog_id).":</b></td><td><input type=\"text\" name=\"postnr\" value=\"$postnr\"></td></tr>";
+	print "<tr><td width=50%><b>".findtekst('910|Bynavn', $sprog_id).":</b></td><td><input type=\"text\" name=\"bynavn\" value=\"$bynavn\"></td></tr>";
+	print "<tr><td width=50%><b>".findtekst('917|Varenr.', $sprog_id).":</b></td><td><input type=\"text\" name=\"varenr\" value=\"$varenr\"></td></tr>";
+	print "<tr><td width=50%><b>".findtekst('919|Varetekst', $sprog_id).":</b></td><td><input type=\"text\" name=\"varetekst\" value=\"$varetekst\"></td></tr>";
+	print "<tr><td width=50%><b>".findtekst('920|Vis detaljer', $sprog_id).":</b></td><td align=\"right\"><label class='checkContainerVisning' style='padding-left: 20px;'><input type=\"checkbox\" name=\"detaljer\" $detaljer><span class='checkmarkVisning'></span></label></td></tr>";
 	print "<tr><td>&nbsp;</td></tr>";
 	print "<tr><td colspan=\"2\" align=\"center\">";
 	if ($menu=='T') {
-		print "<input type=\"submit\" name=\"find\" value=\"".findtekst(913,$sprog_id)."\">";
+		print "<input type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\">";
 		print "&nbsp;•&nbsp;";
-		print "<input onclick=\"location.href='#luk'\" type=\"button\" value=\"".findtekst(921,$sprog_id)."\">";
+		print "<input onclick=\"location.href='#luk'\" type=\"button\" value=\"".findtekst('159|Fortryd', $sprog_id)."\">";
 	} else {
-		print "<input style=\"width:80px\" type=\"submit\" name=\"find\" value=\"".findtekst(913,$sprog_id)."\">";
+		print "<input style=\"width:80px\" type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\">";
 		print "&nbsp;";
-		print "<input style=\"width:80px\" type=\"submit\" name=\"fortryd\" value=\"".findtekst(921,$sprog_id)."\">";
+		print "<input style=\"width:80px\" type=\"submit\" name=\"fortryd\" value=\"".findtekst('159|Fortryd', $sprog_id)."\">";
 	}
 	print "</td></tr>";
 
