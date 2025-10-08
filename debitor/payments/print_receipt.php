@@ -45,6 +45,7 @@ elseif ($printserver == 'box' || $printserver == 'saldibox') {
 		fclose($fp);
 	}
 }
+}
 if (!$printserver || $printserver == 'box') {
 #		print "<BODY onLoad=\"javascript:alert('print_receipt.php $printserver ikke fundet')\">";
     $printserver = 'localhost';
