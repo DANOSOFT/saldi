@@ -36,8 +36,6 @@ $kundeordnr  = null;
 $projekt[0]  = null;
 $ref         = null;
 $udskriv_til = null;
-$lager_nr    = array();
-$lager_navn  = array();
 
 
 $attachId    = if_isset($attachId,NULL);
@@ -46,14 +44,6 @@ $kundeordnr  = if_isset($kundeordnr,NULL);
 $projekt[0]  = if_isset($projekt[0],NULL);
 $ref         = if_isset($ref,NULL);
 $udskriv_til = if_isset($udskriv_til,'PDF');
-
-// Initialize lager arrays if not already set
-if (!isset($lager_nr) || !is_array($lager_nr)) {
-    $lager_nr = array();
-}
-if (!isset($lager_navn) || !is_array($lager_navn)) {
-    $lager_navn = array();
-}
 
 print "<tr><td><table cellpadding='0' cellspacing='0' border='0'style='width:355px' >";
 print "<tr><td style='width:100px'>".findtekst(276,$sprog_id)."</td><td style='width:250px'>";
@@ -218,7 +208,7 @@ if ($ref!=$r2['navn']) print "<option> $r2[navn]</option>";
 	}
 	print "</SELECT>";
 	if ($x) print "</td></tr>";
-if (is_array($lager_nr) && count($lager_nr) > 0) {
+if (count($lager_nr)) {
 	print "<tr><td>Lager</td>";
 	print "<td colspan='1'><select style='text-align:right;width:110px;' class='inputbox' name='lager'>";
 	for ($x=0;$x<count($lager_nr);$x++) {
