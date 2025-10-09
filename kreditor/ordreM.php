@@ -230,7 +230,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 				samlevare($id,$art,$vare_id[0],$antal[0]);
 			} else {
 				($omlev && $omvare[0])?$omvbet[0]='on':$omvbet[0]='';
-				$lager*=1;
+				$lager = (int)$lager;
 				$qtxt = "insert into ordrelinjer (ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,pris,lev_varenr,serienr,antal,momsfri,samlevare,omvbet,momssats,lager) values ";
 				$qtxt.= "('$id','$posnr[0]','".db_escape_string($varenr[0])."','$vare_id[0]','".db_escape_string($beskrivelse[0])."',";
 				$qtxt.= "'$enhed[0]','$pris[0]','".db_escape_string($lev_varenr[0])."','".db_escape_string($serienr[0])."','$antal[0]',";
@@ -1136,7 +1136,7 @@ function ordreside($id) {
 			$lager=$r['kodenr'];
 		}
 	}
-	$lager*=1;
+	$lager = (int)$lager;
 	$x=0;
 	$q=db_select("select kodenr,beskrivelse from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {

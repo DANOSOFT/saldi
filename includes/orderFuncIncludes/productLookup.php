@@ -91,7 +91,7 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 			$lager = (int) $r['kodenr'];
 		}
 	}
-	$lager *= 1;
+	$lager = (int)$lager;
 
 	if ($id && (!$art || !$ref)) {
 		$r = db_fetch_array(db_select("select art,ref from ordrer where id='$id'", __FILE__ . " linje " . __LINE__));

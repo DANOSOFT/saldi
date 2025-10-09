@@ -526,7 +526,7 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$shop_varenr = trim($shop_varenr);
 
 	list($master,$db_skriv_id)=explode('_',$db);
-	$lager*=1;
+	$lager = (int)$lager;
 	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
 	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
