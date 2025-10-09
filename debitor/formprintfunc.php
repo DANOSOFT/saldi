@@ -83,7 +83,13 @@ if ($formular!=3 && $folgeseddel) {
 	}
 }
 $r=db_fetch_array(db_select("select * from grupper where art='DIV' and kodenr='3'",__FILE__ . " linje " . __LINE__)); 
-$incl_moms=$r['box1'];
+
+// Get VAT settings from settings table
+$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+
+// Set default VAT behavior based on settings
+$incl_moms = $vatPrivateCustomers; // Default to private customer setting
 if ($folgeseddel) {
 	$kommentarprint=$r['box3'];
 	$skjul_nul_lin=$r['box8'];
@@ -120,6 +126,20 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	$email[0]=$row['email'];
 	$pbs=$row['pbs'];
 	$formularsprog=strtolower($row['sprog']);
+	
+	// Check if this is a business customer (erhverv) or private customer (privat)
+	if ($konto_id) {
+		$qtxt = "SELECT kontotype FROM adresser WHERE id = '$konto_id'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$kontotype = if_isset($r, 0, 'kontotype');
+		
+		if ($kontotype == 'erhverv') {
+			$incl_moms = $vatBusinessCustomers; // Use business customer VAT setting for business customers
+		} else {
+			$incl_moms = $vatPrivateCustomers; // Use private customer VAT setting for private customers
+		}
+	}
+
 	if (!$formularsprog) $formularsprog="dansk";
 	if (($formular==4)||($formular==5)) {
 		if ($row['art']=="DK") $formular=5;
@@ -293,7 +313,7 @@ for ($q=0; $q<$ordre_antal; $q++) {
 					$linjesum[$x]=dkdecimal($row['pris']*$antal[$x]-($row['pris']*$antal[$x]*$row[rabat]/100));
 					if ($row[momsfri]!='on') {
 						$momssum=$momssum+round(($row['pris']*$antal[$x]-($row['pris']*$antal[$x]*$row[rabat]/100))+0.0001,2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
-if ($incl_moms) {
+						if ($incl_moms) {
 							$tmp=round(($row['pris']+$row['pris']*$momssats/100)+0.0001,2);
 							$pris[$x]=dkdecimal($tmp);
 							$linjesum[$x]=dkdecimal($tmp*$antal[$x]-($tmp*$antal[$x]*$row[rabat]/100));

@@ -1038,6 +1038,7 @@ if (!function_exists('formularprint')) {
 				}
 			}
 		}
+		
 		$qtxt = "select box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$vis_saet = trim($r['box12']);
@@ -1045,7 +1046,22 @@ if (!function_exists('formularprint')) {
 			$brugsamletpris = 'on';
 
 		$r = db_fetch_array(db_select("select * from grupper where art='DIV' and kodenr='3'", __FILE__ . " linje " . __LINE__));
-		$incl_moms = $r['box1'];
+		
+		// Get VAT settings from settings table
+		$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+		$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+		// $id is the order id check if it is a business customer (erhverv) or private customer (privat)
+		if ($id) {
+			$qtxt = "SELECT adresser.kontotype FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$kontotype = if_isset($r, 0, 'kontotype');
+			if ($kontotype == 'erhverv') {
+				$incl_moms = $vatBusinessCustomers; // Use business customer VAT setting for business customers
+			} else {
+				$incl_moms = $vatPrivateCustomers; // Use private customer VAT setting for private customers
+			}
+		}
+		
 		if ($folgeseddel) {
 			$kommentarprint = $r['box3'];
 			$skjul_nul_lin = $r['box8'];

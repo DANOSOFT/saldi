@@ -323,9 +323,15 @@ if (isset($_GET['id']) && isset($_POST['insertItems']))	{
 		}
 	}
 }
-$q = db_SELECT("select box1,box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__);
+$q = db_SELECT("select box2,box4,box9,box12,box13,box14 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__);
 $r=db_fetch_array($q);
-$incl_moms=$r['box1'];
+
+// Get VAT settings from settings table
+$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+
+// Set default VAT behavior based on settings
+$incl_moms = $vatPrivateCustomers; // Default to private customer setting
 
 #$rabatvare_id=$r['box2']*1; #20150317
 $rb = $r['box2'];
@@ -463,9 +469,17 @@ if ($id) {
 	$gruppe=if_isset($r,0,'gruppe');
 	$formularsprog=if_isset($r,'Dansk','sprog');
 } 
-$qtxt = "select id from grupper where art='DG' and kodenr='$gruppe' and box8='on'";
-if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	$incl_moms=NULL; #hvis box8 er 'on' er det en b2b kunde og priser vises ex. moms
+// Check customer type from kontotype field
+if ($id) {
+	$qtxt = "SELECT adresser.kontotype FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$kontotype = if_isset($r, 0, 'kontotype');
+
+	if ($kontotype == 'erhverv') {
+		$incl_moms = $vatBusinessCustomers; # Use business customer VAT setting for business customers
+	} else {
+		$incl_moms = $vatPrivateCustomers; # Use private customer VAT setting for private customers
+	}
 }
 if (isset($_GET['vis_lev_addr']) && $id) {
   if ($_GET['vis_lev_addr']) $qtxt = "update ordrer set vis_lev_addr='on' where id='$id'";

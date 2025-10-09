@@ -45,8 +45,25 @@ $r=db_fetch_array(db_select("select art,momssats from ordrer where id='$id'",__F
 $art=$r['art'];
 $momssats=$r['momssats'];
 
-$r=db_fetch_array(db_SELECT("select box1 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
-$incl_moms=$r['box1'];
+// Get VAT settings from settings table
+$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+
+// Set default VAT behavior based on settings
+$incl_moms = $vatPrivateCustomers; // Default to private customer setting
+
+// Check if this is a business customer (erhverv) or private customer (privat)
+if ($id) {
+	$qtxt = "SELECT adresser.kontotype FROM ordrer,adresser WHERE ordrer.id = '$id' AND adresser.id=ordrer.konto_id";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$kontotype = if_isset($r, 0, 'kontotype');
+	
+	if ($kontotype == 'erhverv') {
+		$incl_moms = $vatBusinessCustomers; // Use business customer VAT setting for business customers
+	} else {
+		$incl_moms = $vatPrivateCustomers; // Use private customer VAT setting for private customers
+	}
+}
 $qtxt = "select box8 from grupper where art = 'DIV' and kodenr = '5' and box8!='' and box8!='0'"; 
 if($r=db_fetch_array($q = db_SELECT($qtxt,__FILE__ . " linje " . __LINE__))) {
  $svid=$r['box8']*1;

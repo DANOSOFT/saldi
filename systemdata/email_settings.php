@@ -31,12 +31,9 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 include("../includes/db_query.php");
-include("../includes/varer.php");
-include("../includes/opdat.php");
-include("../includes/top.php");
 
 # Process form submission
-if ($_POST['submit']) {
+if (isset($_POST['submit']) && $_POST["submit"]) {
 	# Process sender emails
 	foreach ($_POST['sender_email'] as $lang_id => $email) {
 		$email = trim($email);
@@ -199,5 +196,4 @@ if ($menu=='T') {
 	# Fallback closing
 }
 
-include("../includes/bottom.php");
 ?>
