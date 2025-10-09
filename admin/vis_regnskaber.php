@@ -168,7 +168,7 @@ if ($sort==$sort2) {
 
 print "<tr><td><b><a href=vis_regnskaber.php?sort=id&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>id</a></b></td>
 	<td><b><a href=vis_regnskaber.php?sort=regnskab&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('2682|Regnskab', $sprog_id)."</a></b></td> 
-	<td><a href=vis_regnskaber.php?sort=brugerantal&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('909|Kommission', $sprog_id)."</a></td>
+	<td><a href=vis_regnskaber.php?sort=brugerantal&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('777|Brugere', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=posteringer&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1910|Posteringer', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=posteret&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1911|Posteret', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=sidst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1912|Sidst', $sprog_id)."</a></td>";

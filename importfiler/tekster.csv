@@ -2345,7 +2345,7 @@
 2345	Luk Standard Kontoplan	Close Standard Chart of Accounts	Lukk Standard kontoplan
 2346	For at generere en SAF-T fil skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To generate a SAF-T file, the account number below must be mapped to <u>standard account number</u>	For å generere en SAF-T-fil, må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>
 2347	For at generere en SAF-T fil skal de	To generate a SAF-T file, the	For å generere en SAF-T-fil, må de
-2348	Her kan du oprette en SAF-T Financial rapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansiell rapport:
+2348	Her kan du oprette en SAF-T Finansrapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansrapport:
 2349	Opret	Create	Skape
 2350	Vis XML-fil	Show XML file	Vis XML-fil
 2351	Luk XML-fil	Close XML file	Lukk XML-fil
@@ -2703,14 +2703,14 @@
 2703	Send som e-mail (åbner i popup)	Send as email (opens in popup)	Send som e-post (åpnes i popup)
 2704	Klik her for at åbne &quot;Top 100&quot;	Click here to open &quot;Top 100&quot;	Klikk her for å åpne &quot;Topp 100&quot;
 2705	Oversigt over POS-transaktioner	Overview of POS transactions	Oversikt over POS-transaksjoner
-2706	
-2707	
-2708	
-2709	
-2710	
-2711	
-2712	
-2713	
+2706	Filnavn	File name	Filnavn
+2707	Dato og klokkeslæt for oprettelse	Date and time of creation	Dato og klokkeslett for opprettelse
+2708	Download	Download	Last ned
+2709	Opret SAF-T fil	Create SAF-T file	Oprett SAF-T fil
+2710	Kalender	Calendar	Kalender
+2711	SAF-T kasserapport	SAF-T cash register report	SAF-T kasserapport
+2712	Her kan du oprette en SAF-T kasserapport	Here you can create a SAF-T Cash Register report	Her kan du opprette en SAF-T kasserapport
+2713	Ingen booking	No booking	Ingen booking
 2714	
 2715	
 2716	

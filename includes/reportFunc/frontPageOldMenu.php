@@ -81,7 +81,7 @@
 		if ($kontoart == 'D') {
 			print "<tr><td colspan='6'><hr></td></tr>\n";
 			print "<tr><td colspan='6'>&nbsp;</td></tr>\n";
-			print "<tr><th colspan='6' style='text-align:center;'><p>SAF-T Cash Register Rapport</p></th></tr>\n";
+			print "<tr><th colspan='6' style='text-align:center;'><p>".findtekst('2711|SAF-T kasserapport', $sprog_id);"</p></th></tr>\n";
 			print "<tr><td colspan='6' style='text-align:center;'>&nbsp;</td></tr>\n";
 			print "<tr><td colspan='6' style='text-align:center;'>$txt2134:</td></tr>\n";
 			print "<form method='post' action='saftCashRegister.php'>";
