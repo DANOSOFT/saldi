@@ -1142,7 +1142,7 @@ elseif (strstr($submit, "Vare")) {
     vareopslag($sort, $fokus, $id, $vis_kost, $ref, $find, "varekort.php");
 }
 
-if ($saveItem && $beskrivelseAlias != $oldBeskrivelseAlias) {
+if ($saveItem) {
     $qtxt = "update varer set beskrivelse_alias = '" . db_escape_string($beskrivelseAlias) . "' where id= '$id'";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 }
