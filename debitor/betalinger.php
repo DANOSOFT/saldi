@@ -397,6 +397,7 @@ if ($udskriv) {
 		print "";
 	}
 
+
 	#print"<tr><td colspan=11><hr></td></tr>";
 	$x = 0;
 	# echo "select betalinger.bet_type as bet_type,betalinger.fra_kto as fra_kto, betalinger.egen_ref as egen_ref, betalinger.til_kto as til_kto, betalinger.modt_navn as modt_navn, betalinger.kort_ref as kort_ref, betalinger.belob as belob, betalinger.betalingsdato as betalingsdato, kassekladde.bilag as bilag, ordrer.modtagelse as modtagelse from betalinger, ordrer, kassekladde where betalinger.liste_id=$liste_id and ordrer.id=betalinger.ordre_id and kassekladde.id=betalinger.bilag_id order by betalinger.betalingsdato<br>";
@@ -559,6 +560,7 @@ if ($udskriv) {
 		}
 		if ($modtagerantal) {
 			print "&nbsp;•&nbsp;<input type=submit accesskey=\"m\" value=\"Mail til modtagere\" name=\"mail\">";
+			print "&nbsp;•&nbsp;<button type='button' onclick='openDateUpdatePopup()' style='background-color: #6c757d; color: white; padding: 2px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;'>Opdater datoer</button>";
 			if ($bogfort != 'V' && $db == 'pos_111') print "&nbsp;•&nbsp;<input type=submit accesskey=\"u\" value=\"Udlign modtagere\" name=\"align\">";
 		}
 	}
@@ -573,4 +575,125 @@ if ($menu == 'T') {
 	print "</tbody></table>";
 	include_once '../includes/oldDesign/footer.php';
 }
+
+// Add JavaScript for "Update Dates" popup functionality
+print "<script>
+function openDateUpdatePopup() {
+    // Create popup overlay
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 10000; display: flex; justify-content: center; align-items: center;';
+    
+    // Create popup content
+    var popup = document.createElement('div');
+    popup.style.cssText = 'background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 400px; width: 90%;';
+    
+    popup.innerHTML = `
+        <h3 style='margin-top: 0; color: #333;'>Opdater alle betalingsdatoer</h3>
+        <p style='color: #666; margin-bottom: 15px;'>Indtast ny dato for alle betalinger i denne liste:</p>
+        <input type='text' id='popupDate' placeholder='ddmmyyyy (f.eks. 15102025)' style='width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;' maxlength='8'>
+        <div style='text-align: right;'>
+            <button onclick='closeDatePopup()' style='background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;'>Annuller</button>
+            <button onclick='updateAllDatesFromPopup()' style='background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;'>Opdater</button>
+        </div>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Focus on input
+    setTimeout(function() {
+        document.getElementById('popupDate').focus();
+    }, 100);
+    
+    // Close on overlay click
+    overlay.onclick = function(e) {
+        if (e.target === overlay) {
+            closeDatePopup();
+        }
+    };
+    
+    // Auto-format date input
+    document.getElementById('popupDate').addEventListener('input', function(e) {
+        var value = e.target.value.replace(/\\D/g, '');
+        if (value.length > 8) value = value.substring(0, 8);
+        e.target.value = value;
+    });
+    
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDatePopup();
+        }
+    });
+}
+
+function closeDatePopup() {
+    var overlay = document.querySelector('div[style*=\"position: fixed\"]');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+function updateAllDatesFromPopup() {
+    var dateInput = document.getElementById('popupDate');
+    var newDate = dateInput.value.trim();
+    
+    if (!newDate) {
+        alert('Indtast venligst en dato i formatet ddmmyyyy');
+        return;
+    }
+    
+    // Validate date format (8 digits)
+    if (!/^\d{8}$/.test(newDate)) {
+        alert('Datoen skal være i formatet ddmmyyyy (8 cifre)');
+        return;
+    }
+    
+    // Validate date
+    var day = newDate.substring(0, 2);
+    var month = newDate.substring(2, 4);
+    var year = newDate.substring(4, 8);
+    
+    var testDate = new Date(year, month - 1, day);
+    if (testDate.getDate() != day || testDate.getMonth() != month - 1 || testDate.getFullYear() != year) {
+        alert('Ugyldig dato. Kontroller at datoen eksisterer.');
+        return;
+    }
+    
+    // Confirm action
+    if (!confirm('Er du sikker på at du vil opdatere alle betalingsdatoer til ' + newDate + '?')) {
+        return;
+    }
+    
+    // Send AJAX request
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'update_payment_dates.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        alert('Succes! ' + response.updated + ' betalingsdatoer er opdateret.');
+                        closeDatePopup();
+                        location.reload();
+                    } else {
+                        alert('Fejl: ' + response.message);
+                    }
+                } catch (e) {
+                    alert('Fejl ved behandling af svar: ' + e.message);
+                }
+            } else {
+                alert('Fejl ved kommunikation med serveren.');
+            }
+        }
+    };
+    
+    var params = 'liste_id=" . $liste_id . "&new_date=' + newDate + '&update_all=1';
+    xhr.send(params);
+}
+</script>";
+
 print "</form>";
