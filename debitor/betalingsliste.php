@@ -81,14 +81,16 @@ if ($menu=='T') {
 	} else { 
 		print "<center><div style='padding:10px'><input type='button' onclick=\"location.href='betalingsliste.php?sort=$sort&rf=$rf&vis=alle'\" value='Vis alle'>";
 	}
-	print "&nbsp;•&nbsp;<input type='button' onclick=\"location.href='betalinger.php?id=0'\" accesskey=N value='Ny'></center>";
+	print "&nbsp;•&nbsp;<input type='button' onclick=\"location.href='betalinger.php?id=0'\" accesskey=N value='Ny'>";
+	print "&nbsp;•&nbsp;<input type='button' onclick=\"location.href='betalinger_settings.php'\" value='Indstillinger'></center>";
 	print "<div class='dataTablediv'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='dataTable'><thead>";
 } else {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	print "<tr><td height = '25' align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='rapport.php' accesskey=L>Luk</a></td>";
-	print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>Betalingsliste</td>";
+	print "<td width='70%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>Betalingsliste</td>";
+	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='betalinger_settings.php'>Indstillinger</a></td>";
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href=betalinger.php?id=0 accesskey=N>Ny</a></td>";
 	print "</tbody></table>";
 	print "</td></tr>";

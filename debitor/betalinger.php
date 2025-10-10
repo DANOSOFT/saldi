@@ -190,21 +190,8 @@ if (!$liste_id) {
 // $tomorrow = date('U') + 60 * 60 * 24;
 // $paydate  = date('dmY', $tomorrow);
 
-// --- Calculate payment date using settings or default fallback ---
-try {
-	$qtxt = "SELECT var_value FROM settings WHERE var_name = 'paymentDays' LIMIT 1";
-	$settings = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$paymentDays = (is_array($settings) && isset($settings['var_value']) && is_numeric($settings['var_value']))
-		? intval($settings['var_value'])
-		: 1;
-	if (!is_numeric($settings['var_value'])) {
-		error_log("WARNING: Invalid 'paymentDays' value in settings table. Defaulting to 1.");
-	}
-} catch (Exception $e) {
-	$paymentDays = 1;
-	error_log("ERROR: Exception while fetching 'paymentDays': " . $e->getMessage());
-}
 
+$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
 $paydate = date('dmY', strtotime("+$paymentDays days"));
 
 $r = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
@@ -307,9 +294,11 @@ if ($find) {
 					$kort_ref = $r['betal_id'];
 				} elseif ($r['faktnr']) $kort_ref = $myName . ":" . $r['faktnr'];
 				else $kort_ref = $myName;
-				if ($r['forfaldsdate']) {
+				$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+				$forfaldsdag = date('dmY', strtotime("+$paymentDays days"));
+				/* if ($r['forfaldsdate']) {
 					$forfaldsdag = str_replace("-", "", dkdato($r['forfaldsdate']));
-				} else $forfaldsdag = str_replace("-", "", forfaldsdag($r['transdate'], $r['betalingsbet'], $r['betalingsdage']));
+				} else $forfaldsdag = str_replace("-", "", forfaldsdag($r['transdate'], $r['betalingsbet'], $r['betalingsdage'])); */
 				$belob = dkdecimal($r['amount'] * -1);
 				$valuta = $r['valuta'];
 				if (!$valuta) $valuta = 'DKK';
@@ -414,6 +403,7 @@ if ($udskriv) {
 	$erh = array();
 
 	$fejl = 0;
+
 	#$kn_kontrol=0;
 	$q = db_select("select * from betalinger where liste_id=$liste_id order by modt_navn,betalingsdato", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -426,7 +416,6 @@ if ($udskriv) {
 		$kort_ref[$x] = $r['kort_ref'];
 		$belob[$x] = $r['belob'];
 		$valuta[$x] = $r['valuta'];
-		$betalingsdato[$x] = $r['betalingsdato'];
 		if ($r['ordre_id']) {
 			#			$kn_kontrol=1;
 			$r2 = db_fetch_array(db_select("select modtagelse from ordrer where id = '$r[ordre_id]'", __FILE__ . " linje " . __LINE__));
