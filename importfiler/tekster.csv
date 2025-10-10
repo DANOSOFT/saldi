@@ -3,7 +3,7 @@
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
 5	Annullér	Cancel	Avbryt
-6	Jobnr.:	Job no.:	Jobbnr:
+6	Jobnr.	Job no.	Jobbnr.
 7	Felt 1	Field 1	Felt 1
 8	Felt 2	Field 2	Felt 2
 9	Felt 3	Field 3	Felt 3
@@ -24,7 +24,7 @@
 24	Bemærkning 2	Note 2	Notat 2
 25	Bemærkning 3	Note 3	Merknad 3
 26	Bemærkning 4	Note 4	Merknad 4
-27	Planlagt til uge:	Scheduled for week:	Planlagt for uken:
+27	Planlagt til uge	Scheduled for week	Planlagt for uken
 28	Firmanavn	Company name	Selskapsnavn
 29	Jobkort	Job card	Jobbkort
 30	Tilbage	Back	Tilbake
@@ -38,8 +38,8 @@
 38	Stillingsliste	Job list	Stillingsliste
 39	Ny	New	Ny
 40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
-41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Write a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
-42	Afmærk de felter som skal eksporteres.	Mark the fields to be exported.	Merk feltene som skal eksporteres.
+41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Enter a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
+42	Afmærk de felter som skal eksporteres	Mark the fields to be exported	Merk feltene som skal eksporteres
 43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
 45	Adresse 2	Address 2	adresse 2
@@ -2711,10 +2711,10 @@
 2711	SAF-T kasserapport	SAF-T cash register report	SAF-T kasserapport
 2712	Her kan du oprette en SAF-T kasserapport	Here you can create a SAF-T Cash Register report	Her kan du opprette en SAF-T kasserapport
 2713	Ingen booking	No booking	Ingen booking
-2714	
-2715	
-2716	
-2717	
+2714	Sprogindstillinger	Language preferences	Språkindstillinger
+2715	Vælg dit foretrukne sprog	Set your preferred language	Velg ditt foretrukne språk
+2716	Nuværende sprog	Current language	Nåværende språk
+2717	Klik her for at rette tekster	Click here to edit texts	Klikk her for å redigere tekster
 2718	
 2719	
 2720	

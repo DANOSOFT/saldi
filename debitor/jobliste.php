@@ -119,8 +119,8 @@ if ($menu=='T') {
 	print "<div class=\"headerTxt\">$title</div>";     
 	print "<div class=\"headerbtnRght headLink\">";
 	
-	print "<a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></div>"; 
-	print "<a href=debitor.php>".findtekst(34,$sprog_id)."</a></div>";     
+	print "<a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst('30|Tilbage', $sprog_id)."</a></div>"; 
+	print "<a href=debitor.php>".findtekst('34|Debitorliste', $sprog_id)."</a></div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
@@ -134,14 +134,14 @@ print "<table cellpadding=1 cellspacing=1 border=0 width=100% valign = top>";
 
 print "<tbody>";
 print "<tr>";
-print "<td><b><a href='jobliste.php?nysort=kolonne01&$parameter'>".findtekst(6,$sprog_id)."</b></td>";
-print "<td><b><a href='jobliste.php?nysort=kolonne02&$parameter'>".findtekst(35,$sprog_id)."</b></td>";
-print "<td><b><a href='jobliste.php?nysort=kolonne03&$parameter'>".findtekst(36,$sprog_id)."</b></td>";
-print "<td><b><a href='jobliste.php?nysort=kolonne04&$parameter'>".findtekst(37,$sprog_id)."</a></b></td>";
-print "<td><b><a href='jobliste.php?nysort=kolonne05&$parameter'>".findtekst(7,$sprog_id)."</a></b></td>";
-print "<td><b><a href='jobliste.php?nysort=kolonne06&$parameter'>".findtekst(9,$sprog_id)."</a></b></td>";
-print "<td><b><a href='jobliste.php?nysort=kolonne07&$parameter'>".findtekst(13,$sprog_id)."</a></b></td>";
-print "<td><b><a href='jobliste.php?nysort=kolonne08&$parameter'>".findtekst(27,$sprog_id)."</a></b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne01&$parameter'>".findtekst('6|Jobnr.', $sprog_id).": </b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne02&$parameter'>".findtekst('35|Kunde', $sprog_id)."</b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne03&$parameter'>".findtekst('36|Postnr.', $sprog_id)."</b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne04&$parameter'>".findtekst('37|Telefon', $sprog_id)."</a></b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne05&$parameter'>".findtekst('7|Felt 1', $sprog_id)."</a></b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne06&$parameter'>".findtekst('9|Felt 3', $sprog_id)."</a></b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne07&$parameter'>".findtekst('13|Felt 7', $sprog_id)."</a></b></td>";
+print "<td><b><a href='jobliste.php?nysort=kolonne08&$parameter'>".findtekst('27|Planlagt til uge', $sprog_id).": </a></b></td>";
 print "</a></b></td>";
 
 print "</tr>\n";
@@ -156,14 +156,14 @@ print "<input type=\"hidden\" name=\"valg\" value=\"$valg\">";
 print "<input type=\"hidden\" name=\"sort\" value=\"$sort\">";
 print "<input type=\"hidden\" name=\"nysort\" value=\"$nysort\">";
 print "<tr>";
-print "<td><span title= '".findtekst(39,$sprog_id)."'><input type=text size=5 name=felt01 value=\"".$felt01."\"></td>";
-print "<td><span title= '".findtekst(40,$sprog_id)."'><input type=text size=5 name=felt02 value=\"".$felt02."\"></td>";
-print "<td><span title= '".findtekst(41,$sprog_id)."'><input type=text size=10 name=felt03 value=\"".$felt03."\"></td>";
-print "<td><span title= '".findtekst(42,$sprog_id)."'><input type=text size=10 name=felt04 value=\"".$felt04."\"></td>";
-print "<td><span title= '".findtekst(41,$sprog_id)."'><input type=text size=10 name=felt05 value=\"".$felt05."\"></td>";
-print "<td><span title= '".findtekst(41,$sprog_id)."'><input type=text size=10 name=felt06 value=\"".$felt06."\"></td>";
-print "<td><span title= '".findtekst(41,$sprog_id)."'><input type=text size=10 name=felt07 value=\"".$felt07."\"></td>";
-print "<td><span title= '".findtekst(41,$sprog_id)."'><input type=text size=10 name=felt08 value=\"".$felt08."\"></td>";
+print "<td><span title= '".findtekst('39|Ny', $sprog_id)."'><input type=text size=5 name=felt01 value=\"".$felt01."\"></td>";
+print "<td><span title= '".findtekst('40|Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval', $sprog_id)."'><input type=text size=5 name=felt02 value=\"".$felt02."\"></td>";
+print "<td><span title= '".findtekst('41|Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten', $sprog_id)."'><input type=text size=10 name=felt03 value=\"".$felt03."\"></td>";
+print "<td><span title= '".findtekst('42|Afmærk de felter som skal eksporteres', $sprog_id).".'><input type=text size=10 name=felt04 value=\"".$felt04."\"></td>";
+print "<td><span title= '".findtekst('41|Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten', $sprog_id)."'><input type=text size=10 name=felt05 value=\"".$felt05."\"></td>";
+print "<td><span title= '".findtekst('41|Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten', $sprog_id)."'><input type=text size=10 name=felt06 value=\"".$felt06."\"></td>";
+print "<td><span title= '".findtekst('41|Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten', $sprog_id)."'><input type=text size=10 name=felt07 value=\"".$felt07."\"></td>";
+print "<td><span title= '".findtekst('41|Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten', $sprog_id)."'><input type=text size=10 name=felt08 value=\"".$felt08."\"></td>";
 
 $x=0;
 print "<td><input type=submit value=\"OK\" name=\"submit\"></td>";
@@ -184,8 +184,8 @@ if ($menu=='T') {
 	print "<div class=\"headerTxt\">$title</div>";     
 	print "<div class=\"headerbtnRght headLink\">";
 	
-	print "<a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst(30,$sprog_id)."</a></div>"; 
-	print "<a href=debitor.php>".findtekst(34,$sprog_id)."</a></div>";     
+	print "<a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst('30|Tilbage', $sprog_id)."</a></div>"; 
+	print "<a href=debitor.php>".findtekst('34|Debitorliste', $sprog_id)."</a></div>";     
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
