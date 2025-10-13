@@ -1564,34 +1564,10 @@ function bogfor($id, $webservice)
 		} # else $fejl="Manglende varenummer for rabat (Indstillinger -> Diverse -> Ordrerelaterede valg)";
 	}
 	if (!$fejl) {
-		#ransaktion("begin"); 20130506
 		if ($art != "PO") {
-			$fakturanr = 1;
-			# select max kan ikke bruges da fakturanr felt ikke er numerisk;
-			#20170103
-			$qtxt = "select id, fakturanr from ordrer where (art = 'DO' or art = 'DK') and id != '$id' "; #20210112
-			$qtxt .= "and fakturanr != '' order by fakturadate desc, id desc limit 100";
-			#			$qtxt = "select fakturanr from ordrer where (art = 'DO' or art = 'DK') and id != '$id' and fakturanr != '' ";
-#			$qtxt = "order by fakturadate desc limit 100"; #20210112
-			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				if ($fakturanr <= $r['fakturanr'] * 1)
-					$fakturanr = $r['fakturanr'] + 1;
-			}
+			// Generate unique invoice number using the new thread-safe function
+			$fakturanr = get_next_invoice_number($art, $id);
 			db_modify("update ordrer set fakturanr='$fakturanr' where id='$id'", __FILE__ . " linje " . __LINE__);
-			usleep(rand(100000, 500000)); #20190421
-			$qtxt = "select id from ordrer where (art = 'DO' or art = 'DK') and fakturanr='$fakturanr' and id != '$id'";
-			while ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				$fakturanr++;
-				db_modify("update ordrer set fakturanr='$fakturanr' where id='$id'", __FILE__ . " linje " . __LINE__);
-				usleep(rand(100000, 500000));
-				$qtxt = "select id from ordrer where (art = 'DO' or art = 'DK') and fakturanr='$fakturanr' and id != '$id'";
-			}
-			$r = db_fetch_array(db_select("select box1 from grupper where art = 'RB' and kodenr='1'", __FILE__ . " linje " . __LINE__));
-			if ($fakturanr < $r['box1'])
-				$fakturanr = $r['box1'];
-			if ($fakturanr < 1)
-				$fakturanr = 1;
 			$ny_id = array();
 			$x = 0;
 			$q = db_select("select * from ordrelinjer where pris != '0' and m_rabat != '0' and rabat = '0' and ordre_id='$id'", __FILE__ . " linje " . __LINE__);
@@ -5003,8 +4979,7 @@ function opret_ordre($sag_id, $konto_id)
 	//$status=$r['status'];
 
 	if ((!$id) && ($firmanavn)) {
-		$r = db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc", __FILE__ . " linje " . __LINE__));
-		$ordrenr = $r['ordrenr'] + 1;
+		$ordrenr = get_next_order_number('DO');
 
 		$ordredate = date("Y-m-d");
 		$tidspkt = date("U");
@@ -5203,8 +5178,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 					  cho "kontakt_tlf: $kontakt_tlf<br>"; exit();
 					  */
 	if ((!$id) && ($firmanavn)) {
-		$r = db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc", __FILE__ . " linje " . __LINE__));
-		$ordrenr = $r['ordrenr'] + 1;
+		$ordrenr = get_next_order_number('DO');
 
 		$ordredate = date("Y-m-d");
 		$tidspkt = date("U");

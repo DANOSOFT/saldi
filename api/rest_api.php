@@ -402,36 +402,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		fwrite($log,__line__." kontonr $kontonr\n");
 	}
 	// Generate unique order number with additional safety checks
-	$max_attempts = 5;
-	$attempt = 0;
-	$ordrenr_found = false;
-	
-	while (!$ordrenr_found && $attempt < $max_attempts) {
-		$attempt++;
-		fwrite($log,__line__." Attempting to generate unique ordrenr (attempt $attempt)\n");
-		
-		$qtxt="select max(ordrenr) as max_ordrenr from ordrer where art='DO'";
-		fwrite($log,__line__." $qtxt\n");
-		$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-		$ordrenr = ($r['max_ordrenr'] ? $r['max_ordrenr'] : 0) + 1;
-		
-		// Double-check that this order number doesn't exist
-		$qtxt="select id from ordrer where ordrenr='$ordrenr' and art='DO'";
-		$check_r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		if (!$check_r['id']) {
-			$ordrenr_found = true;
-			fwrite($log,__line__." Generated unique ordrenr: $ordrenr\n");
-		} else {
-			fwrite($log,__line__." Ordrenr $ordrenr already exists, retrying...\n");
-			sleep(1); // Brief pause to avoid rapid retries
-		}
-	}
-	
-	if (!$ordrenr_found) {
-		fwrite($log,__line__." ERROR: Could not generate unique ordrenr after $max_attempts attempts\n");
-		fclose ($log);
-		return "Error: Could not generate unique order number";
-	}
+	$ordrenr = get_next_order_number('DO');
 	$projektnr=0;
 	$qtxt = "select box1 from grupper where art='DG' and kodenr = '$gruppe' ";
 	$qtxt.= "order by fiscal_year desc limit 1";

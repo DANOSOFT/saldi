@@ -756,8 +756,7 @@ if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kont
 }
 if (!$id && $konto_id && $kontonr) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag=0;
-	$r=db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc",__FILE__ . " linje " . __LINE__));
-	$ordrenr=$r['ordrenr']+1;
+	$ordrenr = get_next_order_number('DO');
 	if (strlen($phone) > 15) $phone = substr($phone,0,15); 
 	$ordredate=date("Y-m-d");
 	($lev_firmanavn)?$vis_lev_addr='on':$vis_lev_addr='';
@@ -1640,9 +1639,7 @@ if ($status<3 && $b_submit) {
 			$phone = substr($phone,0,15);
 		}
 
-		$query = db_select("select ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) $ordrenr=$row['ordrenr']+1;
-		else $ordrenr=1;
+		$ordrenr = get_next_order_number('DO');
     $r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$brugervalg=$r['box1']; # 20170419
 		if ($brugervalg) $ref='';
@@ -2036,9 +2033,7 @@ if ((strstr($b_submit,'Kopi'))||(strstr($b_submit,'Kred')))  {
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['kontonr']*1;
 		
-		$qtxt="select ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc limit 1";
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $ordrenr=$r['ordrenr']+1;
-		else $ordrenr=1;
+		$ordrenr = get_next_order_number('DO');
 		
     $tilbudnr = (int)if_isset($tilbudnr, 0);
     $sag_id = (int)if_isset($sag_id, NULL); #20250528

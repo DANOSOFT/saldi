@@ -2174,6 +2174,152 @@ if (!function_exists('get_next_number')) {
 	}
 }
 
+//                   ----------------------------- get_next_order_number ------------------------------
+if (!function_exists('get_next_order_number')) {
+	function get_next_order_number($art = 'DO')
+	{
+		/**
+		 * Generates the next available order number (ordrenr) for a given 'art' (type).
+		 * Uses database transactions and locking to prevent race conditions and duplicate numbers.
+		 * 
+		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
+		 * 
+		 * @return int - The next available order number.
+		 * @throws Exception - If unable to generate unique order number after maximum attempts.
+		 */
+		
+		$max_attempts = 10;
+		$attempt = 0;
+		$ordrenr = null;
+		
+		// Start transaction to ensure atomicity
+		transaktion('begin');
+		
+		try {
+			while ($attempt < $max_attempts) {
+				$attempt++;
+				
+				// Lock the ordrer table to prevent concurrent access
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+				// Get the maximum order number for the given art type
+				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$ordrenr = ($r['max_ordrenr'] ? $r['max_ordrenr'] : 0) + 1;
+				
+				// Double-check that this order number doesn't exist (extra safety)
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art'";
+				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				
+				if (!$check_r['id']) {
+					// Order number is unique, commit transaction and return
+					transaktion('commit');
+					return $ordrenr;
+				} else {
+					// Order number already exists, increment and try again
+					$ordrenr++;
+					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+				}
+			}
+			
+			// If we get here, we couldn't generate a unique number
+			transaktion('rollback');
+			throw new Exception("Could not generate unique order number after $max_attempts attempts");
+			
+		} catch (Exception $e) {
+			transaktion('rollback');
+			throw $e;
+		}
+	}
+}
+
+//                   ----------------------------- get_next_invoice_number ------------------------------
+if (!function_exists('get_next_invoice_number')) {
+	function get_next_invoice_number($art = 'DO', $id = null)
+	{
+		/**
+		 * Generates the next available invoice number (fakturanr) for a given 'art' (type).
+		 * Uses database transactions and locking to prevent race conditions and duplicate numbers.
+		 * Handles non-numeric fakturanr field by using string comparison and conversion.
+		 * 
+		 * @param string $art - The order type ('DO', 'DK', 'PO', etc.)
+		 * @param int $id - The order ID to exclude from checks (optional)
+		 * 
+		 * @return int - The next available invoice number.
+		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
+		 */
+		
+		$max_attempts = 10;
+		$attempt = 0;
+		$fakturanr = null;
+		
+		// Start transaction to ensure atomicity
+		transaktion('begin');
+		
+		try {
+			while ($attempt < $max_attempts) {
+				$attempt++;
+				
+				// Lock the ordrer table to prevent concurrent access
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+				// Get the maximum invoice number for the given art type
+				// Since fakturanr is not numeric, we need to handle it carefully
+				// Fetch all records and find max in PHP to avoid database-specific casting issues
+				$qtxt = "SELECT fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr != '' AND fakturanr IS NOT NULL";
+				if ($id) {
+					$qtxt .= " AND id != '$id'";
+				}
+				$qtxt .= " ORDER BY fakturadate DESC, id DESC LIMIT 100";
+				
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				$fakturanr = 1; // Start with 1
+				
+				while ($r = db_fetch_array($q)) {
+					$existing_fakturanr = (int)$r['fakturanr'];
+					if ($fakturanr <= $existing_fakturanr) {
+						$fakturanr = $existing_fakturanr + 1;
+					}
+				}
+				
+				// Double-check that this invoice number doesn't exist (extra safety)
+				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr = '$fakturanr'";
+				if ($id) {
+					$qtxt .= " AND id != '$id'";
+				}
+				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				
+				if (!$check_r['id']) {
+					// Check minimum invoice number from settings
+					$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
+					if ($r && $fakturanr < (int)$r['box1']) {
+						$fakturanr = (int)$r['box1'];
+					}
+					if ($fakturanr < 1) {
+						$fakturanr = 1;
+					}
+					
+					// Invoice number is unique, commit transaction and return
+					transaktion('commit');
+					return $fakturanr;
+				} else {
+					// Invoice number already exists, increment and try again
+					$fakturanr++;
+					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+				}
+			}
+			
+			// If we get here, we couldn't generate a unique number
+			transaktion('rollback');
+			throw new Exception("Could not generate unique invoice number after $max_attempts attempts");
+			
+		} catch (Exception $e) {
+			transaktion('rollback');
+			throw $e;
+		}
+	}
+}
+
 if (!function_exists('barcode')) {
 	function barcode($stregkode)
 	{

@@ -252,9 +252,7 @@ function createNewOrder($lev_id, $ref, &$pris, $baseCurrency, $ordredate) {
  * Get the next order number
  */
 function getNextOrderNumber() {
-    $query = "SELECT ordrenr FROM ordrer WHERE art='KO' OR art='KK' ORDER BY ordrenr DESC LIMIT 1";
-    $result = db_fetch_array(db_select($query, __FILE__ . " line " . __LINE__));
-    return $result ? $result['ordrenr'] + 1 : 1;
+    return get_next_order_number('KO');
 }
 
 /**

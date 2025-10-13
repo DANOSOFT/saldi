@@ -163,9 +163,7 @@ if (isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 2008.05.11
 	}
 }
 if ((!$id)&&($firmanavn)) {
-	$query = db_select("select ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc",__FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) $ordrenr=$row[ordrenr]+1;
-	else {$ordrenr=1;}
+	$ordrenr = get_next_order_number('DO');
 	$ordredate=date("Y-m-d");
 	db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,pbs,status,restordre) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$pbs','0','0')",__FILE__ . " linje " . __LINE__);
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc",__FILE__ . " linje " . __LINE__);

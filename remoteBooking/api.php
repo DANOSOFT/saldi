@@ -543,9 +543,7 @@ function CreateOrder($data){
         $enhed = "Uger";
     }
     $date = date("Y-m-d");
-    $query = db_select("SELECT ordrenr FROM ordrer WHERE art LIKE 'D%' ORDER BY ordrenr DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
-    $res = db_fetch_array($query);
-    $ordrenr = $res["ordrenr"] + 1;
+    $ordrenr = get_next_order_number('DO');
     if($invoiceDate){
         $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms, betalingsbet, udskriv_til) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms, 'Kreditkort', 'email')", __FILE__ . " linje " . __LINE__);
     }else{

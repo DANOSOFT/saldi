@@ -502,9 +502,7 @@ if ((is_numeric($status) && $status<3) || (isset($_POST['credit'])) || isset($_P
 		$id = indset_konto($id, $konto_id);
 	}
 	if ((!$id)&&($konto_id)&&($firmanavn)) {
-		$qtxt = "select ordrenr from ordrer where art='KO' or art='KK' order by ordrenr desc";
-		if ($row = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {$ordrenr=$row['ordrenr']+1;}
-		else {$ordrenr=1;}
+		$ordrenr = get_next_order_number('KO');
 #			if ($row= db_fetch_array(db_select("select ansat_id from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__))) {
 #				if ($row= db_fetch_array(db_select("select afd from ansatte where id='$row[ansat_id]'",__FILE__ . " linje " . __LINE__))) {
 #					if ($row= db_fetch_array(db_select("select kodenr from grupper where box1='$row[afd]' and art='LG'",__FILE__ . " linje " . __LINE__))) {$lager_id=$row['kodenr'];}
@@ -1642,9 +1640,7 @@ function indset_konto($id, $konto_id) {
 	$momssats=$momssats*1;
 	if ((!$id)&&($firmanavn)) {
 		$ordredate=date("Y-m-d");
-		$query = db_select("select ordrenr from ordrer where art='KO' or art='KK' order by ordrenr desc",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) {$ordrenr=$row['ordrenr']+1;}
-		else {$ordrenr=1;}
+		$ordrenr = get_next_order_number('KO');
 
 		db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, email, mail_fakt, udskriv_til, notes, art, ordredate, momssats, status, hvem, tidspkt, valuta, omvbet) values ($ordrenr, '$konto_id', '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$betalingsdage', '$betalingsbet', '$cvrnr', '$email', '$mail_fakt', '$udskriv_til', '$notes', 'KO', '$ordredate', '$momssats', '0', '$brugernavn', '$tidspkt', '$valuta','$omlev')",__FILE__ . " linje " . __LINE__);
 		$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc",__FILE__ . " linje " . __LINE__);
@@ -1684,9 +1680,7 @@ function indset_debitor($id, $debitor_id) {
 	}
 	if ((!$id)&&($lev_navn)) {
 		$ordredate=date("Y-m-d");
-		$query = db_select("select ordrenr from ordrer where art='KO' or art='KK' order by ordrenr desc",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) {$ordrenr=$row['ordrenr']+1;}
-		else {$ordrenr=1;}
+		$ordrenr = get_next_order_number('KO');
 
 		db_modify("insert into ordrer (ordrenr, lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, art, ordredate, status, hvem, tidspkt) values ($ordrenr, '$lev_navn', '$lev_addr1', '$lev_addr2', '$lev_postnr', '$lev_bynavn', '$lev_kontakt', 'KO', '$ordredate', '0', '$brugernavn', '$tidspkt')",__FILE__ . " linje " . __LINE__);
 		$query = db_select("select id from ordrer where ordrenr='$ordrenr' and ordredate='$ordredate' order by id desc",__FILE__ . " linje " . __LINE__);
