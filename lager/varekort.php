@@ -404,7 +404,7 @@ if ($saveItem || $submit = trim($submit)) {
         $master = $cat[0];
     } else
         $master = NULL;
-    $tmp = findtekst(343, $sprog_id);
+    $tmp = findtekst('343|Skriv evt. ny kategori her', $sprog_id);
     $ny_kategori = trim($ny_kategori);
     $master = trim($master);
 
@@ -458,7 +458,7 @@ if ($saveItem || $submit = trim($submit)) {
         $r = db_fetch_array($q = db_select($qtxt, __FILE__ . " linje " . __LINE__));
         #       $master_id=$r['id']*1;
         if (!$rename_category && $r = db_fetch_array($q = db_select("select id from grupper where art='V_CAT' and lower(box1) = '" . db_escape_string(strtolower($ny_kategori)) . "' and box2='$master'", __FILE__ . " linje " . __LINE__))) {
-            $alerttekst = findtekst(344, $sprog_id);
+            $alerttekst = findtekst('344|Kategorien $ny_kategori eksisterer allerede', $sprog_id);
             $alerttekst = str_replace('$ny_kategori', $ny_kategori, $alerttekst);
             print "<BODY onLoad=\"javascript:alert('$alerttekst')\">\n";
         } elseif ($rename_category) {
@@ -1128,7 +1128,7 @@ if ($popup && !$returside)
     $returside = "../includes/luk.php";
 elseif (!$returside)
     $returside = "varer.php";
-$tekst = findtekst(154, $sprog_id);
+$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
 if ($begin)
     transaktion('commit');
@@ -1178,12 +1178,12 @@ if ($menu == 'T') {
     if ($opener != 'varer.php') {
         print "<td width=\"10%\">
                <a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>
-               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>\n";
+               <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
     } else {
         print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>
                <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
     }
-    print "<td align='center' style='$topStyle'>" . findtekst(566, $sprog_id) . "</td>\n";
+    print "<td align='center' style='$topStyle'>".findtekst('566|Varekort', $sprog_id)."</td>\n";
     // print "<td width='10%' align='center' style='$topStyle'><br></td>\n";
 
     # Open pos menus
@@ -1196,7 +1196,7 @@ if ($menu == 'T') {
         # Create new item
         print "<td width='10%' align='right'>
          <a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>
-         <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(39, $sprog_id) . "</button></a><td>\n";
+         <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><td>\n";
     }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
@@ -1207,10 +1207,10 @@ if ($menu == 'T') {
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
     $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
     if ($opener != 'varer.php')
-        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>\n";
+        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&varenr=" . addslashes($varenr) . "&vare_id=$id','$tekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
     else
         print "<td width=\"10%\" $tmp $top_bund> <a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>Luk</a></td>\n";
-    print "<td width=\"70%\" $top_bund align=\"center\">" . findtekst(566, $sprog_id) . "</td>\n";
+    print "<td width=\"70%\" $top_bund align=\"center\">".findtekst('566|Varekort', $sprog_id)."</td>\n";
 
     # Open pos menus
     if ($id)
@@ -1218,7 +1218,7 @@ if ($menu == 'T') {
 
     # Create new item
     if ($id)
-        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a>\n";
+        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
     print "<td align = center valign = center>\n";
@@ -1515,7 +1515,7 @@ $query = db_select("SELECT varenr_alias FROM varer WHERE id = '$id'", __FILE__ .
 $varenrAlias = db_fetch_array($query)['varenr_alias'];
 if (substr($rettigheder,7,1) && $id) {
     print "<tr><td colspan=\"1\"></td>\n";
-    print "<td colspan=\"1\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b>";
+    print "<td colspan=\"1\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b>";
     if($varenrAlias) { 
         print "<b style='margin-left: 1rem;'>Varenr alias: <a href='ret_varenralias.php?id=$id' >$varenrAlias</a></b></td>";
     }else{
@@ -1566,7 +1566,7 @@ if (substr($rettigheder,7,1) && $id) {
         </td>\n";
     }
 } else {
-    print "<tr><td colspan=\"3\" align=\"center\"><b>" . findtekst(917, $sprog_id) . ": <a href=\"$href\">$varenr</a></b></td>\n";
+    print "<tr><td colspan=\"3\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b></td>\n";
 }
 
 print "</tr>";
@@ -1577,7 +1577,7 @@ if (!$varenr) {
     print "<td colspan=\"3\" align=\"center\">\n";
     print "<input class=\"inputbox\" type=\"text\" size=\"25\" name=\"varenr\" value=\"$varenr\" pattern='" . $pattern . "' ";
     print "onchange=\"javascript:docChange = true;\"></td></tr>\n";
-    print "<tr><td align=center>" . findtekst(2021, $sprog_id) . "</td>\n";
+    print "<tr><td align=center>".findtekst('2021|Tilladte tegn er: a-z A-Z 0-9 . + -_', $sprog_id)."</td>\n";
     print "<tr><td align=center><a href='varescanimport.php?returside=varekort.php'><button type='button'>Masse vare scan</button></a></td></tr>\n";
 } else {
     print "<input type=\"hidden\" name=\"varenr\" value=\"$varenr\">\n";
@@ -1590,14 +1590,14 @@ if (!$varenr) {
     $showVariants = '1';
     if ($showVariants && count($variantVarerId)) { // Selected Variants is shown
         print "<tr><td colspan=\"2\"><hr></td></tr>\n";
-        print "<tr><td colspan=\"2\">" . findtekst(472, $sprog_id) . "</td></tr>\n";
+        print "<tr><td colspan=\"2\">".findtekst('472|Varianter', $sprog_id)."</td></tr>\n";
         print "<tr><td colspan=\"2\"><table border=\"0\"><tbody>\n";
         print "\n<!-- productCardIncludes/showVariantsInfo.php begin -->\n";
         include_once('productCardIncludes/showVariantsInfo.php');
         print "\n<!-- productCardIncludes/showVariantsInfo.php end -->\n";
         print "</tbody></table></td>\n";
     } else { // Inputfield for barcode is shown
-        print "<tr><td>" . findtekst(2016, $sprog_id) . "<!--Stregkode--></td><td><input class=\"inputbox\" type=\"text\" style=\"text-alig1n:left;width:400px;\" name=\"stregkode\" value=\"$stregkode\" onchange=\"javascript:docChange = true;\"></td>\n";
+        print "<tr><td>".findtekst('2016|Stregkode', $sprog_id)."<!--Stregkode--></td><td><input class=\"inputbox\" type=\"text\" style=\"text-alig1n:left;width:400px;\" name=\"stregkode\" value=\"$stregkode\" onchange=\"javascript:docChange = true;\"></td>\n";
     }
     print "</tbody></table></td>\n";
     #print "<tr><td>Varianter</td><td>\n";
@@ -1887,21 +1887,21 @@ print "<input type = 'hidden' name='oldRetailPrice' value='$retail_price'>";
 
 
 print "<tr><td align = center><input class='button green medium' style='width:150px;' type=submit accesskey=\"g\" ";
-print "value=\"" . findtekst(3, $sprog_id) . "\" name=\"saveItem\" onclick=\"javascript:docChange = false;\" $noEdit></td>";
+print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"javascript:docChange = false;\" $noEdit></td>";
 
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
 if ($varenr && $samlevare == 'on') {
-    $txt1100 = findtekst(1100, $sprog_id); //Kopier
+    $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
 } elseif ($varenr) {
-    $txt1100 = findtekst(1100, $sprog_id); //Kopier
-    $txt2049 = findtekst(2049, $sprog_id); //Leverandøropslag
+    $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
+    $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
 }
 if ($id) {
-    $txt1099 = findtekst(1099, $sprog_id); //Slet
+    $txt1099 = findtekst('1099|Slet', $sprog_id); //Slet
     $q = db_select("select distinct(id) from ordrelinjer where vare_id = $id", __FILE__ . " linje " . __LINE__);
     if (!db_fetch_array($q) && $lev_ant < 1 && $ant_be_af < 1 && $ant_indg_i < 1) {
         print "<td align=center><input style='width:150px;' class='button red medium' type=submit ";
@@ -2010,11 +2010,11 @@ function kategorier($x, $id, $kat_niveau, $kategori_antal, $kat_id, $kategori, $
     print "$kat_master -> $kat_beskrivelse";
     #           if ($show_subcat!=$kat_id[$x]) print "&nbsp;<a href=\"varekort.php?id=$id&show_subcat=$kat_id[$x]\">&nbsp;-></a>";
     print "</td>\n";
-    $tekst = findtekst(395, $sprog_id);
+    $tekst = findtekst('395|Afmærk her for at knytte $firmanavn til denne kategori', $sprog_id);
     #               $tekst=str_replace('$firmanavn',$firmanavn,$tekst); 
     print "<td title=\"$tekst\" align=\"center\"><!--tekst 395--><input type=\"checkbox\" name=\"kat_valg[$x]\" $checked></td>\n";
-    print "<td title=\"" . findtekst(396, $sprog_id) . "\"><!--tekst 396--><a href=\"varekort.php?id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
-    print "<td title=\"" . findtekst(397, $sprog_id) . "\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
+    print "<td title=\"".findtekst('396|Klik her for at omdøbe denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&    =$kat_id\" onclick=\"return confirm('Vil du omd&oslash;be denne kategori?')\"><img src=../ikoner/rename.png border=0></a></td>\n";
+    print "<td title=\"".findtekst('397|Klik her for at slette denne kategori', $sprog_id)."\"><!--tekst 396--><a href=\"varekort.php?id=$id&delete_category=$kat_id\" onclick=\"return confirm('Vil du slette denne katagori?')\"><img src=../ikoner/delete.png border=0></a></td>\n";
     print "</tr>\n";
     print "<input type=\"hidden\" name=\"kat_id[$x]\" value=\"$kat_id\">\n";
 } # endfunc kategorier

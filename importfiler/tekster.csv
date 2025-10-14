@@ -1515,8 +1515,8 @@
 1515	Købsordre	Purchase order	Bestilling
 1516	Klik her for at udskrive ordrelinjer til en tabulatorsepareret fil, som kan importeres i et regneark	Click here to print order lines for a tab-separated file that can be imported into a spreadsheet	Klikk her for å skrive ut ordrelinjer for en fane-separert fil som kan importeres til et regneark
 1517	Klik her for at vise alle varer fra alle leverandører	Click here to view all items from all suppliers	Klikk her for å se alle varene fra alle leverandører
-1518	Klik her for kun at vise alle varer fra denne leverandø 	Click here to display only all items from this supplier	Klikk her for å vise bare alle elementene fra denne leverandøren
-1519	Denne Leverandør	This Supplier	Denne leverandøren
+1518	Klik her for kun at vise alle varer fra denne leverandør 	Click here to display only all items from this supplier	Klikk her for å vise bare alle elementene fra denne leverandøren
+1519	Denne leverandør	This supplier	Denne leverandøren
 1520	Reserveret	Reserved	Reservert
 1521	Vælg hvilke kreditorgrupper som vises i varelisten	Select which creditor groups appear in the item list	Velg hvilke kreditorgrupper som skal vises i varelisten
 1522	Fortsæt med at redigere ordren	Continue to edit order	Fortsett å redigere bestillingen

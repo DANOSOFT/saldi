@@ -1027,13 +1027,13 @@ ordreside($id);
 function ordreside($id) {
 
 	global $art;
-	global $bogfor,$brugernavn;
-	global $db,$fokus;
+	global $bogfor, $brugernavn;
+	global $db, $fokus;
 	global $krediteret;
 	global $labelprint;
 	global $momssum;
 	global $returside;
-	global $sort,$sprog_id,$submit;
+	global $sort, $sprog_id, $submit;
 
 	if(!isset($salgspris)){ $salgspris=null;} 
 	if(!isset($antal)){ $antal=null;} 
@@ -1198,14 +1198,14 @@ function kontoopslag($sort, $fokus, $id, $find){
 #	print"<tr><td valign=\"top\">";
 	print"<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='dataTable'>";
 	print"<tbody><tr>";
-	print"<td><b><a href=ordre.php?sort=kontonr&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(357,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=firmanavn&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(138,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=addr1&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(648,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=addr2&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(362,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=postnr&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(36,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=bynavn&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(1055,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=land&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(364,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=kontakt&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(632,$sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=kontonr&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('357|Kundenr.', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=firmanavn&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('138|Navn', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=addr1&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('648|Adresse', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=addr2&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('362|Adresse 2', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=postnr&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('36|Postnr.', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=bynavn&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('1055|By', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=land&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('364|Land', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=kontakt&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('632|Kontaktperson', $sprog_id)."</b></td>";
 	print"<td><b><a href=ordre.php?sort=tlf&funktion=kontoOpslag&x=$x&fokus=$fokus&id=$id>Telefon</b></td>";
 	print" </tr>\n";
 
@@ -1267,14 +1267,14 @@ function debitoropslag($sort, $fokus, $id, $find){
 #	print"<tr><td valign=\"top\">";
 	print"<table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top' class='dataTable'>";
 	print"<tbody><tr>";
-	print"<td><b><a href=ordre.php?sort=kontonr&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(357,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=firmanavn&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(138,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=addr1&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(648,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=addr2&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(362,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=postnr&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(36,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=bynavn&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(1055,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=land&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(364,$sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=kontakt&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst(632,$sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=kontonr&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('357|Kundenr.', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=firmanavn&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('138|Navn', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=addr1&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('648|Adresse', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=addr2&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('362|Adresse 2', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=postnr&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('36|Postnr.', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=bynavn&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('1055|By', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=land&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('364|Land', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=kontakt&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>".findtekst('632|Kontaktperson', $sprog_id)."</b></td>";
 	print"<td><b><a href=ordre.php?sort=tlf&funktion=debitorOpslag&x=$x&fokus=$fokus&id=$id>Telefon</b></td>";
 	print" </tr>\n";
 
@@ -1420,17 +1420,17 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find,$lager) {
 
 	print"<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 	print"<tbody><tr>";
-	print"<td><b><a href=ordre.php?sort=varenr&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=$vis&lager=$lager>".findtekst(917, $sprog_id)."</a></b></td>";
-	print"<td><b> ".findtekst(945, $sprog_id)."</b></td>";
-	print"<td><b><a href=ordre.php?sort=beskrivelse&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=$vis&lager=$lager>".findtekst(914,$sprog_id)."</a></b></td>";
-	print"<td align=right><b><a href=ordre.php?sort=salgspris&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=$vis&lager=$lager>".findtekst(949, $sprog_id)."</a></b></td>";
-	print"<td align=right><b> ".findtekst(950, $sprog_id)."</b></td>";
-	print"<td align=right><b> ".findtekst(980, $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=varenr&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=$vis&lager=$lager>".findtekst('917|Varenr.', $sprog_id)."</a></b></td>";
+	print"<td><b>".findtekst('945|Enhed', $sprog_id)."</b></td>";
+	print"<td><b><a href=ordre.php?sort=beskrivelse&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=$vis&lager=$lager>".findtekst('914|Beskrivelse', $sprog_id)."</a></b></td>";
+	print"<td align=right><b><a href=ordre.php?sort=salgspris&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=$vis&lager=$lager>".findtekst('949|Salgspris', $sprog_id)."</a></b></td>";
+	print"<td align=right><b>".findtekst('950|Kostpris', $sprog_id)."</b></td>";
+	print"<td align=right><b>".findtekst('980|Beholdning', $sprog_id)."</b></td>";
 #	print"<td width=2%></td>";
-	print"<td align><b> ".findtekst(966, $sprog_id)."</b></td>";
+	print"<td align><b>".findtekst('951|Leverandør', $sprog_id)."</b></td>";
 	if ($kontonr)	{
-		if ($vis) {print"<td align=right><a href=ordre.php?sort=$sort&funktion=lookup&x=$x&fokus=$fokus&id=$id&lager=$lager><span title='".findtekst(1517, $sprog_id)."'>".findtekst(565, $sprog_id)."</span></a></td>";}
-		else {print"<td align=right><a href=ordre.php?sort=$sort&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=1&lager=$lager><span title='".findtekst(1518, $sprog_id)."'>".findteskt(1519, $sprog_id)."</span></a></td>";}
+		if ($vis) {print"<td align=right><a href=ordre.php?sort=$sort&funktion=lookup&x=$x&fokus=$fokus&id=$id&lager=$lager><span title='".findtekst('1517|Klik her for at vise alle varer fra alle leverandører', $sprog_id)."'>".findtekst('565|Alle leverandører', $sprog_id)."</span></a></td>";}
+		else {print"<td align=right><a href=ordre.php?sort=$sort&funktion=lookup&x=$x&fokus=$fokus&id=$id&vis=1&lager=$lager><span title='".findtekst('1518|Klik her for kun at vise alle varer fra denne leverandør', $sprog_id)."'>".findteskt('1519|Denne Leverandør', $sprog_id)."</span></a></td>";}
 	}
 		print" </tr>\n";
 
@@ -1495,7 +1495,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find,$lager) {
 						$q3 = db_select("select * from reservation where batch_kob_id=$r2[id]",__FILE__ . " linje " . __LINE__);
 						while ($r3 = db_fetch_array($q3)) {$reserveret=$reserveret+$r3[antal];}
 					}
-					$linjetext="<span title= '".findtekst(1520, $sprog_id).": $reserveret'>";
+					$linjetext="<span title='".findtekst('1520|Reserveret', $sprog_id).": $reserveret'>";
 					if ($r2= db_fetch_array(db_select("select beholdning from lagerstatus where vare_id=$row[id] and lager=$lager",__FILE__ . " linje " . __LINE__))) {
 						print "<td align=right>$linjetext $r2[beholdning] &nbsp;</span></td>";
 					} else print "<td align=right>$linjetext 0 &nbsp;</span></td>";
@@ -1549,14 +1549,14 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $top_bund;
 
 	$title= 'Leverandør ordre';
-	$alerttekst=findtekst(154,$sprog_id);
+	$alerttekst=findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">"; 
-	if ($kort) print "<div class=\"headerbtnLft headLink\"><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
-	else print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";
+	if ($kort) print "<div class=\"headerbtnLft headLink\"><a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
+	else print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst('30|Tilbage', $sprog_id)."</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";     	
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<div class=\"headerbtnRght headLink\"><a accesskey=N href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";}
 	else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<div class=\"headerbtnRghtheadLink\"><a accesskey=N href=\"$kort?returside=$returside&ordre_id=$id\"  title='Klik her for at lave ny ordre'><i class='fa fa-plus-square fa-lg'></i></a></div>";}
@@ -1568,7 +1568,7 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 } else {
-		print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
+		print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst('547|Leverandørordre', $sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
 		print "<div align=\"center\">";
 
@@ -1578,15 +1578,15 @@ if ($menu=='T') {
 #	if ($returside != "ordre.php") {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 #	else {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?id=$id','$alerttekst')\" accesskey=L>Luk</a></td>";}
 		if ($kort) print "<td width=\"10%\" $top_bund> $color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
-		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>".findtekst(30, $sprog_id)."</a></td>";
+		else print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
-		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
-		else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";}
+		if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";}
+		else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {print "<td width=\"10%\" $top_bund> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";}
 		elseif ($kort=="../kreditor/kreditorkort.php") {
-			print "<td width=\"5%\"$top_bund onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='".findtekst(1521, $sprog_id)."'><u>".findtekst(813, $sprog_id)."</u></span></td>"; #20210716
-			print "<td width=\"5%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";
+			print "<td width=\"5%\"$top_bund onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='".findtekst('1521|Vælg hvilke kreditorgrupper som vises i varelisten', $sprog_id)."'><u>".findtekst('813|Visning', $sprog_id)."</u></span></td>"; #20210716
+			print "<td width=\"5%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";
 		}	elseif (($id)||($kort!="../lager/varekort.php")) {
-		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>".findtekst(39, $sprog_id)."</a></td>";
+		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";
 	}
 	else {print "<td width=\"10%\" $top_bund><br></td>";}
 	print "</tbody></table>";

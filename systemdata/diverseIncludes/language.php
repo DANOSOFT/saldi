@@ -60,8 +60,8 @@ function language () {
     $languages=explode(chr(9),$r['var_value']);
     include("../includes/online.php");
     
-    $tekst1=findtekst(1,$sprog_id);
-    $tekst2=findtekst(2,$sprog_id);
+    $tekst1=findtekst('1|Dansk', $sprog_id);
+    $tekst2=findtekst('2|Vælg aktivt sprog', $sprog_id);
     for ($x=1; $x<count($languages);$x++) {
         if ($languageId == $x) $languageName  = $languages[$x];
     }
@@ -70,7 +70,7 @@ function language () {
         $languageName = 'Dansk';
     }
     #print "<tr><td title='Klik her for at rette tekster'><a href=tekster.php?sprog_id=1>$tekst1</a></td>";
-    print "<tr><td title='Klik her for at rette tekster'><a href=tekster.php?sprog_id=$languageId>$languageName</a></td>"; #20210818
+    print "<tr><td title='".findtekst('2717|Klik her for at rette tekster', $sprog_id)."'><a href=tekster.php?sprog_id=$languageId>$languageName</a></td>"; #20210818
     print "<td><SELECT class='inputbox' NAME='newLanguageId' title='$tekst2'>";
     #		if ($box3[$x]) print"<option>$box3[$x]</option>";
     for ($x=1; $x<count($languages);$x++) {
@@ -83,15 +83,15 @@ function language () {
 #	}
     print "<tr><td><br></td></tr>";
 
-    $tekst1=findtekst(3,$sprog_id);
+    $tekst1=findtekst('3|Gem', $sprog_id);
     print "<tr><td align = right colspan='4'><input class='button green medium' type=submit value='$tekst1' name='submit'></td></tr>";
     print "</form>";
     
     // Cookie language selector (same as index.php)
     print "<form method='POST' action='diverse.php?sektion=sprog'>";
     print "<tr><td colspan='6'><hr></td></tr>";
-    print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>User Language Preference</b></u></td></tr>";
-    print "<tr><td>Set your preferred language:</td>";
+    print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('2714|Sprogindstillinger', $sprog_id)."</b></u></td></tr>";
+    print "<tr><td>".findtekst('2715|Vælg dit foretrukne sprog', $sprog_id).":</td>";
     // Read from tekster.csv like index.php does
     $fp = fopen("../importfiler/tekster.csv","r");
     if ($linje=trim(fgets($fp))) {
@@ -106,14 +106,14 @@ function language () {
     if (!is_numeric($cookieLanguageId)) $cookieLanguageId = 1;
     for ($x=1; $x<=count($a); $x++){
         if ($x == $cookieLanguageId){
-            print "<option selected value='$x'>". findtekst(1,$x) ."</option>\n";
+            print "<option selected value='$x'>".findtekst('1|Dansk', $x)."</option>\n";
         }
         else {
-            print "<option value='$x'>". findtekst(1,$x) ."</option>\n";
+            print "<option value='$x'>".findtekst('1|Dansk', $x)."</option>\n";
         }
     }
     print "</select></td></tr>";
-    print "<tr><td colspan='2'><small>Current language: " . findtekst(1,$cookieLanguageId) . "</small></td></tr>";
+    print "<tr><td colspan='2'><small>".findtekst('2716|Nuværende sprog', $sprog_id).": ".findtekst('1|Dansk', $cookieLanguageId)."</small></td></tr>";
     print "</form>";
     
 } # endfunc sprog

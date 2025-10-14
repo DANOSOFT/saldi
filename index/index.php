@@ -217,10 +217,10 @@ fclose($fp);
 if (!is_numeric($languageId)) $languageId = 1;
 for ($x=1; $x<=count($a); $x++){
 if ($x == $languageId){
-print "<option selected value=\"$x\">". findtekst(1,$x) ."</option>\n";
+print "<option selected value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
 }
 else {
-print "<option value=\"$x\">". findtekst(1,$x) ."</option>\n";
+print "<option value=\"$x\">". findtekst('1|Dansk', $x) ."</option>\n";
 }
 }
 print "</select>\n";
@@ -238,24 +238,24 @@ if ($fejltxt) {
 }
 
 print " <input type=\"hidden\" value=\"$languageId\" name=\"languageId\" >";
-print "						<label for=\"Regnskab\">". findtekst(115,$languageId) ."</label>\n";
+print "						<label for=\"Regnskab\">". findtekst('115|Regnskab', $languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"regnskab\" name=\"regnskab\" value=\"$regnskab\" tabindex=\"1\">\n";
-print "						<label for=\"login\">". findtekst(225,$languageId) ."</label>\n";
+print "						<label for=\"login\">". findtekst('225|Brugernavn', $languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"login\" name=\"brugernavn\" value=\"$brugernavn\" tabindex=\"2\">\n";
-print "						<label for=\"password\">". findtekst(324,$languageId) ."</label>\n";
+print "						<label for=\"password\">". findtekst('324|Adgangskode', $languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"password\" id=\"password\" name=\"password\"  value=\"$kode\" tabindex=\"3\">\n";
 print "						<div class=\"loginAction\">\n";
 print "							<div class=\"flleft\">\n";
 print "								<label for=\"husk_mig\">\n";
 print "								<input type=\"checkbox\" id=\"husk_mig\" name=\"huskmig\" $huskmig tabindex=\"4\">\n";
-print "								". findtekst(2006,$languageId) ."</label>\n";
-print "								<a class=\"forgotpass\" href=\"glemt_kode.php\" tabindex=\"5\">". findtekst(2007,$languageId) ."</a>\n";
+print "								". findtekst('2006|Husk mig', $languageId) ."</label>\n";
+print "								<a class=\"forgotpass\" href=\"glemt_kode.php\" tabindex=\"5\">". findtekst('2007|Glemt adgangskode?', $languageId) ."</a>\n";
 print "							</div><!-- end of flleft -->\n";
 print "							<input class=\"button blue flright\" type=\"submit\" value=\"Login\" alt=\"Login\" title=\"Login\" tabindex=\"6\">\n";
 # print "							<div class=\"clearfix\"></div>\n"; #25042024
 print "						</div><!-- end of loginAction -->\n";
 if (strtolower($sqdb)=='rotary') {
-	print "<label style=\"text-align:center;font-size:12px;\">".findtekst(325,$sprog_id)."</label>\n";
+	print "<label style=\"text-align:center;font-size:12px;\">".findtekst('325|-', $sprog_id)."</label>\n";
 }
 
 print "					</form>\n";
