@@ -4277,11 +4277,14 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					if ($_GET['kortnavn']) $felt_1=$_GET['kortnavn'];
 					db_modify("update ordrer set betalt='$betalt',felt_1='$felt_1' where id = '$id'",__FILE__ . " linje " . __LINE__);
 					db_modify("INSERT INTO pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) VALUES ('$id','$felt_1','$betalt','DKK','100')",__FILE__ . " linje " . __LINE__);
+					if($felt_4 + $felt_2 == $sum+$moms){
+						$betalt = $sum+$moms;
+						db_modify("INSERT INTO pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) VALUES ('$id','$felt_3','$felt_4','DKK','100')",__FILE__ . " linje " . __LINE__);
+						db_modify("UPDATE ordrer SET betalt='$betalt' where id = '$id'",__FILE__ . " linje " . __LINE__);
+					}
 				}
 				if ($betalt) {
 					$disabled='disabled';
-					$felt_2=$betalt;
-					$dkfelt_2=dkdecimal($betalt,2);
 				} else $disabled=$disabled;
         print "<tr><td><select style='width:110px' name='felt_1' $disabled>";
 #        if ($betalingsbet=='Kreditkort') {
@@ -4363,12 +4366,14 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					}
 
 					($felt_1=='Betalingskort')?$vis_betalingslink=1:$vis_betalingslink=0;
-					for($x=0;$x<$kortantal;$x++) {
-						if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
-					}
+
 					if ($vis_betalingslink) {
-						// Use Lane3000 terminal instead of old terminal
-						$href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php";
+						$qtxt = "SELECT * FROM settings WHERE var_grp = 'move3500' and pos_id = $afd";
+					$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					($r['id'])?$useLane3000 = 1:$useLane3000 = 0;
+						if ($useLane3000) $href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php&";
+						else $href="http://".$terminal_ip[$felt_5-1]."/pointd/kvittering.php?url=$url&id=$id&&kommando=kortbetaling&";
+            				$href.="belob=$dkfelt_2&betaling=&modtaget=$dkfelt_2&modtaget2=0&indbetaling=&tidspkt=".date("U");
 						if (isset($_GET['indbetaling'])) {
 							$href .= "&indbetaling=" . $_GET['indbetaling'];
 						}
