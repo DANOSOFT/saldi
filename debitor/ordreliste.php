@@ -191,28 +191,28 @@ global $color;
  //	
 #print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Ordreliste - Kunder</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 
-$aa = findtekst(360, $sprog_id);
+$aa = findtekst('360|Firmanavn', $sprog_id);
 $firmanavn1 =ucfirst(str_replace(' ','_', $aa));
-$bb = findtekst(107, $sprog_id);
+$bb = findtekst('107|Ordrer', $sprog_id);
 $ordrer1 =strtolower(str_replace(' ','_', $bb));
-$cc = findtekst(893, $sprog_id);
+$cc = findtekst('893|faktura', $sprog_id);
 $faktura1=strtolower(str_replace(' ','_', $cc));
-$dd = findtekst(812, $sprog_id);
+$dd = findtekst('812|Tilbud', $sprog_id);
 $tilbud1=strtolower(str_replace(' ','_', $dd));
-$ee = findtekst(892,$sprog_id);
+$ee = findtekst('892|Ordrelistevisning', $sprog_id);
 $beskrivelse= strtolower(str_replace(' ','_', $ee));//20210527
 
-$ff = findtekst(500,$sprog_id);
+$ff = findtekst('500|Ordrenr.', $sprog_id);
 $ordrenr1= strtolower(str_replace(' ','_', $ff));
-$gg = findtekst(881,$sprog_id);
+$gg = findtekst('881|Ordredato', $sprog_id);
 $ordredate1 = strtolower(str_replace(' ','_', $gg));
-$hh = findtekst(804,$sprog_id);
+$hh = findtekst('804|Kontonr.', $sprog_id);
 $kontonr1 = strtolower(str_replace(' ','_', $hh));
-$ii = findtekst(882,$sprog_id);
+$ii = findtekst('882|Fakt. nr.', $sprog_id);
 $fakturanr1  = strtolower(str_replace(' ','_', $ii));
-$jj = findtekst(883,$sprog_id);
+$jj = findtekst('883|Fakt. dato', $sprog_id);
 $fakturadate1 = strtolower(str_replace(' ','_', $jj));
-$kk = findtekst(891,$sprog_id);
+$kk = findtekst('891|nextfakt', $sprog_id);
 $nextfakt1 = strtolower(str_replace(' ','_', $kk));
 
 
@@ -404,7 +404,7 @@ $checked = if_isset($_POST,NULL,'checked');
 
 $slet_valgte=if_isset($_POST,NULL,'slet_valgte'); 
 #if ($slet_valgte=='Slet') {
-if ($slet_valgte==findtekst(1099, $sprog_id)) { #20210817 applying the translated values for delete here
+if ($slet_valgte==findtekst('1099|Slet', $sprog_id)) { #20210817 applying the translated values for delete here
 	
 	include("../includes/ordrefunc.php");
 	$y=0;
@@ -415,8 +415,8 @@ if ($slet_valgte==findtekst(1099, $sprog_id)) { #20210817 applying the translate
 		}
 	}
 }
-$y=0; $alert1 = findtekst(1418, $sprog_id); #20210714
-if ($submit==findtekst(880, $sprog_id) || $submit=="Send mails"){ #20210817 Added translated variable 
+$y=0; $alert1 = findtekst('1418|Ingen fakturaer er markeret til udskrivning!', $sprog_id); #20210714
+if ($submit==findtekst('880|Udskriv', $sprog_id) || $submit=="Send mails"){ #20210817 Added translated variable 
 	for ($x=0; $x<count($ordre_id); $x++){
 		$c=$ordre_id[$x];
 		if ($checked[$c]=="on") {
@@ -426,7 +426,7 @@ if ($submit==findtekst(880, $sprog_id) || $submit=="Send mails"){ #20210817 Adde
 		}
 	}
 	if ($y>0) {
-		if ($submit==findtekst(880, $sprog_id)) {
+		if ($submit==findtekst('880|Udskriv', $sprog_id)) {
 			print "<script>window.open('formularprint.php?id=-1&ordre_antal=$y&skriv=$udskriv&formular=4&udskriv_til=PDF&returside=../includes/luk.php')</script>";
 		} elseif ($submit=="Send mails") {
 			print "<script>window.open('formularprint.php?id=-1&ordre_antal=$y&skriv=$udskriv&formular=4&udskriv_til=email');\"></script>";
@@ -435,7 +435,7 @@ if ($submit==findtekst(880, $sprog_id) || $submit=="Send mails"){ #20210817 Adde
 	
 	else print "<BODY onLoad=\"javascript:alert('$alert1')\">";
 }
-if ($submit==findtekst(576, $sprog_id)){ #20210817 Added translated variable 
+if ($submit==findtekst('576|Følgeseddel', $sprog_id)){ #20210817 Added translated variable 
 	for ($x=0; $x<count($ordre_id); $x++){
 		$c=$ordre_id[$x];
 		if ($checked[$c]=="on") {
@@ -454,7 +454,7 @@ if (isset($_POST['check'])||isset($_POST['uncheck'])) {
 	if (isset($_POST['check'])) $check_all='on';
 	else $uncheck_all='on';
 }
-if ($submit=="Genfakturer" || $submit==findtekst(1206, $sprog_id)){ #20210817
+if ($submit=="Genfakturer" || $submit==findtekst('1206|Ret', $sprog_id)){ #20210817
 	for ($x=0; $x<count($ordre_id); $x++){
 		$c=$ordre_id[$x];
 		if (isset($checked[$c]) && $checked[$c]=="on") {
@@ -462,9 +462,9 @@ if ($submit=="Genfakturer" || $submit==findtekst(1206, $sprog_id)){ #20210817
 			if (!$genfakt) $genfakt=$c;
 			else $genfakt=$genfakt.",".$c;
 		}
-	} $alert2 = findtekst(1419, $sprog_id);
+	} $alert2 = findtekst('1419|Ingen fakturaer er markeret til genfakturering!', $sprog_id);
 	if ($y>0) {
-		if ($submit==findtekst(1206, $sprog_id)) print "<meta http-equiv=\"refresh\" content=\"0;URL=ret_genfakt.php?ordreliste=$genfakt\">";
+		if ($submit==findtekst('1206|Ret', $sprog_id)) print "<meta http-equiv=\"refresh\" content=\"0;URL=ret_genfakt.php?ordreliste=$genfakt\">";
 		else print "<meta http-equiv=\"refresh\" content=\"0;URL=genfakturer.php?id=-1&ordre_antal=$y&genfakt=$genfakt\">";
 		exit;	
 	}
@@ -843,8 +843,8 @@ while ($r0=db_fetch_array($q0)) {
 			}
 		}
 		$href="ordre.php?tjek=$id&id=$id&returside=".urlencode($_SERVER["REQUEST_URI"]);
-		$tle1 = findtekst(1421, $sprog_id);
-		$tle2 = findtekst(1522, $sprog_id);
+		$tle1 = findtekst('1421|Ordre er i brug af', $sprog_id);
+		$tle2 = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
 		if ($valg == 'faktura' || $tidspkt-($timestamp)>3600 || $who==$brugernavn || $who=='' ) { #20220301
 				if ($popup) {
 					$javascript = "onClick=\"javascript:$ordre=window.open('$href','$ordre','scrollbars=1,resizable=1');$ordre.focus();\"";
@@ -884,25 +884,25 @@ while ($r0=db_fetch_array($q0)) {
 				$bgnuance=$bgnuance1;
 				$color='#000000';
 				if ($r0['art']=='DK') {
-					$tr_title= findtekst(1422, $sprog_id);  #20210715
+					$tr_title= findtekst('1422|Mangler modtagelse af en eller flere vare.', $sprog_id);  #20210715
 				} else {
-					$tr_title= findtekst(1423, $sprog_id); 
+					$tr_title= findtekst('1423|Mangler levering af en eller flere vare.', $sprog_id); 
 				}
 			} elseif ( $levstatus == "Leveret" ) {
 				$bgnuance=0;
 				$color='#555555';
 				if ($r0['art']=='DK') {
-					$tr_title= findtekst(1424, $sprog_id);
+					$tr_title= findtekst('1424|Alt modtaget, mangler kun at sende kreditnota.', $sprog_id);
 				} else {
-					$tr_title= findtekst(1425, $sprog_id);
+					$tr_title= findtekst('1425|Alt leveret, mangler kun at fakturere.', $sprog_id);
 				}
 			} else {
 				$bgnuance=0;
 				$color='#000000';
 				if ($r0['art']=='DK') {
-					$tr_title= findtekst(1426, $sprog_id);
+					$tr_title= findtekst('1426|Intet modtaget.', $sprog_id);
 				} else {
-					$tr_title= findtekst(1427, $sprog_id);
+					$tr_title= findtekst('1427|Intet leveret.', $sprog_id);
 				}
 			}
 			
@@ -914,7 +914,14 @@ while ($r0=db_fetch_array($q0)) {
             $spantxt = "<table><tbody>";
 
             // Add table headers with localized text using the findtekst function
-            $spantxt .= "<tr><td>Varenr</td><td>" . findtekst(948, $sprog_id) . "</td><td>" . findtekst(916, $sprog_id) . "</td><td>" . findtekst(1190, $sprog_id) . "</td><td>" . findtekst(1428, $sprog_id) . "</td><td>" . findtekst(1429, $sprog_id) . "</td><td>" . findtekst(1430, $sprog_id) . "</td><td>" . findtekst(976, $sprog_id) . "</td></tr>";
+            $spantxt .= "<tr><td>".findtekst('917|Varenr.', $sprog_id)."</td>";
+			print "<td>".findtekst('948|Beholdn.', $sprog_id)."</td>";
+			print "<td>".findtekst('916|Antal', $sprog_id)."</td>";
+			print "<td>".findtekst('1190|Leveres', $sprog_id)."</td>";
+			print "<td>".findtekst('1428|I tilbud', $sprog_id)."</td>";
+			print "<td>".findtekst('1429|I ordre', $sprog_id)."</td>";
+			print "<td>".findtekst('1430|I forslag', $sprog_id)."</td>";
+			print "<td>".findtekst('976|Bestilt', $sprog_id)."</td></tr>";
 
             // Fetch all order lines with non-zero quantities for the specified order ID
             $q = db_select("select * from ordrelinjer where ordre_id='$id' and antal != '0'", __FILE__ . " linje " . __LINE__);
@@ -974,10 +981,10 @@ while ($r0=db_fetch_array($q0)) {
 
             // Add a legend explaining the color codes
             $spantxt .= "<tr><td colspan=100><hr></td></tr>";
-            $spantxt .= "<tr><td>Magenta</td><td colspan=7>" . findtekst(2403, $sprog_id) . "</td></tr>";
-            $spantxt .= "<tr><td>Grøn</td><td colspan=7>" . findtekst(1431, $sprog_id) . "</td></tr>";
-            $spantxt .= "<tr><td>Gul</td><td colspan=7>" . findtekst(1432, $sprog_id) . "</td></tr>";
-            $spantxt .= "<tr><td>Rød</td><td colspan=7>" . findtekst(1433, $sprog_id) . "</td></tr>";
+            $spantxt .= "<tr><td>Magenta</td><td colspan=7>".findtekst('2403|Opret en ny vare', $sprog_id)."</td></tr>";
+            $spantxt .= "<tr><td>Grøn</td><td colspan=7>".findtekst('1431|Klar til levering (Varer vises ikke)', $sprog_id)."</td></tr>";
+            $spantxt .= "<tr><td>Gul</td><td colspan=7>".findtekst('1432|Mangler varer, varer er bestilt', $sprog_id)."</td></tr>";
+            $spantxt .= "<tr><td>Rød</td><td colspan=7>".findtekst('1433|Mangler varer, varer ikke bestilt', $sprog_id)."</td></tr>";
             $spantxt .= "</tbody></table>";
 
             // Set the default row background color to purple if no issues were found
@@ -1139,9 +1146,9 @@ if ($menu=='T') {
 if ($valg) {		
 	if ($vis_projekt) $colspan++;
 	if ($check_all) {
-		print "<tr><td align='right' colspan='$colspan'><input type=\"submit\" style=\"width:100px\"; name=\"uncheck\" value=\"".findtekst(90,$sprog_id)."\">";
+		print "<tr><td align='right' colspan='$colspan'><input type=\"submit\" style=\"width:100px\"; name=\"uncheck\" value=\"".findtekst('90|Fravælg alle', $sprog_id)."\">";
 	} else {
-		print "<tr><td align='right' colspan='$colspan'><input type=\"submit\" style=\"width:100px\"; name=\"check\" value=\"".findtekst(89,$sprog_id)."\">";
+		print "<tr><td align='right' colspan='$colspan'><input type=\"submit\" style=\"width:100px\"; name=\"check\" value=\"".findtekst('89|Vælg alle', $sprog_id)."\">";
 	}
 #	print "<tr><td align=right colspan=$colspan><input type=\"submit\" style=\"width:100px\"; name=\"opdat\" value=\"Opdater\">";
 	print "	</td></tr>\n";
@@ -1169,12 +1176,12 @@ if ($valg) {
 					if 	(isset($vis_felt[$i]) && $vis_felt[$i]=='udskriv_til') $z=$i;
 				}
 				if ($find[$z]=='email') {
-					$confirm = findtekst(1444, $sprog_id); 
-					print "<span title=\"".findtekst(1435, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"Send mails\" name=\"submit\" onclick=\"return confirm('$confirm $valg pr mail?')\"></span><br>";
+					$confirm = findtekst('1444|Er du sikker på at du vil udsende de valgte', $sprog_id); 
+					print "<span title=\"".findtekst('1435|Sender valgte fakturaer som e-mail', $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"Send mails\" name=\"submit\" onclick=\"return confirm('$confirm $valg pr mail?')\"></span><br>";
 				} 
 			}
-			$confirm1= findtekst(1445, $sprog_id);  
-			print "<span title=\"".findtekst(1436, $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td></tr>";
+			$confirm1= findtekst('1445|Udskriv de valgte', $sprog_id);  
+			print "<span title=\"".findtekst('1436|Udskriver valgte fakturaer som PDF', $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"".findtekst('880|Udskriv', $sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td></tr>";
 			print "<tr><td colspan='13' align='right'><span title='Udskriv følgesedler'><input type='submit' style='width:100px' value='Følgesedler' name='deliveryNote')'></span></td></tr>";
 			?>
 			<script>
@@ -1192,8 +1199,8 @@ if ($valg) {
 			
 		}
 	} else {
-		$confirm2 = findtekst(1446, $sprog_id);
-		print "<input class='button red medium' type=submit style=\"width:100px;\" value=\"".findtekst(1099, $sprog_id)."\" name=\"slet_valgte\" onclick=\"return confirm('$confirm2 $valg?')\">";
+		$confirm2 = findtekst('1446|Er du sikker på at du vil slette de valgte', $sprog_id);
+		print "<input class='button red medium' type=submit style=\"width:100px;\" value=\"".findtekst('1099|Slet', $sprog_id)."\" name=\"slet_valgte\" onclick=\"return confirm('$confirm2 $valg?')\">";
 	}
 	print "</tr>\n";
 }
@@ -1202,9 +1209,9 @@ if ($valg=="ordrer") {
 #	if ($vis_projekt) $colspan++;
 	if ($vis_ret_next) {
 		if ($check_all) { 
-#			print "<tr><td align=right colspan=$colspan><input type=\"submit\" style=\"width:100px;\" name=\"uncheck\" value=\"".findtekst(90,$sprog_id)."\">";
+#			print "<tr><td align=right colspan=$colspan><input type=\"submit\" style=\"width:100px;\" name=\"uncheck\" value=\"".findtekst('90|Fravælg alle', $sprog_id)."\">";
 		} else {
-#			print "<tr><td align=right colspan=$colspan><input type=\"submit\" style=\"width:100px;\" name=\"check\" value=\"".findtekst(89,$sprog_id)."\">";
+#			print "<tr><td align=right colspan=$colspan><input type=\"submit\" style=\"width:100px;\" name=\"check\" value=\"".findtekst('89|Vælg alle', $sprog_id)."\">";
 		}
 		print "	</td></tr>\n";
 	}
@@ -1225,7 +1232,7 @@ if ($valg=="ordrer") {
 	print "<input type=hidden name=nysort value='$nysort'>";
 	print "</tr><tr><td colspan=$colspan align=right>";
 #	if (in_array('on',$checked)) {
-		if ($vis_ret_next) print "<span title='".findtekst(1437, $sprog_id)."'><input class='button blue medium' type=\"submit\" style=\"width:100px\"; value=\"".findtekst(1206, $sprog_id)."\" name=\"submit\"></td>";
+		if ($vis_ret_next) print "<span title='".findtekst('1437|Klik her for at rette detaljer i abonnementsordrer', $sprog_id)."'><input class='button blue medium' type=\"submit\" style=\"width:100px\"; value=\"".findtekst('1206|Ret', $sprog_id)."\" name=\"submit\"></td>";
 #	}
 }
 print "</form></tr>\n";
@@ -1251,16 +1258,16 @@ $ialt_m_moms=dkdecimal($ialt_m_moms,2);
 print "<tr><td colspan='$colspan' width='100%'>";
 print "<table border='0' width='100%' style='width:100%;'><tbody>";
 if ($valg=="faktura") {
-	print "<td width='10%'></td><td width='70%' align=right><span title= '".findtekst(1438, $sprog_id)."'><b><a href=ordreliste.php?genberegn=1&valg=$valg accesskey=G>".findtekst(878,$sprog_id)."</a></td><td width=20% align=right><b>$ialt / $dk_db / $dk_dg%</td></tr>\n";
-	print "<td width=10%><br></td><td width=70% align=right><span title= ''><b>".findtekst(877,$sprog_id)."</td><td width=20% align=right><b>$ialt_m_moms</td></tr>\n";
+	print "<td width='10%'></td><td width='70%' align=right><span title= '".findtekst('1438|Klik for at genberegne DB/DG', $sprog_id)."'><b><a href=ordreliste.php?genberegn=1&valg=$valg accesskey=G>".findtekst('878|Samlet omsætning / db / dg (excl. moms.)', $sprog_id)."</a></td><td width=20% align=right><b>$ialt / $dk_db / $dk_dg%</td></tr>\n";
+	print "<td width=10%><br></td><td width=70% align=right><span title= ''><b>".findtekst('877|Samlet omsætning inkl. moms', $sprog_id)."</td><td width=20% align=right><b>$ialt_m_moms</td></tr>\n";
 } else {
 	print "<td width=20%>";
 	if ($valg=="ordrer" && !$vis_lagerstatus) {
-		print "<span title='".findtekst(1443, $sprog_id)."'>";
-		print "<a href=\"ordreliste.php?vis_lagerstatus=on&valg=$valg\">".findtekst(810,$sprog_id)."</a>";#20210318
+		print "<span title='".findtekst('1443|Hold musen over de respektive ordrenumre for at se beholdninger mm', $sprog_id)."'>";
+		print "<a href=\"ordreliste.php?vis_lagerstatus=on&valg=$valg\">".findtekst('810|Vis lagerstatus', $sprog_id)."</a>";#20210318
 		print "</span>";
 	}
-	print "</td><td width=70% align=right>".findtekst(811,$sprog_id)."<br>db / dg (excl. moms.)</td><td width=20% align=right><b>$ialt_m_moms ($ialt)<br>$dk_db / $dk_dg%</td></tr></tr>\n";
+	print "</td><td width=70% align=right>".findtekst('811|Samlet omsætning incl./excl. Moms', $sprog_id)."<br>db / dg (excl. moms.)</td><td width=20% align=right><b>$ialt_m_moms ($ialt)<br>$dk_db / $dk_dg%</td></tr></tr>\n";
 }
 if ($genberegn==1) print "<meta http-equiv=\"refresh\" content=\"0;URL='ordreliste.php?genberegn=2&valg=$valg'\">";
 #$cols++;
@@ -1272,12 +1279,12 @@ if ($valg=="ordrer") {
 	if($r){ #20211018
 		if ($r['box1'] && $ialt!="0,00") {
 			$tekst="Faktur&eacute;r alt som kan leveres?";
-			print "<tr><td colspan=\"2\"><span title='".findtekst(1439, $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td><td colspan=\"".($colspan-3)."\" align=right><span title='".findtekst(1440, $sprog_id)."'><a href=massefakt.php?valg=$valg onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span></td></tr>";
+			print "<tr><td colspan=\"2\"><span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td><td colspan=\"".($colspan-3)."\" align=right><span title='".findtekst('1440|Klik her for at fakturere alle ordrer på listen', $sprog_id)."'><a href=massefakt.php?valg=$valg onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span></td></tr>";
 		} else { 
 				if ($menu=='T') {
-					print "<tr><td colspan=\"3\">&nbsp;&nbsp;<span title='".findtekst(1439, $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td></tr>";
+					print "<tr><td colspan=\"3\">&nbsp;&nbsp;<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td></tr>";
 				} else {
-					print "<tr><td colspan=\"3\"><span title='".findtekst(1439, $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td></tr>";
+					print "<tr><td colspan=\"3\"><span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td></tr>";
 				}
 		}
 	}
@@ -1321,7 +1328,7 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 			exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
 		}
 	} elseif ($hent_nu) alert("vent 30 sekunder");
-	print "<tr><td><a href=\"$_SERVER[PHP_SELF]?sort=$sort&hent_nu=1\">".findtekst(879,$sprog_id)."</td></tr>";
+	print "<tr><td><a href=\"$_SERVER[PHP_SELF]?sort=$sort&hent_nu=1\">".findtekst('879|Hent fra shop', $sprog_id)."</td></tr>";
 }
 $r=db_fetch_array(db_select("select box2 from grupper where art='DIV' and kodenr='5'",__FILE__ . " linje " . __LINE__));
 
@@ -1374,7 +1381,7 @@ if (isset($r['box2']) && $apifil=$r['box2']) { //checks if $r$r['box2'] exists b
 					$tjek++;
 				}
 			}
-		} else print "<tr><td colspan=\"3\"><span title='".findtekst(1441, $sprog_id)."' onclick=\"JavaScript:window.open('$apifil','hent:ordrer','width=10,height=10,top=1024,left=1280')\">SHOP import</span></td></tr>";	
+		} else print "<tr><td colspan=\"3\"><span title='".findtekst('1441|Klik her for at hente nye ordrer fra shop', $sprog_id)."' onclick=\"JavaScript:window.open('$apifil','hent:ordrer','width=10,height=10,top=1024,left=1280')\">SHOP import</span></td></tr>";	
 	}
 }
 
@@ -1426,7 +1433,7 @@ function bidrag ($feltnavn,$sum,$moms,$sum_m_moms,$kostpris,$udlignet){
 	if ($genberegn) {print "<span title= 'db: $dk_db - dg: $dk_dg%'>$tmp/$dk_db/$dk_dg%<br></span>";}
 	else {
 		if ($udlignet) $span="style='color: #000000;' title='db: $dk_db - dg: $dk_dg%'";
-		else $span="style='color: #FF0000;' title='".findtekst(1442, $sprog_id)."\r\ndb: $dk_db - dg: $dk_dg%'";
+		else $span="style='color: #FF0000;' title='".findtekst('1442|Ikke udlignet', $sprog_id)."\r\ndb: $dk_db - dg: $dk_dg%'";
 		print "<span $span>$tmp<br></span>";
 	}
 }
@@ -1484,7 +1491,7 @@ function select_valg( $valg, $box ){  #20210623
 				case "box4":
 					return "50,100,100,150,100,100";
 				case "box6":
-					return "".findtekst(888,$sprog_id).".,".findtekst(888,$sprog_id).",".findtekst(804,$sprog_id).".,".findtekst(360,$sprog_id).",".findtekst(884,$sprog_id).",".findtekst(890,$sprog_id).""; #20210318
+					return "".findtekst('888|Tilbudsnr.', $sprog_id).".,".findtekst('888|Tilbudsnr.', $sprog_id).",".findtekst('804|Kontonr.', $sprog_id).".,".findtekst('360|Firmanavn', $sprog_id).",".findtekst('884|Sælger', $sprog_id).",".findtekst('890|Tilbudssum', $sprog_id).""; #20210318
 				default :
 				return "choose a box";
 			}
@@ -1502,7 +1509,7 @@ function select_valg( $valg, $box ){  #20210623
 				case "box4":
 					return "50,100,100,100,150,100,100";
 				case "box6":
-					return "".findtekst(500,$sprog_id).".,".findtekst(881,$sprog_id).",".findtekst(886,$sprog_id).",".findtekst(804,$sprog_id).".,".findtekst(360,$sprog_id).",".findtekst(884,$sprog_id).",".findtekst(887,$sprog_id)."";
+					return "".findtekst('500|Ordrenr.', $sprog_id).".,".findtekst('881|Ordredato', $sprog_id).",".findtekst('886|Dato for levering', $sprog_id).",".findtekst('804|Kontonr.', $sprog_id).".,".findtekst('360|Firmanavn', $sprog_id).",".findtekst('884|Sælger', $sprog_id).",".findtekst('887|Ordresum', $sprog_id)."";
 				default:
 				return "choose a box";
 			}
@@ -1520,7 +1527,7 @@ function select_valg( $valg, $box ){  #20210623
 				case "box4":    
 					return "50,100,100,100,100,150,100,100,100";
 				case "box6":    
-					return "".findtekst(500,$sprog_id).",".findtekst(881,$sprog_id).",".findtekst(882,$sprog_id).",".findtekst(883,$sprog_id).",Genfakt.,".findtekst(804,$sprog_id).",".findtekst(360,$sprog_id).",".findtekst(884,$sprog_id).",".findtekst(885,$sprog_id)."";
+					return "".findtekst('500|Ordrenr.', $sprog_id).",".findtekst('881|Ordredato', $sprog_id).",".findtekst('882|Fakt. nr.', $sprog_id).",".findtekst('883|Fakt. dato', $sprog_id).",Genfakt.,".findtekst('804|Kontonr.', $sprog_id).",".findtekst('360|Firmanavn', $sprog_id).",".findtekst('884|Sælger', $sprog_id).",".findtekst('885|Fakturasum', $sprog_id)."";
 				default:
 				return "choose a box";
 			}
