@@ -77,14 +77,24 @@ ob_start();
                     $file = $newFile;
                     $fullPath = $to;
                 }
-            } elseif ($ext === 'jpg' || $ext === 'ejpg') {
+            } elseif ($ext === 'jpg' || $ext === 'jpeg' || $ext === 'png') {
                 $newFile = $base . '.pdf';
                 $to = "$dir/$newFile";
-                system("convert '$fullPath' '$to'");
+                
+                system("convert '$fullPath' '$to'"); 
+                
                 if (file_exists($to)) {
+                    // Delete the original image 
                     unlink($fullPath);
+
+                    # Update file variables
                     $file = $newFile;
                     $fullPath = $to;
+
+                    #Create .info file
+                    $infoFile = $dir . '/' . $base . '.info';
+                    file_put_contents($infoFile, $base. "\n");
+                   # error_log( "Converted to PDF on " . date("Y-m-d H:i:s") . "\n");
                 }
             }
 
@@ -94,22 +104,37 @@ ob_start();
             // --- Attempt to read matching .info file ---
             $infoFile = "$dir/{$base}.info";
             $subject = $account = $amount = "";
-            
-        if (file_exists($infoFile)) { // Only process those having file info
-            $lines = file($infoFile, FILE_IGNORE_NEW_LINES);
-            $subject = $lines[0] ?? '';
-            $account = $lines[1] ?? '';
-            $amount  = $lines[2] ?? '';
-        }
+           
+            if (file_exists($infoFile)) { // Only process those having file info
+                $lines          = file($infoFile, FILE_IGNORE_NEW_LINES);
+                #set file creation date if non exists in the file
+                $modDate1 = date("Y-m-d H:i:s", filemtime($infoFile)); 
+                #
+                        
+                $subject = trim($lines[0] ?? '') !== '' ? trim($lines[0]) : $base;//default to filename
+                $account        = $lines[1] ?? '';
+                $amount         = $lines[2] ?? '';
+                $insertedDate   = $lines[3] ?? $modDate1; 
+                
+            }
 
         if (!empty($subject)) {
                 // Sanitize subject to make it filename-safe
+                #$safeSubject = preg_replace('/[^A-Za-z0-9_\-]/', '_', $subject);
+                $updaTe = false;
+            if (preg_match('/^[A-Za-z0-9_\-]+$/', $subject)) {
+                // Already safe, no need to sanitize
+                $safeSubject = $subject;
+            } else {
+                // Not safe, sanitize it
                 $safeSubject = preg_replace('/[^A-Za-z0-9_\-]/', '_', $subject);
+                $updaTe = true;
+            }
 
                 // Get directory
                 $dir = dirname($infoFile);
 
-                // Define new filenames
+                // Define new filenames 
                 $newInfoFile = $dir . '/' . $safeSubject . '.info';
                 $newPdfFile  = $dir . '/' . $safeSubject . '.pdf';
 
@@ -119,7 +144,6 @@ ob_start();
                 // Rename .info file if needed
                 if ($infoFile !== $newInfoFile && !file_exists($newInfoFile)) {
                     if (rename($infoFile, $newInfoFile)) {
-                        error_log("Renamed .info file to: $newInfoFile");
                         $infoFile = $newInfoFile; // Update path
                     } else {
                         error_log("Failed to rename .info file to: $newInfoFile");
@@ -129,7 +153,6 @@ ob_start();
                 // Rename .pdf file if it exists and the target doesn't exist
                 if (file_exists($originalPdfFile) && !file_exists($newPdfFile)) {
                     if (rename($originalPdfFile, $newPdfFile)) {
-                        error_log("Renamed .pdf file to: $newPdfFile");
                     } else {
                         
                         error_log("Failed to rename .pdf file to: $newPdfFile. PHP must be able to write to the directory.");
@@ -137,17 +160,15 @@ ob_start();
                 }
 
                 // Update the first line of the .info file to the sanitized subject
-                if (file_exists($infoFile)) {
+                if (file_exists($infoFile) && $updaTe) {
                     $lines = file($infoFile, FILE_IGNORE_NEW_LINES);
                     $lines[0] = $safeSubject;
                     // Preserve any other existing lines
                     if (file_put_contents($infoFile, implode(PHP_EOL, $lines) . PHP_EOL) !== false) {
-                        error_log("Updated .info file first line with subject: $safeSubject");
+
                     } else {
                         error_log("Failed to update first line of .info file: $infoFile");
                     }
-                } else {
-                    error_log(".info file not found for subject update: $infoFile");
                 }
         }
 
@@ -157,17 +178,41 @@ ob_start();
         //     continue;
         // }
     
+            ###############################
+            $fullPath = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . $file;
 
-            
+            // Retry up to 6 times with short delay
+            $retries = 6;
+            $delayMs = 100; // milliseconds
+
+            while ($retries-- > 0) {
+                clearstatcache(true, $fullPath); // Clear PHP's file status cache
+                if (file_exists($fullPath)) {
+                    $modDate = date("Y-m-d H:i:s", filemtime($fullPath));
+                    break;
+                }
+                usleep($delayMs * 1000); // Delay in microseconds
+            }
+
+            if (!isset($modDate)) {
+                error_log("File does not exist after retries: $fullPath");
+            }
+
+
+            ###############################
+            /*
             $fullPath = "$dir/$file";
             if (file_exists($fullPath)) {
                 sleep(0.1); // slight delay to ensure file system updates
                 $modDate = date("Y-m-d H:i:s", filemtime($fullPath)); 
             } else {
-                error_log("⚠️ File does not exist (yet?): $fullPath");
+                error_log("File does not exist (yet?): $fullPath");
             }
-
-
+            */
+        
+          if(isset($insertedDate )){
+            $modDate = $insertedDate; 
+          }
 
         $fil_nr++;
         #$hreftxt = "../includes/documents.php?$params&docFocus=$fil_nr&poolFile=" . urlencode($file);

@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php -----patch 4.1.1 ----2025-08-27------------
+// --- includes/documents.php -----patch 4.1.1 ----2025-10-10------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //20240412 - PHR Various modifications
 //20250815 - LOE Create 'bilag' file specifically for kassekladde and , others can be created based  on what is needed
 //20250824 - LOE Clean up to reduce the error logs with if_isset()
-//20250827 - LOE Implement creating .info files for existing pool pdf without it.
+//20250827 - LOE Implement creating .info files for existing pool pdf without it. 
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -109,7 +109,7 @@ include("docsIncludes/header.php");
 print "</tbody></table>";
 print "</td></tr><tr><td width = '20%'>";
 // ---------- Left table start ---------
-print "<table width=\"100%\" height=\"98%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 if ($openPool) {
 	$finalDestination = "$docFolder/$db/pulje";
 		#############
@@ -117,6 +117,45 @@ if ($openPool) {
 			$dbFolder = "$docFolder/$db";
 			if (is_dir($dbFolder)) {
 				if (is_dir($finalDestination)) {
+					################start convert all .png, jpeg, jpg to .pdf and create .info file for them
+							$allowedImageExts = ['jpg', 'jpeg', 'png'];
+							$files = scandir($finalDestination);
+
+							foreach ($files as $file) {
+								if (substr($file, 0, 1) === '.') continue; // skip hidden files like .DS_Store
+
+								$fullPath = "$finalDestination/$file";
+								if (!is_file($fullPath)) continue; // skip directories
+
+								$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+								$base = pathinfo($file, PATHINFO_FILENAME);
+
+								if (in_array($ext, $allowedImageExts)) {
+									$base = sanitize_filename($base);
+									
+									$newFile=sanitize_filename($newFile);
+									$newFile = $base . '.pdf';
+									$to = "$finalDestination/$newFile";
+
+									// Convert image to PDF using ImageMagick's convert
+									system("convert '$fullPath' '$to'");
+
+									if (file_exists($to)) {
+										// Delete the original image
+										unlink($fullPath);
+										$infoFile = "$finalDestination/$base.info";
+										
+										file_put_contents($infoFile, $base . "\n");
+
+										
+										 error_log("Converted $file to PDF and created info file on " . date("Y-m-d H:i:s"));
+									}
+								}
+							}
+					clearstatcache(); # Ensure newly created PDFs are visible to glob()
+					##############end
+
+
 					// Get all PDF files in the final destination
 					$pdfFiles = glob($finalDestination . '/*.pdf');
 					
@@ -124,23 +163,43 @@ if ($openPool) {
 						foreach ($pdfFiles as $pdfPath) {
 							$pdfFilename = basename($pdfPath);
 							$baseName = pathinfo($pdfFilename, PATHINFO_FILENAME);
-							$infoFile = $finalDestination . '/' . $baseName . '.info';
-
+							$infoFilePreSan = $finalDestination . '/' . $baseName. '.info';
+							$baseNameSan =  sanitize_filename($baseName);
+							$infoFile = $finalDestination . '/' . $baseNameSan . '.info';
+							
 							// Log the PDF file
-							error_log("Found PDF file: $pdfFilename");
+							error_log("Found PDF file: $pdfFilename and baseName; $baseName and infoFile: $infoFile");
 
 							// Check if .info file exists
 							if (!file_exists($infoFile)) {
-								// Attempt to create the file
-								if (file_put_contents($infoFile, "") !== false) {
-									// Set writable permissions (e.g., 0666 without umask interference)
-									chmod($infoFile, 0666);
-									// Write the base name to the .info file as the subject
-									file_put_contents($infoFile, $baseName . PHP_EOL);
-									error_log("Created .info file: $infoFile and set writable permissions.");
-								} else {
-									error_log("Failed to create .info file: $infoFile in document.php");
-								}
+								error_log("FileInfo: $infoFile ,baseName; $baseName, pdfFilename: $pdfFilename,..."); 
+								
+									if($baseNameSan!=$baseName){
+										error_log("we are processing this..............");
+										$modName = $finalDestination.'/'.$baseNameSan.'.pdf';
+										rename("$finalDestination/$pdfFilename", "$modName");
+										
+										if(file_exists($infoFilePreSan)){
+											
+											rename("$infoFilePreSan", "$infoFile");
+											
+											
+
+										}
+										
+										$baseName = $baseNameSan;
+									}
+									// Attempt to create the file
+									if (file_put_contents($infoFile, "") !== false) {
+										// Set writable permissions (e.g., 0666 without umask interference)
+										chmod($infoFile, 0666);
+										// Write the base name to the .info file as the subject
+										file_put_contents($infoFile, $baseName . PHP_EOL);
+										error_log("Created .info file: $infoFile and set writable permissions.");
+									} else {
+										error_log("Failed to create .info file: $infoFile in document.php - permissions");
+									}
+								
 							} else {
 								error_log(".info file already exists: $infoFile");
 							}
@@ -160,6 +219,57 @@ if ($openPool) {
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;
 }
+#########
+function sanitize_filename($filename) {
+    // Replace known extended Latin/Danish characters
+    $translit = [
+        'æ' => 'ae', 'Æ' => 'Ae',
+        'ø' => 'oe', 'Ø' => 'Oe',
+        'å' => 'aa', 'Å' => 'Aa',
+        'ä' => 'ae', 'Ä' => 'Ae',
+        'ö' => 'oe', 'Ö' => 'Oe',
+        'ü' => 'ue', 'Ü' => 'Ue',
+        'ß' => 'ss',
+        'ñ' => 'n',  'Ñ' => 'N',
+        'á' => 'a',  'Á' => 'A',
+        'é' => 'e',  'É' => 'E',
+        'í' => 'i',  'Í' => 'I',
+        'ó' => 'o',  'Ó' => 'O',
+        'ú' => 'u',  'Ú' => 'U'
+    ];
+    $filename = strtr($filename, $translit);
+
+    // Fallback transliteration for any remaining special chars
+    $filename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $filename);
+
+	//if any extra
+	$filename = preg_replace('/^(_{0,2}(UTF-8|ISO-8859-1)?_?Q_*)?/i', '', $filename);
+    // Remove all but safe characters
+    $filename = preg_replace('/[^\w\-\. ]+/', '_', $filename);
+
+    // Trim unwanted characters from ends
+    $filename = trim($filename, " \t\n\r\0\x0B.");
+
+    // Separate the name and extension
+    $dot_position = strrpos($filename, '.');
+    if ($dot_position !== false) {
+        $name = substr($filename, 0, $dot_position);
+        $ext = substr($filename, $dot_position); // Includes the dot
+    } else {
+        $name = $filename;
+        $ext = '';
+    }
+
+    // Truncate the name part if longer than 54 characters
+    if (strlen($name) > 54) {
+        $name = substr($name, 0, 54);
+    }
+
+    return $name . $ext;
+}
+
+
+#######
 #xit;
 if ($moveDoc) include("docsIncludes/moveDoc.php");
 elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
@@ -223,7 +333,7 @@ source: '$source'
 print "</tbody></table>";
 print "</td><td width = '80%'>";
 // ---------- Right table start ---------
-print "<table width=\"100%\" height=\"98%\" border=\"1\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+print "<table width=\"100%\" height=\"100%\" border=\"1\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 include("docsIncludes/showDoc.php");
 // ---------- Right table end ---------
 print "</tbody></table>";
