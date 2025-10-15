@@ -874,7 +874,7 @@ $luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$va
 					print "<td align='right'>".dkdecimal($kostpris[$y],2)."</td>";
 					print "<td align='right'>".dkdecimal($dkBi[$y],2)."</td>";
 					print "<td align='right'> ".dkdecimal($dg[$y],2)."%</td>";
-					print "<td align='right' title=\"\" onClick=\"javascript:s_ordre=window.open('../debitor/ordre.php?id=$s_ordre_id[$y]&returside=../includes/luk.php','s_ordre','width=800,height=400,$jsvars')\"> <u>Se</u></td></tr>\n";
+					print "<td align='right' class='hover-preview' data-preview-url='../debitor/ordre.php?id=$s_ordre_id[$y]&returside=../includes/luk.php' title=\"Hover to preview order details\" onClick=\"javascript:s_ordre=window.open('../debitor/ordre.php?id=$s_ordre_id[$y]&returside=../includes/luk.php','s_ordre','width=800,height=400,$jsvars')\"> <u>Se</u></td></tr>\n";
 					fwrite($csvfile, dkdato($fakturadate[$y]).";".dkdecimal($s_antal[$y],2).";".dkdecimal($pris[$y],2).";");
 					fwrite($csvfile, dkdecimal($moms[$y],2).";".dkdecimal($pris[$y]+($moms[$y]),2).";".dkdecimal($kostpris[$y],2).";");
 					fwrite($csvfile, dkdecimal($dkBi[$y],2).";".dkdecimal($dg[$y],2)."%\r\n");

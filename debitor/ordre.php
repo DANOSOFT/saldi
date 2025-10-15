@@ -756,8 +756,7 @@ if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kont
 }
 if (!$id && $konto_id && $kontonr) {
 	if (!is_numeric($default_procenttillag)) $default_procenttillag=0;
-	$r=db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc",__FILE__ . " linje " . __LINE__));
-	$ordrenr=$r['ordrenr']+1;
+	$ordrenr = get_next_order_number('DO');
 	if (strlen($phone) > 15) $phone = substr($phone,0,15); 
 	$ordredate=date("Y-m-d");
 	($lev_firmanavn)?$vis_lev_addr='on':$vis_lev_addr='';
@@ -1640,9 +1639,7 @@ if ($status<3 && $b_submit) {
 			$phone = substr($phone,0,15);
 		}
 
-		$query = db_select("select ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc",__FILE__ . " linje " . __LINE__);
-		if ($row = db_fetch_array($query)) $ordrenr=$row['ordrenr']+1;
-		else $ordrenr=1;
+		$ordrenr = get_next_order_number('DO');
     $r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$brugervalg=$r['box1']; # 20170419
 		if ($brugervalg) $ref='';
@@ -2036,9 +2033,7 @@ if ((strstr($b_submit,'Kopi'))||(strstr($b_submit,'Kred')))  {
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['kontonr']*1;
 		
-		$qtxt="select ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc limit 1";
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $ordrenr=$r['ordrenr']+1;
-		else $ordrenr=1;
+		$ordrenr = get_next_order_number('DO');
 		
     $tilbudnr = (int)if_isset($tilbudnr, 0);
     $sag_id = (int)if_isset($sag_id, NULL); #20250528
@@ -4282,11 +4277,14 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					if ($_GET['kortnavn']) $felt_1=$_GET['kortnavn'];
 					db_modify("update ordrer set betalt='$betalt',felt_1='$felt_1' where id = '$id'",__FILE__ . " linje " . __LINE__);
 					db_modify("INSERT INTO pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) VALUES ('$id','$felt_1','$betalt','DKK','100')",__FILE__ . " linje " . __LINE__);
+					if($felt_4 + $felt_2 == $sum+$moms){
+						$betalt = $sum+$moms;
+						db_modify("INSERT INTO pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) VALUES ('$id','$felt_3','$felt_4','DKK','100')",__FILE__ . " linje " . __LINE__);
+						db_modify("UPDATE ordrer SET betalt='$betalt' where id = '$id'",__FILE__ . " linje " . __LINE__);
+					}
 				}
 				if ($betalt) {
 					$disabled='disabled';
-					$felt_2=$betalt;
-					$dkfelt_2=dkdecimal($betalt,2);
 				} else $disabled=$disabled;
         print "<tr><td><select style='width:110px' name='felt_1' $disabled>";
 #        if ($betalingsbet=='Kreditkort') {
@@ -4368,12 +4366,14 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					}
 
 					($felt_1=='Betalingskort')?$vis_betalingslink=1:$vis_betalingslink=0;
-					for($x=0;$x<$kortantal;$x++) {
-						if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
-					}
+
 					if ($vis_betalingslink) {
-						// Use Lane3000 terminal instead of old terminal
-						$href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php";
+						$qtxt = "SELECT * FROM settings WHERE var_grp = 'move3500' and pos_id = $afd";
+					$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					($r['id'])?$useLane3000 = 1:$useLane3000 = 0;
+						if ($useLane3000) $href = "payments/lane3000.php?amount=$dkfelt_2&id=$id&return_url=ordre.php&";
+						else $href="http://".$terminal_ip[$felt_5-1]."/pointd/kvittering.php?url=$url&id=$id&&kommando=kortbetaling&";
+            				$href.="belob=$dkfelt_2&betaling=&modtaget=$dkfelt_2&modtaget2=0&indbetaling=&tidspkt=".date("U");
 						if (isset($_GET['indbetaling'])) {
 							$href .= "&indbetaling=" . $_GET['indbetaling'];
 						}

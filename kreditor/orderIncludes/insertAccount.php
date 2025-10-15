@@ -94,9 +94,7 @@ function insertAccount($id, $konto_id) {
 	if ((!$id)&&($firmanavn)) {
 		transaktion('begin');
 		$ordredate=date("Y-m-d");
-		$qtxt = "select max(ordrenr) as ordrenr from ordrer where art='KO' or art='KK'";
-		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $ordrenr=$r['ordrenr']+1;
-		else $ordrenr=1;
+		$ordrenr = get_next_order_number('KO');
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,lev_addr1,";
 		$qtxt.= "lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,betalingsdage,betalingsbet,cvrnr,notes,art,ordredate,";

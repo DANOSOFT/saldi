@@ -1683,8 +1683,7 @@ if ($id && $gem) {
 		$tmp = $kasse - 1;
 		$afd = (int) $afdelinger[$tmp];
 	}
-	$r = db_fetch_array(db_select("select max(ordrenr) as ordrenr from ordrer where art = 'DO'", __FILE__ . " linje " . __LINE__));
-	$ordrenr = $r['ordrenr'] + 1;
+	$ordrenr = get_next_order_number('DO');
 	if (db_fetch_array(db_select("select id from adresser where kontonr = '1'", __FILE__ . " linje " . __LINE__)))
 		$kontonr = 1;
 	else
@@ -2274,10 +2273,7 @@ function opret_posordre($konto_id, $kasse) {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$r[id]\">\n";
 		}
 	}
-	if ($r = db_fetch_array($q = db_select("select ordrenr from ordrer where art='PO' order by ordrenr desc", __FILE__ . " linje " . __LINE__))) {
-		$ordrenr = $r['ordrenr'] + 1;
-	} else
-		$ordrenr = 1;
+		$ordrenr = get_next_order_number('PO');
 	$ordredate = date("Y-m-d");
 	$tidspkt = date("U");
 	$r = db_fetch_array(db_select("select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));

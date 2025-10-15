@@ -985,9 +985,7 @@ function genbestil($vare_id, $antal) {
 			$sum=$r['sum']*1;
 			$ordre_id=$r['id'];
 		} else {
-			$qtxt="select ordrenr from ordrer where art='KO' or art='KK' order by ordrenr desc";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $ordrenr=$r['ordrenr']+1;
-			else $ordrenr=1;
+			$ordrenr = get_next_order_number('KO');
 			$qtxt="select * from adresser where id = $lev_id";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			if ($r['gruppe']) {
