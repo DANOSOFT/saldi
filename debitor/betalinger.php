@@ -101,9 +101,19 @@ if (isset($_POST['slet_ugyldige']) || isset($_POST['gem']) || isset($_POST['udsk
 	$ugyldig       = if_isset($_POST['ugyldig']);
 	$antal         = if_isset($_POST['antal']);
 
+	// Get default payment date from settings
+	$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+	$defaultPayDate = date('dmY', strtotime("+$paymentDays days"));
+	
 	(substr($betalingsdato[1], -1) == '*') ? $allPayDates = str_replace('*', '', $betalingsdato[1]) : $allPayDates = NULL;
 	for ($x = 1; $x <= $antal; $x++) {
 		if ($allPayDates) $betalingsdato[$x] = $allPayDates;
+		
+		// Update payment date to default when "gem" or "slet_ugyldige" is clicked
+		if (isset($_POST['gem']) || isset($_POST['slet_ugyldige'])) {
+			$betalingsdato[$x] = $defaultPayDate;
+		}
+		
 		if ($slet_ugyldige && $ugyldig[$x] == $id[$x]) $slet[$x] = 'on';
 		elseif (!isset($slet[$x])) $slet[$x] = NULL;
 		if ($slet[$x] == 'on') {
@@ -185,11 +195,8 @@ if (!$liste_id) {
 	print "<meta http-equiv='refresh' content='0; url=betalinger.php?liste_id=$liste_id'>";
 }
 
-
-
 // $tomorrow = date('U') + 60 * 60 * 24;
 // $paydate  = date('dmY', $tomorrow);
-
 
 $paymentDays = get_settings_value("paymentDays", "payment_list", 0);
 $paydate = date('dmY', strtotime("+$paymentDays days"));
@@ -294,11 +301,17 @@ if ($find) {
 					$kort_ref = $r['betal_id'];
 				} elseif ($r['faktnr']) $kort_ref = $myName . ":" . $r['faktnr'];
 				else $kort_ref = $myName;
-				$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
-				$forfaldsdag = date('dmY', strtotime("+$paymentDays days"));
-				/* if ($r['forfaldsdate']) {
+				// Use original due date logic, but fall back to payment date settings if no due date exists
+				if ($r['forfaldsdate']) {
 					$forfaldsdag = str_replace("-", "", dkdato($r['forfaldsdate']));
-				} else $forfaldsdag = str_replace("-", "", forfaldsdag($r['transdate'], $r['betalingsbet'], $r['betalingsdage'])); */
+				} else {
+					$forfaldsdag = str_replace("-", "", forfaldsdag($r['transdate'], $r['betalingsbet'], $r['betalingsdage']));
+					// If no due date can be calculated, use payment date settings
+					if (!$forfaldsdag) {
+						$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+						$forfaldsdag = date('dmY', strtotime("+$paymentDays days"));
+					}
+				}
 				$belob = dkdecimal($r['amount'] * -1);
 				$valuta = $r['valuta'];
 				if (!$valuta) $valuta = 'DKK';

@@ -1,0 +1,412 @@
+Kontonr.,Kontonavn,Moms,Type
+999,RESULTATOPGØRELSE,,Overskrift
+1000,Salg af varer/ydelser m/moms,U25,D
+1050,Salg af varer/ydelser u/moms,,D
+1100,EU-leverancer varer - Indberettes (rubrik B-varer),UEUV,D
+1150,EU-leverancer varer - Indberettes ikke (rubrik B-varer),UVC,D
+1200,EU-leverancer ydelser (rubrik B-ydelser),UEUY,D
+1250,Momsfrit salg til udlandet (rubrik C),UVC,D
+1300,Salg af fragt - momsfrie,,D
+1350,Salg af fragt - momspligtig,U25,D
+1355,Periodisering indtægter,,D
+1360,Besætningsforskydning,,D
+1400,"Rykkergebyrer, administrationsgebyr mv.",,D
+1445,"Valutakursdifferencer, import",,D
+2000,Vareforbrug,I25,D
+2050,EU-erhvervelser varer (rubrik A-varer),IEUV,D
+2100,EU-erhvervelser ydelser (rubrik A-ydelser),IEUY,D
+2150,Varekøb verden,IVV,D
+2180,Fremmed arbejde m/moms,I25,D
+2181,"Fremmed arbejde, EU",IEUY,D
+2182,"Fremmed arbejde, 3. lande",IVY,D
+2200,Ydelseskøb verden,IVY,D
+2250,Fragt med moms,I25,D
+2300,Fragt uden moms,,D
+2350,Fragt - EU,IEUV,D
+2351,Fragt - 3. lande,IVY,D
+2400,"Valutakursdifferencer, indtægt",,D
+2410,"Valutakursdifferencer, udgift",,D
+2450,Varelagerregulering,,D
+2460,Nedskrivning besætning primo,,D
+2461,Nedskrivning besætning ultimo,,D
+2800,Fremmed arbejde,I25,D
+2801,Fremmed arbejde u/moms,,D
+2810,Direkte omkostninger m/moms,I25,D
+2811,Direkte omkostninger u/moms,,D
+2830,Direkte omkostninger varer u/moms indenfor EU,IEUV,D
+2831,Direkte omkostninger ydelser u/moms indenfor EU,IEUY,D
+2832,Direkte omkostninger varer u/moms 3. lande,IVV,D
+2833,Direkte omkostninger ydelser u/moms 3. lande,IVY,D
+2834,"Lønninger, afsluttede projekter (projekt)",,D
+2835,"Omkostninger, afsluttede projekter (projekt)",,D
+2836,Told mv.,,D
+3000,AM-indkomst,,D
+3020,Arbejdsgiver ATP,,D
+3040,Medarbejder ATP,,D
+3060,Sygepenge mv.,,D
+3070,"Personalegoder, herunder fri telefon",,D
+3080,B-honorar,,D
+3090,Barsel,,D
+3100,Feriepenge og SH,,D
+3119,Vendekonto løn,,D
+3120,Pension,,D
+3140,Diæter/rejsegodtgørelse,,D
+3160,Kørsel i egen bil (kilometergodtgørelse),,D
+3180,AER/AES/ATP-finansieringsbidrag,,D
+3200,Arbejdstøj,I25,D
+3220,Personaleforsikringer,,D
+3240,"Mad under kursus/møder mv., fuldt fradrag",I25,D
+3260,"Gaver til personalet, fuldt fradrag",,D
+3280,Kurser o.a. uddannelsesudgifter m/moms,I25,D
+3281,Kurser o.a. uddannelsesudgifter u/moms,,D
+3300,Diverse vedr. ansatte med moms,I25,D
+3320,Diverse vedr. ansatte uden moms,,D
+3340,Regulering feriepenge,,D
+3341,Lønrefusioner,,D
+3355,Bespisning uden momsfradrag,,D
+4000,Annoncer og reklame,I25,D
+4001,"Internetannoncer, sociale medier mv. EU",IEUY,D
+4002,"Internetannoncer, sociale medier mv. udland",IVY,D
+4020,Udsmykning i forbindelse med arrangementer/events,I25,D
+4040,"Hotel, personale, fuldt fradrag",HREP,D
+4060,"Hotel, forretningsforbindelser, delvis fradrag",HREP,D
+4080,Konferencer,,D
+4100,Messer,I25,D
+4120,"Restaurant, personale, fuldt fradrag",REP,D
+4140,"Repræsentation, restaurant, forretningsforbindelser, delvis fradrag",REP,D
+4142,Rejseomkostninger i udlandet,,D
+4144,Anden bespisning mv. på rejse i DK,,D
+4160,"Mad i virksomheden til forretningsforbindelser, delvis fradrag",I25,D
+4180,"Repræsentation, gaver og blomster, delvis fradrag",,D
+4200,Anden fradragsberettiget repræsentation med moms,I25,D
+4220,"Repræsentation, diverse",,D
+4240,Øvrige personaleomkostninger m/momsfradrag,I25,D
+4241,Øvrige personaleomkostninger u/momsfradrag,,D
+4260,Ej fradragsberettiget andel,,D
+4567,Gebyrer skat,,D
+5000,Husleje,I25,D
+5010,Husleje uden moms,,D
+5020,"El, vand, varme mv.",I25,D
+5040,Elafgift,,D
+5045,Vandafgift,,D
+5060,Rengøring og dekoration,I25,D
+5080,Reparation og vedligeholdelse,I25,D
+5100,Ejendomsskat,,D
+5120,Ejendomsforsikring,,D
+5140,Mødelokaler,I25,D
+5160,Dekoration,I25,D
+5161,Lokaleomkostninger u/moms,,D
+6000,Billeje (gulplade),I25,D
+6020,Brændstof (gulplade),I25,D
+6040,Vedligeholdelse af bil (gulplade),I25,D
+6060,Vægtafgift og forsikringer,,D
+6080,Parkering (gulplade),I25,D
+6085,Parkering uden moms (hvidpladebiler),,D
+6086,Broafgift og færge (hvidpladebiler),,D
+6087,Drift og vedligeholdelse mv. (hvidpladebiler),,D
+6088,"Broafgift m/moms, hvidpladebiler (Øresund)",I25,D
+6100,Broafgift,I25,D
+6120,Taxa,,D
+6140,Tog,,D
+6160,Fly,,D
+6180,Bus,,D
+6200,Færge,I25,D
+6400,Diverse transportomkostninger uden moms,,D
+7000,Advokat og revisor,I25,D
+7001,Regulering skyldig revisor,,D
+7003,Advokat,I25,D
+7020,Bogføringsassistance,I25,D
+7021,"Regulering, revisor mv.",I25,D
+7040,Konsulentbistand,I25,D
+7060,Kontingenter inkl. moms,I25,D
+7080,Kontingenter ekskl. moms,,D
+7090,Kontingent vedrørende virksomhed og fradrag for syge- og arbejdsskadeforsikringer,,D
+7100,Aviser,,D
+7120,Faglitteratur,I25,D
+7140,Anden litteratur,I25,D
+7160,Erhvervsforsikringer,,D
+7161,Øvrige sikringsudgifter,,D
+7162,Øvrige sikringsudgifter,,D
+7180,Fragt og kørsel,I25,D
+7181,Fragto.a. forsendelsesomkostninger u/moms,,D
+7182,Fragto.a. forsendelsesomkostninger mv. EU,IEUY,D
+7183,Fragto.a. forsendelsesomkostninger mv. 3. lande,IVY,D
+7200,Kontorartikler og tryksager,I25,D
+7201,Kontorartikler og tryksager u/momsfradrag,,D
+7220,Porto og gebyrer,,D
+7221,Bankgebyr,,D
+7223,Depotgebyrer/porteføljepleje,,D
+7225,Abonnementer,,D
+7240,Telefon,I25,D
+7241,Telefon u. moms,,D
+7260,Beskatning af fri telefon,,D
+7280,Regnskabsprogram,I25,D
+7300,Internet og webhotel,I25,D
+7301,Internet og webhotel u. moms,,D
+7320,Køb af software,I25,D
+7321,"Edb-udgifter / software, EU (reverse charge)",IEUY,D
+7322,"Edb-udgifter / software, 3. lande  (reverse charge)",IVY,D
+7323,"Edb-udgifter / software, uden momsfradrag",,D
+7340,Konstateret tab på debitorer,U25,D
+7341,"Regulering af hensættelse til imødegåelse af tab, fordringer (lagerprincip)",,D
+7360,Offentlige bøder og gebyrer,,D
+7380,Registrerede kassedifferencer,,D
+7400,Betalingsløsning,I25,D
+7420,Indløsere,,D
+7440,Licens,,D
+7441,Stiftelsesomkostninger m/momsfradrag,I25,D
+7442,Stiftelsesomkostninger u/momsfradrag,,D
+7460,Diverse inkl. moms,I25,D
+7480,Diverse ekskl. moms,,D
+7500,"Generalforsamling, bestyrelsesmøder ude i byen, fuld fradrag",REP,D
+7520,Generalforsamling i virksomhedens lokaler,,D
+7540,Bestyrelsesmøder i virksomhedens lokaler,I25,D
+7560,Bestyrelsesmøder ude i byen,REP,D
+7601,Gebyrer skat u/skattemæssigt fradrag,,D
+8000,"Immaterielle anlægsaktiver, afskrivninger",,D
+8020,"Materielle anlægsaktiver, afskrivninger",,D
+8040,Småanskaffelser (straksafskrivning),I25,D
+8041,Småanskaffelser u. moms (straksafskrivning),,D
+8050,Småanskaffelser med omvendt betalingspligt,OBPK,D
+8060,Avance ved salg anlægsaktiver,,D
+8061,Tab ved salg anlægsaktiver,,D
+8070,"Produktudviklingstilskud, skattefrie",,D
+8071,Øvrige driftsindtægter mv.,U25,D
+8072,Øvrige driftsindtægter mv. u/moms,,D
+8900,Udbytter fra danske tilknyttede virksomheder,,D
+8901,Indtægter af kapitalandele i danske tilknyttede virksomheder,,D
+8910,Udbytter fra danske associerede virksomheder,,D
+8911,Indtægter af kapitalandele i danske associerede virksomheder,,D
+9011,Renteindtægter tilknyttede virksomheder,,D
+9012,Renteindtægter associerede virksomheder,,D
+9211,Renteomkostninger tilknyttede virksomheder,,D
+9212,Renteomkostninger associerede virksomheder,,D
+9000,Bankrenter (indtægt),,D
+9010,Renteindtægter diverse,,D
+9030,Rentegodtgørelse selskabsskat,,D
+9050,Dansk aktieudbytte uden indeholdt udbytteskat,,D
+9051,"Dansk aktieudbytte med 15,4% indeholdt udbytteskat",,D
+9052,Dansk aktieudbytte med 22% indeholdt udbytteskat,,D
+9053,Dansk aktieudbytte med 25% indeholdt udbytteskat,,D
+9054,Dansk aktieudbytte med 27% indeholdt udbytteskat,,D
+9055,Udenlandsk aktieudbytte uden indeholdt udbytteskat,,D
+9056,Udenlandsk aktieudbytte med 15% indeholdt udbytteskat,,D
+9057,Udenlandsk aktieudbytte i øvrigt med indeholdt udbytteskat,,D
+9058,"Udlodninger fra investeringsselskaber og obligationsbaserede investeringsbeviser (indeholdt udbytteskat)
+",,D
+9059,Dansk udbytteskat,,D
+9060,Beregnet lempelse udenlandsk udbytte Saxo Bank,,D
+9061,Kursgevinster aktier,,D
+9062,Urealiserede kursgevinster aktier,,D
+9063,Modpost udbytteskat,,D
+9200,Bankrenter (omkostning),,D
+9210,Leverandører mv.,,D
+9220,Ikke-fradragsberettigede renter,,D
+9221,Rykkergebyrer,,D
+9222,"Inkasso, debitorer",I25,D
+9223,Gebyrer skat u/skattemæssigt fradrag,,D
+9224,Kautionspræmie / provision,,D
+9225,Renteomkostninger mellemregning med ejere,,D
+9226,Øvrige renteomkostninger,,D
+9227,Renteomkostninger mellemregning med ejere 2,,D
+9330,"Finansieringstillæg, selskabsskat",,D
+9335,"Renteomkostninger, SKAT, uden fradrag",,D
+9336,"Renteomkostninger, SKAT, med fradrag",,D
+9400,Skat af årets resultat,,D
+9410,Skat af tidligere år,,D
+9415,Skattekredit forskning og udvikling,,D
+9420,Regulering af udskudt skat,,D
+9499,RESULTAT EFTER SKAT,,SUM
+10000,RESULTATDISPONERING,,Overskrift
+10001,Nettoopskrivning efter den indre værdis metode,,R
+10002,Nettoopskrivning af investeringsaktiver,,R
+10003,Overkurs ved emission,,R
+10004,Årets henlæggelse til øvrige lovpligtige reserver,,R
+10005,Årets henlæggelse til vedtægtsmæssige reserver,,R
+10006,Årets henlæggelse til øvrige reserver,,R
+10007,Årets henlæggelse til reserve for iværksætterselskab,,R
+10008,Overført til sikringsfond,,R
+10009,Overført til reservefond,,R
+10010,Overført til dispositionsfond,,R
+10011,Årets resultat vedrørende bunden fondskapital,,R
+10012,Årets resultat vedrørende disponibel fondskapital,,R
+10013,Hensat af fondskapitalen til senere uddeling,,R
+10014,Ekstraordinært udbytte for regnskabsåret (EK),,R
+10015,Udbytte for regnskabsåret (EK),,R
+10016,Overført af årets resultat,,R
+10017,Minoritetsinteresser andel af årets resultat,,R
+10999,RESULTATDISPONERING I ALT,,SUM
+49999,AKTIVER,,Overskrift
+50000,Immaterielle anlægsaktiver primo,,A
+50020,"Immaterielle, tilgang i året",I25,A
+50040,"Immaterielle, afgang i året",,A
+50060,"Immaterielle, årets afskrivninger",,A
+50100,"Goodwill, primo",,A
+50120,"Goodwill, tilgang i året",I25,A
+50140,"Goodwill, afgang i året",,A
+50160,"Goodwill, årets afskrivninger",,A
+50500,"Grunde og bygninger, anskaffelse primo",,A
+50520,"Grunde og bygninger, årets tilgang",,A
+50540,"Grunde og bygninger, årets afgang",,A
+50550,"Grunde og bygninger, afskrivning primo",,A
+50560,"Grunde og bygninger, årets afskrivninger",,A
+51000,Driftsmidler saldo primo,,A
+51020,"Driftsmidler, tilgang i året",I25,A
+51040,"Driftsmidler, afgang i året",,A
+51060,"Driftsmidler, årets afskrivninger",,A
+51500,Værdipapirer og kapitalandele,,A
+51501,"Depot, aktier",,A
+51502,"Depot, investeringsforeninger",,A
+51503,"Depot, obligationer",,A
+52000,Varebeholdning,,A
+52020,Nedskrivning,,A
+52030,Besætninger,,A
+52031,Nedskrivning besætninger,,A
+52032,Kornbeholdning,,A
+52034,Olie- og gasbeholdning,,A
+52036,Gødning og kemikaliebeholdning,,A
+53000,"Debitorer, ubetalte fakturaer",,A
+53020,Hensat til tab på debitorer,,A
+53100,Kapitalandele i tilknyttede virksomheder,,A
+53101,Kapitalandele i tilknyttede virksomheder 2,,A
+53102,Kapitalandele i tilknyttede virksomheder 3,,A
+53110,Kapitalandele i associerede virksomheder,,A
+53111,Kapitalandele i associerede virksomheder 2,,A
+53120,Tilgodehavender hos tilknyttede virksomheder,,A
+53121,Tilgodehavender hos tilknyttede virksomheder2,,A
+53129,"Tilgodehavender hos tilknyttede virksomheder, sambeskatningsbidrag",,A
+53130,Tilgodehavender hos associerede virksomheder,,A
+53131,Tilgodehavender hos associerede virksomheder2,,A
+54000,Deposita,,A
+54001,Deposita m/moms,I25,A
+54020,Igangværende arbejder,,A
+54030,Udskudt skatteaktiv,,A
+54031,Selskabsskat tilgode,,A
+54032,"Selskabsskat tilgode, lang",,A
+54033,Selskabsskat tilgode skattekreditordningen forskning og udvikling,,A
+54035,Tilgodehavende moms,,A
+54040,Øvrige tilgodehavender,,A
+54050,Tilgodehavender hos ejere og ledelse,,A
+54060,Periodeafgrænsningsposter,,A
+55000,Bank,,A
+55001,Bank2,,A
+55002,Bank3,,A
+55003,Bank4,,A
+55004,Bank værdipapirdepot 1,,A
+55005,Bank værdipapirdepot 2,,A
+55040,Kontanter (kasse),,A
+55999,AKTIVER I ALT,,SUM
+59999,EGENKAPITAL,,Overskrift
+60000,"Selskabskapital, primo",,P
+60001,"Selskabskapital, fondsemission",,P
+60002,"Selskabskapital, nedskrivning til dækning af tab",,P
+60003,"Selskabskapital, kapitalforhøjelse",,P
+60004,"Selskabskapital, kapitalnedsættelse",,P
+60009,Overkurs ved emission året,,P
+60010,Årets overkurs ved emission,,P
+60011,Overført til dækning af underskud,,P
+60020,"Overført resultat, primo",,P
+60021,Ændring af anvendt regnskabspraksis,,P
+60022,"Overført resultat, året",,P
+60023,Erhvervelse af egne kapitalandele,,P
+60024,Afhændelse af egne kapitalandele,,P
+60025,Skat ved afhændelse af egne kapitalandele,,P
+60026,Udbytte af egne kapitalandele,,P
+60027,Koncerntilskud fra modervirksomhed,,P
+60028,Ændring i dagsværdi sikringsinstrumenter,,P
+60029,Overførsel fra andre reserver,,P
+60030,Omkostninger ved stiftelse og kapitalforhøjelse,,P
+60031,Væsentlige fejl,,P
+60032,Ændring i anvendt regnskabspraksis,,P
+60033,"Overført overskud, overført fra væsentlige fejl",,P
+60034,Overført til selskabskapital,,P
+60035,Overført fra selskabskapital,,P
+60039,Foreslået udbytte primo,,P
+60040,Foreslået udbytte,,P
+60041,Udloddet udbytte,,P
+60042,Ekstraordinært udbytte,,P
+60043,Udbytte af egne kapitalandele ,,P
+60044,Overført til andre poster,,P
+60050,"Reserve for opskrivninger, primo",,P
+60051,"Reserve for opskrivninger, året",,P
+60052,"Reserve for opskrivninger, skat af årets opskrivning",,P
+60053,"Reserve for opskrivninger, opløsning af tidligere års opskrivning",,P
+60054,"Reserve for opskrivninger, overført til selskabskapital (fondsemission)",,P
+60060,"Reserve for nettoopskrivning efter den indre værdis metode, primo",,P
+60061,"Reserve for nettoopskrivning efter den indre værdis metode, årets nettoopskrivning",,P
+60062,"Reserve for nettoopskrivning efter den indre værdis metode, overført til andre poster",,P
+60065,"Reserve for udlån og sikkerhedsstillelse, primo",,P
+60066,"Reserve for udlån og sikkerhedsstillelse, året",,P
+60067,"Reserve for udlån og sikkerhedsstillelse, overført til andre poster",,P
+60070,"Reserve for ikke indbetalt virksomhedskapital og overkurs, primo",,P
+60071,"Reserve for ikke indbetalt virksomhedskapital og overkurs, årets bevægelse",,P
+60072,"Reserve for ikke indbetalt virksomhedskapital og overkurs, overført til andre poster",,P
+60073,"Reserve for ikke indbetalt virksomhedskapital og overkurs, overført udbytte til ejerne",,P
+60075,"Reserve for iværksætterselskaber, primo",,P
+60076,"Reserve for iværksætterselskaber, årets bevægelse",,P
+60077,"Reserve for iværksætterselskaber, overført til andre poster",,P
+60080,"Reserve for udviklingsomkostninger, primo",,P
+60081,"Reserve for udviklingsomkostninger, årets bevægelse",,P
+60082,"Reserve for udviklingsomkostninger, overført til andre poster",,P
+60085,"Øvrige lovpligtige reserver, primo",,P
+60086,"Øvrige lovpligtige reserver, årets bevægelse",,P
+60087,"Øvrige lovpligtige reserver, overført til andre poster",,P
+60090,"Vedtægtsmæssige reserver, primo",,P
+60091,"Vedtægtsmæssige reserver, årets bevægelse",,P
+60092,"Vedtægtsmæssige reserver, overført til andre poster",,P
+60095,"Øvrige reserver, primo",,P
+60096,"Øvrige reserver, årets bevægelse",,P
+60097,"Øvrige reserver, overført til andre poster",,P
+60899,EGENKAPITAL I ALT,,SUM
+60999,HENSATTE FORPLIGTELSER,,Overskrift
+61000,Hensat til erstatninger,,H
+61020,Hensat til udskudt skat,,H
+61021,Hensættelser vedrørende kapitalandele i tilknyttede virksomheder,,H
+61022,Hensættelser vedrørende kapitalandele i associerede virksomheder,,H
+61029,HENSATTE FORPLIGTELSER I ALT,,SUM
+61030,GÆLDSFORPLIGTELSER,,Overskrift
+61040,Hensat feriepengeforpligtelse,,P
+62000,Banklån,,P
+63010,Lån fra ejere,,P
+63011,Lån fra ejere 2,,P
+62100,"Gæld til tilknyttede virksomheder, lang",,P
+62102,"Gæld til associerede virksomheder, lang",,P
+63000,"Kreditorer, ubetalte regninger",,P
+63020,"Kreditorer, efterposteringer",,P
+63040,Afsat revisor,,P
+63059,"Selskabsskat, langfristet",,P
+63060,Skyldig selskabsskat,,P
+63080,Gavekort,,P
+63090,Gæld til tilknyttede virksomheder,,P
+63091,Gæld til tilknyttede virksomheder2,,P
+63092,Gæld til associerede virksomheder,,P
+63093,Gæld til associerede virksomheder2,,P
+63100,Udlæg ansatte,,P
+63101,Udlæg øvrige,,P
+64000,Salgsmoms (udgående moms),,P
+64001,"Skyldig moms, primo",,P
+64020,Moms af varer fra udlandet,,P
+64040,Moms af ydelser fra udlandet,,P
+64060,Købsmoms (indgående moms),,P
+64080,EL-afgift,,P
+64085,Gasafgift,,P
+64090,Vandafgift,,P
+64095,Omposteret til tilgodehavende moms,,P
+64100,Momsafregning,,P
+65000,Skyldig AM-bidrag,,P
+65020,Skyldig A-skat,,P
+65040,Skyldig ATP,,P
+65045,Skyldig sociale bidrag,,P
+65060,Skyldige feriepenge,,P
+65080,Skyldig pension,,P
+65100,Skyldig løn,,P
+65120,Andre skyldige lønposter,,P
+65130,Skattekonto,,P
+65131,Anden gæld,,P
+65140,Vendekonto bank,,P
+65141,Vendekonto depot / bank,,P
+65142,Vendekonto skattekonto,,P
+65150,Periodeafgrænsningsposter (forudbetalte indtægter),,P
+7999,GÆLDSFORPLIGTELSER I ALT,,SUM
+8999,PASSIVER I ALT,,SUM
+99999,Analysekonto,,P

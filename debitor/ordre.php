@@ -3469,7 +3469,16 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
       print "<input type='hidden' name='dkan$x' value='".$dkantal[$x]."'><td align='right'>$dkantal[$x]<br></td>\n";
 			print "<input type='hidden' name='enhed[$x]' value='$enhed[$x]'><td align='right'>$enhed[$x]<br></td>\n";
 			print "<input type='hidden' name='lager[$x]' value='$lager[$x]'>";
-			if ($lagerantal>1) print "<td align='right'>$lager[$x]<br></td>\n";
+			if ($lagerantal>1) {
+				$lagerDisplay = $lager[$x];
+				for ($l=0;$l<count($lagernr);$l++) {
+					if ($lagernr[$l]==$lager[$x] && strlen($lagernavn[$l])==1) {
+						$lagerDisplay=$lagernavn[$l];
+						break;
+					}
+				}
+				print "<td align='right'>$lagerDisplay<br></td>\n";
+			}
 			print "<input type='hidden' name='beskrivelse$x' ";
 			if (strpos($beskrivelse[$x],'"')) print "value='$beskrivelse[$x]'>";
 			else print "value=\"$beskrivelse[$x]\"'>";
