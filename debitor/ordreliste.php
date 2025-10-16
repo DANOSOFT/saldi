@@ -94,6 +94,7 @@
 // 20250605	PHR Removed konto_id from href
 // 26062025 PBLM Added link to the whole line almost
 // 14082025 Sawaneh Fix invoicelist for english language
+// 20251016 MS Changed "$confirm1" and "confirm('$confirm1 $valg?')" to allow complete translation
 
 #ob_start();
 @session_start();
@@ -168,7 +169,7 @@ function checkPopupBlocked() {
 const res = checkPopupBlocked();
 if (res) {
 	// Alert the user about the popup blocker (Dansk translation)
-	alert("Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen, skal du tillade pop-up vinduer for denne side.");
+	alert("<?php echo findtekst('2719|Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen skal du tillade pop-up vinduer for denne side.', $sprog_id)?>");
 } else {
 	// Proceed with the report functionality
 	console.log("Pop-up allowed, proceeding with report functionality.");
@@ -191,29 +192,29 @@ global $color;
  //	
 #print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>Ordreliste - Kunder</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 
-$aa = findtekst('360|Firmanavn', $sprog_id);
-$firmanavn1 =ucfirst(str_replace(' ','_', $aa));
-$bb = findtekst('107|Ordrer', $sprog_id);
-$ordrer1 =strtolower(str_replace(' ','_', $bb));
-$cc = findtekst('893|faktura', $sprog_id);
-$faktura1=strtolower(str_replace(' ','_', $cc));
-$dd = findtekst('812|Tilbud', $sprog_id);
-$tilbud1=strtolower(str_replace(' ','_', $dd));
-$ee = findtekst('892|Ordrelistevisning', $sprog_id);
-$beskrivelse= strtolower(str_replace(' ','_', $ee));//20210527
+$aa           = findtekst('360|Firmanavn', $sprog_id);
+$firmanavn1   = ucfirst(str_replace(' ','_', $aa));
+$bb           = findtekst('107|Ordrer', $sprog_id);
+$ordrer1      = strtolower(str_replace(' ','_', $bb));
+$cc           = findtekst('893|faktura', $sprog_id);
+$faktura1     = strtolower(str_replace(' ','_', $cc));
+$dd           = findtekst('812|Tilbud', $sprog_id);
+$tilbud1      = strtolower(str_replace(' ','_', $dd));
+$ee           = findtekst('892|Ordrelistevisning', $sprog_id);
+$beskrivelse  = strtolower(str_replace(' ','_', $ee)); //20210527
 
-$ff = findtekst('500|Ordrenr.', $sprog_id);
-$ordrenr1= strtolower(str_replace(' ','_', $ff));
-$gg = findtekst('881|Ordredato', $sprog_id);
-$ordredate1 = strtolower(str_replace(' ','_', $gg));
-$hh = findtekst('804|Kontonr.', $sprog_id);
-$kontonr1 = strtolower(str_replace(' ','_', $hh));
-$ii = findtekst('882|Fakt. nr.', $sprog_id);
-$fakturanr1  = strtolower(str_replace(' ','_', $ii));
-$jj = findtekst('883|Fakt. dato', $sprog_id);
+$ff           = findtekst('500|Ordrenr.', $sprog_id);
+$ordrenr1     = strtolower(str_replace(' ','_', $ff));
+$gg           = findtekst('881|Ordredato', $sprog_id);
+$ordredate1   = strtolower(str_replace(' ','_', $gg));
+$hh           = findtekst('804|Kontonr.', $sprog_id);
+$kontonr1     = strtolower(str_replace(' ','_', $hh));
+$ii           = findtekst('882|Fakt. nr.', $sprog_id);
+$fakturanr1   = strtolower(str_replace(' ','_', $ii));
+$jj           = findtekst('883|Fakt. dato', $sprog_id);
 $fakturadate1 = strtolower(str_replace(' ','_', $jj));
-$kk = findtekst('891|nextfakt', $sprog_id);
-$nextfakt1 = strtolower(str_replace(' ','_', $kk));
+$kk           = findtekst('891|nextfakt', $sprog_id);
+$nextfakt1    = strtolower(str_replace(' ','_', $kk));
 
 
 
@@ -296,7 +297,7 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		$qtxt = "select * from grupper where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'"; #20210623
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			$box6 = $r['box6'];
-			$c =explode(",",$box6);
+			$c = explode(",",$box6);
 			$c = array_map('trim', $c);
 			if(!in_array(trim("$firmanavn1"), $c)){
 				$qtxt = "update grupper set beskrivelse='$beskrivelse',kode='$valg',kodenr='$bruger_id',box2='$returside',";
@@ -334,22 +335,22 @@ if (!$popup) {
 $tidspkt=date("U");
  
 #if (isset($_POST)) {
-if ($submit=if_isset($_POST,NULL,'submit')) {
-	if (strstr($submit, "Genfaktur")) $submit="Genfakturer";
-	$find=if_isset($_POST['find']);
-	$valg=if_isset($_POST['valg']);
-	$sort = if_isset($_POST['sort']);
-	$nysort = if_isset($_POST['nysort']);
-	$firma=if_isset($_POST['firma']);
-	$kontoid=if_isset($_POST['kontoid']);
-	$firmanavn_ant=if_isset($_POST['firmanavn_antal']);
+if ($submit = if_isset($_POST,NULL,'submit')) {
+	if (strstr($submit, "Genfaktur")) $submit = "Genfakturer";
+	$find          = if_isset($_POST['find']);
+	$valg          = if_isset($_POST['valg']);
+	$sort          = if_isset($_POST['sort']);
+	$nysort        = if_isset($_POST['nysort']);
+	$firma         = if_isset($_POST['firma']);
+	$kontoid       = if_isset($_POST['kontoid']);
+	$firmanavn_ant = if_isset($_POST['firmanavn_antal']);
 } elseif (isset($_POST["clear"])) {
     // Clear all search criteria
-    $find = array();
-    $konto_id = NULL;
-    $udvaelg = NULL;
-    $kontoid = NULL;
-    $firma = NULL;
+    $find          = array();
+    $konto_id      = NULL;
+    $udvaelg       = NULL;
+    $kontoid       = NULL;
+    $firma         = NULL;
     $firmanavn_ant = NULL;
     
     // Clear the stored search criteria in the database
@@ -717,11 +718,11 @@ print "<tr><td></td>";
 		} else $width="";
 
 		# Hent beskrivelser
-		if ($konto_id && ($vis_felt[$x]=="kontonr" || $vis_felt[$x]=="firmanavn")) $span = 'Listen er &aring;bnet fra debitorkort - s&oslash;gefelt deaktiveret';
-		elseif (strpos($vis_felt[$x],"nr")) $span = 'Skriv et nummer eller skriv to adskilt af kolon (f.eks 345:350)';
+		if ($konto_id && ($vis_felt[$x]=="kontonr" || $vis_felt[$x]=="firmanavn")) $span = findtekst('2720|Listen er åbnet fra debitorkort – søgefelt deaktiveret', $sprog_id);
+		elseif (strpos($vis_felt[$x],"nr")) $span = findtekst('2721|Skriv enten et enkelt nummer, eller to numre adskilt af kolon (f.eks. 345:350)', $sprog_id);
 		elseif (strpos($vis_felt[$x],"date") || $vis_felt[$x]=="nextfakt") $span = '';
-		elseif ($vis_felt[$x]=="sum") $span = 'Skriv et beb&oslash;b eller to adskilt af kolon (f.eks 525,25:525,50)';
-		else $span=''; 
+		elseif ($vis_felt[$x]=="sum") $span = findtekst('2722|Skriv enten et enkelt beløb, eller to beløb adskilt af kolon (f.eks. 525,25:525,50)', $sprog_id);
+		else $span='';
 
 		# Print the input fields
 		print "<td align=$justering[$x]><span title= '$span'>";
@@ -1169,7 +1170,7 @@ if ($valg) {
 	print "<input type=hidden name=nysort value='$nysort'>";
 	print "</tr><tr><td colspan=$colspan align=right>";
 	if ($valg=="faktura") {
-		if ($genfakturer) print "<input type=submit value=\"Genfaktur&eacute;r\" name=\"submit\">&nbsp;";
+		if ($genfakturer) print "<input type=submit value='Genfaktur&eacute;r' name='submit'>&nbsp;";
 		if (strlen("which ps2pdf")) {
 			if (in_array('udskriv_til',$vis_felt)) {
 				for ($i=1;$i<=count($vis_felt);$i++) {
@@ -1177,12 +1178,15 @@ if ($valg) {
 				}
 				if ($find[$z]=='email') {
 					$confirm = findtekst('1444|Er du sikker på at du vil udsende de valgte', $sprog_id); 
-					print "<span title=\"".findtekst('1435|Sender valgte fakturaer som e-mail', $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"Send mails\" name=\"submit\" onclick=\"return confirm('$confirm $valg pr mail?')\"></span><br>";
+					print "<span title='".findtekst('1435|Sender valgte fakturaer som e-mail', $sprog_id)."'><input type=submit style='width:100px'; value='Send mails' name='submit' onclick=\"return confirm('$confirm $valg pr mail?')\"></span><br>";
 				} 
 			}
-			$confirm1= findtekst('1445|Udskriv de valgte', $sprog_id);  
-			print "<span title=\"".findtekst('1436|Udskriver valgte fakturaer som PDF', $sprog_id)."\"><input type=submit style=\"width:100px\"; value=\"".findtekst('880|Udskriv', $sprog_id)."\" name=\"submit\" onclick=\"return confirm('$confirm1 $valg?')\"></span></td></tr>";
-			print "<tr><td colspan='13' align='right'><span title='Udskriv følgesedler'><input type='submit' style='width:100px' value='Følgesedler' name='deliveryNote')'></span></td></tr>";
+			$confirm1 = findtekst('1445|Udskriv de valgte fakturaer', $sprog_id); #20251016 (changed from "Udskriv de valgte")
+			$txt1     = findtekst('1436|Udskriver valgte fakturaer som PDF', $sprog_id);
+			$txt2     = findtekst('880|Udskriv', $sprog_id);
+			$txt3     = findtekst('2718|Følgesedler', $sprog_id);
+			print "<span title='$txt1'><input type=submit style='width:100px'; value='$txt2' name='submit' onclick=\"return confirm('$confirm1?')\"></span></td></tr>"; #20251016 (changed from "confirm('$confirm1 $valg?')")
+			print "<tr><td colspan='11' align='right'><span title='$txt2 ".lcfirst($txt3)."'><input type='submit' style='width:100px' value='$txt3' name='deliveryNote')'></span></td></tr>";
 			?>
 			<script>
 				const button = document.querySelector("[name='deliveryNote']")
@@ -1195,7 +1199,7 @@ if ($valg) {
 			</script>
 			<?php
 		} else {
-			print "<input type=submit value=\"".findteskt(880, $sprog_id)."\" name=\"submit\" style=\"width:100px\"; disabled=\"disabled\"></td>";
+			print "<input type=submit value=\"".findtekst('880|Udskriv', $sprog_id)."\" name=\"submit\" style=\"width:100px\"; disabled=\"disabled\"></td>";
 			
 		}
 	} else {

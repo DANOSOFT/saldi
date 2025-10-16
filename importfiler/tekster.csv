@@ -37,7 +37,7 @@
 37	Telefon	Telephone	Telefon
 38	Stillingsliste	Job list	Stillingsliste
 39	Ny	New	Ny
-40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
+40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by : (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med : (f.eks. 23:44) for å søke i et intervall
 41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Enter a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
 42	Afmærk de felter som skal eksporteres	Mark the fields to be exported	Merk feltene som skal eksporteres
 43	Kontonr.	Account no.	Kontonr.
@@ -1442,7 +1442,7 @@
 1442	Ikke udlignet	Not settled	Ikke avgjort
 1443	Hold musen over de respektive ordrenumre for at se beholdninger mm	Hold the mouse over the respective order numbers to see stocks etc.	Hold musen over respektive bestillingsnummer for å se aksjer etc.
 1444	Er du sikker på at du vil udsende de valgte	Are you sure you want to send the selected 	Er du sikker på at du vil sende de valgte
-1445	Udskriv de valgte	Print the selected 	Skriv ut de valgte
+1445	Udskriv de valgte fakturaer	Print the selected invoices	Skriv ut de valgte fakturaene
 1446	Er du sikker på at du vil slette de valgte	Are you sure you want to delete the selected 	Er du sikker på at du vil slette de valgte
 1447	Vælg på hvilken måde dokumentet skal udskrives, gemmes eller sendes.	Choose how to print, save or send the document.	Velg hvordan du skal skrive ut, lagre eller sende dokumentet.
 1448	Udskrives som PDF uden baggrund	Printed as PDF without background	Skrives ut som PDF uten bakgrunn
@@ -2716,10 +2716,10 @@
 2716	Nuværende sprog	Current language	Nåværende språk
 2717	Klik her for at rette tekster	Click here to edit texts	Klikk her for å redigere tekster
 2718	Følgesedler	Delivery notes	Følgesedler
-2719	
-2720	
-2721	
-2722	
+2719	Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen skal du tillade pop-up vinduer for denne side.	Your browser is blocking pop-up windows. To use the report feature, you need to allow pop-up windows for this site.	Nettleseren din blokkerer for pop-up vinduer. For å bruke rapportfunksjonen må du tillate pop-up vinduer for dette nettstedet.
+2720	Listen er åbnet fra debitorkort – søgefelt deaktiveret	The list has been opened from the customer card – search field disabled	Listen er åpnet fra kundekortet – søkefelt deaktivert
+2721	Skriv enten et enkelt nummer, eller to numre adskilt af kolon (f.eks. 345:350)	Enter either a single number, or two numbers separated by a colon (e.g. 345:350)	Skriv inn enten et enkelt nummer, eller to numre adskilt med kolon (f.eks. 345:350)
+2722	Skriv enten et enkelt beløb, eller to beløb adskilt af kolon (f.eks. 525,25:525,50)	Enter either a single amount, or two amounts separated by a colon (e.g. 525.25:525.50)	Skriv inn enten et enkelt beløp, eller to beløp adskilt med kolon (f.eks. 525,25:525,50)
 2723	
 2724	
 2725	
