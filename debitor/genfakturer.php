@@ -211,8 +211,30 @@ function genfakt($id,$org_nr,$fakt_dato,$opdat_pris,$opdat_text,$slet_gfdato,$re
 			$r2=db_fetch_array(db_select("select MAX(ordrenr) as ordrenr from ordrer where art='DO' or art='DK'",__FILE__ . " linje " . __LINE__));
 			$ordrenr=$r2['ordrenr']+1;
 		}
-		$r2=db_fetch_array(db_select("select kontonr from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__)); #20160825
+		$r2=db_fetch_array(db_select("select kontonr,firmanavn,addr1,addr2,bynavn,land,cvrnr,ean,sprog,valuta,kontakt,email,betalingsdage,betalingsbet from adresser where id = '$konto_id'",__FILE__ . " linje " . __LINE__)); #20160825
 		$kontonr=$r2['kontonr'];
+		
+		// Update customer information from adresser table if available
+		if ($r2['firmanavn']) $firmanavn=db_escape_string($r2['firmanavn']);
+		if ($r2['addr1']) $addr1=db_escape_string($r2['addr1']);
+		if ($r2['addr2']) $addr2=db_escape_string($r2['addr2']);
+		if ($r2['bynavn']) $bynavn=db_escape_string($r2['bynavn']);
+		if ($r2['land']) $land=db_escape_string($r2['land']);
+		if ($r2['cvrnr']) {
+			$cvrnr=db_escape_string($r2['cvrnr']);
+			$cvrnr=str_replace(' ','',$cvrnr);
+			if ($cvrnr && !is_numeric(substr($cvrnr,2))) {
+				$cvrnr='';
+				alert("fejl i CVR nr for $firmanavn\\rCVR nr fjernet"); 
+			}
+		}
+		if ($r2['ean']) $ean=db_escape_string($r2['ean']);
+		if ($r2['sprog']) $sprog=db_escape_string($r2['sprog']);
+		if ($r2['valuta']) $valuta=db_escape_string($r2['valuta']);
+		if ($r2['kontakt']) $kontakt=db_escape_string($r2['kontakt']);
+		if ($r2['email']) $email=db_escape_string($r2['email']);
+		if ($r2['betalingsdage']) $r['betalingsdage']=$r2['betalingsdage'];
+		if ($r2['betalingsbet']) $r['betalingsbet']=$r2['betalingsbet'];
 		$qtxt = "insert into ordrer ";
 		$qtxt.= "(ordrenr, konto_id, kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,";
 		$qtxt.= "institution,notes,art,ordredate,momssats,moms,ref,valuta,sprog,kontakt,kundeordnr,lev_navn,lev_addr1,lev_addr2,";
