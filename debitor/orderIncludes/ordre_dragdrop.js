@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     console.log('Order drag-and-drop script loading...');
 
-    // Check if this is an invoice page (status >= 3) - if so, don't initialize
     const statusInput = document.querySelector('input[name="status"]');
     const status = statusInput ? parseInt(statusInput.value) : 0;
     
@@ -31,6 +30,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const ordreId = ordreIdInput ? ordreIdInput.value : null;
     console.log('Current ordre_id detected:', ordreId);
 
+    let saveTimeout = null;
+    let isDragging = false;
+
     const sortable = new Sortable(orderTableBody, {
         handle: '.drag-handle',
         draggable: '.ordrelinje',
@@ -39,26 +41,49 @@ document.addEventListener('DOMContentLoaded', function () {
         animation: 150,
 
         onStart(evt) {
+            isDragging = true;
             evt.item.classList.add('dragging');
             console.log('=== DRAG STARTED ===');
         },
 
         onEnd(evt) {
-            evt.preventDefault();
+            isDragging = false;
             evt.item.classList.remove('dragging');
             console.log('=== DRAG ENDED ===');
             updatePositionNumbers();
-            const success = submitOrderForm();
-            if (success) {
-                showMessage('Order updated and saved.', 'success');
-            } else {
-                showMessage('Drag updated, but form save failed.', 'error');
+            
+            // Clear any existing timeout
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
             }
+            
+            // Delay the save to allow other button clicks to take priority
+            saveTimeout = setTimeout(() => {
+                if (!isDragging) {
+                    const success = submitOrderForm();
+                    if (success) {
+                        showMessage('Order updated and saved.', 'success');
+                    } else {
+                        showMessage('Drag updated, but form save failed.', 'error');
+                    }
+                }
+            }, 500); // Wait 500ms before auto-saving
 
             if (typeof docChange !== 'undefined') {
                 docChange = true;
             }
         }
+    });
+
+    // Prevent auto-save when clicking other buttons
+    const allButtons = document.querySelectorAll('input[type="submit"], button[type="submit"]');
+    allButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+                console.log('Auto-save cancelled - user clicked button:', this.name || this.value);
+            }
+        });
     });
 
     function updatePositionNumbers() {
