@@ -3776,7 +3776,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		$ordre_id=$id;
 		$ret=0;
 		($art=='OT')?$disabled="disabled='disabled'":$disabled=NULL; #20140716
-		print "<tr><td width=\"31%\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n"; #Tabel 4.1 ->
+		print "<tr><td width=\"31%\"><table cellpadding=\"0\" style='margin-left: auto; margin-right: auto;' cellspacing=\"0\" border=\"0\">\n"; #Tabel 4.1 ->
 		print "<tr><td witdh=\"100\">".findtekst('43|Kontonr.', $sprog_id)."</td><td colspan=\"2\">\n";
 		if (trim($kontonr)) {
 			if ($status>2 || !$id) {
@@ -3791,12 +3791,12 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				print "<input class='button gray small' type='submit' title='$title' value=".findtekst('436|Skift', $sprog_id)." style='width:50px;'>";
 				$fokus = 'newAccountNo';
 			} else {
-				print "<input class='inputbox' type='text' readonly='readonly' style='width:150px;background-color:#ddd;' name='kontonr'";
+				print "<input class='inputbox' type='text' readonly='readonly' style='width:130px;background-color:#ddd;' name='kontonr'";
 				print "onfocus='document.forms[0].fokus.value=this.name;' value=\"$kontonr\">";
 				$title = findtekst('1463|Klik her for at skifte kunde på denne ordre', $sprog_id);
 				print "<a style='text-decoration: none' href='ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside&art=$art&swap_account=swap'>";
 				// print "<a style='text-decoration: none' href='ordre.php?id=$id&returside=$returside'>";
-				print "<button class='button gray small' type='button' title='$title' style='width:50px;'>".findtekst('436|Skift', $sprog_id)."";
+				print "<button class='button gray small' type='button' title='$title' style='width:70px;'>".findtekst('436|Skift', $sprog_id)."";
 			}
     	}  else {
 			print "<input class='inputbox' type='text' style='width:200px' name='kontonr' onfocus='document.forms[0].fokus.value=this.name;'";
@@ -3865,7 +3865,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				   style=\"border: 0px solid; width: 25px; height: 25px;\"></a></td></tr>\n";
 		}
 		print "</tbody></table></td>\n\n"; # <- Tabel 4.1
-		print "<td width=\"38%\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"250\">\n"; #Tabel 4.2 ->
+		print "<td width=\"38%\"><table cellpadding=\"0\" cellspacing=\"0\"  style='margin-left: auto; margin-right: auto;'  border=\"0\" width=\"250\">\n"; #Tabel 4.2 ->
 		($cvrnr==$k_cvrnr)?$tekstcolor="#444444":$tekstcolor="#ff0000";
 		print "<tr><td style=\"color:$tekstcolor;\" title=\"$k_cvrnr\">".findtekst('376|CVR-nr.', $sprog_id)."</td><td><input class = 'inputbox' type = 'text' style=\"width:130px\" name=\"cvrnr\" value=\"$cvrnr\" onchange=\"javascript:docChange = true;\" $disabled></td>\n";
 		($ean==$k_ean)?$tekstcolor="#444444":$tekstcolor="#ff0000";

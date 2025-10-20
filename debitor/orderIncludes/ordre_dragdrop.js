@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
     console.log('Order drag-and-drop script loading...');
 
-    // Check if this is an invoice page (status >= 3) - if so, don't initialize
     const statusInput = document.querySelector('input[name="status"]');
     const status = statusInput ? parseInt(statusInput.value) : 0;
     
@@ -31,29 +30,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const ordreId = ordreIdInput ? ordreIdInput.value : null;
     console.log('Current ordre_id detected:', ordreId);
 
-    // Function to remove empty rows
-    function removeEmptyRows() {
-        const emptyRows = orderTableBody.querySelectorAll('tr:not(.ordrelinje)');
-        emptyRows.forEach(row => {
-            // Check if row contains only empty cells or <br> tags
-            const cells = row.querySelectorAll('td');
-            let isEmpty = true;
-            
-            cells.forEach(cell => {
-                const content = cell.textContent.trim();
-                const hasInputs = cell.querySelectorAll('input, select, textarea').length > 0;
-                
-                if (content !== '' && content !== '\n' && hasInputs) {
-                    isEmpty = false;
-                }
-            });
-            
-            /* if (isEmpty) {
-                console.log('Removing empty row:', row);
-                row.remove();
-            } */
-        });
-    }
+    let saveTimeout = null;
+    let isDragging = false;
 
     const sortable = new Sortable(orderTableBody, {
         handle: '.drag-handle',
@@ -61,46 +39,54 @@ document.addEventListener('DOMContentLoaded', function () {
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
         animation: 150,
-        filter: 'tr:not(.ordrelinje)', // Prevent dragging non-order rows
 
         onStart(evt) {
+            isDragging = true;
             evt.item.classList.add('dragging');
             console.log('=== DRAG STARTED ===');
-            // Remove any empty rows before starting drag
-            removeEmptyRows();
         },
 
         onEnd(evt) {
-            evt.preventDefault();
+            isDragging = false;
             evt.item.classList.remove('dragging');
             console.log('=== DRAG ENDED ===');
-            
-            // Remove empty rows that might have been created during drag
-            removeEmptyRows();
-            
             updatePositionNumbers();
-            const success = submitOrderForm();
-            if (success) {
-                showMessage('Order updated and saved.', 'success');
-            } else {
-                showMessage('Drag updated, but form save failed.', 'error');
+            
+            // Clear any existing timeout
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
             }
+            
+            // Delay the save to allow other button clicks to take priority
+            saveTimeout = setTimeout(() => {
+                if (!isDragging) {
+                    const success = submitOrderForm();
+                    if (success) {
+                        showMessage('Order updated and saved.', 'success');
+                    } else {
+                        showMessage('Drag updated, but form save failed.', 'error');
+                    }
+                }
+            }, 500); // Wait 500ms before auto-saving
 
             if (typeof docChange !== 'undefined') {
                 docChange = true;
             }
-        },
-
-        onMove(evt) {
-            // Prevent moving to non-order line rows
-            return evt.related.classList.contains('ordrelinje');
         }
     });
 
+    // Prevent auto-save when clicking other buttons
+    const allButtons = document.querySelectorAll('input[type="submit"], button[type="submit"]');
+    allButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (saveTimeout) {
+                clearTimeout(saveTimeout);
+                console.log('Auto-save cancelled - user clicked button:', this.name || this.value);
+            }
+        });
+    });
+
     function updatePositionNumbers() {
-        // Remove any empty rows first
-        removeEmptyRows();
-        
         const orderRows = orderTableBody.querySelectorAll('tr.ordrelinje');
         console.log('=== UPDATING POSITION NUMBERS for ordre_id:', ordreId, '===');
 
@@ -175,7 +161,4 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     }
-
-    // Initial cleanup on load
-    removeEmptyRows();
 });
