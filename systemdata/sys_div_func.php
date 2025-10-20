@@ -1597,13 +1597,23 @@ function ordre_valg() {
 	global $bgcolor;
 	global $bgcolor5;
 
-	$hurtigfakt = $incl_moms = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
+	$hurtigfakt = $incl_moms_private = $incl_moms_business = $folge_s_tekst = $negativt_lager = $straks_bogf = $vis_nul_lev = $orderNoteEnabled = NULL;
 
 	$r = db_fetch_array(db_select("select * from grupper where art = 'DIV' and kodenr = '3'", __FILE__ . " linje " . __LINE__));
 	$id = $r['id'];
 	$beskrivelse = $r['beskrivelse'];
 	$kodenr = $r['kodenr'];
-	($r['box1'] == 'on') ? $incl_moms = "checked" : $incl_moms = NULL;
+	
+	// Read VAT options from settings table
+	$qtxt = "select var_value from settings where var_name='vatPrivateCustomers' and var_grp='ordre'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['var_value']) $incl_moms_private = 'checked';
+	}
+	
+	$qtxt = "select var_value from settings where var_name='vatBusinessCustomers' and var_grp='ordre'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		if ($r['var_value']) $incl_moms_business = 'checked';
+	}
 	$rabatvareid = (int)$r['box2'];
 	($r['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
 	($r['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
@@ -1634,6 +1644,14 @@ function ordre_valg() {
 
 	$portovarenr = get_settings_value("porto_varnr", "ordre", "");
 	$debitoripad = get_settings_value("debitoripad", "ordre", "off");
+	$showDB = get_settings_value("showDB", "ordre", "");
+	$showDG = get_settings_value("showDG", "ordre", "");
+	if ($showDB === "on") {
+		$showDB = "checked";
+	}
+	if ($showDG === "on") {
+		$showDG = "checked";
+	}
 	if ($debitoripad === "on") {
 		$debitoripad = "checked";
 	}
@@ -1664,7 +1682,8 @@ function ordre_valg() {
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</u></b></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
 	print "<input type=hidden name=id value='$id'>";
-	print "<tr><td title='".findtekst('197|Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer', $sprog_id)."'>".findtekst('196|Vis priser inkl. moms på kundeordrer', $sprog_id)."</td><td><INPUT title='".findtekst('197|Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer', $sprog_id)."' class='inputbox' type='checkbox' name=box1 $incl_moms></td></tr>";
+	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (private kunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatPrivateCustomers $incl_moms_private></td></tr>";
+	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (erhvervskunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatBusinessCustomers $incl_moms_business></td></tr>";
 	print "<tr><td title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."'>".findtekst('164|Medtag kommentarer på følgesedler', $sprog_id)."</td><td><INPUT title='".findtekst('188|Hvis dette felt afmærkes inkluderes kommentarlinjer fra tilbud/ordrer på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box3 $folge_s_tekst></td></tr>";
 	print "<tr><td title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."'>".findtekst('169|Medtag kun linjer med antal på følgeseddel', $sprog_id)."</td><td><INPUT title='".findtekst('189|Hvis dette felt afmærkes inkluderes kun linjer med angivet antal på følgesedler', $sprog_id)."' class='inputbox' type='checkbox' name=box8 $vis_nul_lev></td></tr>";
 	$qtxt = "select id from grupper where art = 'VG' and box9='on'";
@@ -1698,7 +1717,9 @@ function ordre_valg() {
 	print "<tr><td title='".findtekst('1711|Afmærk dette felt for at bruge ordrebemærkning til intern brug', $sprog_id)."'>".findtekst('1714|Anvend ordrebemærkning til internt brug', $sprog_id)."</td><td><INPUT title='".findtekst('1712|Bemærkning til ordre', $sprog_id)."' class='inputbox' type='checkbox' name='orderNoteEnabled' $orderNoteEnabled></td></tr>";
 	print "<tr><td title='".findtekst('2370|Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en e-mail på en ordre', $sprog_id)."'>".findtekst('2369|Aktiver debitoripad', $sprog_id)."</td><td><INPUT title='".findtekst('2370|Dette felt aktiverer debitoripadsystemet hvor dine kunder selv kan skrive en mail på en ordre', $sprog_id)."' class='inputbox' type='checkbox' name='debitoripad' $debitoripad></td></tr>";
 	print "<tr><td title='".findtekst('690|Angiv hvilken konto betalingen skal konteres på ved salg på kreditkort. Hvis feltet er tomt oprettes en åben post på beløbet på kundens konto.', $sprog_id)."'>".findtekst('2400|Ordrebek', $sprog_id)."</td><td><INPUT title='".findtekst('2401|Overblik', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='portovarenr' value='$portovarenr'></td></tr>";
-#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
+	print "<tr><td title='Dette felt deaktiverer visning af DB på ordre siden'>Skjul dækningsbidra</td><td><INPUT title='Dette felt deaktiverer visning af DB på ordre siden', class='inputbox' type='checkbox' name='showDB' $showDB></td></tr>";
+	print "<tr><td title='Dette felt deaktiverer visning af DG på ordre siden'>Skjul dækningsgrad</td><td><INPUT title='Dette felt deaktiverer visning af DG på ordre siden', class='inputbox' type='checkbox' name='showDG' $showDG></td></tr>";
+	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -1775,7 +1796,7 @@ function shop_valg() {
 	global $db;
 	global $labelprint;
 
-	#	$hurtigfakt=NULL; $incl_moms=NULL; $folge_s_tekst=NULL; $negativt_lager=NULL; $straks_bogf=NULL; $vis_nul_lev=NULL;
+	#	$hurtigfakt=NULL; $incl_moms_private=NULL; $incl_moms_business=NULL; $folge_s_tekst=NULL; $negativt_lager=NULL; $straks_bogf=NULL; $vis_nul_lev=NULL;
 	$q = db_select("select * from grupper where art = 'DIV' and kodenr = '5'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
 	$id = $r['id'];

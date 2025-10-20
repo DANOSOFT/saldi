@@ -54,6 +54,7 @@
 // 08/01/2025 PBLM change some *1 to (int)
 // 04-02-2025 PBLM added discountType to insert_shop_orderline
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
+// 20251007 PHR changed name on log file
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -73,7 +74,7 @@ function fetch_from_table($select,$from,$where,$order_by,$limit) {
 	global $brugernavn;
 	global $webservice;
 	
-	$log=fopen("../temp/$db/rest_api.log","a");
+	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 	
 	$allowed_tables = array('adresser','batch_kob','batch_salg','kassekladde','lagerstatus','mylabel','openpost','ordrer','ordrelinjer');
 	array_push($allowed_tables,'transaktioner','varer','shop_ordrer','shop_varer','rental');
@@ -124,7 +125,7 @@ function update_table($update,$set,$where) {
 	global $brugernavn;
 	global $webservice;
 	
-	$log=fopen("../temp/$db/rest_api.log","a");
+	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 	$allowed_tables=array('ordrer','shop_ordrer','ordrelinjer','varer','shop_varer','vare_lev','adresser','ansatte','shop_adresser','kladdeliste','kassekladde');
 	fwrite($log,__line__." Query: update ".$update." set ".$set." where ".$where."\n");
 	if (strpos($update,';') || strpos($set,';') || strpos($where,';')) {
@@ -165,7 +166,7 @@ function insert_into_table($insert,$fields,$values) {
 	global $brugernavn;
 	global $webservice;
 	
-	$log=fopen("../temp/$db/rest_api.log","a");
+	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 
 	$valchk=explode(",",$values);
 	for ($x=0;$x<count($valchk);$x++) {
@@ -224,7 +225,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 	}
 	// <--
 	list($master,$db_skriv_id)=explode('_',$db);
-	$log=fopen("../temp/$db/rest_api.log","a");
+	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 	fwrite($log,__line__." Ordredate: $ordredate\n");
 /*	
 	if (strpos('',$ordredate)) list($ordredate,$tidspkt)=explode(' ',$ordredate);
@@ -401,36 +402,7 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		fwrite($log,__line__." kontonr $kontonr\n");
 	}
 	// Generate unique order number with additional safety checks
-	$max_attempts = 5;
-	$attempt = 0;
-	$ordrenr_found = false;
-	
-	while (!$ordrenr_found && $attempt < $max_attempts) {
-		$attempt++;
-		fwrite($log,__line__." Attempting to generate unique ordrenr (attempt $attempt)\n");
-		
-		$qtxt="select max(ordrenr) as max_ordrenr from ordrer where art='DO'";
-		fwrite($log,__line__." $qtxt\n");
-		$r=db_fetch_array(db_select("$qtxt",__FILE__ . " linje " . __LINE__));
-		$ordrenr = ($r['max_ordrenr'] ? $r['max_ordrenr'] : 0) + 1;
-		
-		// Double-check that this order number doesn't exist
-		$qtxt="select id from ordrer where ordrenr='$ordrenr' and art='DO'";
-		$check_r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		if (!$check_r['id']) {
-			$ordrenr_found = true;
-			fwrite($log,__line__." Generated unique ordrenr: $ordrenr\n");
-		} else {
-			fwrite($log,__line__." Ordrenr $ordrenr already exists, retrying...\n");
-			sleep(1); // Brief pause to avoid rapid retries
-		}
-	}
-	
-	if (!$ordrenr_found) {
-		fwrite($log,__line__." ERROR: Could not generate unique ordrenr after $max_attempts attempts\n");
-		fclose ($log);
-		return "Error: Could not generate unique order number";
-	}
+	$ordrenr = get_next_order_number('DO');
 	$projektnr=0;
 	$qtxt = "select box1 from grupper where art='DG' and kodenr = '$gruppe' ";
 	$qtxt.= "order by fiscal_year desc limit 1";
@@ -525,8 +497,8 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 	$shop_varenr = trim($shop_varenr);
 
 	list($master,$db_skriv_id)=explode('_',$db);
-	$lager*=1;
-	$log=fopen("../temp/$db/rest_api.log","a");
+	$lager = (int)$lager;
+	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
 	fwrite($log,__line__." insert_shop_orderline($ordre_id,$shop_vare_id,$shop_varenr,$antal,$beskrivelse,$pris,$momsfri,$rabat,$lager,$stregkode,$shop_variant,$discountType)\n");
 	if ($ordre_id && is_numeric($ordre_id)) {
@@ -732,7 +704,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	
 	include("../includes/ordrefunc.php");
 	
-	$log=fopen("../temp/$db/rest_api.log","a");
+	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 	fwrite($log,__line__." ".date("Y-m-d H:i:s")."\n");
 
 	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
@@ -893,7 +865,7 @@ function access_check(){
 
 	if (!file_exists("../temp")) mkdir("../temp",0777);
 	if (!file_exists("../temp/$db")) mkdir("../temp/$db",0777);
-	$log=fopen("../temp/$db/rest_api.log","a");
+	$log=fopen("../temp/$db/.ht_rest_api.log","a");
 	if (isset($_GET['db'])) {
 		$db=$_GET['db'];
 		(strpos($db,'_'))?list($master,$db_skriv_id)=explode('_',$db):$master=$db;
@@ -963,7 +935,7 @@ function access_check(){
 		if (strpos($r['box2'],',')) $ip_list=explode(',',trim($r['box2']));
 		else $ip_list[0]=trim($r['box2']);
 		if ($api_key != $_GET['key']) {
-			$log=fopen("../temp/$db/rest_api.log","a");
+			$log=fopen("../temp/$db/.ht_rest_api.log","a");
 			fwrite($log,__line__." Access denied (key) $api_key != $_GET[key]\n");
 			return "Access denied (key)";
 		} elseif (!in_array($ip,$ip_list) && !in_array('*',$ip_list)) {
@@ -984,7 +956,7 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 	$action=trim($_GET['action']);
 	$svar = access_check();
 	if ($svar == 'OK') {#exit(json_encode($value));
-		$log=fopen("../temp/$db/rest_api.log","a");
+		$log=fopen("../temp/$db/.ht_rest_api.log","a");
 		fwrite($log,__line__." Action:".$_GET['action']."\n");
 		if ($action=='fetch_from_table') {
 			fclose ($log);
@@ -1087,7 +1059,7 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$fil = fopen('../temp/addr1.php','w');
 			fwrite($fil,"<?php $"."addr1='$addr1' ?>\n");
 			fclose($fil);
-			$log=fopen("../temp/$db/rest_api.log","a");
+			$log=fopen("../temp/$db/.ht_rest_api.log","a");
 			fwrite($log,__line__." Saldi kontonr $saldi_kontonr -> ");
 			$saldi_kontonr = str_replace('+45','',$saldi_kontonr);  //20240423
 			$saldi_kontonr = str_replace('+','',$saldi_kontonr);
@@ -1102,7 +1074,7 @@ if (isset($_GET['action'])){# && in_array($_GET['action'], $possible_url)){
 			$value = insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_id,$saldi_kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$land,$cvr,$ean,$institution,$tlf,$email,$udskriv_til,$ref,$kontakt,$lev_firmanavn,$lev_addr1,$lev_addr2,$lev_postnr,$lev_bynavn,$lev_land,$lev_tlf,$lev_email,$lev_kontakt,$betalingsbet,$betalingsdage,$betalings_id,$ordredate,$lev_date,$momssats,$valuta,$valutakurs,$gruppe,$afd,$projekt,$ekstra1,$ekstra2,$ekstra3,$ekstra4,$ekstra5,$nettosum,$momssum,$lager,$shop_status,$notes);
 ##############################################
 		} elseif ($action=='insert_shop_orderline') {
-			$log=fopen("../temp/$db/rest_api.log","a");
+			$log=fopen("../temp/$db/.ht_rest_api.log","a");
 			$ordre_id= if_isset($_GET['saldi_ordre_id']);
 			fwrite($log,__line__." ordre_id >$ordre_id<\n");
 			$vare_id= if_isset($_GET['vare_id']);

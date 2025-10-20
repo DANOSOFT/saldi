@@ -199,9 +199,14 @@ function renderTable(entries) {
     // Alternate row background color using PHP-passed values
     const rowColor = (index % 2 === 0) ? bgcolor : bgcolor5;
     tr.style.backgroundColor = rowColor;
-
+    
+    if (o_art === 'PO' || o_art == 'KO') {
+      href = "pos_ordre.php";
+    } else {
+      href = "ordre.php";
+    }
     tr.innerHTML =
-      '<td><a href="ordre.php?fokus=' + fokus + '&id=' + usedId + '&konto_id=' + entry.id + '">' + entry.kontonr + '</a></td>' +
+      '<td><a href="' + href + '?fokus=' + fokus + '&id=' + usedId + '&konto_id=' + entry.id + '">' + entry.kontonr + '</a></td>' +
       '<td>' + entry.firmanavn + '</td>' +
       '<td>' + entry.addr1 + '</td>' +
       '<td>' + entry.addr2 + '</td>' +

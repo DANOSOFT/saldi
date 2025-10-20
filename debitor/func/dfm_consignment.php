@@ -363,11 +363,11 @@ curl_setopt($ch, CURLOPT_STDERR, $verbose);
 	$dfm_res = json_decode($json_res);
 	#$dfm_errmsg = $drm_res->Pickup.Name->0;
 
-        $errcodetxt=findtekst(894,$sprog_id);
-        $errmsgtxt=findtekst(895,$sprog_id);
-        $errmsg401=findtekst(896,$sprog_id);
-        $errmsg403=findtekst(897,$sprog_id);
-	$consigntxt=findtekst(899,$sprog_id);
+        $errcodetxt = findtekst('894|Regnskabsår', $sprog_id);
+        $errmsgtxt  = findtekst('895|Finansrapport', $sprog_id);
+        $errmsg401  = findtekst('896|Rapporttype', $sprog_id);
+        $errmsg403  = findtekst('897|Finansrapport - forside', $sprog_id);
+	$consigntxt = findtekst('899|Periode', $sprog_id);
 
 	if ( $code === 201 ) {
 		$dfm_consign_no = $dfm_res->ConsignmentNumber;

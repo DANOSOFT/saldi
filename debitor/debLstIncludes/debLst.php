@@ -244,7 +244,7 @@ if ($valg=='kommission') {
 			}
 		}
 		if ($search && !$lnr) {
-			print "<tr><td colspan='$colspan' align='center'><b><big>Ingen debitorer opfylder de angivne søgekriterier</big></b></td></tr>";
+			print "<tr><td colspan='$colspan' align='center'><b><big>".findtekst('912|Ingen debitorer opfylder de angivne søgekriterier', $sprog_id)."</big></b></td></tr>";
 		}
 	} 
 }

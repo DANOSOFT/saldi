@@ -3,7 +3,7 @@
 3	Gem	Save	Lagre
 4	Nyt sprog	New language	Nytt språk
 5	Annullér	Cancel	Avbryt
-6	Jobnr.:	Job no.:	Jobbnr:
+6	Jobnr.	Job no.	Jobbnr.
 7	Felt 1	Field 1	Felt 1
 8	Felt 2	Field 2	Felt 2
 9	Felt 3	Field 3	Felt 3
@@ -24,7 +24,7 @@
 24	Bemærkning 2	Note 2	Notat 2
 25	Bemærkning 3	Note 3	Merknad 3
 26	Bemærkning 4	Note 4	Merknad 4
-27	Planlagt til uge:	Scheduled for week:	Planlagt for uken:
+27	Planlagt til uge	Scheduled for week	Planlagt for uken
 28	Firmanavn	Company name	Selskapsnavn
 29	Jobkort	Job card	Jobbkort
 30	Tilbage	Back	Tilbake
@@ -37,9 +37,9 @@
 37	Telefon	Telephone	Telefon
 38	Stillingsliste	Job list	Stillingsliste
 39	Ny	New	Ny
-40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by: (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med: (f.eks. 23:44) for å søke i et intervall
-41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Write a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
-42	Afmærk de felter som skal eksporteres.	Mark the fields to be exported.	Merk feltene som skal eksporteres.
+40	Skriv et nummer for at søge på et enkelt nr. eller to numre adskilt af : (f.eks 23:44) for at søge i et interval	Enter a number to search for a single number or two numbers separated by : (eg 23:44) to search an interval	Skriv inn et tall for å søke etter et enkelt nummer eller to tall atskilt med : (f.eks. 23:44) for å søke i et intervall
+41	Skriv en tekst eller en deltekst. Der kan anvendes * før og efter teksten	Enter a text or a subtitle. Can be used * before and after the text	Skriv en tekst eller en undertekst. Den kan brukes * før og etter teksten
+42	Afmærk de felter som skal eksporteres	Mark the fields to be exported	Merk feltene som skal eksporteres
 43	Kontonr.	Account no.	Kontonr.
 44	Adresse 1	Address 1	Adresse 1
 45	Adresse 2	Address 2	adresse 2
@@ -209,7 +209,7 @@
 209	Her skriver du de parametrer, der passer bedst til din browsers pop-up funktioner	Enter the parameters that best suit your browser's pop-up features	Her skriver du inn de parameterne, som passer best til din nettlesers pop-up-funksjoner
 210	Popup-indstillinger	Pop-up settings	Pop-up-innstillinger
 211	Intern bilagsopbevaring (mod betaling).	Internal document storage (for a fee).	Intern dokumentlagring (mot avgift).
-212	Afmærk her hvis du vil anvende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 	Check here if you want to use document scanning and do not want to set up a server for document storage yourself. Same cost as an additional user per. GB.	Sjekk her hvis du vil bruke dokumentskanning og ikke ønsker å sette opp en server for dokumentlagring selv. Samme kostnad som en ekstra bruker pr. GB.
+212	Afmærk her hvis du vil anvende bilagsscanning og ikke selv vil etablere server til bilagsopbevaring. Samme omkostning som en ekstra bruger pr. GB. 	Check here if you want to use document scanning and do not want to set up a server for document storage yourself. Same cost as an additional user per GB.	Sjekk her hvis du vil bruke dokumentskanning og ikke ønsker å sette opp en server for dokumentlagring selv. Samme kostnad som en ekstra bruker pr. GB.
 213	Omgående bogføring af købsordrer	Immediate posting of purchase orders	Umiddelbar postering av innkjøpsordrer
 214	Hvis dette felt ikke er afmærket, skal købsfakturaer bogføres via kassekladden med [Hent ordrer]-funktionen	If this field is not checked, purchase invoices must be posted through the cash journal with the [Get Orders]-function	Hvis dette feltet ikke er avmerket, skal kjøpsfakturaer bokføres via kassekladden med [Hent ordrer]-funksjonen
 215	Emne og tekst til brug ved udsendelse som e-mail	Subject and text for use when sending by e-mail	Emne og tekst for bruk ved sending via e-post
@@ -441,8 +441,8 @@
 441	Åbne poster	Open Items	Åpne poster
 442	Kontosaldo	Account balance	Saldo
 443	Kontokort	General ledger	Kontokort
-444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per. the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
-445	Viser en liste over saldi på valgte konti pr. den angivne dato 	Displays a list of balances on selected accounts per. the specified date	Viser en liste over saldoer på valgte kontoer pr. angitt dato
+444	Viser en aldersfordelt liste over forfaldne/ubetalte udeståender på valgte konti pr. den angivne dato	Displays an age-distributed list of overdue / unpaid outstanding balances on selected accounts per the specified date	Viser en aldersfordelt liste over forfalte / ubetalte utestående saldoer på utvalgte kontoer pr. angitt dato
+445	Viser en liste over saldi på valgte konti pr. den angivne dato 	Displays a list of balances on selected accounts per the specified date	Viser en liste over saldoer på valgte kontoer pr. angitt dato
 446	Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.	Displays a specification of account movements on selected accounts in the specified date range.	Viser en spesifikasjon av kontotransaksjoner på valgte kontoer i det angitte datoperioden.
 447	Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.	List of the 100 debtors with the highest turnover in the last 12 months.	Liste over de 100 debitorer med høyest omsetning de siste 12 månedene.
 448	Top 100	Top 100	Topp 100
@@ -452,7 +452,7 @@
 452	Husk	Remember	Huske
 453	Afmærk her for at finansbogføre hver handel separat. Hvis der ikke er afmærket	bookkeeping is done together by cash counting.	Sjekk her for å legge ut hver handel separat. Hvis ikke merket
 454	Bogfør hver handel.	Post each trade.	Legg ut hver handel.
-455	Kassespor	Checkout tracks	Kassespor
+455	Kassespor	Cash register log	Kassespor
 456	Afmærk her for at for at udskrive bon automatisk. Hvis der ikke er afmærket	vouchers must be printed manually after each trade.	Merk av her for å skrive ut bilag automatisk. Hvis ikke merket
 457	Udskriv bon automatisk.	Print receipt automatically.	Skriv ut kvittering automatisk.
 458	Afmærk her for at vise knappen [Kontant på beløb]. Kan bruges ved kassesalg hvor der ikke skal beregnes returbeløb.	Check here to display the [Cash on Amount] button. Can be used at cash sales where no return amount needs to be calculated.	Sjekk her for å vise [Kontant på beløp] -knappen. Kan brukes ved kontantsalg der ingen returbeløp trenger å beregnes.
@@ -669,7 +669,7 @@
 669	Ny kontakt	New contact	Ny kontakt
 670	Trainee	Trainee	Lærling
 671	Bilag	Attachment	Bilag
-672	Skriv navn til vedhæftet bilag	when sent per. mail.	Skriv navn for vedlegg
+672	Skriv navn til vedhæftet bilag	when sent per mail.	Skriv navn for vedlegg
 673	Skriv her hvor mange borde der skal registreres	Write here how many tables to register	Skriv her hvor mange tabeller du skal registrere
 674	Antal borde	Number of tables	Antall bord
 675	Beskrivelse af bordene.	Description of the tables.	Beskrivelse av tabellene.
@@ -874,7 +874,7 @@
 874	Skriv dit Kontakt-ID hos GLS	Enter your Contact ID at GLS	Skriv din kontakt-ID på GLS
 875	Sidste faktura	Last invoice	Siste faktura
 876	Importer UBL til ordrer	Import UBL to orders	Importer UBL til bestillinger
-877	Samlet omsætning incl. moms.	Total turnover incl. VAT.	Total omsetning inkl. Mva.
+877	Samlet omsætning inkl. moms.	Total turnover incl. VAT.	Total omsetning inkl. Mva.
 878	Samlet omsætning / db / dg (excl. moms.)	Total turnover / db / dg (excl. VAT)	Total omsetning / db / dg (eks mva)
 879	Hent fra shop	Pick up from shop	Henting fra butikk
 880	Udskriv	Print	Skriv ut
@@ -915,16 +915,16 @@
 915	Pris	Price	Pris
 916	Antal	Quantity	Antall
 917	Varenr.	Item no.	Varenr.
-918	Salgsstat	Sales State	Salgstilstand
+918	Salgsstat	Sales Statistics	Salgsstatistikk
 919	Varetekst	Item text	Varetekst
 920	Vis detaljer	Show details	Vis detaljer
-921	Fortyd	Undo	Fortyd
+921	Fortryd	Undo	Fortryd
 922	Salgstatsstik	Sales Statistics	Salgsstatistikk
 923	Multiroute	Multi-route	Flere ruter
-924	Vis åbne poster	Show open records	Vis åpne poster
+924	Vis åbne poster	Show open items	Vis åpne poster
 925	Kun konti i debet	Only accounts in debit	Bare kontoer som belastes
 926	Kun konti i kredit	Credit accounts only	Bare kredittkontoer
-927	Skjul åbne poster	Hide open entries	Skjul åpne oppføringer
+927	Skjul åbne poster	Hide open items	Skjul åpne poster
 928	Bonnr	Receipt no	Bonnr
 929	Bondato	Receipt Date	Bondato
 930	Tidspkt.	Time	Tid
@@ -1142,7 +1142,7 @@
 1142	Rapport	Report	Rapportere
 1143	Rykkerbrev	Reminder letter	Påminnelsesbrev
 1144	Inkassosag	Debt collection case	Inkassosak
-1145	Send pr. mail	Send per. mail	Send pr. post
+1145	Send pr. mail	Send per mail	Send pr. post
 1146	Slet valgte	Delete selected	Slett valgte
 1147	inkasso	debt collection	inkasso
 1148	Levering	Delivery	Leveranse
@@ -1333,8 +1333,8 @@
 1333	Ny tjekliste	New checklist	Ny sjekkliste
 1334	Ny tjek gruppe	New check group	Ny sjekkgruppe
 1335	Denne sektion indeholder de informationer, som er nødvendige for at kunne håndtere scannede bilag	This section contains the information needed to handle scanned documents	Denne delen inneholder informasjonen som trengs for å håndtere skannede dokumenter
-1336	Du kan vælge at lade os opbevare dine scannede bilag for kr. 75,- pr. måned pr. GB,	You can choose to let us store your scanned vouchers for € 10 per month per. GB,	Du kan velge å la oss lagre de skannede kupongene for NOK 100 per måned pr. GB,
-1337	hvilket ligeledes giver mulighed for at sende indscannede bilag pr. e-mail til serveren	which also allows you to send scanned vouchers per. email to the server	som også lar deg sende skannede bilag pr. e-post til serveren
+1336	Du kan vælge at lade os opbevare dine scannede bilag for kr. 75,- pr. måned pr. GB,	You can choose to let us store your scanned vouchers for € 10 per month per GB,	Du kan velge å la oss lagre de skannede kupongene for NOK 100 per måned pr. GB,
+1337	hvilket ligeledes giver mulighed for at sende indscannede bilag pr. e-mail til serveren	which also allows you to send scanned vouchers per email to the server	som også lar deg sende skannede bilag pr. e-post til serveren
 1338	og efterfølgende importere dem i kassekladden.	and subsequently import them into the cash journal.	og deretter importere dem til kontantjournalen.
 1339	Bilag sendes til	Attachments are sent to	Vedlegg sendes til
 1340	Du kan også vælge selv at sætte en ftp-server op til formålet eller benytte en eksisterende. Det koster ikke noget.	You can also choose to set up an ftp server for the purpose or use an existing one. It does not cost anything.	Du kan også velge å sette opp en ftp-server for formålet eller bruke en eksisterende. Det koster ingenting.
@@ -1442,7 +1442,7 @@
 1442	Ikke udlignet	Not settled	Ikke avgjort
 1443	Hold musen over de respektive ordrenumre for at se beholdninger mm	Hold the mouse over the respective order numbers to see stocks etc.	Hold musen over respektive bestillingsnummer for å se aksjer etc.
 1444	Er du sikker på at du vil udsende de valgte	Are you sure you want to send the selected 	Er du sikker på at du vil sende de valgte
-1445	Udskriv de valgte	Print the selected 	Skriv ut de valgte
+1445	Udskriv de valgte fakturaer	Print the selected invoices	Skriv ut de valgte fakturaene
 1446	Er du sikker på at du vil slette de valgte	Are you sure you want to delete the selected 	Er du sikker på at du vil slette de valgte
 1447	Vælg på hvilken måde dokumentet skal udskrives, gemmes eller sendes.	Choose how to print, save or send the document.	Velg hvordan du skal skrive ut, lagre eller sende dokumentet.
 1448	Udskrives som PDF uden baggrund	Printed as PDF without background	Skrives ut som PDF uten bakgrunn
@@ -1515,8 +1515,8 @@
 1515	Købsordre	Purchase order	Bestilling
 1516	Klik her for at udskrive ordrelinjer til en tabulatorsepareret fil, som kan importeres i et regneark	Click here to print order lines for a tab-separated file that can be imported into a spreadsheet	Klikk her for å skrive ut ordrelinjer for en fane-separert fil som kan importeres til et regneark
 1517	Klik her for at vise alle varer fra alle leverandører	Click here to view all items from all suppliers	Klikk her for å se alle varene fra alle leverandører
-1518	Klik her for kun at vise alle varer fra denne leverandø 	Click here to display only all items from this supplier	Klikk her for å vise bare alle elementene fra denne leverandøren
-1519	Denne Leverandør	This Supplier	Denne leverandøren
+1518	Klik her for kun at vise alle varer fra denne leverandør 	Click here to display only all items from this supplier	Klikk her for å vise bare alle elementene fra denne leverandøren
+1519	Denne leverandør	This supplier	Denne leverandøren
 1520	Reserveret	Reserved	Reservert
 1521	Vælg hvilke kreditorgrupper som vises i varelisten	Select which creditor groups appear in the item list	Velg hvilke kreditorgrupper som skal vises i varelisten
 1522	Fortsæt med at redigere ordren	Continue to edit order	Fortsett å redigere bestillingen
@@ -1531,7 +1531,7 @@
 1531	Fakturadato er ikke idag!	Invoice date is not today!	Fakturadato er ikke i dag!
 1532	Beløb til betaling stemmer ikke	Amount to be paid does not match	Beløpet som skal betales samsvarer ikke
 1533	Ordre omdannes til kreditnota ved fakturering!	Orders are converted to a credit note upon invoicing!	Bestillinger konverteres til en kreditnota ved fakturering!
-1534	Kreditnota sendes pr. mail til	Credit note sent per. mail to	Kredittnota sendt pr. post til
+1534	Kreditnota sendes pr. mail til	Credit note sent per mail to	Kredittnota sendt pr. post til
 1535	Tilbud udskrives som PDF. Ved fakturering udskrives til OIOUBL	Offers are printed as PDF. When invoicing, print to OIOUBL	Tilbud skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
 1536	Ordrebekrftelse udskrives som PDF. Ved fakturering udskrives til OIOUBL	Order confirmation is printed as a PDF. When invoicing, print to OIOUBL	Bestillingsbekreftelse skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
 1537	Tilbud sendes pr mail til	Offers are sent by email to	Tilbud sendes på e-post til
@@ -1796,8 +1796,8 @@
 1796	Sæt regnskabsår til	Set fiscal year to	Sett regnskapsår til
 1797	Klik for at se ændringer i perioder eller mailadresser	Click to see changes in periods or email addresses	Klikk for å se endringer i perioder eller e -postadresser
 1798	Send som html. Emne og mailtekst kan ikke ændres.	Send as html. Subject and email text cannot be changed.	Send som html. Emne og e -posttekst kan ikke endres.
-1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen \&apos;Kontoudtog\&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form \ &apos;Account statement\&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet \ &apos;Kontoutskrift\&apos;
-1800	Emne og mailtekst ikke udfyldt for formularen \&apos;Kontoudtog\&apos;	Subject and email text not completed for the \ &apos;Bank Statement\&apos; form	Emne- og e -posttekst er ikke fullført for \ &apos;Kontoutskrift\&apos; -skjemaet
+1799	Send som vedhæftet PDF. Emne og mailtekst jf. formularen &apos;Kontoudtog&apos;	Send as an attached PDF. Subject and e-mail text, cf. the form &apos;Account statement&apos;	Send som en vedlagt PDF. Emne og e-posttekst, jf. Skjemaet &apos;Kontoutskrift&apos;
+1800	Emne og mailtekst ikke udfyldt for formularen &apos;Kontoudtog&apos;	Subject and email text not completed for the &apos;Bank Statement&apos; form	Emne- og e -posttekst er ikke fullført for &apos;Kontoutskrift&apos; -skjemaet
 1801	Klik for at lukke	Click to close	Klikk for å lukke
 1802	Kontoudtog fra	Account statement from	Kontoutskrift fra
 1803	Kontoudtog	account statement	kontoutskrift
@@ -2178,7 +2178,7 @@
 2178	Pos nr.	Pos no.	Pos nr.
 2179	Klik her for at åbne filen i nyt vindue, højreklik her for at gemme	Click here to open the file in a new window, right-click to save	Klikk her for å åpne filen i et nytt vindu, høyreklikk her for å lagre
 2180	Vis PDF-udskrift	Show PDF Prin	Vis PDF-utskrift
-2181	Klik her for at lukke Top 100	Click here to close Top 100	Klikk her for å lukke Top 100
+2181	Klik her for at lukke &quot;Top 100&quot;	Click here to close &quot;Top 100&quot;	Klikk her for å lukke &quot;Top 100&quot;
 2182	Skan bilag	Scan Attachement	Skann bilag
 2183	Angiv et ordrenummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter an order number, or enter two separated by a colon (e.g. 345:350)	Skriv inn et ordrenummer, eller skriv inn to adskilt med kolon (f.eks. 345:350)
 2184	Angiv et modtagelsesnummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter a receipt number, or enter two separated by a colon (e.g. 345:350)	Skriv inn et kvitteringsnummer, eller skriv inn to adskilt med kolon (f.eks. 345:350)
@@ -2213,7 +2213,7 @@
 2213	Bankafstemning	Bank Reconciliation	Bankavstemming
 2214	Valutakurs	Exch. Rate	Valutakurs
 2215	Varegrænse	Product Limit	Varegrense
-2216	Udskriv kontoudtog som PDF (Åbner i popup)	Print statement as PDF (Opens in popup)	Skriv ut kontoutdrag som PDF (Åpnes i popup)
+2216	Udskriv kontoudtog som PDF (åbner i popup)	Print statement as PDF (opens in popup)	Skriv ut kontoutdrag som PDF (åpnes i popup)
 2217	Sæt grænse for, hvor mange varer en kunde kan oprette	Set a limit on how many items a customer can create	Sett grense for hvor mange varer en kunde kan opprette
 2218	Bestil	Order	Bestill
 2219	Skriv en søgetekst. Der søges efter varer, hvor teksten indgår.	Enter a search term. Products will be searched for where the term appears.	Skriv en søketekst. Det søkes etter varer hvor teksten inngår.
@@ -2253,7 +2253,7 @@
 2253	Vælg kasse	Choose cash register	Velg kasse
 2254	Indtast nummer	Enter number	Skriv inn nummer
 2255	Gavekortnummer	Gift card number	Gavekortnummer
-2256	Retur til kassespor	Return to checkout tracks	Retur til kassespor
+2256	Retur til kassespor	Return to cash register log	Retur til kassespor
 2257	Afstemning	Reconciliation	Avstemming
 2258	Find bon	Find rcpt.	Find kvitt.
 2259	Del bord	Split table	Del bord
@@ -2345,7 +2345,7 @@
 2345	Luk Standard Kontoplan	Close Standard Chart of Accounts	Lukk Standard kontoplan
 2346	For at generere en SAF-T fil skal nedenstående kontonummer mappes til <u>standard kontonummer</u>.	To generate a SAF-T file, the account number below must be mapped to <u>standard account number</u>	For å generere en SAF-T-fil, må kontonummeret nedenfor tilordnes <u>standard kontonummer</u>
 2347	For at generere en SAF-T fil skal de	To generate a SAF-T file, the	For å generere en SAF-T-fil, må de
-2348	Her kan du oprette en SAF-T Financial rapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansiell rapport:
+2348	Her kan du oprette en SAF-T Finansrapport:	Here you can create a SAF-T Financial report:	Her kan du lage en SAF-T finansrapport:
 2349	Opret	Create	Skape
 2350	Vis XML-fil	Show XML file	Vis XML-fil
 2351	Luk XML-fil	Close XML file	Lukk XML-fil
@@ -2696,30 +2696,30 @@
 2696	Er du sikker på, at du vil slette denne ansatte?	Are you sure you want to delete this employee?	Er du sikker på at du vil slette denne ansatte?
 2697	Er du sikker på, at du vil slette alle ansatte tilhørende denne konto?	Are you sure you want to delete all employees associated with this account?	Er du sikker på at du vil slette alle ansatte tilknyttet denne kontoen?
 2698	Slet alt	Delete all	Slett alt
-2699	
-2700	
-2701	
-2702	
-2703	
-2704	
-2705	
-2706	
-2707	
-2708	
-2709	
-2710	
-2711	
-2712	
-2713	
-2714	
-2715	
-2716	
-2717	
-2718	
-2719	
-2720	
-2721	
-2722	
+2699	Vis alle poster	Show all items	Vis alle poster
+2700	Send mail(s)	Send email(s)	Send e-post(er)
+2701	Send som PDF	Send as PDF	Send som PDF
+2702	E-mail til	Email to	E-post til
+2703	Send som e-mail (åbner i popup)	Send as email (opens in popup)	Send som e-post (åpnes i popup)
+2704	Klik her for at åbne &quot;Top 100&quot;	Click here to open &quot;Top 100&quot;	Klikk her for å åpne &quot;Topp 100&quot;
+2705	Oversigt over POS-transaktioner	Overview of POS transactions	Oversikt over POS-transaksjoner
+2706	Filnavn	File name	Filnavn
+2707	Dato og klokkeslæt for oprettelse	Date and time of creation	Dato og klokkeslett for opprettelse
+2708	Download	Download	Last ned
+2709	Opret SAF-T fil	Create SAF-T file	Oprett SAF-T fil
+2710	Kalender	Calendar	Kalender
+2711	SAF-T kasserapport	SAF-T cash register report	SAF-T kasserapport
+2712	Her kan du oprette en SAF-T kasserapport	Here you can create a SAF-T Cash Register report	Her kan du opprette en SAF-T kasserapport
+2713	Ingen booking	No booking	Ingen booking
+2714	Sprogindstillinger	Language preferences	Språkindstillinger
+2715	Vælg dit foretrukne sprog	Set your preferred language	Velg ditt foretrukne språk
+2716	Nuværende sprog	Current language	Nåværende språk
+2717	Klik her for at rette tekster	Click here to edit texts	Klikk her for å redigere tekster
+2718	Følgesedler	Delivery notes	Følgesedler
+2719	Din browser blokerer pop-up vinduer. For at kunne bruge rapportfunktionen skal du tillade pop-up vinduer for denne side.	Your browser is blocking pop-up windows. To use the report feature, you need to allow pop-up windows for this site.	Nettleseren din blokkerer for pop-up vinduer. For å bruke rapportfunksjonen må du tillate pop-up vinduer for dette nettstedet.
+2720	Listen er åbnet fra debitorkort – søgefelt deaktiveret	The list has been opened from the customer card – search field disabled	Listen er åpnet fra kundekortet – søkefelt deaktivert
+2721	Skriv enten et enkelt nummer, eller to numre adskilt af kolon (f.eks. 345:350)	Enter either a single number, or two numbers separated by a colon (e.g. 345:350)	Skriv inn enten et enkelt nummer, eller to numre adskilt med kolon (f.eks. 345:350)
+2722	Skriv enten et enkelt beløb, eller to beløb adskilt af kolon (f.eks. 525,25:525,50)	Enter either a single amount, or two amounts separated by a colon (e.g. 525.25:525.50)	Skriv inn enten et enkelt beløp, eller to beløp adskilt med kolon (f.eks. 525,25:525,50)
 2723	
 2724	
 2725	

@@ -279,7 +279,7 @@ if ($menu == 'T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
 	print "<div class=\"headerTxt\">$title</div>";
 	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
 	print "</div>";
@@ -291,11 +291,11 @@ if ($menu == 'T') {
 	print "<tr><td align='center' valign='top' height='1%'>\n";
 	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
 
-	$tekst = findtekst(154, $sprog_id);
+	$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 	print "<td width='10%' align=center><a href=\"javascript:confirmClose('$returside')\" accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>\n";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
-	print "<td width='80%' align=center style='$topStyle'>" . findtekst(1668, $sprog_id) . "</td>\n";
+	print "<td width='80%' align=center style='$topStyle'>" . findtekst('1668|Historik for debitor', $sprog_id) . "</td>\n";
 
 	print "<td width='10%' align=center style='$buttonStyle;'>
 		   <br></td>\n";
@@ -309,12 +309,12 @@ if ($menu == 'T') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; #tabel1 start
 	print "<tr><td align=\"center\" valign=\"top\" height=\"1%\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"4\" cellpadding=\"0\"><tbody>\n"; #tabel2a start
-	$tekst = findtekst(154, $sprog_id);
+	$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 	#if ($returside=="debitorkort.php") print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?id=$id&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
 	#print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>Luk</a></div></td>\n";
-	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>" . findtekst(30, $sprog_id) . "</a></div></td>\n";
-	print "<td width=\"80%\" align=center><div class=\"top_bund\">" . findtekst(1668, $sprog_id) . "</div></td>\n";
-	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a><br></div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('historikkort.php?luk=luk.php')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></div></td>\n";
+	print "<td width=\"80%\" align=center><div class=\"top_bund\">" . findtekst('1668|Historik for debitor', $sprog_id) . "</div></td>\n";
+	print "<td width=\"10%\" align=center><div class=\"top_bund\"><a href=\"javascript:confirmClose('debitorkort.php?returside=historikkort.php&id=$id&ordre_id=$ordre_id&fokus=$fokus','$tekst')\" accesskey=N>" . findtekst('39|Ny', $sprog_id) . "</a><br></div></td>\n";
 	print "</tbody></table>\n"; #tabel2a slut
 	print "</td></tr>\n";
 	print "<tr><td width=\"100%\" valign=\"top\">";
@@ -470,7 +470,7 @@ $kontaktes = $kontaktes ?: dkdato(if_isset($_GET['kontaktigen'], NULL));
 $html_kontaktet = "<input class='inputbox date-picker' type='text' name='kontaktet' value='$kontaktet' onchange='javascript:docChange = true;'>\n";
 $html_kontaktes = "<input class='inputbox date-picker' type='text' name='kontaktes' value='$kontaktes' onchange='javascript:docChange = true;'>\n";
 
-$submit_text = $historik_id ? findtekst(471, $sprog_id) : findtekst(3, $sprog_id);
+$submit_text = $historik_id ? findtekst('471|Gem/opdatér', $sprog_id) : findtekst('3|Gem', $sprog_id);
 $submit_input = "<input class='submit-button' type='submit' accesskey='g' value='$submit_text' name='submit' onclick='javascript:docChange = false;'>";
 
 echo $historik_id ? "<input type='hidden' name='historik_id' value='$historik_id'>" : "";
@@ -534,12 +534,12 @@ while ($r = db_fetch_array($q)) {
 
     if ($vis_bilag) {
         if ($dokument) {
-            #print "<td align='right' title='" . findtekst(1454, $sprog_id) . ": $dokument'>";
+            #print "<td align='right' title='" . findtekst('1454|Klik her for at åbne bilaget', $sprog_id) . ": $dokument'>";
             print "<a class='action-button' href='../includes/bilag.php?kilde=historik&filnavn=$dokument&kilde_id=$id&bilag_id=$r[id]'>";
             #print "<img style='border: 0px solid' alt='clip med papir' src='../ikoner/paper.png'></a>";
 			print "$attached_icon</a>";
         } else {
-            #print "<td align='right' title='" . findtekst(1455, $sprog_id) . "'>";
+            #print "<td align='right' title='" . findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id) . "'>";
             print "<a class='action-button' href='../includes/bilag.php?kilde=historik&ny=ja&kilde_id=$id&bilag_id=$r[id]'>";
             #print "<img style='border: 0px solid' alt='papirclip' src='../ikoner/clip.png'></a>";
 			print "$attach_icon</a>";

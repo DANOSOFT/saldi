@@ -40,6 +40,7 @@ $json = json_decode(file_get_contents('php://input'), true);
 $data = $json["data"];
 $id = $json["id"];
 $type = $json["type"];
+$terminal_id = isset($json["terminal_id"]) ? $json["terminal_id"] : null;
 
 echo "<pre>";
 print_r($data);
@@ -59,5 +60,20 @@ while (file_exists($filename)) {
 }
 
 file_put_contents($filename, json_encode($data));
+
+// For flatpay transactions, also save a copy with terminal_id filename
+if ($type == 'flatpay' && $terminal_id) {
+    $terminal_filename = "$directory/terminal_$id.txt";
+    
+    // Check if the terminal file already exists
+    $terminal_counter = 1;
+    while (file_exists($terminal_filename)) {
+        // If the file exists, increment the counter and try again
+        $terminal_filename = "$directory/terminal_$terminal_id-$terminal_counter.txt";
+        $terminal_counter++;
+    }
+    
+    file_put_contents($terminal_filename, json_encode($data));
+}
 $print_receipt = 1;
 if ($print_receipt) include_once("print_receipt.php");

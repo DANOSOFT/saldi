@@ -101,9 +101,19 @@ if (isset($_POST['slet_ugyldige']) || isset($_POST['gem']) || isset($_POST['udsk
 	$ugyldig       = if_isset($_POST['ugyldig']);
 	$antal         = if_isset($_POST['antal']);
 
+	// Get default payment date from settings
+	$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+	$defaultPayDate = date('dmY', strtotime("+$paymentDays days"));
+	
 	(substr($betalingsdato[1], -1) == '*') ? $allPayDates = str_replace('*', '', $betalingsdato[1]) : $allPayDates = NULL;
 	for ($x = 1; $x <= $antal; $x++) {
 		if ($allPayDates) $betalingsdato[$x] = $allPayDates;
+		
+		// Update payment date to default when "gem" or "slet_ugyldige" is clicked
+		if (isset($_POST['gem']) || isset($_POST['slet_ugyldige'])) {
+			$betalingsdato[$x] = $defaultPayDate;
+		}
+		
 		if ($slet_ugyldige && $ugyldig[$x] == $id[$x]) $slet[$x] = 'on';
 		elseif (!isset($slet[$x])) $slet[$x] = NULL;
 		if ($slet[$x] == 'on') {
@@ -185,26 +195,10 @@ if (!$liste_id) {
 	print "<meta http-equiv='refresh' content='0; url=betalinger.php?liste_id=$liste_id'>";
 }
 
-
-
 // $tomorrow = date('U') + 60 * 60 * 24;
 // $paydate  = date('dmY', $tomorrow);
 
-// --- Calculate payment date using settings or default fallback ---
-try {
-	$qtxt = "SELECT var_value FROM settings WHERE var_name = 'paymentDays' LIMIT 1";
-	$settings = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-	$paymentDays = (is_array($settings) && isset($settings['var_value']) && is_numeric($settings['var_value']))
-		? intval($settings['var_value'])
-		: 1;
-	if (!is_numeric($settings['var_value'])) {
-		error_log("WARNING: Invalid 'paymentDays' value in settings table. Defaulting to 1.");
-	}
-} catch (Exception $e) {
-	$paymentDays = 1;
-	error_log("ERROR: Exception while fetching 'paymentDays': " . $e->getMessage());
-}
-
+$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
 $paydate = date('dmY', strtotime("+$paymentDays days"));
 
 $r = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
@@ -307,9 +301,17 @@ if ($find) {
 					$kort_ref = $r['betal_id'];
 				} elseif ($r['faktnr']) $kort_ref = $myName . ":" . $r['faktnr'];
 				else $kort_ref = $myName;
+				// Use original due date logic, but fall back to payment date settings if no due date exists
 				if ($r['forfaldsdate']) {
 					$forfaldsdag = str_replace("-", "", dkdato($r['forfaldsdate']));
-				} else $forfaldsdag = str_replace("-", "", forfaldsdag($r['transdate'], $r['betalingsbet'], $r['betalingsdage']));
+				} else {
+					$forfaldsdag = str_replace("-", "", forfaldsdag($r['transdate'], $r['betalingsbet'], $r['betalingsdage']));
+					// If no due date can be calculated, use payment date settings
+					if (!$forfaldsdag) {
+						$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+						$forfaldsdag = date('dmY', strtotime("+$paymentDays days"));
+					}
+				}
 				$belob = dkdecimal($r['amount'] * -1);
 				$valuta = $r['valuta'];
 				if (!$valuta) $valuta = 'DKK';
@@ -408,12 +410,14 @@ if ($udskriv) {
 		print "";
 	}
 
+
 	#print"<tr><td colspan=11><hr></td></tr>";
 	$x = 0;
 	# echo "select betalinger.bet_type as bet_type,betalinger.fra_kto as fra_kto, betalinger.egen_ref as egen_ref, betalinger.til_kto as til_kto, betalinger.modt_navn as modt_navn, betalinger.kort_ref as kort_ref, betalinger.belob as belob, betalinger.betalingsdato as betalingsdato, kassekladde.bilag as bilag, ordrer.modtagelse as modtagelse from betalinger, ordrer, kassekladde where betalinger.liste_id=$liste_id and ordrer.id=betalinger.ordre_id and kassekladde.id=betalinger.bilag_id order by betalinger.betalingsdato<br>";
 	$erh = array();
 
 	$fejl = 0;
+
 	#$kn_kontrol=0;
 	$q = db_select("select * from betalinger where liste_id=$liste_id order by modt_navn,betalingsdato", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -426,7 +430,6 @@ if ($udskriv) {
 		$kort_ref[$x] = $r['kort_ref'];
 		$belob[$x] = $r['belob'];
 		$valuta[$x] = $r['valuta'];
-		$betalingsdato[$x] = $r['betalingsdato'];
 		if ($r['ordre_id']) {
 			#			$kn_kontrol=1;
 			$r2 = db_fetch_array(db_select("select modtagelse from ordrer where id = '$r[ordre_id]'", __FILE__ . " linje " . __LINE__));
@@ -570,6 +573,7 @@ if ($udskriv) {
 		}
 		if ($modtagerantal) {
 			print "&nbsp;•&nbsp;<input type=submit accesskey=\"m\" value=\"Mail til modtagere\" name=\"mail\">";
+			print "&nbsp;•&nbsp;<button type='button' onclick='openDateUpdatePopup()' style='background-color: #6c757d; color: white; padding: 2px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;'>Opdater datoer</button>";
 			if ($bogfort != 'V' && $db == 'pos_111') print "&nbsp;•&nbsp;<input type=submit accesskey=\"u\" value=\"Udlign modtagere\" name=\"align\">";
 		}
 	}
@@ -584,4 +588,125 @@ if ($menu == 'T') {
 	print "</tbody></table>";
 	include_once '../includes/oldDesign/footer.php';
 }
+
+// Add JavaScript for "Update Dates" popup functionality
+print "<script>
+function openDateUpdatePopup() {
+    // Create popup overlay
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 10000; display: flex; justify-content: center; align-items: center;';
+    
+    // Create popup content
+    var popup = document.createElement('div');
+    popup.style.cssText = 'background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 400px; width: 90%;';
+    
+    popup.innerHTML = `
+        <h3 style='margin-top: 0; color: #333;'>Opdater alle betalingsdatoer</h3>
+        <p style='color: #666; margin-bottom: 15px;'>Indtast ny dato for alle betalinger i denne liste:</p>
+        <input type='text' id='popupDate' placeholder='ddmmyyyy (f.eks. 15102025)' style='width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;' maxlength='8'>
+        <div style='text-align: right;'>
+            <button onclick='closeDatePopup()' style='background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;'>Annuller</button>
+            <button onclick='updateAllDatesFromPopup()' style='background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;'>Opdater</button>
+        </div>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Focus on input
+    setTimeout(function() {
+        document.getElementById('popupDate').focus();
+    }, 100);
+    
+    // Close on overlay click
+    overlay.onclick = function(e) {
+        if (e.target === overlay) {
+            closeDatePopup();
+        }
+    };
+    
+    // Auto-format date input
+    document.getElementById('popupDate').addEventListener('input', function(e) {
+        var value = e.target.value.replace(/\\D/g, '');
+        if (value.length > 8) value = value.substring(0, 8);
+        e.target.value = value;
+    });
+    
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeDatePopup();
+        }
+    });
+}
+
+function closeDatePopup() {
+    var overlay = document.querySelector('div[style*=\"position: fixed\"]');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+function updateAllDatesFromPopup() {
+    var dateInput = document.getElementById('popupDate');
+    var newDate = dateInput.value.trim();
+    
+    if (!newDate) {
+        alert('Indtast venligst en dato i formatet ddmmyyyy');
+        return;
+    }
+    
+    // Validate date format (8 digits)
+    if (!/^\d{8}$/.test(newDate)) {
+        alert('Datoen skal være i formatet ddmmyyyy (8 cifre)');
+        return;
+    }
+    
+    // Validate date
+    var day = newDate.substring(0, 2);
+    var month = newDate.substring(2, 4);
+    var year = newDate.substring(4, 8);
+    
+    var testDate = new Date(year, month - 1, day);
+    if (testDate.getDate() != day || testDate.getMonth() != month - 1 || testDate.getFullYear() != year) {
+        alert('Ugyldig dato. Kontroller at datoen eksisterer.');
+        return;
+    }
+    
+    // Confirm action
+    if (!confirm('Er du sikker på at du vil opdatere alle betalingsdatoer til ' + newDate + '?')) {
+        return;
+    }
+    
+    // Send AJAX request
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', 'update_payment_dates.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                try {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        alert('Succes! ' + response.updated + ' betalingsdatoer er opdateret.');
+                        closeDatePopup();
+                        location.reload();
+                    } else {
+                        alert('Fejl: ' + response.message);
+                    }
+                } catch (e) {
+                    alert('Fejl ved behandling af svar: ' + e.message);
+                }
+            } else {
+                alert('Fejl ved kommunikation med serveren.');
+            }
+        }
+    };
+    
+    var params = 'liste_id=" . $liste_id . "&new_date=' + newDate + '&update_all=1';
+    xhr.send(params);
+}
+</script>";
+
 print "</form>";

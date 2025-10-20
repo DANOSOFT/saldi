@@ -1900,12 +1900,13 @@ if (!function_exists('sync_shop_vare')) {
 				exec("nohup $txt > /dev/null 2>&1 &\n");
 			}
 		} else {
-			$qtxt = "select varer.varenr, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
+			$qtxt = "select varer.varenr, varer.varenr_alias, varer.kostpris, varer.salgspris, varer.m_type, varer.m_rabat, lagerstatus.beholdning as stock from lagerstatus,varer ";
 			$qtxt .= "where lagerstatus.vare_id='$vare_id' and lagerstatus.lager='$lager' and varer.id='$vare_id'";
 			echo $qtxt;
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$stock = $r['stock'];
 				$itemNo = $r['varenr'];
+				$itemNoAlias = $r['varenr_alias'];
 				$costPrice = $r['kostpris'];
 			} #$stock=$itemNo=NULL; #20210225
 			$qtxt = "select sum(beholdning) as total_stock from lagerstatus where vare_id='$vare_id'";
@@ -1920,27 +1921,28 @@ if (!function_exists('sync_shop_vare')) {
 			else
 				$shop_id = 0;
 
-			$qtxt = "SELECT varenr, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
+			$qtxt = "SELECT varenr, varenr_alias, kostpris, salgspris, m_type, m_rabat, retail_price, colli_webfragt, stregkode FROM varer WHERE varer.id='$vare_id'";
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$salesPrice = $r['salgspris'];
 				$discountType = $r['m_type'];
 				$discount = $r['m_rabat'];
 				$itemNo = $r['varenr'];
+				$itemNoAlias = $r['varenr_alias'];
 				$costPrice = $r['kostpris'];
 				$retailPrice = $r["retail_price"];
 				$webFragt = $r["colli_webfragt"];
 				$stregkode = $r["stregkode"];
-				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+				$txt = "$api_fil?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
-if ($bruger_id == '-1') echo "$txt<br>";
+#if ($bruger_id == '-1') echo "$txt<br>";
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				if($api_fil2){
-					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+					$txt = "$api_fil2?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
 				if($api_fil3){
-					$txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+					$txt = "$api_fil3?update_price=$shop_id&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&costPrice=$costPrice&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
@@ -1950,29 +1952,29 @@ if ($bruger_id == '-1') echo "$txt<br>";
 			if ($itemNo) {
 				#			if (($shop_id || $itemNo) && is_numeric($stock)) {
 				$rand = rand();
-				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
+				$txt = "$api_fil?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				if($api_fil2){
-					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&costPrice=$costPrice&rand=$rand";
+					$txt = "$api_fil2?sku=" . urlencode("$itemNo") . "&skuAlias=" . urlencode("$itemNoAlias") . "&costPrice=$costPrice&rand=$rand";
 					fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 					shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
 				$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-				$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+				$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				if($api_fil2){
 					$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-if ($bruger_id == '-1') echo "$txt<br>";
+					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+#if ($bruger_id == '-1') echo "$txt<br>";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
 				if($api_fil3){
 					$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock";
-					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
-if ($bruger_id == '-1') echo "$txt<br>";
+					$txt .= "&stockno=$lager&costPrice=$costPrice&salesPrice=$salesPrice&discountType=$discountType&discount=$discount&itemNo=" . urlencode("$itemNo") . "&itemNoAlias=" . urlencode("$itemNoAlias") . "&rand=$rand&retailPrice=$retailPrice&webFragt=$webFragt&barcode=$stregkode";
+#if ($bruger_id == '-1') echo "$txt<br>";
 				fwrite($log, __FILE__ . " " . __LINE__ . " nohup curl '$txt' &\n");
 				shell_exec("nohup curl '$txt' > ../temp/$db/curl.txt &\n");
 				}
@@ -1996,46 +1998,52 @@ if ($bruger_id == '-1') echo "$txt<br>";
 					}
 					for ($x = 0; $x < count($partOf); $x++) {
 						$shop_id = 0;
-						$qtxt = "select varenr,kostpris from varer where id = '$partOf[$x]'";
-if ($bruger_id == '-1') echo __line__." $qtxt<br>";
+						$qtxt = "select varenr,varenr_alias,kostpris from varer where id = '$partOf[$x]'";
+#if ($bruger_id == '-1') echo __line__." $qtxt<br>";
 						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 							$costPrice = $r['kostpris'];
 							$productNo = $r['varenr'];
+							$productNoAlias = $r['varenr_alias'];
 						}
-if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
 						$qtxt = "select shop_id from shop_varer where saldi_id = $partOf[$x]";
 						if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $shop_id = $r['shop_id'];
 						list($totalStock, $stock) = explode('|', getAvailable($partOf[$x], $lager));
 						$txt = "$api_fil?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-						$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+						$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 						$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 						fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 						exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						if($api_fil2){
-if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
 							$txt = "$api_fil2?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
 						if($api_fil3){
-if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
+#if ($bruger_id == '-1') echo __line__." productNo $productNo ($r[varenr])<br>";
 							$txt = "$api_fil3?update_stock=$shop_id&stock=$stock&totalStock=$totalStock&";
-							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") ."&sku=" . urlencode("$productNo");
+							$txt .= "stockno=$lager&costPrice=$costPrice&itemNo=" . urlencode("$productNo") . "&itemNoAlias=" . urlencode("$productNoAlias") . "&sku=" . urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias");
 							$txt .= "&file=" . __FILE__ . "&line=" . __LINE__;
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 							fwrite($log, __FILE__ . " " . __LINE__ . " $txt\n");
 							exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
-						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo"); 
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+						$txt = "$api_fil?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 						shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						if($api_fil2){
-							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo"); 
-if ($bruger_id == '-1') echo __line__." $txt<br>";
+							$txt = "$api_fil2?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
+							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
+						}
+						if($api_fil3){
+							$txt = "$api_fil3?costPrice=$costPrice&sku=". urlencode("$productNo") . "&skuAlias=" . urlencode("$productNoAlias"); 
+#if ($bruger_id == '-1') echo __line__." $txt<br>";
 							shell_exec("/usr/bin/nohup curl '$txt' > /dev/null 2>&1 &\n");
 						}
 					}
@@ -2163,6 +2171,152 @@ if (!function_exists('get_next_number')) {
 
 		}
 		return ($kontonr);
+	}
+}
+
+//                   ----------------------------- get_next_order_number ------------------------------
+if (!function_exists('get_next_order_number')) {
+	function get_next_order_number($art = 'DO')
+	{
+		/**
+		 * Generates the next available order number (ordrenr) for a given 'art' (type).
+		 * Uses database transactions and locking to prevent race conditions and duplicate numbers.
+		 * 
+		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
+		 * 
+		 * @return int - The next available order number.
+		 * @throws Exception - If unable to generate unique order number after maximum attempts.
+		 */
+		
+		$max_attempts = 10;
+		$attempt = 0;
+		$ordrenr = null;
+		
+		// Start transaction to ensure atomicity
+		transaktion('begin');
+		
+		try {
+			while ($attempt < $max_attempts) {
+				$attempt++;
+				
+				// Lock the ordrer table to prevent concurrent access
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+				// Get the maximum order number for the given art type
+				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				$ordrenr = ($r['max_ordrenr'] ? $r['max_ordrenr'] : 0) + 1;
+				
+				// Double-check that this order number doesn't exist (extra safety)
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art'";
+				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				
+				if (!$check_r['id']) {
+					// Order number is unique, commit transaction and return
+					transaktion('commit');
+					return $ordrenr;
+				} else {
+					// Order number already exists, increment and try again
+					$ordrenr++;
+					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+				}
+			}
+			
+			// If we get here, we couldn't generate a unique number
+			transaktion('rollback');
+			throw new Exception("Could not generate unique order number after $max_attempts attempts");
+			
+		} catch (Exception $e) {
+			transaktion('rollback');
+			throw $e;
+		}
+	}
+}
+
+//                   ----------------------------- get_next_invoice_number ------------------------------
+if (!function_exists('get_next_invoice_number')) {
+	function get_next_invoice_number($art = 'DO', $id = null)
+	{
+		/**
+		 * Generates the next available invoice number (fakturanr) for a given 'art' (type).
+		 * Uses database transactions and locking to prevent race conditions and duplicate numbers.
+		 * Handles non-numeric fakturanr field by using string comparison and conversion.
+		 * 
+		 * @param string $art - The order type ('DO', 'DK', 'PO', etc.)
+		 * @param int $id - The order ID to exclude from checks (optional)
+		 * 
+		 * @return int - The next available invoice number.
+		 * @throws Exception - If unable to generate unique invoice number after maximum attempts.
+		 */
+		
+		$max_attempts = 10;
+		$attempt = 0;
+		$fakturanr = null;
+		
+		// Start transaction to ensure atomicity
+		transaktion('begin');
+		
+		try {
+			while ($attempt < $max_attempts) {
+				$attempt++;
+				
+				// Lock the ordrer table to prevent concurrent access
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+				// Get the maximum invoice number for the given art type
+				// Since fakturanr is not numeric, we need to handle it carefully
+				// Fetch all records and find max in PHP to avoid database-specific casting issues
+				$qtxt = "SELECT fakturanr FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr != '' AND fakturanr IS NOT NULL";
+				if ($id) {
+					$qtxt .= " AND id != '$id'";
+				}
+				$qtxt .= " ORDER BY fakturadate DESC, id DESC LIMIT 100";
+				
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				$fakturanr = 1; // Start with 1
+				
+				while ($r = db_fetch_array($q)) {
+					$existing_fakturanr = (int)$r['fakturanr'];
+					if ($fakturanr <= $existing_fakturanr) {
+						$fakturanr = $existing_fakturanr + 1;
+					}
+				}
+				
+				// Double-check that this invoice number doesn't exist (extra safety)
+				$qtxt = "SELECT id FROM ordrer WHERE (art = '$art' OR art = 'DK') AND fakturanr = '$fakturanr'";
+				if ($id) {
+					$qtxt .= " AND id != '$id'";
+				}
+				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				
+				if (!$check_r['id']) {
+					// Check minimum invoice number from settings
+					$r = db_fetch_array(db_select("SELECT box1 FROM grupper WHERE art = 'RB' AND kodenr='1'", __FILE__ . " linje " . __LINE__));
+					if ($r && $fakturanr < (int)$r['box1']) {
+						$fakturanr = (int)$r['box1'];
+					}
+					if ($fakturanr < 1) {
+						$fakturanr = 1;
+					}
+					
+					// Invoice number is unique, commit transaction and return
+					transaktion('commit');
+					return $fakturanr;
+				} else {
+					// Invoice number already exists, increment and try again
+					$fakturanr++;
+					usleep(rand(10000, 50000)); // Small random delay to reduce contention
+				}
+			}
+			
+			// If we get here, we couldn't generate a unique number
+			transaktion('rollback');
+			throw new Exception("Could not generate unique invoice number after $max_attempts attempts");
+			
+		} catch (Exception $e) {
+			transaktion('rollback');
+			throw $e;
+		}
 	}
 }
 

@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/listDocs.php --- patch 4.1.0------2024.03.05---
+// --- includes/docsIncludes/listDocs.php --- patch 4.1.1------2025.09.30---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2023 Saldi.dk ApS
+// Copyright (c) 2023-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // PLBM 2024.01.31
 //20240305 PHR Varioous corrections

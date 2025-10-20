@@ -81,13 +81,12 @@ $actual_file = find_background_file($db_id, $baggrund);
 	// </div>";
 
 	if ($actual_file) {
-    print "<div style=\"height:100%;\">
-    <object style=\"width:50%;height:100%;\" data=\"$dataurl://docs.google.com/viewer?url=$urlstr%2Flogolib%2F$db_id%2F$actual_file.pdf&amp;embedded=true\">
-        <p>Din browser kan ikke vise denne fil. Hent filen herunder.</p>
-        <a href=\"../logolib/$db_id/$actual_file.pdf\">Download PDF</a> 
-    </object>
-    </div>";
-} else {
+        print "<div style=\"height:100%;\">
+        <iframe style=\"width:100%;height:100%;\" src=\"../logolib/$db_id/$actual_file.pdf#toolbar=0&navpanes=0&scrollbar=0\">
+            <p>Din browser kan ikke vise denne fil. <a href=\"../logolib/$db_id/$actual_file.pdf\">Download PDF</a></p>
+        </iframe>
+        </div>";
+    } else {
     print "<div style=\"height:100%; text-align:center; padding-top:50px;\">
         <h2>Fil ikke fundet</h2>
         <p>Filen '$baggrund.pdf' kunne ikke findes.</p>

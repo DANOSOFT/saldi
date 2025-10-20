@@ -696,7 +696,7 @@ $closeXMLFile = "" . findtekst(2351, $sprog_id) . ""; // Luk XML fil
 if ($standardKontoCheck) {
 	print "<table class=\"saftTable1\">\n";
 	print "<tr><td colspan=\"2\">";
-	print "" . findtekst(2348, $sprog_id) . "";
+	print findtekst('2348|Her kan du oprette en SAF-T Financial rapport', $sprog_id).":";
 	print "</td><td>&nbsp;</td><td>&nbsp;</td></tr>\n";
 	print "<tr><td colspan=\"4\"></td></tr>";
 	print "<tr><td>";

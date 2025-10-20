@@ -2044,6 +2044,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		global $aarslut;
 
 		$lukket = NULL;
+		if (!$debitornr) $debitornr = array();
+
 		if ($kladde_id) {
 			$qtxt = "select bogfort from kladdeliste where id = $kladde_id";
 			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));

@@ -71,9 +71,15 @@ if ($tjek=if_isset($_GET['tjek'])){
 	}
 }
 	
-$q = db_SELECT("select box1,box4,box9 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__);
+$q = db_SELECT("select box4,box9 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__);
 $r=db_fetch_array($q); 
-$incl_moms=$r['box1'];
+
+// Get VAT settings from settings table
+$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+
+// Set default VAT behavior based on settings
+$incl_moms = $vatPrivateCustomers; // Default to private customer setting
 $hurtigfakt=$r['box4'];
 $negativt_lager=$r['box9'];
 
@@ -118,6 +124,17 @@ if (isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 2008.05.11
 		$notes=addslashes($row['notes']);
 		$gruppe=addslashes($row['gruppe']);
 		$kontoansvarlig=addslashes($row['kontoansvarlig']);
+		
+		// Check customer type from kontotype field
+		$qtxt = "SELECT kontotype FROM adresser WHERE id = '$konto_id'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$kontotype = if_isset($r, 0, 'kontotype');
+
+		if ($kontotype == 'erhverv') {
+			$incl_moms = $vatBusinessCustomers; // Use business customer VAT setting for business customers
+		} else {
+			$incl_moms = $vatPrivateCustomers; // Use private customer VAT setting for private customers
+		}
 	}
 	if ($kontoansvarlig){
 		$query = db_select("select navn from ansatte where id='$kontoansvarlig'",__FILE__ . " linje " . __LINE__);
@@ -146,9 +163,7 @@ if (isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 2008.05.11
 	}
 }
 if ((!$id)&&($firmanavn)) {
-	$query = db_select("select ordrenr from ordrer where art='DO' or art='DK' order by ordrenr desc",__FILE__ . " linje " . __LINE__);
-	if ($row = db_fetch_array($query)) $ordrenr=$row[ordrenr]+1;
-	else {$ordrenr=1;}
+	$ordrenr = get_next_order_number('DO');
 	$ordredate=date("Y-m-d");
 	db_modify("insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,cvrnr,ean,institution,email,mail_fakt,notes,art,ordredate,momssats,hvem,tidspkt,ref,valuta,sprog,kontakt,pbs,status,restordre) values ($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$email','$mail_fakt','$notes','DO','$ordredate','$momssats','$brugernavn','$tidspkt','$ref','$valuta','$formularsprog','$kontakt','$pbs','0','0')",__FILE__ . " linje " . __LINE__);
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc",__FILE__ . " linje " . __LINE__);
@@ -413,6 +428,17 @@ if (isset($_POST['submit'])) {
 			$institution=$row['institution'];
 			$mail_fakt=$row['mailfakt'];
 			$gruppe=$row['gruppe'];
+			
+			// Check customer type from kontotype field
+			$qtxt = "SELECT kontotype FROM adresser WHERE id = '$konto_id'";
+			$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$kontotype = if_isset($r, 0, 'kontotype');
+
+			if ($kontotype == 'erhverv') {
+				$incl_moms = $vatBusinessCustomers; // Use business customer VAT setting for business customers
+			} else {
+				$incl_moms = $vatPrivateCustomers; // Use private customer VAT setting for private customers
+			}
 			if ($gruppe) {
 				$r = db_fetch_array(db_select("select box1,box3,box4,box6 from grupper where art='DG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
 				$tmp= substr($r['box1'],1,1);

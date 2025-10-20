@@ -601,12 +601,12 @@ if ($lev_navne) {
 ?>
 			<td>
 				<div style="display:flex;gap:5px;">
-					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=12&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=12&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud" onclick="event.stopPropagation();"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 							<path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z" />
 						</svg></a>
 					<?php
 					if ($row['email']) {
-					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=12&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=12&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="event.stopPropagation(); return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 								<path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z" />
 							</svg></a><?php
 									}
@@ -731,12 +731,12 @@ if ($lev_navne) {
 		?>
 			<td>
 				<div style="display:flex;gap:5px;">
-					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=13&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=13&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud" onclick="event.stopPropagation();"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 							<path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z" />
 						</svg></a>
 					<?php
 					if ($row['email']) {
-					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=13&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=13&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="event.stopPropagation(); return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 								<path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z" />
 							</svg></a><?php
 									}
@@ -764,18 +764,13 @@ if ($lev_navne) {
 				$linjebg = $bgcolor5;
 				$color = '#000000';
 			}
-
-			print "<tr style='color: $color; background: $linjebg'>";
+			print "<tr style='color: $color; background: $linjebg' onclick=\"javascript:window.location.href='ordre.php?&id=$row[id]&returside=ordreliste.php';\">";
 			for ($i=0; $i<count($vis_felt); $i++) {
 				$fname = trim($vis_felt[$i]);
 				$align = isset($justering[$i]) && $justering[$i] ? $justering[$i] : 'left';
 				print "<td align=$align>";
 				if ($fname=='ordrenr') {
-					if ($popup) {
-						print "<a href=ordre.php?&id=$row[id]&returside=ordreliste.php>$row[ordrenr]</a>";
-					} else {
-						print "<a href=ordre.php?&id=$row[id]&returside=ordreliste.php>$row[ordrenr]</a>";
-					}
+					print "$row[ordrenr]";
 				} elseif (strpos($fname,'date')!==false) {
 					print dkdato($row[$fname]);
 				} elseif ($fname=='sum') {
@@ -791,12 +786,12 @@ if ($lev_navne) {
 		?>
 			<td>
 				<div style="display:flex;gap:5px;">
-					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					<a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud" onclick="event.stopPropagation();"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 							<path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z" />
 						</svg></a>
 					<?php
 					if ($row['email']) {
-					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
+					?> <a href="formularprint.php?id=<?php print $row["id"]; ?>&formular=14&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email" onclick="event.stopPropagation(); return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $row['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000">
 								<path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z" />
 							</svg></a><?php
 									}

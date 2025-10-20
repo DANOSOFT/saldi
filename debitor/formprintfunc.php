@@ -83,7 +83,13 @@ if ($formular!=3 && $folgeseddel) {
 	}
 }
 $r=db_fetch_array(db_select("select * from grupper where art='DIV' and kodenr='3'",__FILE__ . " linje " . __LINE__)); 
-$incl_moms=$r['box1'];
+
+// Get VAT settings from settings table
+$vatPrivateCustomers = get_settings_value("vatPrivateCustomers", "ordre", "");
+$vatBusinessCustomers = get_settings_value("vatBusinessCustomers", "ordre", "");
+
+// Set default VAT behavior based on settings
+$incl_moms = $vatPrivateCustomers; // Default to private customer setting
 if ($folgeseddel) {
 	$kommentarprint=$r['box3'];
 	$skjul_nul_lin=$r['box8'];
@@ -120,6 +126,20 @@ for ($q=0; $q<$ordre_antal; $q++) {
 	$email[0]=$row['email'];
 	$pbs=$row['pbs'];
 	$formularsprog=strtolower($row['sprog']);
+	
+	// Check if this is a business customer (erhverv) or private customer (privat)
+	if ($konto_id) {
+		$qtxt = "SELECT kontotype FROM adresser WHERE id = '$konto_id'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		$kontotype = if_isset($r, 0, 'kontotype');
+		
+		if ($kontotype == 'erhverv') {
+			$incl_moms = $vatBusinessCustomers; // Use business customer VAT setting for business customers
+		} else {
+			$incl_moms = $vatPrivateCustomers; // Use private customer VAT setting for private customers
+		}
+	}
+
 	if (!$formularsprog) $formularsprog="dansk";
 	if (($formular==4)||($formular==5)) {
 		if ($row['art']=="DK") $formular=5;
@@ -293,7 +313,7 @@ for ($q=0; $q<$ordre_antal; $q++) {
 					$linjesum[$x]=dkdecimal($row['pris']*$antal[$x]-($row['pris']*$antal[$x]*$row[rabat]/100));
 					if ($row[momsfri]!='on') {
 						$momssum=$momssum+round(($row['pris']*$antal[$x]-($row['pris']*$antal[$x]*$row[rabat]/100))+0.0001,2); #Afrunding tilfoejet 2009.01.26 grundet diff i ordre 98 i saldi_104
-if ($incl_moms) {
+						if ($incl_moms) {
 							$tmp=round(($row['pris']+$row['pris']*$momssats/100)+0.0001,2);
 							$pris[$x]=dkdecimal($tmp);
 							$linjesum[$x]=dkdecimal($tmp*$antal[$x]-($tmp*$antal[$x]*$row[rabat]/100));
@@ -433,14 +453,53 @@ function send_mails($filnavn,$email,$mailsprog,$form_nr,$charset) {
 	global $db;
 	global $mailantal;
 	
-	$q=db_select("select * from formularer where formular='$form_nr' and art='5'",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select * from formularer where formular='$form_nr' and art='5' and lower(sprog)='".strtolower($mailsprog)."'",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['xa']=='1') $subjekt=$r['beskrivelse'];	
 		elseif ($r['xa']=='2') $mailtext=$r['beskrivelse'];
 	}
+	
+	# Load language-specific sender email and name from settings table
+	# Determine language ID: 0 for Danish/default, actual ID for other languages
+	$lang_id = 0; // Default to 0 for Danish
+	
+	if ($mailsprog && strtolower($mailsprog) != 'dansk') {
+		$qtxt = "select kodenr from grupper where art = 'VSPR' and lower(box1) = lower('$mailsprog')";
+		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		if ($r) {
+			$lang_id = $r['kodenr'];
+		}
+	}
+	
+	error_log("DEBUG: mailsprog='$mailsprog', lang_id='$lang_id'");
+	
+	# Load sender email for this language
+	$lang_sender_email = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_email' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$lang_sender_email = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_email='$lang_sender_email' for lang_id='$lang_id'");
+	
+	# Load sender name for this language
+	$lang_sender_name = NULL;
+	$qtxt = "select var_value from settings where var_name = 'sender_name' and var_grp = 'email_settings' and group_id = '$lang_id'";
+	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	$lang_sender_name = $r['var_value'];
+	error_log("DEBUG: Found lang_sender_name='$lang_sender_name' for lang_id='$lang_id'");
+	
 	$row = db_fetch_array(db_select("select * from adresser where art='S'",__FILE__ . " linje " . __LINE__));
 	$afsendermail=$row['email'];
 	$afsendernavn=$row['firmanavn'];
+	
+	# Use language-specific sender email if available, otherwise use default
+	if ($lang_sender_email && trim($lang_sender_email) != '') {
+		$afsendermail = $lang_sender_email;
+	}
+	
+	# Use language-specific sender name if available, otherwise use default
+	if ($lang_sender_name && trim($lang_sender_name) != '') {
+		$afsendernavn = $lang_sender_name;
+	}
 	if (!$afsendermail || !$afsendernavn) {
 		return("Missing sender mail");
 #		print "<BODY onLoad=\"javascript:alert('Firmanavn eller e-mail for afsender ikke udfyldt.\\nSe (Indstillinger -> stamdata).\\nMail ikke afsendt!')\">";

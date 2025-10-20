@@ -253,7 +253,7 @@ if(isset($_GET['vare_id']) && $_GET['vare_id']) { #20210716
 				samlevare($id,$art,$vare_id[0],$antal[0]);
 			} else {
 				($omlev && $omvare[0])?$omvbet[0]='on':$omvbet[0]='';
-				$lager*=1;
+				$lager = (int)$lager;
 				$qtxt = "insert into ordrelinjer (ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,pris,lev_varenr,serienr,antal,momsfri,samlevare,omvbet,momssats,lager) values ";
 				$qtxt.= "('$id','$posnr[0]','".db_escape_string($varenr[0])."','$vare_id[0]','".db_escape_string($beskrivelse[0])."',";
 				$qtxt.= "'$enhed[0]','$pris[0]','".db_escape_string($lev_varenr[0])."','".db_escape_string($serienr[0])."','$antal[0]',";
@@ -352,7 +352,6 @@ if ($betalingsdage === null || $betalingsdage === '') {
 			$godkend = if_isset($_POST, NULL, 'godkend');
 			$kreditnota = if_isset($_POST, NULL, 'kreditnota');
 			$ref = trim(if_isset($_POST, NULL, 'ref'));
-			$afd = trim(if_isset($_POST, 0, 'afd'));
 			$lager = trim(if_isset($_POST, 0, 'lager'));
 			$fakturanr = db_escape_string(trim(if_isset($_POST, NULL, 'fakturanr')));
 			$momssats = if_isset($_POST, NULL, 'momssats');
@@ -379,8 +378,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 		if(!isset($tidl_lev)){ $tidl_lev=null;}
 		if(!isset($leveret)){ $leveret=null;}
 		if(!isset($notes)){ $notes=null;}
-		if(!isset($afd_nr) || !$afd_nr){ $afd_nr=0;}
-		if (!$afd) $afd = 0;
+		if (!$lager) $lager = 0;
 
 		if ($kred_ord_id) {
 			$r=db_fetch_array(db_select("select ordrenr from ordrer where id = '$kred_ord_id'",__FILE__ . " linje " . __LINE__));
@@ -889,7 +887,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 				$qtxt.="lev_kontakt='$lev_kontakt',betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',";
 				$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
 				if (strlen($levdate)>=6)$qtxt.="levdate='$levdate',";
-				$qtxt.="status=$status,ref='$ref',afd='$afd',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
+				$qtxt.="status=$status,ref='$ref',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
 /* saul ??
 				$condition = prepareSearchTerm($fakturanr);
  				$qtxt = "select * from ordrer where fakturanr $condition";
@@ -1063,12 +1061,12 @@ function ordreside($id) {
 	global $returside,$regnaar;
 	global $sort,$sprog_id,$submit;
 
-	$afd = $betalingsdage = $gruppe = $kred_ord_id = $konto_id = $lager = $momssats = $ordrenr = $status = 0;
+	$lager = $betalingsdage = $gruppe = $kred_ord_id = $konto_id = $momssats = $ordrenr = $status = 0;
 	$addr1 = $addr2 = $betalingsbet = $bynavn = $cvrnr = $firmanavn = $kontakt = $kontonr = $land = '';
 	$lev_navn = $lev_addr1 = $lev_addr2 = $lev_bynavn = $lev_kontakt = $lev_postnr = $levdato = '';
 	$momssats = $omlev = $ordredato = $postnr = $ref = $valuta = $vis_projekt = '';
 	
-	$antal = $afd_nr = $posnr = $salgspris = array();
+	$antal = $posnr = $salgspris = array();
 	$ordre_id=0;
 
 	$r=db_fetch_array(db_SELECT("select box4 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
@@ -1143,7 +1141,6 @@ function prepareSearchTerm($searchTerm) {
 		$valutakurs    = $r['valutakurs'];
 		$modtagelse    = $r['modtagelse'];
 		$ref           = trim($r['ref']);
-		$afd           = $r['afd'];
 		$lager         = $r['lager'];
 		$fakturanr     = $r['fakturanr'];
 		$lev_adr       = $r['lev_adr'];
@@ -1179,30 +1176,12 @@ function prepareSearchTerm($searchTerm) {
 	}
 	$x=0;
 	if ($r=db_fetch_array(db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))) {
-		$q2=db_select("select navn,afd from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
+		$q2=db_select("select navn from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
 			while ($r2=db_fetch_array($q2)) {
 			$ansatte_navn[$x]=$r2['navn'];
-			$ansatte_afd[$x]=$r2['afd'];
-			if ($ref && $ref==$ansatte_navn[$x] && !$afd && $ansatte_afd[$x]) $afd=$ansatte_afd[$x];
 			$x++;
 		} 
 	} else alert ("Stamdata mangler");
-	$x=0;
-	$q=db_select("select kodenr,beskrivelse,box1 from grupper where art = 'AFD' order by kodenr",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$afd_nr[$x]=$r['kodenr'];
-		$afd_navn[$x]=$r['beskrivelse'];
-		$afd_lager[$x]=$r['box1'];
-		if ($afd && $afd==$afd_nr[$x] && !$lager && $afd_lager[$x]) $lager=$afd_lager[$x];
-		$x++;
-	}
-	if ($ref && $afd){
-		$qtxt="select kodenr from grupper where box1='$afd' and art='LG'";
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			$lager=$r['kodenr'];
-		}
-	}
-	$lager*=1;
 	$x=0;
 	$q=db_select("select kodenr,beskrivelse from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
@@ -1210,6 +1189,7 @@ function prepareSearchTerm($searchTerm) {
 		$lager_navn[$x]=$r['beskrivelse'];
 		$x++;
 	}
+	$lager = (int)$lager;
 	if ($submit == 'credit' || $art=='KK') {
 		$qtxt = "select ordrenr from ordrer where id = '$kred_ord_id'";
 		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1229,7 +1209,6 @@ function prepareSearchTerm($searchTerm) {
 #	print "<input type=\"hidden\" name=momssats value=$momssats>";
 	print "<input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\">";
 	print "<input type=\"hidden\" name=\"kred_ord_id\" value=\"$kred_ord_id\">";
-	print "<input type=\"hidden\" name=\"afd\" value=\"$afd\">";
 	print "<input type=\"hidden\" name=\"lager\" value=\"$lager\">";
 	print "<input type=\"hidden\" name=\"omlev\" value=\"$omlev\">";
 

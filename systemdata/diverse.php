@@ -526,7 +526,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		#######################################################################################
 	} elseif ($sektion == 'ordre_valg') {
-		$box1             = if_isset($_POST['box1']); #incl_moms
+		$vatPrivateCustomers = if_isset($_POST['vatPrivateCustomers']);
+		$vatBusinessCustomers = if_isset($_POST['vatBusinessCustomers']);
 		$box2             = if_isset($_POST['box2']); #Rabatvarenr
 		$box3             = if_isset($_POST['box3']); #folge_s_tekst
 		$box4             = if_isset($_POST['box4']); #hurtigfakt
@@ -546,9 +547,12 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$orderNoteEnabled = if_isset($_POST['orderNoteEnabled']);
 		$debitoripad      = if_isset($_POST['debitoripad']);
 		$portovarenr      = if_isset($_POST['portovarenr']);
+		$showDB           = if_isset($_POST['showDB']);
+		$showDG           = if_isset($_POST['showDG']);
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
-
+		update_settings_value("showDB", "ordre", $showDB, "Weather or not to show the DB on the order page");
+		update_settings_value("showDG", "ordre", $showDG, "Weather or not to show the DG on the order page");
 
 		if ($box2 && $r = db_fetch_array(db_select("select id from varer WHERE varenr = '$box2'", __FILE__ . " linje " . __LINE__))) {
 			$box2 = $r['id'];
@@ -583,16 +587,21 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		# <- 20150907
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='3'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
-			$qtxt = "update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',";
+			$qtxt = "update grupper set  box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',";
 			$qtxt.= "box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12',box13='$box13',";
 			$qtxt.= "box14='$box14' WHERE id = '$id'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
-			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box1,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,";
-			$qtxt.= "box12,box13,box14) values ('Div_valg (Ordrer)','3','DIV','$box1','$box2','$box3','$box4','$box5','$box6',";
+			$qtxt = "insert into grupper (beskrivelse,kodenr,art,box2,box3,box4,box5,box6,box7,box8,box9,box10,box11,";
+			$qtxt.= "box12,box13,box14) values ('Div_valg (Ordrer)','3','DIV','$box2','$box3','$box4','$box5','$box6',";
 			$qtxt.= "'$box7','$box8','$box9','$box10','$box11','$box12','$box13','$box14')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
+		
+		// Save VAT options to settings table
+		update_settings_value("vatPrivateCustomers", "ordre", $vatPrivateCustomers, "Show VAT on orders for private customers");
+		update_settings_value("vatBusinessCustomers", "ordre", $vatBusinessCustomers, "Show VAT on orders for business customers");
+		
 		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='5'", __FILE__ . " linje " . __LINE__))) {
 			$id = $r['id'];
 			db_modify("update grupper set box6='$kostmetode',box8='$saetvareid' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -617,7 +626,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	} elseif ($sektion == 'productOptions') {
 
 		$id                              = $_POST['id'];
-		$box1                            = if_isset($_POST['box1']); #incl_moms
+		$box1                            = if_isset($_POST['box1']); #incl_moms (legacy - not used for VAT anymore)
 		$DisItemIfNeg_id                 = if_isset($_POST['DisItemIfNeg_id']);
 		$DisItemIfNeg                    = if_isset($_POST['DisItemIfNeg']);
 		$vatOnItemCard_id                = if_isset($_POST['vatOnItemCard_id']);
@@ -935,7 +944,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 	#######################################################################################
 	} elseif ($sektion == 'shop_valg') {
 		$id = if_isset($_POST['id']);
-#		$box1 = if_isset($_POST['box1']);   #incl_moms
+#		$box1 = if_isset($_POST['box1']);   #incl_moms (legacy - not used for VAT anymore)
 		$box2 = if_isset($_POST['box2']);   #Shop url
 		$box3 = if_isset($_POST['box3']);   #shop valg
 		$box4 = if_isset($_POST['box4']);   #merchant id

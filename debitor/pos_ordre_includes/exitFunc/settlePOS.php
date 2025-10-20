@@ -227,20 +227,9 @@ if ($status < 3) {
 			}
 		}
 	}
-	$fakturanr = 1;
-	$q = db_select("select fakturanr from ordrer where art = 'PO' and status >='3'", __FILE__ . " linje " . __LINE__); #max(fakturanr) fungerer ikke da feltet ikke er numerisk
-	while ($r = db_fetch_array($q)) {
-		if ($r['fakturanr'] >= $fakturanr) $fakturanr = $r['fakturanr'] + 1;
-	}
+	// Generate unique invoice number using the new thread-safe function
+	$fakturanr = get_next_invoice_number('PO', $id);
 	db_modify("update ordrer set fakturanr='$fakturanr' where id='$id'", __FILE__ . " linje " . __LINE__);
-	usleep(rand(100000, 500000));
-	$qtxt = "select id from ordrer where fakturanr='$fakturanr' and art = 'PO' and id != '$id'";
-	while ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		usleep(rand(100000, 500000));
-		$fakturanr += 1;
-		$qtxt = "select id from ordrer where fakturanr='$fakturanr' and art = 'PO' and id != '$id'";
-		db_modify("update ordrer set fakturanr='$fakturanr' where id='$id'", __FILE__ . " linje " . __LINE__);
-	}
 	$sum = (float) $sum;
 	$moms = (float) $moms;
 	$betalt = $modtaget + $modtaget2;

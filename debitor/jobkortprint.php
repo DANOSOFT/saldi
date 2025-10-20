@@ -86,59 +86,59 @@ print "<TABLE width=702 height=900 BORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"
 print "<TD bgcolor=\"FFFFFF\" valign=\"top\">";
 print "<Table width=696><tr><td colspan=\"2\">"; #Tabel 1.1 start
 print "<Table CELLPADDING=\"0\" cellspacing=\"1\" BORDER=\"0\" width=\"690\">"; #Tabel 1.1.1 start
-print "<tr><td colspan=\"3\"><FONT FACE=$font SIZE=\"4\"><center><b>".findtekst(28,$sprog_id)."</font></b></td></tr>";
-print "<tr><td width=\"80%\"><FONT FACE=$font SIZE=\"2\">".findtekst(6,$sprog_id)." ".$id."</font></td>";
-print "<td width=\"20%\"><FONT FACE=$font SIZE=\"2\">".findtekst(27,$sprog_id)."</font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">".$felt_1."</font></td></tr>";
+print "<tr><td colspan=\"3\"><FONT FACE=$font SIZE=\"4\"><center><b>".findtekst('28|Firmanavn', $sprog_id)."</font></b></td></tr>";
+print "<tr><td width=\"80%\"><FONT FACE=$font SIZE=\"2\">".findtekst('6|Jobnr.', $sprog_id).": ".$id."</font></td>";
+print "<td width=\"20%\"><FONT FACE=$font SIZE=\"2\">".findtekst('27|Planlagt til uge', $sprog_id).": </font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">".$felt_1."</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$kontonr."</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$firmanavn."</font></td>";
-print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst(377,$sprog_id)."<!--tekst 377--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$tlf</font></td></tr>";
+print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('377|Telefon', $sprog_id)."<!--tekst 377--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$tlf</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$addr1."</font></td>";
-print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst(378,$sprog_id)."<!--tekst 378--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$fax</font></td></tr>";
+print "<td><align=\"right\"><FONT FACE=$font SIZE=\"2\">".findtekst('378|Telefax', $sprog_id)."<!--tekst 378--></font></td><td align=\"right\"><FONT FACE=$font SIZE=\"2\">$fax</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$addr2."</font></td></tr>";
 print "<tr><td><FONT FACE=$font SIZE=\"2\">".$postnr." ".$bynavn."</font></td></tr>";
 print "<tr><td colspan=\"3\"><br><br></td></tr>";
 print "</tbody></table>"; # tabel 1.1.1 slut;
 print "<Table CELLPADDING=\"0\" cellspacing=\"1\" BORDER=\"1\" width=\"688\">"; #Tabel 1.1.2 start
 
-print "<tr><td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(7,$sprog_id)."</b></font></td>";
+print "<tr><td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('7|Felt 1', $sprog_id)."</b></font></td>";
 print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\">".$felt_2."<br></font></td>";
-print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(9,$sprog_id)."</b></font></td>";
+print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('9|Felt 3', $sprog_id)."</b></font></td>";
 print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\">".$felt_4."<br></font></td>";
-print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(13,$sprog_id)."</font></b></td>";
+print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('13|Felt 7', $sprog_id)."</font></b></td>";
 print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\">".$felt_8."<br></font></td>";
-print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(15,$sprog_id)."</b></font></td>";
+print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('15|Felt 9', $sprog_id)."</b></font></td>";
 print "<td width=\"12.5%\" colspan=\"2\"><FONT FACE=$font SIZE=\"2\">".$felt_10."<br></font></td></tr>";
 
-print "<tr><td><FONT FACE=$font SIZE=\"2\"><b>".findtekst(12,$sprog_id)."</b></font></td>";
+print "<tr><td><FONT FACE=$font SIZE=\"2\"><b>".findtekst('12|Felt 6', $sprog_id)."</b></font></td>";
 print "<td><FONT FACE=$font SIZE=\"2\">".$felt_7."<br></font></td>";
-print "<td><FONT FACE=$font SIZE=\"2\"><b>".findtekst(10,$sprog_id)."</b></font></td>";
+print "<td><FONT FACE=$font SIZE=\"2\"><b>".findtekst('10|Felt 4', $sprog_id)."</b></font></td>";
 print "<td><FONT FACE=$font SIZE=\"2\">".$felt_5."<br></font></td>";
-print "<td><FONT FACE=$font SIZE=\"2\"><b>".findtekst(14,$sprog_id)."</b></font></td>";
+print "<td><FONT FACE=$font SIZE=\"2\"><b>".findtekst('14|Felt 8', $sprog_id)."</b></font></td>";
 print "<td><FONT FACE=$font SIZE=\"2\">".$felt_9."<br></font></td>";
-print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(8,$sprog_id)."</b></font></td>";
+print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('8|Felt 2', $sprog_id)."</b></font></td>";
 print "<td width=\"12.5%\"><FONT FACE=$font SIZE=\"2\">".$felt_3."<br></font></td></tr>";
 
-print "<tr><td><FONT FACE=$font SIZE=\"2\"><b>".findtekst(11,$sprog_id)."</b></font></td>";
+print "<tr><td><FONT FACE=$font SIZE=\"2\"><b>".findtekst('11|Felt 5', $sprog_id)."</b></font></td>";
 print "<td colspan=\"7\"><FONT FACE=$font SIZE=\"2\">".$felt_6."<br></font></td><tr>";
 
-print "<tr><td><FONT FACE=$font SIZE=\"2\"><b>".findtekst(16,$sprog_id)."</b></font></td>";
+print "<tr><td><FONT FACE=$font SIZE=\"2\"><b>".findtekst('16|Felt 10', $sprog_id)."</b></font></td>";
 print "<td colspan=\"7\"><FONT FACE=$font SIZE=\"2\">".$felt_11."<br></font></td></tr>";
 print "</tbody></table>"; # tabel 1.1.2 slut;
 
 print "<Table CELLPADDING=\"0\" cellspacing=\"1\" BORDER=\"0\" width=\"688\">"; #Tabel 1.1.3 start
 print "<tr><td colspan=\"6\"></td></tr>";
-print "<tr><td colspan=\"6\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(17,$sprog_id).":</b><br>".$felt_indhold[1][1]."</font></td></tr>";
+print "<tr><td colspan=\"6\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('17|Bemærkning 1', $sprog_id).":</b><br>".$felt_indhold[1][1]."</font></td></tr>";
 print "<tr><td colspan=\"6\" height=\"100\"></td></tr>";
 print "</tbody></table>"; # tabel 1.1.3 slut;
 
 print "<Table CELLPADDING=\"0\" cellspacing=\"1\" BORDER=\"1\" width=\"688\">"; #Tabel 1.1.4 start
 
-print "<tr><td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst(18,$sprog_id)."</font></td>";
-print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst(19,$sprog_id)."</font></td>";
-print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst(20,$sprog_id)."</font></td>";
-print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst(21,$sprog_id)."</font></td>";
-print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst(22,$sprog_id)."</font></td>";
-print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst(23,$sprog_id)."</font></td></tr>";
+print "<tr><td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst('18|Tabelfelt 1', $sprog_id)."</font></td>";
+print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst('19|Tabelfelt 2', $sprog_id)."</font></td>";
+print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst('20|Tabelfelt 3', $sprog_id)."</font></td>";
+print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst('21|Tabelfelt 4', $sprog_id)."</font></td>";
+print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst('22|Tabelfelt 5', $sprog_id)."</font></td>";
+print "<td width=\"115\"><FONT FACE=$font SIZE=\"2\">".findtekst('23|Tabelfelt 6', $sprog_id)."</font></td></tr>";
 
 $x=1;
 #while (isset($felt_id[2][$x])|isset($felt_id[3][$x])|isset($felt_id[4][$x])|isset($felt_id[5][$x])|isset($felt_id[6][$x])|isset($felt_id[7][$x])) {
@@ -177,15 +177,15 @@ if ($x>2) {
 print "</tbody></table>"; # tabel 1.1.4 slut;
 print "<tr><td colspan=\"6\"></td></tr>";
 print "<Table CELLPADDING=\"0\" cellspacing=\"1\" BORDER=\"0\" width=\"688\">"; #Tabel 1.1.5 start
-print "<tr><td colspan=\"6\" height=\"120\" valign=\"top\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(24,$sprog_id).":</b><br>".$felt_indhold[8][1]."<br></font></td></tr>";
+print "<tr><td colspan=\"6\" height=\"120\" valign=\"top\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('24|Bemærkning 2', $sprog_id).":</b><br>".$felt_indhold[8][1]."<br></font></td></tr>";
 print "</tbody></table>"; # tabel 1.1.5 slut;
 print "<Table CELLPADDING=\"0\" cellspacing=\"1\" BORDER=\"0\" width=\"688\">"; #Tabel 1.1.6 start
 print "<tr><td colspan=\"6\"><br><hr></td></tr>";
-print "<tr><td colspan=\"6\" height=\"120\" valign=\"top\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(25,$sprog_id).":</b><br>".$felt_indhold[9][1]."<br></font></td></tr>";
+print "<tr><td colspan=\"6\" height=\"120\" valign=\"top\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('25|Bemærkning 3', $sprog_id).":</b><br>".$felt_indhold[9][1]."<br></font></td></tr>";
 print "</tbody></table>"; # tabel 1.1.6 slut;
 print "<Table CELLPADDING=\"0\" cellspacing=\"1\" BORDER=\"0\" width=\"688\">"; #Tabel 1.1.7 start
 print "<tr><td colspan=\"6\"><br><hr></td></tr>";
-print "<tr><td colspan=\"6\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst(26,$sprog_id).":</b><br>".$felt_indhold[10][1]."<br></font></td></tr>";
+print "<tr><td colspan=\"6\"><FONT FACE=$font SIZE=\"2\"><b>".findtekst('26|Bemærkning 4', $sprog_id).":</b><br>".$felt_indhold[10][1]."<br></font></td></tr>";
 print "</tbody></table>"; # tabel 1.1.7 slut;
 
 print "</tbody></table>"; # tabel 1.1 slut;

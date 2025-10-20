@@ -52,6 +52,7 @@ $raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
 $pretty_amount = dkdecimal($raw_amount, 2);
 $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
+$return_url = if_isset($_GET['return_url'], 'pos_ordre.php');
 $kasse = $_COOKIE['saldi_pos'];
 
 // Log initialization
@@ -82,6 +83,20 @@ $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 $terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
 
 writeLog("Terminal ID retrieved: $terminal_id");
+
+// Fetch printserver
+$r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
+if (!$printserver) $printserver = 'localhost';
+elseif ($printserver == 'box' || $printserver == 'saldibox') {
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	if ($fp = fopen($filnavn, 'r')) {
+		$printserver = trim(fgets($fp));
+		fclose($fp);
+	}
+}
 
 # Print setup
 $printfile = 'https://'.$_SERVER['SERVER_NAME'];
@@ -123,7 +138,7 @@ function countdown(i) {
 
 const failed = (event) => {
     logToServer('User clicked failed/back button', 'INFO');
-    window.location.replace('../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=afvist')
+    window.location.replace('../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=afvist')
 }
 
 // Variable used to check weather or not to leave the page
@@ -145,7 +160,7 @@ function leave(cardScheme) {
         setTimeout(function() { leave(cardScheme); }, 2500);
     } else {
         logToServer(`Payment successful, redirecting with card scheme: ${cardScheme}`, 'INFO');
-        window.location.replace(`../pos_ordre.php?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}`);
+        window.location.replace(`../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&modtaget=<?php print $raw_amount; ?>`);
     }
 }
 
@@ -153,10 +168,9 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
-    
     const data = {
-        "username": "<?php print get_settings_value("username", "move3500", "");?>",
-        "password": "<?php print get_settings_value("password", "move3500", "");?>"
+        "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
+        "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
     }
     console.log(data)
     
@@ -265,7 +279,7 @@ async function print_str(baseurl, apikey, data) {
         }
         
         // Open print window and log it
-        window.open("http://localhost/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
+        window.open("http://<?php echo $printserver ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
         
         await Promise.allSettled([
             logToServer('Print command sent', 'INFO')
@@ -337,7 +351,7 @@ async function start_payment(baseurl, apikey, amount) {
 async function start() {
     logToServer('Payment process started', 'INFO');
     // https://connectcloud-test.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
+    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);

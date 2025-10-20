@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.06.27 ---
+// --- includes/reportFunc/accountchart.php --- lap 4.1.1 --- 2025.09.25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,8 @@
 // ----------------------------------------------------------------------
 //
 // 20250627 base currency anount was not calculated correct.
+// 2050923 LOE - Showing all records or only open records added.
+// 20251002 MS Removed "Width=80%" and added padding to allow the Print/Email buttons to have the intended size, while still centering the text
 
 if (!function_exists('accountchart')) {
 function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kontoart) {
@@ -36,7 +38,17 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	global $sprog_id;
 	global $top_bund;
 
-	$title = "Kontokort";
+	$title = "Kontokort"; 
+	if(isset($_GET['kilde'])) {
+		
+		$OpenPost = if_isset($_GET['kilde'])=='openpost' ? 'on' : 'off';
+		$AllAcount = if_isset($_GET['kilde'])=='show_all' ? 'on' : 'off';
+		if($OpenPost != 'on' && $AllAcount != 'on') {
+			$OpenPost = 'on'; //default to open post
+		}
+	} 
+
+	
 
 	$email=$forfaldsum=$fromdate=$kto_fra=$kto_til=$returside=$todate=NULL;
 
@@ -76,12 +88,17 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		$dato_til=$r['box3'];
 		$konto_fra=$r['box4'];
 		$konto_til=$r['box5'];
-		$rapportart=$r['box6'];
+		if(isset($_GET['rapportart'])){
+			$rapportart= $_GET['rapportart']; #20250923
+		} else {
+			$rapportart=$r['box6'];
+		}
 	} 
 	if ($r=db_fetch_array(db_select("select id from grupper where art = 'PRJ'",__FILE__ . " linje " . __LINE__))) $prj='Projekt';
 	else $prj='';
 
 	if ($tmp && $tmp!=$konto_fra && !$returside) {
+		if( $rapportart == 'accountChart') $rapportart='openpost'; #20250923
 		$returside="rapport.php?rapportart=$rapportart"; //&submit=ok&regnaar=$regnaar&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til";
 		$konto_fra=$tmp;
 		$konto_til=$konto_fra;
@@ -273,31 +290,55 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	} else {
 		print "<center><table width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
 	}
-	if ($menu=='T' && $x==1) {
+	
+	if ($menu=='T' && $x==1) { 
 		include_once ("../includes/topmenu/header.php");
 		print "<div class='$kund'>$title</div>
 		<div class='content-noside'><br>";
 	} elseif ($menu=='S' && $x==1) {
-		print "<tr><td colspan=\"9\" height=\"8\">";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>\n";
+		print "<tr><td colspan='9' height='8'>";
+		print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>\n";
 
-		print "<td width='10%'>$luk
+		print "<td width='10%' style='$buttonStyle'>$luk
 			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>\n";
 
-		if ($kontoart=='K') $tekst = findtekst(1140,$sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
-		else $tekst = findtekst(1141,$sprog_id) ." - ". lcfirst(findtekst('133|Kontokort',$sprog_id));
+		if ($kontoart=='K') $tekst = findtekst('1140|Kreditorrapport', $sprog_id) ." - ". findtekst('133|Kontokort', $sprog_id);
+		else $tekst = findtekst('1141|Debitorapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
 
-		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>\n";
+		print "<td align='center' style='$topStyle; padding-left: 10%'>$tekst</td>\n"; #251002
+		################
+			print "<td width='10%'>
+					<select name='typeSelect' style='$topStyle; width:100%; height:100%; font-size:inherit;'
+						 onchange='window.location.href = this.options[this.selectedIndex].value;'>\n";
+
+			if ($OpenPost == 'on') 
+				print "<option>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
+			elseif ($AllAcount == 'on') 
+				print "<option>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";  
+			
+			if ($OpenPost != 'on')
+				print "<option value='rapport.php?rapportart=accountChart&kilde=openpost&kto_fra=$kto_fra
+					   &kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
+					   &submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]'>".findtekst('924|Vis åbne poster', $sprog_id)."</option>\n";
+						
+			if ($AllAcount != 'on') 
+				print "<option value='rapport.php?rapportart=accountChart&kilde=show_all&kto_fra=$kto_fra
+					   &kto_til=$kto_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til
+					   &submit=ok&unAlign=$udlign_id[$y]&oppId=$oppId[$y]&unAlignAccount=$kto_id[$x]'>".findtekst('2699|Vis alle poster', $sprog_id)."</option>\n";
+			print "</select>
+				</td>\n";
+
+	      ############
 
 		($kontoantal==1)?$w=5:$w=10;
-		print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\">\n
-		<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\">". findtekst(880,$sprog_id) ."</button></td>\n";
+		print "<td width='$w%' style='$buttonStyle' onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kilde=$kilde&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\">\n
+		<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title='".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."'>". findtekst('880|Udskriv', $sprog_id) ."</button></td>\n";
 
 		if ($kontoantal==1) { # 2019-11-07
 			if ($fromdate) $firstdate=$fromdate;
 			if ($todate) $lastdate=$todate;
-			print "<td width=\"$w%\" onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=".dkdato($firstdate)."&dato_til=".dkdato($lastdate)."&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
-				   <button\n style='$buttonStyle;width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title=\"Send som mail (Åbner i popup)\">\nEmail\n</button></td>\n";
+			print "<td width='$w%' style='$buttonStyle' onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=".dkdato($firstdate)."&dato_til=".dkdato($lastdate)."&kontoantal=1&kontoliste=$kto_id[$x]&kilde=$kilde','kontomail' ,'left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\">
+				   <button\n style='$buttonStyle;width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" title='".findtekst('2703|Send som mail (åbner i popup)', $sprog_id)."'>\n".findtekst('52|E-mail', $sprog_id)."\n</button></td>\n";
 		}
 		print "</tbody></table>"; //B slut
 		print "</td></tr>\n";
@@ -306,22 +347,23 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "<tr><td colspan=\"9\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; //B
 		print "<td width=\"10%\" $top_bund>$luk ".findtekst('30|Tilbage', $sprog_id)."</a></td>";
-		if ($kontoart=='K') $tekst = findtekst(1140,$sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
-		else $tekst= findtekst(1141,$sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
+		if ($kontoart=='K') $tekst = findtekst('1140|Kreditorrapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
+		else $tekst= findtekst('1141|Debitorapport', $sprog_id) ." - ". lcfirst(findtekst('133|Kontokort', $sprog_id));
 		print "<td width=\"80%\" $top_bund>$tekst</td>";
 		($kontoantal==1)?$w=5:$w=10;
-		print "<td width=\"$w%\" $top_bund onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\">". findtekst(880,$sprog_id) ."</td>\n";
+		print "<td width=\"$w%\" $top_bund onClick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kilde=$kilde&kontoart=$kontoart','kontoprint','left=0,top=0, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\">". findtekst('880|Udskriv', $sprog_id) ."</td>\n";
 		if ($kontoantal==1) { # 2019-11-07
 			if ($fromdate) $firstdate=$fromdate;
 			if ($todate) $lastdate=$todate;
 			print "<td width=\"$w%\" $top_bund onClick=\"javascript:kontoprint=window.open('mail_kontoudtog.php?dato_fra=".dkdato($firstdate);
-			print "&dato_til=".dkdato($lastdate)."&kontoantal=1&kontoliste=$kto_id[$x]','kontomail' ,'left=0,top=0,";
+			print "&dato_til=".dkdato($lastdate)."&kontoantal=1&kontoliste=$kto_id[$x]&kilde=$kilde','kontomail' ,'left=0,top=0,";
 			print "scrollbars=yes,resizable=yes,menubar=no,location=no');\" onMouseOver=\"this.style.cursor = 'pointer'\"";
-			print "title=\"Send som mail (Åbner i popup)\">Email</td>\n";
+			print "title=\"".findtekst('2703|Send som mail (åbner i popup)', $sprog_id)."\">".findtekst('52|E-mail', $sprog_id)."</td>\n";
 		}
 		print "</tbody></table>"; //B slut
 		print "</td></tr>\n";
 	}
+	
 
 	if ($menu=='T') {
 
@@ -350,15 +392,15 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" class='dataTableNTH'><thead>";
 		print "<tr><td colspan='20' class='border-hr-bottom'></td></tr>";
 		print "<tr>";
-		print "<th>".findtekst(635,$sprog_id)."</th>";
-		print "<th>".findtekst(671,$sprog_id)."</th>";
-		print "<th>".findtekst(643,$sprog_id)."</th>";
-		print "<th>".findtekst(1163,$sprog_id)."</th>";
+		print "<th>".findtekst('635|Dato', $sprog_id)."</th>";
+		print "<th>".findtekst('671|Bilag', $sprog_id)."</th>";
+		print "<th>".findtekst('643|Faktura', $sprog_id)."</th>";
+		print "<th>".findtekst('1141|Tekst', $sprog_id)."</th>";
 		print "<th>$prj</th>";
-		print "<th>".findtekst(1164,$sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst(1000,$sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst(1001,$sprog_id)."</th>";
-		print "<th align=right class='text-right'>".findtekst(1073,$sprog_id)."</th>";
+		print "<th>".findtekst('1164|Forfaldsdato', $sprog_id)."</th>";
+		print "<th align=right class='text-right'>".findtekst('1000|Debet', $sprog_id)."</th>";
+		print "<th align=right class='text-right'>".findtekst('1001|Kredit', $sprog_id)."</th>";
+		print "<th align=right class='text-right'>".findtekst('1073|Saldo', $sprog_id)."</th>";
 		print "</tr></thead><tbody>";
 	
 		$kontosum=0;
@@ -375,7 +417,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 					$tmp=dkdecimal($kontosum,2);
 					$tmp2="";
 					if ($valuta!='$baseCurrency') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra $baseCurrency";
-					print "<tr><td><br></td><td><br></td><td><br></td><td>".findtekst(1165,$sprog_id)." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
+					print "<tr><td><br></td><td><br></td><td><br></td><td>".findtekst('1165|Primosaldo', $sprog_id)." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
 					$primoprint[$x]=1;
 				}
 				if ($kladde_id[$y]) {
@@ -469,7 +511,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 
 		print "</tbody><tfoot>";
 		print "<tr><td colspan=10>";
-		print "<center><input type='button' onclick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\" accesskey='L' value='".findtekst(880,$sprog_id)."'></center>";
+		print "<center><input type='button' onclick=\"javascript:kontoprint=window.open('kontoprint.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&kontoart=$kontoart','kontoprint','left=0,top=0,width=1000%,height=700%, scrollbars=yes,resizable=yes,menubar=no,location=no');\"onMouseOver=\"this.style.cursor = 'pointer'\" title=\"".findtekst('2216|Udskriv kontoudtog som PDF (Åbner i popup)', $sprog_id)."\" accesskey='L' value='".findtekst('880|Udskriv', $sprog_id)."'></center>";
 		print "</td></tr>";
 		print "</tfoot></table></div><br>";
 
@@ -479,12 +521,24 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td colspan=3>".stripslashes($r['firmanavn'])."</td></tr>\n";
 			print "<tr><td colspan=3>".stripslashes($r['addr1'])."</td></tr>\n";
-			print "<tr><td colspan=3>".stripslashes($r['addr2'])."</td><td colspan=5 align=right>".findtekst('43|Kontonr.', $sprog_id)."</td><td align=right>$r[kontonr]</td></tr>\n";
-			print "<tr><td colspan=3>".stripslashes($r['postnr'])."&nbsp;".stripslashes($r['bynavn'])."</td><td colspan=5 align=right>".findtekst('438|Dato', $sprog_id)."</td><td align=right>".date('d-m-Y')."</td></tr>\n";
-			print "<tr><td colspan=8 align=right>".findtekst('776|Valuta', $sprog_id)."</td><td align=right>$valuta</td></tr>\n";
+			print "<tr><td colspan=3>".stripslashes($r['addr2'])."</td><td colspan=5 align=right>".findtekst('43|Kontonr.', $sprog_id)."</td>";
+			print "<td align=right>$r[kontonr]</td></tr>\n";
+			print "<tr><td colspan=3>".stripslashes($r['postnr'])."&nbsp;".stripslashes($r['bynavn'])."</td>";
+			print "<td colspan=5 align=right>".findtekst('438|Dato', $sprog_id)."</td>";
+			print "<td align=right>".date('d-m-Y')."</td></tr>\n";
+			print "<tr><td colspan=8 align=right>".findtekst('776|Valuta', $sprog_id)."</td>";
+			print "<td align=right>$valuta</td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td><br></td></tr>\n";
-			print "<tr><td>".(isset($sprog_id) ? findtekst(635,$sprog_id) : "")."</td><td>".(isset($sprog_id) ? findtekst(671,$sprog_id) : "")."</td><td>".(isset($sprog_id) ? findtekst(643,$sprog_id) : "")."</td><td>".(isset($sprog_id) ? findtekst(1163,$sprog_id) : "")."</td><td>$prj</td><td>".(isset($sprog_id) ? findtekst(1164,$sprog_id) : "")."</td><td align=right>".(isset($sprog_id) ? findtekst(1000,$sprog_id) : "")."</td><td align=right>".(isset($sprog_id) ? findtekst(1001,$sprog_id) : "")."</td><td align=right>".(isset($sprog_id) ? findtekst(1073,$sprog_id) : "")."</td></tr>\n";
+			print "<tr><td>".(isset($sprog_id) ? findtekst('635|Dato', $sprog_id) : "")."</td>";
+			print "<td>".(isset($sprog_id) ? findtekst('671|Bilag', $sprog_id) : "")."</td>";
+			print "<td>".(isset($sprog_id) ? findtekst('643|Faktura', $sprog_id) : "")."</td>";
+			print "<td>".(isset($sprog_id) ? findtekst('1141|Tekst', $sprog_id) : "")."</td>";
+			print "<td>$prj</td>";
+			print "<td>".(isset($sprog_id) ? findtekst('1164|Forfaldsdato', $sprog_id) : "")."</td>";
+			print "<td align=right>".(isset($sprog_id) ? findtekst('1000|Debet', $sprog_id) : "")."</td>";
+			print "<td align=right>".(isset($sprog_id) ? findtekst('1001|Kredit', $sprog_id) : "")."</td>";
+			print "<td align=right>".(isset($sprog_id) ? findtekst('1073|Saldo', $sprog_id) : "")."</td></tr>\n";
 			print "<tr><td colspan=9><hr></td></tr>\n";
 
 			$kontosum=0;
@@ -492,6 +546,19 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 			$pre_openpost=0;
 			for ($y=1;$y<=count($oppId);$y++) {
 				$diff=0;
+				####################
+				# Filter Open Post
+				if($kontoart=='D'){
+                  if($OpenPost =='on' && $udlignet[$y] =='1' ) {
+					continue;
+				  } 
+				}elseif($kontoart=='K'){
+				  if($OpenPost =='on' && $udlignet[$y] =='1' ) {
+					continue;
+				  } 
+				}
+				####################
+
 				if ($transdate[$y]<$fromdate) {
 					 $primoprint[$x]=0;
 					 $kontosum+=afrund($amount[$y],2);
@@ -501,7 +568,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 						$tmp=dkdecimal($kontosum,2);
 						$tmp2="";
 						if ($valuta!='$baseCurrency') $tmp2="&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;Bel&oslash;b kan v&aelig;re omregnet fra $baseCurrency";
-						print "<tr><td><br></td><td><br></td><td><br></td><td>".(isset($sprog_id) ? findtekst(1165,$sprog_id) : "")." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
+						print "<tr><td><br></td><td><br></td><td><br></td><td>".(isset($sprog_id) ? findtekst('1165|Primosaldo', $sprog_id) : "")." $tmp2<br></td><td><br></td><td><br></td><td><br></td><td><br></td><td align=right title=\"$baseCurrency ".dkdecimal($dkksum,2)."\">$tmp<br></td></tr>\n";
 						$primoprint[$x]=1;
 					}
 					if ($kladde_id[$y]) {
@@ -518,7 +585,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 					if (!$forfaldsdag[$y]) $forfaldsdag[$y]=usdate(forfaldsdag($transdate[$y], $betalingsbet, $betalingsdage));
 					if ($amount[$y]>0) {// (($kontoart=='D' && $amount>0) || ($kontoart=='K' && $amount<0)) {
 					($kontoart=='D')?$ffdag=dkdato($forfaldsdag[$y]):$ffdag=NULL;
-					if ($udlignet[$y]!='1') {
+					   if ($udlignet[$y]!='1') {
 							$pre_openpost=1;
 							print "<td valign=\"top\"><span style='color: rgb(255, 0, 0);'>$ffdag<br></td><td  valign=\"top\" align=\"right\" title=\"Klik her for at udligne &aring;bne poster\"><span style='color: rgb(255, 0, 0);'><a href=\"../includes/udlign_openpost.php?post_id=$oppId[$y]&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&returside=$returside&retur=".$returnpath."rapport.php\">$tmp</a><br></td><td style=\"color:$baggrund;text-align:right\">0</td>";
 						} else {
@@ -601,7 +668,7 @@ function accountchart($dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,$kon
 	print "</tbody></table>";
 	
 	if ($menu=='T') {
-		print "<center><input type='button' onclick=\"location.href='$returside'\" accesskey='L' value='".findtekst(30,$sprog_id)."'></center>";
+		print "<center><input type='button' onclick=\"location.href='$returside'\" accesskey='L' value='".findtekst('30|Tilbage', $sprog_id)."'></center>";
 		include_once '../includes/topmenu/footerDebRapporter.php';
 	} else {
 		include_once '../includes/oldDesign/footer.php';
