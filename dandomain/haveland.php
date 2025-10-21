@@ -272,7 +272,7 @@ if(isset($_GET["put_new_orders"])){
             }
 
             // Do invoice
-            $urltxt="action=fakturer_ordre&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id."&udskriv_til=&pos_betaling=on";
+            $urltxt="action=fakturer_ordre&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id."&udskriv_til=";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
