@@ -249,6 +249,23 @@
             $endpointId = "DK".$r_faktura["cvrnr"];
             $endpointType = "DK:CVR";
         }
+        if($r_faktura["cvrnr"]) {
+            // Check if CVR number starts with digits only (Danish CVR)
+            if (preg_match('/^\d/', $r_faktura["cvrnr"])) {
+                // Danish CVR - add DK prefix
+                $cvrnr_with_prefix = "DK" . $r_faktura["cvrnr"];
+            } else {
+                // Already has country prefix (SE, NO, etc.) - use as is
+                $cvrnr_with_prefix = $r_faktura["cvrnr"];
+            }
+        }else{
+            $cvrnr_with_prefix = "";
+        }
+        // country code should be the same as prefix for cvrnr
+        $countryCode = "DK";
+        if($cvrnr_with_prefix !== ""){
+            $countryCode = substr($cvrnr_with_prefix, 0, 2);
+        }
         if($r_faktura["lev_addr1"] !== ""){
             $deliverAddress = [
                 "streetName" => $r_faktura["lev_addr1"],
@@ -260,7 +277,7 @@
                 "postalCode" => $r_faktura["lev_postnr"],
                 "countrySubentity" => "",
                 "addressLine" => "",
-                "countryCode" => "DK"
+                "countryCode" => $countryCode
             ];
         }else{
             $deliverAddress = [
@@ -291,7 +308,7 @@
                 "endpointId" =>  $endpointId, //$r_faktura["ean"], // 5790002747557
                 "endpointIdType" => $endpointType, // GLN = Global Location Number (EAN)
                 "name" => $r_faktura["firmanavn"],
-                "companyId" => "DK".$r_faktura["cvrnr"],
+                "companyId" => $cvrnr_with_prefix,
                 "postalAddress" => [
                     "streetName" => explode(" ", $r_faktura["addr1"])[0],
                     "buildingNumber" => explode(" ", $r_faktura["addr1"])[1],
@@ -302,7 +319,7 @@
                     "postalCode" => $r_faktura["postnr"],
                     "countrySubentity" => "",
                     "addressLine" => "",
-                    "countryCode" => "DK"
+                    "countryCode" => $countryCode
                 ],
                 "contact" => [
                     "initials" => $initials,
