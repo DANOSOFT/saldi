@@ -272,7 +272,7 @@ if(isset($_GET["put_new_orders"])){
             }
 
             // Do invoice
-            $urltxt="action=fakturer_ordre&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id."&udskriv_til=";
+            $urltxt="action=fakturer_ordre&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id."&udskriv_til=&pos_betaling=on";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -461,6 +461,7 @@ if(isset($_GET["salesPrice"])){
 
 if(isset($_GET["costPrice"])){
         // use patch to update costPrice
+        $sku = $_GET["itemNo"];
         $costPrice = $_GET["costPrice"];
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, "https://www.direkteimport.dk/admin/WebAPI/v2/products/$sku"); // Replace with your actual API endpoint
