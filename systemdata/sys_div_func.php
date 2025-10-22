@@ -1604,6 +1604,9 @@ function ordre_valg() {
 	$beskrivelse = $r['beskrivelse'];
 	$kodenr = $r['kodenr'];
 	
+	// Store the original grupper data in a separate variable
+	$grupper_data = $r;
+	
 	// Read VAT options from settings table
 	$qtxt = "select var_value from settings where var_name='vatPrivateCustomers' and var_grp='ordre'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -1614,26 +1617,26 @@ function ordre_valg() {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		if ($r['var_value']) $incl_moms_business = 'checked';
 	}
-	$rabatvareid = (int)$r['box2'];
-	($r['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
-	($r['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
-	if (strstr($r['box5'], ';')) {
-		list($straks_deb, $straks_kred) = explode(';', $r['box5']); #20170404
+	$rabatvareid = (int)$grupper_data['box2'];
+	($grupper_data['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
+	($grupper_data['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
+	if (strstr($grupper_data['box5'], ';')) {
+		list($straks_deb, $straks_kred) = explode(';', $grupper_data['box5']); #20170404
 	} else {
-		$straks_deb = $r['box5'];
-		$straks_kred = $r['box5'];
+		$straks_deb = $grupper_data['box5'];
+		$straks_kred = $grupper_data['box5'];
 	}
 	($straks_deb == 'on') ? $straks_deb = 'checked' : $straks_deb = NULL;
 	($straks_kred == 'on') ? $straks_kred = 'checked' : $straks_kred = NULL;
-	($r['box6'] == 'on') ? $fifo = "checked" : $fifo = NULL;
-	$kontantkonto = $r['box7'];
-	($r['box8'] == 'on') ? $vis_nul_lev = "checked" : $vis_nul_lev = NULL;
-	($r['box9'] == 'on') ? $negativt_lager = "checked" : $negativt_lager = NULL;
-	$kortkonto = $r['box10'];
-	($r['box11'] == 'on') ? $advar_lav_beh = "checked" : $advar_lav_beh = NULL;
-	($r['box12'] == 'on') ? $procentfakt = "checked" : $procentfakt = NULL;
-	list($procenttillag, $procentvare) = explode(chr(9), $r['box13']);
-	($r['box14'] == 'on') ? $samlet_pris = "checked" : $samlet_pris = NULL;
+	($grupper_data['box6'] == 'on') ? $fifo = "checked" : $fifo = NULL;
+	$kontantkonto = $grupper_data['box7'];
+	($grupper_data['box8'] == 'on') ? $vis_nul_lev = "checked" : $vis_nul_lev = NULL;
+	($grupper_data['box9'] == 'on') ? $negativt_lager = "checked" : $negativt_lager = NULL;
+	$kortkonto = $grupper_data['box10'];
+	($grupper_data['box11'] == 'on') ? $advar_lav_beh = "checked" : $advar_lav_beh = NULL;
+	($grupper_data['box12'] == 'on') ? $procentfakt = "checked" : $procentfakt = NULL;
+	list($procenttillag, $procentvare) = explode(chr(9), $grupper_data['box13']);
+	($grupper_data['box14'] == 'on') ? $samlet_pris = "checked" : $samlet_pris = NULL;
 
 	$qtxt = "select var_value from settings where var_name='orderNoteEnabled'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {

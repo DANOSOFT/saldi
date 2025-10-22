@@ -544,11 +544,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$rabatvarenr      = if_isset($_POST['rabatvarenr']);
 		$kostmetode       = if_isset($_POST['kostmetode']);
 		$saetvarenr       = if_isset($_POST['saetvarenr']); #20150907
-		$orderNoteEnabled = if_isset($_POST['orderNoteEnabled']);
-		$debitoripad      = if_isset($_POST['debitoripad']);
-		$portovarenr      = if_isset($_POST['portovarenr']);
-		$showDB           = if_isset($_POST['showDB']);
-		$showDG           = if_isset($_POST['showDG']);
+		$orderNoteEnabled = if_isset($_POST, null, 'orderNoteEnabled');
+		$debitoripad      = if_isset($_POST, null, 'debitoripad');
+		$portovarenr      = if_isset($_POST, null, 'portovarenr');
+		$showDB           = if_isset($_POST, null, 'showDB');
+		$showDG           = if_isset($_POST, null, 'showDG');
 		update_settings_value("debitoripad", "ordre", $debitoripad, "Weather or not to include the debitor ipad system");
 		update_settings_value("porto_varnr", "ordre", $portovarenr, "Varenr to autmatically include on new orders");
 		update_settings_value("showDB", "ordre", $showDB, "Weather or not to show the DB on the order page");
