@@ -983,9 +983,9 @@ while ($r0=db_fetch_array($q0)) {
             // Add a legend explaining the color codes
             $spantxt .= "<tr><td colspan=100><hr></td></tr>";
             $spantxt .= "<tr><td>Magenta</td><td colspan=7>".findtekst('2403|Opret en ny vare', $sprog_id)."</td></tr>";
-            $spantxt .= "<tr><td>Grøn</td><td colspan=7>".findtekst('1431|Klar til levering (Varer vises ikke)', $sprog_id)."</td></tr>";
-            $spantxt .= "<tr><td>Gul</td><td colspan=7>".findtekst('1432|Mangler varer, varer er bestilt', $sprog_id)."</td></tr>";
-            $spantxt .= "<tr><td>Rød</td><td colspan=7>".findtekst('1433|Mangler varer, varer ikke bestilt', $sprog_id)."</td></tr>";
+            $spantxt .= "<tr><td>".findtekst('419|Grøn', $sprog_id)."</td><td colspan=7>".findtekst('1431|Klar til levering (Varer vises ikke)', $sprog_id)."</td></tr>";
+            $spantxt .= "<tr><td>".findtekst('421|Gul', $sprog_id)."</td><td colspan=7>".findtekst('1432|Mangler varer, varer er bestilt', $sprog_id)."</td></tr>";
+            $spantxt .= "<tr><td>".findtekst('418|Rød', $sprog_id)."</td><td colspan=7>".findtekst('1433|Mangler varer, varer ikke bestilt', $sprog_id)."</td></tr>";
             $spantxt .= "</tbody></table>";
 
             // Set the default row background color to purple if no issues were found
@@ -1082,36 +1082,47 @@ while ($r0=db_fetch_array($q0)) {
 		}
 		
 		if ($valg == "ordrer") {
+			$txt1 = findtekst('2723|Klik for at udskrive', $sprog_id)." ".lcfirst(findtekst('574|Plukliste', $sprog_id));
+			$txt2 = findtekst('2723|Klik for at udskrive', $sprog_id)." ".lcfirst(findtekst('575|Ordrebekræftelse', $sprog_id));
+			$txt3 = findtekst('2724|Klik for at sende ordrebekræftelse via e-mail', $sprog_id);
+			$txt4 = findtekst('2725|Er du sikker på at du vil sende ordrebekræftelsen? Kundens e-mail:', $sprog_id);
 			?>
 			<td>
 				<div style="display:flex;gap:5px;">
-					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=9&udskriv_til=PDF" target="_blank" title="Klik for at printe plukliste"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z"/></svg></a>
-					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=2&udskriv_til=PDF" target="_blank" title="Klik for at printe ordrebekræftigelse"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=9&udskriv_til=PDF" target="_blank" title="<?php print $txt1;?>"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z"/></svg></a>
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=2&udskriv_til=PDF" target="_blank" title="<?php print $txt2;?>"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
 					<?php if ($row['email']) {
-						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=2&udskriv_til=email" target="_blank" title="Klik for at sende ordrebekræftigelse via email" onclick="return confirm('Er du sikker på, at du vil sende ordrebekræftigelse?\nKundens mail: <?php print $r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
+						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=2&udskriv_til=email" target="_blank" title="<?php print $txt3;?>" onclick="return confirm('<?php print $txt4.' '.$r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
 					} ?>
 				</div>
 			</td>
 			<?php
 		} else if ($valg == "faktura") {
+			$txt1 = findtekst('2723|Klik for at udskrive', $sprog_id)." ".lcfirst(findtekst('576|Følgeseddel', $sprog_id));
+			$txt2 = findtekst('2723|Klik for at udskrive', $sprog_id)." ".lcfirst(findtekst('643|Faktura', $sprog_id));
+			$txt3 = findtekst('2726|Klik for at sende faktura via e-mail', $sprog_id);
+			$txt4 = findtekst('2727|Er du sikker på at du vil sende fakturaen? Kundens e-mail:', $sprog_id);
 			?>
 			<td>
 				<div style="display:flex;gap:5px;">
-					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=3&udskriv_til=PDF" target="_blank" title="Klik for at printe følgeseddel"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z"/></svg></a>
-					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=4&udskriv_til=PDF" target="_blank" title="Klik for at printe faktura"><svg  xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=3&udskriv_til=PDF" target="_blank" title="<?php print $txt1;?>"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z"/></svg></a>
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=4&udskriv_til=PDF" target="_blank" title="<?php print $txt2;?>"><svg  xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
 					<?php if ($row['email']) {
-						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=4&udskriv_til=email" target="_blank" title="Klik for at sende faktura via email" onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
+						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=4&udskriv_til=email" target="_blank" title="<?php print $txt3;?>" onclick="return confirm('<?php print $txt4.' '.$r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
 					} ?>
 				</div>
 			</td>
 			<?php
 		} else if ($valg == "tilbud") {
+			$txt1 = findtekst('2723|Klik for at udskrive', $sprog_id)." ".lcfirst(findtekst('812|Tilbud', $sprog_id));
+			$txt2 = findtekst('2728|Klik for at sende tilbud via e-mail', $sprog_id);
+			$txt3 = findtekst('2729|Er du sikker på at du vil sende tilbuddet?\nKundens e-mail:', $sprog_id);
 			?>
 			<td>
 				<div style="display:flex;gap:5px;">
-					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=1&udskriv_til=PDF" target="_blank" title="Klik for at printe tilbud"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
+					<a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=1&udskriv_til=PDF" target="_blank" title="<?php print $txt1;?>"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z"/></svg></a>
 					<?php if ($row['email']) {
-						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=1&udskriv_til=email" target="_blank" title="Klik for at sende tilbud via email"  onclick="return confirm('Er du sikker på, at du vil sende fakturaen?\nKundens mail: <?php print $r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
+						?> <a href="formularprint.php?id=<?php print $r0["id"]; ?>&formular=1&udskriv_til=email" target="_blank" title="<?php print $txt2;?>"  onclick="return confirm('<?php print $txt3.' '.$r0['email']; ?>')"><svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z"/></svg></a> <?php
 					} ?>
 				</div>
 			</td>
@@ -1136,7 +1147,7 @@ $colspan=$vis_feltantal+2;
 if (!$l && $udvaelg) {
 	$colspan=$vis_feltantal+2;
 	print "<tr><td align='center' colspan='$colspan'>";
- 	print "<b><big>Ingen ordrer matcher de angivne søgekriterier<big></b>";
+ 	print "<b><big>".findtekst('2730|Ingen ordrer matcher de angivne søgekriterier', $sprog_id)."<big></b>";
 	print "</tr>";
 }
 if ($menu=='T') {
@@ -1283,7 +1294,8 @@ if ($valg=="ordrer") {
 	if($r){ #20211018
 		if ($r['box1'] && $ialt!="0,00") {
 			$tekst="Faktur&eacute;r alt som kan leveres?";
-			print "<tr><td colspan=\"2\"><span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td><td colspan=\"".($colspan-3)."\" align=right><span title='".findtekst('1440|Klik her for at fakturere alle ordrer på listen', $sprog_id)."'><a href=massefakt.php?valg=$valg onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span></td></tr>";
+			print "<tr><td colspan=\"2\"><span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td>";
+			print "<td colspan=\"".($colspan-3)."\" align=right><span title='".findtekst('1440|Klik her for at fakturere alle ordrer på listen', $sprog_id)."'><a href=massefakt.php?valg=$valg onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span></td></tr>";
 		} else { 
 				if ($menu=='T') {
 					print "<tr><td colspan=\"3\">&nbsp;&nbsp;<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href=csv2ordre.php target=\"_blank\">CSV import</a></span></td></tr>";

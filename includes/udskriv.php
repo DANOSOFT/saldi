@@ -308,7 +308,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 
 				print "<td width='10%'><a href=$href>
-					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal Luk</button></a></td>";
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</button></a></td>";
 
 				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
 					   <a href=../temp/$ps_fil.pdf target=blank>
@@ -322,7 +322,7 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 				print "<table width=100% height=100%><tbody>";
 				if ($returside) $href="\"$returside\" accesskey=\"L\"";
 				else $href="\"udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
-				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal Luk</a></td>";
+				print "<td width=\"10%\" height=\"1%\" $top_bund><a href=$href>$ordre_antal ".findtekst('2172|Luk', $sprog_id)."</a></td>";
 				print "<td width=\"80%\" $top_bund align=\"center\" title=\"".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id).">";
 				print "<a href=../temp/$ps_fil.pdf target=blank>".findtekst('2180|Vis PDF udskrift', $sprog_id)."</a>";
 				print "</td>";

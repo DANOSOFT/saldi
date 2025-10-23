@@ -573,7 +573,7 @@
 573	Formularkort	Form card	Skjema kort
 574	Plukliste	Pick list	Plukkliste
 575	Ordrebekræftelse	Order confirmation	Ordrebekreftelse
-576	Følgeseddel	Delivery note	Leveringsmerknad
+576	Følgeseddel	Delivery note	Følgeseddel
 577	Kreditnota	Credit note	Kredittnota
 578	Rykker	Reminder	Påminnelse
 579	Rekvisition	Requisition	Rekvisisjon
@@ -945,7 +945,7 @@
 945	Enhed	Unit	Enhet
 946	Varemrk.	WARM.	Varemerke.
 947	Ialt	Total	Total
-948	Beholdn.	Retain.	Se.
+948	Beholdn.	Stock	Beholdn.
 949	Salgspris	Sales price	Salgspris
 950	Kostpris	Cost price	Kostpris
 951	Leverandør	Supplier	Leverandør
@@ -1425,8 +1425,8 @@
 1425	Alt leveret, mangler kun at fakturere.	Everything delivered only needs to be invoiced.	Alt levert trenger bare å faktureres.
 1426	Intet modtaget.	Nothing received.	Ingenting mottatt.
 1427	Intet leveret.	Nothing delivered.	Ingenting levert.
-1428	I tilbud	On offer	Et tilbud
-1429	I ordre	In order	I rekkefølge
+1428	I tilbud	On offer	I tilbud
+1429	I ordre	In order	I ordre
 1430	I forslag	In suggestions	I forslag
 1431	Klar til levering (Varer vises ikke)	Ready for delivery (Items not shown)	Klar for levering (varer ikke vist)
 1432	Mangler varer, varer er bestilt	Missing items, items are ordered	Manglende gjenstander, varer bestilles
@@ -1533,7 +1533,7 @@
 1533	Ordre omdannes til kreditnota ved fakturering!	Orders are converted to a credit note upon invoicing!	Bestillinger konverteres til en kreditnota ved fakturering!
 1534	Kreditnota sendes pr. mail til	Credit note sent per mail to	Kredittnota sendt pr. post til
 1535	Tilbud udskrives som PDF. Ved fakturering udskrives til OIOUBL	Offers are printed as PDF. When invoicing, print to OIOUBL	Tilbud skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
-1536	Ordrebekrftelse udskrives som PDF. Ved fakturering udskrives til OIOUBL	Order confirmation is printed as a PDF. When invoicing, print to OIOUBL	Bestillingsbekreftelse skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
+1536	Ordrebekræftelse udskrives som PDF. Ved fakturering udskrives til OIOUBL	Order confirmation is printed as a PDF. When invoicing, print to OIOUBL	Bestillingsbekreftelse skrives ut som PDF. Ved fakturering, skriv ut til OIOUBL
 1537	Tilbud sendes pr mail til	Offers are sent by email to	Tilbud sendes på e-post til
 1538	Ordrebekræftelse sendes pr mail til	Order confirmation is sent by email to	Ordrebekreftelse sendes på e-post til
 1539	Klik her for at opdele ordren i 2.<br>Den ene vil indeholde ikke leverede varer<br>Den anden vil indeholde leverede varer	Click here to split the order into 2. <br> One will contain undelivered products <br> The other will contain delivered products	Klikk her for å dele ordren i 2. <br> Den ene inneholder varer som ikke er levert <br> Den andre inneholder leverte varer
@@ -2177,7 +2177,7 @@
 2177	Simulering	Simulation	Simulering
 2178	Pos nr.	Pos no.	Pos nr.
 2179	Klik her for at åbne filen i nyt vindue, højreklik her for at gemme	Click here to open the file in a new window, right-click to save	Klikk her for å åpne filen i et nytt vindu, høyreklikk her for å lagre
-2180	Vis PDF-udskrift	Show PDF Prin	Vis PDF-utskrift
+2180	Vis PDF-udskrift	Show PDF Print	Vis PDF-utskrift
 2181	Klik her for at lukke &quot;Top 100&quot;	Click here to close &quot;Top 100&quot;	Klikk her for å lukke &quot;Top 100&quot;
 2182	Skan bilag	Scan Attachement	Skann bilag
 2183	Angiv et ordrenummer, eller angiv to adskilt af kolon (f.eks 345:350)	Enter an order number, or enter two separated by a colon (e.g. 345:350)	Skriv inn et ordrenummer, eller skriv inn to adskilt med kolon (f.eks. 345:350)
@@ -2720,14 +2720,14 @@
 2720	Listen er åbnet fra debitorkort – søgefelt deaktiveret	The list has been opened from the customer card – search field disabled	Listen er åpnet fra kundekortet – søkefelt deaktivert
 2721	Skriv enten et enkelt nummer, eller to numre adskilt af kolon (f.eks. 345:350)	Enter either a single number, or two numbers separated by a colon (e.g. 345:350)	Skriv inn enten et enkelt nummer, eller to numre adskilt med kolon (f.eks. 345:350)
 2722	Skriv enten et enkelt beløb, eller to beløb adskilt af kolon (f.eks. 525,25:525,50)	Enter either a single amount, or two amounts separated by a colon (e.g. 525.25:525.50)	Skriv inn enten et enkelt beløp, eller to beløp adskilt med kolon (f.eks. 525,25:525,50)
-2723	
-2724	
-2725	
-2726	
-2727	
-2728	
-2729	
-2730	
+2723	Klik for at udskrive	Click to print	Klik for å skrive ut
+2724	Klik for at sende ordrebekræftelse via e-mail	Click to send order confirmation via email	Klikk for å sende ordrebekreftelse via e-post
+2725	Er du sikker på at du vil sende ordrebekræftelsen?\nKundens e-mail:	Are you sure you want to send the order confirmation?\nCustomer\'s email:	Er du sikker på at du vil sende ordrebekreftelsen?\nKundens e-post:
+2726	Klik for at sende faktura via e-mail	Click to send invoice via email	Klikk for å sende faktura via e-post
+2727	Er du sikker på at du vil sende fakturaen?\nKundens e-mail:	Are you sure you want to send the invoice?\nCustomer\'s email:	Er du sikker på at du vil sende fakturaen?\nKundens e-post:
+2728	Klik for at sende tilbud via e-mail	Click to send offer via email	Klikk for å sende tilbud via e-post
+2729	Er du sikker på at du vil sende tilbuddet?\nKundens e-mail:	Are you sure you want to send the offer?\nCustomer\'s email:	Er du sikker på at du vil sende tilbudet?\nKundens e-post:
+2730	Ingen ordrer matcher de angivne søgekriterier	No orders match the specified search criteria	Ingen ordre samsvarer med de angitte søkekriteriene
 2731	
 2732	
 2733	
