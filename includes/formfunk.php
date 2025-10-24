@@ -2423,7 +2423,7 @@ if (!function_exists('rykkerprint')) {
 } #endfunc rykkerprint
 #######################################################################################################
 if (!function_exists('kontoprint')) {
-	function kontoprint($konto_fra, $konto_til, $dato_fra, $dato_til, $kontoart, $email,  $lang = 'Dansk')
+	function kontoprint($konto_fra, $konto_til, $dato_fra, $dato_til, $kontoart, $email, $lang = 'Dansk')
 	{
 		global $bruger_id;
 		global $db, $db_id;
@@ -2433,15 +2433,6 @@ if (!function_exists('kontoprint')) {
 		global $printfilnavn, $psfp, $regnaar, $y;
 		global $s_id;
 
-		if(isset($_GET['kilde'])) {
-			$kilde=if_isset($_GET['kilde']); #20250925
-		} elseif(isset($_POST['kilde'])) {
-			$kilde=if_isset($_POST['kilde']); 
-		} else {
-			$kilde=NULL;
-		}
-
-		
 		$dkkforfalden = $nomailantal = $mailantal = 0;
 		$mailsprog = 'Dansk';
 		($dato_fra) ? $dato_fra = usdate($dato_fra) : $dato_fra = "1970-01-01";
@@ -2503,7 +2494,7 @@ if (!function_exists('kontoprint')) {
 		for ($i = 0; $i < count($konto_id); $i++) {
 			$udskrevet = NULL;
 			$x = 0;
-			$qtxt = "select * from formularer where formular = '$formular' and art = '3' and lower(sprog)='$formularsprog'";
+			$qtxt = "select * from formularer where formular = '$formular' and art = '3'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($q)) {
 				if ($row['beskrivelse'] == 'generelt') {
@@ -2535,11 +2526,16 @@ if (!function_exists('kontoprint')) {
 				while ($r = db_fetch_array($q)) {
 					$betalingsbet = $r['betalingsbet'];
 					$betalingsdage = $r['betalingsdage'];
-					$$qtxt = "select box3 from grupper where art='DG' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
+					$qtxt = "select box3 from grupper where art='DG' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'";
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 					$kontovaluta = $r2['box3'];
 					if (!$kontovaluta)
 						$kontovaluta = 'DKK';
+					
+					// Debug output to see what currency is detected
+					if ($bruger_id == '-1') {
+						echo "Customer ID: $konto_id[$i], Group: $r[gruppe], Currency: $kontovaluta<br>";
+					}
 					if ($email)
 						$mailantal++;
 					else
@@ -2554,11 +2550,32 @@ if (!function_exists('kontoprint')) {
 						$dagskurs = 100;
 					else {
 						$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
+						if ($bruger_id == '-1')
+							echo "Currency lookup query: $qtxt<br>";
 						$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 						$valutakode = $r1['kodenr'];
-						$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$dato_til' order by valdate desc limit 1";
-						$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						$dagskurs = $r1['kurs'];
+						
+						if ($bruger_id == '-1') {
+							echo "Currency: $kontovaluta, Valutakode: $valutakode<br>";
+						}
+						
+						// Check if valutakode is valid before proceeding
+						if (!empty($valutakode) && is_numeric($valutakode)) {
+							$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$dato_til' order by valdate desc limit 1";
+							if ($bruger_id == '-1')
+								echo "Exchange rate query: $qtxt<br>";
+							$r1 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+							$dagskurs = $r1['kurs'];
+							if ($bruger_id == '-1') {
+								echo "Exchange rate found: $dagskurs<br>";
+							}
+						} else {
+							// Fallback: use default exchange rate
+							$dagskurs = 100;
+							if ($bruger_id == '-1') {
+								echo "Using fallback exchange rate: $dagskurs<br>";
+							}
+						}
 					}
 					if ($dato_fra > '1970-01-01') {
 						$saldo = 0;
@@ -2571,10 +2588,22 @@ if (!function_exists('kontoprint')) {
 								$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
 								$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 								$valutakode = $r2['kodenr'];
-								$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r1[transdate]' order by valdate desc limit 1";
-								$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-								$dagskurs = $r2['kurs'];
-								$saldo += $r1['amount'] * $r1['valutakurs'] / $r2['kurs'];
+								
+								// Check if valutakode is valid before proceeding
+								if (!empty($valutakode) && is_numeric($valutakode)) {
+									$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r1[transdate]' order by valdate desc limit 1";
+									$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+									if ($r2 && !empty($r2['kurs'])) {
+										$dagskurs = $r2['kurs'];
+										$saldo += $r1['amount'] * $r1['valutakurs'] / $r2['kurs'];
+									} else {
+										// Fallback: use amount as-is if no exchange rate found
+										$saldo += $r1['amount'];
+									}
+								} else {
+									// Fallback: use amount as-is if no valutakode found
+									$saldo += $r1['amount'];
+								}
 							}
 						}
 						for ($z = 1; $z <= $var_antal; $z++) {
@@ -2599,20 +2628,6 @@ if (!function_exists('kontoprint')) {
 					$q1 = db_select("$qxt", __FILE__ . " linje " . __LINE__);
 					while ($r1 = db_fetch_array($q1)) {
 
-						####################
-						# Filter Open Post
-						if($kontoart=='D'){
-							if($kilde =='openpost' && $r1['udlignet'] =='1' ) {
-								continue;
-							} 
-						}elseif($kontoart=='K'){
-							if($kilde =='openpost' && $r1['udlignet'] =='1' ) { 
-								continue;
-							} 
-						}
-						
-						####################
-
 						$valuta = $r1['valuta'];
 						$amount = $r1['amount'];
 						$valutakurs = (float) $r1['valutakurs'];
@@ -2624,9 +2639,24 @@ if (!function_exists('kontoprint')) {
 						$debet = 0;
 						$kredit = 0;
 						($amount >= 0) ? $debet = $amount : $kredit = $amount * -1;
-						if ($valutakurs != 100 && $valuta == 'DKK') {
-							$debet *= $valutakurs / 100;
-							$kredit *= $valutakurs / 100;
+						
+						// Convert debit and credit to customer's preferred currency
+						if ($kontovaluta != $valuta) {
+							// Get exchange rate for customer's currency
+							$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
+							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+							$valutakode = $r2['kodenr'];
+							
+							if (!empty($valutakode) && is_numeric($valutakode)) {
+								$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r1[transdate]' order by valdate desc limit 1";
+								$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+								if ($r2 && !empty($r2['kurs'])) {
+									$customer_kurs = $r2['kurs'];
+									// Convert from transaction currency to customer currency
+									$debet = $debet * $valutakurs / $customer_kurs;
+									$kredit = $kredit * $valutakurs / $customer_kurs;
+								}
+							}
 						}
 						#				$saldo+=$debet-$kredit;
 						$dkkamount = $amount * 100 / $valutakurs;
@@ -2635,23 +2665,48 @@ if (!function_exists('kontoprint')) {
 						elseif ($debet)
 							$forfaldsdato = forfaldsdag($r1['transdate'], $betalingsbet, $betalingsdage);
 						/*
-												}
-												if ($deb_valuta!="DKK" && $deb_valuta!=$valuta) $amount=$dkkamount*100/$deb_valutakurs;
-												elseif ($deb_valuta==$valuta) $amount=$r2['amount'];
-												else $amount=$dkkamount;
-										*/
+								  }
+								  if ($deb_valuta!="DKK" && $deb_valuta!=$valuta) $amount=$dkkamount*100/$deb_valutakurs;
+								  elseif ($deb_valuta==$valuta) $amount=$r2['amount'];
+								  else $amount=$dkkamount;
+						  */
+						if ($bruger_id == '-1') {
+							echo "$kontovaluta==$r1[valuta] - $baseCurrency<br>";
+						}
 						if ($kontovaluta == $r1['valuta'])
 							$saldo += afrund($r1['amount'], 2);
-						else {
+						elseif ($kontovaluta != $baseCurrency) {
 							$qtxt = "select kodenr from grupper where box1 = '$kontovaluta' and art='VK'";
+							if ($bruger_id == '-1')
+								echo "$qtxt<br>";
 							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$valutakode = $r2['kodenr'];
-							$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r1[transdate]' order by valdate desc limit 1";
-							$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-							$saldo += afrund($r1['amount'] * $r1['valutakurs'] / $r2['kurs'], 2);
-							#						$saldo=afrund($saldo,2);
+							
+							// Check if valutakode is valid before proceeding
+							if (!empty($valutakode) && is_numeric($valutakode)) {
+								$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r1[transdate]' order by valdate desc limit 1";
+								if ($bruger_id == '-1')
+									echo "$qtxt<br>";
+								$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+								if ($r2 && !empty($r2['kurs'])) {
+									$saldo += afrund($r1['amount'] * $r1['valutakurs'] / $r2['kurs'], 2);
+								} else {
+									// Fallback: use amount as-is if no exchange rate found
+									$saldo += afrund($r1['amount'], 2);
+								}
+							} else {
+								// Fallback: use amount as-is if no valutakode found
+								$saldo += afrund($r1['amount'], 2);
+							}
+							#							$saldo=afrund($saldo,2);
+						} else {
+							$saldo += afrund($r1['amount'], 2);
 						}
 						#			$saldo+=$amount; 20150316
+						if ($bruger_id == '-1') {
+							echo "$saldo<br>";
+							#exit;
+						}
 						$dkkforfalden += $dkkamount;
 						$belob = dkdecimal($amount, 2);
 						for ($z = 1; $z <= $var_antal; $z++) {
@@ -2699,7 +2754,7 @@ if (!function_exists('kontoprint')) {
 							$ialt = dkdecimal($forfalden, 2);
 							find_form_tekst(0, "S", "$formular", "0", "$linjeafstand", "");
 							bundtekst(0);
-							$qtxt = "select * from formularer where formular = '$formular' and art = '3' and beskrivelse='generelt' and lower(sprog)='$formularsprog'";
+							$qtxt = "select * from formularer where formular = '$formular' and art = '3' and beskrivelse='generelt'";
 							$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 							$y = $r['ya'];
 							$udskrevet = $side - 1; #20150410
@@ -2721,7 +2776,7 @@ if (!function_exists('kontoprint')) {
 			if (!isset($exec_path))
 				$exec_path = "/usr/bin";
 			#	$qtxt="select * from formularer where formular = '11' and art = '5' and sprog='Dansk' order by xa,id";
-			#	$r=db_fetch_array(db_select($qtxt",__FILE__ . " linje " . __LINE__));
+#	$r=db_fetch_array(db_select($qtxt",__FILE__ . " linje " . __LINE__));
 			include("../includes/connect.php");
 			$r = db_fetch_array(db_select("select var_value from settings where var_name='ps2pdf'", __FILE__ . " linje " . __LINE__));
 			if ($r['var_value'])
@@ -2734,12 +2789,10 @@ if (!function_exists('kontoprint')) {
 			else
 				$pdftk = "$exec_path/pdftk";
 			include("../includes/online.php");
-			/*
-					  if(!class_exists('phpmailer')) {
-						  ini_set("include_path", ".:../phpmailer");
-						  require_once("class.phpmailer.php");
-					  }
-				  */
+			if (!class_exists('phpmailer')) {
+				ini_set("include_path", ".:../phpmailer");
+				require_once("class.phpmailer.php");
+			}
 			for ($x = 1; $x <= $mailantal; $x++) {
 				#		print "<!-- kommentar for at skjule uddata til siden \n";$db/$printfilnavn
 				system("$ps2pdf $printfilnavn.ps $printfilnavn.pdf");
@@ -2750,8 +2803,8 @@ if (!function_exists('kontoprint')) {
 						unlink("$printfilnavn.pdf");
 					system("mv $out $printfilnavn.pdf");
 					#		} else {
-					#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
-					#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
+#			if (file_exists("$printfilnavn.pdf")) unlink ("$printfilnavn.pdf");
+#			system ("mv ../temp/$db/$printfilnavn.pdf $printfilnavn.pdf");
 				}
 				$svar = send_mails(0, "$printfilnavn.pdf", $email, $mailsprog, $formular, '', '', '', 0);
 				echo "$svar<br>";

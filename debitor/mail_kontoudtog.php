@@ -305,8 +305,31 @@ for($x=1; $x<=$kontoantal; $x++) {
 		if (!$valuta) $valuta='DKK';
 		$valutakurs=$r['valutakurs'];
 		if (!$valutakurs) $valutakurs=100;
-		if ($valuta!=$kontovaluta[$x]) $DKKamount=$amount*$valutakurs/100;
-		else $DKKamount=$amount;
+		// Convert to customer's preferred currency
+		if ($valuta!=$kontovaluta[$x]) {
+			// Get exchange rate for customer's currency
+			$qtxt = "select kodenr from grupper where box1 = '$kontovaluta[$x]' and art='VK'";
+			$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			$valutakode = $r2['kodenr'];
+			
+			if (!empty($valutakode) && is_numeric($valutakode)) {
+				$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r[transdate]' order by valdate desc limit 1";
+				$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				if ($r2 && !empty($r2['kurs'])) {
+					$customer_kurs = $r2['kurs'];
+					// Convert from transaction currency to customer currency
+					$DKKamount = $amount * $valutakurs / $customer_kurs;
+				} else {
+					// Fallback: use amount as-is if no exchange rate found
+					$DKKamount = $amount;
+				}
+			} else {
+				// Fallback: use amount as-is if no valutakode found
+				$DKKamount = $amount;
+			}
+		} else {
+			$DKKamount = $amount;
+		}
 		if ($r['forfaldsdate']) {
 			$forfaldsdate=$r['forfaldsdate'];
 			$forfaldsdag=dkdato($forfaldsdate);
@@ -597,8 +620,31 @@ function send_htmlmails($kontoantal, $konto_id, $email, $fra, $til) {
 				if (!$valuta) $valuta='DKK';
 				$valutakurs=$r['valutakurs'];
 				if (!$valutakurs) $valutakurs=100;
-				if ($valuta!=$kontovaluta[$x]) $DKKamount=$amount*$valutakurs/100;
-				else $DKKamount=$amount;
+				// Convert to customer's preferred currency
+				if ($valuta!=$kontovaluta[$x]) {
+					// Get exchange rate for customer's currency
+					$qtxt = "select kodenr from grupper where box1 = '$kontovaluta[$x]' and art='VK'";
+					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					$valutakode = $r2['kodenr'];
+					
+					if (!empty($valutakode) && is_numeric($valutakode)) {
+						$qtxt = "select kurs from valuta where gruppe ='$valutakode' and valdate <= '$r[transdate]' order by valdate desc limit 1";
+						$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						if ($r2 && !empty($r2['kurs'])) {
+							$customer_kurs = $r2['kurs'];
+							// Convert from transaction currency to customer currency
+							$DKKamount = $amount * $valutakurs / $customer_kurs;
+						} else {
+							// Fallback: use amount as-is if no exchange rate found
+							$DKKamount = $amount;
+						}
+					} else {
+						// Fallback: use amount as-is if no valutakode found
+						$DKKamount = $amount;
+					}
+				} else {
+					$DKKamount = $amount;
+				}
 				
 				$forfaldsdag=NULL;
 				if ($r['forfaldsdate']) $forfaldsdag=dkdato($r['forfaldsdate']);
