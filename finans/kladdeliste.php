@@ -1,5 +1,5 @@
 <?php
-// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2025.10.22 --- 
+// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2025.10.24 --- 
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,7 +27,7 @@
 // 20230708 LOE - A minor modification
 // 12/02/2025 PBLM - Added a new button to open the digital approver
 // 16/05/2025 make sure the back button redirect too the previous page rather than going back to the dashboard
-// 20251021 LOE Added pagination and static header
+// 20251021 LOE Added pagination and static header and footer
 @session_start();
 $s_id=session_id();
 	
@@ -94,7 +94,7 @@ if ($menu=='T') {
 	print  "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 } elseif ($menu=='S') {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>
-		   <tr><td height = '25' align='center' valign='top'>
+		   <tr class='sc-body'><td height = '25' align='center' valign='top'>
 		   <table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
 	print "<td width='10%'  title='".findtekst('1599|Klik her for at lukke kladdelisten', $sprog_id)."'>"; #20210721
@@ -132,7 +132,7 @@ if ($menu=='T') {
 	}
 	print "<td width='5%' title='".findtekst('1600|Klik her for at oprette en ny kassekladde', $sprog_id)."'>";
 	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" id='ny'>".findtekst('39|Ny', $sprog_id)."</button></a></td>";
-	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
+	print "</tbody></table></td></tr><tr class='sc-body'><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 } else {
 #	if ($menu=='S') {
 #		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -154,27 +154,78 @@ if ($menu=='T') {
 
 
 print '<style>
+ /* Sticky second header/row with an offset */
+      .header-row {
+	  margin: 8px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 99%; 
+      background-color: #f1f1f1;
+      z-index: 11; 
+      display: table; 
+      border-collapse: collapse; 
+	  padding-right: 17px;
+  }
+
+  /* Table row (tr) */
+  .header-row .tr {
+      display: table-row; /* Makes this a row in the table */
+  }
+
+  /* Table cells (td) */
+  .header-row .cell {
+      display: table-cell; /* Makes this a table cell */
+      padding: 10px;
+      text-align: center;
+      border: 1px solid #ddd; /* adds borders to cells */
+  }
+
+  /* Set the width for each column */
+  .header-row .cell:nth-child(1) {
+      width: 10%; 
+  }
+
+  .header-row .cell:nth-child(2) {
+      width: 70%; 
+  }
+
+
+
+  .sticky-header-a {
+        position: sticky;
+        top: 29px;
+        background-color: #f1f1f1; 
+        z-index: 9; 
+		width: 100%;
+    }
+
     /* Sticky header */
     .sticky-header {
         position: sticky;
-        top: 21;
+        top: 44px;
         background-color: #f1f1f1; 
-        z-index: 9; 
-    }
-    
-    /* Sticky second header/row with an offset */
-    .header-row {
-        position: sticky;
-        top: 0px; 
-       background-color: #f1f1f1;
         z-index: 10; 
+		margin-bottom: 40px; 
     }
+  
+    .table-con {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 90px;  
+        background-color: #f1f1f1; 
+        z-index: 8; 
+    }
+	
+	
 </style>';
 
-
+print"<div class='table-con'></div>";
 // Now print the table header with sticky positioning
 
-print "<tr class='sticky-header' bgcolor=\"$linjebg\" class='table-row-hover'>\n";
+print "<tr class='sticky-header' bgcolor=\"$linjebg\" >\n";
 
 if (($sort == 'id') && (!$rf)) {
     print "<td width = 5%><b><a href='kladdeliste.php?sort=id&rf=desc&vis=$vis'>Id</a></b></td>\n";
@@ -209,21 +260,27 @@ if (($sort == 'bogfort_af') && (!$rf)) {
 } else {
     print "<td title='".findtekst('1606|Klik her for at sortere på bogført af', $sprog_id)."' align='center'><b><a href='kladdeliste.php?sort=bogfort_af&vis=$vis'>".findtekst('638|Af', $sprog_id)."</a></b></td>\n";
 }
+
 print "<td align='center'><b>".findtekst('1099|Slet', $sprog_id)."</b></td>\n"; // delete column header added- 2025-10-18
 print "        </tr>\n";
 
 ################
 if ($vis=='alle') {
-	print "<tr>";
+	print "<tr class='sticky-header-a'>";
 	print "<td colspan=1 align=left></td>";
 	print "<td colspan=4 align=center><a href=kladdeliste.php?sort=$sort&rf=$rf>".findtekst('641|Vis egne', $sprog_id)."</a></td>";
-	print "<td colspan=1 align=right class='imgNoTextDeco'></td>";
+	print "<td colspan=2 align=right class='imgNoTextDeco'></td>";
 	print "</tr>";
 }else {
-	print "<tr><td colspan=6 align=center title='".findtekst('1601|Klik her for at se alle kladder', $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle id='visalle'>".findtekst('636|Vis alle', $sprog_id)."</a></td></tr>";}
+	print "<tr class='sticky-header-a'><td colspan=6 align=center title='".findtekst('1601|Klik her for at se alle kladder', $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle id='visalle'>".findtekst('636|Vis alle', $sprog_id)."</a></td></tr>";}
 	if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';
 }
 else {$linjebg=$bgcolor5; $color='#000000';}
+print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
+print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
+print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
+print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
+
 	########search box 
 	// print "<tr>";
 	// print "<td colspan='7' style='text-align: left; padding: 5px;'>";
@@ -264,7 +321,10 @@ $tjek=0;
 	$totalPages = ($limit > 0) ? ceil($totalRows / $limit) : 1;
 	
 	$qtxt = "SELECT * FROM kladdeliste WHERE bogfort = '-' $vis ORDER BY $sort $rf $limitClause";
-
+	$totalRRows =0;
+	if ($totalRows >0 && $vis !='') {
+		$totalRRows  = $totalRows;
+	}
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	
 	while ($row = db_fetch_array($query)) {
@@ -484,84 +544,82 @@ print "
     width: 100%;
     background: #f0f0f0;
     border-top: 1px solid #ccc;
-    padding: 10px 0;
-    text-align: center;
+    padding: 10px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: bold;
     z-index: 1000;
   }
-  #fixedFooter a {
-    margin: 0 5px;
+  #fixedFooter .left, #fixedFooter .center, #fixedFooter .right {
+    display: flex;
+    align-items: center;
+  }
+  #fixedFooter .left a, #fixedFooter .left span.disabled {
+    margin-right: 10px;
     text-decoration: none;
     color: #0a0a0aff;
   }
-  #fixedFooter a.active {
-    font-weight: bold;
-    text-decoration: underline;
-  }
-  #fixedFooter span.disabled {
+  #fixedFooter .left span.disabled {
     color: #6e6565ff;
-    margin: 0 5px;
+  }
+  #fixedFooter .center {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
   }
   #fixedFooter form {
-    display: inline-block;
-    margin-right: 20px;
+    margin: 0;
+  }
+  #fixedFooter select {
+    padding: 4px 8px;
+    font-weight: normal;
   }
   body {
-    padding-bottom: 60px; /* prevent content hidden behind footer */
+    padding-bottom: 70px; /* prevent content hidden behind footer */
   }
 </style>
 
 <div id='fixedFooter'>
-  <form method='GET' action='kladdeliste.php' id='limitForm'>
-    <label for='limit'>Vis:</label>
-    <select name='limit' id='limit' onchange='document.getElementById(\"limitForm\").submit()'>
-      <option value='50'" . ($limit == 50 ? " selected" : "") . ">50</option>
-      <option value='100'" . ($limit == 100 ? " selected" : "") . ">100</option>
-      <option value='200'" . ($limit == 200 ? " selected" : "") . ">200</option>
-      <option value='-1'" . ($limit == -1 ? " selected" : "") . ">Alle</option>
-    </select>
-    <input type='hidden' name='page' value='" . htmlspecialchars($page) . "'>
-  </form>
-";
 
+  <div class='left'>";
 
-if ($totalPages > 1 && $limit != -1) {
-    // Previous button
-    if ($page > 1) {
-        print "<a href='?page=" . ($page - 1) . "&limit=$limit'>Previous</a>";
-    } else {
-        print "<span class='disabled'>Previous</span>";
-    }
-
-    
-    $maxPagesToShow = 30;  // Set the maximum number of page links to show
-    $halfRange = floor($maxPagesToShow / 2); 
-
-    // Calculate the start and end of the page range to display
-    $start = max(1, $page - $halfRange);
-    $end = min($totalPages, $page + $halfRange);
-
-    // Adjust if there are fewer than 30 pages to show
-    if ($end - $start + 1 < $maxPagesToShow) {
-        if ($start == 1) {
-            $end = min($totalPages, $start + $maxPagesToShow - 1);
-        } else {
-            $start = max(1, $end - $maxPagesToShow + 1);
-        }
-    }
-
-    // Page numbers (links)
-    for ($i = $start; $i <= $end; $i++) {
-        $activeClass = ($i == $page) ? "active" : "";
-        print "<a href='?page=$i&limit=$limit' class='$activeClass'>$i</a>";
-    }
-
-    // Next button
-    if ($page < $totalPages) {
-        print "<a href='?page=" . ($page + 1) . "&limit=$limit'>Next</a>";
-    } else {
-        print "<span class='disabled'>Next</span>";
-    }
+if ($page > 1) {
+    print "<a href='?page=" . ($page - 1) . "&limit=$limit'>Previous</a>";
+} else {
+    print "<span class='disabled'>Previous</span>";
 }
+
+if ($page < $totalPages && $limit != -1) {
+    print "<a href='?page=" . ($page + 1) . "&limit=$limit'>Next</a>";
+} else {
+    print "<span class='disabled'>Next</span>";
+}
+if($totalRRows !=0) {
+	//totalRows is the same as rows returned
+	$totalRows=$totalRRows;
+}
+print "</div>
+
+  <div class='center'>
+    Page $page of $totalPages | Rows per page: $limit | Total records: $totalRows
+  </div>
+
+  <div class='right' style='padding-right: 25px;'>
+    <form method='GET' action='kladdeliste.php' id='limitForm'>
+      <label for='limit'>Vis:</label>
+      <select name='limit' id='limit' onchange='document.getElementById(\"limitForm\").submit()'>
+        <option value='50'" . ($limit == 50 ? " selected" : "") . ">50</option>
+        <option value='100'" . ($limit == 100 ? " selected" : "") . ">100</option>
+        <option value='200'" . ($limit == 200 ? " selected" : "") . ">200</option>
+        <option value='-1'" . ($limit == -1 ? " selected" : "") . ">Alle</option>
+      </select>
+      <input type='hidden' name='page' value='" . htmlspecialchars($page) . "'>
+    </form>
+  </div>
+
+
+</div>";
 
 
 print "</div>";
@@ -623,14 +681,14 @@ print <<<HTML
   outline: 2px solid #b2b2b2;
 }
 
-tr.header-row,
+/* tr.header-row,
 tr.header-row td {
   cursor: default !important;
 }
-
+*/
 tr.header-row:hover td {
   cursor: default !important;
-}
+} 
 
 tr.nav-row,
 tr.nav-row:hover,
@@ -671,10 +729,10 @@ document.addEventListener('DOMContentLoaded', function () {
     'rgba(17, 70, 145, 1)'
   ];
 
-  document.querySelectorAll('table tr').forEach(row => {
+  document.querySelectorAll('table tr').forEach(row => { 
     const tds = Array.from(row.querySelectorAll('td'));
     if (tds.length <= 1) return;
-
+	
     let isHeaderRow = false;
 
     for (const td of tds) {
@@ -748,11 +806,8 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-
 </script>
 HTML;
-
-
 ?>	
 
 
