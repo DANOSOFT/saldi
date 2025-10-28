@@ -269,7 +269,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	}
 	print "</select></td>";
 	$txt = findtekst(898, $sprog_id);
-	print "<td><input class='button gray medium' type='submit' value='$txt' name='submit'></td></tr>\n";
+	// print "<td><input class='button gray medium' type='submit' value='$txt' name='submit'></td></tr>\n";
 	print "<tr><td><br><br></td></tr>";
 	print "</form>\n\n";
 	print "<form name=rapport action=rapport.php method=post>\n";

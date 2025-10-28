@@ -55,7 +55,7 @@ $txt.= iconv($FromCharset, $ToCharset,trim('#'. $barcode[$v]));;
 $txt.= chr(27).chr(33).chr(0); # Normal
 $bon.= "$txt\n";
 $bon.= escPosBarcode($barcode[$v]);
-$validTo = date("d-m-") . date("Y")+2;
+$validTo = date("d-m-Y", strtotime("+2 years"));
 $txt = "Gyldigt til $validTo";
 $txt = iconv($FromCharset, $ToCharset,trim($txt));
 while(strlen($txt) < $width) $txt=" ".$txt." ";
@@ -89,5 +89,14 @@ $bon.= "$txt\n";
 #}
 }
 
+// TEST MODE - Uncomment the lines below to see the print content instead of printing
+
+/* echo "<h3>Gift Card Print Preview (Test Mode)</h3>";
+echo "<pre style='background: #f0f0f0; padding: 10px; border: 1px solid #ccc; font-family: monospace;'>";
+echo htmlspecialchars($bon);
+echo "</pre>";
+echo "<p><strong>Note:</strong> This is test mode. No actual printing occurred.</p>";
+exit;
+ */
 
 ?>

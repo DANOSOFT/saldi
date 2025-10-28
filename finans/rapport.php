@@ -88,6 +88,12 @@ if (!isset($prj_navn_fra))
 	$prj_navn_fra = NULL;
 
 if ($_POST) {
+	 if (isset($_POST['update_financial_year']) && $_POST['update_financial_year']) {
+        // Just refresh the page with the new financial year
+        $new_regnaar = if_isset($_POST['regnaar']);
+        print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?regnaar=$new_regnaar\">";
+        exit;
+    }
 	if (isset($_POST['kontrolspor']) && $_POST['kontrolspor']) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=kontrolspor.php\">";
 		exit;
@@ -324,6 +330,7 @@ if (isset($bankReconcile) && $bankReconcile) {
 	exit();
 }
 include("rapport_includes/$submit.php");
+
 $submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev);
 #################################################################################################
 function kontobemaerkning($l_kontonavn)
@@ -407,7 +414,40 @@ function listeangivelser($regnaar, $rapportart, $option_type)
 } # slut function listeangivelser
 
 ?>
+
+<script>
+function updateFinancialYear() {
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'rapport.php';
+    
+    var regnaarInput = document.createElement('input');
+    regnaarInput.type = 'hidden';
+    regnaarInput.name = 'regnaar';
+    regnaarInput.value = document.querySelector('select[name="regnaar"]').value;
+    form.appendChild(regnaarInput);
+    
+    var updateInput = document.createElement('input');
+    updateInput.type = 'hidden';
+    updateInput.name = 'update_financial_year';
+    updateInput.value = '1';
+    form.appendChild(updateInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var regnaarSelect = document.querySelector('select[name="regnaar"]');
+    if (regnaarSelect) {
+        regnaarSelect.addEventListener('change', updateFinancialYear);
+    }
+});
+</script>
 </body>
 </html>
+
+
+
 
 
