@@ -1571,9 +1571,9 @@ function render_search_style() {
             background-color: #e0e0f0;
         }
         .datatable tbody tr:hover {
-            border-width: 1px 0 1px 0;
-            border-color: #333;
-            border-style: solid;
+            outline: 2px solid #b2b2b2;
+            background-color: #f9f9f9;
+            cursor: pointer;
         }
         .datatable-search-wrapper input {
             width: 100%;
