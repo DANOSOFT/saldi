@@ -56,6 +56,20 @@ print "<div id='bg'></div>";
 $type = ($raw_amount < 0) ? "returnOfGoods" : "purchase";
 $amount = abs($raw_amount) * 100;
 
+// Fetch printserver
+$r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
+if (!$printserver) $printserver = 'localhost';
+elseif ($printserver == 'box' || $printserver == 'saldibox') {
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	if ($fp = fopen($filnavn, 'r')) {
+		$printserver = trim(fgets($fp));
+		fclose($fp);
+	}
+}
+
 # Get settings
 $q=db_select("select var_value from settings where var_name = 'flatpay_auth'",__FILE__ . " linje " . __LINE__);
 $guid = db_fetch_array($q)[0];
@@ -179,7 +193,7 @@ async function print_str(baseurl, apikey, data) {
         }
         
         // Try to open print window
-        const printWindow = window.open("http://localhost/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1", '', 'width=200,height=100');
+        const printWindow = window.open("http://<?php echo $printserver; ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1", '', 'width=200,height=100');
         
         if (!printWindow) {
             console.warn('Print vindue blev blokeret af browser');
