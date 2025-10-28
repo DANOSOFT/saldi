@@ -109,16 +109,15 @@ if (isset($_GET['saved'])) {
     print "</div>";
 }
 
-$txt1  = findtekst('2732|Indstillinger for betalingsdato', $sprog_id);
-$txt2  = findtekst('2733|Standard betalingsfrist (dage)', $sprog_id);
-$txt3  = findtekst('914|Beskrivelse', $sprog_id);
-$txt4  = findtekst('2734|Angiv hvor mange dage der som standard skal gå fra dags dato til betalingsdatoen', $sprog_id);
-$txt5  = findtekst('3|Gem', $sprog_id);
-$txt6  = findtekst('2737|Aktuelle', $sprog_id);
-$txt7  = lcfirst(findtekst('122|Indstillinger', $sprog_id));
-$txt8  = findtekst('2735|Dags dato', $sprog_id);
-$txt9  = findtekst('2736|Betalingsdato', $sprog_id);
-$txt10 = findtekst('5|Annullér', $sprog_id);
+$txt1 = findtekst('2732|Indstillinger for betalingsdato', $sprog_id);
+$txt2 = findtekst('2733|Standard betalingsfrist (dage)', $sprog_id);
+$txt3 = findtekst('914|Beskrivelse', $sprog_id);
+$txt4 = findtekst('2734|Angiv hvor mange dage der som standard skal gå fra dags dato til betalingsdatoen', $sprog_id);
+$txt5 = findtekst('2737|Eksempel (ud fra aktuelle indstillinger)', $sprog_id);
+$txt6 = findtekst('2735|Dags dato', $sprog_id);
+$txt7 = findtekst('2736|Betalingsdato', $sprog_id);
+$txt8 = findtekst('3|Gem', $sprog_id)." ".lcfirst(findtekst('122|Indstillinger', $sprog_id));
+$txt9 = findtekst('5|Annullér', $sprog_id);
 
 print "<form method='post' action='betalinger_settings.php'>";
 print "<table cellpadding='5' cellspacing='5' border='0' width='100%'>";
@@ -138,8 +137,8 @@ print "<td>$txt4.</td>";
 print "</tr>";
 
 print "<tr>";
-print "<td><b>$txt6 $txt7:</b></td>";
-print "<td>$txt8: <strong>$today</strong> → $txt9: <strong>$exampleDate</strong></td>";
+print "<td><b>$txt5:</b></td>";
+print "<td>$txt6: <strong>$today</strong> → $txt7: <strong>$exampleDate</strong></td>";
 print "</tr>";
 
 print "<tr>";
@@ -148,9 +147,9 @@ print "</tr>";
 
 print "<tr>";
 print "<td colspan='2'>";
-print "<input type='submit' name='save' value='$txt5 $txt7' style='background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;'>";
+print "<input type='submit' name='save' value='$txt8' style='background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;'>";
 print "&nbsp;&nbsp;";
-print "<input type='button' value='$txt10' onclick=\"location.href='betalingsliste.php'\" style='background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;'>";
+print "<input type='button' value='$txt9' onclick=\"location.href='betalingsliste.php'\" style='background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;'>";
 print "</td>";
 print "</tr>";
 

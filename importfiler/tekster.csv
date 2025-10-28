@@ -2734,7 +2734,7 @@
 2734	Angiv hvor mange dage der som standard skal gå fra dags dato til betalingsdatoen	Specify the default number of days between today's date and the payment due date	Angi hvor mange dager det som standard skal gå fra dagens dato til betalingsdatoen
 2735	Dags dato	Today's date	Dagens dato
 2736	Betalingsdato	Due date	Betalingsdato
-2737	Aktuelle	Current	Gjeldende
+2737	Eksempel (ud fra aktuelle indstillinger)	Example (based on current settings)	Eksempel (basert på gjeldende innstillinger)
 2738	
 2739	
 2740	
