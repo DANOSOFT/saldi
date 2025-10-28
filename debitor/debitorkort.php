@@ -1546,7 +1546,10 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
-print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
+if(!$id){
+	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
+}
+
 
 
 if ($menu == 'T') {
