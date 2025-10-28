@@ -229,7 +229,7 @@
         $r_faktura = db_fetch_array($query);
         $initials = explode(" ", $r_faktura["firmanavn"]);
         foreach($initials as $key => $value){
-            $initials[$key] = substr($value, 0, 1);
+            $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
         }
         $initials = implode("", $initials);
         if($r_faktura["art"] == "DK"){

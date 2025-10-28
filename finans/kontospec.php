@@ -45,6 +45,8 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include("../includes/row-hover-style.js.php");
+
 
 $kontonr=if_isset($_GET['kontonr']);
 $month=if_isset($_GET['month']);
