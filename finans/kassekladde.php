@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-10-24 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -156,6 +156,7 @@ print "<script>
 print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
+
 
 if (!isset($tidspkt))
 	$tidspkt = 0;
@@ -1065,7 +1066,7 @@ if (!$simuler) {
 	}
 	($udskriv) ? $height = '' : $height = 'height="100%"';
 	if ($menu != 'T') {
-		print "<table width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
+		print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
 	}
 	if (!$udskriv) {
 		if ($menu == 'T') {
@@ -1082,7 +1083,7 @@ if (!$simuler) {
 
 		} elseif ($menu=='S') {
 			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; #
-			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
+			print "<table class='topLine'width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>"; # Tabel 1.1 -> Toplinje
 
 			print "<td width='10%'>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
@@ -1116,6 +1117,7 @@ if (!$simuler) {
 		print "</td></tr>\n";
 	}
 }
+print"<div class='table-con'></div>"; 
 #############
 print '<style>
     /* Sticky header */
@@ -1140,6 +1142,27 @@ print '<style>
        background-color: #f1f1f1;
         z-index: 8; 
     }
+		.table-con {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 90px;  
+        background-color: #f1f1f1;  
+        z-index: 8; 
+		border-bottom: 1px solid #ccc; 
+    }
+	   .header-row {
+	  margin: 8px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 99%; 
+      background-color: #f1f1f1;
+      z-index: 11; 
+      display: table; 
+	  padding-right: 17px;
+  }
 </style>';
 
 ############
@@ -1231,6 +1254,8 @@ print "</tr>\n";
 
 print "</thead>";
 print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
+
 
 #####################################  Output  #################################
 
@@ -1313,16 +1338,15 @@ if ($kladde_id) {
 		}
 	}
 	#####################################
-		error_log("What is the value of x before pagination? x = $x");
+
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($q)) {
 		$x++;
-		// fill your arrays...
 	}
-	error_log("Total entries before pagination: xxx = $x");
+	$total_rows = $x;
 	// --- Pagination setup ---
-	$per_page_options = [10,50, 100, 200, 'All'];
-	$default_per_page = 10;
+	$per_page_options = [50, 100, 200, 'All'];
+	$default_per_page = 50;
 
 	$per_page = isset($_GET['per_page']) ? trim($_GET['per_page']) : $default_per_page;
 	$page     = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -1356,11 +1380,7 @@ if ($kladde_id) {
 		}
 	}
 
-	// Debug info
-	error_log("Pagination: Page $page of $total_pages, showing entries $start_index to " . max(0, $end_index - 1) . " out of $x total entries.");
-
-
-
+	
 	####################################
 	#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
@@ -1480,16 +1500,18 @@ if ($kladde_id) {
 	if (!$fejl)
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
-error_log("Pagination: start=$start_index, end=$end_index, total=$x");
+
 
 for ($y = $start_index + 1; $y <= $end_index; $y++){
 	if (!$fejl)
 		$antal_ex = $x;
 }
+
 if (($bogfort && $bogfort != '-') || $udskriv) {
-	error_log("Starting to print kassekladde lines, total lines: $x");
+	
 	for ($y = $start_index + 1; $y <= $end_index; $y++) {
-		error_log("Printing line $y");
+		
+		
 		if (!$beskrivelse[$y])
 			$beskrivelse[$y] = "&nbsp;";
 		#		if (($d_type[$y]!="D")&&($d_type[$y]!="K")) $d_type[$y]="F"; #phr 20070801
@@ -2880,146 +2902,204 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 
 	#######################
 	// --- Sticky Pagination Footer ---
-print "
-<style>
-.fixedFooter {
-    position: fixed;
-    bottom: 0;
-    background: #f8f9fa;
-    border-top: 1px solid #ccc;
 
-    
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-	width: calc(100% - 17px);
-	max-width: 98%;
-	padding: 10px 10px;
+	if(!$tjek){
+		print "
+		<style>
+		.fixedFooter {
+
+			
+
+			position: fixed;
+			bottom: 0;
+			border-top: 1px solid #ccc;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			width: 100%;
+			z-index: 1000;
+			background-color: #f0f0f0;
+			padding: 10px 10px;
+			font-weight: bold;
+			left:0;
+		}
+
+		.fixedFooter select, .fixedFooter button {
+			padding: 5px 10px;
+			font-size: 14px;
+		}
+
+		.fixedFooter .left, .fixedFooter .right {
+			display: flex;
+			align-items: center;
+			padding-right:25px;
+		}
+		
+
+		.fixedFooter .left a, .fixedFooter .left span.disabled {
+			margin-right: 10px;
+			text-decoration: none;
+			color: #0a0a0aff;
+		}
+
+		.fixedFooter .left span.disabled {
+			color: #6e6565ff;
+		}
+
+		.fixedFooter .center {
+			justify-content: center;
+			text-align: center;
+			display: flex; 
+			flex-direction: column; 
+			align-items: center; 
+		}
+
+		.fixedFooter form {
+			margin: 0;
+		}
+
+		body {
+			padding-bottom: 70px; 
+		}
+		#kopierButtonRowFooter {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			margin-bottom: 10px; 
+			height: 50px; 
+			width: 35%;
+		}
+
+		</style>
+
+		<div class='fixedFooter'>
+			<div class='left'>
+				";
+
+				// Pagination links
+				// Previous link
+if ($page > 1) {
+    print "<a href='?kladde_id=$kladde_id&page=" . ($page - 1) . "&per_page=$per_page'>&laquo; Previous</a>";
+} else {
+    print "<span class='disabled'>&laquo; Previous</span>";
 }
 
-.fixedFooter select, .fixedFooter button {
-    padding: 5px 10px;
-    font-size: 14px;
+// Next link
+if ($page < $total_pages) {
+    print "<a href='?kladde_id=$kladde_id&page=" . ($page + 1) . "&per_page=$per_page'>Next &raquo;</a>";
+} else {
+    print "<span class='disabled'>Next &raquo;</span>";
 }
 
-.fixedFooter .left, .fixedFooter .right {
-    display: flex;
-    align-items: center;
-}
-// .fixedFooter .center {
-//     display: flex;
-//     align-items: center;
-// }
 
-.fixedFooter .left a, .fixedFooter .left span.disabled {
-    margin-right: 10px;
-    text-decoration: none;
-    color: #0a0a0aff;
-}
+				print "
+			</div>
+			
+			<div class='center'>
+				Page $page of $total_pages | Rows per page: $per_page | Total records: $total_rows
+			</div>
+			
+			<div class='right'>
+				<form method='get' action='kassekladde.php' id='paginationForm'>
+					<input type='hidden' name='kladde_id' value='$kladde_id'>
+					<label for='per_page'>Rows per page:</label>
+					<select name='per_page' id='per_page' onchange='document.getElementById(\"paginationForm\").submit()'>";
 
-.fixedFooter .left span.disabled {
-    color: #6e6565ff;
-}
+					// Display options for "Rows per page"
+					foreach ($per_page_options as $opt) {
+						$selected = ($per_page == $opt) ? 'selected' : '';
+						print "<option value='$opt' $selected>$opt</option>";
+					}
 
-.fixedFooter .center {
-    flex: 1;
-    justify-content: center;
-    text-align: center;
-    margin-top: 10px; /* Ensure space between button row and center content */
-    display: flex; /* Ensure the center content is a flex container */
-    flex-direction: column; /* Allow stacking of elements vertically */
-    align-items: center; /* Horizontally center the content */
-}
+					print "
+					</select>
+				</form>
+			</div>
+		</div>
 
-.fixedFooter form {
-    margin: 0;
-}
 
-body {
-    padding-bottom: 70px; /* Prevent content from being hidden behind footer */
-}
-#kopierButtonRowFooter {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 10px; /* Adds space between button and center content */
-    height: 50px; /* Adjust the height based on button size */
-    width: 35%;
-}
-</style>
+		<script>
 
-<div class='fixedFooter'>
-    <div class='left'>
-        ";
+	document.addEventListener('DOMContentLoaded', function() {
+    // Get all rows and their buttons by the respective IDs
+    const buttonRows = [
+        { rowId: 'kopierButtonRow', buttonId: 'kopier-button', name: 'copy2new' },
+        { rowId: '', buttonId: 'revert-button', name: 'revert' },
+        { rowId: '', buttonId: 'cancelSimulation-button', name: 'cancelSimulation' },
+        { rowId: '', buttonId: 'save-button', name: 'save' },
+        { rowId: '', buttonId: 'lookup-button', name: 'lookup' },
+        { rowId: '', buttonId: 'simulate-button', name: 'simulate' },
+        { rowId: '', buttonId: 'doPost-button', name: 'doPost' },
+        { rowId: '', buttonId: 'upload-button', name: 'upload' },
+        { rowId: '', buttonId: 'submitDocuBizz-button', name: 'submit' },
+        { rowId: '', buttonId: 'import-button', name: 'import' },
+        { rowId: '', buttonId: 'offset-button', name: 'offset' }
+    ];
 
-        // Pagination links
-        if ($page > 1) {
-            print "<a href='?kladde_id=$kladde_id&page=" . ($page - 1) . "&per_page=$per_page'><button>&laquo; Previous</button></a>";
-        } else {
-            print "<span class='disabled'><button>&laquo; Previous</button></span>";
-        }
+    const footerCenter = document.querySelector('.fixedFooter .center');
 
-        if ($page < $total_pages) {
-            print "<a href='?kladde_id=$kladde_id&page=" . ($page + 1) . "&per_page=$per_page'><button>Next &raquo;</button></a>";
-        } else {
-            print "<span class='disabled'><button>Next &raquo;</button></span>";
-        }
+    buttonRows.forEach(({ rowId, buttonId, name }) => {
+        const button = document.getElementById(buttonId);
+        const buttonRow = rowId ? document.getElementById(rowId) : null;
 
-        print "
-    </div>
-    
-    <div class='center'>
-        Page $page of $total_pages | Rows per page: $per_page | Total records: $total_rows
-    </div>
-    
-    <div class='right'>
-        <form method='get' action='kladdeliste.php' id='paginationForm'>
-            <input type='hidden' name='kladde_id' value='$kladde_id'>
-            <label for='per_page'>Rows per page:</label>
-            <select name='per_page' id='per_page' onchange='document.getElementById(\"paginationForm\").submit()'>";
-
-            // Display options for "Rows per page"
-            foreach ($per_page_options as $opt) {
-                $selected = ($per_page == $opt) ? 'selected' : '';
-                print "<option value='$opt' $selected>$opt</option>";
+        if (button && footerCenter) {
+            // Hide the original row (if it exists)
+            if (buttonRow) {
+                buttonRow.style.display = 'none';
             }
 
-            print "
-            </select>
-        </form>
-    </div>
-</div>
+            // Create a new container for the button in the footer
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.display = 'flex';
+            buttonContainer.style.justifyContent = 'center'; // Center align the button
 
+            // Clone the button to keep its functionality intact
+            const clonedButton = button.cloneNode(true);
 
-<script>
-       document.addEventListener('DOMContentLoaded', function() {
-    // Get the button row and the button itself from the table
-    const kopierButtonRow = document.getElementById('kopierButtonRow');
-    const button = document.getElementById('kopier-button');
-    const footerCenter = document.querySelector('.fixedFooter .center');
-    
-    if (kopierButtonRow && button) {
-        
-        kopierButtonRow.style.display = 'none'; // Hides the table row with the button
-        
-        // Create a new container for the button in the footer (if it's not already created)
-        const buttonContainer = document.createElement('div');
-        buttonContainer.id = 'kopierButtonRowFooter';
-        buttonContainer.style.display = 'flex'; // Make sure the button is aligned properly
-        buttonContainer.style.justifyContent = 'center'; // Center align the button
+            // Set the name attribute of the cloned button to ensure the right action
+            clonedButton.name = name;  
 
-        // Append the button to the container
-        buttonContainer.appendChild(button);
+            // Append the cloned button to the container
+            buttonContainer.appendChild(clonedButton);
 
-        // Insert the container above the center content in the footer
-        footerCenter.insertAdjacentElement('beforebegin', buttonContainer);
-    }
+            // Insert the container into the footer (before the center content)
+            footerCenter.insertAdjacentElement('beforebegin', buttonContainer);
+
+            // Attach a click listener to manually submit the form
+            clonedButton.addEventListener('click', function(event) {
+                // Get the form element by ID or name
+                const form = document.getElementById('kassekladde');  // Make sure the form has this ID
+
+                if (form) {
+                    // Before submitting the form, create a hidden input field
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';      
+                    hiddenInput.name = clonedButton.name;  // The name of the button
+                    hiddenInput.value = clonedButton.value || '';  
+
+                    // Append the hidden input to the form
+                    form.appendChild(hiddenInput);
+
+                    
+                    const formData = new FormData(form);
+                   // console.log('Form Data Before Submission:');
+                    formData.forEach((value, key) => {
+                        //console.log(`\{key}: \${value}`);
+                    });
+
+                    // Submit the form
+                    console.log(`Submitting form with button: \${name}`);
+                    form.submit();
+                }
+            });
+        }
+    });
 });
 
-    </script>
+		</script>
 
-";
-
+		";
+	}
 
 
 	########################

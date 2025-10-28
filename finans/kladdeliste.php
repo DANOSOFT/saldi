@@ -1,5 +1,5 @@
 <?php
-// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2025.10.24 --- 
+// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2025.10.27 --- 
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -164,7 +164,6 @@ print '<style>
       background-color: #f1f1f1;
       z-index: 11; 
       display: table; 
-      border-collapse: collapse; 
 	  padding-right: 17px;
   }
 
@@ -209,15 +208,17 @@ print '<style>
 		margin-bottom: 40px; 
     }
   
-    .table-con {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 90px;  
-        background-color: #f1f1f1; 
-        z-index: 8; 
-    }
+.table-con {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;  
+    background-color: #f1f1f1; 
+    z-index: 8; 
+    border-bottom: 1px solid #ccc;  
+}
+
 	
 	
 </style>';
@@ -276,10 +277,8 @@ if ($vis=='alle') {
 	if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';
 }
 else {$linjebg=$bgcolor5; $color='#000000';}
-print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
-print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
-print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
-print "<tr class='table-row-hover'><td colspan='7'><hr></td></tr>";
+
+print "<tr class='table-row-hover' style='height: 50px;'><td colspan='7'></td></tr>";
 
 	########search box 
 	// print "<tr>";
