@@ -1,4 +1,6 @@
 <?php
+// 20251028 PK - added two hours(7200) to start date due to daylight saving time
+
 function loenafregning() {#Summeret lønafregning
 
 	global $ansat_id;
@@ -60,7 +62,7 @@ function loenafregning() {#Summeret lønafregning
 
 	$x = 0;
 	$r = db_fetch_array(db_select("select box4 from grupper where art='loen'",__FILE__ . " linje " . __LINE__));
-	$p_start[$x] = strtotime($r['box4']);
+	$p_start[$x] = strtotime($r['box4'])+7200; #20251028
 	while ($p_start[$x] <= date("U")+1209600) {
 		$x++;
 		$p_start[$x] = $p_start[$x-1]+1209600;
