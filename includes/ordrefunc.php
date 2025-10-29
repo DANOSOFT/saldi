@@ -5450,6 +5450,21 @@ function gendan_saet($id)
 {
 	$qtxt = "select box2 from grupper where art = 'DIV' and kodenr = '3'";
 	($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) ? $rabatvare_id = $r['box2'] : $rabatvare_id = 0;
+	
+	// If rabatvare_id is not numeric, it might be a varenr - look it up to get the actual vare_id
+	if (!is_numeric($rabatvare_id) && $rabatvare_id != 0 && $rabatvare_id != '') {
+		$varenr = db_escape_string($rabatvare_id);
+		$qtxt = "select id from varer where varenr = '$varenr' or varenr_alias = '$varenr' or stregkode = '$varenr'";
+		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($r && isset($r['id'])) {
+			$rabatvare_id = $r['id'];
+		} else {
+			$rabatvare_id = 0;
+		}
+	} elseif (!is_numeric($rabatvare_id)) { 
+		$rabatvare_id = 0;
+	}
+
 	$qtxt = "select id,varenr from ordrelinjer where vare_id = '$rabatvare_id' and ordre_id = $id";
 	if ($rabatvare_id && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		/* echo "Fjerner rabatvare $r[varenr]"; */
@@ -5465,7 +5480,6 @@ function gendan_saet($id)
 			}
 		}
 	}
-	#fclose($log);
 } # endfunc gendan_saet
 function slet_ordre($ordre_id)
 {
