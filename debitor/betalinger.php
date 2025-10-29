@@ -59,6 +59,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/forfaldsdag.php");
 include("../includes/payListFunc.php");
+include("../includes/topline_settings.php");
 
 $reopen   = if_isset($_GET['reopen']);
 $liste_id = if_isset($_GET['liste_id']);
@@ -143,7 +144,12 @@ else {
 $linjebg = $bgcolor;
 $erh_title = "ERH355 = Bankoverf. med normal advisering";
 
-if ($menu == 'T') {
+$txt1 = findtekst('2172|Luk', $sprog_id);
+$txt2 = findtekst('2738|Betalinger til bank', $sprog_id);
+$txt3 = findtekst('2739|Fra liste', $sprog_id);
+$txt4 = findtekst('2740|Fra kontokort', $sprog_id);
+
+if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
 	print "<div id=\"header\">";
@@ -153,6 +159,34 @@ if ($menu == 'T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 	print "<div class='dataTablediv'><table cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top' class='dataTable'><thead>";
+} elseif ($menu=='S') {
+	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+	print "<tr><td height = '25' align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+	print "<form name='paylist' action='betalinger.php?liste_id=$liste_id' method = 'post'>";
+
+	print "<td width='10%'><a href=../debitor/betalingsliste.php accesskey=L>";
+	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt1</button></a></td>";
+
+	print "<td width='80%' style='$topStyle' align='center'>$txt2</td>";
+	print "<td width='10%'>";
+
+	$r = db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
+	if ($r['bogfort'] == '-') {
+
+		print "<select name='find' style='$buttonStyle; width:100%;' onchange='this.form.submit()'>";
+		print "<option value=''></option>";
+		print "<option value='fromList'>$txt3</option>";
+		print "<option value='saldo'>$txt4</option>";
+		print "</select>";
+	} # else print "<a href = 'betalinger.php?liste_id=$liste_id&reopen=$liste_id'>Lås op</a>";
+	
+	print "</td></tr>";
+	print "</form>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<tr><td valign='top'>";
+	print "<table border='1' cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
 } else {
 	include_once '../includes/oldDesign/header.php';
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
@@ -160,8 +194,8 @@ if ($menu == 'T') {
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 	print "<form name='paylist' action='betalinger.php?liste_id=$liste_id' method = 'post'>";
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>";
-	print "<a href=../debitor/betalingsliste.php accesskey=L>Luk</a></td>";
-	print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>Betalinger til bank</td>";
+	print "<a href=../debitor/betalingsliste.php accesskey=L>$txt1</a></td>";
+	print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>$txt2</td>";
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>";
 
 	$r = db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
@@ -169,8 +203,8 @@ if ($menu == 'T') {
 
 		print "<select name = 'find' style = 'width:100%;' onchange='this.form.submit()'>";
 		print "<option value = ''></option>";
-		print "<option value = 'fromList'>Fra liste</option>";
-		print "<option value = 'saldo'>Fra kontokort</option>";
+		print "<option value = 'fromList'>$txt3</option>";
+		print "<option value = 'saldo'>$txt4</option>";
 		print "</select>";
 	} # else print "<a href = 'betalinger.php?liste_id=$liste_id&reopen=$liste_id'>Lås op</a>";
 	print "</td></tr>";
@@ -266,12 +300,12 @@ if ($find) {
 			}
 		}
 		$qtxt = "select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,";
-		$qtxt .= "openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as forfaldsdate,";
-		$qtxt .= "openpost.betal_id as betal_id,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id,";
-		$qtxt .= "openpost.konto_nr as kontonr,adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,";
-		$qtxt .= "adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser";
-		$qtxt .= " where openpost.udlignet != '1' and openpost.amount < 0 and openpost.beskrivelse like 'Afr:%'";
-		$qtxt .= " and openpost.konto_id = adresser.id and adresser.art = 'D'";
+		$qtxt.= "openpost.faktnr as faktnr,openpost.transdate as transdate,openpost.bilag_id as bilag_id,openpost.forfaldsdate as forfaldsdate,";
+		$qtxt.= "openpost.betal_id as betal_id,adresser.erh as erh, openpost.refnr as refnr, openpost.kladde_id as kladde_id,";
+		$qtxt.= "openpost.konto_nr as kontonr,adresser.bank_reg as modt_reg, adresser.bank_konto as modt_konto, adresser.firmanavn as modt_navn,";
+		$qtxt.= "adresser.bank_fi as modt_fi,adresser.betalingsbet as betalingsbet,adresser.betalingsdage as betalingsdage from openpost, adresser";
+		$qtxt.= " where openpost.udlignet != '1' and openpost.amount < 0 and openpost.beskrivelse like 'Afr:%'";
+		$qtxt.= " and openpost.konto_id = adresser.id and adresser.art = 'D'";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$ordre_id = 0;
@@ -374,15 +408,17 @@ if ($udskriv) {
 			print "<tr><td colspan=11><hr></td></tr>\n";
 		}
 	} else {
-		print "<td><b> <span title= 'Her kan skrives en bem&aelig;rkning til kladden'>Bem&aelig;rkning:</b></td>";
-		print "<td colspan=10><input type=\"text\" style='width:100%;' name=listenote value=\"$listenote\"></td></tr>";
+		$txt1 = findtekst('391|Bemærkning', $sprog_id);
+		$txt2 = findtekst('1559|Her kan du skrive en bemærkning til kladden', $sprog_id);
+		print "<td><b> <span title= '$txt2'>$txt1:</b></td>";
+		print "<td colspan=10><input type='text' style='width:100%;' name=listenote value='$listenote'></td></tr>";
 		if ($menu == 'T') {
 			$r = db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
 			if ($r['bogfort'] == '-') {
 				print "<center><select name = 'find' style = 'width:50%;' onchange='this.form.submit()'>";
-				print "<option value = ''></option>";
-				print "<option value = 'fromList'>Fra liste</option>";
-				print "<option value = 'saldo'>Fra kontokort</option>";
+				print "<option value=''></option>";
+				print "<option value='fromList'>Fra liste</option>";
+				print "<option value='saldo'>Fra kontokort</option>";
 				print "</select></center>";
 			}
 		} else {
@@ -390,17 +426,28 @@ if ($udskriv) {
 		}
 	}
 	#print"<tr><td colspan=11><hr></td></tr>";
-	$paytitle = "Sæt en * i enden af datoen i øverste datofelt, for at sætte alle datoer til denne dato. F.eks: 010402021*";
+	$paytitle = findtekst('2741|Sæt en  i slutningen af datoen i det øverste datofelt for at sætte alle datoer til denne dato. F.eks.: 01042021', $sprog_id);
+	$txt1  = findtekst('2742|Betalingstype', $sprog_id);
+	$txt2  = ucfirst(findtekst('903|fra', $sprog_id))." ".lcfirst(findtekst('592|Konto', $sprog_id));                      #Fra konto
+	$txt3  = findtekst('2517|Egen', $sprog_id)." ".lcfirst(findtekst('933|Ref.', $sprog_id));                              #Egen ref.
+	$txt4  = findtekst('2743|Modtager', $sprog_id).($sprog_id == 2 ? " " : "").lcfirst(findtekst('592|Konto', $sprog_id)); #Modtagerkonto
+	$txt5  = findtekst('2743|Modtager', $sprog_id)." ".lcfirst(findtekst('933|Ref.', $sprog_id));                          #Modtager ref.
+	$txt6  = findtekst('2743|Modtager', $sprog_id);
+	$txt7  = findtekst('934|Beløb', $sprog_id);
+	$txt8  = findtekst('776|Valuta', $sprog_id);
+	$txt9  = findtekst('2736|Betalingsdato', $sprog_id);
+	$txt10 = findtekst('', $sprog_id);
+
 	print "<tr>
-		<th><span title=\"$erh_title\"><b>Betalingstype</b></span></td>
-		<th><b>Fra konto</b></td>
-		<th><b>Egen ref.</b></td>
-		<th><b>Modtager konto</b></td>
-		<th><b>Modtager ref.</b></td>
-		<th><b>Modtager</b></td>
-		<th align='right' class='text-right'><b>Bel&oslash;b</b></td>
-		<th align='center' class='text-center'><b>Valuta</b></td>
-		<th align='right' class='text-right' title='$paytitle'><b>Betalingsdato</b></td>
+		<th><span title='$erh_title'><b>$txt1</b></span></td>
+		<th><b>$txt2</b></td>
+		<th><b>$txt3</b></td>
+		<th><b>$txt4</b></td>
+		<th><b>$txt5</b></td>
+		<th><b>$txt6</b></td>
+		<th align='right' class='text-right'><b>$txt7</b></td>
+		<th align='center' class='text-center'><b>$txt8</b></td>
+		<th align='right' class='text-right' title='$paytitle'><b>$txt9</b></td>
 		<th align='center' class='text-center'><span title='Se i nyt vindue'><b>Se</b></span></td>";
 	if ($bogfort != 'V') print "<th align='center'><span title='Slet linjen fra listen'><b>Slet</b></span></th>";
 	print "</tr>";
@@ -423,13 +470,13 @@ if ($udskriv) {
 	while ($r = db_fetch_array($q)) {
 		$x++;
 		$k1_bg[$x] = $k2_bg[$x] = $k3_bg[$x] = $k4_bg[$x] = $k5_bg[$x] = $k6_bg[$x] = $k7_bg[$x] = $k8_bg[$x] = '';
-		$erh[$x] = $r['bet_type'];
-		$fra_kto[$x] = $r['fra_kto'];
-		$egen_ref = $r['egen_ref'];
-		$til_kto[$x] = $r['til_kto'];
+		$erh[$x]      = $r['bet_type'];
+		$fra_kto[$x]  = $r['fra_kto'];
+		$egen_ref     = $r['egen_ref'];
+		$til_kto[$x]  = $r['til_kto'];
 		$kort_ref[$x] = $r['kort_ref'];
-		$belob[$x] = $r['belob'];
-		$valuta[$x] = $r['valuta'];
+		$belob[$x]    = $r['belob'];
+		$valuta[$x]   = $r['valuta'];
 		if ($r['ordre_id']) {
 			#			$kn_kontrol=1;
 			$r2 = db_fetch_array(db_select("select modtagelse from ordrer where id = '$r[ordre_id]'", __FILE__ . " linje " . __LINE__));

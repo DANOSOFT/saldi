@@ -388,7 +388,7 @@
 388	Kategorier	Categories	Kategorier
 389	Omdøb $ny_kategori til:	Rename $ny_kategori to:	Gi nytt navn til $ny_kategori til:
 390	For at oprette en ny kategori skrives navnet på kategorien her. For at oprette en underkategori skrives id på den overstående kategori foran navnet med | som adskillelse	eg 31 | Men's socks. ID is found by holding the mouse over the name of the category.	For å opprette en ny kategori, skriv inn navnet på kategorien her. For å opprette en underkategori, skriv inn ID-en for kategorien ovenfor foran navnet med | som separasjon
-391	Bemærkning	Remark	Merknad
+391	Bemærkning	Note	Merknad
 392	Kontaktpersoner	Contact persons	Kontaktpersoner
 393	Positionsnummer. Primær kontakt har nummer 1	Position number. Primary contact has number 1	Posisjonsnummer. Primærkontakt har nummer 1
 394	Pos.	Pos.	Pos.
@@ -1556,7 +1556,7 @@
 1556	Afmærkes her, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!	Marked here, debit and credit are exchanged. Used when returning the entire journal. Put &apos;=&apos; in both of the above fields!	Afmærkes henne, byttes debet og kredit. Anvendes ved tilbageførsel af hele kladden. Sæt &apos;=&apos; i begge overstående felter!
 1557	Vend fortegn (tilbagefør)	Flip sign (reverse)	Vend fortegn (tilbagefør)
 1558	Klik her for at lukke kassekladden	Click here to close the checkout journal	Klikk her for at lukke kassekladden
-1559	Her kan skrives en bemærkning til kladden	A comment on the journal can be written here	Hennes kan skrives og bemærkning til kladden
+1559	Her kan du skrive en bemærkning til kladden	Here you can add a note to the journal	Her kan du skrive en merknad til kladden
 1560	Angiv kontonummer til kontrol af kontobevægelser	Enter account number to control account movements	Angiv kontonummer til kontrol af kontobevægelser
 1561	Klik her for at opdatere	Click here to update	Klikk her for å oppdatere
 1562	Skriv - (minus) for at slette en linje	Enter - (minus) to delete a line	Skriv - (minus) for at slette en linje
@@ -2733,14 +2733,14 @@
 2733	Standard betalingsfrist (dage)	Standard payment term (days)	Standard betalingsfrist (dager)
 2734	Angiv hvor mange dage der som standard skal gå fra dags dato til betalingsdatoen	Specify the default number of days between today's date and the payment due date	Angi hvor mange dager det som standard skal gå fra dagens dato til betalingsdatoen
 2735	Dags dato	Today's date	Dagens dato
-2736	Betalingsdato	Due date	Betalingsdato
+2736	Betalingsdato	Payment date	Betalingsdato
 2737	Eksempel (ud fra aktuelle indstillinger)	Example (based on current settings)	Eksempel (basert på gjeldende innstillinger)
-2738	
-2739	
-2740	
-2741	
-2742	
-2743	
+2738	Betalinger til bank	Payments to bank	Betalinger til bank
+2739	Fra liste	From list	Fra liste
+2740	Fra kontokort	From general ledger accounts	Fra kontokort
+2741	Sæt en * i slutningen af datoen i det øverste datofelt for at sætte alle datoer til denne dato. F.eks.: 01042021*	Add an * at the end of the date in the top date field to apply this date to all entries. For example: 01042021*	Sett en * på slutten av datoen i det øverste datofeltet for å sette alle datoer til denne datoen. For eksempel: 01042021*
+2742	Betalingstype	Payment type	Betalingstype
+2743	Modtager	Recipient	Mottaker
 2744	
 2745	
 2746	
