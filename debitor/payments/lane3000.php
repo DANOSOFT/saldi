@@ -351,7 +351,7 @@ async function start_payment(baseurl, apikey, amount) {
 async function start() {
     logToServer('Payment process started', 'INFO');
     // https://connectcloud-test.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
+    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);

@@ -193,11 +193,11 @@ async function print_str(baseurl, apikey, data) {
         }
         
         // Try to open print window
-        const printWindow = window.open("http://<?php echo $printserver; ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1", '', 'width=200,height=100');
+        window.open("http://<?php echo $printserver; ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1", '', 'width=200,height=100');
         
-        if (!printWindow) {
+      /*   if (!printWindow) {
             console.warn('Print vindue blev blokeret af browser');
-        }
+        } */
         
         finished = true;
     } catch (error) {
@@ -261,7 +261,8 @@ async function afstem(baseurl, apikey) {
 
 async function start() {
     try {
-        const baseurl = "https://connectcloud.aws.nets.eu/v1/";
+        // https://connectcloud.aws.nets.eu/v1/
+        const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
         var elm = document.getElementById('status');
 
         const apikey = await get_api_key(baseurl);
