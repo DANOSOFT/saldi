@@ -12,7 +12,7 @@ if(isset($_GET['returside'])){
 
 print "<tr><td height = '25' align = 'center' valign = 'top'>";
 
-print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>"; # Tabel 1.1 ->
+print "<table class='topLine' width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>"; # Tabel 1.1 ->
 print "<td width=10% style='$buttonStyle'>
 	   <a href=$backUrl accesskey='L'>
 	   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
