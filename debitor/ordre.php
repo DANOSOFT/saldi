@@ -4370,12 +4370,25 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					}
 					$tidspkt=date('U');
 					$dkfelt_2=str_replace('.','',$dkfelt_2);
-					if($felt_1 == ""){
-						$felt_1 = "Betalingskort";
+#					http://192.168.76.201/pointd/kvittering.php?url=https://udvikling.saldi.dk/udvikling/debitor/pos_ordre.php&id=1&kommando=kortbetaling&belob=129,95&betaling=Dankort&betaling2=&modtaget=129.95&modtaget2=0&indbetaling=&tidspkt=1490181148
+					$qtxt = "SELECT * FROM settings WHERE var_name = 'showPaymentLink' ";
+					$qtxt.= "AND var_grp = 'deb_ordre' AND var_value = 'on' AND pos_id = $afd";
+					/* if($bruger_id == -1) echo  "$qtxt<br>"; */
+#if ($bruger_id == -1) echo  "$qtxt<br>";
+					$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+					(db_num_rows($q) > 0)?$vis_betalingslink = 1:$vis_betalingslink = 0;
+					/* if($bruger_id == -1) echo  "$vis_betalingslink<br>"; */
+					if (!$betalt && $vis_betalingslink) $disabled='disabled';
+					if ($vis_betalingslink) {
+#					($felt_1=='Betalingskort')?$vis_betalingslink=1:$vis_betalingslink=0;
+						$vis_betalingslink=0;
+ 						for($x=0;$x<$kortantal;$x++) {
+							if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
+#if ($bruger_id == -1) echo "Vis $vis_betalingslink<br>";
+						}
+						#if($felt_1 == 'Betalingskort') $vis_betalingslink=1;
 					}
-
-					($felt_1=='Betalingskort')?$vis_betalingslink=1:$vis_betalingslink=0;
-
+					
 					if ($vis_betalingslink) {
 						$qtxt = "SELECT * FROM settings WHERE var_grp = 'move3500' and pos_id = $afd";
 					$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

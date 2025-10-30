@@ -700,7 +700,7 @@ function udskriv($fakturadatoer,$logtimes,$afdelinger,$sort,$nysort,$idnumre,$fa
 							print "<td align=right><br></td>\n";
 						}
 						$net_sales = $q_dg['total_sales'] - $q_dg['discount'];
-						if ($net_sales != 0) {
+						if ($net_sales != 0 && $net_sales > 0) {
 							$dg_percent = ($q_dg['dg'] / $net_sales) * 100;
 						} else {
 							$dg_percent = 0;

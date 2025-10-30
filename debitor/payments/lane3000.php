@@ -252,7 +252,8 @@ async function print_str(baseurl, apikey, data) {
                 body: JSON.stringify({
                     data: data, 
                     id: '<?php print $ordre_id; ?>',
-                    type: 'move3500'
+                    type: 'move3500',
+                    terminal_id: '<?php print $terminal_id; ?>'
                 })
             }
         );
@@ -277,7 +278,7 @@ async function print_str(baseurl, apikey, data) {
                 logToServer('Receipt saved successfully', 'INFO')
             ]);
         }
-        
+
         // Open print window and log it
         window.open("http://<?php echo $printserver ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
         
