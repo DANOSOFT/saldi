@@ -52,7 +52,7 @@ $raw_amount = (float) usdecimal(if_isset($_GET['amount'], 0));
 $pretty_amount = dkdecimal($raw_amount, 2);
 $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
-$return_url = if_isset($_GET['return_url'], 'pos_ordre.php'); // Default to pos_ordre.php for POS
+$return_url = if_isset($_GET['return_url'], 'pos_ordre.php');
 $kasse = $_COOKIE['saldi_pos'];
 
 // Log initialization
@@ -97,6 +97,10 @@ elseif ($printserver == 'box' || $printserver == 'saldibox') {
 		fclose($fp);
 	}
 }
+
+# Print setup
+$printfile = 'https://'.$_SERVER['SERVER_NAME'];
+$printfile.= str_replace('debitor/payments/lane3000.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
 
 writeLog("Print file URL: $printfile");
 ?>
@@ -164,7 +168,6 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
-    
     const data = {
         "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
         "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
@@ -275,7 +278,7 @@ async function print_str(baseurl, apikey, data) {
                 logToServer('Receipt saved successfully', 'INFO')
             ]);
         }
-        
+
         // Open print window and log it
         window.open("http://<?php echo $printserver ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
         
@@ -347,54 +350,27 @@ async function start_payment(baseurl, apikey, amount) {
 }
 
 async function start() {
-    logToServer('Payment simulation started', 'INFO');
+    logToServer('Payment process started', 'INFO');
+    // https://connectcloud-test.aws.nets.eu/v1/
+    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
-    // Simulate payment process without calling terminal
+    const apikey = await get_api_key(baseurl);
+    if (!apikey || elm.innerText.includes("Fejl:")) {
+        logToServer('Failed to get API key, stopping process', 'ERROR');
+        return;
+    }
+    
     counting = true;
     countdown(121);
     document.getElementById('status').innerText = "Afventer kort...";
+    await start_payment(baseurl, apikey, <?php print $amount; ?>);
+    if (elm.innerText.includes("Fejl:")) {
+        logToServer('Payment process completed with error', 'ERROR');
+        return;
+    }
     
-    // Simulate waiting for card insertion
-    setTimeout(async () => {
-        logToServer('Simulating card insertion', 'INFO');
-        document.getElementById('status').innerText = "Kort indsat...";
-        document.getElementById('status').style.backgroundColor = '#34a853';
-        
-        // Simulate processing
-        setTimeout(async () => {
-            logToServer('Simulating payment processing', 'INFO');
-            document.getElementById('status').innerText = "Behandler betaling...";
-            
-            // Simulate successful payment
-            setTimeout(async () => {
-                logToServer('Simulating successful payment', 'INFO');
-                const cardScheme = "Visa"; // Simulate card type
-                
-                // Simulate receipt data
-                const receiptData = [
-                    "=== KVITTERING ===",
-                    "Beløb: <?php print $pretty_amount; ?> kr",
-                    "Kort: " + cardScheme,
-                    "Dato: " + new Date().toLocaleDateString('da-DK'),
-                    "Tid: " + new Date().toLocaleTimeString('da-DK'),
-                    "Status: GODKENDT",
-                    "=================="
-                ];
-                
-                // Print receipt
-                await print_str("", "", receiptData.join("\n"));
-                
-                // Complete payment
-                leave(cardScheme);
-                
-            }, 2000); // 2 second delay for processing
-            
-        }, 1500); // 1.5 second delay for card processing
-        
-    }, 3000); // 3 second delay to simulate card insertion
-    
-    logToServer('Payment simulation completed successfully', 'INFO');
+    logToServer('Payment process completed successfully', 'INFO');
 }
 
 logToServer('Page loaded, starting payment process', 'INFO');
