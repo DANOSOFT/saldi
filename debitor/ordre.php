@@ -1852,6 +1852,12 @@ if ($status<3 && $b_submit) {
 				if (!isset($kdo[$x])) $kdo[$x]=NULL;
 				if ($linje_id[$x]) {
 					if (!$antal[$x]) $antal[$x]=0;
+					// Ensure numeric fields use dot-decimal to avoid PHP warnings and SQL errors
+					$antal[$x] = usdecimal($antal[$x]);
+					$pris[$x] = usdecimal($pris[$x]);
+					$rabat[$x] = usdecimal($rabat[$x]);
+					if (!isset($leveres[$x]) || $leveres[$x] === '') { $leveres[$x] = 0; }
+					else { $leveres[$x] = usdecimal($leveres[$x]); }
 					$sum=$sum+($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];
 					if (!$leveres[$x]) $leveres[$x]=0;
 					elseif ($antal[$x] > 0 && $leveres[$x] > $antal[$x]) {
