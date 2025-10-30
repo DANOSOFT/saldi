@@ -84,9 +84,19 @@ $terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
 
 writeLog("Terminal ID retrieved: $terminal_id");
 
-# Print setup
-$printfile = 'https://'.$_SERVER['SERVER_NAME'];
-$printfile.= str_replace('debitor/payments/lane3000.php',"temp/$db/receipt_$kasse.txt",$_SERVER['PHP_SELF']);
+// Fetch printserver
+$r = db_fetch_array(db_select("select box3 from grupper where art = 'POS' and kodenr='2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+$x = $kasse - 1;
+$tmp = explode(chr(9), $r['box3']);
+$printserver = trim($tmp[$x]);
+if (!$printserver) $printserver = 'localhost';
+elseif ($printserver == 'box' || $printserver == 'saldibox') {
+	$filnavn = "http://saldi.dk/kasse/" . $_SERVER['REMOTE_ADDR'] . ".ip";
+	if ($fp = fopen($filnavn, 'r')) {
+		$printserver = trim(fgets($fp));
+		fclose($fp);
+	}
+}
 
 writeLog("Print file URL: $printfile");
 ?>
@@ -239,7 +249,8 @@ async function print_str(baseurl, apikey, data) {
                 body: JSON.stringify({
                     data: data, 
                     id: '<?php print $ordre_id; ?>',
-                    type: 'move3500'
+                    type: 'move3500',
+                    terminal_id: '<?php print $terminal_id; ?>'
                 })
             }
         );
@@ -266,7 +277,7 @@ async function print_str(baseurl, apikey, data) {
         }
         
         // Open print window and log it
-        window.open("http://localhost/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
+        window.open("http://<?php echo $printserver ?>/saldiprint.php?bruger_id=99&bonantal=1&printfil=<?php print $printfile; ?>&skuffe=0&gem=1','','width=200,height=100");
         
         await Promise.allSettled([
             logToServer('Print command sent', 'INFO')
