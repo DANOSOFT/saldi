@@ -62,7 +62,7 @@ while (file_exists($filename)) {
 file_put_contents($filename, json_encode($data));
 
 // For flatpay transactions, also save a copy with terminal_id filename
-if ($type == 'flatpay' && $terminal_id) {
+if (($type == 'flatpay' || $type == 'move3500') && $terminal_id) {
     $terminal_filename = "$directory/terminal_$id.txt";
     
     // Check if the terminal file already exists

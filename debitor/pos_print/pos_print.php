@@ -221,7 +221,7 @@ $bon.= printVoucher($id,NULL);
 
 // Check for card receipt and add it to the print job (only when Udskriv button is manually clicked)
 $card_receipt_file = "../temp/$db/terminal_$id.txt";
-
+echo "<script>console.log('Card receipt file: " . $id . "');</script>";
 // Check if this is a manual print by looking for the Udskriv button in POST data
 $is_manual_print = isset($_POST['udskriv']) && ($_POST['udskriv'] == "Udskriv" || $_POST['udskriv'] == "Print");
 
@@ -241,26 +241,7 @@ if (file_exists($card_receipt_file) && $is_manual_print) {
         $bon .= "           KORTKVITTERING\n";
         $bon .= "========================================\n";
         
-        // Add card receipt details
-        if (isset($card_data['terminalId'])) {
-            $bon .= "Terminal ID: " . $card_data['terminalId'] . "\n";
-        }
-        if (isset($card_data['transactionReference'])) {
-            $bon .= "Transaktions ID: " . $card_data['transactionReference'] . "\n";
-        }
-        if (isset($card_data['cardScheme'])) {
-            $bon .= "Korttype: " . $card_data['cardScheme'] . "\n";
-        }
-        if (isset($card_data['amount'])) {
-            $amount = $card_data['amount'] / 100; // Convert from pennies
-            $bon .= "Beløb: " . dkdecimal($amount, 2) . " DKK\n";
-        }
-        if (isset($card_data['status'])) {
-            $bon .= "Status: " . $card_data['status'] . "\n";
-        }
-        if (isset($card_data['updated'])) {
-            $bon .= "Dato: " . date('Y-m-d H:i:s', strtotime($card_data['updated'])) . "\n";
-        }
+        $bon .= $card_data;
         
         $bon .= "========================================\n";
     }
