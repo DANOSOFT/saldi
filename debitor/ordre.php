@@ -3478,7 +3478,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 			if ($lagerantal>1) {
 				$lagerDisplay = $lager[$x];
 				for ($l=0;$l<count($lagernr);$l++) {
-					if ($lagernr[$l]==$lager[$x] && strlen($lagernavn[$l])==1) {
+					if ($lagernr[$l]==$lager[$x]) {
 						$lagerDisplay=$lagernavn[$l];
 						break;
 					}
@@ -4822,7 +4822,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
       if ($lagerantal>1) {
         $stockId = $lager[0];
          for ($l=0;$l<count($lagernr);$l++) {
-          if ($lagernr[$l]==$lager[0] && strlen($lagernavn[$l])==1) $lager[0]=$lagernavn[$l];
+          if ($lagernr[$l]==$lager[0]) $lager[0]=$lagernavn[$l];
         }
       }
       if ($art != 'OT') { // ordrelinje til indtastning behøves ikke at vises ved 'Original tilbud' #20140716
@@ -5415,7 +5415,7 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 		$lagerId = $lager;
 		if ($lagerantal > 1) {
 			for ($l=0;$l<count($lagernr);$l++) {
-				if ($lagernr[$l]==$lager && strlen($lagernavn[$l])==1) {
+				if ($lagernr[$l]==$lager) {
 					$lager=$lagernavn[$l];
 				}
 			}
