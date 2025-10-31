@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2024-08-07 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-10-28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 
 // 20120809 søg 20120809 V. openpostopslag viser både kreditorer og debitorer hvis de har samme kontonr - rettet 
@@ -88,9 +88,10 @@
 // 20240725 PHR - Replaced 'DKK' with $baseCurrency.
 // 20240804	PHR - Removed (float) from belob
 // 20240807 PHR	- Minor correction.
-// 04-02-2025 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
-//  28-05-2025 Sawaneh -  Adedd position-based sorting to kassekladde entries
-
+// 20250204 PBLM - Fixed a bug where the wrong variable were used when using the lookup functions
+// 20250528 Sawaneh -  Added position-based sorting to kassekladde entries
+// 20251022 LOE - Updated some variables to use the  function if_isset() to minimize errors
+// 20251024 LOE - Static Headers, footer and pagination applied.
 ob_start(); //Starter output buffering
 
 @session_start();
@@ -155,6 +156,7 @@ print "<script>
 print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
+
 
 if (!isset($tidspkt))
 	$tidspkt = 0;
@@ -251,22 +253,22 @@ if ($_GET) {
 	$x               = (int) if_isset($_GET['x'], 0);
 	$id[$x]          =       if_isset($_GET['id']);
 	$lobenr[$x]      =       if_isset($_GET['lobenr']);
-	$kladde_id       = (int) if_isset($_GET['kladde_id'], 0);
-	$bilag[$x]       = (int) if_isset($_GET['bilag'], 0);
-	$dato[$x]        =       if_isset($_GET['dato']);
-	$beskrivelse[$x] =       if_isset($_GET['beskrivelse']);
-	$d_type[$x]      =       if_isset($_GET['d_type']);
-	$debet[$x]       =       if_isset($_GET['debet']);
-	$k_type[$x]      =       if_isset($_GET['k_type']);
-	$kredit[$x]      =       if_isset($_GET['kredit']);
-	$faktura[$x]     =       if_isset($_GET['faktura']);
+	$kladde_id       = (int) if_isset($_GET,0,'kladde_id');
+	$bilag[$x]       = (int) if_isset($_GET,0,'bilag');
+	$dato[$x]        =       if_isset($_GET,'','dato');
+	$beskrivelse[$x] =       if_isset($_GET,'','beskrivelse');
+	$d_type[$x]      =       if_isset($_GET,'','d_type');
+	$debet[$x]       =       if_isset($_GET,'','debet');
+	$k_type[$x]      =       if_isset($_GET,'','k_type');
+	$kredit[$x]      =       if_isset($_GET,'','kredit');
+	$faktura[$x]     =       if_isset($_GET,'','faktura');
 	$belob[$x]       =       if_isset($_GET['belob']);
-	$momsfri[$x]     =       if_isset($_GET['momsfri'], '');
-	$afd[$x]         =       if_isset($_GET['afd'], '');
-	$projekt[$x]     =       if_isset($_GET['projekt'], '');
-	$ansat[$x]       =       if_isset($_GET['ansat'], '');
-	$valuta[$x]      =       if_isset($_GET['valuta'], '');
-	$find            =       if_isset($_GET['find'], '');
+	$momsfri[$x]     =       if_isset($_GET,'','momsfri');
+	$afd[$x]         =       if_isset($_GET,'','afd');
+	$projekt[$x]     =       if_isset($_GET,'','projekt');
+	$ansat[$x]       =       if_isset($_GET,'','ansat');
+	$valuta[$x]      =       if_isset($_GET,'','valuta');
+	$find            =       if_isset($_GET,'','find');
 	$beskrivelse[$x] =  trim(if_isset($beskrivelse[$x], ''));
 	$d_type[$x]      =  trim(if_isset($d_type[$x], ''));
 	$debet[$x]       =  trim(if_isset($debet[$x], ''));
@@ -1048,6 +1050,7 @@ if (strlen($kontrolkonto)>1) setcookie("saldi_ktrkto",$kontrolkonto,time()+60*60
 else setcookie("saldi_ktrkto",$kontrolkonto,time()-3600);
 ob_end_flush();	//Sender det "bufferede" output afsted...
 */
+
 if ($kladde_id) {
 	$query = db_select("select kladdenote, bogfort from kladdeliste where id = $kladde_id", __FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
@@ -1063,7 +1066,7 @@ if (!$simuler) {
 	}
 	($udskriv) ? $height = '' : $height = 'height="100%"';
 	if ($menu != 'T') {
-		print "<table width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
+		print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
 	}
 	if (!$udskriv) {
 		if ($menu == 'T') {
@@ -1079,8 +1082,8 @@ if (!$simuler) {
 			print "<div class='content-noside'>";
 
 		} elseif ($menu=='S') {
-			print "<tr><td height='1%' align='center' valign='top'>";
-			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
+			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; #
+			print "<table class='topLine'width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>"; # Tabel 1.1 -> Toplinje
 
 			print "<td width='10%'>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
@@ -1097,7 +1100,7 @@ if (!$simuler) {
 			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>";
 			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">$ny</button></a></td></tr>";
 		} else {
-			print "<tr><td height='1%' align='center' valign='top'>";
+			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; 
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
 			if ($popup) print "<td onClick='JavaScript:opener.location.reload();' width='10%' $top_bund>";
 			else print "<td $top_bund>";
@@ -1114,15 +1117,64 @@ if (!$simuler) {
 		print "</td></tr>\n";
 	}
 }
+print"<div class='table-con'></div>"; 
+#############
+print '<style>
+    /* Sticky header */
+    .top-header {
+        position: fixed;
+        top: 0;
+        background-color: #f1f1f1; 
+        z-index: 10; 
+		width: 100%;
+		margin: 8px;
+    }
+    .kassekladde-note-tb {
+		position: sticky;
+		top: 29px;
+		background-color: #f1f1f1; 
+		z-index: 8; 
+   }
+
+    .kassekladde-thead {
+        position: sticky;
+        top: 64px; 
+       background-color: #f1f1f1;
+        z-index: 8; 
+    }
+		.table-con {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 90px;  
+        background-color: #f1f1f1;  
+        z-index: 8; 
+		border-bottom: 1px solid #ccc; 
+    }
+	   .header-row {
+	  margin: 8px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 99%; 
+      background-color: #f1f1f1;
+      z-index: 11; 
+      display: table; 
+	  padding-right: 17px;
+  }
+</style>';
+
+############
 if (!$udskriv) {
 	print "<form name='kassekladde' id='kassekladde' action='../finans/kassekladde.php?kksort=$kksort' method='post'>";
 	print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 	print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 
-	print "<tr><td width='100%' valign='top' height='1%\ align='center'>
+	print "<tr><td width='100%' valign='top' height='1%\ align='center' class='kassekladde-note-tb'>
 		   <table width='100%' cellpadding='0' cellspacing='0' border='0' align = 'center' valign = 'top'>";
-	print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
-	print "<tr>";
+	print "<tbody >"; # Tabel 1.2 -> bemærkningstekst  
+	print "<tr>"; #
 	print "<td width = '14%'></td>";
 	print "<td align='left'><b><span title= '" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</b>
 	<input class='inputbox' type='text' style='width:750px' name=ny_kladdenote value='$kladdenote'
@@ -1160,7 +1212,7 @@ else
 	print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
 // print "<tbody>"; # Tabel 1.3 -> kladdelinjer
 // print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
-print "<thead>";
+print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
 
 print "<tr>";
 if ($vis_bilag && !$fejl && !$udskriv)
@@ -1202,10 +1254,16 @@ print "</tr>\n";
 
 print "</thead>";
 print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
+
 
 #####################################  Output  #################################
 
+
+###################
+
 $r = db_fetch_array(db_select("select * from grupper where ART = 'KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
+
 if ($r)
 	$kksort = $r['box1'];
 if ($r) $kontrolkonto = $r['box2'];
@@ -1273,15 +1331,61 @@ if ($kladde_id) {
 		$fejl = 1;
 	} else {
 		// $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, id";
-if ($kksort == 'bilag,transdate') {
-    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag, transdate, pos, id";
-} else {
-    $qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, pos, id";
-}
+		if ($kksort == 'bilag,transdate') {
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by bilag, transdate, pos, id";
+		} else {
+			$qtxt = "select * from kassekladde where kladde_id = $kladde_id order by $kksort, pos, id";
+		}
 	}
+	#####################################
+
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($row = db_fetch_array($q)) {
+		$x++;
+	}
+	$total_rows = $x;
+	// --- Pagination setup ---
+	$per_page_options = [50, 100, 200, 'All'];
+	$default_per_page = 50;
+
+	$per_page = isset($_GET['per_page']) ? trim($_GET['per_page']) : $default_per_page;
+	$page     = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+
+	// Normalize case for "All"
+	if (strtolower($per_page) === 'all') {
+		$per_page = 'All';
+	}
+
+	// Make sure page is at least 1
+	if ($page < 1) $page = 1;
+
+	// Handle no results
+	if ($x <= 0) {
+		$start_index = 0;
+		$end_index   = 0;
+		$total_pages = 1; // still display “Page 1 of 1”
+	} else {
+		if ($per_page === 'All') {
+			$start_index = 0;
+			$end_index   = $x;
+			$total_pages = 1;
+			$page        = 1;
+		} else {
+			$per_page = (int)$per_page;
+			if ($per_page <= 0) $per_page = $default_per_page;
+			
+			$start_index = ($page - 1) * $per_page;
+			$end_index   = min($start_index + $per_page, $x);
+			$total_pages = max(1, ceil($x / $per_page)); // ensure at least 1
+		}
+	}
+
+	
+	####################################
 	#cho __line__." $qtxt<br>";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
+	$x = 0;
 	#cho __line__." $qtxt<br>";
 	while ($row = db_fetch_array($q)) {
 		$x++;
@@ -1396,11 +1500,18 @@ if ($kksort == 'bilag,transdate') {
 	if (!$fejl)
 		db_modify("delete from tmpkassekl where kladde_id=$kladde_id", __FILE__ . " linje " . __LINE__);
 }
-for ($y = 1; $y <= $x; $y++)
+
+
+for ($y = $start_index + 1; $y <= $end_index; $y++){
 	if (!$fejl)
 		$antal_ex = $x;
+}
+
 if (($bogfort && $bogfort != '-') || $udskriv) {
-	for ($y = 1; $y <= $x; $y++) {
+	
+	for ($y = $start_index + 1; $y <= $end_index; $y++) {
+		
+		
 		if (!$beskrivelse[$y])
 			$beskrivelse[$y] = "&nbsp;";
 		#		if (($d_type[$y]!="D")&&($d_type[$y]!="K")) $d_type[$y]="F"; #phr 20070801
@@ -1513,7 +1624,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!isset($bilag[$x + 1])) $bilag[$x + 1] = 0;
 	if (!isset($dato[0]))       $dato[0]       = NULL;
 	if (!isset($dato[$x + 1]))  $dato[$x + 1]  = NULL;
-	for ($y = 1; $y <= $x; $y++) {
+	for ($y = $start_index + 1; $y <= $end_index; $y++) {
 		if (!isset($bilag[$y]))      $bilag[$y]      = 0;
 		if (!isset($dato[$y]))       $dato[$y]       = NULL;
 		if (!isset($kredit[$y]))     $kredit[$y]     = NULL;
@@ -1981,7 +2092,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!$udskriv) {
 		if ($bogfort == 'V') {
 			#		print "<input type=hidden name=ny_kladdenote value='$kladdenote'>";
-			print "<tr><td colspan=9 align='center'><input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst('1598|Kopier til ny', $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;'></td></tr>\n";
+			//add an id to the submit button for testing purposes
+
+			print "<tr id='kopierButtonRow'><td colspan=9 align='center'><input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst('1598|Kopier til ny', $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;' id='kopier-button'></td></tr>\n";
+
 			print "</form>";
 			#		print "</tbody></table></td></tr>\n";
 #		print "</tbody></table>";
@@ -2780,11 +2894,215 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 	print "<script language=\"javascript\">";
 	print "document.kassekladde.$fokus.focus()";
 	print "</script>";
-	if ($menu == 'T') {
-		include_once '../includes/topmenu/footer.php';
-	} else {
-		include_once '../includes/oldDesign/footer.php';
+	// if ($menu == 'T') {
+	// 	include_once '../includes/topmenu/footer.php';
+	// } else {
+	// 	include_once '../includes/oldDesign/footer.php';
+	// }
+
+	#######################
+	// --- Sticky Pagination Footer ---
+
+	if(!$tjek){
+		print "
+		<style>
+		.fixedFooter {
+
+			
+
+			position: fixed;
+			bottom: 0;
+			border-top: 1px solid #ccc;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			width: 100%;
+			z-index: 1000;
+			background-color: #f0f0f0;
+			padding: 10px 10px;
+			font-weight: bold;
+			left:0;
+		}
+
+		.fixedFooter select, .fixedFooter button {
+			padding: 5px 10px;
+			font-size: 14px;
+		}
+
+		.fixedFooter .left, .fixedFooter .right {
+			display: flex;
+			align-items: center;
+			padding-right:25px;
+		}
+		
+
+		.fixedFooter .left a, .fixedFooter .left span.disabled {
+			margin-right: 10px;
+			text-decoration: none;
+			color: #0a0a0aff;
+		}
+
+		.fixedFooter .left span.disabled {
+			color: #6e6565ff;
+		}
+
+		.fixedFooter .center {
+			justify-content: center;
+			text-align: center;
+			display: flex; 
+			flex-direction: column; 
+			align-items: center; 
+		}
+
+		.fixedFooter form {
+			margin: 0;
+		}
+
+		body {
+			padding-bottom: 70px; 
+		}
+		#kopierButtonRowFooter {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			margin-bottom: 10px; 
+			height: 50px; 
+			width: 35%;
+		}
+
+		</style>
+
+		<div class='fixedFooter'>
+			<div class='left'>
+				";
+
+				// Pagination links
+				// Previous link
+if ($page > 1) {
+    print "<a href='?kladde_id=$kladde_id&page=" . ($page - 1) . "&per_page=$per_page'>&laquo; Previous</a>";
+} else {
+    print "<span class='disabled'>&laquo; Previous</span>";
+}
+
+// Next link
+if ($page < $total_pages) {
+    print "<a href='?kladde_id=$kladde_id&page=" . ($page + 1) . "&per_page=$per_page'>Next &raquo;</a>";
+} else {
+    print "<span class='disabled'>Next &raquo;</span>";
+}
+
+
+				print "
+			</div>
+			
+			<div class='center'>
+				Page $page of $total_pages | Rows per page: $per_page | Total records: $total_rows
+			</div>
+			
+			<div class='right'>
+				<form method='get' action='kassekladde.php' id='paginationForm'>
+					<input type='hidden' name='kladde_id' value='$kladde_id'>
+					<label for='per_page'>Rows per page:</label>
+					<select name='per_page' id='per_page' onchange='document.getElementById(\"paginationForm\").submit()'>";
+
+					// Display options for "Rows per page"
+					foreach ($per_page_options as $opt) {
+						$selected = ($per_page == $opt) ? 'selected' : '';
+						print "<option value='$opt' $selected>$opt</option>";
+					}
+
+					print "
+					</select>
+				</form>
+			</div>
+		</div>
+
+
+		<script>
+
+	document.addEventListener('DOMContentLoaded', function() {
+    // Get all rows and their buttons by the respective IDs
+    const buttonRows = [
+        { rowId: 'kopierButtonRow', buttonId: 'kopier-button', name: 'copy2new' },
+        { rowId: '', buttonId: 'revert-button', name: 'revert' },
+        { rowId: '', buttonId: 'cancelSimulation-button', name: 'cancelSimulation' },
+        { rowId: '', buttonId: 'save-button', name: 'save' },
+        { rowId: '', buttonId: 'lookup-button', name: 'lookup' },
+        { rowId: '', buttonId: 'simulate-button', name: 'simulate' },
+        { rowId: '', buttonId: 'doPost-button', name: 'doPost' },
+        { rowId: '', buttonId: 'upload-button', name: 'upload' },
+        { rowId: '', buttonId: 'submitDocuBizz-button', name: 'submit' },
+        { rowId: '', buttonId: 'import-button', name: 'import' },
+        { rowId: '', buttonId: 'offset-button', name: 'offset' }
+    ];
+
+    const footerCenter = document.querySelector('.fixedFooter .center');
+
+    buttonRows.forEach(({ rowId, buttonId, name }) => {
+        const button = document.getElementById(buttonId);
+        const buttonRow = rowId ? document.getElementById(rowId) : null;
+
+        if (button && footerCenter) {
+            // Hide the original row (if it exists)
+            if (buttonRow) {
+                buttonRow.style.display = 'none';
+            }
+
+            // Create a new container for the button in the footer
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.display = 'flex';
+            buttonContainer.style.justifyContent = 'center'; // Center align the button
+
+            // Clone the button to keep its functionality intact
+            const clonedButton = button.cloneNode(true);
+
+            // Set the name attribute of the cloned button to ensure the right action
+            clonedButton.name = name;  
+
+            // Append the cloned button to the container
+            buttonContainer.appendChild(clonedButton);
+
+            // Insert the container into the footer (before the center content)
+            footerCenter.insertAdjacentElement('beforebegin', buttonContainer);
+
+            // Attach a click listener to manually submit the form
+            clonedButton.addEventListener('click', function(event) {
+                // Get the form element by ID or name
+                const form = document.getElementById('kassekladde');  // Make sure the form has this ID
+
+                if (form) {
+                    // Before submitting the form, create a hidden input field
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';      
+                    hiddenInput.name = clonedButton.name;  // The name of the button
+                    hiddenInput.value = clonedButton.value || '';  
+
+                    // Append the hidden input to the form
+                    form.appendChild(hiddenInput);
+
+                    
+                    const formData = new FormData(form);
+                   // console.log('Form Data Before Submission:');
+                    formData.forEach((value, key) => {
+                        //console.log(`\{key}: \${value}`);
+                    });
+
+                    // Submit the form
+                    console.log(`Submitting form with button: \${name}`);
+                    form.submit();
+                }
+            });
+        }
+    });
+});
+
+		</script>
+
+		";
 	}
+
+
+	########################
 
 	$steps = array();
 	$steps[] = array(

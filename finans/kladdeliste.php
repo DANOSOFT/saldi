@@ -1,5 +1,5 @@
 <?php
-// --- finans/kladdeliste.php -------- patch 4.0.7 --- 2023.03.04 --- 
+// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2025.10.27 --- 
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,7 +15,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. 
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // -----------------------------------------------------------------------------------
 // 20150722 PHR Vis alle/egne gemmes nu som cookie. 
 // 20181220 MSC - Rettet ny kladde knap til Ny
@@ -27,6 +27,7 @@
 // 20230708 LOE - A minor modification
 // 12/02/2025 PBLM - Added a new button to open the digital approver
 // 16/05/2025 make sure the back button redirect too the previous page rather than going back to the dashboard
+// 20251021 LOE Added pagination and static header and footer
 @session_start();
 $s_id=session_id();
 	
@@ -93,7 +94,7 @@ if ($menu=='T') {
 	print  "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 } elseif ($menu=='S') {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>
-		   <tr><td height = '25' align='center' valign='top'>
+		   <tr class='sc-body'><td height = '25' align='center' valign='top'>
 		   <table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 
 	print "<td width='10%'  title='".findtekst('1599|Klik her for at lukke kladdelisten', $sprog_id)."'>"; #20210721
@@ -131,7 +132,7 @@ if ($menu=='T') {
 	}
 	print "<td width='5%' title='".findtekst('1600|Klik her for at oprette en ny kassekladde', $sprog_id)."'>";
 	print "<a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N><button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\" id='ny'>".findtekst('39|Ny', $sprog_id)."</button></a></td>";
-	print "</tbody></table></td></tr><tr><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
+	print "</tbody></table></td></tr><tr class='sc-body'><td valign='top'><table cellpadding='1' cellspacing='1' border='0' width='100%' valign = 'top'>";
 } else {
 #	if ($menu=='S') {
 #		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -150,42 +151,181 @@ if ($menu=='T') {
 	else print "<td width=\"10%\" title=\"".findtekst('1600|Klik her for at oprette en ny kassekladde', $sprog_id)."\" $top_bund><a href=kassekladde.php?returside=kladdeliste.php&tjek=-1 accesskey=N>".findtekst('39|Ny', $sprog_id)."</a></td>";
 	print "</tbody></table></td></tr><tr><td valign=\"top\"><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"100%\" valign = \"top\">";
 }
+
+
+print '<style>
+ /* Sticky second header/row with an offset */
+      .header-row {
+	  margin: 8px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 99%; 
+      background-color: #f1f1f1;
+      z-index: 11; 
+      display: table; 
+	  padding-right: 17px;
+  }
+
+  /* Table row (tr) */
+  .header-row .tr {
+      display: table-row; /* Makes this a row in the table */
+  }
+
+  /* Table cells (td) */
+  .header-row .cell {
+      display: table-cell; /* Makes this a table cell */
+      padding: 10px;
+      text-align: center;
+      border: 1px solid #ddd; /* adds borders to cells */
+  }
+
+  /* Set the width for each column */
+  .header-row .cell:nth-child(1) {
+      width: 10%; 
+  }
+
+  .header-row .cell:nth-child(2) {
+      width: 70%; 
+  }
+
+
+
+  .sticky-header-a {
+        position: sticky;
+        top: 29px;
+        background-color: #f1f1f1; 
+        z-index: 9; 
+		width: 100%;
+    }
+
+    /* Sticky header */
+    .sticky-header {
+        position: sticky;
+        top: 44px;
+        background-color: #f1f1f1; 
+        z-index: 10; 
+		margin-bottom: 40px; 
+    }
+  
+.table-con {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;  
+    background-color: #f1f1f1; 
+    z-index: 8; 
+    border-bottom: 1px solid #ccc;  
+}
+
+	
+	
+</style>';
+
+print"<div class='table-con'></div>";
+// Now print the table header with sticky positioning
+
+print "<tr class='sticky-header' bgcolor=\"$linjebg\" >\n";
+
+if (($sort == 'id') && (!$rf)) {
+    print "<td width = 5%><b><a href='kladdeliste.php?sort=id&rf=desc&vis=$vis'>Id</a></b></td>\n";
+} else {
+    print "<td width = 5% title='".findtekst('1602|Klik her for at sortere på ID', $sprog_id)."'><b><a href='kladdeliste.php?sort=id&vis=$vis'>ID</a></b></td>\n";
+}
+
+if (($sort == 'kladdedate') && (!$rf)) {
+    print "<td width = 10%><b><a href='kladdeliste.php?sort=kladdedate&rf=desc&vis=$vis'>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";
+} else {
+    print "<td width = 10% title='".findtekst('1603|Klik her for at sortere på dato', $sprog_id)."'><b><a href='kladdeliste.php?sort=kladdedate&vis=$vis'>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";
+}
+
+if (($sort == 'oprettet_af') && (!$rf)) {
+    print "<td><b><a href='kladdeliste.php?sort=oprettet_af&rf=desc&vis=$vis'>".findtekst('634|Ejer', $sprog_id)."</a></b></td>\n";
+} else {
+    print "<td title='".findtekst('1604|Klik her for at sortere på ejer (den der har oprettet kassekladden)', $sprog_id)."'><b><a href='kladdeliste.php?sort=oprettet_af&vis=$vis'>".findtekst('634|Ejer', $sprog_id)."</a></b></td>\n";
+}
+
+if (($sort == 'kladdenote') && (!$rf)) {
+    print "<td width = 70%><b><a href='kladdeliste.php?sort=kladdenote&rf=desc&vis=$vis'>".findtekst('391|Bemærkning', $sprog_id)."</a></b></td>\n";
+} else {
+    print "<td width = 70% title='".findtekst('1605|Klik her for at sortere på bemærkning', $sprog_id)."'><b><a href='kladdeliste.php?sort=kladdenote&vis=$vis'>".findtekst('391|Bemærkning', $sprog_id)."</a></b></td>\n";
+}
+if (($sort == 'bogforingsdate') && (!$rf)) {
+    print "<td align='center'><b><a href='kladdeliste.php?sort=bogforingsdate&rf=desc&vis=$vis'>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";
+} else {
+    print "<td align='center'><b><a href='kladdeliste.php?sort=bogforingsdate&vis=$vis'>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";
+}
+if (($sort == 'bogfort_af') && (!$rf)) {
+    print "<td><b><a href='kladdeliste.php?sort=bogfort_af&rf=desc&vis=$vis'>Af</a></b></td>\n";
+} else {
+    print "<td title='".findtekst('1606|Klik her for at sortere på bogført af', $sprog_id)."' align='center'><b><a href='kladdeliste.php?sort=bogfort_af&vis=$vis'>".findtekst('638|Af', $sprog_id)."</a></b></td>\n";
+}
+
+print "<td align='center'><b>".findtekst('1099|Slet', $sprog_id)."</b></td>\n"; // delete column header added- 2025-10-18
+print "        </tr>\n";
+
+################
 if ($vis=='alle') {
-	print "<tr>";
+	print "<tr class='sticky-header-a'>";
 	print "<td colspan=1 align=left></td>";
 	print "<td colspan=4 align=center><a href=kladdeliste.php?sort=$sort&rf=$rf>".findtekst('641|Vis egne', $sprog_id)."</a></td>";
-	print "<td colspan=1 align=right class='imgNoTextDeco'></td>";
+	print "<td colspan=2 align=right class='imgNoTextDeco'></td>";
 	print "</tr>";
-}
-else {
-	print "<tr><td colspan=6 align=center title='".findtekst('1601|Klik her for at se alle kladder', $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle id='visalle'>".findtekst('636|Vis alle', $sprog_id)."</a></td></tr>";}
+}else {
+	print "<tr class='sticky-header-a'><td colspan=6 align=center title='".findtekst('1601|Klik her for at se alle kladder', $sprog_id)."'><a href=kladdeliste.php?sort=$sort&rf=$rf&vis=alle id='visalle'>".findtekst('636|Vis alle', $sprog_id)."</a></td></tr>";}
 	if ((!isset($linjebg))||($linjebg!=$bgcolor)) {$linjebg=$bgcolor; $color='#000000';
 }
 else {$linjebg=$bgcolor5; $color='#000000';}
-print "<tr bgcolor=\"$linjebg\"  class='table-row-hover'>";
-if (($sort == 'id')&&(!$rf)) {print "<td width = 5%><b><a href=kladdeliste.php?sort=id&rf=desc&vis=$vis>Id</a></b></td>\n";}
-else {print "<td width = 5% title='".findtekst('1602|Klik her for at sortere på ID', $sprog_id)."'><b><a href=kladdeliste.php?sort=id&vis=$vis>ID</a></b></td>\n";}
-if (($sort == 'kladdedate')&&(!$rf)) {print "<td width = 10%><b><a href=kladdeliste.php?sort=kladdedate&rf=desc&vis=$vis>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";} //20210318
-else {print "<td width = 10% title='".findtekst('1603|Klik her for at sortere på dato', $sprog_id)."'><b><a href=kladdeliste.php?sort=kladdedate&vis=$vis>".findtekst('635|Dato', $sprog_id)."</a></b></td>\n";}
-if (($sort == 'oprettet_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=oprettet_af&rf=desc&vis=$vis>".findtekst('634|Ejer', $sprog_id)."</a></b></td>\n";}
-else {print "<td title='".findtekst('1604|Klik her for at sortere på ejer (den der har oprettet kassekladden)', $sprog_id)."'><b><a href=kladdeliste.php?sort=oprettet_af&vis=$vis>".findtekst('634|Ejer', $sprog_id)."</a></b></td>\n";}
-if (($sort == 'kladdenote')&&(!$rf)) {print "<td width = 70%><b><a href=kladdeliste.php?sort=kladdenote&rf=desc&vis=$vis>".findtekst('391|Bemærkning', $sprog_id)."</a></b></td>\n";}
-else {print "<td width = 70% title='".findtekst('1605|Klik her for at sortere på bemærkning', $sprog_id)."'><b><a href=kladdeliste.php?sort=kladdenote&vis=$vis>".findtekst('391|Bemærkning', $sprog_id)."</a></b></td>\n";}
-if (($sort == 'bogforingsdate')&&(!$rf)) {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&rf=desc&vis=$vis>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";}
-else {print "<td align=center><b><a href=kladdeliste.php?sort=bogforingsdate&vis=$vis>".findtekst('637|Bogført', $sprog_id)."</a></b></td>\n";}
-if (($sort == 'bogfort_af')&&(!$rf)) {print "<td><b><a href=kladdeliste.php?sort=bogfort_af&rf=desc&vis=$vis>Af</a></b></td>\n";}
-else {print "<td title='".findtekst('1606|Klik her for at sortere på bogført af', $sprog_id)."' align='center'><b><a href=kladdeliste.php?sort=bogfort_af&vis=$vis>".findtekst('638|Af', $sprog_id)."</a></b></td>\n";}
-print "<td align='center'><b>".findtekst('1099|Slet', $sprog_id)."</b></td>\n"; // delete column header added- 2025-10-18
 
-print "</tr>\n";
+print "<tr class='table-row-hover' style='height: 50px;'><td colspan='7'></td></tr>";
+
+	########search box 
+	// print "<tr>";
+	// print "<td colspan='7' style='text-align: left; padding: 5px;'>";
+	// print "<input type='text' id='searchInput' name='search' value='" . htmlspecialchars($search, ENT_QUOTES) . "' placeholder='Søg i kladdeliste...' style='width: 300px; padding: 5px; font-size: 14px;' />";
+	// print "</td>";
+	// print "</tr>";
+	
+	// print '<div id="searchResults"></div>';
+	##############
 $tjek=0;
 #$sqhost = "localhost";
-	
-	if ($vis == 'alle') $vis = ''; 
+	###########
+	// Defaults
+	$limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+	$page = isset($_GET['page']) ? intval($_GET['page']) : 1;
+	$offset = ($page - 1) * $limit;
+
+	// If "all" is selected
+	if ($limit == -1) {
+		$limitClause = ""; // No limit
+	} else {
+		$limitClause = "LIMIT $limit OFFSET $offset";
+	}
+
+	if ($vis == 'alle' ) $vis = ''; 
 	else $vis="and oprettet_af = '".$brugernavn."'";
 	$tidspkt=date("U");
-	$qtxt = "select * from kladdeliste where bogfort = '-' $vis order by $sort $rf";
+	$encoded_vis = urlencode($vis);
+	########
+	
+	########
+	#$qtxt = "select * from kladdeliste where bogfort = '-' $vis order by $sort $rf";
+	//#
+	$countQuery = "SELECT COUNT(*) AS total FROM kladdeliste WHERE bogfort = '-' $vis";
+	$countResult = db_select($countQuery, __FILE__ . " linje " . __LINE__);
+	$countRow = db_fetch_array($countResult);
+	$totalRows = $countRow['total'];
+	$totalPages = ($limit > 0) ? ceil($totalRows / $limit) : 1;
+	
+	$qtxt = "SELECT * FROM kladdeliste WHERE bogfort = '-' $vis ORDER BY $sort $rf $limitClause";
+	$totalRRows =0;
+	if ($totalRows >0 && $vis !='') {
+		$totalRRows  = $totalRows;
+	}
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	
 	while ($row = db_fetch_array($query)) {
 		$tjek++;
 		$kladde="kladde".$row['id'];
@@ -236,7 +376,18 @@ $tjek=0;
 		print "</tr>";
 	}
 #	print "<tr><td colspan=6><hr></td></tr>";
-	$query = db_select("select * from kladdeliste where bogfort = '!' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	#$query = db_select("select * from kladdeliste where bogfort = '!' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	############  Get total number of rows
+	$countQuery = "SELECT COUNT(*) AS total FROM kladdeliste WHERE bogfort = '!' $vis";
+	$countResult = db_select($countQuery, __FILE__ . " linje " . __LINE__);
+	$countRow = db_fetch_array($countResult);
+	$totalRows = $countRow['total'];
+	$totalPages = ($limit > 0) ? ceil($totalRows / $limit) : 1;
+
+	############ 
+	$qtxt = "SELECT * FROM kladdeliste WHERE bogfort = '!' $vis ORDER BY $sort $rf $limitClause";
+	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    
 	while ($row = db_fetch_array($query)) {
 		$kladde="kladde".$row[id];
 		if ($linjebg!=$bgcolor){$linjebg=$bgcolor; $color='#000000';}
@@ -280,7 +431,19 @@ print "</td>";
         print "</td>";
 		print "</tr>";
 	}
-	$query = db_select("select * from kladdeliste where bogfort = 'S' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	#startUse?
+	#$query = db_select("select * from kladdeliste where bogfort = 'S' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	############
+	$countQuery = "SELECT COUNT(*) AS total FROM kladdeliste WHERE bogfort = 'S' $vis";
+	$countResult = db_select($countQuery, __FILE__ . " linje " . __LINE__);
+	$countRow = db_fetch_array($countResult);
+	$totalRows = $countRow['total'];
+	$totalPages = ($limit > 0) ? ceil($totalRows / $limit) : 1;
+	###########
+	
+	$qtxt = "SELECT * FROM kladdeliste WHERE bogfort = 'S' $vis ORDER BY $sort $rf $limitClause";
+	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	
 	$hr=$tjek;
 	while ($row = db_fetch_array($query)){
 		if ($hr==$tjek) {
@@ -311,7 +474,20 @@ print "</td>";
 
 		print "</tr>";
 	}
-	$query = db_select("select * from kladdeliste where bogfort = 'V' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	#$query = db_select("select * from kladdeliste where bogfort = 'V' $vis order by $sort $rf",__FILE__ . " linje " . __LINE__);
+	
+	#########
+	$countQuery = "SELECT COUNT(*) AS total FROM kladdeliste WHERE bogfort = 'V' $vis";
+	$countResult = db_select($countQuery, __FILE__ . " linje " . __LINE__);
+	$countRow = db_fetch_array($countResult);
+	$totalRows = $countRow['total'];
+	$totalPages = ($limit > 0) ? ceil($totalRows / $limit) : 1;
+
+
+	$qtxt = "SELECT * FROM kladdeliste WHERE bogfort = 'V' $vis ORDER BY $sort $rf $limitClause";
+	$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+
+	#######
 	$hr=$tjek;
 	while ($row = db_fetch_array($query)){
 		if ($hr==$tjek) {
@@ -339,6 +515,7 @@ print "</td>";
 
 		print "</tr>"; 
 	}
+	######enduse
 	if ($menu=='T') {
 		$newbutton= "<i class='fa fa-plus-square fa-lg'></i>";
 	} else {
@@ -351,16 +528,106 @@ print "</td>";
 			print "<tr><td colspan=3 align=right>TIP 2: </td><td>".findtekst('597|Du kan se dine kollegers kladder ved at klikke på', $sprog_id)." <u>".findtekst('636|Vis alle', $sprog_id)."</u>.</td></tr>"; 
 		}
 	}
-if ($menu=='T') {
-	print "</tbody></table>";	
-	include_once '../includes/topmenu/footer.php';
+
+################
+
+
+
+// Start by printing the styles
+print "
+<style>
+  #fixedFooter {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #f0f0f0;
+    border-top: 1px solid #ccc;
+    padding: 10px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: bold;
+    z-index: 1000;
+  }
+  #fixedFooter .left, #fixedFooter .center, #fixedFooter .right {
+    display: flex;
+    align-items: center;
+  }
+  #fixedFooter .left a, #fixedFooter .left span.disabled {
+    margin-right: 10px;
+    text-decoration: none;
+    color: #0a0a0aff;
+  }
+  #fixedFooter .left span.disabled {
+    color: #6e6565ff;
+  }
+  #fixedFooter .center {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+  }
+  #fixedFooter form {
+    margin: 0;
+  }
+  #fixedFooter select {
+    padding: 4px 8px;
+    font-weight: normal;
+  }
+  body {
+    padding-bottom: 70px; /* prevent content hidden behind footer */
+  }
+</style>
+
+<div id='fixedFooter'>
+
+  <div class='left'>";
+
+if ($page > 1) {
+    print "<a href='?page=" . ($page - 1) . "&limit=$limit'>Previous</a>";
 } else {
-	print "</tbody>
-	</table>
-		</td></tr>
-	</tbody></table>";
-	include_once '../includes/oldDesign/footer.php';
+    print "<span class='disabled'>Previous</span>";
 }
+
+if ($page < $totalPages && $limit != -1) {
+    print "<a href='?page=" . ($page + 1) . "&limit=$limit'>Next</a>";
+} else {
+    print "<span class='disabled'>Next</span>";
+}
+if($totalRRows !=0) {
+	//totalRows is the same as rows returned
+	$totalRows=$totalRRows;
+}
+print "</div>
+
+  <div class='center'>
+    Page $page of $totalPages | Rows per page: $limit | Total records: $totalRows
+  </div>
+
+  <div class='right' style='padding-right: 25px;'>
+    <form method='GET' action='kladdeliste.php' id='limitForm'>
+      <label for='limit'>Vis:</label>
+      <select name='limit' id='limit' onchange='document.getElementById(\"limitForm\").submit()'>
+        <option value='50'" . ($limit == 50 ? " selected" : "") . ">50</option>
+        <option value='100'" . ($limit == 100 ? " selected" : "") . ">100</option>
+        <option value='200'" . ($limit == 200 ? " selected" : "") . ">200</option>
+        <option value='-1'" . ($limit == -1 ? " selected" : "") . ">Alle</option>
+      </select>
+      <input type='hidden' name='page' value='" . htmlspecialchars($page) . "'>
+    </form>
+  </div>
+
+
+</div>";
+
+
+print "</div>";
+
+
+##############
+
+
+
 
 $steps = array();
 $steps[] = array(
@@ -413,14 +680,14 @@ print <<<HTML
   outline: 2px solid #b2b2b2;
 }
 
-tr.header-row,
+/* tr.header-row,
 tr.header-row td {
   cursor: default !important;
 }
-
+*/
 tr.header-row:hover td {
   cursor: default !important;
-}
+} 
 
 tr.nav-row,
 tr.nav-row:hover,
@@ -451,44 +718,6 @@ tr.nav-row:hover td {
 
 </style>
 
-<!-- <style>
-.row-clickable:hover td:not(:last-child) {
- outline: 2px solid #b2b2b2;
-  background-color: #f9f9f9;
-  cursor: pointer;
-}
-
-tr.header-row,
-tr.header-row td {
-  cursor: default !important;
-}
-
-tr.header-row:hover td {
-  cursor: default !important;
-}
-
-tr.nav-row,
-tr.nav-row:hover,
-tr.nav-row:hover td {
-  background-color: inherit !important;
-  cursor: default !important;
-}
-
-/* Button styling */
-.table-row-hover button,
-.hover-highlight button {
-  color: white !important;
-  border: none !important;
-  padding: 6px 10px !important;
-  border-radius: 4px !important;
-  cursor: pointer !important;
-  font-size: 11px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-  transition: background-color 0.2s ease !important;
-}
-</style> -->
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -499,10 +728,10 @@ document.addEventListener('DOMContentLoaded', function () {
     'rgba(17, 70, 145, 1)'
   ];
 
-  document.querySelectorAll('table tr').forEach(row => {
+  document.querySelectorAll('table tr').forEach(row => { 
     const tds = Array.from(row.querySelectorAll('td'));
     if (tds.length <= 1) return;
-
+	
     let isHeaderRow = false;
 
     for (const td of tds) {
@@ -575,9 +804,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 });
+
 </script>
 HTML;
-
 ?>	
 
 
