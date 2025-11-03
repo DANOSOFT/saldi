@@ -193,7 +193,7 @@ for ($x=0;$x<count($transdate);$x++){
 		}
 		print "<tr bgcolor=\"$linjebg\">";
 		print "<td>";
-		if ($bilag[$x]) print "<a href=kontospec.php?bilag=$bilag[$x] target=\"_blank\">$bilag[$x]</a><br>";
+		if ($bilag[$x]) print "<a href=kontospec.php?bilag=$bilag[$x]>$bilag[$x]</a><br>";
 		print "</td>";
 		print "<td>".dkdato($transdate[$x])."</a><br></td>";
 		print "<td>$beskrivelse[$x]</a><br></td>";
@@ -201,7 +201,7 @@ for ($x=0;$x<count($transdate);$x++){
 		print "<td align=\"right\">".dkdecimal($debet[$x])."</a><br></td>";
 		print "<td align=\"right\">".dkdecimal($kredit[$x])."</a><br></td>";
 		print "<td align=\"right\" title=\"Ordrenr: $ordrenr[$x]\">$faktura[$x]</a><br></td>";
-		print "<td align=\"right\"><a href=kassekladde.php?kladde_id=$kladde_id[$x]&returside=kontospec.php target=\"_blank\">$kladde_id[$x]</a><br></td>";
+		print "<td align=\"right\"><a href=kassekladde.php?kladde_id=$kladde_id[$x]&returside=kontospec.php>$kladde_id[$x]</a><br></td>";
 		print "<td align=\"right\">$afd[$x]</a><br></td>";
 		print "<td align=\"right\">$projekt[$x]</a><br></td>";
 		print "</tr>";

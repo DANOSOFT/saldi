@@ -2938,7 +2938,7 @@ function ordreside($id,$regnskab) {
 		while ($row2 = db_fetch_array($query)) {
 			$x++;
 			if ($x>1) {$krediteret=$krediteret.",";}
-			$krediteret=$krediteret."<a href=\"ordre.php?id=$row2[id]\">$row2[ordrenr]</a>";
+			$krediteret=$krediteret."<a style='color:white;' href=\"ordre.php?id=$row2[id]\">$row2[ordrenr]</a>";
 		}
 		if ($status<3) {
 			if ($fokus=='vare0') $fokus='dkan'.count($varenr); #20151019
@@ -2997,7 +2997,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 		 
 		$query = db_select("select ordrenr from ordrer where id = '$kred_ord_id'",__FILE__ . " linje " . __LINE__);
 		$row2 = db_fetch_array($query);
-		if ($kred_ord_id) sidehoved($id,"$returside","","","Kunde kreditnota $ordrenr (kreditering af ordre nr: <a href=\"ordre.php?id=$kred_ord_id\">$row2[ordrenr]</a>)");
+		if ($kred_ord_id) sidehoved($id,"$returside","","","Kunde kreditnota $ordrenr (kreditering af ordre nr: <a  style='color:white;' href=\"ordre.php?id=$kred_ord_id\">$row2[ordrenr]</a>)");
 		else sidehoved($id,"$returside","","","Kunde kreditnota $ordrenr");
 
 		

@@ -323,11 +323,11 @@ print "<tbody>";
 
 if ($vis_medtag_lager) {
 	$title= findtekst(1624, $sprog_id);
-	print "<tr>";
-	print "<td colspan='$cols' align='center'>";
-	print "<form name='stockvalue' method='post' action='regnskab.php'>";
-	print "&nbsp;<input type='submit' title='$title' name='beregn_lager' value='".findtekst(595,$sprog_id)." ".findtekst(596,$sprog_id)."'>";
-	print "</form></td></tr>";
+	// print "<tr>";
+	// print "<td colspan='$cols' align='center'>";
+	// print "<form name='stockvalue' method='post' action='regnskab.php'>";
+	// print "&nbsp;<input type='submit' title='$title' name='beregn_lager' value='".findtekst(595,$sprog_id)." ".findtekst(596,$sprog_id)."'>";
+	// print "</form></td></tr>";
 }
 
 print "<tr><td width='8%'><b>".findtekst('804|Kontonr', $sprog_id)."</b></td>"; #20210721
