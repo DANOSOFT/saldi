@@ -1061,9 +1061,20 @@ $x = 0;
 ($visipop) ? $ny = NULL : $ny = findtekst('39|Ny', $sprog_id); #20210628
 
 if (!$simuler) {
+
+	if ($returside == "kontospec.php") {
+		$backUrl = "kontospec.php";
+	} else {
+		$backUrl = "../finans/kladdeliste.php?exitDraft=$kladde_id";
+	}
 	if ($returside != "regnskab") {
 		$returside = "../finans/kladdeliste.php";
 	}
+
+
+	
+
+
 	($udskriv) ? $height = '' : $height = 'height="100%"';
 	if ($menu != 'T') {
 		print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
@@ -1087,15 +1098,17 @@ if (!$simuler) {
 
 			print "<td width='10%'>";
 			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-			print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>";
-			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		
+			// print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>";
+			// print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">". 'ok'.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<a href=\"javascript:confirmClose('$backUrl','$tekst')\" accesskey='L'>";
+		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
 
-			print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
-
-			print "<td id='tutorial-help' width=5% style=$buttonStyle>
-			<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-				".findtekst('2564|Hjælp', $sprog_id)."  
-			</button></td>";
+		print "<td id='tutorial-help' width=5% style=$buttonStyle>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+		".findtekst('2564|Hjælp', $sprog_id)."  
+		</button></td>";
 
 			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>";
 			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">$ny</button></a></td></tr>";
