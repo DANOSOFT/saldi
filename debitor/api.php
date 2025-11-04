@@ -348,7 +348,7 @@
         while ($res = db_fetch_array($query)) {
             $res["pris"] = abs($res["pris"]);
             $res["rabat"] = abs($res["rabat"]);
-            $res["antal"] = abs($res["antal"]);
+            $res["antal"] = $res["antal"];
             $res["momssats"] = abs($res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
             if(trim($res["beskrivelse"]) == ""){
