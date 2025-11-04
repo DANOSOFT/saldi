@@ -375,8 +375,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "update settings set var_value='$var_value[$x]' where id='$r[id]'";
 			} elseif ($var_value[$x]) {
-				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('GLS','$var_name[$x]','$var_value[$x]','$var_description[$x]','0')";
+/* 				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
+				$qtxt.= "('GLS','$var_name[$x]','$var_value[$x]','$var_description[$x]','0')"; */
 			} else
 				$qtxt = NULL;
 			if ($qtxt)
@@ -448,8 +448,8 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				$qtxt = "update settings set var_value='" . db_escape_string($var_value[$x]) . "' where id='$r[id]'";
 			} elseif ($var_value[$x]) {
-				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
-				$qtxt.= "('GLS','$var_name[$x]','" . db_escape_string($var_value[$x]) . "','$var_description[$x]','0')";
+/* 				$qtxt = "insert into settings (var_grp,var_name,var_value,var_description,user_id) values ";
+				$qtxt.= "('GLS','$var_name[$x]','" . db_escape_string($var_value[$x]) . "','$var_description[$x]','0')"; */
 			} else
 				$qtxt = NULL;
 			if ($qtxt)

@@ -769,6 +769,24 @@ function div_valg() {
 		if ($r['var_name'] == 'gls_user') $gls_user = $r['var_value'];
 		if ($r['var_name'] == 'gls_pass') $gls_pass = $r['var_value'];
 		if ($r['var_name'] == 'gls_ctId') $gls_ctId = $r['var_value'];
+		if ($r['var_name'] == 'dfm_id')             $dfm_id             = $r['var_value'];
+		if ($r['var_name'] == 'dfm_user')           $dfm_user           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pass')           $dfm_pass           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_agree')          $dfm_agree          = $r['var_value'];
+		if ($r['var_name'] == 'dfm_hub')            $dfm_hub            = $r['var_value'];
+		if ($r['var_name'] == 'dfm_ship')           $dfm_ship           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_good')           $dfm_good           = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pay')            $dfm_pay            = $r['var_value'];
+		if ($r['var_name'] == 'dfm_url')            $dfm_url            = $r['var_value'];
+		if ($r['var_name'] == 'dfm_gooddes')        $dfm_gooddes        = $r['var_value'];
+		if ($r['var_name'] == 'dfm_sercode')        $dfm_sercode        = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_addr')    $dfm_pickup_addr    = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_name1')   $dfm_pickup_name1   = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_name2')   $dfm_pickup_name2   = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_street1') $dfm_pickup_street1 = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_street2') $dfm_pickup_street2 = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
+		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
 	}
 	$qtxt = "select var_name,var_value from settings where var_grp='DanskeFragt'";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
