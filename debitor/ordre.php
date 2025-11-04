@@ -760,6 +760,8 @@ if (!$id && $konto_id && $kontonr) {
 	if (strlen($phone) > 15) $phone = substr($phone,0,15); 
 	$ordredate=date("Y-m-d");
 	($lev_firmanavn)?$vis_lev_addr='on':$vis_lev_addr='';
+	$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
+	$afd = (int)$afd;
 	$qtxt="insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt.="cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,hvem,tidspkt,ref,";
   $qtxt.="valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
@@ -1643,6 +1645,7 @@ if ($status<3 && $b_submit) {
     $r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$brugervalg=$r['box1']; # 20170419
 		if ($brugervalg) $ref='';
+		$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		$afd = (int)$afd;
 		$qtxt = "INSERT INTO ordrer (";
 		$qtxt.= "ordrenr, konto_id, kontonr, kundeordnr, firmanavn, addr1, addr2, postnr, ";
@@ -2045,6 +2048,8 @@ if ((strstr($b_submit,'Kopi'))||(strstr($b_submit,'Kred')))  {
     $sag_id = (int)if_isset($sag_id, NULL); #20250528
     $sagsnr = (int)if_isset($sagsnr, 0);
     $nr = (int)if_isset($nr, 0);
+	$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
+	$afd = (int)$afd;
 		$qtxt="insert into ordrer"; 
 		$qtxt.="(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
     $qtxt.="lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,lev_email,lev_land,betalingsdage,betalingsbet,cvrnr,ean,institution,";
