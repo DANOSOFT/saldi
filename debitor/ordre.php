@@ -2048,8 +2048,6 @@ if ((strstr($b_submit,'Kopi'))||(strstr($b_submit,'Kred')))  {
     $sag_id = (int)if_isset($sag_id, NULL); #20250528
     $sagsnr = (int)if_isset($sagsnr, 0);
     $nr = (int)if_isset($nr, 0);
-	$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
-	$afd = (int)$afd;
 		$qtxt="insert into ordrer"; 
 		$qtxt.="(ordrenr,konto_id,kontonr,kundeordnr,firmanavn,addr1,addr2,postnr,bynavn,land,kontakt,lev_navn,";
     $qtxt.="lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_kontakt,lev_email,lev_land,betalingsdage,betalingsbet,cvrnr,ean,institution,";
