@@ -148,7 +148,7 @@ if ($status < 3) {
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		}
-		if ($rabatantal[$x]) {
+		if ($rabatantal[$x] > 0) {
 			list($grupperabat, $rabattype) = explode(";", grupperabat($rabatantal[$x], $rabatgruppe[$x]));
 			if ($grupperabat) {
 				$pos++;
@@ -184,13 +184,17 @@ if ($status < 3) {
 					$qtxt = "update ordrelinjer set rabat = '$rabat[$x]', rabatart = '$rabattype' ";
 					$qtxt.= "where rabatgruppe = '$rabatgruppe[$x]' and ordre_id = '$id'";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+					// Only apply group discount to lines that belong to the same rabatgruppe
 					for ($i=1;$i<=$x;$i++) {
-						$grpRb = afrund($pris[$i] * $antal[$i] * $grupperabat / 100, 2);
-						$sum+= $grpRb;
-						if (!$r_momsfri) {
-							$grpRbMoms = $grpRb*$varemomssats[$x]/100;
-							$moms+= $grpRbMoms;
-							$incl_moms+= $grpRb + $grpRbMoms;
+						// Only process lines that belong to this rabatgruppe
+						if ($rabatgruppe[$i] == $rabatgruppe[$x]) {
+							$grpRb = afrund($pris[$i] * $antal[$i] * $grupperabat / 100, 2);
+							$sum+= $grpRb;
+							if (!$r_momsfri) {
+								$grpRbMoms = $grpRb*$varemomssats[$x]/100;
+								$moms+= $grpRbMoms;
+								$incl_moms+= $grpRb + $grpRbMoms;
+							}
 						}
 					}
 				}
