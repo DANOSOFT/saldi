@@ -369,6 +369,13 @@ if ($ret_id) {
 		}
 	}
 	print "</select></td></tr>";
+	if($row['twofactor'] == 't') {
+		$twofactor = "checked";
+	} else {
+		$twofactor = "";
+	}
+
+	print "<tr><td>two factor authentication	</td><td><input class=\"inputbox\" type=\"checkbox\" name=\"twofactor\" $twofactor></td></tr>";
 	print "</tbody></table></td></tr>";
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";

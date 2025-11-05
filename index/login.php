@@ -497,6 +497,7 @@ if (!$dbMail && $db != $sqdb) {
 	$mainMail = $r['email'];
 } else $mainMail = $dbMail;
 # Check whether the user exsists
+
 if ($userId) {
 	$db_skriv_id=NULL;
 		if (!isset($sqhost) || !isset($dbuser) || !isset($sqpass) || !isset($sqdb)) {
@@ -529,7 +530,7 @@ if ($userId) {
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	if(isset($r["var_value"])) $nexmo_api_secret = $r["var_value"];
 
-	$userName = "revisor";
+	/* $userName = "revisor";
 	db_connect ("$sqhost", "$squser", "$sqpass", "$db");
 	$query = db_select("SELECT user_id FROM settings WHERE var_name = 'revisor' AND var_grp = 'system'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($query)) {
@@ -540,7 +541,7 @@ if ($userId) {
 		}
 	} else {
 		$userId = 0; // Default value if not found
-	}
+	} */
 	include("../includes/connect.php");
 	if (
 		!(($regnskab === 'test' && $brugernavn === 'test' && $password === 'test')) &&
@@ -765,8 +766,7 @@ if ($userId) {
 	} else {
 		$r = array("twofactor" => FALSE);
 	}
-echo $db_id;
-	if (isset($r["twofactor"])  && isset($tlf_num)) {
+	if (isset($r["twofactor"]) && $r["twofactor"] == 't') {
 		$json_data = file_get_contents('php://input');
 		$decoded_data = json_decode($json_data, true);
 							       
