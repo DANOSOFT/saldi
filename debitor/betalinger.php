@@ -102,18 +102,9 @@ if (isset($_POST['slet_ugyldige']) || isset($_POST['gem']) || isset($_POST['udsk
 	$ugyldig       = if_isset($_POST['ugyldig']);
 	$antal         = if_isset($_POST['antal']);
 
-	// Get default payment date from settings
-	$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
-	$defaultPayDate = date('dmY', strtotime("+$paymentDays days"));
-	
 	(substr($betalingsdato[1], -1) == '*') ? $allPayDates = str_replace('*', '', $betalingsdato[1]) : $allPayDates = NULL;
 	for ($x = 1; $x <= $antal; $x++) {
 		if ($allPayDates) $betalingsdato[$x] = $allPayDates;
-		
-		// Update payment date to default when "gem" or "slet_ugyldige" is clicked
-		if (isset($_POST['gem']) || isset($_POST['slet_ugyldige'])) {
-			$betalingsdato[$x] = $defaultPayDate;
-		}
 		
 		if ($slet_ugyldige && $ugyldig[$x] == $id[$x]) $slet[$x] = 'on';
 		elseif (!isset($slet[$x])) $slet[$x] = NULL;
@@ -165,7 +156,7 @@ if ($menu=='T') {
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 	print "<form name='paylist' action='betalinger.php?liste_id=$liste_id' method = 'post'>";
 
-	print "<td width='10%'><a href=../debitor/betalingsliste.php accesskey=L>";
+	print "<td width='10%'><a href=.'./debitor/betalingsliste.php' accesskey=L>";
 	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt1</button></a></td>";
 
 	print "<td width='80%' style='$topStyle' align='center'>$txt2</td>";
@@ -277,11 +268,15 @@ if ($find) {
 				if ($id = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0]) {
 					$qtxt = "update betalinger set belob = '$amount' where id = '$id'";
 				} else {
+					// Get default payment date from settings
+					$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+					$defaultPayDate = date('dmY', strtotime("+$paymentDays days"));
+
 					$qtxt = "insert into betalinger";
 					$qtxt .= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
 					$qtxt .= "values ";
 					$qtxt .= "('ERH356','$myBank','" . db_escape_string($myRef) . "','" . db_escape_string($custBank) . "',";
-					$qtxt .= "'" . db_escape_string($custName) . "','" . db_escape_string($custRef) . "','$amount','$paydate',";
+					$qtxt .= "'" . db_escape_string($custName) . "','" . db_escape_string($custRef) . "','$amount','$defaultPayDate',";
 					$qtxt .= "'$currency', '0', '0','$liste_id')";
 				}
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
@@ -362,10 +357,13 @@ if ($find) {
 						$kort_ref = trim($kort_ref);
 					} else $kort_ref = $r['betal_id'];
 				}
+				// Get default payment date from settings
+				$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+				$defaultPayDate = date('dmY', strtotime("+$paymentDays days"));
 				$qtxt = "insert into betalinger";
 				$qtxt .= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) ";
 				$qtxt .= "values ";
-				$qtxt .= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$forfaldsdag',";
+				$qtxt .= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$defaultPayDate',";
 				$qtxt .= "'$valuta', '$bilag_id', '$ordre_id','$liste_id')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
