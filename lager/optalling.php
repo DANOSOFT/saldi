@@ -121,6 +121,7 @@ if ($slet && $vare_id && $varenr) {
 			}
 			if ($varenr) {
 				$qtxt = "select varenr from varer where lower(varenr) like '$varenr' or stregkode='$varenr'";
+				$qtxt.= " or varenr_alias like '$varenr' or lower(varenr_alias) like '$varenr'";
 				if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
 					$varenr = $r['varenr'];
 				else {
