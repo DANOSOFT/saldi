@@ -32,6 +32,11 @@ $s_id = session_id();
 #print '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">';
 #print '</head>';
 
+// Prevent caching of this page
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
@@ -54,6 +59,10 @@ $ordre_id    = if_isset($_GET['id'], 0);
 $indbetaling = if_isset($_GET['indbetaling'], 0);
 $return_url = if_isset($_GET['return_url'], 'pos_ordre.php');
 $kasse = $_COOKIE['saldi_pos'];
+
+// Build the return URL base with all parameters except cardscheme (which is added in JS)
+$return_url_base = '../' . $return_url;
+$return_url_params = '?id=' . urlencode($ordre_id) . '&godkendt=OK&indbetaling=' . urlencode($indbetaling) . '&amount=' . urlencode($raw_amount) . '&modtaget=' . urlencode($raw_amount);
 
 // Log initialization
 writeLog("Lane3000 payment started - Amount: $raw_amount, Order ID: $ordre_id, Kasse: $kasse, Session: $s_id");
@@ -138,7 +147,7 @@ function countdown(i) {
 
 const failed = (event) => {
     logToServer('User clicked failed/back button', 'INFO');
-    window.location.replace('../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=afvist')
+    window.location.replace('../<?php print $return_url; ?>?id=<?php print urlencode($ordre_id); ?>&godkendt=afvist')
 }
 
 // Variable used to check weather or not to leave the page
@@ -160,7 +169,7 @@ function leave(cardScheme) {
         setTimeout(function() { leave(cardScheme); }, 2500);
     } else {
         logToServer(`Payment successful, redirecting with card scheme: ${cardScheme}`, 'INFO');
-        window.location.replace(`../<?php print $return_url; ?>?id=<?php print $ordre_id; ?>&godkendt=OK&indbetaling=<?php print $indbetaling; ?>&amount=<?php print $raw_amount; ?>&cardscheme=${cardScheme}&modtaget=<?php print $raw_amount; ?>`);
+        window.location.replace('<?php print $return_url_base . $return_url_params; ?>&cardscheme=' + encodeURIComponent(cardScheme));
     }
 }
 
