@@ -519,7 +519,38 @@ if (!function_exists('find_form_tekst')) {
 		elseif ($side != "1")
 			$qtxt = "select * from formularer where formular = $formular and (side = 'A' or side = '!1') and lower(sprog)='$formularsprog' $pos_part order by xb, xa";
 		$query = db_select("$qtxt", __FILE__ . " linje " . __LINE__);
+		
+		// Check if PBS is set and setting is enabled to replace payment instructions
+		$pbs_replace_payment_text = false;
+		if ($id) {
+			$qtxt_pbs = "select pbs, udskriv_til from ordrer where id = '$id'";
+			$r_pbs = db_fetch_array(db_select($qtxt_pbs, __FILE__ . " linje " . __LINE__));
+			$pbs_check = trim($r_pbs['pbs']);
+			if ($pbs_check && ($pbs_check == 'BS' || $pbs_check == 'FI' || strstr($r_pbs['udskriv_til'], 'PBS'))) {
+				$qtxt_setting = "select var_value from settings where var_name = 'pbs_auto_email' and var_grp = 'invoice_settings'";
+				$r_setting = db_fetch_array(db_select($qtxt_setting, __FILE__ . " linje " . __LINE__));
+				if ($r_setting && $r_setting['var_value'] == 'on') {
+					$pbs_replace_payment_text = true;
+				}
+			}
+		}
+		
 		while ($row = db_fetch_array($query)) {
+			// Handle specific payment instruction formularer IDs when PBS is set
+			// Groups: (546, 1911, 2611) = first line, (539, 1882, 2582) = second line, (559, 1883, 2583) = third line
+			// Show all three IDs from the first group (546, 1911, 2611) with PBS text, hide all others
+			if ($pbs_replace_payment_text) {
+				$formularer_id = $row['id'];
+				if ($formularer_id == 546 || $formularer_id == 1911 || $formularer_id == 2611) {
+					// Replace with PBS message for all IDs from the first group
+					$row['beskrivelse'] = 'Fakturaen er tilmeldt betalingsservice';
+				} elseif ($formularer_id == 539 || $formularer_id == 1882 || $formularer_id == 2582 ||
+				          $formularer_id == 559 || $formularer_id == 1883 || $formularer_id == 2583) {
+					// Hide all IDs from the second and third groups
+					$row['beskrivelse'] = '';
+					$udskriv = 0;
+				}
+			}
 			$z = -1;
 			$y = 0;
 			$streng = array();
@@ -1146,6 +1177,46 @@ if (!function_exists('formularprint')) {
 					$udskriv_til = $row['udskriv_til'];
 				else
 					$udskriv_til = $udskriv_alle_til;
+				
+				// Check if PBS is set and setting is enabled to automatically send email
+				$pbs = trim($row['pbs']);
+				$debug_file = "../temp/$db/pbs_email_debug.log";
+				$debug_msg = "\n" . date("Y-m-d H:i:s") . " - formfunk.php PBS Email Debug for order ID: $ordre_id[$o]\n";
+				$debug_msg .= "PBS value: " . var_export($pbs, true) . "\n";
+				$debug_msg .= "udskriv_til: " . var_export($udskriv_til, true) . "\n";
+				$debug_msg .= "udskriv_alle_til: " . var_export($udskriv_alle_til, true) . "\n";
+				
+				if ($pbs && ($pbs == 'BS' || $pbs == 'FI' || strstr($row['udskriv_til'], 'PBS'))) {
+					$debug_msg .= "PBS condition met\n";
+					$qtxt_setting = "select var_value from settings where var_name = 'pbs_auto_email' and var_grp = 'invoice_settings'";
+					$r_setting = db_fetch_array(db_select($qtxt_setting, __FILE__ . " linje " . __LINE__));
+					$debug_msg .= "Setting query: $qtxt_setting\n";
+					$debug_msg .= "Setting result: " . var_export($r_setting, true) . "\n";
+					$debug_msg .= "Order email: " . var_export($row['email'], true) . "\n";
+					$debug_msg .= "Status: " . var_export($status, true) . "\n";
+					$debug_msg .= "Art: " . var_export($art, true) . "\n";
+					
+					if ($r_setting && $r_setting['var_value'] == 'on' && $row['email'] && $status >= 3 && $art == 'DO') {
+						$debug_msg .= "All conditions met - setting mail_fakt to 'on'\n";
+						// Automatically set mail_fakt to send email
+						$mail_fakt = 'on';
+						if (!$udskriv_alle_til && $udskriv_til != 'email') {
+							$debug_msg .= "Changing udskriv_til from '$udskriv_til' to 'email'\n";
+							$udskriv_til = 'email';
+						}
+						$debug_msg .= "Final mail_fakt: " . var_export($mail_fakt, true) . "\n";
+						$debug_msg .= "Final udskriv_til: " . var_export($udskriv_til, true) . "\n";
+					} else {
+						$debug_msg .= "Conditions NOT met:\n";
+						$debug_msg .= "  - Setting enabled: " . ($r_setting && $r_setting['var_value'] == 'on' ? 'YES' : 'NO') . "\n";
+						$debug_msg .= "  - Has email: " . ($row['email'] ? 'YES (' . $row['email'] . ')' : 'NO') . "\n";
+						$debug_msg .= "  - Status >= 3: " . ($status >= 3 ? 'YES (' . $status . ')' : 'NO (' . $status . ')') . "\n";
+						$debug_msg .= "  - Art == DO: " . ($art == 'DO' ? 'YES (' . $art . ')' : 'NO (' . $art . ')') . "\n";
+					}
+				} else {
+					$debug_msg .= "PBS condition NOT met\n";
+				}
+				file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 				if ($udskriv_til == 'ingen') { #20170501
 					return 'OK';
 					exit;

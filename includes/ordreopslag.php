@@ -46,6 +46,53 @@ $egen_bank_konto=trim ($row['bank_konto']);
 if ($id) {
   $query = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
   $row = db_fetch_array($query);
+  
+  // Check if PBS is set and if setting is enabled to replace payment info
+  $pbs = trim($row['pbs']);
+  
+  // Debug logging - always log to see if this code is reached
+  global $db;
+  if (!isset($db)) {
+    // Try to get db from session or connection
+    if (isset($_SESSION['db'])) $db = $_SESSION['db'];
+    else {
+      // Get db from connection if available
+      if (isset($connection) && isset($connection['database'])) $db = $connection['database'];
+      else $db = 'unknown';
+    }
+  }
+  $debug_file = "../temp/$db/pbs_email_debug.log";
+  $debug_msg = "\n" . date("Y-m-d H:i:s") . " - ordreopslag.php: Entry point for order ID: $id\n";
+  $debug_msg .= "PBS value: " . var_export($pbs, true) . "\n";
+  $debug_msg .= "udskriv_til: " . var_export($row['udskriv_til'], true) . "\n";
+  $debug_msg .= "PBS condition check: " . var_export(($pbs && ($pbs == 'BS' || $pbs == 'FI' || strstr($row['udskriv_til'], 'PBS'))), true) . "\n";
+  
+  if ($pbs && ($pbs == 'BS' || $pbs == 'FI' || strstr($row['udskriv_til'], 'PBS'))) {
+      $debug_msg .= "PBS condition met - checking setting\n";
+      // Replace payment information with PBS text
+      $PBSSettings = get_settings_value("pbs_auto_email","invoice_settings","off");
+      
+      $debug_msg .= "Setting value: " . var_export($PBSSettings, true) . "\n";
+      $debug_msg .= "Before replacement:\n";
+      $debug_msg .= "  egen_bank_navn: " . var_export($egen_bank_navn, true) . "\n";
+      $debug_msg .= "  egen_bank_reg: " . var_export($egen_bank_reg, true) . "\n";
+      $debug_msg .= "  egen_bank_konto: " . var_export($egen_bank_konto, true) . "\n";
+      
+      if ($PBSSettings == 'on') {
+        $egen_bank_navn = '';
+        $egen_bank_reg = '';
+        $egen_bank_konto = 'Fakturaen er tilmeldt betalingsservice';
+        $debug_msg .= "After replacement:\n";
+        $debug_msg .= "  egen_bank_navn: " . var_export($egen_bank_navn, true) . "\n";
+        $debug_msg .= "  egen_bank_reg: " . var_export($egen_bank_reg, true) . "\n";
+        $debug_msg .= "  egen_bank_konto: " . var_export($egen_bank_konto, true) . "\n";
+      } else {
+        $debug_msg .= "Setting is not enabled - keeping original payment info\n";
+      }
+  } else {
+    $debug_msg .= "PBS condition NOT met - no replacement\n";
+  }
+  file_put_contents($debug_file, $debug_msg, FILE_APPEND);
   $firmanavn=trim($row['firmanavn']);
   $addr1=trim($row['addr1']);
   $addr2=trim($row['addr2']);

@@ -2155,6 +2155,24 @@ if ((strstr($b_submit,"Udskriv"))||(strstr($b_submit,"Send"))) {
 	} elseif (strstr($udskriv_til,'PBS')) {
 			include("pbsfakt.php");
 			pbsfakt($id);
+			// Check if setting is enabled to automatically send email for PBS invoices
+			$qtxt = "select var_value from settings where var_name = 'pbs_auto_email' and var_grp = 'invoice_settings'";
+			$r_setting = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($r_setting && $r_setting['var_value'] == 'on') {
+				// Get order information
+				$r = db_fetch_array(db_select("select email, status, art from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__));
+				if ($r['email'] && $r['status'] >= 3 && $r['art'] == 'DO') {
+					// Automatically send invoice as email
+					$mail_fakt = 'on';
+					$udskriv_til = 'email';
+					// Redirect to print invoice as email
+					if ($popup) {
+						print "<BODY onLoad=\"JavaScript:window.open('formularprint.php?id=$id&formular=4&udskriv_til=email&lagervarer=$lagervarer' ,'' ,'$jsvars');\">\n";
+					} else {
+						print "<meta http-equiv=\"refresh\" content=\"0;URL=formularprint.php?id=$id&formular=4&udskriv_til=email&lagervarer=$lagervarer\">\n";
+					}
+				}
+			}
 	}elseif($udskriv_til=="Digitalt" && $status >=3 && $art=="DO"){
 		$query = db_select("SELECT * FROM settings WHERE var_name = 'companyID' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 		if(db_num_rows($query) <= 0){

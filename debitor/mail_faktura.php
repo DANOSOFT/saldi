@@ -28,8 +28,19 @@ ini_set("include_path", ".:../phpmailer");
 require("class.phpmailer.php");
 		
 for($x=1;$x<=$mailantal;$x++) {
+	$debug_file = "../temp/$db/pbs_email_debug.log";
+	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - mail_faktura.php: Processing email $x of $mailantal\n";
+	$debug_msg .= "PDF file: ../temp/$db/$pfliste[$x].pdf\n";
+	$debug_msg .= "Email: " . var_export($email[$x], true) . "\n";
+	$debug_msg .= "Language: " . var_export($mailsprog[$x], true) . "\n";
+	$debug_msg .= "Form number: " . var_export($form_nr[$x], true) . "\n";
+	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
+	
 	system ("/usr/bin/ps2pdf ../temp/$db/$pfliste[$x] ../temp/$db/$pfliste[$x].pdf");
-	send_mails("../temp/$db/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);	
+	$result = send_mails("../temp/$db/$pfliste[$x].pdf",$email[$x],$mailsprog[$x],$form_nr[$x]);
+	
+	$debug_msg = "\n" . date("Y-m-d H:i:s") . " - mail_faktura.php: send_mails() returned: " . var_export($result, true) . "\n";
+	file_put_contents($debug_file, $debug_msg, FILE_APPEND);
 #	unlink("../temp/$db/$pfliste[$x]");
 #	unlink("../temp/$db/$pfliste[$x].pdf");
 }
