@@ -638,11 +638,17 @@ for ($x=0;$x<$vis_feltantal;$x++) {
 }
 if ($udvaelg) $linjeantal=10000;
 // Validate and sanitize sort field to prevent SQL errors
-if (!$sortering || $sortering == 'Array' || trim($sortering) == '') {
+// Remove any existing "ordrer." prefix first to check the actual field name
+$sortering_temp = str_replace("ordrer.", "", $sortering);
+if (!$sortering || $sortering_temp == 'Array' || strtolower($sortering_temp) == 'array' || trim($sortering_temp) == '') {
 	$sortering = 'ordrenr desc';
 }
 // Remove any existing "ordrer." prefix to avoid duplication
 $sortering = str_replace("ordrer.", "", $sortering);
+// Double-check after prefix removal to catch any remaining Array values
+if (strtolower($sortering) == 'array' || trim($sortering) == '') {
+	$sortering = 'ordrenr desc';
+}
 if (strstr($sortering,'fakturanr')) {
 	if ($db_type=='mysql' or $db_type=='mysqli') { #RG_mysqli
 		$sortering=str_replace("fakturanr","CAST(ordrer.fakturanr AS SIGNED)",$sortering); 
