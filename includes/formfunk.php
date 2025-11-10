@@ -542,17 +542,21 @@ if (!function_exists('find_form_tekst')) {
 			if ($pbs_replace_payment_text) {
 				$formularer_id = $row['id'];
 				if ($formularer_id == 546 || $formularer_id == 1911 || $formularer_id == 2611) {
-					// Replace with PBS message for all IDs from the first group
-					$row['beskrivelse'] = 'Fakturaen er tilmeldt betalingsservice';
+					// Hide all IDs from the first group
+					$row['beskrivelse'] = '';
+					$udskriv = 0;
 				} elseif ($formularer_id == 539 || $formularer_id == 1882 || $formularer_id == 2582 ||
 				          $formularer_id == 559 || $formularer_id == 1883 || $formularer_id == 2583) {
 					// Hide all IDs from the second and third groups
 					$row['beskrivelse'] = '';
 					$udskriv = 0;
 				}
-				if($formularer_id == 549 || $formularer_id == 1909 || $formularer_id == 2609 || $formularer_id == 850 || $formularer_id == 1910 || $formularer_id == 2610 || $formularer_id == 849 || $formularer_id == 1908 || $formularer_id == 2608 || $formularer_id == 520 || $formularer_id == 1907 || $formularer_id == 2607 || $formularer_id == 848 || $formularer_id == 1906 || $formularer_id == 2606 || $formularer_id == 521 || $formularer_id == 1905 || $formularer_id == 2605 || $formularer_id == 847 || $formularer_id == 1894 || $formularer_id == 2594 || $formularer_id == 525 || $formularer_id == 1893 || $formularer_id == 2593) {
+				if($formularer_id == 549 || $formularer_id == 1909 || $formularer_id == 2609 || $formularer_id == 850 || $formularer_id == 1910 || $formularer_id == 2610 || $formularer_id == 849 || $formularer_id == 1908 || $formularer_id == 2608 || $formularer_id == 520 || $formularer_id == 1907 || $formularer_id == 2607 || $formularer_id == 848 || $formularer_id == 1906 || $formularer_id == 2606 || $formularer_id == 521 || $formularer_id == 1905 || $formularer_id == 2605 || $formularer_id == 847 || $formularer_id == 1894 || $formularer_id == 2594) {
 					$row['beskrivelse'] = '';
 					$udskriv = 0;
+				}
+				if($formularer_id == 525 || $formularer_id == 1893 || $formularer_id == 2593){
+					$row['beskrivelse'] = 'Fakturaen er tilmeldt betalingsservice';
 				}
 			}
 			$z = -1;
