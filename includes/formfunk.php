@@ -550,6 +550,10 @@ if (!function_exists('find_form_tekst')) {
 					$row['beskrivelse'] = '';
 					$udskriv = 0;
 				}
+				if($formularer_id == 549 || $formularer_id == 1909 || $formularer_id == 2609 || $formularer_id == 850 || $formularer_id == 1910 || $formularer_id == 2610 || $formularer_id == 849 || $formularer_id == 1908 || $formularer_id == 2608 || $formularer_id == 520 || $formularer_id == 1907 || $formularer_id == 2607 || $formularer_id == 848 || $formularer_id == 1906 || $formularer_id == 2606 || $formularer_id == 521 || $formularer_id == 1905 || $formularer_id == 2605 || $formularer_id == 847 || $formularer_id == 1894 || $formularer_id == 2594 || $formularer_id == 525 || $formularer_id == 1893 || $formularer_id == 2593) {
+					$row['beskrivelse'] = '';
+					$udskriv = 0;
+				}
 			}
 			$z = -1;
 			$y = 0;
