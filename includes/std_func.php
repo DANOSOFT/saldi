@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/std_func.php --- patch 4.1.1 --- 2025-08-11 ---
+// --- includes/std_func.php --- patch 4.1.1 --- 2025-11-06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -119,6 +119,7 @@
 // 20250405 LOE if_isset() updated and to check explicitly if array keys exist if they are arrays.
 // 20250630 PHR Minor change in transtjek
 // 20250811 PHR Another minor change in transtjek
+// 20251106 LOE Added z-index to tekstboks function
 include('stdFunc/dkDecimal.php');
 include('stdFunc/nrCast.php');
 include('stdFunc/strStartsWith.php');
@@ -1035,7 +1036,7 @@ if (!function_exists('tekstboks')) {
 			$bokshorisontal = '68%';
 
 
-		$boksindhold .= "\n<div id='" . $boksid . "' style='position:fixed; margin:10px; border:solid 4px " . $bokskant . "; padding:1px; background:" . $boksbaggrund . ";";
+		$boksindhold .= "\n<div id='" . $boksid . "' style='position:fixed; margin:10px; z-index:100; border:solid 4px " . $bokskant . "; padding:1px; background:" . $boksbaggrund . ";";
 		if ($bokstype === 'info')
 			$boksindhold .= " display:none;";
 		$boksindhold .= " top:" . $boksvertikal . "; left:" . $bokshorisontal . "; width:320px;'>\n";
