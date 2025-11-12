@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id=session_id();
-// --- debitor/pbs_liste.php --- patch 3.4.1 --- 2014.04.22 ---
+// --- debitor/pbs_liste.php --- patch 4.1.1 --- 2025.11.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@ $s_id=session_id();
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 //
-// 2014.04.22 Max ID øges med en hvis alle eksisterende er afsendt. # 20140422
+// 2014.04.22 Max ID øges med en hvis alle eksisterende er afsendt. # 20140422 
 
 $modulnr=5;
 $title="PBS Liste";
@@ -97,6 +97,14 @@ while ($r=db_fetch_array($q)) {
 	}
 */
 }
-print "</tbody></table>";
+print "</tbody></table>"; 
 ######################################################################################################################################
 ?>
+<style>
+	.headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
+</style>
