@@ -236,7 +236,7 @@ print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody
 if ($art!='KK') {
 	print "<td align=center><span title=\"".findtekst(1459, $sprog_id)."\">";
 	print "<input type='submit' style = 'width:120px;' value=\"".findtekst(1493, $sprog_id)."\" ";
-	print "name=\"copy' onclick=\"javascript:docChange = false;\"></span></td>";
+	print "name='copy' onclick=\"javascript:docChange = false;\"></span></td>";
 	print "<td align=center><span title=\"".findtekst(1505, $sprog_id)."\">";
 	print "<input type='submit' style = 'width:120px;' value=\"".findtekst(2014, $sprog_id)."\" ";
 	print "name = 'credit' onclick=\"javascript:docChange = false;\"></span></td>";
