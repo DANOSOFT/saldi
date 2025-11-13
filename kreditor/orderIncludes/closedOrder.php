@@ -26,7 +26,7 @@
 // 20221106 PHR - Various changes to fit php8 / MySQLi		
 // 20220629 MSC - Implementing new design
 // 20231219 MSC - Copy pasted new design into code
-// 20251113 PHR - Changed text 1001(Kredit) to 2014(Krediter)
+// 20251113 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
 	
 print "<input type=\"hidden\" name=\"konto_id\" value=$konto_id>";
 print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">";
