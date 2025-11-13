@@ -1,4 +1,4 @@
-<?php
+<?php //20251112
 		$dato = $dato_fra;
 		if ($dato_til)
 			$dato .= ":$dato_til";
@@ -11,7 +11,7 @@
 		$tekst4 = findtekst(440, $sprog_id);
 		$tekst5 = findtekst(451, $sprog_id);
 		$tekst6 = findtekst(452, $sprog_id);
-		$overlib1 = "<span class='CellComment'>$tekst1</span>";
+		$overlib1 = "<span class='CellComment'>$tekst1</span>"; 
 		$overlib2 = "<span class='CellComment'>$tekst3</span>";
 		$overlib3 = "<span class='CellComment'>$tekst5</span>";
 		print "<form name=\"regnskabsaar\" action=\"rapport.php\" method=\"post\">";
@@ -72,6 +72,11 @@
 			$tekst1 = findtekst(531, $sprog_id);
 			$tekst2 = findtekst(532, $sprog_id);
 			print "<td align='center' colspan='2'>";
+			###############
+			$teksT = findtekst(448, $sprog_id);
+			$teksS = "List of the 100 creditors with the highest turnover in the last 12 months.";
+			print "<td align='center'><span title='$teksS' onClick=\"window.location.href='top100.php'\"><input style='width:115px' type='button' value='$teksT' name='top100'></span></td>";
+			###############
 			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'", __FILE__ . " linje " . __LINE__))) {
 				print "<span onClick='javascript:location.href='../kreditor/betalingsliste.php''>\n";
 				print "<input title='$tekst1' style='width:150px' type='button' value='$tekst2'>\n";

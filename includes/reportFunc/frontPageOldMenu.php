@@ -1,4 +1,4 @@
-<?php
+<?php //20251112
 	$butStyle = "border:1;border-color:#fefefe;border-radius:7px;width:115px;height:35px;background:url('../img/stor_knap_bg.gif');";
 #	$butStyle.= "color:white;background-color:$butCol";
 
@@ -32,7 +32,7 @@
 		$tekst1 = findtekst('443|Kontokort', $sprog_id);
 		$tekst2 = findtekst('446|Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.', $sprog_id);
 		print "<td align=center><input style=\"$butStyle\" type='submit' value='$tekst1' name='kontokort' title='$tekst2'></td></tr>";
-		if ($kontoart == 'D')
+		#if ($kontoart == 'D')
 			print "<tr><td colspan='6'><hr></td></tr>";
 		if ($kontoart == 'D') {
 			$tekst1 = findtekst('447|Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.', $sprog_id);
@@ -64,6 +64,19 @@
 		} else {
 			$tekst1 = findtekst('531|Betalingslister til bank', $sprog_id);
 			$tekst2 = findtekst('532|Betalingslister', $sprog_id);
+			##########
+			$tekT = findtekst('448|Top 100', $sprog_id);
+			$teksS = "List of the 100 creditors with the highest turnover in the last 12 months.";
+			print "<tr>";
+			if ($popup) {
+				print "<td align=center><span onClick=\"javascript:top100=window.open('top100.php','top100','$jsvars');top100.focus();\" title='a $teksS'><input style=\"$butStyle\" type=submit value='$tekT' name='submit'></span></td>";
+				
+			} else {
+				print "<td align=center><span title='$teksS' onClick=\"window.location.href='top100.php'\"><input style=\"$butStyle\" type=button value='$tekT' name='submit'></span></td>";
+				
+			}
+			print "</tr>\n";
+			##########
 			print "<tr><td><br></td></tr>\n";
 			print "<tr><td></td><td align=center>\n";
 			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'", __FILE__ . " linje " . __LINE__))) {
@@ -113,7 +126,7 @@
 					"locale": "da"
 				});
 
-				dateTimeToPicker = flatpickr(dateTimeTo, {
+				dateTimeToPicker = flatpickr(dateTimeTo, { 
 					altInput: true,
 					altFormat: "j. F Y",
 					dateFormat: "Y-m-d",
