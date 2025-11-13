@@ -217,8 +217,8 @@ print "&nbsp;<span title='".findtekst(1656, $sprog_id)."'>0 ".strtolower(findtek
 print "<td  colspan=6 align=right><input type=submit value=OK></form></td></tr>";
 print "<tr><td colspan=9><hr></td></tr>";
 print "<tr><td width=8%>".findtekst(917, $sprog_id).".</td><td width=5%>".findtekst(945, $sprog_id)."</td><td width=48%>".findtekst(914, $sprog_id)."</td>
-	<td align=right width=5%><span title='".findtekst(1657, $sprog_id)." $dato'>".findtekst(977, $sprog_id)."</span></td>
-	<td align=right width=5%><span title='".findtekst(1658, $sprog_id)." $dato'>".findtekst(974, $sprog_id)."</span></td>
+	<td align=right width=5%><span title='".findtekst(1657, $sprog_id)." $dato'>".findtekst('2744|Tilgang', $sprog_id)."</span></td>
+	<td align=right width=5%><span title='".findtekst(1658, $sprog_id)." $dato'>".findtekst('2745|Afgang', $sprog_id)."</span></td>
 	<td align=right width=5%><span title='".findtekst(1659, $sprog_id).". $dato'>".findtekst(916, $sprog_id)."</span></td>
 	<td align=right width=8%><span title='".findtekst(1660, $sprog_id)."'>".findtekst(978, $sprog_id)."</span></td>
 	<td align=right width=8%><span title='".findtekst(1661, $sprog_id)."'>".findtekst(950, $sprog_id)."</span></td>

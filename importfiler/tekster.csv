@@ -2741,8 +2741,8 @@
 2741	Sæt en * i slutningen af datoen i det øverste datofelt for at sætte alle datoer til denne dato. F.eks.: 01042021*	Add an * at the end of the date in the top date field to apply this date to all entries. For example: 01042021*	Sett en * på slutten av datoen i det øverste datofeltet for å sette alle datoer til denne datoen. For eksempel: 01042021*
 2742	Betalingstype	Payment type	Betalingstype
 2743	Modtager	Recipient	Mottaker
-2744	
-2745	
+2744	Tilgang	Inbound	Tilgang
+2745	Afgang	Outbound	Avgang
 2746	
 2747	
 2748	
