@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-08-15---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-11-13---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,8 @@
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20250715 PHR Removed '//' at line above '/* saul ??'
 // 20250908 LOE Moved kontoosplag function to ../includes/kreditorOrderFuncIncludes/accountLookup.php
+// 20251113 PHR	Added some undefined vareables
+
 @session_start();
 $s_id=session_id();
 
@@ -1057,11 +1059,11 @@ function ordreside($id) {
 	global $db,$fokus;
 	global $krediteret;
 	global $labelprint;
-	global $momssum;
+	global $menu,$momssum;
 	global $returside,$regnaar;
 	global $sort,$sprog_id,$submit;
 
-	$lager = $betalingsdage = $gruppe = $kred_ord_id = $konto_id = $momssats = $ordrenr = $status = 0;
+	$lager = $betalingsdage = $fakturanr = $gruppe = $kred_ord_id = $konto_id = $momssats = $ordrenr = $status = 0;
 	$addr1 = $addr2 = $betalingsbet = $bynavn = $cvrnr = $firmanavn = $kontakt = $kontonr = $land = '';
 	$lev_navn = $lev_addr1 = $lev_addr2 = $lev_bynavn = $lev_kontakt = $lev_postnr = $levdato = '';
 	$momssats = $omlev = $ordredato = $postnr = $ref = $valuta = $vis_projekt = '';
@@ -1174,7 +1176,7 @@ function prepareSearchTerm($searchTerm) {
 		if ($status<3) $fokus='vare0';
 		else $fokus='';
 	}
-	$x=0;
+	$x = 0;
 	if ($r=db_fetch_array(db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))) {
 		$q2=db_select("select navn from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
 			while ($r2=db_fetch_array($q2)) {
@@ -1182,7 +1184,8 @@ function prepareSearchTerm($searchTerm) {
 			$x++;
 		} 
 	} else alert ("Stamdata mangler");
-	$x=0;
+	$x = 0;
+	$lager_nr = array();
 	$q=db_select("select kodenr,beskrivelse from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$lager_nr[$x]=$r['kodenr'];
