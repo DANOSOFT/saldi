@@ -51,6 +51,8 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
 include("../includes/topline_settings.php");
+include("../includes/grid.php");
+
 include_once '../includes/oldDesign/header.php';
 
 $icon_regnskab = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M319-250h322v-60H319v60Zm0-170h322v-60H319v60ZM220-80q-24 0-42-18t-18-42v-680q0-24 18-42t42-18h361l219 219v521q0 24-18 42t-42 18H220Zm331-554v-186H220v680h520v-494H551ZM220-820v186-186 680-680Z"/></svg>';
