@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-12--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-13--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -341,7 +341,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $firma = if_isset($_POST['firma'], NULL);
         $kontoid = if_isset($_POST['kontoid'], $kontoid);
         $firmanavn_ant = if_isset($_POST['firmanavn_antal'], NULL);
-    } elseif (isset($_POST["clear"])) {
+    } elseif (isset($_POST["clear"])) { 
         // Clear all search criteria
         $find = array();
         $konto_id = NULL;
@@ -349,6 +349,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $kontoid = NULL;
         $firma = NULL;
         $firmanavn_ant = NULL;
+        $datagrid_id = if_isset($_POST, NULL, 'datagrid_id');
+
+        if ($datagrid_id) {
+            // Clear datagrid filters
+            db_modify("delete from datatables where tabel_id = '$datagrid_id' and user_id = '$bruger_id'", __FILE__ . " linje " . __LINE__);
+            
+        }
         
         // Clear the stored search criteria in the database
         $qtxt = "update grupper set box9='' where art = 'OLV' and kode='$valg' and kodenr = '$bruger_id'";
@@ -736,84 +743,84 @@ $columns[] = array(
 );
 
 
-
-$columns[] = array(
-    "field" => "betalt",
-    "headerName" => "Betalt", 
-    "width" => "0.3",
-    "type" => "dropdown",
-    "align" => "center",
-    "searchable" => true,
-    "hidden" => ($valg != "faktura"),
+#To be revised later when needed
+// $columns[] = array(
+//     "field" => "betalt",
+//     "headerName" => "Betalt", 
+//     "width" => "0.3",
+//     "type" => "dropdown",
+//     "align" => "center",
+//     "searchable" => true,
+//     "hidden" => ($valg != "faktura"),
     
-    // Dropdown with clear labels
-    "dropdownOptions" => function() {
-        return array(
-            '' => '',      // Empty = show all
-            '0' => '0',    // Unpaid
-            '1' => '1'     // Paid
-        );
-    },
+//     // Dropdown with clear labels
+//     "dropdownOptions" => function() {
+//         return array(
+//             '' => '',      // Empty = show all
+//             '0' => '0',    // Unpaid
+//             '1' => '1'     // Paid
+//         );
+//     },
     
-    // Custom search - UPDATED to match the new query logic
-    "generateSearch" => function($column, $term) use ($valg) {
-        $term = trim($term);
+//     // Custom search - UPDATED to match the new query logic
+//     "generateSearch" => function($column, $term) use ($valg) {
+//         $term = trim($term);
         
-        // Only apply payment search for faktura views
-        if ($term === '' || $valg != "faktura") {
-            return "1=1"; // Show all for non-invoice views or empty search
-        }
+//         // Only apply payment search for faktura views
+//         if ($term === '' || $valg != "faktura") {
+//             return "1=1"; // Show all for non-invoice views or empty search
+//         }
         
-        // Build the same CASE logic used in the SELECT (updated version)
-        $case_sql = "
-            CASE 
-                WHEN o.status >= 3 THEN
-                    CASE 
-                        WHEN EXISTS (
-                            SELECT 1 FROM openpost op 
-                            WHERE op.faktnr = o.fakturanr::text 
-                            AND op.konto_id = o.konto_id 
-                            AND ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
-                            AND op.udlignet = '1'
-                        ) THEN 1
-                        WHEN o.betalt = '1' THEN 1
-                        ELSE 0
-                    END
-                ELSE 0
-            END
-        ";
+//         // Build the same CASE logic used in the SELECT (updated version)
+//         $case_sql = "
+//             CASE 
+//                 WHEN o.status >= 3 THEN
+//                     CASE 
+//                         WHEN EXISTS (
+//                             SELECT 1 FROM openpost op 
+//                             WHERE op.faktnr = o.fakturanr::text 
+//                             AND op.konto_id = o.konto_id 
+//                             AND ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+//                             AND op.udlignet = '1'
+//                         ) THEN 1
+//                         WHEN o.betalt = '1' THEN 1
+//                         ELSE 0
+//                     END
+//                 ELSE 0
+//             END
+//         ";
         
-        if ($term === '0') {
-            return "($case_sql = 0)";
-        } elseif ($term === '1') {
-            return "($case_sql = 1)";
-        }
+//         if ($term === '0') {
+//             return "($case_sql = 0)";
+//         } elseif ($term === '1') {
+//             return "($case_sql = 1)";
+//         }
         
-        return "1=1";
-    },
+//         return "1=1";
+//     },
     
-    // Render with icons and colors
-    "render" => function ($value, $row, $column) use ($valg) {
-        if ($valg != "faktura") {
-            return "<td align='$column[align]'>-</td>";
-        }
+//     // Render with icons and colors
+//     "render" => function ($value, $row, $column) use ($valg) {
+//         if ($valg != "faktura") {
+//             return "<td align='$column[align]'>-</td>";
+//         }
         
-        // The 'udlignet' field from query already has the calculated value
-        $is_paid = (intval($row['udlignet']) === 1);
+//         // The 'udlignet' field from query already has the calculated value
+//         $is_paid = (intval($row['udlignet']) === 1);
         
-        if ($is_paid) {
-            $icon = "✓";
-            $color = "#008000"; // Green
-            $title = "Betalt";
-        } else {
-            $icon = "✗";
-            $color = "#FF0000"; // Red
-            $title = "Ubetalt";
-        }
+//         if ($is_paid) {
+//             $icon = "✓";
+//             $color = "#008000"; // Green
+//             $title = "Betalt";
+//         } else {
+//             $icon = "✗";
+//             $color = "#FF0000"; // Red
+//             $title = "Ubetalt";
+//         }
         
-        return "<td align='$column[align]' style='color: $color; font-weight: bold; font-size: 16px;' title='$title'>$icon</td>";
-    }
-);
+//         return "<td align='$column[align]' style='color: $color; font-weight: bold; font-size: 16px;' title='$title'>$icon</td>";
+//     }
+// );
 
 $columns[] = array(
     "field" => "betalingsbet",
@@ -1245,39 +1252,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // Handle other actions
 
-    #Setup paid or unpaid invoice
-    if ($submit == "Mark as paid" || $submit == "Mark as unpaid") {
-        $action = ($submit == "Mark as paid") ? 'paid' : 'unpaid'; 
-        $updated_count = 0;
+    #Setup paid or unpaid invoice// enable when needed
+    // if ($submit == "Mark as paid" || $submit == "Mark as unpaid") {
+    //     $action = ($submit == "Mark as paid") ? 'paid' : 'unpaid'; 
+    //     $updated_count = 0;
     
-        foreach ($checked_orders as $order_id => $value) {
-            if ($value == "on") {
-                // Update ordrer.betalt
-                $new_value = ($action == 'paid') ? '1' : '0';
+    //     foreach ($checked_orders as $order_id => $value) {
+    //         if ($value == "on") {
+    //             // Update ordrer.betalt
+    //             $new_value = ($action == 'paid') ? '1' : '0';
                 
-                db_modify("UPDATE ordrer SET betalt = '$new_value' WHERE id = '$order_id'", __FILE__ . " linje " . __LINE__);
+    //             db_modify("UPDATE ordrer SET betalt = '$new_value' WHERE id = '$order_id'", __FILE__ . " linje " . __LINE__);
                 
-                // Update openpost if exists
-                $r = db_fetch_array(db_select("SELECT fakturanr, konto_id FROM ordrer WHERE id = '$order_id'", __FILE__ . " linje " . __LINE__));
+    //             // Update openpost if exists
+    //             $r = db_fetch_array(db_select("SELECT fakturanr, konto_id FROM ordrer WHERE id = '$order_id'", __FILE__ . " linje " . __LINE__));
             
-                if ($r['fakturanr']) {
-                    db_modify("UPDATE openpost SET udlignet = '$new_value' 
-                            WHERE faktnr = '{$r['fakturanr']}' AND konto_id = '{$r['konto_id']}'", 
-                            __FILE__ . " linje " . __LINE__);
-                }
+    //             if ($r['fakturanr']) {
+    //                 db_modify("UPDATE openpost SET udlignet = '$new_value' 
+    //                         WHERE faktnr = '{$r['fakturanr']}' AND konto_id = '{$r['konto_id']}'", 
+    //                         __FILE__ . " linje " . __LINE__);
+    //             }
                 
-                $updated_count++;
-            }
-        }
+    //             $updated_count++;
+    //         }
+    //     }
         
-        $msg = ($action == 'paid') ? "markeret som betalt" : "markeret som ubetalt";
-        echo "<script>
-            alert('$updated_count fakturaer $msg');
-            window.location.href = document.referrer;
-        </script>";
+    //     $msg = ($action == 'paid') ? "markeret som betalt" : "markeret som ubetalt";
+    //     echo "<script>
+    //         alert('$updated_count fakturaer $msg');
+    //         window.location.href = document.referrer;
+    //     </script>";
 
 
-    }
+    // }
 
     //
 
@@ -1468,8 +1475,8 @@ if ($valg == "faktura") {
     print "<input type='submit' name='submit' value='Genfakturer' class='button blue small'> ";
     print "<input type='submit' name='submit' value='Send mails' class='button blue small' onclick=\"return confirm('".findtekst('1444|Er du sikker på at du vil udsende de valgte', $sprog_id)." ".findtekst('893|faktura', $sprog_id)." pr mail?')\"> ";
     //option to set whether payment has been settled or not
-    print "<input type='submit' name='submit' value='Mark as paid' class='button green small'> ";
-    print "<input type='submit' name='submit' value='Mark as unpaid' class='button red small'> ";
+    // print "<input type='submit' name='submit' value='Mark as paid' class='button green small'> ";
+    // print "<input type='submit' name='submit' value='Mark as unpaid' class='button red small'> ";
 
     //
 } else {
@@ -1480,7 +1487,8 @@ if ($valg == "faktura") {
         print "<input type='submit' name='submit' value='".findtekst('1206|Ret', $sprog_id)."' class='button blue small' title='".findtekst('1437|Klik her for at rette detaljer i abonnementsordrer', $sprog_id)."'> ";
     }
 }
-
+//add hidden datagrid id field to update data
+print "<input type='hidden' name='datagrid_id' value='$grid_id'> ";
 // Clear search button
 print "<input type='submit' name='clear' value='".findtekst('2117|Ryd', $sprog_id)."' class='button blue small'>";
 
@@ -1617,125 +1625,157 @@ $ialt_m_moms_formatted = dkdecimal($ialt_m_moms, 2);
 print "<div style='margin-top: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 4px;'>";
 print "<table border='0' width='100%' style='width:100%;'><tbody>";
 
-if ($valg == "faktura") {
-    print "<tr>";
-    print "<td width='10%'></td>";
-    print "<td width='70%' align='right'>";
-    print "<span title='".findtekst('1438|Klik for at genberegne DB/DG', $sprog_id)."'>";
-    print "<b><a href='ordreliste.php?genberegn=1&valg=$valg' accesskey='G'>".findtekst('878|Samlet omsætning / db / dg (excl. moms.)', $sprog_id)."</a></b>";
-    print "</span>";
-    print "</td>";
-    print "<td width='20%' align='right'><b>$ialt_formatted / $dk_db / $dk_dg%</b></td>";
-    print "</tr>";
-    
-    print "<tr>";
-    print "<td width='10%'><br></td>";
-    print "<td width='70%' align='right'>";
-    print "<span title=''><b>".findtekst('877|Samlet omsætning inkl. moms', $sprog_id)."</b></span>";
-    print "</td>";
-    print "<td width='20%' align='right'><b>$ialt_m_moms_formatted</b></td>";
-    print "</tr>";
-} else {
-    print "<tr>";
-    print "<td width='20%'>";
-    if ($valg == "ordrer" && !$vis_lagerstatus) {
-        print "<span title='".findtekst('1443|Hold musen over de respektive ordrenumre for at se beholdninger mm', $sprog_id)."'>";
-        print "<a href=\"ordreliste.php?vis_lagerstatus=on&valg=$valg\">".findtekst('810|Vis lagerstatus', $sprog_id)."</a>";
+    if ($valg == "faktura") {
+        print "<tr>";
+        print "<td width='10%'></td>";
+        print "<td width='70%' align='right'>";
+        print "<span title='".findtekst('1438|Klik for at genberegne DB/DG', $sprog_id)."'>";
+        print "<b><a href='ordreliste.php?genberegn=1&valg=$valg' accesskey='G'>".findtekst('878|Samlet omsætning / db / dg (excl. moms.)', $sprog_id)."</a></b>";
         print "</span>";
+        print "</td>";
+        print "<td width='20%' align='right'><b>$ialt_formatted / $dk_db / $dk_dg%</b></td>";
+        print "</tr>";
+        
+        print "<tr>";
+        print "<td width='10%'><br></td>";
+        print "<td width='70%' align='right'>";
+        print "<span title=''><b>".findtekst('877|Samlet omsætning inkl. moms', $sprog_id)."</b></span>";
+        print "</td>";
+        print "<td width='20%' align='right'><b>$ialt_m_moms_formatted</b>";
+        print "</tr>";
+    } else {
+        
+        print "<tr>";
+        print "<td width='20%'>";
+        if ($valg == "ordrer" && !$vis_lagerstatus) {
+            print "<span title='".findtekst('1443|Hold musen over de respektive ordrenumre for at se beholdninger mm', $sprog_id)."'>";
+            print "<a href=\"ordreliste.php?vis_lagerstatus=on&valg=$valg\">".findtekst('810|Vis lagerstatus', $sprog_id)."</a>";
+            print "</span>";
+        }
+        print "</td>";
+        print "<td width='70%' align='right'>".findtekst('811|Samlet omsætning incl./excl. Moms', $sprog_id)."<br>db / dg (excl. moms.)</td>";
+        print "<td width='20%' align='right'><b>$ialt_m_moms_formatted ($ialt_formatted)<br>$dk_db / $dk_dg%</b></td>";
+        print "</tr>";
+
+        ##############
+        print "<tr><td colspan='3'>";
+        if ($valg == "ordrer") {
+                $r = db_fetch_array(db_select("select box1 from grupper where art='MFAKT' and kodenr='1'", __FILE__ . " linje " . __LINE__));
+                if($r) {
+                    if ($r['box1'] && $ialt != "0,00") {
+                        $tekst = "Faktur&eacute;r alt som kan leveres?";
+                        print "<div id='massefakt_div'>";
+                        print "<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href='csv2ordre.php' target=\"_blank\">CSV import</a></span>";
+                        print " | ";
+                        print "<span title='".findtekst('1440|Klik her for at fakturere alle ordrer på listen', $sprog_id)."'><a href='massefakt.php?valg=$valg' onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span>";
+                        print "</div>";
+                    } else {
+                        print "<div id='massefakt_div'>";
+                        if ($menu == 'T') {
+                            print "&nbsp;&nbsp;<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href='csv2ordre.php' target=\"_blank\">CSV import</a></span>";
+                        } else {
+                            print "<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href='csv2ordre.php' target=\"_blank\">CSV import</a></span>";
+                        }
+                        print "</div>";
+                    }
+                }
+            }
+        
+        #############
     }
-    print "</td>";
-    print "<td width='70%' align='right'>".findtekst('811|Samlet omsætning incl./excl. Moms', $sprog_id)."<br>db / dg (excl. moms.)</td>";
-    print "<td width='20%' align='right'><b>$ialt_m_moms_formatted ($ialt_formatted)<br>$dk_db / $dk_dg%</b></td>";
-    print "</tr>";
-}
+
+    ##############
+    // Shop integration features
+    if ($r = db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''", __FILE__ . " linje " . __LINE__))) {
+        $api_fil = trim($r['box4']);
+        $api_fil2 = trim($r['box5']);
+        $api_fil3 = trim($r['box6']);
+        
+        if (file_exists("../temp/$db/shoptidspkt.txt")) {
+            $fp = fopen("../temp/$db/shoptidspkt.txt", "r");
+            $tidspkt = fgets($fp);
+            fclose($fp);
+        } else {
+            $tidspkt = 0;
+        }
+        
+        $hent_nu = if_isset($_GET, NULL, 'hent_nu');
+        $shop_ordre_id = if_isset($_GET, NULL, 'shop_ordre_id');
+        $shop_faktura = if_isset($_GET, NULL, 'shop_faktura');
+        
+        if ($tidspkt < date("U") - 1200 || $shop_ordre_id || $shop_faktura) {
+            $fp = fopen("../temp/$db/shoptidspkt.txt", "w");
+            fwrite($fp, date("U"));
+            fclose($fp);
+            
+            $header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+            $api_txt = "$api_fil?put_new_orders=1";
+            
+            if ($shop_ordre_id && is_numeric($shop_ordre_id)) {
+                $api_txt .= "&order_id=$shop_ordre_id";
+            } elseif ($shop_faktura) {
+                $api_txt .= "&invoice=$shop_faktura";
+            }
+            
+            exec("nohup /usr/bin/wget -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+            
+            // Handle additional API files if they exist
+            if ($api_fil2) {
+                $api_txt2 = "$api_fil2?put_new_orders=1";
+                if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt2 .= "&order_id=$shop_ordre_id";
+                elseif ($shop_faktura) $api_txt2 .= "&invoice=$shop_faktura";
+                exec("nohup /usr/bin/wget -O - -q --no-check-certificate --header='$header' '$api_txt2' > /dev/null 2>&1 &\n");
+            }
+            
+            if ($api_fil3) {
+                $api_txt3 = "$api_fil3?put_new_orders=1";
+                if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt3 .= "&order_id=$shop_ordre_id";
+                elseif ($shop_faktura) $api_txt3 .= "&invoice=$shop_faktura";
+                exec("nohup /usr/bin/wget -O - -q --no-check-certificate --header='$header' '$api_txt3' > /dev/null 2>&1 &\n");
+            }
+        } elseif ($hent_nu) {
+            print "<script>alert('vent 30 sekunder');</script>";
+        }
+        
+        if($valg=="ordrer"){
+            $sort="ordredate";
+        print "<div id='shop_integration'>";
+        print "<a href=\"$_SERVER[PHP_SELF]?sort=$sort&hent_nu=1\">".findtekst('879|Hent fra shop', $sprog_id)."</a>";
+        print "</div>";
+        print "</td></tr>";
+        }else{
+        print "<tr> <td colspan='3'>";
+         if($valg=="faktura"){
+            $sort="fakturadate";
+        }
+        print "<div id='shop_integration'>";
+        print "<a href=\"$_SERVER[PHP_SELF]?sort=$sort&hent_nu=1\">".findtekst('879|Hent fra shop', $sprog_id)."</a>";
+        print "</div>";
+        print "</td></tr>";
+
+        }
+
+    }else{
+         print "</td></tr>";
+        
+    }
+
+    #############
+
+
 
 print "</tbody></table>";
 print "</div>";
 
-// Handle recalculate if needed
-if ($genberegn == 1) {
-    print "<meta http-equiv=\"refresh\" content=\"0;URL='ordreliste.php?genberegn=2&valg=$valg'\">";
-}
+    // Handle recalculate if needed
+    if ($genberegn == 1) {
+        print "<meta http-equiv=\"refresh\" content=\"0;URL='ordreliste.php?genberegn=2&valg=$valg'\">";
+    }
 
 
-if ($valg == "ordrer") {
-    $r = db_fetch_array(db_select("select box1 from grupper where art='MFAKT' and kodenr='1'", __FILE__ . " linje " . __LINE__));
-    if($r) {
-        if ($r['box1'] && $ialt != "0,00") {
-            $tekst = "Faktur&eacute;r alt som kan leveres?";
-            print "<div style='margin-top: 10px; padding: 5px;'>";
-            print "<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href='csv2ordre.php' target=\"_blank\">CSV import</a></span>";
-            print " | ";
-            print "<span title='".findtekst('1440|Klik her for at fakturere alle ordrer på listen', $sprog_id)."'><a href='massefakt.php?valg=$valg' onClick=\"return MasseFakt('$tekst')\">Faktur&eacute;r&nbsp;alt</a></span>";
-            print "</div>";
-        } else {
-            print "<div style='margin-top: 10px; padding: 5px;'>";
-            if ($menu == 'T') {
-                print "&nbsp;&nbsp;<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href='csv2ordre.php' target=\"_blank\">CSV import</a></span>";
-            } else {
-                print "<span title='".findtekst('1439|Klik her for at importere en csv fil', $sprog_id)."'><a href='csv2ordre.php' target=\"_blank\">CSV import</a></span>";
-            }
-            print "</div>";
-        }
-    }
-}
 
-// Shop integration features
-if ($r = db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''", __FILE__ . " linje " . __LINE__))) {
-    $api_fil = trim($r['box4']);
-    $api_fil2 = trim($r['box5']);
-    $api_fil3 = trim($r['box6']);
-    
-    if (file_exists("../temp/$db/shoptidspkt.txt")) {
-        $fp = fopen("../temp/$db/shoptidspkt.txt", "r");
-        $tidspkt = fgets($fp);
-        fclose($fp);
-    } else {
-        $tidspkt = 0;
-    }
-    
-    $hent_nu = if_isset($_GET, NULL, 'hent_nu');
-    $shop_ordre_id = if_isset($_GET, NULL, 'shop_ordre_id');
-    $shop_faktura = if_isset($_GET, NULL, 'shop_faktura');
-    
-    if ($tidspkt < date("U") - 1200 || $shop_ordre_id || $shop_faktura) {
-        $fp = fopen("../temp/$db/shoptidspkt.txt", "w");
-        fwrite($fp, date("U"));
-        fclose($fp);
-        
-        $header = "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
-        $api_txt = "$api_fil?put_new_orders=1";
-        
-        if ($shop_ordre_id && is_numeric($shop_ordre_id)) {
-            $api_txt .= "&order_id=$shop_ordre_id";
-        } elseif ($shop_faktura) {
-            $api_txt .= "&invoice=$shop_faktura";
-        }
-        
-        exec("nohup /usr/bin/wget -O - -q --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
-        
-        // Handle additional API files if they exist
-        if ($api_fil2) {
-            $api_txt2 = "$api_fil2?put_new_orders=1";
-            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt2 .= "&order_id=$shop_ordre_id";
-            elseif ($shop_faktura) $api_txt2 .= "&invoice=$shop_faktura";
-            exec("nohup /usr/bin/wget -O - -q --no-check-certificate --header='$header' '$api_txt2' > /dev/null 2>&1 &\n");
-        }
-        
-        if ($api_fil3) {
-            $api_txt3 = "$api_fil3?put_new_orders=1";
-            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt3 .= "&order_id=$shop_ordre_id";
-            elseif ($shop_faktura) $api_txt3 .= "&invoice=$shop_faktura";
-            exec("nohup /usr/bin/wget -O - -q --no-check-certificate --header='$header' '$api_txt3' > /dev/null 2>&1 &\n");
-        }
-    } elseif ($hent_nu) {
-        print "<script>alert('vent 30 sekunder');</script>";
-    }
-    
-    print "<div style='margin-top: 5px;'>";
-    print "<a href=\"$_SERVER[PHP_SELF]?sort=$sort&hent_nu=1\">".findtekst('879|Hent fra shop', $sprog_id)."</a>";
-    print "</div>";
-}
+
+
 
 // Additional API integration
  $r=db_fetch_array(db_select("select box2 from grupper where art='DIV' and kodenr='5'",__FILE__ . " linje " . __LINE__));
@@ -2027,3 +2067,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </script>
 
+<style>
+#massefakt_div, #shop_integration {
+    display: inline-block;
+    vertical-align: top;  
+    margin-right: 10px;   
+}
+
+</style>
