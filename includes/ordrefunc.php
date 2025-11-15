@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-10-07 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-11-15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,168 +24,6 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // -----------------------------------------------------------
 
-// 20120730 søg 20120730
-// 20120613 søg 20120613
-// 20120905 søg 20120905
-// 21021001 søg 20121001
-// 20121217 søg 20121217
-// 20130408 Samlevarer blev ikke nedskrevet ved salg - || salmevare=='on' fjernet fra if Søg 20130408
-// 20130411 fejl ved genfakturering hvis ordredato > fakturadato Søg 20130411
-// 20130411 fejl v fakturering hvis slutmaaned er et cifret  Søg 20130411-2
-// 20130506	Fjernet transaktionskontrol fra leveringsfunktion og rettet lidt omkring fejlhåndtering ved bogføring.Søg 20130506
-// 20130813	Kald til beholdningsopdatering ved "intern webshop" undertrykt Søg 20130813
-// 2013,08.20 Kontering på kassekonto og kreditkortkonto nu mulig v. kontantsalg. Søg variablen $openpost
-// 20130823 Fejl v. indbetaling på konto via POS ordre, hvis betaling med kreditkort og penge retur fra kasse. Søg $kassekonto i funktion bogfor_indbetaling.
-// 20130824	Indsat ($art!='PO' || $antal) i betingelser for opdatering af ordrelinje. Søg 20130824
-// 20130824	Tilføjet kasse_nr & $kasse i alle "insert into transaktioner" som vedrører POS ordrer.
-// 20130903	Ved insdættelse af vare fra shop med pris kr. 0 sættes pris fra vareliste. Er rettet. Søg 20130903
-// 20130916	Diverse ændringer i forhold til pos_ordrer.
-// 20130917 != ændret til == Søg #20130917
-// 20131001 Opdat beholdning blev ikke kaldt v. webshop.
-// 20131015 Tilføjet kontrol af status v. tilføjelse af ordrelinjer. 20131005
-// 20131105 Vender ikke tilbage til pos_ordre ved fejl. Søg 20131105
-// 20131111. Fejl i php på decimaltal, afrunding tilføjet inden diff beregning. søg 20131111
-// 20131129 Alle undervarer blev indsat ved kopiering af ordre med samlevare.Søg 20131129
-// 20131202 Sat afrunding på antal & leveret da det har været et tilfælde hvor levering ikke kunne ske. Søg 20131202
-// 20140115 Tilføjet && !$kontonr - Ellers bliver openpost ikke ført og der bogføres på kunden kontonummer i transaktioner og ikke på samlekontoen. Søg 20140115
-// 20140117 Rettet $kobs_valutakurs til $valutakurs da kursen ikke blev beregnet inden returnering af kostpris. Se også i ordrer.php. Sog 20140117 
-// 20140129 Indsat automatisk genkendelse af registrerede betalingskort, (Kun med integreret betalingsterminal) Søg 20140129, $kortnavn eller 'Betalingskort'
-// 20140131	Indsat popup ved som advarer ved indsættelse af vare som ikke kan leveres.20140131
-// 20140306	Oprettet funktion opret_ordre til sagstyring (PK - Herlev stilladser)
-// 20140306	Rettet funktion sidehoved, så sagsmenu virker (PK - Herlev stilladser) 
-// 20140306	Tilrettet funktion tekstopslag til sagstyring (PK - Herlev stilladser)
-// 20140424	Diverse tilretninger i forbindelse med procentfakturering (PHR - Danosoft) Søg 20140424a
-// 20140424	$art må ikke sættes her - bliver tom hvis der ikke er tilknyttet kunde (Pos kontantordre) (PHR - Danosoft) Søg 20140424b
-// 20140425 Fejl hvis sagssystem ikke er oprettet.(PHR - Danosoft) søg 20140425
-// 20140426 Tilføjet vare_id i opret_ordrelinje da kreditering eller kopiering af ordrer ikke fungerer hvis varenummer er ændret.(PHR - Danosoft) søg 20140426
-// 20140502 Udkommeneret header da denne også bliver sat i online.php. PHR	- Danosoft søg 20140502
-// 21040508	Diverse ændringer i funktion vareopslag i forbindelse med bordnr i pos_ordrer. PHR	- Danosoft Søg "bordnr" i "vareopslag". 
-// 20140613	Div småting relateret til pos_ordrer - bl. a. momsdiff ved salg til kr. 27,12 og betaling med Dankort +100. 20140613
-// 20140616 $kontonr ændret til $konto_id da alle kasser blev ført på samme konto. (PHR	- Danosoft) Søg 20140616
-// 20140628 Indsat bogføring af øredifferencer ved pos_ordrer for at undgå produktionsstop. (PHR	- Danosoft) Søg 20140628
-// 20140730 PK - Oprettet en ny funktion 'opret_ordre_kopi' som kopiere original ordre + ordrelinjer til ny sag. Søg 20140730
-// 20140821 PHR - tilføjet $tmp=$antal*-1 til erstatning for '-$antal' i "insert" Søg 20140821
-// 20140821 PK - Har ændret $kontakt ved oprettelse af ordre. Hvis $sag_id, er $kontakt fra sagen ellers er $kontakt fra kunde. Søg 20140821-1
-// 20141023 PHR - En række ændringer i levering og linjeopdat. Netagivt salg bliver nu fårt som negativ i batch_salg og ikke som før i batch_køb.
-//            Samtidig findes den oprindelige linje i batch_køb og rest opskrives. (Hvis batch håndtering er aktiv) Eller opskrives rest på sidste 
-//            linje med samme varenummer.
-// 20141105 PHR Indsat kontrol for om $id er sat ved kreditering af pos ordre. 20141105
-// 20141114 PHR Bordnr blev ikke sat ved kreditering af pos og var dermed ikke synlig. 
-// 20141118 PHR Fejl ved korrektion, hvis ingen borde.... 20141118 
-// 20141121 Fejl i funktion find_kostpris, hvis antal på linje = 0. Søg 20141121
-// 20150111 Søgning på varetekst i optimeret til brug med piletaster. Funktion vareopslag.
-// 20150112 Debitorkort kan nu også åbnes fra kontoopslag under pos_ordrer.
-// 20150119 Funktion find_kostpris. Søger nu kostpris fra batch køb selvom ej fifo. Finder seneste køb før fakturadato. 20150119 
-// 20150120 Funktion find_kostpris. Kostpris tages fra varekort hvis ej lagerført vare. Søg $lagerfort
-// 20150123 Oprettet funktion saet_afrund til adrunding af sætpriser. Søg saet_afrund
-// 20150131 Fjernet funktion saet_afrund igen. Ideen var alligevel ikke god.
-// 20150131 Oprettet funktion opret_saet til indsættelse af samlevarer som sæt i ordrer & pos_ordrer. Søg opret_saet
-// 20150214 Diverse ændringer i forbindelse med tilføjelse af lagerfelt på ordrelinjer. 
-// 20150215 Hvis der skrives en del af en varebeskrivelse i en debitorordre i varenr feltet søges på varetekst ved opslag, 
-//	hvis teksten ikke findes som varenr. Søg 20150215  
-// 20150218 Rettelse af ovenstående. Forsøger vareopslag ved indsættelse at ordrelinjer fra shop via soap.
-// 20150131 Oprettet funktion gendan_saet til gendannelse af rabatter på saet. Søg gendan_saet
-// 20150227 Ændret afrundingfra 2 til 3 grundet ørediffer f sætpriser ig titalpriser. Søg 20150227
-// 20150506 Det skal ikke føres åbenpost ved betalingsbet Forud på pos_ordrer eller hvis id ikke er numerisk 20150306
-// 20150312 Meget underlige sætpriser ved indsættelse af sæt uden antal fra ordre.php 20150312
-// 20150331 Funtion vareopslag. Priser vises nu incl moms, hvis opslag kommer fra POS eller incl moms er 'on' 
-// 20150505 Diverse tilretninger til POS så betaling kan fordeles på flere kort. Søg 20150505 
-// 20150518 Fejl v. kortfordeling hvis betaling både med kort og kontakt blev kontant ført på kort = fejl i morgenbeholdning. 20150518
-// 20150521 Fejl v. kontosalg pga ovenstående, så den brugen kun hvis det ikke er kontosalg.
-// 20150522 Fejl v. fakturering hvis ingen momskonto - indsat fejlhåndtering 20150522
-// 20150627 Tilføjet tilfravalg på POS ordrer i opret_ordrelinje. Søg tilfravalg 
-// 20150724 Function pos_afrund. Hvis difkto ikke er sat slåes den op. 20150724
-// 20150810 Ordredate blev altid sat til fakturadate v hurtigfakt da variabel ikke blev sat. Søg 20150810
-// 20150812 Ændret 'if($ore>100)' til 'if(strlen($ore)>2)' da 080 øre blev til 80 øre istedet for 8 øre. # 20150812  
-// 20150820 Mulighed for tidsbestemte tilbud (Happy hour). Søg special_from_time.
-// 20150829 Funktion opret_saet. Tilføjet $incl_moms
-// 20150829 Funktion gendan_saet. Tilføjet opslag efter rabat vare_id.
-// 20151210 Funktion find_kostpris. Brugte altid kostpris fra varekort hvis der ikke er kobs_ordre_id of batch_salg. 
-// 20151223 Funktion pbsfakt. rettet echo ".. til print "<tr><td>.. osv.
-// 20160127 PK - Mobil fra ansatte hentes fra kontakt. Søg #20160127
-// 20160128 PHR - Tilføjet funktion stamkunder, som viser kontoopslag som knapper.
-// 20160129 PHR - Tilføjet funktion kontoudtog, som udskriver kontoudtog fra POS.
-// 20160201 PK - Ved kopi af ordre hentes mobil fra sag kontakt, ellers hentes mobil fra kundekontakt. Søg #20160201
-// 20160208 PHR - Tilrettet "stamkunder" med større knapper, sideskift og saldo/kreditmax på knap. Søg stamkunder
-// 20160217 PHR - Fejl ved kreditering, fokus vare0, funktion kontoopslag. Søg 20160217  
-// 20160804 PHR - $antal blev ikke sat... Søg 20160804
-// 20160810 PHR - m_rabat fungerer nu hvis varepris = 0 og pris er ændret. Søg 20160810
-// 20160815 PHR - Ved korrektion af ordrer med 'm_rabat' skal linjen med m_rabatten ikke med. #20160815
-// 20160824 PHR - Mængderabatter gav fejl i lagerrapport da rabatvaren blev blev talt som varesalg 20160824
-// 20160905 PHR - $mrabat ganges med en ellers er den 0.000 og if($mrabat) blive sand #20160905
-// 20160909 PHR - Tilbudspris fungerer ikke hvis tidspunkt > sluttidspkt. 20160909
-// 20160928 PHR - Ordrer blev omdannet til KB kvis der ikke var varer på ordren 20160928
-// 20161010 PHR - Først fundne openpost på indbetalt beløb udligned aut. ved indbetaling i kasse. 20161001
-// 20161011 PHR - Finder lager og opdaterer lagerstatus 20161011
-// 20161022 PHR - tilretning iht flere afd pr lager. 20161022
-// 20161027 PHR - Ved korrektion af bon med mængderabat gik der fejl i beløbene da den ikke kan finde ud af hvilken linjer der er rabatlinjen. 
-//                - i stedet sættes mrabat til 0 og rabatlinjen kopieres med. Det ser ud til at virke - function krediter_pos 20161027 
-// 20161110 PHR - I vareopslag kan nu søges på flere ord adskilt af '+' #20161110
-// 20161124 PHR - opret_ordrelinjer. Tilbudspris 'special_price' blev aldrig fundet. 20161114 
-// 20161211 PHR - Tilføjer is_numric($id) da der eller kommer fejl når $id består af flere ordre # 20161211
-// 20170103 PHR - Tilføjet ekstra tjek for dubletter på fakturanr, 20170103
-// 20170207 PHR - Tilføjet if (!$momsfri) i funktion opret_orderlinje så det ikke sættes moms på momsfri varer fra API  20170207
-// 20170210 PHR - Aktivering af nyt API (funktion linjeopdat) 20170210
-// 21070217 PHR - Lager tilføjet i funktion opret_ordrelinje. Søg $lager 
-// 20170223 PK - Tilføjet kunde_ref_nr(kundeordnr) ved oprettelse af tilbud i sager. #20170223
-// 20170324 PHR - Ved bogføring sættes ref til 'ansat navn' så det er entydighed i kassespor. 20170324
-// 20170404 PHR - Straksbogfør skelner nu mellem debitor og kreditorordrer. Dvs debitor;kreditor - Søg # 20170404
-// 20170505 PHR - batch_kob.rest blev dobbeltændret Søg : 20170504
-// 20170529 PHR - Der belev indsat 0 i i batch_salg ved kreditering. Rettet $tmp2 til $antal. Søg 20170529
-// 20170601 PHR - Funktion tekstopslag - Indsat mulighed for at slette tekster også når der ikke er sag_id. Søg 20170601
-// 20170622 phr - Fejl ved kreditering af pos_ordrer' med 'samlet_pris' -Søg 20170622
-// 20170627 phr - Lagervalg var ikke muligt for samlevarer ved vareopslag  - Søg 20170627
-// 20170802 PHR - else rettet til elseif ($art!='PO') da der ellers kommer fejt ved optælling hvis kontonummer for kontantsalg ikke er sat #20170802
-// 20170816 PHR - Tilføjet strtolower så alle kort med samme navn køres på korrekt konto - Søg 20170816
-// 20170826 PHR - Trækker nu diff konto fra POS opsætning frem for fra 'diverse -> ørediff' #20170826
-// 20171004 PHR - Ordrer med betalingskortinfo behandles nu som pos ordrer #20171004
-// 20171004 PHR - indsat ekstra tjek for øredifferenser på ordrer #20171004
-// 20171009 PHR - Tilføjet funktion gls_label.
-// 20171031 PHR - Indsat faktura og leveringskontrol i funktion slet_ordre. Søg 20171031
-// 20171101 PHR - Hvis nextfaktdate blev sat til 01117 gik rutinen i selvsving #20171101
-// 20180502 PHR - Hack for at scanner skipper det 1. 0 hvis 13 EAN stregkode starter med 00. Søg efter '0$varenr'
-// 20180509 PHR - Omskrivning af shop update rutine i så den fungerer med 'rigtige' stregkoder. Søg 20180509
-// 20180629 PHR - Ny funktion. registrer_betaling. Til minimering af fejl fra kortterminal.
-// 20180629 PHR - Find_kostpriser. Fjernet '>0' da den returnedere forkert kostpris på negativt antal på loppevarer   Søg 20180629
-// 20180815 PHR - Function krediter_pos: samlet pris nu incl moms. 20180815.
-// 20180816 PHR - Function registrer_betaling: Skrives nu i log hvis aktiveret 20180816
-// 20180824 PHR - Function registrer_betaling: Betaling registreres som indbetaling hvis der er konto_id og ordresum=0. 20180824
-// 20180824 PHR - Function krediter_pos: $samlet_pris=$b; udkommenteret da $samlet_pris bruges til samlet pris. 20180824.
-// 20180911 PHR - Ved dagsafslutning (POS) blev undertiden bog på forkert konto  20180912
-// 20180912 PHR - Debet blev negativ i transaktioner ved udbetaling til kreditor fra POS. 20180912
-// 20180913 PHR - Tilføjet mulighed for at trække levering tilbage ved at sætte negativt antal i 'lever' på ordre 20180913.
-// 20180914 PHR - Webordrer bliver 'straksbogført' for bizsys_49. Skal ændres til valg snart 20180914
-// 20181118 PHR - Div oprydning.
-// 20181127 PHR - Kontanthævning med 0 i sum og beløb på dankort blev ikke bogført, men kassediff til følge 20181127
-// 20181128 PHR - Funk bogfor_nu. Opslag efter korrekt bogf.konto ved webordrer med kortbet. på systemer,
-//                  hvor salgsordre bruges som POS 20181128
-// 20181206 PHR - Funk bogfor_nu. Afdeling findes nu i ordrer. 20181206
-// 20181210 CA  - Gavekort understøttes når gavekortnummer og beløb er angivet. 20181210
-// 20181223 PHR	- Sikring mod indsættelse og levering af variantvarer uden variantinfo. 20181223
-// 20190104 PHR	- Function kontoopslag: Oprettelse af debitor direkte fra ordre. create_debtor mm.
-// 20190111 PHR	- Func opret_orderlinje. Fjernet "$art=='PO' &&" da der bliver lagt moms på pris når pris skrives før 'Enter' i ordrer 20190111
-// 20190116 MSC - Rettet Kunder - Ny ordre til Ny ordre
-// 20190116 PHR	- Udbetalinger til kreditor fra POS bogføres nu på korrekt samlekonto. 20190116 
-// 20190122 PHR	- Webordrer konteres nu på korrekt finanskontonr. 20190116 
-// 20190124 PHR - Korrekt fordeling af moms på respektive konti ved bogføring af POS $vatAccount eller $vatAmount
-// 20190212 MSC - Rettet topmenu design til
-// 20190220 PHR - Moms bogføres kun hvis der er moms 20190220
-// 20190225 PHR - $rabat changed to $lineDiscount. Temporary variable to hold the discount of an assembled product.
-// 20190311 PHR - PHR Added 'afrund' as 0.00099 in diff was not found. 20190311 
-// 20190312 MSC - Rettet isset fejl
-// 20190315 PHR - Added resurs in function 'batch' to avoid error om orderlines without 'vare_id' 20190315
-// 20190318 PHR -	Added brackets around '$del1 or $del2 or $del3' as the query was falty and returned wrong result #20190318
-// 20190421 PHR - Enhanged routine to aviod dublets of invoice number, in function 'bogfor'. 20190421
-// 20190428 PHR - Function 'bogfor_nu'. Added  "and box2 != '0.00'" as checking account w/o vat is not necessary.  20190428
-// 20190520 PHR - Changed GLS label to include Contact ID. $gls_ctId   
-// 20190621 PHR - function mrabat. Cost is corrected on orderline for items with 'cost as percent of salesprice' 
-// 20190729 PHR - function batch_salg: array_multisort sometimes makes a sorting error when more than 2 arrays. script changed, to sorts 2 		arrays and query the last afterwards.  20190729 
-// 20190809 PHR	- function vareopslag. Created searchfunction wo avoid all items to be listed which is cpu extensive. Look for $findStr
-// 20190901 PHR	- function bogfor_nu. Changed VAT handling from handling vat as a single post per order to making relation between each financial transaction and the belonging vat transaction 
-// 20191001 PHR - function bogfor_nu. Enhanched VAT handling
-// 20191105 PHR - function vareopslag. Added quantity field to add more items at a time. $insetQty. 
-// 20191127 PHR - function bogfor_nu. Changed vare_id to bogf_konto as qty.rebate has vare_id'0' 	 #20191127
-// 									and moved '$linjemoms' line beneath '}'
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -238,6 +76,7 @@
 // 20250625 PHR Omitting errors from sort by by enhancing whitelist.
 // 20250902 LOE Moved function kontoOpslag to includes/orderFuncIncludes/accountLookup.php
 // 20251007 PHR Lookup for varenr_alias
+// 20251115 PHR *1 changet to (int)
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -3386,7 +3225,7 @@ function stamkunder($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $add
 			$kreditmax[$x] = 0;
 		$f1[$x] = strtolower(substr($firmanavn[$x], 0, 1));
 		$r2 = db_fetch_array(db_select("select sum(amount) as saldo from openpost where konto_id='$konto_id[$x]'", __FILE__ . " linje " . __LINE__));
-		$saldo[$x] = $r2['saldo'] * 1;
+		$saldo[$x] = (int)$r2['saldo'];
 		$x++;
 	}
 
