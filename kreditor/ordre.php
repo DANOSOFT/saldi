@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-11-13---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-11-15---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -65,8 +65,7 @@
 // 20250715 PHR Removed '//' at line above '/* saul ??'
 // 20250908 LOE Moved kontoosplag function to ../includes/kreditorOrderFuncIncludes/accountLookup.php
 // 20251113 PHR	Added some undefined vareables
-
-@session_start();
+// 20251115 PHR Added missing "'"
 $s_id=session_id();
 
 ?>
@@ -934,7 +933,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						$r1 =	db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
 						$qtxt = "select box6,box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]' and ";
-						$qtxt.= "fiscal_year = '$regnaar";
+						$qtxt.= "fiscal_year = '$regnaar'";
 						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						$bogfkto[$x] = $r2['box4'];
 						(trim($r2['box6']))?$omvare[$x]='on':$omvare[$x]='';
