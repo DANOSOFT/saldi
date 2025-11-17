@@ -1986,6 +1986,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		} else {
 			$next = $bilag[$x-1] + 1;
 		}
+		if($dato[$x] == ''){
+			$dato[$x] = dkdato(date("Y-m-d"));
+		}
 		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
