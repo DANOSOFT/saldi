@@ -283,9 +283,9 @@ if ($_GET['ordreliste']) {
 	
 	for ($x=0 ; $x<=$ordreantal ; $x++) {
 		if ($ordreliste[$x]) {
-			if (!in_array($ordreliste[$x],$ordre_id)) $ordreliste[$x]=0;
-			else { # 20131001 ->
-				$r=db_fetch_array(db_select("select momssats from ordrer where id = '$ordreliste[$x]'",__FILE__ . " linje " . __LINE__));
+			# Check if order still exists and is valid (status < 3) instead of checking if it has line items
+			$r=db_fetch_array(db_select("select momssats,status from ordrer where id = '$ordreliste[$x]'",__FILE__ . " linje " . __LINE__));
+			if ($r && $r['status'] < '3') { # 20131001 ->
 				$momssats=$r['momssats'];
 				$bl_moms=0;
 				$momssum=0;
@@ -299,6 +299,9 @@ if ($_GET['ordreliste']) {
 				}
 				if($momssats && !$bl_moms) $momssum=$ordresum*$momssats/100;
 				db_modify("update ordrer set sum='$ordresum',moms='$momssum' where id='$ordreliste[$x]' and status < '3'",__FILE__ . " linje " . __LINE__);
+			} else {
+				# Order no longer exists or has been invoiced, remove from list
+				$ordreliste[$x]=0;
 			}
 		}
 	}
