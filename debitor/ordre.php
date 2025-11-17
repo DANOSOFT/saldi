@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-09-04 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-11-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -245,6 +245,24 @@ $localPrint=if_isset($_COOKIE, NULL,'localPrint');
 #print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
 #print "<script type=\"text/javascript\" src=\"https://code.jquery.com/jquery-latest.min.js\"></script>\n";
 #print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/arrowkey.js\"></script>\n";
+
+#####################
+// Filter out grid parameters to prevent conflicts
+$grid_params = ['ajax', 'grid_id'];
+foreach ($grid_params as $param) {
+    if (isset($_GET[$param])) {
+        unset($_GET[$param]);
+    }
+}
+
+// Also filter array parameters that start with search, sort, etc.
+foreach ($_GET as $key => $value) {
+    if (is_array($value) || preg_match('/^(search|sort|offset|rowcount|menu)\[/', $key)) {
+        unset($_GET[$key]);
+    }
+}
+#################
+
 $funktion=if_isset($_GET,NULL,'funktion');
 $tidspkt=date("U"); #20210719
 
@@ -2444,8 +2462,6 @@ if(if_isset($queryParams, NULL, 'option')) $option = $queryParams['option'];
 }
 
 #+++++++++++++++++++++++++++++
-
-
 /*
 $swap_account = if_isset($_GET['swap_account']);
 if ($swap_account) {
@@ -5526,6 +5542,7 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 #          print "<td title=\"kostpris\">Projekt</span></td>\n";
 			$tidl_lev=0;
 			if ($lagerantal > 1) {
+				if(!$lagerId) $lagerId = 0;
 				$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id' and lager = '$lagerId'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$stockQty = $r['qty'];
