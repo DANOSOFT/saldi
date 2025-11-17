@@ -1756,7 +1756,18 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$title = NULL;
 			$color = NULL;
 		}
-
+		// get last bilagsnr from database but check if the row already has asigned bilagnr
+		$qtxt = "select bilag from kassekladde WHERE kladde_id = '$kladde_id'";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		if (db_num_rows($q) == 0){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($y == 1) {
+				$bilag[$y] = $last_bilag;
+			}
+		}
+		echo "<script>console.log('bilag[$y]: " . $bilag[$y] . "');</script>";
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -1961,7 +1972,21 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td></td>\n";
 			}
 		}
-		$next = $bilag[$x-1] + 1;
+		// get last bilagsnr from database but check if the row already has asigned bilagnr
+		
+		if (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($x == 1) {
+				$next = $last_bilag;
+			}else{
+				$next = $bilag[$x-1] + 1;
+			}
+		} else {
+			$next = $bilag[$x-1] + 1;
+		}
+		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
