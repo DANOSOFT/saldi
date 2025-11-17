@@ -156,8 +156,8 @@ if ($menu=='T') {
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
 	print "<form name='paylist' action='betalinger.php?liste_id=$liste_id' method = 'post'>";
 
-	print "<td width='10%'><a href=.'./debitor/betalingsliste.php' accesskey=L>";
-	print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt1</button></a></td>";
+	print "<td width='10%'><a href='betalingsliste.php' style='$buttonStyle width:100%; display: block; text-decoration: none; text-align: center;' accesskey=L>";
+	print "$txt1</a></td>";
 
 	print "<td width='80%' style='$topStyle' align='center'>$txt2</td>";
 	print "<td width='10%'>";
@@ -222,9 +222,6 @@ if (!$liste_id) {
 
 // $tomorrow = date('U') + 60 * 60 * 24;
 // $paydate  = date('dmY', $tomorrow);
-
-$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
-$paydate = date('dmY', strtotime("+$paymentDays days"));
 
 $r = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
 $myBank = $r['bank_konto'];
@@ -358,12 +355,12 @@ if ($find) {
 					} else $kort_ref = $r['betal_id'];
 				}
 				// Get default payment date from settings
-				$paymentDays = get_settings_value("paymentDays", "payment_list", 0);
-				$defaultPayDate = date('dmY', strtotime("+$paymentDays days"));
+				/* $paymentDays = get_settings_value("paymentDays", "payment_list", 0);
+				$defaultPayDate = date('dmY', strtotime("+$paymentDays days")); */
 				$qtxt = "insert into betalinger";
 				$qtxt .= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) ";
 				$qtxt .= "values ";
-				$qtxt .= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$defaultPayDate',";
+				$qtxt .= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$forfaldsdag',";
 				$qtxt .= "'$valuta', '$bilag_id', '$ordre_id','$liste_id')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
