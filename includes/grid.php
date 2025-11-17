@@ -1394,7 +1394,7 @@ function save_column_setup($id) {
 
     // Print the result
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1519,7 +1519,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
