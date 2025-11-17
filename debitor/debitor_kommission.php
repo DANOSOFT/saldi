@@ -591,14 +591,17 @@ $table_id = 'debitor_kommission';
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid($table_id, $data);
 
-// Add form for kommission AFTER the wrapper div
-$action="debitor_kommission.php";
-print "<div style='text-align: right; padding: 10px;'>";
-print "<form name='kommission' action='$action' method='post' style='display: inline;'>";
-print "<input style='width:75px;' type='submit' name='kommission' value='OK'>";
-print "<input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'>";
-print "</form>";
-print "</div>";
+// Add form for kommission AFTER the wrapper div - only show when not in settings
+$current_menu = if_isset($_GET["menu"][$table_id], "main");
+if ($current_menu == "main") {
+	$action="debitor_kommission.php";
+	print "<div style='text-align: right; padding: 10px;'>";
+	print "<form name='kommission' action='$action' method='post' style='display: inline;'>";
+	print "<input style='width:75px;' type='submit' name='kommission' value='OK'>";
+	print "<input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'>";
+	print "</form>";
+	print "</div>";
+}
 print "</div>";
 
 // Setup tutorial steps
