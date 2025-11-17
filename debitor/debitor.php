@@ -97,177 +97,21 @@ $returside=if_isset($_GET,NULL,'returside');
 
 
 $valg= strtolower(if_isset($_GET,NULL,'valg'));
+// Route to separate files for historik and kommission
+if ($valg == 'historik') {
+	include('debitor_historik.php');
+	exit;
+}
+if ($valg == 'kommission') {
+	include('debitor_kommission.php');
+	exit;
+}
+// Default to debitor view
+if (!$valg || $valg == 'rental') $valg = $valg ? $valg : "debitor";
+
 $sort = if_isset($_GET, NULL, 'sort');
 $start = if_isset($_GET, NULL, 'start');
 $nysort = if_isset($_GET, NULL, 'nysort');
-$invite=$mailTo=$mySale=array();
-if ($valg == 'kommission') setcookie("mySalePw", $s_id,0,"/");
-if (!$valg) $valg="debitor";
-if ((isset($_POST['kommission']) || isset($_POST['historik'])) && $_POST['debId']) {
-	$debId=$_POST['debId'];
-	if (isset($_POST['mySale'])) $mySale=$_POST['mySale'];
-	if (isset($_POST['invite'])) $invite=$_POST['invite'];
-	if (isset($_POST['mailTo'])) $mailTo=$_POST['mailTo'];
-	$start*=1;
-	for ($i=0;$i<count($debId);$i++) {
-		$qtxt="select id,kontonr,firmanavn,email from adresser where id='$debId[$i]'";
-		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$custId[$i]   = $r['id'];
-		$custNo[$i]   = $r['kontonr'];
-		$custName[$i] = $r['firmanavn'];
-		$custMail[$i] = $r['email'];
-		if (!isset($mySale[$i])) $mySale[$i]=NULL;
-		if (!isset($invite[$i])) $invite[$i]=NULL;
-		if ($mySale[$i] || $invite[$i]) {
-		#			db_modify("update adresser set mysale='on' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-			$tmp=trim($_SERVER['PHP_SELF'],'/');
-			list ($folder,$tmp)=explode('/',$tmp,2);
-			$lnk[$i]="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
-			$lnk[$i]=str_replace('bizsys','mysale',$lnk[$i]);
-			$txt = $custId[$i] .'|'. $custNo[$i] .'@'. $db  .'@'. $_SERVER['HTTP_HOST'];
-			for ($x=0;$x<strlen($txt);$x++) {
-				$lnk[$i].=dechex(ord(substr($txt,$x,1)));
-			}
-		} # 	else db_modify("update adresser set mysale='' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-
-	}
-	include("../includes/connect.php");
-#			$qtxt = "CREATE TABLE mysale (id serial NOT NULL,deb_id int, db varchar(20), email varchar(60), link text, PRIMARY KEY (id))";
-#			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	
-	$x = 0;
-	$myAccId = array();
-	$qtxt="select * from mysale where db='$db'";
-	$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) {
-		$myId[$x]=$r['id'];
-		$myAccId[$x]=$r['deb_id'];
-		$x++;
-	}
-	for ($i=0;$i<count($debId);$i++) {
-		if (in_array($debId[$i],$myAccId)) {
-			for ($x=0;$x<count($myAccId);$x++) {
-				if ($myAccId[$x] == $debId[$i]) {
-					if ($mySale[$i] || $invite[$i]) $qtxt = "update mysale set email = '$custMail[$i]', link = '$lnk[$i]'";
-					else $qtxt = "update mysale set email = '', link = ''";
-					$qtxt.= " where id = $myId[$x]";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-			}
-		} elseif ($mySale[$i] || $invite[$i]) {
-			$qtxt="insert into mysale (deb_id,db,email,link) values ('$debId[$i]','$db','$custMail[$i]','$lnk[$i]')";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-		}
-	}
-	include("../includes/online.php");
-	if((count($invite) || count($mailTo)) && !class_exists('phpmailer')) {
-		ini_set("include_path", ".:../phpmailer");
-		require("class.phpmailer.php");
-	}
-	# Hent egen stamdata
-	$qtxt="select * from adresser where art='S'";
-	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$afsendermail=$r['email'];
-	$afsendernavn=$r['firmanavn'];
-	$from=$afsendermail;
-	
-	($r['felt_1'])?$smtp=$r['felt_1']:$smtp='localhost';
-	($r['felt_2'])?$smtp_user=$r['felt_2']:$smtp_user=NULL;
-	($r['felt_3'])?$smtp_pwd=$r['felt_3']:$smtp_pwd=NULL;
-	($r['felt_4'])?$smtp_enc=$row['felt_4']:$smtp_enc=NULL;
-
-	for ($i=0;$i<count($debId);$i++) {
-		if (!isset($invite[$i])) $invite[$i]=NULL;
-		if (!isset($mailTo[$i])) $mailTo[$i]=NULL;
-		if ($invite[$i] || $mailTo[$i]) {
-			if ($invite[$i]) db_modify("update adresser set mysale='$invite[$i]' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-			$qtxt="select * from adresser where art='S'";
-			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-
-			if ($invite[$i]) { 
-				$myLink="<a href='$lnk[$i]'>Mit Salg</a>";
-				$mailText = "Kære $custName[$i],<br><br>Klik på nedestående link for at se dit salg.<br><br>";
-				$mailText.= "$myLink<br><br>";
-				$mailText.= "Bedste hilsner<br>$afsendernavn<br>";
-				$varGrp='mySale';
-			} else {
-				$varGrp='debitor';
-			}
-			$qtxt="select var_value from settings where var_name = 'mailSubject' and var_grp = '$varGrp'";
-			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if ($r2['var_value']) $subject=$r2['var_value'];
-			else $subject = "Adgang til dit salg hos $afsendernavn";
-			$qtxt="select var_value from settings where var_name = 'mailText' and var_grp = '$varGrp'";
-			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			if ($r2['var_value']) {
-				$mailText=$r2['var_value'];
-				$mailText=str_replace("\n","<br>",$mailText);
-				$mailText=str_replace('$kunde',$custName[$i],$mailText);
-				$mailText=str_replace('$link',$myLink,$mailText);
-			}
-/*
-			if ($charset=="UTF-8") {
-				$subject=mb_convert_encoding($subject, 'ISO-8859-1', 'UTF-8');
-				$mailText=mb_convert_encoding($mailText, 'ISO-8859-1', 'UTF-8');
-				$afsendernavn=mb_convert_encoding($afsendernavn, 'ISO-8859-1', 'UTF-8');
-			}
-*/		
-			$mail = new PHPMailer();
-			$mail->IsSMTP(); // send via SMTP
-			$mail->CharSet = "$charset";
-			$mail->SMTPDebug  = 2;
-			$mail->Host  = $smtp; // SMTP servers 
-			if ($smtp!='localhost') {
-				if ($smtp_user) {
-					$mail->SMTPAuth = true;     // turn on SMTP authentication
-					$mail->Username = $smtp_user;  // SMTP username
-					$mail->Password = $smtp_pwd; // SMTP password
-					if ($smtp_enc) $mail->SMTPSecure = $smtp_enc; // SMTP kryptering
-				}
-			} else {
-				$mail->SMTPAuth = false;
-				if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-					$from = $db.'@'.$_SERVER['SERVER_NAME']; #20130731
-				$from = str_replace('bizsys','post',$from);
-				}
-			}
-			if ($subject && $mailText) {
-				$mail->SetFrom($from,$afsendernavn);
-#				$mail->FromName = $afsendernavn;
-				$mail->AddReplyTo($afsendermail);
-				$mail->AddAddress($custMail[$i]);
-				$mail->WordWrap = 50;  // set word wrap
-				$mail->IsHTML(true);   // send as HTML
-				$ren_text=html_entity_decode($mailText,ENT_COMPAT,$charset);
-				$ren_text=str_replace("<br>","\n",$ren_text);
-				$ren_text=str_replace("<b>","*",$ren_text);
-				$ren_text=str_replace("</b>","*",$ren_text);
-				$ren_text=str_replace("<a href='$lnk'>". $lnk ."</a>"," $lnk ",$ren_text);
-				$ren_text=str_replace("<hr>","------------------------------",$ren_text);
-				$mail->Subject  =  "$subject";
-				$mail->Body     =  "$mailText";
-				$mail->AltBody  =  "$ren_text";
-				$svar=NULL;
-				print "<!--";
-				if(!$mail->Send()){
-					$svar = "Mailer Error: " . $mail->ErrorInfo;
-				}
-				print "-->";
-				if ($svar) {
-					echo $svar."<br>";
-					exit;
-				}
-				echo "Mail sendt til $custName[$i] &lt;$custMail[$i]&gt;<br>";
-				flush();
-				usleep (250000);
-			}
-		} else {
-			if (!isset($mySale[$i])) $mySale[$i]=NULL;
-			db_modify("update adresser set mysale='$mySale[$i]' where id = '$debId[$i]'",__FILE__ . " linje " . __LINE__);
-		}
-	}
-	print "<meta http-equiv='refresh' content='2'>";
-}
 
 $sort=str_replace("adresser.","",$sort);
 if ($sort && $nysort==$sort) $sort=$sort." desc";
@@ -301,25 +145,12 @@ if ($x == 0) {
 		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
 		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9);
 		$box6.= "Postnr".chr(9)."By".chr(9)."Kontakt".chr(9)."Telefon";
-	} elseif ($valg=='kommission') {
-		$box3 = "kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)."postnr".chr(9);
-		$box3.= "bynavn".chr(9)."kontakt".chr(9)."tlf".chr(9)."invoiced";
-		$box5 = "right".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left";
-		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
-		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9);
-		$box6.= "Postnr".chr(9)."By".chr(9)."Kontakt".chr(9)."Telefon".chr(9)."Sidste faktura";
 	} elseif ($valg=='rental') {
 		$box3 = "kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)."postnr".chr(9)."bynavn";
 		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
 		$box5 = "right".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left";
 		$box7 = 50;
-	} else {
-		$box3 = "kontonr".chr(9)."firmanavn".chr(9)."addr1".chr(9)."addr2".chr(9)."postnr".chr(9);
-		$box3.= "bynavn".chr(9)."kontakt".chr(9)."tlf";
-		$box5 = "right".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left".chr(9)."left";
-		$box4 = "5".chr(9)."35".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10".chr(9)."10";
-		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9);
-		$box6.= "Postnr".chr(9)."By".chr(9)."Kontakt".chr(9)."Telefon";
+		$box6 = "Kontonr".chr(9)."Firmanavn".chr(9)."Adresse".chr(9)."Adresse 2".chr(9)."Postnr".chr(9)."By";
 	}
 	$qtxt = "insert into grupper(beskrivelse,kode,kodenr,art,box3,box4,box5,box6,box7) values ";
 	$qtxt.= "('debitorlistevisning','$valg','$bruger_id','DLV','$box3','$box4','$box5','$box6','$box7')";
@@ -361,13 +192,11 @@ $sortering=$sort;
 if ($menu=='T') {
 	if ($valg=='debitor') {
 		$title = "".findtekst(117,$sprog_id)."";
-		} if ($valg=='historik') {
-			$title= "".findtekst(907,$sprog_id)."";
-		} if ($valg=='kommission') {
-			$title= "".findtekst(909,$sprog_id)."";
-		} if ($valg=='rental') {
-			$title= "".findtekst(1116,$sprog_id)."";
-		}
+	} elseif ($valg=='rental') {
+		$title= "".findtekst(1116,$sprog_id)."";
+	} else {
+		$title = "".findtekst(117,$sprog_id)."";
+	}
 } else {
 	$title="Debitorliste";
 }
@@ -652,13 +481,8 @@ include_once '../includes/oldDesign/footer.php';
     // Add clickable row renderer for kontonr
     foreach ($columns as &$column) {
         if ($column['field'] == 'kontonr') {
-            $column["render"] = function ($value, $row, $column) use ($valg) {
-                $url = "";
-                if ($valg=='kommission') {
-                    // Handle kommission links separately
-                } else {
-                    $url = $valg."kort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor.php";
-                }
+            $column["render"] = function ($value, $row, $column) {
+                $url = "debitor"."kort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor.php";
                 return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
             };
             break;
@@ -746,10 +570,6 @@ include_once '../includes/oldDesign/footer.php';
         $select_fields[] = $col['sqlOverride'] . " AS " . $col['field'];
     }
     $select_fields[] = "a.id AS id";
-    if ($valg == 'kommission') {
-        $select_fields[] = "a.mysale AS mysale";
-        $select_fields[] = "a.email AS email";
-    }
 
     $query = "SELECT " . implode(",\n    ", $select_fields) . "
 FROM adresser a
@@ -764,22 +584,12 @@ ORDER BY {{SORT}}";
         return "";
     };
 
-    // Meta column for kommission view
+    // Meta column not used in default debitor view
     $metaColumnFn = null;
-    if ($valg == 'kommission') {
-        $metaColumnFn = function ($row) {
-            $mySale = isset($row['mysale']) && $row['mysale'] ? "checked='checked'" : "";
-            $email = isset($row['email']) ? $row['email'] : '';
-            $disabled = $email ? "" : "disabled title='email mangler på konto'";
-            $html = "<td align='center'><input type='checkbox' name='mySale[]' value='{$row['id']}' $mySale onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
-            $html .= "<td align='center'><input type='checkbox' name='invite[]' value='{$row['id']}' $disabled onclick=\"event.stopPropagation ? event.stopPropagation() : (window.event.cancelBubble=true);\"></td>";
-            return $html;
-        };
-    }
 
     // Create grid data array
     $data = array(
-        "table_name" => "debitor",
+        "table_name" => "debitor_list",
         "query" => $query,
         "columns" => $columns,
         "filters" => $filters,
@@ -787,61 +597,13 @@ ORDER BY {{SORT}}";
         "metaColumn" => $metaColumnFn,
     );
 
-    // Render grid
-    // Use shorter table ID to fit VARCHAR(10) constraint
-    $table_id_map = array(
-        'debitor' => 'deblist',
-        'kommission' => 'deblkomm',
-        'historik' => 'deblhist'
-    );
-    $table_id = isset($table_id_map[$valg]) ? $table_id_map[$valg] : 'deblist';
+    // Render grid - use unique table_id to prevent conflicts with other grid views
+    $table_id = 'debitor_list';
     
     // Render grid - match vareliste.php structure exactly
     print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
     create_datagrid($table_id, $data);
     print "</div>";
-    
-    // Add form for kommission/historik AFTER the wrapper div (separate from grid)
-    if ($valg == 'kommission' || $valg == 'historik') {
-        $action="debitor.php?valg=$valg";
-        print "<div style='text-align: right; padding: 10px;'>";
-        print "<form name='kommission' action='$action' method='post' style='display: inline;'>";
-        if ($valg == 'kommission') print "<input style='width:75px;' type='submit' name='kommission' value='OK'>";
-        else print "<input style='width:100px;' type='submit' name='historik' value='Send'>";
-        print "<input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'>";
-        print "</form>";
-        print "</div>";
-    }
-    
-    // Setup tutorial steps (after grid and form, matching vareliste.php exactly)
-    $steps = array();
-    $steps[] = array(
-        "selector" => "#debitore",
-        "content" => findtekst('2621|Her ser du en liste af alle dine kunder', $sprog_id)."."
-    );
-    $steps[] = array(
-        "selector" => "#opret-ny",
-        "content" => findtekst('2622|For at oprette en ny kunde, klik her', $sprog_id)."."
-    );
-    $steps[] = array(
-        "selector" => "#kommission",
-        "content" => findtekst('2623|Tilmeld dine kunder til kommissionssalgssystemet her', $sprog_id)."."
-    );
-    $steps[] = array(
-        "selector" => 'input[type="checkbox"][name^="mySale["], input[type="submit"][name="kommission"]',
-        "content" => findtekst('2624|Før du kan inviterer en kunde til \'Mit Salg\', skal du aktivere deres konto. Sæt hak i \'aktiver\' og tryk OK.', $sprog_id)
-    );
-    $steps[] = array(
-        "selector" => ".kommission-link",
-        "content" => findtekst('2625|Når en kunde er aktiveret kan du åbne deres konto her', $sprog_id)."."
-    );
-    $steps[] = array(
-        "selector" => 'input[type="checkbox"][name^="invite["], input[type="submit"][name="kommission"]',
-        "content" => findtekst('2626|Når kunden er aktiveret, vil det være muligt at sende dem en invitation på mail. De vil her få et link til \'Mit Salg\' og kan oprette deres labels derigennem. Det er kun muligt at invitere en kunde, hvis de har en e-mail sat op på deres stamkort.', $sprog_id)
-    );
-
-    include(__DIR__ . "/../includes/tutorial.php");
-    create_tutorial("deblist", $steps);
     
     if ($menu=='T') {
         include_once '../includes/topmenu/footer.php';
