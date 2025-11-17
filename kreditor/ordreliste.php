@@ -539,7 +539,7 @@ if ($kontoid) {
 if ($lev_navne) {
     $lev_navne = trim($lev_navne);
     $searchTerm = "*" . str_replace(" ", "*", $lev_navne) . "*";
-    $udvaelg = $udvaelg . udvaelg($searchTerm, 'lev_navn', 'TEXT');
+    $udvaelg = $udvaelg . udvaelg($searchTerm, 'ordrer.lev_navn', 'TEXT');
 }
 
 	if ($valg == "forslag") {
