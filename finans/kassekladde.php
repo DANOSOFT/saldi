@@ -1974,7 +1974,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
 		
-		if (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0){
+		if (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
 			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
