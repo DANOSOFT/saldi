@@ -35,6 +35,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 
 $luk=if_isset($_GET['luk']);
@@ -192,25 +193,27 @@ $tlf=trim($r['tlf']);
 $fax=trim($r['fax']);
 $email=trim($r['email']);
 */
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+
 if ($menu=='T') {
-	$leftbutton="<a href=jobkort.php?luk=luk accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a>";
-	$rightbutton="";
-	$vejledning=NULL;
-	include("../includes/topmenu.php");
-	print "<div id=\"topmenu\" style=\"position:absolute;top:6px;right:0px\">";
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"jobkort.php?luk=luk\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "</div>";
+	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
+	include_once 'debLstIncludes/topLineJobkort.php';
 } else {
-	print "<tr><td colspan=3 align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\"$top_bund><a href=jobkort.php?luk=luk accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a><br></td>";
-	print "<td width=\"80%\"$top_bund>".findtekst('29|Jobkort', $sprog_id)."<br></td>";
-	print "<td width=\"10%\"$top_bund><a href=jobkort.php accesskey=N>".findtekst('39|Ny', $sprog_id)."</a><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
+	include_once 'debLstIncludes/oldTopLine.php';
 }
-print "<td width=10% align=center></td><td width=80% align=center>";
+
+// Add scrollable wrapper for side menu
+if ($menu=='S') {
+	print "<tr><td style='width: 100%; height: calc(100vh - 64px); overflow-y: auto;'>\n";
+}
+
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" widht=\"800\"><tbody>";
 
 print "<form name=\"jobkort\" action=\"jobkort.php?id=$id\" method=\"post\">";
@@ -338,7 +341,6 @@ print "<tr><td colspan=6 align=center><input type=submit accesskey=\"g\" value=\
 				<input type=submit accesskey=\"s\" value=\"Slet\" name=\"slet\"></td></tr>";
 print "</form>";
 print "</tbody></table>";
-print "</td><td width=10%>";
 
 function kontoopslag($id) {
 	global $bgcolor;
@@ -388,7 +390,13 @@ function kontoopslag($id) {
 }
 
 ?>
+<?php if ($menu == 'T') { ?>
+</div> <!-- content-noside -->
+<?php } elseif ($menu == 'S') { ?>
 </td></tr>
 </tbody></table>
-</div>
+<?php } else { ?>
+</td></tr>
+</tbody></table>
+<?php } ?>
 </body></html>
