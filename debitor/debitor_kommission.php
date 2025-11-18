@@ -458,12 +458,30 @@ for ($x=0;$x<$vis_feltantal;$x++) {
 	$columns[] = $column;
 }
 
+// Build MySale base link for kommission view
+$folder=trim($_SERVER['PHP_SELF'],'/');
+$folder=str_replace('debitor/debitor_kommission.php','',$folder);
+$myLink="https://". $_SERVER['HTTP_HOST'] .'/'. $folder ."/mysale/mysale.php?id=";
+$myLink=str_replace('bizsys','mysale',$myLink);
+
 // Add clickable row renderer for kontonr - kommission handles links separately
 foreach ($columns as &$column) {
 	if ($column['field'] == 'kontonr') {
-		$column["render"] = function ($value, $row, $column) {
-			// Handle kommission links separately
-			return "<td align='{$column['align']}'><a href='#'>$value</a></td>";
+		$column["render"] = function ($value, $row, $column) use ($myLink, $db) {
+			// Handle kommission links: if mysale is enabled, open MySale link, otherwise go to debitorkort
+			if (isset($row['mysale']) && $row['mysale']) {
+				// Build MySale link with encoded customer data
+				$txt = $row['id'] .'|'. $value .'@'. $db .'@'. $_SERVER['HTTP_HOST'];
+				$lnk = $myLink;
+				for ($x=0;$x<strlen($txt);$x++) {
+					$lnk.=dechex(ord(substr($txt,$x,1)));
+				}
+				return "<td align='{$column['align']}'><a href='$lnk' target='_blank' class='kommission-link'>$value</a></td>";
+			} else {
+				// Link to debitorkort for customers without MySale
+				$url = "debitorkort.php?tjek={$row['id']}&id={$row['id']}&returside=debitor_kommission.php";
+				return "<td align='{$column['align']}'><a href='$url'>$value</a></td>";
+			}
 		};
 		break;
 	}
@@ -582,6 +600,7 @@ $data = array(
 	"filters" => $filters,
 	"rowStyle" => $rowStyleFn,
 	"metaColumn" => $metaColumnFn,
+	"metaColumnHeaders" => array("Aktiv", "Inviter"),
 );
 
 // Render grid - use unique table_id to prevent conflicts with other grid views
@@ -597,7 +616,7 @@ if ($current_menu == "main") {
 	$action="debitor_kommission.php";
 	print "<div style='text-align: right; padding: 10px;'>";
 	print "<form name='kommission' action='$action' method='post' style='display: inline;'>";
-	print "<input style='width:75px;' type='submit' name='kommission' value='OK'>";
+	print "<input style='width:75px; margin-right: 5px;' type='submit' name='kommission' value='OK'>";
 	print "<input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'>";
 	print "</form>";
 	print "</div>";
