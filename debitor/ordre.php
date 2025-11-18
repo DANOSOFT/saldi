@@ -3815,7 +3815,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		else print "<tr><td width=\"50%\"></td>\n";
 		print "</tbody></table>\n"; # <- Tabel 3
 ##### pile ########
-		print "<table cellpadding=\"0\" cellspacing=\"0\" $styleTable $widthTable valign=\"top\"><tbody>\n"; #Tabel 4 ->
+		print "<table cellpadding=\"0\" cellspacing=\"0\" $styleTable $widthTable style='margin: 0 auto;' valign=\"top\"><tbody>\n"; #Tabel 4 ->
 		$ordre_id=$id;
 		$ret=0;
 		($art=='OT')?$disabled="disabled='disabled'":$disabled=NULL; #20140716
@@ -5541,94 +5541,103 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 			$batch="?";
 #          print "<td title=\"kostpris\">Projekt</span></td>\n";
 			$tidl_lev=0;
-			if ($lagerantal > 1) {
-				if(!$lagerId) $lagerId = 0;
-				$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id' and lager = '$lagerId'";
-				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$stockQty = $r['qty'];
+			if(!$vare_id && $varenr) {
+				$vare_id = find_vare_id($varenr);
 			}
-			$qtxt = "select gruppe,beholdning from varer where id = $vare_id";
-			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			$row = db_fetch_array($query);
-			$beholdning=$row['beholdning'];
-			if ($lagerantal >1) $beholdning = $stockQty;
-			$query = db_select("select box6,box8,box9 from grupper where art='VG' and kodenr='$row[gruppe]'",__FILE__ . " linje " . __LINE__);
-			$row = db_fetch_array($query);
-			($row['box6']=='on')?$omvare=1:$omvare=0; # vare som er omfattet af omvendt betalingspligt 
-			($row['box8']=='on')?$lagervare=1:$lagervare=0;
-			($row['box9']=='on')?$batchvare=1:$batchvare=0;
-				$q = db_select("select * from batch_salg where linje_id = '$linje_id' and ordre_id=$id and vare_id = $vare_id",__FILE__ . " linje " . __LINE__);
-				while($r = db_fetch_array($q)) {
-					$y++;
-					$batch='V';
-					$tidl_lev=$tidl_lev+$r['antal'];
-				if ($batchvare) {
-					$z=0;
-					$query = db_select("select * from reservation where vare_id = $vare_id",__FILE__ . " linje " . __LINE__);
-          			while ($row = db_fetch_array($query))  {
-					 if (($row['linje_id']==$linje_id)||($row['batch_salg_id']==$linje_id*-1)) {
-							$z=$z+$row['antal'];
-							$batch="V";
-						}
-						elseif ($row['batch_kob_id']<0) $reserveret[$x]+=+$row['antal'];
+			// Only proceed if vare_id is valid (product exists and is not deleted)
+			if ($vare_id && is_numeric($vare_id)) {
+				if ($lagerantal > 1) {
+					if(!$lagerId) $lagerId = 0;
+					$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id' and lager = '$lagerId'";
+					$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+					$stockQty = $r['qty'];
+				}
+				$qtxt = "select gruppe,beholdning from varer where id = $vare_id";
+				$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+				$row = db_fetch_array($query);
+				if ($row) {
+					$beholdning=$row['beholdning'];
+					if ($lagerantal >1) $beholdning = $stockQty;
+					$query = db_select("select box6,box8,box9 from grupper where art='VG' and kodenr='$row[gruppe]'",__FILE__ . " linje " . __LINE__);
+					$row = db_fetch_array($query);
+					if ($row) {
+						($row['box6']=='on')?$omvare=1:$omvare=0; # vare som er omfattet af omvendt betalingspligt 
+						($row['box8']=='on')?$lagervare=1:$lagervare=0;
+						($row['box9']=='on')?$batchvare=1:$batchvare=0;
+					}
+					$q = db_select("select * from batch_salg where linje_id = '$linje_id' and ordre_id=$id and vare_id = $vare_id",__FILE__ . " linje " . __LINE__);
+					while($r = db_fetch_array($q)) {
+						$y++;
+						$batch='V';
+						$tidl_lev=$tidl_lev+$r['antal'];
+						if ($batchvare) {
+							$z=0;
+							$query = db_select("select * from reservation where vare_id = $vare_id",__FILE__ . " linje " . __LINE__);
+							while ($row = db_fetch_array($query))  {
+								if (($row['linje_id']==$linje_id)||($row['batch_salg_id']==$linje_id*-1)) {
+									$z=$z+$row['antal'];
+									$batch="V";
+								}
+								elseif ($row['batch_kob_id']<0) $reserveret[$x]+=+$row['antal'];
 #            elseif ($row['batch_salg_id']==0) $paavej=$paavej+$row['antal'];
+							}
+							if($z+$tidl_lev<$antal) $batch="?";
+						}
+						else $batch="";
+						if (($tidl_lev<$antal)||($batch=="?")) $status=1;
+						if ($folgevare) $tdlv=$tidl_lev;
+						elseif ($flgv) {
+							$tidl_lev=$tdlv;
+							$flgv=NULL;
+						}
 					}
-					if($z+$tidl_lev<$antal) $batch="?";
-				}
-				else $batch="";
-				if (($tidl_lev<$antal)||($batch=="?")) $status=1;
-				if ($folgevare) $tdlv=$tidl_lev;
-				elseif ($flgv) {
-					$tidl_lev=$tdlv;
-					$flgv=NULL;
-				}
-			}
-			if ($art=='DK') {
-				$dklev=dkdecimal($leveres*-1,2);
-				$dk_tidl_lev=dkdecimal($tidl_lev*-1,2);
-				$lever_modtag="modtag";
-			} else {
-				$dklev=dkdecimal($leveres,2);
-				$dk_tidl_lev=dkdecimal($tidl_lev,2);
-				$lever_modtag="lever";
-			}
-
-			if (substr($dklev,-1)=='0') $dklev=substr($dklev,0,-1);
-			if (substr($dklev,-1)=='0') $dklev=substr($dklev,0,-2);
-			if (substr($dk_tidl_lev,-1)=='0') $dk_tidl_lev=substr($dk_tidl_lev,0,-1);
-			if (substr($dk_tidl_lev,-1)=='0') $dk_tidl_lev=substr($dk_tidl_lev,0,-2);
-			print "<input type=\"hidden\" name=tidl_lev[$x] value=\"$dk_tidl_lev\">\n";
-			$temp=$beholdning-$reserveret[$x];
-			$status=2;
-			$beholdning=$beholdning*1;
-			$beholdning=dkdecimal($beholdning,2);
-			if (substr($beholdning,-1)=='0') $beholdning=substr($beholdning,0,-1);
-			if (substr($beholdning,-1)=='0') $beholdning=substr($beholdning,0,-2);
-			if (!$lagervare) $beholdning="ikke lagerført";
-			$tmp=afrund(abs($antal)-abs($tidl_lev),2); #20131004
-			if ($samlevare && $saet) {
-
-				$tmp=NULL;
-			} else {
-				if ($tmp) {
-					if (abs($antal)!=abs($tidl_lev)) {
-						print "<td title=\"".findtekst('1500|Lagerbeholdning', $sprog_id).": $beholdning. Mangler fortsat at ".$lever_modtag."e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					if ($art=='DK') {
+						$dklev=dkdecimal($leveres*-1,2);
+						$dk_tidl_lev=dkdecimal($tidl_lev*-1,2);
+						$lever_modtag="modtag";
 					} else {
-						print "<td title=\"".findtekst('1500|Lagerbeholdning', $sprog_id).": $beholdning. Intet ".$lever_modtag."et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+						$dklev=dkdecimal($leveres,2);
+						$dk_tidl_lev=dkdecimal($tidl_lev,2);
+						$lever_modtag="lever";
 					}
-					print "<td title=\"".findtekst('1495|Tidligere', $sprog_id)." ".$lever_modtag."et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
-					if ($batchvare && $antal>0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"".findtekst('1496|Vælg fra købsordre', $sprog_id)."\"><img alt=\"".findtekst('1497|Serienummer', $sprog_id)."\" src=\"../ikoner/serienr.png\"></td>\n";
-					elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"".findtekst('1501|Vælg serienr', $sprog_id)."\"><img alt=\"".findtekst('1497|Serienummer', $sprog_id)."\" src=\"../ikoner/serienr.png\"></td>\n";
-					$levdiff=1;
-				} else {
-					if ($antal==$tidl_lev) $dklev=0;
-					print "<td title=\"".findtekst('1500|Lagerbeholdning', $sprog_id).": $beholdning. Alt ".$lever_modtag."et.\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
-					print "<td title=\"".findtekst('1495|Tidligere', $sprog_id)." ".$lever_modtag."et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+
+					if (substr($dklev,-1)=='0') $dklev=substr($dklev,0,-1);
+					if (substr($dklev,-1)=='0') $dklev=substr($dklev,0,-2);
+					if (substr($dk_tidl_lev,-1)=='0') $dk_tidl_lev=substr($dk_tidl_lev,0,-1);
+					if (substr($dk_tidl_lev,-1)=='0') $dk_tidl_lev=substr($dk_tidl_lev,0,-2);
+					print "<input type=\"hidden\" name=tidl_lev[$x] value=\"$dk_tidl_lev\">\n";
+					$temp=$beholdning-$reserveret[$x];
+					$status=2;
+					$beholdning=$beholdning*1;
+					$beholdning=dkdecimal($beholdning,2);
+					if (substr($beholdning,-1)=='0') $beholdning=substr($beholdning,0,-1);
+					if (substr($beholdning,-1)=='0') $beholdning=substr($beholdning,0,-2);
+					if (!$lagervare) $beholdning="ikke lagerført";
+					$tmp=afrund(abs($antal)-abs($tidl_lev),2); #20131004
+					if ($samlevare && $saet) {
+
+						$tmp=NULL;
+					} else {
+						if ($tmp) {
+							if (abs($antal)!=abs($tidl_lev)) {
+								print "<td title=\"".findtekst('1500|Lagerbeholdning', $sprog_id).": $beholdning. Mangler fortsat at ".$lever_modtag."e resten.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #ffa; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+							} else {
+								print "<td title=\"".findtekst('1500|Lagerbeholdning', $sprog_id).": $beholdning. Intet ".$lever_modtag."et endnu.\"><input class = 'inputbox' $readonly type = 'text' style=\"text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+							}
+							print "<td title=\"".findtekst('1495|Tidligere', $sprog_id)." ".$lever_modtag."et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+							if ($batchvare && $antal>0) print "<td align=\"center\" onClick=\"batch($linje_id)\" title=\"".findtekst('1496|Vælg fra købsordre', $sprog_id)."\"><img alt=\"".findtekst('1497|Serienummer', $sprog_id)."\" src=\"../ikoner/serienr.png\"></td>\n";
+							elseif ($serienr) print "<td align=\"center\" onClick=\"serienummer($linje_id)\" title=\"".findtekst('1501|Vælg serienr', $sprog_id)."\"><img alt=\"".findtekst('1497|Serienummer', $sprog_id)."\" src=\"../ikoner/serienr.png\"></td>\n";
+							$levdiff=1;
+						} else {
+							if ($antal==$tidl_lev) $dklev=0;
+							print "<td title=\"".findtekst('1500|Lagerbeholdning', $sprog_id).": $beholdning. Alt ".$lever_modtag."et.\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+							print "<td title=\"".findtekst('1495|Tidligere', $sprog_id)." ".$lever_modtag."et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
+						}
+
+						if ($linje_id && $leveret!=$tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id",__FILE__ . " linje " . __LINE__);
+					}
 				}
-
-				if ($linje_id && $leveret!=$tidl_lev) db_modify("update ordrelinjer set leveret=$tidl_lev where id=$linje_id",__FILE__ . " linje " . __LINE__);
 			}
-
 		}
      else {
     print "<td></td>";
