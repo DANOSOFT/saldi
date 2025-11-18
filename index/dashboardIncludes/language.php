@@ -23,7 +23,7 @@ if(isset($_POST['cookieLanguageId'])){
 
 // Cookie language selector (same as index.php)
 print "<form method='POST'>";
-print "<tr bgcolor='$bgcolor5'><td colspan='6'>Sprog: </td></tr>";
+print "<tr bgcolor='$bgcolor5'><td colspan='6'>".findtekst('2715|Sprog', $sprog_id).": </td></tr>";
 // Read from tekster.csv like index.php does
 $fp = fopen("../importfiler/tekster.csv","r");
 if ($linje=trim(fgets($fp))) {
