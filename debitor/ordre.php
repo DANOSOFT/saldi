@@ -3163,7 +3163,7 @@ $kundeordre = findtekst('1092|Kundeordre', $sprog_id);
 ##### pile ########
     $txt140 = findtekst('140|Adresse', $sprog_id);
     $txt666 = findtekst('666|Postnr & by', $sprog_id);
-		print "<table class='dataTableForm' cellpadding='0' cellspacing='0' style='max-width:1400px;' bordercolor='#FFFFFF'  width='100%' border='1' valign = 'top'><tbody>\n"; #Tabel 2 ->
+		print "<table class='dataTableForm' cellpadding='0' cellspacing='0' style='max-width:1400px; margin: 0 auto;' bordercolor='#FFFFFF'  width='100%' border='1' valign = 'top'><tbody>\n"; #Tabel 2 ->
 		$ordre_id=$id;
 		print "<tr><td width='31%' valign='top'><table cellpadding='0' cellspacing='0' border='0' width='100%'>\n"; #Tabel 2.1 ->
 		print "<tr class='tableTexting'><td width='100'><b>".findtekst('43|Kontonr.', $sprog_id)."</b></td><td width='100'>$kontonr</td></tr>\n";
