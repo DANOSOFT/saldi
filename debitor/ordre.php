@@ -472,8 +472,12 @@ $vis_kost  = if_isset($_GET, NULL, 'vis_kost');
 if ($sort && $fokus && $b_submit=='vareOpslag') {
 	$qtxt="update settings set var_value='$sort' where var_name='vareOpslag' and var_grp='deb_ordre' and user_id='$bruger_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-  #  sidehoved($id,"ordre.php","","","Vareopslag");
-	vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,0); 
+	// Redirect to new grid-based product lookup page
+	$bordnr_param = isset($bordnr) && $bordnr ? "&bordnr=$bordnr" : "";
+	$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=$fokus&vis_kost=$vis_kost&ref=" . urlencode($ref) . "$bordnr_param";
+	if (isset($afd_lager)) $url .= "&lager=$afd_lager";
+	header("Location: $url");
+	exit; 
 } elseif ($sort && $fokus && $b_submit=='kontoOpslag') {
 	sidehoved($id,"ordre.php","","","Kontoopslag");
 	kontoopslag($art,$sort,$fokus,$id,$vis_kost,$ref,0); 
@@ -2504,8 +2508,23 @@ if ($swap_account) {
 		$option= if_isset($option,NULL).':'.$s[0];
 	}	
 
-    if ((strstr($fokus,'vare'))&&($art!='DK')) vareopslag($art,$sort,'varenr',$id,$vis_kost,$ref,$varenr[0],$Urlc,$option);
-    if (strstr($fokus,'besk') && $beskrivelse[0] && $art!='DK') vareopslag($art,$sort,'beskrivelse',$id,$vis_kost,$ref,$beskrivelse[0]);
+    if ((strstr($fokus,'vare'))&&($art!='DK')) {
+		// Redirect to new grid-based product lookup page
+		$find_param = isset($varenr[0]) ? urlencode($varenr[0]) : '';
+		$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
+		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
+		if (isset($afd_lager)) $url .= "&lager=$afd_lager";
+		header("Location: $url");
+		exit;
+	}
+    if (strstr($fokus,'besk') && $beskrivelse[0] && $art!='DK') {
+		// Redirect to new grid-based product lookup page
+		$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
+		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=beskrivelse&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=" . urlencode($beskrivelse[0]) . "$bordnr_param";
+		if (isset($afd_lager)) $url .= "&lager=$afd_lager";
+		header("Location: $url");
+		exit;
+	}
     if (strstr($fokus,'besk')) tekstopslag($sort,$id);
     if ((strstr($fokus,'kontakt'))&&($id)) ansatopslag($sort,$fokus,$id,$vis,$kontakt);
     
