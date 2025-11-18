@@ -60,10 +60,6 @@ if (!$is_product_lookup) {
 		   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey='N'>
 		   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
 		   $add_icon " . findtekst(39, $sprog_id) . "</button></a></td>";
-} else {
-	// Add empty cells to maintain layout when buttons are hidden
-	print "<td width=5% style='$buttonStyle'></td>";
-	print "<td width=5% style='$buttonStyle'></td>";
 }
 
 print "</tbody></table></td></tr>\n"; # <- Tabel 1.1
