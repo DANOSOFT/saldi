@@ -315,6 +315,7 @@ function create_datagrid($id, $grid_data) {
     // Get additional configurations
     $rowStyleFn = if_isset($grid_data['rowStyle'], null);
     $metaColumnFn = if_isset($grid_data['metaColumn'], null);
+    $metaColumnHeaders = if_isset($grid_data['metaColumnHeaders'], null);
     $totalWidth = calculate_total_width($columns_updated);
     $menu = if_isset($_GET["menu"][$id], "main"); // ['main', 'kolonner', 'filtre']
 
@@ -346,6 +347,7 @@ function create_datagrid($id, $grid_data) {
             $searchTerms, 
             $rowStyleFn, 
             $metaColumnFn,
+            $metaColumnHeaders,
             $query, 
             $sort,
             $selectedrowcount,
@@ -785,6 +787,7 @@ function calculate_total_width($columns) {
  * @param array $searchTerms An array of search terms used to filter table data. Each term corresponds to a column.
  * @param callable|null $rowStyleFn A callback function to define dynamic styles for each row. Receives a row and returns a style string.
  * @param callable|null $metaColumnFn A callback function to render metadata for each row. Receives a row and returns an HTML string.
+ * @param array|null $metaColumnHeaders An array of header names for meta columns (e.g., ['Aktiv', 'Inviter']).
  * @param array $query The query parameters used for filtering and sorting the table data. Typically includes search, sort, and pagination data.
  * @param string $sort The current sorting criteria, e.g., the column and direction (e.g., 'column_name ASC').
  * @param int $selectedrowcount The total number of rows selected by the user for some action (e.g., bulk action).
@@ -795,7 +798,7 @@ function calculate_total_width($columns) {
  *
  * @return void Outputs the full HTML structure of the datagrid, including a table and necessary form fields for interaction.
  */
-function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
+function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
     // Start table wrapper and form
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
@@ -808,7 +811,7 @@ function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowSt
 HTML;
 
     // Render table headers
-    render_table_headers($columns, $searchTerms, $totalWidth, $id);
+    render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaColumnHeaders);
 
     echo <<<HTML
                 </thead>
@@ -869,9 +872,10 @@ HTML;
  * @param int $totalWidth The total width of the table, used to calculate the width percentage of each column.
  * @param string $id The unique identifier for the table. Used to generate dynamic IDs and actions related to sorting and interactions.
  *
+ * @param array|null $metaColumnHeaders An array of header names for meta columns.
  * @return void Outputs the full HTML structure for the table header and the search row, including sorting functionality and search inputs.
  */
-function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
+function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaColumnHeaders = null) {
     print "<tr>";
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
@@ -891,6 +895,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         }
         echo "</th>";
     }
+    // Add meta column headers if provided
+    if ($metaColumnHeaders && is_array($metaColumnHeaders)) {
+        foreach ($metaColumnHeaders as $header) {
+            echo "<th style='text-align: center;'>$header</th>";
+        }
+    }
     print "<th class='filler-row'></th>";
     print "</tr>";
     print "<tr style='background-color: #f4f4f4'>";
@@ -901,6 +911,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
             echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
         }
         echo "</th>";
+    }
+    // Add empty search cells for meta columns
+    if ($metaColumnHeaders && is_array($metaColumnHeaders)) {
+        foreach ($metaColumnHeaders as $header) {
+            echo "<th></th>";
+        }
     }
 
     echo <<<HTML
