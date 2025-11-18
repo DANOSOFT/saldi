@@ -523,7 +523,7 @@ if ($current_menu == "main") {
 	$action="debitor_historik.php";
 	print "<div style='text-align: right; padding: 10px;'>";
 	print "<form name='historik' action='$action' method='post' style='display: inline;'>";
-	print "<input style='width:100px;' type='submit' name='historik' value='Send'>";
+	print "<input style='width:100px; margin-right: 5px;' type='submit' name='historik' value='Send'>";
 	print "<input style='width:100px;' type='submit' name='chooseAll' value='".findtekst('89|Vælg alle', $sprog_id)."'>";
 	print "</form>";
 	print "</div>";
