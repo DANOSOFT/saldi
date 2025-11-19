@@ -54,6 +54,7 @@
 // 20240422 PHR Added 'S' in box3 when insertion uset in grupper
 // 26042024 PBLM changed the path of the javascript and css files to be relative to the file location for flatpickr
 // 23-05-2024 PBLM Setup notification from easyUBL
+// 20251119 PHR added  && $title != "POS Ordre" to if (!$isApiCall) 
 
 #include("../includes/connect.php"); #20211001
 $url = $_SERVER['REQUEST_URI'];
@@ -492,7 +493,7 @@ $isApiCall = (
 );
 
 // Wrap the style output in the API check:
-if (!$isApiCall) {
+if (!$isApiCall && $title != "POS Ordre") {
 ?>
 <style>
 	/* type submit and type button */
