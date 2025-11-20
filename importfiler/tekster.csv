@@ -967,7 +967,7 @@
 967	Varenavn	Item name	Gjenstandsnavn
 968	Detaljeret	Detailed	Detaljert
 969	Kun salg / DB	Sales / DB only	Bare salg / DB
-970	Beregn lagerbeh	Calculate stock	Beregn lager
+970	Beregn lagerbeh.	Calculate stock	Beregn lagerbeh.
 971	Se lagerstatus på vilkårlig dato	See stock status on any date	Se lagerstatus på hvilken som helst dato
 972	Beholdningsrapport med lokation samt min og max	Inventory report with location and min and max	Lagerrapport med plassering og min og maks
 973	Funktion til optælling og regulering af varelager	Function for counting and regulating inventory	Funksjon for telling og regulering av varelager
@@ -981,7 +981,7 @@
 981	Købsdato	Date of purchase	Kjøpsdato
 982	Salgsdato	Sale date	Salgsdato
 983	Summeret	Summed up	Oppsummerte
-984	Samlet til-/afgang i perioden	Total arrival / departure during the period	Total ankomst / avreise i perioden
+984	Samlet til-/afgang i perioden	Total inbound/outbound for period	Samlet til-/avgang i perioden
 985	Åbne ordrer	Open orders	Åpne ordrer
 986	Invoice	Invoiced orders	Fakturerte ordrer
 987	Sagsstyring	Case management	Saksbehandling
@@ -2743,9 +2743,9 @@
 2743	Modtager	Recipient	Mottaker
 2744	Tilgang	Inbound	Tilgang
 2745	Afgang	Outbound	Avgang
-2746	
-2747	
-2748	
+2746	Varesalg	Product sales	Varesalg
+2747	Inkl. moms	Incl. VAT	Inkl. MVA
+2748	Samlet lagerværdi	Total inventory value	Samlet lagerverdi
 2749	
 2750	
 2751	
