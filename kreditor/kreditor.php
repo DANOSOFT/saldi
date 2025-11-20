@@ -70,6 +70,8 @@ include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
+include(get_relative() . "includes/grid.php");
+
 
 
 if ($menu == 'T') {
@@ -230,56 +232,12 @@ if (!$sort) $sort = "firmanavn";
 $sort = str_replace("adresser.", "", $sort);
 $sortering = $sort;
 
-if ($menu == 'T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">";
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
-	print "<div class=\"headerTxt\">$title</div>";
-	print "<div class=\"headerbtnRght headLink\"><a accesskey=V href=kreditorvisning.php?valg=$valg title='Ændre ordrevisnig'><i class='fa fa-gear'></i></a> &nbsp; <a accesskey=N href='kreditorkort.php?returside=kreditor.php' title='Opret nyt leverandør kort'><i class='fa fa-plus-square'></i></a></div>";
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu == 'S') {
-	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>\n";
-	print "<tr><td height = 25 align=center valign=top>";
-	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>\n";
+if ($menu=='T') {
+	include_once 'kredLstIncludes/topLine.php';
+} elseif ($menu=='S') include_once 'kredLstIncludes/topLine.php';
+else {
 
-	print "<tr><td width=10%><a href=$returside accesskey=L>
-		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst(30, $sprog_id) . "</button></a></td>";
-
-	print "<td width = 80% align=center style='$topStyle'>" . findtekst(607, $sprog_id) . "</td>";
-
-	print "<td width=5%><a accesskey=V href=kreditorvisning.php?valg=$valg>
-		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst(813, $sprog_id) . "</button></a></td>\n";
-
-	print "<td width=5%><a href=kreditorkort.php?returside=kreditor.php>
-		   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst(39, $sprog_id) . "</button></a></td></tr>\n";
-
-	print "</tbody></table>";
-	print " </td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"100%\">";
-} else {
-	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>\n";
-	print "<tr><td height = 25 align=center valign=top>";
-	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>\n";
-	print "<tr><td width=10% $top_bund><a href=$returside accesskey=L>" . findtekst(30, $sprog_id) . "</a></td>";
-	print "<td width = 80% align=center $top_bund>" . findtekst(607, $sprog_id) . "</td>";
-	print "<td width=5% $top_bund><a accesskey=V href=kreditorvisning.php?valg=$valg>" . findtekst(813, $sprog_id) . "</a></td>\n";
-	#if ($popup) {
-	#		print "<td width=5% $top_bund onClick=\"javascript:kreditor=window.open('kreditorkort.php?returside=kreditor.php','ordre','scrollbars=1,resizable=1');ordre.focus();\"><a accesskey=N href=kreditor.php?sort=$sort>Ny</a></td>\n";
-	#	} else {
-	print "<td width=5%  $top_bund><a href=kreditorkort.php?returside=kreditor.php>" . findtekst(39, $sprog_id) . "</a></td></tr>\n";
-	#	}
-	#print "<tr><td></td><td align=center><table border=1	cellspacing=0 cellpadding=0><tbody>\n";
-	#print "<td width = 20%$top_bund align=center><a href=kreditor.php?valg=tilbud accesskey=T>Tilbud</a></td>";
-	#print "<td width = 20% bgcolor=$bgcolor5 align=center> Ordrer</td>";
-	#print "<td width = 20% bgcolor=$bgcolor5 align=center> Faktura</td>"; 
-	#print "</tbody></table></td><td></td</tr>\n";
-
-	print "</tbody></table>";
-	print " </td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"100%\">";
+	include_once 'kredLstIncludes/topLine.php';
 }
 $vis_felt = array();
 $qtxt = "select box3,box4,box5,box6,box8,box11 from grupper where art = 'KLV' and kodenr = '$bruger_id' and kode='$valg'";
@@ -289,326 +247,249 @@ if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	$justering = explode(chr(9), $r['box5']);
 	$feltnavn = explode(chr(9), $r['box6']);
 	$select = explode(chr(9), $r['box8']);
+	$skjul_lukkede=$r['box11'];
 }
 
-$y = 0;
-for ($x = 0; $x <= count($vis_felt); $x++) {
-	if (!empty($select[$x])) {
-		$selectfelter[$y] = $vis_felt[$x];
+$vis_feltantal=count($vis_felt);
+$y=0;
+for ($x=0;$x<=$vis_feltantal;$x++) {
+	if (isset($select[$x]) && isset($vis_felt[$x]) && $select[$x] && $vis_felt[$x]) {
+		$selectfelter[$y]=$vis_felt[$x];
 		$y++;
 	}
 }
 
-$numfelter = array("rabat", "momskonto", "kreditmax", "betalingsdage", "gruppe", "kontoansvarlig", "postnr", "kontonr");
-####################################################################################
-$udvaelg = NULL;
-$tmp = trim(if_isset($find[0], NULL));
-for ($x = 1; $x < count($vis_felt); $x++) {
-	$tmp = $tmp . "\n" . trim(if_isset($find[$x], NULL));
+$numfelter=array("rabat","momskonto","kreditmax","betalingsdage","gruppe","kontoansvarlig","postnr","kontonr");
+
+
+// Build columns array for grid
+$columns = array();
+
+// Get ansatte for kontoansvarlig field
+$ansat_id=array();
+$ansat_init=array();
+$y=0;
+$qtxt = "select distinct(ansatte.id) as ansat_id,ansatte.initialer as initialer from ansatte,adresser where ";
+$qtxt.= "adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.initialer";
+$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+while ($r=db_fetch_array($q)) {
+    $y++;
+    $ansat_id[$y]=$r['ansat_id'];
+    $ansat_init[$y]=$r['initialer'];
 }
-$tmp = db_escape_string(if_isset($tmp, NULL));
-$qtxt = "update grupper set box10='$tmp' where art = 'KLV' and kode='$valg' and kodenr = '$bruger_id'";
-db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-if ($skjul_lukkede) $udvaelg = " and lukket != 'on'";
-for ($x = 0; $x < count($vis_felt); $x++) {
-	$find[$x] = addslashes(trim($find[$x]));
-	$tmp = $vis_felt[$x];
-  
-	if ($find[$x] && !in_array($tmp, $numfelter)) {
-	 $searchTerm = "%" . $find[$x] . "%";
+$ansatantal=$y;
 
-		$tmp2 = "adresser." . $tmp . "";
-		$udvaelg = $udvaelg . udvaelg($searchTerm, $tmp2, '');
+$status_id=array();
+$status_beskrivelse=array();
+$qtxt = "select box3,box4 from grupper where art='KredInfo'";
+$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+if ($r) {
+    $status_id=explode(chr(9),$r['box3']);
+    $status_beskrivelse=explode(chr(9),$r['box4']);
+}
+$status_antal=count($status_id);
 
-		// $udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, '');
-	} elseif ($find[$x] || $find[$x] == "0") {
-		$searchTerm = "%" . $find[$x] . "%";
-
-		$tmp2 = "adresser." . $tmp . "";
-		// $udvaelg = $udvaelg . udvaelg($find[$x], $tmp2, 'NR');
-		$udvaelg = $udvaelg . udvaelg($searchTerm, $tmp2, 'NR');
-
-// Old code start
-	/*if ($find[$x] && $tmp == 'kontakt') { */
-		// Search in ansatte table for employee name (case-insensitive) like debitor
-	/*	$udvaelg .= " and adresser.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%".db_escape_string($find[$x])."%'))";
-	} elseif ($find[$x] && !in_array($tmp, $numfelter)) {
-		$tmp2 = "adresser." . $tmp;
-		$udvaelg .= udvaelg($find[$x], $tmp2, 'TEXT');
-	} elseif ($find[$x] || $find[$x] == "0") {
-		$tmp2 = "adresser." . $tmp;
-		$udvaelg .= udvaelg($find[$x], $tmp2, 'NR');*/
-// Old code end
-	}
+for ($x=0;$x<count($vis_felt);$x++) {
+    if (!isset($vis_felt[$x]) || !$vis_felt[$x]) continue;
+    if (substr($vis_felt[$x],0,4) == 'cat_') continue; 
+    
+    $field = $vis_felt[$x];
+    $headerName = isset($feltnavn[$x]) ? $feltnavn[$x] : $field;
+    $width = isset($feltbredde[$x]) && $feltbredde[$x] ? ($feltbredde[$x] / 100) : 1;
+    $align = isset($justering[$x]) ? $justering[$x] : 'left';
+    $isSearchable = true; 
+    
+    $column = array(
+        "field" => $field,
+        "headerName" => $headerName,
+        "width" => $width,
+        "align" => $align,
+        "searchable" => $isSearchable,
+        "sqlOverride" => "a.$field"
+    );
+    
+ 
+    if ($field == 'kontonr' || $field == 'postnr') {
+        $column["type"] = "text";
+    } elseif (in_array($field, $numfelter)) {
+        $column["type"] = "number";
+        if ($align == 'left') $column["align"] = "right";
+    } else {
+        $column["type"] = "text";
+    }
+    
+    // Special renderers
+    if ($field == 'kontoansvarlig') {
+        $column["render"] = function ($value, $row, $column) use ($ansat_id, $ansat_init, $ansatantal) {
+            $display = '';
+            for ($y=1;$y<=$ansatantal;$y++) {
+                if (isset($ansat_id[$y]) && $ansat_id[$y]==$value) {
+                    $display = stripslashes($ansat_init[$y]);
+                    break;
+                }
+            }
+            return "<td align='{$column['align']}'>$display</td>";
+        };
+    } elseif ($field == 'status') {
+        $column["render"] = function ($value, $row, $column) use ($status_id, $status_beskrivelse, $status_antal) {
+            $display = '';
+            for ($y=0;$y<$status_antal;$y++) {
+                if (isset($status_id[$y]) && $status_id[$y]==$value) {
+                    $display = stripslashes($status_beskrivelse[$y]);
+                    break;
+                }
+            }
+            return "<td align='{$column['align']}'>$display</td>";
+        };
+    } elseif ($field == 'kontakt') {
+        $column["generateSearch"] = function ($column, $term) {
+            $term = db_escape_string($term);
+            return "a.id in (select konto_id from ansatte where LOWER(navn) like LOWER('%$term%'))";
+        };
+    } elseif ($field == 'kontonr' || $field == 'postnr') {
+        // kontonr and postnr are text identifiers, use text search
+        $column["generateSearch"] = function ($column, $term) {
+            $field = $column['sqlOverride'];
+            $term = db_escape_string($term);
+            return "$field::text ILIKE '%$term%'";
+        };
+    } elseif (in_array($field, $numfelter)) {
+        $column["generateSearch"] = function ($column, $term) {
+            $field = $column['sqlOverride'];
+            $term = db_escape_string($term);
+            if (strstr($term, ':')) {
+                list($num1, $num2) = explode(":", $term, 2);
+                return "$field >= '".usdecimal($num1)."' AND $field <= '".usdecimal($num2)."'";
+            } else {
+                $term = usdecimal($term);
+                return "$field >= $term AND $field <= $term";
+            }
+        };
+    }
+    
+    $columns[] = $column;
 }
 
-if (count($dg_liste)) {
-	$x = 0;
-	$q = db_select("select * from grupper where art = 'DG' order by beskrivelse", __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$x++;
-		$dg_id[$x] = $r['id'];
-		$dg_kodenr[$x] = $r['kodenr'] * 1;
-		$dg_navn[$x] = $r['beskrivelse'];
-	}
-	$dg_antal = $x;
+foreach ($columns as &$column) {
+    if ($column['field'] == 'kontonr') {
+        $column["render"] = function ($value, $row, $column) use ($valg) {
+            $url = "kreditorkort.php?tjek={$row['id']}&id={$row['id']}&returside=kreditor.php";
+            return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
+        };
+        break;
+    }
 }
 
-if (isset($cat_liste)) {
-	$r = db_fetch_array(db_select("select box1,box2 from grupper where art='KredInfo'", __FILE__ . " linje " . __LINE__));
-	$cat_id = explode(chr(9), $r['box1']);
-	$cat_beskrivelse = explode(chr(9), $r['box2']);
-	$cat_antal = count($cat_id);
+$filters = array();
+
+if ($skjul_lukkede) {
+    $filters[] = array(
+        "filterName" => "Misc",
+        "joinOperator" => "and",
+        "options" => array(
+            array(
+                "name" => "Vis udgået",
+                "checked" => "",
+                "sqlOn" => "",
+                "sqlOff" => "(a.lukket IS NULL OR a.lukket = '0' or a.lukket = '')",
+            )
+        )
+    );
 }
 
-$sortering = "adresser." . $sortering;
+$q=db_select("select kodenr, MIN(beskrivelse) as beskrivelse from grupper where art = 'DG' group by kodenr order by kodenr",__FILE__ . " linje " . __LINE__);
+$dg_options = array();
+$seen_kodenr = array(); // Track seen kodenr values to prevent duplicates
+$seen_names = array(); // Also track by name to catch any remaining duplicates
+while ($r=db_fetch_array($q)) {
+    $kodenr = (int)$r['kodenr']; // Ensure it's an integer
+    $name = trim($r['beskrivelse']);
+    // Check both kodenr and name to prevent duplicates
+    $key = $kodenr . '|' . $name;
+    if (!in_array($kodenr, $seen_kodenr) && !in_array($name, $seen_names)) {
+        $seen_kodenr[] = $kodenr;
+        $seen_names[] = $name;
+        $dg_options[] = array(
+            "name" => $name,
+            "checked" => "",
+            "sqlOn" => "a.gruppe = $kodenr",
+            "sqlOff" => "",
+        );
+    }
+}
+if (count($dg_options)) {
+    $filters[] = array(
+        "filterName" => "Leverandørgrupper",
+        "joinOperator" => "or",
+        "options" => $dg_options
+    );
+}
 
-$ialt = 0;
-$lnr = 0;
-if (!$linjeantal) $linjeantal = 100;
-$slut = $start + $linjeantal;
-$adresserantal = 0;
 
-$r = db_fetch_array(db_select("select count(id) as antal from adresser where art = 'K' $udvaelg", __FILE__ . " linje " . __LINE__));
-$antal = $r['antal'];
+$r=db_fetch_array(db_select("select box1,box2 from grupper where art='KredInfo'",__FILE__ . " linje " . __LINE__));
+if ($r && $r['box1'] && $r['box2']) {
+    $cat_id=explode(chr(9),$r['box1']);
+    $cat_beskrivelse=explode(chr(9),$r['box2']);
+    $cat_antal=count($cat_id);
+    $cat_options = array();
+    for ($y=0;$y<$cat_antal;$y++) {
+        if (isset($cat_id[$y]) && isset($cat_beskrivelse[$y]) && $cat_id[$y] && $cat_beskrivelse[$y]) {
+            $cat_options[] = array(
+                "name" => $cat_beskrivelse[$y],
+                "checked" => "",
+                "sqlOn" => "(a.kategori = '{$cat_id[$y]}' or a.kategori LIKE '{$cat_id[$y]}".chr(9)."%' or a.kategori LIKE '%".chr(9)."{$cat_id[$y]}' or a.kategori LIKE '%".chr(9)."{$cat_id[$y]}".chr(9)."%')",
+                "sqlOff" => "",
+            );
+        }
+    }
+    if (count($cat_options)) {
+        $filters[] = array(
+            "filterName" => "Kategorier",
+            "joinOperator" => "or",
+            "options" => $cat_options
+        );
+    }
+}
 
-print "<table cellpadding=1 cellspacing=1 border=0 valign=top width=100% class='dataTable'><tbody>\n<tr>";
-if ($start > 0) {
-	$prepil = $start - $linjeantal;
-	if ($prepil < 0) $prepil = 0;
-	print "<td><a href=kreditor.php?start=$prepil&valg=$valg><img class='imgFade' src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
+$select_fields = array();
+foreach ($columns as $col) {
+    $select_fields[] = $col['sqlOverride'] . " AS " . $col['field'];
+}
+$select_fields[] = "a.id AS id";
+
+$query = "SELECT " . implode(",\n    ", $select_fields) . "
+FROM adresser a
+WHERE a.art = 'K' AND {{WHERE}}
+ORDER BY {{SORT}}";
+
+
+$rowStyleFn = function ($row) {
+    if (isset($row['lukket']) && $row['lukket'] == 'on') {
+        return "color: #f00;";
+    }
+    return "";
+};
+
+// grid data array
+$data = array(
+    "table_name" => "kreditor",
+    "query" => $query,
+    "columns" => $columns,
+    "filters" => $filters,
+    "rowStyle" => $rowStyleFn,
+    "metaColumn" => null,
+);
+
+// Render grid
+$table_id = 'kredlist';
+
+// Render grid
+print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+create_datagrid($table_id, $data);
+print "</div>";
+
+if ($menu=='T') {
+    include_once '../includes/topmenu/footer.php';
 } else {
-	print "<td>";
-	if (file_exists("rotary_addrsync.php")) print "<a href=\"rotary_addrsync.php\" target=\"blank\" title=\"Klik her for at synkronisere medlemsinfo\">!</a>";
-	print "</td>";
-}
-for ($x = 0; $x < count($feltnavn); $x++) {
-	if ($feltbredde[$x]) $width = "width=$feltbredde[$x]";
-	else $width = "";
-	print "<td align=$justering[$x] $width><b><a href='kreditor.php?nysort=$vis_felt[$x]&sort=$sort&valg=$valg'>$feltnavn[$x]</b></td>\n";
-}
-if ($antal > $slut && !$dg_liste[0] && !isset($cat_liste[0])) {
-	$nextpil = $start + $linjeantal;
-	print "<td align=right><a href=kreditor.php?start=$nextpil&valg=$valg><img class='imgFade' src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td><tr>";
-}
-print "</tr>\n";
-if ($dg_antal || $cat_antal) $linjeantal = 0;
-#################################### Sogefelter ##########################################
-
-
-print "<form name=kreditorliste action=kreditor.php method=post>";
-print "<input type=hidden name=valg value=$valg>";
-print "<input type=hidden name=sort value='$ny_sort'>";
-print "<input type=hidden name=nysort value='$sort'>";
-print "<input type=hidden name=kontoid value=" . if_isset($kontoid, 0) . ">";
-
-print "<tr><td></td>"; #giver plads til venstrepil v. flere sider
-// if (!$start) {
-	for ($x = 0; $x < count($vis_felt); $x++) {
-		$span = '';
-		print "<td align=$justering[$x]><span title= '$span'>";
-		if ($vis_felt[$x] == "kontoansvarlig") {
-			$ansat_id = array();
-			$ansat_init = array();
-			$y = 0;
-			$q = db_select("select distinct(ansatte.id) as ansat_id,ansatte.initialer as initialer from ansatte,adresser where adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.initialer", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$y++;
-				$ansat_id[$y] = $r['ansat_id'];
-				$ansat_init[$y] = $r['initialer'];
-			}
-			$ansatantal = $y;
-			if (in_array($vis_felt[$x], $selectfelter)) {
-				print "<SELECT NAME=\"find[$x]\">";
-				if (!$find[$x]) print "<option value=\"\"></option>";
-				for ($y = 1; $y <= $ansatantal; $y++) if ($ansat_init[$y] && $find[$x] == $ansat_id[$y]) print "<option value=\"$ansat_id[$y]\">" . stripslashes($ansat_init[$y]) . "</option>";
-				if ($find[$x]) print "<option value=\"\"></option>";
-				for ($y = 1; $y <= $ansatantal; $y++) if ($ansat_init[$y] && $find[$x] != $ansat_id[$y]) print "<option value=\"$ansat_id[$y]\">" . stripslashes($ansat_init[$y]) . "</option>";
-				print "</SELECT></td>";
-			}
-			#			print "<input class=\"inputbox\" type=text readonly=$readonly size=$feltbredde[$x] style=\"text-align:$justering[$x]\" name=find[$x] value=\"$r[tmp]\">";
-		} elseif ($vis_felt[$x] == "status") {
-			$status_id = array();
-			$status_init = array();
-			$r = db_fetch_array(db_select("select box3,box4 from grupper where art='KredInfo'", __FILE__ . " linje " . __LINE__));
-			$status_id = explode(chr(9), $r['box3']);
-			$status_beskrivelse = explode(chr(9), $r['box4']);
-			$status_antal = count($status_id);
-			if (in_array($vis_felt[$x], $selectfelter)) {
-				print "<SELECT NAME=\"find[$x]\">";
-				if (!$find[$x]) print "<option value=\"\"></option>";
-				for ($y = 0; $y < $status_antal; $y++) {
-					if ($status_beskrivelse[$y] && $find[$x] == $status_id[$y]) print "<option value=\"$status_id[$y]\">" . stripslashes($status_beskrivelse[$y]) . "</option>";
-				}
-				if ($find[$x]) print "<option value=\"\"></option>";
-				for ($y = 0; $y < $status_antal; $y++) {
-					if ($status_beskrivelse[$y] && $find[$x] != $status_id[$y]) print "<option value=\"$status_id[$y]\">" . stripslashes($status_beskrivelse[$y]) . "</option>";
-				}
-				print "</SELECT></td>";
-			}
-			#			print "<input class=\"inputbox\" type=text readonly=$readonly size=$feltbredde[$x] style=\"text-align:$justering[$x]\" name=find[$x] value=\"$r[tmp]\">";
-		} elseif (in_array($vis_felt[$x], $selectfelter)) {
-			$tmp = $vis_felt[$x];
-			print "<SELECT NAME=\"find[$x]\">";
-			print "<option>" . stripslashes($find[$x]) . "</option>";
-			// Special handling for kontakt: list all employee names
-			if ($tmp == 'kontakt') {
-				$q = db_select("select distinct(ansatte.navn) as kontakt from ansatte, adresser where adresser.art='S' and ansatte.konto_id=adresser.id order by ansatte.navn", __FILE__ . " linje " . __LINE__);
-			} else {
-				$q = db_select("select distinct($tmp) from adresser where art = 'K'", __FILE__ . " linje " . __LINE__);
-			}
-			if ($find[$x]) print "<option></option>";
-			while ($r = db_fetch_array($q)) {
-				if ($tmp == 'kontakt') print "<option>$r[kontakt]</option>";
-				else print "<option>$r[$tmp]</option>";
-			}
-			print "</SELECT></td>";
-		} else {
-			if ($menu == 'T') {
-				print "<input class=\"inputbox\" type=text size=10 style=\"text-align:$justering[$x]\" name=find[$x] value=\"$find[$x]\">";
-			} else {
-				print "<input class=\"inputbox\" type=text size=$feltbredde[$x] style=\"text-align:$justering[$x]\" name=find[$x] value=\"$find[$x]\">";
-			}
-		}
-	}
-	print "</td>\n";
-	print "<td><input type=submit value=\"".findtekst('913|Søg', $sprog_id)."\" name=\"search\"></td>";
-	print "</form></tr><td></td>\n";
-// }
-######################################################################################################################
-$udv1    = $udvaelg;
-$colspan = count($vis_felt) + 1;
-$dgcount = count($dg_liste);
-(!$dgcount) ? $dgcount = 1 : NULL;
-for ($i = 0; $i < $dgcount; $i++) {
-	if ($dg_liste[$i]) {
-		for ($i2 = 0; $i2 <= $dg_antal; $i2++) {
-			if ($dg_liste[$i] == $dg_id[$i2]) {
-				if (!$start && !$lnr) {
-					#					print "<tr><td colspan=\"$colspan\"><hr></td>";
-					$tmp = $start + $linjeantal;
-				}
-				if (!$cat_liste[0]) {
-					print "<tr><td></td><td colspan=\"2\"><b>$dg_navn[$i2]</b></td></tr>";
-					print "<tr><td colspan=\"$colspan\"><hr></td>";
-				}
-				$udv1 = $udvaelg . " and gruppe=$dg_kodenr[$i2]";
-				break 1;
-			}
-		}
-	}
-	if (isset($cat_liste)) {
-		$catcount = count($cat_liste);
-	} else {
-		$catcount = 0;
-	}
-	(!$catcount) ? $catcount = 1 : NULL;
-	for ($i3 = 0; $i3 < $catcount; $i3++) {
-		if (isset($cat_liste) && $cat_liste[$i3]) {
-			for ($i4 = 0; $i4 <= $cat_antal; $i4++) {
-				if ($cat_liste[$i3] == $cat_id[$i4]) {
-					if (!$start && !$lnr) {
-						#						print "<td colspan=\"$colspan\"><b>$cat_beskrivelse[$i4]</b></td></tr>";
-						#						print "<tr><td colspan=\"$colspan\"><hr></td>";
-						$tmp = $start + $linjeantal;
-						#						if ($antal>$slut) print "<td align=center><a href=kreditor.php?start=$tmp&valg=$valg><img src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td><tr>";
-					}
-					print "<tr><td colspan=\"$colspan\"><hr></td>";
-					if ($dg_navn[$i2]) $tmp = "<td colspan=\"2\"><b>$dg_navn[$i2]</b></td>";
-					else $tmp = "";
-					print "<tr><td></td>$tmp<td colspan=\"2\"><b>$cat_beskrivelse[$i4]</b></td></tr>";
-					print "<tr><td colspan=\"$colspan\"><hr></td>";
-					$udv2 = $udv1 . " and (kategori = '$cat_id[$i4]' or kategori LIKE '$cat_id[$i4]" . chr(9) . "%' ";
-					$udv2 .= "or kategori LIKE '%" . chr(9) . "$cat_id[$i4]' or kategori LIKE '%" . chr(9) . "$cat_id[$i4]" . chr(9) . "%')";	#20160218
-					break 1;
-				}
-			}
-		}
-
-		if (!isset($udv2)) $udv2 = $udv1;
-		if (!$udv2) $udv2 = $udvaelg;
-		$adresseantal = 0;
-		$query = db_select("select * from adresser where art = 'K' $udv2 order by $sortering", __FILE__ . " linje " . __LINE__);
-		while ($row = db_fetch_array($query)) {
-			$kreditorkort = "kreditorkort" . $row['id'];
-			$lnr++;
-			if (($lnr >= $start && $lnr < $slut) || $udv2) {
-				$adresseantal++;
-				#if (($tidspkt-($row['tidspkt'])>3600)||($row['hvem']==$brugernavn)) {
-				#				if ($popup) {
-				#					$javascript="onClick=\"javascript:".$valg."kort=window.open('".$valg."kort.php?tjek=$row[id]&id=$row[id]&returside=kreditor.php','$kreditorkort','scrollbars=1,resizable=1');$kreditorkort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" ";
-				#					$understreg='<span style="text-decoration: underline;">';
-				#					$hrefslut="";
-				#				} else {
-				$javascript = "";
-				$understreg = "<a href=" . $valg . "kort.php?tjek=$row[id]&id=$row[id]&returside=kreditor.php>";
-				$hrefslut = "</a>";
-				#				}
-				$linjetext = "";
-				/*}	
-			else {
-				$javascript="onClick=\"javascript:$kreditorkort.focus();\"";
-				$understreg='';
-				$linjetext="<span title= 'Kortet er l&aring;st af $row[hvem]'>";
-			}*/
-				if (isset($linjebg) && $linjebg != $bgcolor) {
-					$linjebg = $bgcolor;
-					$color = '#000000';
-				} else {
-					$linjebg = $bgcolor5;
-					$color = '#000000';
-				}
-				print "<tr bgcolor=\"$linjebg\" onclick='javascript:openKreditorKort(".$row["id"].");'><td></td>";
-				print "<td align=$justering[0] $javascript> $linjetext $row[kontonr]</span><br></td>";
-				for ($x = 1; $x < count($vis_felt); $x++) {
-					print "<td align=$justering[$x]>";
-					$tmp = $vis_felt[$x];
-					if ($vis_felt[$x] == 'kontoansvarlig') {
-						for ($y = 1; $y <= $ansatantal; $y++) {
-							if ($ansat_id[$y] == $row[$tmp]) print stripslashes($ansat_init[$y]);
-						}
-					} elseif ($vis_felt[$x] == 'status') {
-						for ($y = 0; $y <= $status_antal; $y++) {
-							if ($row[$tmp] && $status_id[$y] == $row[$tmp]) print stripslashes($status_beskrivelse[$y]);
-						}
-					} else print $row[$tmp];
-					print "</td>";
-				}
-				print "<td></td>";
-				print "<input type=hidden name=adresse_id[$adresseantal] value=$row[id]>";
-				#			$colspan = count($vis_felt) + 2;
-
-				#		if ($r=db_fetch_array(db_select("select id from grupper where art = 'KLV' and kode = '$valg' and kodenr = '$bruger_id'",__FILE__ . " linje " . __LINE__))) {
-				#			db_modify("update grupper set box1='$kreditorliste' where id='$r[id]'",__FILE__ . " linje " . __LINE__);
-				#		} 
-			}
-		}
-	}
-}
-#print "<tr><td colspan=$colspan><hr></td></tr>\n";
-#$cols--;
-
-print "<tr>";
-if (isset($prepil))	print "<td colspan=$colspan><a href=kreditor.php?start=$prepil&valg=$valg><img class='imgFade' src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
-else print "<td colspan=$colspan></td>";
-if (isset($nextpil)) print "<td align=right><a href=kreditor.php?start=$nextpil&valg=$valg><img class='imgFade' src=../ikoner/right.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td><tr>";
-else print "<td></td>";
-print "</tr>";
-$colspan++;
-print "<tr><td colspan=$colspan width=100%></td></tr>";
-#print "<table border=0 width=100%><tbody>";
-
-#print "</tbody></table></td>";
-#print "<tr><td colspan=$colspan><hr></td></tr>\n";
-
-print "</tbody>
-</table>
-	</td></tr>
-</tbody></table>
-";
-
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
-} else {
-	include_once '../includes/oldDesign/footer.php';
+    include_once '../includes/oldDesign/footer.php';
 }
