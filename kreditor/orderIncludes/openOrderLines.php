@@ -137,6 +137,9 @@ if ($status>=1) {
          $tidl_lev[$x] = $tidl_lev[$x] + $r['antal'];
       }
     }
+    // make it so antal and tidl_lev have the same number of decimal places
+    $antal[$x] = round($antal[$x],2);
+    $tidl_lev[$x] = round($tidl_lev[$x],2);
      if ($antal[$x] != $tidl_lev[$x]) $bogfor = 0;
     if ($art=='KK') $tidl_lev[$x] *=-1;
      $dk_tidl_lev[$x] = dkdecimal($tidl_lev[$x],2);

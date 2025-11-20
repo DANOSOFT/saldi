@@ -66,6 +66,9 @@
 // 20250908 LOE Moved kontoosplag function to ../includes/kreditorOrderFuncIncludes/accountLookup.php
 // 20251113 PHR	Added some undefined vareables
 // 20251115 PHR Added missing "'"
+
+// start session
+session_start();
 $s_id=session_id();
 
 ?>
@@ -112,7 +115,7 @@ $returside = if_isset($_GET,NULL,'returside');
 #if ($popup) $returside="../includes/luk.php";
 #elseif (!$returside) $returside="../kreditor/ordreliste.php";
 if (!$returside || $returside=="ordreliste.php") $returside="../kreditor/ordreliste.php";
-
+$bogfor = 1;
 $tidspkt=date("U");
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
@@ -1046,6 +1049,7 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 	}
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"3600;URL=../includes/luk.php\">";
 	else print "<meta http-equiv=\"refresh\" content=\"3600;URL=ordreliste.php\">";
+	echo "<script>console.log('bogfor: $bogfor');</script>";
 	ordreside($id);
 
 
