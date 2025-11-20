@@ -115,8 +115,15 @@ if ($addUser || $updateUser) {
 	$kode=trim(if_isset($_POST['kode']));
 	$kode2=trim(if_isset($_POST['kode2']));
 	$tlf=trim(if_isset($_POST['tlf']));
+	$email=trim(if_isset($_POST['email']));
 	$medarbejder=trim(if_isset($_POST['medarbejder']));
 	$employeeId=if_isset($_POST['employeeId']);
+	$twofactor=if_isset($_POST['twofactor']);
+	if($twofactor){
+		$twofactor = 't';  // PostgreSQL boolean true
+	} else {
+		$twofactor = 'f';  // PostgreSQL boolean false
+	}
 	// $restore_user = if_isset($_POST['ruser_ip']); #20210831
 	$insert_ip = if_isset($_POST['insert_ip']); #20210908
 	// $user_ip = if_isset($_POST['user_ip']); #20210831
@@ -153,8 +160,8 @@ if ($addUser || $updateUser) {
 #			print "<tr><td align=center>Der findes allerede en bruger med brugenavn: $brugernavn!</td></tr>";
 		}	else {
 			if (!$regnaar) $regnaar=1;
-			$qtxt = "insert into brugere (brugernavn,kode,rettigheder,regnskabsaar,ansat_id,ip_address,tlf) ";
-			$qtxt.= "values ('$brugernavn','$kode','$rettigheder','$regnaar',$employeeId[0],'$insert_ip','$tlf')";
+			$qtxt = "insert into brugere (brugernavn,kode,rettigheder,regnskabsaar,ansat_id,ip_address,tlf,twofactor,email) ";
+			$qtxt.= "values ('$brugernavn','$kode','$rettigheder','$regnaar',$employeeId[0],'$insert_ip','$tlf','$twofactor','$email')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from brugere where brugernavn = '$brugernavn' and kode = '$kode'";
 			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -163,14 +170,16 @@ if ($addUser || $updateUser) {
 	}
 	if ($id && $kode && $brugernavn) {
 		if (strstr($kode,'**********')) {
-			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor' where id=$id",__FILE__ . " linje " . __LINE__);
 			update_settings_value('afd', 'brugerAfd', $afd, '', $id);
 		} else {
 			$kode=saldikrypt($id,$kode);
-			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor' where id=$id",__FILE__ . " linje " . __LINE__);
 			update_settings_value('afd', 'brugerAfd', $afd, '', $id);
 		}
 	}
+
+	
 	// if($restore_user){
 	// 	restore_user_ip($restore_user, $re_id); #20210831 + 20210909
 	// }
@@ -370,7 +379,8 @@ if ($ret_id) {
 		}
 	}
 	print "</select></td></tr>";
-	print "<tr><td>Tlf (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=tlf value='$row[tlf]'></td></tr>";
+	print "<tr title='Hvis telefon og email er udfyldt, vil 2fa sendes til tlf og ikke email'><td>Tlf (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=tlf value='$row[tlf]'></td></tr>";
+	print "<tr title='Hvis telefon og email er udfyldt, vil 2fa sendes til tlf og ikke email'><td>Email (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=email value='$row[email]'></td></tr>";
 	if($row['twofactor'] == 't') {
 		$twofactor = "checked";
 	} else {
