@@ -90,7 +90,10 @@ $guid = db_fetch_array($q)[0];
 $qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 $terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
-
+if($terminal_id == "test"){
+    include "lane3000-sim.php";
+    exit;
+}
 writeLog("Terminal ID retrieved: $terminal_id");
 
 // Fetch printserver
