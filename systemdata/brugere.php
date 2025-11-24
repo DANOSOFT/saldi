@@ -170,11 +170,11 @@ if ($addUser || $updateUser) {
 	}
 	if ($id && $kode && $brugernavn) {
 		if (strstr($kode,'**********')) {
-			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
 			update_settings_value('afd', 'brugerAfd', $afd, '', $id);
 		} else {
 			$kode=saldikrypt($id,$kode);
-			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor' where id=$id",__FILE__ . " linje " . __LINE__);
+			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
 			update_settings_value('afd', 'brugerAfd', $afd, '', $id);
 		}
 	}

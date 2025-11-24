@@ -772,12 +772,20 @@ if ($userId) {
 							       
 		$tlf_num = $r["tlf"];
 		$email = $r["email"];
-		$real_code = explode("|",$r["tmp_kode"])[0];
-		$real_expire = explode("|",$r["tmp_kode"])[1];
+		$bruger_id = $userId; // Set bruger_id to userId
+		$real_code = NULL;
+		$real_expire = 0;
+		if (!empty($r["tmp_kode"])) {
+			$tmp_kode_parts = explode("|", $r["tmp_kode"]);
+			if (count($tmp_kode_parts) >= 2) {
+				$real_code = $tmp_kode_parts[0];
+				$real_expire = $tmp_kode_parts[1];
+			}
+		}
 		$status = NULL;
 
 		$code = $_POST['code_1'] . $_POST['code_2'] . $_POST['code_3'] . $_POST['code_4'] . $_POST['code_5'] . $_POST['code_6'];
-		if ($code && time() <= $real_expire) {
+		if ($code && $real_expire && time() <= $real_expire) {
 			if ($real_code == $code) {
 				$status = "success";
 			} else {
@@ -786,7 +794,7 @@ if ($userId) {
 		}
 		if ($bruger_id && $tlf_num) {
 		# The code has expired and a new one needs sent
-		if (time() > $real_expire && $status !== "success") {
+		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
 			$status = "En sms er sendt til din telefon +" . substr($tlf_num, 0, 4) . "______";
 
 			# Generate secure random 4 didget integer using urandom
@@ -817,17 +825,31 @@ if ($userId) {
 			exit;
 		}
 	}elseif($bruger_id && $email) {
-		$status = "En email er sendt til din email " . $email;
-		$result = send_email("Saldi", $email, "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
-		if ($result === false) {
-			echo "Der opstod en fejl ved afsendelse af email. Prøv igen senere.";
-		} else {
-			$current_time = time();
-			$expire = $current_time + 180; // Expires in 3 minutes
-			db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
+		# The code has expired and a new one needs sent
+		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
+			# Generate secure random 6 digit integer using urandom
+			$urandom = fopen('/dev/urandom', 'rb');
+			$seed = fread($urandom, 32);
+			fclose($urandom);
+			$seed = unpack('L', $seed)[1];
+			mt_srand($seed);
+			$random_integer = mt_rand(100000, 999999);
+
+			$status = "En email er sendt til din email " . $email;
+			$result = send_email($email, "Saldi 2FA kode", "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
+			if ($result === false) {
+				echo "Der opstod en fejl ved afsendelse af email. Prøv igen senere.";
+			} else {
+				$current_time = time();
+				$expire = $current_time + 180; // Expires in 3 minutes
+				db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
+				include("tofaktor.php");
+			}
+			exit;
+		} else if ($status !== "success") {
 			include("tofaktor.php");
+			exit;
 		}
-		exit;
 	}
 	echo "2fa done";
 	# ###################################################
