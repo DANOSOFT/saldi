@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverse.php -----patch 4.1.1 ----2025-05-26------------
+// --- systemdata/diverse.php -----patch 4.1.1 ----2025-11-24------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -86,6 +86,7 @@
 // 20250414 LOE Updated barcodescan location and updated some variables
 // 20250513 Sawaneh add max user update in kontoindstillinger()
 // 20250526 PHR 'nyt_navn' changed to 'newName'
+// 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
 
 
 @session_start();
@@ -243,6 +244,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 
 	#######################################################################################
 	} elseif ($sektion == 'div_valg') {
+print_r($_POST);
 		$id      = (int) $_POST['id'];
 		$box1    = $_POST['box1']; #gruppevalg
 		$box2    = $_POST['box2']; #kuansvalg
@@ -255,6 +257,7 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 		$box8    = $_POST['box8']; #paymentdays
 		$box9    = $_POST['box9']; #ledig
 		$box10   = $_POST['box10']; #betalingsliste
+echo __line__." ".$_POST['box10'] ."<br>";
 		$box12   = $_POST['box12'];
 		$pv_box1 = $_POST['pv_box1']; #Direkte print til lokal printer
 		$pv_box3            = $_POST['pv_box3']; #formulargenerator html/ps
@@ -350,7 +353,11 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		} elseif ($id > 0) {
 			// db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
-			db_modify("update grupper set  box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
+			$qtxt = "update grupper set  ";
+			$qtxt.= "box1='$box1',box2='$box2',box3='$box3',box4='$box4',box5='$box5',box6='$box6',box7='$box7',box8='$box8',box9='$box9',box10='$box10',box11='$box11',box12='$box12' ";
+			$qtxt.= "WHERE id = '$id'";
+echo "$qtxt<br>";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($box8 == 'on') {
 				update_settings_value("paymentDays", "payment", $paymentDays, "Number of days for payment");
 			} else {

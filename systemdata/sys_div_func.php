@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.09.11 ---
+// --- systemdata/sys_div_func.php --- ver 4.1.1 -- 2025.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -94,6 +94,7 @@
 // 20250513 Sawaneh add max user update in kontoindstillinger()
 // 20250526 PHR 'nyt_navn' changed to 'newName' 
 // 20250911 LOE modified text 3023 to 2324
+// 20251124 PHR	modified 'betalingslister' to choose between none / debitor / kreditor / both
 
 include("sys_div_func_includes/chooseProvision.php");
 include_once("../includes/connect.php"); 
@@ -755,7 +756,7 @@ function div_valg() {
 	// if ($box8) $ebconnect = "checked";
 	if ($box8 == 'on') $payment_days = "checked";
 	if ($box9 == 'on') $ledig = "checked"; # ledig
-	if ($box10 == 'on') $betalingsliste = "checked";
+#	if ($box10 == 'on') $betalingsliste = "checked";
 	$paymentDays = get_settings_value("paymentDays", "payment", "");
 
 	$r = db_fetch_array(db_select("select box1,box3 from grupper where art = 'PV' and kodenr = '1'", __FILE__ . " linje " . __LINE__));
@@ -876,7 +877,17 @@ function div_valg() {
 	print "<tr>\n<td title='".findtekst('185|Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervsformater). Hvis dette felt er afmærket', $sprog_id)."'>".findtekst('184|Brug betalingslister', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('185|Betalingslister giver mulighed for at overføre betalinger til bank via ERH (bankernes erhvervsformater). Hvis dette felt er afmærket', $sprog_id)."'>\n";
 	print "<!-- 184 : Brug betalingslister -->";
-	print "<input name='box10' class='inputbox' type='checkbox' $betalingsliste>\n";
+	print "<select name='box10' class='inputbox'>\n";
+	if ($box10 == '') print "<option value = ''></option>";
+	if ($box10 == 'B') print "<option value = 'B'>Begge</option>";
+	if ($box10 == 'D') print "<option value = 'D'>Debitorer</option>";
+	if ($box10 == 'K') print "<option value = 'K'>Kreditorer</option>";
+	if ($box10 != '') print "<option value = ''></option>";
+	if ($box10 != 'B') print "<option value = 'B'>Begge</option>";
+	if ($box10 != 'D') print "<option value = 'D'>Debitorer</option>";
+	if ($box10 != 'K') print "<option value = 'K'>Kreditorer</option>";
+	print "</select>";
+#	print "<input name='box10' class='inputbox' type='checkbox' $betalingsliste>\n";
 	print "</td></tr>\n";
 	print "<tr>\n<td title='".findtekst('1061|Når en ordre oprettes flyttes debitors kontonummer over på ordren, hvis der ikke er angivet et telefonnummer på debitorkortet. Kan dog rettes på ordren efterfølgende.', $sprog_id)."'>".findtekst('1060|Benyt debitors kontonummer som telefonnumer på ordre', $sprog_id)."</td>\n";
 	print "<td title='".findtekst('1061|Når en ordre oprettes flyttes debitors kontonummer over på ordren, hvis der ikke er angivet et telefonnummer på debitorkortet. Kan dog rettes på ordren efterfølgende.', $sprog_id)."'>\n";
