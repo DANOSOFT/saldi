@@ -60,6 +60,7 @@ if ($dan_liste) {
 	exit;
 }
 if (isset($_POST['slet_ugyldige']) || isset($_POST['gem']) || isset($_POST['udskriv'])) {
+#cho "Gem $_POST[gem]<br>";
 	$id = $erh = array();
 	$slet_ugyldige = $_POST['slet_ugyldige'];
 #	$liste_id      = if_isset($_POST['liste_id']);
@@ -87,6 +88,7 @@ if (isset($_POST['slet_ugyldige']) || isset($_POST['gem']) || isset($_POST['udsk
 		if ($slet_ugyldige && $ugyldig[$x] == $id[$x]) $slet[$x] = 'on';
 		elseif (!isset($slet)) $slet[$x] = NULL;
 		if ($slet[$x]=='on') {
+			#cho "delete from betalinger where id='$id[$x]'<br>";
 			db_modify("delete from betalinger where id='$id[$x]'",__FILE__ . " linje " . __LINE__);
 		} else {
 			$qtxt = "update betalinger set bet_type='$erh[$x]',fra_kto='$fra_kto[$x]',egen_ref='".db_escape_string($egen_ref[$x])."',";
@@ -177,12 +179,14 @@ if ($find || isset($_GET["kladde_id"])) {
 		$myBank='0'.$myBank; # kontonumre skal vaere paa 10 cifre
 	}
 	$myBank = $myReg.$myBank;
+	#cho "select ordre_id, bilag_id from betalinger<br>";
 	$qtxt = "select var_value from settings where var_name = 'customerCommissionAccountUsed' and var_grp = 'items'";
 	if ($find == 'saldo') { #&& $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 
 		$x=0;
 		$credAccount=array();
 		$qtxt = "select id, egen_ref from betalinger where liste_id = '$liste_id'";
+#cho "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			list($a,$b) = explode('-',$r['egen_ref'],2);
@@ -191,6 +195,7 @@ if ($find || isset($_GET["kladde_id"])) {
 		}
 		$x=0;
 		$qtxt = "select * from adresser where art = 'K'";
+#cho "$qtxt<br>";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			$custId=$r['id'];
@@ -206,6 +211,7 @@ if ($find || isset($_GET["kladde_id"])) {
 			$custRef="$myName";
 			$qtxt="select sum(amount) as amount from openpost where udlignet = '0' and konto_id='$custId'";
 			
+#cho "$qtxt<br>";
 			$amount=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))[0];
 			if ($amount < 0) {
 				$amount = dkdecimal(abs($amount));
@@ -216,6 +222,7 @@ if ($find || isset($_GET["kladde_id"])) {
 					$qtxt.= "('ERH356','$myBank','".db_escape_string($myRef)."','".db_escape_string($custBank)."',";
 					$qtxt.= "'".db_escape_string($custName)."','".db_escape_string($custRef)."','$amount','$paydate',"; 
 					$qtxt.="'$currency', '0', '0','$liste_id')";
+#cho "$qtxt<br>";
 					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 				}
 			}
@@ -285,6 +292,7 @@ if ($find || isset($_GET["kladde_id"])) {
 		}
 		while ($r=db_fetch_array($q)){
 			$ordre_id=0;
+#cho "$ordre_id<br>";		
 			$medtag=1;
 			$egen_ref[0]=$r['egen_ref'];
 			$kladde_id=$r['kladde_id']*1;
@@ -293,6 +301,7 @@ if ($find || isset($_GET["kladde_id"])) {
 #			if ($kladde_id && in_array($bilag_id,$bilag_id_list)) $medtag=0;
 #			if (!$kladde_id && in_array($refnr,$ordre_id_list)) $medtag=0;
 #			elseif (!$kladde_id) $ordre_id=$refnr;
+#cho "$medtag<br>";
 			if ($medtag) {
 				$tmp=$r['modt_konto'];
 				if ($tmp) {
@@ -316,6 +325,7 @@ if ($find || isset($_GET["kladde_id"])) {
 				if (!$valuta[0]) $valuta='DKK';
 				$paymentId = $r['paymentid'];
 				if (!$paymentId) $paymentId = $r['faktnr'];
+#cho "Pay $paymentId<br>";
 				if ($r['paymentid']) {
 					if (substr($r['paymentid'],0,1)=="+") {
 						$paymentId=substr($r['paymentid'],1);
@@ -336,6 +346,7 @@ if ($find || isset($_GET["kladde_id"])) {
 				$qtxt.="('$erh','$myBank','".db_escape_string($egen_ref[0])."','$modt_konto','".db_escape_string($r['modt_navn'])."',";
 				$qtxt.="'".db_escape_string($kort_ref)."','$belob[0]','$forfaldsdag',"; 
 				$qtxt.="'$valuta[0]', '$bilag_id', '$ordre_id','$liste_id')";
+#cho "$qtxt<br>";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -349,6 +360,7 @@ if ($udskriv) {
 	while ($r=db_fetch_array($q)) {
 		$x++;
 		list($kort_ref,$k1[$x],$k2[$x],$k3[$x],$k4[$x],$k5[$x],$k6[$x],$k7[$x],$k8[$x],$k9[$x])=betalingskontrol($erh[$x],$r['fra_kto'],$r['egen_ref'],$r['til_kto'],$r['kort_ref'],$r['modt_navn'],$r['belob'],$r['valuta'],$r['betalingsdato']);
+#cho "<!-- UDDATA for ".$x.": k1:".$k1[$x]." k2:". $k2[$x]." k3:".$k3[$x]." k4:".$k4[$x]." k5:".$k5[$x]." k6:".$k6[$x]." K7:".$k7[$x]." K8:".$k8[$x]." K9:".$k9[$x]. "-->\n";
 		if($k1[$x]||$k2[$x]||$k3[$x]||$k4[$x]||$k5[$x]||$k6[$x]||$k7[$x]||$k8[$x]||$k9[$x]) {
 			$fejl_i_liste.=fejl_i_betalingslinje($x, $k1[$x], $k2[$x], $k3[$x], $k4[$x], $k5[$x], $k6[$x], $k7[$x], $k8[$x], $k9[$x]); # 20140717
 		}
@@ -421,6 +433,7 @@ if ($udskriv) {
 $fejl=0;
 #$kn_kontrol=0;
 $qtxt = "select * from betalinger where liste_id='$liste_id' order by modt_navn,betalingsdato";
+#cho "$qtxt<br>";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$x++;
