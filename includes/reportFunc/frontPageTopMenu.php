@@ -1,4 +1,33 @@
 <?php //20251112
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- includes/reportFunc/fromtPageOldMenu.php --- Patch 4.1.1 --- 20251124 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2003-2025 saldi.dk aps
+// -----------------------------------------------------------------------------------
+//
+// 20251123 Fixed multiroute/paylist problem
+
+		// next line can be removed in 2026
+		db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
+
 		$dato = $dato_fra;
 		if ($dato_til)
 			$dato .= ":$dato_til";
@@ -47,11 +76,14 @@
 			} else {
 				print "<td align='center' colspan='2'><input title='" . findtekst(918, $sprog_id) . "' style='width:115px' type='submit' value='" . findtekst(918, $sprog_id) . "' name='salgsstat'></td>";
 			}
-			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'", __FILE__ . " linje " . __LINE__))) {
+			$r=db_fetch_array(db_select("select box10 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
+			if ($r['box10'] == 'B' || $r['box10'] == 'D') {
 				$tekst1 = findtekst(531, $sprog_id);
 				$tekst2 = findtekst(532, $sprog_id);
 				print "<td align=center><span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title='$tekst1' style='width:145px' type='button' value='$tekst2'></span></td>\n";
-			} elseif (file_exists("../debitor/multiroute.php")) {
+			}
+			$r=db_fetch_array(db_select("select var_value from settings where var_name = 'useMultiRoute'", __FILE__ . " linje " . __LINE__));
+			if ($r['var_value'] == 'on') {
 				print "<td align=center><span onclick='javascript:location.href='../debitor/multiroute.php''><input title='Multiroute' style='width:135px' type='button' value='" . findtekst(923, $sprog_id) . "'></span></td>\n";
 			}
 			print "</tr>\n";
