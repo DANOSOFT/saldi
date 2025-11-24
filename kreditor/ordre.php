@@ -115,7 +115,7 @@ $returside = if_isset($_GET,NULL,'returside');
 #if ($popup) $returside="../includes/luk.php";
 #elseif (!$returside) $returside="../kreditor/ordreliste.php";
 if (!$returside || $returside=="ordreliste.php") $returside="../kreditor/ordreliste.php";
-$bogfor = 1;
+
 $tidspkt=date("U");
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 
