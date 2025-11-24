@@ -99,6 +99,10 @@ $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='tm
 if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 	db_modify("ALTER TABLE tmpkassekl ADD COLUMN pos INTEGER DEFAULT 0", __FILE__ . " linje " . __LINE__);
 }
+$qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='brugere' and column_name='tlf'";
+if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	db_modify("ALTER TABLE brugere ADD COLUMN tlf VARCHAR(16) NULL", __FILE__ . " linje " . __LINE__);
+}
 
 $qtxt = "select id from settings where var_name = 'flatpay_auth'";
 if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
