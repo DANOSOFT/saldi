@@ -87,6 +87,56 @@ if ($source === 'kassekladde' && empty($docFolder)) {
     }
 }
 
+#########
+function sanitize_filename($filename) {
+    // Replace known extended Latin/Danish characters
+    $translit = [
+        'æ' => 'ae', 'Æ' => 'Ae',
+        'ø' => 'oe', 'Ø' => 'Oe',
+        'å' => 'aa', 'Å' => 'Aa',
+        'ä' => 'ae', 'Ä' => 'Ae',
+        'ö' => 'oe', 'Ö' => 'Oe',
+        'ü' => 'ue', 'Ü' => 'Ue',
+        'ß' => 'ss',
+        'ñ' => 'n',  'Ñ' => 'N',
+        'á' => 'a',  'Á' => 'A',
+        'é' => 'e',  'É' => 'E',
+        'í' => 'i',  'Í' => 'I',
+        'ó' => 'o',  'Ó' => 'O',
+        'ú' => 'u',  'Ú' => 'U'
+    ];
+    $filename = strtr($filename, $translit);
+
+    // Fallback transliteration for any remaining special chars
+    $filename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $filename);
+
+	//if any extra
+	$filename = preg_replace('/^(_{0,2}(UTF-8|ISO-8859-1)?_?Q_*)?/i', '', $filename);
+    // Remove all but safe characters
+    $filename = preg_replace('/[^\w\-\. ]+/', '_', $filename);
+
+    // Trim unwanted characters from ends
+    $filename = trim($filename, " \t\n\r\0\x0B.");
+
+    // Separate the name and extension
+    $dot_position = strrpos($filename, '.');
+    if ($dot_position !== false) {
+        $name = substr($filename, 0, $dot_position);
+        $ext = substr($filename, $dot_position); // Includes the dot
+    } else {
+        $name = $filename;
+        $ext = '';
+    }
+
+    // Truncate the name part if longer than 54 characters
+    if (strlen($name) > 54) {
+        $name = substr($name, 0, 54);
+    }
+
+    return $name . $ext;
+}
+#######
+
 
 
 if ($dokument) {
@@ -98,18 +148,77 @@ if ($dokument) {
 #$openPool,$sourceId,$source,$bilag,$fokus,$poolFile,$docFolder
 #echo $poolParams;
 
+// Handle file uploads for pool view
+if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
+	$fileTypes = array('jpg','jpeg','pdf','png');
+	$fileName = basename($_FILES['uploadedFile']['name']);
+	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
+	if (in_array(strtolower($fileType),$fileTypes)) {
+		$poolDir = "$docFolder/$db/pulje";
+		if (!is_dir($poolDir)) {
+			mkdir($poolDir, 0755, true);
+		}
+		// Sanitize filename
+		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		$baseName = sanitize_filename($baseName);
+		$targetFile = "$poolDir/$baseName.pdf";
+		
+		// Convert images to PDF if needed
+		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+			$tempFile = "$poolDir/$baseName.$ext";
+			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				system("convert '$tempFile' '$targetFile'");
+				if (file_exists($targetFile)) {
+					unlink($tempFile);
+				} else {
+					$targetFile = $tempFile; // Fallback to original if conversion fails
+				}
+			}
+		} else {
+			// For PDF files, move directly
+			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+		}
+		
+		// Create .info file
+		if (file_exists($targetFile)) {
+			$infoFile = "$poolDir/$baseName.info";
+			if (!file_exists($infoFile)) {
+				file_put_contents($infoFile, $baseName . PHP_EOL);
+				chmod($infoFile, 0666);
+			}
+			// Redirect to pool view after successful upload
+			$poolParams =
+				"openPool=1"."&".
+				"kladde_id=$kladde_id"."&".
+				"bilag=$bilag"."&".
+				"fokus=$fokus"."&".
+				"poolFile=$baseName.pdf"."&".
+				"docFolder=$docFolder"."&".
+				"sourceId=$sourceId"."&".
+				"source=$source";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
+			exit;
+		}
+	}
+}
 
-// ---------- Main table start ---------
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
-print "<tr><td colspan= \"3\" height = \"25\" align=\"center\" valign=\"top\">";
-// ---------- Header table start ---------
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-include("docsIncludes/header.php");
-// ---------- Header table end ---------
-print "</tbody></table>";
-print "</td></tr><tr><td width = '20%'>";
-// ---------- Left table start ---------
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+// Auto-redirect to pool view if not already in pool view
+if (!$openPool && $sourceId) {
+	$poolParams =
+		"openPool=1"."&".
+		"kladde_id=$kladde_id"."&".
+		"bilag=$bilag"."&".
+		"fokus=$fokus"."&".
+		"poolFile=$poolFile"."&".
+		"docFolder=$docFolder"."&".
+		"sourceId=$sourceId"."&".
+		"source=$source";
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
+	exit;
+}
+
+// Check for openPool BEFORE printing any table structure
 if ($openPool) {
 	$finalDestination = "$docFolder/$db/pulje";
 		#############
@@ -215,61 +324,24 @@ if ($openPool) {
 			}
 		} 
 
+	// Include docPool directly without any table structure
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;
 }
+
+// ---------- Main table start ---------
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
+print "<tr><td colspan= \"3\" height = \"25\" align=\"center\" valign=\"top\">";
+// ---------- Header table start ---------
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+include("docsIncludes/header.php");
+// ---------- Header table end ---------
+print "</tbody></table>";
+print "</td></tr><tr><td width = '20%'>";
+// ---------- Left table start ---------
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 #########
-function sanitize_filename($filename) {
-    // Replace known extended Latin/Danish characters
-    $translit = [
-        'æ' => 'ae', 'Æ' => 'Ae',
-        'ø' => 'oe', 'Ø' => 'Oe',
-        'å' => 'aa', 'Å' => 'Aa',
-        'ä' => 'ae', 'Ä' => 'Ae',
-        'ö' => 'oe', 'Ö' => 'Oe',
-        'ü' => 'ue', 'Ü' => 'Ue',
-        'ß' => 'ss',
-        'ñ' => 'n',  'Ñ' => 'N',
-        'á' => 'a',  'Á' => 'A',
-        'é' => 'e',  'É' => 'E',
-        'í' => 'i',  'Í' => 'I',
-        'ó' => 'o',  'Ó' => 'O',
-        'ú' => 'u',  'Ú' => 'U'
-    ];
-    $filename = strtr($filename, $translit);
-
-    // Fallback transliteration for any remaining special chars
-    $filename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $filename);
-
-	//if any extra
-	$filename = preg_replace('/^(_{0,2}(UTF-8|ISO-8859-1)?_?Q_*)?/i', '', $filename);
-    // Remove all but safe characters
-    $filename = preg_replace('/[^\w\-\. ]+/', '_', $filename);
-
-    // Trim unwanted characters from ends
-    $filename = trim($filename, " \t\n\r\0\x0B.");
-
-    // Separate the name and extension
-    $dot_position = strrpos($filename, '.');
-    if ($dot_position !== false) {
-        $name = substr($filename, 0, $dot_position);
-        $ext = substr($filename, $dot_position); // Includes the dot
-    } else {
-        $name = $filename;
-        $ext = '';
-    }
-
-    // Truncate the name part if longer than 54 characters
-    if (strlen($name) > 54) {
-        $name = substr($name, 0, 54);
-    }
-
-    return $name . $ext;
-}
-
-
-#######
 #xit;
 if ($moveDoc) include("docsIncludes/moveDoc.php");
 elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
