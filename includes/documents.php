@@ -203,22 +203,9 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 	}
 }
 
-// Auto-redirect to pool view if not already in pool view
-if (!$openPool && $sourceId) {
-	$poolParams =
-		"openPool=1"."&".
-		"kladde_id=$kladde_id"."&".
-		"bilag=$bilag"."&".
-		"fokus=$fokus"."&".
-		"poolFile=$poolFile"."&".
-		"docFolder=$docFolder"."&".
-		"sourceId=$sourceId"."&".
-		"source=$source";
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
-	exit;
-}
-
 // Check for openPool BEFORE printing any table structure
+// Make sure we check both the variable and the GET parameter
+$openPool = $openPool || (isset($_GET['openPool']) && ($_GET['openPool'] == '1' || $_GET['openPool'] == 1));
 if ($openPool) {
 	$finalDestination = "$docFolder/$db/pulje";
 		#############
@@ -327,6 +314,242 @@ if ($openPool) {
 	// Include docPool directly without any table structure
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
+	exit;
+}
+
+// Check if showing a document - use docPool-style layout
+if ($showDoc && $source == 'kassekladde') {
+	// Add top banner with back button (like docPool)
+	include("../includes/topline_settings.php");
+	global $menu, $buttonColor, $buttonTxtColor;
+	if (!isset($top_bund)) $top_bund = "";
+	if (!isset($buttonColor)) $buttonColor = '#f1f1f1';
+	if (!isset($buttonTxtColor)) $buttonTxtColor = '#000000';
+	
+	// Determine back URL
+	$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+	
+	// Print header banner
+	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px;\"><tbody>";
+	if ($menu=='S') {
+		print "<tr>";
+		print "<td width='10%'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
+		print "<td width='10%' style='$topStyle' align='center'><br></td>";
+		print "</tr>";
+	} else {
+		print "<tr>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></font></td>";
+		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</font></td>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></font></td>";
+		print "</tr>";
+	}
+	print "</tbody></table>";
+	
+	// Add CSS to completely disable all hover effects on top bar (no visual changes at all)
+	print "<style>
+		/* Disable ALL hover effects on top bar - no color, opacity, or visual changes */
+		#topBarHeader tbody tr td a button,
+		#topBarHeader tbody tr td a button:hover,
+		#topBarHeader tbody tr td a:hover button,
+		#topBarHeader tbody tr td a:focus button,
+		#topBarHeader tbody tr td a:active button,
+		#topBarHeader tbody tr td button,
+		#topBarHeader tbody tr td button:hover,
+		#topBarHeader tbody tr td button:focus,
+		#topBarHeader tbody tr td button:active {
+			background-color: $buttonColor !important;
+			color: $buttonTxtColor !important;
+			opacity: 1 !important;
+			transform: none !important;
+			cursor: pointer !important;
+			border-color: $buttonColor !important;
+		}
+		/* Disable hover effects on top bar links - no color or text changes */
+		#topBarHeader tbody tr td a,
+		#topBarHeader tbody tr td a:hover,
+		#topBarHeader tbody tr td a:focus,
+		#topBarHeader tbody tr td a:active {
+			text-decoration: none !important;
+			color: inherit !important;
+			opacity: 1 !important;
+		}
+		/* Disable hover effects on top bar cells - maintain exact background color */
+		#topBarHeader tbody tr,
+		#topBarHeader tbody tr:hover,
+		#topBarHeader tbody tr td,
+		#topBarHeader tbody tr td:hover {
+			background-color: $buttonColor !important;
+			opacity: 1 !important;
+		}
+		/* Pointer cursor for back button only */
+		#topBarHeader tbody tr td:first-child a {
+			cursor: pointer !important;
+		}
+		#topBarHeader tbody tr td:first-child a button {
+			cursor: pointer !important;
+		}
+		html, body {
+			margin: 0;
+			padding: 0;
+			height: 100%;
+			overflow: hidden;
+		}
+		#docViewerContainer {
+			display: flex;
+			width: 100%;
+			height: calc(100vh - 60px);
+			gap: 0;
+			margin: 0;
+			padding: 0;
+			position: fixed;
+			top: 60px;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			box-sizing: border-box;
+		}
+		#leftPanel {
+			flex: 0 0 30%;
+			min-width: 200px;
+			max-width: 80%;
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+			position: relative;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			box-sizing: border-box;
+			border-right: 1px solid #ddd;
+		}
+		#leftPanelContent {
+			flex: 1;
+			overflow-y: auto;
+			overflow-x: hidden;
+			min-height: 0;
+			width: 100%;
+			margin: 0;
+			padding: 0 0 15px 0;
+			box-sizing: border-box;
+			display: flex;
+			flex-direction: column;
+		}
+		/* Style document list table to match docPool */
+		#leftPanel table {
+			width: 100%;
+			border-collapse: collapse;
+			margin: 0;
+			display: table;
+			table-layout: fixed;
+		}
+		#leftPanel table thead {
+			display: table-header-group;
+		}
+		#leftPanel table tbody {
+			display: table-row-group;
+		}
+		#leftPanel table thead th:first-child,
+		#leftPanel table tbody td:first-child {
+			width: calc(100% - 140px);
+		}
+		#leftPanel table thead th:last-child,
+		#leftPanel table tbody td:last-child {
+			width: 140px;
+		}
+		#leftPanel table thead tr {
+			background-color: $buttonColor;
+			border-bottom: 2px solid #ddd;
+		}
+		#leftPanel table thead th {
+			padding: 8px;
+			text-align: left;
+			border: 1px solid #ddd;
+			font-weight: bold;
+			background-color: $buttonColor;
+			color: $buttonTxtColor;
+		}
+		#leftPanel table tbody tr {
+			border-bottom: 1px solid #ddd;
+			transition: background-color 0.2s;
+		}
+		#leftPanel table tbody tr:hover {
+			background-color: #e8f4f8 !important;
+		}
+		#leftPanel table tbody tr:hover td {
+			background-color: transparent !important;
+		}
+		#leftPanel table tbody tr td {
+			padding: 8px;
+			border: 1px solid #ddd;
+		}
+		#leftPanel table tbody tr td a {
+			text-decoration: none;
+			color: inherit;
+			display: inline-block;
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-size: 11px;
+			margin: 0 2px;
+		}
+		#leftPanel table tbody tr td a[href*='deleteDoc'] {
+			background-color: #dc3545;
+			color: white;
+		}
+		#leftPanel table tbody tr td a[href*='deleteDoc']:hover {
+			background-color: #c82333;
+		}
+		#leftPanel table tbody tr td a[href*='moveDoc'] {
+			background-color: #6c757d;
+			color: white;
+		}
+		#leftPanel table tbody tr td a[href*='moveDoc']:hover {
+			background-color: #5a6268;
+		}
+		#rightPanel {
+			flex: 1;
+			min-width: 200px;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			background-color: #f5f5f5;
+			box-sizing: border-box;
+		}
+		#documentViewer {
+			flex: 1;
+			width: 100%;
+			height: 100%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			background-color: #ffffff;
+		}
+	</style>";
+	
+	// Modern flexbox layout (like docPool)
+	print "<div id='docViewerContainer'>";
+	print "<div id='leftPanel'>";
+	print "<div id='leftPanelContent'>";
+	// Show list of documents for this line
+	if ($moveDoc) include("docsIncludes/moveDoc.php");
+	elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
+	include("docsIncludes/listDocs.php");
+	// NO upload option - removed as requested
+	print "</div>"; // leftPanelContent
+	print "</div>"; // leftPanel
+	print "<div id='rightPanel'>";
+	print "<div id='documentViewer'>";
+	include("docsIncludes/showDoc.php");
+	print "</div>"; // documentViewer
+	print "</div>"; // rightPanel
+	print "</div>"; // docViewerContainer
+	print "</body></html>";
 	exit;
 }
 

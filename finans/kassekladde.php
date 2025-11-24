@@ -1542,15 +1542,23 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		($linjebg != $bgcolor) ? $linjebg = $bgcolor : $linjebg = $bgcolor5;
 		print "<tr bgcolor=$linjebg>";
 		if ($vis_bilag && !$fejl && !$udskriv && isset($id[$y])) {
-			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
-			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "select id,filename from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
+			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($dokument[$y] || $docRow) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|Klik her for at åbne bilaget', $sprog_id);
+				// Get the filename to show in pool
+				$poolFile = $docRow ? urlencode($docRow['filename']) : '';
 			} else {
 				$clip = 'clip.png';
 				$titletxt =  findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id);
+				$poolFile = '';
 			}
-			$href = "../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&dokument=$dokument[$y]&bilag_id=$id[$y]&fokus=bila$y";
+			// Go to pool view and show the bilag if it exists
+			$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&openPool=1";
+			if ($poolFile) {
+				$href .= "&poolFile=$poolFile";
+			}
 			print "<td title='$titletxt'><!-- ". __line__ ." -->";
 			print "<a onClick='this.form.submit()' href='$href' id='clip'><img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
 		}
@@ -1731,17 +1739,29 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			list($dub_bilag[$y], $dub_kladde_id[$y]) = explode(",", find_dublet($id[$y], $transdate[$y], $d_type[$y], $debet[$y], $k_type[$y], $kredit[$y], $amount[$y], $faktura[$y]));
 		print "<tr>";
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
-			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
-			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
+			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($dokument[$y] || $docRow) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
+				// Document is attached - show it directly (it's in finance folder, not pool)
+				// Get docFolder
+				if (file_exists('../owncloud')) $docFolder = '../owncloud';
+				elseif (file_exists('../bilag')) $docFolder = '../bilag';
+				elseif (file_exists('../documents')) $docFolder = '../documents';
+				else $docFolder = '../bilag';
+				global $db;
+				$showDocPath = "$docFolder/$db$docRow[filepath]/$docRow[filename]";
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&showDoc=".urlencode($showDocPath);
 			} else {
 				$clip = 'clip.png';
 				$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
+				// No document attached - go to pool to choose one
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&openPool=1";
 			}
 			print "<td title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<a href=\"javascript:confirmClose('../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y&dokument=$dokument[$y]','$txt')\" accesskey='L'>";
+			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L'>";
 #			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
 		}

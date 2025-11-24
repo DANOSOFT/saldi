@@ -64,6 +64,15 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$_POST['dato']=$dato;
 		#}
 		
+		// Ensure poolFile is available in insertDoc.php scope
+		// It should already be available as a function parameter, but ensure it's set
+		if (!isset($poolFile) || empty($poolFile)) {
+			$poolFile = if_isset($_GET, NULL, 'poolFile');
+			if (empty($poolFile)) {
+				$poolFile = if_isset($_POST, NULL, 'poolFile');
+			}
+		}
+		
 		include ("docsIncludes/insertDoc.php");
 #		Echo "Indsltter $poolFile<br>";
 		exit;
@@ -475,6 +484,84 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	"sourceId=$sourceId"."&".
 	"source=$source";
 
+	// Add top banner with back button (like other pages)
+	include("../includes/topline_settings.php");
+	global $menu;
+	if (!isset($top_bund)) $top_bund = "";
+	
+	// Determine back URL based on source (same logic as header.php)
+	if ($source=="kassekladde") {
+		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+	} elseif ($source=="debitorOrdrer") {
+		$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
+	} elseif ($source=="creditorOrder") {
+		$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
+	} else {
+		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
+	}
+	
+	// Print header banner
+	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px;\"><tbody>";
+	if ($menu=='S') {
+		print "<tr>";
+		print "<td width='10%'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
+		print "<td width='10%' style='$topStyle' align='center'><br></td>";
+		print "</tr>";
+	} else {
+		print "<tr>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></td>";
+		print "</tr>";
+	}
+	print "</tbody></table>";
+	
+	// Add CSS to completely disable all hover effects on top bar (no visual changes at all)
+	print "<style>
+		/* Disable ALL hover effects on top bar - no color, opacity, or visual changes */
+		#topBarHeader tbody tr td a button,
+		#topBarHeader tbody tr td a button:hover,
+		#topBarHeader tbody tr td a:hover button,
+		#topBarHeader tbody tr td a:focus button,
+		#topBarHeader tbody tr td a:active button,
+		#topBarHeader tbody tr td button,
+		#topBarHeader tbody tr td button:hover,
+		#topBarHeader tbody tr td button:focus,
+		#topBarHeader tbody tr td button:active {
+			background-color: $buttonColor !important;
+			color: $buttonTxtColor !important;
+			opacity: 1 !important;
+			transform: none !important;
+			cursor: pointer !important;
+			border-color: $buttonColor !important;
+		}
+		/* Disable hover effects on top bar links - no color or text changes */
+		#topBarHeader tbody tr td a,
+		#topBarHeader tbody tr td a:hover,
+		#topBarHeader tbody tr td a:focus,
+		#topBarHeader tbody tr td a:active {
+			text-decoration: none !important;
+			color: inherit !important;
+			opacity: 1 !important;
+		}
+		/* Disable hover effects on top bar cells - maintain exact background color */
+		#topBarHeader tbody tr,
+		#topBarHeader tbody tr:hover,
+		#topBarHeader tbody tr td,
+		#topBarHeader tbody tr td:hover {
+			background-color: $buttonColor !important;
+			opacity: 1 !important;
+		}
+		/* Pointer cursor for back button only */
+		#topBarHeader tbody tr td:first-child a {
+			cursor: pointer !important;
+		}
+		#topBarHeader tbody tr td:first-child a button {
+			cursor: pointer !important;
+		}
+	</style>";
+
 	print "<form name=\"gennemse\" action=\"documents.php?$params&$poolParams\" method=\"post\">\n";
 	print "<input type='hidden' id='hiddenSubject' name='newSubject' value=''>\n";
 	print "<input type='hidden' id='hiddenAccount' name='newAccount' value=''>\n";
@@ -483,7 +570,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 #####
 // Modern flexbox layout instead of tables
-print "<div id='docPoolContainer' style='display: flex; width: 100%; height: 100vh; gap: 0; margin: 0; padding: 0; position: fixed; top: 0; left: 0;'>";
+// Adjust top position to account for header banner (approximately 50-60px)
+print "<div id='docPoolContainer' style='display: flex; width: 100%; height: calc(100vh - 60px); gap: 0; margin: 0; padding: 0; position: fixed; top: 60px; left: 0;'>";
 print "<div id='leftPanel' style='flex: 0 0 30%; min-width: 200px; max-width: 80%; display: flex; flex-direction: column; height: 100%; position: relative; margin: 0; padding: 0; overflow: visible;'>";
 print "<div id='fileListContainer' style='flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; width: 100%; margin: 0; padding: 0;'>Loading files...</div>";
 // Fixed bottom section will be added here later via PHP (before leftPanel closes)
@@ -498,12 +586,12 @@ print "<style>
  #docPoolContainer {
   display: flex;
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 60px);
   gap: 0;
   margin: 0;
   padding: 0;
   position: fixed;
-  top: 0;
+  top: 60px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -704,7 +792,7 @@ print <<<JS
 							<span>&#9660;</span>
 						</div>
 					</th>
-					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 100px; color:${buttonTxtColor};">
+					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 140px; color:${buttonTxtColor};">
 						<span>Actions</span>
 					</th>
 				</tr>
@@ -745,7 +833,8 @@ print <<<JS
 			const poolFileFromHref = lastPoolFile || '';
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
-			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center;'>" +
+			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Choose/Insert'>✓</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Edit'>✏️</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Delete'>🗑️</button>" +
 				"</div>";
@@ -755,7 +844,7 @@ print <<<JS
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
-				"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 80px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
+				"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 				"</tr>";
 
 
@@ -838,6 +927,41 @@ print <<<JS
 	
 	// Make escapeHTML globally available
 	window.escapeHTML = escapeHTML;
+	
+	// Function to insert/choose a bilag - matches old "Indsæt" button behavior exactly
+	window.chooseBilag = function(poolFile) {
+		const form = document.forms['gennemse'];
+		if (!form) {
+			alert('Form not found');
+			return;
+		}
+		
+		// Update form action URL to include the selected poolFile (like old version)
+		const formAction = form.getAttribute('action');
+		const url = new URL(formAction, window.location.href);
+		
+		// Update poolFile in URL parameters (matches old behavior where poolFile is in $poolParams)
+		url.searchParams.set('poolFile', poolFile);
+		
+		// Update the form action with the new poolFile
+		form.setAttribute('action', url.toString());
+		
+		// Create a hidden submit button with name="insertFile" (exactly like old version)
+		// This mimics the old submit button: <input type="submit" name="insertFile" value="Indsæt">
+		let insertFileButton = form.querySelector('input[name="insertFile"][type="submit"]');
+		if (!insertFileButton) {
+			insertFileButton = document.createElement('input');
+			insertFileButton.type = 'submit';
+			insertFileButton.name = 'insertFile';
+			insertFileButton.style.display = 'none';
+			form.appendChild(insertFileButton);
+		}
+		
+		// Submit the form by clicking the button (matches old behavior exactly)
+		// This will cause $_POST[insertFile] to be set when form is submitted
+		// The poolFile in URL will be available as $_GET[poolFile] or function parameter
+		insertFileButton.click();
+	};
 	
 // Enable editing for a specific row
 window.enableRowEdit = function(button, poolFile, subject, account, amount, date) {
