@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/betalinger.php --- Patch 4.0.8 --- 20230501 ---
+// --- kreditor/betalinger.php --- Patch 4.1.1 --- 20251125 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2025 saldi.dk aps
 // -----------------------------------------------------------------------------------
 //
 // 20220201 PHR Copied from debitor/betalinger.php and adjusted
@@ -134,7 +134,7 @@ if ($menu=='T') {
 	print "<td width='70%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>Betalinger til bank</td>";
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>";
 	$r=db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'",__FILE__ . " linje " . __LINE__));
-	if (isset($r["bogfort"]) && $r['bogfort']!='V') {	
+	if (isset($r["bogfort"]) && $r['bogfort']!='V') {
 		print "<select name = 'find' style = 'width:100%;' onchange='this.form.submit()'>";
 		print "<option value = ''</option>";
 #		print "<option value = 'fromList'>Fra liste</option>";
@@ -158,7 +158,7 @@ if (!$liste_id) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$r=db_fetch_array(db_select("select MAX(id) as id from betalingsliste where tidspkt='$tidspkt'",__FILE__ . " linje " . __LINE__));
 	$liste_id=$r['id'];
-	//print "<meta http-equiv='refresh' content='0; url=betalinger.php?liste_id=$liste_id'>";
+	print "<meta http-equiv='refresh' content='0; url=betalinger.php?liste_id=$liste_id'>";
 } 
 
 $tomorrow = date('U')+60*60*24;

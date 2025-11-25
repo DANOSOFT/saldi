@@ -211,75 +211,91 @@ while ($md[$x][1]<$regnslut) {
 	$md[$x][1]=$tmpaar. "-" .$tmp."-01";
 	$md[$x][2]=0;
 }
-$vis_valuta=0;
 $maanedantal=$x-1;
+
+$i = 0;
+$usedAccounts = array();
+$qtxt = "select distinct kontonr from transaktioner where transdate >= '$regnstart' and transdate <= '$regnslut'";
+$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+	$usedAccounts[$i] = $r['kontonr'];
+	$i++;
+}
+$qtxt = "select kontonr from kontoplan where regnskabsaar='$regnaar' and kontotype = 'S' and (primo < 0 or primo > 0)";
+$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+	if (!in_array($r['kontonr'],$usedAccounts))
+	$usedAccounts[$i] = $r['kontonr'];
+	$i++;
+}
+
+$i = 0;
+$usedSumAccounts = $usedSumFromAccounts = array();
+$qtxt = "select kontonr, fra_kto from kontoplan where regnskabsaar='$regnaar' and kontotype = 'Z' and lukket != 'on' order by kontonr";
+$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+	$includeThis = 0;
+	for ($x = 0; $x<count($usedAccounts); $x++) {
+		if ($r['kontonr'] > $usedAccounts[$x] && $r['fra_kto'] <= $usedAccounts[$x]) $includeThis = 1;
+	}
+	if ($includeThis) {
+		$usedSumAccounts[$i]      = $r['kontonr'];
+		$usedSumFromAccounts[$i] = $r['fra_kto'];
+		$i++;
+	}
+}
+
+db_modify("update kontoplan set lukket = '' where lukket is NULL",__FILE__ . " linje " . __LINE__);
+db_modify("update kontoplan set saldo = 0 where saldo is NULL",__FILE__ . " linje " . __LINE__);
+$vis_valuta=0;
 $x=0;
-$query = db_select("select * from kontoplan where regnskabsaar='$regnaar' and (lukket != 'on' or saldo != 0) order by kontonr",__FILE__ . " linje " . __LINE__); #20121011
+$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and (lukket != 'on' or saldo != 0) order by kontonr";
+$query = db_select($qtxt,__FILE__ . " linje " . __LINE__); #20121011
 while ($row = db_fetch_array($query)) {
-	$x++;
-	$konto_id[$x]=$row['id'];
-	$kontonr[$x]=trim($row['kontonr']);
-	$kontotype[$x]=$row['kontotype'];
-	$beskrivelse[$x]=$row['beskrivelse'];
-	$fra_kto[$x]=$row['fra_kto'];
-	$til_kto[$x]=$row['til_kto'];
-	$kontovaluta[$x]=$row['valuta'];
-	$kontokurs[$x]=$row['valutakurs'];
-	if ($kontotype[$x]=="S") $primo[$x]=afrund($row['primo'],2);
-	else $primo[$x]=0;
-	if ($kontovaluta[$x]) {
-		for ($y=0;$y<=count($valkode);$y++){
-			if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnstart) {
-				$primokurs[$x]=$valkurs[$y];
-				$valutanavn[$x]=$valnavn[$y];
-				$vis_valuta=1;
-				break 1;
-			}
-		}
-	} else {
-		$primokurs[$x]=100;
-		$valutanavn[$x]='DKK';
-	}
-	if ($row['kontotype']=='D' || $row['kontotype']=='S') {
-		$primo[$x]=round($row['primo']+0.0001,2);
-		$ultimo[$x]=round($row['primo']+0.0001,2);
-		$q2 = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr='$kontonr[$x]' order by transdate",__FILE__ . " linje " . __LINE__);
-		while ($r2 = db_fetch_array($q2)) {
-		 	for ($y=1; $y<=$maanedantal; $y++) {
-				if (!isset($belob[$x][$y])) $belob[$x][$y]=0;
-				if (($md[$y][1]<=$r2['transdate'])&&($md[$y+1][1]>$r2['transdate'])) {
-			 		$md[$y][2]=$md[$y][2]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
-					$belob[$x][$y]=$belob[$x][$y]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
-					$transdate[$x][$y]=$r2['transdate'];
+	$showLine = 0;
+	if $row['kontotype'] == 'R') $showLine = 1;
+	elseif (in_array($row['kontonr'],$usedAccounts) && ($row['kontotype'] == 'D' || $row['kontotype'] == 'S')) $showLine = 1;
+	elseif (in_array($row['kontonr'],$usedSumAccounts) && $row['kontotype'] == 'Z') $showLine = 1;
+	elseif (in_array($row['kontonr'],$usedSumFromAccounts) && $row['kontotype'] == 'H') $showLine = 1;
+	if ($showLine) {
+		$x++;
+		$konto_id[$x]=$row['id'];
+		$kontonr[$x]=trim($row['kontonr']);
+echo "$kontonr[$x]<br>";
+		$kontotype[$x]=$row['kontotype'];
+		$beskrivelse[$x]=$row['beskrivelse'];
+		$fra_kto[$x]=$row['fra_kto'];
+		$kontovaluta[$x]=$row['valuta'];
+		$kontokurs[$x]=$row['valutakurs'];
+		if ($kontotype[$x]=="S") $primo[$x]=afrund($row['primo'],2);
+		else $primo[$x]=0;
+		if ($kontovaluta[$x]) {
+			for ($y=0;$y<=count($valkode);$y++){
+				if ($valkode[$y]==$kontovaluta[$x] && $valdate[$y] <= $regnstart) {
+					$primokurs[$x]=$valkurs[$y];
+					$valutanavn[$x]=$valnavn[$y];
+					$vis_valuta=1;
+					break 1;
 				}
 			}
-			$ultimo[$x]=$ultimo[$x]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
+		} else {
+			$primokurs[$x]=100;
+			$valutanavn[$x]='DKK';
 		}
-	}
-	if ($aut_lager) {
-		if (in_array($kontonr[$x],$varekob)) {
-		for ($y=1; $y<=$maanedantal; $y++) {
-			if ($md[$y][1]<=date("Y-m-d")) {
-					if (!isset($belob[$x][$y]))	$belob[$x][$y] = 0;
-					$l_m_sum[$x]=find_lagervaerdi($kontonr[$x],$md[$y+1][1],'start');
-					$l_m_primo[$x]=find_lagervaerdi($kontonr[$x],$md[$y][1],'start');
-	#				$l_p_primo[$x]=find_lagervaerdi($kontonr[$x],$regnaarstart);
-					$ultimo[$x]+=$l_m_primo[$x]-$l_m_sum[$x];
-					$md[$y][2]+=$l_m_primo[$x]-$l_m_sum[$x];
-					$belob[$x][$y]+=$l_m_primo[$x]-$l_m_sum[$x];
+		if ($kontotype[$x] == 'D' || $kontotype[$x] == 'S') {
+			$primo[$x]=round($row['primo']+0.0001,2);
+			$ultimo[$x]=round($row['primo']+0.0001,2);
+			$q2 = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr='$kontonr[$x]' order by transdate",__FILE__ . " linje " . __LINE__);
+			while ($r2 = db_fetch_array($q2)) {
+				for ($y=1; $y<=$maanedantal; $y++) {
+					if (!isset($belob[$x][$y])) $belob[$x][$y]=0;
+					if (($md[$y][1]<=$r2['transdate'])&&($md[$y+1][1]>$r2['transdate'])) {
+						$md[$y][2]=$md[$y][2]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
+						$belob[$x][$y]=$belob[$x][$y]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
+						$transdate[$x][$y]=$r2['transdate'];
 					}
-			}
-		}
-		if (in_array($kontonr[$x],$varelager_i) || in_array($kontonr[$x],$varelager_u)) {
-		 	for ($y=1; $y<=$maanedantal; $y++) {
-				if (!isset($belob[$x][$y])) $belob[$x][$y]=0;
-				if ($md[$y][1]<=date("Y-m-d")) {
-					$l_m_primo[$x]=find_lagervaerdi($kontonr[$x],$md[$y][1],'start');
-					$l_m_sum[$x]=find_lagervaerdi($kontonr[$x],$md[$y+1][1],'start');
-					$ultimo[$x]-=$l_m_primo[$x]-$l_m_sum[$x]; #20150125 + næste 3 linjer
-					$md[$y][2]-=$l_m_primo[$x]-$l_m_sum[$x];
-					$belob[$x][$y]-=$l_m_primo[$x]-$l_m_sum[$x];
 				}
+				$ultimo[$x]=$ultimo[$x]+round($r2['debet']+0.0001,2)-round($r2['kredit']+0.0001,2);
 			}
 		}
 	}
@@ -334,21 +350,12 @@ while (!checkdate($slutmaaned,$slutdato,$slutaar)){
 $regnstart = $startaar. "-" . $startmaaned . "-" . '01';
 $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
-#######
-
-// $t = activeLanguage();
-// if($t == 'English'){
-// 	echo "this is English";
-// }else{
-
-// }
-
-########
 $csv=fopen("../temp/$db/regnskab.csv","w");
 
 $ktonr=array();
 $x=0;
-$query = db_select("select kontonr from transaktioner where transdate>'$regnstart' and transdate<'$regnslut' order by transdate",__FILE__ . " linje " . __LINE__);
+$qtxt = "select kontonr from transaktioner where transdate>'$regnstart' and transdate<'$regnslut' order by transdate";
+$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 while ($row = db_fetch_array($query)){
 	$x++;
 	$ktonr[$x]=$row['kontonr']*1;
