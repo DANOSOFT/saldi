@@ -1,5 +1,12 @@
 <?php
-//../includes/grid_order.php
+//..kreditorOrderFuncIncludes/creditor_orderlist_grid.php
+function is_ajax_request() {
+    return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+           strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest' ||
+           isset($_GET['ajax']) && $_GET['ajax'] === '1';
+}
+
+
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -12,7 +19,6 @@
  */
 function array_column_php5($array, $column_key, $index_key = null) {
     $result = [];
-    
 
     foreach ($array as $row) {
         if (is_array($row)) {
@@ -43,11 +49,8 @@ function array_column_php5($array, $column_key, $index_key = null) {
  * @return mixed The formatted value.
  */
 function DEFAULT_VALUE_GETTER($value, $row, $column) {
-    
     if ($column["type"] == "number") {
-         if($column['field'] != 'ordrenr'){ //ensure the decimal doesn't follow the ordrenr
-          return dkdecimal($value, $column['decimalPrecision']);
-         }
+        return dkdecimal($value, $column['decimalPrecision']);
     }
 
     return $value;
@@ -64,13 +67,13 @@ function DEFAULT_VALUE_GETTER($value, $row, $column) {
  * @return string The rendered HTML table cell.
  */
 function DEFAULT_CELL_RENDERE($value, $row, $column) {
-    
     return "<td align='{$column['align']}'>{$value}</td>";
 }
 
 /**
  * Generates a search query condition for a given column and term.
- * This is a grid-compatible version of the legacy udvaelg() function.
+ *
+ * This function helps construct SQL conditions for search functionality.
  *
  * @param array $column The column definition (must include 'type', 'field', and 'sqlOverride').
  * @param string $term The search term.
@@ -277,7 +280,7 @@ $defaultValues = [
      * @var callable
      */
     'render' => function ($value, $row, $column) {
-        return DEFAULT_CELL_RENDERE($value, $row, $column); 
+        return DEFAULT_CELL_RENDERE($value, $row, $column);
     },
 
     /**
@@ -351,36 +354,15 @@ function create_datagrid($id, $grid_data) {
     global $bruger_id;
     global $db;
     // Performance logging for grid creation
-    $grid_start_time = microtime(true);
-    $log_file = "../../temp/$db/vareliste_performance.log";
-    
-    function log_grid_performance($message, $start_time = null) {
-        global $log_file;
-        
-        // Safety check - if log_file is still empty, skip logging
-        if (empty($log_file)) {
-            return microtime(true);
-        }
-        
-        $current_time = microtime(true);
-        if ($start_time) {
-            $elapsed = round(($current_time - $start_time) * 1000, 2);
-            $message .= " (took {$elapsed}ms)";
-        }
-        $timestamp = date('Y-m-d H:i:s');
-        
-        // Use error suppression to prevent fatal errors
-        @file_put_contents($log_file, "[$timestamp] GRID: $message\n", FILE_APPEND | LOCK_EX);
-        return $current_time;
+    if (is_ajax_request()) {
+        // For AJAX requests, we only return the grid HTML without full page wrapper
+        ob_start();
     }
-
-    log_grid_performance("Grid creation started");
-
+    
     // Normalize columns with default values
-    $normalize_start = microtime(true);
+
     $columns = normalize_columns($grid_data['columns'], $defaultValues);
-    log_grid_performance("Column normalization", $normalize_start);
-    log_grid_performance("Column normalization", $normalize_start);
+    
     
     $filter_start = microtime(true);
     $columns_filtered = array_filter($columns, function ($item) {
@@ -389,18 +371,18 @@ function create_datagrid($id, $grid_data) {
 
     // Retrieve filters
     $filters = $grid_data["filters"];
-    log_grid_performance("Column filtering and filters setup", $filter_start);
+        
 
     // Fetch stored grid setup from the database
     $fetch_setup_start = microtime(true);
+    $searchTerm = if_isset($_GET, [], 'search');
+    
     list($columns_setup, $search_setup, $filter_setup) = fetch_grid_setup(
-        $id,
-        $columns_filtered,
-        if_isset($_GET["search"][$id], array()),
-        $filters
+        $id,                              
+        $columns_filtered,                
+        if_isset($searchTerm, [], $id),    
+        $filters                          
     );
-    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
-    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
     
     $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
@@ -408,19 +390,34 @@ function create_datagrid($id, $grid_data) {
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
-    $searchTerms = if_isset($_GET["search"][$id], $search_setup);
-    $search_json  = db_escape_string(json_encode($searchTerms));
-    log_grid_performance("JSON processing and search setup", $setup_processing_start);
+    // $searchTerms = if_isset($_GET["search"][$id], $search_setup);
+    // First, safely check if $_GET['search'] exists using if_isset
+    $searchTerm = if_isset($_GET, [], 'search');
+    $searchTerms = if_isset($searchTerm, $search_setup, $id);
 
+    $search_json  = db_escape_string(json_encode($searchTerms));
+   
     // Retrieve stored grid settings from the database
     $grid_settings_start = microtime(true);
     $q = "SELECT search_setup, rowcount, \"offset\", \"sort\" FROM datatables WHERE user_id = $bruger_id AND tabel_id='$id'";
     $r = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
-    log_grid_performance("Grid settings query", $grid_settings_start);
-
+    
     // Determine sorting, row count, and offset
-    $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+     if (isset($_GET["sort"][$id]) && !empty($_GET["sort"][$id])) {
+        $sort = $_GET["sort"][$id];
+    } elseif (isset($r["sort"]) && !empty($r["sort"])) {
+        $sort = $r["sort"];
+    } else {
+        $sort = get_default_sort($columns_updated);
+    }
+
+     if (isset($_GET["rowcount"][$id])) {
+        $selectedrowcount = (int)$_GET["rowcount"][$id];
+    } elseif (isset($r["rowcount"])) {
+        $selectedrowcount = (int)$r["rowcount"];
+    } else {
+        $selectedrowcount = 100;
+    }
 
     // Use isset to avoid zero triggering if
     $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
@@ -452,7 +449,9 @@ function create_datagrid($id, $grid_data) {
     $rowStyleFn = if_isset($grid_data['rowStyle'], null);
     $metaColumnFn = if_isset($grid_data['metaColumn'], null);
     $totalWidth = calculate_total_width($columns_updated);
-    $menu = if_isset($_GET["menu"][$id], "main"); // ['main', 'kolonner', 'filtre']
+    
+    $menuData = if_isset($_GET, [], 'menu');
+    $menu = if_isset($menuData, "main", $id);// ['main', 'kolonner', 'filtre']
 
     $rows = array();
     $query = "";
@@ -462,32 +461,27 @@ function create_datagrid($id, $grid_data) {
         // Build and execute the main query
         $query_build_start = microtime(true);
         $query = build_query($id, $grid_data, $columns_updated, $filters_updated, $searchTerms, $sort, $selectedrowcount, $offset);
-        log_grid_performance("Query building", $query_build_start);
-        
+      
         // Log the actual query being executed
         $query_length = strlen($query);
-        log_grid_performance("Built query with length: {$query_length} characters");
         
         print "<!-- \n DEBUG QUERY \n\n$query -->";
         
         $main_query_start = microtime(true);
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
-        log_grid_performance("Main SQL query execution", $main_query_start);
-        
+       
         $fetch_rows_start = microtime(true);
         $rows = fetch_rows_from_query($sqlquery);
-        log_grid_performance("Fetching rows from query", $fetch_rows_start);
-
+        
         // Fetch total row count
         $count_query_start = microtime(true);
         $countQuery = build_count_query($grid_data, $columns_updated, $filters_updated, $searchTerms, $sort);
         $count_query_length = strlen($countQuery);
-        log_grid_performance("Built count query with length: {$count_query_length} characters");
-        
+       
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
         $totalItems = db_fetch_array($countResult)["total_items"];
         $totalRows = count($rows);
-        log_grid_performance("Count query execution", $count_query_start);
+       
 
         // Render the data grid
         $render_start = microtime(true);
@@ -507,15 +501,16 @@ function create_datagrid($id, $grid_data) {
             $offset,
             $menu
         );
-        log_grid_performance("Grid rendering", $render_start);
+        
 
         // Render additional styles and scripts
-        $styles_start = microtime(true);
+        #$styles_start = microtime(true);
         render_search_style();
         render_dropdown_style();
         render_pagination_script($id);
         render_sort_script($id);
-        log_grid_performance("Rendering styles and scripts", $styles_start);
+        
+        
 
     } else if ($menu == "kolonner") {
         if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -563,11 +558,21 @@ function create_datagrid($id, $grid_data) {
     // Render dropdown script for interactions
     $dropdown_start = microtime(true);
     render_dropdown_script($id, $query);
-    log_grid_performance("Dropdown script rendering", $dropdown_start);
 
-    // Final grid performance log
-    $total_grid_time = microtime(true) - $grid_start_time;
-    log_grid_performance("TOTAL grid creation completed in " . round($total_grid_time * 1000, 2) . "ms");
+
+   
+   render_dynamic_search_script($id);
+         if (is_ajax_request()) {
+            $html = ob_get_clean();
+            
+            // If we're in an AJAX context, output just the grid HTML
+            if (is_ajax_request()) {
+                echo $html;
+                exit;
+            }
+            
+            return $rows;
+        }
 
     return $rows;
 }
@@ -726,7 +731,6 @@ function normalize_columns($columns, $defaultValues) {
  */
 function get_default_sort($columns) {
     $default = null;
-    
 
     foreach ($columns as $column) {
         if ($column['sortable'] && ($default == null || $column['defaultSort'])) {
@@ -752,7 +756,6 @@ function get_default_sort($columns) {
  */
 function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $sort, $rowCount, $offset) {
     $query = $grid_data['query'];
-    
 
     $filterstring = "";
     $i=0;
@@ -1156,87 +1159,6 @@ HTML;
  *
  * @return void Outputs the HTML structure of the table footer, including row count options, pagination controls, and page status.
  */
-// function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
-//     // Define the possible row count options
-//     $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
-
-//     // Build the options dynamically
-//     $options = '';
-//     foreach ($rowCounts as $count) {
-//         $selected = ($selectedrowcount == $count) ? 'selected' : '';
-//         $label = ($count == 999999999) ? 'Alle' : $count; // Use "Alle" for the max value
-//         $options .= "<option value=\"$count\" $selected>$label</option>";
-//     }
-
-//     // Calculate pagination details
-//     $currentPage = floor($offset / $selectedrowcount) + 1;
-//     $totalPages = ceil($totalItems / $selectedrowcount);
-//     $offsetFrom = $offset + 1;
-//     $offsetTo = min(array($totalItems, $selectedrowcount + $offset));
-//     $nextpage = min(array($totalItems, $offset + $selectedrowcount));
-//     $lastpage = max(array(0, $offset - $selectedrowcount));
-
-//     $nextpagestatus = $nextpage == $totalItems ? 'disabled' : '';
-//     $lastpagestatus = $offset == 0 ? 'disabled' : '';
-
-//     // Generate a subset of page links
-//     $pageLinks = '';
-//     $pageRange = 2; // Number of pages to show around the current page
-//     $startPage = max(1, $currentPage - $pageRange);
-//     $endPage = min($totalPages, $currentPage + $pageRange);
-
-//     if ($startPage > 1) {
-//         $pageLinks .= "<button class='navbutton' type='button' onclick='setOffset$id(0)'>1</button>";
-//         if ($startPage > 2) {
-//             $pageLinks .= "<span>...</span>";
-//         }
-//     }
-
-//     for ($i = $startPage; $i <= $endPage; $i++) {
-//         $pageOffset = ($i - 1) * $selectedrowcount;
-//         $isActiveStyle = ($i == $currentPage) ? "style='text-decoration: underline;'" : "";
-//         $pageLinks .= "<button type='button' onclick='setOffset$id($pageOffset)' $isActiveStyle class='navbutton'>$i</button>";
-//     }
-
-//     if ($endPage < $totalPages) {
-//         if ($endPage < $totalPages - 1) {
-//             $pageLinks .= "<span>...</span>";
-//         }
-//         $lastPageOffset = ($totalPages - 1) * $selectedrowcount;
-//         $pageLinks .= "<button type='button' onclick='setOffset$id($lastPageOffset)' class='navbutton'>$totalPages</button>";
-//     }
-
-//     // Output the footer with dynamic options
-//     echo <<<HTML
-//             <tr>
-//                 <td colspan=100>
-//                     <input type='hidden' name="offset[$id]" value="$offset" size='4'>
-//                     <div id='footer-box'>
-//                         <span style='display: flex' id='page-status'>
-//                             $offsetFrom-$offsetTo&nbsp;af&nbsp;$totalItems
-//                         </span>
-//                         |
-//                         <span>Linjer pr. side 
-//                             <select name="rowcount[$id]" onchange="this.form.submit()">
-//                                 $options
-//                             </select> 
-//                         </span>
-//                         |
-//                         <span id='navbuttons'>
-//                             <button type='button' onclick="setOffset$id($lastpage)" $lastpagestatus>
-//                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
-//                             </button>
-//                             $pageLinks
-//                             <button type='button' onclick="setOffset$id($nextpage)" $nextpagestatus>
-//                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
-//                             </button>
-//                         </span>
-//                     </div>
-//                 </td>
-//             </tr>
-// HTML;
-// }
-############################
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
     $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
@@ -1245,7 +1167,7 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     $options = '';
     foreach ($rowCounts as $count) {
         $selected = ($selectedrowcount == $count) ? 'selected' : '';
-        $label = ($count == 999999999) ? 'Alle' : $count;
+        $label = ($count == 999999999) ? 'Alle' : $count; // Use "Alle" for the max value
         $options .= "<option value=\"$count\" $selected>$label</option>";
     }
 
@@ -1257,17 +1179,17 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     $nextpage = min(array($totalItems, $offset + $selectedrowcount));
     $lastpage = max(array(0, $offset - $selectedrowcount));
 
-    $nextpagestatus = $nextpage >= $totalItems ? 'disabled' : '';
+    $nextpagestatus = $nextpage == $totalItems ? 'disabled' : '';
     $lastpagestatus = $offset == 0 ? 'disabled' : '';
 
-    // Generate a subset of page links - FIXED: Use submit buttons instead of JavaScript
+    // Generate a subset of page links
     $pageLinks = '';
-    $pageRange = 2;
+    $pageRange = 2; // Number of pages to show around the current page
     $startPage = max(1, $currentPage - $pageRange);
     $endPage = min($totalPages, $currentPage + $pageRange);
 
     if ($startPage > 1) {
-        $pageLinks .= "<button class='navbutton' type='submit' name='offset[$id]' value='0'>1</button>";
+        $pageLinks .= "<button class='navbutton' type='button' onclick='setOffset$id(0)'>1</button>";
         if ($startPage > 2) {
             $pageLinks .= "<span>...</span>";
         }
@@ -1276,7 +1198,7 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     for ($i = $startPage; $i <= $endPage; $i++) {
         $pageOffset = ($i - 1) * $selectedrowcount;
         $isActiveStyle = ($i == $currentPage) ? "style='text-decoration: underline;'" : "";
-        $pageLinks .= "<button type='submit' name='offset[$id]' value='$pageOffset' $isActiveStyle class='navbutton'>$i</button>";
+        $pageLinks .= "<button type='button' onclick='setOffset$id($pageOffset)' $isActiveStyle class='navbutton'>$i</button>";
     }
 
     if ($endPage < $totalPages) {
@@ -1284,13 +1206,14 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
             $pageLinks .= "<span>...</span>";
         }
         $lastPageOffset = ($totalPages - 1) * $selectedrowcount;
-        $pageLinks .= "<button type='submit' name='offset[$id]' value='$lastPageOffset' class='navbutton'>$totalPages</button>";
+        $pageLinks .= "<button type='button' onclick='setOffset$id($lastPageOffset)' class='navbutton'>$totalPages</button>";
     }
 
-    // Output the footer with dynamic options - FIXED: Ensure proper form structure
+    // Output the footer with dynamic options
     echo <<<HTML
             <tr>
                 <td colspan=100>
+                    <input type='hidden' name="offset[$id]" value="$offset" size='4'>
                     <div id='footer-box'>
                         <span style='display: flex' id='page-status'>
                             $offsetFrom-$offsetTo&nbsp;af&nbsp;$totalItems
@@ -1303,11 +1226,11 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
                         </span>
                         |
                         <span id='navbuttons'>
-                            <button type='submit' name='offset[$id]' value='$lastpage' $lastpagestatus>
+                            <button type='button' onclick="setOffset$id($lastpage)" $lastpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>
                             </button>
                             $pageLinks
-                            <button type='submit' name='offset[$id]' value='$nextpage' $nextpagestatus>
+                            <button type='button' onclick="setOffset$id($nextpage)" $nextpagestatus>
                                 <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                             </button>
                         </span>
@@ -1317,7 +1240,6 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
 HTML;
 }
 
-########################
 
 /**
  * Renders a row of the data table without highlighting search terms.
@@ -1595,7 +1517,7 @@ function save_column_setup($id) {
 
     // Print the result
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id = '$id'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1720,7 +1642,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id = '$id'", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1801,6 +1723,7 @@ function render_search_style() {
             color: #114691;
             transition: color 0.2s ease-in-out;
         }
+           
 
     </style>
 STYLE;
@@ -2069,7 +1992,7 @@ function render_dropdown_script($id, $query) {
                     fillerRows[0].parentNode.removeChild(fillerRows[0]);
                 }
 
-               
+                // Keep only the 'page-status' element in the footer-box
                 const footerBox = cleanTable.querySelector('#footer-box');
                 if (footerBox) {
                     const pageStatus = footerBox.querySelector('#page-status');
@@ -2251,6 +2174,209 @@ function render_pagination_script($id) {
             offsetBox.form.submit();
         }
     </script>
+SCRIPT;
+}
+
+/**
+ * Outputs JavaScript code for dynamic search functionality.
+ *
+ * This function generates JavaScript that handles dynamic search with debouncing,
+ * but leaves the dropdown "Søg" button for normal form submission.
+ *
+ * @param string $id The unique identifier for the table.
+ * @return void Outputs the embedded JavaScript for dynamic search.
+ */
+function render_dynamic_search_script($id) {
+    echo <<<SCRIPT
+<script>
+class DynamicSearch {
+    constructor(gridId) {
+        this.gridId = gridId;
+        this.searchTimeout = null;
+        this.isLoading = false;
+        this.init();
+    }
+    
+    init() {
+        console.log('Initializing dynamic search for grid:', this.gridId);
+        this.bindSearchEvents();
+        // DON'T prevent dropdown search submit - let it work normally
+    }
+    
+    bindSearchEvents() {
+        // Find only the search input fields (not the dropdown button)
+        const searchInputs = document.querySelectorAll('input[type="text"][name*="search"]');
+        console.log('Found search inputs:', searchInputs.length);
+        
+        searchInputs.forEach(input => {
+            // Remove any existing event listeners
+            input.removeEventListener('input', this.boundHandleSearch);
+            input.removeEventListener('keypress', this.boundHandleKeypress);
+            
+            // Create bound versions
+            this.boundHandleSearch = this.handleSearch.bind(this);
+            this.boundHandleKeypress = this.handleKeypress.bind(this);
+            
+            input.addEventListener('input', this.boundHandleSearch);
+            input.addEventListener('keypress', this.boundHandleKeypress);
+        });
+    }
+    
+    handleSearch(e) {
+        console.log('Search input changed:', e.target.name, e.target.value);
+        
+        // Clear previous timeout
+        if (this.searchTimeout) {
+            clearTimeout(this.searchTimeout);
+        }
+        
+        // Set new timeout for debouncing (800ms delay)
+        this.searchTimeout = setTimeout(() => {
+            this.executeSearch();
+        }, 800);
+    }
+    
+    handleKeypress(e) {
+        if (e.key === 'Enter') {
+            // Clear the timeout since we're executing immediately
+            if (this.searchTimeout) {
+                clearTimeout(this.searchTimeout);
+            }
+            this.executeSearch();
+        }
+    }
+    
+    async executeSearch() {
+        if (this.isLoading) {
+            console.log('Search already in progress, skipping...');
+            return;
+        }
+        
+        this.isLoading = true;
+        this.showLoading();
+        
+        try {
+            console.log('Executing dynamic search from input...');
+            
+            // Submit via AJAX
+            await this.submitAjax();
+            
+        } catch (error) {
+            console.error('Search error:', error);
+            // On error, fall back to normal form submission
+            console.log('Falling back to normal form submission');
+            this.submitFormNormally();
+        } finally {
+            this.isLoading = false;
+            this.hideLoading();
+        }
+    }
+    
+    async submitAjax() {
+        const form = document.querySelector('form[method="GET"]');
+        if (!form) {
+            throw new Error('Form not found');
+        }
+        
+        // Get all form data
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        
+        for (const [key, value] of formData.entries()) {
+            params.append(key, value);
+        }
+        
+        // Add AJAX flag
+        params.append('ajax', '1');
+        
+        console.log('Submitting AJAX search request');
+        
+        const url = window.location.href.split('?')[0];
+        const response = await fetch(url + '?' + params.toString(), {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.status);
+        }
+        
+        const html = await response.text();
+        this.updateGridContent(html);
+    }
+    
+    updateGridContent(html) {
+        try {
+            // Parse the HTML response
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Find the datagrid wrapper in the response
+            const newGridWrapper = doc.querySelector('.datatable-wrapper');
+            
+            if (newGridWrapper) {
+                // Replace the current grid wrapper
+                const currentGridWrapper = document.querySelector('.datatable-wrapper');
+                if (currentGridWrapper && currentGridWrapper.parentNode) {
+                    currentGridWrapper.parentNode.replaceChild(
+                        newGridWrapper.cloneNode(true), 
+                        currentGridWrapper
+                    );
+                    console.log('Grid content updated dynamically');
+                    
+                    // Re-initialize the search functionality on the new content
+                    this.init();
+                    
+                    return;
+                }
+            }
+            
+            // If we couldn't update the grid, fall back to normal submission
+            console.warn('Could not find grid in response');
+            this.submitFormNormally();
+            
+        } catch (error) {
+            console.error('Error updating grid content:', error);
+            this.submitFormNormally();
+        }
+    }
+    
+    submitFormNormally() {
+        const form = document.querySelector('form[method="GET"]');
+        if (form) {
+            console.log('Submitting form normally');
+            form.submit();
+        }
+    }
+    
+    showLoading() {
+        // Add subtle loading indicator to search inputs only
+        const searchInputs = document.querySelectorAll('input[type="text"][name*="search"]');
+        searchInputs.forEach(input => {
+            input.style.borderColor = '#4CAF50';
+            input.style.transition = 'border-color 0.3s ease';
+        });
+    }
+    
+    hideLoading() {
+        // Remove loading indicator
+        const searchInputs = document.querySelectorAll('input[type="text"][name*="search"]');
+        searchInputs.forEach(input => {
+            input.style.borderColor = '';
+        });
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing dynamic search...');
+    window.dynamicSearch = new DynamicSearch('$id');
+});
+
+</script>
 SCRIPT;
 }
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-09-17 --- 
+// --- debitor/debitorkort.php --- lap 4.1.1 --- 2025-11-24 --- 
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
 // 20250917 LOE Position methods for contacts updated for ansatte table and related queries
+// 20251122 LOE - Modified icons to SVG format and buttons to fit the new design
 
 @session_start();
 $s_id = session_id();
@@ -934,30 +935,45 @@ if ($menu == 'T') {
 	print "<div class='content-noside'>";
 	print  "<table border='0' cellspacing='1' class='dataTableForm' width='100%'>";
 } elseif ($menu == 'S') {
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
+	 ############################
+     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+	$add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+
+    ##########################
+	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
 
 	print "<td width='10%'>
-		   <a href=\"$returside\" accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+		<a href=\"$returside\" accesskey=L>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		.$icon_back. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
 
-	print "<td width='80%' style='$topStyle' align='center'>" . findtekst('356|Debitorkort', $sprog_id) . "</td>\n";
+	print "<td width='75%'  style='$topStyle' align='center'>" . findtekst('356|Debitorkort', $sprog_id) . "</td>\n";
 
 	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
 	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
+	print $help_icon . findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 
-	print "<td width='10%'>
-		   <a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		. findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
+	print "<td width='5%'>
+		<a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		.$add_icon. findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
 
 	print "</tbody></table>"; # <- TABEL 1.1
-	print "</td></tr>\n";
-	print "<tr><td align = center valign = center>\n";
-	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 ->
+	print "</td></tr>\n"; # <- Close the table row and cell
+	print "</tbody></table>\n"; # <- TABEL 1
+	?>
+    <style>
+    .headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
+    </style>
+    <?php
 
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
@@ -971,7 +987,17 @@ if ($menu == 'T') {
 	print "</td></tr>\n";
 	print "<tr><td align = center valign = center>\n";
 	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\"><tbody>\n"; # TABEL 1.2 ->
+	print "</td></tr>\n";
+	print "</tbody></table>\n"; # <- Close TABEL 1
 }
+
+print "<div class='outer-datatable-wrapper'>";
+print "<div class='datatable-wrapper'>";
+if ($menu != 'T') {
+// START A NEW TABLE with the same properties:
+ print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" width=\"100%\"><tbody>\n"; # NEW TABEL 1.2 ->
+}
+
 print "<form name=debitorkort action=debitorkort.php method=post>\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 if ($vis_addr == "on") {
@@ -1448,54 +1474,96 @@ if ($slet == "NO") {
 	print "value='" . findtekst('1099|Slet', $sprog_id) . "' name='submit' onclick='return confirm('" . findtekst('1099|Slet', $sprog_id) . " $firmanavn?')'></td>";
 }
 print "</form>\n";
+
+
 #print "<tr><td colspan=5><hr></td></tr>\n";
 print "</tbody></table></td></tr>"; # <- TABEL 1.2.4.3
 print "</tbody></table></td></tr>"; # <- TABEL 1.2.4
 
 print "</tbody></table></td></tr>"; # <- TABEL 1.2
+
+print "</div>"; //datatable-wrapper
+print "</div>"; //outer-datatable-wrapper
+
 print "<tr><td align = 'center' valign = 'bottom'>\n";
 if ($menu == 'T') {
 } elseif ($menu == 'S') {
-	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
-	print "<td width='25%' align=center style='$topStyle'>&nbsp;</td>\n";
-	$tekst = findtekst('130|Vis historik.', $sprog_id);
-	if ($popup) {
-		print "<td width='10%' onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php', title='$tekst'>
-		<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></td>\n";
-	} elseif ($returside != "historikkort.php") {
-		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id&returside=debitorkort.php>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
-	} else {
-		print "<td width='10%' title='$tekst'><a href=historikkort.php?id=$id>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
-	}
-	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
-	print "<td width='10%' title='$tekst'>
-		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('133|Kontokort', $sprog_id) . "</button></a></td>\n";
+	
+		print "<div class='footer-box'>";
+		print "<table class='footer-box-table' width='50%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>";
+		print "<tr>";
+		
+		$tekst = findtekst('130|Vis historik.', $sprog_id);
+		if ($popup) {
+			print "<td width='10%' onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php', title='$tekst'>
+			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></td>\n";
+		} elseif ($returside != "historikkort.php") {
+			print "<td width='10%' title='$tekst'><a href='historikkort.php?id=$id&returside=debitorkort.php'>
+				<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
+		} else {
+			print "<td width='10%' title='$tekst'><a href='historikkort.php?id=$id'>
+				<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('131|Historik', $sprog_id) . "</button></a></td>\n";
+		}
 
-	$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
-	if (substr($rettigheder, 5, 1) == '1') {
+		$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
 		print "<td width='10%' title='$tekst'>
-			   <a href=ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('134|Fakturaliste', $sprog_id) . "</button></a></td>\n";
-	} else {
-		print "<td width='10%' align='center' style='$topStyle'><span style=\"color:#999;\">" . findtekst('134|Fakturaliste', $sprog_id) . "</span></td>\n";
-	}
+			<a href='rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../debitor/debitorkort.php?id=$id'>
+			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('133|Kontokort', $sprog_id) . "</button></a></td>\n";
 
-	$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
-	$jobkort = $r['box7'];
-	if ($jobkort) {
-		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #"Klik her for at &aring;bne listen med arbejdskort"
+		$tekst = findtekst('129|Vis fakturaliste.', $sprog_id);
+		if (substr($rettigheder, 5, 1) == '1') {
+			print "<td width='10%' title='$tekst'>
+				<a href='ordreliste.php?konto_id=$id&valg=faktura&returside=../debitor/debitorkort.php?id=$id'>
+				<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('134|Fakturaliste', $sprog_id) . "</button></a></td>\n";
+		} else {
+			print "<td width='10%' align='center' style='$topStyle'><span style=\"color:#999;\">" . findtekst('134|Fakturaliste', $sprog_id) . "</span></td>\n";
+		}
 
-		print "<td width='10%' title='$tekst'><a href=jobliste.php?konto_id=$id&returside=../debitor/debitorkort.php?id=$id> 
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('38|Stillingsliste', $sprog_id) . "</button></td>\n";
-	} else print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst('38|Stillingsliste', $sprog_id) . "</span></td>\n";
+		$r = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
+		$jobkort = $r['box7'];
+		if ($jobkort) {
+			$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id);
+			print "<td width='10%' title='$tekst'><a href='jobliste.php?konto_id=$id&returside=../debitor/debitorkort.php?id=$id'> 
+			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('38|Stillingsliste', $sprog_id) . "</button></a></td>\n";
+		} else {
+			print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>" . findtekst('38|Stillingsliste', $sprog_id) . "</span></td>\n";
+		}
 
-	print "<td width='25%' style='$topStyle'>&nbsp;</td>\n";
+		print "</tr>";
+		print "</tbody></table>";
+		print "</div>";
+		?>
 
-	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3
-	print "</tbody></table>"; # <- TABEL 1
+		<style>
+		.footer-box {
+			position: sticky;
+			bottom: 0;
+			z-index: 1;
+			background-color: #f4f4f4;
+			border-top: 2px solid #ddd;
+			padding: 10px 0;
+		}
+
+		.footer-box-table {
+			width: 50%;
+			border-collapse: collapse;
+		}
+
+		.footer-box-table td {
+			
+			vertical-align: middle;
+		}
+
+		.footer-box-table button {
+			transition: all 0.2s ease;
+		}
+
+		.footer-box-table button:hover {
+			opacity: 0.8;
+			transform: translateY(-1px);
+		}
+		</style>
+		<?php
 } else {
 	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
 	print "<td width='25%' $top_bund>&nbsp;</td>\n";
@@ -1594,3 +1662,51 @@ $steps[] = array(
 
 include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("debkort", $steps);
+?>
+
+<style>
+
+
+.footer-box-table td {
+    padding-left: 10px;  
+    padding-right: 10px; 
+}
+
+
+    body {
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.outer-datatable-wrapper {
+    width: 100%;
+    flex: 1;
+    overflow: hidden;
+}
+
+.datatable-wrapper {
+    margin-bottom: 5px;
+    overflow-x: auto;
+    overflow-y: auto;
+    height: 100%;
+    width: 100%;
+}
+
+.footer-box {
+    align-items: center;
+    justify-content: flex-end;
+	display: flex;
+	gap:10px;
+}
+
+.tbody {
+    min-height: auto;
+}
+
+a:link {
+    text-decoration: none;
+}
+</style>

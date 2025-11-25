@@ -7,7 +7,7 @@ $TableBG = "bgcolor=$bgcolor";
 if(isset($_GET['returside'])){
 	$backUrl = $_GET['returside'];
 }else{
-	$backUrl = '../index/menu.php'; 
+	$backUrl = '../index/menu.php';  
 }
 
 
@@ -137,5 +137,8 @@ print "</tbody></table></td></tr>\n"; # <- Tabel 1.1.1
 		align-items: center;
 		text-decoration: none;
 		gap: 5px;
+	}
+	a:link{
+		text-decoration: none;
 	}
 </style>
