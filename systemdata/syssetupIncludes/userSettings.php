@@ -34,10 +34,10 @@ function userSettings() {
 	elseif (!$fgcolor) $fgcolor = '#eeeef0';
 	$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $buttonColor = $r['var_value'];
-	else $buttonColor = '#114691';
+	else $buttonColor = '114691';
 	$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $buttonTxtColor = $r['var_value'];
-	else $buttonTxtColor = '#ffffff';
+	else $buttonTxtColor = 'ffffff';
 
 	print "<form name=userSettings action=diverse.php?sektion=userSettings&popup=$popup method=post>";
 	print "<tr><td colspan='6'><hr></td></tr>";
