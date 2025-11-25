@@ -38,7 +38,7 @@ print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
+include("../includes/topline_settings.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 print "<div align=\"center\">";
@@ -320,7 +320,7 @@ if ($openPool) {
 // Check if showing a document - use docPool-style layout
 if ($showDoc && $source == 'kassekladde') {
 	// Add top banner with back button (like docPool)
-	include("../includes/topline_settings.php");
+
 	global $menu, $buttonColor, $buttonTxtColor;
 	if (!isset($top_bund)) $top_bund = "";
 	if (!isset($buttonColor)) $buttonColor = '#f1f1f1';
@@ -472,9 +472,6 @@ if ($showDoc && $source == 'kassekladde') {
 		#leftPanel table tbody tr {
 			border-bottom: 1px solid #ddd;
 			transition: background-color 0.2s;
-		}
-		#leftPanel table tbody tr:hover {
-			background-color: #e8f4f8 !important;
 		}
 		#leftPanel table tbody tr:hover td {
 			background-color: transparent !important;

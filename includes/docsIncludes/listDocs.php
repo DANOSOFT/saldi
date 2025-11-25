@@ -125,16 +125,12 @@ if($q !== false){
 		
 		// Use alternating row colors like docPool
 		$rowBgColor = ($rowIndex % 2 == 0) ? $bgcolor : $bgcolor5;
-		if ($isCurrentDoc) {
-			$rowStyle = "background-color: #e8f4f8 !important; font-weight: bold;";
-		} else {
-			$rowStyle = "background-color: $rowBgColor;";
-		}
+		$bgColor = brightenColor($buttonColor, 0.6);
 		
 		if ($inFlexboxLayout) {
 			// Table row format like docPool
 			$docHref = "documents.php?$params&showDoc=".urlencode("$href");
-			print "<tr style='$rowStyle border-bottom: 1px solid #ddd; cursor: pointer;' onclick=\"window.location.href='$docHref'\">";
+			print "<tr style='background: $bgColor; border-bottom: 1px solid #ddd; cursor: pointer;' onclick=\"window.location.href='$docHref'\">";
 			print "<td style='padding: 8px; border: 1px solid #ddd;' title='".htmlspecialchars($r['filename'], ENT_QUOTES)."'>".htmlspecialchars($showName, ENT_QUOTES)."</td>";
 			print "<td style='padding: 4px; border: 1px solid #ddd; text-align: center;' onclick='event.stopPropagation();'>";
 			print "<a href='documents.php?$params&deleteDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Slet ".htmlspecialchars($r['filename'], ENT_QUOTES)."?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Slet</a>";

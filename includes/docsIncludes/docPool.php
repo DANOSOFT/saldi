@@ -29,7 +29,7 @@
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
-	global $bruger_id,$db,$exec_path;
+	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
 	
 	$afd =  $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
@@ -484,8 +484,6 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	"sourceId=$sourceId"."&".
 	"source=$source";
 
-	// Add top banner with back button (like other pages)
-	include("../includes/topline_settings.php");
 	global $menu;
 	if (!isset($top_bund)) $top_bund = "";
 	
@@ -499,12 +497,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	} else {
 		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
 	}
-	
 	// Print header banner
 	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
 	if ($menu=='S') {
 		print "<tr>";
-		print "<td width='10%' style='border-radius: 5px;'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width='10%' style='$topStyle'><a href='$backUrl' accesskey='L'><button style='$buttonStyle width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
 		print "<td width='10%' style='$topStyle' align='center'><br></td>";
 		print "</tr>";
@@ -686,31 +683,18 @@ print "<style>
 </style>";
 
 
-
 // $combinedParams = $params . '&' . $poolParams; 
 $encodedDir = urlencode($dir);
 $poolFileJs = json_encode($poolFile); // safely escapes quotes
 $JsSum = json_encode($sum); // safely escapes quotes
 
-// Get button colors for JavaScript
-if (!isset($buttonColor)) {
-	$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$buttonColor = $r["var_value"];
-	} else {
-		$buttonColor = '#114691'; // Default button color
-	}
-}
-if (!isset($buttonTxtColor)) {
-	$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$buttonTxtColor = $r['var_value'];
-	} else {
-		$buttonTxtColor = '#ffffff'; // Default button text color
-	}
-}
+
+// Calculate lightened button color using PHP function from topline_settings.php
+$lightButtonColor = brightenColor($buttonColor, 0.6); // Lighten by 60% (0.6 = 60%)
+
 $buttonColorJs = json_encode($buttonColor);
 $buttonTxtColorJs = json_encode($buttonTxtColor);
+$lightButtonColorJs = json_encode($lightButtonColor);
 
 print <<<JS
 <script>
@@ -722,18 +706,7 @@ print <<<JS
 	 const totalSum = {$JsSum};
 	 const buttonColor = {$buttonColorJs};
 	 const buttonTxtColor = {$buttonTxtColorJs};
-
-	// Function to lighten a color
-	function lightenColor(color, percent) {
-		const num = parseInt(color.replace("#",""), 16);
-		const amt = Math.round(2.55 * percent);
-		const R = Math.min(255, (num >> 16) + amt);
-		const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
-		const B = Math.min(255, (num & 0x0000FF) + amt);
-		return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
-	}
-
-	const lightButtonColor = lightenColor(buttonColor, 60); // Lighten by 60%
+	 const lightButtonColor = {$lightButtonColorJs};
 
     async function fetchFiles() {
         const dir = '{$encodedDir}'; 
