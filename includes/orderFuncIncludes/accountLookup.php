@@ -219,7 +219,7 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     <script>
     function selectAccount{$id}(fokus , konto_id) {
         // Navigate back to order page with selected account
-        window.location.href = '$href?fokus=' + fokus + '&konto_id=' + konto_id;
+         window.location.href = '$href?id=$id&fokus=' + fokus + '&konto_id=' + konto_id;
     }
     
    

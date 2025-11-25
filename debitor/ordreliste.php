@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-13--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-20--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -418,6 +418,7 @@ else include_once 'ordLstIncludes/oldTopLine.php';
 include(get_relative() . "includes/orderFuncIncludes/grid_order.php");
 
 
+
 ////// Tutorial //////
 
 $steps = array();
@@ -513,7 +514,9 @@ $columns[] = array(
     "headerName" => findtekst('500|Ordrenr.', $sprog_id),
     "width" => "0.8",
     "align" => "right",
-    "type"  => "number",
+    "type"  => "text",
+    "sortable" => true,
+    "searchable" => true,
     "render" => function ($value, $row, $column) {
         global $brugernavn;
         
@@ -1415,7 +1418,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <?php
 
+$valg = is_array($valg) ? implode(',', $valg) : $valg;
+$sort = is_array($sort) ? implode(',', $sort) : $sort;
 // Create a SEPARATE form for bulk actions
+
 print "<form method='post' action='ordreliste.php' id='bulkActionForm' style='margin-top: 10px;'>";
 print "<input type='hidden' name='valg' value='$valg'>";
 print "<input type='hidden' name='sort' value='$sort'>";
@@ -2073,5 +2079,8 @@ document.addEventListener('DOMContentLoaded', () => {
     vertical-align: top;  
     margin-right: 10px;   
 }
+a:link{
+		text-decoration: none;
+	}
 
 </style>

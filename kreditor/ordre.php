@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-11-15---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-11-25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,9 +66,8 @@
 // 20250908 LOE Moved kontoosplag function to ../includes/kreditorOrderFuncIncludes/accountLookup.php
 // 20251113 PHR	Added some undefined vareables
 // 20251115 PHR Added missing "'"
-
-// start session
-session_start();
+// 20251124 LOE Readded session_start which was removed causing page to request login again and again
+@session_start();
 $s_id=session_id();
 
 ?>
