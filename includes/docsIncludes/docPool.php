@@ -501,10 +501,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	}
 	
 	// Print header banner
-	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px;\"><tbody>";
+	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
 	if ($menu=='S') {
 		print "<tr>";
-		print "<td width='10%'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width='10%' style='border-radius: 5px;'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
 		print "<td width='10%' style='$topStyle' align='center'><br></td>";
 		print "</tr>";
