@@ -696,7 +696,7 @@ $JsSum = json_encode($sum); // safely escapes quotes
 if (!isset($buttonColor)) {
 	$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 	if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$buttonColor = $r['var_value'];
+		$buttonColor = $r["var_value"];
 	} else {
 		$buttonColor = '#114691'; // Default button color
 	}
@@ -762,11 +762,11 @@ print <<<JS
 				document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
 				return;
 			}
-
+			console.log($buttonColor);
 		let html = `
   <div style="margin:0; padding-right:3px; width:100%; box-sizing:border-box;">
     <table style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:13px; border:1px solid #ddd; margin:0; padding:0; table-layout:fixed;">
-      <thead style="background:${buttonColor}; color:${buttonTxtColor}; position:sticky; top:0; z-index:10; margin:0; padding:0;">
+      <thead style="background:#${buttonColor}; color:#${buttonTxtColor}; position:sticky; top:0; z-index:10; margin:0; padding:0;">
         <tr>
 					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
