@@ -991,7 +991,7 @@ HTML;
  */
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000, 5000];
+    $rowCounts = [50, 100, 250, 500, 1000];
 
     // Build the options dynamically
     $options = '';
