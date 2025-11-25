@@ -1914,14 +1914,6 @@ HTML;
 	print "<script language=\"javascript\">";
 	print "document.gennemse.$docFocus.focus();";
 	print "</script>";
-	}else{
-		print '<script>';
-		print 'if (!sessionStorage.getItem("docAlertShown")) {'; 
-		print '    alert("Please click on the document to proceed");';
-		print '    sessionStorage.setItem("docAlertShown", "true");'; 
-		print '}';
-		print '</script>';
-
 	}
 
 	exit;
