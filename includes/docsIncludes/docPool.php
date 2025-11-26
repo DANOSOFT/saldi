@@ -514,9 +514,24 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	}
 	print "</tbody></table>";
 	
-	// Add CSS to completely disable all hover effects on top bar (no visual changes at all)
+	// Include DocPool CSS files
+	$cssPath = "../css";
+	if (!file_exists($cssPath)) {
+		if (file_exists("../../css")) $cssPath = "../../css";
+		elseif (file_exists("../../../css")) $cssPath = "../../../css";
+	}
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css\">\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css\">\n";
+	
+	// Add dynamic CSS variables for button colors
+	$lightButtonColor = brightenColor($buttonColor, 0.6);
 	print "<style>
-		/* Disable ALL hover effects on top bar - no color, opacity, or visual changes */
+		:root {
+			--docpool-primary: $buttonColor;
+			--docpool-primary-text: $buttonTxtColor;
+			--docpool-primary-light: $lightButtonColor;
+		}
+		/* Dynamic button color overrides for top bar */
 		#topBarHeader tbody tr td a button,
 		#topBarHeader tbody tr td a button:hover,
 		#topBarHeader tbody tr td a:hover button,
@@ -528,34 +543,13 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		#topBarHeader tbody tr td button:active {
 			background-color: $buttonColor !important;
 			color: $buttonTxtColor !important;
-			opacity: 1 !important;
-			transform: none !important;
-			cursor: pointer !important;
 			border-color: $buttonColor !important;
 		}
-		/* Disable hover effects on top bar links - no color or text changes */
-		#topBarHeader tbody tr td a,
-		#topBarHeader tbody tr td a:hover,
-		#topBarHeader tbody tr td a:focus,
-		#topBarHeader tbody tr td a:active {
-			text-decoration: none !important;
-			color: inherit !important;
-			opacity: 1 !important;
-		}
-		/* Disable hover effects on top bar cells - maintain exact background color */
 		#topBarHeader tbody tr,
 		#topBarHeader tbody tr:hover,
 		#topBarHeader tbody tr td,
 		#topBarHeader tbody tr td:hover {
 			background-color: $buttonColor !important;
-			opacity: 1 !important;
-		}
-		/* Pointer cursor for back button only */
-		#topBarHeader tbody tr td:first-child a {
-			cursor: pointer !important;
-		}
-		#topBarHeader tbody tr td:first-child a button {
-			cursor: pointer !important;
 		}
 	</style>";
 
@@ -567,120 +561,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 #####
 // Modern flexbox layout instead of tables
-// Adjust top position to account for header banner (approximately 50-60px)
-print "<div id='docPoolContainer' style='display: flex; width: 100%; height: calc(100vh - 60px); gap: 0; margin: 0; padding: 0; position: fixed; top: 60px; left: 0;'>";
-print "<div id='leftPanel' style='flex: 0 0 30%; min-width: 200px; max-width: 80%; display: flex; flex-direction: column; height: 100%; position: relative; margin: 0; padding: 0; overflow: visible;'>";
-print "<div id='fileListContainer' style='flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; width: 100%; margin: 0; padding: 0;'>Loading files...</div>";
+// Styles are now in docpool.css
+print "<div id='docPoolContainer'>";
+print "<div id='leftPanel'>";
+print "<div id='fileListContainer'>Loading files...</div>";
 // Fixed bottom section will be added here later via PHP (before leftPanel closes)
-
-print "<style>
- html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
- }
- #docPoolContainer {
-  display: flex;
-  width: 100%;
-  height: calc(100vh - 60px);
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  position: fixed;
-  top: 60px;
-  left: 0;
-  right: 0;
-  bottom: 0;
- }
- #leftPanel {
-  flex: 0 0 30%;
-  min-width: 200px;
-  max-width: 80%;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative;
-  margin: 0;
-  padding: 0;
-  overflow: visible;
- }
- #resizer {
-  width: 5px;
-  background-color: #ddd;
-  cursor: col-resize;
-  user-select: none;
-  flex-shrink: 0;
-  position: relative;
-  touch-action: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  z-index: 100;
-  pointer-events: auto;
- }
- #resizer:hover {
-  background-color: #999;
- }
- #resizer::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background-color: #999;
-  transform: translateX(-50%);
- }
- #leftPanel, #rightPanel {
-  will-change: flex;
- }
- #rightPanel {
-  flex: 1;
-  min-width: 200px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
- }
- #documentViewer {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
- }
- #fileListContainer {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  position: relative;
- }
- #fileListContainer > div {
-  width: 100%;
- }
- #fixedCell {
-  flex-shrink: 0;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  background: transparent;
- }
- #fixedBottom {
-  width: 100%;
-  box-sizing: border-box;
- }
-</style>";
 
 
 // $combinedParams = $params . '&' . $poolParams; 
@@ -836,7 +721,7 @@ print <<<JS
 
 			html += "</tbody></table>";
 
-			// hover style and edit input styles
+			// Dynamic styles for selected/editing rows (using CSS variables from docpool.css)
 			html += "<style>\
 				table tbody tr:hover { background-color: " + lightButtonColor + " !important; }\
 				table tbody tr[data-selected='true'] { background-color: " + lightButtonColor + " !important; color: #000000 !important; }\
@@ -845,9 +730,8 @@ print <<<JS
 				table tbody tr[data-selected='true']:hover td { color: #000000 !important; }\
 				table tbody tr[data-editing='true'] { background-color: " + lightButtonColor + " !important; }\
 				table tbody tr:hover td { background-color: transparent !important; }\
-				.edit-input { width: 100%; border: 1px solid " + buttonColor + "; background: #fff; padding: 4px; font-family: inherit; font-size: inherit; box-sizing: border-box; }\
-				.edit-input:focus { outline: 2px solid " + buttonColor + "; outline-offset: -1px; }\
-				.cell-content { display: block; }\
+				.edit-input { border-color: " + buttonColor + "; }\
+				.edit-input:focus { outline-color: " + buttonColor + "; }\
 			</style>";
 
 			document.getElementById(containerId).innerHTML = html;
@@ -1377,77 +1261,33 @@ JS;
 	// Close docPoolContainer div
 	print "</div>";
 
-		// Add CSS for fixedBottom styling
+		// Additional dynamic styles for button colors (styles are in docpool.css)
 		print "<style>
-			#fixedBottom {
-				max-width: 100%;
-				overflow: visible;
-			}
-			#fixedBottom form {
-				display: flex;
-				flex-direction: column;
-				overflow: visible;
-			}
-			#fixedBottom input[type='file'] {
-				cursor: pointer;
-				height: auto !important;
-				min-height: 40px;
-				overflow: visible !important;
-				line-height: normal;
-				pointer-events: auto !important;
-				position: relative;
-				z-index: 10;
-			}
-			#fixedBottom input[type='file']:hover {
-				border-color: <?php echo $buttonColor; ?> !important;
-				background-color: #ffffff !important;
-				transform: translateY(-1px);
-				box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-			}
 			#fixedBottom input[type='file']::-webkit-file-upload-button {
-				cursor: pointer;
-				padding: 6px 12px;
-				margin-right: 10px;
-				background-color: <?php echo $buttonColor; ?>;
-				color: <?php echo $buttonTxtColor; ?>;
-				border: none;
-				border-radius: 6px;
-				font-weight: 600;
-				transition: all 0.3s ease;
-			}
-			#fixedBottom input[type='file']::-webkit-file-upload-button:hover {
-				transform: scale(1.05);
-				box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+				background-color: $buttonColor;
+				color: $buttonTxtColor;
 			}
 			#fixedBottom input[type='submit'] {
-				transition: all 0.3s ease;
+				background-color: $buttonColor;
+				color: $buttonTxtColor;
+				border-color: $buttonColor;
 			}
-			#fixedBottom input[type='submit']:hover {
-				transform: translateY(-2px);
-				box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-				opacity: 0.9;
+			#fixedBottom .upload-label {
+				background-color: $buttonColor;
+				color: $buttonTxtColor;
 			}
-			#fixedBottom input[type='submit']:active {
-				transform: translateY(0);
+			#fixedBottom .email-section {
+				background-color: $buttonColor;
 			}
-			#dropZone:hover {
-				border-color: <?php echo $buttonColor; ?> !important;
-				background-color: rgba(0,0,0,0.05) !important;
-				transform: translateY(-2px);
-				box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-			}
-			#dropZone:hover #dropText {
-				color: <?php echo $buttonColor; ?> !important;
-			}
-			.clip-image.drop-zone-container {
-				display: block;
-				width: 100%;
-				margin: 0;
-				padding: 0;
-				text-align: center;
+			#fixedBottom .email-section .email-label,
+			#fixedBottom .email-section .email-link {
+				color: $buttonTxtColor;
 			}
 			#dropZone {
-				margin: 0 auto;
+				border-color: $buttonColor;
+			}
+			#dropText {
+				color: $buttonColor;
 			}
 		</style>";
 
