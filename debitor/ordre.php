@@ -1875,7 +1875,50 @@ if ($status<3 && $b_submit) {
 				}
 				if (!isset($projekt[$x])) $projekt[$x]=0;
 				if (!isset($kdo[$x])) $kdo[$x]=NULL;
+				
+				// If linje[$x] has POST data for lager but no linje_id, it might be hovedvaren
+				// Find hovedvaren's linje_id if this is the hovedvaren (has POST data but no linje_id)
+				if (!$linje_id[$x] && isset($_POST["lagr$x"]) && $_POST["lagr$x"]) {
+					// Check if there's a hovedvaren (samlevare='on') in the same samlesæt
+					// First, find which samlesæt this might belong to by checking other lines
+					$found_hovedvaren_id = false;
+					if (isset($linjeantal) && $linjeantal) {
+						for ($i=1; $i<=$linjeantal; $i++) {
+							if ($i != $x && isset($saet[$i]) && $saet[$i] && isset($samlevare[$i]) && $samlevare[$i]=='on' && isset($linje_id[$i]) && $linje_id[$i]) {
+								// Found a hovedvaren in the same loop - check if this line[2] is the hovedvaren
+								$qtxt = "SELECT id FROM ordrelinjer WHERE ordre_id='$id' AND samlevare='on' AND saet='$saet[$i]' LIMIT 1";
+								$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+								if ($r && $r['id']) {
+									$linje_id[$x] = $r['id'];
+									$saet[$x] = $saet[$i];
+									$samlevare[$x] = 'on';
+									$found_hovedvaren_id = true;
+									break;
+								}
+							}
+						}
+					}
+					// If still not found, try to find any hovedvaren in the order
+					if (!$found_hovedvaren_id) {
+						$qtxt = "SELECT id, saet FROM ordrelinjer WHERE ordre_id='$id' AND samlevare='on' LIMIT 1";
+						$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+						if ($r && $r['id']) {
+							$linje_id[$x] = $r['id'];
+							$saet[$x] = $r['saet'];
+							$samlevare[$x] = 'on';
+						}
+					}
+				}
+				
 				if ($linje_id[$x]) {
+					// Check if this linje_id was already updated by a previous line (to avoid duplicate updates)
+					// Use a global array to track updated linje_ids across all iterations
+					if (!isset($GLOBALS['updated_linje_ids'])) {
+						$GLOBALS['updated_linje_ids'] = array();
+					}
+					if (in_array($linje_id[$x], $GLOBALS['updated_linje_ids'])) {
+						continue; // Skip this line if it was already updated
+					}
 					if (!$antal[$x]) $antal[$x]=0;
 					// Ensure numeric fields use dot-decimal to avoid PHP warnings and SQL errors
 					$antal[$x] = usdecimal($antal[$x]);
@@ -1892,20 +1935,68 @@ if ($status<3 && $b_submit) {
 					if (!$kostpris[$x]) $kostpris[$x]=0;
 					if ($projekt[0]) $projekt[$x]=$projekt[0];
 					else $projekt[$x]=$projekt[$x];
-					if ($saet[$x] || ($varenr[$x] && $varenr[$x]==$rvnr)) {
-						$qtxt="update ordrelinjer set leveres='$leveres[$x]' where id='$linje_id[$x]'";
+					// If this is an underliggende vare (has saet but not samlevare='on'), get lager from hovedvaren
+					// Underliggende varer should not be editable - they get lager from hovedvaren
+					// BUT: Only if they don't have POST data (since they are disabled, they shouldn't have POST data)
+					if ($saet[$x] && $samlevare[$x] != 'on' && (!isset($_POST["lagr$x"]) || !$_POST["lagr$x"])) {
+						// Find the hovedvaren (samlevare='on') in the same samlesæt
+						$qtxt = "SELECT lager FROM ordrelinjer WHERE ordre_id='$id' AND saet='$saet[$x]' AND samlevare='on' LIMIT 1";
+						$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+						if ($r && $r['lager']) {
+							$lager[$x] = $r['lager'];
+						}
+					}
+					// If linje[$x] has POST data for lager but is identified as hovedvaren (samlevare='on'), use that lager
+					// This handles the case where hovedvaren is linje[2] (lagr2) but has no linje_id initially
+					if (isset($_POST["lagr$x"]) && $_POST["lagr$x"] && $samlevare[$x]=='on' && $saet[$x]) {
+						// Hovedvaren has POST data - use it directly
+						$post_lager = $_POST["lagr$x"];
+						// Convert lager name to number if needed
+						if (!is_numeric($post_lager)) {
+							for ($l=0;$l<count($lagernr);$l++) {
+								if (strtolower($post_lager)==strtolower($lagernavn[$l])) {
+									$post_lager=$lagernr[$l];
+									break;
+								}
+							}
+						}
+						$lager[$x] = (int)$post_lager;
+					}
+					
+					if ($saet[$x] || $samlevare[$x]=='on' || ($varenr[$x] && $varenr[$x]==$rvnr)) {
+						// Allow lager to be updated even for samlesæt items
+						$qtxt="update ordrelinjer set leveres='$leveres[$x]',lager='$lager[$x]' where id='$linje_id[$x]'";
 					} else {
 						$qtxt="update ordrelinjer set varenr='$varenr[$x]',antal=$antal[$x],beskrivelse='$beskrivelse[$x]',leveres='$leveres[$x]',";
 						$qtxt.="pris='$pris[$x]',kostpris='$kostpris[$x]',rabat='$rabat[$x]',procent='$procent[$x]',projekt='$projekt[$x]',";
 						$qtxt.="kdo='$kdo[$x]',omvbet='$omvbet[$x]',saet='0',samlevare='$samlevare[$x]',lager='$lager[$x]' where id='$linje_id[$x]'";
 					}
 					if ($antal[$x] < 100000000000) {
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						$result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						// Mark this linje_id as updated to avoid duplicate updates
+						if (!isset($GLOBALS['updated_linje_ids'])) {
+							$GLOBALS['updated_linje_ids'] = array();
+						}
+						$GLOBALS['updated_linje_ids'][] = $linje_id[$x];
 					} else {
 						$alert = findtekst('916|Antal', $sprog_id)." (". dkdecimal($antal[$x]) .") ".findtekst('1842|er for stort, reducer antal', $sprog_id);
 						print "<BODY onLoad=\"javascript:alert('$alert')\">";
 					}
-					if ($samlevare[$x]) {
+					if ($samlevare[$x]=='on' && $saet[$x]) {
+						// Update lager for all items in the same samlesæt (both underliggende varer and other items in saet)
+						
+						// First update underliggende varer (where samlevare = linje_id)
+						$q=db_select("SELECT id FROM ordrelinjer WHERE samlevare = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+						while($r=db_fetch_array($q)) {
+							db_modify("update ordrelinjer set lager='$lager[$x]' where id='$r[id]'",__FILE__ . " linje " . __LINE__);
+						}
+						
+						// Also update all other items in the same samlesæt (where saet = saet[$x] but not the hovedvaren itself)
+						$q2=db_select("SELECT id FROM ordrelinjer WHERE ordre_id='$id' AND saet='$saet[$x]' AND id!='$linje_id[$x]' AND (samlevare!='on' OR samlevare IS NULL OR samlevare='')",__FILE__ . " linje " . __LINE__);
+						while($r2=db_fetch_array($q2)) {
+							db_modify("update ordrelinjer set lager='$lager[$x]' where id='$r2[id]'",__FILE__ . " linje " . __LINE__);
+						}
+						
 						if ($antal[$x]) {
 							$q=db_select("SELECT id,antal FROM ordrelinjer WHERE samlevare = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
 							while($r=db_fetch_array($q)) {
@@ -5475,7 +5566,11 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 					$lager=$lagernavn[$l];
 				}
 			}
-      		print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:35px\" name=\"lagr$x\" value=\"$lager\" onchange=\"javascript:docChange = true;\" $disabled></td>\n";
+			// Disable lager for underliggende varer in samlesæt (they should get lager from hovedvaren)
+			// Only allow editing on hovedvaren (samlevare='on') or items not in a samlesæt
+			$is_underliggende_vare = ($saet && $samlevare != 'on');
+			$lagerDisabled = ($art=='OT' || ($rvnr && $rabat) || $is_underliggende_vare) ? 'disabled' : NULL;
+      		print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"text-align:right;width:35px\" name=\"lagr$x\" value=\"$lager\" onchange=\"javascript:docChange = true;\" $lagerDisabled></td>\n";
 		}
 		$title=var2str($beskrivelse,$id,$posnr,$varenr,$dkantal,$enhed,$dkpris,$dkprocent,$serienr,$varemomssats,$dkrabat);
     	//print "<td valign = 'top' title=\"$title\"><input class = 'inputbox' type = 'text' $readonly size=\"58\" name=\"beskrivelse$x\" value=\"$beskrivelse\" onchange=\"javascript:docChange = true;\"></td>\n";
