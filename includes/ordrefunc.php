@@ -2221,7 +2221,7 @@ function bogfor_indbetaling($id, $webservice) {
 			$debet = afrund($debet, 2);
 			$kredit = afrund($kredit, 2);
 			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
-			$qtxt.= "values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',0,'$logdate','$logtime','0','0','$id','$kasse')"
+			$qtxt.= "values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',0,'$logdate','$logtime','0','0','$id','$kasse')";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		$tmparray = array();
