@@ -50,35 +50,35 @@ if ($valg == "tilbud" && !$hurtigfakt) {
 } //20210318
 
 if ($valg == "ordrer") {
-    print "<td width = '100px' align=center>";
+    print "<td width = '200px' align=center>";
            print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">";
            print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>"; 
 		   
 } else {
-    print "<td width = '100px' align=center>
+    print "<td width = '200px' align=center>
            <a href='ordreliste.php?valg=ordrer&konto_id=$konto_id&returside=$returside'>
            <button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">";
            print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>"; 
 }
 
 if ($valg == "faktura") {
-    print "<td width = '100px' align=center>";
+    print "<td width = '200px' align=center>";
            print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
            
 		   print "$invoice_icon".findtekst('643|Faktura', $sprog_id)."</button></td>";
 } else {
-    print "<td width = '100px' align=center>";
+    print "<td width = '200px' align=center>";
            print"<a href='ordreliste.php?valg=faktura&konto_id=$konto_id&returside=$returside'>";
            print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
            print "$invoice_icon".findtekst('643|Faktura', $sprog_id)."</button></td>";
 }
 
 if ($valg == 'pbs') {
-	print "<td width = '100px' align='center'>"; 
+	print "<td width = '200px' align='center'>"; 
 		   print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		   print"$pbs_icon".findtekst('385|BS', $sprog_id)."</button></td>";
 } elseif ($pbs) {
-	print "<td width = '100px' align=center>";
+	print "<td width = '200px' align=center>";
 		  print"<a href='ordreliste.php?valg=pbs&konto_id=$konto_id&returside=$returside'>";
 		   print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 		   print "$pbs_icon".findtekst('385|BS', $sprog_id)."</button></td>";
@@ -103,12 +103,12 @@ if ($valg == 'pbs') {
 		   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		   print"$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	if ($popup) {
-		print "<td width=10% style='$buttonStyle' onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
+		print "<td width=5% style='$buttonStyle' onClick=\"javascript:ordre=window.open('ordre.php?returside=ordreliste.php&konto_id=$konto_id','ordre','scrollbars=1,resizable=1');ordre.focus();\">
 			   <a accesskey=N href='".$_SERVER['PHP_SELF'] . "'>
 			  <button class='center-btn' style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">";
 			   print "$add_icon".findtekst('39|Ny', $sprog_id)."</button></a></td>\n";
 	} else {
-		print "<td width=10% style='$buttonStyle'>
+		print "<td width=5% style='$buttonStyle'>
 			   <a href=ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id>";
 			   print "<button class='center-btn' style='$buttonStyle; width:100%' id='ny' onMouseOver=\"this.style.cursor = 'pointer'\">";
 			   print "$add_icon".findtekst('39|Ny', $sprog_id)."</button></a></td>\n";

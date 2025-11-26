@@ -1,6 +1,6 @@
 <?php
-//../includes/grid_order.php
-/**
+//..includes/orderFuncIncludes/grid_order.php
+/** 
  * Extracts values from a specific column in a multi-dimensional array.
  *
  * This function mimics PHP's built-in array_column function for PHP 5.
@@ -1369,7 +1369,7 @@ function render_column_setup($id, $columns, $all_columns) {
         <form method="POST" action="">
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
-                    <tr><td colspan=100>Vælg hvilke felter der skal være synlige i tablelen</td></tr>
+                    <tr><td colspan="100" style="text-align: center;">Vælg hvilke felter der skal være synlige i tablelen</td></tr>
                     <tr><td colspan=100><hr></td></tr>
                     <tr>
                         <th>Pos</th>
