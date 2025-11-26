@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-20--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-26--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -400,7 +400,7 @@ $sortering=$sort;
 if ($valg!="faktura") {//20210323
 #	$fakturanumre='';
 #	$fakturadatoer='';
-	$genfakturer='';
+	$genfakturer=''; 
 }
 
 
@@ -493,21 +493,7 @@ $ialt_kostpris = 0;
 $columns = array();
 
 // Checkbox column for selection
-
-
-$columns[] = array(
-    "field" => "checkbox",
-    "headerName" => "",
-    "width" => "0.3",
-    "sortable" => false,
-    "searchable" => false,
-    "align" => "center",
-    "render" => function ($value, $row, $column) {
-        $checked = $row['selected'] ? 'checked' : '';
-        return "<td align='center'><input type='checkbox' name='checked[{$row['id']}]' $checked class='deliveryNoteSelect'></td>";
-    }
-);
-
+$metaColumnHeaders = ['']; //
 
 $columns[] = array(
     "field" => "ordrenr",
@@ -926,6 +912,18 @@ $columns[] = array(
     }
 );
 
+$columns[] = array(
+    "field" => "checkbox",
+    "headerName" => "",
+    "width" => "0.3",
+    "sortable" => false,
+    "searchable" => false,
+    "align" => "center",
+    "render" => function ($value, $row, $column) {
+        $checked = $row['selected'] ? 'checked' : '';
+        return "<td align='center'><input type='checkbox' name='checked[{$row['id']}]' $checked class='deliveryNoteSelect'></td>";
+    }
+);
 
 
 // $columns[] = array(
@@ -1215,6 +1213,7 @@ $data = array(
     },
     "columns" => $columns,
     "filters" => $filters,
+    'metaColumnHeaders' => $metaColumnHeaders,
 );
 ##############
 
@@ -1428,7 +1427,7 @@ print "<input type='hidden' name='sort' value='$sort'>";
 print "<input type='hidden' name='nysort' value='$nysort'>";
 
 // Bulk action buttons
-print "<div style='padding: 10px; border-radius: 4px;'>";
+print "<div class='bulk-actions' style='padding: 10px; border-radius: 4px;'>";
 print "<strong>Bulk handlinger:</strong> ";
 
 // Check/Uncheck all buttons
@@ -1628,7 +1627,7 @@ $ialt_formatted = dkdecimal($ialt, 2);
 $ialt_m_moms_formatted = dkdecimal($ialt_m_moms, 2);
 
 // Display turnover summary
-print "<div style='margin-top: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 4px;'>";
+print "<div class='turnover-summary' style='margin-top: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 4px;'>";
 print "<table border='0' width='100%' style='width:100%;'><tbody>";
 
     if ($valg == "faktura") {
@@ -1840,6 +1839,22 @@ if (isset($r['box2']) && $apifil=$r['box2']) { //checks if $r$r['box2'] exists b
 }
 ######
 print "</div>";
+
+#don't show turnover summary and bulk actions if 'kolonner' menu is selected
+if (isset($_GET['menu']["$grid_id"])) {
+    $menu_value = $_GET['menu']["$grid_id"];
+    if ($menu_value == 'kolonner') {   
+       ?>
+        <style>
+            .turnover-summary, .bulk-actions {
+                display: none;
+            }
+
+        </style>
+
+       <?php
+    }
+} 
 
 #################
 function genberegn($id) {

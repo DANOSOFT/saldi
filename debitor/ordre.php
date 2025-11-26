@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-11-14 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -3843,6 +3843,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		$qtxt="select max(antal) as antal from ordrelinjer where ordre_id = '$id' and vare_id > '0'";
 		$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		($r['antal']<0)?$dan_kn=1:$dan_kn=NULL; 
+		print "<div class=\"ordreform\">\n";
 		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n"; 
 		print '<input type="hidden" name="dragdrop_json" id="dragdrop_json">';
 		print "<input type=\"hidden\" name=\"update_positions\" value=\"0\" id=\"update_positions\">\n"; #20140716
@@ -5909,13 +5910,16 @@ if ($fokus) {
 	document.ordre.$fokus.focus();
 	</script>";
 }
-print "</tbody></table>";
+print "</tbody></table>"; 
+
+
 
 if ($menu=='T') {
 	include_once '../includes/topmenu/footer.php';
 } else {
 	include_once '../includes/oldDesign/footer.php';
 }
+
 ?>
 <!--  -->
 
@@ -5927,7 +5931,12 @@ if ($menu=='T') {
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="orderIncludes/ordre_dragdrop.js"></script>
 <!-- <script src ="orderIncludes/invoice_dragdrop.js"></script> -->
-
+<style>
+.ordreform { 
+	overflow-x: auto;
+	height: calc(100vh - 50px);
+}
+</style>
 
 
 
