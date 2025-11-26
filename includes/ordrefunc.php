@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-11-15 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -2170,8 +2170,7 @@ function bogfor_indbetaling($id, $webservice) {
 		$uxtid = date("U");
 		$tmp = $sum * -1;
 		$qtxt = "insert into openpost (konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
-		$qtxt .= " values ";
-		$qtxt .= "('$konto_id','$kundekontonr','$fakturanr','$tmp','$beskrivelse','0','$transdate','$uxtid','0','$id','$valuta','$valutakurs','$projekt[0]')";
+		$qtxt.= " values ('$konto_id','$kundekontonr','$fakturanr','$tmp','$beskrivelse','0','$transdate','$uxtid','0','$id','$valuta','$valutakurs','$projekt[0]')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select max(id) as id from openpost where konto_id = '$konto_id' and faktnr = '$fakturanr' and refnr='$id'", __FILE__ . " linje " . __LINE__));
 		$openpost_id = $r['id'];
@@ -2221,7 +2220,9 @@ function bogfor_indbetaling($id, $webservice) {
 			$k_kontrol = $k_kontrol + $kredit;
 			$debet = afrund($debet, 2);
 			$kredit = afrund($kredit, 2);
-			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',0,'$logdate','$logtime','0','0','$id','$kasse')", __FILE__ . " linje " . __LINE__);
+			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+			$qtxt.= "values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',0,'$logdate','$logtime','0','0','$id','$kasse')"
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		$tmparray = array();
 		$r = db_fetch_array(db_select("select box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -2257,7 +2258,8 @@ function bogfor_indbetaling($id, $webservice) {
 					}
 					$d_kontrol = $d_kontrol + $debet;
 					$k_kontrol = $k_kontrol + $kredit;
-					$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kortkonti[$x]','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
+					$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+					$qtxt.= "values ('0','$transdate','$beskrivelse','$kortkonti[$x]','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					if ($modtaget != $sum) {
 						$debet = 0;
@@ -2265,7 +2267,8 @@ function bogfor_indbetaling($id, $webservice) {
 						($modtaget > $sum) ? $kredit = afrund($modtaget - $sum, 2) : $debet = afrund($sum - $modtaget, 2);
 						$d_kontrol = $d_kontrol + $debet;
 						$k_kontrol = $k_kontrol + $kredit;
-						$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
+						$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+						$qtxt.= "values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					}
 					$sum = 0;
@@ -2287,8 +2290,11 @@ function bogfor_indbetaling($id, $webservice) {
 		$k_kontrol = $k_kontrol + $kredit;
 		$debet = afrund($debet, 2);
 		$kredit = afrund($kredit, 2);
-		if ($debet || $kredit)
-			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0','0','$logdate','$logtime','0','0','$id','$kasse')", __FILE__ . " linje " . __LINE__);
+		if ($debet || $kredit) {
+			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+			$qtxt.= "values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0','0','$logdate','$logtime','0','0','$id','$kasse')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
 		db_modify("update ordrer set status=4, valutakurs=$valutakurs where id=$id", __FILE__ . " linje " . __LINE__);
 	}
 	transaktion("commit");
