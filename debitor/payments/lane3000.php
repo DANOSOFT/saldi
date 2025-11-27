@@ -180,6 +180,7 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
+    console.log("<?php print get_settings_value("username", "move3500", "", null, $kasse);?>", "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>");
     const data = {
         "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
         "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
@@ -363,8 +364,8 @@ async function start_payment(baseurl, apikey, amount) {
 
 async function start() {
     logToServer('Payment process started', 'INFO');
-    // https://connectcloud-test.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
+    // https://connectcloud.aws.nets.eu/v1/
+    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);
