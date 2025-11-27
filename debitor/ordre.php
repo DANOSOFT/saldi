@@ -1087,6 +1087,7 @@ if ($b_submit) {
 	$formularsprog   = if_isset($_POST, NULL, 'sprog');
 	$lev_adr         = trim(if_isset($_POST, NULL, 'lev_adr'));
 	$sum             = if_isset($_POST, NULL, 'sum');
+	
 	$linjeantal      = if_isset($_POST, NULL, 'linjeantal');
 	$linje_id        = if_isset($_POST, NULL, 'linje_id');
 	$kred_linje_id   = if_isset($_POST, NULL, 'kred_linje_id');
@@ -1919,11 +1920,26 @@ if ($status<3 && $b_submit) {
 					if (in_array($linje_id[$x], $GLOBALS['updated_linje_ids'])) {
 						continue; // Skip this line if it was already updated
 					}
+					
 					if (!$antal[$x]) $antal[$x]=0;
 					// Ensure numeric fields use dot-decimal to avoid PHP warnings and SQL errors
-					$antal[$x] = usdecimal($antal[$x]);
-					$pris[$x] = usdecimal($pris[$x]);
-					$rabat[$x] = usdecimal($rabat[$x]);
+					// NOTE: Don't call usdecimal() again if values are already in US format (already processed above)
+					// Only convert if they're still strings with Danish format
+					if (is_string($antal[$x]) && (strpos($antal[$x], ',') !== false || (strpos($antal[$x], '.') !== false && substr_count($antal[$x], '.') > 1))) {
+						$antal[$x] = usdecimal($antal[$x]);
+					} else {
+						$antal[$x] = (float)$antal[$x];
+					}
+					if (is_string($pris[$x]) && (strpos($pris[$x], ',') !== false || (strpos($pris[$x], '.') !== false && substr_count($pris[$x], '.') > 1))) {
+						$pris[$x] = usdecimal($pris[$x]);
+					} else {
+						$pris[$x] = (float)$pris[$x];
+					}
+					if (is_string($rabat[$x]) && (strpos($rabat[$x], ',') !== false || (strpos($rabat[$x], '.') !== false && substr_count($rabat[$x], '.') > 1))) {
+						$rabat[$x] = usdecimal($rabat[$x]);
+					} else {
+						$rabat[$x] = (float)$rabat[$x];
+					}
 					if (!isset($leveres[$x]) || $leveres[$x] === '') { $leveres[$x] = 0; }
 					else { $leveres[$x] = usdecimal($leveres[$x]); }
 					$sum=$sum+($pris[$x]-($pris[$x]/100*$rabat[$x]))*$antal[$x];
@@ -1965,14 +1981,22 @@ if ($status<3 && $b_submit) {
 					
 					if ($saet[$x] || $samlevare[$x]=='on' || ($varenr[$x] && $varenr[$x]==$rvnr)) {
 						// Allow lager to be updated even for samlesæt items
-						$qtxt="update ordrelinjer set leveres='$leveres[$x]',lager='$lager[$x]' where id='$linje_id[$x]'";
+						// BUT: This should also update antal, pris, rabat if they are being changed!
+						$qtxt="update ordrelinjer set leveres='$leveres[$x]',lager='$lager[$x]'";
+						// Add antal, pris, rabat if they are being updated (not just for samlesæt hovedvaren)
+						if (!$samlevare[$x] || $samlevare[$x]!='on') {
+							$qtxt.=",antal=$antal[$x],pris='$pris[$x]',rabat='$rabat[$x]'";
+						}
+						$qtxt.=" where id='$linje_id[$x]'";
 					} else {
 						$qtxt="update ordrelinjer set varenr='$varenr[$x]',antal=$antal[$x],beskrivelse='$beskrivelse[$x]',leveres='$leveres[$x]',";
 						$qtxt.="pris='$pris[$x]',kostpris='$kostpris[$x]',rabat='$rabat[$x]',procent='$procent[$x]',projekt='$projekt[$x]',";
 						$qtxt.="kdo='$kdo[$x]',omvbet='$omvbet[$x]',saet='0',samlevare='$samlevare[$x]',lager='$lager[$x]' where id='$linje_id[$x]'";
 					}
+					
 					if ($antal[$x] < 100000000000) {
 						$result = db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+						
 						// Mark this linje_id as updated to avoid duplicate updates
 						if (!isset($GLOBALS['updated_linje_ids'])) {
 							$GLOBALS['updated_linje_ids'] = array();
@@ -2821,6 +2845,7 @@ if ($swap_account) {
 	}
 
 ###########################################################################
+
 ordreside($id,$regnskab);
 function ordreside($id,$regnskab) {
 #  print "<!--Function ordreside start-->";
@@ -3483,6 +3508,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		$k_sum=0;
 		if (!$ordre_id) $ordre_id=0;
 		$kostpris[0] = 0;
+		
 		$query = db_select("select * from ordrelinjer where ordre_id = '$ordre_id' order by posnr",__FILE__ . " linje " . __LINE__);
     	while ($row = db_fetch_array($query))  {
 			if (($row['posnr']>0)) {
@@ -4312,7 +4338,24 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 			$afd_navn[$x]=$r['beskrivelse'];
 			$x++;
 		}
-		print "</td></tr>\n";
+		print "</td>";
+		print "<input type = 'hidden' name='extAfd' value='$afd'>";
+		if (count($afd_nr)>1) {
+			print "</td><td></td>\n";
+			print "<td>".findtekst('1198|Afd.', $sprog_id)."</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
+			for ($x=0;$x<count($afd_nr);$x++) {
+				if ($afd_nr[$x]==$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
+			} 
+			for ($x=0;$x<count($afd_nr);$x++) {
+				if ($afd_nr[$x]!=$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
+			} 
+			print "</select>";
+		} elseif (count($afd_nr) === 1 && isset($afd_nr[0]) && !is_array($afd_nr[0])) {
+			$value = htmlspecialchars($afd_nr[0]);
+			print "<input type='hidden' name='afd' value='$value'>"; #20250816
+		}
+			print "</td></tr>\n";
+
 		$kasseantal=0;
 		if ($vis_saet && $afd) {
 			if ($r=db_fetch_array(db_select("select box1,box3 from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__))) {
@@ -4359,23 +4402,9 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				else print "<option title=\"$beskriv[$x]\" selected=\"selected\">$list[$x]</option>\n";
 			}
 			print "</select>";
-			print "<input type = 'hidden' name='extAfd' value='$afd'>";
-		if (count($afd_nr)>1) {
-			print "</td><td></td>\n";
-			print "<td>".findtekst('1198|Afd.', $sprog_id)."</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
-			for ($x=0;$x<count($afd_nr);$x++) {
-				if ($afd_nr[$x]==$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
-			} 
-			for ($x=0;$x<count($afd_nr);$x++) {
-				if ($afd_nr[$x]!=$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
-			} 
-			print "</select>";
-		} elseif (count($afd_nr) === 1 && isset($afd_nr[0]) && !is_array($afd_nr[0])) {
-			$value = htmlspecialchars($afd_nr[0]);
-			print "<input type='hidden' name='afd' value='$value'>"; #20250816
-		}
-			print "</td></tr>\n";
 		} else print "<tr><td colspan=\"2\" width=\"200\"></tr>\n";
+
+		
 		$txt555 = findtekst('555|Godkend', $sprog_id);
 		if ($status==0&&$hurtigfakt!="on") print "<tr><td>$txt555</td><td><input class = 'inputbox' type=\"checkbox\" name=\"godkend\" $disabled></td></tr>\n";
 		elseif ($status<3&&$hurtigfakt!="on") {
@@ -4439,12 +4468,6 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 					$betalt=usdecimal($_GET['modtaget'],2);
 					if ($_GET['kortnavn']) $felt_1=$_GET['kortnavn'];
 					db_modify("update ordrer set betalt='$betalt',felt_1='$felt_1' where id = '$id'",__FILE__ . " linje " . __LINE__);
-					db_modify("INSERT INTO pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) VALUES ('$id','$felt_1','$betalt','DKK','100')",__FILE__ . " linje " . __LINE__);
-					if($felt_4 + $felt_2 == $sum+$moms){
-						$betalt = $sum+$moms;
-						db_modify("INSERT INTO pos_betalinger(ordre_id,betalingstype,amount,valuta,valutakurs) VALUES ('$id','$felt_3','$felt_4','DKK','100')",__FILE__ . " linje " . __LINE__);
-						db_modify("UPDATE ordrer SET betalt='$betalt' where id = '$id'",__FILE__ . " linje " . __LINE__);
-					}
 				}
 				if ($betalt) {
 					$disabled='disabled';
@@ -4662,7 +4685,13 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		
 			$qtxt="select * from ordrelinjer where ordre_id = '$ordre_id' order by posnr";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			$lines_found = 0;
+			$lines_with_posnr_gt_0 = 0;
+			$lines_with_numeric_samlevare = 0;
 			while ($row = db_fetch_array($q)) {
+				$lines_found++;
+				if ($row['posnr']>0) $lines_with_posnr_gt_0++;
+				if (is_numeric($row['samlevare'])) $lines_with_numeric_samlevare++;
 			if ($row['posnr']>0 && !is_numeric($row['samlevare'])) {  #Hvis "samlevare" er numerisk,indgaar varen i den ordrelinje,der refereres til - hvis "on" er varen en samlevare.
 				$x++;
 				$linje_id[$x]        = $row['id'];
@@ -4764,8 +4793,10 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 			}
 		}
 		$linjeantal=$x;
+		
 		$moms=0;
 		$sum=0;
+		
 		$ny_pos=0;
 		$saetnr=0;
 		$saetpris=0;
@@ -4912,6 +4943,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
     }
     $sum=afrund($sum,2);
     $moms=afrund($moms,2);
+    
     print "<input type=\"hidden\" name=\"linjeantal\" value=\"$linjeantal\">\n";
     print "<input type=\"hidden\" name=\"lagervarer\" value=\"$lagervarer\">\n";
     if ($status>=1&&$bogfor!=0 && !$leveres_ialt && $tidl_lev_ialt && $antal_ialt != $tidl_lev_ialt) $del_ordre = 'on';
@@ -5042,14 +5074,18 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
         $dbsum+=$tillag;
         $moms+=$tillag/100*$momssats;
       }
+      
       print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">\n";
+      
       if (!$blandet_moms && !$incl_moms) $moms=$sum*$momssats/100; #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
       $moms=afrund($moms*1,3);
+      
       $kostpris[0]*=1;
       if ($sum < 100000000000 && $kostsum < 100000000000) {
         db_modify("update ordrer set sum=$sum,kostpris=$kostsum,moms=$moms where id=$id",__FILE__ . " linje " . __LINE__);
       } elseif ($sum >= 100000000000) print tekstboks("Beløbet (".dkdecimal($sum).") er for stort, reducer pris eller vareantal");
       else print tekstboks("Kostsummen (".dkdecimal($kostsum).") er for stor, reducer kostpris eller vareantal");
+      
       if ($art=='DK') {
         $sum=$sum*-1;
         $moms=$moms*-1;
@@ -5181,7 +5217,7 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
 						} else {
 							if ($fakturadate && $fakturadate!=date('Y-m-d')) $tmp="onclick=\"return confirm('$confirm9\\\n $confirm8')\"";
 						}
-						$diff=abs($felt_2+$felt_4 - ($sum+$moms));						
+						$diff=abs($felt_2+$felt_4 - ($sum+$moms));
 						if ($diff > 0.01) {
 							$disabled='disabled';
 							$titletext="$tiltext ($felt_2+$felt_4 - $sum+$moms = $diff)";
@@ -5192,7 +5228,7 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
 						}else{
 							$vis_betalingslink = 0;
 						}
-						if (!$betalt1 && $vis_betalingslink) $disabled='disabled';
+						if (!$betalt && $vis_betalingslink) $disabled='disabled';
 					} 
 					// Made for Havemøbelshoppen
 					if($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop"){
@@ -5473,7 +5509,20 @@ function ordrelinjer($x,$sum,$dbsum,$blandet_moms,$moms,$antal_ialt,$leveres_ial
 			if (substr($dkantal,-1)=='0') $dkantal=substr($dkantal,0,-2);
 		}
   	}  else {$antal=0; $dkantal=''; $dkpris=''; $dkrabat=''; $ialt='';}
-	($art=='OT' || $saetnr || ($rvnr && $rabat))?$disabled='disabled':$disabled=NULL; // Her disables inputfield hvis art er OT. #20140716
+	// Disable fields for OT orders, saetnr items, or rabat items
+	// BUT: Don't disable dkan field for samlesæt items that are NOT the main set item (samlevare != 'on')
+	// because we need to be able to update quantities for these items
+	if ($art=='OT' || ($saetnr && $samlevare == 'on') || ($rvnr && $rabat)) {
+		$disabled='disabled';
+	} else {
+		$disabled=NULL;
+	}
+	// For dkan field specifically: allow editing if it's a samlesæt item but NOT the main one
+	if ($saet && $samlevare != 'on') {
+		$dkan_disabled=NULL; // Allow editing quantity for non-main samlesæt items
+	} else {
+		$dkan_disabled=$disabled; // Use the general disabled state
+	}
 #  if ($x) {
 		print "<input type=\"hidden\" name=\"linje_id[$x]\" value=\"$linje_id\">\n";
 		print "<input type=\"hidden\" name=\"kred_linje_id[$x]\" value=\"$kred_linje_id\">\n";
@@ -5553,11 +5602,12 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 		print "<input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee' readonly=\"readonly\" ";
 		print "size=\"12\" name=\"vare$y$x\" onfocus=\"document.forms[0].fokus.value=this.name;\" value=\"$varenr\" ";
 		print "onchange=\"javascript:docChange = true;\" $disabled></td>\n";
+		
 		if ($fokus=='dkan'.$x) {
       		print "<td valign = 'top' title = '$qtyTitle'><input class = 'inputbox' type = 'text' ";
-      		print "style=\"color:$txtColor;text-align:right;width:50px\" $readonly name=\"dkan$x\" placeholder=\"$dkantal\" value=\"\" $disabled onfocus='this.select()'></td>\n";
+      		print "style=\"color:$txtColor;text-align:right;width:50px\" $readonly name=\"dkan$x\" placeholder=\"$dkantal\" value=\"\" $dkan_disabled onfocus='this.select()'></td>\n";
     	} else {
-      		print "<td valign = 'top' title = '$qtyTitle'><input class = 'inputbox' type = 'text' style=\"color:$txtColor;text-align:right;width:50px;\" $readonly name=\"dkan$x\" value=\"$dkantal\" $disabled onfocus='this.select()'></td>\n";
+      		print "<td valign = 'top' title = '$qtyTitle'><input class = 'inputbox' type = 'text' style=\"color:$txtColor;text-align:right;width:50px;\" $readonly name=\"dkan$x\" value=\"$dkantal\" $dkan_disabled onfocus='this.select()'></td>\n";
 		}
     	print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee\" readonly=\"readonly\" size=\"4px\" value=\"$enhed\" onchange=\"javascript:docChange = true;\" $disabled></td>\n";
 		$lagerId = $lager;

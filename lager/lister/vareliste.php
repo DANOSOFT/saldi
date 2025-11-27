@@ -368,6 +368,7 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $VGs
 );
+
 log_performance("Varegrupper filter query", $varegrupper_start);
 
 $leverandor_start = microtime(true);
@@ -385,7 +386,7 @@ while ($row = db_fetch_array($q)) {
     $levs[] = array(
         "name" => $row["firmanavn"],
         "checked" => "",
-        "sqlOn" => "ol.kontonr_concat LIKE '%$row[kontonr]%'", // Fixed: changed from levs.lev to ol.kontonr_concat
+        "sqlOn" => "ol.kontonr_concat = '$row[kontonr]'", // Fixed: changed from levs.lev to ol.kontonr_concat
         "sqlOff" => "",
     );
 }
@@ -394,6 +395,7 @@ $filters[] = array(
     "joinOperator" => "or",
     "options" => $levs
 );
+
 log_performance("Leverandøre filter query", $leverandor_start);
 
 // Misc
