@@ -177,7 +177,7 @@ if ($menu=='T') {
 	print "</tbody></table>";
 	print "</td></tr>";
 	print "<tr><td valign='top'>";
-	print "<table border='1' cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
+	print "<table border='0' cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
 } else {
 	include_once '../includes/oldDesign/header.php';
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
@@ -261,7 +261,7 @@ if ($find) {
 			if (round($amount, 2) < 0) {
 				$amount = dkdecimal(abs($amount));
 				$qtxt = "select id from betalinger where egen_ref ='" . db_escape_string($myRef) . "' ";
-				$qtxt .= "and liste_id = '$liste_id'";
+				$qtxt.= "and liste_id = '$liste_id'";
 				if ($id = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0]) {
 					$qtxt = "update betalinger set belob = '$amount' where id = '$id'";
 				} else {
@@ -270,11 +270,11 @@ if ($find) {
 					$defaultPayDate = date('dmY', strtotime("+$paymentDays days"));
 
 					$qtxt = "insert into betalinger";
-					$qtxt .= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
-					$qtxt .= "values ";
-					$qtxt .= "('ERH356','$myBank','" . db_escape_string($myRef) . "','" . db_escape_string($custBank) . "',";
-					$qtxt .= "'" . db_escape_string($custName) . "','" . db_escape_string($custRef) . "','$amount','$defaultPayDate',";
-					$qtxt .= "'$currency', '0', '0','$liste_id')";
+					$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
+					$qtxt.= "values ";
+					$qtxt.= "('ERH356','$myBank','" . db_escape_string($myRef) . "','" . db_escape_string($custBank) . "',";
+					$qtxt.= "'" . db_escape_string($custName) . "','" . db_escape_string($custRef) . "','$amount','$defaultPayDate',";
+					$qtxt.= "'$currency', '0', '0','$liste_id')";
 				}
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
@@ -358,10 +358,10 @@ if ($find) {
 				/* $paymentDays = get_settings_value("paymentDays", "payment_list", 0);
 				$defaultPayDate = date('dmY', strtotime("+$paymentDays days")); */
 				$qtxt = "insert into betalinger";
-				$qtxt .= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) ";
-				$qtxt .= "values ";
-				$qtxt .= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$forfaldsdag',";
-				$qtxt .= "'$valuta', '$bilag_id', '$ordre_id','$liste_id')";
+				$qtxt.= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) ";
+				$qtxt.= "values ";
+				$qtxt.= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$forfaldsdag',";
+				$qtxt.= "'$valuta', '$bilag_id', '$ordre_id','$liste_id')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -431,7 +431,10 @@ if ($udskriv) {
 	$txt7  = findtekst('934|Beløb', $sprog_id);
 	$txt8  = findtekst('776|Valuta', $sprog_id);
 	$txt9  = findtekst('2736|Betalingsdato', $sprog_id);
-	$txt10 = findtekst('', $sprog_id);
+	$txt10 = findtekst('2749|Se', $sprog_id);
+	$txt11 = findtekst('2750|Se i nyt vindue', $sprog_id);
+	$txt12 = findtekst('1099|Slet', $sprog_id);
+	$txt13 = findtekst('2751|Slet linjen fra listen', $sprog_id);
 
 	print "<tr>
 		<th><span title='$erh_title'><b>$txt1</b></span></td>
@@ -443,8 +446,8 @@ if ($udskriv) {
 		<th align='right' class='text-right'><b>$txt7</b></td>
 		<th align='center' class='text-center'><b>$txt8</b></td>
 		<th align='right' class='text-right' title='$paytitle'><b>$txt9</b></td>
-		<th align='center' class='text-center'><span title='Se i nyt vindue'><b>Se</b></span></td>";
-	if ($bogfort != 'V') print "<th align='center'><span title='Slet linjen fra listen'><b>Slet</b></span></th>";
+		<th align='center' class='text-center'><span title='$txt11'><b>$txt10</b></span></td>";
+	if ($bogfort != 'V') print "<th align='center'><span title='$txt13'><b>$txt12</b></span></th>";
 	print "</tr>";
 	if ($menu == 'T') {
 		print "</thead><tbody>";
@@ -540,7 +543,7 @@ if ($udskriv) {
 			} else {
 				print "<td></td>";
 			}
-			print	"<td><span title=\"Slet linje fra liste\"><label class='checkContainerOrdreliste'><input type=\"checkbox\" name=\"slet[$x]\"><span class='checkmarkOrdreliste'></span></span></label></td>";
+			print "<td><span title=\"".findtekst('2751|Slet linjen fra listen', $sprog_id)."\"><label class='checkContainerOrdreliste'><input type=\"checkbox\" name=\"slet[$x]\"><span class='checkmarkOrdreliste'></span></span></label></td>";
 			print "</tr>";
 			print "<input type=\"hidden\" name=\"id[$x]\" value=\"$r[id]\">";
 			print "<input type=\"hidden\" name=\"antal\" value=\"$x\">";
@@ -577,9 +580,9 @@ if ($udskriv) {
 	#($kn_kontrol)?$modtagerantal=0:$modtagerantal=$x;
 	if (!$modtagerantal) {
 		print "<tr><td colspan=11 align='center'>";
-		print "<br><br>Vælg i feltet foroven til højre hvorfra du vil trække betalingsinformationer.<br>";
-		print "<br>Vil du trække betalinger dannet i en kassekladde vælges 'fra liste'<br>";
-		print "<br>Vil du i stedet trække alle registrede skyldige beløb til kunder, vælges 'fra kontokort'<br><br><br>";
+		print "<br><br>".findtekst('2752|Vælg i feltet foroven til højre, hvorfra du vil trække betalingsinformationer', $sprog_id).".<br>";
+		print "<br>".findtekst('2753|Vil du trække betalinger dannet i en kassekladde, vælges \'fra liste\'', $sprog_id)."<br>";
+		print "<br>".findtekst('2754|Vil du i stedet trække alle registrerede skyldige beløb til kunder, vælges \'fra kontokort\'', $sprog_id)."<br><br><br>";
 		print "</td></tr>";
 	} else {
 		print "<tr><td colspan=11 align='center'>";
