@@ -1,33 +1,31 @@
 <?php
-// ----------kreditor/kreditorkort.php---(modul nr. 8)----------------lap 3.5.0---2015.01.22---
-// LICENS
+// ----------kreditor/kreditorkort.php---patch 4.1.1 --- 2025-11-26 ------
+// 							LICENSE
 //
-// Dette program er fri software. Du kan gendistribuere det og / eller
-// modificere det under betingelserne i GNU General Public License (GPL)
-// som er udgivet af The Free Software Foundation; enten i version 2
-// af denne licens eller en senere version efter eget valg
-// Fra og med version 3.2.2 dog under iagttagelse af følgende:
-// 
-// Programmet må ikke uden forudgående skriftlig aftale anvendes
-// i konkurrence med DANOSOFT ApS eller anden rettighedshaver til programmet.
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
 //
-// Dette program er udgivet med haab om at det vil vaere til gavn,
-// men UDEN NOGEN FORM FOR REKLAMATIONSRET ELLER GARANTI. Se
-// GNU General Public Licensen for flere detaljer.
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
 //
-// En dansk oversaettelse af licensen kan laeses her:
-// http://www.saldi.dk/dok/GNU_GPL_v2.html
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2003-2025 saldi.dk aps
 // ----------------------------------------------------------------------
-// 2013.02.24 Tilføjet kontofusion
-// 2014.03.19 addslashes erstattet med db_escape_string
-// 2014.05.27 Tilføjet bet.type SDC 3 - overførsel med kort advisering (ca)
-// 2014.05.27 Tilføjet bet.type SDCK020 - FI-kort 71 (SDC) (ca)
-// 2015.01.23 Indhente virksomhedsdata fra CVR via CVRapi - tak Niels Rune https://github.com/nielsrune
-// 20210707   LOE Translated these texts
-// 2022.05.05 MSC - Implementing new top design
-// 2022.07.22 MSC - Implementing new top design
+// 20130224 Tilføjet kontofusion
+// 20140319 addslashes erstattet med db_escape_string
+// 20140527 Tilføjet bet.type SDC 3 - overførsel med kort advisering (ca)
+// 20140527 Tilføjet bet.type SDCK020 - FI-kort 71 (SDC) (ca)
+// 20150123 Indhente virksomhedsdata fra CVR via CVRapi - tak Niels Rune https://github.com/nielsrune
+// 20210707 LOE Translated these texts
+// 20220505 MSC - Implementing new top design
+// 20220722 MSC - Implementing new top design
+// 20251125 LOE Datagrid used to handle the main tables.
 
 @session_start();
 $s_id=session_id();
@@ -209,26 +207,50 @@ if ($menu=='T') {
 	";
 	print "<center><table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" class='dataTableForm'><tbody>\n";#tabel 1.2 start
 } elseif ($menu=='S') {
+
+	################
+		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+		$icon_kreditor = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"/></svg>';
+		
+		$add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+
+	################
+
 	$tekst=findtekst(154,$sprog_id);
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";#tabel 1 start
 	print "<tr bgcolor=$bg><td colspan=\"3\" align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";#tabel 1.1 start
 
-	print "<td width='10%'>
+	print "<td width='5%'>
 		   <a href=\"javascript:confirmClose('$returside?returside=$returside&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst -----------nopoooooooooooo')\" accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		   .findtekst(30,$sprog_id)."</button></a></td>\n";
+		  <button class='center-btn'style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		  .$tilbage_icon.findtekst(30,$sprog_id)."</button></a></td>\n";
 
-	print "<td width='80%' style='$topStyle' align='center'>SALDI - ".findtekst(1184,$sprog_id)."</td>\n";
+	print "<td width='75%' style='$topStyle' align='center'>SALDI - ".findtekst(1184,$sprog_id)."</td>\n";
 
-	print "<td width='10%'><a href=\"javascript:confirmClose('kreditorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=N>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-		   .findtekst(39,$sprog_id)."</button></a><br></td>\n";
+	print "<td width=5% style='$buttonStyle'>
+	   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey='N'>
+	   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+	   $add_icon " . findtekst(39, $sprog_id) . "</button></a></td>";
 
 	print "</tbody></table>\n";#tabel 1.1 slut
 	print "</td></tr>\n";
 	print "<td></td><td align = center valign = center>\n";
-	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"1\"><tbody>\n";#tabel 1.2 start
+	
+	?>
+	<style>
+	.headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
+	a:link{
+		text-decoration: none;
+	}
+	</style>
+	<?php
 } else {
 	$tekst=findtekst(154,$sprog_id);
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";#tabel 1 start
@@ -243,6 +265,15 @@ if ($menu=='T') {
 	print "<td></td><td align = center valign = center>\n";
 	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"1\"><tbody>\n";#tabel 1.2 start
 }
+print "<div class='outer-datatable-wrapper'>";
+print "<div class='datatable-wrapper'>";
+
+if ($menu != 'T') {
+// START A NEW TABLE with the same properties:
+print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"1\"><tbody>\n";#tabel 1.2 start
+
+}
+
 
 if ($id > 0){
 	$q = db_select("select * from adresser where id = '$id'",__FILE__ . " linje " . __LINE__);
@@ -284,6 +315,7 @@ if ($id > 0){
 }
 
 #		$addr1=htmlentities(stripslashes(trim($r['addr1'])));
+
 
 $kreditmax=dkdecimal($kreditmax);
 print "<form name=kreditorkort action=kreditorkort.php method=post>\n";
@@ -422,6 +454,10 @@ if ($id) {
 }
 print "<input type=hidden name=ans_ant value=$x>\n";
 print "</tbody></table>\n"; #tabel 1.3.1 slut
+
+print "</div>";
+print "</div>";
+
 print "<tr bgcolor=$bg><td colspan=3><br></td></tr>\n";
 print "<tr bgcolor=$bg><td colspan=3><br></td></tr>\n";
 $q = db_select("select id from openpost where konto_id = '$id'",__FILE__ . " linje " . __LINE__);
@@ -444,25 +480,29 @@ print	"</tbody></table>";#tabel 1.2 slut
 if ($menu=='T') {
 	print "";
 } elseif ($menu=='S') {
+	
 	print "<tr><td colspan='3' align='center' valign='bottom'>";
-	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>";#tabel 1.3. start
+	
+	print "<div class='footer-box'>";
+	print "<table class='footer-box-table' width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>";#tabel 1.3. start
 
-	print "<td width='40%' align='center' style='$topStyle'>&nbsp;</td>";
+	#print "<td width='40%' align='center' style='$topStyle'>&nbsp;</td>";
 
 	$tekst=findtekst(132,$sprog_id);
 
-	print "<td width='10%' title='$tekst'>
-		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:100%; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>".findtekst(133,$sprog_id)."</a></td>\n";
+	print "<td width='50%' align='right' title='$tekst'>
+		   <a href=rapport.php?rapportart=kontokort&konto_fra=$kontonr&konto_til=$kontonr&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>".findtekst(133,$sprog_id)."</a></td>\n";
 
 	if (substr($rettigheder,5,1)=='1') {
 		$tekst=findtekst(129,$sprog_id);
-		print "<td width='10%' title='$tekst'>
-			   <a href=ordreliste.php?kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:100%; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>
+		print "<td width='50%' title='$tekst'>
+			   <a href=ordreliste.php?kontonumre=$kontonr&valg=faktura&returside=../kreditor/kreditorkort.php?id=$id style='$buttonStyle; display:block; width:200px; padding: 1px 0 1px 0; text-align: center; text-decoration: none; mouse-over: pointer;'>
 			   ".findtekst(134,$sprog_id)."</a></td>\n";
 	} else {
 		print "<td width='10%' align='center' style='$topStyle'><span style='color:#999;'>".findtekst(134,$sprog_id)."</span></td>\n";
+		
 }
-print "<td width='40%' align='center' style='$topStyle'>&nbsp;</td>";
+#print "<td width='40%' align='center' style='$topStyle'>&nbsp;</td>";
 } else {
 print	"<tr><td colspan=\"3\" align=\"center\" valign=\"bottom\">";
 print	"<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";#tabel 1.3. start
@@ -494,3 +534,75 @@ if ($menu=='T') {
 	include_once '../includes/oldDesign/footer.php';
 }
 ?>
+
+
+<style>
+.footer-box {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background-color: #f4f4f4;
+    border-top: 2px solid #ddd;
+    padding: 10px 0;
+    margin-top: 20px; /* Added margin */
+}
+
+.footer-box-table td {
+    padding-left: 10px;  
+    padding-right: 10px; 
+}
+.footer-box-table{
+	width: 50%;
+}
+
+body {
+   padding: 8px;
+    margin: 0; 
+    min-height: 100vh; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.outer-datatable-wrapper {
+    width: 100%;
+    flex: 1;
+    overflow: visible; /* Changed from hidden */
+    min-height: auto; /* Changed from fixed height */
+}
+
+.datatable-wrapper {
+    margin-bottom: 5px;
+    overflow-x: auto;
+    overflow-y: auto;
+    min-height: 400px; /* Minimum height */
+    max-height: calc(100vh - 150px); /* Maximum height */
+    width: 100%;
+}
+
+.footer-box {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-shrink: 0; /* Prevent footer from shrinking */
+}
+
+.tbody {
+    min-height: auto;
+}
+
+a:link {
+    text-decoration: none;
+}
+
+/* Additional fix for table containers */
+.dataTableForm, .dataTableSmall {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.content-noside {
+    min-height: 500px; /* Ensure minimum content height */
+}
+</style>

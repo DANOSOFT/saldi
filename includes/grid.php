@@ -1,5 +1,5 @@
 <?php
-
+#..includes/grid.php
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -260,31 +260,48 @@ function create_datagrid($id, $grid_data) {
 
     // Retrieve filters
     $filters = $grid_data["filters"];
-
+    $searchId1 = if_isset($_GET, NULL, "search");
+    $searchId2 = if_isset($searchId1,NULL, $id); //properly handle the if_isset values
     // Fetch stored grid setup from the database
     list($columns_setup, $search_setup, $filter_setup) = fetch_grid_setup(
         $id,
         $columns_filtered,
-        if_isset($_GET["search"][$id], array()),
+        if_isset($searchId2, array()),
         $filters
     );
-    
     $columns_setup = json_decode($columns_setup, true);
     $columns_updated = fill_missing_values($columns_setup, $columns);
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
-    $searchTerms = if_isset($_GET["search"][$id], $search_setup);
+    $s3 = if_isset($_GET, NULL,"search"); // prevent excessive error logs
+    $s4 = if_isset($s3, NULL, $id);
+    $searchTerms = if_isset($s4, $search_setup);
     $search_json  = db_escape_string(json_encode($searchTerms));
+    // Log the value of $s3
+
 
     // Retrieve stored grid settings from the database
     $q = "SELECT search_setup, rowcount, \"offset\", \"sort\" FROM datatables WHERE user_id = $bruger_id AND tabel_id='$id'";
     $r = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
 
     // Determine sorting, row count, and offset
-    $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $sortArrayGet = if_isset($_GET, NULL, 'sort');
+    $sortArrayDb = if_isset($r,NULL, 'sort');
+    $sortId = if_isset($sortArrayGet, NULL, $id);
+    # $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
+     if(!$sortId){
+       $sort = if_isset($sortArrayDb, get_default_sort($columns_updated)); #This is for database stored values
+     }else{
+        $sort = $sortId; #This is necessary for handling GET values...don't remove it, else sorting fails for some implemented pages
+     }
 
+     $rowC1 = if_isset($_GET, NULL, "rowcount");
+     $rowCId = if_isset($rowC1,NULL,$id);
+     $rowCdb = if_isset($r, NULL,"rowcount"); //properly use the if_isset to prevent too many error logs
+     #$selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $selectedrowcount = if_isset($rowCId, if_isset($rowCdb, 100));
+  
     // Use isset to avoid zero triggering if
     $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
                 isset($r["offset"]) ? $r["offset"] : 
@@ -312,15 +329,16 @@ function create_datagrid($id, $grid_data) {
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
-    $rowStyleFn = if_isset($grid_data['rowStyle'], null);
-    $metaColumnFn = if_isset($grid_data['metaColumn'], null);
-    $metaColumnHeaders = if_isset($grid_data['metaColumnHeaders'], null);
+    $rowStyleFn = if_isset($grid_data, NULL,'rowStyle');
+    $metaColumnFn = if_isset($grid_data,NULL,'metaColumn');
+    $metaColumnHeaders = if_isset($grid_data, NULL,'metaColumnHeaders');
     $totalWidth = calculate_total_width($columns_updated);
-    $menu = if_isset($_GET["menu"][$id], "main"); // ['main', 'kolonner', 'filtre']
+    $menuData = if_isset($_GET, [], 'menu');
+    $menu = if_isset($menuData, "main", $id);// ['main', 'kolonner', 'filtre']
 
     $rows = array();
     $query = "";
-
+ 
     // Handle different menu options
     if ($menu == "main") {
         // Build and execute the main query
@@ -336,7 +354,7 @@ function create_datagrid($id, $grid_data) {
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
         $totalItems = db_fetch_array($countResult)["total_items"];
         $totalRows = count($rows);
-
+ 
         // Render the data grid
         render_datagrid(
             $id,
@@ -404,7 +422,7 @@ function create_datagrid($id, $grid_data) {
         render_filter_edit_style();
         render_move_script();
     }
-
+ 
     // Render dropdown script for interactions
     render_dropdown_script($id, $query);
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-26--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-11-27--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1427,7 +1427,7 @@ print "<input type='hidden' name='sort' value='$sort'>";
 print "<input type='hidden' name='nysort' value='$nysort'>";
 
 // Bulk action buttons
-print "<div class='bulk-actions' style='padding: 10px; border-radius: 4px;'>";
+print "<div class='bulk-actions' style='padding: 10px; border-radius: 4px; text-align: right;'>";
 print "<strong>Bulk handlinger:</strong> ";
 
 // Check/Uncheck all buttons
@@ -1471,6 +1471,8 @@ if (preg_match('/background-color:([a-fA-F0-9#]+)/', $topStyle, $matches)) {
         background-color: <?php echo $backgroundColor; ?> !important;
         color: white;
     }
+
+     
 </style>
 <?php
 

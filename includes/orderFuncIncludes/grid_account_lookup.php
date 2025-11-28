@@ -323,9 +323,20 @@ function create_datagrid($id, $grid_data) {
     log_grid_performance("Grid settings query", $grid_settings_start);
 
     // Determine sorting, row count, and offset
-    $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+   $sortArrayGet = if_isset($_GET, NULL, 'sort');
+    $sortArrayDb = if_isset($r,NULL, 'sort');
+    $sortId = if_isset($sortArrayGet, NULL, $id);
+     if(!$sortId){
+       $sort = if_isset($sortArrayDb, get_default_sort($columns_updated)); 
+     }else{
+        $sort = $sortId; 
+     }
 
+     $rowC1 = if_isset($_GET, NULL, "rowcount");
+     $rowCId = if_isset($rowC1,NULL,$id);
+     $rowCdb = if_isset($r, NULL,"rowcount"); //properly use the if_isset to prevent too many error logs
+     #$selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $selectedrowcount = if_isset($rowCId, if_isset($rowCdb, 100));
     // Use isset to avoid zero triggering if
     $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
                 isset($r["offset"]) ? $r["offset"] : 
@@ -1384,7 +1395,8 @@ function render_dropdown_style() {
         }
         .dropdown {
             position: relative;
-            display: inline-block;
+            // display: inline-block;
+            display: none;
         }
         .dropdown-content {
             display: none;
