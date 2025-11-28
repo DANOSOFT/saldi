@@ -334,7 +334,7 @@ async function start_payment(baseurl, apikey, amount) {
 
         counting = false;
         var jsondata = await res.json();
-        
+     
         logToServer(`Payment response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
         
         if (res.status != 201) {
