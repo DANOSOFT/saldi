@@ -9,7 +9,7 @@ try {
 
     include_once('../includes/connect.php');
     include_once('../includes/online.php');
-global $bruger_id;
+    global $bruger_id;
     // Verify includes loaded properly
     if (!function_exists('db_escape_string')) {
         throw new Exception('Database functions not loaded');
@@ -37,7 +37,7 @@ global $bruger_id;
     $hasSearchParams = !empty(array_filter($requestParams['search']));
     $isInitialLoad = $requestParams['ajax'] === '1' && !$hasSearchParams && $requestParams['offset'] === 0;
     
-    
+    $shouldModifyDatabase = false;
 
     // Valid columns for sorting and searching
     $validColumns = ['kontonr','firmanavn','addr1','addr2','postnr','bynavn','land','kontakt','tlf'];
@@ -52,11 +52,12 @@ global $bruger_id;
         $direction = $requestParams['direction'] === 'DESC' ? 'DESC' : 'ASC';
         $sort = in_array($_REQUEST['sort'] ?? '', $validColumns) ? $_REQUEST['sort'] : 'firmanavn';
     }
-
+     $ss = $_REQUEST['rowcount'][$grid_id];
     // Handle rowcount - only update DB if it's a search action
     $rowcount = $requestParams['rowcount'];
-    error_log("Rowcount from request: " . var_export($rowcount, true));
+    error_log("Rowcount from request: " . var_export($ss, true));
     if ($rowcount !== null) {
+        $shouldModifyDatabase = true;
         // Only update database when there's a search action
         db_modify("UPDATE datatables SET rowcount = '" . db_escape_string($rowcount) . "' 
                    WHERE tabel_id = '" . db_escape_string($grid_id) . "' AND user_id = '$bruger_id'", 

@@ -7,6 +7,12 @@ $returside = if_isset($_GET, NULL,'returside');
 $valg = if_isset($_GET, 'ordrer','valg');
 $sort = if_isset($_GET, NULL,'sort');
 
+if (is_array($sort)) {
+    $sort = implode(',', $sort);
+} else {
+    $sort = $sort; // If it's already a string, just use it
+}
+
 $forslag_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff">
   <path d="M280-600v-80h560v80H280Zm0 160v-80h560v80H280Zm0 160v-80h560v80H280ZM160-600q-17 0-28.5-11.5T120-640q0-17 11.5-28.5T160-680q17 0 28.5 11.5T200-640q0 17-11.5 28.5T160-600Zm0 160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520q17 0 28.5 11.5T200-480q0 17-11.5 28.5T160-440Zm0 160q-17 0-28.5-11.5T120-320q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320q0 17-11.5 28.5T160-280Z"/>
 </svg>';

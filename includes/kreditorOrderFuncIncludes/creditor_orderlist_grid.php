@@ -1064,7 +1064,9 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
     foreach ($columns as $column) {
         echo "<th class='$column[field]'>";
         if ($column["searchable"]) {
-            $columnSearchTerm = if_isset($searchTerms[$column['field']], '');
+            $sC11 = if_isset($column, NULL, 'field');
+            $columnSearchTerm = if_isset($searchTerms, NULL, $sC11);
+            #$columnSearchTerm = if_isset($searchTerms[$column['field']], '');
             
             if ($column["type"] == "dropdown" && isset($column['dropdownOptions'])) {
                 // Dropdown select for ref/sælger field AND date fields
