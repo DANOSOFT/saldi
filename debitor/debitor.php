@@ -393,6 +393,7 @@ include_once '../includes/oldDesign/footer.php';
             "headerName" => $headerName,
             "width" => $width,
             "align" => $align,
+            "sortable" => true,
             "searchable" => $isSearchable,
             "sqlOverride" => "a.$field"
         );

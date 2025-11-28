@@ -311,6 +311,7 @@ for ($x=0;$x<$vis_feltantal;$x++) {
 		"headerName" => $headerName,
 		"width" => $width,
 		"align" => $align,
+		"sortable" => true,
 		"searchable" => $isSearchable,
 		"sqlOverride" => "a.$field"
 	);

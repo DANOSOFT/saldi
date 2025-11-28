@@ -282,8 +282,7 @@ function create_datagrid($id, $grid_data) {
     $r = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
 
     // Determine sorting, row count, and offset
-    // $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $sort = if_isset($r["sort"], get_default_sort($columns_updated));
+    $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
     $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
 
     // Use isset to avoid zero triggering if
