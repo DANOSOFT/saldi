@@ -887,13 +887,26 @@ HTML;
         echo "$metaColumn</tr>";
     }
 
-    if ($selectedrowcount < 1000) {
-        for ($i=0; $i < $selectedrowcount - $rowCount; $i++) {
-            echo "<tr style='background-color: unset; pointer-events: none;' class='filler-row'>";
-            echo "<td>-&nbsp;</td>";
-            echo "</tr>";
-        }
-    }
+    // ==========================================================================
+    // OLD FILLER ROWS CODE - Commented out 2025-11-25
+    // Problem: Only worked for selectedrowcount < 1000 and filler rows had only 1 <td>
+    // ==========================================================================
+    // if ($selectedrowcount < 1000) {
+    //     for ($i=0; $i < $selectedrowcount - $rowCount; $i++) {
+    //         echo "<tr style='background-color: unset; pointer-events: none;' class='filler-row'>";
+    //         echo "<td>-&nbsp;</td>";
+    //         echo "</tr>";
+    //     }
+    // }
+    // ==========================================================================
+    // NEW FILLER ROW CODE - Added 2025-11-25
+    // Single filler row that expands to fill remaining vertical space
+    // This pushes the footer to the bottom of the container
+    // ==========================================================================
+    $columnCount = count($columns) + 1; // +1 for the extra dropdown column in header
+    echo "<tr class='filler-row'>";
+    echo "<td colspan='$columnCount'></td>";
+    echo "</tr>";
 
     echo <<<HTML
                 </tbody>
@@ -1541,33 +1554,50 @@ function save_filter_setup($id) {
 function render_search_style() {
     echo <<<STYLE
     <style>
+        /* ==========================================================================
+         * DATATABLE WRAPPER AND TABLE STYLES
+         * Sawaneh- Modified 2025-11-25: Footer stays at bottom of viewport
+         * ========================================================================== */
         .datatable-wrapper {
             margin-bottom: 5px;
             overflow-x: auto;
+            overflow-y: auto;
             position: relative;
-
             height: 100%;
             width: 100%;
         }
         .datatable {
             border-collapse: collapse;
             width: 100%;
-        }
-        .datatable tfoot {
-            position: sticky;
-            bottom: 0; /* Stick to the bottom */
-            z-index: 1; /* Ensure it stays above other content */
-            background-color: #f4f4f4; /* Background color for the footer */
-            border-top: 2px solid #ddd; /* Optional: separate footer visually */
+            height: 100%; /* Table fills the wrapper height */
         }
         .datatable thead {
             position: sticky;
-            top: 0; /* Stick to the top */
-            z-index: 1; /* Ensure it stays above other content */
-            background-color: #f4f4f4; /* Background color for the header */
+            top: 0;
+            z-index: 2;
+            background-color: #f4f4f4;
             text-align: left;
             border-bottom: 2px solid #ddd;
         }
+        .datatable thead tr,
+        .datatable thead th {
+            background-color: #f4f4f4;
+        }
+        .datatable tbody {
+            /* No special styling needed - will expand naturally */
+        }
+        .datatable tfoot {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            background-color: #f4f4f4;
+            border-top: 2px solid #ddd;
+        }
+        .datatable tfoot tr,
+        .datatable tfoot td {
+            background-color: #f4f4f4;
+        }
+        /* ========================================================================== */
         .datatable tbody tr:nth-child(2n) {
             background-color: #e0e0f0;
         }
@@ -1576,6 +1606,26 @@ function render_search_style() {
             background-color: #f9f9f9;
             cursor: pointer;
         }
+        /* ==========================================================================
+         * FILLER ROW STYLES - Added 2025-11-25
+         * Filler rows should be invisible and not interactive
+         * ========================================================================== */
+        .datatable tbody tr.filler-row {
+            background-color: transparent !important;
+            pointer-events: none;
+        }
+        .datatable tbody tr.filler-row:nth-child(2n) {
+            background-color: transparent !important;
+        }
+        .datatable tbody tr.filler-row:hover {
+            outline: none;
+            background-color: transparent !important;
+            cursor: default;
+        }
+        .datatable tbody tr.filler-row td {
+            height: 100%; /* Filler row expands to fill remaining space */
+        }
+        /* ========================================================================== */
         .datatable-search-wrapper input {
             width: 100%;
         }

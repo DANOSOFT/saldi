@@ -2,9 +2,7 @@
 
 include("../includes/oldDesign/header.php");
 include("../includes/topline_settings.php");
-alert("oppfss");
 
-print "<script>alert('topLine.php is being loaded!');</script>";
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
 
@@ -39,15 +37,15 @@ print "$icon_kreditor ".findtekst('607|Kreditorer', $sprog_id)."</button></td>";
 
 print "</tbody></table></td>\n"; # <- Tabel 1.1.1
 
-print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
-print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-print $help_icon;
-print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
+// print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+// print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+// print $help_icon;
+// print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 
-print "<td width=5% style='$buttonStyle'>";
-print "<a accesskey=V href=kreditorvisning.php?valg=$valg>";
-print "<button class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-print "$icon_visning ".findtekst('813|Visning', $sprog_id)."</button></a></td>\n";
+// print "<td width=5% style='$buttonStyle'>";
+// print "<a accesskey=V href=kreditorvisning.php?valg=$valg>";
+// print "<button class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+// print "$icon_visning ".findtekst('813|Visning', $sprog_id)."</button></a></td>\n";
 
 print "<td id='opret-ny' width=5% style='$buttonStyle'>";
 print "<a href=kreditorkort.php?returside=kreditor.php>";

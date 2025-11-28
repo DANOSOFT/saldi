@@ -170,7 +170,7 @@ if ($_POST){
 		print "<meta http-equiv=\"refresh\" content=\"0;URL='jobkortprint.php?id=$id'\">";
 	}
 }
-print "<div style=\"font-family: arial, verdana, sans-serif;\">";
+print "<div style=\"font-family: arial, verdana, sans-serif; padding-bottom: 60px;\">";
 
 if (!$konto_id && $id) {
 	$r=db_fetch_array(db_select("select konto_id from jobkort where id = '$id'",__FILE__ . " linje " . __LINE__));
@@ -211,7 +211,7 @@ if ($menu=='T') {
 
 // Add scrollable wrapper for side menu
 if ($menu=='S') {
-	print "<tr><td style='width: 100%; height: calc(100vh - 64px); overflow-y: auto;'>\n";
+	print "<tr><td style='width: 100%; height: calc(100vh - 110px); overflow-y: auto; display: block;'>\n";
 }
 
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" widht=\"800\"><tbody>";
@@ -335,12 +335,14 @@ print "<tr><td colspan=6><textarea name=\"felt_indhold[9][1]\" rows=\"5\" cols=\
 print "<tr><td colspan=6><br></td></tr>";
 print "<tr><td colspan=6>".findtekst('26|Bemærkning 4', $sprog_id)."</td></tr>";
 print "<tr><td colspan=6><textarea name=\"felt_indhold[10][1]\" rows=\"5\" cols=\"150\">".$felt_indhold[10][1]."</textarea></td></tr>\n";
-print "<tr><td colspan=6><br></td></tr>";
-print "<tr><td colspan=6 align=center><input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\">
-				<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\">
-				<input type=submit accesskey=\"s\" value=\"Slet\" name=\"slet\"></td></tr>";
-print "</form>";
+print "<tr><td colspan=6 style=\"height: 70px;\"></td></tr>";
 print "</tbody></table>";
+print "<div style=\"position: fixed; bottom: 0; left: 0; right: 0; background: #f5f5f5; border-top: 1px solid #ccc; padding: 5px 0; text-align: center; z-index: 1000;\">
+	<input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+	<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+	<input type=submit accesskey=\"s\" value=\"Slet\" name=\"slet\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+</div>";
+print "</form>";
 
 function kontoopslag($id) {
 	global $bgcolor;

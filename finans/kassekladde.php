@@ -1093,25 +1093,7 @@ if (!$simuler) {
 			print "<div class='content-noside'>";
 
 		} elseif ($menu=='S') {
-			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; #
-			print "<table class='topLine'width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>"; # Tabel 1.1 -> Toplinje
-
-			print "<td width='10%'>";
-			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-		
-			// print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>";
-			// print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">". 'ok'.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		print "<a href=\"javascript:confirmClose('$backUrl','$tekst')\" accesskey='L'>";
-		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-		print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
-
-		print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-		".findtekst('2564|Hjælp', $sprog_id)."  
-		</button></td>";
-
-			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>";
-			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">$ny</button></a></td></tr>";
+			include_once 'kassekladde_includes/topLineKassekladde.php';
 		} else {
 			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; 
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
@@ -1125,58 +1107,61 @@ if (!$simuler) {
 			}
 			print "<td width='80%' $top_bund> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
 			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>$ny</a></td></tr>";
+			print "</tbody></table>"; # Tabel 1.1 <- Toplinje
+			print "</td></tr>\n";
 		}
-		print "</tbody></table>"; # Tabel 1.1 <- Toplinje
-		print "</td></tr>\n";
 	}
 }
-print"<div class='table-con'></div>"; 
-#############
-print '<style>
-    /* Sticky header */
-    .top-header {
-        position: fixed;
-        top: 0;
-        background-color: #f1f1f1; 
-        z-index: 10; 
-		width: 100%;
-		margin: 8px;
-    }
-    .kassekladde-note-tb {
-		position: sticky;
-		top: 29px;
-		background-color: #f1f1f1; 
-		z-index: 8; 
-   }
 
-    .kassekladde-thead {
-        position: sticky;
-        top: 64px; 
-       background-color: #f1f1f1;
-        z-index: 8; 
-    }
+// Only output these styles for non-S menu modes (S mode uses topLineKassekladde.php styles)
+if ($menu != 'S') {
+	print"<div class='table-con'></div>"; 
+	print '<style>
+		/* Sticky header */
+		.top-header {
+			position: fixed;
+			top: 0;
+			background-color: #f1f1f1; 
+			z-index: 10; 
+			width: 100%;
+			margin: 8px;
+		}
+		.kassekladde-note-tb {
+			position: sticky;
+			top: 29px;
+			background-color: #f1f1f1; 
+			z-index: 8; 
+		}
+
+		.kassekladde-thead {
+			position: sticky;
+			top: 64px; 
+			background-color: #f1f1f1;
+			z-index: 8; 
+		}
 		.table-con {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 90px;  
-        background-color: #f1f1f1;  
-        z-index: 8; 
-		border-bottom: 1px solid #ccc; 
-    }
-	   .header-row {
-	  margin: 8px;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 99%; 
-      background-color: #f1f1f1;
-      z-index: 11; 
-      display: table; 
-	  padding-right: 17px;
-  }
-</style>';
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 90px;  
+			background-color: #f1f1f1;  
+			z-index: 8; 
+			border-bottom: 1px solid #ccc; 
+		}
+		.header-row {
+			margin: 8px;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 99%; 
+			background-color: #f1f1f1;
+			z-index: 11; 
+			display: table; 
+			padding-right: 17px;
+		}
+	</style>';
+}
 
 ############
 if (!$udskriv) {
@@ -1267,7 +1252,6 @@ print "</tr>\n";
 
 print "</thead>";
 print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
-print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
 
 
 #####################################  Output  #################################
@@ -2097,8 +2081,58 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	</script>
 	<?php
 	print "</tbody></table></td><td></td></tr>"; # Tabel 1.3 <- Kladdelinjer
-	print "<tr><td><br></td></tr>\n";
-	print "<tr><td align='center'>";
+	
+	// For menu S, add spacer for sticky footer
+	if ($menu == 'S' && !$udskriv) {
+		print "<tr><td class='kassekladde-footer-spacer'></td></tr>\n";
+	} else {
+		print "<tr><td><br></td></tr>\n";
+	}
+	
+	// Sticky footer for menu S
+	if ($menu == 'S' && !$udskriv) {
+		print "<div id='kassekladde-sticky-footer'>";
+		
+		if ($bogfort == 'V') {
+			print "<input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst('1598|Kopier til ny', $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;' id='kopier-button'>";
+		} elseif ($bogfort == '!') {
+			print "<input type='submit' class='button gray medium' accesskey='b' value='" . findtekst('1597|Tilbagefør', $sprog_id) . "' name='revert' onclick='javascript:docChange = false;'>";
+		} elseif ($bogfort == 'S') {
+			print "<input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'>";
+		} else {
+			print "<span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:100px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span>";
+			print "<span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:100px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span>";
+			
+			if ($kladde_id && !$fejl) {
+				print "<span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span>";
+				print "<span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span>";
+				
+				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
+				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$qtxt = "select id from ordrer where status=3";
+					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+						print "<span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span>";
+					}
+				}
+				
+				$qtxt = "select * from grupper where art = 'DIV' and kodenr = '2' and box6='on'";
+				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+					$confirm1 = findtekst('1576|Importer data fra DocuBizz?', $sprog_id);
+					print "<input type='submit' class='button gray medium' style='width:100px;' accesskey='d' value='DocuBizz' name='submit' onclick=\"javascript:docChange = false; return confirm('$confirm1')\">";
+				}
+				
+				print "<span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span>";
+				print "<span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span>";
+			}
+		}
+		
+		print "</form>";
+		print "</div>"; // End sticky footer
+		print "</tbody></table>"; # Tabel 1 <-
+		
+	} else {
+		// Original table-based footer for other menu modes
+		print "<tr><td align='center'>";
 	if ($menu == 'T') {
 		print "<table width='900px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
 	} else {
@@ -2150,6 +2184,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	print "</tbody></table></td></tr>\n"; # Tabel 1.4 <- Knapper 
 #	if ($udskriv) print "<tr><td width=\"100%\" height=\"100%\">zz</td></tr>";
 	print "</tbody></table>"; # Tabel 1 <- 
+	} // End else for non-S menu modes
+	
 	if ($udskriv) {
 		print "<body onLoad=\"javascript:window.print()\">"; #;javascript:window.close();\">";
 	
