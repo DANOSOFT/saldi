@@ -503,10 +503,9 @@ $data = array(
     SELECT 
         vare_id,          
         lager,            
-        beholdning,       
-        SUM(beholdning) OVER (PARTITION BY vare_id) AS lager_total  
+        SUM(beholdning) AS beholdning
     FROM lagerstatus
-    GROUP BY vare_id, lager, beholdning
+    GROUP BY vare_id, lager
 ),
 levs AS (
     SELECT 
