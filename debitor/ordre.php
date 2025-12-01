@@ -199,7 +199,7 @@
 // 20250811 PHR Corrected wrong text numbers
 // 20250819 LOE $afd checked strictly before usage
 // 20250903 LOE Enabled order to still work with account lookup when 'Offer' is active
-// HELLOO
+
 @session_start();
 $s_id=session_id();
 
