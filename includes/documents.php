@@ -38,7 +38,7 @@ print "<script LANGUAGE=\"javascript\" TYPE=\"text/javascript\" SRC=\"{$jsFile}?
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
-
+include("../includes/topline_settings.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 print "<div align=\"center\">";
@@ -87,6 +87,56 @@ if ($source === 'kassekladde' && empty($docFolder)) {
     }
 }
 
+#########
+function sanitize_filename($filename) {
+    // Replace known extended Latin/Danish characters
+    $translit = [
+        'æ' => 'ae', 'Æ' => 'Ae',
+        'ø' => 'oe', 'Ø' => 'Oe',
+        'å' => 'aa', 'Å' => 'Aa',
+        'ä' => 'ae', 'Ä' => 'Ae',
+        'ö' => 'oe', 'Ö' => 'Oe',
+        'ü' => 'ue', 'Ü' => 'Ue',
+        'ß' => 'ss',
+        'ñ' => 'n',  'Ñ' => 'N',
+        'á' => 'a',  'Á' => 'A',
+        'é' => 'e',  'É' => 'E',
+        'í' => 'i',  'Í' => 'I',
+        'ó' => 'o',  'Ó' => 'O',
+        'ú' => 'u',  'Ú' => 'U'
+    ];
+    $filename = strtr($filename, $translit);
+
+    // Fallback transliteration for any remaining special chars
+    $filename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $filename);
+
+	//if any extra
+	$filename = preg_replace('/^(_{0,2}(UTF-8|ISO-8859-1)?_?Q_*)?/i', '', $filename);
+    // Remove all but safe characters
+    $filename = preg_replace('/[^\w\-\. ]+/', '_', $filename);
+
+    // Trim unwanted characters from ends
+    $filename = trim($filename, " \t\n\r\0\x0B.");
+
+    // Separate the name and extension
+    $dot_position = strrpos($filename, '.');
+    if ($dot_position !== false) {
+        $name = substr($filename, 0, $dot_position);
+        $ext = substr($filename, $dot_position); // Includes the dot
+    } else {
+        $name = $filename;
+        $ext = '';
+    }
+
+    // Truncate the name part if longer than 54 characters
+    if (strlen($name) > 54) {
+        $name = substr($name, 0, 54);
+    }
+
+    return $name . $ext;
+}
+#######
+
 
 
 if ($dokument) {
@@ -98,29 +148,64 @@ if ($dokument) {
 #$openPool,$sourceId,$source,$bilag,$fokus,$poolFile,$docFolder
 #echo $poolParams;
 
-// Include topline settings for modern header styling
-include_once("../includes/topline_settings.php");
-
-// ---------- Main table start ---------
-if (isset($menu) && $menu == 'S') {
-	// Modern sidebar header
-	include_once("../docsIncludes/topLineDocuments.php");
-	print "<div class='docs-content-wrapper'>"; // Wrapper for content below fixed header
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
-	print "<tr><td width = '20%'>";
-} else {
-	// Original/old layout with header
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
-	print "<tr><td colspan= \"3\" height = \"25\" align=\"center\" valign=\"top\">";
-	// ---------- Header table start ---------
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	include("docsIncludes/header.php");
-	// ---------- Header table end ---------
-	print "</tbody></table>";
-	print "</td></tr><tr><td width = '20%'>";
+// Handle file uploads for pool view
+if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
+	$fileTypes = array('jpg','jpeg','pdf','png');
+	$fileName = basename($_FILES['uploadedFile']['name']);
+	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
+	if (in_array(strtolower($fileType),$fileTypes)) {
+		$poolDir = "$docFolder/$db/pulje";
+		if (!is_dir($poolDir)) {
+			mkdir($poolDir, 0755, true);
+		}
+		// Sanitize filename
+		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		$baseName = sanitize_filename($baseName);
+		$targetFile = "$poolDir/$baseName.pdf";
+		
+		// Convert images to PDF if needed
+		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+			$tempFile = "$poolDir/$baseName.$ext";
+			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				system("convert '$tempFile' '$targetFile'");
+				if (file_exists($targetFile)) {
+					unlink($tempFile);
+				} else {
+					$targetFile = $tempFile; // Fallback to original if conversion fails
+				}
+			}
+		} else {
+			// For PDF files, move directly
+			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+		}
+		
+		// Create .info file
+		if (file_exists($targetFile)) {
+			$infoFile = "$poolDir/$baseName.info";
+			if (!file_exists($infoFile)) {
+				file_put_contents($infoFile, $baseName . PHP_EOL);
+				chmod($infoFile, 0666);
+			}
+			// Redirect to pool view after successful upload
+			$poolParams =
+				"openPool=1"."&".
+				"kladde_id=$kladde_id"."&".
+				"bilag=$bilag"."&".
+				"fokus=$fokus"."&".
+				"poolFile=$baseName.pdf"."&".
+				"docFolder=$docFolder"."&".
+				"sourceId=$sourceId"."&".
+				"source=$source";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
+			exit;
+		}
+	}
 }
-// ---------- Left table start ---------
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+
+// Check for openPool BEFORE printing any table structure
+// Make sure we check both the variable and the GET parameter
+$openPool = $openPool || (isset($_GET['openPool']) && ($_GET['openPool'] == '1' || $_GET['openPool'] == 1));
 if ($openPool) {
 	$finalDestination = "$docFolder/$db/pulje";
 		#############
@@ -226,61 +311,257 @@ if ($openPool) {
 			}
 		} 
 
+	// Include docPool directly without any table structure
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;
 }
-#########
-function sanitize_filename($filename) {
-    // Replace known extended Latin/Danish characters
-    $translit = [
-        'æ' => 'ae', 'Æ' => 'Ae',
-        'ø' => 'oe', 'Ø' => 'Oe',
-        'å' => 'aa', 'Å' => 'Aa',
-        'ä' => 'ae', 'Ä' => 'Ae',
-        'ö' => 'oe', 'Ö' => 'Oe',
-        'ü' => 'ue', 'Ü' => 'Ue',
-        'ß' => 'ss',
-        'ñ' => 'n',  'Ñ' => 'N',
-        'á' => 'a',  'Á' => 'A',
-        'é' => 'e',  'É' => 'E',
-        'í' => 'i',  'Í' => 'I',
-        'ó' => 'o',  'Ó' => 'O',
-        'ú' => 'u',  'Ú' => 'U'
-    ];
-    $filename = strtr($filename, $translit);
 
-    // Fallback transliteration for any remaining special chars
-    $filename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $filename);
+// Check if showing a document - use docPool-style layout
+if ($showDoc && $source == 'kassekladde') {
+	// Add top banner with back button (like docPool)
 
-	//if any extra
-	$filename = preg_replace('/^(_{0,2}(UTF-8|ISO-8859-1)?_?Q_*)?/i', '', $filename);
-    // Remove all but safe characters
-    $filename = preg_replace('/[^\w\-\. ]+/', '_', $filename);
-
-    // Trim unwanted characters from ends
-    $filename = trim($filename, " \t\n\r\0\x0B.");
-
-    // Separate the name and extension
-    $dot_position = strrpos($filename, '.');
-    if ($dot_position !== false) {
-        $name = substr($filename, 0, $dot_position);
-        $ext = substr($filename, $dot_position); // Includes the dot
-    } else {
-        $name = $filename;
-        $ext = '';
-    }
-
-    // Truncate the name part if longer than 54 characters
-    if (strlen($name) > 54) {
-        $name = substr($name, 0, 54);
-    }
-
-    return $name . $ext;
+	global $menu, $buttonColor, $buttonTxtColor;
+	if (!isset($top_bund)) $top_bund = "";
+	if (!isset($buttonColor)) $buttonColor = '#f1f1f1';
+	if (!isset($buttonTxtColor)) $buttonTxtColor = '#000000';
+	
+	// Determine back URL
+	$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+	
+	// Print header banner
+	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+	if ($menu=='S') {
+		print "<tr>";
+		print "<td width='10%' style='border-radius: 5px;'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
+		print "<td width='10%' style='$topStyle' align='center'><br></td>";
+		print "</tr>";
+	} else {
+		print "<tr>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></font></td>";
+		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</font></td>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></font></td>";
+		print "</tr>";
+	}
+	print "</tbody></table>";
+	
+	// Add CSS to completely disable all hover effects on top bar (no visual changes at all)
+	print "<style>
+		/* Disable ALL hover effects on top bar - no color, opacity, or visual changes */
+		#topBarHeader tbody tr td a button,
+		#topBarHeader tbody tr td a button:hover,
+		#topBarHeader tbody tr td a:hover button,
+		#topBarHeader tbody tr td a:focus button,
+		#topBarHeader tbody tr td a:active button,
+		#topBarHeader tbody tr td button,
+		#topBarHeader tbody tr td button:hover,
+		#topBarHeader tbody tr td button:focus,
+		#topBarHeader tbody tr td button:active {
+			background-color: $buttonColor !important;
+			color: $buttonTxtColor !important;
+			opacity: 1 !important;
+			transform: none !important;
+			cursor: pointer !important;
+			border-color: $buttonColor !important;
+		}
+		/* Disable hover effects on top bar links - no color or text changes */
+		#topBarHeader tbody tr td a,
+		#topBarHeader tbody tr td a:hover,
+		#topBarHeader tbody tr td a:focus,
+		#topBarHeader tbody tr td a:active {
+			text-decoration: none !important;
+			color: inherit !important;
+			opacity: 1 !important;
+		}
+		/* Disable hover effects on top bar cells - maintain exact background color */
+		#topBarHeader tbody tr,
+		#topBarHeader tbody tr:hover,
+		#topBarHeader tbody tr td,
+		#topBarHeader tbody tr td:hover {
+			background-color: $buttonColor !important;
+			opacity: 1 !important;
+		}
+		/* Pointer cursor for back button only */
+		#topBarHeader tbody tr td:first-child a {
+			cursor: pointer !important;
+		}
+		#topBarHeader tbody tr td:first-child a button {
+			cursor: pointer !important;
+		}
+		html, body {
+			margin: 0;
+			padding: 0;
+			height: 100%;
+			overflow: hidden;
+		}
+		#docViewerContainer {
+			display: flex;
+			width: 100%;
+			height: calc(100vh - 60px);
+			gap: 0;
+			margin: 0;
+			padding: 0;
+			position: fixed;
+			top: 60px;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			box-sizing: border-box;
+		}
+		#leftPanel {
+			flex: 0 0 30%;
+			min-width: 200px;
+			max-width: 80%;
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+			position: relative;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			box-sizing: border-box;
+			border-right: 1px solid #ddd;
+		}
+		#leftPanelContent {
+			flex: 1;
+			overflow-y: auto;
+			overflow-x: hidden;
+			min-height: 0;
+			width: 100%;
+			margin: 0;
+			padding: 0 0 15px 0;
+			box-sizing: border-box;
+			display: flex;
+			flex-direction: column;
+		}
+		/* Style document list table to match docPool */
+		#leftPanel table {
+			width: 100%;
+			border-collapse: collapse;
+			margin: 0;
+			display: table;
+			table-layout: fixed;
+		}
+		#leftPanel table thead {
+			display: table-header-group;
+		}
+		#leftPanel table tbody {
+			display: table-row-group;
+		}
+		#leftPanel table thead th:first-child,
+		#leftPanel table tbody td:first-child {
+			width: calc(100% - 140px);
+		}
+		#leftPanel table thead th:last-child,
+		#leftPanel table tbody td:last-child {
+			width: 140px;
+		}
+		#leftPanel table thead tr {
+			background-color: $buttonColor;
+			border-bottom: 2px solid #ddd;
+		}
+		#leftPanel table thead th {
+			padding: 8px;
+			text-align: left;
+			border: 1px solid #ddd;
+			font-weight: bold;
+			background-color: $buttonColor;
+			color: $buttonTxtColor;
+		}
+		#leftPanel table tbody tr {
+			border-bottom: 1px solid #ddd;
+			transition: background-color 0.2s;
+		}
+		#leftPanel table tbody tr:hover td {
+			background-color: transparent !important;
+		}
+		#leftPanel table tbody tr td {
+			padding: 8px;
+			border: 1px solid #ddd;
+		}
+		#leftPanel table tbody tr td a {
+			text-decoration: none;
+			color: inherit;
+			display: inline-block;
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-size: 11px;
+			margin: 0 2px;
+		}
+		#leftPanel table tbody tr td a[href*='deleteDoc'] {
+			background-color: #dc3545;
+			color: white;
+		}
+		#leftPanel table tbody tr td a[href*='deleteDoc']:hover {
+			background-color: #c82333;
+		}
+		#leftPanel table tbody tr td a[href*='moveDoc'] {
+			background-color: #6c757d;
+			color: white;
+		}
+		#leftPanel table tbody tr td a[href*='moveDoc']:hover {
+			background-color: #5a6268;
+		}
+		#rightPanel {
+			flex: 1;
+			min-width: 200px;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			background-color: #f5f5f5;
+			box-sizing: border-box;
+		}
+		#documentViewer {
+			flex: 1;
+			width: 100%;
+			height: 100%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			background-color: #ffffff;
+		}
+	</style>";
+	
+	// Modern flexbox layout (like docPool)
+	print "<div id='docViewerContainer'>";
+	print "<div id='leftPanel'>";
+	print "<div id='leftPanelContent'>";
+	// Show list of documents for this line
+	if ($moveDoc) include("docsIncludes/moveDoc.php");
+	elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
+	include("docsIncludes/listDocs.php");
+	// NO upload option - removed as requested
+	print "</div>"; // leftPanelContent
+	print "</div>"; // leftPanel
+	print "<div id='rightPanel'>";
+	print "<div id='documentViewer'>";
+	include("docsIncludes/showDoc.php");
+	print "</div>"; // documentViewer
+	print "</div>"; // rightPanel
+	print "</div>"; // docViewerContainer
+	print "</body></html>";
+	exit;
 }
 
-
-#######
+// ---------- Main table start ---------
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
+print "<tr><td colspan= \"3\" height = \"25\" align=\"center\" valign=\"top\">";
+// ---------- Header table start ---------
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+include("docsIncludes/header.php");
+// ---------- Header table end ---------
+print "</tbody></table>";
+print "</td></tr><tr><td width = '20%'>";
+// ---------- Left table start ---------
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+#########
 #xit;
 if ($moveDoc) include("docsIncludes/moveDoc.php");
 elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
@@ -349,10 +630,7 @@ include("docsIncludes/showDoc.php");
 // ---------- Right table end ---------
 print "</tbody></table>";
 print "</td></tr>";
-// ---------- Main table end ---------
+// ---------- Main table start ---------
 print "</tbody></table>";
-if (isset($menu) && $menu == 'S') {
-	print "</div>"; // Close docs-content-wrapper
-}
 print "</body></html>";
 ?>
