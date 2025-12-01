@@ -5510,18 +5510,10 @@ function ordrelinjer($x,$sum,$dbsum,$blandet_moms,$moms,$antal_ialt,$leveres_ial
 		}
   	}  else {$antal=0; $dkantal=''; $dkpris=''; $dkrabat=''; $ialt='';}
 	// Disable fields for OT orders, saetnr items, or rabat items
-	// BUT: Don't disable dkan field for samlesæt items that are NOT the main set item (samlevare != 'on')
-	// because we need to be able to update quantities for these items
-	if ($art=='OT' || ($saetnr && $samlevare == 'on') || ($rvnr && $rabat)) {
+	if ($art=='OT' || $saetnr || ($rvnr && $rabat)) {
 		$disabled='disabled';
 	} else {
 		$disabled=NULL;
-	}
-	// For dkan field specifically: allow editing if it's a samlesæt item but NOT the main one
-	if ($saet && $samlevare != 'on') {
-		$dkan_disabled=NULL; // Allow editing quantity for non-main samlesæt items
-	} else {
-		$dkan_disabled=$disabled; // Use the general disabled state
 	}
 #  if ($x) {
 		print "<input type=\"hidden\" name=\"linje_id[$x]\" value=\"$linje_id\">\n";
@@ -5605,9 +5597,9 @@ print "<td valign='top'><input class='inputbox' type='text' style='text-align:ri
 		
 		if ($fokus=='dkan'.$x) {
       		print "<td valign = 'top' title = '$qtyTitle'><input class = 'inputbox' type = 'text' ";
-      		print "style=\"color:$txtColor;text-align:right;width:50px\" $readonly name=\"dkan$x\" placeholder=\"$dkantal\" value=\"\" $dkan_disabled onfocus='this.select()'></td>\n";
+      		print "style=\"color:$txtColor;text-align:right;width:50px\" $readonly name=\"dkan$x\" placeholder=\"$dkantal\" value=\"\" $disabled onfocus='this.select()'></td>\n";
     	} else {
-      		print "<td valign = 'top' title = '$qtyTitle'><input class = 'inputbox' type = 'text' style=\"color:$txtColor;text-align:right;width:50px;\" $readonly name=\"dkan$x\" value=\"$dkantal\" $dkan_disabled onfocus='this.select()'></td>\n";
+      		print "<td valign = 'top' title = '$qtyTitle'><input class = 'inputbox' type = 'text' style=\"color:$txtColor;text-align:right;width:50px;\" $readonly name=\"dkan$x\" value=\"$dkantal\" $disabled onfocus='this.select()'></td>\n";
 		}
     	print "<td valign = 'top'><input class = 'inputbox' type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee\" readonly=\"readonly\" size=\"4px\" value=\"$enhed\" onchange=\"javascript:docChange = true;\" $disabled></td>\n";
 		$lagerId = $lager;
