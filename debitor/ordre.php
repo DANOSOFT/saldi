@@ -721,6 +721,7 @@ if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['kont
 	if ($ansat_navn) $ref=$ansat_navn;
 
 	$afd*=1;
+	
 	if ($gruppe){
 		$r = db_fetch_array(db_select("select box1,box3,box4,box6,box8,box9 from grupper where art='DG' and kodenr='$gruppe'",__FILE__ . " linje " . __LINE__));
 		$tmp = (int)substr($r['box1'],1,1);
@@ -4339,6 +4340,10 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 			$x++;
 		}
 		print "</td>";
+		// Ensure afd is set from user settings for new orders before rendering dropdown
+		if (!$id && !$afd) {
+			$afd = get_settings_value('afd', 'brugerAfd', 0, $bruger_id);
+		}
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr)>1) {
 			print "</td><td></td>\n";
