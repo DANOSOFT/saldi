@@ -973,10 +973,10 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			if ($submit == 'simulate') { #20210721
 				print "<meta http-equiv='refresh' content='0;URL=../finans/bogfor.php?kladde_id=$kladde_id&funktion=simuler'>";
 				/*
-																																		#				?>
-																																		#				<body onload="simuler()">
-																																		#				<?php
-																																		*/
+																								#?>
+																								#<body onload="simuler()">
+																								#<?php
+																								*/
 			}
 			#if (strstr($submit,"Bogf"))	{
 			if ($submit == 'doPost') {
@@ -1112,56 +1112,62 @@ if (!$simuler) {
 		}
 	}
 }
+print"<div class='table-con'></div>"; 
+#############
+print '<style>
+    /* Sticky header */
+    .top-header {
+        position: fixed;
+        top: 0;
+        background-color: #f1f1f1; 
+        z-index: 10; 
+		width: 100%;
+		margin: 8px;
+    }
+    .kassekladde-note-tb {
+		position: sticky;
+		top: 48px;
+		background-color: #f1f1f1; 
+		z-index: 8; 
+   }
 
-// Only output these styles for non-S menu modes (S mode uses topLineKassekladde.php styles)
-if ($menu != 'S') {
-	print"<div class='table-con'></div>"; 
-	print '<style>
-		/* Sticky header */
-		.top-header {
-			position: fixed;
-			top: 0;
-			background-color: #f1f1f1; 
-			z-index: 10; 
-			width: 100%;
-			margin: 8px;
-		}
-		.kassekladde-note-tb {
-			position: sticky;
-			top: 29px;
-			background-color: #f1f1f1; 
-			z-index: 8; 
-		}
-
-		.kassekladde-thead {
-			position: sticky;
-			top: 64px; 
-			background-color: #f1f1f1;
-			z-index: 8; 
-		}
+    .kassekladde-thead {
+        position: sticky;
+        top: 70px; 
+       background-color: #f1f1f1;
+        z-index: 8; 
+    }
 		.table-con {
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 90px;  
-			background-color: #f1f1f1;  
-			z-index: 8; 
-			border-bottom: 1px solid #ccc; 
-		}
-		.header-row {
-			margin: 8px;
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 99%; 
-			background-color: #f1f1f1;
-			z-index: 11; 
-			display: table; 
-			padding-right: 17px;
-		}
-	</style>';
-}
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 90px;  
+        background-color: #f1f1f1;  
+        z-index: 8; 
+		border-bottom: 1px solid #ccc; 
+    }
+	   .header-row {
+	  margin: 8px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 99%; 
+      background-color: #f1f1f1;
+      z-index: 11; 
+      display: table; 
+	  padding-right: 17px;
+  }
+    /* Sticky footer for action buttons */
+    .kassekladde-footer {
+        position: sticky;
+        bottom: 0;
+        background-color: #f1f1f1;
+        z-index: 9;
+        padding: 8px 0;
+        border-top: 1px solid #ccc;
+    }
+</style>';
 
 ############
 if (!$udskriv) {
@@ -1252,6 +1258,7 @@ print "</tr>\n";
 
 print "</thead>";
 print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
 
 
 #####################################  Output  #################################
@@ -1526,15 +1533,23 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		($linjebg != $bgcolor) ? $linjebg = $bgcolor : $linjebg = $bgcolor5;
 		print "<tr bgcolor=$linjebg>";
 		if ($vis_bilag && !$fejl && !$udskriv && isset($id[$y])) {
-			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
-			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "select id,filename from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
+			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($dokument[$y] || $docRow) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|Klik her for at åbne bilaget', $sprog_id);
+				// Get the filename to show in pool
+				$poolFile = $docRow ? urlencode($docRow['filename']) : '';
 			} else {
 				$clip = 'clip.png';
 				$titletxt =  findtekst('1455|Klik her for at vedhæfte et bilag', $sprog_id);
+				$poolFile = '';
 			}
-			$href = "../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&dokument=$dokument[$y]&bilag_id=$id[$y]&fokus=bila$y";
+			// Go to pool view and show the bilag if it exists
+			$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&openPool=1";
+			if ($poolFile) {
+				$href .= "&poolFile=$poolFile";
+			}
 			print "<td title='$titletxt'><!-- ". __line__ ." -->";
 			print "<a onClick='this.form.submit()' href='$href' id='clip'><img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
 		}
@@ -1715,17 +1730,29 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			list($dub_bilag[$y], $dub_kladde_id[$y]) = explode(",", find_dublet($id[$y], $transdate[$y], $d_type[$y], $debet[$y], $k_type[$y], $kredit[$y], $amount[$y], $faktura[$y]));
 		print "<tr>";
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
-			$qtxt = "select id from documents where source = 'kassekladde' and source_id = '$id[$y]'";  //20230630
-			if ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
+			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+			if ($dokument[$y] || $docRow) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
+				// Document is attached - show it directly (it's in finance folder, not pool)
+				// Get docFolder
+				if (file_exists('../owncloud')) $docFolder = '../owncloud';
+				elseif (file_exists('../bilag')) $docFolder = '../bilag';
+				elseif (file_exists('../documents')) $docFolder = '../documents';
+				else $docFolder = '../bilag';
+				global $db;
+				$showDocPath = "$docFolder/$db$docRow[filepath]/$docRow[filename]";
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&showDoc=".urlencode($showDocPath);
 			} else {
 				$clip = 'clip.png';
 				$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
+				// No document attached - go to pool to choose one
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&openPool=1";
 			}
 			print "<td title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<a href=\"javascript:confirmClose('../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y&dokument=$dokument[$y]','$txt')\" accesskey='L'>";
+			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L'>";
 #			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
 			print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
 		}
@@ -1740,7 +1767,18 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$title = NULL;
 			$color = NULL;
 		}
-
+		// get last bilagsnr from database but check if the row already has asigned bilagnr
+		$qtxt = "select bilag from kassekladde WHERE kladde_id = '$kladde_id'";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		if (db_num_rows($q) == 0){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($y == 1) {
+				$bilag[$y] = $last_bilag;
+			}
+		}
+		echo "<script>console.log('bilag[$y]: " . $bilag[$y] . "');</script>";
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$bilag[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -1945,7 +1983,24 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				print "<td></td>\n";
 			}
 		}
-		$next = $bilag[$x-1] + 1;
+		// get last bilagsnr from database but check if the row already has asigned bilagnr
+		
+		if (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
+			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
+			if ($x == 1) {
+				$next = $last_bilag;
+			}else{
+				$next = $bilag[$x-1] + 1;
+			}
+		} else {
+			$next = $bilag[$x-1] + 1;
+		}
+		if($dato[$x] == ''){
+			$dato[$x] = dkdato(date("Y-m-d"));
+		}
+		
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$next\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
@@ -2081,58 +2136,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	</script>
 	<?php
 	print "</tbody></table></td><td></td></tr>"; # Tabel 1.3 <- Kladdelinjer
-	
-	// For menu S, add spacer for sticky footer
-	if ($menu == 'S' && !$udskriv) {
-		print "<tr><td class='kassekladde-footer-spacer'></td></tr>\n";
-	} else {
-		print "<tr><td><br></td></tr>\n";
-	}
-	
-	// Sticky footer for menu S
-	if ($menu == 'S' && !$udskriv) {
-		print "<div id='kassekladde-sticky-footer'>";
-		
-		if ($bogfort == 'V') {
-			print "<input type='submit' class='button gray medium' accesskey='k' value=\"" . findtekst('1598|Kopier til ny', $sprog_id) . "\" name='copy2new' onclick='javascript:docChange = false;' id='kopier-button'>";
-		} elseif ($bogfort == '!') {
-			print "<input type='submit' class='button gray medium' accesskey='b' value='" . findtekst('1597|Tilbagefør', $sprog_id) . "' name='revert' onclick='javascript:docChange = false;'>";
-		} elseif ($bogfort == 'S') {
-			print "<input type='submit' class='button rosy medium' accesskey='a' value='" . findtekst('1090|Annuller simulering', $sprog_id) . "' name='cancelSimulation' onclick='javascript:docChange = false;'>";
-		} else {
-			print "<span title='" . findtekst('1544|Klik her for at gemme', $sprog_id) . "'><input type='submit' class='button green medium' style='width:100px;' accesskey='g' value='" . findtekst('3|Gem', $sprog_id) . "' name='save' onclick='javascript:docChange = false;'></span>";
-			print "<span title='" . findtekst('1545|Opslag - din markørs placering angiver hvilken tabel, opslag foretages i', $sprog_id) . "'><input type='submit' class='button blue medium' style='width:100px;' accesskey='o' value='" . findtekst('644|Opslag', $sprog_id) . "' name='lookup' onclick='javascript:docChange = false;'></span>";
-			
-			if ($kladde_id && !$fejl) {
-				print "<span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span>";
-				print "<span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span>";
-				
-				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
-				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$qtxt = "select id from ordrer where status=3";
-					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-						print "<span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span>";
-					}
-				}
-				
-				$qtxt = "select * from grupper where art = 'DIV' and kodenr = '2' and box6='on'";
-				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$confirm1 = findtekst('1576|Importer data fra DocuBizz?', $sprog_id);
-					print "<input type='submit' class='button gray medium' style='width:100px;' accesskey='d' value='DocuBizz' name='submit' onclick=\"javascript:docChange = false; return confirm('$confirm1')\">";
-				}
-				
-				print "<span title='" . findtekst('1549|Importerer bankposteringer eller andre data fra .csv-fil (kommasepareret fil)', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='i' value='" . findtekst('1356|Importér', $sprog_id) . "' name='import' onclick='javascript:docChange = false;'></span>";
-				print "<span title='" . findtekst('1550|Finder åbne poster, som modsvarer beløb og fakturanummer', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:100px;' accesskey='u' value='" . findtekst('1066|Udlign', $sprog_id) . "' name='offset' onclick='javascript:docChange = false;'></span>";
-			}
-		}
-		
-		print "</form>";
-		print "</div>"; // End sticky footer
-		print "</tbody></table>"; # Tabel 1 <-
-		
-	} else {
-		// Original table-based footer for other menu modes
-		print "<tr><td align='center'>";
+	print "<tr><td><br></td></tr>\n";
+	print "<tr class='kassekladde-footer'><td align='center'>";
 	if ($menu == 'T') {
 		print "<table width='900px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
 	} else {
@@ -2184,8 +2189,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	print "</tbody></table></td></tr>\n"; # Tabel 1.4 <- Knapper 
 #	if ($udskriv) print "<tr><td width=\"100%\" height=\"100%\">zz</td></tr>";
 	print "</tbody></table>"; # Tabel 1 <- 
-	} // End else for non-S menu modes
-	
 	if ($udskriv) {
 		print "<body onLoad=\"javascript:window.print()\">"; #;javascript:window.close();\">";
 	
@@ -3193,4 +3196,5 @@ include("kassekladde_includes/unsavedWarning.php");
 
 
 	?>
+
 
