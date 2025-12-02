@@ -99,15 +99,12 @@
 @session_start();
 $s_id = session_id();
 
-$css = "../css/std.css?v=21";
+$css = "../css/std.css?v=24";
 
 
 
 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>";
-
-
-
 
 global $sprog_id;
 $modulnr=5;
@@ -502,6 +499,8 @@ $columns[] = array(
     "align" => "right",
     "type"  => "text",
     "sortable" => true,
+    "defaultSort" => true,
+    "defaultSortDirection" => "desc",
     "searchable" => true,
     "render" => function ($value, $row, $column) {
         global $brugernavn;
@@ -892,12 +891,19 @@ $columns[] = array(
             // Use the udlignet field calculated in query
             $udlignet = intval($row['udlignet']);
             $kostpris = $row['kostpris'];
-   
-            if (!empty($kostpris) && !empty($value)) {
-            if($value != 0 && $value != '0,00'){
-              $dk_db = dkdecimal($value - $kostpris, 2);
+            
+            // Initialize variables
+            $dk_db = '0,00';
+            $dk_dg = '0,00';
+            
+            // Convert value to numeric if it's a string with comma
+            $value_numeric = is_numeric($value) ? floatval($value) : floatval(str_replace(',', '.', $value));
+            
+            if (!empty($kostpris) && !empty($value) && $value_numeric != 0) {
+                $kostpris_numeric = is_numeric($kostpris) ? floatval($kostpris) : floatval(str_replace(',', '.', $kostpris));
+                $dk_db = dkdecimal($value_numeric - $kostpris_numeric, 2);
+                $dk_dg = dkdecimal(($value_numeric - $kostpris_numeric) * 100 / $value_numeric, 2);
             }
-            $dk_dg = ($value != 0 && $value != '0,00') ? dkdecimal(($value - $kostpris) * 100 / $value, 2) : '0,00';
 
             
             $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
@@ -905,8 +911,6 @@ $columns[] = array(
             
             // return "<td align='$column[align]' style='$style' title='$title'>$formatted/$dk_db/$dk_dg%</td>";
             return "<td align='$column[align]' style='$style' title='$title'>$formatted</td>";
-           }
-
         }
         return "<td align='$column[align]'>$formatted</td>";
     }
@@ -2096,8 +2100,10 @@ document.addEventListener('DOMContentLoaded', () => {
     vertical-align: top;  
     margin-right: 10px;   
 }
-a:link{
-		text-decoration: none;
-	}
+
+/* Force underline on all links in .turnover-summary*/
+.turnover-summary a, .turnover-summary a:link, .turnover-summary a:visited, .turnover-summary a:hover, .turnover-summary a:active {
+    text-decoration: underline !important;
+}
 
 </style>
