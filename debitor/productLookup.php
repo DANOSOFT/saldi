@@ -291,6 +291,8 @@ if (count($lg_nr) > 1) {
             "type" => "number",
             "align" => "right",
             "width" => "0.2",
+            "searchable" => true,
+            "decimalPrecision" => 2,
             "sqlOverride" => "COALESCE($alias_key.beholdning, 0)",
             "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
                 $lagerId = $column['lagerId'];
@@ -306,6 +308,23 @@ if (count($lg_nr) > 1) {
                 $formatted = dkdecimal($value, 2);
                 return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$formatted</a></td>";
             },
+            "generateSearch" => function ($column, $term) use ($alias_key) {
+                $field = "COALESCE($alias_key.beholdning, 0)";
+                $term = db_escape_string($term);
+                // Check for number range (e.g., "10:50" or "10,50")
+                if (strstr($term, ':') || strstr($term, ',')) {
+                    $term = str_replace(',', ':', $term);
+                    list($num1, $num2) = explode(":", $term, 2);
+                    return "round({$field}::numeric, 2) >= '".usdecimal($num1)."' 
+                            AND 
+                            round({$field}::numeric, 2) <= '".usdecimal($num2)."'";
+                } else {
+                    $term = usdecimal($term);
+                    return "round({$field}::numeric, 2) >= $term 
+                            AND 
+                            round({$field}::numeric, 2) <= $term";
+                }
+            },
             "lagerId" => $lg_kodenr,
         );
         $SQLLagerFetch .= "COALESCE($alias_key.beholdning, 0) AS lager$lg_kodenr,\n";
@@ -319,6 +338,8 @@ if (count($lg_nr) > 1) {
         "type" => "number",
         "align" => "right",
         "width" => "0.5",
+        "searchable" => true,
+        "decimalPrecision" => 2,
         "sqlOverride" => "COALESCE(v.beholdning, 0)",
         "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
             $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
@@ -337,6 +358,23 @@ if (count($lg_nr) > 1) {
             $formatted = dkdecimal($value, 2);
             $title = $reserveret > 0 ? " title='Reserveret: $reserveret'" : "";
             return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'$title>$formatted</td>";
+        },
+        "generateSearch" => function ($column, $term) {
+            $field = "COALESCE(v.beholdning, 0)";
+            $term = db_escape_string($term);
+            // Check for number range (e.g., "10:50" or "10,50")
+            if (strstr($term, ':') || strstr($term, ',')) {
+                $term = str_replace(',', ':', $term);
+                list($num1, $num2) = explode(":", $term, 2);
+                return "round({$field}::numeric, 2) >= '".usdecimal($num1)."' 
+                        AND 
+                        round({$field}::numeric, 2) <= '".usdecimal($num2)."'";
+            } else {
+                $term = usdecimal($term);
+                return "round({$field}::numeric, 2) >= $term 
+                        AND 
+                        round({$field}::numeric, 2) <= $term";
+            }
         },
     );
 }
@@ -357,20 +395,6 @@ if ($vis_kost == 'on') {
             $url = "$href?id=$id&vare_id=$row[id]$fokus_param$bordnr_param$lager_param";
             $formatted = dkdecimal($value, 2);
             return "<td align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$formatted</td>";
-        },
-    );
-}
-
-// Quantity input column (for multiple item insertion, not for PO)
-if ($art != 'PO') {
-    $columns[] = array(
-        "field" => "insert_qty",
-        "headerName" => "Antal",
-        "width" => "0.3",
-        "align" => "center",
-        "sqlOverride" => "v.id",
-        "render" => function ($value, $row, $column) {
-            return "<td align='$column[align]'><input type='hidden' name='insetId[]' value='$row[id]'><input type='text' style='width:50px;text-align:right;' name='insetQty[]' title='Skriv antal her, hvis der skal indsættes flere varer ad gangen'></td>";
         },
     );
 }
@@ -407,54 +431,6 @@ $data = array(
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("productLookup$id", $data);
 print "</div>";
-
-// Add form for multiple item insertion (separate from grid form)
-if ($art != 'PO') {
-    print "<form action='productLookup.php' method='post' id='productLookupForm' style='position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 10px; border-top: 1px solid #ccc; z-index: 1000;'>";
-    print "<input type='hidden' name='id' value='$id'>";
-    print "<input type='hidden' name='art' value='$art'>";
-    print "<input type='hidden' name='fokus' value='$fokus'>";
-    print "<input type='hidden' name='bordnr' value='$bordnr'>";
-    print "</form>";
-    
-    // JavaScript to collect items from grid inputs
-    print "<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var form = document.getElementById('productLookupForm');
-        var container = document.getElementById('insertItemsContainer');
-        var submitBtn = form.querySelector('input[type=\"submit\"]');
-        
-        submitBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            var items = [];
-            var inputs = document.querySelectorAll('#datatable-productLookup$id input[name=\"insetQty[]\"]');
-            inputs.forEach(function(input, index) {
-                var qty = parseFloat(input.value);
-                if (qty > 0) {
-                    var hiddenInput = input.previousElementSibling;
-                    if (hiddenInput && hiddenInput.name === 'insetId[]') {
-                        items.push({
-                            id: hiddenInput.value,
-                            qty: qty
-                        });
-                    }
-                }
-            });
-            
-            if (items.length > 0) {
-                // Build URL with items
-                var url = 'productLookup.php?id=$id&art=$art&fokus=$fokus&bordnr=$bordnr&insertItems=1';
-                items.forEach(function(item) {
-                    url += '&vare_id[]=' + item.id + '&antal[]=' + item.qty;
-                });
-                window.location.href = url;
-            } else {
-                alert('Vælg mindst én vare med antal');
-            }
-        });
-    });
-    </script>";
-}
 
 // Add JavaScript for ESC key to return to order and to preserve order context in links
 print "<script type=\"text/javascript\" src=\"https://code.jquery.com/jquery-latest.min.js\"></script>\n";
