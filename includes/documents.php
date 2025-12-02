@@ -148,26 +148,59 @@ if ($dokument) {
 #$openPool,$sourceId,$source,$bilag,$fokus,$poolFile,$docFolder
 #echo $poolParams;
 
-// Include topline settings for modern header styling
-include_once("../includes/topline_settings.php");
-
-// ---------- Main table start ---------
-if (isset($menu) && $menu == 'S') {
-	// Modern sidebar header
-	include_once("../docsIncludes/topLineDocuments.php");
-	print "<div class='docs-content-wrapper'>"; // Wrapper for content below fixed header
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
-	print "<tr><td width = '20%'>";
-} else {
-	// Original/old layout with header
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
-	print "<tr><td colspan= \"3\" height = \"25\" align=\"center\" valign=\"top\">";
-	// ---------- Header table start ---------
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	include("docsIncludes/header.php");
-	// ---------- Header table end ---------
-	print "</tbody></table>";
-	print "</td></tr><tr><td width = '20%'>";
+// Handle file uploads for pool view
+if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
+	$fileTypes = array('jpg','jpeg','pdf','png');
+	$fileName = basename($_FILES['uploadedFile']['name']);
+	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
+	if (in_array(strtolower($fileType),$fileTypes)) {
+		$poolDir = "$docFolder/$db/pulje";
+		if (!is_dir($poolDir)) {
+			mkdir($poolDir, 0755, true);
+		}
+		// Sanitize filename
+		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		$baseName = sanitize_filename($baseName);
+		$targetFile = "$poolDir/$baseName.pdf";
+		
+		// Convert images to PDF if needed
+		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+			$tempFile = "$poolDir/$baseName.$ext";
+			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				system("convert '$tempFile' '$targetFile'");
+				if (file_exists($targetFile)) {
+					unlink($tempFile);
+				} else {
+					$targetFile = $tempFile; // Fallback to original if conversion fails
+				}
+			}
+		} else {
+			// For PDF files, move directly
+			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+		}
+		
+		// Create .info file
+		if (file_exists($targetFile)) {
+			$infoFile = "$poolDir/$baseName.info";
+			if (!file_exists($infoFile)) {
+				file_put_contents($infoFile, $baseName . PHP_EOL);
+				chmod($infoFile, 0666);
+			}
+			// Redirect to pool view after successful upload
+			$poolParams =
+				"openPool=1"."&".
+				"kladde_id=$kladde_id"."&".
+				"bilag=$bilag"."&".
+				"fokus=$fokus"."&".
+				"poolFile=$baseName.pdf"."&".
+				"docFolder=$docFolder"."&".
+				"sourceId=$sourceId"."&".
+				"source=$source";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
+			exit;
+		}
+	}
 }
 // ---------- Left table start ---------
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
@@ -657,10 +690,7 @@ include("docsIncludes/showDoc.php");
 // ---------- Right table end ---------
 print "</tbody></table>";
 print "</td></tr>";
-// ---------- Main table end ---------
+// ---------- Main table start ---------
 print "</tbody></table>";
-if (isset($menu) && $menu == 'S') {
-	print "</div>"; // Close docs-content-wrapper
-}
 print "</body></html>";
 ?>

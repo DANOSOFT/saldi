@@ -70,9 +70,7 @@ include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
-include(get_relative() . "includes/grid.php");
-
-
+include("../includes/grid.php"); // Include the datagrid system
 
 if ($menu == 'T') {
 	$title = "Konti";
@@ -413,46 +411,216 @@ document.addEventListener('DOMContentLoaded', function() {
 // Close the main content wrapper
 print "</td></tr></tbody></table>";
 
-$select_fields = array();
-foreach ($columns as $col) {
-    $select_fields[] = $col['sqlOverride'] . " AS " . $col['field'];
-}
-$select_fields[] = "a.id AS id";
 
-$query = "SELECT " . implode(",\n    ", $select_fields) . "
-FROM adresser a
-WHERE a.art = 'K' AND {{WHERE}}
-ORDER BY {{SORT}}";
+// Define the datagrid configuration
 
 
-$rowStyleFn = function ($row) {
-    if (isset($row['lukket']) && $row['lukket'] == 'on') {
-        return "color: #f00;";
+// Get status options
+function getStatusOptions() {
+    $statuses = array();
+    $r = db_fetch_array(db_select("SELECT box3, box4 FROM grupper WHERE art='KredInfo'", __FILE__ . " line " . __LINE__));
+    if ($r) {
+        $status_id = explode(chr(9), $r['box3']);
+        $status_beskrivelse = explode(chr(9), $r['box4']);
+        for ($i = 0; $i < count($status_id); $i++) {
+            if ($status_beskrivelse[$i]) {
+                $statuses[] = $status_beskrivelse[$i];
+            }
+        }
     }
-    return "";
-};
+    return $statuses;
+}
 
-// grid data array
-$data = array(
-    "table_name" => "kreditor",
-    "query" => $query,
-    "columns" => $columns,
-    "filters" => $filters,
-    "rowStyle" => $rowStyleFn,
-    "metaColumn" => null,
+// Define the datagrid configuration
+$grid_data = array(
+    'query' => "
+        SELECT 
+            adresser.id,
+            adresser.kontonr,
+            adresser.firmanavn,
+            adresser.addr1,
+            adresser.addr2,
+            adresser.postnr,
+            adresser.bynavn,
+            adresser.kontakt,
+            adresser.tlf,
+            adresser.email,
+            adresser.cvrnr,
+            adresser.gruppe,
+            adresser.lukket,
+            adresser.kontoansvarlig,
+            (SELECT initialer FROM ansatte WHERE id = adresser.kontoansvarlig LIMIT 1) as ansvarlig_initialer
+        FROM adresser
+        WHERE adresser.art = 'K' AND ({{WHERE}})
+        ORDER BY {{SORT}}
+    ",
+    'columns' => array(
+        array(
+            'field' => 'kontonr',
+            'headerName' => findtekst(284, $sprog_id), // Account number
+            'type' => 'text',
+            'width' => '0.5',
+            'align' => 'right',
+            'sortable' => true,
+            'searchable' => true,
+            'defaultSort' => true,
+            'defaultSortDirection' => 'asc'
+        ),
+        array(
+            'field' => 'firmanavn',
+            'headerName' => findtekst(360, $sprog_id), // Company name
+            'type' => 'text',
+            'width' => '2',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true
+        ),
+        array(
+            'field' => 'addr1',
+            'headerName' => 'Adresse',
+            'type' => 'text',
+            'width' => '1.5',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true
+        ),
+        array(
+            'field' => 'postnr',
+            'headerName' => findtekst(144, $sprog_id), // Postal code
+            'type' => 'text',
+            'width' => '0.7',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true
+        ),
+        array(
+            'field' => 'bynavn',
+            'headerName' => 'By',
+            'type' => 'text',
+            'width' => '1',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true
+        ),
+        array(
+            'field' => 'kontakt',
+            'headerName' => findtekst(502, $sprog_id), // Contact
+            'type' => 'dropdown',
+            'width' => '1',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true,
+            'dropdownOptions' => function() {
+                return getEmployeeNames();
+            },
+			'generateSearch' => function($column, $term) {
+				$term = db_escape_string($term);
+				return "adresser.kontakt ILIKE '%$term%'"; // Search in the actual kontakt field
+			}
+        ),
+        array(
+            'field' => 'tlf',
+            'headerName' => findtekst(37, $sprog_id), // Phone
+            'type' => 'text',
+            'width' => '1',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true
+        ),
+        array(
+            'field' => 'email',
+            'headerName' => 'Email',
+            'type' => 'text',
+            'width' => '1.5',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true
+        ),
+        array(
+            'field' => 'ansvarlig_initialer',
+            'headerName' => 'Ansvarlig',
+            'type' => 'dropdown',
+            'width' => '0.7',
+            'align' => 'left',
+            'sortable' => true,
+            'searchable' => true,
+            'sqlOverride' => 'adresser.kontoansvarlig',
+            'dropdownOptions' => function() {
+                return getEmployeeInitials();
+            },
+			 'generateSearch' => function($column, $term) {
+				$field = $column['sqlOverride'] == '' ? $column['field'] : $column['sqlOverride'];
+				$term = db_escape_string($term);
+				return "{$field} ILIKE '%$term%'";
+			}
+        )
+    ),
+    'filters' => array(
+        array(
+            'filterName' => 'Status',
+            'joinOperator' => 'OR',
+            'options' => array(
+                array(
+                    'name' => 'Aktive',
+                    'checked' => 'checked',
+                    'sqlOn' => "(adresser.lukket IS NULL OR adresser.lukket != 'on')",
+                    'sqlOff' => ""
+                ),
+                array(
+                    'name' => 'Lukkede',
+                    'checked' => '',
+                    'sqlOn' => "adresser.lukket = 'on'",
+                    'sqlOff' => ""
+                )
+            )
+        )
+    ),
+    'rowStyle' => function($row) {
+        // Add styling for closed accounts
+        if ($row['lukket'] == 'on') {
+            return 'opacity: 0.6;';
+        }
+        return '';
+    },
+    'metaColumn' => function($row) {
+        // Add data attribute for row click handling
+        return "<td style='display:none;' data-kreditor-id='{$row['id']}'></td>";
+    }
 );
 
-// Render grid
-$table_id = 'kredlist';
+// Create the datagrid
+$rows = create_datagrid('kreditor_list', $grid_data);
 
-// Render grid
-print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
-create_datagrid($table_id, $data);
-print "</div>";
+// Add click handler for rows
+print "<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.querySelector('#datatable-kreditor_list tbody');
+    if (tbody) {
+        tbody.addEventListener('click', function(e) {
+            // Don't interfere with other interactive elements
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+                return;
+            }
+            
+            const row = e.target.closest('tr');
+            if (row && row.parentElement.tagName === 'TBODY' && !row.classList.contains('filler-row')) {
+                const kreditorCell = row.querySelector('[data-kreditor-id]');
+                if (kreditorCell) {
+                    const kreditorId = kreditorCell.getAttribute('data-kreditor-id');
+                    openKreditorKort(kreditorId);
+                }
+            }
+        });
+    }
+});
+</script>";
 
-if ($menu=='T') {
-    include_once '../includes/topmenu/footer.php';
+// Close the main content wrapper
+print "</td></tr></tbody></table>";
+
+if ($menu == 'T') {
+	include_once '../includes/topmenu/footer.php';
 } else {
-    include_once '../includes/oldDesign/footer.php';
+	include_once '../includes/oldDesign/footer.php';
 }
 ?>
