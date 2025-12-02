@@ -70,7 +70,9 @@ include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
-include("../includes/grid.php"); // Include the datagrid system
+include(get_relative() . "includes/grid.php");
+
+
 
 if ($menu == 'T') {
 	$title = "Konti";
@@ -411,9 +413,46 @@ document.addEventListener('DOMContentLoaded', function() {
 // Close the main content wrapper
 print "</td></tr></tbody></table>";
 
-if ($menu == 'T') {
-	include_once '../includes/topmenu/footer.php';
+$select_fields = array();
+foreach ($columns as $col) {
+    $select_fields[] = $col['sqlOverride'] . " AS " . $col['field'];
+}
+$select_fields[] = "a.id AS id";
+
+$query = "SELECT " . implode(",\n    ", $select_fields) . "
+FROM adresser a
+WHERE a.art = 'K' AND {{WHERE}}
+ORDER BY {{SORT}}";
+
+
+$rowStyleFn = function ($row) {
+    if (isset($row['lukket']) && $row['lukket'] == 'on') {
+        return "color: #f00;";
+    }
+    return "";
+};
+
+// grid data array
+$data = array(
+    "table_name" => "kreditor",
+    "query" => $query,
+    "columns" => $columns,
+    "filters" => $filters,
+    "rowStyle" => $rowStyleFn,
+    "metaColumn" => null,
+);
+
+// Render grid
+$table_id = 'kredlist';
+
+// Render grid
+print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
+create_datagrid($table_id, $data);
+print "</div>";
+
+if ($menu=='T') {
+    include_once '../includes/topmenu/footer.php';
 } else {
-	include_once '../includes/oldDesign/footer.php';
+    include_once '../includes/oldDesign/footer.php';
 }
 ?>

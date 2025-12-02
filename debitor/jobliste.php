@@ -111,6 +111,11 @@ if(isset($_GET['returside'])){
 		}else{
 			$returside = '../index/menu.php';
 		}
+
+// Set valg to jobkort so topLine shows jobliste button
+if (!$valg) $valg = 'jobkort';
+$jobkort = 1; // Enable jobkort view
+
 if ($menu=='T') {
 	include_once '../includes/top_header.php';
 	include_once '../includes/top_menu.php';
@@ -170,28 +175,6 @@ print "<td><input type=submit value=\"OK\" name=\"submit\"></td>";
 print "</form></tr>\n";
 
 ####################################################################################
-#############
-if(isset($_GET['returside'])){
-			$returside = $_GET['returside'];
-		}else{
-			$returside = '../index/menu.php';
-		}
-if ($menu=='T') {
-	include_once '../includes/top_header.php';
-	include_once '../includes/top_menu.php';
-	print "<div id=\"header\">"; 
-	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";   
-	print "<div class=\"headerTxt\">$title</div>";     
-	print "<div class=\"headerbtnRght headLink\">";
-	
-	print "<a href=\"jobliste.php?luk=luk\" accesskey=\"L\">".findtekst('30|Tilbage', $sprog_id)."</a></div>"; 
-	print "<a href=debitor.php>".findtekst('34|Debitorliste', $sprog_id)."</a></div>";     
-	print "</div>";
-	print "<div class='content-noside'>";
-} elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
-else include_once 'debLstIncludes/oldTopLine.php';
-
-##########
 $udvaelg='';
 if ($felt01) {
 	$udvaelg=$udvaelg.udvaelg($felt01, 'id', 'NR');

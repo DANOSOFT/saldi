@@ -35,6 +35,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/db_query.php");
+include("../includes/topline_settings.php");
 
 
 $luk=if_isset($_GET['luk']);
@@ -169,7 +170,7 @@ if ($_POST){
 		print "<meta http-equiv=\"refresh\" content=\"0;URL='jobkortprint.php?id=$id'\">";
 	}
 }
-print "<div style=\"font-family: arial, verdana, sans-serif;\">";
+print "<div style=\"font-family: arial, verdana, sans-serif; padding-bottom: 60px;\">";
 
 if (!$konto_id && $id) {
 	$r=db_fetch_array(db_select("select konto_id from jobkort where id = '$id'",__FILE__ . " linje " . __LINE__));
@@ -192,25 +193,27 @@ $tlf=trim($r['tlf']);
 $fax=trim($r['fax']);
 $email=trim($r['email']);
 */
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+
 if ($menu=='T') {
-	$leftbutton="<a href=jobkort.php?luk=luk accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a>";
-	$rightbutton="";
-	$vejledning=NULL;
-	include("../includes/topmenu.php");
-	print "<div id=\"topmenu\" style=\"position:absolute;top:6px;right:0px\">";
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\"><a href=\"jobkort.php?luk=luk\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "</div>";
+	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
-	include("../includes/sidemenu.php");
+	include_once 'debLstIncludes/topLineJobkort.php';
 } else {
-	print "<tr><td colspan=3 align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\"$top_bund><a href=jobkort.php?luk=luk accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a><br></td>";
-	print "<td width=\"80%\"$top_bund>".findtekst('29|Jobkort', $sprog_id)."<br></td>";
-	print "<td width=\"10%\"$top_bund><a href=jobkort.php accesskey=N>".findtekst('39|Ny', $sprog_id)."</a><br></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
+	include_once 'debLstIncludes/oldTopLine.php';
 }
-print "<td width=10% align=center></td><td width=80% align=center>";
+
+// Add scrollable wrapper for side menu
+if ($menu=='S') {
+	print "<tr><td style='width: 100%; height: calc(100vh - 110px); overflow-y: auto; display: block;'>\n";
+}
+
 print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" widht=\"800\"><tbody>";
 
 print "<form name=\"jobkort\" action=\"jobkort.php?id=$id\" method=\"post\">";
@@ -332,13 +335,14 @@ print "<tr><td colspan=6><textarea name=\"felt_indhold[9][1]\" rows=\"5\" cols=\
 print "<tr><td colspan=6><br></td></tr>";
 print "<tr><td colspan=6>".findtekst('26|Bemærkning 4', $sprog_id)."</td></tr>";
 print "<tr><td colspan=6><textarea name=\"felt_indhold[10][1]\" rows=\"5\" cols=\"150\">".$felt_indhold[10][1]."</textarea></td></tr>\n";
-print "<tr><td colspan=6><br></td></tr>";
-print "<tr><td colspan=6 align=center><input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\">
-				<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\">
-				<input type=submit accesskey=\"s\" value=\"Slet\" name=\"slet\"></td></tr>";
-print "</form>";
+print "<tr><td colspan=6 style=\"height: 70px;\"></td></tr>";
 print "</tbody></table>";
-print "</td><td width=10%>";
+print "<div style=\"position: fixed; bottom: 0; left: 0; right: 0; background: #f5f5f5; border-top: 1px solid #ccc; padding: 5px 0; text-align: center; z-index: 1000;\">
+	<input type=submit accesskey=\"g\" value=\"Gem\" name=\"gem\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+	<input type=submit accesskey=\"u\" value=\"Udskriv\" name=\"udskriv\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+	<input type=submit accesskey=\"s\" value=\"Slet\" name=\"slet\" style=\"padding: 3px; margin: 0 5px; cursor: pointer;\">
+</div>";
+print "</form>";
 
 function kontoopslag($id) {
 	global $bgcolor;
@@ -388,7 +392,13 @@ function kontoopslag($id) {
 }
 
 ?>
+<?php if ($menu == 'T') { ?>
+</div> <!-- content-noside -->
+<?php } elseif ($menu == 'S') { ?>
 </td></tr>
 </tbody></table>
-</div>
+<?php } else { ?>
+</td></tr>
+</tbody></table>
+<?php } ?>
 </body></html>

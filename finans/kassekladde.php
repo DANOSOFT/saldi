@@ -973,10 +973,10 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			if ($submit == 'simulate') { #20210721
 				print "<meta http-equiv='refresh' content='0;URL=../finans/bogfor.php?kladde_id=$kladde_id&funktion=simuler'>";
 				/*
-																																		#				?>
-																																		#				<body onload="simuler()">
-																																		#				<?php
-																																		*/
+																								#?>
+																								#<body onload="simuler()">
+																								#<?php
+																								*/
 			}
 			#if (strstr($submit,"Bogf"))	{
 			if ($submit == 'doPost') {
@@ -1093,25 +1093,7 @@ if (!$simuler) {
 			print "<div class='content-noside'>";
 
 		} elseif ($menu=='S') {
-			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; #
-			print "<table class='topLine'width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>"; # Tabel 1.1 -> Toplinje
-
-			print "<td width='10%'>";
-			$tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
-		
-			// print "<a href=\"javascript:confirmClose('../finans/kladdeliste.php?exitDraft=$kladde_id','$tekst')\" accesskey='L'>";
-			// print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">". 'ok'.findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		print "<a href=\"javascript:confirmClose('$backUrl','$tekst')\" accesskey='L'>";
-		print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-		print "<td width='80%' style='$topStyle' align='center'> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
-
-		print "<td id='tutorial-help' width=5% style=$buttonStyle>
-		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
-		".findtekst('2564|Hjælp', $sprog_id)."  
-		</button></td>";
-
-			print "<td width='10%'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>";
-			print "<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">$ny</button></a></td></tr>";
+			include_once 'kassekladde_includes/topLineKassekladde.php';
 		} else {
 			print "<tr><td height='1%' align='center' valign='top' class='top-header'>"; 
 			print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr>"; # Tabel 1.1 -> Toplinje
@@ -1125,9 +1107,9 @@ if (!$simuler) {
 			}
 			print "<td width='80%' $top_bund> " . findtekst('1072|Kassekladde', $sprog_id) . "  $kladde_id</td>";
 			print "<td width='10%' $top_bund align='right'><a href=\"javascript:confirmClose('../finans/kassekladde.php?exitDraft=$kladde_id','$tekst')\" accesskey='N'>$ny</a></td></tr>";
+			print "</tbody></table>"; # Tabel 1.1 <- Toplinje
+			print "</td></tr>\n";
 		}
-		print "</tbody></table>"; # Tabel 1.1 <- Toplinje
-		print "</td></tr>\n";
 	}
 }
 print"<div class='table-con'></div>"; 
@@ -1144,14 +1126,14 @@ print '<style>
     }
     .kassekladde-note-tb {
 		position: sticky;
-		top: 29px;
+		top: 48px;
 		background-color: #f1f1f1; 
 		z-index: 8; 
    }
 
     .kassekladde-thead {
         position: sticky;
-        top: 64px; 
+        top: 70px; 
        background-color: #f1f1f1;
         z-index: 8; 
     }
@@ -1176,6 +1158,15 @@ print '<style>
       display: table; 
 	  padding-right: 17px;
   }
+    /* Sticky footer for action buttons */
+    .kassekladde-footer {
+        position: sticky;
+        bottom: 0;
+        background-color: #f1f1f1;
+        z-index: 9;
+        padding: 8px 0;
+        border-top: 1px solid #ccc;
+    }
 </style>';
 
 ############
@@ -2146,7 +2137,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	<?php
 	print "</tbody></table></td><td></td></tr>"; # Tabel 1.3 <- Kladdelinjer
 	print "<tr><td><br></td></tr>\n";
-	print "<tr><td align='center'>";
+	print "<tr class='kassekladde-footer'><td align='center'>";
 	if ($menu == 'T') {
 		print "<table width='900px' border='0' cellspacing='0' cellpadding='1'><tbody><tr>"; # Tabel 1.4 -> Knapper
 	} else {
@@ -3205,4 +3196,5 @@ include("kassekladde_includes/unsavedWarning.php");
 
 
 	?>
+
 

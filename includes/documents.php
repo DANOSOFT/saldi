@@ -148,6 +148,29 @@ if ($dokument) {
 #$openPool,$sourceId,$source,$bilag,$fokus,$poolFile,$docFolder
 #echo $poolParams;
 
+// Include topline settings for modern header styling
+include_once("../includes/topline_settings.php");
+
+// ---------- Main table start ---------
+if (isset($menu) && $menu == 'S') {
+	// Modern sidebar header
+	include_once("../docsIncludes/topLineDocuments.php");
+	print "<div class='docs-content-wrapper'>"; // Wrapper for content below fixed header
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
+	print "<tr><td width = '20%'>";
+} else {
+	// Original/old layout with header
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; 
+	print "<tr><td colspan= \"3\" height = \"25\" align=\"center\" valign=\"top\">";
+	// ---------- Header table start ---------
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	include("docsIncludes/header.php");
+	// ---------- Header table end ---------
+	print "</tbody></table>";
+	print "</td></tr><tr><td width = '20%'>";
+}
+// ---------- Left table start ---------
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 // Handle file uploads for pool view
 if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 	$fileTypes = array('jpg','jpeg','pdf','png');
@@ -630,7 +653,10 @@ include("docsIncludes/showDoc.php");
 // ---------- Right table end ---------
 print "</tbody></table>";
 print "</td></tr>";
-// ---------- Main table start ---------
+// ---------- Main table end ---------
 print "</tbody></table>";
+if (isset($menu) && $menu == 'S') {
+	print "</div>"; // Close docs-content-wrapper
+}
 print "</body></html>";
 ?>
