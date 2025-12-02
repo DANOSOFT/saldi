@@ -165,7 +165,7 @@
         
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
-        file_put_contents($result, "../temp/$db/fakture-result-$ranStr.json");
+        file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
         $result = json_decode($result, true);
         if (curl_errno($ch)) {
             echo 'Error: ' . curl_error($ch);
@@ -187,11 +187,20 @@
             
             // save response in file in temp folder
             file_put_contents("../temp/$db/fakture-error-$randomString.json", json_encode($error)."\n".json_encode($data, JSON_UNESCAPED_UNICODE));
+            if($result["message"] !== ""){
             ?>
             <script>
+                alert("<?php echo $result["message"]; ?>");
+            </script>
+            <?php
+            }else{
+            ?>
+            <script>
+
                 alert("Der opdstod en fejl under sending af fakturaen. kontakt support. Tlf: 46902208");
             </script>
             <?php
+            }
             exit;
         }
         // decode base64
@@ -232,6 +241,7 @@
             $initials[$key] = mb_substr($value, 0, 1, "UTF-8");
         }
         $initials = implode("", $initials);
+
         if($r_faktura["art"] == "DK"){
             $creditNote = "Cre";
         }else{
@@ -322,7 +332,7 @@
                     "countryCode" => $countryCode
                 ],
                 "contact" => [
-                    "initials" => $initials,
+                    "initials" => ($initials !== null && $initials !== "") ? $initials : "",
                     "name" => ($r_faktura["kontakt"] !== "") ? $r_faktura["kontakt"] : $r_faktura["firmanavn"],
                     "telephone" => strval($r_faktura["phone"]),
                     "electronicMail" => $r_faktura["email"]
