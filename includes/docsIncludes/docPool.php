@@ -692,9 +692,9 @@ print <<<JS
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Choose/Insert'>✓</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Edit'>✏️</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Delete'>🗑️</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Vælg/Indsæt'>✓</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
 				"</div>";
 
 			const rowHTML = "<tr data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + (isMatch ? "data-selected='true' " : "") + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='" + row.href + "'; }\">" +
@@ -826,15 +826,20 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 	const allRows = document.querySelectorAll('tr[data-editing="true"]');
 	allRows.forEach(row => {
 		const cells = row.querySelectorAll('td');
-		if (cells.length >= 4) {
+		if (cells.length >= 5) {
 			// Restore original values
 			const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
 			cells[0].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
 			cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
 			cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
 			cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+			// Restore original actions
+			if (row.dataset.originalActions) {
+				cells[4].innerHTML = row.dataset.originalActions;
+			}
 			row.removeAttribute('data-editing');
 			delete row.dataset.originalValues;
+			delete row.dataset.originalActions;
 		}
 	});
 
@@ -842,14 +847,16 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 	const row = button.closest('tr');
 	if (!row) return;
 
-	// Store original values
+	// Store original values and actions
+	const cells = row.querySelectorAll('td');
+	const originalActions = cells.length >= 5 ? cells[4].innerHTML : '';
 	row.dataset.originalValues = JSON.stringify({ subject, account, amount, date });
+	row.dataset.originalActions = originalActions;
 	row.setAttribute('data-editing', 'true');
 	row.setAttribute('data-pool-file', poolFile);
 
 	// Make cells editable
-	const cells = row.querySelectorAll('td');
-	if (cells.length >= 4) {
+	if (cells.length >= 5) {
 		const dateFormatted = date.split(' ')[0] || date;
 		
 		cells[0].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
@@ -857,8 +864,37 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 		cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
 		cells[3].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' onclick='event.stopPropagation();'>";
 		
+		// Update actions column with only save (green) and cancel (red) buttons when editing
+		cells[4].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Gem'>💾</button>" +
+			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Annuller'>✕</button>" +
+			"</div>";
+		
 		// Focus on first input
 		setTimeout(() => cells[0].querySelector('input').focus(), 10);
+	}
+};
+
+// Cancel editing and restore original values
+window.cancelRowEdit = function(button) {
+	const row = button.closest('tr[data-editing="true"]');
+	if (!row) return;
+	
+	const cells = row.querySelectorAll('td');
+	if (cells.length >= 5) {
+		// Restore original values
+		const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
+		cells[0].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
+		cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
+		cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
+		cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+		// Restore original actions
+		if (row.dataset.originalActions) {
+			cells[4].innerHTML = row.dataset.originalActions;
+		}
+		row.removeAttribute('data-editing');
+		delete row.dataset.originalValues;
+		delete row.dataset.originalActions;
 	}
 };
 
@@ -967,12 +1003,25 @@ window.saveRowData = function(input) {
 			row.querySelector('td:nth-child(3)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAmount) + "</span>";
 			row.querySelector('td:nth-child(4)').innerHTML = "<span class='cell-content'>" + escapeHTML(dateFormatted) + "</span>";
 			
+			// Restore actions column with updated values
+			const poolFileFromRow = row.getAttribute('data-pool-file');
+			const currentUrl = window.location.href;
+			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
+			
+			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Vælg/Indsæt'>✓</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
+				"</div>";
+			
+			row.querySelector('td:nth-child(5)').innerHTML = actionsCell;
+			
 			// Remove edit mode
 			row.removeAttribute('data-editing');
 			delete row.dataset.originalValues;
+			delete row.dataset.originalActions;
 			
 			// Update the data in docData array for future renders
-			const poolFileFromRow = row.getAttribute('data-pool-file');
 			const dataIndex = docData.findIndex(d => {
 				const url = new URL(d.href, window.location.origin);
 				const allPoolFiles = url.searchParams.getAll('poolFile');
