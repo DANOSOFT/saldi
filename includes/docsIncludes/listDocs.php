@@ -27,7 +27,28 @@
 
 $fileName = NULL;
 isset($_GET['bilag_id'])? $bilag_id = $_GET['bilag_id']: $bilag_id = null;
-print "<tr><td valign='top' align = 'center'>";
+
+// Get global variables for styling
+global $bgcolor, $bgcolor5, $sprog_id;
+if (!isset($bgcolor)) $bgcolor = '#ffffff';
+if (!isset($bgcolor5)) $bgcolor5 = '#f9f9f9';
+
+// Check if we're in the new flexbox layout (docPool-style)
+$inFlexboxLayout = (isset($showDoc) && isset($source) && $source == 'kassekladde');
+
+if ($inFlexboxLayout) {
+	// Output table structure like docPool
+	print "<table width='100%' border='0' cellspacing='0' cellpadding='0' style='border-collapse: collapse;'>";
+	print "<thead>";
+	print "<tr style='background-color: #f1f1f1; border-bottom: 2px solid #ddd;'>";
+	print "<th style='padding: 8px; text-align: left; border: 1px solid #ddd; font-weight: bold;'>".findtekst('671|Bilag', $sprog_id)."</th>";
+	print "<th style='padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; width: 140px;'>Handlinger</th>";
+	print "</tr>";
+	print "</thead>";
+	print "<tbody>";
+} else {
+	print "<tr><td valign='top' align = 'center'>";
+}
 
 /*
 if ($dokument) {
@@ -48,9 +69,14 @@ if (!isset($sourceId) || $sourceId === '') {
 $qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id";
 $q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 if($q !== false){
+	$rowIndex = 0;
 	while ($r=db_fetch_array($q)) {
+		$rowIndex++;
 		$docId = $r['id'];
-		$href="$docFolder/$db/$r[filepath]/$r[filename]";
+		// Normalize path to avoid double slashes
+		$filepath = ltrim($r['filepath'], '/'); // Remove leading slash if present
+		$href = rtrim($docFolder, '/') . '/' . $db . '/' . $filepath . '/' . $r['filename'];
+		$href = str_replace('//', '/', $href); // Remove any double slashes
 		if (!$showDoc) {
 			$fileName = $r['filename'];
 			if ($fileName != trim($fileName)) {
@@ -92,16 +118,43 @@ if($q !== false){
 		}
 		$showName = strtolower($r['filename']);
 		if (strlen($showName) > 36) $showName = substr($showName,0,33).'...';
-		print "<tr><td valign='top' align = 'center'>";
-		if($source == 'kassekladde'){ //20230705
-			print "<a href = 'documents.php?$params&showDoc=".urlencode("$href")."'>";
-		}else{
-			print "<a href = 'documents.php?$params&showDoc=".urlencode("$href")."'>";
+		
+		// Check if this is the currently shown document
+		$currentShowDoc = isset($showDoc) ? $showDoc : '';
+		$isCurrentDoc = ($currentShowDoc && strpos($currentShowDoc, $r['filename']) !== false);
+		
+		// Use alternating row colors like docPool
+		$rowBgColor = ($rowIndex % 2 == 0) ? $bgcolor : $bgcolor5;
+		$bgColor = brightenColor($buttonColor, 0.6);
+		
+		if ($inFlexboxLayout) {
+			// Table row format like docPool
+			$docHref = "documents.php?$params&showDoc=".urlencode("$href");
+			print "<tr style='background: $bgColor; border-bottom: 1px solid #ddd; cursor: pointer;' onclick=\"window.location.href='$docHref'\">";
+			print "<td style='padding: 8px; border: 1px solid #ddd;' title='".htmlspecialchars($r['filename'], ENT_QUOTES)."'>".htmlspecialchars($showName, ENT_QUOTES)."</td>";
+			print "<td style='padding: 4px; border: 1px solid #ddd; text-align: center;' onclick='event.stopPropagation();'>";
+			print "<a href='documents.php?$params&deleteDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Slet ".htmlspecialchars($r['filename'], ENT_QUOTES)."?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Slet</a>";
+			print "<a href='documents.php?$params&moveDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Flyt ".htmlspecialchars($r['filename'], ENT_QUOTES)." til pulje?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Flyt til pulje</a>";
+			print "</td>";
+			print "</tr>";
+		} else {
+			// Original button format
+			print "<tr><td valign='top' align = 'center'>";
+			if($source == 'kassekladde'){ //20230705
+				print "<a href = 'documents.php?$params&showDoc=".urlencode("$href")."'>";
+			}else{
+				print "<a href = 'documents.php?$params&showDoc=".urlencode("$href")."'>";
+			}
+			print "<button style = 'width:90%;height:35px;'>". $showName ."</button></a></td></tr>";
 		}
-		print "<button style = 'width:90%;height:35px;'>". $showName ."</button></a></td></tr>";
 	}
 }
-print "<tr><td valign='top' align = 'center'><hr width = '90%'></td></tr>";
+
+if ($inFlexboxLayout) {
+	print "</tbody></table>";
+} else {
+	print "<tr><td valign='top' align = 'center'><hr width = '90%'></td></tr>";
+}
 $locked = 0;
 if ($source == 'creditor') {
 	$qtxt = "select status from ordrer where id = '$sourceId'";
@@ -125,16 +178,23 @@ if ($sourceId || $sourceId == 0) {
 	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		if ($locked == 0 || date('U') - $r['timestamp'] < 60*60*24) {
-			print "<tr><td valign='top' align = 'center'>";
-			print "<a href = 'documents.php?$params&deleteDoc=".urlencode($showDoc)."' onclick=\"return confirm('Slet $fileName?')\">";
-			print "<button style = 'width:90%;height:35px;'>Slet dokument</button></a>";
-			print "</td></tr>";
-			print "<tr><td valign='top' align = 'center'>";
-			print "<a href = 'documents.php?$params&moveDoc=".urlencode($showDoc)."' onclick=\"return confirm('Flyt $fileName til pulje?')\">";
-			print "<button style = 'width:90%;height:35px;'>Flyt dokument til pulje</button></a>";
-			print "</td></tr>";
-
+			if (!$inFlexboxLayout) {
+				// Original button format for old layout
+				print "<tr><td valign='top' align = 'center'>";
+				print "<a href = 'documents.php?$params&deleteDoc=".urlencode($showDoc)."' onclick=\"return confirm('Slet $fileName?')\">";
+				print "<button style = 'width:90%;height:35px;'>Slet dokument</button></a>";
+				print "</td></tr>";
+				print "<tr><td valign='top' align = 'center'>";
+				print "<a href = 'documents.php?$params&moveDoc=".urlencode($showDoc)."' onclick=\"return confirm('Flyt $fileName til pulje?')\">";
+				print "<button style = 'width:90%;height:35px;'>Flyt dokument til pulje</button></a>";
+				print "</td></tr>";
+			}
+			// In flexbox layout, delete/move buttons are already in the table row above
 		}
 	}
+}
+
+if (!$inFlexboxLayout) {
+	// Close the original table structure
 }
 ?>

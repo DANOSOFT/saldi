@@ -1,4 +1,34 @@
-<?php
+<?php //20251112
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// --- includes/reportFunc/fromtPageOldMenu.php --- Patch 4.1.1 --- 20251124 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
+// See GNU General Public License for more details.
+//
+// Copyright (c) 2003-2025 saldi.dk aps
+// -----------------------------------------------------------------------------------
+//
+// 20251123 Fixed multiroute/paylist problem
+
+// next line can be removed in 2026
+db_modify("update grupper set box10 = 'B' where box10 = 'on' and art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__);
+
+
 	$butStyle = "border:1;border-color:#fefefe;border-radius:7px;width:115px;height:35px;background:url('../img/stor_knap_bg.gif');";
 #	$butStyle.= "color:white;background-color:$butCol";
 
@@ -32,9 +62,9 @@
 		$tekst1 = findtekst('443|Kontokort', $sprog_id);
 		$tekst2 = findtekst('446|Viser en specifikation af kontobevægelser på valgte konti i det angivne datointerval.', $sprog_id);
 		print "<td align=center><input style=\"$butStyle\" type='submit' value='$tekst1' name='kontokort' title='$tekst2'></td></tr>";
-		if ($kontoart == 'D')
+		#if ($kontoart == 'D')
 			print "<tr><td colspan='6'><hr></td></tr>";
-		if ($kontoart == 'D') {
+			if ($kontoart == 'D') {
 			$tekst1 = findtekst('447|Liste over de 100 debitorer med den højeste omsætning de seneste 12 måneder.', $sprog_id);
 			$tekst2 = findtekst('448|Top 100', $sprog_id);
 			$tekst3 = findtekst('455|Kassespor', $sprog_id);
@@ -53,21 +83,37 @@
 					print "<td colspan=2 align=center><a href='kassespor.php'><input title='$tekst5' style=\"$butStyle\" type='button' value='$tekst3'></a></td>";
 				}
 			}
-			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'", __FILE__ . " linje " . __LINE__))) {
+			$r=db_fetch_array(db_select("select box10 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
+			if ($r['box10'] == 'B' || $r['box10'] == 'D') {
 				$tekst1 = findtekst('531|Betalingslister til bank', $sprog_id);
 				$tekst2 = findtekst('532|Betalingslister', $sprog_id);
-				print "<td align=center><span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title='$tekst1' style=\"$butStyle\" type='button' value='$tekst2'></span></td>\n";
-#			} elseif (file_exists("../debitor/multiroute.php")) {
-#				print "<td><span onclick='javascript:location.href='../debitor/multiroute.php''><input title='Multiroute' style=\"$butStyle\" type='button' value='" . findtekst('923|Multiroute', $sprog_id) . "'></span></td>\n";
+				print "</tr><tr><td colspan = '5'><hr></td></tr><tr><td></td><td align=center>";
+				print "<span onClick=\"javascript:location.href='../debitor/betalingsliste.php'\"><input title='$tekst1' style=\"$butStyle\" type='button' value='$tekst2'></span></td>\n";
+			}
+			$r=db_fetch_array(db_select("select var_value from settings where var_name = 'useMultiRoute'", __FILE__ . " linje " . __LINE__));
+			if ($r['var_value'] == 'on') {
+				print "</tr><tr><td colspan = '5'><hr></td></tr><tr><td></td><td align = 'center'>";
+				print "<span onclick=\"javascript:location.href='../debitor/multiroute.php'\"><input title='Multiroute' style=\"$butStyle\" type='button' value=' " . findtekst('923|Multiroute', $sprog_id) . "'></span></td>\n";
 			}
 			print "</tr>\n";
 		} else {
 			$tekst1 = findtekst('531|Betalingslister til bank', $sprog_id);
 			$tekst2 = findtekst('532|Betalingslister', $sprog_id);
-			print "<tr><td><br></td></tr>\n";
-			print "<tr><td></td><td align=center>\n";
-			if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '2' and box10 >= 'on'", __FILE__ . " linje " . __LINE__))) {
-				print "<span onClick='javascript:location.href='../kreditor/betalingsliste.php''>\n";
+			##########
+			$tekT = findtekst('448|Top 100', $sprog_id);
+			$teksS = "List of the 100 creditors with the highest turnover in the last 12 months.";
+			print "<tr>";
+			if ($popup) {
+				print "<td align=center><span onClick=\"javascript:top100=window.open('top100.php','top100','$jsvars');top100.focus();\" title='a $teksS'><input style=\"$butStyle\" type=submit value='$tekT' name='submit'></span></td>";
+				
+			} else {
+				print "<td align=center><span title='$teksS' onClick=\"window.location.href='top100.php'\"><input style=\"$butStyle\" type=button value='$tekT' name='submit'></span></td>";
+				
+			}
+			##########
+			$r=db_fetch_array(db_select("select box10 from grupper where art = 'DIV' and kodenr = '2'", __FILE__ . " linje " . __LINE__));
+			if ($r['box10'] == 'B' || $r['box10'] == 'K') {
+				print "<td><span onClick=\"javascript:location.href='../kreditor/betalingsliste.php'\">\n";
 				print "<input title='$tekst1' style=\"$butStyle\" type='button' value='$tekst2'>\n";
 				print "</span></td>\n";
 			}
@@ -113,7 +159,7 @@
 					"locale": "da"
 				});
 
-				dateTimeToPicker = flatpickr(dateTimeTo, {
+				dateTimeToPicker = flatpickr(dateTimeTo, { 
 					altInput: true,
 					altFormat: "j. F Y",
 					dateFormat: "Y-m-d",

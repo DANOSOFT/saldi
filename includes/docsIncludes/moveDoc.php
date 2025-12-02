@@ -24,6 +24,12 @@
 
 
 if ($moveDoc) {
+	// Decode the URL-encoded path
+	$moveDoc = urldecode($moveDoc);
+	
+	// Normalize the path - remove double slashes
+	$moveDoc = str_replace('//', '/', $moveDoc);
+	$moveDoc = preg_replace('#/+#', '/', $moveDoc); // Remove multiple slashes
 	$tmpA = explode("/",$moveDoc);
 
 	$x = count($tmpA)-1;
@@ -40,9 +46,48 @@ if ($moveDoc) {
 	if (!file_exists($new)) mkdir($new, 0777);
 	$new.= "/$tmpA[$x]";
 	$new = str_replace(' ','',$new);
-	rename("$moveDoc", "$new");
+	
+	// Move the file
+	if (file_exists($moveDoc)) {
+		rename("$moveDoc", "$new");
+	}
+	
+	// Delete from database
 	$qtxt = "delete from documents where source = '$source' and source_id = '$sourceId' ";
 	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	
+	// Check if there are any remaining documents for this sourceId
+	$qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id limit 1";
+	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	
+	if ($q && ($r = db_fetch_array($q))) {
+		// There's another document, redirect to show it
+		$nextDoc = "$docFolder/$db/$r[filepath]/$r[filename]";
+		$redirectUrl = "documents.php?$params&showDoc=".urlencode($nextDoc);
+	} else {
+		// No more documents, redirect to docPool to choose a new bilag
+		if ($source == 'kassekladde' && isset($kladde_id) && isset($fokus)) {
+			// Ensure we redirect to docPool view (openPool=1) with all necessary parameters
+			$poolParams = "openPool=1".
+				"&kladde_id=".urlencode($kladde_id).
+				"&bilag=".urlencode($bilag).
+				"&fokus=".urlencode($fokus).
+				"&poolFile=".urlencode($poolFile).
+				"&docFolder=".urlencode($docFolder).
+				"&sourceId=".urlencode($sourceId).
+				"&source=".urlencode($source);
+			$redirectUrl = "documents.php?$poolParams";
+		} else {
+			// Fallback: redirect to documents list without showDoc
+			$redirectUrl = "documents.php?$params";
+		}
+	}
+	
+	echo '<script type="text/javascript">';
+	echo "alert('$fileName successfully moved to pool!');";
+	echo "window.location.href = '$redirectUrl';";
+	echo '</script>';
+	exit;
 }
 ?>

@@ -1,5 +1,5 @@
 <?php
-
+#..includes/grid.php
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -250,79 +250,58 @@ function create_datagrid($id, $grid_data) {
     global $defaultValues;
     global $bruger_id;
     global $db;
-    // Performance logging for grid creation
-    $grid_start_time = microtime(true);
-    $log_file = "../../temp/$db/vareliste_performance.log";
-    
-    function log_grid_performance($message, $start_time = null) {
-        global $log_file;
-        
-        // Safety check - if log_file is still empty, skip logging
-        if (empty($log_file)) {
-            return microtime(true);
-        }
-        
-        $current_time = microtime(true);
-        if ($start_time) {
-            $elapsed = round(($current_time - $start_time) * 1000, 2);
-            $message .= " (took {$elapsed}ms)";
-        }
-        $timestamp = date('Y-m-d H:i:s');
-        
-        // Use error suppression to prevent fatal errors
-        @file_put_contents($log_file, "[$timestamp] GRID: $message\n", FILE_APPEND | LOCK_EX);
-        return $current_time;
-    }
-
-    log_grid_performance("Grid creation started");
 
     // Normalize columns with default values
-    $normalize_start = microtime(true);
     $columns = normalize_columns($grid_data['columns'], $defaultValues);
-    log_grid_performance("Column normalization", $normalize_start);
-    log_grid_performance("Column normalization", $normalize_start);
     
-    $filter_start = microtime(true);
     $columns_filtered = array_filter($columns, function ($item) {
         return !$item["hidden"];
     });
 
     // Retrieve filters
     $filters = $grid_data["filters"];
-    log_grid_performance("Column filtering and filters setup", $filter_start);
-
+    $searchId1 = if_isset($_GET, NULL, "search");
+    $searchId2 = if_isset($searchId1,NULL, $id); //properly handle the if_isset values
     // Fetch stored grid setup from the database
-    $fetch_setup_start = microtime(true);
     list($columns_setup, $search_setup, $filter_setup) = fetch_grid_setup(
         $id,
         $columns_filtered,
-        if_isset($_GET["search"][$id], array()),
+        if_isset($searchId2, array()),
         $filters
     );
-    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
-    log_grid_performance("Fetch grid setup from database", $fetch_setup_start);
-    
-    $setup_processing_start = microtime(true);
     $columns_setup = json_decode($columns_setup, true);
     $columns_updated = fill_missing_values($columns_setup, $columns);
 
     // Process search input
     $search_setup = json_decode($search_setup, true);
-    $searchTerms = if_isset($_GET["search"][$id], $search_setup);
+    $s3 = if_isset($_GET, NULL,"search"); // prevent excessive error logs
+    $s4 = if_isset($s3, NULL, $id);
+    $searchTerms = if_isset($s4, $search_setup);
     $search_json  = db_escape_string(json_encode($searchTerms));
-    log_grid_performance("JSON processing and search setup", $setup_processing_start);
+    // Log the value of $s3
+
 
     // Retrieve stored grid settings from the database
-    $grid_settings_start = microtime(true);
     $q = "SELECT search_setup, rowcount, \"offset\", \"sort\" FROM datatables WHERE user_id = $bruger_id AND tabel_id='$id'";
     $r = db_fetch_array(db_select($q, __FILE__ . " line " . __LINE__));
-    log_grid_performance("Grid settings query", $grid_settings_start);
 
     // Determine sorting, row count, and offset
-    // $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
-    $sort = if_isset($r["sort"], get_default_sort($columns_updated));
-    $selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $sortArrayGet = if_isset($_GET, NULL, 'sort');
+    $sortArrayDb = if_isset($r,NULL, 'sort');
+    $sortId = if_isset($sortArrayGet, NULL, $id);
+    # $sort = if_isset($_GET["sort"][$id], if_isset($r["sort"], get_default_sort($columns_updated)));
+     if(!$sortId){
+       $sort = if_isset($sortArrayDb, get_default_sort($columns_updated)); #This is for database stored values
+     }else{
+        $sort = $sortId; #This is necessary for handling GET values...don't remove it, else sorting fails for some implemented pages
+     }
 
+     $rowC1 = if_isset($_GET, NULL, "rowcount");
+     $rowCId = if_isset($rowC1,NULL,$id);
+     $rowCdb = if_isset($r, NULL,"rowcount"); //properly use the if_isset to prevent too many error logs
+     #$selectedrowcount = if_isset($_GET["rowcount"][$id], if_isset($r["rowcount"], 100));
+    $selectedrowcount = if_isset($rowCId, if_isset($rowCdb, 100));
+  
     // Use isset to avoid zero triggering if
     $offset =   isset($_GET["offset"][$id]) ? $_GET["offset"][$id] : (
                 isset($r["offset"]) ? $r["offset"] : 
@@ -350,48 +329,33 @@ function create_datagrid($id, $grid_data) {
     $filters_updated = updateCheckedValues($filters, $filters_setup);
 
     // Get additional configurations
-    $rowStyleFn = if_isset($grid_data['rowStyle'], null);
-    $metaColumnFn = if_isset($grid_data['metaColumn'], null);
+    $rowStyleFn = if_isset($grid_data, NULL,'rowStyle');
+    $metaColumnFn = if_isset($grid_data,NULL,'metaColumn');
+    $metaColumnHeaders = if_isset($grid_data, NULL,'metaColumnHeaders');
     $totalWidth = calculate_total_width($columns_updated);
-    $menu = if_isset($_GET["menu"][$id], "main"); // ['main', 'kolonner', 'filtre']
+    $menuData = if_isset($_GET, [], 'menu');
+    $menu = if_isset($menuData, "main", $id);// ['main', 'kolonner', 'filtre']
 
     $rows = array();
     $query = "";
-
+ 
     // Handle different menu options
     if ($menu == "main") {
         // Build and execute the main query
-        $query_build_start = microtime(true);
         $query = build_query($id, $grid_data, $columns_updated, $filters_updated, $searchTerms, $sort, $selectedrowcount, $offset);
-        log_grid_performance("Query building", $query_build_start);
-        
-        // Log the actual query being executed
-        $query_length = strlen($query);
-        log_grid_performance("Built query with length: {$query_length} characters");
         
         print "<!-- \n DEBUG QUERY \n\n$query -->";
         
-        $main_query_start = microtime(true);
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
-        log_grid_performance("Main SQL query execution", $main_query_start);
-        
-        $fetch_rows_start = microtime(true);
         $rows = fetch_rows_from_query($sqlquery);
-        log_grid_performance("Fetching rows from query", $fetch_rows_start);
 
         // Fetch total row count
-        $count_query_start = microtime(true);
         $countQuery = build_count_query($grid_data, $columns_updated, $filters_updated, $searchTerms, $sort);
-        $count_query_length = strlen($countQuery);
-        log_grid_performance("Built count query with length: {$count_query_length} characters");
-        
         $countResult = db_select($countQuery, __FILE__ . " line " . __LINE__);
         $totalItems = db_fetch_array($countResult)["total_items"];
         $totalRows = count($rows);
-        log_grid_performance("Count query execution", $count_query_start);
-
+ 
         // Render the data grid
-        $render_start = microtime(true);
         render_datagrid(
             $id,
             $columns_updated, 
@@ -400,6 +364,7 @@ function create_datagrid($id, $grid_data) {
             $searchTerms, 
             $rowStyleFn, 
             $metaColumnFn,
+            $metaColumnHeaders,
             $query, 
             $sort,
             $selectedrowcount,
@@ -408,15 +373,12 @@ function create_datagrid($id, $grid_data) {
             $offset,
             $menu
         );
-        log_grid_performance("Grid rendering", $render_start);
 
         // Render additional styles and scripts
-        $styles_start = microtime(true);
         render_search_style();
         render_dropdown_style();
         render_pagination_script($id);
         render_sort_script($id);
-        log_grid_performance("Rendering styles and scripts", $styles_start);
 
     } else if ($menu == "kolonner") {
         if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -460,15 +422,9 @@ function create_datagrid($id, $grid_data) {
         render_filter_edit_style();
         render_move_script();
     }
-
+ 
     // Render dropdown script for interactions
-    $dropdown_start = microtime(true);
     render_dropdown_script($id, $query);
-    log_grid_performance("Dropdown script rendering", $dropdown_start);
-
-    // Final grid performance log
-    $total_grid_time = microtime(true) - $grid_start_time;
-    log_grid_performance("TOTAL grid creation completed in " . round($total_grid_time * 1000, 2) . "ms");
 
     return $rows;
 }
@@ -848,6 +804,7 @@ function calculate_total_width($columns) {
  * @param array $searchTerms An array of search terms used to filter table data. Each term corresponds to a column.
  * @param callable|null $rowStyleFn A callback function to define dynamic styles for each row. Receives a row and returns a style string.
  * @param callable|null $metaColumnFn A callback function to render metadata for each row. Receives a row and returns an HTML string.
+ * @param array|null $metaColumnHeaders An array of header names for meta columns (e.g., ['Aktiv', 'Inviter']).
  * @param array $query The query parameters used for filtering and sorting the table data. Typically includes search, sort, and pagination data.
  * @param string $sort The current sorting criteria, e.g., the column and direction (e.g., 'column_name ASC').
  * @param int $selectedrowcount The total number of rows selected by the user for some action (e.g., bulk action).
@@ -858,7 +815,7 @@ function calculate_total_width($columns) {
  *
  * @return void Outputs the full HTML structure of the datagrid, including a table and necessary form fields for interaction.
  */
-function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
+function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $metaColumnHeaders, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
     // Start table wrapper and form
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
@@ -871,7 +828,7 @@ function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowSt
 HTML;
 
     // Render table headers
-    render_table_headers($columns, $searchTerms, $totalWidth, $id);
+    render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaColumnHeaders);
 
     echo <<<HTML
                 </thead>
@@ -945,9 +902,10 @@ HTML;
  * @param int $totalWidth The total width of the table, used to calculate the width percentage of each column.
  * @param string $id The unique identifier for the table. Used to generate dynamic IDs and actions related to sorting and interactions.
  *
+ * @param array|null $metaColumnHeaders An array of header names for meta columns.
  * @return void Outputs the full HTML structure for the table header and the search row, including sorting functionality and search inputs.
  */
-function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
+function render_table_headers($columns, $searchTerms, $totalWidth, $id, $metaColumnHeaders = null) {
     print "<tr>";
     foreach ($columns as $column) {
         $width = ($column['width'] / $totalWidth) * 100;
@@ -967,6 +925,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         }
         echo "</th>";
     }
+    // Add meta column headers if provided
+    if ($metaColumnHeaders && is_array($metaColumnHeaders)) {
+        foreach ($metaColumnHeaders as $header) {
+            echo "<th style='text-align: center;'>$header</th>";
+        }
+    }
     print "<th class='filler-row'></th>";
     print "</tr>";
     print "<tr style='background-color: #f4f4f4'>";
@@ -977,6 +941,12 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
             echo "<input class='inputbox' style='text-align: $column[align]' type='text' name='search[$id][{$column['field']}]' value='$columnSearchTerm' placeholder=''>";
         }
         echo "</th>";
+    }
+    // Add empty search cells for meta columns
+    if ($metaColumnHeaders && is_array($metaColumnHeaders)) {
+        foreach ($metaColumnHeaders as $header) {
+            echo "<th></th>";
+        }
     }
 
     echo <<<HTML
@@ -1051,7 +1021,7 @@ HTML;
  */
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
+    $rowCounts = [50, 100, 250, 500, 1000];
 
     // Build the options dynamically
     $options = '';
@@ -1407,7 +1377,7 @@ function save_column_setup($id) {
 
     // Print the result
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1532,7 +1502,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id='$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**

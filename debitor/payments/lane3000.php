@@ -90,7 +90,10 @@ $guid = db_fetch_array($q)[0];
 $qtxt = "SELECT box4 FROM grupper WHERE beskrivelse = 'Pos valg' AND kodenr = '2' and fiscal_year = '$regnaar'";
 $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 $terminal_id = explode(chr(9),db_fetch_array($q)[0])[$kasse-1];
-
+if($terminal_id == "test"){
+    include "lane3000-sim.php";
+    exit;
+}
 writeLog("Terminal ID retrieved: $terminal_id");
 
 // Fetch printserver
@@ -177,6 +180,7 @@ function leave(cardScheme) {
 async function get_api_key(baseurl) {
     const initialLogPromise = logToServer('Starting API key request', 'INFO');
     document.getElementById('status').innerText = "Authorizer...";
+    console.log("<?php print get_settings_value("username", "move3500", "", null, $kasse);?>", "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>");
     const data = {
         "username": "<?php print get_settings_value("username", "move3500", "", null, $kasse);?>",
         "password": "<?php print get_settings_value("password", "move3500", "", null, $kasse);?>"
@@ -330,7 +334,7 @@ async function start_payment(baseurl, apikey, amount) {
 
         counting = false;
         var jsondata = await res.json();
-        
+     
         logToServer(`Payment response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
         
         if (res.status != 201) {
@@ -360,8 +364,8 @@ async function start_payment(baseurl, apikey, amount) {
 
 async function start() {
     logToServer('Payment process started', 'INFO');
-    // https://connectcloud-test.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
+    // https://connectcloud.aws.nets.eu/v1/
+    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);

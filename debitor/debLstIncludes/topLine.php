@@ -51,7 +51,7 @@ if ($valg == 'debitor') {
 	print "$icon_debitor ".findtekst('908|Debitorer', $sprog_id)."</button></td>"; #20210701
 } else {
 	print "<td id='debitore' width = '200px' align=center>";
-	print "<a href='debitor.php?valg=debitor&returside=$returside'>";
+	print "<a href='debitor.php?returside=$returside'>";
 	print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$icon_debitor ".findtekst('908|Debitorer', $sprog_id)."</button></a></td>";
 }
@@ -64,7 +64,7 @@ if ($valg == 'historik') {
 	print "$icon_historik ".findtekst('907|Historik', $sprog_id)."</button></td>";
 } else {
 	print "<td width = '200px' align=center>";
-	print "<a href='debitor.php?valg=historik&returside=$returside'>";
+	print "<a href='debitor_historik.php?returside=$returside'>";
 	print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$icon_historik ".findtekst('907|Historik', $sprog_id)."</button></a></td>";
 }
@@ -75,7 +75,7 @@ if ($valg == 'kommission') {
 	print "$icon_kommission ".findtekst('909|Kommission', $sprog_id)."</button></td>";
 } elseif ($showMySale) {
 	print "<td id='kommission' width = '200px' align=center>";
-	print "<a href='debitor.php?valg=kommission&returside=$returside'>";
+	print "<a href='debitor_kommission.php?returside=$returside'>";
 	print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 	print "$icon_kommission ".findtekst('909|Kommission', $sprog_id)."</button></a></td>";
 }

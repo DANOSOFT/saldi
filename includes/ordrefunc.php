@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-10-07 ---
+//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -238,6 +238,8 @@
 // 20250625 PHR Omitting errors from sort by by enhancing whitelist.
 // 20250902 LOE Moved function kontoOpslag to includes/orderFuncIncludes/accountLookup.php
 // 20251007 PHR Lookup for varenr_alias
+// 20251115 PHR *1 changet to (int)
+// 20251115 LOE Top line design for S menu moved to a different file.
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -2168,8 +2170,7 @@ function bogfor_indbetaling($id, $webservice) {
 		$uxtid = date("U");
 		$tmp = $sum * -1;
 		$qtxt = "insert into openpost (konto_id,konto_nr,faktnr,amount,beskrivelse,udlignet,transdate,uxtid,kladde_id,refnr,valuta,valutakurs,projekt)";
-		$qtxt .= " values ";
-		$qtxt .= "('$konto_id','$kundekontonr','$fakturanr','$tmp','$beskrivelse','0','$transdate','$uxtid','0','$id','$valuta','$valutakurs','$projekt[0]')";
+		$qtxt.= " values ('$konto_id','$kundekontonr','$fakturanr','$tmp','$beskrivelse','0','$transdate','$uxtid','0','$id','$valuta','$valutakurs','$projekt[0]')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select max(id) as id from openpost where konto_id = '$konto_id' and faktnr = '$fakturanr' and refnr='$id'", __FILE__ . " linje " . __LINE__));
 		$openpost_id = $r['id'];
@@ -2219,7 +2220,9 @@ function bogfor_indbetaling($id, $webservice) {
 			$k_kontrol = $k_kontrol + $kredit;
 			$debet = afrund($debet, 2);
 			$kredit = afrund($kredit, 2);
-			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',0,'$logdate','$logtime','0','0','$id','$kasse')", __FILE__ . " linje " . __LINE__);
+			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+			$qtxt.= "values ('0','$transdate','$beskrivelse','$kontonr','$fakturanr','$debet','$kredit','0',0,'$logdate','$logtime','0','0','$id','$kasse')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		}
 		$tmparray = array();
 		$r = db_fetch_array(db_select("select box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
@@ -2255,7 +2258,8 @@ function bogfor_indbetaling($id, $webservice) {
 					}
 					$d_kontrol = $d_kontrol + $debet;
 					$k_kontrol = $k_kontrol + $kredit;
-					$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kortkonti[$x]','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
+					$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+					$qtxt.= "values ('0','$transdate','$beskrivelse','$kortkonti[$x]','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					if ($modtaget != $sum) {
 						$debet = 0;
@@ -2263,7 +2267,8 @@ function bogfor_indbetaling($id, $webservice) {
 						($modtaget > $sum) ? $kredit = afrund($modtaget - $sum, 2) : $debet = afrund($sum - $modtaget, 2);
 						$d_kontrol = $d_kontrol + $debet;
 						$k_kontrol = $k_kontrol + $kredit;
-						$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
+						$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+						$qtxt.= "values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0',$afd,'$logdate','$logtime','$projekt[0]','$ansat','$id','$kasse')";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					}
 					$sum = 0;
@@ -2285,8 +2290,11 @@ function bogfor_indbetaling($id, $webservice) {
 		$k_kontrol = $k_kontrol + $kredit;
 		$debet = afrund($debet, 2);
 		$kredit = afrund($kredit, 2);
-		if ($debet || $kredit)
-			db_modify("insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0','0','$logdate','$logtime','0','0','$id','$kasse')", __FILE__ . " linje " . __LINE__);
+		if ($debet || $kredit) {
+			$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr) ";
+			$qtxt.= "values ('0','$transdate','$beskrivelse','$kassekonto','$fakturanr','$debet','$kredit','0','0','$logdate','$logtime','0','0','$id','$kasse')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
 		db_modify("update ordrer set status=4, valutakurs=$valutakurs where id=$id", __FILE__ . " linje " . __LINE__);
 	}
 	transaktion("commit");
@@ -3386,7 +3394,7 @@ function stamkunder($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $add
 			$kreditmax[$x] = 0;
 		$f1[$x] = strtolower(substr($firmanavn[$x], 0, 1));
 		$r2 = db_fetch_array(db_select("select sum(amount) as saldo from openpost where konto_id='$konto_id[$x]'", __FILE__ . " linje " . __LINE__));
-		$saldo[$x] = $r2['saldo'] * 1;
+		$saldo[$x] = (int)$r2['saldo'];
 		$x++;
 	}
 
@@ -4712,31 +4720,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		#		} elseif ($menu=='S' && !$sag_id) {
 #		include("../includes/sidemenu.php");
 	} elseif ($menu == 'S' && !$sag_id) {
-		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
-		print "<div align=\"center\">";
-		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-		print "<tr><td height = \"25\" align=\"center\" valign=\"top\" colspan=\"6\">";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-		if (!strstr($returside, "ordre.php")) {
-			print "<td width='10%'><a href=\"javascript:confirmClose('$returside','$alerttekst')\" accesskey=L>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-		} else {
-			print "<td width='10%'><a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				. findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
-		}
-		print "<td width='80%' align='center' style='$topStyle'>$tekst</td>";
-		print "<td id='tutorial-help' width=5% style=$buttonStyle>";
-		print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-		print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
-		print "<td width='10%'>
-			   <a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>
-			   <button type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(39, $sprog_id) . "</button></a></td>";
-
-		print "</tbody></table>";
-		print "</td></tr>\n";
+		include(get_relative()."includes/orderFuncIncludes/topLine.php"); 
 	} else {
 		/* 20140502 -> Bliver også sat i online.php
 									   print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n";
@@ -4766,6 +4750,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 	print "<tr><td valign=\"top\" align=center>\n";
 
 }
+
 ######################################################################################################################################
 if (!function_exists('pbsfakt')) {
 	function pbsfakt($id)

@@ -1,0 +1,722 @@
+/**
+ * DocPool Design System - Main Stylesheet
+ * Complete styling for the DocPool document management interface
+ */
+
+/* ============================================
+   BASE LAYOUT
+   ============================================ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ============================================
+   TOP BAR HEADER
+   ============================================ */
+
+#topBarHeader {
+  width: 100%;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+
+/* Disable ALL hover effects on top bar - no visual changes */
+#topBarHeader tbody tr td a button,
+#topBarHeader tbody tr td a button:hover,
+#topBarHeader tbody tr td a:hover button,
+#topBarHeader tbody tr td a:focus button,
+#topBarHeader tbody tr td a:active button,
+#topBarHeader tbody tr td button,
+#topBarHeader tbody tr td button:hover,
+#topBarHeader tbody tr td button:focus,
+#topBarHeader tbody tr td button:active {
+  opacity: 1 !important;
+  transform: none !important;
+  cursor: pointer !important;
+}
+
+/* Disable hover effects on top bar links */
+#topBarHeader tbody tr td a,
+#topBarHeader tbody tr td a:hover,
+#topBarHeader tbody tr td a:focus,
+#topBarHeader tbody tr td a:active {
+  text-decoration: none !important;
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+/* Disable hover effects on top bar cells */
+#topBarHeader tbody tr,
+#topBarHeader tbody tr:hover,
+#topBarHeader tbody tr td,
+#topBarHeader tbody tr td:hover {
+  opacity: 1 !important;
+}
+
+/* Pointer cursor for back button only */
+#topBarHeader tbody tr td:first-child a {
+  cursor: pointer !important;
+}
+
+#topBarHeader tbody tr td:first-child a button {
+  cursor: pointer !important;
+}
+
+/* ============================================
+   MAIN CONTAINER
+   ============================================ */
+
+#docPoolContainer {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - var(--docpool-header-height));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  position: fixed;
+  top: var(--docpool-header-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--docpool-bg-secondary);
+}
+
+/* ============================================
+   LEFT PANEL
+   ============================================ */
+
+#leftPanel {
+  flex: 0 0 var(--docpool-left-panel-default);
+  min-width: var(--docpool-left-panel-min);
+  max-width: var(--docpool-left-panel-max);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  /* Background color removed - inherits from page/default */
+  border-right: 1px solid var(--docpool-border);
+  will-change: flex;
+}
+
+/* ============================================
+   RESIZER
+   ============================================ */
+
+#resizer {
+  width: var(--docpool-resizer-width);
+  background-color: #ddd;
+  cursor: col-resize;
+  user-select: none;
+  flex-shrink: 0;
+  position: relative;
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  z-index: var(--docpool-z-fixed);
+  pointer-events: auto;
+  transition: background-color var(--docpool-transition-base);
+}
+
+#resizer:hover {
+  background-color: var(--docpool-border-hover);
+}
+
+#resizer::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--docpool-border-hover);
+  transform: translateX(-50%);
+}
+
+/* ============================================
+   RIGHT PANEL
+   ============================================ */
+
+#rightPanel {
+  flex: 1;
+  min-width: var(--docpool-right-panel-min);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--docpool-bg-secondary);
+  will-change: flex;
+}
+
+/* ============================================
+   DOCUMENT VIEWER
+   ============================================ */
+
+#documentViewer {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--docpool-bg-secondary);
+}
+
+#documentViewer iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  overflow: hidden;
+  background-color: var(--docpool-bg-main);
+}
+
+/* ============================================
+   FILE LIST CONTAINER
+   ============================================ */
+
+#fileListContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  /* Background color removed - inherits from parent */
+}
+
+#fileListContainer > div {
+  width: 100%;
+}
+
+/* Custom Scrollbar for File List */
+#fileListContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+#fileListContainer::-webkit-scrollbar-track {
+  background: var(--docpool-bg-secondary);
+}
+
+#fileListContainer::-webkit-scrollbar-thumb {
+  background: var(--docpool-border);
+  border-radius: var(--docpool-radius-sm);
+}
+
+#fileListContainer::-webkit-scrollbar-thumb:hover {
+  background: var(--docpool-border-hover);
+}
+
+/* ============================================
+   FILE LIST TABLE
+   ============================================ */
+
+#fileListContainer table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--docpool-font-family);
+  font-size: var(--docpool-font-size-base);
+  border: 1px solid var(--docpool-border);
+  margin: 0;
+  padding: 0;
+  table-layout: fixed;
+  /* Background color removed - inherits from parent */
+}
+
+#fileListContainer table thead {
+  position: sticky;
+  top: 0;
+  z-index: var(--docpool-z-sticky);
+  margin: 0;
+  padding: 0;
+}
+
+#fileListContainer table thead th {
+  padding: var(--docpool-spacing-sm);
+  border: 1px solid var(--docpool-border);
+  text-align: left;
+  font-weight: var(--docpool-font-weight-semibold);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--docpool-transition-base);
+}
+
+#fileListContainer table thead th:hover {
+  background-color: var(--docpool-bg-hover);
+}
+
+#fileListContainer table thead th > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#fileListContainer table tbody tr {
+  border-bottom: 1px solid var(--docpool-border);
+  cursor: pointer;
+  transition: background-color var(--docpool-transition-base);
+}
+
+#fileListContainer table tbody tr:hover {
+  background-color: var(--docpool-bg-hover) !important;
+}
+
+#fileListContainer table tbody tr[data-selected='true'] {
+  background-color: var(--docpool-bg-selected) !important;
+  color: var(--docpool-text-primary) !important;
+  font-weight: var(--docpool-font-weight-bold);
+}
+
+#fileListContainer table tbody tr[data-selected='true'] td {
+  color: var(--docpool-text-primary) !important;
+}
+
+#fileListContainer table tbody tr[data-selected='true']:hover {
+  background-color: var(--docpool-bg-selected) !important;
+}
+
+#fileListContainer table tbody tr[data-selected='true']:hover td {
+  color: var(--docpool-text-primary) !important;
+}
+
+#fileListContainer table tbody tr[data-editing='true'] {
+  background-color: var(--docpool-bg-editing) !important;
+}
+
+#fileListContainer table tbody tr:hover td {
+  background-color: transparent !important;
+}
+
+#fileListContainer table tbody td {
+  padding: 6px;
+  border: 1px solid var(--docpool-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#fileListContainer table tbody td:first-child {
+  max-width: 200px;
+}
+
+#fileListContainer table tbody td:nth-child(2) {
+  max-width: 120px;
+}
+
+#fileListContainer table tbody td:nth-child(3) {
+  max-width: 100px;
+}
+
+#fileListContainer table tbody td:nth-child(4) {
+  max-width: 100px;
+}
+
+#fileListContainer table tbody td:last-child {
+  text-align: center;
+  width: 140px;
+  padding: var(--docpool-spacing-xs);
+}
+
+/* ============================================
+   EDIT INPUTS
+   ============================================ */
+
+.edit-input {
+  width: 100%;
+  border: 1px solid var(--docpool-border-focus);
+  background: var(--docpool-bg-main);
+  padding: var(--docpool-spacing-xs);
+  font-family: inherit;
+  font-size: inherit;
+  box-sizing: border-box;
+  border-radius: var(--docpool-radius-sm);
+  transition: border-color var(--docpool-transition-base), box-shadow var(--docpool-transition-base);
+}
+
+.edit-input:focus {
+  outline: 2px solid var(--docpool-border-focus);
+  outline-offset: -1px;
+  border-color: var(--docpool-border-focus);
+}
+
+.cell-content {
+  display: block;
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================ */
+
+#fileListContainer .action-buttons {
+  display: flex;
+  gap: var(--docpool-spacing-xs);
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#fileListContainer button[type='button'] {
+  padding: var(--docpool-spacing-xs) var(--docpool-spacing-sm);
+  border: none;
+  border-radius: var(--docpool-radius-sm);
+  cursor: pointer;
+  font-size: var(--docpool-font-size-xs);
+  font-weight: var(--docpool-font-weight-bold);
+  transition: all var(--docpool-transition-base);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#fileListContainer button[type='button']:hover {
+  transform: scale(1.05);
+}
+
+#fileListContainer button[type='button']:active {
+  transform: scale(0.98);
+}
+
+/* Success Button (Choose/Insert) */
+#fileListContainer button[type='button'].btn-success,
+#fileListContainer button[type='button'][style*='#28a745'] {
+  background-color: var(--docpool-success);
+  color: white;
+}
+
+#fileListContainer button[type='button'].btn-success:hover,
+#fileListContainer button[type='button'][style*='#28a745']:hover {
+  background-color: var(--docpool-success-hover);
+}
+
+/* Danger Button (Delete) */
+#fileListContainer button[type='button'].btn-danger,
+#fileListContainer button[type='button'][style*='#dc3545'] {
+  background-color: var(--docpool-danger);
+  color: white;
+}
+
+#fileListContainer button[type='button'].btn-danger:hover,
+#fileListContainer button[type='button'][style*='#dc3545']:hover {
+  background-color: var(--docpool-danger-hover);
+}
+
+/* Primary Button (Edit) */
+#fileListContainer button[type='button'].btn-primary {
+  background-color: var(--docpool-primary);
+  color: var(--docpool-primary-text);
+  border: 1px solid var(--docpool-primary);
+}
+
+#fileListContainer button[type='button'].btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* ============================================
+   FIXED BOTTOM SECTION
+   ============================================ */
+
+#fixedCell {
+  flex-shrink: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+#contentWrapper {
+  width: 100%;
+}
+
+#fixedBottom {
+  width: 100%;
+  padding: var(--docpool-spacing-lg);
+  box-sizing: border-box;
+  z-index: var(--docpool-z-fixed);
+  position: relative;
+  /* Background color removed - inherits from parent */
+  border-top: 1px solid var(--docpool-border);
+}
+
+#fixedBottom form {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================
+   UPLOAD SECTION
+   ============================================ */
+
+#fixedBottom .upload-label {
+  margin-bottom: var(--docpool-spacing-md);
+  padding: var(--docpool-spacing-sm);
+  border-radius: var(--docpool-radius-lg);
+  font-weight: var(--docpool-font-weight-semibold);
+  font-size: var(--docpool-font-size-md);
+  text-shadow: var(--docpool-shadow-sm);
+}
+
+#fixedBottom input[type='file'] {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 40px;
+  padding: var(--docpool-spacing-sm);
+  border: 2px solid var(--docpool-border);
+  border-radius: var(--docpool-radius-lg);
+  font-size: var(--docpool-font-size-sm);
+  box-sizing: border-box;
+  overflow: visible;
+  /* Background color removed - uses default input styling */
+  transition: all var(--docpool-transition-slow);
+  pointer-events: auto;
+  position: relative;
+  z-index: var(--docpool-z-sticky);
+  cursor: pointer;
+}
+
+#fixedBottom input[type='file']:hover {
+  border-color: var(--docpool-border-focus) !important;
+  /* Background color removed - uses default input styling */
+  transform: translateY(-1px);
+  box-shadow: var(--docpool-shadow-md);
+}
+
+#fixedBottom input[type='file']::-webkit-file-upload-button {
+  cursor: pointer;
+  padding: 6px var(--docpool-spacing-md);
+  margin-right: 10px;
+  border: none;
+  border-radius: var(--docpool-radius-md);
+  font-weight: var(--docpool-font-weight-semibold);
+  transition: all var(--docpool-transition-slow);
+}
+
+#fixedBottom input[type='file']::-webkit-file-upload-button:hover {
+  transform: scale(1.05);
+  box-shadow: var(--docpool-shadow-md);
+}
+
+#fixedBottom input[type='submit'] {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: var(--docpool-spacing-md);
+  border: 2px solid;
+  border-radius: var(--docpool-radius-lg);
+  cursor: pointer;
+  font-size: var(--docpool-font-size-base);
+  font-weight: var(--docpool-font-weight-semibold);
+  box-sizing: border-box;
+  transition: all var(--docpool-transition-slow);
+  box-shadow: var(--docpool-shadow-md);
+}
+
+#fixedBottom input[type='submit']:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--docpool-shadow-lg) !important;
+  opacity: 0.9;
+}
+
+#fixedBottom input[type='submit']:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   DRAG AND DROP ZONE
+   ============================================ */
+
+#dropZone {
+  width: 100%;
+  height: 70px;
+  border: var(--docpool-upload-zone-border);
+  border-radius: var(--docpool-radius-lg);
+  padding: var(--docpool-spacing-md);
+  background-color: var(--docpool-upload-zone-bg);
+  cursor: pointer;
+  transition: all var(--docpool-transition-slow);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+#dropZone:hover {
+  border-color: var(--docpool-border-focus) !important;
+  background-color: var(--docpool-upload-zone-bg-hover) !important;
+  transform: translateY(-2px);
+  box-shadow: var(--docpool-shadow-md);
+}
+
+#dropZone:hover #dropText {
+  color: var(--docpool-border-focus) !important;
+}
+
+#dropText {
+  font-size: var(--docpool-font-size-sm);
+  text-align: center;
+  font-weight: var(--docpool-font-weight-medium);
+  transition: color var(--docpool-transition-base);
+}
+
+.clip-image.drop-zone-container {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================
+   EMAIL SECTION
+   ============================================ */
+
+#fixedBottom .email-section {
+  margin-top: 14px;
+  padding: var(--docpool-spacing-md);
+  border-radius: var(--docpool-radius-lg);
+  text-align: center;
+}
+
+#fixedBottom .email-section .email-label {
+  font-size: var(--docpool-font-size-xs);
+  margin-bottom: 6px;
+  font-weight: var(--docpool-font-weight-medium);
+}
+
+#fixedBottom .email-section .email-link {
+  font-size: var(--docpool-font-size-xs);
+  text-decoration: none;
+  word-break: break-all;
+  font-weight: var(--docpool-font-weight-semibold);
+  text-shadow: var(--docpool-shadow-sm);
+  transition: color var(--docpool-transition-base);
+}
+
+#fixedBottom .email-section .email-link:hover {
+  color: #f0f0f0;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  #docPoolContainer {
+    flex-direction: column;
+  }
+  
+  #leftPanel {
+    flex: 0 0 50%;
+    max-width: 100%;
+  }
+  
+  #resizer {
+    width: 100%;
+    height: 5px;
+    cursor: row-resize;
+  }
+  
+  #rightPanel {
+    flex: 1;
+    min-height: 200px;
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.docpool-text-center {
+  text-align: center;
+}
+
+.docpool-text-left {
+  text-align: left;
+}
+
+.docpool-text-right {
+  text-align: right;
+}
+
+.docpool-mt-sm {
+  margin-top: var(--docpool-spacing-sm);
+}
+
+.docpool-mt-md {
+  margin-top: var(--docpool-spacing-md);
+}
+
+.docpool-mb-sm {
+  margin-bottom: var(--docpool-spacing-sm);
+}
+
+.docpool-mb-md {
+  margin-bottom: var(--docpool-spacing-md);
+}
+
+.docpool-p-sm {
+  padding: var(--docpool-spacing-sm);
+}
+
+.docpool-p-md {
+  padding: var(--docpool-spacing-md);
+}
+
+/* ============================================
+   LOADING STATES
+   ============================================ */
+
+#fileListContainer:empty::before {
+  content: 'Loading files...';
+  display: block;
+  padding: var(--docpool-spacing-lg);
+  text-align: center;
+  color: var(--docpool-text-secondary);
+  font-style: italic;
+}
+
+#fileListContainer:has(> em) {
+  padding: var(--docpool-spacing-lg);
+  text-align: center;
+  color: var(--docpool-text-secondary);
+  font-style: italic;
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+  #topBarHeader,
+  #leftPanel,
+  #resizer,
+  #fixedBottom {
+    display: none !important;
+  }
+  
+  #docPoolContainer {
+    position: static;
+    height: auto;
+  }
+  
+  #rightPanel {
+    width: 100%;
+    height: auto;
+  }
+}
+

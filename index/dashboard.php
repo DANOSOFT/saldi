@@ -146,7 +146,8 @@ function generateArray() {
     return $result;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['cookieLanguageId'])) {
+   // Only process dashboard settings if this is NOT a language change request
    $data = file_get_contents("php://input");
    update_settings_value("kontomin",         "dashboard_values", if_isset($_POST['kontomin'],          "0"),    "Show the revenue this month per last month");
    update_settings_value("kontomaks",        "dashboard_values", if_isset($_POST['kontomaks'],         "2000"), "Show the revenue this month per last month");
@@ -258,7 +259,7 @@ print "<div style='display: flex; gap: 2em;'>";
 
 # Regnaar selector
 include "dashboardIncludes/regnaar.php";
-
+include "dashboardIncludes/language.php";
 print "<button style='padding: 1em; cursor: pointer' onclick='document.location.href = \"dashboard.php?hidden=". ($hide_dash === "1" ? "0" : "1") ."\"'>". ($hide_dash !== "1" ? findtekst('1132|Skjul', $sprog_id) : findtekst('1133|Vis', $sprog_id)) ." ".strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
 if ($hide_dash !== "1") print "<button style='padding: 1em; cursor: pointer' onclick='document.getElementById(\"settingpopup\").style.display = \"block\"'>".findtekst('2148|Rediger', $sprog_id). " " .strtolower(findtekst('2224|Oversigt', $sprog_id))."</button>";
 

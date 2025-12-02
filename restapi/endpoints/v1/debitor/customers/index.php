@@ -21,8 +21,12 @@ class CustomerEndpoint extends BaseEndpoint
                 $this->sendResponse(false, null, 'Customer not found', 404);
             }
         } else {
-            // Get all customers
-            $customers = CustomerModel::getAllItems('D');
+            // Get all customers with optional search
+            $search = isset($_GET['search']) ? $_GET['search'] : null;
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
+            $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+            
+            $customers = CustomerModel::getAllItems('D', $search, $limit, $offset);
             $items = [];
             foreach ($customers as $customer) {
                 $items[] = $customer->toArray();

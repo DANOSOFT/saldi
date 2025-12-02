@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/closedOrder.php ---patch 4.0.8 --2023-07-23--
+// --- kreditor/orderIncludes/closedOrder.php ---patch 4.1.1 --2025-11-13--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20221106 PHR - Various changes to fit php8 / MySQLi		
 // 20220629 MSC - Implementing new design
 // 20231219 MSC - Copy pasted new design into code
+// 20251113 PHR - Changed text 1001(Kredit) to 2014(Kreditér)
 	
 print "<input type=\"hidden\" name=\"konto_id\" value=$konto_id>";
 print "<input type=\"hidden\" name=\"kontonr\" value=\"$kontonr\">";
@@ -235,11 +236,11 @@ print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody
 if ($art!='KK') {
 	print "<td align=center><span title=\"".findtekst(1459, $sprog_id)."\">";
 	print "<input type='submit' style = 'width:120px;' value=\"".findtekst(1493, $sprog_id)."\" ";
-	print "name=\"copy\" onclick=\"javascript:docChange = false;\"></span></td>";
+	print "name='copy' onclick=\"javascript:docChange = false;\"></span></td>";
 	print "<td align=center><span title=\"".findtekst(1505, $sprog_id)."\">";
-	print "<input type='submit' style = 'width:120px;' value=\"".findtekst(1001, $sprog_id)."\" ";
-	print "name=\"credit\" onclick=\"javascript:docChange = false;\"></span></td>";
+	print "<input type='submit' style = 'width:120px;' value=\"".findtekst(2014, $sprog_id)."\" ";
+	print "name = 'credit' onclick=\"javascript:docChange = false;\"></span></td>";
 	print "<td align=center><span title=\"".findtekst(1506, $sprog_id)."\">";
-	print "<input type='submit' style = 'width:120px;' value=\"Udskriv\" name=\"print\" ";
+	print "<input type='submit' style = 'width:120px;' value='Udskriv' name='print' ";
 	print "onclick=\"javascript:docChange = false;\"></span></td>";
 }

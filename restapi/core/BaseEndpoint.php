@@ -5,6 +5,7 @@ include_once __DIR__ . "/../../includes/connect.php";
 include_once __DIR__ . "/../../includes/std_func.php";
 include_once __DIR__ . "/auth.php";
 include_once __DIR__ . "/logging.php";
+include_once __DIR__ . "/cors.php";
 require_once __DIR__ . '/ApiException.php';
 
 
@@ -105,6 +106,29 @@ abstract class BaseEndpoint
             return false;
         }
 
+        // Try JWT authentication first (for new mobile app endpoints)
+        if (isset($headers['authorization']) && preg_match('/Bearer\s+/i', $headers['authorization'])) {
+            // JWT token authentication
+            require_once __DIR__ . '/JWT.php';
+            require_once __DIR__ . '/JWTAuth.php';
+            
+            $payload = JWTAuth::validateToken();
+            if ($payload) {
+                // JWT authentication successful
+                // Store user info for later use
+                $this->userId = $payload['user_id'];
+                $this->username = $payload['username'];
+                
+                // Get tenant database if X-Tenant-ID is provided
+                if (isset($headers['x-tenant-id'])) {
+                    $this->tenantDb = JWTAuth::getTenantDatabase();
+                }
+                
+                return true;
+            }
+        }
+
+        // Fall back to legacy API key authentication (for backward compatibility)
         // Check for required headers
         $requiredHeaders = ['authorization', 'x-saldiuser', 'x-db'];
         foreach ($requiredHeaders as $header) {

@@ -98,12 +98,10 @@ function varescan($id,$momssats,$varenr_ny,$antal_ny,$pris_ny,$beskrivelse_ny,$r
 		$l=strlen($varenr_ny)-1;
 		$varenr_ny=substr($varenr_ny,0,$l);
 	}
-echo __file__." ".__line__." $lager_ny<br>";
 
 	for ($l=0;$l<count($lagernr);$l++){
 		if ($lager_ny==$lagernr[$l] && strlen($lagernavn[$l])==1) $lager_ny=$lagernavn[$l];
 	}
-echo __file__." ".__line__." $lager_ny<br>";
 	if ($id) {
 		$r=db_fetch_array(db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__));
 		$konto_id=$r['konto_id'];

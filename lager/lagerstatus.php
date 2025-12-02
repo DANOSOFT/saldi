@@ -163,11 +163,11 @@ if ($menu=='S') {
 	print "<tr>";
 
 	print "<td width='10%'><a href='$returside' accesskey=L>
-		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 
-	print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst(992, $sprog_id))."</td>";
+	print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst('992|Lagerstatus', $sprog_id))."</td>";
 
-	print "<td width='10%'><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&lagervalg=$lagervalg' title=\"".findtekst(1655, $sprog_id)."\">
+	print "<td width='10%'><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&lagervalg=$lagervalg' title=\"".findtekst('1655|Klik her for at eksportere til csv', $sprog_id)."\">
 		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
 
 	print "</tr></td></tbody></table>\n";
@@ -175,10 +175,10 @@ if ($menu=='S') {
 	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
 	print "<tr><td colspan=9><table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>";
 	print "<tr>";
-	print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst(30, $sprog_id)."</a></td>"; #20210708
-	print "<td width=80% $top_bund align=center>".ucfirst(findtekst(992, $sprog_id))."</td>";
+	print "<td width=10% $top_bund><a href=$returside accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>"; #20210708
+	print "<td width=80% $top_bund align=center>".ucfirst(findtekst('992|Lagerstatus', $sprog_id))."</td>";
 	print "<td width=10% $top_bund><a href='lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&lagervalg=$lagervalg' ";
-	print "title=\"".findtekst(1655, $sprog_id)."\">CSV</a></td>";
+	print "title=\"".findtekst('1655|Klik her for at eksportere til csv', $sprog_id)."\">CSV</a></td>";
 	print "</tr></td></tbody></table>\n";
 }
 
@@ -213,16 +213,16 @@ if ($dateType == 'levdate') {
 }
 print "</select>";
 ($zStock)?$zStock="checked='checked'":$zStock=NULL;
-print "&nbsp;<span title='".findtekst(1656, $sprog_id)."'>0 ".strtolower(findtekst('608|Lager', $sprog_id)).":<input type=\"checkbox\" name=\"zStock\" $zStock></span></td>";
+print "&nbsp;<span title='".findtekst('1656|Medtag varer, hvor beholdningen er 0', $sprog_id)."'>0 ".strtolower(findtekst('608|Lager', $sprog_id)).":<input type=\"checkbox\" name=\"zStock\" $zStock></span></td>";
 print "<td  colspan=6 align=right><input type=submit value=OK></form></td></tr>";
 print "<tr><td colspan=9><hr></td></tr>";
-print "<tr><td width=8%>".findtekst(917, $sprog_id).".</td><td width=5%>".findtekst(945, $sprog_id)."</td><td width=48%>".findtekst(914, $sprog_id)."</td>
-	<td align=right width=5%><span title='".findtekst(1657, $sprog_id)." $dato'>".findtekst(977, $sprog_id)."</span></td>
-	<td align=right width=5%><span title='".findtekst(1658, $sprog_id)." $dato'>".findtekst(974, $sprog_id)."</span></td>
-	<td align=right width=5%><span title='".findtekst(1659, $sprog_id).". $dato'>".findtekst(916, $sprog_id)."</span></td>
-	<td align=right width=8%><span title='".findtekst(1660, $sprog_id)."'>".findtekst(978, $sprog_id)."</span></td>
-	<td align=right width=8%><span title='".findtekst(1661, $sprog_id)."'>".findtekst(950, $sprog_id)."</span></td>
-	<td align=right width=8%><span title='".findtekst(1662, $sprog_id)."'>".findtekst(949, $sprog_id)."</span></td></tr>";
+print "<tr><td width=8%>".findtekst('917|Varenr.', $sprog_id).".</td><td width=5%>".findtekst('945|Enhed', $sprog_id)."</td><td width=48%>".findtekst('914|Beskrivelse', $sprog_id)."</td>
+	<td align=right width=5%><span title='".findtekst('1657|Antal enheder købt før den', $sprog_id)." $dato'>".findtekst('2744|Tilgang', $sprog_id)."</span></td>
+	<td align=right width=5%><span title='".findtekst('1658|Antal enheder solgt før den', $sprog_id)." $dato'>".findtekst('2745|Afgang', $sprog_id)."</span></td>
+	<td align=right width=5%><span title='".findtekst('1659|Lagerbeholdning pr', $sprog_id).". $dato'>".findtekst('916|Antal', $sprog_id)."</span></td>
+	<td align=right width=8%><span title='".findtekst('1660|Købsværdi af lagerbeholdning (Reel købspris)', $sprog_id)."'>".findtekst('978|Købspris', $sprog_id)."</span></td>
+	<td align=right width=8%><span title='".findtekst('1661|Kostpris af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('950|Kostpris', $sprog_id)."</span></td>
+	<td align=right width=8%><span title='".findtekst('1662|Salgsværdi af lagerbeholdning (fra varekort)', $sprog_id)."'>".findtekst('949|Salgspris', $sprog_id)."</span></td></tr>";
 
 if ($csv) {
 	$fp=fopen("../temp/$db/lagerstatus.csv","w");
@@ -388,7 +388,7 @@ if ($vare_id[$x]==454) #cho "BP $batch_pris[$x]<br>";
 				$beholdning[$x]=$ny_beholdning[$x];
 				print "<td align=right>".str_replace(".",",",$batch_t_antal[$x]*1)."<br></td>";
 			} else {
-				print "<td align=right title=\"".findtekst(980, $sprog_id)." (".str_replace(".",",",$beholdning[$x]*1).") ".findtekst(1663, $sprog_id)."\"><a href=".$_SERVER['PHP_SELF']."?opdater=$vare_id[$x] onclick=\"return confirm('Opdater lagerbeholdning fra ".dkdecimal($beholdning[$x],2)." til ".dkdecimal($batch_t_antal[$x],2)." for denne vare?')\"><span style=\"color: rgb(255, 0, 0);\">".str_replace(".",",",$batch_t_antal[$x]*1)."</span></a><br></td>";
+				print "<td align=right title=\"".findtekst('980|Beholdning', $sprog_id)." (".str_replace(".",",",$beholdning[$x]*1).") ".findtekst('1663|stemmer ikke med det antal som er købt og solgt. Klik her for at opdatere beholdning', $sprog_id)."\"><a href=".$_SERVER['PHP_SELF']."?opdater=$vare_id[$x] onclick=\"return confirm('Opdater lagerbeholdning fra ".dkdecimal($beholdning[$x],2)." til ".dkdecimal($batch_t_antal[$x],2)." for denne vare?')\"><span style=\"color: rgb(255, 0, 0);\">".str_replace(".",",",$batch_t_antal[$x]*1)."</span></a><br></td>";
 				$ret_behold=1;
 			}
 		} else print "<td align=right>".str_replace(".",",",$batch_t_antal[$x]*1)."<br></td>";

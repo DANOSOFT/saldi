@@ -967,7 +967,7 @@
 967	Varenavn	Item name	Gjenstandsnavn
 968	Detaljeret	Detailed	Detaljert
 969	Kun salg / DB	Sales / DB only	Bare salg / DB
-970	Beregn lagerbeh	Calculate stock	Beregn lager
+970	Beregn lagerbeh.	Calculate stock	Beregn lagerbeh.
 971	Se lagerstatus på vilkårlig dato	See stock status on any date	Se lagerstatus på hvilken som helst dato
 972	Beholdningsrapport med lokation samt min og max	Inventory report with location and min and max	Lagerrapport med plassering og min og maks
 973	Funktion til optælling og regulering af varelager	Function for counting and regulating inventory	Funksjon for telling og regulering av varelager
@@ -981,7 +981,7 @@
 981	Købsdato	Date of purchase	Kjøpsdato
 982	Salgsdato	Sale date	Salgsdato
 983	Summeret	Summed up	Oppsummerte
-984	Samlet til-/afgang i perioden	Total arrival / departure during the period	Total ankomst / avreise i perioden
+984	Samlet til-/afgang i perioden	Total inbound/outbound for period	Samlet til-/avgang i perioden
 985	Åbne ordrer	Open orders	Åpne ordrer
 986	Invoice	Invoiced orders	Fakturerte ordrer
 987	Sagsstyring	Case management	Saksbehandling
@@ -2737,21 +2737,21 @@
 2737	Eksempel (ud fra aktuelle indstillinger)	Example (based on current settings)	Eksempel (basert på gjeldende innstillinger)
 2738	Betalinger til bank	Payments to bank	Betalinger til bank
 2739	Fra liste	From list	Fra liste
-2740	Fra kontokort	From general ledger accounts	Fra kontokort
+2740	Fra kontokort	From general ledger	Fra kontokort
 2741	Sæt en * i slutningen af datoen i det øverste datofelt for at sætte alle datoer til denne dato. F.eks.: 01042021*	Add an * at the end of the date in the top date field to apply this date to all entries. For example: 01042021*	Sett en * på slutten av datoen i det øverste datofeltet for å sette alle datoer til denne datoen. For eksempel: 01042021*
 2742	Betalingstype	Payment type	Betalingstype
 2743	Modtager	Recipient	Mottaker
-2744	
-2745	
-2746	
-2747	
-2748	
-2749	
-2750	
-2751	
-2752	
-2753	
-2754	
+2744	Tilgang	Inbound	Tilgang
+2745	Afgang	Outbound	Avgang
+2746	Varesalg	Product sales	Varesalg
+2747	Inkl. moms	Incl. VAT	Inkl. MVA
+2748	Samlet lagerværdi	Total inventory value	Samlet lagerverdi
+2749	Se	View	Se
+2750	Se i nyt vindue	View in new window	Vis i nytt vindu 
+2751	Slet linjen fra listen	Delete line from list	Slett linjen fra listen
+2752	Vælg i feltet foroven til højre, hvorfra du vil trække betalingsinformationer	Select in the field above to the right where you want to retrieve payment information from	Velg i feltet oppe til høyre hvor du vil hente betalingsinformasjon fra
+2753	Vil du trække betalinger dannet i en kassekladde, vælges 'fra liste'	To retrieve payments created in a cash journal, select 'from list'	For å hente betalinger opprettet i en kassekladd, velg 'fra liste'
+2754	Vil du i stedet trække alle registrerede skyldige beløb til kunder, vælges 'fra kontokort'	To retrieve all registered amounts owed to customers instead, select 'from general ledger'	For å hente alle registrerte skyldige beløp til kunder i stedet, velg 'fra kontokort'
 2755	
 2756	
 2757	
