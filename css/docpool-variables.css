@@ -93,6 +93,37 @@
   --docpool-upload-zone-border: 2px dashed;
   --docpool-upload-zone-bg: rgba(0, 0, 0, 0.02);
   --docpool-upload-zone-bg-hover: rgba(0, 0, 0, 0.05);
+  
+  /* Grid/Datatable specific variables */
+  --grid-wrapper-bg: var(--docpool-bg-main);
+  --grid-table-bg: var(--docpool-bg-main);
+  --grid-header-bg: #f4f4f4;
+  --grid-footer-bg: #f4f4f4;
+  --grid-row-even: #e0e0f0;
+  --grid-row-hover: #f9f9f9;
+  --grid-row-selected: var(--docpool-bg-selected);
+  --grid-border: var(--docpool-border);
+  --grid-border-hover: var(--docpool-border-hover);
+  --grid-search-bg: var(--docpool-bg-main);
+  --grid-search-border: var(--docpool-border);
+  --grid-search-focus: var(--docpool-border-focus);
+  --grid-highlight-bg: #FF0;
+  --grid-highlight-text: var(--docpool-text-primary);
+  
+  /* Dropdown styling */
+  --dropdown-bg: var(--docpool-bg-main);
+  --dropdown-shadow: var(--docpool-shadow-md);
+  --dropdown-hover-bg: #f1f1f1;
+  --dropdown-min-width: 150px;
+  
+  /* Pagination */
+  --pagination-button-size: 24px;
+  --pagination-gap: 3px;
+  
+  /* Common input styling */
+  --input-padding: var(--docpool-spacing-sm);
+  --input-border-radius: var(--docpool-radius-sm);
+  --input-font-size: var(--docpool-font-size-base);
 }
 
 
