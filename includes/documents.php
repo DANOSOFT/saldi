@@ -335,6 +335,10 @@ if ($openPool) {
 		} 
 
 	// Include docPool directly without any table structure
+	// if folder bilag/$db/pulje dosent exist, create it
+	if (!is_dir($docFolder."/$db/pulje")) {
+		mkdir($docFolder."/$db/pulje", 0755, true);
+	}
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;
