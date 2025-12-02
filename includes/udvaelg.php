@@ -102,15 +102,11 @@ if (!function_exists('udvaelg')){
 			} elseif ($art=="TEXT") {
 				if (strstr($tmp,'*')) {
 					$tmp=str_replace('*','%',$tmp);
-					$udvaelg = " and ($key like '$tmp'";
-					$udvaelg.= " or lower($key) like '".mb_strtolower($tmp)."'";
-					$udvaelg.= " or upper($key) like '".mb_strtoupper($tmp)."')";
+					// Use ilike for case-insensitive matching in PostgreSQL
+					$udvaelg = " and $key ilike '$tmp'";
 				} else {
-					$udvaelg = " and ($key = '$tmp'";
-					$udvaelg.= " or lower($key) like '".mb_strtolower($tmp)."'";
-					$udvaelg.= " or upper($key) like '".mb_strtoupper($tmp)."'";
-					$udvaelg.= " or lower($key) like '%".mb_strtolower($tmp)."%'";
-					$udvaelg.= " or upper($key) like '%".mb_strtoupper($tmp)."%')";
+					// Use ilike for case-insensitive matching - supports both exact and partial matches
+					$udvaelg = " and ($key ilike '$tmp' or $key ilike '%$tmp%')";
 				}
 			} else $udvaelg= " and $key::text like '$tmp%'";
 			}

@@ -129,7 +129,7 @@ if ($saet=$_POST['saetvalg']) {
 	if ($ny_saetpris) {
 		if (!db_fetch_array(db_select("select id from ordrelinjer where ordre_id='$id' and varenr='$svnr' and saet='$saet'",__FILE__ . " linje " . __LINE__))){
 			$r=db_fetch_array(db_select("select * from varer where varenr='$svnr'",__FILE__ . " linje " . __LINE__));
-			opret_ordrelinje($id,$r['id'],$r['varenr'],1,$r['beskrivelse'],0,0,100,'$art','','','0','on','','','',$saet);
+			opret_ordrelinje($id,$r['id'],$r['varenr'],1,$r['beskrivelse'],0,0,100,$art,'','','0','on','','','',$saet,'','','','');
 			db_modify("update ordrelinjer set posnr='99',samlevare='on',lev_varenr='$ny_saetpris' where ordre_id='$id' and saet='$saet' and varenr='$svnr'",__FILE__ . " linje " . __LINE__);
 		}
 		$ny_rabat=$normalsum-$ny_saetpris;

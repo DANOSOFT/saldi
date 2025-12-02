@@ -29,16 +29,14 @@
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
-	global $bruger_id,$db,$exec_path;
-	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5;
+	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
+	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
 	
 	$afd =  $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 
-
-
-	(isset($_POST['unlink']) && $_POST['unlink'])?$unlink=1:$unlink=0;
+	((isset($_POST['unlink']) && $_POST['unlink']) || (isset($_GET['unlink']) && $_GET['unlink']))?$unlink=1:$unlink=0;
 	(isset($_POST['rename']) && $_POST['rename'])?$rename=1:$rename=0;
-	(isset($_POST['unlinkFile']) && $_POST['unlinkFile'])?$unlinkFile=$_POST['unlinkFile']:$unlinkFile=NULL;
+	(isset($_POST['unlinkFile']) && $_POST['unlinkFile'])?$unlinkFile=$_POST['unlinkFile']:((isset($_GET['unlinkFile']) && $_GET['unlinkFile'])?$unlinkFile=$_GET['unlinkFile']:$unlinkFile=NULL);
 	
 	$insertFile   = if_isset($_POST,NULL,'insertFile');
 	$newFileName  = if_isset($_POST,NULL,'newFileName');
@@ -65,6 +63,15 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$dato = $formattedDate;
 			$_POST['dato']=$dato;
 		#}
+		
+		// Ensure poolFile is available in insertDoc.php scope
+		// It should already be available as a function parameter, but ensure it's set
+		if (!isset($poolFile) || empty($poolFile)) {
+			$poolFile = if_isset($_GET, NULL, 'poolFile');
+			if (empty($poolFile)) {
+				$poolFile = if_isset($_POST, NULL, 'poolFile');
+			}
+		}
 		
 		include ("docsIncludes/insertDoc.php");
 #		Echo "Indsltter $poolFile<br>";
@@ -193,7 +200,50 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 											// Write to the file
 											if (file_put_contents($newPath, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
+												// Save to database
+												// Check if pool_files table exists, create if not
+												$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+												if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+													$qtxt = "CREATE TABLE pool_files (
+														id serial NOT NULL,
+														filename varchar(255) NOT NULL,
+														subject text,
+														account varchar(50),
+														amount varchar(50),
+														file_date varchar(50),
+														updated timestamp DEFAULT CURRENT_TIMESTAMP,
+														PRIMARY KEY (id),
+														UNIQUE(filename)
+													)";
+													db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+												}
 												
+												// Save or update in database
+												$filename = $newBase . '.pdf';
+												$qtxt = "SELECT id FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
+												$existing = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+												
+												if ($existing) {
+													// Update existing record
+													$qtxt = "UPDATE pool_files SET 
+														subject = '". db_escape_string($newSubject ?? '') ."',
+														account = '". db_escape_string($newAccount ?? '') ."',
+														amount = '". db_escape_string($newAmount ?? '') ."',
+														file_date = '". db_escape_string($newDate ?? '') ."',
+														updated = CURRENT_TIMESTAMP
+														WHERE filename = '". db_escape_string($filename) ."'";
+													db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+												} else {
+													// Insert new record
+													$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date) VALUES (
+														'". db_escape_string($filename) ."',
+														'". db_escape_string($newSubject ?? '') ."',
+														'". db_escape_string($newAccount ?? '') ."',
+														'". db_escape_string($newAmount ?? '') ."',
+														'". db_escape_string($newDate ?? '') ."'
+													)";
+													db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+												}
 											} else {
 												error_log("Failed to update .info file: $newPath");
 											}
@@ -242,6 +292,73 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 					// Update poolFile to reflect renamed main file
 					$poolFile = $renamedPoolFile;
 				}
+				
+				// Handle case where we're updating metadata without renaming
+				// If rename is set but filename hasn't changed, still update .info and database
+				if ($rename && ($newAccount || $newAmount || $newSubject || $newDate) && $poolFile) {
+					$puljePath = "$docFolder/$db/pulje";
+					$baseName = pathinfo($poolFile, PATHINFO_FILENAME);
+					$infoFile = "$puljePath/$baseName.info";
+					
+					if (file_exists($infoFile)) {
+						// Update .info file
+						$infoSubject = $newSubject ?? '';
+						if (empty($infoSubject)) {
+							$infoSubject = $baseName;
+						}
+						$infoLines = [
+							$infoSubject,
+							$newAccount ?? '',
+							$newAmount ?? '',
+							$newDate ?? ''
+						];
+						
+						if (file_put_contents($infoFile, implode(PHP_EOL, $infoLines) . PHP_EOL) !== false) {
+							// Save to database
+							$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+							if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+								$qtxt = "CREATE TABLE pool_files (
+									id serial NOT NULL,
+									filename varchar(255) NOT NULL,
+									subject text,
+									account varchar(50),
+									amount varchar(50),
+									file_date varchar(50),
+									updated timestamp DEFAULT CURRENT_TIMESTAMP,
+									PRIMARY KEY (id),
+									UNIQUE(filename)
+								)";
+								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+							}
+							
+							// Save or update in database
+							$qtxt = "SELECT id FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
+							$existing = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+							
+							if ($existing) {
+								// Update existing record
+								$qtxt = "UPDATE pool_files SET 
+									subject = '". db_escape_string($infoSubject) ."',
+									account = '". db_escape_string($newAccount ?? '') ."',
+									amount = '". db_escape_string($newAmount ?? '') ."',
+									file_date = '". db_escape_string($newDate ?? '') ."',
+									updated = CURRENT_TIMESTAMP
+									WHERE filename = '". db_escape_string($poolFile) ."'";
+								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+							} else {
+								// Insert new record
+								$qtxt = "INSERT INTO pool_files (filename, subject, account, amount, file_date) VALUES (
+									'". db_escape_string($poolFile) ."',
+									'". db_escape_string($infoSubject) ."',
+									'". db_escape_string($newAccount ?? '') ."',
+									'". db_escape_string($newAmount ?? '') ."',
+									'". db_escape_string($newDate ?? '') ."'
+								)";
+								db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+							}
+						}
+					}
+				}
 
 				// ✅ Prevent undefined variable warnings
 				$modDate = $modDate ?? '';
@@ -274,12 +391,29 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 						error_log("File not found: $fileToDelete");
 					}
 				}
+				
+				// Remove from database
+				$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+				if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$filename = $unlinkFile;
+					$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($filename) ."'";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				}
 
 
 		}elseif (isset($_POST['poolFile'])) {
 			$poolFile=if_isset($_POST['poolFile']);
 
-			if ($poolFile) unlink("../".$docFolder."/$db/pulje/$poolFile"); 
+			if ($poolFile) {
+				unlink("../".$docFolder."/$db/pulje/$poolFile");
+				
+				// Remove from database
+				$qtxt = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$db' AND table_name = 'pool_files'";
+				if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+					$qtxt = "DELETE FROM pool_files WHERE filename = '". db_escape_string($poolFile) ."'";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				}
+			}
 			
 		}
 #exit;
@@ -350,41 +484,102 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	"sourceId=$sourceId"."&".
 	"source=$source";
 
+	global $menu;
+	if (!isset($top_bund)) $top_bund = "";
+	
+	// Determine back URL based on source (same logic as header.php)
+	if ($source=="kassekladde") {
+		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+	} elseif ($source=="debitorOrdrer") {
+		$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
+	} elseif ($source=="creditorOrder") {
+		$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
+	} else {
+		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
+	}
+	// Print header banner
+	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+	if ($menu=='S') {
+		print "<tr>";
+		print "<td width='10%' style='$topStyle'><a href='$backUrl' accesskey='L'><button style='$buttonStyle width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
+		print "<td width='10%' style='$topStyle' align='center'><br></td>";
+		print "</tr>";
+	} else {
+		print "<tr>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
+		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
+		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></td>";
+		print "</tr>";
+	}
+	print "</tbody></table>";
+	
+	// Include DocPool CSS files
+	$cssPath = "../css";
+	if (!file_exists($cssPath)) {
+		if (file_exists("../../css")) $cssPath = "../../css";
+		elseif (file_exists("../../../css")) $cssPath = "../../../css";
+	}
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css\">\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css\">\n";
+	
+	// Add dynamic CSS variables for button colors
+	$lightButtonColor = brightenColor($buttonColor, 0.6);
+	print "<style>
+		:root {
+			--docpool-primary: $buttonColor;
+			--docpool-primary-text: $buttonTxtColor;
+			--docpool-primary-light: $lightButtonColor;
+		}
+		/* Dynamic button color overrides for top bar */
+		#topBarHeader tbody tr td a button,
+		#topBarHeader tbody tr td a button:hover,
+		#topBarHeader tbody tr td a:hover button,
+		#topBarHeader tbody tr td a:focus button,
+		#topBarHeader tbody tr td a:active button,
+		#topBarHeader tbody tr td button,
+		#topBarHeader tbody tr td button:hover,
+		#topBarHeader tbody tr td button:focus,
+		#topBarHeader tbody tr td button:active {
+			background-color: $buttonColor !important;
+			color: $buttonTxtColor !important;
+			border-color: $buttonColor !important;
+		}
+		#topBarHeader tbody tr,
+		#topBarHeader tbody tr:hover,
+		#topBarHeader tbody tr td,
+		#topBarHeader tbody tr td:hover {
+			background-color: $buttonColor !important;
+		}
+	</style>";
+
 	print "<form name=\"gennemse\" action=\"documents.php?$params&$poolParams\" method=\"post\">\n";
+	print "<input type='hidden' id='hiddenSubject' name='newSubject' value=''>\n";
+	print "<input type='hidden' id='hiddenAccount' name='newAccount' value=''>\n";
+	print "<input type='hidden' id='hiddenAmount' name='newAmount' value=''>\n";
+	print "<input type='hidden' id='hiddenDate' name='newDate' value=''>\n";
 
 #####
-print "<tr><td width='15%' height='70%' valign='top'>";
-#9a9a9a
-// print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"border: 3px solid rgb(180, 180, 255); padding: 0pt 0pt 1px;\"><tbody>\n";
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"padding: 0pt 0pt 1px;\"><tbody>\n";
-
-
- print "<tr><td id='fileListContainer'>Loading files...</td></tr>";
-
-
-print "</tbody></table></td></tr>\n";
-
-print "<style>
- #fileListContainer {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;  
-  padding: 0;
-}
-#fileListContainer > div {
-  flex: 1;   
-  margin: 0;
-  padding: 0;
-}
-
-</style>";
-
+// Modern flexbox layout instead of tables
+// Styles are now in docpool.css
+print "<div id='docPoolContainer'>";
+print "<div id='leftPanel'>";
+print "<div id='fileListContainer'>Loading files...</div>";
+// Fixed bottom section will be added here later via PHP (before leftPanel closes)
 
 
 // $combinedParams = $params . '&' . $poolParams; 
 $encodedDir = urlencode($dir);
 $poolFileJs = json_encode($poolFile); // safely escapes quotes
 $JsSum = json_encode($sum); // safely escapes quotes
+
+
+// Calculate lightened button color using PHP function from topline_settings.php
+$lightButtonColor = brightenColor($buttonColor, 0.6); // Lighten by 60% (0.6 = 60%)
+
+$buttonColorJs = json_encode($buttonColor);
+$buttonTxtColorJs = json_encode($buttonTxtColor);
+$lightButtonColorJs = json_encode($lightButtonColor);
 
 print <<<JS
 <script>
@@ -394,6 +589,9 @@ print <<<JS
     const containerId = 'fileListContainer';
 	 const poolFile = {$poolFileJs};
 	 const totalSum = {$JsSum};
+	 const buttonColor = {$buttonColorJs};
+	 const buttonTxtColor = {$buttonTxtColorJs};
+	 const lightButtonColor = {$lightButtonColorJs};
 
     async function fetchFiles() {
         const dir = '{$encodedDir}'; 
@@ -422,35 +620,38 @@ print <<<JS
 				document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
 				return;
 			}
-
+			
 		let html = `
-  <div style="max-height:500px; overflow-y:auto; margin:0; padding-right:3px;">
-    <table style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:14px; border:1px solid #ddd; margin:0; padding:0;">
-      <thead style="background:#99a998; position:sticky; top:0; z-index:10; margin:0; padding:0;">
+  <div style="margin:0; padding-right:3px; width:100%; box-sizing:border-box;">
+    <table style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:13px; border:1px solid #ddd; margin:0; padding:0; table-layout:fixed;">
+      <thead style="background:${buttonColor}; color:${buttonTxtColor}; position:sticky; top:0; z-index:10; margin:0; padding:0;">
         <tr>
-					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">
+					<th onclick="sortFiles('subject')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Subject</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('account')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">
+					<th onclick="sortFiles('account')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Account</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">
+					<th onclick="sortFiles('amount')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Amount</span>
 							<span>&#9660;</span>
 						</div>
 					</th>
-					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left;">
+					<th onclick="sortFiles('date')" style="cursor:pointer; padding:8px; border:1px solid #ddd; text-align:left; color:${buttonTxtColor};">
 						<div style="display: flex; justify-content: space-between; align-items: center;">
 							<span>Date</span>
 							<span>&#9660;</span>
 						</div>
+					</th>
+					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 140px; color:${buttonTxtColor};">
+						<span>Actions</span>
 					</th>
 				</tr>
 			</thead>
@@ -469,8 +670,8 @@ print <<<JS
 			const lastPoolFile = allPoolFiles.length ? allPoolFiles[allPoolFiles.length - 1] : null;
 			const isMatch = lastPoolFile === poolFile;
 
-			const rowStyle = isMatch
-				? "background-color: #ffebcc; font-weight: bold;" 
+			const rowStyle = isMatch 
+				? `border-bottom:1px solid #ddd; background-color:${lightButtonColor} !important; color:#000000 !important; font-weight:bold;`
 				: "border-bottom:1px solid #ddd;";
 
 			//let normalizedTotal = parseFloat(totalSum.replace(/\./g, '').replace(',', '.'));
@@ -480,35 +681,28 @@ print <<<JS
 				? "<strong>" + escapeHTML(row.amount) + "</strong>"
 				: escapeHTML(row.amount);
 
-			const subjectCell = isMatch
-				? "<input type='text' name='newSubject' value='" + escapeHTML(row.subject) + "' " +
-				"style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
-				"oninput='updateFilenameFromSubject();' onclick='event.stopPropagation();' onkeydown='handleEnterKey(event)'>"
-				: escapeHTML(row.subject);
+			// All cells start as non-editable (text)
+			const subjectCell = "<span class='cell-content'>" + escapeHTML(row.subject) + "</span>";
+			const accountCell = "<span class='cell-content'>" + escapeHTML(row.account) + "</span>";
+			const amountCell = "<span class='cell-content'>" + boldAmount + "</span>";
+			const dateCell = "<span class='cell-content'>" + dateFormatted + "</span>";
 
-			const accountCell = isMatch
-				? "<input type='text' name='newAccount' value='" + escapeHTML(row.account) + "' " +
-				"style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
-				"onclick='event.stopPropagation();' onkeydown='handleEnterKey(event)'>"
-				: escapeHTML(row.account);
+			// Extract poolFile from href for delete action
+			const poolFileFromHref = lastPoolFile || '';
+			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
+			
+			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Vælg/Indsæt'>✓</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
+				"</div>";
 
-			const amountCell = isMatch
-				? "<input type='text' name='newAmount' value='" + escapeHTML(row.amount) + "' " +
-				"style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
-				"onclick='event.stopPropagation();' onkeydown='handleEnterKey(event)'>"
-				: boldAmount;
-
-			const dateCell = isMatch
-				? "<input type='date' name='newDate' value='" + dateFormatted + "' " +
-				"style='width: 100%; border: none; background: transparent; font-family: inherit; font-size: inherit;' " +
-				"onclick='event.stopPropagation();' onkeydown='handleEnterKey(event)' onchange='submitRowData(event)'>"
-				: dateFormatted;
-
-			const rowHTML = "<tr style='" + rowStyle + " cursor: pointer;' onclick=\"window.location.href='" + row.href + "'\">" +
-				"<td style='padding:8px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
-				"<td style='padding:8px; border:1px solid #ddd; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
-				"<td style='padding:8px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
-				"<td style='padding:8px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
+			const rowHTML = "<tr data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + (isMatch ? "data-selected='true' " : "") + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='" + row.href + "'; }\">" +
+				"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
+				"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
+				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
+				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
+				"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 				"</tr>";
 
 
@@ -527,12 +721,25 @@ print <<<JS
 
 			html += "</tbody></table>";
 
-			// hover style 
+			// Dynamic styles for selected/editing rows (using CSS variables from docpool.css)
 			html += "<style>\
-				table tbody tr:hover { background-color: #edf3e8ff; }\
+				table tbody tr:hover { background-color: " + lightButtonColor + " !important; }\
+				table tbody tr[data-selected='true'] { background-color: " + lightButtonColor + " !important; color: #000000 !important; }\
+				table tbody tr[data-selected='true'] td { color: #000000 !important; }\
+				table tbody tr[data-selected='true']:hover { background-color: " + lightButtonColor + " !important; }\
+				table tbody tr[data-selected='true']:hover td { color: #000000 !important; }\
+				table tbody tr[data-editing='true'] { background-color: " + lightButtonColor + " !important; }\
+				table tbody tr:hover td { background-color: transparent !important; }\
+				.edit-input { border-color: " + buttonColor + "; }\
+				.edit-input:focus { outline-color: " + buttonColor + "; }\
 			</style>";
 
 			document.getElementById(containerId).innerHTML = html;
+			
+			// Update padding after rendering
+			if (typeof updateFixedDiv === 'function') {
+				setTimeout(updateFixedDiv, 100);
+			}
 		}
 
 
@@ -575,62 +782,279 @@ print <<<JS
         })[m]);
     }
 	
-//handle submit on enter key
-window.handleEnterKey = function(event) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    submitRowData();
-  }
+	// Make escapeHTML globally available
+	window.escapeHTML = escapeHTML;
+	
+	// Function to insert/choose a bilag - matches old "Indsæt" button behavior exactly
+	window.chooseBilag = function(poolFile) {
+		const form = document.forms['gennemse'];
+		if (!form) {
+			alert('Form not found');
+			return;
+		}
+		
+		// Update form action URL to include the selected poolFile (like old version)
+		const formAction = form.getAttribute('action');
+		const url = new URL(formAction, window.location.href);
+		
+		// Update poolFile in URL parameters (matches old behavior where poolFile is in $poolParams)
+		url.searchParams.set('poolFile', poolFile);
+		
+		// Update the form action with the new poolFile
+		form.setAttribute('action', url.toString());
+		
+		// Create a hidden submit button with name="insertFile" (exactly like old version)
+		// This mimics the old submit button: <input type="submit" name="insertFile" value="Indsæt">
+		let insertFileButton = form.querySelector('input[name="insertFile"][type="submit"]');
+		if (!insertFileButton) {
+			insertFileButton = document.createElement('input');
+			insertFileButton.type = 'submit';
+			insertFileButton.name = 'insertFile';
+			insertFileButton.style.display = 'none';
+			form.appendChild(insertFileButton);
+		}
+		
+		// Submit the form by clicking the button (matches old behavior exactly)
+		// This will cause $_POST[insertFile] to be set when form is submitted
+		// The poolFile in URL will be available as $_GET[poolFile] or function parameter
+		insertFileButton.click();
+	};
+	
+// Enable editing for a specific row
+window.enableRowEdit = function(button, poolFile, subject, account, amount, date) {
+	// Disable any other row that might be in edit mode
+	const allRows = document.querySelectorAll('tr[data-editing="true"]');
+	allRows.forEach(row => {
+		const cells = row.querySelectorAll('td');
+		if (cells.length >= 5) {
+			// Restore original values
+			const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
+			cells[0].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
+			cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
+			cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
+			cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+			// Restore original actions
+			if (row.dataset.originalActions) {
+				cells[4].innerHTML = row.dataset.originalActions;
+			}
+			row.removeAttribute('data-editing');
+			delete row.dataset.originalValues;
+			delete row.dataset.originalActions;
+		}
+	});
+
+	// Get the row for this button
+	const row = button.closest('tr');
+	if (!row) return;
+
+	// Store original values and actions
+	const cells = row.querySelectorAll('td');
+	const originalActions = cells.length >= 5 ? cells[4].innerHTML : '';
+	row.dataset.originalValues = JSON.stringify({ subject, account, amount, date });
+	row.dataset.originalActions = originalActions;
+	row.setAttribute('data-editing', 'true');
+	row.setAttribute('data-pool-file', poolFile);
+
+	// Make cells editable
+	if (cells.length >= 5) {
+		const dateFormatted = date.split(' ')[0] || date;
+		
+		cells[0].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(subject) + "' data-field='subject' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
+		cells[1].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(account) + "' data-field='account' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
+		cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(amount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' onclick='event.stopPropagation();'>";
+		cells[3].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' onchange='saveRowData(this)' onclick='event.stopPropagation();'>";
+		
+		// Update actions column with only save (green) and cancel (red) buttons when editing
+		cells[4].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Gem'>💾</button>" +
+			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Annuller'>✕</button>" +
+			"</div>";
+		
+		// Focus on first input
+		setTimeout(() => cells[0].querySelector('input').focus(), 10);
+	}
 };
 
-
-window.submitRowData = function() {
-  const form = document.forms['gennemse'];
-  if (form) {
-    // Copy visible inputs into hidden fields
-    const subjectInput = document.querySelector("input[name='newSubject']");
-    const accountInput = document.querySelector("input[name='newAccount']");
-    const amountInput = document.querySelector("input[name='newAmount']");
-    const dateInput = document.querySelector("input[name='newDate']");
-
-    if (subjectInput) document.getElementById("hiddenSubject").value = subjectInput.value;
-    if (accountInput) document.getElementById("hiddenAccount").value = accountInput.value;
-    if (amountInput) document.getElementById("hiddenAmount").value = amountInput.value;
-    if (dateInput) document.getElementById("hiddenDate").value = dateInput.value;
-
-    // Add rename field if not already there
-    if (!form.querySelector("input[name='rename']")) {
-      const hiddenInput = document.createElement('input');
-      hiddenInput.type = 'hidden';
-      hiddenInput.name = 'rename';
-      hiddenInput.value = 'Ret filnavn';
-      form.appendChild(hiddenInput);
-    }
-
-    form.submit();
-  } else {
-    console.error("Form 'gennemse' not found.");
-  }
+// Cancel editing and restore original values
+window.cancelRowEdit = function(button) {
+	const row = button.closest('tr[data-editing="true"]');
+	if (!row) return;
+	
+	const cells = row.querySelectorAll('td');
+	if (cells.length >= 5) {
+		// Restore original values
+		const originalData = row.dataset.originalValues ? JSON.parse(row.dataset.originalValues) : {};
+		cells[0].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.subject || '') + "</span>";
+		cells[1].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.account || '') + "</span>";
+		cells[2].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.amount || '') + "</span>";
+		cells[3].innerHTML = "<span class='cell-content'>" + escapeHTML(originalData.date || '') + "</span>";
+		// Restore original actions
+		if (row.dataset.originalActions) {
+			cells[4].innerHTML = row.dataset.originalActions;
+		}
+		row.removeAttribute('data-editing');
+		delete row.dataset.originalValues;
+		delete row.dataset.originalActions;
+	}
 };
 
-// Attach submit listener after DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.querySelector("form[name='gennemse']");
-  if (form) {
-    form.addEventListener("submit", function () {
-      const subjectInput = document.querySelector("input[name='newSubject']");
-      const accountInput = document.querySelector("input[name='newAccount']");
-      const amountInput = document.querySelector("input[name='newAmount']");
-      const dateInput = document.querySelector("input[name='newDate']");
+// Delete pool file with confirmation
+window.deletePoolFile = function(poolFile, subject, deleteUrl) {
+	const confirmMsg = "Er du sikker på at du vil slette \"" + subject + "\"?";
+	if (confirm(confirmMsg)) {
+		window.location.href = deleteUrl;
+	}
+};
 
-      if (subjectInput) document.getElementById("hiddenSubject").value = subjectInput.value;
-      if (accountInput) document.getElementById("hiddenAccount").value = accountInput.value;
-      if (amountInput) document.getElementById("hiddenAmount").value = amountInput.value;
-      if (dateInput) document.getElementById("hiddenDate").value = dateInput.value;
-    });
-  }
-});
-//end submit on enter key
+// Handle Enter key to save
+window.handleEnterKey = function(event, input) {
+	if (event.key === "Enter") {
+		event.preventDefault();
+		saveRowData(input);
+	}
+};
+
+// Save row data via AJAX
+window.saveRowData = function(input) {
+	const row = input.closest('tr[data-editing="true"]');
+	if (!row) return;
+
+	const poolFile = row.getAttribute('data-pool-file');
+	const inputs = row.querySelectorAll('.edit-input');
+	
+	const data = {
+		rename: 'Ret filnavn',
+		poolFile: poolFile,
+		newSubject: '',
+		newAccount: '',
+		newAmount: '',
+		newDate: ''
+	};
+
+	inputs.forEach(input => {
+		const field = input.getAttribute('data-field');
+		if (field === 'subject') data.newSubject = input.value;
+		else if (field === 'account') data.newAccount = input.value;
+		else if (field === 'amount') data.newAmount = input.value;
+		else if (field === 'date') data.newDate = input.value;
+	});
+
+	// Get the form action URL
+	const form = document.forms['gennemse'];
+	if (!form) return;
+
+	const formAction = form.getAttribute('action');
+	
+	// Construct the full URL - resolve relative path from current page
+	// Use window.location.href as base to properly resolve relative paths
+	const url = new URL(formAction, window.location.href);
+	
+	// Ensure poolFile is in the URL query string
+	url.searchParams.set('poolFile', data.poolFile);
+	
+	// Create FormData with all required fields
+	const formData = new FormData();
+	formData.append('rename', data.rename);
+	formData.append('poolFile', data.poolFile);
+	formData.append('newFileName', data.poolFile); // Required by backend, use same filename since we're only updating .info
+	formData.append('newSubject', data.newSubject);
+	formData.append('newAccount', data.newAccount);
+	formData.append('newAmount', data.newAmount);
+	formData.append('newDate', data.newDate);
+	
+	// Add URL parameters to form data
+	url.searchParams.forEach((value, key) => {
+		formData.append(key, value);
+	});
+
+	// Show loading state
+	row.style.opacity = '0.6';
+	row.style.pointerEvents = 'none';
+
+	// Debug: Log what we're sending
+	console.log('Saving data:', {
+		poolFile: data.poolFile,
+		newSubject: data.newSubject,
+		newAccount: data.newAccount,
+		newAmount: data.newAmount,
+		newDate: data.newDate,
+		url: url.toString()
+	});
+
+	// Send AJAX request
+	fetch(url.toString(), {
+		method: 'POST',
+		body: formData,
+		redirect: 'follow' // Follow redirects
+	})
+	.then(response => {
+		console.log('Save response status:', response.status, response.ok, response.redirected, response.statusText);
+		// Check if response is ok (status 200-299) - backend returns HTML page which is fine
+		// Any 2xx status means success
+		if (response.ok || (response.status >= 200 && response.status < 300)) {
+			// Update the row with new values (convert back to display format)
+			let dateFormatted = data.newDate;
+			if (dateFormatted && dateFormatted.includes(' ')) {
+				dateFormatted = dateFormatted.split(' ')[0];
+			}
+			
+			row.querySelector('td:nth-child(1)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newSubject) + "</span>";
+			row.querySelector('td:nth-child(2)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAccount) + "</span>";
+			row.querySelector('td:nth-child(3)').innerHTML = "<span class='cell-content'>" + escapeHTML(data.newAmount) + "</span>";
+			row.querySelector('td:nth-child(4)').innerHTML = "<span class='cell-content'>" + escapeHTML(dateFormatted) + "</span>";
+			
+			// Restore actions column with updated values
+			const poolFileFromRow = row.getAttribute('data-pool-file');
+			const currentUrl = window.location.href;
+			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
+			
+			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Vælg/Indsæt'>✓</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
+				"</div>";
+			
+			row.querySelector('td:nth-child(5)').innerHTML = actionsCell;
+			
+			// Remove edit mode
+			row.removeAttribute('data-editing');
+			delete row.dataset.originalValues;
+			delete row.dataset.originalActions;
+			
+			// Update the data in docData array for future renders
+			const dataIndex = docData.findIndex(d => {
+				const url = new URL(d.href, window.location.origin);
+				const allPoolFiles = url.searchParams.getAll('poolFile');
+				return allPoolFiles.length > 0 && allPoolFiles[allPoolFiles.length - 1] === poolFileFromRow;
+			});
+			
+			if (dataIndex !== -1) {
+				docData[dataIndex].subject = data.newSubject;
+				docData[dataIndex].account = data.newAccount;
+				docData[dataIndex].amount = data.newAmount;
+				docData[dataIndex].date = dateFormatted;
+			}
+		} else {
+			// Try to get error message from response
+			response.text().then(text => {
+				console.error('Save failed. Response:', response.status, text);
+				alert('Fejl ved gemning (Status: ' + response.status + '). Prøv igen.');
+			}).catch(() => {
+				alert('Fejl ved gemning. Prøv igen.');
+			});
+		}
+	})
+	.catch(error => {
+		console.error('Error saving:', error);
+		alert('Fejl ved gemning: ' + error.message);
+	})
+	.finally(() => {
+		row.style.opacity = '1';
+		row.style.pointerEvents = 'auto';
+	});
+};
+
+// Old form submission handlers removed - now using AJAX
 
 
 
@@ -641,21 +1065,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 })();
 
-
-
-
-
-document.querySelector("form").addEventListener("submit", function () {
-    const subjectInput = document.querySelector("input[name='newSubject']");
-    const accountInput = document.querySelector("input[name='newAccount']");
-    const amountInput = document.querySelector("input[name='newAmount']");
-    const dateInput = document.querySelector("input[name='newDate']");
-
-    if (subjectInput) document.getElementById("hiddenSubject").value = subjectInput.value;
-    if (accountInput) document.getElementById("hiddenAccount").value = accountInput.value;
-    if (amountInput) document.getElementById("hiddenAmount").value = amountInput.value;
-    if (dateInput) document.getElementById("hiddenDate").value = dateInput.value;
-});
 
 
 </script>
@@ -690,14 +1099,84 @@ JS;
 		} 
 	}
 
-	print "</td></tr>\n";
+	// Fixed bottom section in left panel (must be inside leftPanel, before rightPanel)
+	global $params, $showDoc, $sprog_id;
+	if (!isset($showDoc)) $showDoc = '';
+	$uploadParams = $params . "&openPool=1&poolFile=$poolFile&docFolder=" . urlencode($docFolder);
+	
+	print "<div id='fixedCell' style='width: 100%; flex-shrink: 0;'>";
+	print "<div id='contentWrapper'>";
+	
+	// Get button colors for fixedBottom
+	if (!isset($buttonColor)) {
+		$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$buttonColor = $r['var_value'];
+		} else {
+			$buttonColor = '#114691';
+		}
+	}
+	if (!isset($buttonTxtColor)) {
+		$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$buttonTxtColor = $r['var_value'];
+		} else {
+			$buttonTxtColor = '#ffffff';
+		}
+	}
+	
+	// Close the gennemse form before the upload form (forms cannot be nested)
+	print "</form>";
+	
+	print "<div id='fixedBottom' style='position: relative; width: 100%; padding: 16px; box-sizing: border-box; z-index: 1000;'>";
+	
+	// Upload form (independent form, not nested)
+	print "<form enctype='multipart/form-data' action='documents.php?$uploadParams' method='POST' style='margin: 0; padding: 0;'>";
+	print "<input type='hidden' name='MAX_FILE_SIZE' value='100000000'>";
+	print "<input type='hidden' name='insertFile' value='1'>";
+	print "<div style='margin-bottom: 10px; padding: 8px; background-color: $buttonColor; border-radius: 8px; font-weight: 600; font-size: 14px; color: $buttonTxtColor; text-shadow: 0 1px 2px rgba(0,0,0,0.1);'>".findtekst(1414, $sprog_id).":</div>";
+	print "<label for='fileUploadInput' style='display: block; width: 100%; margin-bottom: 12px; cursor: pointer;'>";
+	print "<input id='fileUploadInput' class='inputbox' name='uploadedFile' type='file' accept='.pdf,.jpg,.png' style='width: 100%; height: auto; min-height: 40px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 12px; box-sizing: border-box; overflow: visible; background-color: #ffffff; transition: all 0.3s ease; pointer-events: auto; position: relative; z-index: 10; cursor: pointer;'>";
+	print "</label>";
+	print "<input type='submit' value='".findtekst(1078, $sprog_id)."' style='width: 100%; padding: 10px; margin-bottom: 12px; background-color: $buttonColor; color: $buttonTxtColor; border: 2px solid $buttonColor; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; box-sizing: border-box; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.2);'>";
+	print "</form>";
 
+	// Add drag and drop zone - use buttonColor with opacity for background
+	$dropZone = "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' style='width: 100%; height: 70px; border: 2px dashed $buttonColor; border-radius: 8px; padding: 12px; background-color: rgba(0,0,0,0.02); cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin: 0 auto;'>";
+	$dropZone .= "<span id='dropText' style='font-size: 12px; color: $buttonColor; text-align: center; font-weight: 500;'>".findtekst('2593|Træk og slip PDF-fil her', $sprog_id)."</span>";
+	$dropZone .= "</div>";
+	print "<div class='clip-image drop-zone-container' title='Drag and Drop the file here' style='display: block; width: 100%; margin: 0; padding: 0;'>";
+	print $dropZone;
+	print "</div>";
 
+	// Add email text for sending bilag
+	print "<div style='margin-top: 14px; padding: 12px; background-color: $buttonColor; border-radius: 8px; text-align: center;'>";
+	print "<div style='font-size: 11px; color: $buttonTxtColor; margin-bottom: 6px; font-weight: 500;'>".findtekst('2591|Bilag kan sendes til', $sprog_id)."</div>";
+	print "<a href='mailto:bilag_".$db."@".$_SERVER['SERVER_NAME']."' style='font-size: 11px; color: $buttonTxtColor; text-decoration: none; word-break: break-all; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: color 0.2s;' onmouseover='this.style.color=\"#f0f0f0\"' onmouseout='this.style.color=\"$buttonTxtColor\"'>";
+	print "bilag_".$db."@".$_SERVER['SERVER_NAME']."</a>";
+	print "</div>";
 
-	#print "<tr><td width=100% align=center><br></td></tr>\n"; 
-	print "</table></td>\n";
-	print "<td rowspan=\"2\" width=85% height=\"100%\" align=center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"padding: 0pt 0pt 1px;\"><tbody>";
-	print	"<tr><td width=100% align=center>";
+	// Add JavaScript variables for drag and drop
+	print "<script>
+	var clipVariables = {
+		sourceId: $sourceId,
+		kladde_id: $kladde_id,
+		bilag: $bilag,
+		fokus: '$fokus',
+		source: '$source'
+	};
+	</script>";
+	
+	print "</div>"; // fixedBottom
+	print "</div>"; // contentWrapper
+	print "</div>"; // fixedCell
+	print "</div>"; // Close leftPanel
+	
+	print "<div id='resizer'></div>"; // Resizer divider
+
+	// Right panel for document viewer
+	print "<div id='rightPanel' style='flex: 1; min-width: 200px; height: 100%; display: flex; flex-direction: column;'>";
+	print "<div id='documentViewer' style='flex: 1; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;'>";
 	$corrected = 0;
 	$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
 	$fullName = "$docFolder/$db/pulje/$poolFile";
@@ -819,109 +1298,329 @@ JS;
 	if ($corrected == '1') {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1&poolFile=$poolFile\">";
 	}
-	if ($poolFile) {
+		if ($poolFile) {
 		if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
 		else $src=$tmp;
-		print "<iframe style=\"width:100%;height:100%\" src=\"$fullName\" frameborder=\"0\">";
-		print "</iframe></td></tr>\n";
+		print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName\" frameborder=\"0\">";
+		print "</iframe>";
 	}
-	print "</tbody></table></td></tr>\n";
-   
-	print "<tr><td id='fixedCell' style='position: relative; margin-bottom: 150px; width:20%; padding-bottom: 150px;'>";
+	print "</div>"; // documentViewer
+	print "</div>"; // rightPanel
+	
+	// Close docPoolContainer div
+	print "</div>";
 
+		// Additional dynamic styles for button colors (styles are in docpool.css)
+		print "<style>
+			#fixedBottom input[type='file']::-webkit-file-upload-button {
+				background-color: $buttonColor;
+				color: $buttonTxtColor;
+			}
+			#fixedBottom input[type='submit'] {
+				background-color: $buttonColor;
+				color: $buttonTxtColor;
+				border-color: $buttonColor;
+			}
+			#fixedBottom .upload-label {
+				background-color: $buttonColor;
+				color: $buttonTxtColor;
+			}
+			#fixedBottom .email-section {
+				background-color: $buttonColor;
+			}
+			#fixedBottom .email-section .email-label,
+			#fixedBottom .email-section .email-link {
+				color: $buttonTxtColor;
+			}
+			#dropZone {
+				border-color: $buttonColor;
+			}
+			#dropText {
+				color: $buttonColor;
+			}
+		</style>";
 
+		// Script to adjust fixed div width and position
+		print "<script>
+			const buttonColor = ".json_encode($buttonColor).";
+			const buttonTxtColor = ".json_encode($buttonTxtColor).";
+			
+			function updateFixedDiv() {
+				const leftPanel = document.getElementById('leftPanel');
+				const fixedCell = document.getElementById('fixedCell');
+				const fixedDiv = document.getElementById('fixedBottom');
+				const fileListContainer = document.getElementById('fileListContainer');
 
-		// Start of page content
-		print "<div id='contentWrapper'>";
-
-		#page content would be echoed/printed here.
-
-		
-
-		// Now output the fixed bottom div
-		print "<div id='fixedBottom' style='position: fixed; bottom: 7px; left: 3px; width: 100px;
-			 padding: 7px; 
-			 box-sizing: border-box; z-index: 1000;'>
-			<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'>
-				<tbody>"; 
-
-		# adjusts the fixed div width and adds padding to content
-
-			print "<script>
-				function updateFixedDiv() {
-					const fixedCell = document.getElementById('fixedCell');
-					const fixedDiv = document.getElementById('fixedBottom');
-					const content = document.getElementById('contentWrapper');
-					const fileListContainer = document.getElementById('fileListContainer'); // Container whose width we want to use
-
-					if (!fixedDiv || !fileListContainer) {
-						return; // Exit if fixedDiv or fileListContainer is not found
-					}
-
-					setTimeout(function() {
-						const rect = fileListContainer.getBoundingClientRect();
-						const fileListContainerWidth = rect.width; 
-
-						
-						fixedDiv.style.width = fileListContainerWidth + 'px';
-
-						// Set the width and position of fixedCell based on the fileListContainer width
-						if (fixedCell) {
-							fixedCell.style.width = fileListContainerWidth * 0.2 + 'px';  
-
-							const fixedCellRect = fixedCell.getBoundingClientRect();  
-
-							fixedDiv.style.left = fixedCellRect.left + 'px'; 
-							fixedDiv.style.width = fixedCellRect.width + 'px'; 
-						}
-
-						// Adjust content padding based on the height of fixedDiv
-						if (content) {
-							content.style.paddingBottom = fixedDiv.offsetHeight + 'px';
-						}
-
-					}, 720);  // Delay of 720ms 
-
+				if (!fixedDiv || !fileListContainer || !leftPanel || !fixedCell) {
+					return;
 				}
 
-				// Run as soon as DOM is ready
-				document.addEventListener('DOMContentLoaded', function() {
-					updateFixedDiv();
-				});
+				setTimeout(function() {
+					const leftPanelWidth = leftPanel.offsetWidth;
+					
+					// Set fixedBottom width to match the left panel width
+					fixedDiv.style.width = leftPanelWidth + 'px';
+					
+					// No need for padding-bottom since fixedCell is now a normal flex item
+				}, 100);
+			}
 
-				window.addEventListener('load', function () {
-					const style = document.createElement('style');
-					style.textContent = `
-						#fixedCell input[type='text'] {
-							max-width: 80%;
-							width: 50%;
-							box-sizing: border-box;
+			document.addEventListener('DOMContentLoaded', function() {
+				updateFixedDiv();
+				
+				// Ensure file input is clickable
+				const fileInput = document.getElementById('fileUploadInput');
+				if (fileInput) {
+					fileInput.style.pointerEvents = 'auto';
+					fileInput.style.cursor = 'pointer';
+				}
+				
+				// Add hover effect for drop zone
+				const dropZone = document.getElementById('dropZone');
+				if (dropZone) {
+					dropZone.addEventListener('dragover', function(e) {
+						e.preventDefault();
+						this.style.borderColor = buttonColor;
+						this.style.backgroundColor = 'rgba(0,0,0,0.05)';
+						const dropText = this.querySelector('#dropText');
+						if (dropText) dropText.style.color = buttonColor;
+					});
+					dropZone.addEventListener('dragleave', function(e) {
+						this.style.borderColor = buttonColor;
+						this.style.backgroundColor = 'rgba(0,0,0,0.02)';
+						const dropText = this.querySelector('#dropText');
+						if (dropText) dropText.style.color = buttonColor;
+					});
+				}
+				
+				// Resizer functionality - optimized for maximum responsiveness
+				function setupResizer() {
+					const resizer = document.getElementById('resizer');
+					const leftPanel = document.getElementById('leftPanel');
+					const rightPanel = document.getElementById('rightPanel');
+					const container = document.getElementById('docPoolContainer');
+					
+					if (!resizer || !leftPanel || !rightPanel || !container) {
+						return false;
+					}
+					
+					let isResizing = false;
+					let startX = 0;
+					let startLeftWidth = 0;
+					let containerWidth = 0;
+					let currentMouseX = 0;
+					let rafId = null;
+					let moveHandlers = [];
+					let endHandlers = [];
+					let pointerId = null;
+					let pointerTarget = null;
+					
+					// Mouse move handler - must be defined before handleStart
+					const handleMove = function(e) {
+						if (!isResizing) return;
+						
+						e.preventDefault();
+						e.stopPropagation();
+						
+						const clientX = e.clientX !== undefined ? e.clientX : (e.touches?.[0]?.clientX);
+						if (clientX !== undefined && clientX !== null && !isNaN(clientX)) {
+							currentMouseX = clientX;
 						}
-
-						/* Example Media Query for Small Screens (e.g., mobile) */
-						@media (max-width: 768px) {
-							#fixedCell {
-								width: 50% !important;  /* Adjust to 50% width on mobile */
+					};
+					
+					// Mouse end handler
+					const handleEnd = function(e) {
+						if (!isResizing) return;
+						
+						// Release pointer capture if it was set
+						if (pointerTarget && pointerTarget.releasePointerCapture && pointerId !== undefined) {
+							try {
+								pointerTarget.releasePointerCapture(pointerId);
+							} catch(err) {
+								// Ignore errors
 							}
 						}
-
-						/* Example Media Query for Large Screens (e.g., desktop) */
-						@media (min-width: 1200px) {
-							#fixedCell {
-								width: 30% !important;  /* Adjust to 30% width on large screens */
+						
+						// Clear pointer tracking
+						pointerTarget = null;
+						pointerId = null;
+						
+						isResizing = false;
+						document.body.style.cursor = '';
+						document.body.style.userSelect = '';
+						
+						// Cancel animation frame
+						if (rafId !== null) {
+							cancelAnimationFrame(rafId);
+							rafId = null;
+						}
+						
+						// Remove all move and end listeners
+						moveHandlers.forEach(({element, event, handler, options}) => {
+							element.removeEventListener(event, handler, options);
+						});
+						endHandlers.forEach(({element, event, handler, options}) => {
+							element.removeEventListener(event, handler, options);
+						});
+						moveHandlers = [];
+						endHandlers = [];
+						
+						// Update fixedBottom after resize
+						setTimeout(function() {
+							if (typeof updateFixedDiv === 'function') {
+								updateFixedDiv();
+							}
+						}, 50);
+					};
+					
+					// Use both mousedown and pointerdown for maximum compatibility
+					const handleStart = function(e) {
+						if (isResizing) return; // Prevent double-start
+						
+						isResizing = true;
+						startX = e.clientX || e.touches?.[0]?.clientX;
+						currentMouseX = startX;
+						
+						// Cache initial values
+						const rect = container.getBoundingClientRect();
+						containerWidth = rect.width;
+						startLeftWidth = leftPanel.offsetWidth;
+						
+						document.body.style.cursor = 'col-resize';
+						document.body.style.userSelect = 'none';
+						
+						e.preventDefault();
+						e.stopPropagation();
+						
+						// Store pointer info for capture/release
+						pointerTarget = e.target;
+						pointerId = e.pointerId;
+						
+						// Use pointer capture if available (for better tracking when moving quickly)
+						if (pointerTarget && pointerTarget.setPointerCapture && pointerId !== undefined) {
+							try {
+								pointerTarget.setPointerCapture(pointerId);
+							} catch(err) {
+								// Pointer capture not supported or failed, continue without it
 							}
 						}
-					`;
-					document.head.appendChild(style);
+						
+						// Add move listeners dynamically when resizing starts
+						const moveOptions = { capture: true, passive: false };
+						const moveEvents = [
+							{ element: document, event: 'mousemove' },
+							{ element: document, event: 'pointermove' },
+							{ element: window, event: 'mousemove' },
+							{ element: window, event: 'pointermove' },
+							{ element: document.body, event: 'mousemove' },
+							{ element: document.body, event: 'pointermove' }
+						];
+						
+						moveEvents.forEach(({element, event}) => {
+							element.addEventListener(event, handleMove, moveOptions);
+							moveHandlers.push({element, event, handler: handleMove, options: moveOptions});
+						});
+						
+						// Handle mouse leaving window - continue tracking last known position
+						const handleMouseLeave = function(e) {
+							if (!isResizing) return;
+							// Don't stop resizing, just continue with last known position
+							// The animation frame will continue using currentMouseX
+						};
+						window.addEventListener('mouseleave', handleMouseLeave, { capture: true });
+						moveHandlers.push({element: window, event: 'mouseleave', handler: handleMouseLeave, options: { capture: true }});
+						
+						// Add end listeners dynamically
+						const endOptions = { capture: true };
+						const endEvents = [
+							{ element: document, event: 'mouseup' },
+							{ element: document, event: 'pointerup' },
+							{ element: document, event: 'touchend' },
+							{ element: window, event: 'mouseup' },
+							{ element: window, event: 'pointerup' },
+							{ element: window, event: 'touchend' },
+							{ element: document.body, event: 'mouseup' },
+							{ element: document.body, event: 'pointerup' }
+						];
+						
+						endEvents.forEach(({element, event}) => {
+							element.addEventListener(event, handleEnd, endOptions);
+							endHandlers.push({element, event, handler: handleEnd, options: endOptions});
+						});
+						
+						// Start animation frame loop
+						const updateLoop = function() {
+							if (!isResizing) {
+								rafId = null;
+								return;
+							}
+							
+							const deltaX = currentMouseX - startX;
+							const newLeftWidth = startLeftWidth + deltaX;
+							
+							// Apply min/max constraints
+							const minLeftWidth = 200;
+							const minRightWidth = 200;
+							const maxLeftWidth = containerWidth * 0.8;
+							const resizerWidth = 5;
+							
+							// Constrain left panel width
+							const constrainedLeftWidth = Math.max(minLeftWidth, Math.min(maxLeftWidth, newLeftWidth));
+							
+							// Calculate right width - ensure it meets minimum
+							const calculatedRightWidth = containerWidth - constrainedLeftWidth - resizerWidth;
+							const constrainedRightWidth = Math.max(minRightWidth, calculatedRightWidth);
+							
+							// Recalculate left width if right panel hit minimum
+							const finalLeftWidth = calculatedRightWidth < minRightWidth 
+								? containerWidth - minRightWidth - resizerWidth 
+								: constrainedLeftWidth;
+							
+							// Update panels - use flex-basis for better control
+							leftPanel.style.flex = '0 0 ' + finalLeftWidth + 'px';
+							rightPanel.style.flex = '1 1 ' + constrainedRightWidth + 'px';
+							
+							// Continue loop
+							rafId = requestAnimationFrame(updateLoop);
+						};
+						
+						rafId = requestAnimationFrame(updateLoop);
+					};
+					
+					resizer.addEventListener('mousedown', handleStart);
+					resizer.addEventListener('pointerdown', handleStart);
+					
+					// Update resizer hover color - buttonColor is available in outer scope
+					resizer.addEventListener('mouseenter', function() {
+						if (!isResizing) {
+							this.style.backgroundColor = buttonColor;
+						}
+					});
+					resizer.addEventListener('mouseleave', function() {
+						if (!isResizing) {
+							this.style.backgroundColor = '#ddd';
+						}
+					});
+					
+					return true;
+				}
+				
+				// Setup resizer - try immediately and retry if needed
+				if (!setupResizer()) {
+					setTimeout(function() {
+						setupResizer();
+					}, 100);
+				}
+			});
 
-					updateFixedDiv(); 
-				});
+			window.addEventListener('load', function () {
+				updateFixedDiv(); 
+			});
 
-				window.addEventListener('resize', function() {
-					updateFixedDiv();  
-				});
-			</script>";
-
+			window.addEventListener('resize', function() {
+				updateFixedDiv();  
+			});
+		</script>";
 
 		##################
 
@@ -1072,80 +1771,11 @@ HTML;
 
 			//##################
 			print "<div id='activeRowContainer'></div>";
-
-			print "<td colspan=\"2\" style=\"text-align: center; white-space: nowrap;\">";
-
-			print "<input type=\"hidden\" name=\"newSubject\" id=\"hiddenSubject\">";
-			print "<input type=\"hidden\" name=\"newAccount\" id=\"hiddenAccount\">";
-			print "<input type=\"hidden\" name=\"newAmount\" id=\"hiddenAmount\">";
-			print "<input type=\"hidden\" name=\"newDate\" id=\"hiddenDate\">";
-
-			print "<input type=\"submit\" name=\"rename\" value=\"Ret filnavn\" style=\"margin-right: 2px;\">";
-			print "<input type=\"submit\" name=\"insertFile\" value=\"" . findtekst('1415|Indsæt', $sprog_id) . "\" style=\"margin-right: 2px;\">";
-			print "<input type=\"submit\" name=\"unlink\" value=\"" . findtekst('1099|Slet', $sprog_id) . "\" style=\"margin-right: 0px;\" onclick=\"return confirm('Er du sikker på at du vil slette?')\">";
-			print "</td></tr>\n";
-
-
-			print "<td style=\"text-align: center; white-space: nowrap; padding-top: 10px;\">";
-
-			// --- Filnavn row ---
-			$bg = $useAlt ? $bgcolor5 : $bgcolor;
-			$useAlt = !$useAlt;
-			print "<tr style=\"background-color: $bg;\"><td><b>Filnavn</b></td>";
-			print "<td><input type=\"text\" style=\"width:150px; border:none; background:transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\" title=\"" . 
-				htmlspecialchars($poolFile, ENT_QUOTES) . "\" name=\"newFileName\" id=\"filenameInput\" value=\"" . 
-				htmlspecialchars($poolFile, ENT_QUOTES) . "\" readonly></td></tr>\n";
-
-			// --- Empty spacing row ---
-			print "<tr><td colspan=\"2\"></td></tr>\n";
-
-			// Define fields for input
-			$fields = [
-				"Bilag" => "bilag",
-				"Dato" => "dato",
-				"Beskrivelse" => "beskrivelse",
-				"Debet" => "debet",
-				"Kredit" => "kredit",
-				"Fakturanr" => "fakturanr",
-				"Sum" => "sum",
-				"Sag" => "sag",
-				"Afd" => "afd",
-				"Projekt" => "projekt"
-			];
-
-			foreach ($fields as $label => $varName) {
-				$bg = $useAlt ? $bgcolor5 : $bgcolor;
-				$useAlt = !$useAlt;
-
-				$value = $$varName; // get variable by name
-				print "<tr style=\"background-color: $bg;\"><td>$label&nbsp;</td>";
-				if ($readOnly) {
-					print "<td>$value</td></tr>\n";
-				} else {
-					$extra = $varName === "sum" ? " id=\"sumInput\"" : "";
-					print "<td><input type=\"text\"$extra style=\"width:150px; border:none; background:transparent;\" name=\"$varName\" value=\"$value\"></td></tr>\n";
-				}
-			}
-
-			print "</tbody></table></td></tr>\n";
-
-			print "<input type=\"hidden\" style=\"width:150px\" name=\"unlinkFile\" value=\"$fullName\">\n";
-			print "<input type=\"hidden\" style=\"width:150px\" name=\"descFile\" value=\"$descFile\">\n";
-
-	print "</form>";
 	
 	if(!is_numeric($docFocus)) {
 	print "<script language=\"javascript\">";
 	print "document.gennemse.$docFocus.focus();";
 	print "</script>";
-	}else{
-		print '<script>';
-		print 'if (!sessionStorage.getItem("docAlertShown")) {'; 
-		print '    alert("Please click on the document to proceed");';
-		print '    sessionStorage.setItem("docAlertShown", "true");'; 
-		print '}';
-		print '</script>';
-
 	}
 
 	exit;

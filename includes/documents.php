@@ -202,6 +202,62 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 		}
 	}
 }
+// ---------- Left table start ---------
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+// Handle file uploads for pool view
+if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
+	$fileTypes = array('jpg','jpeg','pdf','png');
+	$fileName = basename($_FILES['uploadedFile']['name']);
+	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
+	if (in_array(strtolower($fileType),$fileTypes)) {
+		$poolDir = "$docFolder/$db/pulje";
+		if (!is_dir($poolDir)) {
+			mkdir($poolDir, 0755, true);
+		}
+		// Sanitize filename
+		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		$baseName = sanitize_filename($baseName);
+		$targetFile = "$poolDir/$baseName.pdf";
+		
+		// Convert images to PDF if needed
+		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+			$tempFile = "$poolDir/$baseName.$ext";
+			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				system("convert '$tempFile' '$targetFile'");
+				if (file_exists($targetFile)) {
+					unlink($tempFile);
+				} else {
+					$targetFile = $tempFile; // Fallback to original if conversion fails
+				}
+			}
+		} else {
+			// For PDF files, move directly
+			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+		}
+		
+		// Create .info file
+		if (file_exists($targetFile)) {
+			$infoFile = "$poolDir/$baseName.info";
+			if (!file_exists($infoFile)) {
+				file_put_contents($infoFile, $baseName . PHP_EOL);
+				chmod($infoFile, 0666);
+			}
+			// Redirect to pool view after successful upload
+			$poolParams =
+				"openPool=1"."&".
+				"kladde_id=$kladde_id"."&".
+				"bilag=$bilag"."&".
+				"fokus=$fokus"."&".
+				"poolFile=$baseName.pdf"."&".
+				"docFolder=$docFolder"."&".
+				"sourceId=$sourceId"."&".
+				"source=$source";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
+			exit;
+		}
+	}
+}
 
 // Check for openPool BEFORE printing any table structure
 // Make sure we check both the variable and the GET parameter
@@ -312,6 +368,10 @@ if ($openPool) {
 		} 
 
 	// Include docPool directly without any table structure
+	// if folder bilag/$db/pulje dosent exist, create it
+	if (!is_dir($docFolder."/$db/pulje")) {
+		mkdir($docFolder."/$db/pulje", 0755, true);
+	}
 	include ("docsIncludes/docPool.php");
 	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;

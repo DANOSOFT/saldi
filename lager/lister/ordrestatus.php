@@ -57,7 +57,7 @@ $columns[] =    array(
     "field" => "varenr",
     "headerName" => "Vare Nr.",
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/indkøb.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/ordrestatus.php";
 
         $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]'><a href='$url'>$value</a></td>";
@@ -503,10 +503,9 @@ $data = array(
     SELECT 
         vare_id,          
         lager,            
-        beholdning,       
-        SUM(beholdning) OVER (PARTITION BY vare_id) AS lager_total  
+        SUM(beholdning) AS beholdning
     FROM lagerstatus
-    GROUP BY vare_id, lager, beholdning
+    GROUP BY vare_id, lager
 ),
 levs AS (
     SELECT 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-08-15---
+// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-11-25---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,6 +64,9 @@
 // 20240626 PHR Added 'fiscal_year' in queries
 // 20250715 PHR Removed '//' at line above '/* saul ??'
 // 20250908 LOE Moved kontoosplag function to ../includes/kreditorOrderFuncIncludes/accountLookup.php
+// 20251113 PHR	Added some undefined vareables
+// 20251115 PHR Added missing "'"
+// 20251124 LOE Readded session_start which was removed causing page to request login again and again
 @session_start();
 $s_id=session_id();
 
@@ -932,7 +935,7 @@ if ($betalingsdage === null || $betalingsdage === '') {
 						if ($serienr[$x]) $antal[$x]=afrund($antal[$x],0);
 						$r1 =	db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[$x]'",__FILE__ . " linje " . __LINE__));
 						$qtxt = "select box6,box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]' and ";
-						$qtxt.= "fiscal_year = '$regnaar";
+						$qtxt.= "fiscal_year = '$regnaar'";
 						$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 						$bogfkto[$x] = $r2['box4'];
 						(trim($r2['box6']))?$omvare[$x]='on':$omvare[$x]='';
@@ -1045,6 +1048,7 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 	}
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"3600;URL=../includes/luk.php\">";
 	else print "<meta http-equiv=\"refresh\" content=\"3600;URL=ordreliste.php\">";
+	echo "<script>console.log('bogfor: $bogfor');</script>";
 	ordreside($id);
 
 
@@ -1057,11 +1061,11 @@ function ordreside($id) {
 	global $db,$fokus;
 	global $krediteret;
 	global $labelprint;
-	global $momssum;
+	global $menu,$momssum;
 	global $returside,$regnaar;
 	global $sort,$sprog_id,$submit;
 
-	$lager = $betalingsdage = $gruppe = $kred_ord_id = $konto_id = $momssats = $ordrenr = $status = 0;
+	$lager = $betalingsdage = $fakturanr = $gruppe = $kred_ord_id = $konto_id = $momssats = $ordrenr = $status = 0;
 	$addr1 = $addr2 = $betalingsbet = $bynavn = $cvrnr = $firmanavn = $kontakt = $kontonr = $land = '';
 	$lev_navn = $lev_addr1 = $lev_addr2 = $lev_bynavn = $lev_kontakt = $lev_postnr = $levdato = '';
 	$momssats = $omlev = $ordredato = $postnr = $ref = $valuta = $vis_projekt = '';
@@ -1174,7 +1178,7 @@ function prepareSearchTerm($searchTerm) {
 		if ($status<3) $fokus='vare0';
 		else $fokus='';
 	}
-	$x=0;
+	$x = 0;
 	if ($r=db_fetch_array(db_select("select id from adresser where art = 'S'",__FILE__ . " linje " . __LINE__))) {
 		$q2=db_select("select navn from ansatte where konto_id = '$r[id]' and lukket != 'on' order by navn",__FILE__ . " linje " . __LINE__);
 			while ($r2=db_fetch_array($q2)) {
@@ -1182,7 +1186,8 @@ function prepareSearchTerm($searchTerm) {
 			$x++;
 		} 
 	} else alert ("Stamdata mangler");
-	$x=0;
+	$x = 0;
+	$lager_nr = array();
 	$q=db_select("select kodenr,beskrivelse from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
 		$lager_nr[$x]=$r['kodenr'];

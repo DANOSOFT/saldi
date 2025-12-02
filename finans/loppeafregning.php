@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/loppeafregning.php --- Patch 4.1.1 --- 2025.05.30 ---
+// --- finans/loppeafregning.php --- Patch 4.1.1 --- 2025.11.19 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,6 +25,7 @@
 // 20180621 PHR Summer tillægges moms hvis ordrelinjer er momsbelagt. Søg momsfri & momssats
 // 20211020 PHR Comparing $gruppesum[$y] to $totalsum and regulating $gruppesum[$y] if diff less than 0.1 to avoid diff in ledger.
 // 20250530 PHR Fixed an error in extraction the account no. and added % or text
+// 20251119 PHR Changed transdate ($dd) to date of settlement
 
 @session_start();
 $s_id=session_id();
@@ -67,7 +68,7 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 	if ($varegruppe) $qtxt.="and varer.gruppe='$varegruppe' "; 
 	$qtxt.="and batch_salg.vare_id=varer.id and batch_salg.fakturadate >='".usdate($fra)."' "; 
 	$qtxt.="and batch_salg.fakturadate <='".usdate($til)."' order by varer.gruppe,varer.varenr,batch_salg.id";
-	$dd=date("Y-m-d");
+	$dd=usdate($til);
 	$x=0;
 	$y=0;
 	$varenr=array();
@@ -111,7 +112,8 @@ if ($kladde_id && $fra && $til && $vareprefix) {
 				$costSum[$y]+=$r['antal']*$r['kostpris']*$r['momssats']/100;
 			}
 		}
-		$custPart[$x]=100 - ($sum[$x]-$cost[$x]) * 100/$sum[$x];
+		if ($sum[$x]) $custPart[$x]=100 - ($sum[$x]-$cost[$x]) * 100/$sum[$x];
+		else $custPart[$x] = 0;
 	}
 #	if ($x) $gruppesum[$y]+=$sum[$x];
 	$y=0;

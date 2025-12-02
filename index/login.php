@@ -761,7 +761,7 @@ if ($userId) {
 	# If its not an administrator
 	#if ($db_id !== 1) {
 	if ((int)$db_id !== 1) { // 20240502 Without the integer this always evaluates to true on goods account as admin
-		$qtxt = "select email, twofactor, tmp_kode from brugere where id=$userId";
+		$qtxt = "select email, twofactor, tmp_kode, tlf from brugere where id=$userId";
 		$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	} else {
 		$r = array("twofactor" => FALSE);
@@ -770,13 +770,22 @@ if ($userId) {
 		$json_data = file_get_contents('php://input');
 		$decoded_data = json_decode($json_data, true);
 							       
-		$tlf_num = $r["email"];
-		$real_code = explode("|",$r["tmp_kode"])[0];
-		$real_expire = explode("|",$r["tmp_kode"])[1];
+		$tlf_num = $r["tlf"];
+		$email = $r["email"];
+		$bruger_id = $userId; // Set bruger_id to userId
+		$real_code = NULL;
+		$real_expire = 0;
+		if (!empty($r["tmp_kode"])) {
+			$tmp_kode_parts = explode("|", $r["tmp_kode"]);
+			if (count($tmp_kode_parts) >= 2) {
+				$real_code = $tmp_kode_parts[0];
+				$real_expire = $tmp_kode_parts[1];
+			}
+		}
 		$status = NULL;
 
 		$code = $_POST['code_1'] . $_POST['code_2'] . $_POST['code_3'] . $_POST['code_4'] . $_POST['code_5'] . $_POST['code_6'];
-		if ($code && time() <= $real_expire) {
+		if ($code && $real_expire && time() <= $real_expire) {
 			if ($real_code == $code) {
 				$status = "success";
 			} else {
@@ -785,7 +794,7 @@ if ($userId) {
 		}
 		if ($bruger_id && $tlf_num) {
 		# The code has expired and a new one needs sent
-		if (time() > $real_expire && $status !== "success") {
+		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
 			$status = "En sms er sendt til din telefon +" . substr($tlf_num, 0, 4) . "______";
 
 			# Generate secure random 4 didget integer using urandom
@@ -796,26 +805,12 @@ if ($userId) {
 			mt_srand($seed);
 			$random_integer = mt_rand(100000, 999999);
 
-			// Initialize cURL session
-			$ch = curl_init();
-
-			// Set cURL options
-			curl_setopt($ch, CURLOPT_URL, "https://rest.nexmo.com/sms/json");
-			curl_setopt($ch, CURLOPT_POST, 1);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-				'from' => 'Saldi',
-				'text' => "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter",
-				'to' => $r['email'],
-				'api_key' => $nexmo_api_key,
-				'api_secret' => $nexmo_api_secret
-			]));
-
-			// Execute cURL request
-			$result = curl_exec($ch);
+			$cleanedPhoneNumber = clean_phone_number($tlf_num);
+			$result = send_sms("Saldi", $cleanedPhoneNumber, "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
 
 			// Check for errors
 			if ($result === false) {
-				echo 'cURL error: ' . curl_error($ch);
+				echo "Der opstod en fejl ved afsendelse af sms. Prøv igen senere.";
 			} else {
 				$current_time = time();
 				$expire = $current_time + 180; // Expires in 3 minutes
@@ -824,9 +819,32 @@ if ($userId) {
 
 				include("tofaktor.php");
 			}
-			
-			// Close cURL session
-			curl_close($ch);
+			exit;
+		} else if ($status !== "success") {
+			include("tofaktor.php");
+			exit;
+		}
+	}elseif($bruger_id && $email) {
+		# The code has expired and a new one needs sent
+		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
+			# Generate secure random 6 digit integer using urandom
+			$urandom = fopen('/dev/urandom', 'rb');
+			$seed = fread($urandom, 32);
+			fclose($urandom);
+			$seed = unpack('L', $seed)[1];
+			mt_srand($seed);
+			$random_integer = mt_rand(100000, 999999);
+
+			$status = "En email er sendt til din email " . $email;
+			$result = send_email($email, "Saldi 2FA kode", "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
+			if ($result === false) {
+				echo "Der opstod en fejl ved afsendelse af email. Prøv igen senere.";
+			} else {
+				$current_time = time();
+				$expire = $current_time + 180; // Expires in 3 minutes
+				db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
+				include("tofaktor.php");
+			}
 			exit;
 		} else if ($status !== "success") {
 			include("tofaktor.php");

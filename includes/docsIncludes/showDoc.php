@@ -21,7 +21,17 @@
 //20240305 PHR Varioous corrections
 
 
-print "<tr><td width='100%' height='100%' align='center' valign='middle'>";
+// Check if we're in flexbox layout (docPool-style) or table layout
+$inFlexboxLayout = (isset($_GET['showDoc']) && isset($_GET['source']) && $_GET['source'] == 'kassekladde');
+
+if ($inFlexboxLayout) {
+	// Flexbox layout - use divs
+	print "<div style='width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;'>";
+} else {
+	// Table layout - use table cells
+	print "<tr><td width='100%' height='100%' align='center' valign='middle'>";
+}
+
 #echo "<br>$showDoc<br>";
 #if (file_exists($showDoc)) echo "den er der skam<br>";
 #else echo "Kan ikke finde den<br>";
@@ -52,6 +62,11 @@ if (strtolower(substr($showDoc,-3,3))=='pdf') {
 	// Show the html file
 	echo "<div style='width:90%; margin:1rem auto;'>".file_get_contents($src)."</div>";
  }else print "<img src='$showDoc' style='max-width:100%;height:auto;'>";
-print "</td></tr>";
+
+if ($inFlexboxLayout) {
+	print "</div>";
+} else {
+	print "</td></tr>";
+}
 
 ?>

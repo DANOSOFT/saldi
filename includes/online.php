@@ -54,6 +54,7 @@
 // 20240422 PHR Added 'S' in box3 when insertion uset in grupper
 // 26042024 PBLM changed the path of the javascript and css files to be relative to the file location for flatpickr
 // 23-05-2024 PBLM Setup notification from easyUBL
+// 20251119 PHR added  && $title != "POS Ordre" to if (!$isApiCall) 
 
 #include("../includes/connect.php"); #20211001
 $url = $_SERVER['REQUEST_URI'];
@@ -269,13 +270,13 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		}
 		$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	$buttonColor = $r['var_value'];
+	$buttonColor = "#$r[var_value]";
 } else {
 	$buttonColor = '#114691'; // Default button color
 }
 $qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	$buttonTxtColor = $r['var_value'];
+	$buttonTxtColor = "#$r[var_value]";
 } else {
 	$buttonTxtColor = '#ffffff'; // Default button text color
 }
@@ -492,7 +493,7 @@ $isApiCall = (
 );
 
 // Wrap the style output in the API check:
-if (!$isApiCall) {
+if (!$isApiCall && $title != "POS Ordre") {
 ?>
 <style>
 	/* type submit and type button */

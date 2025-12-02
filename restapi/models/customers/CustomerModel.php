@@ -257,13 +257,31 @@ class CustomerModel
      * @param string $orderDirection Sort direction (default: ASC)
      * @return CustomerModel[] Array of CustomerModel objects
      */
-    public static function getAllItems($art, $orderBy = 'firmanavn', $orderDirection = 'ASC', $limit = 20)
+    public static function getAllItems($art, $search = null, $limit = 50, $offset = 0, $orderBy = 'firmanavn', $orderDirection = 'ASC')
     {
         $allowedOrderBy = ['id', 'firmanavn', 'tlf', 'email'];
         $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'firmanavn';
         $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
+        $limit = (int)$limit;
+        $offset = (int)$offset;
 
-        $qtxt = "SELECT id FROM adresser WHERE art = '$art' ORDER BY $orderBy $orderDirection LIMIT $limit";
+        $qtxt = "SELECT id FROM adresser WHERE art = '$art'";
+        
+        // Add search condition if provided
+        if ($search && !empty(trim($search))) {
+            $search = db_escape_string(trim($search));
+            $qtxt .= " AND (
+                firmanavn ILIKE '%$search%' OR 
+                email ILIKE '%$search%' OR 
+                tlf ILIKE '%$search%' OR 
+                cvrnr ILIKE '%$search%' OR
+                kontonr ILIKE '%$search%' OR
+                CONCAT(fornavn, ' ', efternavn) ILIKE '%$search%'
+            )";
+        }
+        
+        $qtxt .= " ORDER BY $orderBy $orderDirection LIMIT $limit OFFSET $offset";
+        
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
         $items = [];

@@ -1,6 +1,6 @@
 <?php
-//../includes/grid_order.php
-/**
+//..includes/orderFuncIncludes/grid_order.php
+/** 
  * Extracts values from a specific column in a multi-dimensional array.
  *
  * This function mimics PHP's built-in array_column function for PHP 5.
@@ -1382,7 +1382,7 @@ function render_column_setup($id, $columns, $all_columns) {
         <form method="POST" action="">
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
-                    <tr><td colspan=100>Vælg hvilke felter der skal være synlige i tablelen</td></tr>
+                    <tr><td colspan="100" style="text-align: center;">Vælg hvilke felter der skal være synlige i tablelen</td></tr>
                     <tr><td colspan=100><hr></td></tr>
                     <tr>
                         <th>Pos</th>
@@ -1608,7 +1608,7 @@ function save_column_setup($id) {
 
     // Print the result
     $columns_json = db_escape_string(json_encode($rows));
-    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET column_setup = '$columns_json' WHERE user_id = $bruger_id AND tabel_id = '$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**
@@ -1733,7 +1733,7 @@ function save_filter_setup($id) {
     $filter_json = db_escape_string(json_encode($rows));
 
     // Save the updated JSON to the database
-    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id", __FILE__ . " line " . __LINE__);
+    db_modify("UPDATE datatables SET filter_setup = '$filter_json' WHERE user_id = $bruger_id AND tabel_id = '$id'", __FILE__ . " line " . __LINE__);
 }
 
 /**

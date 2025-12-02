@@ -2923,4 +2923,30 @@ if (!function_exists('send_sms')) {
 	}
 }
 
+if (!function_exists('send_email')) { 
+	function send_email($to, $subject, $message)
+	{
+		/**
+		* Sends an email to a recipient
+		*
+		* @param $to - The email address of the recipient
+		* @param $subject - The subject of the email
+		* @param $message - The message to send
+		*
+		* @return bool - If the system was able to send the email or not
+		*/
+
+		$headers = "From: Saldi <info@saldi.dk>\r\n";
+		$headers .= "Reply-To: info@saldi.dk\r\n";
+		$headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+
+		mail($to, $subject, $message, $headers);
+		if (mail($to, $subject, $message, $headers)) {
+			return true;
+		} else {
+			echo "<script>alert('Der opstod en fejl ved afsendelse af email. Prøv igen senere.');</script>";
+			return false;
+		}
+	}
+}
 ?>
