@@ -4478,29 +4478,33 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				if ($betalt) {
 					$disabled='disabled';
 				} else $disabled=$disabled;
-				print "<tr><td><select style=\"width:110px\" name=\"felt_1\" $disabled>";
-				#				if ($betalingsbet=='Kreditkort') {
-									if ($felt_1) print "<option value=\"$felt_1\">$felt_1</option>";
-				#					if (!in_array($felt_1,$korttyper) && $felt_1 != 'Betalingskort' && $terminal_ip[$felt_5-1]) $felt_1=NULL;
-				#					elseif (!in_array($felt_1,$korttyper) && !$terminal_ip[$felt_5-1]) $felt_1=NULL;
-									if ($terminal_ip[$felt_5-1]) {
-										if ($felt_1) print "<option value='$felt_1'>$felt_1</options>";
-				#						if ($felt_1!='Betalingskort') print "<option value='Betalingskort'>Betalingskort</options>";
-										for($x=0;$x<$kortantal;$x++) {
-											if ($felt_1!=$korttyper[$x] && $card_enabled[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</options>";
-										}
-									} else {
-										if ($felt_1) print "<option value='$felt_1'>$felt_1</options>";
-										for($x=0;$x<$kortantal;$x++) {
-											if ($felt_1!=$korttyper[$x] && $card_enabled[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</options>";
-										}
+				print "<tr><td><select style='width:110px' name='felt_1' $disabled>";
+				#        if ($betalingsbet=='Kreditkort') {
+						  if ($felt_1) {
+							print "<option value='$felt_1'>";
+							($felt_1 == 'Kontant')?print $txt370:print $felt_1;
+							print "</option>";
+						  }
+				#          if (!in_array($felt_1,$korttyper) && $felt_1 != 'Betalingskort' && $terminal_ip[$felt_5-1]) $felt_1=NULL;
+				#          elseif (!in_array($felt_1,$korttyper) && !$terminal_ip[$felt_5-1]) $felt_1=NULL;
+									if ($terminal_ip[(int)$felt_5-1]) {
+				// #            if ($felt_1) print "<option value='$felt_1'>$felt_1</option>";
+								if ($felt_1!='Betalingskort') print "<option value='Betalingskort'>".findtekst('710|Betalingskort', $sprog_id)."</option>";
+									for ($x=0;$x<$kortantal;$x++) {
+										if ($felt_1!=$korttyper[$x] && $card_enabled[$x] && !$betalingskort[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</option>";
 									}
-									if ($felt_1 != 'Kontant') print "<option value='Kontant'>Kontant</options>";
-									if ($felt_1 != 'Konto') print "<option value='Konto'>Konto</options>";
-				#				} else {
-				#					($betalingsbet=='Kontant')?$felt_1='Kontant':$felt_1='Konto';
-				#					print "<option value=\"$felt_1\">$felt_1</option>";
-				#				}
+								} else {
+									if ($felt_1) print "<option value='$felt_1'>$felt_1</option>";
+									for ($x=0;$x<$kortantal;$x++) {
+										if ($felt_1!=$korttyper[$x] && $card_enabled[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</option>";
+									}
+								}
+								if ($felt_1 != 'Kontant') print "<option value='Kontant'>$txt370</option>";
+								if ($felt_1 != 'Konto') print "<option value='Konto'>".findtekst('440|Konto', $sprog_id)."</option>";
+							#        } else {
+							#          ($betalingsbet=='Kontant')?$felt_1='Kontant':$felt_1='Konto';
+							#          print "<option value='$felt_1'>$felt_1</option>";
+							#        }
 								print "</select></td>";
         		print "<td><input class = 'inputbox' type = 'text' name='felt_2' style='text-align:right;width:200px' value='$dkfelt_2' $disabled></td>";
 				print "</tr>\n";	
