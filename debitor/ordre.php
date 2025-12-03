@@ -4563,7 +4563,6 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 						$vis_betalingslink=0;
  						for($x=0;$x<$kortantal;$x++) {
 							if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
-							if ($bruger_id == -1) echo "Vis $vis_betalingslink<br>";
 						}
 						#if($felt_1 == 'Betalingskort') $vis_betalingslink=1;
 					}
@@ -5230,14 +5229,12 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
 						}else{
 							$vis_betalingslink = 0;
 						}
-						echo "disabled: " . $disabled . "<br>";
 						if (!$betalt && $vis_betalingslink) $disabled='disabled';
 					} 
 					// Made for Havemøbelshoppen
 					if($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop"){
 						$disabled='';
 					}
-					echo "disabled: " . $disabled . "<br>";
 					$txt = findtekst('2374|Fakturér',$sprog_id); 
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
 				} else {
