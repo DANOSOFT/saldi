@@ -6,8 +6,12 @@
  * Request body:
  * {
  *   "username": "brugernavn",
- *   "password": "password"
+ *   "password": "password",
+ *   "database": "database_name" (REQUIRED - database name or tenant ID)
  * }
+ * 
+ * IMPORTANT: Users are stored in each tenant's database, not the master database.
+ * The "database" parameter is REQUIRED to know which tenant database to connect to.
  * 
  * Response:
  * {
@@ -20,6 +24,11 @@
  *     "user": {
  *       "id": 1,
  *       "username": "brugernavn"
+ *     },
+ *     "tenant": {
+ *       "id": 1,
+ *       "name": "Regnskab Navn",
+ *       "db": "database_name"
  *     }
  *   }
  * }
@@ -53,19 +62,67 @@ class AuthLoginEndpoint extends BaseEndpoint
             return;
         }
         
-        $username = db_escape_string($data->username);
-        $password = $data->password;
-        
-        // Connect to master database to check user
-        global $sqhost, $squser, $sqpass, $sqdb;
-        $connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
-        
-        if (!$connection) {
-            $this->sendResponse(false, null, 'Database connection failed', 500);
+        if (!isset($data->database) || empty($data->database)) {
+            $this->sendResponse(false, null, 'Database parameter is required. Provide database name or tenant ID.', 400);
             return;
         }
         
-        // Find user (case-insensitive)
+        $username = db_escape_string($data->username);
+        $password = $data->password;
+        $database_param = trim($data->database);
+        
+        // First, connect to master database to look up tenant information
+        global $sqhost, $squser, $sqpass, $sqdb;
+        $master_connection = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
+        
+        if (!$master_connection) {
+            $this->sendResponse(false, null, 'Master database connection failed', 500);
+            return;
+        }
+        
+        // Find tenant by database name or ID
+        $tenant_query = "select * from regnskab where ";
+        
+        // Check if it's numeric (tenant ID) or string (database name)
+        if (is_numeric($database_param)) {
+            $tenant_id = (int)$database_param;
+            $tenant_query .= "id='$tenant_id'";
+        } else {
+            $db_escaped = db_escape_string($database_param);
+            $tenant_query .= "db='$db_escaped'";
+        }
+        
+        $tenant_query .= " limit 1";
+        $tenant_result = db_fetch_array(db_select($tenant_query, __FILE__ . " linje " . __LINE__));
+        
+        if (!$tenant_result) {
+            $this->sendResponse(false, null, 'Database or tenant not found', 404);
+            return;
+        }
+        
+        // Check if tenant is closed
+        if ($tenant_result['lukket'] == 'on') {
+            $this->sendResponse(false, null, 'Tenant account is closed', 403);
+            return;
+        }
+        
+        $tenant = [
+            'id' => (int)$tenant_result['id'],
+            'name' => $tenant_result['regnskab'],
+            'db' => $tenant_result['db']
+        ];
+        
+        $tenant_db = $tenant_result['db'];
+        
+        // Now connect to the tenant database to check user
+        $tenant_connection = db_connect($sqhost, $squser, $sqpass, $tenant_db, __FILE__ . " linje " . __LINE__);
+        
+        if (!$tenant_connection) {
+            $this->sendResponse(false, null, 'Tenant database connection failed', 500);
+            return;
+        }
+        
+        // Find user in tenant database (case-insensitive)
         $asIs = db_escape_string($username);
         $low = strtolower($username);
         $low = str_replace(['Æ', 'Ø', 'Å', 'É'], ['æ', 'ø', 'å', 'é'], $low);
@@ -78,7 +135,7 @@ class AuthLoginEndpoint extends BaseEndpoint
         $user = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
         
         if (!$user) {
-            write_log("Login failed: User not found: $username", '', 'WARNING');
+            write_log("Login failed: User not found: $username in database: $tenant_db", $tenant_db, 'WARNING');
             $this->sendResponse(false, null, 'Invalid username or password', 401);
             return;
         }
@@ -94,29 +151,26 @@ class AuthLoginEndpoint extends BaseEndpoint
                 if (date("U") <= $tidspkt && $tmp_kode == $password) {
                     // Temporary password is valid
                 } else {
-                    write_log("Login failed: Invalid password for user: $username", '', 'WARNING');
+                    write_log("Login failed: Invalid password for user: $username in database: $tenant_db", $tenant_db, 'WARNING');
                     $this->sendResponse(false, null, 'Invalid username or password', 401);
                     return;
                 }
             } else {
-                write_log("Login failed: Invalid password for user: $username", '', 'WARNING');
+                write_log("Login failed: Invalid password for user: $username in database: $tenant_db", $tenant_db, 'WARNING');
                 $this->sendResponse(false, null, 'Invalid username or password', 401);
                 return;
             }
         }
         
-        // Get user's accessible regnskaber (tenants)
-        $adgang_til = isset($user['adgang_til']) ? $user['adgang_til'] : '';
-        $tenant_ids = $adgang_til ? explode(',', $adgang_til) : [];
-        
         // If user is admin, they have access to all regnskaber
         $is_admin = (strpos($user['rettigheder'], 'admin') !== false || $user['rettigheder'] == '*');
         
-        // Create JWT tokens
+        // Create JWT tokens (always include tenant_id since database is required)
         $accessTokenPayload = [
             'user_id' => $user['id'],
             'username' => $user['brugernavn'],
-            'type' => 'access'
+            'type' => 'access',
+            'tenant_id' => $tenant['id']
         ];
         
         $refreshTokenPayload = [
@@ -128,7 +182,8 @@ class AuthLoginEndpoint extends BaseEndpoint
         $accessToken = JWT::encode($accessTokenPayload, 3600); // 1 hour
         $refreshToken = JWT::encode($refreshTokenPayload, 86400 * 30); // 30 days
         
-        write_log("Login successful for user: $username (ID: {$user['id']})", '', 'INFO');
+        $logMsg = "Login successful for user: $username (ID: {$user['id']}) with tenant: {$tenant['name']} (ID: {$tenant['id']}, DB: {$tenant['db']})";
+        write_log($logMsg, $tenant_db, 'INFO');
         
         $response = [
             'access_token' => $accessToken,
@@ -139,7 +194,8 @@ class AuthLoginEndpoint extends BaseEndpoint
                 'id' => (int)$user['id'],
                 'username' => $user['brugernavn'],
                 'is_admin' => $is_admin
-            ]
+            ],
+            'tenant' => $tenant
         ];
         
         $this->sendResponse(true, $response, 'Login successful', 200);

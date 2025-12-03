@@ -49,24 +49,36 @@ class JWTAuth
     }
     
     /**
-     * Get tenant database from X-Tenant-ID header
+     * Get tenant database from JWT token or X-Tenant-ID header
+     * Priority: 1) JWT token tenant_id, 2) X-Tenant-ID header
      * 
      * @return string|false Database name or false if not found
      */
     public static function getTenantDatabase()
     {
-        $headers = getallheaders();
-        if (!$headers) {
-            return false;
+        $tenant_id = null;
+        
+        // First, try to get tenant_id from JWT token (if database was specified during login)
+        $payload = self::validateToken();
+        if ($payload && isset($payload['tenant_id'])) {
+            $tenant_id = (int)$payload['tenant_id'];
         }
         
-        $headers = array_change_key_case($headers, CASE_LOWER);
-        
-        if (!isset($headers['x-tenant-id'])) {
-            return false;
+        // If not in token, try X-Tenant-ID header
+        if (!$tenant_id) {
+            $headers = getallheaders();
+            if ($headers) {
+                $headers = array_change_key_case($headers, CASE_LOWER);
+                if (isset($headers['x-tenant-id'])) {
+                    $tenant_id = (int)$headers['x-tenant-id'];
+                }
+            }
         }
         
-        $tenant_id = (int)$headers['x-tenant-id'];
+        // If still no tenant_id, return false
+        if (!$tenant_id) {
+            return false;
+        }
         
         global $sqhost, $squser, $sqpass, $sqdb;
         $conn = db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);

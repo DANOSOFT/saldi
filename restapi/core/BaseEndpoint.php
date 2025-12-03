@@ -52,12 +52,25 @@ abstract class BaseEndpoint
 
     public function handleRequestMethod()
     {
+        // Start output buffering to catch any errors/warnings
+        ob_start();
+        
         // Check authorization
         if (!$this->checkAuthorization()) {
+            // If checkAuthorization didn't already send a response (shouldn't happen if it calls sendResponse)
+            // Send a default unauthorized response
+            ob_end_clean(); // Clear any buffered output
             http_response_code(401);
-            #echo json_encode(array("message" => "Unauthorized"));
-            return;
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Unauthorized',
+                'data' => null
+            ]);
+            exit;
         }
+        
+        ob_end_clean(); // Clear any buffered output before processing request
 
         $method = $_SERVER['REQUEST_METHOD'];
 
@@ -174,6 +187,11 @@ abstract class BaseEndpoint
 
     protected function sendResponse($success, $data = null, $message = '', $httpCode = 200)
     {
+        // Clear any output buffers to ensure clean JSON response
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
         http_response_code($httpCode);
         header('Content-Type: application/json');
         
