@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------finans/budget.php ----------- patch 4.0.7 --- 2023.03.04 ---
+// -------------finans/budget.php ----------- patch 4.1.1 --- 2025.12.03 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -293,7 +293,6 @@ print "<style>
 .headerbtn, .center-btn {
     display: flex;
     align-items: center;
-    justify-content: center;
     text-decoration: none;
     gap: 5px;
 }
