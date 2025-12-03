@@ -4469,42 +4469,39 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 				if (isset($terminal_ip[(int)$felt_5-1]) && !$betalt) $felt_2=$sum+$moms-$felt_4;
 				$dkfelt_2=dkdecimal($felt_2,2);
 				$dkfelt_4=dkdecimal($felt_4,2);
-				if (if_isset($_GET['godkendt'])=='OK' && usdecimal(if_isset($_GET['modtaget']),2)==usdecimal($dkfelt_2,2)) {
-					$betalt=usdecimal($_GET['modtaget'],2);
+				$modtaget = dkdecimal(if_isset($_GET['modtaget']),2);
+				if (if_isset($_GET['godkendt'])=='OK' && usdecimal($modtaget,2)==usdecimal($dkfelt_2,2)) {
+					$betalt=usdecimal($modtaget,2);
 					if ($_GET['kortnavn']) $felt_1=$_GET['kortnavn'];
 					db_modify("update ordrer set betalt='$betalt',felt_1='$felt_1' where id = '$id'",__FILE__ . " linje " . __LINE__);
 				}
 				if ($betalt) {
 					$disabled='disabled';
 				} else $disabled=$disabled;
-        print "<tr><td><select style='width:110px' name='felt_1' $disabled>";
-#        if ($betalingsbet=='Kreditkort') {
-          if ($felt_1) {
-            print "<option value='$felt_1'>";
-            ($felt_1 == 'Kontant')?print $txt370:print $felt_1;
-            print "</option>";
-          }
-#          if (!in_array($felt_1,$korttyper) && $felt_1 != 'Betalingskort' && $terminal_ip[$felt_5-1]) $felt_1=NULL;
-#          elseif (!in_array($felt_1,$korttyper) && !$terminal_ip[$felt_5-1]) $felt_1=NULL;
-					if ($terminal_ip[(int)$felt_5-1]) {
-// #            if ($felt_1) print "<option value='$felt_1'>$felt_1</option>";
-				if ($felt_1!='Betalingskort') print "<option value='Betalingskort'>".findtekst('710|Betalingskort', $sprog_id)."</option>";
-					for ($x=0;$x<$kortantal;$x++) {
-						if ($felt_1!=$korttyper[$x] && $card_enabled[$x] && !$betalingskort[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</option>";
-					}
-				} else {
-					if ($felt_1) print "<option value='$felt_1'>$felt_1</option>";
-					for ($x=0;$x<$kortantal;$x++) {
-						if ($felt_1!=$korttyper[$x] && $card_enabled[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</option>";
-					}
-				}
-				if ($felt_1 != 'Kontant') print "<option value='Kontant'>$txt370</option>";
-				if ($felt_1 != 'Konto') print "<option value='Konto'>".findtekst('440|Konto', $sprog_id)."</option>";
-			#        } else {
-			#          ($betalingsbet=='Kontant')?$felt_1='Kontant':$felt_1='Konto';
-			#          print "<option value='$felt_1'>$felt_1</option>";
-			#        }
-				print "</select></td>";
+				print "<tr><td><select style=\"width:110px\" name=\"felt_1\" $disabled>";
+				#				if ($betalingsbet=='Kreditkort') {
+									if ($felt_1) print "<option value=\"$felt_1\">$felt_1</option>";
+				#					if (!in_array($felt_1,$korttyper) && $felt_1 != 'Betalingskort' && $terminal_ip[$felt_5-1]) $felt_1=NULL;
+				#					elseif (!in_array($felt_1,$korttyper) && !$terminal_ip[$felt_5-1]) $felt_1=NULL;
+									if ($terminal_ip[$felt_5-1]) {
+										if ($felt_1) print "<option value='$felt_1'>$felt_1</options>";
+				#						if ($felt_1!='Betalingskort') print "<option value='Betalingskort'>Betalingskort</options>";
+										for($x=0;$x<$kortantal;$x++) {
+											if ($felt_1!=$korttyper[$x] && $card_enabled[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</options>";
+										}
+									} else {
+										if ($felt_1) print "<option value='$felt_1'>$felt_1</options>";
+										for($x=0;$x<$kortantal;$x++) {
+											if ($felt_1!=$korttyper[$x] && $card_enabled[$x]) print "<option value='$korttyper[$x]'>$korttyper[$x]</options>";
+										}
+									}
+									if ($felt_1 != 'Kontant') print "<option value='Kontant'>Kontant</options>";
+									if ($felt_1 != 'Konto') print "<option value='Konto'>Konto</options>";
+				#				} else {
+				#					($betalingsbet=='Kontant')?$felt_1='Kontant':$felt_1='Konto';
+				#					print "<option value=\"$felt_1\">$felt_1</option>";
+				#				}
+								print "</select></td>";
         		print "<td><input class = 'inputbox' type = 'text' name='felt_2' style='text-align:right;width:200px' value='$dkfelt_2' $disabled></td>";
 				print "</tr>\n";	
 				if ($felt_1 == 'Konto') {
@@ -4566,7 +4563,7 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 						$vis_betalingslink=0;
  						for($x=0;$x<$kortantal;$x++) {
 							if ($felt_1==$korttyper[$x] && $betalingskort[$x]) $vis_betalingslink=1;
-#if ($bruger_id == -1) echo "Vis $vis_betalingslink<br>";
+							if ($bruger_id == -1) echo "Vis $vis_betalingslink<br>";
 						}
 						#if($felt_1 == 'Betalingskort') $vis_betalingslink=1;
 					}
@@ -5233,12 +5230,14 @@ if ($art=='DK') print "<td valign = 'top'><input class = 'inputbox' readonly=\"r
 						}else{
 							$vis_betalingslink = 0;
 						}
+						echo "disabled: " . $disabled . "<br>";
 						if (!$betalt && $vis_betalingslink) $disabled='disabled';
 					} 
 					// Made for Havemøbelshoppen
 					if($ref == "Magento" || $felt_1 == "Konto" || $felt_1 == "Kontant" || $afd_navn == "Webshop"){
 						$disabled='';
 					}
+					echo "disabled: " . $disabled . "<br>";
 					$txt = findtekst('2374|Fakturér',$sprog_id); 
 					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
 				} else {
