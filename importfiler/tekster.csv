@@ -2145,7 +2145,7 @@
 2145	Webfragt	Webfragt	Webfragt
 2146	Vis DG	Show DG	Viss DG
 2147	Afmærkes her vises dækningsgraden for produktet	If ticked here, the degree of coverage for the product is displayed	Hvis det er krysset av her, vises dekningsgraden for produktet
-2148	Rediger	Edit	Rediger
+2148	Redigér	Edit	Rediger
 2149	Åbn kassesystem	Open POS System	Åpne POS-system
 2150	Åbn sagsstyring	Open Case Management	Åpne saksbehandling
 2151	Opsæt din oversigt	Set up your dashboard	Sett opp oversikten din
@@ -2752,18 +2752,18 @@
 2752	Vælg i feltet foroven til højre, hvorfra du vil trække betalingsinformationer	Select in the field above to the right where you want to retrieve payment information from	Velg i feltet oppe til høyre hvor du vil hente betalingsinformasjon fra
 2753	Vil du trække betalinger dannet i en kassekladde, vælges 'fra liste'	To retrieve payments created in a cash journal, select 'from list'	For å hente betalinger opprettet i en kassekladd, velg 'fra liste'
 2754	Vil du i stedet trække alle registrerede skyldige beløb til kunder, vælges 'fra kontokort'	To retrieve all registered amounts owed to customers instead, select 'from general ledger'	For å hente alle registrerte skyldige beløp til kunder i stedet, velg 'fra kontokort'
-2755	
-2756	
-2757	
-2758	
-2759	
-2760	
-2761	
-2762	
-2763	
-2764	
-2765	
-2766	
+2755	Ryd søgning	Clear search	Tøm søk
+2756	Eksportér til CSV	Export to CSV	Eksporter til CSV
+2757	Eksportér til PDF	Export to PDF	Eksporter til PDF
+2758	Kolonner	Columns	Kolonner
+2759	Filtre	Filters	Filtre
+2760	Vis SQL	Show SQL	Vis SQL
+2761	Vælg hvilke felter der skal være synlige i tabellen	Select which fields should be visible in the table	Velg hvilke felter som skal være synlige i tabellen
+2762	Valgfri overskrift	Optional heading	Valgfri overskrift
+2763	Valgfri beskrivelse	Optional description	Valgfri beskrivelse
+2764	Vælg hvilke filtre der skal være aktive	Select which filters should be active	Velg hvilke filtre som skal være aktive
+2765	Markér alle	Select all	Merk alle
+2766	Fjern alle	Clear all	Fjern alle
 2767	
 2768	
 2769	
