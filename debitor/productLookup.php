@@ -294,10 +294,10 @@ if (count($lg_nr) > 1) {
             "searchable" => true,
             "decimalPrecision" => 2,
             "sqlOverride" => "COALESCE($alias_key.beholdning, 0)",
-            "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $afd_lager) {
+            "render" => function ($value, $row, $column) use ($href, $id, $fokus, $bordnr, $lg_kodenr) {
                 $lagerId = $column['lagerId'];
                 $bordnr_param = ($bordnr) ? "&bordnr=$bordnr" : "";
-                $lager_param = ($afd_lager) ? "&lager=$afd_lager" : "";
+                $lager_param = "&lager=$lg_kodenr";
                 $url = "$href?id=$id&vare_id=$row[id]&fokus=$fokus$bordnr_param$lager_param";
                 if ($row["samlevare"] == "on") {
                     return "<td></td>";
@@ -452,16 +452,42 @@ print "<script type=\"text/javascript\">
             e.preventDefault();
             e.stopPropagation();
             var href = $(this).attr('href');
-            var url = new URL(href, window.location.origin);
             
-            // Ensure order context is preserved
-            url.searchParams.set('id', orderContext.id);
-            if (orderContext.art) url.searchParams.set('art', orderContext.art);
-            if (orderContext.fokus) url.searchParams.set('fokus', orderContext.fokus);
-            if (orderContext.bordnr) url.searchParams.set('bordnr', orderContext.bordnr);
-            if (orderContext.lager) url.searchParams.set('lager', orderContext.lager);
+            // Parse the href to extract the file and query string
+            var parts = href.split('?');
+            var file = parts[0];
+            var queryString = parts[1] || '';
             
-            window.location.href = url.toString();
+            // Parse query parameters
+            var params = {};
+            if (queryString) {
+                queryString.split('&').forEach(function(param) {
+                    var keyValue = param.split('=');
+                    if (keyValue.length === 2) {
+                        params[decodeURIComponent(keyValue[0])] = decodeURIComponent(keyValue[1]);
+                    }
+                });
+            }
+            
+            // Ensure order context is preserved, but don't override lager if it's already in the URL
+            params.id = orderContext.id;
+            if (orderContext.art) params.art = orderContext.art;
+            if (orderContext.fokus) params.fokus = orderContext.fokus;
+            if (orderContext.bordnr) params.bordnr = orderContext.bordnr;
+            // Only set lager if it's not already in the URL (preserve warehouse-specific lager from clicked link)
+            if (!params.lager && orderContext.lager) {
+                params.lager = orderContext.lager;
+            }
+            
+            // Reconstruct the URL
+            var paramPairs = [];
+            for (var key in params) {
+                if (params.hasOwnProperty(key)) {
+                    paramPairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(params[key]));
+                }
+            }
+            var newUrl = file + '?' + paramPairs.join('&');
+            window.location.href = newUrl;
             return false;
         });
         
@@ -471,14 +497,28 @@ print "<script type=\"text/javascript\">
             if (onclick && onclick.indexOf('vare_id') > -1) {
                 e.preventDefault();
                 e.stopPropagation();
-                var match = onclick.match(/vare_id=([^&'\"]+)/);
-                if (match) {
-                    var vare_id = match[1];
-                    var url = orderContext.href + '?id=' + orderContext.id + '&vare_id=' + vare_id;
-                    if (orderContext.fokus) url += '&fokus=' + orderContext.fokus;
-                    if (orderContext.bordnr) url += '&bordnr=' + orderContext.bordnr;
-                    if (orderContext.lager) url += '&lager=' + orderContext.lager;
-                    window.location.href = url;
+                // Extract the full URL from onclick
+                var urlMatch = onclick.match(/window\.location\.href=['\"]([^'\"]+)['\"]/);
+                if (urlMatch) {
+                    // Use the URL directly from onclick (it already has the correct lager parameter)
+                    window.location.href = urlMatch[1];
+                } else {
+                    // Fallback: construct URL manually
+                    var match = onclick.match(/vare_id=([^&'\"]+)/);
+                    if (match) {
+                        var vare_id = match[1];
+                        var lagerMatch = onclick.match(/lager=([^&'\"]+)/);
+                        var url = orderContext.href + '?id=' + orderContext.id + '&vare_id=' + vare_id;
+                        if (orderContext.fokus) url += '&fokus=' + orderContext.fokus;
+                        if (orderContext.bordnr) url += '&bordnr=' + orderContext.bordnr;
+                        // Use lager from onclick if present, otherwise use orderContext.lager
+                        if (lagerMatch) {
+                            url += '&lager=' + lagerMatch[1];
+                        } else if (orderContext.lager) {
+                            url += '&lager=' + orderContext.lager;
+                        }
+                        window.location.href = url;
+                    }
                 }
                 return false;
             }
