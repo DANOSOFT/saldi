@@ -5568,18 +5568,30 @@ function ordrelinjer($x,$sum,$dbsum,$blandet_moms,$moms,$antal_ialt,$leveres_ial
 				$stockGrp[$g] = $r['grp'];
 				$g++;
 			}
-			$qtxt = "select min_lager,gruppe from varer where varer.id = '$vare_id'"; #20210503
+			$qtxt = "select min_lager,gruppe,beholdning from varer where varer.id = '$vare_id'"; #20210503
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				if (in_array($r['gruppe'],$stockGrp) && $r['min_lager'] > 0) {
-					$min_lager = $r['min_lager'];
+				$min_lager = $r['min_lager'];
+				$gruppe = $r['gruppe'];
+				// Get stock quantity - handle multiple warehouses
+				if ($lagerantal > 1 && $lager) {
+					$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id' and lager = '$lager'";
+					($r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$stockQty=$r2['qty']:$stockQty=0;
+				} else {
 					$qtxt = "select sum(beholdning) as qty from lagerstatus where vare_id = '$vare_id'";
-					($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$stockQty=$r['qty']:$stockQty=0;
-				} 
-			}
-			if ($stockQty < $min_lager) {
-				$txtColor ='red';
-				$qtyTitle = "Obs!! Beholdning (". dkdecimal($stockQty,0) .") mindre end ". dkdecimal($min_lager,0);
-      }  elseif ($stockQty) $qtyTitle = "Beholdning: ". dkdecimal($stockQty,0);
+					($r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)))?$stockQty=$r2['qty']:$stockQty=0;
+					if (!$stockQty) $stockQty = $r['beholdning'];
+				}
+				// Check if ordered quantity exceeds available stock
+				if (in_array($gruppe,$stockGrp) && $antal > $stockQty) {
+					$txtColor = 'red';
+					$qtyTitle = "Obs!! Antal (". dkdecimal($antal,0) .") overstiger beholdning (". dkdecimal($stockQty,0) .")";
+				} elseif (in_array($gruppe,$stockGrp) && $min_lager > 0 && $stockQty < $min_lager) {
+					$txtColor ='red';
+					$qtyTitle = "Obs!! Beholdning (". dkdecimal($stockQty,0) .") mindre end ". dkdecimal($min_lager,0);
+				} elseif ($stockQty) {
+					$qtyTitle = "Beholdning: ". dkdecimal($stockQty,0);
+				}
+			} 
 		}	
 		($x)?$y=NULL:$y='_';
     // print "<tr class='ordrelinje'>\n";
