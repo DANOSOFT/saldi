@@ -783,7 +783,6 @@ if (!$id && $konto_id && $kontonr) {
 	if (strlen($phone) > 15) $phone = substr($phone,0,15); 
 	$ordredate=date("Y-m-d");
 	($lev_firmanavn)?$vis_lev_addr='on':$vis_lev_addr='';
-	$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 	$afd = (int)$afd;
 	$qtxt="insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt.="cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,hvem,tidspkt,ref,";
@@ -1669,7 +1668,6 @@ if ($status<3 && $b_submit) {
     $r = db_fetch_array(db_select("select box1 from grupper where art = 'POS' and kodenr = '3' and fiscal_year = '$regnaar'",__FILE__ . " linje " . __LINE__));
 		$brugervalg=$r['box1']; # 20170419
 		if ($brugervalg) $ref='';
-		$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		$afd = (int)$afd;
 		$qtxt = "INSERT INTO ordrer (";
 		$qtxt.= "ordrenr, konto_id, kontonr, kundeordnr, firmanavn, addr1, addr2, postnr, ";
@@ -4341,15 +4339,15 @@ print "<td align='center' class='tableHeader'><b>".findtekst('428|Rabat', $sprog
 		}
 		print "</td>";
 		// Ensure afd is set from user settings for new orders before rendering dropdown
-		if (!$id && !$afd) {
-			$afd = get_settings_value('afd', 'brugerAfd', 0, $bruger_id);
+		if (!$id) {
+			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
 		}
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr)>1) {
 			print "</td><td></td>\n";
 			print "<td>".findtekst('1198|Afd.', $sprog_id)."</td><td><select style=\"width:125px;\" class = 'inputbox' name=\"afd\">";
 			for ($x=0;$x<count($afd_nr);$x++) {
-				if ($afd_nr[$x]==$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
+				if ($afd_nr[$x]==$afd) print "<option value=\"$afd_nr[$x]\" selected>$afd_nr[$x] $afd_navn[$x]</option>";
 			} 
 			for ($x=0;$x<count($afd_nr);$x++) {
 				if ($afd_nr[$x]!=$afd) print "<option value=\"$afd_nr[$x]\">$afd_nr[$x] $afd_navn[$x]</option>";
