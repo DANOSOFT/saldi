@@ -1122,78 +1122,6 @@ $filters[] = array(
 );
 ###############################Data configuration##############*****************++++++++++++++++
 
-// Build search conditions from legacy system
-$legacy_search_conditions = "";
-if (!empty($find) && is_array($find)) {
-    foreach ($find as $index => $search_term) {
-        if (!empty($search_term) && isset($vis_felt[$index])) {
-            $field = $vis_felt[$index];
-            $search_term = db_escape_string(trim($search_term));
-            
-            // Handle different field types like in old system
-            switch($field) {
-                case 'betalt':
-                    if ($search_term === '0' || $search_term === '1') {
-                        $legacy_search_conditions .= " AND o.betalt = '$search_term'";
-                    }
-                    break;
-                case 'sum_m_moms':
-                    if (strpos($search_term, ':') !== false) {
-                        list($a, $b) = explode(':', $search_term, 2);
-                        $a = usdecimal($a);
-                        $b = usdecimal($b);
-                        $legacy_search_conditions .= " AND (o.sum + o.moms) >= $a AND (o.sum + o.moms) <= $b";
-                    } else {
-                        $val = usdecimal($search_term);
-                        $legacy_search_conditions .= " AND (o.sum + o.moms) = $val";
-                    }
-                    break;
-                case 'ordrenr':
-                    if (strlen($search_term) >= 11) $search_term = substr($search_term, 0, 10);
-                    $search_term *= 1;
-                    $legacy_search_conditions .= " AND o.ordrenr = '$search_term'";
-                    break;
-                case 'kontonr':
-                    $search_term *= 1;
-                    $legacy_search_conditions .= " AND o.kontonr = '$search_term'";
-                    break;
-                case 'fakturanr':
-                    if (strpos($search_term, ':') !== false) {
-                        list($a, $b) = explode(':', $search_term, 2);
-                        $legacy_search_conditions .= " AND o.fakturanr >= '$a' AND o.fakturanr <= '$b'";
-                    } else {
-                        $legacy_search_conditions .= " AND o.fakturanr = '$search_term'";
-                    }
-                    break;
-                case 'kundegruppe':
-                    if (is_numeric($search_term)) {
-                        $legacy_search_conditions .= " AND a.gruppe = '$search_term'";
-                    }
-                    break;
-                default:
-                    // Handle text fields and dropdowns
-                    if (in_array($field, array('firmanavn', 'ref', 'email', 'kontakt'))) {
-                        $legacy_search_conditions .= " AND o.$field ILIKE '%$search_term%'";
-                    } else {
-                        $legacy_search_conditions .= " AND o.$field = '$search_term'";
-                    }
-                    break;
-            }
-        }
-    }
-}
-
-// Add konto_id filter only if konto_id is explicitly in GET (not from settings)
-if (isset($_GET['konto_id']) && $_GET['konto_id']) {
-    $konto_id_from_get = db_escape_string($_GET['konto_id']);
-    $legacy_search_conditions .= " AND o.konto_id = '$konto_id_from_get'";
-    $debug_log[] = "Added konto_id filter from GET: o.konto_id = '$konto_id_from_get'";
-} else {
-    $debug_log[] = "konto_id not in GET, skipping konto_id filter (konto_id from settings: " . ($konto_id ? $konto_id : 'none') . ")";
-}
-
-$debug_log[] = "legacy_search_conditions: $legacy_search_conditions";
-
 ##################
 // Build the base WHERE conditions based on order type
 $base_where_conditions = "";
@@ -1270,7 +1198,6 @@ $data = array(
     WHERE (o.art = 'DO' OR o.art = 'DK' OR (o.art = 'PO' AND o.konto_id > '0')) 
     AND $base_where_conditions
     AND {{WHERE}}
-    $legacy_search_conditions
     ORDER BY {{SORT}}",
     
     "rowStyle" => function ($row) use ($valg) {
@@ -1309,7 +1236,6 @@ $data = array(
 // Debug: Log query structure
 $debug_log[] = "Query base: " . substr($data['query'], 0, 200) . "...";
 $debug_log[] = "Final WHERE will include: $base_where_conditions";
-$debug_log[] = "Legacy search conditions: $legacy_search_conditions";
 
 // Write debug log to file
 $debug_log[] = "=== DEBUG END ===";
