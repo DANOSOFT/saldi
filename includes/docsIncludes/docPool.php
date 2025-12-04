@@ -28,7 +28,6 @@
 // 20250824 LOE _docPoolData.php added to this file for improved data handling, also checks that file is .pdf before setting default. Update .info subject 
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
-alert('okkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk');
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
 	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
@@ -730,7 +729,7 @@ print <<<JS
 				table tbody tr[data-selected='true']:hover { background-color: " + lightButtonColor + " !important; }\
 				table tbody tr[data-selected='true']:hover td { color: #000000 !important; }\
 				table tbody tr[data-editing='true'] { background-color: " + lightButtonColor + " !important; }\
-				table tbody tr:hover td { background-color: transparent !important; }\
+				table tbody tr:hover td { background-color:  }\
 				.edit-input { border-color: " + buttonColor + "; }\
 				.edit-input:focus { outline-color: " + buttonColor + "; }\
 			</style>";

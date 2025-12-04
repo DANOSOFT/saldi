@@ -41,7 +41,6 @@ include("../includes/std_func.php");
 include("../includes/topline_settings.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
-print "<div align=\"center\">";
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=null;
 if(($_GET)||($_POST)) {
 
@@ -67,6 +66,75 @@ if(($_GET)||($_POST)) {
 	}
 }
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
+
+// Render the header before any content
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	
+	// Determine back URL based on source
+	if ($source == "kassekladde") {
+		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+	} elseif ($source == "debitorOrdrer") {
+		$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
+	} elseif ($source == "creditorOrder") {
+		$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
+	} else {
+		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
+	}
+	
+	$headerTitle = findtekst('1408|Dokumenter', $sprog_id);
+	
+	print "<div id='header'>";
+	print "<div class='headerbtnLft headLink'><a href='$backUrl' accesskey='L' title='".findtekst('30|Tilbage', $sprog_id)."'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class='headerTxt'>$headerTitle</div>";
+	print "<div class='headerbtnRght headLink'></div>";
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu == 'S') {
+	// Sidebar menu - use topLineDocuments.php if it exists, otherwise create inline
+	if (file_exists('docsIncludes/topLineDocuments.php')) {
+		include_once './docsIncludes/topLineDocuments.php';
+	} else {
+		// Create inline sidebar-style header
+		if ($source == "kassekladde") {
+			$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+		} elseif ($source == "debitorOrdrer") {
+			$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
+		} elseif ($source == "creditorOrder") {
+			$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
+		} else {
+			$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
+		}
+		
+		print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0' style='margin-bottom: 10px;'><tbody><tr>";
+		print "<td width='10%' style='$topStyle'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Dokumenter', $sprog_id)."</td>";
+		print "<td width='10%' style='$topStyle' align='center'></td>";
+		print "</tr></tbody></table>";
+	}
+} else {
+	// Old/classic header style
+	if ($source == "kassekladde") {
+		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+	} elseif ($source == "debitorOrdrer") {
+		$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
+	} elseif ($source == "creditorOrder") {
+		$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
+	} else {
+		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
+	}
+	
+	if (!isset($top_bund)) $top_bund = "";
+	
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0' style='margin-bottom: 10px;'><tbody><tr>";
+	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L'>".findtekst('30|Tilbage', $sprog_id)."</a></font></td>";
+	print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Dokumenter', $sprog_id)."</font></td>";
+	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></font></td>";
+	print "</tr></tbody></table>";
+}
+
+print "<div align=\"center\">";
 
 if (isset($_GET['test'])) exit;
 #xit;
@@ -534,7 +602,7 @@ if ($showDoc && $source == 'kassekladde') {
 			transition: background-color 0.2s;
 		}
 		#leftPanel table tbody tr:hover td {
-			background-color: transparent !important;
+			
 		}
 		#leftPanel table tbody tr td {
 			padding: 8px;
@@ -692,5 +760,11 @@ print "</tbody></table>";
 print "</td></tr>";
 // ---------- Main table start ---------
 print "</tbody></table>";
+
+// Close content div if using modern menu
+if ($menu == 'T') {
+	print "</div>"; // Close content-noside div
+}
+
 print "</body></html>";
 ?>
