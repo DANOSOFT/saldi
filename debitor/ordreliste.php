@@ -246,8 +246,15 @@ $shop_faktura = if_isset($_GET, NULL, 'shop_faktura');
 if (!$returside && $konto_id && !$popup) {
 	$returside="debitorkort.php?id=$konto_id";
 }
-if (isset($_GET['valg'])) setcookie("saldi_ordreliste","$valg");
-else $valg = if_isset($_COOKIE,NULL,'saldi_ordreliste');
+if (isset($_GET['valg'])) {
+	setcookie("saldi_ordreliste","$valg");
+} else {
+	$valg = if_isset($_COOKIE,NULL,'saldi_ordreliste');
+	// If konto_id is in GET and valg is not explicitly set, default to faktura (invoices)
+	if (isset($_GET['konto_id']) && $_GET['konto_id']) {
+		$valg = "faktura";
+	}
+}
 
 $r2=db_fetch_array(db_select("select max(id) as id from grupper",__FILE__ . " linje " . __LINE__));
 
@@ -475,10 +482,81 @@ if (in_array('kundeordnr',$vis_felt)) {
 
 // Grid-specific parameters
 $grid_id = "ordrelst_$valg";
+
+// Debug logging
+$debug_file = "../temp/$db/ordreliste_debug.log";
+$debug_log = array();
+$debug_log[] = "=== DEBUG START " . date('Y-m-d H:i:s') . " ===";
+$debug_log[] = "konto_id from GET: " . (isset($_GET['konto_id']) ? $_GET['konto_id'] : 'NOT SET');
+$debug_log[] = "konto_id from settings: " . (isset($konto_id) ? $konto_id : 'NOT SET');
+$debug_log[] = "valg: $valg";
+$debug_log[] = "grid_id: $grid_id";
+
+// If konto_id is in GET and search fields are not already set, pre-populate from adresser
+if (isset($_GET['konto_id']) && $_GET['konto_id']) {
+	$debug_log[] = "konto_id found in GET, processing...";
+	
+	// Initialize search array if it doesn't exist
+	if (!isset($_GET['search'])) {
+		$_GET['search'] = array();
+		$debug_log[] = "Initialized \$_GET['search'] array";
+	}
+	if (!isset($_GET['search'][$grid_id])) {
+		$_GET['search'][$grid_id] = array();
+		$debug_log[] = "Initialized \$_GET['search'][$grid_id] array";
+	}
+	
+	$debug_log[] = "Current search values: " . json_encode($_GET['search'][$grid_id]);
+	
+	// Only pre-populate if search fields are empty
+	if (empty($_GET['search'][$grid_id]['firmanavn']) && empty($_GET['search'][$grid_id]['kontonr'])) {
+		$konto_id_from_get = db_escape_string($_GET['konto_id']);
+		$qtxt = "SELECT firmanavn, kontonr FROM adresser WHERE id = '$konto_id_from_get'";
+		$debug_log[] = "Query to fetch customer: $qtxt";
+		
+		if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			$debug_log[] = "Customer found: " . json_encode($r);
+			
+			if (!empty($r['firmanavn'])) {
+				$_GET['search'][$grid_id]['firmanavn'] = $r['firmanavn'];
+				$debug_log[] = "Set firmanavn search: " . $r['firmanavn'];
+			}
+			if (!empty($r['kontonr'])) {
+				$_GET['search'][$grid_id]['kontonr'] = $r['kontonr'];
+				$debug_log[] = "Set kontonr search: " . $r['kontonr'];
+			}
+		} else {
+			$debug_log[] = "ERROR: No customer found with id = $konto_id_from_get";
+		}
+	} else {
+		$debug_log[] = "Search fields already populated, skipping";
+	}
+} else {
+	$debug_log[] = "konto_id NOT in GET or empty";
+}
+
 $grid_search = if_isset($_GET['search'][$grid_id], array());
+$debug_log[] = "Final grid_search: " . json_encode($grid_search);
+$debug_log[] = "Full \$_GET['search']: " . json_encode(if_isset($_GET['search'], array()));
 $grid_offset = if_isset($_GET['offset'][$grid_id], 0);
 $grid_rowcount = if_isset($_GET['rowcount'][$grid_id], 100);
 $grid_sort = if_isset($_GET['sort'][$grid_id], '');
+
+// Also check how many orders exist for this konto_id
+if ($konto_id) {
+	$test_query = "SELECT COUNT(*) as count FROM ordrer WHERE konto_id = '$konto_id' AND status >= 3";
+	if ($test_r = db_fetch_array(db_select($test_query, __FILE__ . " linje " . __LINE__))) {
+		$debug_log[] = "Total invoices for konto_id $konto_id: " . $test_r['count'];
+	}
+	
+	// Check with firmanavn search
+	if (!empty($grid_search['firmanavn'])) {
+		$test_query2 = "SELECT COUNT(*) as count FROM ordrer WHERE firmanavn = '" . db_escape_string($grid_search['firmanavn']) . "' AND status >= 3";
+		if ($test_r2 = db_fetch_array(db_select($test_query2, __FILE__ . " linje " . __LINE__))) {
+			$debug_log[] = "Total invoices for firmanavn '{$grid_search['firmanavn']}': " . $test_r2['count'];
+		}
+	}
+}
 
 
 // Initialize totals
@@ -1105,10 +1183,16 @@ if (!empty($find) && is_array($find)) {
     }
 }
 
-// Add konto_id filter if set
-if ($konto_id) {
-    $legacy_search_conditions .= " AND o.konto_id = '$konto_id'";
+// Add konto_id filter only if konto_id is explicitly in GET (not from settings)
+if (isset($_GET['konto_id']) && $_GET['konto_id']) {
+    $konto_id_from_get = db_escape_string($_GET['konto_id']);
+    $legacy_search_conditions .= " AND o.konto_id = '$konto_id_from_get'";
+    $debug_log[] = "Added konto_id filter from GET: o.konto_id = '$konto_id_from_get'";
+} else {
+    $debug_log[] = "konto_id not in GET, skipping konto_id filter (konto_id from settings: " . ($konto_id ? $konto_id : 'none') . ")";
 }
+
+$debug_log[] = "legacy_search_conditions: $legacy_search_conditions";
 
 ##################
 // Build the base WHERE conditions based on order type
@@ -1120,6 +1204,8 @@ if ($valg == "tilbud") {
 } else {
     $base_where_conditions = "(o.status = 1 OR o.status = 2)";
 }
+
+$debug_log[] = "base_where_conditions: $base_where_conditions";
 
 $data = array(
     "table_name" => "ordrer",
@@ -1219,6 +1305,16 @@ $data = array(
     "filters" => $filters,
     'metaColumnHeaders' => $metaColumnHeaders,
 );
+
+// Debug: Log query structure
+$debug_log[] = "Query base: " . substr($data['query'], 0, 200) . "...";
+$debug_log[] = "Final WHERE will include: $base_where_conditions";
+$debug_log[] = "Legacy search conditions: $legacy_search_conditions";
+
+// Write debug log to file
+$debug_log[] = "=== DEBUG END ===";
+@file_put_contents($debug_file, implode("\n", $debug_log) . "\n\n", FILE_APPEND | LOCK_EX);
+
 ##############
 
 
