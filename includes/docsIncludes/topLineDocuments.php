@@ -93,4 +93,4 @@ print "</tbody></table></td></tr>\n"; # <- Tabel 1.1
 		overflow-y: auto;
 		overflow-x: hidden;
 	}
-</style
+</style>

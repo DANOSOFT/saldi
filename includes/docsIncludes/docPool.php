@@ -498,21 +498,21 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
 	}
 	// Print header banner
-	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+	
 	if ($menu=='S') {
-		print "<tr>";
-		print "<td width='10%' style='$topStyle'><a href='$backUrl' accesskey='L'><button style='$buttonStyle width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
-		print "<td width='10%' style='$topStyle' align='center'><br></td>";
-		print "</tr>";
+		// Modern header - wrapped in table like other topLine files
+		print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+		include("docsIncludes/topLineDocuments.php");
+		print "</tbody></table>";
 	} else {
+		print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
 		print "<tr>";
 		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
 		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></td>";
 		print "</tr>";
+		print "</tbody></table>";
 	}
-	print "</tbody></table>";
 	
 	// Include DocPool CSS files
 	$cssPath = "../css";
@@ -729,7 +729,7 @@ print <<<JS
 				table tbody tr[data-selected='true']:hover { background-color: " + lightButtonColor + " !important; }\
 				table tbody tr[data-selected='true']:hover td { color: #000000 !important; }\
 				table tbody tr[data-editing='true'] { background-color: " + lightButtonColor + " !important; }\
-				table tbody tr:hover td { background-color: transparent !important; }\
+				table tbody tr:hover td { background-color:  }\
 				.edit-input { border-color: " + buttonColor + "; }\
 				.edit-input:focus { outline-color: " + buttonColor + "; }\
 			</style>";

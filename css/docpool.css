@@ -297,7 +297,7 @@ html, body {
 }
 
 #fileListContainer table tbody tr:hover td {
-  background-color: transparent !important;
+  /* background-color: transparent !important; */
 }
 
 #fileListContainer table tbody td {
