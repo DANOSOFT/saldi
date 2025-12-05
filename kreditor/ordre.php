@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.0 --- 2025-11-25---
+// --- kreditor/ordre.php --- patch 4.1.1 --- 2025-12-03---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -67,6 +67,7 @@
 // 20251113 PHR	Added some undefined vareables
 // 20251115 PHR Added missing "'"
 // 20251124 LOE Readded session_start which was removed causing page to request login again and again
+// 20251203 LOE Moved S menu's top table to ../includes/kreditorOrderFuncIncludes/topLine_S.php
 @session_start();
 $s_id=session_id();
 
@@ -93,7 +94,7 @@ $s_id=session_id();
 	}
 	-->
 	</script>
-	<script src="../javascript/confirmclose.js\"></script>
+	<script src="../javascript/confirmclose.js"></script>
 
 <?php
 $title="Kreditorordre";
@@ -104,16 +105,22 @@ $id=$konto_id=$debitor_id=$projekt=0;
 $hurtigfakt=$krediteret=$labelprint=$lev_adr=$momssum=$negativt_lager=$sort=$submit=NULL;
 $antal[0]=$beskrivelse[0]=$enhed[0]=$lev_varenr[0]=$pris[0]=$rabat[0]=NULL;
 $batch=array();
-
+$valg=NULL;
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 
 $returside = if_isset($_GET,NULL,'returside');
+########
+if (isset($_COOKIE['valg'])) {
+    $valg = $_COOKIE['valg']; // coming from ordreliste
+}
 
+#######
 #if ($popup) $returside="../includes/luk.php";
 #elseif (!$returside) $returside="../kreditor/ordreliste.php";
 if (!$returside || $returside=="ordreliste.php") $returside="../kreditor/ordreliste.php";
+print "\n";
 
 $tidspkt=date("U");
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -1049,6 +1056,7 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 	if ($popup) print "<meta http-equiv=\"refresh\" content=\"3600;URL=../includes/luk.php\">";
 	else print "<meta http-equiv=\"refresh\" content=\"3600;URL=ordreliste.php\">";
 	echo "<script>console.log('bogfor: $bogfor');</script>";
+	
 	ordreside($id);
 
 
@@ -1110,7 +1118,7 @@ function prepareSearchTerm($searchTerm) {
     return "LIKE '$searchTerm'";
 }
 */
-
+	
 	if (!$id) $fokus='kontonr';
 	print "<form name='ordre' action='ordre.php' method='post'>";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
@@ -1464,6 +1472,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst) {
 	global $menu;
 	global $sprog_id;
 	global $top_bund;
+	global $valg;
 
 	$title= 'Leverandør ordre';
 	$alerttekst=findtekst(154,$sprog_id);
@@ -1528,59 +1537,7 @@ if ($menu=='T') {
 	print "</td></tr>\n";
 	print "<tr><td valign=\"top\" align=center>";
 } elseif ($menu=='S') {
-	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
-	print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
-	print "<div align=\"center\">";
-
-	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-
-	if ($kort) print "<td width=\"10%\">$color<a href=../kreditor/ordre.php?id=$id&fokus=$fokus accesskey=L>
-					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">Luk</button></a></td>";
-		  else print "<td width=\"10%\">$color
-					  <a href=\"javascript:confirmClose('../includes/luk.php?returside=$returside&tabel=ordrer&id=$id','$alerttekst')\" accesskey=L>
-					  <button type='button' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-					  .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-
-	print "<td width=\"80%\" align='center' style='$topStyle'>$color$tekst</td>";
-	print "<td id='tutorial-help' width=5% style=$buttonStyle>";
-	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
-	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";
-	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
-		print "<td width=\"10%\">$color
-			   <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>
-			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(39, $sprog_id)."</button></a></td>";
-
-	} else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {
-		print "<td width=\"10%\"> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>
-			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(39, $sprog_id)."</button></a></td>";
-
-	} elseif ($kort=="../kreditor/kreditorkort.php") {
-		print "<td width=\"5%\" onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\">
-			   <span title='".findtekst(1521, $sprog_id)."'><u>
-			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(813, $sprog_id)."</button></u></span></td>"; #20210716
-		print "<td width=\"5%\">$color
-			   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
-			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(39, $sprog_id)."</button></a></td>";
-
-	} elseif (($id)||($kort!="../lager/varekort.php")) {
-		print "<td width=\"10%\">$color
-			   <a href=\"javascript:confirmClose('$kort?returside=../kreditor/ordre.php&ordre_id=$id&fokus=$fokus','$alerttekst')\" accesskey=N>
-			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
-			   .findtekst(39, $sprog_id)."</button></a></td>";
-	}
-	else {
-		print "<td width=\"10%\" align='center' style='$topStyle'><br></td>";
-	}
-
-	print "</tbody></table>";
-	print "</td></tr>\n";
-	print "<tr><td valign=\"top\" align=center>";
+	include('../includes/kreditorOrderFuncIncludes/topLine_S.php');
 } else {
 		print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><head><title>".findtekst(547,$sprog_id)."</title><meta http-equiv=\"content-type\" content=\"text/html; charset=ISO-8859-1\"></head>";
 		print "<body bgcolor=\"#339999\" link=\"#000000\" vlink=\"#000000\" alink=\"#000000\" center=\"\">";
@@ -1607,6 +1564,7 @@ if ($menu=='T') {
 	print "</td></tr>\n";
 	print "<tr><td valign=\"top\" align=center>";
 }
+
 }
 ######################################################################################################################################
 function find_vare_id ($varenr) {
@@ -1678,3 +1636,9 @@ if ($menu=='T') {
 
 ?>
 	
+<style>
+.ordreform { 
+	overflow-x: auto;
+	height: calc(100vh - 50px);
+}
+</style>

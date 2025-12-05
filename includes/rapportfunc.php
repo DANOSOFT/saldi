@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/rapportfunc.php --- patch 4.1.0 --- 2025-09-22 ---
+// --- includes/rapportfunc.php --- patch 4.1.0 --- 2025-12-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -733,18 +733,50 @@ $backUrl = isset($_GET['returside']) ? $_GET['returside'] : '../index/menu.php';
 		print "<div class='content-noside'>";
 		print "<div class='dataTablediv' style='width:700px; margin: auto;'><table width='100%' cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\" class='dataTableSmall'><tbody>\n";
 	} elseif ($menu == 'S') {
-		print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
+			
+	#####################
+	$leftemptyBtn  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	
+	#####################
+	print "<table cellpadding='1' cellspacing='3' border='0' width='100%' height='100%' valign='top'><tbody>";
+	
+	print "<tr id='topTr'><td width=5% style='$topStyle'>";
+	print "<span class='headerbtn' style='$buttonStyle'>"
+	. $leftemptyBtn . "</span>";
+	print "</td>";
 
-		print "<tr><td width='10%' align='center' style='$buttonStyle'><a href=$returside accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst(30, $sprog_id) . "</button></a></td>";
+	print "<td width='75%' align='center' style='$topStyle'>$title</td>";
 
-		print "<td width='80%' align='center' style='$topStyle'>$title</td>";
-
-		print "<td width='10%' align='center' style='$topStyle''><br></td>";
+	
+	print "<td width='5%' align='center' style='$topStyle''><br></td>";
 
 		print "</tr><tr class='noHover'><td height=99%><br></td></td>";
 		print "<td valign='top' align='center'><table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" align=\"center\"><tbody>\n";
 		print "<tr><td align=center colspan=\"5\"><big><b>$title</b></big><br><br></td></tr>";
+	?>
+	<style>
+	.headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
+	a:link{
+		text-decoration: none;
+	}
+	</style>
+	<script>
+			document.addEventListener("DOMContentLoaded", function() {
+			var trElement = document.getElementById("topTr");
+			if (trElement) {
+				
+				trElement.classList.remove("hover-highlight");
+			}
+		});
+	</script>
+	<?php
+     
+		##################
 	} else {
 		$butCol = '#009578';
 		$topStyle = "border:1;border-color:#fefefe;border-radius:5px;width:100%;height:100%;background:url('../img/knap_bg.gif');";

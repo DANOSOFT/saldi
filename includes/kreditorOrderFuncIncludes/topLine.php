@@ -6,6 +6,7 @@ $konto_id = if_isset($_GET, NULL,'konto_id');
 $returside = if_isset($_GET, NULL,'returside'); 
 $valg = if_isset($_GET, 'ordrer','valg');
 $sort = if_isset($_GET, NULL,'sort');
+$hreftext = if_isset($hreftext, NULL);
 
 if (is_array($sort)) {
     $sort = implode(',', $sort);
