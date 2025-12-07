@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankimport.php --- patch 4.1.1 --- 2025.10.12 ---
+// --- finans/bankimport.php --- patch 4.1.1 --- 2025.11.06 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,6 +66,7 @@
 // 20250829 PHR	Check for lineshift in description
 // 20250918 PHR	More check for lineshift in description
 // 20251012 PHR Added Currency
+// 20251106 PHR Corrected date error
 
 ini_set("auto_detect_line_endings", true);
 
@@ -427,7 +428,7 @@ print "<tr><td colspan=$cols><hr></td></tr>\n";
 $splitter=chr(9);
 print "<tr><td><span title='".findtekst(1404, $sprog_id)."'><input type=text size=4 name=bilag value=$bilag></span></td>";
 $belob = $beskr = $dato = $kundenr = 0;
-for ($y=0; $y<=$feltantal; $y++) {
+for ($y=0; $y<count($feltnavn); $y++) {
 	if ($feltnavn[$y]=='dato' && $dato==1) {
 		$aalert = findtekst(1405, $sprog_id);
 		alert("$aalert");
@@ -479,9 +480,10 @@ if ($fp) {
 		if ($linje=trim($linje)) {
 			$x++;
 			$skriv_linje=1;
-			$felt=array();
+			$felt = array();
 			$felt = explode($splitter, $linje);
-			for ($y=0; $y<=$feltantal; $y++) {
+			for ($y=0; $y<count($feltnavn); $y++) {
+				if (!isset($felt[$y])) $felt[$y] = NULL;
 				$felt[$y]=trim($felt[$y]);
 				$felt[$y]=trim($felt[$y],'"');
 				if ((substr($felt[$y],0,1) == '"')&&(substr($felt[$y],-1) == '"')) $felt[$y]=substr($felt[$y],1,strlen($felt[$y])-2);
@@ -552,29 +554,28 @@ if ($fp) {
 			}
 			if ($skriv_linje==1){
 				print "<tr><td>$bilag</td>";
-				for ($y=0; $y<=$feltantal; $y++) {
-					if ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo') {
+				for ($y=0; $y<count($feltnavn); $y++) {
+					if (isset($feltnavn[$y]) && ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo')) {
 						print "<td align=right>$felt[$y]&nbsp;</td>";
 					}
-					elseif ($feltnavn[$y]) {print "<td>$felt[$y]&nbsp;</td>";}
-				else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
+					elseif ($feltnavn[$y]) {print "<td>$felt[$y]&nbsp;</td>\n";}
+				else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
 				}
 				print "</tr>";
 				$bilag++;
 			} else {
-				print "<tr><td><span style=\"color: rgb(153, 153, 153);\">-</span></td>";
-				for ($y=0; $y<=$feltantal; $y++) {
-					if ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo') {
-						print "<td align=right><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
-					} elseif ($feltnavn[$y]) print "<td><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
-					else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>";
+				print "<tr><td><span style=\"color: rgb(153, 153, 153);\">-</span></td>\n";
+				for ($y=0; $y<count($feltnavn); $y++) {
+					if (isset($feltnavn[$y]) && ($feltnavn[$y]=='belob' || $feltnavn[$y]=='saldo')) {
+						print "<td align=right><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
+					} elseif ($feltnavn[$y]) print "<td><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
+					else print "<td align=center><span style=\"color: rgb(153, 153, 153);\">$felt[$y]&nbsp;</span></td>\n";
 				}
 				print "</tr>";
 			}
 		}
 	}
 }
-
 fclose($fp);
 print "</tbody></table>";
 print "</td></tr>";
@@ -628,17 +629,23 @@ function flyt_data($kladde_id,$filnavn,$splitter,$feltnavn,$feltantal,$kontonr,$
 						$felt[$y] = str_replace('-','',$felt[$y]);
 						$felt[$y] = str_replace('/','',$felt[$y]);
 						$felt[$y] = str_replace('.','',$felt[$y]);
+						$felt[$y] = trim($felt[$y],'"');
+						$felt[$y] = trim($felt[$y]);
 						if (is_numeric($felt[$y]) && strlen($felt[$y])=='8') { #20210916
 							$thisYear=date('Y');
-							if (substr($felt[$y],0,4) >= $thisYear-2 && 
+							if (substr($felt[$y],0,4) >= $thisYear-2 &&
 							substr($felt[$y],0,4) <= $thisYear+2 &&
 							substr($felt[$y],4,2) <= 12) {
 								$year=substr($felt[$y],0,4);
 								$month=substr($felt[$y],4,2);
 								$day=substr($felt[$y],6,2);
-								$felt[$y] = $day ."-". $month."-". $year; 
+							} else {
+								$day=substr($felt[$y],0,2);
+								$month=substr($felt[$y],2,2);
+								$year=substr($felt[$y],4,4);
 							}
-						}	 
+							$felt[$y] = $day ."-". $month."-". $year;
+						}
 						$felt[$y]=str_replace("-jan-","-01-",$felt[$y]);
 						$felt[$y]=str_replace("-feb-","-02-",$felt[$y]);
 						$felt[$y]=str_replace("-mar-","-03-",$felt[$y]);
