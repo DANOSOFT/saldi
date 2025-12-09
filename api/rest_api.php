@@ -526,17 +526,17 @@ function insert_shop_orderline($brugernavn,$ordre_id,$shop_vare_id,$shop_varenr,
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['saldi_id'];
 		$saldi_variant=$r['saldi_variant'];
-	} elseif ($shop_vare_id) {
-		$qtxt="select saldi_id from shop_varer where shop_id='$shop_vare_id'";
-		fwrite($log,__line__." $qtxt\n");
-		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
-		$vare_id=$r['saldi_id'];
 	} elseif ($shop_varenr) {
 		$qtxt="select id from varer where UPPER(varenr)=UPPER('$shop_varenr') or UPPER(varenr_alias)=UPPER('$shop_varenr') or UPPER(stregkode)=UPPER('$shop_varenr')";
 		$qtxt=chk4utf8($qtxt);
 		fwrite($log,__line__." $qtxt\n");
 		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$vare_id=$r['id'];
+	} elseif ($shop_vare_id) {
+		$qtxt="select saldi_id from shop_varer where shop_id='$shop_vare_id'";
+		fwrite($log,__line__." $qtxt\n");
+		$r=db_fetch_array (db_select($qtxt,__FILE__ . " linje " . __LINE__));
+		$vare_id=$r['saldi_id'];
 	} elseif ($beskrivelse) {
 		$vare_id='0';
 		$varenr='';
