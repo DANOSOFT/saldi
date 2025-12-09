@@ -465,7 +465,7 @@ function create_datagrid($id, $grid_data) {
         // Log the actual query being executed
         $query_length = strlen($query);
         
-        print "<!-- \n DEBUG QUERY \n\n$query -->";
+       # print "<!-- \n DEBUG QUERY \n\n$query -->";
         
         $main_query_start = microtime(true);
         $sqlquery = db_select($query, __FILE__ . " line " . __LINE__);
@@ -963,7 +963,9 @@ function calculate_total_width($columns) {
  * @return void Outputs the full HTML structure of the datagrid, including a table and necessary form fields for interaction.
  */
 function render_datagrid($id, $columns, $rows, $totalWidth, $searchTerms, $rowStyleFn, $metaColumnFn, $query, $sort, $selectedrowcount, $totalItems, $rowCount, $offset, $menu) {
+    global $grid_data;
     // Start table wrapper and form
+     $rowAttributesFn = if_isset($grid_data, NULL,'rowAttributes');
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="GET" action="">
@@ -985,13 +987,14 @@ HTML;
     // Render table rows
     foreach ($rows as $row) {
         $rowStyle = $rowStyleFn ? $rowStyleFn($row) : '';
+        $rowAttrs = $rowAttributesFn ? $rowAttributesFn($row) : '';
         $metaColumn = $metaColumnFn ? $metaColumnFn($row) : '';
-        echo "<tr style='{$rowStyle}'>";
+        echo "<tr style='{$rowStyle}' {$rowAttrs}>";
         render_table_row($columns, $row, $searchTerms);
         echo "$metaColumn</tr>";
     }
 
-    if ($selectedrowcount < 1000) {
+    if ($selectedrowcount <= 1000) {
         for ($i=0; $i < $selectedrowcount - $rowCount; $i++) {
             echo "<tr style='background-color: unset; pointer-events: none;' class='filler-row'>";
             echo "<td>-&nbsp;</td>";
@@ -1163,7 +1166,7 @@ HTML;
  */
 function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $offset) {
     // Define the possible row count options
-    $rowCounts = [50, 100, 250, 500, 1000, 5000, 999999999];
+    $rowCounts = [50, 100, 250, 500, 1000];
 
     // Build the options dynamically
     $options = '';
@@ -1955,18 +1958,41 @@ function render_dropdown_script($id, $query) {
                 tbody.innerHTML = `<pre>$escapedQuery</pre>`;
                 tbody.innerHTML += '<b><a href="' + window.location.href.split('?')[0] + '">back</a></b>';
 
-            } else if (action === 'clear') {
-                 // Select all input fields matching the name pattern `search[test][...]`
-                const searchFields = document.querySelectorAll('input[name^="search[$id]"]');
-                console.log(searchFields);
-
-                // Loop through each field and clear its value
+            }else if (action === 'clear') {
+                // Get the current form
+                const form = document.querySelector('div#datatable-wrapper-$id.datatable-wrapper form');
+                if (!form) return;
+                
+                // Create a hidden input for valg if it doesn't exist
+                let valgInput = form.querySelector('input[name="valg"]');
+                if (!valgInput) {
+                    valgInput = document.createElement('input');
+                    valgInput.type = 'hidden';
+                    valgInput.name = 'valg';
+                    form.appendChild(valgInput);
+                }
+                // Set the current valg parameter
+                valgInput.value = valgParam || 'ordrer';
+                
+                // Clear all search inputs
+                const searchFields = form.querySelectorAll('input[name^="search[$id]"]');
                 searchFields.forEach(field => {
                     field.value = "";
                 });
-
-                searchFields[0].form.submit();
-
+                
+                // Clear date picker fields specifically
+                const dateFields = form.querySelectorAll('.date-picker');
+                dateFields.forEach(field => {
+                    field.value = "";
+                    // Also clear the underlying daterangepicker if it exists
+                    if ($(field).data('daterangepicker')) {
+                        $(field).data('daterangepicker').setStartDate(moment());
+                        $(field).data('daterangepicker').setEndDate(moment());
+                    }
+                });
+                
+                // Submit the form
+                form.submit();
             } else if (action === 'exportCSV') {
                 // Get the table element
                 const table = document.querySelector('div#datatable-wrapper-$id.datatable-wrapper form div.datatable-search-wrapper table#datatable-$id.datatable');
@@ -2200,7 +2226,7 @@ class DynamicSearch {
     }
     
     init() {
-        console.log('Initializing dynamic search for grid:', this.gridId);
+        
         this.bindSearchEvents();
         // DON'T prevent dropdown search submit - let it work normally
     }
@@ -2208,7 +2234,7 @@ class DynamicSearch {
     bindSearchEvents() {
         // Find only the search input fields (not the dropdown button)
         const searchInputs = document.querySelectorAll('input[type="text"][name*="search"]');
-        console.log('Found search inputs:', searchInputs.length);
+       
         
         searchInputs.forEach(input => {
             // Remove any existing event listeners
@@ -2225,7 +2251,7 @@ class DynamicSearch {
     }
     
     handleSearch(e) {
-        console.log('Search input changed:', e.target.name, e.target.value);
+        
         
         // Clear previous timeout
         if (this.searchTimeout) {
@@ -2250,7 +2276,7 @@ class DynamicSearch {
     
     async executeSearch() {
         if (this.isLoading) {
-            console.log('Search already in progress, skipping...');
+            
             return;
         }
         
@@ -2258,7 +2284,7 @@ class DynamicSearch {
         this.showLoading();
         
         try {
-            console.log('Executing dynamic search from input...');
+            
             
             // Submit via AJAX
             await this.submitAjax();
@@ -2291,7 +2317,7 @@ class DynamicSearch {
         // Add AJAX flag
         params.append('ajax', '1');
         
-        console.log('Submitting AJAX search request');
+       
         
         const url = window.location.href.split('?')[0];
         const response = await fetch(url + '?' + params.toString(), {
@@ -2310,7 +2336,7 @@ class DynamicSearch {
         this.updateGridContent(html);
     }
     
-    updateGridContent(html) {
+     updateGridContent(html) {
         try {
             // Parse the HTML response
             const parser = new DOMParser();
@@ -2327,7 +2353,15 @@ class DynamicSearch {
                         newGridWrapper.cloneNode(true), 
                         currentGridWrapper
                     );
-                    console.log('Grid content updated dynamically');
+                   
+                    
+                    // Re-initialize date pickers
+                    if (typeof initializeDatePickers === 'function') {
+                        initializeDatePickers();
+                    }
+                    
+                    // Re-attach row click handlers
+                    attachRowClickHandlers();
                     
                     // Re-initialize the search functionality on the new content
                     this.init();
@@ -2349,7 +2383,7 @@ class DynamicSearch {
     submitFormNormally() {
         const form = document.querySelector('form[method="GET"]');
         if (form) {
-            console.log('Submitting form normally');
+           
             form.submit();
         }
     }
@@ -2372,10 +2406,33 @@ class DynamicSearch {
     }
 }
 
+
+// Function to attach row click handlers
+function attachRowClickHandlers() {
+    const rows = document.querySelectorAll('.datatable tbody tr:not(.filler-row)');
+    rows.forEach(function(row, index) {
+        // Remove existing click handlers to avoid duplicates
+        row.removeEventListener('click', handleRowClick);
+        row.addEventListener('click', handleRowClick);
+    });
+}
+
+function handleRowClick(e) {
+    // Don't navigate if clicking on action buttons
+    if (e.target.closest('a')) return;
+    
+    // Get the order ID from the data
+    const orderId = this.dataset.orderId;
+    if (orderId) {
+        window.location.href = 'ordre.php?id=' + orderId + '&returside=ordreliste.php';
+    }
+}
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing dynamic search...');
+    
     window.dynamicSearch = new DynamicSearch('$id');
+    attachRowClickHandlers();
 });
 
 </script>
