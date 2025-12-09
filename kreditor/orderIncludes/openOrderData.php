@@ -34,7 +34,6 @@ $attachId    = null;
 $email       = null;
 $kundeordnr  = null;
 $projekt[0]  = null;
-$ref         = null;
 $udskriv_til = null;
 
 
@@ -202,7 +201,7 @@ if ($x==1) {
 	$txt1097 = findtekst('1097|Vor ref.', $sprog_id);
 	print "<tr><td>$txt1097</td>";
 	print "<td colspan=3><select style='text-align:right;width:110px;' class='inputbox' name=ref>";
-	if ($ref) print "<option>$ref</option>";
+	if ($ref) print "<option selected>$ref</option>";
 }
 if ($ref!=$r2['navn']) print "<option> $r2[navn]</option>";
 	}
