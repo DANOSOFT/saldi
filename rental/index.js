@@ -1180,9 +1180,22 @@ const productOverviewMonth = async (thisMonth, year, value) => {
     const reservations = await getReservations()
 
     // sort productInfo by item_name
-    productInfo.sort((a, b) => a.item_name.localeCompare(b.item_name))
+    productInfo.sort((a, b) => {
+        const aName = a.item_name || ''
+        const bName = b.item_name || ''
+        return aName.localeCompare(bName)
+    })
     
-    productInfo.sort((a, b) => parseInt(a.item_name) - parseInt(b.item_name))
+    productInfo.sort((a, b) => {
+        const aName = a.item_name || ''
+        const bName = b.item_name || ''
+        const aNum = parseInt(aName)
+        const bNum = parseInt(bName)
+        if (isNaN(aNum) && isNaN(bNum)) return 0
+        if (isNaN(aNum)) return 1
+        if (isNaN(bNum)) return -1
+        return aNum - bNum
+    })
 
     // Creating a list of unique products
     //const uniqueProducts = [...new Set(productInfo.map(item => item.item_id))]
