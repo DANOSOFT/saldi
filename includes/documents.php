@@ -327,127 +327,25 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 	}
 }
 
-// Check for openPool BEFORE printing any table structure
-// Make sure we check both the variable and the GET parameter
-$openPool = $openPool || (isset($_GET['openPool']) && ($_GET['openPool'] == '1' || $_GET['openPool'] == 1));
-if ($openPool) {
-	$finalDestination = "$docFolder/$db/pulje";
-		#############
-		if (is_dir($docFolder)) {
-			$dbFolder = "$docFolder/$db";
-			if (is_dir($dbFolder)) {
-				if (is_dir($finalDestination)) {
-					################start convert all .png, jpeg, jpg to .pdf and create .info file for them
-							$allowedImageExts = ['jpg', 'jpeg', 'png'];
-							$files = scandir($finalDestination);
-
-							foreach ($files as $file) {
-								if (substr($file, 0, 1) === '.') continue; // skip hidden files like .DS_Store
-
-								$fullPath = "$finalDestination/$file";
-								if (!is_file($fullPath)) continue; // skip directories
-
-								$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-								$base = pathinfo($file, PATHINFO_FILENAME);
-
-								if (in_array($ext, $allowedImageExts)) {
-									$base = sanitize_filename($base);
-									
-									$newFile=sanitize_filename($newFile);
-									$newFile = $base . '.pdf';
-									$to = "$finalDestination/$newFile";
-
-									// Convert image to PDF using ImageMagick's convert
-									system("convert '$fullPath' '$to'");
-
-									if (file_exists($to)) {
-										// Delete the original image
-										unlink($fullPath);
-										$infoFile = "$finalDestination/$base.info";
-										
-										file_put_contents($infoFile, $base . "\n");
-
-										
-										 error_log("Converted $file to PDF and created info file on " . date("Y-m-d H:i:s"));
-									}
-								}
-							}
-					clearstatcache(); # Ensure newly created PDFs are visible to glob()
-					##############end
-
-
-					// Get all PDF files in the final destination
-					$pdfFiles = glob($finalDestination . '/*.pdf');
-					
-					if (!empty($pdfFiles)) {
-						foreach ($pdfFiles as $pdfPath) {
-							$pdfFilename = basename($pdfPath);
-							$baseName = pathinfo($pdfFilename, PATHINFO_FILENAME);
-							$infoFilePreSan = $finalDestination . '/' . $baseName. '.info';
-							$baseNameSan =  sanitize_filename($baseName);
-							$infoFile = $finalDestination . '/' . $baseNameSan . '.info';
-							
-							// Log the PDF file
-							error_log("Found PDF file: $pdfFilename and baseName; $baseName and infoFile: $infoFile");
-
-							// Check if .info file exists
-							if (!file_exists($infoFile)) {
-								error_log("FileInfo: $infoFile ,baseName; $baseName, pdfFilename: $pdfFilename,..."); 
-								
-									if($baseNameSan!=$baseName){
-										error_log("we are processing this..............");
-										$modName = $finalDestination.'/'.$baseNameSan.'.pdf';
-										rename("$finalDestination/$pdfFilename", "$modName");
-										
-										if(file_exists($infoFilePreSan)){
-											
-											rename("$infoFilePreSan", "$infoFile");
-											
-											
-
-										}
-										
-										$baseName = $baseNameSan;
-									}
-									// Attempt to create the file
-									if (file_put_contents($infoFile, "") !== false) {
-										// Set writable permissions (e.g., 0666 without umask interference)
-										chmod($infoFile, 0666);
-										// Write the base name to the .info file as the subject
-										file_put_contents($infoFile, $baseName . PHP_EOL);
-										error_log("Created .info file: $infoFile and set writable permissions.");
-									} else {
-										error_log("Failed to create .info file: $infoFile in document.php - permissions");
-									}
-								
-							} else {
-								error_log(".info file already exists: $infoFile");
-							}
-						}
-					} else {
-						error_log("No PDF files found in: $finalDestination");
-					}
-				} else {
-					error_log("Directory does not exist: $finalDestination");
-				}
-			} else {
-				error_log("Directory does not exist: $dbFolder");
-			}
-		} 
-
-	// Include docPool directly without any table structure
-	// if folder bilag/$db/pulje dosent exist, create it
-	if (!is_dir($docFolder."/$db/pulje")) {
-		mkdir($docFolder."/$db/pulje", 0755, true);
-	}
-	include ("docsIncludes/docPool.php");
-	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
-	exit;
-}
-
-// Check if showing a document - use docPool-style layout
-if ($showDoc && $source == 'kassekladde') {
-	// Add top banner with back button (like docPool)
+// Check if showing a document FIRST - this takes priority over openPool
+// For kassekladde: if sourceId is set and has documents, show document viewer (not pool)
+if ($source == 'kassekladde' && $sourceId) {
+	// Check if there are any documents for this sourceId
+	$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$sourceId' order by id limit 1";
+	$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	
+	// If documents exist OR showDoc is set, show document viewer
+	if ($docRow || $showDoc) {
+		// If showDoc is not set but we have a document, set it to the first document
+		if (!$showDoc && $docRow) {
+			// Construct the path properly (remove leading slash from filepath if present)
+			$filepath = ltrim($docRow['filepath'], '/');
+			$showDoc = rtrim($docFolder, '/') . '/' . $db . '/' . $filepath . '/' . $docRow['filename'];
+			$showDoc = str_replace('//', '/', $showDoc); // Remove any double slashes
+		}
+		
+		// Show document viewer with list of attachments
+		// Add top banner with back button (like docPool)
 
 	global $menu, $buttonColor, $buttonTxtColor;
 	if (!isset($top_bund)) $top_bund = "";
@@ -675,6 +573,125 @@ if ($showDoc && $source == 'kassekladde') {
 	print "</div>"; // rightPanel
 	print "</div>"; // docViewerContainer
 	print "</body></html>";
+	exit;
+	} // End if ($docRow || $showDoc)
+} // End if ($source == 'kassekladde' && $sourceId)
+
+// Check for openPool BEFORE printing any table structure
+// Make sure we check both the variable and the GET parameter
+$openPool = $openPool || (isset($_GET['openPool']) && ($_GET['openPool'] == '1' || $_GET['openPool'] == 1));
+if ($openPool) {
+	$finalDestination = "$docFolder/$db/pulje";
+		#############
+		if (is_dir($docFolder)) {
+			$dbFolder = "$docFolder/$db";
+			if (is_dir($dbFolder)) {
+				if (is_dir($finalDestination)) {
+					################start convert all .png, jpeg, jpg to .pdf and create .info file for them
+							$allowedImageExts = ['jpg', 'jpeg', 'png'];
+							$files = scandir($finalDestination);
+
+							foreach ($files as $file) {
+								if (substr($file, 0, 1) === '.') continue; // skip hidden files like .DS_Store
+
+								$fullPath = "$finalDestination/$file";
+								if (!is_file($fullPath)) continue; // skip directories
+
+								$ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+								$base = pathinfo($file, PATHINFO_FILENAME);
+
+								if (in_array($ext, $allowedImageExts)) {
+									$base = sanitize_filename($base);
+									
+									$newFile=sanitize_filename($newFile);
+									$newFile = $base . '.pdf';
+									$to = "$finalDestination/$newFile";
+
+									// Convert image to PDF using ImageMagick's convert
+									system("convert '$fullPath' '$to'");
+
+									if (file_exists($to)) {
+										// Delete the original image
+										unlink($fullPath);
+										$infoFile = "$finalDestination/$base.info";
+										
+										file_put_contents($infoFile, $base . "\n");
+
+										
+										 error_log("Converted $file to PDF and created info file on " . date("Y-m-d H:i:s"));
+									}
+								}
+							}
+					clearstatcache(); # Ensure newly created PDFs are visible to glob()
+					##############end
+
+
+					// Get all PDF files in the final destination
+					$pdfFiles = glob($finalDestination . '/*.pdf');
+					
+					if (!empty($pdfFiles)) {
+						foreach ($pdfFiles as $pdfPath) {
+							$pdfFilename = basename($pdfPath);
+							$baseName = pathinfo($pdfFilename, PATHINFO_FILENAME);
+							$infoFilePreSan = $finalDestination . '/' . $baseName. '.info';
+							$baseNameSan =  sanitize_filename($baseName);
+							$infoFile = $finalDestination . '/' . $baseNameSan . '.info';
+							
+							// Log the PDF file
+							error_log("Found PDF file: $pdfFilename and baseName; $baseName and infoFile: $infoFile");
+
+							// Check if .info file exists
+							if (!file_exists($infoFile)) {
+								error_log("FileInfo: $infoFile ,baseName; $baseName, pdfFilename: $pdfFilename,..."); 
+								
+									if($baseNameSan!=$baseName){
+										error_log("we are processing this..............");
+										$modName = $finalDestination.'/'.$baseNameSan.'.pdf';
+										rename("$finalDestination/$pdfFilename", "$modName");
+										
+										if(file_exists($infoFilePreSan)){
+											
+											rename("$infoFilePreSan", "$infoFile");
+											
+											
+
+										}
+										
+										$baseName = $baseNameSan;
+									}
+									// Attempt to create the file
+									if (file_put_contents($infoFile, "") !== false) {
+										// Set writable permissions (e.g., 0666 without umask interference)
+										chmod($infoFile, 0666);
+										// Write the base name to the .info file as the subject
+										file_put_contents($infoFile, $baseName . PHP_EOL);
+										error_log("Created .info file: $infoFile and set writable permissions.");
+									} else {
+										error_log("Failed to create .info file: $infoFile in document.php - permissions");
+									}
+								
+							} else {
+								error_log(".info file already exists: $infoFile");
+							}
+						}
+					} else {
+						error_log("No PDF files found in: $finalDestination");
+					}
+				} else {
+					error_log("Directory does not exist: $finalDestination");
+				}
+			} else {
+				error_log("Directory does not exist: $dbFolder");
+			}
+		} 
+
+	// Include docPool directly without any table structure
+	// if folder bilag/$db/pulje dosent exist, create it
+	if (!is_dir($docFolder."/$db/pulje")) {
+		mkdir($docFolder."/$db/pulje", 0755, true);
+	}
+	include ("docsIncludes/docPool.php");
+	docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus);
 	exit;
 }
 

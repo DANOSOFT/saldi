@@ -1735,15 +1735,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($dokument[$y] || $docRow) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
-				// Document is attached - show it directly (it's in finance folder, not pool)
-				// Get docFolder
-				if (file_exists('../owncloud')) $docFolder = '../owncloud';
-				elseif (file_exists('../bilag')) $docFolder = '../bilag';
-				elseif (file_exists('../documents')) $docFolder = '../documents';
-				else $docFolder = '../bilag';
-				global $db;
-				$showDocPath = "$docFolder/$db$docRow[filepath]/$docRow[filename]";
-				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&showDoc=".urlencode($showDocPath);
+				// Document is attached - show document viewer with list of attachments for this line
+				// Just pass sourceId - documents.php will check for documents and show the viewer
+				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y";
 			} else {
 				$clip = 'clip.png';
 				$titletxt =  findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id);
