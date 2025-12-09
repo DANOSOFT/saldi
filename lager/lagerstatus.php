@@ -147,12 +147,11 @@ if ($a) {
 	   if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
 		$qtxt.= " order by varer.varenr";
 	} else {
-	    $qtxt = "select * from varer ";
-	    if (!$zStock) {
-				$qtxt.= "where beholdning != '0' ";
-				if (!$showClosed) $qtxt.= "where varer.lukket = '0' ";
-			}
-		if (!$showClosed) $qtxt.= "where varer.lukket = '0' ";
+		$qtxt = "select * from varer ";
+		if (!$zStock) {
+			$qtxt.= "where beholdning != '0' ";
+			if (!$showClosed) $qtxt.= "and varer.lukket = '0' ";
+		} elseif (!$showClosed) $qtxt.= "where varer.lukket = '0' ";
 		$qtxt.= "order by varenr";
 	}
 }
@@ -231,7 +230,7 @@ print "</select>";
 ($zStock)?$zStock="checked='checked'":$zStock=NULL;
 ($showClosed)?$showClosed="checked='checked'":$showClosed=NULL;
 print "&nbsp;<span title='".findtekst('1656|Medtag varer, hvor beholdningen er 0', $sprog_id)."'>0 ".strtolower(findtekst('608|Lager', $sprog_id)).":<input type=\"checkbox\" name=\"zStock\" $zStock>";
-print "&nbsp;<span title='Medtag udgåede varer''>Vis udgået:<input type=\"checkbox\" name=\"showClosed\" $showClosed></span></td>";
+print "&nbsp;<span title='Medtag udgåede varer''>Udgåede:<input type=\"checkbox\" name=\"showClosed\" $showClosed></span></td>";
 print "<td  colspan=6 align=right><input type=submit value=OK></form></td></tr>";
 print "<tr><td colspan=9><hr></td></tr>";
 print "<tr><td width=8%>".findtekst('917|Varenr.', $sprog_id).".</td><td width=5%>".findtekst('945|Enhed', $sprog_id)."</td><td width=48%>".findtekst('914|Beskrivelse', $sprog_id)."</td>
