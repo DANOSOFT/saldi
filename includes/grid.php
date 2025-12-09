@@ -1080,16 +1080,20 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     }
 
     // Output the footer with dynamic options
+    global $sprog_id;
+    $txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+    $txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+
     echo <<<HTML
             <tr>
                 <td colspan=100>
                     <input type='hidden' name="offset[$id]" value="$offset" size='4'>
                     <div id='footer-box'>
                         <span style='display: flex' id='page-status'>
-                            $offsetFrom-$offsetTo&nbsp;af&nbsp;$totalItems
+                            $offsetFrom-$offsetTo&nbsp;{$txt1}&nbsp;$totalItems
                         </span>
                         |
-                        <span>Linjer pr. side 
+                        <span>{$txt2} 
                             <select name="rowcount[$id]" onchange="this.form.submit()">
                                 $options
                             </select> 

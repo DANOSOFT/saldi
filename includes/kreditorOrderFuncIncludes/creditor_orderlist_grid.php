@@ -1094,6 +1094,17 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
         }
         echo "</th>";
     }
+
+    global $sprog_id;
+    $txt1 = findtekst('913|Søg', $sprog_id);
+    $txt2 = findtekst('2755|Ryd søgning', $sprog_id);
+    $txt3 = findtekst('2756|Eksportér til CSV', $sprog_id);
+    $txt4 = findtekst('2757|Eksportér til PDF', $sprog_id);
+    $txt5 = findtekst('2148|Redigér', $sprog_id);
+    $txt6 = findtekst('2758|Kolonner', $sprog_id);
+    $txt7 = findtekst('2759|Filtre', $sprog_id);
+    $txt8 = findtekst('2760|Vis SQL', $sprog_id);
+
     echo <<<HTML
                         <th>
                             <div class="dropdown">
@@ -1101,42 +1112,42 @@ function render_table_headers($columns, $searchTerms, $totalWidth, $id) {
                                 <div class="dropdown-content">
                                     <button type="submit" class="dropdown-btn">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg>
-                                        Søg
+                                        {$txt1}
                                     </button>
                                     <button type="button" onclick="handleAction{$id}('clear')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
-                                        Ryd søgning
+                                        {$txt2}
                                     </button>
                                     <button type="button" onclick="handleAction{$id}('exportCSV')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm240-240H200v160h240v-160Zm80 0v160h240v-160H520Zm-80-80v-160H200v160h240Zm80 0h240v-160H520v160ZM200-680h560v-80H200v80Z"/></svg>
-                                        Export til CSV
+                                        {$txt3}
                                     </button>
                                     <button type="button" onclick="handleAction{$id}('exportPDF')">
                                     <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></svg>
-                                        Export til PDF
+                                        {$txt4}
                                     </button>
                                     <div id='edit-button' class="has-secondary-dropdown">
                                         <span>
                                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
-                                            Rediger
+                                            {$txt5}
                                         </span>
 
                                         <svg id="turn-arrow2" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="34px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>
                                         <div class="secondary-dropdown">
                                             <button type="button" onclick="handleAction{$id}('kolonner')">
                                                 <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M121-280v-400q0-33 23.5-56.5T201-760h559q33 0 56.5 23.5T840-680v400q0 33-23.5 56.5T760-200H201q-33 0-56.5-23.5T121-280Zm79 0h133v-400H200v400Zm213 0h133v-400H413v400Zm213 0h133v-400H626v400Z"/></svg>
-                                                Kolonner
+                                                {$txt6}
                                             </button>
                                             <button type="button" onclick="handleAction{$id}('filtre')">
                                             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M440-160q-17 0-28.5-11.5T400-200v-240L168-736q-15-20-4.5-42t36.5-22h560q26 0 36.5 22t-4.5 42L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-308 198-252H282l198 252Zm0 0Z"/></svg>
-                                                Filtre
+                                                {$txt7}
                                             </button>
                                         </div>
                                     </div>
 
                                     <button type="button" onclick="handleAction{$id}('showSQL')">
                                         <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M560-160v-80h120q17 0 28.5-11.5T720-280v-80q0-38 22-69t58-44v-14q-36-13-58-44t-22-69v-80q0-17-11.5-28.5T680-720H560v-80h120q50 0 85 35t35 85v80q0 17 11.5 28.5T840-560h40v160h-40q-17 0-28.5 11.5T800-360v80q0 50-35 85t-85 35H560Zm-280 0q-50 0-85-35t-35-85v-80q0-17-11.5-28.5T120-400H80v-160h40q17 0 28.5-11.5T160-600v-80q0-50 35-85t85-35h120v80H280q-17 0-28.5 11.5T240-680v80q0 38-22 69t-58 44v14q36 13 58 44t22 69v80q0 17 11.5 28.5T280-240h120v80H280Z"/></svg>
-                                        Vis SQL
+                                        {$txt8}
                                     </button>
                                 </div>
                             </div>
@@ -1215,16 +1226,20 @@ function render_table_footer($id, $selectedrowcount, $totalItems, $rowCount, $of
     }
 
     // Output the footer with dynamic options
+    global $sprog_id;
+    $txt1 = lcfirst(findtekst('2767|Af', $sprog_id));
+    $txt2 = findtekst('2125|Linjer pr. side', $sprog_id);
+
     echo <<<HTML
             <tr>
                 <td colspan=100>
                     <input type='hidden' name="offset[$id]" value="$offset" size='4'>
                     <div id='footer-box'>
                         <span style='display: flex' id='page-status'>
-                            $offsetFrom-$offsetTo&nbsp;af&nbsp;$totalItems
+                            $offsetFrom-$offsetTo&nbsp;{$txt1}&nbsp;$totalItems
                         </span>
                         |
-                        <span>Linjer pr. side 
+                        <span>{$txt2}
                             <select name="rowcount[$id]" onchange="this.form.submit()">
                                 $options
                             </select> 
