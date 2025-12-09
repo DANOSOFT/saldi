@@ -167,15 +167,22 @@ if (!file_exists($showDoc)) {
 }
 if (file_exists($showDoc)) {
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";
-	if($source == 'kassekladde'){
-		if ($poolFile) $href = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
-		else $href = "documents.php?$params&showDoc=$showDoc";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$href\">";
+	// Check if we're processing multiple files - if so, don't redirect yet
+	if (isset($processingMultiple) && $processingMultiple) {
+		// Return success - let docPool.php handle the redirect after all files are processed
+		// Do nothing here, just continue
+	} else {
+		// Single file processing - redirect as normal
+		if($source == 'kassekladde'){
+			if ($poolFile) $href = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
+			else $href = "documents.php?$params&showDoc=$showDoc";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=$href\">";
 //		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";
-		exit;
-	}else{
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?source=creditorOrder&sourceId=$sourceId&showDoc=$showDoc\">";
-		exit;
+			exit;
+		}else{
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?source=creditorOrder&sourceId=$sourceId&showDoc=$showDoc\">";
+			exit;
+		}
 	}
 } else alert("Move to $showDoc failed");
 
