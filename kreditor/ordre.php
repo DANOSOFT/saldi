@@ -799,7 +799,10 @@ if ($betalingsdage === null || $betalingsdage === '') {
 							$variant_type[0]='';
 					}
 					if ($variant_type[0] && $vare_id[0]) $string="SELECT * FROM varer WHERE id = '$vare_id[0]'";
-					else $string="SELECT * FROM varer WHERE upper(varenr) = '$varenr[0]' or upper(stregkode) = '$varenr[0]'";
+					else $string="SELECT * FROM varer WHERE upper(varenr) = '$varenr[0]'";
+					if(!$r=db_fetch_array(db_select("$string",__FILE__ . " linje " . __LINE__))) {
+						$string="SELECT * FROM varer WHERE upper(stregkode) = '$varenr[0]'";
+					}
 					if ($r0 = db_fetch_array(db_select("$string",__FILE__ . " linje " . __LINE__))) {
 #						$variant_type[0]=$r0['variant'];
 						$vare_id[0]=$r0['id'];
