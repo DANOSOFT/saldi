@@ -1,21 +1,51 @@
 <?php
 
-require_once '../../../models/attachment/AttachmentModel.php';
-require_once '../../../core/BaseEndpoint.php';
+require_once __DIR__ . '/../../../models/attachment/AttachmentModel.php';
+require_once __DIR__ . '/../../../core/BaseEndpoint.php';
+require_once __DIR__ . '/../../../core/JWT.php';
+require_once __DIR__ . '/../../../core/JWTAuth.php';
 
 class AttachmentEndpoint extends BaseEndpoint
 {
+    private $userId;
+    private $username;
+    
     public function __construct()
     {
         parent::__construct();
-        
-        // Set the database for AttachmentModel from headers
-        $headers = getallheaders();
-        if ($headers) {
-            $headers = array_change_key_case($headers, CASE_LOWER);
-            if (isset($headers['x-db'])) {
-                AttachmentModel::setDatabase($headers['x-db']);
+    }
+    
+    protected function checkAuthorization()
+    {
+        try {
+            $payload = JWTAuth::validateToken();
+            
+            if (!$payload) {
+                $this->sendResponse(false, null, 'Invalid or expired token', 401);
+                return false;
             }
+            
+            $this->userId = $payload['user_id'];
+            $this->username = $payload['username'];
+            
+            // Set database from tenant (from JWT token or X-Tenant-ID header)
+            $db = JWTAuth::getTenantDatabase();
+            if (!$db) {
+                $this->sendResponse(false, null, 'Tenant database not found. Provide database during login or set X-Tenant-ID header.', 400);
+                return false;
+            }
+            
+            AttachmentModel::setDatabase($db);
+            
+            return true;
+        } catch (Exception $e) {
+            // Catch any exceptions and return proper JSON error
+            $this->sendResponse(false, null, 'Authentication error: ' . $e->getMessage(), 401);
+            return false;
+        } catch (Error $e) {
+            // Catch fatal errors too
+            $this->sendResponse(false, null, 'Authentication fatal error: ' . $e->getMessage(), 401);
+            return false;
         }
     }
 
@@ -58,36 +88,84 @@ class AttachmentEndpoint extends BaseEndpoint
     protected function handlePost($data)
     {
         try {
-            // Check if file was uploaded
-            if (!isset($_FILES['file'])) {
-                $this->sendResponse(false, null, 'No file uploaded', 400);
+            // Check if data is provided
+            if (!$data) {
+                $this->sendResponse(false, null, 'No data provided', 400);
                 return;
             }
             
-            $uploadedFile = $_FILES['file'];
-            
-            // Check for upload errors
-            if ($uploadedFile['error'] !== UPLOAD_ERR_OK) {
-                $errorMessage = $this->getUploadErrorMessage($uploadedFile['error']);
-                error_log("Upload error: " . $errorMessage);
-                $this->sendResponse(false, null, $errorMessage, 400);
+            // Check if image_base64 is provided
+            if (!isset($data->image_base64) || empty($data->image_base64)) {
+                $this->sendResponse(false, null, 'No file provided. Expected base64 encoded file in "image_base64" field.', 400);
                 return;
             }
             
-            // Get custom filename if provided
-            $customFilename = isset($_POST['filename']) ? $_POST['filename'] : null;
+            // Extract data from new structure
+            $base64Data = $data->image_base64;
+            $totalAmount = null;
+            $invoiceDate = null;
+            
+            // Extract total_amount and invoice_date from extracted_data
+            if (isset($data->extracted_data)) {
+                if (isset($data->extracted_data->total_amount)) {
+                    $totalAmount = $data->extracted_data->total_amount;
+                }
+                if (isset($data->extracted_data->invoice_date)) {
+                    $invoiceDate = $data->extracted_data->invoice_date;
+                }
+            }
+            
+            // Validate required fields
+            if (!$totalAmount) {
+                $this->sendResponse(false, null, 'Missing required field: extracted_data.total_amount', 400);
+                return;
+            }
+            
+            if (!$invoiceDate) {
+                $this->sendResponse(false, null, 'Missing required field: extracted_data.invoice_date', 400);
+                return;
+            }
+            
+            // Remove data URI prefix if present (e.g., "data:image/png;base64,")
+            if (preg_match('/^data:([^;]+);base64,/', $base64Data, $matches)) {
+                $mimeType = $matches[1];
+                $base64Data = preg_replace('/^data:[^;]+;base64,/', '', $base64Data);
+            }
+            
+            // Decode base64
+            $fileContent = base64_decode($base64Data, true);
+            if ($fileContent === false) {
+                $this->sendResponse(false, null, 'Invalid base64 file data', 400);
+                return;
+            }
+            
+            // Get custom filename if provided (from id field or filename)
+            $customFilename = null;
+            if (isset($data->id)) {
+                $customFilename = $data->id;
+            } elseif (isset($data->filename)) {
+                $customFilename = $data->filename;
+            }
+            
+            // Extract metadata (accountnr is optional for now)
+            $metadata = [
+                'date' => $invoiceDate,
+                'amount' => $totalAmount,
+                'accountnr' => isset($data->accountnr) ? $data->accountnr : ''
+            ];
             
             $attachment = new AttachmentModel();
-            $result = $attachment->saveUploadedFile($uploadedFile, $customFilename);
+            $result = $attachment->saveBase64File($fileContent, $customFilename, $metadata);
             
             if ($result) {
-                $this->sendResponse(true, $attachment->toArray(), 'File uploaded successfully', 201);
+                $responseData = $attachment->toArray();
+                // Include metadata in response
+                $responseData['metadata'] = $metadata;
+                $this->sendResponse(true, $responseData, 'File uploaded successfully', 201);
             } else {
-                error_log("Failed to save uploaded file: " . $uploadedFile['name']);
                 $this->sendResponse(false, null, 'Failed to upload file', 500);
             }
         } catch (Exception $e) {
-            error_log("Exception in handlePost: " . $e->getMessage());
             $this->handleError($e);
         }
     }
