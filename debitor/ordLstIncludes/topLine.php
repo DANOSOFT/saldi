@@ -41,12 +41,12 @@ print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 
 if ($valg == "tilbud" && !$hurtigfakt) {
     print "<td  width = '200px' align=center>";
           print "<button class='headerbtn navbtn-top' style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-          print "$tilbud_icon ".findtekst('812|Tilbud', $sprog_id)."</button></td>"; 
+          print "$tilbud_icon ".findtekst('2770|Tilbud', $sprog_id)."</button></td>"; 
 } elseif (!$hurtigfakt) {
     print "<td  width = '200px' align=center>";
           print " <a href='ordreliste.php?valg=tilbud&konto_id=$konto_id&returside=$returside'>";
          print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-           print "$tilbud_icon ".findtekst('812|Tilbud', $sprog_id)."</button></td>"; 
+           print "$tilbud_icon ".findtekst('2770|Tilbud', $sprog_id)."</button></td>"; 
 } //20210318
 
 if ($valg == "ordrer") {
@@ -65,12 +65,12 @@ if ($valg == "faktura") {
     print "<td width = '200px' align=center>";
            print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
            
-		   print "$invoice_icon".findtekst('643|Faktura', $sprog_id)."</button></td>";
+		   print "$invoice_icon".findtekst('1777|Fakturaer', $sprog_id)."</button></td>";
 } else {
     print "<td width = '200px' align=center>";
            print"<a href='ordreliste.php?valg=faktura&konto_id=$konto_id&returside=$returside'>";
            print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-           print "$invoice_icon".findtekst('643|Faktura', $sprog_id)."</button></td>";
+           print "$invoice_icon".findtekst('1777|Fakturaer', $sprog_id)."</button></td>";
 }
 
 if ($valg == 'pbs') {

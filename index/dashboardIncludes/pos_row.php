@@ -23,7 +23,7 @@ function pos_row() {
 	box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
 	padding: 1.4em 2em;
 ">
-	<h4 style="margin: 0; color: #999">POS muligheder</h4>
+	<h4 style="margin: 0; color: #999"><?php print findtekst('2771|POS-muligheder', $sprog_id)?></h4>
     <br>
         <div id="posbut-wrapper" style="
             display: flex;

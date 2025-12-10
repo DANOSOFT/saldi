@@ -1171,7 +1171,6 @@ function render_column_setup($id, $columns, $all_columns) {
     $txt7 = findtekst('3|Gem', $sprog_id);
     $txt8 = findtekst('2172|Luk', $sprog_id);
     
-
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="POST" action="">

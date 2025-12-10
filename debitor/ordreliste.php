@@ -1091,29 +1091,29 @@ $filters = array();
 // Order type filter
 
 $filters[] = array(
-    "filterName" => "Ordretype",
+    "filterName" => findtekst('2769|Ordretype', $sprog_id),
     "joinOperator" => "or",
     "options" => array(
         array(
-            "name" => "Tilbud",
+            "name" => findtekst('2770|Tilbud', $sprog_id),
             "checked" => ($valg == "tilbud") ? "checked" : "",
             "sqlOn" => "o.status < 1",
             "sqlOff" => "",
         ),
         array(
-            "name" => "Ordrer",
+            "name" => findtekst('107|Ordrer', $sprog_id),
             "checked" => ($valg == "ordrer") ? "checked" : "",
             "sqlOn" => "(o.status = 1 OR o.status = 2)",
             "sqlOff" => "",
         ),
         array(
-            "name" => "Fakturaer",
+            "name" => findtekst('1777|Fakturaer', $sprog_id),
             "checked" => ($valg == "faktura") ? "checked" : "",
             "sqlOn" => "o.status >= 3",
             "sqlOff" => "",
         ),
         array(
-            "name" => "PBS",
+            "name" => "BS",
             "checked" => ($valg == "pbs") ? "checked" : "",
             "sqlOn" => "o.art = 'PO' AND o.konto_id > '0'", // PBS orders
             "sqlOff" => "",
@@ -1454,7 +1454,7 @@ print "<input type='hidden' name='nysort' value='$nysort'>";
 
 // Bulk action buttons
 print "<div class='bulk-actions' style='padding: 10px; border-radius: 4px; text-align: right;'>";
-print "<strong>Bulk handlinger:</strong> ";
+print "<strong>".findtekst('2768|Massehandlinger', $sprog_id).":</strong> ";
 
 // Check/Uncheck all buttons
 
@@ -1663,7 +1663,7 @@ print "<table border='0' width='100%' style='width:100%;'><tbody>";
         print "<td width='10%'></td>";
         print "<td width='70%' align='right'>";
         print "<span title='".findtekst('1438|Klik for at genberegne DB/DG', $sprog_id)."'>";
-        print "<b><a href='ordreliste.php?genberegn=1&valg=$valg' accesskey='G'>".findtekst('878|Samlet omsætning / db / dg (excl. moms.)', $sprog_id)."</a></b>";
+        print "<b><a href='ordreliste.php?genberegn=1&valg=$valg' accesskey='G'>".findtekst('878|Samlet omsætning / db / dg (ekskl. moms.)', $sprog_id)."</a></b>";
         print "</span>";
         print "</td>";
         print "<td width='20%' align='right'><b>$ialt_formatted / $dk_db / $dk_dg%</b></td>";
@@ -1686,7 +1686,7 @@ print "<table border='0' width='100%' style='width:100%;'><tbody>";
             print "</span>";
         }
         print "</td>";
-        print "<td width='70%' align='right'>".findtekst('811|Samlet omsætning incl./excl. Moms', $sprog_id)."<br>db / dg (excl. moms.)</td>";
+        print "<td width='70%' align='right'>".findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id)."<br>".findtekst('2772|db / dg (ekskl. moms)', $sprog_id)."</td>";
         print "<td width='20%' align='right'><b>$ialt_m_moms_formatted ($ialt_formatted)<br>$dk_db / $dk_dg%</b></td>";
         print "</tr>";
 

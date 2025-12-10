@@ -1392,20 +1392,31 @@ function render_table_row($columns, $row, $searchTerms) {
  * @return void Outputs the HTML structure directly.
  */
 function render_column_setup($id, $columns, $all_columns) {
+
+    global $sprog_id;
+    $txt1 = findtekst('2761|Vælg hvilke felter der skal være synlige i tabellen', $sprog_id);
+    $txt2 = findtekst('543|Felt', $sprog_id);
+    $txt3 = findtekst('2762|Valgfri overskrift', $sprog_id);
+    $txt4 = findtekst('2763|Valgfri beskrivelse', $sprog_id);
+    $txt5 = findtekst('540|Feltbredde', $sprog_id);
+    $txt6 = findtekst('541|Justering', $sprog_id);
+    $txt7 = findtekst('3|Gem', $sprog_id);
+    $txt8 = findtekst('2172|Luk', $sprog_id);
+
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="POST" action="">
             <div class="datatable-search-wrapper">
                 <table class="datatable" id="datatable-$id" style="width: 100%;">
-                    <tr><td colspan="100" style="text-align: center;">Vælg hvilke felter der skal være synlige i tablelen</td></tr>
+                    <tr><td colspan="100" style="text-align: center;">{$txt1}</td></tr>
                     <tr><td colspan=100><hr></td></tr>
                     <tr>
                         <th>Pos</th>
-                        <th>Felt</th>
-                        <th>Valgfri overskrift</th>
-                        <th>Valgfri beskrivelse</th>
-                        <th align='right' style='text-align: right;'>Feltbredde</th>
-                        <th>Justering</th>
+                        <th>{$txt2}</th>
+                        <th>{$txt3}</th>
+                        <th>{$txt4}</th>
+                        <th align='right' style='text-align: right;'>{$txt5}</th>
+                        <th>{$txt6}</th>
                     </tr>
                     <tr><td colspan=100><hr></td></tr>
 HTML;
@@ -1416,8 +1427,8 @@ HTML;
     echo <<<HTML
             <tr>
                 <td colspan="100" align="right">
-                    <button>Gem</button>
-                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>Luk</button>
+                    <button>{$txt7}</button>
+                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>{$txt8}</button>
                 </td>
             </tr>
                 </table>
@@ -1640,11 +1651,19 @@ function save_column_setup($id) {
  * @return void Outputs the full HTML form for setting up filters. No value is returned.
  */
 function render_filter_setup($id, $filters, $all_filters) {
+
+    global $sprog_id;
+    $txt1 = findtekst('2764|Vælg hvilke filtre der skal være aktive', $sprog_id);
+    $txt2 = findtekst('2765|Markér alle', $sprog_id);
+    $txt3 = findtekst('2766|Fjern alle', $sprog_id);
+    $txt4 = findtekst('3|Gem', $sprog_id);
+    $txt5 = findtekst('2172|Luk', $sprog_id);
+
     echo <<<HTML
     <div class="datatable-wrapper" id="datatable-wrapper-$id">
         <form method="POST" action="">
             <div class="datatable-search-wrapper">
-                Vælg hvilke filtre der skal være aktive <br><hr>
+                {$txt1}<br><hr>
                 <div id='filter-wrapper'>
 HTML;
 
@@ -1655,10 +1674,10 @@ HTML;
                 </div>
                 <hr>
                 <div style='display: flex; justify-content: flex-end; gap: 5px;'>
-                    <button class="select">Marker alle</button>
-                    <button class="deselect">Fjern alle</button>
-                    <button>Gem</button>
-                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>Luk</button>
+                    <button class="select">{$txt2}</button>
+                    <button class="deselect">{$txt3}</button>
+                    <button>{$txt4}</button>
+                    <button type='button' onclick='updateQueryParameter("menu[$id]", "menu[$id]", "main");'>{$txt5}</button>
                     <script>
                         const checkboxes = document.querySelectorAll('[type="checkbox"]');
                         document.querySelector('.select').addEventListener('click', function(event) {
