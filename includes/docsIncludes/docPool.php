@@ -95,11 +95,33 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$processedCount = 0;
 			$failedFiles = array();
 			
+			// Store original sourceId - for multiple files, all should attach to the same source
+			$originalSourceId = $sourceId;
+			
 			foreach ($poolFiles as $currentPoolFile) {
 				$poolFile = $currentPoolFile; // Set for insertDoc.php scope
+				$fileName = $poolFile; // Set fileName for insertDoc.php
+				
+				// For multiple files, keep the same sourceId so all files attach to the same entry
+				// Only reset temporary variables, but preserve sourceId
+				if ($isMultiple) {
+					// Reset sourceId to original for each file (so all attach to same entry)
+					$sourceId = $originalSourceId;
+					// Reset showDoc and other temporary variables
+					$showDoc = null;
+					unset($showDoc);
+					// Keep bilag if it was set, otherwise let insertDoc.php calculate it
+					// (only for the first file if sourceId is empty)
+				}
 				
 				// Set flag to prevent redirect in insertDoc.php when processing multiple files
 				$processingMultiple = $isMultiple;
+				
+				// Store the fileName before including insertDoc.php (it might modify it)
+				$expectedFileName = $fileName;
+				
+				// Preserve original docFolder - insertDoc.php modifies it by appending /$db
+				$originalDocFolder = $docFolder;
 				
 				// Include insertDoc.php for each file
 				// Capture any output but don't stop on redirects for multiple files
@@ -109,32 +131,112 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				
 				include ("docsIncludes/insertDoc.php");
 				
+				// Restore original docFolder for next iteration
+				if ($isMultiple) {
+					$docFolder = $originalDocFolder;
+				}
+				
 				if ($isMultiple) {
 					$output = ob_get_clean();
-					// Check if file exists after processing
-					if (isset($showDoc) && file_exists($showDoc)) {
-						$processedCount++;
+					
+					// If sourceId was empty initially and insertDoc.php created one, update originalSourceId
+					// so subsequent files use the same sourceId
+					if (!$originalSourceId && isset($sourceId) && $sourceId) {
+						$originalSourceId = $sourceId;
+					}
+					
+					// Store the sourceId and fileName that were set by insertDoc.php for this file
+					$fileSourceId = isset($sourceId) ? $sourceId : null;
+					$fileFileName = isset($fileName) ? $fileName : $expectedFileName;
+					
+					// Check if file was processed successfully
+					// Verify database entry was created (this is the source of truth)
+					$fileProcessed = false;
+					
+					// Check if sourceId exists (either original or newly created)
+					if ($fileSourceId) {
+						// For kassekladde, verify the entry exists
+						if ($source == 'kassekladde') {
+							$qtxt = "select id from kassekladde where id = '$fileSourceId'";
+							$kladdeEntry = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+							if (!$kladdeEntry) {
+								error_log("Multiple insert: kassekladde entry not found for sourceId=$fileSourceId, poolFile=$currentPoolFile");
+								$fileProcessed = false;
+							}
+						}
+						
+						// Check if database entry exists for this file
+						if ($fileProcessed !== false || $source != 'kassekladde') {
+							$qtxt = "select id from documents where source = '$source' and source_id = '$fileSourceId' and filename = '". db_escape_string($fileFileName) ."'";
+							$docEntry = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+							
+							if ($docEntry) {
+								$fileProcessed = true;
+								$processedCount++;
+							} else {
+								// Try with the expected filename if different
+								if ($fileFileName != $expectedFileName) {
+									$qtxt = "select id from documents where source = '$source' and source_id = '$fileSourceId' and filename = '". db_escape_string($expectedFileName) ."'";
+									if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+										$fileProcessed = true;
+										$processedCount++;
+									}
+								}
+								if (!$fileProcessed) {
+									error_log("Multiple insert: No document entry found for source=$source, sourceId=$fileSourceId, filename=$fileFileName (expected: $expectedFileName), poolFile=$currentPoolFile");
+								}
+							}
+						}
 					} else {
+						error_log("Multiple insert: sourceId not set after processing file: $currentPoolFile, source=$source");
+					}
+					
+					if (!$fileProcessed) {
 						$failedFiles[] = $currentPoolFile;
 					}
 				} else {
-					// Single file - let insertDoc.php handle redirect
+					// Single file - restore original sourceId and let insertDoc.php handle redirect
+					$sourceId = $originalSourceId;
 					exit;
 				}
 			}
 			
 			// If processing multiple files, redirect after all are processed
 			if ($isMultiple && $processedCount > 0) {
+				// Use the sourceId that was actually used (might have been created)
+				$finalSourceId = isset($sourceId) && $sourceId ? $sourceId : $originalSourceId;
+				
+				// Determine redirect URL
 				if($source == 'kassekladde'){
-					if ($poolFile) $href = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
-					else $href = "documents.php?$params";
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=$href\">";
+					// Always redirect back to kassekladde after insert
+					$redirectUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
 				} else {
-					print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?source=$source&sourceId=$sourceId\">";
+					$redirectUrl = "documents.php?source=$source&sourceId=$finalSourceId";
 				}
+				
+				// Clear any existing output buffers
+				while (ob_get_level()) {
+					ob_end_clean();
+				}
+				
+				// Output complete HTML page with immediate JavaScript redirect
+				// (Don't use header() as headers may already be sent)
+				echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Redirecting...</title></head><body>';
+				echo '<script type="text/javascript">';
+				
+				// Show alert for failed files if any
 				if (!empty($failedFiles)) {
-					alert("Nogle filer kunne ikke indsættes: " . implode(', ', $failedFiles));
+					$failedList = implode(', ', array_map(function($f) {
+						return addslashes(htmlspecialchars($f, ENT_QUOTES));
+					}, $failedFiles));
+					echo "alert('Nogle filer kunne ikke indsættes: " . $failedList . "');";
 				}
+				
+				// Perform redirect immediately
+				echo "window.location.replace('" . addslashes($redirectUrl) . "');";
+				echo '</script>';
+				echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirectUrl) . '"></noscript>';
+				echo '</body></html>';
 				exit;
 			}
 		} else {
@@ -509,9 +611,16 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$httpS = if_isset($_SERVER,NULL,'HTTPS');
 	if ($httpS) $url="s".$url;
 	$url="http".$url;
-	#$poolFile = null;
+	
+	// Read poolFile from URL if present (user clicked on a row), otherwise use function parameter
+	$urlPoolFile = if_isset($_GET, NULL, 'poolFile');
+	if ($urlPoolFile) {
+		$poolFile = $urlPoolFile; // Use the one from URL (user clicked)
+	}
+	
 	$latestTime = 0;
-	if (!$poolFile) {
+	// Don't auto-select latest file when coming from kassekladde - let user choose
+	if (!$poolFile && $source != 'kassekladde') {
 		if (is_dir($dir)) {
 			if ($dh = opendir($dir)) {
 				while (($file = readdir($dh)) !== false) {
@@ -629,6 +738,47 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 // Styles are now in docpool.css
 print "<div id='docPoolContainer'>";
 print "<div id='leftPanel'>";
+
+// Display kassekladde information if inserting to existing entry (just above the list)
+if ($source == 'kassekladde' && $sourceId) {
+	$qtxt = "select bilag, beskrivelse, transdate, debet, kredit, faktura, amount from kassekladde where id = '$sourceId'";
+	$kladdeInfo = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($kladdeInfo) {
+		$displayBilag = $kladdeInfo['bilag'];
+		$displayBeskrivelse = $kladdeInfo['beskrivelse'] ? htmlspecialchars($kladdeInfo['beskrivelse']) : '';
+		$displayDato = dkdato($kladdeInfo['transdate']);
+		$displayDebet = $kladdeInfo['debet'] ? $kladdeInfo['debet'] : '';
+		$displayKredit = $kladdeInfo['kredit'] ? $kladdeInfo['kredit'] : '';
+		$displayFaktura = $kladdeInfo['faktura'] ? htmlspecialchars($kladdeInfo['faktura']) : '';
+		$displayAmount = $kladdeInfo['amount'] ? dkdecimal($kladdeInfo['amount']) : '';
+		
+		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+		print "<tr>";
+		print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
+		print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Bilag #" . htmlspecialchars($displayBilag) . "</font>";
+		print "</td></tr>";
+		print "<tr><td style=\"background-color: " . (isset($bgcolor5) ? $bgcolor5 : '#ffffff') . "; padding: 8px; border: 1px solid #ddd; border-top: none;\">";
+		print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"4\" style=\"font-family: Arial, sans-serif; font-size: 12px;\">";
+		if ($displayDato) print "<tr><td width=\"20%\" style=\"font-weight: bold;\">Dato:</td><td>" . htmlspecialchars($displayDato) . "</td></tr>";
+		if ($displayBeskrivelse) print "<tr><td style=\"font-weight: bold;\">Beskrivelse:</td><td>" . $displayBeskrivelse . "</td></tr>";
+		if ($displayDebet) print "<tr><td style=\"font-weight: bold;\">Debet:</td><td>" . htmlspecialchars($displayDebet) . "</td></tr>";
+		if ($displayKredit) print "<tr><td style=\"font-weight: bold;\">Kredit:</td><td>" . htmlspecialchars($displayKredit) . "</td></tr>";
+		if ($displayFaktura) print "<tr><td style=\"font-weight: bold;\">Fakturanr:</td><td>" . $displayFaktura . "</td></tr>";
+		if ($displayAmount) print "<tr><td style=\"font-weight: bold;\">Beløb:</td><td>" . htmlspecialchars($displayAmount) . "</td></tr>";
+		print "</table>";
+		print "</td></tr>";
+		print "</tbody></table>";
+	}
+} elseif ($source == 'kassekladde' && !$sourceId && $bilag) {
+	// Show bilag number if creating new entry
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+	print "<tr>";
+	print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
+	print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Nyt bilag #" . htmlspecialchars($bilag) . "</font>";
+	print "</td></tr>";
+	print "</tbody></table>";
+}
+
 print "<div id='fileListContainer'>Loading files...</div>";
 // Fixed bottom section will be added here later via PHP (before leftPanel closes)
 
@@ -652,11 +802,13 @@ print <<<JS
     let docData = [];
     let currentSort = { field: 'date', asc: false };
     const containerId = 'fileListContainer';
-	 const poolFile = {$poolFileJs};
-	 const totalSum = {$JsSum};
-	 const buttonColor = {$buttonColorJs};
-	 const buttonTxtColor = {$buttonTxtColorJs};
-	 const lightButtonColor = {$lightButtonColorJs};
+		// Get poolFile from URL if present (user clicked on a row), otherwise null (no auto-selection)
+		const urlParams = new URLSearchParams(window.location.search);
+		const poolFile = urlParams.get('poolFile') || null;
+		const totalSum = {$JsSum};
+		const buttonColor = {$buttonColorJs};
+		const buttonTxtColor = {$buttonTxtColorJs};
+		const lightButtonColor = {$lightButtonColorJs};
 
     async function fetchFiles() {
         const dir = '{$encodedDir}'; 
@@ -686,8 +838,20 @@ print <<<JS
 				return;
 			}
 			
+			// Read poolFile from current URL (in case it changed after page load)
+			// Get all poolFile parameters and use the last non-empty one
+			const currentUrlParams = new URLSearchParams(window.location.search);
+			const allCurrentPoolFiles = currentUrlParams.getAll('poolFile');
+			let currentPoolFile = null;
+			for (let i = allCurrentPoolFiles.length - 1; i >= 0; i--) {
+				if (allCurrentPoolFiles[i] && allCurrentPoolFiles[i].trim() !== '') {
+					currentPoolFile = allCurrentPoolFiles[i];
+					break;
+				}
+			}
+			
 		let html = `
-  <div style="margin:0; padding-right:3px; width:100%; box-sizing:border-box;">
+  <div style="margin:0; padding-right:3px; width:100%; box-sizing:border-box; position: relative; padding-bottom: 70px;">
     <table style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:13px; border:1px solid #ddd; margin:0; padding:0; table-layout:fixed;">
       <thead style="background:${buttonColor}; color:${buttonTxtColor}; position:sticky; top:0; z-index:10; margin:0; padding:0;">
         <tr>
@@ -733,10 +897,47 @@ print <<<JS
 		for (const row of docData) {
 			const dateFormatted = escapeHTML(row.date.split(' ')[0]);
 
+			// Use filename directly from row data - more reliable than parsing from href
+			const rowFilename = row.filename || '';
+			
+			// Also try to get it from href as fallback
 			const url = new URL(row.href, window.location.origin);
 			const allPoolFiles = url.searchParams.getAll('poolFile');
-			const lastPoolFile = allPoolFiles.length ? allPoolFiles[allPoolFiles.length - 1] : null;
-			const isMatch = lastPoolFile === poolFile;
+			let lastPoolFile = null;
+			for (let i = allPoolFiles.length - 1; i >= 0; i--) {
+				if (allPoolFiles[i] && allPoolFiles[i].trim() !== '') {
+					lastPoolFile = allPoolFiles[i];
+					break;
+				}
+			}
+			// Prefer filename from row data, fallback to href parameter
+			const poolFileFromHref = rowFilename || lastPoolFile || '';
+			
+			// Normalize both values for comparison (decode, trim, and handle case)
+			const normalizeFile = (file) => {
+				if (!file) return null;
+				try {
+					// Decode URL encoding, then trim whitespace
+					return decodeURIComponent(String(file)).trim();
+				} catch (e) {
+					// If decode fails, just trim
+					return String(file).trim();
+				}
+			};
+			const normalizedCurrent = normalizeFile(currentPoolFile);
+			const normalizedRow = normalizeFile(poolFileFromHref);
+			// Compare normalized values (case-sensitive filename comparison)
+			const isMatch = normalizedCurrent && normalizedRow && normalizedCurrent === normalizedRow;
+			
+			// Debug logging (remove in production if not needed)
+			if (normalizedCurrent && normalizedRow && normalizedCurrent !== normalizedRow) {
+				console.log('PoolFile mismatch:', {
+					current: normalizedCurrent,
+					row: normalizedRow,
+					rawCurrent: currentPoolFile,
+					rawRow: poolFileFromHref
+				});
+			}
 
 			const rowStyle = isMatch 
 				? `border-bottom:1px solid #ddd; background-color:${lightButtonColor} !important; color:#000000 !important; font-weight:bold;`
@@ -755,18 +956,20 @@ print <<<JS
 			const amountCell = "<span class='cell-content'>" + boldAmount + "</span>";
 			const dateCell = "<span class='cell-content'>" + dateFormatted + "</span>";
 
-			// Extract poolFile from href for delete action
-			const poolFileFromHref = lastPoolFile || '';
+			// poolFileFromHref already set above
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Vælg/Indsæt'>✓</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
 				"</div>";
 
-			const rowHTML = "<tr data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + (isMatch ? "data-selected='true' " : "") + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input')) { window.location.href='" + row.href + "'; }\">" +
-				"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "' onclick='event.stopPropagation(); updateBulkButton();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
+			// Check if this checkbox should be checked (restore from sessionStorage)
+			const savedChecked = sessionStorage.getItem('docPool_checked_' + poolFileFromHref) === 'true';
+			const checkedAttr = savedChecked ? ' checked' : '';
+			
+			const rowHTML = "<tr data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + (isMatch ? "data-selected='true' " : "") + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
+				"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.amount) + "'>" + amountCell + "</td>" +
@@ -790,8 +993,8 @@ print <<<JS
 
 			html += "</tbody></table>";
 			
-			// Add bulk action button container
-			html += "<div id='bulkActionsContainer' style='margin-top: 12px; padding: 8px; background-color: " + lightButtonColor + "; border-radius: 6px; display: none;'>";
+			// Add bulk action button container at the bottom of the list (sticky so it's always visible)
+			html += "<div id='bulkActionsContainer' style='margin-top: 12px; padding: 8px; background-color: " + lightButtonColor + "; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;'>";
 			html += "<button type='button' id='bulkInsertButton' onclick='chooseMultipleBilag()' style='padding: 8px 16px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.02)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"'>";
 			html += "Indsæt valgte (<span id='selectedCount'>0</span>)";
 			html += "</button>";
@@ -811,6 +1014,22 @@ print <<<JS
 			</style>";
 
 			document.getElementById(containerId).innerHTML = html;
+			
+			// Restore checkbox states from sessionStorage
+			const checkboxes = document.querySelectorAll('.file-checkbox');
+			checkboxes.forEach(cb => {
+				const savedChecked = sessionStorage.getItem('docPool_checked_' + cb.value) === 'true';
+				if (savedChecked) {
+					cb.checked = true;
+				}
+			});
+			
+			// Update select all checkbox state
+			const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+			if (selectAllCheckbox && checkboxes.length > 0) {
+				const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+				selectAllCheckbox.checked = allChecked;
+			}
 			
 			// Update bulk button state after rendering
 			if (typeof updateBulkButton === 'function') {
@@ -890,7 +1109,7 @@ print <<<JS
 			return;
 		}
 		
-		// Update form action URL
+		// Get form action URL
 		const formAction = form.getAttribute('action');
 		const url = new URL(formAction, window.location.href);
 		
@@ -903,34 +1122,96 @@ print <<<JS
 		// Also add as comma-separated for backward compatibility
 		url.searchParams.set('poolFiles', selectedFiles.join(','));
 		
-		// Update the form action
-		form.setAttribute('action', url.toString());
+		// Create FormData with all required fields
+		const formData = new FormData();
+		formData.append('insertFile', '1');
 		
-		// Add hidden inputs for each selected file
-		// Remove existing hidden inputs first
-		const existingInputs = form.querySelectorAll('input[name="poolFile[]"]');
-		existingInputs.forEach(input => input.remove());
-		
+		// Add all selected files
 		selectedFiles.forEach(file => {
-			const hiddenInput = document.createElement('input');
-			hiddenInput.type = 'hidden';
-			hiddenInput.name = 'poolFile[]';
-			hiddenInput.value = file;
-			form.appendChild(hiddenInput);
+			formData.append('poolFile[]', file);
+		});
+		formData.append('poolFiles', selectedFiles.join(','));
+		
+		// Add URL parameters to form data
+		url.searchParams.forEach((value, key) => {
+			formData.append(key, value);
 		});
 		
-		// Create a hidden submit button with name="insertFile"
-		let insertFileButton = form.querySelector('input[name="insertFile"][type="submit"]');
-		if (!insertFileButton) {
-			insertFileButton = document.createElement('input');
-			insertFileButton.type = 'submit';
-			insertFileButton.name = 'insertFile';
-			insertFileButton.style.display = 'none';
-			form.appendChild(insertFileButton);
-		}
+		// Show loading indicator
+		const loadingMsg = selectedFiles.length > 1 ? 'Indsætter ' + selectedFiles.length + ' filer...' : 'Indsætter fil...';
+		console.log(loadingMsg);
 		
-		// Submit the form
-		insertFileButton.click();
+		// Send AJAX request (same approach as saveRowData)
+		fetch(url.toString(), {
+			method: 'POST',
+			body: formData,
+			redirect: 'follow'
+		})
+		.then(response => {
+			console.log('Insert response status:', response.status, response.ok, response.redirected);
+			
+			// Check if response contains redirect or is successful
+			if (response.ok || (response.status >= 200 && response.status < 300)) {
+				// Get the response text to check for redirect URL
+				return response.text().then(text => {
+					// Check if response contains a redirect script
+					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
+					if (redirectMatch) {
+						// Clear sessionStorage for inserted files
+						selectedFiles.forEach(file => {
+							sessionStorage.removeItem('docPool_checked_' + file);
+						});
+						// Extract redirect URL from response
+						const redirectUrl = redirectMatch[2];
+						window.location.replace(redirectUrl);
+					} else {
+						// Clear sessionStorage for inserted files
+						selectedFiles.forEach(file => {
+							sessionStorage.removeItem('docPool_checked_' + file);
+						});
+						// Fallback: construct redirect URL from current context
+						const kladdeId = url.searchParams.get('kladde_id') || '';
+						const fokus = url.searchParams.get('fokus') || '';
+						const source = url.searchParams.get('source') || '';
+						
+						if (source === 'kassekladde' && kladdeId) {
+							const redirectUrl = '../finans/kassekladde.php?kladde_id=' + kladdeId + '&fokus=' + fokus;
+							window.location.replace(redirectUrl);
+						} else {
+							// Reload current page without poolFile params
+							url.searchParams.delete('poolFile[]');
+							url.searchParams.delete('poolFiles');
+							url.searchParams.delete('insertFile');
+							window.location.replace(url.toString());
+						}
+					}
+				});
+			} else {
+				// Error handling
+				response.text().then(text => {
+					console.error('Insert failed. Response:', response.status, text);
+					alert('Fejl ved indsætning (Status: ' + response.status + '). Prøv igen.');
+				}).catch(() => {
+					alert('Fejl ved indsætning. Prøv igen.');
+				});
+			}
+		})
+		.catch(error => {
+			console.error('Insert error:', error);
+			alert('Fejl ved indsætning: ' + error.message);
+		});
+	};
+	
+	// Save checkbox state to sessionStorage
+	window.saveCheckboxState = function() {
+		const checkboxes = document.querySelectorAll('.file-checkbox');
+		checkboxes.forEach(cb => {
+			if (cb.checked) {
+				sessionStorage.setItem('docPool_checked_' + cb.value, 'true');
+			} else {
+				sessionStorage.removeItem('docPool_checked_' + cb.value);
+			}
+		});
 	};
 	
 	// Toggle select all checkboxes
@@ -939,6 +1220,7 @@ print <<<JS
 		checkboxes.forEach(cb => {
 			cb.checked = checkbox.checked;
 		});
+		saveCheckboxState();
 		updateBulkButton();
 	};
 	
@@ -1166,7 +1448,6 @@ window.saveRowData = function(input) {
 			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); chooseBilag(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Vælg/Indsæt'>✓</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
 				"</div>";
