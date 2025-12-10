@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/ordre.php --- patch 4.1.1 --- 2025-12-03---
+// --- kreditor/ordre.php --- patch 4.1.1 --- 2025-12-10---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -889,31 +889,33 @@ if ($betalingsdage === null || $betalingsdage === '') {
 					if ($status==2) $status=1;
 				}
 			}
-			$query = db_select("select tidspkt from ordrer where id=$id and hvem='$brugernavn'",__FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($query)) {
-				$qtxt="update ordrer set firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',";
-				$qtxt.="bynavn='$bynavn',land='$land',kontakt='$kontakt',lev_navn='$lev_navn',";
-				$qtxt.="lev_addr1='$lev_addr1',	lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
-				$qtxt.="lev_kontakt='$lev_kontakt',betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',";
-				$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
-				if (strlen($levdate)>=6)$qtxt.="levdate='$levdate',";
-				$qtxt.="status=$status,ref='$ref',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
-/* saul ??
-				$condition = prepareSearchTerm($fakturanr);
- 				$qtxt = "select * from ordrer where fakturanr $condition";
-*/
- 				$qtxt.="hvem = '$brugernavn',tidspkt='$tidspkt',valuta='$valuta',valutakurs='$valutakurs',";
-				$qtxt.="email='$email', udskriv_til='$udskriv_til', projekt='$projekt[0]', ";
-				$qtxt.="mail_subj='$mail_subj',mail_text='$mail_text' ";
-				$qtxt.="where id=$id";
-#				exit;
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			}
-			else {
-				$query = db_select("select hvem from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
-				if ($row = db_fetch_array($query)) {print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";}
-				if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-				else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+			if($submit != 'lookup'){
+				$query = db_select("select tidspkt from ordrer where id=$id and hvem='$brugernavn'",__FILE__ . " linje " . __LINE__);
+				if ($row = db_fetch_array($query)) {
+					$qtxt="update ordrer set firmanavn='$firmanavn',addr1='$addr1',addr2='$addr2',postnr='$postnr',";
+					$qtxt.="bynavn='$bynavn',land='$land',kontakt='$kontakt',lev_navn='$lev_navn',";
+					$qtxt.="lev_addr1='$lev_addr1',	lev_addr2='$lev_addr2',lev_postnr='$lev_postnr',lev_bynavn='$lev_bynavn',";
+					$qtxt.="lev_kontakt='$lev_kontakt',betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',";
+					$qtxt.="cvrnr='$cvrnr',momssats='$momssats',notes='$notes',art='$art',ordredate='$ordredate',";
+					if (strlen($levdate)>=6)$qtxt.="levdate='$levdate',";
+					$qtxt.="status=$status,ref='$ref',lager='$lager',fakturanr='$fakturanr',lev_adr='$lev_adr',";
+	/* saul ??
+					$condition = prepareSearchTerm($fakturanr);
+					$qtxt = "select * from ordrer where fakturanr $condition";
+	*/
+					$qtxt.="hvem = '$brugernavn',tidspkt='$tidspkt',valuta='$valuta',valutakurs='$valutakurs',";
+					$qtxt.="email='$email', udskriv_til='$udskriv_til', projekt='$projekt[0]', ";
+					$qtxt.="mail_subj='$mail_subj',mail_text='$mail_text' ";
+					$qtxt.="where id=$id";
+	#				exit;
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				}
+				else {
+					$query = db_select("select hvem from ordrer where id=$id",__FILE__ . " linje " . __LINE__);
+					if ($row = db_fetch_array($query)) {print "<BODY onLoad=\"javascript:alert('Ordren er overtaget af $row[hvem]')\">";}
+					if ($popup) print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
+					else print "<meta http-equiv=\"refresh\" content=\"0;URL=ordreliste.php\">";
+				}
 			}
 		}
 		if ( $godkend=='on' && $status==2 ) {
@@ -1006,9 +1008,15 @@ print "<meta http-equiv=\"refresh\" content=\"0;URL=$ps_fil?id=$id&formular=$for
 ########################## OPSLAG / lookup ################################
 
 	if ($submit == 'lookup') {
+		// Refresh order ownership before lookup
+		if ($id && $bruger_id=='-1') { // only admin can modify this as the owner can already do that above
+			db_modify("update ordrer set hvem = '$brugernavn', tidspkt='$tidspkt' where id = '$id'",__FILE__ . " linje " . __LINE__);
+		}
+		
+
 		include("../includes/kreditorOrderFuncIncludes/accountLookup.php");
 		
-		if ((strstr($fokus,'kontonr'))&&(!$id)) {kontoopslag($sort, $fokus, $id, $kontonr);}
+		if ((strstr($fokus,'kontonr'))&&($id)) {kontoopslag($sort, $fokus, $id, $kontonr);}
 		if ((strstr($fokus,'firmanavn'))&&(!$id)) {kontoopslag($sort, $fokus, $id, $firmanavn);}
 		if ((strstr($fokus,'addr1'))&&(!$id)) {kontoopslag($sort, $fokus, $id, $addr1);}
 		if ((strstr($fokus,'addr2'))&&(!$id)) {kontoopslag($sort, $fokus, $id, $addr2);}
@@ -1158,6 +1166,9 @@ function prepareSearchTerm($searchTerm) {
 		$lev_adr       = $r['lev_adr'];
 		$ordrenr       = $r['ordrenr'];
 		$kred_ord_id   = $r['kred_ord_id'];
+		$searchedAccountNr = $_GET['kontonr'];
+		if($searchedAccountNr) $kontonr = $searchedAccountNr;
+		
 		if($r['ordredate']) $ordredato=dkdato($r['ordredate']);
 		else $ordredato = date("d-m-y");
 		if ($r['levdate']) $levdato=dkdato($r['levdate']);
@@ -1318,7 +1329,7 @@ function vareopslag($sort, $fokus, $id, $vis, $ref, $find,$lager) {
 	if (!$konto_id) {
 		if ((!$kontonr)&&($id))	{
 			$query = db_select("select kontonr from ordrer where id = $id",__FILE__ . " linje " . __LINE__);
-			if ($row = db_fetch_array($query)) $kontonr=trim($row[kontonr]);
+			if ($row = db_fetch_array($query)) $kontonr=trim($row['kontonr']);
 		}
 		if ($kontonr) {
 			$query = db_select("select id from adresser where kontonr = '$kontonr' and art = 'K'",__FILE__ . " linje " . __LINE__);
