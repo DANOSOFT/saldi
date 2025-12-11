@@ -52,11 +52,54 @@ if ($deleteDoc) {
 	$bilag_id = $tmpA[$h];
 	$fileName = $tmpA[$x];
 	
-	// Delete from database first
+	// Get the filepath for this document to check if it's linked to other lines
+	$qtxt_check = "SELECT filepath FROM documents WHERE source = '$source' AND source_id = '$sourceId' AND filename = '".db_escape_string($fileName)."' LIMIT 1";
+	$doc_row = db_fetch_array(db_select($qtxt_check, __FILE__ . " linje " . __LINE__));
+	$docFilepath = $doc_row ? $doc_row['filepath'] : '';
+	
+	// Check if this document file is linked to other lines (other source_id's)
+	$qtxt_linked = "SELECT COUNT(*) as cnt FROM documents WHERE filepath = '".db_escape_string($docFilepath)."' AND filename = '".db_escape_string($fileName)."'";
+	$linked_row = db_fetch_array(db_select($qtxt_linked, __FILE__ . " linje " . __LINE__));
+	$isLinkedToOtherLines = ($linked_row && $linked_row['cnt'] > 1);
+	
+	// Delete from database first (remove this line's reference)
 	$qtxt = "delete from documents where source = '$source' and source_id = '$sourceId' and filename = '".db_escape_string($fileName)."'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
-	// Perform the file unlink operation - use path directly like moveDoc.php does
+	// If the document is linked to other lines, do NOT delete the actual file
+	if ($isLinkedToOtherLines) {
+		// Only database record was removed, file is preserved for other lines
+		$qtxt = "select id,filename,filepath from documents where source = '$source' and source_id = '$sourceId' order by id limit 1";
+		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		
+		if ($q && ($r = db_fetch_array($q))) {
+			$nextDoc = "$docFolder/$db/$r[filepath]/$r[filename]";
+			$redirectUrl = "documents.php?$params&showDoc=".urlencode($nextDoc);
+		} else {
+			// No more documents, redirect to docPool
+			if ($source == 'kassekladde' && isset($kladde_id) && isset($fokus)) {
+				$poolParams = "openPool=1"."&".
+					"kladde_id=$kladde_id"."&".
+					"bilag=$bilag"."&".
+					"fokus=$fokus"."&".
+					"poolFile=$poolFile"."&".
+					"docFolder=$docFolder"."&".
+					"sourceId=$sourceId"."&".
+					"source=$source";
+				$redirectUrl = "documents.php?$poolParams";
+			} else {
+				$redirectUrl = "documents.php?$params";
+			}
+		}
+		
+		echo '<script type="text/javascript">';
+		echo "alert('Link til $fileName fjernet. Filen er bevaret da den er linket til andre linjer.');";
+		echo "window.location.href = '$redirectUrl';";
+		echo '</script>';
+		exit;
+	}
+	
+	// Perform the file unlink operation - only if NOT linked to other lines
 	if (file_exists($deleteDoc)) {
 		if (unlink($deleteDoc)) {
 			// Success - check if there are any remaining documents for this sourceId

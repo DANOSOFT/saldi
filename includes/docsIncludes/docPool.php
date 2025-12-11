@@ -64,27 +64,49 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			$_POST['dato']=$dato;
 		#}
 		
-		// Handle multiple poolFiles - check for array first, then single value, then GET
+		// Debug logging - log what we receive
+		error_log("docPool INSERT - POST poolFiles: " . (isset($_POST['poolFiles']) ? $_POST['poolFiles'] : 'NOT SET'));
+		error_log("docPool INSERT - POST poolFile: " . (isset($_POST['poolFile']) ? (is_array($_POST['poolFile']) ? implode(',', $_POST['poolFile']) : $_POST['poolFile']) : 'NOT SET'));
+		error_log("docPool INSERT - Function param poolFile: " . ($poolFile ?? 'NOT SET'));
+		
+		// Handle multiple poolFiles - prioritize POST data for insert operations
+		// IMPORTANT: Do NOT use $poolFile function parameter here - it contains the 
+		// file being VIEWED, not the file the user wants to INSERT
 		$poolFiles = array();
-		if (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
-			$poolFiles = $_POST['poolFile'];
-		} elseif (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
-			// Handle comma-separated string
+		
+		// First priority: poolFiles as comma-separated string (most reliable from JavaScript)
+		if (isset($_POST['poolFiles']) && !empty($_POST['poolFiles'])) {
 			$poolFiles = explode(',', $_POST['poolFiles']);
 			$poolFiles = array_map('trim', $poolFiles);
+			error_log("docPool INSERT - Using POST poolFiles (comma-separated): " . implode(',', $poolFiles));
+		// Second priority: poolFile[] as array from POST
+		} elseif (isset($_POST['poolFile']) && is_array($_POST['poolFile'])) {
+			$poolFiles = $_POST['poolFile'];
+			error_log("docPool INSERT - Using POST poolFile[] array: " . implode(',', $poolFiles));
+		// Third priority: Single poolFile from POST (string)
+		} elseif (isset($_POST['poolFile']) && !empty($_POST['poolFile']) && is_string($_POST['poolFile'])) {
+			$poolFiles = array($_POST['poolFile']);
+			error_log("docPool INSERT - Using POST poolFile string: " . $_POST['poolFile']);
+		// Fourth priority: GET array (URL params from JavaScript)
 		} elseif (isset($_GET['poolFile']) && is_array($_GET['poolFile'])) {
 			$poolFiles = $_GET['poolFile'];
+			error_log("docPool INSERT - Using GET poolFile[] array: " . implode(',', $poolFiles));
+		// Fifth priority: GET comma-separated
 		} elseif (isset($_GET['poolFiles']) && !empty($_GET['poolFiles'])) {
 			$poolFiles = explode(',', $_GET['poolFiles']);
 			$poolFiles = array_map('trim', $poolFiles);
-		} elseif ($poolFile) {
-			// Single file from function parameter
-			$poolFiles = array($poolFile);
-		} elseif (isset($_GET['poolFile']) && !empty($_GET['poolFile'])) {
+			error_log("docPool INSERT - Using GET poolFiles: " . implode(',', $poolFiles));
+		// Sixth priority: Single GET poolFile
+		} elseif (isset($_GET['poolFile']) && !empty($_GET['poolFile']) && is_string($_GET['poolFile'])) {
 			$poolFiles = array($_GET['poolFile']);
-		} elseif (isset($_POST['poolFile']) && !empty($_POST['poolFile'])) {
-			$poolFiles = array($_POST['poolFile']);
+			error_log("docPool INSERT - Using GET poolFile string: " . $_GET['poolFile']);
+		} else {
+			error_log("docPool INSERT - NO poolFiles found from any source!");
 		}
+		// NOTE: We intentionally do NOT fall back to $poolFile (function parameter)
+		// because that contains the currently viewed file, not the file to insert
+		
+		error_log("docPool INSERT - Final poolFiles to process: " . implode(',', $poolFiles));
 		
 		// Remove empty values
 		$poolFiles = array_filter($poolFiles);
@@ -1104,33 +1126,42 @@ print <<<JS
 			return;
 		}
 		
+		// Debug: log selected files
+		console.log('Selected files to insert:', selectedFiles);
+		
 		// Get form action URL
 		const formAction = form.getAttribute('action');
 		const url = new URL(formAction, window.location.href);
 		
-		// Remove existing poolFile parameters and add all selected files
+		// Remove ALL existing poolFile parameters (with and without brackets)
 		url.searchParams.delete('poolFile');
-		selectedFiles.forEach((file, index) => {
-			url.searchParams.append('poolFile[]', file);
-		});
-		
-		// Also add as comma-separated for backward compatibility
-		url.searchParams.set('poolFiles', selectedFiles.join(','));
+		url.searchParams.delete('poolFile[]');
+		url.searchParams.delete('poolFiles');
 		
 		// Create FormData with all required fields
 		const formData = new FormData();
 		formData.append('insertFile', '1');
 		
-		// Add all selected files
+		// Add selected files - ONLY use poolFiles (comma-separated) as it's most reliable
+		formData.append('poolFiles', selectedFiles.join(','));
+		
+		// Also add as array for compatibility
 		selectedFiles.forEach(file => {
 			formData.append('poolFile[]', file);
 		});
-		formData.append('poolFiles', selectedFiles.join(','));
 		
-		// Add URL parameters to form data
+		// Add other URL parameters to form data (but NOT poolFile params - we already set those)
 		url.searchParams.forEach((value, key) => {
+			// Skip poolFile parameters - we've already set the correct ones above
+			if (key === 'poolFile' || key === 'poolFile[]' || key === 'poolFiles') {
+				return;
+			}
 			formData.append(key, value);
 		});
+		
+		// Debug: log what we're sending
+		console.log('FormData poolFiles:', formData.get('poolFiles'));
+		console.log('FormData poolFile[]:', formData.getAll('poolFile[]'));
 		
 		// Show loading indicator
 		const loadingMsg = selectedFiles.length > 1 ? 'Indsætter ' + selectedFiles.length + ' filer...' : 'Indsætter fil...';

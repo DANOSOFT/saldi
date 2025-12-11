@@ -214,19 +214,39 @@ if ($sourceId || $sourceId == 0) {
 	}
 	$qtxt = "select art from documents where source = '$source' and source_id = '$sourceId'";
 	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
-	$qtxt = "select timestamp from documents where source = '$source' and source_id = '$sourceId'";
-	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
+	$qtxt = "select id, timestamp, filepath from documents where source = '$source' and source_id = '$sourceId'";
+	$qtxt.= " and filename = '".db_escape_string($fileName)."'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$currentDocId = $r['id'];
 		if ($locked == 0 || date('U') - $r['timestamp'] < 60*60*24) {
 			if (!$inFlexboxLayout) {
+				// Check if this document is linked to other lines (for old layout)
+				$docFilepath = isset($r['filepath']) ? $r['filepath'] : '';
+				$linkCheckQtxt = "SELECT COUNT(*) as cnt FROM documents WHERE filepath = '" . db_escape_string($docFilepath) . "' AND filename = '" . db_escape_string($fileName) . "'";
+				$linkCheckRow = db_fetch_array(db_select($linkCheckQtxt, __FILE__ . " linje " . __LINE__));
+				$isLinkedDocOld = ($linkCheckRow && $linkCheckRow['cnt'] > 1);
+				
 				// Original button format for old layout
 				print "<tr><td valign='top' align = 'center'>";
-				print "<a href = 'documents.php?$params&deleteDoc=".urlencode($showDoc)."' onclick=\"return confirm('Slet $fileName?')\">";
-				print "<button style = 'width:90%;height:35px;'>Slet dokument</button></a>";
+				if ($isLinkedDocOld) {
+					// Document is linked to other lines - show "Fjern link" instead of "Slet"
+					print "<a href = 'documents.php?$params&unlinkDoc=" . intval($currentDocId) . "' onclick=\"return confirm('Fjern link til $fileName? (Filen bevares)')\">";
+					print "<button style = 'width:90%;height:35px; background-color: #fd7e14; color: white;'>Fjern link</button></a>";
+				} else {
+					// Document is not linked - show normal delete button
+					print "<a href = 'documents.php?$params&deleteDoc=".urlencode($showDoc)."' onclick=\"return confirm('Slet $fileName?')\">";
+					print "<button style = 'width:90%;height:35px;'>Slet dokument</button></a>";
+				}
 				print "</td></tr>";
 				print "<tr><td valign='top' align = 'center'>";
-				print "<a href = 'documents.php?$params&moveDoc=".urlencode($showDoc)."' onclick=\"return confirm('Flyt $fileName til pulje?')\">";
-				print "<button style = 'width:90%;height:35px;'>Flyt dokument til pulje</button></a>";
+				if ($isLinkedDocOld) {
+					// Document is linked - disable move to pool
+					print "<button style = 'width:90%;height:35px; background-color: #ccc; color: #666; cursor: not-allowed;' disabled title='Kan ikke flytte linket bilag'>Flyt dokument til pulje</button>";
+				} else {
+					// Document is not linked - show normal move button
+					print "<a href = 'documents.php?$params&moveDoc=".urlencode($showDoc)."' onclick=\"return confirm('Flyt $fileName til pulje?')\">";
+					print "<button style = 'width:90%;height:35px;'>Flyt dokument til pulje</button></a>";
+				}
 				print "</td></tr>";
 			}
 			// In flexbox layout, delete/move buttons are already in the table row above

@@ -1535,7 +1535,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if ($vis_bilag && !$fejl && !$udskriv && isset($id[$y])) {
 			$qtxt = "select id,filename from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
 			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($dokument[$y] || $docRow) {
+			$hasDocPosted = ($dokument[$y] || $docRow) ? true : false;
+			if ($hasDocPosted) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|Klik her for at åbne bilaget', $sprog_id);
 				// Get the filename to show in pool
@@ -1550,8 +1551,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($poolFile) {
 				$href .= "&poolFile=$poolFile";
 			}
-			print "<td title='$titletxt'><!-- ". __line__ ." -->";
-			print "<a onClick='this.form.submit()' href='$href' id='clip'><img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
+			// Drag-and-drop attributes for linking documents between lines (also for posted entries)
+			$dragAttrPosted = $hasDocPosted ? "draggable='true' ondragstart='clipDragStart(event, $id[$y])'" : "";
+			$dropAttrPosted = "ondragover='clipDragOver(event)' ondrop='clipDrop(event, $id[$y])'";
+			$dropClassPosted = $hasDocPosted ? "clip-has-doc" : "clip-no-doc";
+			
+			print "<td class='clip-cell $dropClassPosted' data-source-id='$id[$y]' $dropAttrPosted title='$titletxt'><!-- ". __line__ ." -->";
+			print "<a onClick='this.form.submit()' href='$href' id='clip'><img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDocPosted ? "grab" : "pointer") . ";' $dragAttrPosted class='clip-icon' data-source-id='$id[$y]'></a></td>\n";
 		}
 		print "<td> $bilag[$y]</td>";
 		print "<td> $dato[$y]</td>";
@@ -1732,7 +1738,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
 			$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$id[$y]' order by id limit 1";  //20230630
 			$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-			if ($dokument[$y] || $docRow) {
+			$hasDoc = ($dokument[$y] || $docRow) ? true : false;
+			if ($hasDoc) {
 				$clip = 'paper.png';
 				$titletxt =  findtekst('1454|klik her for at åbne bilaget', $sprog_id);
 				// Document is attached - show document viewer with list of attachments for this line
@@ -1744,11 +1751,16 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 				// No document attached - go to pool to choose one
 				$href = "../includes/documents.php?source=kassekladde&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&fokus=bila$y&openPool=1";
 			}
-			print "<td title='$titletxt'><!-- ". __line__ ." -->	";
+			// Drag-and-drop attributes for linking documents between lines
+			$dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id[$y])'" : "";
+			$dropAttr = "ondragover='clipDragOver(event)' ondrop='clipDrop(event, $id[$y])'";
+			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
+			
+			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
 			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L'>";
 #			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
-			print "<img src='../ikoner/$clip' style='width:20px;height:20px;'></a></td>\n";
+			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' $dragAttr class='clip-icon' data-source-id='$id[$y]'></a></td>\n";
 		}
 		if (!isset($dub_bilag[$y]))
 			$dub_bilag[$y] = 0;
@@ -3187,7 +3199,150 @@ if ($page < $total_pages) {
 include("kassekladde_includes/drag-handle-ajax-call.php");
 include("kassekladde_includes/unsavedWarning.php");
 
+// Add clip drag-and-drop JavaScript for linking documents between lines
+print "
+<style>
+/* Clip drag and drop styles */
+.clip-cell {
+	transition: all 0.2s ease;
+}
+.clip-cell.drag-over {
+	background-color: #d4edda !important;
+	box-shadow: inset 0 0 8px rgba(40, 167, 69, 0.5);
+	transform: scale(1.1);
+}
+.clip-cell.drag-over-invalid {
+	background-color: #f8d7da !important;
+}
+.clip-icon[draggable='true'] {
+	cursor: grab !important;
+}
+.clip-icon[draggable='true']:active {
+	cursor: grabbing !important;
+}
+.clip-icon.dragging {
+	opacity: 0.5;
+}
+</style>
 
+<script>
+// Clip drag and drop for linking documents between kassekladde lines
+let clipDragSourceId = null;
+
+function clipDragStart(event, sourceId) {
+	clipDragSourceId = sourceId;
+	event.dataTransfer.setData('text/plain', sourceId);
+	event.dataTransfer.effectAllowed = 'link';
+	
+	// Add visual feedback
+	event.target.classList.add('dragging');
+	
+	// Add drag image
+	const dragImage = event.target.cloneNode(true);
+	dragImage.style.width = '30px';
+	dragImage.style.height = '30px';
+	document.body.appendChild(dragImage);
+	event.dataTransfer.setDragImage(dragImage, 15, 15);
+	setTimeout(() => dragImage.remove(), 0);
+}
+
+function clipDragOver(event) {
+	event.preventDefault();
+	event.dataTransfer.dropEffect = 'link';
+	
+	// Find the clip cell
+	const cell = event.target.closest('.clip-cell');
+	if (cell) {
+		const targetId = cell.dataset.sourceId;
+		// Don't allow dropping on itself
+		if (targetId == clipDragSourceId) {
+			cell.classList.add('drag-over-invalid');
+			cell.classList.remove('drag-over');
+		} else {
+			cell.classList.add('drag-over');
+			cell.classList.remove('drag-over-invalid');
+		}
+	}
+}
+
+function clipDragLeave(event) {
+	const cell = event.target.closest('.clip-cell');
+	if (cell) {
+		cell.classList.remove('drag-over', 'drag-over-invalid');
+	}
+}
+
+function clipDrop(event, targetSourceId) {
+	event.preventDefault();
+	
+	const cell = event.target.closest('.clip-cell');
+	if (cell) {
+		cell.classList.remove('drag-over', 'drag-over-invalid');
+	}
+	
+	const sourceId = event.dataTransfer.getData('text/plain') || clipDragSourceId;
+	
+	// Don't link to itself
+	if (sourceId == targetSourceId) {
+		return;
+	}
+	
+	// Confirm the action
+	if (!confirm('Link bilag fra linje ' + sourceId + ' til linje ' + targetSourceId + '?')) {
+		return;
+	}
+	
+	// Make AJAX call to link documents
+	linkDocumentsBetweenLines(sourceId, targetSourceId);
+}
+
+function linkDocumentsBetweenLines(fromSourceId, toSourceId) {
+	const formData = new FormData();
+	formData.append('action', 'linkDocuments');
+	formData.append('fromSourceId', fromSourceId);
+	formData.append('toSourceId', toSourceId);
+	formData.append('source', 'kassekladde');
+	
+	fetch('../includes/docsIncludes/linkDocumentsApi.php', {
+		method: 'POST',
+		body: formData
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.success) {
+			alert('Bilag linket succesfuldt! (' + data.count + ' dokument(er))');
+			// Refresh the page to show updated document links
+			location.reload();
+		} else {
+			alert('Fejl: ' + (data.message || 'Kunne ikke linke bilag'));
+		}
+	})
+	.catch(error => {
+		console.error('Error linking documents:', error);
+		alert('Fejl ved linking af bilag: ' + error.message);
+	});
+}
+
+// Add dragend handler to clean up
+document.addEventListener('dragend', function(event) {
+	if (event.target.classList) {
+		event.target.classList.remove('dragging');
+	}
+	// Remove all drag-over classes
+	document.querySelectorAll('.clip-cell').forEach(cell => {
+		cell.classList.remove('drag-over', 'drag-over-invalid');
+	});
+	clipDragSourceId = null;
+});
+
+// Add dragleave handler to cells
+document.addEventListener('DOMContentLoaded', function() {
+	document.querySelectorAll('.clip-cell').forEach(cell => {
+		cell.addEventListener('dragleave', clipDragLeave);
+	});
+});
+</script>
+";
 
 	?>
 
