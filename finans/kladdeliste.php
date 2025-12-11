@@ -639,9 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>";
 
-// Delete script - uses AJAX to delete without page navigation issues
-// Direct language-based text selection to ensure correct translation
-// Text ID 2755: "Vil du slette denne kassekladde?" / "Do you want to delete this cash journal?" / "Vil du slette denne kassekladden?"
+
 if ($sprog_id == 2) {
     $deleteConfirmText = 'Do you want to delete this cash journal?';
 } elseif ($sprog_id == 3) {
@@ -649,7 +647,7 @@ if ($sprog_id == 2) {
 } else {
     $deleteConfirmText = 'Vil du slette denne kassekladde?';
 }
-// Escape for JavaScript - use json_encode for proper escaping
+
 $deleteConfirmTextJS = json_encode($deleteConfirmText);
 
 print("<script>
