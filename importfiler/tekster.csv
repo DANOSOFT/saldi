@@ -2752,8 +2752,8 @@
 2752	Vælg i feltet foroven til højre, hvorfra du vil trække betalingsinformationer	Select in the field above to the right where you want to retrieve payment information from	Velg i feltet oppe til høyre hvor du vil hente betalingsinformasjon fra
 2753	Vil du trække betalinger dannet i en kassekladde, vælges 'fra liste'	To retrieve payments created in a cash journal, select 'from list'	For å hente betalinger opprettet i en kassekladd, velg 'fra liste'
 2754	Vil du i stedet trække alle registrerede skyldige beløb til kunder, vælges 'fra kontokort'	To retrieve all registered amounts owed to customers instead, select 'from general ledger'	For å hente alle registrerte skyldige beløp til kunder i stedet, velg 'fra kontokort'
-2755	Vil du slette denne kassekladde?	Do you want to delete this cash journal?	Vil du slette denne kassekladden?
-2756	Kassekladden er ikke tom og kan derfor ikke slettes	The cash journal is not empty and cannot be deleted	Kassekladden er ikke tom og kan derfor ikke slettes
+2755	
+2756	
 2757	
 2758	
 2759	
