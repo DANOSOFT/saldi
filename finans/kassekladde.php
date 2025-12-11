@@ -142,6 +142,8 @@ include("../includes/row-hover-style.js.php");
 print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
+print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css">';
+print '<script src="../javascript/accountAutocomplete.js" defer></script>';
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 		that.style.color = fgcolor;
@@ -3340,6 +3342,12 @@ document.addEventListener('DOMContentLoaded', function() {
 	document.querySelectorAll('.clip-cell').forEach(cell => {
 		cell.addEventListener('dragleave', clipDragLeave);
 	});
+	
+	// Initialize account autocomplete after page is fully loaded
+	if (typeof window.initAccountAutocomplete === 'function') {
+		console.log('Calling initAccountAutocomplete from kassekladde.php');
+		window.initAccountAutocomplete();
+	}
 });
 </script>
 ";
