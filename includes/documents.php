@@ -39,6 +39,7 @@ include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+include("docsIncludes/invoiceExtractionApi.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=null;
@@ -232,10 +233,26 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 		$baseName = sanitize_filename($baseName);
 		$targetFile = "$poolDir/$baseName.pdf";
 		
+		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
+		$extractedData = null;
+		$fileForExtraction = null;
+		
 		// Convert images to PDF if needed
 		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
 			$tempFile = "$poolDir/$baseName.$ext";
 			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				// Extract data from ORIGINAL image before converting to PDF
+				$fileForExtraction = $tempFile;
+				error_log("documents.php: Calling extractInvoiceData for ORIGINAL image: $tempFile");
+				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+				$extractedData = extractInvoiceData($tempFile, $invoiceId);
+				if ($extractedData) {
+					error_log("documents.php: API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+				} else {
+					error_log("documents.php: API extraction returned null for file: $tempFile");
+				}
+				
+				// Now convert to PDF
 				system("convert '$tempFile' '$targetFile'");
 				if (file_exists($targetFile)) {
 					unlink($tempFile);
@@ -246,15 +263,72 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 		} else {
 			// For PDF files, move directly
 			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+			// Extract data from PDF
+			if (file_exists($targetFile)) {
+				error_log("documents.php: Calling extractInvoiceData for PDF: $targetFile");
+				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+				$extractedData = extractInvoiceData($targetFile, $invoiceId);
+				if ($extractedData) {
+					error_log("documents.php: API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+				} else {
+					error_log("documents.php: API extraction returned null for file: $targetFile");
+				}
+			}
 		}
 		
 		// Create .info file
 		if (file_exists($targetFile)) {
 			$infoFile = "$poolDir/$baseName.info";
-			if (!file_exists($infoFile)) {
-				file_put_contents($infoFile, $baseName . PHP_EOL);
-				chmod($infoFile, 0666);
+			
+			// Prepare .info file content
+			// Format: subject (line 1), account (line 2), amount (line 3), date (line 4)
+			$subject = $baseName;
+			$account = '';
+			$amount = '';
+			$date = '';
+			
+			// Use extracted data if available
+			if ($extractedData !== null) {
+				if (isset($extractedData['amount']) && !empty($extractedData['amount'])) {
+					$amount = $extractedData['amount'];
+				}
+				if (isset($extractedData['date']) && !empty($extractedData['date'])) {
+					$date = $extractedData['date'];
+				}
 			}
+			
+			// Create or update .info file
+			if (!file_exists($infoFile)) {
+				$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL;
+				file_put_contents($infoFile, $infoContent);
+				chmod($infoFile, 0666);
+			} else {
+				// Update existing .info file with extracted data if available
+				if ($extractedData !== null) {
+					$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
+					// Preserve existing subject and account if they exist
+					$subject = isset($lines[0]) && !empty($lines[0]) ? $lines[0] : $baseName;
+					$account = isset($lines[1]) ? $lines[1] : '';
+					// Update amount and date from API if extracted
+					if (!empty($amount)) {
+						$lines[2] = $amount;
+					} elseif (!isset($lines[2])) {
+						$lines[2] = '';
+					}
+					if (!empty($date)) {
+						$lines[3] = $date;
+					} elseif (!isset($lines[3])) {
+						$lines[3] = '';
+					}
+					// Ensure we have 4 lines
+					while (count($lines) < 4) {
+						$lines[] = '';
+					}
+					$infoContent = implode(PHP_EOL, array_slice($lines, 0, 4)) . PHP_EOL;
+					file_put_contents($infoFile, $infoContent);
+				}
+			}
+			
 			// Redirect to pool view after successful upload
 			$poolParams =
 				"openPool=1"."&".
@@ -273,7 +347,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 // ---------- Left table start ---------
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 // Handle file uploads for pool view
-if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
+// Allow uploads when sourceId is set OR when openPool is set (for new pool uploads)
+if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $openPool)) {
 	$fileTypes = array('jpg','jpeg','pdf','png');
 	$fileName = basename($_FILES['uploadedFile']['name']);
 	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
@@ -288,10 +363,24 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 		$baseName = sanitize_filename($baseName);
 		$targetFile = "$poolDir/$baseName.pdf";
 		
+		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
+		$extractedData = null;
+		
 		// Convert images to PDF if needed
 		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
 			$tempFile = "$poolDir/$baseName.$ext";
 			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+				// Extract data from ORIGINAL image before converting to PDF
+				error_log("documents.php (block2): Calling extractInvoiceData for ORIGINAL image: $tempFile");
+				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+				$extractedData = extractInvoiceData($tempFile, $invoiceId);
+				if ($extractedData) {
+					error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+				} else {
+					error_log("documents.php (block2): API extraction returned null for file: $tempFile");
+				}
+				
+				// Now convert to PDF
 				system("convert '$tempFile' '$targetFile'");
 				if (file_exists($targetFile)) {
 					unlink($tempFile);
@@ -302,15 +391,72 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
 		} else {
 			// For PDF files, move directly
 			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+			// Extract data from PDF
+			if (file_exists($targetFile)) {
+				error_log("documents.php (block2): Calling extractInvoiceData for PDF: $targetFile");
+				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+				$extractedData = extractInvoiceData($targetFile, $invoiceId);
+				if ($extractedData) {
+					error_log("documents.php (block2): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+				} else {
+					error_log("documents.php (block2): API extraction returned null for file: $targetFile");
+				}
+			}
 		}
 		
 		// Create .info file
 		if (file_exists($targetFile)) {
 			$infoFile = "$poolDir/$baseName.info";
-			if (!file_exists($infoFile)) {
-				file_put_contents($infoFile, $baseName . PHP_EOL);
-				chmod($infoFile, 0666);
+			
+			// Prepare .info file content
+			// Format: subject (line 1), account (line 2), amount (line 3), date (line 4)
+			$subject = $baseName;
+			$account = '';
+			$amount = '';
+			$date = '';
+			
+			// Use extracted data if available
+			if ($extractedData !== null) {
+				if (isset($extractedData['amount']) && !empty($extractedData['amount'])) {
+					$amount = $extractedData['amount'];
+				}
+				if (isset($extractedData['date']) && !empty($extractedData['date'])) {
+					$date = $extractedData['date'];
+				}
 			}
+			
+			// Create or update .info file
+			if (!file_exists($infoFile)) {
+				$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL;
+				file_put_contents($infoFile, $infoContent);
+				chmod($infoFile, 0666);
+			} else {
+				// Update existing .info file with extracted data if available
+				if ($extractedData !== null) {
+					$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
+					// Preserve existing subject and account if they exist
+					$subject = isset($lines[0]) && !empty($lines[0]) ? $lines[0] : $baseName;
+					$account = isset($lines[1]) ? $lines[1] : '';
+					// Update amount and date from API if extracted
+					if (!empty($amount)) {
+						$lines[2] = $amount;
+					} elseif (!isset($lines[2])) {
+						$lines[2] = '';
+					}
+					if (!empty($date)) {
+						$lines[3] = $date;
+					} elseif (!isset($lines[3])) {
+						$lines[3] = '';
+					}
+					// Ensure we have 4 lines
+					while (count($lines) < 4) {
+						$lines[] = '';
+					}
+					$infoContent = implode(PHP_EOL, array_slice($lines, 0, 4)) . PHP_EOL;
+					file_put_contents($infoFile, $infoContent);
+				}
+			}
+			
 			// Redirect to pool view after successful upload
 			$poolParams =
 				"openPool=1"."&".

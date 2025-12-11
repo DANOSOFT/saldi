@@ -985,11 +985,8 @@ print <<<JS
 			}
 		}
 
-
 		// Ensure active rows come first
 		html += activeRows + otherRows;
-
-
 
 			html += "</tbody></table>";
 			
