@@ -64,6 +64,7 @@
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
 // 20250820 PHR Added some line ident comments
+// 20251206 LOE some topline codes moved to ../includes/S_topLine.php also used by other files
 
 @session_start();
 $s_id=session_id();
@@ -197,19 +198,11 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 		print "</div><!-- end of header -->
 			<div class=\"maincontentLargeHolder\">\n";
 	} elseif ($menu=='S') {
-		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
-		print "<tr><td width=100%>";
-		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
+		$title = findtekst('964|Varerapport - forside', $sprog_id);
 
-		print "<td width=\"10%\"><a href='$returside' accesskey=L>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		include("../includes/S_topLine.php"); 
 
-		print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('964|Varerapport - forside', $sprog_id)."</td>";
-
-		print "<td width=\"10%\" align='center' style='$topStyle'></td></tr>\n";
-
-		print "</tbody></table></td></tr>\n"; #B slut
-		print "</tr>\n<tr><td height=\"60%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
+		print "</tr>\n<tr><td height=\"10%\" \"width=100%\" align=\"center\" valign=\"bottom\">";
 	} else {
 		print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" align=\"center\"><tbody>"; #A
 		print "<tr><td width=100%>";
@@ -291,8 +284,8 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	}
 	$trbg=$bgcolor;
 	print "<form name=rapport action=rapport.php method=post>";
-	print "<table  bgcolor='$bgcolor' class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
-	print "<tr><td align=\"center\" colspan=\"3\"><h3>".findtekst('965|Varerapport', $sprog_id)."<br></h3></td></tr>\n";
+	print "<table  bgcolor='$bgcolor' width='800px' class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	#print "<tr><td align=\"center\" colspan=\"3\"><h3>".findtekst('965|Varerapport', $sprog_id)."<br></h3></td></tr>\n";
 	($trbg==$bgcolor)?$trbg=$bgcolor5:$trbg=$bgcolor;
 	print "<tr bgcolor='$trbg'><td>".findtekst('774|Varegrupper', $sprog_id)."</td><td colspan=\"2\"><select class=\"inputbox\" name=\"varegruppe\" style=\"width:200px;\">";
 	for ($x=0;$x<count($vg_nr);$x++) {

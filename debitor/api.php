@@ -356,10 +356,14 @@
     
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         while ($res = db_fetch_array($query)) {
-            $res["pris"] = abs($res["pris"]);
-            $res["rabat"] = abs($res["rabat"]);
-            $res["antal"] = $res["antal"];
-            $res["momssats"] = abs($res["momssats"]);
+            $res["pris"] = abs((float)$res["pris"]);
+            $res["rabat"] = abs((float)$res["rabat"]);
+            if($creditNote == "Cre"){
+                $res["antal"] = abs((float)$res["antal"]);
+            }else{
+                $res["antal"] = (float)$res["antal"];
+            }
+            $res["momssats"] = abs((float)$res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
             if(trim($res["beskrivelse"]) == ""){
                 continue;

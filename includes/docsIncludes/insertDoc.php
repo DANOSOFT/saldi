@@ -167,14 +167,31 @@ if (!file_exists($showDoc)) {
 }
 if (file_exists($showDoc)) {
 #		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";
-	if($source == 'kassekladde'){
-		if ($poolFile) $href = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
-		else $href = "documents.php?$params&showDoc=$showDoc";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=$href\">";
-//		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$params&showDoc=$showDoc\">";
-		exit;
-	}else{
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?source=creditorOrder&sourceId=$sourceId&showDoc=$showDoc\">";
+	// Check if we're processing multiple files - if so, don't redirect yet
+	if (isset($processingMultiple) && $processingMultiple) {
+		// Return success - let docPool.php handle the redirect after all files are processed
+		// Do nothing here, just continue
+	} else {
+		// Single file processing - redirect as normal
+		if($source == 'kassekladde'){
+			// Always redirect back to kassekladde after insert
+			$redirectUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&fokus=$fokus";
+		}else{
+			$redirectUrl = "documents.php?source=creditorOrder&sourceId=$sourceId&showDoc=$showDoc";
+		}
+		
+		// Clear any existing output buffers
+		while (ob_get_level()) {
+			ob_end_clean();
+		}
+		
+		// Output complete HTML page with immediate JavaScript redirect
+		echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Redirecting...</title></head><body>';
+		echo '<script type="text/javascript">';
+		echo "window.location.replace('" . addslashes($redirectUrl) . "');";
+		echo '</script>';
+		echo '<noscript><meta http-equiv="refresh" content="0;url=' . htmlspecialchars($redirectUrl) . '"></noscript>';
+		echo '</body></html>';
 		exit;
 	}
 } else alert("Move to $showDoc failed");

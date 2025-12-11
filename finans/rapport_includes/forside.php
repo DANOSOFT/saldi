@@ -43,6 +43,7 @@
 // 20250407 LOE konto_til when not set and ktoNameTo default values moved from while loop.
 // 20250516 Sulayman updated the drowdown konto_fra and konto_til to show according to the selected konto_fra and konto_til.
 // 20250516 Sulayman make sure the back button redirect to the previous page rather than the dashboard
+// 20251206 LOE Unified topline without back button for reports moved to includes/S_topLine.php
 function forside($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 
 	global $bruger_id,$brugernavn;
@@ -210,26 +211,19 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		print "<div id=\"header\">";
 		print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
 		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
-		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";  
 		print "</div>";
 		print "<div class='content-noside'>";
 #	} elseif ($menu == 'S') {
 #		include("../includes/sidemenu.php");
 	} elseif ($menu == 'S') {
-		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #
-		print "<tr>";
 
-		print "<td width='10%'>";
-		if ($popup)
-			print "<a href=../includes/luk.php accesskey=L>
-			<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst(30, $sprog_id)."</button></a></td>";
-		else
-			print "<a href='$backUrl' accesskey=L>
-				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-				   .findtekst(30, $sprog_id)."</button></a></td>";
+		$title =  findtekst(897, $sprog_id);
 
-		print "<td width='80%' align='center' style='$topStyle'> " . findtekst(897, $sprog_id) . " </td>";
-		print "<td width='10%' style='$topStyle'><br></td>";
+		#######################
+		include("../includes/S_topLine.php");
+
+		########################
 
 	} else {
 		print "<table width='100%' height='100%' border='0' cellspacing='2' cellpadding='0'><tbody>"; #A

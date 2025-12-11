@@ -62,17 +62,20 @@ print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"><html><h
 	print "<button class='center-btn' type='button' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print "$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	if (($kort!="../lager/varekort.php" && $returside != "ordre.php")&&($id)) {
-		print "<td width=\"5%\">$color
-			   <a href=\"javascript:confirmClose('ordre.php?returside=ordreliste.php','$alerttekst')\" accesskey=N>
-			   <button class='center-btn'  style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-			 print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
+		
+		  print "<td width=\"5%\">$color
+           <a href=\"#\" onclick=\"if(confirm('$alerttekst')) { window.location='ordre.php?returside=ordreliste.php'; return false; }\" accesskey=N>
+           <button type=\"button\" class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
+     print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
 
 	} else if (($kort=="../lager/varekort.php" && $returside == "ordre.php")&&($id)) {
+		
 		print "<td width=\"5%\"> $color<a href=\"$kort?returside=$returside&ordre_id=$id\" accesskey=N>
 			   <button class='center-btn' style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
 			   print "$add_icon" .findtekst(39, $sprog_id)."</button></a></td>";
 
 	} elseif ($kort=="../kreditor/kreditorkort.php") {
+		
 		print "<td width=\"5%\" onClick=\"javascript:kreditor_vis=window.open('kreditorvisning.php','kreditor_vis','scrollbars=1,resizable=1');kreditor_vis.focus();\">
 			   <span title='".findtekst(1521, $sprog_id)."'><u>
 			   <button style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"

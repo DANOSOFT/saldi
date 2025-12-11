@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- patch 4.1.1 --- 2025.06.12 ---
-//                           LICENSE
+// ---------------finans/bogfor.php---------- patch 4.1.1 --- 2025.12.10 ---
+// LICENSE
 //
 // This program is free software. You can redistribute it and / or
 // modify it under the terms of the GNU General Public License (GPL)
@@ -50,6 +50,7 @@
 // 20230324	PHR - Correted errors in 'findtekst' (wrong text ID) 
 // 20230626 PHR - Moved this part into 'if ($r = db_fetch_array($q)) {' from below as amount was aligned
 // 20250612 PHR	- Extra diff controle
+// 20251210 PHR - Missing financialYear in vat account lookup for E & Y
 
 @session_start();
 $s_id=session_id();
@@ -1103,7 +1104,7 @@ function momsberegning($konto,$amount,$momsart,$kontrol) {
 			$qtxt = "select box1,box2,box3 from grupper where ";
 			$qtxt.= "kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 			$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if($row =	db_fetch_array($query)) { # S�er der moms p�kontoen
+			if($row =	db_fetch_array($query)) { # Så er der moms på kontoen
 				$qtxt="select box1,box2,box3 from grupper where ";
 				$qtxt.= "kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
@@ -1126,11 +1127,11 @@ function momsberegning($konto,$amount,$momsart,$kontrol) {
 				$b=substr($kontrol,1.1);
 			} 
 			$c=$a.'M';
-			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c'";
+			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			if($r =	db_fetch_array($q)) { # Saa er der moms paa kontoen
 				if (($a=='E' || $a=='Y') && (!$r['box1'] || !$r['box2'] || !$r['box3'])) alert("Fejl i kontoopsætning for EU moms");
-				$qtxt="select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c'";
+				$qtxt="select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				$x=$r['box2'];
 				if ($a=='E' || $a=='Y'){

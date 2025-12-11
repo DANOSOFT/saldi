@@ -78,6 +78,8 @@ ob_start();
                     $fullPath = $to;
                 }
             } elseif ($ext === 'jpg' || $ext === 'jpeg' || $ext === 'png') {
+                // Remove .pdf suffix from base if present (handles files like "document.pdf.jpg")
+                $base = preg_replace('/\.pdf$/i', '', $base);
                 $newFile = $base . '.pdf';
                 $to = "$dir/$newFile";
                 

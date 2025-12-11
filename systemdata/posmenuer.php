@@ -1237,15 +1237,17 @@ print "</div>";
 	const select = document.getElementById('func-select');
 
 	function func_change() {
+		if (!select) return; // Exit if select element doesn't exist
 		var selected = select.value;
-		document.getElementById('varekort-btn').style.display = 'none';
+		const varekortBtn = document.getElementById('varekort-btn');
+		if (varekortBtn) varekortBtn.style.display = 'none';
 		if (selected === '1') {
-			document.getElementById('varekort-btn').style.display = '';
-			choose_lnk.innerText = 'Vælg Varenr';
+			if (varekortBtn) varekortBtn.style.display = '';
+			if (choose_lnk) choose_lnk.innerText = 'Vælg Varenr';
 		} else if (selected === '2') {
-			choose_lnk.innerText = 'Vælg Menunr';
+			if (choose_lnk) choose_lnk.innerText = 'Vælg Menunr';
 		} else {
-			choose_lnk.innerText = '';
+			if (choose_lnk) choose_lnk.innerText = '';
 		}
 	}
 
@@ -1253,6 +1255,7 @@ print "</div>";
 	func_change();
 
 	function open_popup() {
+		if (!choose_lnk) return; // Exit if choose_lnk element doesn't exist
 		if (choose_lnk.innerText === 'Vælg Menunr') {
 			open_menu_popup();
 		} else if (choose_lnk.innerText === 'Vælg Varenr') {

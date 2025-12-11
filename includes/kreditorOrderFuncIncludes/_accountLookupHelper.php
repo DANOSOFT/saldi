@@ -171,8 +171,11 @@ function renderTable(entries) {
     const tr = document.createElement('tr');
     tr.style.backgroundColor = (index % 2 === 0) ? bgcolor : bgcolor5;
 
-    tr.innerHTML =
-      '<td><a href="ordre.php?fokus=' + fokus + '&id=' + usedId + '&konto_id=' + entry.id + '">' + entry.kontonr + '</a></td>' +
+   tr.innerHTML =
+    '<td><a href="ordre.php?fokus=' + fokus + '&id=' + usedId + 
+    '&konto_id=' + entry.id + 
+    '&kontonr=' + encodeURIComponent(entry.kontonr) + 
+    '">' + entry.kontonr + '</a></td>' +
       '<td>' + entry.firmanavn + '</td>' +
       '<td>' + entry.addr1 + '</td>' +
       '<td>' + entry.addr2 + '</td>' +

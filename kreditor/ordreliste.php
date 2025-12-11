@@ -1,5 +1,5 @@
 <?php
-// --- kreditor/ordreliste.php -----patch 4.1.1 ----2025-11-24----------
+// --- kreditor/ordreliste.php -----patch 4.1.1 ----2025-12-05---------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -57,21 +57,7 @@ if (!$returside) {
 
 
 ##################
-// Loop through the GET array
-// Function to find and set $valg for any key starting with 'kredorliste_'
-// foreach ($_GET as $category => $data) {
-//     // Check if $data is an array (since you expect nested arrays)
-//     if (is_array($data)) {
-//         foreach ($data as $key => $value) {
-//             // Check if the key starts with "kredorliste_"
-//             if (strpos($key, 'kredorliste_') === 0) {
-//                 // Remove "kredorliste_" from the key
-//                 $valg = substr($key, strlen('kredorliste_'));
-//                 break 2; // Break out of both loops since we found the first match
-//             }
-//         }
-//     }
-// }
+
 // Store the original valg from URL parameter
 $original_valg = $valg;
 
@@ -96,7 +82,10 @@ if (!in_array($valg, ['forslag', 'ordrer', 'faktura'])) {
 }
 
 ###############
-
+if (isset($valg)) {
+    // Set the cookie to store the 'valg' value
+    setcookie("valg", $valg, time() + 3600 * 24, "/"); // Expires in 24 hours
+}
 
 # >> Date picker scripts <<
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
@@ -174,7 +163,7 @@ if ($valg == "forslag") {
 } elseif ($valg == "faktura") {
     $status = "status >= 3";
 } else {
-    $status = "status = 1 or status = 2";
+    $status = "(status = 1 OR status = 2)";
 }
 $metaColumnHeaders = ['Handlinger'];
 // Configure datagrid based on valg
@@ -272,7 +261,7 @@ if ($valg == 'forslag') {
               CASE WHEN ordrer.art = 'KK' THEN CONCAT('(KN) ', ordrer.ordrenr::text) 
                    ELSE ordrer.ordrenr::text END as display_ordrenr
               FROM ordrer 
-              WHERE (art = 'KO' or art = 'KK') AND $status AND {{WHERE}}
+              WHERE (art = 'KO' OR art = 'KK') AND $status AND {{WHERE}}
               ORDER BY {{SORT}}";
 
     $metaColumn = function($row) {
@@ -396,7 +385,7 @@ if ($valg == 'forslag') {
               ordrer.kontonr, ordrer.firmanavn, ordrer.lev_navn, ordrer.ref, 
               ordrer.sum, ordrer.valutakurs, ordrer.art, ordrer.email
               FROM ordrer 
-              WHERE (art = 'KO' or art = 'KK') AND $status AND {{WHERE}}
+              WHERE (art = 'KO' OR art = 'KK') AND $status AND {{WHERE}}
               ORDER BY {{SORT}}";
 
     $metaColumn = function($row) {
@@ -539,7 +528,7 @@ if ($valg == 'forslag') {
               ordrer.firmanavn, ordrer.lev_navn, ordrer.ref, ordrer.sum, 
               ordrer.valutakurs, ordrer.art, ordrer.email
               FROM ordrer 
-              WHERE (art = 'KO' or art = 'KK') AND $status AND {{WHERE}}
+              WHERE (art = 'KO' OR art = 'KK') AND $status AND {{WHERE}}
               ORDER BY {{SORT}}";
 
     $metaColumn = function($row) {
@@ -565,6 +554,10 @@ if ($valg == 'forslag') {
 $rowStyle = function($row) {
     return "cursor: pointer;";
 };
+// Add row attributes including order ID
+$rowAttributes = function($row) {
+    return "data-order-id='{$row['id']}'";
+};
 
 // Create grid configuration
 $grid_data = [
@@ -573,7 +566,8 @@ $grid_data = [
     'filters' => [], 
     'metaColumn' => $metaColumn,
     'metaColumnHeaders' => $metaColumnHeaders,
-    'rowStyle' => $rowStyle
+    'rowStyle' =>  $rowStyle,
+    'rowAttributes' => $rowAttributes  
 ];
 
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
@@ -653,44 +647,41 @@ SCRIPT;
 if ($menu == 'T') {
     include_once '../includes/topmenu/footer.php';
 } else {
-    include_once '../includes/oldDesign/footer.php';
+    include_once '../includes/oldDesign/footer.php'; 
 }
 ?>
 
-
-
 <script>
-    //datepicker initialization code
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize date pickers for date fields
-   
-     const dateInputs = document.querySelectorAll(
+// Datepicker initialization code with AJAX support
+function initializeDatePickers() {
+
+    // All date inputs in the datagrid
+    const dateInputs = document.querySelectorAll(
         "input[name^='search[kredorliste_'][name$='[ordredate]'], " +
         "input[name^='search[kredorliste_'][name$='[levdate]'], " +
         "input[name^='search[kredorliste_'][name$='[fakturadate]']"
     );
-    
-    console.log('Found date inputs:', dateInputs.length); 
 
     dateInputs.forEach(function(input) {
-        // Get existing value if any
-        var existingValue = input.value.trim();
-        var startDate = moment(); // Default to today
-        
-        // Parse existing value if it exists
+
+        // Avoid double initialization
+        if (input.hasAttribute('data-datepicker-initialized')) return;
+
+        let existingValue = input.value.trim();
+        let startDate = moment();
+
+        // Parse existing date if valid
         if (existingValue !== '') {
-            var parsed = moment(existingValue, 'DD-MM-YYYY', true);
-            if (parsed.isValid()) {
-                startDate = parsed;
-            }
+            const parsed = moment(existingValue, 'DD-MM-YYYY', true);
+            if (parsed.isValid()) startDate = parsed;
         }
-        
+
         // Initialize daterangepicker
         $(input).daterangepicker({
             singleDatePicker: true,
             showDropdowns: true,
             autoUpdateInput: false,
-            autoApply: false, // CHANGED: Show Apply/Cancel buttons
+            autoApply: false,
             startDate: startDate,
             minYear: 1900,
             maxYear: parseInt(moment().format('YYYY'), 10) + 10,
@@ -699,46 +690,73 @@ document.addEventListener('DOMContentLoaded', function() {
                 cancelLabel: 'Ryd',
                 applyLabel: 'Søg',
                 daysOfWeek: ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'],
-                monthNames: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni', 
-                             'Juli', 'August', 'September', 'Oktober', 'November', 'December'],
+                monthNames: [
+                    'Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
+                    'Juli', 'August', 'September', 'Oktober', 'November', 'December'
+                ],
                 firstDay: 1
             }
         });
-        
-        // Set initial value if exists
+
+        // Mark as initialized
+        input.setAttribute('data-datepicker-initialized', 'true');
+
+        // Show existing value
         if (existingValue !== '') {
             $(input).val(existingValue);
         }
-        
-        // When user clicks "Søg" (Apply) button
+
+        //
+        //  APPLY (Søg)
+        //
         $(input).on('apply.daterangepicker', function(ev, picker) {
-            var selectedDate = picker.startDate.format('DD-MM-YYYY');
-            console.log('Applied date:', selectedDate);
+            const selectedDate = picker.startDate.format('DD-MM-YYYY');
             $(this).val(selectedDate);
-            
-            // Submit the form automatically
-            var form = $(this).closest('form');
-            if (form.length > 0) {
-                console.log('Submitting form...');
-                form.submit();
-            }
+
+            const el = this;
+            setTimeout(() => {
+                el.focus(); // keep focus on apply
+                el.setSelectionRange(el.value.length, el.value.length);
+            }, 30);
+
+            // Submit form
+            const form = $(this).closest('form');
+            if (form.length > 0) form.submit();
         });
-        
-        // When user clicks "Ryd" (Cancel) button
+
+        //
+        //  CANCEL (Ryd)
+        //
         $(input).on('cancel.daterangepicker', function(ev, picker) {
-            console.log('Clearing date field');
             $(this).val('');
-            
-            // Submit form to clear the filter
-            var form = $(this).closest('form');
-            if (form.length > 0) {
-                console.log('Submitting form to clear filter...');
-                form.submit();
-            }
+
+            const el = this;
+            setTimeout(() => {
+                el.focus(); // keep focus on cancel
+                el.setSelectionRange(0, 0);
+            }, 30);
+
+            // Submit form
+            const form = $(this).closest('form');
+            if (form.length > 0) form.submit();
         });
+
+        //  DO NOT force focus when user clicks outside
+        $(input).on('hide.daterangepicker', function(ev, picker) {
+            if (picker.clickApply || picker.clickCancel) return;
+            // clicking outside → do nothing
+        });
+
     });
+}
+
+// Initialize after page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDatePickers();
 });
 </script>
+
+
 
 <script>
 // Get the 'valg' parameter from the URL (if it exists)
@@ -753,10 +771,8 @@ if (!valgParam) {
     <?php endif; ?>
 }
 
-
-
 // Add 'valg' parameter to all forms in the datagrid
-document.addEventListener('DOMContentLoaded', function() {
+function addValgToForms() {
     if (valgParam) {
         const forms = document.querySelectorAll('.datatable-wrapper form');
         
@@ -771,6 +787,98 @@ document.addEventListener('DOMContentLoaded', function() {
             valgInput.value = valgParam;
         });
     }
+}
+
+// Run on DOM load and after AJAX updates
+document.addEventListener('DOMContentLoaded', function() {
+    addValgToForms();
 });
+
+// Re-run after AJAX updates
+if (typeof DynamicSearch !== 'undefined') {
+    // Override or extend the updateGridContent method
+    const originalUpdate = DynamicSearch.prototype.updateGridContent;
+    DynamicSearch.prototype.updateGridContent = function(html) {
+        originalUpdate.call(this, html);
+        addValgToForms();
+    };
+}
 </script>
 
+
+
+<script>
+//  Track last focused input
+let lastFocusedSearchInputName = null;
+
+//  Save focus whenever user clicks a search field
+function registerSearchInputFocusTracking() {
+    const searchInputs = document.querySelectorAll(".datatable-wrapper input[type='text']");
+    searchInputs.forEach(input => {
+        input.addEventListener("focus", () => {
+            lastFocusedSearchInputName = input.name;
+        });
+    });
+}
+
+
+function focusFirstFilledSearch_onInitialLoad() {
+
+    // If user already focused something, skip
+    if (lastFocusedSearchInputName !== null) return;
+
+    setTimeout(() => {
+        const searchFields = document.querySelectorAll(".datatable-wrapper input[type='text']");
+        if (!searchFields.length) return;
+
+        // Focus first non-empty
+        for (let input of searchFields) {
+            if (input.value.trim() !== '') {
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+                return;
+            }
+        }
+
+    }, 50);
+}
+
+//  Restore focus after AJAX reload
+function restoreFocusAfterAjax() {
+    if (!lastFocusedSearchInputName) return;
+
+    const input = document.querySelector(
+        `input[name="${CSS.escape(lastFocusedSearchInputName)}"]`
+    );
+
+    if (input) {
+        setTimeout(() => {
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }, 50);
+    }
+}
+
+// INITIAL LOAD
+document.addEventListener("DOMContentLoaded", function() {
+    registerSearchInputFocusTracking();
+    focusFirstFilledSearch_onInitialLoad();
+});
+
+// AJAX LOAD
+if (typeof DynamicSearch !== "undefined") {
+    const oldUpdate = DynamicSearch.prototype.updateGridContent;
+    DynamicSearch.prototype.updateGridContent = function(html) {
+        oldUpdate.call(this, html);
+
+        // Reinitialize date pickers
+        initializeDatePickers();
+
+        // Re-register focus tracking
+        registerSearchInputFocusTracking();
+
+        // Restore cursor to same field
+        restoreFocusAfterAjax();
+    };
+}
+</script>

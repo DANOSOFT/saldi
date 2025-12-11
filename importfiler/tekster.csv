@@ -531,7 +531,7 @@
 531	Betalingslister til bank	where payment ID and date are stated when posting	Betalingslister til bank
 532	Betalingslister	Payment lists	Betalingslister
 533	Salgsmoms 25% 	Sales tax 25%	Moms 25%
-534	Uforudset hændelse, kontakt salditeamet på telefon 4690 2208	Unforeseen event, contact the balance team on telephone 4690 2208	Uforutsett hendelse, kontakt balanseteamet på telefon 4690 2208
+534	Uforudset hændelse, kontakt Saldi-teamet på telefon 4690 2208	Unforeseen event, contact the Saldi team on telephone 4690 2208	Uforutsett hendelse, kontakt Saldi-teamet på telefon 4690 2208
 535	Antal felter på fakturaoversigten	Number of fields on the invoice overview	Antall felt på fakturaoversikten
 536	Antal linjer på fakturaoversigten	Number of lines on the invoice overview	Antall linjer på fakturaoversikten
 537	Vælg hvilke felter der skal være synlige på oversigten	Select which fields should be visible in the overview	Velg hvilke felt som skal være synlige i oversikten
@@ -808,7 +808,7 @@
 808	og vælg &apos;Gem link som ..	and select &apos;Save link as ..	og velg &apos;Lagre lenke som ..
 809	dette link	this link	denne lenken
 810	Vis lagerstatus	View stock status	Se lagerstatus
-811	Samlet omsætning incl./excl. Moms	Total turnover incl./excl. VAT	Total omsetning inkl. Ekskl. Mva
+811	Samlet omsætning inkl./ekskl. moms	Total turnover incl./excl. VAT	Total omsetning inkl./ekskl. MVA
 812	Tilbud	Offer	Tilbud
 813	Visning	Display	Visning
 814	Leveres til	Delivered to	Leveres til
@@ -875,7 +875,7 @@
 875	Sidste faktura	Last invoice	Siste faktura
 876	Importer UBL til ordrer	Import UBL to orders	Importer UBL til bestillinger
 877	Samlet omsætning inkl. moms.	Total turnover incl. VAT.	Total omsetning inkl. Mva.
-878	Samlet omsætning / db / dg (excl. moms.)	Total turnover / db / dg (excl. VAT)	Total omsetning / db / dg (eks mva)
+878	Samlet omsætning / db / dg (ekskl. moms)	Total turnover / db / dg (excl. VAT)	Total omsetning / db / dg (ekskl. MVA)
 879	Hent fra shop	Pick up from shop	Henting fra butikk
 880	Udskriv	Print	Skriv ut
 881	Ordredato	Order date	Ordredato
@@ -939,7 +939,7 @@
 939	Forslagsdato	Proposal Date	Forslagsdato
 940	Modt. nr.	Rec. no.	Modt. nr.
 941	Modt. dato	Rec. date	Modt. dato
-942	Samlet omsætning (excl. moms.)	Total turnover (excl. VAT)	Total omsetning (eks MVA)
+942	Samlet omsætning (ekskl. moms.)	Total turnover (excl. VAT)	Total omsetning (ekskl. MVA)
 943	Importer OIOUBL faktura	Import OIOUBL Invoice	Importer OIOUBL-faktura
 944	kreditorlistevisning	vendor list view	visning av leverandørliste
 945	Enhed	Unit	Enhet
@@ -2122,7 +2122,7 @@
 2122	Du er ved at ændre lagerbeholdningen for varenr	You are about to change the stock for product no	Du er i ferd med å endre lagerbeholdning for varenr
 2123	Årsag til ændring	Reason for change	Begrunnelse for endring
 2124	Årsag	Reason	Begrunnelse
-2125	Linjer pr side	Lines per page	Linjer pr side
+2125	Linjer pr. side	Lines per page	Linjer pr. side
 2126	Prisliste	Price list	Prisliste
 2127	Normalpris	Regular price	Normalpris
 2128	Sætpris	Set price	Sett pris
@@ -2582,7 +2582,7 @@
 2582	Meget høj	Very high	Svært høy
 2583	Ekstrem	Extreme	Ekstrem
 2584	Åbn vareliste	Open product list	Åpne vareliste
-2585	Opret vare	Create product	Opprett vare
+2585	Opret vare	Add product	Opprett vare
 2586	Menu opsætning	Menu setup	Menyoppsett
 2587	Åbn rapporter	Open reports	Åpne rapporter
 2588	Omsætning baseret på varegrupper i det gældene regnskabsår	Revenue based on product groups in the current fiscal year	Omsetning basert på varegrupper i det gjeldende regnskapsåret
@@ -2764,12 +2764,12 @@
 2764	Vælg hvilke filtre der skal være aktive	Select which filters should be active	Velg hvilke filtre som skal være aktive
 2765	Markér alle	Select all	Merk alle
 2766	Fjern alle	Clear all	Fjern alle
-2767	
-2768	
-2769	
-2770	
-2771	
-2772	
+2767	Af	Of	Av
+2768	Massehandlinger	Bulk actions	Massehandlinger
+2769	Ordretype	Order type	Ordretype
+2770	Tilbud	Offers	Tilbud
+2771	POS-muligheder	POS options	POS-muligheter
+2772	db / dg (ekskl. moms)	db / dg (excl. VAT)	db / dg (ekskl. MVA)
 2773	
 2774	
 2775	
