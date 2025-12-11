@@ -60,13 +60,159 @@ if(($_GET)||($_POST)) {
 		$openPool    = if_isset($_GET, NULL,'openPool');
 		$poolFile    = if_isset($_GET, NULL,'poolFile');
 	}
-	if (isset($_POST['sourceId'])) {
-		$sourceId  = $_POST['sourceId'];
-		$source    = $_POST['source'];	
-		$kladde_id = $_POST['kladde_id'];
+	if (isset($_POST['sourceId']) || isset($_POST['source'])) {
+		$sourceId  = isset($_POST['sourceId']) ? $_POST['sourceId'] : $sourceId;
+		$source    = isset($_POST['source']) ? $_POST['source'] : $source;	
+		$kladde_id = isset($_POST['kladde_id']) ? $_POST['kladde_id'] : $kladde_id;
+		$bilag     = isset($_POST['bilag']) ? $_POST['bilag'] : $bilag;
+		$fokus     = isset($_POST['fokus']) ? $_POST['fokus'] : $fokus;
+		$openPool  = isset($_POST['openPool']) ? $_POST['openPool'] : $openPool;
 	}
 }
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
+
+// Handle AJAX file uploads BEFORE any HTML output (for drag and drop)
+// Check if this is an AJAX file upload request
+if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['uploadedFile']['name'])) {
+	// Check if it's an AJAX request (XMLHttpRequest)
+	$isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')
+		|| (isset($_POST['openPool']) && $_POST['openPool']);
+	
+	// Clean any existing output buffer for AJAX requests
+	if ($isAjax || $openPool) {
+		while (ob_get_level()) {
+			ob_end_clean();
+		}
+	}
+	
+	if ($isAjax || $openPool) {
+		$allowedTypes = array('jpg','jpeg','pdf','png');
+		$fileName = basename($_FILES['uploadedFile']['name']);
+		
+		// Get file type from MIME type
+		$fileParts = explode("/",$_FILES['uploadedFile']['type']);
+		$mimeType = isset($fileParts[1]) ? strtolower($fileParts[1]) : '';
+		
+		// Also get file extension as fallback
+		$fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		
+		// Check if either MIME type or extension is allowed
+		$isAllowedType = in_array($mimeType, $allowedTypes) || in_array($fileExt, $allowedTypes);
+		
+		if ($isAllowedType) {
+			// Determine docFolder early
+			if (file_exists('../owncloud')) $docFolder = '../owncloud';
+			elseif (file_exists('../bilag')) $docFolder = '../bilag';
+			elseif (file_exists('../documents')) $docFolder = '../documents';
+			else $docFolder = '../bilag'; // Default fallback
+			
+			// Create folder if it doesn't exist
+			if (!file_exists($docFolder)) {
+				mkdir($docFolder, 0755, true); 
+			}
+			
+			$poolDir = "$docFolder/$db/pulje";
+			if (!is_dir($poolDir)) {
+				mkdir($poolDir, 0755, true);
+			}
+			
+			// Sanitize filename
+			$baseName = pathinfo($fileName, PATHINFO_FILENAME);
+			$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+			// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
+			$baseName = preg_replace('/\.pdf$/i', '', $baseName);
+			$baseName = sanitize_filename($baseName);
+			$targetFile = "$poolDir/$baseName.pdf";
+			
+			// Try to extract invoice data via API
+			$extractedData = null;
+			
+			// Convert images to PDF if needed
+			if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+				$tempFile = "$poolDir/$baseName.$ext";
+				if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
+					// Extract data from ORIGINAL image before converting to PDF
+					error_log("documents.php (AJAX): Calling extractInvoiceData for ORIGINAL image: $tempFile");
+					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+					$extractedData = extractInvoiceData($tempFile, $invoiceId);
+					if ($extractedData) {
+						error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+					} else {
+						error_log("documents.php (AJAX): API extraction returned null for file: $tempFile");
+					}
+					
+					// Now convert to PDF
+					system("convert '$tempFile' '$targetFile'");
+					if (file_exists($targetFile)) {
+						unlink($tempFile);
+					} else {
+						$targetFile = $tempFile; // Fallback to original if conversion fails
+					}
+				}
+			} else {
+				// For PDF files, move directly
+				move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
+				// Extract data from PDF
+				if (file_exists($targetFile)) {
+					error_log("documents.php (AJAX): Calling extractInvoiceData for PDF: $targetFile");
+					$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
+					$extractedData = extractInvoiceData($targetFile, $invoiceId);
+					if ($extractedData) {
+						error_log("documents.php (AJAX): API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
+					} else {
+						error_log("documents.php (AJAX): API extraction returned null for file: $targetFile");
+					}
+				}
+			}
+			
+			// Create .info file AFTER API call
+			if (file_exists($targetFile)) {
+				$infoFile = "$poolDir/$baseName.info";
+				
+				// Prepare .info file content
+				$subject = $baseName;
+				$account = '';
+				$amount = '';
+				$date = '';
+				
+				// Use extracted data if available
+				if ($extractedData !== null) {
+					if (isset($extractedData['amount']) && !empty($extractedData['amount'])) {
+						$amount = $extractedData['amount'];
+					}
+					if (isset($extractedData['date']) && !empty($extractedData['date'])) {
+						$date = $extractedData['date'];
+					}
+				}
+				
+				// Create .info file (only if it doesn't exist)
+				if (!file_exists($infoFile)) {
+					$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL;
+					file_put_contents($infoFile, $infoContent);
+					chmod($infoFile, 0666);
+				}
+				
+				// Return JSON response for AJAX
+				header('Content-Type: application/json');
+				echo json_encode([
+					'success' => true,
+					'message' => 'File uploaded successfully',
+					'filename' => $baseName . '.pdf',
+					'extracted' => $extractedData
+				]);
+				exit;
+			} else {
+				header('Content-Type: application/json');
+				echo json_encode(['success' => false, 'message' => 'Failed to save file']);
+				exit;
+			}
+		} else {
+			header('Content-Type: application/json');
+			echo json_encode(['success' => false, 'message' => 'Invalid file type']);
+			exit;
+		}
+	}
+}
 
 // Render the header before any content
 if ($menu == 'T') {
@@ -217,133 +363,6 @@ if ($dokument) {
 #$openPool,$sourceId,$source,$bilag,$fokus,$poolFile,$docFolder
 #echo $poolParams;
 
-// Handle file uploads for pool view
-if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && $sourceId) {
-	$fileTypes = array('jpg','jpeg','pdf','png');
-	$fileName = basename($_FILES['uploadedFile']['name']);
-	list($tmp,$fileType) = explode("/",$_FILES['uploadedFile']['type']);
-	if (in_array(strtolower($fileType),$fileTypes)) {
-		$poolDir = "$docFolder/$db/pulje";
-		if (!is_dir($poolDir)) {
-			mkdir($poolDir, 0755, true);
-		}
-		// Sanitize filename
-		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
-		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-		$baseName = sanitize_filename($baseName);
-		$targetFile = "$poolDir/$baseName.pdf";
-		
-		// Try to extract invoice data BEFORE converting to PDF (API works better with original images)
-		$extractedData = null;
-		$fileForExtraction = null;
-		
-		// Convert images to PDF if needed
-		if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
-			$tempFile = "$poolDir/$baseName.$ext";
-			if (move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $tempFile)) {
-				// Extract data from ORIGINAL image before converting to PDF
-				$fileForExtraction = $tempFile;
-				error_log("documents.php: Calling extractInvoiceData for ORIGINAL image: $tempFile");
-				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-				$extractedData = extractInvoiceData($tempFile, $invoiceId);
-				if ($extractedData) {
-					error_log("documents.php: API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
-				} else {
-					error_log("documents.php: API extraction returned null for file: $tempFile");
-				}
-				
-				// Now convert to PDF
-				system("convert '$tempFile' '$targetFile'");
-				if (file_exists($targetFile)) {
-					unlink($tempFile);
-				} else {
-					$targetFile = $tempFile; // Fallback to original if conversion fails
-				}
-			}
-		} else {
-			// For PDF files, move directly
-			move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $targetFile);
-			// Extract data from PDF
-			if (file_exists($targetFile)) {
-				error_log("documents.php: Calling extractInvoiceData for PDF: $targetFile");
-				$invoiceId = 'invoice-' . time() . '-' . rand(1000, 9999);
-				$extractedData = extractInvoiceData($targetFile, $invoiceId);
-				if ($extractedData) {
-					error_log("documents.php: API extraction successful, amount=" . ($extractedData['amount'] ?? 'null') . ", date=" . ($extractedData['date'] ?? 'null'));
-				} else {
-					error_log("documents.php: API extraction returned null for file: $targetFile");
-				}
-			}
-		}
-		
-		// Create .info file
-		if (file_exists($targetFile)) {
-			$infoFile = "$poolDir/$baseName.info";
-			
-			// Prepare .info file content
-			// Format: subject (line 1), account (line 2), amount (line 3), date (line 4)
-			$subject = $baseName;
-			$account = '';
-			$amount = '';
-			$date = '';
-			
-			// Use extracted data if available
-			if ($extractedData !== null) {
-				if (isset($extractedData['amount']) && !empty($extractedData['amount'])) {
-					$amount = $extractedData['amount'];
-				}
-				if (isset($extractedData['date']) && !empty($extractedData['date'])) {
-					$date = $extractedData['date'];
-				}
-			}
-			
-			// Create or update .info file
-			if (!file_exists($infoFile)) {
-				$infoContent = $subject . PHP_EOL . $account . PHP_EOL . $amount . PHP_EOL . $date . PHP_EOL;
-				file_put_contents($infoFile, $infoContent);
-				chmod($infoFile, 0666);
-			} else {
-				// Update existing .info file with extracted data if available
-				if ($extractedData !== null) {
-					$lines = file($infoFile, FILE_IGNORE_NEW_LINES);
-					// Preserve existing subject and account if they exist
-					$subject = isset($lines[0]) && !empty($lines[0]) ? $lines[0] : $baseName;
-					$account = isset($lines[1]) ? $lines[1] : '';
-					// Update amount and date from API if extracted
-					if (!empty($amount)) {
-						$lines[2] = $amount;
-					} elseif (!isset($lines[2])) {
-						$lines[2] = '';
-					}
-					if (!empty($date)) {
-						$lines[3] = $date;
-					} elseif (!isset($lines[3])) {
-						$lines[3] = '';
-					}
-					// Ensure we have 4 lines
-					while (count($lines) < 4) {
-						$lines[] = '';
-					}
-					$infoContent = implode(PHP_EOL, array_slice($lines, 0, 4)) . PHP_EOL;
-					file_put_contents($infoFile, $infoContent);
-				}
-			}
-			
-			// Redirect to pool view after successful upload
-			$poolParams =
-				"openPool=1"."&".
-				"kladde_id=$kladde_id"."&".
-				"bilag=$bilag"."&".
-				"fokus=$fokus"."&".
-				"poolFile=$baseName.pdf"."&".
-				"docFolder=$docFolder"."&".
-				"sourceId=$sourceId"."&".
-				"source=$source";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=documents.php?$poolParams\">";
-			exit;
-		}
-	}
-}
 // ---------- Left table start ---------
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 // Handle file uploads for pool view
@@ -360,6 +379,8 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 		// Sanitize filename
 		$baseName = pathinfo($fileName, PATHINFO_FILENAME);
 		$ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		// Remove .pdf suffix from baseName if present (handles files like "document.pdf.jpg")
+		$baseName = preg_replace('/\.pdf$/i', '', $baseName);
 		$baseName = sanitize_filename($baseName);
 		$targetFile = "$poolDir/$baseName.pdf";
 		
@@ -475,7 +496,9 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 
 // Check if showing a document FIRST - this takes priority over openPool
 // For kassekladde: if sourceId is set and has documents, show document viewer (not pool)
-if ($source == 'kassekladde' && $sourceId) {
+// UNLESS openPool is explicitly requested (user wants to add more bilag)
+$openPoolRequested = (isset($_GET['openPool']) && $_GET['openPool'] == '1') || $openPool;
+if ($source == 'kassekladde' && $sourceId && !$openPoolRequested) {
 	// Check if there are any documents for this sourceId
 	$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$sourceId' order by id limit 1";
 	$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -709,7 +732,21 @@ if ($source == 'kassekladde' && $sourceId) {
 	if ($moveDoc) include("docsIncludes/moveDoc.php");
 	elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
 	include("docsIncludes/listDocs.php");
-	// NO upload option - removed as requested
+	
+	// Add link to docpool to add more bilag
+	// Get bilag number from kassekladde if not set
+	if (empty($bilag) && $sourceId) {
+		$qtxt_bilag = "SELECT bilag FROM kassekladde WHERE id = '$sourceId'";
+		$bilag_row = db_fetch_array(db_select($qtxt_bilag, __FILE__ . " linje " . __LINE__));
+		if ($bilag_row) $bilag = $bilag_row['bilag'];
+	}
+	$poolUrl = "documents.php?openPool=1&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
+	print "<div style='margin-top: 15px; padding: 10px; text-align: center;'>";
+	print "<a href='$poolUrl' style='display: inline-block; padding: 10px 20px; background-color: $buttonColor; color: $buttonTxtColor; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
+	print "➕ " . findtekst('2592|Dokumentpulje', $sprog_id);
+	print "</a>";
+	print "</div>";
+	
 	print "</div>"; // leftPanelContent
 	print "</div>"; // leftPanel
 	print "<div id='rightPanel'>";
@@ -747,9 +784,9 @@ if ($openPool) {
 								$base = pathinfo($file, PATHINFO_FILENAME);
 
 								if (in_array($ext, $allowedImageExts)) {
+									// Remove .pdf suffix from base if present (handles files like "document.pdf.jpg")
+									$base = preg_replace('/\.pdf$/i', '', $base);
 									$base = sanitize_filename($base);
-									
-									$newFile=sanitize_filename($newFile);
 									$newFile = $base . '.pdf';
 									$to = "$finalDestination/$newFile";
 

@@ -37,10 +37,22 @@ if (!isset($bgcolor5)) $bgcolor5 = '#f9f9f9';
 $inFlexboxLayout = (isset($showDoc) && isset($source) && $source == 'kassekladde');
 
 if ($inFlexboxLayout) {
+	// Get button color for styling
+	global $buttonColor;
+	if (!isset($buttonColor)) $buttonColor = '#114691';
+	$hoverColor = brightenColor($buttonColor, 0.7);
+	
+	// Add CSS for hover effects
+	print "<style>
+		.doc-list-row:hover { background-color: $hoverColor !important; }
+		.doc-list-row.current-doc { background-color: " . brightenColor($buttonColor, 0.5) . " !important; }
+		.doc-list-row.current-doc:hover { background-color: " . brightenColor($buttonColor, 0.4) . " !important; }
+	</style>";
+	
 	// Output table structure like docPool
 	print "<table width='100%' border='0' cellspacing='0' cellpadding='0' style='border-collapse: collapse;'>";
 	print "<thead>";
-	print "<tr style='background-color: #f1f1f1; border-bottom: 2px solid #ddd;'>";
+	print "<tr style='background-color: $buttonColor; color: white; border-bottom: 2px solid #ddd;'>";
 	print "<th style='padding: 8px; text-align: left; border: 1px solid #ddd; font-weight: bold;'>".findtekst('671|Bilag', $sprog_id)."</th>";
 	print "<th style='padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; width: 140px;'>Handlinger</th>";
 	print "</tr>";
@@ -120,18 +132,22 @@ if($q !== false){
 		if (strlen($showName) > 36) $showName = substr($showName,0,33).'...';
 		
 		// Check if this is the currently shown document
-		$currentShowDoc = isset($showDoc) ? $showDoc : '';
-		$isCurrentDoc = ($currentShowDoc && strpos($currentShowDoc, $r['filename']) !== false);
+		$currentShowDoc = isset($_GET['showDoc']) ? $_GET['showDoc'] : (isset($showDoc) ? $showDoc : '');
+		$isCurrentDoc = ($currentShowDoc && (strpos($currentShowDoc, $r['filename']) !== false || $href == $currentShowDoc));
 		
-		// Use alternating row colors like docPool
-		$rowBgColor = ($rowIndex % 2 == 0) ? $bgcolor : $bgcolor5;
-		$bgColor = brightenColor($buttonColor, 0.6);
+		// Use different colors for current vs other documents
+		$highlightColor = brightenColor($buttonColor, 0.5);
+		$normalColor = $bgcolor5;
+		$rowBgColor = $isCurrentDoc ? $highlightColor : $normalColor;
+		$fontWeight = $isCurrentDoc ? 'bold' : 'normal';
+		$borderLeft = $isCurrentDoc ? "4px solid $buttonColor" : "1px solid #ddd";
 		
 		if ($inFlexboxLayout) {
 			// Table row format like docPool
 			$docHref = "documents.php?$params&showDoc=".urlencode("$href");
-			print "<tr style='background: $bgColor; border-bottom: 1px solid #ddd; cursor: pointer;' onclick=\"window.location.href='$docHref'\">";
-			print "<td style='padding: 8px; border: 1px solid #ddd;' title='".htmlspecialchars($r['filename'], ENT_QUOTES)."'>".htmlspecialchars($showName, ENT_QUOTES)."</td>";
+			$rowClass = "doc-list-row" . ($isCurrentDoc ? " current-doc" : "");
+			print "<tr class='$rowClass' style='background: $rowBgColor; border-bottom: 1px solid #ddd; cursor: pointer;" . ($isCurrentDoc ? " border-left: $borderLeft;" : "") . "' onclick=\"window.location.href='$docHref'\">";
+			print "<td style='padding: 8px; border: 1px solid #ddd; font-weight: $fontWeight;" . ($isCurrentDoc ? " border-left: none;" : "") . "' title='".htmlspecialchars($r['filename'], ENT_QUOTES)."'>" . ($isCurrentDoc ? "▶ " : "") . htmlspecialchars($showName, ENT_QUOTES)."</td>";
 			print "<td style='padding: 4px; border: 1px solid #ddd; text-align: center;' onclick='event.stopPropagation();'>";
 			print "<a href='documents.php?$params&deleteDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Slet ".htmlspecialchars($r['filename'], ENT_QUOTES)."?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Slet</a>";
 			print "<a href='documents.php?$params&moveDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Flyt ".htmlspecialchars($r['filename'], ENT_QUOTES)." til pulje?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Flyt til pulje</a>";

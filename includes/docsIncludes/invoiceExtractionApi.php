@@ -32,6 +32,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		$apiUrl = $r['var_value'];
 	} */
 	
+	
 	// If not configured, return null (API call disabled)
 	if (empty($apiUrl)) {
 		error_log("Invoice extraction API URL not configured in settings");
@@ -58,30 +59,90 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		return null;
 	}
 	
+	// Track temporary file for cleanup
+	$tempImagePath = null;
+	$fileToProcess = $filePath;
+	
+	// If PDF, convert to image first
+	if ($fileExt === 'pdf') {
+		$tempImagePath = sys_get_temp_dir() . '/invoice_' . uniqid() . '.png';
+		
+		// Try using Imagick PHP extension first
+		if (class_exists('Imagick')) {
+			try {
+				$imagick = new Imagick();
+				$imagick->setResolution(150, 150); // Set resolution before reading
+				$imagick->readImage($filePath . '[0]'); // Read first page only
+				$imagick->setImageFormat('png');
+				$imagick->setImageCompressionQuality(90);
+				$imagick->writeImage($tempImagePath);
+				$imagick->clear();
+				$imagick->destroy();
+				$fileToProcess = $tempImagePath;
+			} catch (Exception $e) {
+				error_log("Imagick PDF conversion failed: " . $e->getMessage());
+				// Fall back to command line
+				$tempImagePath = null;
+			}
+		}
+		
+		// Fall back to ImageMagick command line if Imagick extension not available or failed
+		if ($tempImagePath === null || !file_exists($tempImagePath)) {
+			$tempImagePath = sys_get_temp_dir() . '/invoice_' . uniqid() . '.png';
+			$escapedInput = escapeshellarg($filePath . '[0]');
+			$escapedOutput = escapeshellarg($tempImagePath);
+			$command = "convert -density 150 $escapedInput -quality 90 $escapedOutput 2>&1";
+			exec($command, $output, $returnCode);
+			
+			if ($returnCode !== 0 || !file_exists($tempImagePath)) {
+				error_log("ImageMagick PDF conversion failed. Return code: $returnCode, Output: " . implode("\n", $output));
+				if ($tempImagePath && file_exists($tempImagePath)) {
+					@unlink($tempImagePath);
+				}
+				return null;
+			}
+			$fileToProcess = $tempImagePath;
+		}
+	}
+	
 	// Read file content
-	$fileContent = file_get_contents($filePath);
+	$fileContent = file_get_contents($fileToProcess);
 	if ($fileContent === false) {
-		error_log("Failed to read file: $filePath");
+		error_log("Failed to read file: $fileToProcess");
+		if ($tempImagePath && file_exists($tempImagePath)) {
+			@unlink($tempImagePath);
+		}
 		return null;
 	}
 	
 	// Verify file is not empty
 	if (strlen($fileContent) === 0) {
-		error_log("File is empty: $filePath");
+		error_log("File is empty: $fileToProcess");
+		if ($tempImagePath && file_exists($tempImagePath)) {
+			@unlink($tempImagePath);
+		}
 		return null;
 	}
 	
-	// For images, verify it's a valid image file using getimagesize
-	if (in_array($fileExt, ['jpg', 'jpeg', 'png'])) {
-		$imageInfo = @getimagesize($filePath);
+	// For images (including converted PDFs), verify it's a valid image file using getimagesize
+	if ($fileExt !== 'pdf' || $tempImagePath !== null) {
+		$imageInfo = @getimagesize($fileToProcess);
 		if ($imageInfo === false) {
-			error_log("File is not a valid image: $filePath");
+			error_log("File is not a valid image: $fileToProcess");
+			if ($tempImagePath && file_exists($tempImagePath)) {
+				@unlink($tempImagePath);
+			}
 			return null;
 		}
 	}
 	
-	// Base64 encode the raw file content
+	// Base64 encode the image content
 	$base64Image = base64_encode($fileContent);
+	
+	// Clean up temporary file now that we have the content
+	if ($tempImagePath && file_exists($tempImagePath)) {
+		@unlink($tempImagePath);
+	}
 	
 	// Prepare API request data
 	$requestData = array(
@@ -108,8 +169,6 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$curlError = curl_error($ch);
 	curl_close($ch);
-	print_r($response);
-	exit;
 
 	// Check for cURL errors
 	if ($curlError) {

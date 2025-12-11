@@ -976,8 +976,6 @@ print <<<JS
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.date) + "'>" + dateCell + "</td>" +
 				"<td style='padding:4px; border:1px solid #ddd; text-align: center; width: 140px;' onclick='event.stopPropagation();'>" + actionsCell + "</td>" +
 				"</tr>";
-
-
 			if (isMatch) {
 				activeRows += rowHTML;
 			} else {
@@ -1570,16 +1568,133 @@ JS;
 	
 	print "<div id='fixedBottom' style='position: relative; width: 100%; padding: 16px; box-sizing: border-box; z-index: 1000;'>";
 	
-	// Upload form (independent form, not nested)
-	print "<form enctype='multipart/form-data' action='documents.php?$uploadParams' method='POST' style='margin: 0; padding: 0;'>";
+	// Upload form (independent form, not nested) - uses AJAX like drag and drop
+	print "<form id='fileUploadForm' enctype='multipart/form-data' action='documents.php?$uploadParams' method='POST' style='margin: 0; padding: 0;'>";
 	print "<input type='hidden' name='MAX_FILE_SIZE' value='100000000'>";
-	print "<input type='hidden' name='insertFile' value='1'>";
+	print "<input type='hidden' name='openPool' value='1'>";
 	print "<div style='margin-bottom: 10px; padding: 8px; background-color: $buttonColor; border-radius: 8px; font-weight: 600; font-size: 14px; color: $buttonTxtColor; text-shadow: 0 1px 2px rgba(0,0,0,0.1);'>".findtekst(1414, $sprog_id).":</div>";
 	print "<label for='fileUploadInput' style='display: block; width: 100%; margin-bottom: 12px; cursor: pointer;'>";
-	print "<input id='fileUploadInput' class='inputbox' name='uploadedFile' type='file' accept='.pdf,.jpg,.png' style='width: 100%; height: auto; min-height: 40px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 12px; box-sizing: border-box; overflow: visible; background-color: #ffffff; transition: all 0.3s ease; pointer-events: auto; position: relative; z-index: 10; cursor: pointer;'>";
+	print "<input id='fileUploadInput' class='inputbox' name='uploadedFile' type='file' accept='.pdf,.jpg,.jpeg,.png' style='width: 100%; height: auto; min-height: 40px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 12px; box-sizing: border-box; overflow: visible; background-color: #ffffff; transition: all 0.3s ease; pointer-events: auto; position: relative; z-index: 10; cursor: pointer;'>";
 	print "</label>";
-	print "<input type='submit' value='".findtekst(1078, $sprog_id)."' style='width: 100%; padding: 10px; margin-bottom: 12px; background-color: $buttonColor; color: $buttonTxtColor; border: 2px solid $buttonColor; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; box-sizing: border-box; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.2);'>";
+	print "<button type='submit' id='fileUploadSubmit' style='width: 100%; padding: 10px; margin-bottom: 12px; background-color: $buttonColor; color: $buttonTxtColor; border: 2px solid $buttonColor; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; box-sizing: border-box; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.2);'>".findtekst(1078, $sprog_id)."</button>";
 	print "</form>";
+	
+	// JavaScript to handle form submission via AJAX (same as drag and drop)
+	print "<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		var uploadForm = document.getElementById('fileUploadForm');
+		var fileInput = document.getElementById('fileUploadInput');
+		var submitBtn = document.getElementById('fileUploadSubmit');
+		
+		if (uploadForm) {
+			uploadForm.addEventListener('submit', function(e) {
+				e.preventDefault();
+				
+				if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+					alert('Please select a file first.');
+					return;
+				}
+				
+				var file = fileInput.files[0];
+				
+				// Check file type
+				var allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+				var fileName = file.name.toLowerCase();
+				var isAllowed = allowedExtensions.some(function(ext) {
+					return fileName.endsWith(ext);
+				});
+				
+				if (!isAllowed) {
+					alert('Please select a PDF or image file (jpg, png).');
+					return;
+				}
+				
+				// Show loading state
+				var originalBtnText = submitBtn.innerHTML;
+				submitBtn.innerHTML = '⏳ Uploader og analyserer...';
+				submitBtn.disabled = true;
+				submitBtn.style.opacity = '0.7';
+				fileInput.disabled = true;
+				
+				// Create FormData
+				var formData = new FormData();
+				formData.append('uploadedFile', file);
+				formData.append('openPool', '1');
+				
+				// Add clipVariables if available
+				if (typeof clipVariables !== 'undefined') {
+					for (var key in clipVariables) {
+						if (clipVariables.hasOwnProperty(key)) {
+							formData.append(key, clipVariables[key]);
+						}
+					}
+				}
+				
+				// Determine URL
+				var currentPath = window.location.pathname;
+				var uploadUrl = currentPath.indexOf('/includes/') !== -1 ? 'documents.php' : '../includes/documents.php';
+				
+				// Send via fetch
+				fetch(uploadUrl, {
+					method: 'POST',
+					body: formData
+				})
+				.then(function(response) {
+					return response.text().then(function(text) {
+						try {
+							return JSON.parse(text);
+						} catch(e) {
+							if (text.indexOf('\"success\":true') !== -1) {
+								var filenameMatch = text.match(/\"filename\"\\s*:\\s*\"([^\"]+)\"/);
+								return {
+									success: true,
+									filename: filenameMatch ? filenameMatch[1] : file.name,
+									message: 'File uploaded successfully'
+								};
+							}
+							throw new Error('Invalid response from server');
+						}
+					});
+				})
+				.then(function(data) {
+					// Reset button
+					submitBtn.innerHTML = originalBtnText;
+					submitBtn.disabled = false;
+					submitBtn.style.opacity = '1';
+					fileInput.disabled = false;
+					fileInput.value = '';
+					
+					if (data && data.success) {
+						var message = '✓ Upload successful: ' + data.filename;
+						if (data.extracted) {
+							if (data.extracted.amount) message += '\\nAmount: ' + data.extracted.amount;
+							if (data.extracted.date) message += '\\nDate: ' + data.extracted.date;
+						}
+						alert(message);
+						
+						// Redirect to focus on the uploaded file
+						var currentUrl = new URL(window.location.href);
+						currentUrl.searchParams.set('poolFile', data.filename);
+						currentUrl.searchParams.set('openPool', '1');
+						window.location.href = currentUrl.toString();
+					} else {
+						alert('Error: ' + (data && data.message ? data.message : 'Upload failed'));
+					}
+				})
+				.catch(function(error) {
+					// Reset button on error
+					submitBtn.innerHTML = originalBtnText;
+					submitBtn.disabled = false;
+					submitBtn.style.opacity = '1';
+					fileInput.disabled = false;
+					
+					console.error('Upload error:', error);
+					alert('Error uploading file: ' + error.message);
+				});
+			});
+		}
+	});
+	</script>";
 
 	// Add drag and drop zone - use buttonColor with opacity for background
 	$dropZone = "<div id='dropZone' ondrop='handleDrop(event)' ondragover='handleDragOver(event)' style='width: 100%; height: 70px; border: 2px dashed $buttonColor; border-radius: 8px; padding: 12px; background-color: rgba(0,0,0,0.02); cursor: pointer; transition: all 0.3s ease; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin: 0 auto;'>";
@@ -1599,11 +1714,12 @@ JS;
 	// Add JavaScript variables for drag and drop
 	print "<script>
 	var clipVariables = {
-		sourceId: $sourceId,
-		kladde_id: $kladde_id,
-		bilag: $bilag,
+		sourceId: " . (int)$sourceId . ",
+		kladde_id: " . (int)$kladde_id . ",
+		bilag: " . (int)$bilag . ",
 		fokus: '$fokus',
-		source: '$source'
+		source: '$source',
+		openPool: 1
 	};
 	</script>";
 	
