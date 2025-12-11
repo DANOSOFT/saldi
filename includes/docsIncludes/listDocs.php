@@ -85,6 +85,11 @@ if($q !== false){
 	while ($r=db_fetch_array($q)) {
 		$rowIndex++;
 		$docId = $r['id'];
+		
+		// Check if this is a linked document (same file used by another line)
+		$linkCheckQtxt = "SELECT COUNT(*) as cnt FROM documents WHERE filepath = '" . db_escape_string($r['filepath']) . "' AND filename = '" . db_escape_string($r['filename']) . "'";
+		$linkCheckRow = db_fetch_array(db_select($linkCheckQtxt, __FILE__ . " linje " . __LINE__));
+		$isLinkedDoc = ($linkCheckRow && $linkCheckRow['cnt'] > 1);
 		// Normalize path to avoid double slashes
 		$filepath = ltrim($r['filepath'], '/'); // Remove leading slash if present
 		$href = rtrim($docFolder, '/') . '/' . $db . '/' . $filepath . '/' . $r['filename'];
@@ -146,11 +151,30 @@ if($q !== false){
 			// Table row format like docPool
 			$docHref = "documents.php?$params&showDoc=".urlencode("$href");
 			$rowClass = "doc-list-row" . ($isCurrentDoc ? " current-doc" : "");
+			
+			// For linked documents, show a link icon indicator
+			$linkIndicator = $isLinkedDoc ? "🔗 " : "";
+			$docTitle = $isLinkedDoc ? "Linket bilag: " . htmlspecialchars($r['filename'], ENT_QUOTES) : htmlspecialchars($r['filename'], ENT_QUOTES);
+			
 			print "<tr class='$rowClass' style='background: $rowBgColor; border-bottom: 1px solid #ddd; cursor: pointer;" . ($isCurrentDoc ? " border-left: $borderLeft;" : "") . "' onclick=\"window.location.href='$docHref'\">";
-			print "<td style='padding: 8px; border: 1px solid #ddd; font-weight: $fontWeight;" . ($isCurrentDoc ? " border-left: none;" : "") . "' title='".htmlspecialchars($r['filename'], ENT_QUOTES)."'>" . ($isCurrentDoc ? "▶ " : "") . htmlspecialchars($showName, ENT_QUOTES)."</td>";
+			print "<td style='padding: 8px; border: 1px solid #ddd; font-weight: $fontWeight;" . ($isCurrentDoc ? " border-left: none;" : "") . "' title='$docTitle'>" . ($isCurrentDoc ? "▶ " : "") . $linkIndicator . htmlspecialchars($showName, ENT_QUOTES)."</td>";
 			print "<td style='padding: 4px; border: 1px solid #ddd; text-align: center;' onclick='event.stopPropagation();'>";
-			print "<a href='documents.php?$params&deleteDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Slet ".htmlspecialchars($r['filename'], ENT_QUOTES)."?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Slet</a>";
-			print "<a href='documents.php?$params&moveDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Flyt ".htmlspecialchars($r['filename'], ENT_QUOTES)." til pulje?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Flyt til pulje</a>";
+			
+			// Delete button - for linked docs, only removes database reference
+			if ($isLinkedDoc) {
+				$deleteConfirmMsg = "Fjern link til " . htmlspecialchars($r['filename'], ENT_QUOTES) . "? (Filen bevares)";
+				print "<a href='documents.php?$params&unlinkDoc=$docId' onclick=\"event.stopPropagation(); return confirm('$deleteConfirmMsg');\" style='margin: 0 4px; padding: 4px 8px; background-color: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;' title='Fjerner kun linket, ikke filen'>Fjern link</a>";
+			} else {
+				print "<a href='documents.php?$params&deleteDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Slet ".htmlspecialchars($r['filename'], ENT_QUOTES)."?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Slet</a>";
+			}
+			
+			// Move to pool button - disabled for linked docs
+			if ($isLinkedDoc) {
+				print "<span style='margin: 0 4px; padding: 4px 8px; background-color: #ccc; color: #666; border: none; border-radius: 4px; font-size: 11px; display: inline-block; cursor: not-allowed;' title='Kan ikke flytte linket bilag'>Flyt til pulje</span>";
+			} else {
+				print "<a href='documents.php?$params&moveDoc=".urlencode("$href")."' onclick=\"event.stopPropagation(); return confirm('Flyt ".htmlspecialchars($r['filename'], ENT_QUOTES)." til pulje?');\" style='margin: 0 4px; padding: 4px 8px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; text-decoration: none; display: inline-block;'>Flyt til pulje</a>";
+			}
+			
 			print "</td>";
 			print "</tr>";
 		} else {

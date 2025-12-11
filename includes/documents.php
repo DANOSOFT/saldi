@@ -42,7 +42,7 @@ include("../includes/topline_settings.php");
 include("docsIncludes/invoiceExtractionApi.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
-$fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=null;
+$fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=$unlinkDoc=null;
 if(($_GET)||($_POST)) {
 
 	$funktion=if_isset($_GET,NULL,'funktion');
@@ -54,6 +54,7 @@ if(($_GET)||($_POST)) {
 		$source     = if_isset($_GET, NULL,'source');
 		$showDoc    = if_isset($_GET, NULL,'showDoc');
 		$deleteDoc  = if_isset($_GET, NULL,'deleteDoc');
+		$unlinkDoc  = if_isset($_GET, NULL,'unlinkDoc');
 		$moveDoc  	= if_isset($_GET, NULL,'moveDoc');
 		$kladde_id  = if_isset($_GET, NULL,'kladde_id');
 		$dokument   = if_isset($_GET, NULL,'dokument');
@@ -494,6 +495,271 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $o
 	}
 }
 
+// Handle linking bilag from another line
+$linkBilag = isset($_GET['linkBilag']) && $_GET['linkBilag'] == '1';
+$doLink = isset($_GET['doLink']) && $_GET['doLink'] == '1';
+$linkDocId = isset($_GET['linkDocId']) ? intval($_GET['linkDocId']) : 0;
+
+if ($doLink && $linkDocId && $sourceId && $source == 'kassekladde') {
+	// Get the original document info
+	$qtxt = "SELECT * FROM documents WHERE id = '$linkDocId'";
+	$origDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	
+	if ($origDoc) {
+		// Check if this exact document is already linked to this source_id
+		$checkQtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$sourceId' AND filename = '" . db_escape_string($origDoc['filename']) . "' AND filepath = '" . db_escape_string($origDoc['filepath']) . "'";
+		$existing = db_fetch_array(db_select($checkQtxt, __FILE__ . " linje " . __LINE__));
+		
+		if (!$existing) {
+			// Create a new document entry pointing to the same file
+			$qtxt = "INSERT INTO documents (global_id, filename, filepath, source, source_id, timestamp, user_id) VALUES ";
+			$qtxt .= "('" . db_escape_string($origDoc['global_id']) . "', '" . db_escape_string($origDoc['filename']) . "', '" . db_escape_string($origDoc['filepath']) . "', 'kassekladde', '$sourceId', '" . date('U') . "', '$userId')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		
+		// Redirect back to the document viewer
+		$redirectUrl = "documents.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&fokus=$fokus";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$redirectUrl\">";
+		exit;
+	}
+}
+
+if ($linkBilag && $source == 'kassekladde') {
+	// Show page to select bilag from other lines
+	global $menu, $buttonColor, $buttonTxtColor, $sprog_id;
+	if (!isset($buttonColor)) $buttonColor = '#114691';
+	if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
+	
+	// Get bilag from kassekladde if not set
+	if (empty($bilag) && $sourceId) {
+		$qtxt_bilag = "SELECT bilag FROM kassekladde WHERE id = '$sourceId'";
+		$bilag_row = db_fetch_array(db_select($qtxt_bilag, __FILE__ . " linje " . __LINE__));
+		if ($bilag_row) $bilag = $bilag_row['bilag'];
+	}
+	
+	$backUrl = "documents.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&fokus=$fokus";
+	
+	print "<style>
+		body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+		.header { background: $buttonColor; color: $buttonTxtColor; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+		.header h2 { margin: 0; }
+		.doc-list { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+		.doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; position: relative; cursor: pointer; }
+		.doc-item:hover { background: #f0f7ff; }
+		.doc-info { flex: 1; }
+		.doc-name { font-weight: bold; color: #333; }
+		.doc-meta { font-size: 12px; color: #666; margin-top: 4px; }
+		.link-btn { background: $buttonColor; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 13px; flex-shrink: 0; }
+		.link-btn:hover { opacity: 0.9; }
+		.empty-msg { padding: 40px; text-align: center; color: #666; }
+		.search-box { margin-bottom: 15px; }
+		.search-box input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+		
+		/* Preview popup styles */
+		.preview-popup {
+			display: none;
+			position: fixed;
+			z-index: 1000;
+			background: white;
+			border-radius: 8px;
+			box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+			padding: 10px;
+			max-width: 500px;
+			max-height: 600px;
+			overflow: hidden;
+		}
+		.preview-popup.active { display: block; }
+		.preview-popup iframe, .preview-popup embed {
+			width: 480px;
+			height: 550px;
+			border: none;
+			border-radius: 4px;
+		}
+		.preview-popup .preview-header {
+			padding: 8px;
+			background: $buttonColor;
+			color: white;
+			border-radius: 4px 4px 0 0;
+			margin: -10px -10px 10px -10px;
+			font-size: 12px;
+			font-weight: bold;
+		}
+		.preview-loading {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 480px;
+			height: 550px;
+			background: #f5f5f5;
+			color: #666;
+			font-size: 14px;
+		}
+	</style>";
+	
+	// Preview popup container
+	print "<div id='previewPopup' class='preview-popup'>";
+	print "<div class='preview-header' id='previewTitle'>Forhåndsvisning</div>";
+	print "<div id='previewContent'><div class='preview-loading'>Indlæser...</div></div>";
+	print "</div>";
+	
+	print "<div class='header'>";
+	print "<h2>🔗 Link bilag fra anden linje</h2>";
+	print "</div>";
+	
+	print "<div class='search-box'>";
+	print "<input type='text' id='searchBilag' placeholder='Søg efter bilag...' onkeyup='filterBilag()'>";
+	print "</div>";
+	
+	print "<div class='doc-list' id='bilagList'>";
+	
+	// Get all documents from other kassekladde lines (not the current one)
+	// Only show bilag from the last month
+	$oneMonthAgo = time() - (30 * 24 * 60 * 60); // 30 days in seconds
+	
+	$qtxt = "SELECT d.id, d.filename, d.filepath, d.timestamp, d.source_id, k.bilag as bilag_nr, k.beskrivelse
+			 FROM documents d 
+			 LEFT JOIN kassekladde k ON d.source_id = k.id 
+			 WHERE d.source = 'kassekladde' 
+			 AND d.source_id != '$sourceId' 
+			 AND d.timestamp >= '$oneMonthAgo'
+			 AND d.id IN (
+			     SELECT MAX(d2.id) FROM documents d2 
+			     WHERE d2.source = 'kassekladde' 
+			     AND d2.timestamp >= '$oneMonthAgo'
+			     GROUP BY d2.filepath, d2.filename
+			 )
+			 ORDER BY d.timestamp DESC 
+			 LIMIT 100";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	
+	$count = 0;
+	while ($r = db_fetch_array($q)) {
+		$count++;
+		$docId = $r['id'];
+		$filename = htmlspecialchars($r['filename'], ENT_QUOTES);
+		$bilagNr = $r['bilag_nr'] ? $r['bilag_nr'] : 'N/A';
+		$beskrivelse = $r['beskrivelse'] ? htmlspecialchars(substr($r['beskrivelse'], 0, 50), ENT_QUOTES) : '';
+		$dateStr = date('d-m-Y H:i', $r['timestamp']);
+		
+		// Build the file path for preview
+		$filePath = $docFolder . '/' . $db . '/' . $r['filepath'] . '/' . $r['filename'];
+		$filePath = str_replace('//', '/', $filePath);
+		$filePathEncoded = htmlspecialchars($filePath, ENT_QUOTES);
+		
+		$linkUrl = "documents.php?doLink=1&linkDocId=$docId&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
+		
+		print "<div class='doc-item' data-search='" . strtolower($filename . ' ' . $bilagNr . ' ' . $beskrivelse) . "' data-filepath='$filePathEncoded' data-filename='$filename' onmouseenter='showPreview(this, event)' onmouseleave='hidePreview()' onmousemove='movePreview(event)'>";
+		print "<div class='doc-info'>";
+		print "<div class='doc-name'>📄 $filename</div>";
+		print "<div class='doc-meta'>Bilag #$bilagNr | $beskrivelse | $dateStr</div>";
+		print "</div>";
+		print "<a href='$linkUrl' class='link-btn' onclick=\"return confirm('Link dette bilag til den aktuelle linje?')\">🔗 Link</a>";
+		print "</div>";
+	}
+	
+	if ($count == 0) {
+		print "<div class='empty-msg'>Ingen bilag fundet fra andre linjer</div>";
+	}
+	
+	print "</div>";
+	
+	print "<script>
+	var previewTimeout = null;
+	var currentPreviewPath = null;
+	
+	function filterBilag() {
+		var input = document.getElementById('searchBilag').value.toLowerCase();
+		var items = document.querySelectorAll('.doc-item');
+		items.forEach(function(item) {
+			var searchText = item.getAttribute('data-search');
+			if (searchText.indexOf(input) > -1) {
+				item.style.display = 'flex';
+			} else {
+				item.style.display = 'none';
+			}
+		});
+	}
+	
+	function showPreview(element, event) {
+		var filepath = element.getAttribute('data-filepath');
+		var filename = element.getAttribute('data-filename');
+		
+		if (!filepath) return;
+		
+		// Clear any existing timeout
+		if (previewTimeout) clearTimeout(previewTimeout);
+		
+		// Delay showing preview slightly to avoid flickering
+		previewTimeout = setTimeout(function() {
+			var popup = document.getElementById('previewPopup');
+			var content = document.getElementById('previewContent');
+			var title = document.getElementById('previewTitle');
+			
+			// Only reload if different file
+			if (currentPreviewPath !== filepath) {
+				currentPreviewPath = filepath;
+				title.textContent = filename;
+				
+				// Check file extension
+				var ext = filepath.split('.').pop().toLowerCase();
+				
+				if (ext === 'pdf') {
+					content.innerHTML = '<embed src=\"' + filepath + '\" type=\"application/pdf\" style=\"width:480px;height:550px;\">';
+				} else if (['jpg', 'jpeg', 'png', 'gif'].indexOf(ext) !== -1) {
+					content.innerHTML = '<img src=\"' + filepath + '\" style=\"max-width:480px;max-height:550px;display:block;margin:0 auto;\">';
+				} else {
+					content.innerHTML = '<div class=\"preview-loading\">Forhåndsvisning ikke tilgængelig</div>';
+				}
+			}
+			
+			popup.classList.add('active');
+			movePreview(event);
+		}, 300);
+	}
+	
+	function hidePreview() {
+		if (previewTimeout) {
+			clearTimeout(previewTimeout);
+			previewTimeout = null;
+		}
+		var popup = document.getElementById('previewPopup');
+		popup.classList.remove('active');
+	}
+	
+	function movePreview(event) {
+		var popup = document.getElementById('previewPopup');
+		if (!popup.classList.contains('active')) return;
+		
+		var x = event.clientX + 20;
+		var y = event.clientY - 100;
+		
+		// Keep within viewport
+		var rect = popup.getBoundingClientRect();
+		var viewportWidth = window.innerWidth;
+		var viewportHeight = window.innerHeight;
+		
+		// If would go off right edge, show on left side of cursor
+		if (x + 520 > viewportWidth) {
+			x = event.clientX - 520;
+		}
+		
+		// If would go off bottom, adjust y
+		if (y + 620 > viewportHeight) {
+			y = viewportHeight - 630;
+		}
+		
+		// Don't go above viewport
+		if (y < 10) y = 10;
+		
+		popup.style.left = x + 'px';
+		popup.style.top = y + 'px';
+	}
+	</script>";
+	
+	print "</body></html>";
+	exit;
+}
+
 // Check if showing a document FIRST - this takes priority over openPool
 // For kassekladde: if sourceId is set and has documents, show document viewer (not pool)
 // UNLESS openPool is explicitly requested (user wants to add more bilag)
@@ -731,6 +997,27 @@ if ($source == 'kassekladde' && $sourceId && !$openPoolRequested) {
 	// Show list of documents for this line
 	if ($moveDoc) include("docsIncludes/moveDoc.php");
 	elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
+	elseif ($unlinkDoc) {
+		// Only delete the database reference, not the actual file
+		$unlinkDocId = intval($unlinkDoc);
+		if ($unlinkDocId) {
+			$qtxt = "DELETE FROM documents WHERE id = '$unlinkDocId' AND source = '$source' AND source_id = '$sourceId'";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		// Check if there are any remaining documents
+		$qtxt = "SELECT id FROM documents WHERE source = '$source' AND source_id = '$sourceId' LIMIT 1";
+		$remainingDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		
+		if ($remainingDoc) {
+			// Still have documents, go back to document viewer
+			$redirectUrl = "documents.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&fokus=$fokus";
+		} else {
+			// No more documents, go to document pool
+			$redirectUrl = "documents.php?openPool=1&source=$source&sourceId=$sourceId&kladde_id=$kladde_id&bilag=$bilag&fokus=$fokus";
+		}
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$redirectUrl\">";
+		exit;
+	}
 	include("docsIncludes/listDocs.php");
 	
 	// Add link to docpool to add more bilag
@@ -741,9 +1028,13 @@ if ($source == 'kassekladde' && $sourceId && !$openPoolRequested) {
 		if ($bilag_row) $bilag = $bilag_row['bilag'];
 	}
 	$poolUrl = "documents.php?openPool=1&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
-	print "<div style='margin-top: 15px; padding: 10px; text-align: center;'>";
+	$linkUrl = "documents.php?linkBilag=1&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
+	print "<div style='margin-top: 15px; padding: 10px; text-align: center; display: flex; flex-direction: column; gap: 10px;'>";
 	print "<a href='$poolUrl' style='display: inline-block; padding: 10px 20px; background-color: $buttonColor; color: $buttonTxtColor; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
 	print "➕ " . findtekst('2592|Dokumentpulje', $sprog_id);
+	print "</a>";
+	print "<a href='$linkUrl' style='display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
+	print "🔗 Link bilag fra anden linje";
 	print "</a>";
 	print "</div>";
 	
@@ -893,6 +1184,27 @@ print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cell
 #xit;
 if ($moveDoc) include("docsIncludes/moveDoc.php");
 elseif ($deleteDoc) include("docsIncludes/deleteDoc.php");
+elseif ($unlinkDoc) {
+	// Only delete the database reference, not the actual file
+	$unlinkDocId = intval($unlinkDoc);
+	if ($unlinkDocId) {
+		$qtxt = "DELETE FROM documents WHERE id = '$unlinkDocId' AND source = '$source' AND source_id = '$sourceId'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+	// Check if there are any remaining documents
+	$qtxt = "SELECT id FROM documents WHERE source = '$source' AND source_id = '$sourceId' LIMIT 1";
+	$remainingDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	
+	if ($remainingDoc) {
+		// Still have documents, go back to document viewer
+		$redirectUrl = "documents.php?source=$source&sourceId=$sourceId&kladde_id=$kladde_id&fokus=$fokus";
+	} else {
+		// No more documents, go to document pool
+		$redirectUrl = "documents.php?openPool=1&source=$source&sourceId=$sourceId&kladde_id=$kladde_id&bilag=$bilag&fokus=$fokus";
+	}
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=$redirectUrl\">";
+	exit;
+}
 include("docsIncludes/listDocs.php");
 include("docsIncludes/uploadDoc.php"); 
 

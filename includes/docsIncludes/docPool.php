@@ -1711,6 +1711,16 @@ JS;
 	print "bilag_".$db."@".$_SERVER['SERVER_NAME']."</a>";
 	print "</div>";
 
+	// Add "Link bilag fra anden linje" button for kassekladde
+	if ($source == 'kassekladde') {
+		$linkUrl = "../includes/documents.php?linkBilag=1&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
+		print "<div style='margin-top: 14px;'>";
+		print "<a href='$linkUrl' style='display: block; width: 100%; padding: 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 8px; font-size: 12px; font-weight: 600; text-align: center; box-sizing: border-box; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#5a6268\"' onmouseout='this.style.backgroundColor=\"#6c757d\"'>";
+		print "🔗 Link bilag fra anden linje";
+		print "</a>";
+		print "</div>";
+	}
+
 	// Add JavaScript variables for drag and drop
 	print "<script>
 	var clipVariables = {
