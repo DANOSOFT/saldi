@@ -358,7 +358,11 @@
         while ($res = db_fetch_array($query)) {
             $res["pris"] = abs((float)$res["pris"]);
             $res["rabat"] = abs((float)$res["rabat"]);
-            $res["antal"] = abs(float($res["antal"]));
+            if($creditNote == "Cre"){
+                $res["antal"] = abs((float)$res["antal"]);
+            }else{
+                $res["antal"] = (float)$res["antal"];
+            }
             $res["momssats"] = abs((float)$res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
             if(trim($res["beskrivelse"]) == ""){
