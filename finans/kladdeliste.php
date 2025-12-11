@@ -30,6 +30,148 @@
 // 20251021 LOE Added pagination and static header and footer
 @session_start();
 $s_id=session_id();
+
+// delete functionality for cash journals - 2025-10-18
+if (isset($_GET['delete_kladde'])) {
+    $kladde_id = (int)$_GET['delete_kladde'];
+    
+    include("../includes/connect.php");
+    include("../includes/std_func.php");
+    
+    $qtxt = "SELECT db FROM online WHERE session_id = '$s_id' ORDER BY logtime DESC LIMIT 1";
+    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+    $delete_error = null;
+    
+    if ($r = db_fetch_array($q)) {
+        $db = trim($r['db']);
+        
+        if ($db && $db != $sqdb) {
+            $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+        }
+        
+        $check_query = db_select("SELECT bogfort FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+        if ($check_row = db_fetch_array($check_query)) {
+            if ($check_row['bogfort'] == '-' || $check_row['bogfort'] == '!') {
+                $count_query = db_select("SELECT COUNT(*)::integer as entry_count FROM kassekladde WHERE kladde_id = $kladde_id", __FILE__ . " linje " . __LINE__);
+                $count_row = db_fetch_array($count_query);
+                $entry_count = intval($count_row['entry_count']);
+                
+                if ($entry_count == 0) {
+                    db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+                    header("Location: kladdeliste.php?reset_grid=kladdelst");
+                    exit;
+                } else {
+                    $delete_error = "not_empty:$entry_count";
+                }
+            } else {
+                $delete_error = "already_posted";
+            }
+        } else {
+            $delete_error = "not_found";
+        }
+    } else {
+        $delete_error = "session_expired";
+    }
+    
+    header("Location: kladdeliste.php?delete_error=" . urlencode($delete_error));
+    exit;
+}
+
+if (isset($_POST['delete_kladde'])) {
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    
+    ob_start();
+    
+    set_error_handler(function($errno, $errstr, $errfile, $errline) {
+        throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+    });
+    
+    register_shutdown_function(function() {
+        $error = error_get_last();
+        if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+            ob_end_clean();
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => 'error', 
+                'message' => 'Fatal error: ' . $error['message'],
+                'file' => $error['file'],
+                'line' => $error['line']
+            ]);
+        }
+    });
+    
+    try {
+        $kladde_id = (int)$_POST['delete_kladde'];
+        
+        if ($kladde_id <= 0) {
+            throw new Exception("Invalid kladde_id: " . $_POST['delete_kladde']);
+        }
+        
+        include("../includes/connect.php");
+        include("../includes/std_func.php");
+        
+        $qtxt = "SELECT db FROM online WHERE session_id = '$s_id' ORDER BY logtime DESC LIMIT 1";
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        
+        if ($r = db_fetch_array($q)) {
+            $db = trim($r['db']);
+            
+            if ($db && isset($sqdb) && $db != $sqdb) {
+                $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+            }
+            
+            $check_query = db_select("SELECT bogfort FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+            if ($check_row = db_fetch_array($check_query)) {
+                if ($check_row['bogfort'] == '-' || $check_row['bogfort'] == '!') {
+                    $count_query = db_select("SELECT COUNT(*)::integer as entry_count FROM kassekladde WHERE kladde_id = $kladde_id", __FILE__ . " linje " . __LINE__);
+                    $count_row = db_fetch_array($count_query);
+                    $entry_count = intval($count_row['entry_count']);
+                    
+                    if ($entry_count == 0) {
+                        db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
+                        ob_end_clean();
+                        header('Content-Type: application/json');
+                        echo json_encode(['status' => 'deleted', 'id' => $kladde_id]);
+                        exit;
+                    } else {
+                        ob_end_clean();
+                        header('Content-Type: application/json');
+                        echo json_encode(['status' => 'not_empty', 'entry_count' => $entry_count]);
+                        exit;
+                    }
+                } else {
+                    ob_end_clean();
+                    header('Content-Type: application/json');
+                    echo json_encode(['status' => 'already_posted', 'bogfort' => $check_row['bogfort']]);
+                    exit;
+                }
+            } else {
+                ob_end_clean();
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'not_found', 'id' => $kladde_id, 'db' => $db]);
+                exit;
+            }
+        } else {
+            ob_end_clean();
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'Session expired or not found', 'session_id' => $s_id]);
+            exit;
+        }
+    } catch (Exception $e) {
+        $buffered = ob_get_clean();
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'error', 
+            'message' => $e->getMessage(), 
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'buffered' => substr($buffered, 0, 500)
+        ]);
+        exit;
+    }
+}
 	
 $css="../css/standard.css";		
 $modulnr=2;	
@@ -48,23 +190,6 @@ print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
-
-// delete functionality for cash journals - 2025-10-18
-if (isset($_POST['delete_kladde'])) {
-    $kladde_id = (int)$_POST['delete_kladde'];
-    
-    $check_query = db_select("SELECT bogfort FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
-    if ($check_row = db_fetch_array($check_query)) {
-        if ($check_row['bogfort'] == '-' || $check_row['bogfort'] == '!') {
-            db_modify("DELETE FROM kladdeliste WHERE id = $kladde_id", __FILE__ . " linje " . __LINE__);
-            
-            db_modify("DELETE FROM kassekladde WHERE kladde_id = $kladde_id", __FILE__ . " linje " . __LINE__);
-            
-            header("Location: kladdeliste.php");
-            exit;
-        }
-    }
-}
 
 print "<meta http-equiv=\"refresh\" content=\"150;URL=kladdeliste.php\">";
 if (strpos(findtekst('639|Kladdeliste', $sprog_id),'undtrykke')) {
@@ -289,9 +414,15 @@ $columns[] = array(
     "sqlOverride" => "k.bogfort as delete_bogfort",
     "render" => function ($value, $row, $column) {
         global $sprog_id;
-        if ($row['bogfort'] == '-' || $row['bogfort'] == '!') {
+        // Only show delete button for non-posted AND empty journals
+        $isNotPosted = ($row['bogfort'] == '-' || $row['bogfort'] == '!');
+        $entryCount = isset($row['entry_count']) ? intval($row['entry_count']) : -1;
+        $isEmpty = ($entryCount == 0);
+        $kladdeId = intval($row['id']);
+        
+        if ($isNotPosted && $isEmpty) {
             return "<td align='{$column['align']}'>
-                <button onclick=\"deleteKladde({$row['id']}); event.stopPropagation();\" style='
+                <button type='button' onclick=\"event.preventDefault(); event.stopPropagation(); deleteKladde({$kladdeId}); return false;\" style='
                     background-color: #dc3545;
                     color: white;
                     border: none;
@@ -306,11 +437,20 @@ $columns[] = array(
                 ' 
                 onmouseover=\"this.style.backgroundColor='#c82333';\"
                 onmouseout=\"this.style.backgroundColor='#dc3545';\"
-                title='" . findtekst('1099|Slet', $sprog_id) . " kassekladde'>
+                title='" . findtekst('1099|Slet', $sprog_id) . " kassekladde #{$kladdeId}'>
                 <i class='fa fa-trash-o' style='font-size: 12px;'></i>
                 " . findtekst('1099|Slet', $sprog_id) . "
                 </button>
             </td>";
+        } elseif ($isNotPosted && !$isEmpty) {
+            if ($sprog_id == 2) {
+                $notEmptyText = 'The cash journal is not empty and cannot be deleted';
+            } elseif ($sprog_id == 3) {
+                $notEmptyText = 'Kassekladden er ikke tom og kan derfor ikke slettes';
+            } else {
+                $notEmptyText = 'Kassekladden er ikke tom og kan derfor ikke slettes';
+            }
+            return "<td align='{$column['align']}' title='{$notEmptyText}' style='color:#999; font-size:10px;'>($entryCount)</td>";
         }
         return "<td align='{$column['align']}'></td>";
     },
@@ -352,6 +492,8 @@ SELECT
     k.bogfort_af,
     k.tidspkt,
     k.hvem,
+    -- Count entries in kassekladde to determine if journal is empty
+    (SELECT COUNT(*) FROM kassekladde kk WHERE kk.kladde_id = k.id) as entry_count,
     -- Sort order: non-posted first (- and !), then posted (S, V, etc)
     CASE 
         WHEN k.bogfort IN ('-', '!') THEN 0
@@ -497,24 +639,107 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>";
 
-// Delete script
-print("<script>
-function deleteKladde(kladdeId) {
-    if (confirm(\"".findtekst('155|Vil du slette denne ordre?', $sprog_id)."\")) {
-        // Create a form and submit it
-        var form = document.createElement(\"form\");
-        form.method = \"POST\";
-        form.action = \"kladdeliste.php\";
+// Delete script - uses AJAX to delete without page navigation issues
+// Direct language-based text selection to ensure correct translation
+// Text ID 2755: "Vil du slette denne kassekladde?" / "Do you want to delete this cash journal?" / "Vil du slette denne kassekladden?"
+if ($sprog_id == 2) {
+    $deleteConfirmText = 'Do you want to delete this cash journal?';
+} elseif ($sprog_id == 3) {
+    $deleteConfirmText = 'Vil du slette denne kassekladden?';
+} else {
+    $deleteConfirmText = 'Vil du slette denne kassekladde?';
+}
+// Escape for JavaScript - use json_encode for proper escaping
+$deleteConfirmTextJS = json_encode($deleteConfirmText);
 
-        var input = document.createElement(\"input\");
-        input.type = \"hidden\";
-        input.name = \"delete_kladde\";
-        input.value = kladdeId;
-        
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
+print("<script>
+// Delete function for cash journals - Version 2
+function deleteKladde(kladdeId) {
+    console.log('deleteKladde v2 called with ID:', kladdeId);
+    
+    // Validate the ID
+    kladdeId = parseInt(kladdeId, 10);
+    if (!kladdeId || isNaN(kladdeId) || kladdeId <= 0) {
+        console.error('Invalid kladde ID:', kladdeId);
+        alert('Error: Invalid ID');
+        return false;
     }
+    
+    var confirmMsg = {$deleteConfirmTextJS};
+    console.log('Confirm message:', confirmMsg);
+    if (confirm(confirmMsg + ' (ID: ' + kladdeId + ')')) {
+        console.log('User confirmed deletion of ID:', kladdeId);
+        
+        // Use AJAX to delete with cache-busting
+        var xhr = new XMLHttpRequest();
+        var url = 'kladdeliste.php?_t=' + Date.now();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        xhr.setRequestHeader('Pragma', 'no-cache');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                console.log('Delete response status:', xhr.status);
+                console.log('Delete response text:', xhr.responseText);
+                console.log('Response length:', xhr.responseText ? xhr.responseText.length : 0);
+                
+                // Check if response is empty
+                if (!xhr.responseText || xhr.responseText.trim() === '') {
+                    console.error('Empty response from server');
+                    console.error('Response headers:', xhr.getAllResponseHeaders());
+                    alert('Server returned empty response. Please check server logs. Reloading...');
+                    window.location.href = 'kladdeliste.php?_t=' + Date.now();
+                    return;
+                }
+                
+                try {
+                    var result = JSON.parse(xhr.responseText);
+                    console.log('Parsed result:', result);
+                    
+                    if (result.status === 'deleted') {
+                        console.log('Successfully deleted ID:', result.id, 'Reloading page...');
+                        // Force a fresh reload with new URL to bypass cache
+                        window.location.href = 'kladdeliste.php?_t=' + Date.now();
+                    } else if (result.status === 'not_empty') {
+                        alert('Cannot delete: Cash journal has ' + result.entry_count + ' entries');
+                    } else if (result.status === 'already_posted') {
+                        alert('Cannot delete: Cash journal is already posted');
+                    } else if (result.status === 'not_found') {
+                        alert('Cannot delete: Cash journal not found (ID: ' + kladdeId + ', DB: ' + (result.db || 'unknown') + ')');
+                    } else if (result.status === 'error') {
+                        alert('Error: ' + result.message + (result.file ? ' in ' + result.file + ':' + result.line : ''));
+                        console.error('Server error details:', result);
+                    } else {
+                        alert('Unexpected status: ' + result.status + ' - ' + JSON.stringify(result));
+                        window.location.href = 'kladdeliste.php?_t=' + Date.now();
+                    }
+                } catch(e) {
+                    console.error('JSON parse error:', e);
+                    console.error('Response was:', xhr.responseText);
+                    // Check if it looks like HTML (PHP error page)
+                    if (xhr.responseText.indexOf('<') === 0 || xhr.responseText.indexOf('<!') === 0) {
+                        alert('Server returned HTML instead of JSON. Check PHP error logs.');
+                    } else {
+                        alert('Failed to parse response: ' + xhr.responseText.substring(0, 300));
+                    }
+                }
+            }
+        };
+        xhr.onerror = function() {
+            console.error('XHR network error occurred');
+            alert('Network error occurred');
+        };
+        xhr.ontimeout = function() {
+            console.error('XHR timeout');
+            alert('Request timed out');
+        };
+        xhr.timeout = 30000; // 30 second timeout
+        console.log('Sending delete request for ID:', kladdeId, 'to URL:', url);
+        xhr.send('delete_kladde=' + kladdeId);
+    } else {
+        console.log('User cancelled deletion');
+    }
+    return false;
 }
 </script>");
 
