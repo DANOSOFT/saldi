@@ -1,6 +1,5 @@
 <?php
 
-
 ob_start();
 
 @session_start();
@@ -26,6 +25,11 @@ $type = isset($_GET['type']) ? trim($_GET['type']) : 'finance';
 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $limit = 50;
 $offset = ($page - 1) * $limit;
+
+// Sanitize type - only allow specific values
+if (!in_array($type, array('finance', 'debitor', 'kreditor', ''))) {
+    $type = 'finance';
+}
 
 if (!isset($regnaar) || empty($regnaar)) {
     echo json_encode(array('error' => 'Session expired'));
