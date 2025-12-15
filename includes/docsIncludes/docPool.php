@@ -1136,8 +1136,8 @@ print <<<JS
 		// Add section header for exact matching amounts
 		let matchingHeader = '';
 		if (hasAmountToMatch && matchingCount > 0 && matchingAmountRows) {
-			const exactFilesJson = JSON.stringify(exactMatches);
-			matchingHeader = "<tr style='background-color: #28a745; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + exactFilesJson.replace(/'/g, "\\'") + ")' title='Klik for at vælge alle bilag med eksakt match'>" +
+			const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
+			matchingHeader = "<tr style='background-color: #28a745; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + exactFilesJson + ")' title='Klik for at vælge alle bilag med eksakt match'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #28a745;'>" +
 				"<i class='fa fa-check-circle' style='margin-right: 6px;'></i>" +
 				"Eksakt match (beløb: " + escapeHTML(totalSum) + ") - " + matchingCount + " fundet" +
@@ -1155,10 +1155,10 @@ print <<<JS
 				const firstCombo = combinationGroups[0];
 				const amountStrs = firstCombo.amounts.map(a => a.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
 				comboDesc = amountStrs.join(' + ') + ' = ' + escapeHTML(totalSum);
-				comboFilesJson = JSON.stringify(firstCombo.files);
-			}
-			
-			combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson.replace(/'/g, "\\'") + ")' title='Klik for at vælge alle bilag i denne kombination'>" +
+			comboFilesJson = JSON.stringify(firstCombo.files).replace(/'/g, "&#39;");
+		}
+		
+		combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson + ")' title='Klik for at vælge alle bilag i denne kombination'>" +
 				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #ffc107;'>" +
 				"<i class='fa fa-plus-circle' style='margin-right: 6px;'></i>" +
 				"Kombination fundet (" + combinationMatches.size + " bilag giver: " + escapeHTML(totalSum) + ")" +
