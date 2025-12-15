@@ -53,4 +53,13 @@ print "</tr></tbody></table></td></tr>\n"; # <- Tabel 1.1
 		text-decoration: none;
 		gap: 5px;
 	}
+	 /* no use for underlines on the top href buttons */
+	.header-row a,
+	.header-row a:link,
+	.header-row a:visited,
+	.header-row a:hover,
+	.header-row a:focus,
+	.header-row a:active {
+	text-decoration: none;
+	}
 </style>

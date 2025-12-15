@@ -122,14 +122,43 @@ if ($menu=='T') {
 	print "</div>";
 	print "<div class='content-noside'>";
 } elseif ($menu=='S') {
-	print "<tr><td height = '25' align='center' valign='top'>";
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
-	print "<td width='10%'>$href<button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
-		   .findtekst('30|Tilbage',$sprog_id)."</button></a></td>";
-	print "<td width='80%' align='center' style='$topStyle'>$overskrift</td>";
-	print "<td width='10%' align='center' style='$topStyle'></td>";
-	print "</tbody></table>";
-	print "</td></tr>";
+	
+	 ############################
+     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+    ##########################
+	
+	print "<tr><td align='center' valign='top' height='1%'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n";
+	print "<td width='10%'>$href<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".$icon_back  . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+
+	print "<td width='80%' align=center style='$topStyle'>$overskrift</td>\n";
+
+	print "<td width='10%' align=center style='$buttonStyle;'>
+		   <br></td>\n";
+
+	print "</tbody></table>\n"; 
+	print "</td></tr>\n";
+	print "<tr><td width=\"100%\" valign=\"top\">";
+    ####
+    print "</td></tr>\n";
+    #####
+
+    ?>
+    <style>
+    .headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+
+	}
+	a {
+		text-decoration: none;
+		}
+
+    </style>
+    <?php
 } else {
 print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
@@ -390,7 +419,7 @@ if ($funktion=='bogfor') {
 	print "</tr><tr><td height=10px><hr></td></tr>";
 }
 $d_sum=0; $k_sum=0;
-print "<tr><td align = center valign=\"top\"><center><table class='dataTableSmall' border=1 cellspacing=0 cellpadding=0><tbody>";
+print "<tr><td align = center valign=\"top\"><center><table width='75%' style='margin-top:20px' class='dataTableSmall' border=1 cellspacing=0 cellpadding=0><tbody>";
 print "<tr><td colspan=\"6\" class='tableHeader'><b>".findtekst(1088,$sprog_id)."</b></td></tr>
 	<tr><td class='tableText'>$font ".findtekst(440,$sprog_id)."</td>
 	<td class='tableText'>$font ".(findtekst(914,$sprog_id))."</td>
