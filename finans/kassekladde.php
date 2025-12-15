@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-10-28 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-12-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -159,7 +159,7 @@ print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
 
-
+$page_display = true;
 if (!isset($tidspkt))
 	$tidspkt = 0;
 if (!isset($row['tidspkt']))
@@ -183,6 +183,7 @@ if ($tjek = if_isset($_GET['tjek'])) {
 			else
 				print "<meta http-equiv='refresh' content='0;URL=../finans/kladdeliste.php'>";
 		} else {
+			$page_display = false;
 			$a--;
 			$tidspkt = $a . " " . $b; #der fratraekkes 1. sec af hensyn til refreshtjek;
 			db_modify("update kladdeliste set hvem = '$brugernavn',tidspkt='$tidspkt' where id = '$tjek'", __FILE__ . " linje " . __LINE__);
@@ -856,6 +857,7 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			$alert = findtekst('1583|Brug af refresh konstateret - handling ignoreret', $sprog_id); //Brug af refresh konstateret - handling ignoreret
 			print "<BODY onLoad=\"javascript:alert('$alert')\">";
 		} else {
+			$page_display = false;
 			$qtxt = "update kladdeliste set hvem = '$brugernavn', tidspkt='$tidspkt'";
 			if ($ny_kladdenote) {
 				$qtxt .= ", kladdenote = '$ny_kladdenote' ";
@@ -1128,10 +1130,10 @@ print '<style>
     }
     .kassekladde-note-tb {
 		position: sticky;
-		top: 48px;
-		background-color: #f1f1f1; 
-		z-index: 8; 
-   }
+		top: 6vh; /* Top will be 6% of the viewport height */
+		background-color: #f1f1f1;
+		z-index: 8;
+	}
 
     .kassekladde-thead {
         position: sticky;
@@ -1174,31 +1176,29 @@ print '<style>
 ############
 if (!$udskriv) {
 	print "<form name='kassekladde' id='kassekladde' action='../finans/kassekladde.php?kksort=$kksort' method='post'>";
-	print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
-	print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
-
-	print "<tr><td width='100%' valign='top' height='1%\ align='center' class='kassekladde-note-tb'>
-		   <table width='100%' cellpadding='0' cellspacing='0' border='0' align = 'center' valign = 'top'>";
-	print "<tbody >"; # Tabel 1.2 -> bemærkningstekst  
-	print "<tr>"; #
-	print "<td width = '14%'></td>";
-	print "<td align='left'><b><span title= '" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</b>
-	<input class='inputbox' type='text' style='width:750px' name=ny_kladdenote value='$kladdenote'
-	onchange='javascript:docChange = true;'></td>";
-	if ($bogfort == "-") {
-		if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
-		if ($kontrolkonto == "-") $kontrolkonto = "";
-		print "<td></td><td><span title= '" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><input class='inputbox' type='text' style='text-align:right;width:80px' name='kontrolkonto' value='$kontrolkonto' placeholder = 'kontrolkonto' onchange='javascript:docChange = true;'></td>";
-		#	} elseif ($bogfort!="S") {
-	} else {
-		print "<td></td><td width='80px' align='center'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px;float:left' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
-	}
-	print "<td></td><td width = '7%' align='center'>
-		<a href='../finans/kassekladde.php?kladde_id=$kladde_id&udskriv=1' target='blank'>
-		<img src='../ikoner/print.png' style='border: 0px solid;'></a></td>
-		<td width = '7%' align = 'center'><a href = https://saldi.dk/dok/ledgerGuide.pdf target = '_blank' id='questionmark'>?</a></td></tr>\n";
-	#print "</tr><tr><td><br color='$bgcolor5' 'align='center''></td></tr>\n";
-	print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
+print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
+print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
+print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
+       <table width='100%' cellpadding='0' cellspacing='0' border='0' align='center' valign='top'>";
+print "<tbody>"; # Tabel 1.2 -> bemærkningstekst  
+print "<tr style='vertical-align: middle;'>"; # Added vertical-align
+print "<td width='14%'></td>";
+print "<td align='left' style='white-space: nowrap;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
+<input class='inputbox' type='text' style='width:750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
+onchange='javascript:docChange = true;'></td>";
+if ($bogfort == "-") {
+	$page_display = false;
+    if (!isset($kontrolkonto) && isset($_COOKIE['saldi_ktrkto'])) $kontrolkonto = $_COOKIE['saldi_ktrkto'];
+    if ($kontrolkonto == "-") $kontrolkonto = "";
+    print "<td style='padding-left: 10px;'></td><td style='vertical-align: middle;'><span title='" . findtekst('1560|Angiv kontonummer til kontrol af kontobevægelser', $sprog_id) . "'><input class='inputbox' type='text' style='text-align:right;width:80px; vertical-align: middle;' name='kontrolkonto' value='$kontrolkonto' placeholder='kontrolkonto' onchange='javascript:docChange = true;'></span></td>";
+} else {
+    print "<td style='padding-left: 10px;'></td><td width='120px' align='left' style='vertical-align: middle;'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px; vertical-align: middle;' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
+}
+print "<td></td><td width='7%' align='center' style='vertical-align: middle;'>
+    <a href='../finans/kassekladde.php?kladde_id=$kladde_id&udskriv=1' target='blank'>
+    <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;'></a></td>
+    <td width='7%' align='center' style='vertical-align: middle;'><a href='https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' id='questionmark'>?</a></td></tr>\n";
+print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 	# ####################################################################################################
 }
@@ -2965,124 +2965,172 @@ function find_dublet($id, $transdate, $d_type, $debet, $k_type, $kredit, $amount
 	#######################
 	// --- Sticky Pagination Footer ---
 
-	if(!$tjek){
+if($page_display){ #20251213
 		print "
-		<style>
-		.fixedFooter {
+<style>
+    /* Footer container styles matching grid.php structure */
+    .fixedFooter {
+        position: fixed;
+        bottom: 0;
+        border-top: 1px solid #ccc;
+        width: 100%;
+        z-index: 1000;
+        background-color: #f0f0f0;
+        padding: 10px 10px;
+        left: 0;
+    }
 
-			
+    /* Inner footer box with flex layout */
+    .fixedFooter #footer-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: space-between;
+    }
+	#footer-box {
+	 width: 98%;
+	}
 
-			position: fixed;
-			bottom: 0;
-			border-top: 1px solid #ccc;
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			width: 100%;
-			z-index: 1000;
-			background-color: #f0f0f0;
-			padding: 10px 10px;
-			font-weight: bold;
-			left:0;
-		}
+    /* Center container for action buttons */
+    .fixedFooter .action-buttons-center {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
 
-		.fixedFooter select, .fixedFooter button {
-			padding: 5px 10px;
-			font-size: 14px;
-		}
+    /* Right container for pagination */
+    .fixedFooter .pagination-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-left: auto;
+    }
 
-		.fixedFooter .left, .fixedFooter .right {
-			display: flex;
-			align-items: center;
-			padding-right:25px;
-		}
-		
+    /* Page status section */
+    .fixedFooter #page-status {
+        display: flex;
+    }
 
-		.fixedFooter .left a, .fixedFooter .left span.disabled {
-			margin-right: 10px;
-			text-decoration: none;
-			color: #0a0a0aff;
-		}
+    .fixedFooter select, .fixedFooter button {
+        padding: 5px 10px;
+        font-size: 14px;
+    }
 
-		.fixedFooter .left span.disabled {
-			color: #6e6565ff;
-		}
+    /* Navigation buttons section */
+    .fixedFooter #navbuttons {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
 
-		.fixedFooter .center {
-			justify-content: center;
-			text-align: center;
-			display: flex; 
-			flex-direction: column; 
-			align-items: center; 
-		}
+    .fixedFooter #navbuttons button {
+        padding: 0;
+        height: 24px;
+        min-width: 24px;
+        background: none;
+        border: 1px solid #ccc;
+        cursor: pointer;
+    }
 
-		.fixedFooter form {
-			margin: 0;
-		}
+    .fixedFooter #navbuttons button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
 
-		body {
-			padding-bottom: 70px; 
-		}
-		#kopierButtonRowFooter {
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			margin-bottom: 10px; 
-			height: 50px; 
-			width: 35%;
-		}
+    .fixedFooter #navbuttons button:not(:disabled):hover {
+        background-color: #e0e0e0;
+    }
 
-		</style>
+    .fixedFooter #navbuttons button.navbutton {
+        height: 24px;
+        width: 24px;
+    }
 
-		<div class='fixedFooter'>
-			<div class='left'>
-				";
+    body {
+        padding-bottom: 70px;
+    }
+</style>
 
-				// Pagination links
-				// Previous link
-if ($page > 1) {
-    print "<a href='?kladde_id=$kladde_id&page=" . ($page - 1) . "&per_page=$per_page'>&laquo; Previous</a>";
-} else {
-    print "<span class='disabled'>&laquo; Previous</span>";
+<div class='fixedFooter'>
+    <div id='footer-box'>
+        <!-- Center container for action buttons (will be populated by JavaScript) -->
+        <div class='action-buttons-center'></div>
+        
+        <!-- Right container for pagination -->
+        <div class='pagination-right'>
+            <!-- Page Status: showing range of records -->
+            <span style='display: flex' id='page-status'>";
+                $offsetFrom = (($page - 1) * $per_page) + 1;
+                $offsetTo = min($total_rows, $page * $per_page);
+                print "$offsetFrom-$offsetTo af $total_rows";
+            print "</span>
+            |
+            <!-- Rows per page selector -->
+            <span>Linjer pr. side 
+                <form method='get' action='kassekladde.php' id='paginationForm' style='margin: 0; display: inline;'>
+                    <input type='hidden' name='kladde_id' value='$kladde_id'>
+                    <input type='hidden' name='page' value='$page'>
+                    <select name='per_page' onchange='document.getElementById(\"paginationForm\").submit()'>";
+
+                    // Display options for 'Rows per page'
+                    foreach ($per_page_options as $opt) {
+                        $selected = ($per_page == $opt) ? 'selected' : '';
+                        print "<option value='$opt' $selected>$opt</option>";
+                    }
+
+                    print "
+                    </select>
+                </form>
+            </span>
+            |
+            <!-- Navigation buttons -->
+            <span id='navbuttons'>
+            <button type='button' onclick='navigatePage(" . ($page - 1) . ")' " . ($page <= 1 ? 'disabled' : '') . ">
+                <svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z'/></svg>
+            </button>";
+            
+            // Generate page number buttons
+            $pageRange = 2;
+            $startPage = max(1, $page - $pageRange);
+            $endPage = min($total_pages, $page + $pageRange);
+
+            if ($startPage > 1) {
+                print "<button class='navbutton' type='button' onclick='navigatePage(1)'>1</button>";
+                if ($startPage > 2) {
+                    print "<span>...</span>";
+                }
+            }
+
+            for ($i = $startPage; $i <= $endPage; $i++) {
+                $isActiveStyle = ($i == $page) ? "style='text-decoration: underline;'" : "";
+                print "<button type='button' onclick='navigatePage($i)' $isActiveStyle class='navbutton'>$i</button>";
+            }
+
+            if ($endPage < $total_pages) {
+                if ($endPage < $total_pages - 1) {
+                    print "<span>...</span>";
+                }
+                print "<button type='button' onclick='navigatePage($total_pages)' class='navbutton'>$total_pages</button>";
+            }
+            
+            print "
+            <button type='button' onclick='navigatePage(" . ($page + 1) . ")' " . ($page >= $total_pages ? 'disabled' : '') . ">
+                <svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z'/></svg>
+            </button>
+        </span>
+        </div>
+    </div>
+</div>
+
+<script>
+function navigatePage(pageNum) {
+    window.location.href = '?kladde_id=$kladde_id&page=' + pageNum + '&per_page=$per_page';
 }
 
-// Next link
-if ($page < $total_pages) {
-    print "<a href='?kladde_id=$kladde_id&page=" . ($page + 1) . "&per_page=$per_page'>Next &raquo;</a>";
-} else {
-    print "<span class='disabled'>Next &raquo;</span>";
-}
-
-
-				print "
-			</div>
-			
-			<div class='center'>
-				Page $page of $total_pages | Rows per page: $per_page | Total records: $total_rows
-			</div>
-			
-			<div class='right'>
-				<form method='get' action='kassekladde.php' id='paginationForm'>
-					<input type='hidden' name='kladde_id' value='$kladde_id'>
-					<label for='per_page'>Rows per page:</label>
-					<select name='per_page' id='per_page' onchange='document.getElementById(\"paginationForm\").submit()'>";
-
-					// Display options for "Rows per page"
-					foreach ($per_page_options as $opt) {
-						$selected = ($per_page == $opt) ? 'selected' : '';
-						print "<option value='$opt' $selected>$opt</option>";
-					}
-
-					print "
-					</select>
-				</form>
-			</div>
-		</div>
-
-
-		<script>
-
-	document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Get all rows and their buttons by the respective IDs
     const buttonRows = [
         { rowId: 'kopierButtonRow', buttonId: 'kopier-button', name: 'copy2new' },
@@ -3098,69 +3146,52 @@ if ($page < $total_pages) {
         { rowId: '', buttonId: 'offset-button', name: 'offset' }
     ];
 
-    const footerCenter = document.querySelector('.fixedFooter .center');
+    const footerBox = document.querySelector('.fixedFooter #footer-box');
+    const actionButtonsCenter = document.querySelector('.fixedFooter .action-buttons-center');
 
     buttonRows.forEach(({ rowId, buttonId, name }) => {
         const button = document.getElementById(buttonId);
         const buttonRow = rowId ? document.getElementById(rowId) : null;
 
-        if (button && footerCenter) {
+        if (button && actionButtonsCenter) {
             // Hide the original row (if it exists)
             if (buttonRow) {
                 buttonRow.style.display = 'none';
             }
 
-            // Create a new container for the button in the footer
-            const buttonContainer = document.createElement('div');
-            buttonContainer.style.display = 'flex';
-            buttonContainer.style.justifyContent = 'center'; // Center align the button
-
             // Clone the button to keep its functionality intact
             const clonedButton = button.cloneNode(true);
+            clonedButton.name = name;
 
-            // Set the name attribute of the cloned button to ensure the right action
-            clonedButton.name = name;  
-
-            // Append the cloned button to the container
-            buttonContainer.appendChild(clonedButton);
-
-            // Insert the container into the footer (before the center content)
-            footerCenter.insertAdjacentElement('beforebegin', buttonContainer);
+            // Append the cloned button to the center container
+            actionButtonsCenter.appendChild(clonedButton);
 
             // Attach a click listener to manually submit the form
             clonedButton.addEventListener('click', function(event) {
-                // Get the form element by ID or name
-                const form = document.getElementById('kassekladde');  // Make sure the form has this ID
+                const form = document.getElementById('kassekladde');
 
                 if (form) {
-                    // Before submitting the form, create a hidden input field
                     const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';      
-                    hiddenInput.name = clonedButton.name;  // The name of the button
-                    hiddenInput.value = clonedButton.value || '';  
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = clonedButton.name;
+                    hiddenInput.value = clonedButton.value || '';
 
-                    // Append the hidden input to the form
                     form.appendChild(hiddenInput);
 
-                    
                     const formData = new FormData(form);
-                   // console.log('Form Data Before Submission:');
                     formData.forEach((value, key) => {
-                        //console.log(`\{key}: \${value}`);
+                        // console.log(`${key}: ${value}`);
                     });
 
-                    // Submit the form
-                    console.log(`Submitting form with button: \${name}`);
+                    console.log(`Submitting form with button: ${name}`);
                     form.submit();
                 }
             });
         }
     });
 });
-
-		</script>
-
-		";
+</script>
+";
 	}
 
 
