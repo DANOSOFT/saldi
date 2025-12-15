@@ -1116,7 +1116,7 @@ if ($stockItem) {
             } elseif (!count($variant_vare_id)) { #20210208
                 lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
             }
-        } elseif ($api_fil && !count($variant_vare_id) && $x == $numberOfSrocks) { #20170210
+        } elseif ($api_fil && !count($variant_vare_id) && $x == $numberOfStocks) { #20170210 - fixed typo
             sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above 
         }
     }
