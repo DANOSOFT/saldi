@@ -77,7 +77,7 @@
       dropZone.style.borderColor = '#ffa500'; // Orange
     }
     if (dropText) {
-      dropText.innerHTML = '⏳ Uploader og analyserer...';
+      dropText.innerHTML = '<i class="fa fa-spinner fa-spin" style="margin-right: 6px;"></i> Uploader og analyserer...';
       dropText.style.color = '#666';
     }
     
