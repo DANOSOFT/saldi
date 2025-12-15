@@ -140,6 +140,45 @@ include("../includes/row-hover-style.js.php");
 
 
 print '<script src="../javascript/jquery-3.6.4.min.js"></script>';
+print '<link rel="stylesheet" type="text/css" href="../css/datepickerDa.css">';
+$langId = !empty($sprog_id) ? intval($sprog_id) : 1;
+print '<script>
+window.saldiLanguage = ' . $langId . ';
+window.saldiTranslations = {
+    selectAccount: "' . findtekst('586', $langId) . ' ' . findtekst('592', $langId) . '",
+    selectDebtor: "' . findtekst('586', $langId) . ' Debitor",
+    selectCreditor: "' . findtekst('586', $langId) . ' Kreditor",
+    selectDepartment: "' . findtekst('586', $langId) . ' ' . findtekst('274', $langId) . '",
+    selectEmployee: "' . findtekst('586', $langId) . ' Medarbejder",
+    selectCurrency: "' . findtekst('586', $langId) . ' ' . findtekst('776', $langId) . '",
+    selectAmount: "' . findtekst('586', $langId) . ' ' . findtekst('934', $langId) . '",
+    openItems: "Åbne Poster",
+    close: "' . findtekst('2172', $langId) . '",
+    search: "' . findtekst('913', $langId) . '...",
+    searchAccount: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('43', $langId)) . ' / ' . strtolower(findtekst('914', $langId)) . '...",
+    searchInvoice: "' . findtekst('913', $langId) . ' ' . strtolower(findtekst('643', $langId)) . ' / ' . strtolower(findtekst('138', $langId)) . '...",
+    noResults: "Ingen resultater",
+    code: "Kode",
+    description: "' . findtekst('914', $langId) . '",
+    initials: "' . findtekst('647', $langId) . '",
+    name: "' . findtekst('138', $langId) . '",
+    companyName: "' . findtekst('28', $langId) . '",
+    accountNo: "' . findtekst('43', $langId) . '",
+    invoiceNo: "' . findtekst('643', $langId) . '",
+    date: "' . findtekst('635', $langId) . '",
+    amount: "' . findtekst('934', $langId) . '",
+    vat: "' . findtekst('770', $langId) . '",
+    shortcut: "' . findtekst('1191', $langId) . '",
+    balance: "Saldo",
+    showing: "Viser",
+    of: "af",
+    previous: "' . findtekst('2598', $langId) . '",
+    next: "' . findtekst('1200', $langId) . '",
+    today: "' . findtekst('2773', $langId) . '",
+    week: "' . findtekst('2669', $langId) . '"
+};
+</script>';
+print '<script src="../javascript/datepickerDa.js"></script>';
 print "<script LANGUAGE='javascript' TYPE='text/javascript' SRC='../javascript/confirmclose.js'></script>";
 print "<script LANGUAGE='JavaScript' TYPE='text/javascript' SRC='../javascript/overlib.js'></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/accountAutocomplete.css">';
@@ -2135,7 +2174,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 ($udskriv) ? $div = '' : $div = '</div>';
 ?>
-	<script	src="../javascript/jquery-1.10.2.min.js"></script>
 	<script	src="../javascript/jquery.formnavigation.js"></script>
 	<script>
 	$(document).ready(function () {
@@ -3348,6 +3386,9 @@ document.addEventListener('DOMContentLoaded', function() {
 		console.log('Calling initAccountAutocomplete from kassekladde.php');
 		window.initAccountAutocomplete();
 	}
+	
+	// Initialize datepicker on all date fields
+	$('input[name^=\"dato\"]').datepickerDa();
 });
 </script>
 ";

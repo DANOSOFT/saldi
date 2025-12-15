@@ -8,6 +8,10 @@
         maxResults: 50
     };
 
+    function getTrans() {
+        return window.saldiTranslations || {};
+    }
+
     let activeDropdown = null;
     let activeInput = null;
     let debounceTimer = null;
@@ -47,12 +51,42 @@
             }
         });
 
-        // Find all faktura/invoice fields (fakt1, fakt2, etc.)
         const faktFields = document.querySelectorAll('input[name^="fakt"]');
-        
         faktFields.forEach(function(input) {
             if (!input.autocompleteInitialized) {
                 setupAutocomplete(input, 'faktura');
+                input.autocompleteInitialized = true;
+            }
+        });
+
+        const afdFields = document.querySelectorAll('input[name^="afd_"]');
+        afdFields.forEach(function(input) {
+            if (!input.autocompleteInitialized) {
+                setupAutocomplete(input, 'department');
+                input.autocompleteInitialized = true;
+            }
+        });
+
+        const medaFields = document.querySelectorAll('input[name^="meda"]');
+        medaFields.forEach(function(input) {
+            if (!input.autocompleteInitialized) {
+                setupAutocomplete(input, 'employee');
+                input.autocompleteInitialized = true;
+            }
+        });
+
+        const valuFields = document.querySelectorAll('input[name^="valu"]');
+        valuFields.forEach(function(input) {
+            if (!input.autocompleteInitialized) {
+                setupAutocomplete(input, 'currency');
+                input.autocompleteInitialized = true;
+            }
+        });
+
+        const beloFields = document.querySelectorAll('input[name^="belo"]');
+        beloFields.forEach(function(input) {
+            if (!input.autocompleteInitialized) {
+                setupAutocomplete(input, 'amount');
                 input.autocompleteInitialized = true;
             }
         });
@@ -132,7 +166,11 @@
                 e.stopPropagation();
                 const kontonr = item.dataset.kontonr;
                 if (kontonr) {
-                    selectAccount(input, kontonr);
+                    if (input.fieldType === 'faktura' || input.fieldType === 'amount') {
+                        selectInvoiceOrAmount(input, item);
+                    } else {
+                        selectAccount(input, kontonr);
+                    }
                 }
                 return;
             }
@@ -171,13 +209,15 @@
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
                     const selected = dropdown.querySelector('.account-autocomplete-item.selected');
-                    if (selected) {
-                        selectAccount(input, selected.dataset.kontonr);
-                    } else {
-                        // Select first item if none selected
-                        const firstItem = dropdown.querySelector('.account-autocomplete-item');
-                        if (firstItem) {
-                            selectAccount(input, firstItem.dataset.kontonr);
+                    let itemToSelect = selected;
+                    if (!itemToSelect) {
+                        itemToSelect = dropdown.querySelector('.account-autocomplete-item');
+                    }
+                    if (itemToSelect) {
+                        if (input.fieldType === 'faktura' || input.fieldType === 'amount') {
+                            selectInvoiceOrAmount(input, itemToSelect);
+                        } else {
+                            selectAccount(input, itemToSelect.dataset.kontonr);
                         }
                     }
                 }
@@ -269,9 +309,28 @@
         let searchType = 'finance';
         const rowNum = input.rowNumber;
         
-        // Handle invoice/faktura field separately
         if (input.fieldType === 'faktura') {
             performInvoiceSearch(input, searchValue, page);
+            return;
+        }
+        
+        if (input.fieldType === 'department') {
+            performDepartmentSearch(input, searchValue, page);
+            return;
+        }
+        
+        if (input.fieldType === 'employee') {
+            performEmployeeSearch(input, searchValue, page);
+            return;
+        }
+        
+        if (input.fieldType === 'currency') {
+            performCurrencySearch(input, searchValue, page);
+            return;
+        }
+        
+        if (input.fieldType === 'amount') {
+            performAmountSearch(input, searchValue, page);
             return;
         }
         
@@ -325,20 +384,16 @@
             });
     }
 
-    /**
-     * Perform AJAX search for invoices/open posts
-     */
+  
     function performInvoiceSearch(input, searchValue, page) {
         searchValue = searchValue.trim();
         page = page || 1;
         const dropdown = input.autocompleteDropdown;
         const rowNum = input.rowNumber;
         
-        // Get the account number and type from debet or kredit field on same row
         let accountNr = '';
         let accountType = '';
         
-        // Check debet field first
         const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
         const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
         if (dTypeField && debeField) {
@@ -349,7 +404,6 @@
             }
         }
         
-        // If not found in debet, check kredit field
         if (!accountNr) {
             const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
             const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
@@ -398,9 +452,266 @@
             });
     }
 
+ 
+    function performDepartmentSearch(input, searchValue, page) {
+        searchValue = searchValue.trim();
+        const dropdown = input.autocompleteDropdown;
+
+        let basePath = '';
+        if (window.location.pathname.includes('/finans/')) {
+            basePath = 'kassekladde_includes/departmentSearch.php';
+        } else {
+            basePath = 'finans/kassekladde_includes/departmentSearch.php';
+        }
+        
+        const url = basePath + '?search=' + encodeURIComponent(searchValue);
+
+        fetch(url)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                const results = data.results || [];
+                renderSimpleDropdown(input, results, 'department', searchValue);
+            })
+            .catch(function(error) {
+                console.error('Department search error:', error);
+                closeDropdown();
+            });
+    }
+
+    /**
+     * Perform AJAX search for employees
+     */
+    function performEmployeeSearch(input, searchValue, page) {
+        searchValue = searchValue.trim();
+        const dropdown = input.autocompleteDropdown;
+
+        let basePath = '';
+        if (window.location.pathname.includes('/finans/')) {
+            basePath = 'kassekladde_includes/employeeSearch.php';
+        } else {
+            basePath = 'finans/kassekladde_includes/employeeSearch.php';
+        }
+        
+        const url = basePath + '?search=' + encodeURIComponent(searchValue);
+
+        fetch(url)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                const results = data.results || [];
+                renderSimpleDropdown(input, results, 'employee', searchValue);
+            })
+            .catch(function(error) {
+                console.error('Employee search error:', error);
+                closeDropdown();
+            });
+    }
+
+
+    function performCurrencySearch(input, searchValue, page) {
+        searchValue = searchValue.trim();
+        const dropdown = input.autocompleteDropdown;
+
+        let basePath = '';
+        if (window.location.pathname.includes('/finans/')) {
+            basePath = 'kassekladde_includes/currencySearch.php';
+        } else {
+            basePath = 'finans/kassekladde_includes/currencySearch.php';
+        }
+        
+        const url = basePath + '?search=' + encodeURIComponent(searchValue);
+
+        fetch(url)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                const results = data.results || [];
+                renderSimpleDropdown(input, results, 'currency', searchValue);
+            })
+            .catch(function(error) {
+                console.error('Currency search error:', error);
+                closeDropdown();
+            });
+    }
+
+    function performAmountSearch(input, searchValue, page) {
+        searchValue = searchValue.trim();
+        const dropdown = input.autocompleteDropdown;
+        const rowNum = input.rowNumber;
+        
+        let accountNr = '';
+        let accountType = '';
+        let invoiceNr = '';
+        
+        // Check debet field first
+        const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
+        const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
+        if (dTypeField && debeField) {
+            const dType = dTypeField.value.toUpperCase().trim();
+            if (dType === 'D' || dType === 'K') {
+                accountType = dType;
+                accountNr = debeField.value.trim();
+            }
+        }
+        
+        // If not found in debet, check kredit
+        if (!accountNr) {
+            const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
+            const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
+            if (kTypeField && kredField) {
+                const kType = kTypeField.value.toUpperCase().trim();
+                if (kType === 'D' || kType === 'K') {
+                    accountType = kType;
+                    accountNr = kredField.value.trim();
+                }
+            }
+        }
+        
+        const faktField = document.querySelector('input[name="fakt' + rowNum + '"]');
+        if (faktField) {
+            invoiceNr = faktField.value.trim();
+        }
+
+        let basePath = '';
+        if (window.location.pathname.includes('/finans/')) {
+            basePath = 'kassekladde_includes/amountSearch.php';
+        } else {
+            basePath = 'finans/kassekladde_includes/amountSearch.php';
+        }
+        
+        const url = basePath + '?search=' + encodeURIComponent(searchValue) +
+                    '&account=' + encodeURIComponent(accountNr) +
+                    '&accountType=' + encodeURIComponent(accountType) +
+                    '&invoice=' + encodeURIComponent(invoiceNr);
+
+        fetch(url)
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(function(data) {
+                const results = data.results || [];
+                renderAmountDropdown(input, results, searchValue);
+            })
+            .catch(function(error) {
+                console.error('Amount search error:', error);
+                closeDropdown();
+            });
+    }
+
+    function renderSimpleDropdown(input, results, fieldType, searchValue) {
+        const dropdown = input.autocompleteDropdown;
+        const trans = getTrans();
+        
+        let title, col1Header, col2Header;
+        switch (fieldType) {
+            case 'department':
+                title = trans.selectDepartment;
+                col1Header = trans.code;
+                col2Header = trans.description;
+                break;
+            case 'employee':
+                title = trans.selectEmployee;
+                col1Header = trans.initials;
+                col2Header = trans.name;
+                break;
+            case 'currency':
+                title = trans.selectCurrency;
+                col1Header = trans.code;
+                col2Header = trans.description;
+                break;
+            default:
+                title = trans.selectAccount;
+                col1Header = trans.code;
+                col2Header = trans.description;
+        }
+        
+        let html = '<div class="account-autocomplete-header">' +
+            '<span class="account-autocomplete-header-title">' + title + '</span>' +
+            '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
+            '</div>' +
+            '<div class="account-autocomplete-search-box">' +
+            '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
+            '</div>';
+        
+        if (!results || results.length === 0) {
+            html += '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+        } else {
+            html += '<div class="account-autocomplete-results">';
+            html += '<table class="account-autocomplete-table">';
+            html += '<thead><tr>' +
+                    '<th style="width:80px;">' + col1Header + '</th>' +
+                    '<th>' + col2Header + '</th>' +
+                    '</tr></thead>';
+            html += '<tbody>';
+            
+            results.forEach(function(item) {
+                let code, description, displayValue;
+                
+                switch (fieldType) {
+                    case 'department':
+                        code = item.code || '';
+                        description = item.description || '';
+                        displayValue = code;
+                        break;
+                    case 'employee':
+                        code = item.initials || '';
+                        description = item.name || '';
+                        displayValue = code;
+                        break;
+                    case 'currency':
+                        code = item.code || '';
+                        description = item.description || '';
+                        displayValue = code;
+                        break;
+                    default:
+                        code = item.code || '';
+                        description = item.description || '';
+                        displayValue = code;
+                }
+                
+                html += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(displayValue) + '">' +
+                        '<td>' + escapeHtml(code) + '</td>' +
+                        '<td>' + escapeHtml(description) + '</td>' +
+                        '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            html += '</div>';
+        }
+        
+        dropdown.innerHTML = html;
+        positionDropdown(input, dropdown);
+        dropdown.style.display = 'flex';
+        activeDropdown = dropdown;
+        activeInput = input;
+        
+        const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+        }
+    }
+
   
     function renderDropdown(input, results, searchType, currentSearchValueParam, pagination) {
         const dropdown = input.autocompleteDropdown;
+        const trans = getTrans();
         
         currentSearchValueParam = currentSearchValueParam || '';
         
@@ -409,13 +720,13 @@
         if (!results || results.length === 0) {
             if (currentSearchValueParam !== '') {
                 dropdown.innerHTML = '<div class="account-autocomplete-header">' +
-                    '<span class="account-autocomplete-header-title">Select Account</span>' +
-                    '<button type="button" class="account-autocomplete-close-btn" data-action="close">Close ✕</button>' +
+                    '<span class="account-autocomplete-header-title">' + trans.selectAccount + '</span>' +
+                    '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
                     '</div>' +
                     '<div class="account-autocomplete-search-box">' +
-                    '<input type="text" class="account-autocomplete-search-input" placeholder="Search by account no. or description..." value="' + escapeHtml(currentSearchValueParam) + '">' +
+                    '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchAccount + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
                     '</div>' +
-                    '<div class="account-autocomplete-no-results">No accounts found</div>';
+                    '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
                 dropdown.style.display = 'flex';
                 activeDropdown = dropdown;
@@ -434,15 +745,15 @@
 
         let html = '';
         
-        const titleText = searchType === 'finance' ? 'Select Account' : 
-                         (searchType === 'debitor' ? 'Select Debtor' : 'Select Creditor');
+        const titleText = searchType === 'finance' ? trans.selectAccount : 
+                         (searchType === 'debitor' ? trans.selectDebtor : trans.selectCreditor);
         html += '<div class="account-autocomplete-header">';
         html += '<span class="account-autocomplete-header-title">' + titleText + '</span>';
-        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">Close ✕</button>';
+        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
         html += '</div>';
         
         html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="Search by account no. or description..." value="' + escapeHtml(currentSearchValueParam) + '">';
+        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchAccount + '" value="' + escapeHtml(currentSearchValueParam) + '">';
         html += '</div>';
         
         html += '<div class="account-autocomplete-results">';
@@ -450,16 +761,16 @@
         
         if (searchType === 'finance') {
             html += '<thead><tr>' +
-                    '<th style="width:70px;">Account</th>' +
-                    '<th>Description</th>' +
-                    '<th style="width:45px;">VAT</th>' +
-                    '<th style="width:50px;">Shortcut</th>' +
-                    '<th style="width:90px;text-align:right;">Balance</th>' +
+                    '<th style="width:70px;">' + trans.accountNo + '</th>' +
+                    '<th>' + trans.description + '</th>' +
+                    '<th style="width:45px;">' + trans.vat + '</th>' +
+                    '<th style="width:50px;">' + trans.shortcut + '</th>' +
+                    '<th style="width:90px;text-align:right;">' + trans.balance + '</th>' +
                     '</tr></thead>';
         } else {
             html += '<thead><tr>' +
-                    '<th style="width:80px;">Account</th>' +
-                    '<th>Company Name</th>' +
+                    '<th style="width:80px;">' + trans.accountNo + '</th>' +
+                    '<th>' + trans.companyName + '</th>' +
                     '</tr></thead>';
         }
         
@@ -498,14 +809,14 @@
             const endItem = Math.min(pagination.page * pagination.limit, pagination.total);
             
             html += '<div class="account-autocomplete-footer">';
-            html += '<span class="account-autocomplete-pagination-info">Showing ' + startItem + '-' + endItem + ' of ' + pagination.total + '</span>';
+            html += '<span class="account-autocomplete-pagination-info">' + trans.showing + ' ' + startItem + '-' + endItem + ' ' + trans.of + ' ' + pagination.total + '</span>';
             
             html += '<div class="account-autocomplete-pagination-buttons">';
             if (pagination.page > 1) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← Previous</button>';
+                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← ' + trans.previous + '</button>';
             }
             if (pagination.hasMore) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">Next →</button>';
+                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">' + trans.next + ' →</button>';
             }
             html += '</div>';
             html += '</div>';
@@ -517,7 +828,6 @@
         
         dropdown.innerHTML = html;
         
-        // Position the dropdown below the input using fixed positioning
         positionDropdown(input, dropdown);
         
         dropdown.style.display = 'flex';
@@ -537,25 +847,24 @@
         }
     }
 
-    /**
-     * Render the dropdown with invoice/open post search results
-     */
+ 
     function renderInvoiceDropdown(input, results, currentSearchValueParam, pagination) {
         const dropdown = input.autocompleteDropdown;
         
         currentSearchValueParam = currentSearchValueParam || '';
         pagination = pagination || { page: 1, total: 0, hasMore: false };
+        const trans = getTrans();
         
         if (!results || results.length === 0) {
             if (currentSearchValueParam !== '') {
                 dropdown.innerHTML = '<div class="account-autocomplete-header">' +
-                    '<span class="account-autocomplete-header-title">Open Items</span>' +
-                    '<button type="button" class="account-autocomplete-close-btn" data-action="close">Close ✕</button>' +
+                    '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>' +
+                    '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
                     '</div>' +
                     '<div class="account-autocomplete-search-box">' +
-                    '<input type="text" class="account-autocomplete-search-input" placeholder="Search by invoice no., name or account..." value="' + escapeHtml(currentSearchValueParam) + '">' +
+                    '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchInvoice + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
                     '</div>' +
-                    '<div class="account-autocomplete-no-results">No open items found</div>';
+                    '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
                 dropdown.style.display = 'flex';
                 activeDropdown = dropdown;
@@ -574,36 +883,43 @@
 
         let html = '';
         
-        // Header
         html += '<div class="account-autocomplete-header">';
-        html += '<span class="account-autocomplete-header-title">Open Items</span>';
-        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">Close ✕</button>';
+        html += '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>';
+        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
         html += '</div>';
         
-        // Search box
         html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="Search by invoice no., name or account..." value="' + escapeHtml(currentSearchValueParam) + '">';
+        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchInvoice + '" value="' + escapeHtml(currentSearchValueParam) + '">';
         html += '</div>';
         
-        // Results container
         html += '<div class="account-autocomplete-results">';
         html += '<table class="account-autocomplete-table">';
         
-        // Table header row - matching the popup shown in the screenshot
         html += '<thead><tr>' +
-                '<th style="width:80px;">Account no.</th>' +
-                '<th>Name</th>' +
-                '<th style="width:90px;">Invoice no.</th>' +
-                '<th style="width:80px;">Date</th>' +
-                '<th style="width:90px;text-align:right;">Amount</th>' +
+                '<th style="width:80px;">' + trans.accountNo + '</th>' +
+                '<th>' + trans.name + '</th>' +
+                '<th style="width:90px;">' + trans.invoiceNo + '</th>' +
+                '<th style="width:80px;">' + trans.date + '</th>' +
+                '<th style="width:90px;text-align:right;">' + trans.amount + '</th>' +
                 '</tr></thead>';
         
         html += '<tbody>';
         
         let itemIndex = 0;
         results.forEach(function(item) {
-            // Store faktnr in data attribute for selection
-            html += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(item.faktnr) + '" data-faktnr="' + escapeHtml(item.faktnr) + '" data-amount="' + item.amount + '" data-index="' + itemIndex + '">';
+            const description = (item.firmanavn || '') + (item.faktnr ? ' - ' + item.faktnr : '');
+            
+            html += '<tr class="account-autocomplete-item"' +
+                    ' data-kontonr="' + escapeHtml(item.faktnr) + '"' +
+                    ' data-faktnr="' + escapeHtml(item.faktnr) + '"' +
+                    ' data-amount="' + item.amount + '"' +
+                    ' data-accountnr="' + escapeHtml(item.kontonr || '') + '"' +
+                    ' data-accounttype="' + escapeHtml(item.art || '') + '"' +
+                    ' data-companyname="' + escapeHtml(item.firmanavn || '') + '"' +
+                    ' data-description="' + escapeHtml(description) + '"' +
+                    ' data-currency="' + escapeHtml(item.valuta || '') + '"' +
+                    ' data-offsetaccount="' + escapeHtml(item.offsetAccount || '') + '"' +
+                    ' data-index="' + itemIndex + '">';
             
             html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
                     '<td title="' + escapeHtml(item.firmanavn || '') + '">' + escapeHtml(item.firmanavn || '') + '</td>' +
@@ -618,26 +934,24 @@
         html += '</tbody></table>';
         html += '</div>';
         
-        // Pagination footer
         if (pagination.total > 0) {
             const startItem = ((pagination.page - 1) * pagination.limit) + 1;
             const endItem = Math.min(pagination.page * pagination.limit, pagination.total);
             
             html += '<div class="account-autocomplete-footer">';
-            html += '<span class="account-autocomplete-pagination-info">Showing ' + startItem + '-' + endItem + ' of ' + pagination.total + '</span>';
+            html += '<span class="account-autocomplete-pagination-info">' + trans.showing + ' ' + startItem + '-' + endItem + ' ' + trans.of + ' ' + pagination.total + '</span>';
             
             html += '<div class="account-autocomplete-pagination-buttons">';
             if (pagination.page > 1) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← Previous</button>';
+                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← ' + trans.previous + '</button>';
             }
             if (pagination.hasMore) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">Next →</button>';
+                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">' + trans.next + ' →</button>';
             }
             html += '</div>';
             html += '</div>';
         }
         
-        // Save current search input state before replacing HTML
         const existingSearchInput = dropdown.querySelector('.account-autocomplete-search-input');
         const searchValueToRestore = existingSearchInput ? existingSearchInput.value : currentSearchValueParam;
         const cursorPos = existingSearchInput ? existingSearchInput.selectionStart : searchValueToRestore.length;
@@ -657,8 +971,104 @@
             try {
                 searchInput.setSelectionRange(cursorPos, cursorPos);
             } catch (e) {
-                // Ignore
+           
             }
+        }
+    }
+
+ 
+    function renderAmountDropdown(input, results, searchValue) {
+        const dropdown = input.autocompleteDropdown;
+        const trans = getTrans();
+        
+        searchValue = searchValue || '';
+        
+        const title = trans.selectAmount || 'Select Amount';
+        
+        if (!results || results.length === 0) {
+            dropdown.innerHTML = '<div class="account-autocomplete-header">' +
+                '<span class="account-autocomplete-header-title">' + title + '</span>' +
+                '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
+                '</div>' +
+                '<div class="account-autocomplete-search-box">' +
+                '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
+                '</div>' +
+                '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+            positionDropdown(input, dropdown);
+            dropdown.style.display = 'flex';
+            activeDropdown = dropdown;
+            activeInput = input;
+            const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
+            if (searchInput) {
+                searchInput.focus();
+            }
+            return;
+        }
+
+        let html = '';
+        
+        html += '<div class="account-autocomplete-header">';
+        html += '<span class="account-autocomplete-header-title">' + title + '</span>';
+        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
+        html += '</div>';
+        
+        html += '<div class="account-autocomplete-search-box">';
+        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">';
+        html += '</div>';
+        
+        html += '<div class="account-autocomplete-results">';
+        html += '<table class="account-autocomplete-table">';
+        
+        html += '<thead><tr>' +
+                '<th style="width:80px;">' + trans.accountNo + '</th>' +
+                '<th>' + trans.name + '</th>' +
+                '<th style="width:90px;">' + trans.invoiceNo + '</th>' +
+                '<th style="width:80px;">' + trans.date + '</th>' +
+                '<th style="width:100px;text-align:right;">' + trans.amount + '</th>' +
+                '</tr></thead>';
+        
+        html += '<tbody>';
+        
+        let itemIndex = 0;
+        results.forEach(function(item) {
+            const description = (item.companyName || '') + (item.invoiceNr ? ' - ' + item.invoiceNr : '');
+            
+            html += '<tr class="account-autocomplete-item"' +
+                    ' data-kontonr="' + escapeHtml(item.amount.toString()) + '"' +
+                    ' data-faktnr="' + escapeHtml(item.invoiceNr || '') + '"' +
+                    ' data-amount="' + item.amount + '"' +
+                    ' data-accountnr="' + escapeHtml(item.accountNr || '') + '"' +
+                    ' data-accounttype="' + escapeHtml(item.accountType || '') + '"' +
+                    ' data-companyname="' + escapeHtml(item.companyName || '') + '"' +
+                    ' data-description="' + escapeHtml(description) + '"' +
+                    ' data-currency="' + escapeHtml(item.currency || '') + '"' +
+                    ' data-offsetaccount="' + escapeHtml(item.offsetAccount || '') + '"' +
+                    ' data-index="' + itemIndex + '">';
+            
+            html += '<td>' + escapeHtml(item.accountNr || '') + '</td>' +
+                    '<td title="' + escapeHtml(item.companyName || '') + '">' + escapeHtml(item.companyName || '') + '</td>' +
+                    '<td>' + escapeHtml(item.invoiceNr || '') + '</td>' +
+                    '<td>' + formatDate(item.date) + '</td>' +
+                    '<td style="text-align:right;font-weight:bold;">' + formatNumber(item.amount) + '</td>';
+            
+            html += '</tr>';
+            itemIndex++;
+        });
+        
+        html += '</tbody></table>';
+        html += '</div>';
+        
+        dropdown.innerHTML = html;
+        
+        positionDropdown(input, dropdown);
+        
+        dropdown.style.display = 'flex';
+        activeDropdown = dropdown;
+        activeInput = input;
+        
+        const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
+        if (searchInput) {
+            searchInput.focus();
         }
     }
 
@@ -691,6 +1101,158 @@
         setTimeout(function() {
             selectionMade = false;
         }, 100);
+    }
+
+
+    function selectInvoiceOrAmount(input, item) {
+        clearTimeout(debounceTimer);
+        
+        selectionMade = true;
+        
+        closeDropdown();
+        
+        const rowNum = input.rowNumber;
+        
+       
+        const faktnr = item.dataset.faktnr || '';
+        const amount = item.dataset.amount || '';
+        const accountNr = item.dataset.accountnr || '';
+        const accountType = item.dataset.accounttype || ''; 
+        const description = item.dataset.description || '';
+        const currency = item.dataset.currency || '';
+        const offsetAccount = item.dataset.offsetaccount || ''; 
+        
+      
+        console.log('selectInvoiceOrAmount:', {
+            faktnr, amount, accountNr, accountType, description, currency, offsetAccount,
+            rowNum, fieldType: input.fieldType
+        });
+        
+        const faktField = document.querySelector('input[name="fakt' + rowNum + '"]');
+        const beloField = document.querySelector('input[name="belo' + rowNum + '"]');
+        const beskField = document.querySelector('input[name="besk' + rowNum + '"]');
+        
+        const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
+        const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
+        const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
+        const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
+        
+        const amountValue = parseFloat(amount) || 0;
+        
+        if (input.fieldType === 'faktura') {
+            input.value = faktnr;
+        } else if (input.fieldType === 'amount') {
+            input.value = formatNumberForInput(Math.abs(amountValue));
+        }
+        
+        // Fill invoice number
+        if (faktField && faktnr && input.fieldType !== 'faktura') {
+            faktField.value = faktnr;
+            faktField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Fill amount (always positive in the field)
+        if (beloField && amount && input.fieldType !== 'amount') {
+            beloField.value = formatNumberForInput(Math.abs(amountValue));
+            beloField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Fill description (attachment text) - "Company name - Invoice number"
+        if (beskField && description) {
+            beskField.value = description;
+            beskField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Fill currency field
+        const valuField = document.querySelector('input[name="valu' + rowNum + '"]');
+        if (valuField && currency) {
+            valuField.value = currency;
+            valuField.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+      
+        const existingDebet = debeField ? debeField.value.trim() : '';
+        const existingKredit = kredField ? kredField.value.trim() : '';
+        const existingDType = dTypeField ? dTypeField.value.trim() : '';
+        const existingKType = kTypeField ? kTypeField.value.trim() : '';
+        
+        if (accountNr && accountType) {
+            if (amountValue < 0) {
+                // Negative amount (e.g., credit note or payment received):
+                // - Put the debtor/creditor account in DEBIT side (d_type=D/K, debet=accountNo)
+                // - Put the offset account (bank) in CREDIT side (if not already filled)
+                if (dTypeField && debeField) {
+                    dTypeField.value = accountType;
+                    debeField.value = accountNr;
+                    dTypeField.dispatchEvent(new Event('change', { bubbles: true }));
+                    debeField.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                // Fill offset account on CREDIT side only if not already filled
+                if (kredField && !existingKredit && offsetAccount) {
+                    kredField.value = offsetAccount;
+                    kredField.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                // Keep existing k_type, don't overwrite with 'F'
+            } else {
+                // Positive amount (e.g., invoice being paid):
+                // - Put the debtor/creditor account in CREDIT side (k_type=D/K, kredit=accountNo)
+                // - Put the offset account (bank) in DEBIT side (if not already filled)
+                if (kTypeField && kredField) {
+                    kTypeField.value = accountType;
+                    kredField.value = accountNr;
+                    kTypeField.dispatchEvent(new Event('change', { bubbles: true }));
+                    kredField.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                // Fill offset account on DEBIT side only if not already filled
+                if (debeField && !existingDebet && offsetAccount) {
+                    debeField.value = offsetAccount;
+                    debeField.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                // Keep existing d_type, don't overwrite with 'F'
+            }
+        }
+        
+        // Debug logging after filling
+        console.log('After fill:', {
+            amountValue,
+            branch: amountValue < 0 ? 'negative' : 'positive',
+            dTypeField: dTypeField ? dTypeField.value : 'null',
+            debeField: debeField ? debeField.value : 'null',
+            kTypeField: kTypeField ? kTypeField.value : 'null',
+            kredField: kredField ? kredField.value : 'null',
+            existingDebet,
+            existingKredit,
+            offsetAccount
+        });
+        
+        // Trigger change on the input field
+        const event = new Event('change', { bubbles: true });
+        input.dispatchEvent(event);
+        
+        if (typeof docChange !== 'undefined') {
+            docChange = true;
+        }
+
+        // Move focus to the next field
+        const form = input.form;
+        if (form) {
+            const inputs = Array.from(form.querySelectorAll('input, select, textarea'));
+            const currentIndex = inputs.indexOf(input);
+            if (currentIndex > -1 && currentIndex < inputs.length - 1) {
+                inputs[currentIndex + 1].focus();
+            }
+        }
+        
+        setTimeout(function() {
+            selectionMade = false;
+        }, 100);
+    }
+
+    function formatNumberForInput(value) {
+        if (value === '' || value === null || value === undefined) return '';
+        const num = parseFloat(value);
+        if (isNaN(num)) return value;
+        return num.toFixed(2).replace('.', ',');
     }
 
     function handleKeyboardNavigation(e) {
@@ -735,7 +1297,11 @@
             case 'Enter':
                 if (selected && activeInput) {
                     e.preventDefault();
-                    selectAccount(activeInput, selected.dataset.kontonr);
+                    if (activeInput.fieldType === 'faktura' || activeInput.fieldType === 'amount') {
+                        selectInvoiceOrAmount(activeInput, selected);
+                    } else {
+                        selectAccount(activeInput, selected.dataset.kontonr);
+                    }
                 }
                 break;
 
@@ -788,9 +1354,7 @@
         });
     }
 
-    /**
-     * Format date for display (DD-MM-YYYY)
-     */
+
     function formatDate(dateStr) {
         if (!dateStr) return '';
         try {
