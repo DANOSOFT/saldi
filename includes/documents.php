@@ -603,7 +603,7 @@ if ($linkBilag && $source == 'kassekladde') {
 	print "</div>";
 	
 	print "<div class='header'>";
-	print "<h2>🔗 Link bilag fra anden linje</h2>";
+	print "<h2><i class='fa fa-link'></i> Link bilag fra anden linje</h2>";
 	print "</div>";
 	
 	print "<div class='search-box'>";
@@ -650,10 +650,10 @@ if ($linkBilag && $source == 'kassekladde') {
 		
 		print "<div class='doc-item' data-search='" . strtolower($filename . ' ' . $bilagNr . ' ' . $beskrivelse) . "' data-filepath='$filePathEncoded' data-filename='$filename' onmouseenter='showPreview(this, event)' onmouseleave='hidePreview()' onmousemove='movePreview(event)'>";
 		print "<div class='doc-info'>";
-		print "<div class='doc-name'>📄 $filename</div>";
+		print "<div class='doc-name'><i class='fa fa-file-pdf-o'></i> $filename</div>";
 		print "<div class='doc-meta'>Bilag #$bilagNr | $beskrivelse | $dateStr</div>";
 		print "</div>";
-		print "<a href='$linkUrl' class='link-btn' onclick=\"return confirm('Link dette bilag til den aktuelle linje?')\">🔗 Link</a>";
+		print "<a href='$linkUrl' class='link-btn' onclick=\"return confirm('Link dette bilag til den aktuelle linje?')\"><i class='fa fa-link'></i> Link</a>";
 		print "</div>";
 	}
 	
@@ -1031,10 +1031,10 @@ if ($source == 'kassekladde' && $sourceId && !$openPoolRequested) {
 	$linkUrl = "documents.php?linkBilag=1&kladde_id=" . urlencode($kladde_id) . "&bilag=" . urlencode($bilag) . "&fokus=" . urlencode($fokus) . "&sourceId=" . urlencode($sourceId) . "&source=" . urlencode($source);
 	print "<div style='margin-top: 15px; padding: 10px; text-align: center; display: flex; flex-direction: column; gap: 10px;'>";
 	print "<a href='$poolUrl' style='display: inline-block; padding: 10px 20px; background-color: $buttonColor; color: $buttonTxtColor; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
-	print "➕ " . findtekst('2592|Dokumentpulje', $sprog_id);
+	print "<i class='fa fa-plus'></i> " . findtekst('2592|Dokumentpulje', $sprog_id);
 	print "</a>";
 	print "<a href='$linkUrl' style='display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);' onmouseover='this.style.opacity=\"0.9\"' onmouseout='this.style.opacity=\"1\"'>";
-	print "🔗 Link bilag fra anden linje";
+	print "<i class='fa fa-link'></i> Link bilag fra anden linje";
 	print "</a>";
 	print "</div>";
 	

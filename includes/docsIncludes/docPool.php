@@ -718,6 +718,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	}
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css\">\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css\">\n";
+	// Include Font Awesome for icons
+	print "<link href='https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' rel='stylesheet'>\n";
 	
 	// Add dynamic CSS variables for button colors
 	$lightButtonColor = brightenColor($buttonColor, 0.6);
@@ -914,7 +916,112 @@ print <<<JS
 
 
 		let activeRows = '';
+		let matchingAmountRows = '';
+		let combinationRows = '';
 		let otherRows = '';
+		
+		// Normalize the total sum for comparison
+		const normalizedTotal = parseFloat(totalSum?.replace(/\./g, '').replace(',', '.') || 0);
+		const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
+		
+		// First pass: count matching documents and find combinations
+		let matchingCount = 0;
+		let exactMatches = []; // Store filenames that are exact matches
+		let combinationMatches = new Set(); // Store filenames that are part of a combination
+		let combinationGroups = []; // Store the actual combinations found
+		
+		if (hasAmountToMatch) {
+			// Build list of documents with valid amounts
+			const docsWithAmounts = [];
+			for (let i = 0; i < docData.length; i++) {
+				const row = docData[i];
+				const normalizedAmount = parseFloat(row.amount);
+				if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
+					const filename = row.filename || '';
+					docsWithAmounts.push({
+						index: i,
+						filename: filename,
+						amount: normalizedAmount,
+						row: row
+					});
+					// Count exact matches and store filenames
+					if (Math.abs(normalizedAmount - normalizedTotal) < 0.01) {
+						matchingCount++;
+						exactMatches.push(filename);
+					}
+				}
+			}
+			
+			// Only look for combinations if no exact matches found
+			if (matchingCount === 0 && docsWithAmounts.length >= 2) {
+				// Find pairs that sum to target
+				for (let i = 0; i < docsWithAmounts.length; i++) {
+					for (let j = i + 1; j < docsWithAmounts.length; j++) {
+						const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
+						if (Math.abs(sum - normalizedTotal) < 0.01) {
+							combinationMatches.add(docsWithAmounts[i].filename);
+							combinationMatches.add(docsWithAmounts[j].filename);
+							combinationGroups.push({
+								files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
+								amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount],
+								sum: sum
+							});
+						}
+					}
+				}
+				
+				// Find triplets that sum to target (only if no pairs found)
+				if (combinationGroups.length === 0 && docsWithAmounts.length >= 3) {
+					for (let i = 0; i < docsWithAmounts.length; i++) {
+						for (let j = i + 1; j < docsWithAmounts.length; j++) {
+							for (let k = j + 1; k < docsWithAmounts.length; k++) {
+								const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount + docsWithAmounts[k].amount;
+								if (Math.abs(sum - normalizedTotal) < 0.01) {
+									combinationMatches.add(docsWithAmounts[i].filename);
+									combinationMatches.add(docsWithAmounts[j].filename);
+									combinationMatches.add(docsWithAmounts[k].filename);
+									combinationGroups.push({
+										files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename, docsWithAmounts[k].filename],
+										amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount, docsWithAmounts[k].amount],
+										sum: sum
+									});
+								}
+							}
+						}
+					}
+				}
+				
+				// Find quads that sum to target (only if no pairs or triplets found)
+				if (combinationGroups.length === 0 && docsWithAmounts.length >= 4) {
+					for (let i = 0; i < docsWithAmounts.length; i++) {
+						for (let j = i + 1; j < docsWithAmounts.length; j++) {
+							for (let k = j + 1; k < docsWithAmounts.length; k++) {
+								for (let l = k + 1; l < docsWithAmounts.length; l++) {
+									const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount + 
+										docsWithAmounts[k].amount + docsWithAmounts[l].amount;
+									if (Math.abs(sum - normalizedTotal) < 0.01) {
+										combinationMatches.add(docsWithAmounts[i].filename);
+										combinationMatches.add(docsWithAmounts[j].filename);
+										combinationMatches.add(docsWithAmounts[k].filename);
+										combinationMatches.add(docsWithAmounts[l].filename);
+										combinationGroups.push({
+											files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename, 
+												docsWithAmounts[k].filename, docsWithAmounts[l].filename],
+											amounts: [docsWithAmounts[i].amount, docsWithAmounts[j].amount,
+												docsWithAmounts[k].amount, docsWithAmounts[l].amount],
+											sum: sum
+										});
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// Store combination info for display
+		const hasCombinationMatches = combinationMatches.size > 0;
 
 		for (const row of docData) {
 			const dateFormatted = escapeHTML(row.date.split(' ')[0]);
@@ -961,36 +1068,53 @@ print <<<JS
 				});
 			}
 
-			const rowStyle = isMatch 
-				? `border-bottom:1px solid #ddd; background-color:${lightButtonColor} !important; color:#000000 !important; font-weight:bold;`
-				: "border-bottom:1px solid #ddd;";
+			// Check if this row's amount matches the target amount
+			const normalizedAmount = parseFloat(row.amount);
+			const isAmountMatch = hasAmountToMatch && !isNaN(normalizedAmount) && Math.abs(normalizedAmount - normalizedTotal) < 0.01;
+			
+			// Check if this row is part of a combination match
+			const isCombinationMatch = hasCombinationMatches && combinationMatches.has(poolFileFromHref);
 
-			//let normalizedTotal = parseFloat(totalSum.replace(/\./g, '').replace(',', '.'));
-			let normalizedTotal = parseFloat(totalSum?.replace(/\./g, '').replace(',', '.') || 0);
-			let normalizedAmount = parseFloat(row.amount);
-			let boldAmount = (normalizedAmount === normalizedTotal)
-				? "<strong>" + escapeHTML(row.amount) + "</strong>"
-				: escapeHTML(row.amount);
+			// Determine row style based on selection and amount match
+			let rowStyle = "border-bottom:1px solid #ddd;";
+			if (isMatch) {
+				rowStyle = `border-bottom:1px solid #ddd; background-color:${lightButtonColor} !important; color:#000000 !important; font-weight:bold;`;
+			} else if (isAmountMatch) {
+				// Green-tinted background for exact amount matches
+				rowStyle = "border-bottom:1px solid #ddd; background-color:#d4edda !important;";
+			} else if (isCombinationMatch) {
+				// Amber/orange-tinted background for combination matches
+				rowStyle = "border-bottom:1px solid #ddd; background-color:#fff3cd !important;";
+			}
+
+			// Format amount with match indicator
+			let amountDisplay = escapeHTML(row.amount);
+			if (isAmountMatch) {
+				amountDisplay = "<span style='color: #155724; font-weight: bold;'><i class='fa fa-check-circle' style='margin-right: 4px; color: #28a745;'></i>" + escapeHTML(row.amount) + "</span>";
+			} else if (isCombinationMatch) {
+				amountDisplay = "<span style='color: #856404; font-weight: bold;'><i class='fa fa-plus-circle' style='margin-right: 4px; color: #ffc107;'></i>" + escapeHTML(row.amount) + "</span>";
+			}
 
 			// All cells start as non-editable (text)
 			const subjectCell = "<span class='cell-content'>" + escapeHTML(row.subject) + "</span>";
 			const accountCell = "<span class='cell-content'>" + escapeHTML(row.account) + "</span>";
-			const amountCell = "<span class='cell-content'>" + boldAmount + "</span>";
+			const amountCell = "<span class='cell-content'>" + amountDisplay + "</span>";
 			const dateCell = "<span class='cell-content'>" + dateFormatted + "</span>";
 
 			// poolFileFromHref already set above
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'><i class='fa fa-pencil' style='font-size: 12px;'></i></button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'><i class='fa fa-trash-o' style='font-size: 12px;'></i></button>" +
 				"</div>";
 
 			// Check if this checkbox should be checked (restore from sessionStorage)
 			const savedChecked = sessionStorage.getItem('docPool_checked_' + poolFileFromHref) === 'true';
 			const checkedAttr = savedChecked ? ' checked' : '';
 			
-			const rowHTML = "<tr data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + (isMatch ? "data-selected='true' " : "") + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
+			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + (isMatch ? "data-selected='true' " : "") + (isAmountMatch ? "data-amount-match='true' " : "") + (isCombinationMatch ? "data-combination-match='true' " : "");
+			const rowHTML = "<tr " + dataAttrs + "style='" + rowStyle + " cursor: pointer;' onclick=\"if(!event.target.closest('button') && !event.target.closest('input')) { saveCheckboxState(); window.location.href='" + row.href + "'; }\">" +
 				"<td style='padding:6px; border:1px solid #ddd; text-align:center; width: 40px;' onclick='event.stopPropagation();'><input type='checkbox' class='file-checkbox' value='" + escapeHTML(poolFileFromHref) + "'" + checkedAttr + " onchange='saveCheckboxState(); updateBulkButton();' onclick='event.stopPropagation();' style='cursor: pointer; width: 18px; height: 18px;'></td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.subject) + "'>" + subjectCell + "</td>" +
 				"<td style='padding:6px; border:1px solid #ddd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' title='" + escapeHTML(row.account) + "'>" + accountCell + "</td>" +
@@ -1000,13 +1124,51 @@ print <<<JS
 				"</tr>";
 			if (isMatch) {
 				activeRows += rowHTML;
+			} else if (isAmountMatch) {
+				matchingAmountRows += rowHTML;
+			} else if (isCombinationMatch) {
+				combinationRows += rowHTML;
 			} else {
 				otherRows += rowHTML;
 			}
 		}
 
-		// Ensure active rows come first
-		html += activeRows + otherRows;
+		// Add section header for exact matching amounts
+		let matchingHeader = '';
+		if (hasAmountToMatch && matchingCount > 0 && matchingAmountRows) {
+			const exactFilesJson = JSON.stringify(exactMatches);
+			matchingHeader = "<tr style='background-color: #28a745; color: white; cursor: pointer;' onclick='selectCombinationFiles(" + exactFilesJson.replace(/'/g, "\\'") + ")' title='Klik for at vælge alle bilag med eksakt match'>" +
+				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #28a745;'>" +
+				"<i class='fa fa-check-circle' style='margin-right: 6px;'></i>" +
+				"Eksakt match (beløb: " + escapeHTML(totalSum) + ") - " + matchingCount + " fundet" +
+				" <span style='font-weight: normal; font-size: 11px; float: right;'><i class='fa fa-hand-pointer-o'></i> Klik for at vælge</span>" +
+				"</td></tr>";
+		}
+		
+		// Add section header for combination matches
+		let combinationHeader = '';
+		if (hasCombinationMatches && combinationRows) {
+			// Build description of the combinations found
+			let comboDesc = '';
+			let comboFilesJson = '[]';
+			if (combinationGroups.length > 0) {
+				const firstCombo = combinationGroups[0];
+				const amountStrs = firstCombo.amounts.map(a => a.toLocaleString('da-DK', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+				comboDesc = amountStrs.join(' + ') + ' = ' + escapeHTML(totalSum);
+				comboFilesJson = JSON.stringify(firstCombo.files);
+			}
+			
+			combinationHeader = "<tr style='background-color: #ffc107; color: #212529; cursor: pointer;' onclick='selectCombinationFiles(" + comboFilesJson.replace(/'/g, "\\'") + ")' title='Klik for at vælge alle bilag i denne kombination'>" +
+				"<td colspan='6' style='padding: 8px 12px; font-weight: bold; font-size: 12px; border: 1px solid #ffc107;'>" +
+				"<i class='fa fa-plus-circle' style='margin-right: 6px;'></i>" +
+				"Kombination fundet (" + combinationMatches.size + " bilag giver: " + escapeHTML(totalSum) + ")" +
+				(comboDesc ? " <span style='font-weight: normal; font-size: 11px;'>(" + comboDesc + ")</span>" : "") +
+				" <span style='font-weight: normal; font-size: 11px; float: right;'><i class='fa fa-hand-pointer-o'></i> Klik for at vælge</span>" +
+				"</td></tr>";
+		}
+
+		// Ensure active rows come first, then exact matches, then combination matches, then others
+		html += activeRows + matchingHeader + matchingAmountRows + combinationHeader + combinationRows + otherRows;
 
 			html += "</tbody></table>";
 			
@@ -1025,6 +1187,12 @@ print <<<JS
 				table tbody tr[data-selected='true']:hover { background-color: " + lightButtonColor + " !important; }\
 				table tbody tr[data-selected='true']:hover td { color: #000000 !important; }\
 				table tbody tr[data-editing='true'] { background-color: " + lightButtonColor + " !important; }\
+				table tbody tr[data-amount-match='true'] { background-color: #d4edda !important; }\
+				table tbody tr[data-amount-match='true']:hover { background-color: #c3e6cb !important; }\
+				table tbody tr[data-amount-match='true'] td { color: #155724 !important; }\
+				table tbody tr[data-combination-match='true'] { background-color: #fff3cd !important; }\
+				table tbody tr[data-combination-match='true']:hover { background-color: #ffe69c !important; }\
+				table tbody tr[data-combination-match='true'] td { color: #856404 !important; }\
 				table tbody tr:hover td { background-color:  }\
 				.edit-input { border-color: " + buttonColor + "; }\
 				.edit-input:focus { outline-color: " + buttonColor + "; }\
@@ -1250,6 +1418,32 @@ print <<<JS
 		updateBulkButton();
 	};
 	
+	// Select all files in a combination match
+	window.selectCombinationFiles = function(files) {
+		if (!files || !Array.isArray(files)) return;
+		
+		// First, uncheck all checkboxes
+		const allCheckboxes = document.querySelectorAll('.file-checkbox');
+		allCheckboxes.forEach(cb => {
+			cb.checked = false;
+		});
+		
+		// Then check only the combination files
+		files.forEach(filename => {
+			const checkbox = document.querySelector('.file-checkbox[value="' + CSS.escape(filename) + '"]');
+			if (checkbox) {
+				checkbox.checked = true;
+			}
+		});
+		
+		saveCheckboxState();
+		updateBulkButton();
+		
+		// Show a brief confirmation
+		const count = files.length;
+		console.log('Selected ' + count + ' combination files: ' + files.join(', '));
+	};
+	
 	// Update bulk action button visibility and count
 	window.updateBulkButton = function() {
 		const checkboxes = document.querySelectorAll('.file-checkbox:checked');
@@ -1325,8 +1519,8 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
 		
 		// Update actions column with only save (green) and cancel (red) buttons when editing
 		cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Gem'>💾</button>" +
-			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Annuller'>✕</button>" +
+			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); saveRowData(this); return false;' style='padding: 4px 8px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#218838\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#28a745\"; this.style.transform=\"scale(1)\"' title='Gem'><i class='fa fa-save' style='font-size: 12px;'></i></button>" +
+			"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); cancelRowEdit(this); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Annuller'><i class='fa fa-times' style='font-size: 12px;'></i></button>" +
 			"</div>";
 		
 		// Focus on first input (subject)
@@ -1474,8 +1668,8 @@ window.saveRowData = function(input) {
 			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'>✏️</button>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'>🗑️</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='Rediger'><i class='fa fa-pencil' style='font-size: 12px;'></i></button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='Slet'><i class='fa fa-trash-o' style='font-size: 12px;'></i></button>" +
 				"</div>";
 			
 			row.querySelector('td:nth-child(6)').innerHTML = actionsCell;
@@ -1642,7 +1836,7 @@ JS;
 				
 				// Show loading state
 				var originalBtnText = submitBtn.innerHTML;
-				submitBtn.innerHTML = '⏳ Uploader og analyserer...';
+				submitBtn.innerHTML = '<i class=\"fa fa-spinner fa-spin\" style=\"margin-right: 6px;\"></i> Uploader og analyserer...';
 				submitBtn.disabled = true;
 				submitBtn.style.opacity = '0.7';
 				fileInput.disabled = true;

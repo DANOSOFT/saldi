@@ -33,6 +33,9 @@ global $bgcolor, $bgcolor5, $sprog_id;
 if (!isset($bgcolor)) $bgcolor = '#ffffff';
 if (!isset($bgcolor5)) $bgcolor5 = '#f9f9f9';
 
+// Ensure Font Awesome is loaded for icons
+print "<link href='https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' rel='stylesheet'>\n";
+
 // Check if we're in the new flexbox layout (docPool-style)
 $inFlexboxLayout = (isset($showDoc) && isset($source) && $source == 'kassekladde');
 
@@ -153,11 +156,11 @@ if($q !== false){
 			$rowClass = "doc-list-row" . ($isCurrentDoc ? " current-doc" : "");
 			
 			// For linked documents, show a link icon indicator
-			$linkIndicator = $isLinkedDoc ? "🔗 " : "";
+			$linkIndicator = $isLinkedDoc ? "<i class='fa fa-link' style='margin-right: 4px;'></i>" : "";
 			$docTitle = $isLinkedDoc ? "Linket bilag: " . htmlspecialchars($r['filename'], ENT_QUOTES) : htmlspecialchars($r['filename'], ENT_QUOTES);
 			
 			print "<tr class='$rowClass' style='background: $rowBgColor; border-bottom: 1px solid #ddd; cursor: pointer;" . ($isCurrentDoc ? " border-left: $borderLeft;" : "") . "' onclick=\"window.location.href='$docHref'\">";
-			print "<td style='padding: 8px; border: 1px solid #ddd; font-weight: $fontWeight;" . ($isCurrentDoc ? " border-left: none;" : "") . "' title='$docTitle'>" . ($isCurrentDoc ? "▶ " : "") . $linkIndicator . htmlspecialchars($showName, ENT_QUOTES)."</td>";
+			print "<td style='padding: 8px; border: 1px solid #ddd; font-weight: $fontWeight;" . ($isCurrentDoc ? " border-left: none;" : "") . "' title='$docTitle'>" . ($isCurrentDoc ? "<i class='fa fa-caret-right' style='margin-right: 4px;'></i>" : "") . $linkIndicator . htmlspecialchars($showName, ENT_QUOTES)."</td>";
 			print "<td style='padding: 4px; border: 1px solid #ddd; text-align: center;' onclick='event.stopPropagation();'>";
 			
 			// Delete button - for linked docs, only removes database reference
