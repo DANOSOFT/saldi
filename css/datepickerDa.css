@@ -1,0 +1,195 @@
+/**
+ * Danish Datepicker Styles
+ * Clean, modern design
+ */
+
+.dp-picker {
+    position: absolute;
+    z-index: 99999;
+    background: #ffffff;
+    border: 2px solid #114691;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    width: 300px;
+    user-select: none;
+    display: block;
+}
+
+/* Header with month/year navigation */
+.dp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #114691;
+    color: #ffffff;
+    border-radius: 6px 6px 0 0;
+}
+
+.dp-header button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.dp-header button:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.dp-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #ffffff;
+}
+
+/* Calendar table */
+.dp-calendar {
+    width: 100%;
+    border-collapse: collapse;
+    padding: 0;
+    margin: 0;
+    background: #ffffff;
+}
+
+.dp-calendar th {
+    text-align: center;
+    padding: 8px 4px;
+    color: #555555;
+    font-weight: 600;
+    font-size: 11px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ddd;
+}
+
+.dp-calendar th.dp-week {
+    color: #888888;
+    font-size: 10px;
+    width: 30px;
+    background: #e8e8e8;
+}
+
+.dp-calendar td {
+    text-align: center;
+    padding: 2px;
+    vertical-align: middle;
+}
+
+.dp-calendar td.dp-week {
+    color: #888888;
+    font-size: 10px;
+    background: #f5f5f5;
+    padding: 4px;
+    font-weight: normal;
+}
+
+/* Day cells - the span inside td */
+.dp-day {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 4px;
+    color: #333333;
+    font-size: 13px;
+}
+
+.dp-day:hover {
+    background: #e0e7f1;
+}
+
+/* Other month days */
+.dp-other-month {
+    color: #cccccc;
+    cursor: default;
+}
+
+.dp-other-month:hover {
+    background: transparent;
+}
+
+/* Today highlight */
+.dp-today {
+    background: #fff3cd;
+    color: #856404;
+    font-weight: bold;
+}
+
+.dp-today:hover {
+    background: #ffe69c;
+}
+
+/* Selected date */
+.dp-selected {
+    background: #114691 !important;
+    color: #ffffff !important;
+    font-weight: bold;
+}
+
+.dp-selected:hover {
+    background: #0d3a77 !important;
+}
+
+/* Weekend styling */
+.dp-weekend {
+    color: #999999;
+}
+
+.dp-weekend.dp-today {
+    color: #856404;
+}
+
+.dp-weekend.dp-selected {
+    color: #ffffff !important;
+}
+
+/* Footer with buttons */
+.dp-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #f5f5f5;
+    border-top: 1px solid #ddd;
+    border-radius: 0 0 6px 6px;
+}
+
+.dp-footer button {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.dp-today-btn {
+    background: #114691;
+    color: #ffffff;
+}
+
+.dp-today-btn:hover {
+    background: #0d3a77;
+}
+
+.dp-close-btn {
+    background: #6c757d;
+    color: #ffffff;
+}
+
+.dp-close-btn:hover {
+    background: #5a6268;
+}
