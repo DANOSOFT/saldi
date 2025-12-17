@@ -89,6 +89,13 @@ $beskrivelse = $fokus = $linjeantal = $slut = $start = $udvalg = $vis_lev = $vis
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include("../includes/license_func.php");
+
+// Check if lager feature is licensed
+if (!is_feature_licensed('lager')) {
+	show_upgrade_message('Lager');
+	exit;
+}
 
 // Navigate to new lagersystem
 if ($menu == "S") {

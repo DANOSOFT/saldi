@@ -29,11 +29,11 @@ $s_id = session_id();
 
 $css = "../css/sidebar_style.css?v=20";
 
-include("../includes/std_func.php");
 include("../includes/connect.php");
+include("../includes/license_func.php");
 include("../includes/online.php");
+include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
-
 
 function check_permissions($permarr)
 {
@@ -211,7 +211,7 @@ setInterval(checkRefreshCookie, 500);
     <!-- Booking -->
     <?php
     $query = db_select("select var_value from settings where var_grp='rental'", __FILE__ . " linje " . __LINE__);
-    if (db_num_rows($query) > 0) {
+    if (db_num_rows($query) > 0 && is_feature_licensed('booking')) {
     ?>
       <li style="display: <?php if (check_permissions(array(6))) {
                             echo 'block';
@@ -241,6 +241,7 @@ setInterval(checkRefreshCookie, 500);
         </ul>
       <?php } ?>
       <!-- Kreditor -->
+      <?php if (is_feature_licensed('kreditor')) { ?>
       <li style="display: <?php if (check_permissions(array(7, 8, 13))) {
                             echo 'block';
                           } else {
@@ -268,8 +269,10 @@ setInterval(checkRefreshCookie, 500);
           ?>
         </ul>
       </li>
+      <?php } ?>
 
-      <!-- Kreditor -->
+      <!-- Lager -->
+      <?php if (is_feature_licensed('lager')) { ?>
       <li style="display: <?php if (check_permissions(array(9, 10, 15))) {
                             echo 'block';
                           } else {
@@ -297,8 +300,9 @@ setInterval(checkRefreshCookie, 500);
           ?>
         </ul>
       </li>
+      <?php } ?>
 
-      <!-- Kreditor -->
+      <!-- System -->
       <li style="display: <?php if (check_permissions(array(0, 1, 11))) {
                             echo 'block';
                           } else {

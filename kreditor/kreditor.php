@@ -71,6 +71,13 @@ include("../includes/udvaelg.php");
 include("../includes/topline_settings.php");
 include("../includes/row-hover-style.js.php");
 include("../includes/grid.php"); // Include the datagrid system
+include("../includes/license_func.php");
+
+// Check if kreditor feature is licensed
+if (!is_feature_licensed('kreditor')) {
+	show_upgrade_message('Kreditor');
+	exit;
+}
 
 if ($menu == 'T') {
 	$title = "Konti";
