@@ -1668,7 +1668,7 @@ print "<div id='center-turnover' style='flex:1; text-align:center;'>";
 print "<div style='display:flex;'>";
     print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
     print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
-    print "<b>$ialt_m_moms_formatted ($ialt_formatted)<br>
+    print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
            $dk_db / $dk_dg%</b>";
 }
 
