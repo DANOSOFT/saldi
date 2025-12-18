@@ -1301,7 +1301,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 
-<<<<<<< Updated upstream
 
 
 
@@ -1352,9 +1351,6 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
-=======
-// Create the grid
->>>>>>> Stashed changes
 create_datagrid($grid_id, $data);
 
 
@@ -1639,7 +1635,7 @@ if ($valg == "ordrer") {
     }
 }
 
-// Add Shop Fetch Link if active
+// Add Shop Fetch Link if active 
 if ($show_shop_link) {
     print "  <a href='ordreliste.php?sort=$sort&hent_nu=1&valg=$valg'>" . findtekst('879|Hent ordrer', $sprog_id) . "</a>";
 }
