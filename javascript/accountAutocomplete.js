@@ -18,7 +18,8 @@
     let dropdownContainer = null;
     let selectionMade = false; 
     let currentPage = 1; 
-    let currentSearchValue = ''; 
+    let currentSearchValue = '';
+    let justClosed = false; // Prevent reopening immediately after close
     
     
     function getDropdownContainer() {
@@ -113,20 +114,15 @@
 
   
     function setupAutocomplete(input, fieldType) {
-        if (input.parentNode && input.parentNode.classList && 
-            input.parentNode.classList.contains('account-autocomplete-wrapper')) {
+        // Check if already initialized
+        if (input.autocompleteInitialized) {
             return;
         }
         
-        let parentElement = input.parentNode;
-        
-        const wrapper = document.createElement('div');
-        wrapper.className = 'account-autocomplete-wrapper';
-        wrapper.style.position = 'relative';
-        wrapper.style.display = 'inline-block';
-        
-        parentElement.insertBefore(wrapper, input);
-        wrapper.appendChild(input);
+        // DON'T wrap the input - just mark it and create a dropdown
+        // Wrapping breaks form association in some browsers
+        input.autocompleteInitialized = true;
+        input.fieldType = fieldType;
 
         const dropdown = document.createElement('div');
         dropdown.className = 'account-autocomplete-dropdown';
@@ -139,13 +135,15 @@
                 e.preventDefault();
                 e.stopPropagation();
                 selectionMade = true;
+                justClosed = true; // Prevent reopening on focus
                 closeDropdown();
                 if (input) {
                     input.focus();
                 }
                 setTimeout(function() {
                     selectionMade = false;
-                }, 100);
+                    justClosed = false; // Allow opening again after a short delay
+                }, 150);
                 return;
             }
             
@@ -184,13 +182,13 @@
         
         dropdown.addEventListener('input', function(e) {
             if (e.target.classList.contains('account-autocomplete-search-input')) {
-                if (selectionMade) {
-                    return;
-                }
+                const searchVal = e.target.value;
                 
+                // Always allow typing in the search input - no blocking
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(function() {
-                    performSearchWithValue(input, e.target.value, 1);
+                    // Pass flag to indicate this is an update (don't touch search input)
+                    performSearchWithValue(input, searchVal, 1, true);
                 }, CONFIG.debounceDelay);
             }
         });
@@ -225,23 +223,54 @@
         });
 
         input.autocompleteDropdown = dropdown;
-        input.autocompleteWrapper = wrapper;
-        input.fieldType = fieldType;
+        // No wrapper needed - dropdown is positioned absolutely
 
         const rowMatch = input.name.match(/\d+$/);
         input.rowNumber = rowMatch ? rowMatch[0] : '';
 
-        input.addEventListener('input', function(e) {
-            handleInput(this);
+        // Open dropdown on focus - show options immediately
+        // User can still type freely in the field
+        input.addEventListener('focus', function(e) {
+            // Don't reopen if we just closed it (e.g., user clicked close button)
+            if (justClosed) {
+                return;
+            }
+            if (!activeDropdown) {
+                openDropdownForInput(this);
+            }
         });
 
-        input.addEventListener('focus', function(e) {
-            handleInput(this);
+        // When user types in the main input field while dropdown is open,
+        // update the search results (but don't touch the dropdown search input)
+        input.addEventListener('input', function(e) {
+            if (activeDropdown && activeInput === this) {
+                const searchVal = this.value;
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    currentSearchValue = searchVal;
+                    performSearchWithValue(input, searchVal, 1, true);
+                }, CONFIG.debounceDelay);
+            }
+        });
+
+        // F2 reopens/refreshes the lookup, Down arrow opens if not open
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'F2') {
+                e.preventDefault();
+                openDropdownForInput(this);
+            } else if (e.key === 'ArrowDown' && !activeDropdown) {
+                e.preventDefault();
+                openDropdownForInput(this);
+            }
+            // Escape closes dropdown if open
+            if (e.key === 'Escape' && activeDropdown) {
+                e.preventDefault();
+                closeDropdown();
+            }
         });
 
         input.addEventListener('blur', function(e) {
-            // console.log('blur', e)
-         
+            // Don't close immediately - let mousedown on dropdown work
         });
     }
 
@@ -291,17 +320,28 @@
         }, CONFIG.debounceDelay);
     }
 
+    // Open dropdown for the given input field
+    function openDropdownForInput(input) {
+        selectionMade = false;
+        currentPage = 1;
+        currentSearchValue = '';
+        // Clear any saved search value on the dropdown to ensure fresh results
+        input.autocompleteDropdown._savedSearchValue = null;
+        performSearchWithValue(input, '', 1, false);
+    }
+
   
     function performSearch(input) {
         currentPage = 1;
         currentSearchValue = '';
-        performSearchWithValue(input, '', 1);
+        performSearchWithValue(input, '', 1, false);
     }
     
-   
-    function performSearchWithValue(input, searchValue, page) {
+    // isUpdate: if true, only update results section, don't touch search input
+    function performSearchWithValue(input, searchValue, page, isUpdate) {
         searchValue = searchValue.trim();
         page = page || 1;
+        isUpdate = isUpdate || false;
         currentSearchValue = searchValue;
         currentPage = page;
         const dropdown = input.autocompleteDropdown;
@@ -310,27 +350,27 @@
         const rowNum = input.rowNumber;
         
         if (input.fieldType === 'faktura') {
-            performInvoiceSearch(input, searchValue, page);
+            performInvoiceSearch(input, searchValue, page, isUpdate);
             return;
         }
         
         if (input.fieldType === 'department') {
-            performDepartmentSearch(input, searchValue, page);
+            performDepartmentSearch(input, searchValue, page, isUpdate);
             return;
         }
         
         if (input.fieldType === 'employee') {
-            performEmployeeSearch(input, searchValue, page);
+            performEmployeeSearch(input, searchValue, page, isUpdate);
             return;
         }
         
         if (input.fieldType === 'currency') {
-            performCurrencySearch(input, searchValue, page);
+            performCurrencySearch(input, searchValue, page, isUpdate);
             return;
         }
         
         if (input.fieldType === 'amount') {
-            performAmountSearch(input, searchValue, page);
+            performAmountSearch(input, searchValue, page, isUpdate);
             return;
         }
         
@@ -373,7 +413,7 @@
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
-                    renderDropdown(input, results, searchType, searchValue, pagination);
+                    renderDropdown(input, results, searchType, searchValue, pagination, isUpdate);
                 } catch (e) {
                     console.error('JSON parse error:', e);
                 }
@@ -385,33 +425,38 @@
     }
 
   
-    function performInvoiceSearch(input, searchValue, page) {
+    function performInvoiceSearch(input, searchValue, page, isUpdate) {
         searchValue = searchValue.trim();
         page = page || 1;
+        isUpdate = isUpdate || false;
         const dropdown = input.autocompleteDropdown;
         const rowNum = input.rowNumber;
         
         let accountNr = '';
         let accountType = '';
         
-        const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
-        const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
-        if (dTypeField && debeField) {
-            const dType = dTypeField.value.toUpperCase().trim();
-            if (dType === 'D' || dType === 'K') {
-                accountType = dType;
-                accountNr = debeField.value.trim();
+        // Only apply account filter if user is searching (typing) or updating results
+        // On fresh open (empty search, not update), show ALL open items
+        if (searchValue !== '' || isUpdate) {
+            const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
+            const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
+            if (dTypeField && debeField) {
+                const dType = dTypeField.value.toUpperCase().trim();
+                if (dType === 'D' || dType === 'K') {
+                    accountType = dType;
+                    accountNr = debeField.value.trim();
+                }
             }
-        }
-        
-        if (!accountNr) {
-            const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
-            const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
-            if (kTypeField && kredField) {
-                const kType = kTypeField.value.toUpperCase().trim();
-                if (kType === 'D' || kType === 'K') {
-                    accountType = kType;
-                    accountNr = kredField.value.trim();
+            
+            if (!accountNr) {
+                const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
+                const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
+                if (kTypeField && kredField) {
+                    const kType = kTypeField.value.toUpperCase().trim();
+                    if (kType === 'D' || kType === 'K') {
+                        accountType = kType;
+                        accountNr = kredField.value.trim();
+                    }
                 }
             }
         }
@@ -441,7 +486,7 @@
                     const data = JSON.parse(text);
                     const results = data.results || data;
                     const pagination = data.pagination || { page: 1, total: results.length, hasMore: false };
-                    renderInvoiceDropdown(input, results, searchValue, pagination);
+                    renderInvoiceDropdown(input, results, searchValue, pagination, isUpdate);
                 } catch (e) {
                     console.error('JSON parse error:', e);
                 }
@@ -453,8 +498,9 @@
     }
 
  
-    function performDepartmentSearch(input, searchValue, page) {
+    function performDepartmentSearch(input, searchValue, page, isUpdate) {
         searchValue = searchValue.trim();
+        isUpdate = isUpdate || false;
         const dropdown = input.autocompleteDropdown;
 
         let basePath = '';
@@ -475,7 +521,7 @@
             })
             .then(function(data) {
                 const results = data.results || [];
-                renderSimpleDropdown(input, results, 'department', searchValue);
+                renderSimpleDropdown(input, results, 'department', searchValue, isUpdate);
             })
             .catch(function(error) {
                 console.error('Department search error:', error);
@@ -486,8 +532,9 @@
     /**
      * Perform AJAX search for employees
      */
-    function performEmployeeSearch(input, searchValue, page) {
+    function performEmployeeSearch(input, searchValue, page, isUpdate) {
         searchValue = searchValue.trim();
+        isUpdate = isUpdate || false;
         const dropdown = input.autocompleteDropdown;
 
         let basePath = '';
@@ -508,7 +555,7 @@
             })
             .then(function(data) {
                 const results = data.results || [];
-                renderSimpleDropdown(input, results, 'employee', searchValue);
+                renderSimpleDropdown(input, results, 'employee', searchValue, isUpdate);
             })
             .catch(function(error) {
                 console.error('Employee search error:', error);
@@ -517,8 +564,9 @@
     }
 
 
-    function performCurrencySearch(input, searchValue, page) {
+    function performCurrencySearch(input, searchValue, page, isUpdate) {
         searchValue = searchValue.trim();
+        isUpdate = isUpdate || false;
         const dropdown = input.autocompleteDropdown;
 
         let basePath = '';
@@ -539,7 +587,7 @@
             })
             .then(function(data) {
                 const results = data.results || [];
-                renderSimpleDropdown(input, results, 'currency', searchValue);
+                renderSimpleDropdown(input, results, 'currency', searchValue, isUpdate);
             })
             .catch(function(error) {
                 console.error('Currency search error:', error);
@@ -547,8 +595,9 @@
             });
     }
 
-    function performAmountSearch(input, searchValue, page) {
+    function performAmountSearch(input, searchValue, page, isUpdate) {
         searchValue = searchValue.trim();
+        isUpdate = isUpdate || false;
         const dropdown = input.autocompleteDropdown;
         const rowNum = input.rowNumber;
         
@@ -556,33 +605,37 @@
         let accountType = '';
         let invoiceNr = '';
         
-        // Check debet field first
-        const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
-        const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
-        if (dTypeField && debeField) {
-            const dType = dTypeField.value.toUpperCase().trim();
-            if (dType === 'D' || dType === 'K') {
-                accountType = dType;
-                accountNr = debeField.value.trim();
-            }
-        }
-        
-        // If not found in debet, check kredit
-        if (!accountNr) {
-            const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
-            const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
-            if (kTypeField && kredField) {
-                const kType = kTypeField.value.toUpperCase().trim();
-                if (kType === 'D' || kType === 'K') {
-                    accountType = kType;
-                    accountNr = kredField.value.trim();
+        // Only apply account/invoice filter if user is searching (typing) or updating results
+        // On fresh open (empty search, not update), show ALL open items
+        if (searchValue !== '' || isUpdate) {
+            // Check debet field first
+            const dTypeField = document.querySelector('input[name="d_ty' + rowNum + '"]');
+            const debeField = document.querySelector('input[name="debe' + rowNum + '"]');
+            if (dTypeField && debeField) {
+                const dType = dTypeField.value.toUpperCase().trim();
+                if (dType === 'D' || dType === 'K') {
+                    accountType = dType;
+                    accountNr = debeField.value.trim();
                 }
             }
-        }
-        
-        const faktField = document.querySelector('input[name="fakt' + rowNum + '"]');
-        if (faktField) {
-            invoiceNr = faktField.value.trim();
+            
+            // If not found in debet, check kredit
+            if (!accountNr) {
+                const kTypeField = document.querySelector('input[name="k_ty' + rowNum + '"]');
+                const kredField = document.querySelector('input[name="kred' + rowNum + '"]');
+                if (kTypeField && kredField) {
+                    const kType = kTypeField.value.toUpperCase().trim();
+                    if (kType === 'D' || kType === 'K') {
+                        accountType = kType;
+                        accountNr = kredField.value.trim();
+                    }
+                }
+            }
+            
+            const faktField = document.querySelector('input[name="fakt' + rowNum + '"]');
+            if (faktField) {
+                invoiceNr = faktField.value.trim();
+            }
         }
 
         let basePath = '';
@@ -606,7 +659,7 @@
             })
             .then(function(data) {
                 const results = data.results || [];
-                renderAmountDropdown(input, results, searchValue);
+                renderAmountDropdown(input, results, searchValue, isUpdate);
             })
             .catch(function(error) {
                 console.error('Amount search error:', error);
@@ -614,9 +667,10 @@
             });
     }
 
-    function renderSimpleDropdown(input, results, fieldType, searchValue) {
+    function renderSimpleDropdown(input, results, fieldType, searchValue, isUpdate) {
         const dropdown = input.autocompleteDropdown;
         const trans = getTrans();
+        isUpdate = isUpdate || false;
         
         let title, col1Header, col2Header;
         switch (fieldType) {
@@ -641,24 +695,18 @@
                 col2Header = trans.description;
         }
         
-        let html = '<div class="account-autocomplete-header">' +
-            '<span class="account-autocomplete-header-title">' + title + '</span>' +
-            '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
-            '</div>' +
-            '<div class="account-autocomplete-search-box">' +
-            '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
-            '</div>';
-        
+        // Build results HTML only
+        let resultsHtml = '';
         if (!results || results.length === 0) {
-            html += '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+            resultsHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
         } else {
-            html += '<div class="account-autocomplete-results">';
-            html += '<table class="account-autocomplete-table">';
-            html += '<thead><tr>' +
+            resultsHtml = '<div class="account-autocomplete-results">';
+            resultsHtml += '<table class="account-autocomplete-table">';
+            resultsHtml += '<thead><tr>' +
                     '<th style="width:80px;">' + col1Header + '</th>' +
                     '<th>' + col2Header + '</th>' +
                     '</tr></thead>';
-            html += '<tbody>';
+            resultsHtml += '<tbody>';
             
             results.forEach(function(item) {
                 let code, description, displayValue;
@@ -685,15 +733,37 @@
                         displayValue = code;
                 }
                 
-                html += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(displayValue) + '">' +
+                resultsHtml += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(displayValue) + '">' +
                         '<td>' + escapeHtml(code) + '</td>' +
                         '<td>' + escapeHtml(description) + '</td>' +
                         '</tr>';
             });
             
-            html += '</tbody></table>';
-            html += '</div>';
+            resultsHtml += '</tbody></table>';
+            resultsHtml += '</div>';
         }
+        
+        // If isUpdate is true, only update the results section, don't touch search input
+        if (isUpdate) {
+            const existingResults = dropdown.querySelector('.account-autocomplete-results');
+            const existingNoResults = dropdown.querySelector('.account-autocomplete-no-results');
+            
+            if (existingResults) {
+                existingResults.outerHTML = resultsHtml;
+            } else if (existingNoResults) {
+                existingNoResults.outerHTML = resultsHtml;
+            }
+            return;
+        }
+        
+        // Full render - build complete HTML
+        let html = '<div class="account-autocomplete-header">' +
+            '<span class="account-autocomplete-header-title">' + title + '</span>' +
+            '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
+            '</div>' +
+            '<div class="account-autocomplete-search-box">' +
+            '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
+            '</div>' + resultsHtml;
         
         dropdown.innerHTML = html;
         positionDropdown(input, dropdown);
@@ -709,359 +779,346 @@
     }
 
   
-    function renderDropdown(input, results, searchType, currentSearchValueParam, pagination) {
+    function renderDropdown(input, results, searchType, currentSearchValueParam, pagination, isUpdate) {
         const dropdown = input.autocompleteDropdown;
         const trans = getTrans();
         
         currentSearchValueParam = currentSearchValueParam || '';
-        
         pagination = pagination || { page: 1, total: 0, hasMore: false };
-        
-        if (!results || results.length === 0) {
-            if (currentSearchValueParam !== '') {
-                dropdown.innerHTML = '<div class="account-autocomplete-header">' +
-                    '<span class="account-autocomplete-header-title">' + trans.selectAccount + '</span>' +
-                    '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
-                    '</div>' +
-                    '<div class="account-autocomplete-search-box">' +
-                    '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchAccount + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
-                    '</div>' +
-                    '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
-                positionDropdown(input, dropdown);
-                dropdown.style.display = 'flex';
-                activeDropdown = dropdown;
-                activeInput = input;
-                const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-                if (searchInput) {
-                    searchInput.focus();
-                }
-                return;
-            }
-            dropdown.style.display = 'none';
-            activeDropdown = null;
-            activeInput = null;
-            return;
-        }
-
-        let html = '';
+        isUpdate = isUpdate || false;
         
         const titleText = searchType === 'finance' ? trans.selectAccount : 
                          (searchType === 'debitor' ? trans.selectDebtor : trans.selectCreditor);
-        html += '<div class="account-autocomplete-header">';
-        html += '<span class="account-autocomplete-header-title">' + titleText + '</span>';
-        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
-        html += '</div>';
         
-        html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchAccount + '" value="' + escapeHtml(currentSearchValueParam) + '">';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-results">';
-        html += '<table class="account-autocomplete-table">';
-        
-        if (searchType === 'finance') {
-            html += '<thead><tr>' +
-                    '<th style="width:70px;">' + trans.accountNo + '</th>' +
-                    '<th>' + trans.description + '</th>' +
-                    '<th style="width:45px;">' + trans.vat + '</th>' +
-                    '<th style="width:50px;">' + trans.shortcut + '</th>' +
-                    '<th style="width:90px;text-align:right;">' + trans.balance + '</th>' +
-                    '</tr></thead>';
+        // Build results HTML
+        let resultsHtml = '';
+        if (!results || results.length === 0) {
+            resultsHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
         } else {
-            html += '<thead><tr>' +
-                    '<th style="width:80px;">' + trans.accountNo + '</th>' +
-                    '<th>' + trans.companyName + '</th>' +
-                    '</tr></thead>';
+            resultsHtml = '<div class="account-autocomplete-results">';
+            resultsHtml += '<table class="account-autocomplete-table">';
+            
+            if (searchType === 'finance') {
+                resultsHtml += '<thead><tr>' +
+                        '<th style="width:70px;">' + trans.accountNo + '</th>' +
+                        '<th>' + trans.description + '</th>' +
+                        '<th style="width:45px;">' + trans.vat + '</th>' +
+                        '<th style="width:50px;">' + trans.shortcut + '</th>' +
+                        '<th style="width:90px;text-align:right;">' + trans.balance + '</th>' +
+                        '</tr></thead>';
+            } else {
+                resultsHtml += '<thead><tr>' +
+                        '<th style="width:80px;">' + trans.accountNo + '</th>' +
+                        '<th>' + trans.companyName + '</th>' +
+                        '</tr></thead>';
+            }
+            
+            resultsHtml += '<tbody>';
+            
+            let itemIndex = 0;
+            results.forEach(function(item) {
+                if (item.kontotype === 'H') {
+                    resultsHtml += '<tr class="account-autocomplete-category">' +
+                            '<td colspan="5"><strong>' + escapeHtml(item.beskrivelse) + '</strong></td>' +
+                            '</tr>';
+                } else {
+                    resultsHtml += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(item.kontonr) + '" data-index="' + itemIndex + '">';
+                    
+                    if (searchType === 'finance') {
+                        resultsHtml += '<td>' + escapeHtml(item.kontonr) + '</td>' +
+                                '<td title="' + escapeHtml(item.beskrivelse) + '">' + escapeHtml(item.beskrivelse) + '</td>' +
+                                '<td>' + escapeHtml(item.moms || '') + '</td>' +
+                                '<td>' + escapeHtml(item.genvej || '') + '</td>' +
+                                '<td style="text-align:right;">' + formatNumber(item.saldo) + '</td>';
+                    } else {
+                        resultsHtml += '<td>' + escapeHtml(item.kontonr) + '</td>' +
+                                '<td title="' + escapeHtml(item.beskrivelse) + '">' + escapeHtml(item.beskrivelse) + '</td>';
+                    }
+                    
+                    resultsHtml += '</tr>';
+                    itemIndex++;
+                }
+            });
+            
+            resultsHtml += '</tbody></table>';
+            resultsHtml += '</div>';
         }
         
-        html += '<tbody>';
-        
-        let itemIndex = 0;
-        results.forEach(function(item) {
-            if (item.kontotype === 'H') {
-                html += '<tr class="account-autocomplete-category">' +
-                        '<td colspan="5"><strong>' + escapeHtml(item.beskrivelse) + '</strong></td>' +
-                        '</tr>';
-            } else {
-                html += '<tr class="account-autocomplete-item" data-kontonr="' + escapeHtml(item.kontonr) + '" data-index="' + itemIndex + '">';
-                
-                if (searchType === 'finance') {
-                    html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
-                            '<td title="' + escapeHtml(item.beskrivelse) + '">' + escapeHtml(item.beskrivelse) + '</td>' +
-                            '<td>' + escapeHtml(item.moms || '') + '</td>' +
-                            '<td>' + escapeHtml(item.genvej || '') + '</td>' +
-                            '<td style="text-align:right;">' + formatNumber(item.saldo) + '</td>';
-                } else {
-                    html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
-                            '<td title="' + escapeHtml(item.beskrivelse) + '">' + escapeHtml(item.beskrivelse) + '</td>';
-                }
-                
-                html += '</tr>';
-                itemIndex++;
-            }
-        });
-        
-        html += '</tbody></table>';
-        html += '</div>'; 
-        
+        // Build pagination HTML
+        let paginationHtml = '';
         if (pagination.total > 0) {
             const startItem = ((pagination.page - 1) * pagination.limit) + 1;
             const endItem = Math.min(pagination.page * pagination.limit, pagination.total);
             
-            html += '<div class="account-autocomplete-footer">';
-            html += '<span class="account-autocomplete-pagination-info">' + trans.showing + ' ' + startItem + '-' + endItem + ' ' + trans.of + ' ' + pagination.total + '</span>';
+            paginationHtml += '<div class="account-autocomplete-footer">';
+            paginationHtml += '<span class="account-autocomplete-pagination-info">' + trans.showing + ' ' + startItem + '-' + endItem + ' ' + trans.of + ' ' + pagination.total + '</span>';
             
-            html += '<div class="account-autocomplete-pagination-buttons">';
+            paginationHtml += '<div class="account-autocomplete-pagination-buttons">';
             if (pagination.page > 1) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← ' + trans.previous + '</button>';
+                paginationHtml += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← ' + trans.previous + '</button>';
             }
             if (pagination.hasMore) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">' + trans.next + ' →</button>';
+                paginationHtml += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">' + trans.next + ' →</button>';
             }
-            html += '</div>';
-            html += '</div>';
+            paginationHtml += '</div>';
+            paginationHtml += '</div>';
         }
         
-        const existingSearchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        const searchValueToRestore = existingSearchInput ? existingSearchInput.value : currentSearchValueParam;
-        const cursorPos = existingSearchInput ? existingSearchInput.selectionStart : searchValueToRestore.length;
+        // If isUpdate is true, only update the results and pagination sections, don't touch search input
+        if (isUpdate) {
+            const existingResults = dropdown.querySelector('.account-autocomplete-results');
+            const existingNoResults = dropdown.querySelector('.account-autocomplete-no-results');
+            const existingFooter = dropdown.querySelector('.account-autocomplete-footer');
+            
+            // Update results section
+            if (existingResults) {
+                existingResults.outerHTML = resultsHtml;
+            } else if (existingNoResults) {
+                existingNoResults.outerHTML = resultsHtml;
+            }
+            
+            // Update pagination section
+            if (existingFooter) {
+                if (paginationHtml) {
+                    existingFooter.outerHTML = paginationHtml;
+                } else {
+                    existingFooter.remove();
+                }
+            } else if (paginationHtml) {
+                dropdown.insertAdjacentHTML('beforeend', paginationHtml);
+            }
+            return;
+        }
+        
+        // Full render - build complete HTML (always show dropdown, even with no results)
+        let html = '<div class="account-autocomplete-header">' +
+            '<span class="account-autocomplete-header-title">' + titleText + '</span>' +
+            '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
+            '</div>' +
+            '<div class="account-autocomplete-search-box">' +
+            '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchAccount + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
+            '</div>' + resultsHtml + paginationHtml;
         
         dropdown.innerHTML = html;
-        
         positionDropdown(input, dropdown);
-        
         dropdown.style.display = 'flex';
         activeDropdown = dropdown;
         activeInput = input;
         
         const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
         if (searchInput) {
-            searchInput.value = searchValueToRestore;
             searchInput.focus();
-            try {
-                searchInput.setSelectionRange(cursorPos, cursorPos);
-            } catch (e) {
-               console.log('error in autocomplte', e)
-
-            }
+            searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
         }
     }
 
  
-    function renderInvoiceDropdown(input, results, currentSearchValueParam, pagination) {
+    function renderInvoiceDropdown(input, results, currentSearchValueParam, pagination, isUpdate) {
         const dropdown = input.autocompleteDropdown;
         
         currentSearchValueParam = currentSearchValueParam || '';
         pagination = pagination || { page: 1, total: 0, hasMore: false };
+        isUpdate = isUpdate || false;
         const trans = getTrans();
         
+        // Build results HTML
+        let resultsHtml = '';
         if (!results || results.length === 0) {
-            if (currentSearchValueParam !== '') {
-                dropdown.innerHTML = '<div class="account-autocomplete-header">' +
-                    '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>' +
-                    '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
-                    '</div>' +
-                    '<div class="account-autocomplete-search-box">' +
-                    '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchInvoice + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
-                    '</div>' +
-                    '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
-                positionDropdown(input, dropdown);
-                dropdown.style.display = 'flex';
-                activeDropdown = dropdown;
-                activeInput = input;
-                const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-                if (searchInput) {
-                    searchInput.focus();
-                }
-                return;
-            }
-            dropdown.style.display = 'none';
-            activeDropdown = null;
-            activeInput = null;
-            return;
+            resultsHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+        } else {
+            resultsHtml = '<div class="account-autocomplete-results">';
+            resultsHtml += '<table class="account-autocomplete-table">';
+            
+            resultsHtml += '<thead><tr>' +
+                    '<th style="width:80px;">' + trans.accountNo + '</th>' +
+                    '<th>' + trans.name + '</th>' +
+                    '<th style="width:90px;">' + trans.invoiceNo + '</th>' +
+                    '<th style="width:80px;">' + trans.date + '</th>' +
+                    '<th style="width:90px;text-align:right;">' + trans.amount + '</th>' +
+                    '</tr></thead>';
+            
+            resultsHtml += '<tbody>';
+            
+            let itemIndex = 0;
+            results.forEach(function(item) {
+                const description = (item.firmanavn || '') + (item.faktnr ? ' - ' + item.faktnr : '');
+                
+                resultsHtml += '<tr class="account-autocomplete-item"' +
+                        ' data-kontonr="' + escapeHtml(item.faktnr) + '"' +
+                        ' data-faktnr="' + escapeHtml(item.faktnr) + '"' +
+                        ' data-amount="' + item.amount + '"' +
+                        ' data-accountnr="' + escapeHtml(item.kontonr || '') + '"' +
+                        ' data-accounttype="' + escapeHtml(item.art || '') + '"' +
+                        ' data-companyname="' + escapeHtml(item.firmanavn || '') + '"' +
+                        ' data-description="' + escapeHtml(description) + '"' +
+                        ' data-currency="' + escapeHtml(item.valuta || '') + '"' +
+                        ' data-offsetaccount="' + escapeHtml(item.offsetAccount || '') + '"' +
+                        ' data-index="' + itemIndex + '">';
+                
+                resultsHtml += '<td>' + escapeHtml(item.kontonr) + '</td>' +
+                        '<td title="' + escapeHtml(item.firmanavn || '') + '">' + escapeHtml(item.firmanavn || '') + '</td>' +
+                        '<td>' + escapeHtml(item.faktnr || '') + '</td>' +
+                        '<td>' + formatDate(item.transdate) + '</td>' +
+                        '<td style="text-align:right;">' + formatNumber(item.amount) + '</td>';
+                
+                resultsHtml += '</tr>';
+                itemIndex++;
+            });
+            
+            resultsHtml += '</tbody></table>';
+            resultsHtml += '</div>';
         }
-
-        let html = '';
         
-        html += '<div class="account-autocomplete-header">';
-        html += '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>';
-        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchInvoice + '" value="' + escapeHtml(currentSearchValueParam) + '">';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-results">';
-        html += '<table class="account-autocomplete-table">';
-        
-        html += '<thead><tr>' +
-                '<th style="width:80px;">' + trans.accountNo + '</th>' +
-                '<th>' + trans.name + '</th>' +
-                '<th style="width:90px;">' + trans.invoiceNo + '</th>' +
-                '<th style="width:80px;">' + trans.date + '</th>' +
-                '<th style="width:90px;text-align:right;">' + trans.amount + '</th>' +
-                '</tr></thead>';
-        
-        html += '<tbody>';
-        
-        let itemIndex = 0;
-        results.forEach(function(item) {
-            const description = (item.firmanavn || '') + (item.faktnr ? ' - ' + item.faktnr : '');
-            
-            html += '<tr class="account-autocomplete-item"' +
-                    ' data-kontonr="' + escapeHtml(item.faktnr) + '"' +
-                    ' data-faktnr="' + escapeHtml(item.faktnr) + '"' +
-                    ' data-amount="' + item.amount + '"' +
-                    ' data-accountnr="' + escapeHtml(item.kontonr || '') + '"' +
-                    ' data-accounttype="' + escapeHtml(item.art || '') + '"' +
-                    ' data-companyname="' + escapeHtml(item.firmanavn || '') + '"' +
-                    ' data-description="' + escapeHtml(description) + '"' +
-                    ' data-currency="' + escapeHtml(item.valuta || '') + '"' +
-                    ' data-offsetaccount="' + escapeHtml(item.offsetAccount || '') + '"' +
-                    ' data-index="' + itemIndex + '">';
-            
-            html += '<td>' + escapeHtml(item.kontonr) + '</td>' +
-                    '<td title="' + escapeHtml(item.firmanavn || '') + '">' + escapeHtml(item.firmanavn || '') + '</td>' +
-                    '<td>' + escapeHtml(item.faktnr || '') + '</td>' +
-                    '<td>' + formatDate(item.transdate) + '</td>' +
-                    '<td style="text-align:right;">' + formatNumber(item.amount) + '</td>';
-            
-            html += '</tr>';
-            itemIndex++;
-        });
-        
-        html += '</tbody></table>';
-        html += '</div>';
-        
+        // Build pagination HTML
+        let paginationHtml = '';
         if (pagination.total > 0) {
             const startItem = ((pagination.page - 1) * pagination.limit) + 1;
             const endItem = Math.min(pagination.page * pagination.limit, pagination.total);
             
-            html += '<div class="account-autocomplete-footer">';
-            html += '<span class="account-autocomplete-pagination-info">' + trans.showing + ' ' + startItem + '-' + endItem + ' ' + trans.of + ' ' + pagination.total + '</span>';
+            paginationHtml += '<div class="account-autocomplete-footer">';
+            paginationHtml += '<span class="account-autocomplete-pagination-info">' + trans.showing + ' ' + startItem + '-' + endItem + ' ' + trans.of + ' ' + pagination.total + '</span>';
             
-            html += '<div class="account-autocomplete-pagination-buttons">';
+            paginationHtml += '<div class="account-autocomplete-pagination-buttons">';
             if (pagination.page > 1) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← ' + trans.previous + '</button>';
+                paginationHtml += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page - 1) + '">← ' + trans.previous + '</button>';
             }
             if (pagination.hasMore) {
-                html += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">' + trans.next + ' →</button>';
+                paginationHtml += '<button type="button" class="account-autocomplete-page-btn" data-page="' + (pagination.page + 1) + '">' + trans.next + ' →</button>';
             }
-            html += '</div>';
-            html += '</div>';
+            paginationHtml += '</div>';
+            paginationHtml += '</div>';
         }
         
-        const existingSearchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        const searchValueToRestore = existingSearchInput ? existingSearchInput.value : currentSearchValueParam;
-        const cursorPos = existingSearchInput ? existingSearchInput.selectionStart : searchValueToRestore.length;
+        // If isUpdate is true, only update the results and pagination sections, don't touch search input
+        if (isUpdate) {
+            const existingResults = dropdown.querySelector('.account-autocomplete-results');
+            const existingNoResults = dropdown.querySelector('.account-autocomplete-no-results');
+            const existingFooter = dropdown.querySelector('.account-autocomplete-footer');
+            
+            // Update results section
+            if (existingResults) {
+                existingResults.outerHTML = resultsHtml;
+            } else if (existingNoResults) {
+                existingNoResults.outerHTML = resultsHtml;
+            }
+            
+            // Update pagination section
+            if (existingFooter) {
+                if (paginationHtml) {
+                    existingFooter.outerHTML = paginationHtml;
+                } else {
+                    existingFooter.remove();
+                }
+            } else if (paginationHtml) {
+                dropdown.insertAdjacentHTML('beforeend', paginationHtml);
+            }
+            return;
+        }
+        
+        // Full render - build complete HTML (always show dropdown, even with no results)
+        let html = '<div class="account-autocomplete-header">' +
+            '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>' +
+            '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
+            '</div>' +
+            '<div class="account-autocomplete-search-box">' +
+            '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchInvoice + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
+            '</div>' + resultsHtml + paginationHtml;
         
         dropdown.innerHTML = html;
-        
         positionDropdown(input, dropdown);
-        
         dropdown.style.display = 'flex';
         activeDropdown = dropdown;
         activeInput = input;
         
         const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
         if (searchInput) {
-            searchInput.value = searchValueToRestore;
             searchInput.focus();
-            try {
-                searchInput.setSelectionRange(cursorPos, cursorPos);
-            } catch (e) {
-           
-            }
+            searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
         }
     }
 
  
-    function renderAmountDropdown(input, results, searchValue) {
+    function renderAmountDropdown(input, results, searchValue, isUpdate) {
         const dropdown = input.autocompleteDropdown;
         const trans = getTrans();
         
         searchValue = searchValue || '';
+        isUpdate = isUpdate || false;
         
         const title = trans.selectAmount || 'Select Amount';
         
+        // Build results HTML
+        let resultsHtml = '';
         if (!results || results.length === 0) {
-            dropdown.innerHTML = '<div class="account-autocomplete-header">' +
-                '<span class="account-autocomplete-header-title">' + title + '</span>' +
-                '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
-                '</div>' +
-                '<div class="account-autocomplete-search-box">' +
-                '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
-                '</div>' +
-                '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
-            positionDropdown(input, dropdown);
-            dropdown.style.display = 'flex';
-            activeDropdown = dropdown;
-            activeInput = input;
-            const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-            if (searchInput) {
-                searchInput.focus();
+            resultsHtml = '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
+        } else {
+            resultsHtml = '<div class="account-autocomplete-results">';
+            resultsHtml += '<table class="account-autocomplete-table">';
+            
+            resultsHtml += '<thead><tr>' +
+                    '<th style="width:80px;">' + trans.accountNo + '</th>' +
+                    '<th>' + trans.name + '</th>' +
+                    '<th style="width:90px;">' + trans.invoiceNo + '</th>' +
+                    '<th style="width:80px;">' + trans.date + '</th>' +
+                    '<th style="width:100px;text-align:right;">' + trans.amount + '</th>' +
+                    '</tr></thead>';
+            
+            resultsHtml += '<tbody>';
+            
+            let itemIndex = 0;
+            results.forEach(function(item) {
+                const description = (item.companyName || '') + (item.invoiceNr ? ' - ' + item.invoiceNr : '');
+                
+                resultsHtml += '<tr class="account-autocomplete-item"' +
+                        ' data-kontonr="' + escapeHtml(item.amount.toString()) + '"' +
+                        ' data-faktnr="' + escapeHtml(item.invoiceNr || '') + '"' +
+                        ' data-amount="' + item.amount + '"' +
+                        ' data-accountnr="' + escapeHtml(item.accountNr || '') + '"' +
+                        ' data-accounttype="' + escapeHtml(item.accountType || '') + '"' +
+                        ' data-companyname="' + escapeHtml(item.companyName || '') + '"' +
+                        ' data-description="' + escapeHtml(description) + '"' +
+                        ' data-currency="' + escapeHtml(item.currency || '') + '"' +
+                        ' data-offsetaccount="' + escapeHtml(item.offsetAccount || '') + '"' +
+                        ' data-index="' + itemIndex + '">';
+                
+                resultsHtml += '<td>' + escapeHtml(item.accountNr || '') + '</td>' +
+                        '<td title="' + escapeHtml(item.companyName || '') + '">' + escapeHtml(item.companyName || '') + '</td>' +
+                        '<td>' + escapeHtml(item.invoiceNr || '') + '</td>' +
+                        '<td>' + formatDate(item.date) + '</td>' +
+                        '<td style="text-align:right;font-weight:bold;">' + formatNumber(item.amount) + '</td>';
+                
+                resultsHtml += '</tr>';
+                itemIndex++;
+            });
+            
+            resultsHtml += '</tbody></table>';
+            resultsHtml += '</div>';
+        }
+        
+        // If isUpdate is true, only update the results section, don't touch search input
+        if (isUpdate) {
+            const existingResults = dropdown.querySelector('.account-autocomplete-results');
+            const existingNoResults = dropdown.querySelector('.account-autocomplete-no-results');
+            
+            if (existingResults) {
+                existingResults.outerHTML = resultsHtml;
+            } else if (existingNoResults) {
+                existingNoResults.outerHTML = resultsHtml;
             }
             return;
         }
-
-        let html = '';
         
-        html += '<div class="account-autocomplete-header">';
-        html += '<span class="account-autocomplete-header-title">' + title + '</span>';
-        html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-results">';
-        html += '<table class="account-autocomplete-table">';
-        
-        html += '<thead><tr>' +
-                '<th style="width:80px;">' + trans.accountNo + '</th>' +
-                '<th>' + trans.name + '</th>' +
-                '<th style="width:90px;">' + trans.invoiceNo + '</th>' +
-                '<th style="width:80px;">' + trans.date + '</th>' +
-                '<th style="width:100px;text-align:right;">' + trans.amount + '</th>' +
-                '</tr></thead>';
-        
-        html += '<tbody>';
-        
-        let itemIndex = 0;
-        results.forEach(function(item) {
-            const description = (item.companyName || '') + (item.invoiceNr ? ' - ' + item.invoiceNr : '');
-            
-            html += '<tr class="account-autocomplete-item"' +
-                    ' data-kontonr="' + escapeHtml(item.amount.toString()) + '"' +
-                    ' data-faktnr="' + escapeHtml(item.invoiceNr || '') + '"' +
-                    ' data-amount="' + item.amount + '"' +
-                    ' data-accountnr="' + escapeHtml(item.accountNr || '') + '"' +
-                    ' data-accounttype="' + escapeHtml(item.accountType || '') + '"' +
-                    ' data-companyname="' + escapeHtml(item.companyName || '') + '"' +
-                    ' data-description="' + escapeHtml(description) + '"' +
-                    ' data-currency="' + escapeHtml(item.currency || '') + '"' +
-                    ' data-offsetaccount="' + escapeHtml(item.offsetAccount || '') + '"' +
-                    ' data-index="' + itemIndex + '">';
-            
-            html += '<td>' + escapeHtml(item.accountNr || '') + '</td>' +
-                    '<td title="' + escapeHtml(item.companyName || '') + '">' + escapeHtml(item.companyName || '') + '</td>' +
-                    '<td>' + escapeHtml(item.invoiceNr || '') + '</td>' +
-                    '<td>' + formatDate(item.date) + '</td>' +
-                    '<td style="text-align:right;font-weight:bold;">' + formatNumber(item.amount) + '</td>';
-            
-            html += '</tr>';
-            itemIndex++;
-        });
-        
-        html += '</tbody></table>';
-        html += '</div>';
+        // Full render - build complete HTML
+        let html = '<div class="account-autocomplete-header">' +
+            '<span class="account-autocomplete-header-title">' + title + '</span>' +
+            '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
+            '</div>' +
+            '<div class="account-autocomplete-search-box">' +
+            '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
+            '</div>' + resultsHtml;
         
         dropdown.innerHTML = html;
-        
         positionDropdown(input, dropdown);
-        
         dropdown.style.display = 'flex';
         activeDropdown = dropdown;
         activeInput = input;
@@ -1069,6 +1126,7 @@
         const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
         if (searchInput) {
             searchInput.focus();
+            searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
         }
     }
 
@@ -1376,7 +1434,13 @@
     }
 
     window.addEventListener('load', function() {
-        if (document.querySelectorAll('.account-autocomplete-wrapper').length === 0) {
+        // Check if any inputs have been initialized
+        var debeInputs = document.querySelectorAll('input[name^="debe"]');
+        var hasInitialized = false;
+        debeInputs.forEach(function(input) {
+            if (input.autocompleteInitialized) hasInitialized = true;
+        });
+        if (!hasInitialized) {
             initAccountAutocomplete();
         }
     });
