@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-12-18 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-12-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -468,16 +468,21 @@ if ($_POST) {
 				&& !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && !$faktura[$x] && !$belob[$x]
 			) {
 				$bilag[$x] = '-'; #20170418
+				$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 			} elseif (
 				$submit != 'lookup' && (!$bilag[$x] || $bilag[$x] == $bilag[$x - 1]) && (!$dato[$x] || $dato[$x] == $dato[$x - 1])
 				&& (!$beskrivelse[$x] || $beskrivelse[$x] == $beskrivelse[$x - 1]) && !$d_type[$x] && !$k_type[$x] && !$debet[$x]
 				&& !$kredit[$x] && !$faktura[$x] && !$belob[$x]
 			) {
 				$bilag[$x] = '-'; #20230302
+				$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 			}
 		} elseif (!$bilag[$x] && !$dato[$x] && !$beskrivelse[$x] && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x])
 			$bilag[$x] = '-';
-		elseif ($bilag[$x - 1] == '-' && $dato[$x] == $dato[$x - 2] && !$beskrivelse[$x] && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x]) $bilag[$x] = '-'; # 20170419
+		elseif ($bilag[$x - 1] == '-' && $dato[$x] == $dato[$x - 2] && !$beskrivelse[$x] && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x]) {
+			$bilag[$x] = '-'; # 20170419
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
+		}
 		if (($bilag[$x] == "-*")) $sletrest = 1;
 		if ($sletrest) $bilag[$x] = '-';
 		if (($bilag[$x] == "=*")) $restlig = 1;
@@ -485,7 +490,10 @@ if ($_POST) {
 		if ($bilag[$x] == "=")               $bilag[$x]        = $bilag[$x - 1];
 		if ($bilag[$x] == "+")               $bilag[$x]        = $bilag[$x - 1] + 1;
 		if (substr($bilag[$x], 0, 1) == "+") $bilag[$x]        = $bilag[$x - 1] + 1;
-		if (!$dato[$x] || $dato[$x] == '=')  $dato[$x]         = $dato[$x - 1];
+		# 20251217 OLD CODE - date was copied even for deleted rows causing empty rows to show date/amount/currency
+		# if (!$dato[$x] || $dato[$x] == '=')  $dato[$x]         = $dato[$x - 1];
+		# 20251217 NEW CODE - Don't copy date for rows marked for deletion (bilag = '-')
+		if ($bilag[$x] != '-' && (!$dato[$x] || $dato[$x] == '='))  $dato[$x] = $dato[$x - 1];
 		if ($beskrivelse[$x] == "=")         $beskrivelse[$x]  = $beskrivelse[$x - 1];
 		if ($d_type[$x] == "=")              $d_type[$x]       = $d_type[$x - 1];
 		if ($debet[$x] == "=")               $debet[$x]        = $debet[$x - 1];
@@ -504,14 +512,18 @@ if ($_POST) {
 		if ($kredit[$x])                     $kontrolsum       = $kontrolsum - $dkkamount[$x];
 		$bilagssum[$x] = $kontrolsum;
 		# fjerner autogenererede linjer hvis bilaget er i balance
-		if (!$kontrolsum && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && $bilag[$x] == $bilag[$x - 1] && $dato[$x] == $dato[$x - 1] && $beskrivelse[$x] == $beskrivelse[$x - 1])
+		if (!$kontrolsum && !$d_type[$x] && !$k_type[$x] && !$debet[$x] && !$kredit[$x] && $bilag[$x] == $bilag[$x - 1] && $dato[$x] == $dato[$x - 1] && $beskrivelse[$x] == $beskrivelse[$x - 1]) {
 			$bilag[$x] = "-";
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
+		}
 		if ((!$sletslut) && ($bilag[$x] == "->")) {
 			$sletstart = $x;
 			$bilag[$x] = "-";
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 		}
 		if ($bilag[$x] == "<-") {
 			$bilag[$x] = "-";
+			$dato[$x] = ''; # 20251217 Clear date when row marked for deletion - fixes empty rows showing date/amount/currency
 			if ((!$sletslut) && ($sletstart))
 				$sletslut = $x;
 		}
@@ -1155,7 +1167,7 @@ if (!$simuler) {
 		}
 	}
 }
-
+print"<div class='table-con'></div>"; 
 #############
 print '<style>
     /* Sticky header */
@@ -1167,61 +1179,30 @@ print '<style>
 		width: 100%;
 		margin: 8px;
     }
-
-    /* Note table */
     .kassekladde-note-tb {
-        position: sticky;
-        top: 50px;  
-        background-color: #f1f1f1;
-        z-index: 10;
-        margin: 0;
-        padding: 4px 0;
-        border-bottom: 2px solid #f1f1f1; 
-    }
-
-    /* Sticky Table Header */
-    .kassekladde-thead {
 		position: sticky;
-		top: 3px; 
+		top: 6vh; /* Top will be 6% of the viewport height */
 		background-color: #f1f1f1;
-		z-index: 25; 
-		margin: 0;
-		border-bottom: 2px solid #f1f1f1;
-		box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
-		 
+		z-index: 8;
 	}
 
-    .kassekladde-thead th {
-		background-color: #f1f1f1; 
-		border-bottom: 2px solid #ccc;
-		box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); 
-	}
-		.kassekladde-thead::before {
-			content: "";
-			position: absolute;
-			top: -3; 
-			left: 0;
-			right: 0;
-			height: 39px;
-			background-color: #f1f1f1; 
-			z-index: -1; 
-		}
-
-    /* Table wrapper */
-    .table-wrapper {
-        overflow: auto;
-        height: 95%; 
-        position: relative;
-        margin-top: 90px; 
-		padding-top: 0px; 
-		scroll-behavior: smooth;
-		
+    .kassekladde-thead {
+        position: sticky;
+        top: 70px; 
+       background-color: #f1f1f1;
+        z-index: 8; 
     }
-		.table-wrapper tbody {
-			margin-top: 10px;
-		}
-
-	.header-row {
+		.table-con {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 90px;  
+        background-color: #f1f1f1;  
+        z-index: 8; 
+		border-bottom: 1px solid #ccc; 
+    }
+	   .header-row {
 	  margin: 8px;
       position: fixed;
       top: 0;
@@ -1232,7 +1213,6 @@ print '<style>
       display: table; 
 	  padding-right: 17px;
   }
-
     /* Sticky footer for action buttons */
     .kassekladde-footer {
         position: sticky;
@@ -1242,17 +1222,7 @@ print '<style>
         padding: 8px 0;
         border-top: 1px solid #ccc;
     }
-
-    html, body {
-        overflow-y: hidden;
-    }
-</style>
-
-
-';
-?>
-
-<?php
+</style>';
 
 ############
 if (!$udskriv) {
@@ -1283,17 +1253,14 @@ print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 	# ####################################################################################################
 }
-
 if ($udskriv)
 	print "<tr><td style='width:100%;'>";
 else
 	print "<tr><td style='height:100%;width:100%;'>";
-print "<div class='table-wrapper'>"; 
 if (($bogfort && $bogfort != '-') || $udskriv) {
 	if ($menu == 'T') {
 		print "<br><center><table class='dataTable' width='100%' cellpadding='1' cellspacing='3' border='0' align = 'center' valign = 'top'>";
 	} else {
-		
 		print "<table cellpadding='1' cellspacing='3' border='0' align = 'center' valign = 'top'>";
 	}
 }
@@ -1301,7 +1268,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 else
 	print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
 // print "<tbody>"; # Tabel 1.3 -> kladdelinjer
-
+// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
 print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
 
 print "<tr>";
@@ -1339,12 +1306,12 @@ if ($kontrolkonto) {
 		print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 	}
 }
-print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
+#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
 print "</tr>\n";
 
 print "</thead>";
 print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
- print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
+print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
 
 
 #####################################  Output  #################################
@@ -1736,9 +1703,13 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		if (!isset($kredittext[$y])) $kredittext[$y] = NULL;
 		if (!isset($debettext[$y]))  $debettext[$y]  = NULL;
 		$amount[$y] = (float) $amount[$y];
-		if ((!$fejl) && ((($bilag[$y]) == "-") || (!$bilag[$y]) && (!$dato[$y]))) {
+		# 20251217 OLD CODE - only cleared fields when there was no error, but rows with bilag="-" should always be cleared
+		# if ((!$fejl) && ((($bilag[$y]) == "-") || (!$bilag[$y]) && (!$dato[$y]))) {
+		# 20251217 NEW CODE - Clear fields for rows marked for deletion (bilag = "-") regardless of error state
+		if ((($bilag[$y]) == "-") || ((!$fejl) && (!$bilag[$y]) && (!$dato[$y]))) {
 			$bilag[$y] = $dato[$y] = $beskrivelse[$y] = $d_type[$y] = $debet[$y] = $k_type[$y] = $kredit[$y] = $faktura[$y] = '';
 			$belob[$y] = $momsfri[$y] = '';
+			$amount[$y] = ''; # 20251217 Also clear amount to prevent "0,00" from showing
 			$afd[$y] = '';
 			$projekt[$y] = '';
 			$valuta[$y] = '';
@@ -1975,24 +1946,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if (!array_key_exists($x + 1, $amount))
 		$amount[$x + 1] = 0;
 	if (abs($amount[$x + 1]) > 0.01) {
+		// 20251218: Voucher NOT in balance - create auto-balance line with SAME bilag number
 		$beskrivelse[$x + 1] = $beskrivelse[$x];
 		$bilag[$x + 1] = $bilag[$x];
 		//$dato[$x+1]=$dato[$x];
 		isset($dato[$x]) && $dato[$x + 1] = $dato[$x];
 		//$valuta[$x+1]=$valuta[$x]; #20121110 Rettet fra $valuta[$x+1]=$baseCurrency
 		isset($valuta[$x]) && $valuta[$x + 1] = $valuta[$x];
-	} elseif ($bilag[$x + 1] == $bilag[$x]) {
-		//if (isset($amount[$x+1]) && $amount[$x] > 0) {
-		if (isset($amount[$x])) {
-			if (array_key_exists($x + 1, $amount) && $amount[$x] > 0) { //20230710
-				$amount[$x + 1] = '';
-				if ($bilag[$x] != '0')
-					$bilag[$x + 1] = $bilag[$x] + 1;
-				//$dato[$x+1]=$dato[$x];
-				isset($dato[$x]) && $dato[$x + 1] = $dato[$x];
-			}
-		}
-	} #end if($bilag[$x+1]==$bilag[$x])
+	} else {
+		// 20251218: Voucher IS in balance - clear the auto-balance line, prepare next bilag
+		$amount[$x + 1] = '';
+		$beskrivelse[$x + 1] = '';
+		$bilag[$x + 1] = '';
+		$dato[$x + 1] = '';
+	} #end if(abs($amount[$x + 1]) > 0.01)
 
 	if ($x > 20) {
 		$y = $x + 5;
@@ -2005,7 +1972,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if ($amount[$x])     $belob = dkdecimal($amount[$x], 2);
 	else $belob = "";
 	if (!isset($amount[$x - 1])) $amount[$x - 1] = 0;
-	if (($amount[$x - 1]) && ($amount[$x - 1] < 0.01)) {
+	// 20251218 Modified: Only clear bilag/dato when voucher is balanced (amount[$x] near zero)
+	// Previously checked $amount[$x - 1] which was wrong - should check $amount[$x] (the imbalance)
+	if (abs($amount[$x]) < 0.01) {
 		$bilag[$x] = "";
 		$dato[$x] = "";
 		$belob = "";
@@ -2077,13 +2046,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		// get last bilagsnr from database but check if the row already has asigned bilagnr
 		
-		if (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
+		// 20251218 NEW CODE - Use $bilag[$x] if already set (for auto-balance with same bilag), otherwise calculate next bilag
+		if (isset($bilag[$x]) && $bilag[$x]) {
+			// Auto-balance line: keep the same bilag number as previous line (set earlier in code around line 1949)
+			$next = $bilag[$x];
+		} elseif (db_num_rows(db_select("select bilag from kassekladde WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__)) == 0 || !$kladde_id){
 			$qtxt = "select MAX(bilag) as bilag from kassekladde where transdate>='$regnstart' and transdate<='$regnslut'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			if ($row = db_fetch_array($q)) $last_bilag = $row['bilag'];
 			if ($x == 1) {
 				$next = $last_bilag;
-			}else{
+			} else {
 				$next = $bilag[$x-1] + 1;
 			}
 		} else {
@@ -2586,7 +2559,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			$ym = $year . $month;
 
 			if (!function_exists('checkOpenFiscalYear')) include_once('../includes/stdFunc/checkOpenFiscalYear.php');
-			if (!checkOpenFiscalYear($transdate)) {
+			// DEBUG 20251216 - Show all fiscal years directly
+			$debug_q = db_select("select kodenr, box1, box2, box3, box4, box5 from grupper where art = 'RA' order by kodenr", __FILE__ . " linje " . __LINE__);
+			$all_years = '';
+			while ($debug_r = db_fetch_array($debug_q)) {
+				$all_years .= "yr{$debug_r['kodenr']}:{$debug_r['box2']}{$debug_r['box1']}-{$debug_r['box4']}{$debug_r['box3']}(box5={$debug_r['box5']}); ";
+			}
+			print "<script>console.log('DEBUG ALL fiscal years: $all_years');</script>";
+			// END DEBUG
+			$debug_result = checkOpenFiscalYear($transdate);
+			print "<script>console.log('DEBUG fiscal year check: regnaar=$regnaar, transdate=$transdate, ym=$ym, aarstart=$aarstart, aarslut=$aarslut, result=" . ($debug_result ? 'PASS' : 'FAIL') . "');</script>";
+			if (!$debug_result) {
 
 
 #			if (!$fejl && $dato && ($ym < $aarstart || $ym > $aarslut)) {
@@ -3263,10 +3246,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     const formData = new FormData(form);
                     formData.forEach((value, key) => {
-                        // console.log(`${key}: ${value}`);
+                      
                     });
 
-                    console.log(`Submitting form with button: ${name}`);
+                
                     form.submit();
                 }
             });
@@ -3465,6 +3448,8 @@ document.addEventListener('DOMContentLoaded', function() {
 	
 	// Initialize datepicker on all date fields
 	$('input[name^=\"dato\"]').datepickerDa();
+	// Initialize datepicker on Due Date fields
+	$('input[name^=\"forf\"]').datepickerDa();
 });
 </script>
 ";
