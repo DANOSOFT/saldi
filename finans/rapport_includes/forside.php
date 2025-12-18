@@ -327,7 +327,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 	if ($antal_afd) {
 		$afdeling[0] = '0';
 		$afd_navn[0] = 'Kun poster uden afd.';
-		print "<tr><td>Afdeling:</td><td><select name=afd>\n";
+		print "<tr><td>".findtekst('274|Afdeling', $sprog_id).":</td><td><select name=afd>\n";
 		if ($afd || $afd == '0') {
 			for ($x = 0; $x <= $antal_afd; $x++) {
 				if ($afd == $afdeling[$x])
@@ -385,7 +385,7 @@ if ($maaned_fra < $aktivStartMd) $aar_fra = $aktivSlutAar;
 		#		print "</tr>";
 	}
 	if ($antal_ansatte) {
-		print "<tr><td>Ansat:</td><td colspan='2'><select name=ansat_fra>\n";
+		print "<tr><td>".findtekst('589|Ansat', $sprog_id).":</td><td colspan='2'><select name=ansat_fra>\n";
 		print "<option>$ansat_fra</option>\n";
 		if ($ansat_fra) {
 			print "<option></option>\n";

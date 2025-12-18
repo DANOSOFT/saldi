@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-12-12--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-12-18--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -413,6 +413,8 @@ if ($valg == "tilbud") {
     $status = "ordrer.status = 0";
 } elseif ($valg == "faktura") {
     $status = "ordrer.status >= 3";
+} elseif ($valg == "ordrer" && $hurtigfakt) {
+    $status = "ordrer.status < 3";
 } else {
     $status = "(ordrer.status = 1 or ordrer.status = 2)";
 }
@@ -488,14 +490,6 @@ if (in_array('kundeordnr', $vis_felt)) {
 // Grid-specific parameters
 $grid_id = "ordrelst_$valg";
 
-// Debug logging
-$debug_file = "../temp/$db/ordreliste_debug.log";
-$debug_log = array();
-$debug_log[] = "=== DEBUG START " . date('Y-m-d H:i:s') . " ===";
-$debug_log[] = "konto_id from GET: " . (isset($_GET['konto_id']) ? $_GET['konto_id'] : 'NOT SET');
-$debug_log[] = "konto_id from settings: " . (isset($konto_id) ? $konto_id : 'NOT SET');
-$debug_log[] = "valg: $valg";
-$debug_log[] = "grid_id: $grid_id";
 
 // If konto_id is in GET and search fields are not already set, pre-populate from adresser
 if (isset($_GET['konto_id']) && $_GET['konto_id']) {
@@ -541,8 +535,7 @@ if (isset($_GET['konto_id']) && $_GET['konto_id']) {
 }
 
 $grid_search = if_isset($_GET['search'][$grid_id], array());
-$debug_log[] = "Final grid_search: " . json_encode($grid_search);
-$debug_log[] = "Full \$_GET['search']: " . json_encode(if_isset($_GET['search'], array()));
+
 $grid_offset = if_isset($_GET['offset'][$grid_id], 0);
 $grid_rowcount = if_isset($_GET['rowcount'][$grid_id], 100);
 $grid_sort = if_isset($_GET['sort'][$grid_id], '');
@@ -569,468 +562,530 @@ $ialt = 0;
 $ialt_m_moms = 0;
 $ialt_kostpris = 0;
 
-// Column configuration
+//Fetch ALL columns from the ordrer table
+$all_db_columns = array();
+$qtxt = "SELECT column_name, data_type 
+         FROM information_schema.columns 
+         WHERE table_schema = 'public' 
+           AND table_name = 'ordrer' 
+         ORDER BY ordinal_position";
+$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+while ($r = db_fetch_array($q)) {
+    $all_db_columns[$r['column_name']] = $r['data_type'];
+}
+
+// Default
+$custom_columns = array(
+    "ordrenr" => array(
+        "field" => "ordrenr",
+        "headerName" => findtekst('500|Ordrenr.', $sprog_id),
+        "width" => "0.8",
+        "align" => "right",
+        "type"  => "number",
+        "sortable" => true,
+        "defaultSort" => true,
+        "defaultSortDirection" => "desc",
+        "searchable" => true,
+        "render" => function ($value, $row, $column) {
+            global $brugernavn;
+            $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
+            
+            $timestamp = $row['tidspkt'];
+            if (strpos($timestamp, ':')) {
+                $timestamp = strtotime(date('Y/m/d') . " " . $timestamp);
+            } else {
+                $timestamp = strtotime($timestamp);
+            }
+            $current_time = time();
+            $who = $row['hvem'];
+            
+            $is_editable = ($row['status'] >= 3 || ($current_time - $timestamp) > 3600 || $who == $brugernavn || $who == '');
+            
+            if ($is_editable) {
+                $style = "cursor: pointer; text-decoration: underline;";
+                $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
+                $onclick = "onClick=\"window.location.href='$href'\"";
+            } else {
+                $style = "color: #FF0000; cursor: not-allowed;";
+                $title = findtekst('1421|Ordre er i brug af', $sprog_id) . " $who";
+                $onclick = "";
+            }
+            
+            if ($row['art'] == 'DK') {
+                $display = "(KN)&nbsp;$value";
+            } else if ($row['restordre'] == '1') {
+                $display = "(R)&nbsp;$value";
+            } else {
+                $display = $value;
+            }
+            
+            return "<td align='$column[align]' style='$style' $onclick title='$title'>$display</td>";
+        }
+    ),
+    
+    "ordredate" => array(
+        "field" => "ordredate",
+        "headerName" => findtekst('881|Ordredato', $sprog_id),
+        "width" => "1",
+        "type" => "date",
+        "searchable" => true,
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+        }
+    ),
+    
+    "levdate" => array(
+        "field" => "levdate",
+        "headerName" => findtekst('886|Dato for levering', $sprog_id),
+        "width" => "1",
+        "type" => "date",
+        "searchable" => true,
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+        }
+    ),
+    
+    "fakturanr" => array(
+        "field" => "fakturanr",
+        "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
+        "width" => "0.8",
+        "align" => "right",
+        "searchable" => true,
+        "hidden" => ($valg != "faktura"),
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>$value</td>";
+        }
+    ),
+    
+    "fakturadate" => array(
+        "field" => "fakturadate",
+        "headerName" => findtekst('883|Fakt. dato', $sprog_id),
+        "width" => "1",
+        "type" => "date",
+        "searchable" => true,
+        "hidden" => ($valg != "faktura"),
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>" . dkdato($value) . "</td>";
+        }
+    ),
+    
+    "firmanavn" => array(
+        "field" => "firmanavn",
+        "headerName" => findtekst('360|Firmanavn', $sprog_id),
+        "width" => "2",
+        "type" => "text",
+        "searchable" => true,
+        "sqlOverride" => "o.firmanavn",
+        "generateSearch" => function ($column, $term) use ($konto_id) {
+            global $konto_id;
+            $field = $column['sqlOverride'] ?: $column['field'];
+            $term = db_escape_string(trim($term, "'"));
+
+            if (empty($term)) {
+                return "1=1";
+            }
+
+            if ($konto_id && $term && strpos($term, ':') === false) {
+                $konto_ids = array();
+                $q = db_select("SELECT DISTINCT konto_id FROM ordrer WHERE firmanavn = '$term'", __FILE__ . " linje " . __LINE__);
+                while ($r = db_fetch_array($q)) {
+                    $konto_ids[] = $r['konto_id'];
+                }
+                if (count($konto_ids) > 0) {
+                    $id_conditions = array();
+                    foreach ($konto_ids as $kid) {
+                        $id_conditions[] = "o.konto_id = '$kid'";
+                    }
+                    return "(" . implode(" OR ", $id_conditions) . ")";
+                } else {
+                    return "o.konto_id = '0'";
+                }
+            }
+
+            $term = strtolower($term);
+            if (strpos($term, '*') !== false) {
+                $term = str_replace('*', '%', $term);
+                $termLower = mb_strtolower($term);
+                $termUpper = mb_strtoupper($term);
+                return "({$field} LIKE '$term' OR lower({$field}) LIKE '$termLower' OR upper({$field}) LIKE '$termUpper')";
+            } else {
+                $termLower = mb_strtolower($term);
+                $termUpper = mb_strtoupper($term);
+                return "({$field} = '$term' OR lower({$field}) LIKE '$termLower' OR upper({$field}) LIKE '$termUpper' OR lower({$field}) LIKE '%$termLower%' OR upper({$field}) LIKE '%$termUpper%')";
+            }
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>$value</td>";
+        }
+    ),
+    
+    "nextfakt" => array(
+        "field" => "nextfakt",
+        "headerName" => "Genfakt.",
+        "width" => "1",
+        "type" => "date",
+        "hidden" => ($valg != "faktura" && $valg != "ordrer"),
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>" . ($value ? dkdato($value) : '') . "</td>";
+        }
+    ),
+    
+    "kontonr" => array(
+        "field" => "kontonr",
+        "headerName" => findtekst('804|Kontonr.', $sprog_id),
+        "width" => "1",
+        "sqlOverride" => "o.kontonr",
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>$value</td>";
+        }
+    ),
+    
+    "ref" => array(
+        "field" => "ref",
+        "headerName" => findtekst('884|Sælger', $sprog_id),
+        "width" => "1.5",
+        "type" => "dropdown",
+        "searchable" => true,
+        "dropdownOptions" => function () use ($valg) {
+            $options = array();
+            if ($valg == "tilbud") {
+                $status_condition = "status < 1";
+            } elseif ($valg == "faktura") {
+                $status_condition = "status >= 3";
+            } else {
+                $status_condition = "(status = 1 OR status = 2)";
+            }
+            $qtxt = "SELECT DISTINCT ref FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND ref IS NOT NULL AND ref != '' ORDER BY ref";
+            $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                $options[] = $r['ref'];
+            }
+            return $options;
+        },
+        "render" => function ($value, $row, $column) {
+            return "<td align='$column[align]'>$value</td>";
+        }
+    ),
+    
+    "sum_m_moms" => array(
+        "field" => "sum_m_moms",
+        "headerName" => "Sum m. moms",
+        "type" => "number",
+        "decimalPrecision" => 2,
+        "align" => "right",
+        "searchable" => true,
+        "sqlOverride" => "(o.sum + o.moms)",
+        "generateSearch" => function ($column, $term) {
+            $field = $column['sqlOverride'];
+            $term = db_escape_string(trim($term, "'"));
+            if (strpos($term, ':') !== false) {
+                list($a, $b) = explode(':', $term, 2);
+                $a = usdecimal($a);
+                $b = usdecimal($b);
+                return "({$field} >= $a AND {$field} <= $b)";
+            } else {
+                $val = usdecimal($term);
+                $tmp1 = $val - 0.005;
+                $tmp2 = $val + 0.004;
+                return "({$field} >= $tmp1 AND {$field} <= $tmp2)";
+            }
+        },
+        "render" => function ($value, $row, $column) {
+            $formatted = is_numeric($value) ? dkdecimal($value, 2) : $value;
+            return "<td align='$column[align]'>$formatted</td>";
+        }
+    ),
+    
+    "betalingsbet" => array(
+        "field" => "betalingsbet",
+        "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
+        "width" => "1",
+        "type" => "dropdown",
+        "align" => "left",
+        "searchable" => true,
+        "hidden" => ($valg != "faktura"),
+        "dropdownOptions" => function () use ($valg) {
+            $options = array();
+            if ($valg == "tilbud") {
+                $status_condition = "status < 1";
+            } elseif ($valg == "faktura") {
+                $status_condition = "status >= 3";
+            } else {
+                $status_condition = "(status = 1 OR status = 2)";
+            }
+            $qtxt = "SELECT DISTINCT betalingsbet FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND betalingsbet IS NOT NULL AND trim(betalingsbet) != '' ORDER BY betalingsbet";
+            $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                if (trim($r['betalingsbet']) != '') {
+                    $options[] = $r['betalingsbet'];
+                }
+            }
+            return $options;
+        },
+        "generateSearch" => function ($column, $term) {
+            $term = db_escape_string(trim($term));
+            if ($term === '') {
+                return "1=1";
+            }
+            return "(o.betalingsbet = '$term')";
+        },
+        "render" => function ($value, $row, $column) {
+            $display = htmlspecialchars($value);
+            return "<td align='$column[align]'>$display</td>";
+        }
+    ),
+    
+    "sum" => array(
+        "field" => "sum",
+        "headerName" => ($valg == "faktura") ? findtekst('885|Fakturasum', $sprog_id) : (($valg == "tilbud") ? findtekst('890|Tilbudssum', $sprog_id) : findtekst('887|Ordresum', $sprog_id)),
+        "width" => "1",
+        "type" => "number",
+        "align" => "right",
+        "decimalPrecision" => 2,
+        "searchable" => true,
+        "render" => function ($value, $row, $column) use ($valg, &$ialt, &$ialt_m_moms, &$ialt_kostpris) {
+            global $genberegn;
+
+            if ($genberegn) {
+                $kostpris = genberegn($row['id']);
+                $row['kostpris'] = $kostpris;
+            }
+
+            $formatted = dkdecimal($value, 2);
+            $ialt += floatval($value);
+            $ialt_m_moms += $row['sum_m_moms'];
+            $ialt_kostpris += $row['kostpris'];
+
+            if ($valg == "faktura") {
+                $udlignet = intval($row['udlignet']);
+                $kostpris = $row['kostpris'];
+                $dk_db = '0,00';
+                $dk_dg = '0,00';
+                $value_numeric = is_numeric($value) ? floatval($value) : floatval(str_replace(',', '.', $value));
+
+                if (!empty($kostpris) && !empty($value) && $value_numeric != 0) {
+                    $kostpris_numeric = is_numeric($kostpris) ? floatval($kostpris) : floatval(str_replace(',', '.', $kostpris));
+                    $dk_db = dkdecimal($value_numeric - $kostpris_numeric, 2);
+                    $dk_dg = dkdecimal(($value_numeric - $kostpris_numeric) * 100 / $value_numeric, 2);
+                }
+
+                $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
+                $title = $udlignet ? "db: $dk_db - dg: $dk_dg%" : findtekst('1442|Ikke udlignet', $sprog_id) . "\r\ndb: $dk_db - dg: $dk_dg%";
+                return "<td align='$column[align]' style='$style' title='$title'>$formatted</td>";
+            }
+            return "<td align='$column[align]'>$formatted</td>";
+        }
+    ),
+);
+
+// Build the FINAL $columns array dynamically
 $columns = array();
 
-// Checkbox column for selection
-$metaColumnHeaders = ['']; //
+// Define explicit default columns for each view type
+$explicit_default_columns = array();
+if ($valg == "tilbud") {
+    $explicit_default_columns = array("ordrenr", "ordredate", "kontonr", "firmanavn", "ref", "sum");
+} elseif ($valg == "faktura") {
+    $explicit_default_columns = array("ordrenr", "ordredate", "fakturanr", "fakturadate", "nextfakt", "kontonr", "firmanavn", "ref", "sum");
+} else {
+    $explicit_default_columns = array("ordrenr", "ordredate", "levdate", "kontonr", "firmanavn", "ref", "sum");
+}
 
-$columns[] = array(
-    "field" => "ordrenr",
-    "headerName" => findtekst('500|Ordrenr.', $sprog_id),
-    "width" => "0.8",
-    "align" => "right",
-    "type"  => "text",
-    "sortable" => true,
-    "defaultSort" => true,
-    "defaultSortDirection" => "desc",
-    "searchable" => true,
-    "render" => function ($value, $row, $column) {
-        global $brugernavn;
+// Check if user has saved column preferences in the OLD system (box3)
+$qtxt = "select box3 from grupper where art = 'OLV' and kodenr = '$bruger_id' and kode='$valg'";
+$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+$user_column_names = array();
 
-        $href = "ordre.php?tjek={$row['id']}&id={$row['id']}&returside=" . urlencode($_SERVER["REQUEST_URI"]);
+if ($r['box3']) {
+    // User has custom column setup in old system
+    $user_column_names = explode(",", $r['box3']);
+    $user_column_names = array_map('trim', $user_column_names);
+    $active_column_names = $user_column_names;
+} else {
+    // Use explicit defaults based on view type
+    $active_column_names = $explicit_default_columns;
+}
 
-        // Parse timestamp properly
-        $timestamp = $row['tidspkt'];
-        if (strpos($timestamp, ':')) {
-            $timestamp = strtotime(date('Y/m/d') . " " . $timestamp);
-        } else {
-            $timestamp = strtotime($timestamp);
-        }
-        $current_time = time();
-        $who = $row['hvem'];
+// First, add all custom columns
+foreach ($custom_columns as $field_name => $column_def) {
+    // Set hidden property based on whether column is in active list
+    $column_def['hidden'] = !in_array($field_name, $active_column_names);
+    $columns[] = $column_def;
+}
 
-        // Check if order is editable (same logic as original)
-        $is_editable = ($row['status'] >= 3 || ($current_time - $timestamp) > 3600 || $who == $brugernavn || $who == '');
-
-        if ($is_editable) {
-            $style = "cursor: pointer; text-decoration: underline;";
-            $title = findtekst('1522|Fortsæt med at redigere ordren', $sprog_id);
-            $onclick = "onClick=\"window.location.href='$href'\"";
-        } else {
-            $style = "color: #FF0000; cursor: not-allowed;";
-            $title = findtekst('1421|Ordre er i brug af', $sprog_id) . " $who";
-            $onclick = "";
-        }
-
-        if ($row['art'] == 'DK') {
-            $display = "(KN)&nbsp;$value";
-        } else if ($row['restordre'] == '1') {
-            $display = "(R)&nbsp;$value";
-        } else {
-            $display = $value;
-        }
-
-        return "<td align='$column[align]' style='$style' $onclick title='$title'>$display</td>";
+// Add all other database columns
+foreach ($all_db_columns as $field_name => $data_type) {
+    // Skip technical/internal fields and fields already in custom_columns
+    $skip_fields = ['id', 'hvem', 'tidspkt', 'copied', 'scan_id'];
+    if (in_array($field_name, $skip_fields) || isset($custom_columns[$field_name])) {
+        continue;
     }
-);
+    
+    // Create automatic definition
+    $column_def = array(
+        "field" => $field_name,
+        "headerName" => ucfirst(str_replace('_', ' ', $field_name)),
+        "width" => "1.5",
+        "type" => "text",
+        "align" => "left",
+        "sortable" => true,
+        "searchable" => true,
+        "hidden" => !in_array($field_name, $active_column_names), // Hidden if not in active list
+        "sqlOverride" => "o.$field_name", 
+    );
+    
+    // AUTO-DETECT TYPE AND ADD BOTH valueGetter AND render FUNCTIONS
+    // This is the CRITICAL part - every column MUST have both functions
+    
+    // Date fields
+    if (strpos($field_name, 'date') !== false || 
+        in_array($field_name, ['ordredate', 'levdate', 'fakturadate', 'nextfakt', 'due_date', 'datotid', 'settletime'])) {
+        
+        $column_def['type'] = 'date';
+        $column_def['align'] = 'left';
+        
+        // valueGetter: Just return the raw value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return $value;
+        };
+        
+        // render: Format the date
+        $column_def['render'] = function ($value, $row, $column) {
+            $formatted = $value ? dkdato($value) : '';
+            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
+        };
+    }elseif ($field_name == 'konto_id') {
+        // konto_id should be text, not number
+        $column_def['type'] = 'text';
+        $column_def['align'] = 'left';
+        
+        // valueGetter: Return the raw value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        };
+        
+        // render: Escape HTML
+        $column_def['render'] = function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        };
+    }elseif ($data_type == 'numeric' || $data_type == 'integer' || 
+            strpos($field_name, 'sum') !== false || 
+            strpos($field_name, 'nr') !== false ||
+            strpos($field_name, 'id') !== false ||
+            in_array($field_name, ['kostpris', 'moms', 'procenttillag', 'netweight', 'grossweight', 'valutakurs', 'betalingsdage', 'kontakt_tlf', 'phone', 'report_number'])) {
+        
+        $column_def['type'] = 'number';
+        $column_def['align'] = 'right';
+        $column_def['decimalPrecision'] = ($data_type == 'integer') ? 0 : 2;
 
-$columns[] = array(
-    "field" => "ordredate",
-    "headerName" => findtekst('881|Ordredato', $sprog_id),
-    "width" => "1",
-    "type" => "date",
-    "searchable" => true,
-    "render" => function ($value, $row, $column) {
-        return "<td align='$column[align]'>" . dkdato($value) . "</td>";
-    }
 
-);
-
-$columns[] = array(
-    "field" => "levdate",
-    "headerName" => findtekst('886|Dato for levering', $sprog_id),
-    "width" => "1",
-    "type" => "date",
-    "searchable" => true,
-    "render" => function ($value, $row, $column) {
-        return "<td align='$column[align]'>" . dkdato($value) . "</td>";
-    }
-);
-
-$columns[] = array(
-    "field" => "fakturanr",
-    "headerName" => findtekst('882|Fakt. nr.', $sprog_id),
-    "width" => "0.8",
-    "align" => "right",
-    "searchable" => true,
-    "hidden" => ($valg != "faktura")
-);
-
-$columns[] = array(
-    "field" => "fakturadate",
-    "headerName" => findtekst('883|Fakt. dato', $sprog_id),
-    "width" => "1",
-    "type" => "date",
-    "searchable" => true,
-    "hidden" => ($valg != "faktura")
-);
-
-##firmanavn colum
-$columns[] = array(
-    "field" => "firmanavn",
-    "headerName" => findtekst('360|Firmanavn', $sprog_id),
-    "width" => "2",
-    "type" => "text",
-    "searchable" => true,
-    "sqlOverride" => "o.firmanavn",
-
-    "generateSearch" => function ($column, $term) use ($konto_id) {
-        global $konto_id; // Access global konto_id if filtering by customer
-
-        $field = $column['sqlOverride'] ?: $column['field'];
-        $term = db_escape_string(trim($term, "'"));
-
-        if (empty($term)) {
-            return "1=1";
-        }
-
-        // Special handling if konto_id is set and search doesn't contain ":"
-        if ($konto_id && $term && strpos($term, ':') === false) {
-            // Find all konto_ids with this company name
-            $konto_ids = array();
-            $q = db_select("SELECT DISTINCT konto_id FROM ordrer WHERE firmanavn = '$term'", __FILE__ . " linje " . __LINE__);
-
-            while ($r = db_fetch_array($q)) {
-                $konto_ids[] = $r['konto_id'];
-            }
-
-            if (count($konto_ids) > 0) {
-                // Build OR condition for all matching konto_ids
-                $id_conditions = array();
-                foreach ($konto_ids as $kid) {
-                    $id_conditions[] = "o.konto_id = '$kid'";
-                }
-                return "(" . implode(" OR ", $id_conditions) . ")";
+        
+        // valueGetter: Return numeric value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return is_numeric($value) ? $value : 0;
+        };
+        
+        // render: Format the number
+        $column_def['render'] = function ($value, $row, $column) {
+            if (is_numeric($value)) {
+                $precision = isset($column['decimalPrecision']) ? $column['decimalPrecision'] : 2;
+                $formatted = dkdecimal($value, $precision);
             } else {
-                // No matches found
-                return "o.konto_id = '0'"; // Returns no results
+                $formatted = '';
             }
-        }
-
-        // Standard text search
-        $term = strtolower($term);
-
-        if (strpos($term, '*') !== false) {
-            // Wildcard search
-            $term = str_replace('*', '%', $term);
-            $termLower = mb_strtolower($term);
-            $termUpper = mb_strtoupper($term);
-
-            return "({$field} LIKE '$term' 
-                     OR lower({$field}) LIKE '$termLower' 
-                     OR upper({$field}) LIKE '$termUpper')";
-        } else {
-            // Partial match
-            $termLower = mb_strtolower($term);
-            $termUpper = mb_strtoupper($term);
-
-            return "({$field} = '$term' 
-                     OR lower({$field}) LIKE '$termLower' 
-                     OR upper({$field}) LIKE '$termUpper' 
-                     OR lower({$field}) LIKE '%$termLower%' 
-                     OR upper({$field}) LIKE '%$termUpper%')";
-        }
-    },
-
-    "render" => function ($value, $row, $column) {
-        return "<td align='$column[align]'>$value</td>";
-    }
-);
-
-#//
-
-$columns[] = array(
-    "field" => "nextfakt",
-    "headerName" => "Genfakt.",
-    "width" => "1",
-    "type" => "date",
-    "hidden" => ($valg != "faktura" && $valg != "ordrer")
-);
-
-$columns[] = array(
-    "field" => "kontonr",
-    "headerName" => findtekst('804|Kontonr.', $sprog_id),
-    "width" => "1",
-    "sqlOverride" => "o.kontonr"
-);
-
-
-
-$columns[] = array(
-    "field" => "ref",
-    "headerName" => findtekst('884|Sælger', $sprog_id),
-    "width" => "1.5",
-    "type" => "dropdown",
-    "searchable" => true,
-    "dropdownOptions" => function () use ($valg) {
-        $options = array();
-        // Get unique salesperson values from orders based on current view
-        if ($valg == "tilbud") {
-            $status_condition = "status < 1";
-        } elseif ($valg == "faktura") {
-            $status_condition = "status >= 3";
-        } else {
-            $status_condition = "(status = 1 OR status = 2)";
-        }
-
-        $qtxt = "SELECT DISTINCT ref FROM ordrer WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) AND $status_condition AND ref IS NOT NULL AND ref != '' ORDER BY ref";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-        while ($r = db_fetch_array($q)) {
-            $options[] = $r['ref'];
-        }
-        return $options;
-    },
-    "render" => function ($value, $row, $column) {
-        return "<td align='$column[align]'>$value</td>";
-    }
-);
-
-$columns[] = array(
-    "field" => "sum_m_moms",
-    "headerName" => "Sum m. moms",
-    "type" => "number",
-    "decimalPrecision" => 2,
-    "align" => "right",
-    "searchable" => true,
-    "sqlOverride" => "(o.sum + o.moms)",
-    "generateSearch" => function ($column, $term) {
-        // Use the sqlOverride for searching
-        $field = $column['sqlOverride'];
-        $term = db_escape_string(trim($term, "'"));
-
-        if (strpos($term, ':') !== false) {
-            list($a, $b) = explode(':', $term, 2);
-            $a = usdecimal($a);
-            $b = usdecimal($b);
-            return "({$field} >= $a AND {$field} <= $b)";
-        } else {
-            $val = usdecimal($term);
-            $tmp1 = $val - 0.005;
-            $tmp2 = $val + 0.004;
-            return "({$field} >= $tmp1 AND {$field} <= $tmp2)";
-        }
-    }
-);
-
-
-#To be revised later when needed
-// $columns[] = array(
-//     "field" => "betalt",
-//     "headerName" => "Betalt", 
-//     "width" => "0.3",
-//     "type" => "dropdown",
-//     "align" => "center",
-//     "searchable" => true,
-//     "hidden" => ($valg != "faktura"),
-
-//     // Dropdown with clear labels
-//     "dropdownOptions" => function() {
-//         return array(
-//             '' => '',      // Empty = show all
-//             '0' => '0',    // Unpaid
-//             '1' => '1'     // Paid
-//         );
-//     },
-
-//     // Custom search - UPDATED to match the new query logic
-//     "generateSearch" => function($column, $term) use ($valg) {
-//         $term = trim($term);
-
-//         // Only apply payment search for faktura views
-//         if ($term === '' || $valg != "faktura") {
-//             return "1=1"; // Show all for non-invoice views or empty search
-//         }
-
-//         // Build the same CASE logic used in the SELECT (updated version)
-//         $case_sql = "
-//             CASE 
-//                 WHEN o.status >= 3 THEN
-//                     CASE 
-//                         WHEN EXISTS (
-//                             SELECT 1 FROM openpost op 
-//                             WHERE op.faktnr = o.fakturanr::text 
-//                             AND op.konto_id = o.konto_id 
-//                             AND ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
-//                             AND op.udlignet = '1'
-//                         ) THEN 1
-//                         WHEN o.betalt = '1' THEN 1
-//                         ELSE 0
-//                     END
-//                 ELSE 0
-//             END
-//         ";
-
-//         if ($term === '0') {
-//             return "($case_sql = 0)";
-//         } elseif ($term === '1') {
-//             return "($case_sql = 1)";
-//         }
-
-//         return "1=1";
-//     },
-
-//     // Render with icons and colors
-//     "render" => function ($value, $row, $column) use ($valg) {
-//         if ($valg != "faktura") {
-//             return "<td align='$column[align]'>-</td>";
-//         }
-
-//         // The 'udlignet' field from query already has the calculated value
-//         $is_paid = (intval($row['udlignet']) === 1);
-
-//         if ($is_paid) {
-//             $icon = "✓";
-//             $color = "#008000"; // Green
-//             $title = "Betalt";
-//         } else {
-//             $icon = "✗";
-//             $color = "#FF0000"; // Red
-//             $title = "Ubetalt";
-//         }
-
-//         return "<td align='$column[align]' style='color: $color; font-weight: bold; font-size: 16px;' title='$title'>$icon</td>";
-//     }
-// );
-
-$columns[] = array(
-    "field" => "betalingsbet",
-    "headerName" => findtekst('56|Betalingsbet.', $sprog_id),
-    "width" => "1",
-    "type" => "dropdown",
-    "align" => "left",
-    "searchable" => true,
-    "hidden" => ($valg != "faktura"), // Only show for invoices
-
-    "dropdownOptions" => function () use ($valg) {
-        $options = array();
-
-        if ($valg == "tilbud") {
-            $status_condition = "status < 1";
-        } elseif ($valg == "faktura") {
-            $status_condition = "status >= 3";
-        } else {
-            $status_condition = "(status = 1 OR status = 2)";
-        }
-
-        $qtxt = "SELECT DISTINCT betalingsbet 
-                 FROM ordrer 
-                 WHERE (art = 'DO' OR art = 'DK' OR (art = 'PO' AND konto_id > '0')) 
-                 AND $status_condition 
-                 AND betalingsbet IS NOT NULL 
-                 AND trim(betalingsbet) != '' 
-                 ORDER BY betalingsbet";
-
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-        while ($r = db_fetch_array($q)) {
-            if (trim($r['betalingsbet']) != '') {
-                $options[] = $r['betalingsbet'];
+            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
+        };
+    } 
+    // Boolean/status fields (0/1 values)
+    elseif (in_array($field_name, ['betalt', 'restordre', 'vis_lev_addr', 'pbs', 'mail_fakt', 'omvbet'])) {
+        
+        $column_def['type'] = 'dropdown';
+        $column_def['align'] = 'center';
+        
+        // valueGetter: Return the raw value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return $value;
+        };
+        
+        // render: Show checkmark or X
+        $column_def['render'] = function ($value, $row, $column) {
+            if ($value == '1' || $value === true) {
+                $display = '✓';
+                $color = '#008000';
+            } elseif ($value == '0' || $value === false) {
+                $display = '✗';
+                $color = '#FF0000';
+            } else {
+                $display = '';
+                $color = '#000000';
             }
-        }
-        return $options;
-    },
-
-    "generateSearch" => function ($column, $term) {
-        $term = db_escape_string(trim($term));
-        if ($term === '') {
-            return "1=1";
-        }
-        // Exact match for payment terms
-        return "(o.betalingsbet = '$term')";
-    },
-
-    "render" => function ($value, $row, $column) {
-        $display = htmlspecialchars($value);
-        return "<td align='$column[align]'>$display</td>";
+            return "<td align='{$column['align']}' style='color: $color;'>" . htmlspecialchars($display) . "</td>";
+        };
     }
-);
-
-$columns[] = array(
-    "field" => "sum",
-    "headerName" => ($valg == "faktura") ? findtekst('885|Fakturasum', $sprog_id) : (($valg == "tilbud") ? findtekst('890|Tilbudssum', $sprog_id) :
-        findtekst('887|Ordresum', $sprog_id)),
-    "width" => "1",
-    "type" => "number",
-    "align" => "right",
-    "decimalPrecision" => 2,
-    "searchable" => true,
-    "render" => function ($value, $row, $column) use ($valg, &$ialt, &$ialt_m_moms, &$ialt_kostpris) {
-        global $genberegn;
-
-        if ($genberegn) {
-            $kostpris = genberegn($row['id']);
-            $row['kostpris'] = $kostpris;
-        }
-
-        $formatted = dkdecimal($value, 2);
-
-        // Add to totals
-        $ialt += floatval($value);
-        $ialt_m_moms += $row['sum_m_moms'];
-        $ialt_kostpris += $row['kostpris'];
-
-        if ($valg == "faktura") {
-            // Use the udlignet field calculated in query
-            $udlignet = intval($row['udlignet']);
-            $kostpris = $row['kostpris'];
-
-            // Initialize variables
-            $dk_db = '0,00';
-            $dk_dg = '0,00';
-
-            // Convert value to numeric if it's a string with comma
-            $value_numeric = is_numeric($value) ? floatval($value) : floatval(str_replace(',', '.', $value));
-
-            if (!empty($kostpris) && !empty($value) && $value_numeric != 0) {
-                $kostpris_numeric = is_numeric($kostpris) ? floatval($kostpris) : floatval(str_replace(',', '.', $kostpris));
-                $dk_db = dkdecimal($value_numeric - $kostpris_numeric, 2);
-                $dk_dg = dkdecimal(($value_numeric - $kostpris_numeric) * 100 / $value_numeric, 2);
+    // Default text fields
+    else {
+        // valueGetter: Return the raw value
+        $column_def['valueGetter'] = function ($value, $row, $column) {
+            return $value !== null ? $value : '';
+        };
+        
+        // render: Escape HTML
+        $column_def['render'] = function ($value, $row, $column) {
+            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+        };
+    }
+    
+    // Add dropdown options for specific fields (AFTER valueGetter and render are set)
+    if (in_array($field_name, ['status', 'valuta', 'sprog', 'art', 'udskriv_til', 'betalt', 'restordre', 'shop_status', 'digital_status'])) {
+        $column_def['type'] = 'dropdown';
+        $column_def['dropdownOptions'] = function() use ($field_name, $valg) {
+            $options = array();
+            
+            // Build the status condition based on valg
+            if ($valg == "tilbud") {
+                $status_condition = "status < 1";
+            } elseif ($valg == "faktura") {
+                $status_condition = "status >= 3";
+            } else {
+                $status_condition = "(status = 1 OR status = 2)";
             }
-
-
-            $style = $udlignet ? "color: #000000;" : "color: #FF0000;";
-            $title = $udlignet ? "db: $dk_db - dg: $dk_dg%" : findtekst('1442|Ikke udlignet', $sprog_id) . "\r\ndb: $dk_db - dg: $dk_dg%";
-
-            // return "<td align='$column[align]' style='$style' title='$title'>$formatted/$dk_db/$dk_dg%</td>";
-            return "<td align='$column[align]' style='$style' title='$title'>$formatted</td>";
-        }
-        return "<td align='$column[align]'>$formatted</td>";
+            
+            $qtxt = "SELECT DISTINCT $field_name FROM ordrer 
+                     WHERE $field_name IS NOT NULL 
+                     AND trim($field_name::text) != '' 
+                     AND $status_condition
+                     ORDER BY $field_name";
+            $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+            while ($r = db_fetch_array($q)) {
+                if (trim($r[$field_name]) != '') {
+                    $options[] = $r[$field_name];
+                }
+            }
+            return $options;
+        };
     }
-);
+    
+    $columns[] = $column_def;
+}
 
+// Checkbox
 $columns[] = array(
     "field" => "checkbox",
-    "headerName" => "",
+    "headerName" => "O",
     "width" => "0.3",
     "sortable" => false,
     "searchable" => false,
     "align" => "center",
+    "hidden" => false, // Always visible
+    "valueGetter" => function ($value, $row, $column) {
+        return $row['selected'] ?? false;
+    },
     "render" => function ($value, $row, $column) {
-        $checked = $row['selected'] ? 'checked' : '';
+        $checked = $value ? 'checked' : '';
         return "<td align='center'><input type='checkbox' name='checked[{$row['id']}]' $checked class='deliveryNoteSelect'></td>";
     }
 );
 
-
-// $columns[] = array(
-//     "field" => "status",
-//     "headerName" => "Status",
-//     "width" => "1",
-//     "hidden" => true,
-//     "render" => function ($value, $row, $column) {
-//         $status_text = "";
-//         switch($row['status']) {
-//             case 0: $status_text = "Tilbud"; break;
-//             case 1: $status_text = "Ordre"; break;
-//             case 2: $status_text = "Ordre"; break;
-//             case 3: $status_text = "Faktura"; break;
-//             case 4: $status_text = "Faktura"; break;
-//         }
-//         return "<td align='$column[align]'>$status_text</td>";
-//     }
-// );
-
-// Action buttons column
 $columns[] = array(
     "field" => "actions",
     "headerName" => "Handlinger",
@@ -1038,62 +1093,37 @@ $columns[] = array(
     "sortable" => false,
     "searchable" => false,
     "align" => "center",
+    "hidden" => false, // Always visible
+    "valueGetter" => function ($value, $row, $column) {
+        return ''; // Actions don't need a value
+    },
     "render" => function ($value, $row, $column) use ($valg, $sprog_id) {
         $actions = "<td align='center'><div style='display:flex;gap:5px;justify-content:center;'>";
 
         if ($valg == "ordrer") {
-            // Plukliste
             $actions .= "<a href='formularprint.php?id={$row['id']}&formular=9&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('574|Plukliste', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z'/></svg></a>";
-
-            // Ordrebekræftelse
             $actions .= "<a href='formularprint.php?id={$row['id']}&formular=2&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('575|Ordrebekræftelse', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
-
-
-            // if ($row['email']) {
-            //     $actions .= "<a href='formularprint.php?id={$row['id']}&formular=2&udskriv_til=email' target='_blank' title='".findtekst('2724|Klik for at sende ordrebekræftelse via e-mail', $sprog_id)."' onclick=\"return confirm('".findtekst('2725|Er du sikker på at du vil sende ordrebekræftelsen? Kundens e-mail:', $sprog_id)." {$row['email']}')\"><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z'/></svg></a>";
-            // }
-
         } elseif ($valg == "faktura") {
-            // Følgeseddel
             $actions .= "<a href='formularprint.php?id={$row['id']}&formular=3&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('576|Følgeseddel', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M216-96q-29.7 0-50.85-21.15Q144-138.3 144-168v-412q-21-8-34.5-26.5T96-648v-144q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v144q0 23-13.5 41.5T816-580v411.86Q816-138 794.85-117T744-96H216Zm0-480v408h528v-408H216Zm-48-72h624v-144H168v144Zm216 240h192v-72H384v72Zm96 36Z'/></svg></a>";
-
-            // Faktura
             $actions .= "<a href='formularprint.php?id={$row['id']}&formular=4&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('643|Faktura', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
-
-            // Email faktura
-            // if ($row['email']) {
-            //     $actions .= "<a href='formularprint.php?id={$row['id']}&formular=4&udskriv_til=email' target='_blank' title='".findtekst('2726|Klik for at sende faktura via e-mail', $sprog_id)."' onclick=\"return confirm('".findtekst('2727|Er du sikker på at du vil sende fakturaen? Kundens e-mail:', $sprog_id)." {$row['email']}')\"><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z'/></svg></a>";
-            // }
-
         } elseif ($valg == "tilbud") {
-            // Tilbud
             $actions .= "<a href='formularprint.php?id={$row['id']}&formular=1&udskriv_til=PDF' target='_blank' title='" . findtekst('2723|Klik for at udskrive', $sprog_id) . " " . lcfirst(findtekst('812|Tilbud', $sprog_id)) . "'><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M336-240h288v-72H336v72Zm0-144h288v-72H336v72ZM263.72-96Q234-96 213-117.15T192-168v-624q0-29.7 21.15-50.85Q234.3-864 264-864h312l192 192v504q0 29.7-21.16 50.85Q725.68-96 695.96-96H263.72ZM528-624v-168H264v624h432v-456H528ZM264-792v189-189 624-624Z'/></svg></a>";
-
-            // Email tilbud
-            // if ($row['email']) {
-            //     $actions .= "<a href='formularprint.php?id={$row['id']}&formular=1&udskriv_til=email' target='_blank' title='".findtekst('2728|Klik for at sende tilbud via e-mail', $sprog_id)."' onclick=\"return confirm('".findtekst('2729|Er du sikker på at du vil sende tilbuddet?\nKundens e-mail:', $sprog_id)." {$row['email']}')\"><svg xmlns='http://www.w3.org/2000/svg' height='20px' viewBox='0 -960 960 960' width='20px' fill='#000000'><path d='M168-192q-29.7 0-50.85-21.16Q96-234.32 96-264.04v-432.24Q96-726 117.15-747T168-768h624q29.7 0 50.85 21.16Q864-725.68 864-695.96v432.24Q864-234 842.85-213T792-192H168Zm312-240L168-611v347h624v-347L480-432Zm0-85 312-179H168l312 179Zm-312-94v-85 432-347Z'/></svg></a>";
-            // }
         }
 
         $actions .= "</div></td>";
         return $actions;
     }
 );
+// === END DYNAMIC COLUMN DEFINITION ===
 
 
-
-
-
-
-
-
-
+// Checkbox column for selection
+$metaColumnHeaders = ['']; //
 
 // Filters setup
 $filters = array();
 
 // Order type filter
-
 $filters[] = array(
     "filterName" => findtekst('2769|Ordretype', $sprog_id),
     "joinOperator" => "or",
@@ -1107,7 +1137,7 @@ $filters[] = array(
         array(
             "name" => findtekst('107|Ordrer', $sprog_id),
             "checked" => ($valg == "ordrer") ? "checked" : "",
-            "sqlOn" => "(o.status = 1 OR o.status = 2)",
+            "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
             "sqlOff" => "",
         ),
         array(
@@ -1124,6 +1154,7 @@ $filters[] = array(
         )
     )
 );
+
 ###############################Data configuration##############*****************++++++++++++++++
 
 ##################
@@ -1133,70 +1164,57 @@ if ($valg == "tilbud") {
     $base_where_conditions = "o.status < 1";
 } elseif ($valg == "faktura") {
     $base_where_conditions = "o.status >= 3";
+} elseif ($valg == "ordrer" && $hurtigfakt) {
+    $base_where_conditions = "o.status < 3";
 } else {
     $base_where_conditions = "(o.status = 1 OR o.status = 2)";
 }
 
 $debug_log[] = "base_where_conditions: $base_where_conditions";
 
+// IMPORTANT: Update the SQL query to include ALL columns dynamically
+$select_fields = "o.id as id";
+foreach ($all_db_columns as $field_name => $data_type) {
+    if ($field_name != 'id') {
+        $select_fields .= ", o.$field_name as $field_name";
+    }
+}
+// Add calculated fields
+$select_fields .= ", (o.sum::numeric + o.moms::numeric) as sum_m_moms";
+$select_fields .= ", CASE 
+        WHEN o.status >= 3 THEN
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1 FROM openpost op 
+                    WHERE op.faktnr = o.fakturanr::text 
+                    AND op.konto_id = o.konto_id 
+                    AND ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
+                    AND op.udlignet = '1'
+                ) THEN 1
+                WHEN o.betalt = '1' THEN 1
+                ELSE 0
+            END
+        ELSE 0 
+    END as udlignet";
+$select_fields .= ", CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM ordrelinjer ol 
+            WHERE ol.ordre_id = o.id 
+            AND ((ol.leveret > 0 AND ol.antal > ol.leveret) 
+                 OR (ol.antal > (ol.leveres + ol.leveret)))
+        ) THEN 'Mangler'
+        WHEN EXISTS (
+            SELECT 1 FROM ordrelinjer ol 
+            WHERE ol.ordre_id = o.id 
+            AND ol.leveret > 0 AND ol.antal = ol.leveret
+        ) THEN 'Leveret'
+        ELSE 'Intet'
+    END as levstatus";
+
 $data = array(
     "table_name" => "ordrer",
     "query" => "SELECT 
-        o.id as id,
-        o.ordrenr as ordrenr,
-        o.ordredate as ordredate,
-        o.levdate as levdate,
-        o.fakturanr as fakturanr,
-        o.fakturadate as fakturadate,
-        o.nextfakt as nextfakt,
-        o.kontonr as kontonr,
-        o.firmanavn as firmanavn,
-        o.ref as ref,
-        o.sum::numeric as sum,
-        o.moms::numeric as moms,
-        (o.sum::numeric + o.moms::numeric) as sum_m_moms,
-        o.kostpris::numeric as kostpris,
-        o.status as status,
-        o.art as art,
-        o.restordre as restordre,
-        o.email as email,
-        o.konto_id as konto_id,
-        o.hvem as hvem,
-        o.tidspkt as tidspkt,
-        o.betalingsbet as betalingsbet,
-        o.betalt as betalt_ordrer,
-        
-        -- FIXED: Better payment status calculation
-        CASE 
-            WHEN o.status >= 3 THEN -- Only check payment for invoices
-                CASE 
-                    WHEN EXISTS (
-                        SELECT 1 FROM openpost op 
-                        WHERE op.faktnr = o.fakturanr::text 
-                        AND op.konto_id = o.konto_id 
-                        AND ABS(ROUND(op.amount::numeric, 2) - ROUND((o.sum + o.moms)::numeric, 2)) < 0.01
-                        AND op.udlignet = '1'
-                    ) THEN 1
-                    WHEN o.betalt = '1' THEN 1
-                    ELSE 0
-                END
-            ELSE 0 -- Not an invoice, so not paid
-        END as udlignet,
-        
-        CASE 
-            WHEN EXISTS (
-                SELECT 1 FROM ordrelinjer ol 
-                WHERE ol.ordre_id = o.id 
-                AND ((ol.leveret > 0 AND ol.antal > ol.leveret) 
-                     OR (ol.antal > (ol.leveres + ol.leveret)))
-            ) THEN 'Mangler'
-            WHEN EXISTS (
-                SELECT 1 FROM ordrelinjer ol 
-                WHERE ol.ordre_id = o.id 
-                AND ol.leveret > 0 AND ol.antal = ol.leveret
-            ) THEN 'Leveret'
-            ELSE 'Intet'
-        END as levstatus
+        $select_fields
     FROM ordrer o
     LEFT JOIN adresser a ON a.id = o.konto_id
     WHERE (o.art = 'DO' OR o.art = 'DK' OR (o.art = 'PO' AND o.konto_id > '0')) 
@@ -1205,31 +1223,6 @@ $data = array(
     ORDER BY {{SORT}}",
 
     "rowStyle" => function ($row) use ($valg) {
-        // Additional styles
-        // if ($valg == "ordrer") {
-        //     if ($row['levstatus'] == "Mangler") return "background-color: #ffebee;";
-        //     if ($row['levstatus'] == "Leveret") return "background-color: #e8f5e8;";
-        // }
-
-        // if ($valg == "faktura") {
-        //     $is_paid = (intval($row['udlignet']) === 1);
-
-        //     if ($is_paid) {
-        //         return "background-color: #e8f5e8;";
-        //     } else {
-        //         if (!empty($row['fakturadate'])) {
-        //             $invoice_date = strtotime($row['fakturadate']);
-        //             $due_date = $invoice_date + (30 * 86400);
-
-        //             if (time() > $due_date) {
-        //                 #return "background-color: #ffcccc;";
-        //             }
-        //         }
-        //         #return "background-color: #ffebee;";
-        //          return "background-color: #e8f5e8;";
-        //     }
-        // }
-
         return "";
     },
     "columns" => $columns,
@@ -1237,13 +1230,6 @@ $data = array(
     'metaColumnHeaders' => $metaColumnHeaders,
 );
 
-// Debug: Log query structure
-$debug_log[] = "Query base: " . substr($data['query'], 0, 200) . "...";
-$debug_log[] = "Final WHERE will include: $base_where_conditions";
-
-// Write debug log to file
-$debug_log[] = "=== DEBUG END ===";
-@file_put_contents($debug_file, implode("\n", $debug_log) . "\n\n", FILE_APPEND | LOCK_EX);
 
 ##############
 
@@ -1282,47 +1268,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    // Handle other actions
-
-    #Setup paid or unpaid invoice// enable when needed
-    // if ($submit == "Mark as paid" || $submit == "Mark as unpaid") {
-    //     $action = ($submit == "Mark as paid") ? 'paid' : 'unpaid'; 
-    //     $updated_count = 0;
-
-    //     foreach ($checked_orders as $order_id => $value) {
-    //         if ($value == "on") {
-    //             // Update ordrer.betalt
-    //             $new_value = ($action == 'paid') ? '1' : '0';
-
-    //             db_modify("UPDATE ordrer SET betalt = '$new_value' WHERE id = '$order_id'", __FILE__ . " linje " . __LINE__);
-
-    //             // Update openpost if exists
-    //             $r = db_fetch_array(db_select("SELECT fakturanr, konto_id FROM ordrer WHERE id = '$order_id'", __FILE__ . " linje " . __LINE__));
-
-    //             if ($r['fakturanr']) {
-    //                 db_modify("UPDATE openpost SET udlignet = '$new_value' 
-    //                         WHERE faktnr = '{$r['fakturanr']}' AND konto_id = '{$r['konto_id']}'", 
-    //                         __FILE__ . " linje " . __LINE__);
-    //             }
-
-    //             $updated_count++;
-    //         }
-    //     }
-
-    //     $msg = ($action == 'paid') ? "markeret som betalt" : "markeret som ubetalt";
-    //     echo "<script>
-    //         alert('$updated_count fakturaer $msg');
-    //         window.location.href = document.referrer;
-    //     </script>";
-
-
-    // }
-
-    //
-
-
-
-
     ######
     $selected_ids = array();
     foreach ($checked_orders as $order_id => $value) {
@@ -1358,6 +1303,51 @@ print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 
 
 
+
+// Shop order integration logic (ported from ordrelisteOld.php)
+if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
+    $api_fil=trim($r['box4']);
+    $api_fil2=trim($r['box5']);
+    $api_fil3=trim($r['box6']);
+    
+    if (file_exists("../temp/$db/shoptidspkt.txt")) {
+        $fp=fopen("../temp/$db/shoptidspkt.txt","r");
+        $tidspkt=fgets($fp);
+        if ($hent_nu) $tidspkt-=1170; 
+        fclose ($fp);
+    } else $tidspkt = 0;
+    
+    if ($tidspkt < date("U")-1200 || $shop_ordre_id  || $shop_faktura) {
+        $fp=fopen("../temp/$db/shoptidspkt.txt","w");
+        fwrite($fp,date("U"));
+        fclose ($fp);
+        $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+        $api_txt="$api_fil?put_new_orders=1";
+//		$api_encode='utf-8';
+        if ($api_encode) $api_txt.="&encode=$api_encode";
+        if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+        elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+        exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+        if($api_fil2){
+            $api_txt="$r[box5]?put_new_orders=1";
+    //		$api_encode='utf-8';
+            if ($api_encode) $api_txt.="&encode=$api_encode";
+            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+            elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+            exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+        }
+        if($api_fil3){
+            $api_txt="$r[box6]?put_new_orders=1";
+    //		$api_encode='utf-8';
+            if ($api_encode) $api_txt.="&encode=$api_encode";
+            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+            elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+            exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+        }
+    } elseif ($hent_nu) {
+         print "<script>alert('Vent 30 sekunder');</script>";
+    }
+}
 
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
@@ -1645,6 +1635,11 @@ if ($valg == "ordrer") {
     }
 }
 
+// Add Shop Fetch Link if active 
+if ($show_shop_link) {
+    print "  <a href='ordreliste.php?sort=$sort&hent_nu=1&valg=$valg'>" . findtekst('879|Hent ordrer', $sprog_id) . "</a>";
+}
+
 print "</div>";  // END LEFT
 
 
@@ -1668,7 +1663,7 @@ print "<div id='center-turnover' style='flex:1; text-align:center;'>";
 print "<div style='display:flex;'>";
     print findtekst('811|Samlet omsætning inkl./ekskl. Moms', $sprog_id) . "<br>";
     print findtekst('2772|db / dg (ekskl. moms)', $sprog_id) . "<br>";
-    print "<b>$ialt_m_moms_formatted ($ialt_formatted)<br>
+    print "<b style='margin-left: 20px;'>$ialt_m_moms_formatted ($ialt_formatted)<br>
            $dk_db / $dk_dg%</b>";
 }
 
@@ -1790,12 +1785,13 @@ print "</div>";
 #don't show turnover summary and bulk actions if 'kolonner' menu is selected
 if (isset($_GET['menu']["$grid_id"])) {
     $menu_value = $_GET['menu']["$grid_id"];
-    if ($menu_value == 'kolonner') {
+    if ($menu_value == 'kolonner' || $menu_value == 'filtre') {
 ?>
         <style>
+            #top-control-bar,
             .turnover-summary,
             .bulk-actions {
-                display: none;
+                display: none !important;
             }
         </style>
 

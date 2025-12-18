@@ -188,9 +188,9 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 
 		print "<td width='10%'>
 			   <a accesskey=L href='rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev'>
-			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>\n";
+			   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2172|Luk', $sprog_id)."</button></a></td>\n";
 
-		print "<td width='80%' align='center' style='$topStyle'> Rapport - kontokort </td>\n";
+		print "<td width='80%' align='center' style='$topStyle'>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>\n";
 		print "<td width='10%' align='center' style='$buttonStyle'><a href='$csvfile' style='color:#ffffff'>csv</a></td>\n";
 
 		print "</tbody></table>";
@@ -202,8 +202,8 @@ function kontokort($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato
 		print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
 		print "<tr><td colspan=\"6\" height=\"8\">";
 		print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"3\" cellpadding=\"0\"><tbody>"; #B
-		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">Luk</a></td>";
-		print "<td width=\"80%\" $top_bund> Rapport - kontokort </td>";
+		print "<td width=\"10%\" $top_bund><a accesskey=L href=\"rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">".findtekst('2172|Luk', $sprog_id)."</a></td>";
+		print "<td width=\"80%\" $top_bund>".findtekst('2173|Rapport - kontokort', $sprog_id)."</td>";
 		print "<td width=\"10%\" $top_bund><a href='$csvfile'>csv</a></td>";
 		print "</tbody></table>"; #B slut
 		print "</td></tr>";

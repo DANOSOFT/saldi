@@ -535,7 +535,7 @@ for ($x=1; $x<=$kontoantal; $x++){
 }
 print "</tbody>";
 print "<tfoot>";
-print "<tr><td colspan='$cols' align='center'><input type='button' style='width: 200px; margin: 10px;' onclick=\"document.location='../temp/$db/regnskab.csv'\" value='Regnskab.CSV'></input></td></tr>";
+print "<tr><td colspan='$cols' align='center'><input type='button' style='width: 200px; margin: 10px;' onclick=\"document.location='../temp/$db/regnskab.csv'\" value='".findtekst('2595|Regnskab', $sprog_id).".csv'></input></td></tr>";
 print "</tfoot>";
 print "</table>";
 print "</div>"; 

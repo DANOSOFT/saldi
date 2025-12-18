@@ -30,7 +30,7 @@ if(isset($_GET["put_new_orders"])){
     // get orders
     $Client->Order_SetFields(array('Fields' => 'Status,OrderLines,Id,Customer,DateSent,DateUpdated,Vat,Currency,CustomerComment,Transactions,Payment,Total,DateDelivered,Delivery,UserId'));
     $Client->Order_SetOrderLineFields(array('Fields' => 'Id,BuyPrice,ItemNumber,Discount,Amount,ProductTitle,StockStatus,Price,ProductId,VariantId,VariantTitle'));
-    $Orders = $Client->Order_GetByDate(array("Start" => $start, "End" => $end, "Status" => "1,3,6"));
+    $Orders = $Client->Order_GetByDate(array("Start" => $start, "End" => $end));
     writeLog("Retrieved " . count($Orders->Order_GetByDateResult->item) . " orders");
     // go through orders and insert them into saldi
     
@@ -100,7 +100,7 @@ if(isset($_GET["put_new_orders"])){
             writeLog("Order " . $order->Id . " inserted into Saldi with ID: " . $saldi_ordre_id);
 
             // if its not in saldi add orderlines
-            writeLog("Adding " . count($order->OrderLines->item) . " order lines for order " . $order->Id);
+            writeLog("Adding " . ($order->OrderLines->item > 0 ? count($order->OrderLines->item) : 0) . " order lines for order " . $order->Id);
             foreach ($order->OrderLines->item as $orderLine) { 
                 // get % discount $orderLine->Discount is not a procent but a amount
                 $discount = 0;

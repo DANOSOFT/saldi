@@ -8,6 +8,7 @@
  *   "username": "brugernavn",
  *   "password": "password",
  *   "database": "database_name" (REQUIRED - database name or tenant ID)
+ *   "account_name": "account_name" (REQUIRED - account name)
  * }
  * 
  * IMPORTANT: Users are stored in each tenant's database, not the master database.

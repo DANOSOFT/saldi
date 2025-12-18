@@ -598,7 +598,7 @@
 598	-	-	-
 599	Bemærkning	Remark	Bemerke
 600	Finans	Finance	Finansiere
-601	Kassekladde	Cash journal	Kontantjournal
+601	Kassekladde	Cash journal	Kassekladd
 602	Regnskab	Financial Accounting	Finansregnskap
 603	Rapporter	Reports	Rapporter
 604	Debitor	Debtor	Debitor
@@ -881,7 +881,7 @@
 881	Ordredato	Order date	Ordredato
 882	Fakt. nr.	Inv. no.	Fakt. nr.
 883	Fakt. dato	Inv. date	Fakt. dato
-884	Sælger	Selling	Selger
+884	Sælger	Seller	Selger
 885	Fakturasum	Invoice_sum	Fakturasum
 886	Dato for levering	Date of delivery	Dato for levering
 887	Ordresum	Order amount	Ordresum

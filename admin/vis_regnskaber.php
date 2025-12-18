@@ -132,7 +132,8 @@ if ($menu=='S') {
 	print "<tr><td align=\"center\" valign=\"top\" height=\"25px\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 	print "<td width=\"10%\" $top_bund><a href=../index/admin_menu.php accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
-	print "<td width=\"80%\" $top_bund align=\"center\">".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
+	print "<td width=\"75%\" $top_bund align=\"center\">".findtekst('340|Vis regnskaber', $sprog_id)."</td>";#Vis regnskaber
+	print "<td width='5%' $top_bund><a href='license_manager.php'>Licens</a></td>";
 	print "<td width=\"5%\" $top_bund align = \"center\">";
 	if ($showClosed) print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger'>".findtekst('1906|Skjul \'Luk\'', $sprog_id)." </a>";#Skjul Luk
 	else print "<a href='vis_regnskaber.php?sort=$sort&rediger=$rediger&showClosed=on'>".findtekst('1907|Vis \'Luk\'', $sprog_id)." </a>";#Vis Luk
@@ -171,7 +172,8 @@ print "<tr><td><b><a href=vis_regnskaber.php?sort=id&sort2=$sort&desc=$desc&redi
 	<td><a href=vis_regnskaber.php?sort=brugerantal&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('777|Brugere', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=posteringer&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1910|Posteringer', $sprog_id)."</a></td>
 	<td><a href=vis_regnskaber.php?sort=posteret&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1911|Posteret', $sprog_id)."</a></td>
-	<td><a href=vis_regnskaber.php?sort=sidst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1912|Sidst', $sprog_id)."</a></td>";
+	<td><a href=vis_regnskaber.php?sort=sidst&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1912|Sidst', $sprog_id)."</a></td>
+	<td><a href=vis_regnskaber.php?sort=booking&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('1116|Booking', $sprog_id)."</a></td>";
 	
 if ($showClosed) print "<td><a href=vis_regnskaber.php?sort=lukket&sort2=$sort&desc=$desc&rediger=$rediger&showClosed=$showClosed>".findtekst('387|Lukket', $sprog_id)."</a></td>";
 if ($saldiregnskab) {
@@ -283,6 +285,7 @@ if ($rediger)	print "<form name=regnskaber action=vis_regnskaber.php method=post
 			print "<td><input type=text size=\"5\" style=\"text-align:right\" name=\"posteringer[$x]\" value=\"$posteringer[$x]\"</td>";
 			print "<td align='right'>$posteret[$x]</td>";
 			print "<td align='right'>".date("d-m-Y",$sidst[$x])."</td>";
+			print "<td><input type='checkbox' name='booking[$x]' $booking[$x]></td>";
 			if ($lukket[$x]) $lukket[$x]="checked";
 			if ($showClosed) print "<td align=center><input type=checkbox name=lukket[$x] $lukket[$x]></td>";
 			if ($saldiregnskab) {

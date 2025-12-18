@@ -29,6 +29,8 @@ logolib/
 
 #test
 price.txt
+test/
+testing/
 
 paperpdf/
 temp/
@@ -54,3 +56,6 @@ __pycache__/
 .vscode/
 .htaccess
 converter/exitsound_5.sql
+
+# Opret
+opret/
