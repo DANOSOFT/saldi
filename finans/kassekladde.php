@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-12-14 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2025-12-18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1167,7 +1167,7 @@ if (!$simuler) {
 		}
 	}
 }
-print"<div class='table-con'></div>"; 
+
 #############
 print '<style>
     /* Sticky header */
@@ -1179,30 +1179,61 @@ print '<style>
 		width: 100%;
 		margin: 8px;
     }
+
+    /* Note table */
     .kassekladde-note-tb {
+        position: sticky;
+        top: 50px;  
+        background-color: #f1f1f1;
+        z-index: 10;
+        margin: 0;
+        padding: 4px 0;
+        border-bottom: 2px solid #f1f1f1; 
+    }
+
+    /* Sticky Table Header */
+    .kassekladde-thead {
 		position: sticky;
-		top: 6vh; /* Top will be 6% of the viewport height */
+		top: 3px; 
 		background-color: #f1f1f1;
-		z-index: 8;
+		z-index: 25; 
+		margin: 0;
+		border-bottom: 2px solid #f1f1f1;
+		box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+		 
 	}
 
-    .kassekladde-thead {
-        position: sticky;
-        top: 70px; 
-       background-color: #f1f1f1;
-        z-index: 8; 
+    .kassekladde-thead th {
+		background-color: #f1f1f1; 
+		border-bottom: 2px solid #ccc;
+		box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); 
+	}
+		.kassekladde-thead::before {
+			content: "";
+			position: absolute;
+			top: -3; 
+			left: 0;
+			right: 0;
+			height: 39px;
+			background-color: #f1f1f1; 
+			z-index: -1; 
+		}
+
+    /* Table wrapper */
+    .table-wrapper {
+        overflow: auto;
+        height: 95%; 
+        position: relative;
+        margin-top: 90px; 
+		padding-top: 0px; 
+		scroll-behavior: smooth;
+		
     }
-		.table-con {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 90px;  
-        background-color: #f1f1f1;  
-        z-index: 8; 
-		border-bottom: 1px solid #ccc; 
-    }
-	   .header-row {
+		.table-wrapper tbody {
+			margin-top: 10px;
+		}
+
+	.header-row {
 	  margin: 8px;
       position: fixed;
       top: 0;
@@ -1213,6 +1244,7 @@ print '<style>
       display: table; 
 	  padding-right: 17px;
   }
+
     /* Sticky footer for action buttons */
     .kassekladde-footer {
         position: sticky;
@@ -1222,7 +1254,17 @@ print '<style>
         padding: 8px 0;
         border-top: 1px solid #ccc;
     }
-</style>';
+
+    html, body {
+        overflow-y: hidden;
+    }
+</style>
+
+
+';
+?>
+
+<?php
 
 ############
 if (!$udskriv) {
@@ -1253,14 +1295,17 @@ print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 	# ####################################################################################################
 }
+
 if ($udskriv)
 	print "<tr><td style='width:100%;'>";
 else
 	print "<tr><td style='height:100%;width:100%;'>";
+print "<div class='table-wrapper'>"; 
 if (($bogfort && $bogfort != '-') || $udskriv) {
 	if ($menu == 'T') {
 		print "<br><center><table class='dataTable' width='100%' cellpadding='1' cellspacing='3' border='0' align = 'center' valign = 'top'>";
 	} else {
+		
 		print "<table cellpadding='1' cellspacing='3' border='0' align = 'center' valign = 'top'>";
 	}
 }
@@ -1268,7 +1313,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 else
 	print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
 // print "<tbody>"; # Tabel 1.3 -> kladdelinjer
-// print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+
 print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
 
 print "<tr>";
@@ -1306,12 +1351,12 @@ if ($kontrolkonto) {
 		print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 	}
 }
-#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
+print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
 print "</tr>\n";
 
 print "</thead>";
 print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
-print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
+ print "<tr class='table-row'><td colspan='7' style='padding: 20px 0;'></td></tr>";
 
 
 #####################################  Output  #################################
