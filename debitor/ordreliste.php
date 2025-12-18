@@ -413,6 +413,8 @@ if ($valg == "tilbud") {
     $status = "ordrer.status = 0";
 } elseif ($valg == "faktura") {
     $status = "ordrer.status >= 3";
+} elseif ($valg == "ordrer" && $hurtigfakt) {
+    $status = "ordrer.status < 3";
 } else {
     $status = "(ordrer.status = 1 or ordrer.status = 2)";
 }
@@ -1107,7 +1109,7 @@ $filters[] = array(
         array(
             "name" => findtekst('107|Ordrer', $sprog_id),
             "checked" => ($valg == "ordrer") ? "checked" : "",
-            "sqlOn" => "(o.status = 1 OR o.status = 2)",
+            "sqlOn" => $hurtigfakt ? "o.status < 3" : "(o.status = 1 OR o.status = 2)",
             "sqlOff" => "",
         ),
         array(
@@ -1133,6 +1135,8 @@ if ($valg == "tilbud") {
     $base_where_conditions = "o.status < 1";
 } elseif ($valg == "faktura") {
     $base_where_conditions = "o.status >= 3";
+} elseif ($valg == "ordrer" && $hurtigfakt) {
+    $base_where_conditions = "o.status < 3";
 } else {
     $base_where_conditions = "(o.status = 1 OR o.status = 2)";
 }
@@ -1358,6 +1362,51 @@ print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 
 
 
+
+// Shop order integration logic (ported from ordrelisteOld.php)
+if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art='API' and box4 != ''",__FILE__ . " linje " . __LINE__))) {
+    $api_fil=trim($r['box4']);
+    $api_fil2=trim($r['box5']);
+    $api_fil3=trim($r['box6']);
+    
+    if (file_exists("../temp/$db/shoptidspkt.txt")) {
+        $fp=fopen("../temp/$db/shoptidspkt.txt","r");
+        $tidspkt=fgets($fp);
+        if ($hent_nu) $tidspkt-=1170; 
+        fclose ($fp);
+    } else $tidspkt = 0;
+    
+    if ($tidspkt < date("U")-1200 || $shop_ordre_id  || $shop_faktura) {
+        $fp=fopen("../temp/$db/shoptidspkt.txt","w");
+        fwrite($fp,date("U"));
+        fclose ($fp);
+        $header="User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/23.0";
+        $api_txt="$api_fil?put_new_orders=1";
+//		$api_encode='utf-8';
+        if ($api_encode) $api_txt.="&encode=$api_encode";
+        if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+        elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+        exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+        if($api_fil2){
+            $api_txt="$r[box5]?put_new_orders=1";
+    //		$api_encode='utf-8';
+            if ($api_encode) $api_txt.="&encode=$api_encode";
+            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+            elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+            exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+        }
+        if($api_fil3){
+            $api_txt="$r[box6]?put_new_orders=1";
+    //		$api_encode='utf-8';
+            if ($api_encode) $api_txt.="&encode=$api_encode";
+            if ($shop_ordre_id && is_numeric($shop_ordre_id)) $api_txt.="&order_id=$shop_ordre_id";
+            elseif ($shop_faktura) $api_txt.="&invoice=$shop_faktura";
+            exec ("nohup /usr/bin/wget  -O - -q  --no-check-certificate --header='$header' '$api_txt' > /dev/null 2>&1 &\n");
+        }
+    } elseif ($hent_nu) {
+         print "<script>alert('Vent 30 sekunder');</script>";
+    }
+}
 
 // The grid will create its own form - no outer form needed
 // Create the grid first (it creates its own form for pagination/search)
@@ -1643,6 +1692,11 @@ if ($valg == "ordrer") {
                         onClick=\"return MasseFakt('$tekst')\">Fakturér alt</a>";
         }
     }
+}
+
+// Add Shop Fetch Link if active
+if ($show_shop_link) {
+    print "  <a href='ordreliste.php?sort=$sort&hent_nu=1&valg=$valg'>" . findtekst('879|Hent ordrer', $sprog_id) . "</a>";
 }
 
 print "</div>";  // END LEFT
