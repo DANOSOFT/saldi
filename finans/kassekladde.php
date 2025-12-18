@@ -1957,7 +1957,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// 20251218: Voucher IS in balance - clear the auto-balance line, prepare next bilag
 		$amount[$x + 1] = '';
 		$beskrivelse[$x + 1] = '';
-		// Don't set bilag here - let the display code calculate the next available bilag number
 		$bilag[$x + 1] = '';
 		$dato[$x + 1] = '';
 	} #end if(abs($amount[$x + 1]) > 0.01)
@@ -3449,6 +3448,8 @@ document.addEventListener('DOMContentLoaded', function() {
 	
 	// Initialize datepicker on all date fields
 	$('input[name^=\"dato\"]').datepickerDa();
+	// Initialize datepicker on Due Date fields
+	$('input[name^=\"forf\"]').datepickerDa();
 });
 </script>
 ";
