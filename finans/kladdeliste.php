@@ -222,8 +222,20 @@ $columns[] = array(
     "valueGetter" => function ($value, $row, $column) {
         return $value;
     },
+    "generateSearch" => function ($column, $term) {
+        $field = $column['sqlOverride'] ? $column['sqlOverride'] : $column['field'];
+        $term = db_escape_string(trim($term, "'"));
+        
+        if (empty($term)) {
+            return "1=1";
+        }
+        
+        // Cast integer field to text for ILIKE search
+        return "$field::text ILIKE '%$term%'";
+    },
     "render" => function ($value, $row, $column) use ($tidspkt, $popup, $jsvars, $brugernavn) {
-        $kladde = "kladde" . $value;
+        $id = $row['id']; // Use raw ID from row, not $value which may have highlighting
+        $kladde = "kladde" . $id;
         $locked = false;
         
         if (isset($row['tidspkt'])) {
@@ -239,10 +251,11 @@ $columns[] = array(
         
         if ($locked) {
             global $sprog_id;
-            return "<td align='{$column['align']}'><span title='" . findtekst('1607|Kladde er låst af', $sprog_id) . " {$row['hvem']}'>$value</span></td>";
+            $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
+            return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url' title='" . findtekst('1607|Kladde er låst af', $sprog_id) . " {$row['hvem']}' style='color:#FF0000'>$value</a></td>";
         }
         
-        $url = "kassekladde.php?tjek=$value&kladde_id=$value&returside=kladdeliste.php";
+        $url = "kassekladde.php?tjek=$id&kladde_id=$id&returside=kladdeliste.php";
         return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'><a href='$url'>$value</a></td>";
     },
 );
