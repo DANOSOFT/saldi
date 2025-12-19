@@ -803,6 +803,25 @@ if ($source == 'kassekladde' && $sourceId) {
 	print "</tbody></table>";
 }
 
+// View mode toggle and search box
+print "<div id='docPoolToolbar' style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 6px;'>";
+// Search box
+print "<div style='flex: 1; margin-right: 10px;'>";
+print "<input type='text' id='poolSearchBox' placeholder='Søg...' oninput='filterPoolFiles()' style='width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;'>";
+print "</div>";
+// View mode toggle
+print "<div style='display: flex; gap: 4px;'>";
+print "<button type='button' id='tableViewBtn' onclick='setViewMode(\"table\")' title='Tabelvisning' style='padding: 8px 12px; background-color: $buttonColor; color: $buttonTxtColor; border: none; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;'><i class='fa fa-table'></i></button>";
+print "<button type='button' id='cardViewBtn' onclick='setViewMode(\"card\")' title='Kortvisning' style='padding: 8px 12px; background-color: #e9ecef; color: #495057; border: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px;'><i class='fa fa-th-large'></i></button>";
+print "</div>";
+print "</div>";
+
+// Preview popup container (for card view hover)
+print "<div id='previewPopup' style='display: none; position: fixed; z-index: 99999; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 10px; max-width: 500px; max-height: 600px; overflow: hidden;'>";
+print "<div id='previewTitle' style='padding: 8px; background: $buttonColor; color: $buttonTxtColor; border-radius: 4px 4px 0 0; margin: -10px -10px 10px -10px; font-size: 12px; font-weight: bold;'>Forhåndsvisning</div>";
+print "<div id='previewContent'><div style='display: flex; align-items: center; justify-content: center; width: 480px; height: 550px; background: #f5f5f5; color: #666; font-size: 14px;'>Indlæser...</div></div>";
+print "</div>";
+
 print "<div id='fileListContainer'>Loading files...</div>";
 // Fixed bottom section will be added here later via PHP (before leftPanel closes)
 
@@ -833,6 +852,171 @@ print <<<JS
 		const buttonColor = {$buttonColorJs};
 		const buttonTxtColor = {$buttonTxtColorJs};
 		const lightButtonColor = {$lightButtonColorJs};
+		
+		// View mode state (table or card) - default to table, save preference in localStorage
+		let viewMode = localStorage.getItem('docPoolViewMode') || 'table';
+		let searchFilter = '';
+		let previewTimeout = null;
+		let currentPreviewPath = null;
+		const docFolder = '{$docFolder}';
+		const db = '{$db}';
+		
+		// Initialize view mode toggle buttons on page load
+		document.addEventListener('DOMContentLoaded', function() {
+			updateViewModeButtons();
+			updatePanelLayout();
+		});
+		
+		// Set view mode and re-render
+		window.setViewMode = function(mode) {
+			viewMode = mode;
+			localStorage.setItem('docPoolViewMode', mode);
+			updateViewModeButtons();
+			updatePanelLayout();
+			renderCurrentView();
+		};
+		
+		// Update toggle button styles
+		function updateViewModeButtons() {
+			const tableBtn = document.getElementById('tableViewBtn');
+			const cardBtn = document.getElementById('cardViewBtn');
+			if (tableBtn && cardBtn) {
+				if (viewMode === 'table') {
+					tableBtn.style.backgroundColor = buttonColor;
+					tableBtn.style.color = buttonTxtColor;
+					cardBtn.style.backgroundColor = '#e9ecef';
+					cardBtn.style.color = '#495057';
+				} else {
+					cardBtn.style.backgroundColor = buttonColor;
+					cardBtn.style.color = buttonTxtColor;
+					tableBtn.style.backgroundColor = '#e9ecef';
+					tableBtn.style.color = '#495057';
+				}
+			}
+		}
+		
+		// Update panel layout based on view mode (hide right panel in card mode)
+		function updatePanelLayout() {
+			const leftPanel = document.getElementById('leftPanel');
+			const rightPanel = document.getElementById('rightPanel');
+			const resizer = document.getElementById('resizer');
+			
+			if (viewMode === 'card') {
+				// Card mode: hide right panel and resizer, make left panel full width
+				if (rightPanel) rightPanel.style.display = 'none';
+				if (resizer) resizer.style.display = 'none';
+				if (leftPanel) {
+					leftPanel.style.flex = '1 1 100%';
+					leftPanel.style.maxWidth = '100%';
+				}
+			} else {
+				// Table mode: show right panel and resizer, restore split layout
+				if (rightPanel) rightPanel.style.display = 'flex';
+				if (resizer) resizer.style.display = 'block';
+				if (leftPanel) {
+					leftPanel.style.flex = '0 0 35%';
+					leftPanel.style.maxWidth = '50%';
+				}
+			}
+			
+			// Update fixed div after layout change
+			if (typeof updateFixedDiv === 'function') {
+				setTimeout(updateFixedDiv, 100);
+			}
+		}
+		
+		// Render based on current view mode
+		function renderCurrentView() {
+			if (viewMode === 'card') {
+				renderFilesCard();
+			} else {
+				renderFiles();
+			}
+		}
+		
+		// Filter pool files based on search input
+		window.filterPoolFiles = function() {
+			const searchBox = document.getElementById('poolSearchBox');
+			searchFilter = searchBox ? searchBox.value.toLowerCase() : '';
+			renderCurrentView();
+		};
+		
+		// Preview popup functions for card view
+		window.showPreview = function(element, event) {
+			const filepath = element.getAttribute('data-filepath');
+			const filename = element.getAttribute('data-filename');
+			
+			if (!filepath) return;
+			
+			// Clear any existing timeout
+			if (previewTimeout) clearTimeout(previewTimeout);
+			
+			// Delay showing preview slightly to avoid flickering
+			previewTimeout = setTimeout(function() {
+				const popup = document.getElementById('previewPopup');
+				const content = document.getElementById('previewContent');
+				const title = document.getElementById('previewTitle');
+				
+				// Only reload if different file
+				if (currentPreviewPath !== filepath) {
+					currentPreviewPath = filepath;
+					if (title) title.textContent = filename || 'Forhåndsvisning';
+					
+					// Check file extension
+					const ext = filepath.split('.').pop().toLowerCase();
+					
+					if (ext === 'pdf') {
+						content.innerHTML = '<embed src=\"' + filepath + '#pagemode=none\" type=\"application/pdf\" style=\"width:480px;height:550px;\">';
+					} else if (['jpg', 'jpeg', 'png', 'gif'].indexOf(ext) !== -1) {
+						content.innerHTML = '<img src=\"' + filepath + '\" style=\"max-width:480px;max-height:550px;display:block;margin:0 auto;\">';
+					} else {
+						content.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:center;width:480px;height:550px;background:#f5f5f5;color:#666;font-size:14px;\">Forhåndsvisning ikke tilgængelig</div>';
+					}
+				}
+				
+				if (popup) {
+					popup.style.display = 'block';
+					movePreview(event);
+				}
+			}, 300);
+		};
+		
+		window.hidePreview = function() {
+			if (previewTimeout) {
+				clearTimeout(previewTimeout);
+				previewTimeout = null;
+			}
+			const popup = document.getElementById('previewPopup');
+			if (popup) popup.style.display = 'none';
+		};
+		
+		window.movePreview = function(event) {
+			const popup = document.getElementById('previewPopup');
+			if (!popup || popup.style.display === 'none') return;
+			
+			let x = event.clientX + 20;
+			let y = event.clientY - 100;
+			
+			// Keep within viewport
+			const viewportWidth = window.innerWidth;
+			const viewportHeight = window.innerHeight;
+			
+			// If would go off right edge, show on left side of cursor
+			if (x + 520 > viewportWidth) {
+				x = event.clientX - 520;
+			}
+			
+			// If would go off bottom, adjust y
+			if (y + 620 > viewportHeight) {
+				y = viewportHeight - 630;
+			}
+			
+			// Don't go above viewport
+			if (y < 10) y = 10;
+			
+			popup.style.left = x + 'px';
+			popup.style.top = y + 'px';
+		};
 
     async function fetchFiles() {
         const dir = '{$encodedDir}'; 
@@ -849,7 +1033,7 @@ print <<<JS
             }
 
             docData = data;
-            renderFiles();
+            renderCurrentView();
         } catch (error) {
             document.getElementById(containerId).innerHTML = '<div style="color:red;">Error loading files</div>';
             console.error(error);
@@ -1227,6 +1411,295 @@ print <<<JS
 			}
 		}
 
+		// Card layout render function (similar to linkBilag style)
+		function renderFilesCard() {
+			if (!docData.length) {
+				document.getElementById(containerId).innerHTML = '<em>No files found.</em>';
+				return;
+			}
+			
+			// Get current poolFile from URL for highlighting
+			const currentUrlParams = new URLSearchParams(window.location.search);
+			const allCurrentPoolFiles = currentUrlParams.getAll('poolFile');
+			let currentPoolFile = null;
+			for (let i = allCurrentPoolFiles.length - 1; i >= 0; i--) {
+				if (allCurrentPoolFiles[i] && allCurrentPoolFiles[i].trim() !== '') {
+					currentPoolFile = allCurrentPoolFiles[i];
+					break;
+				}
+			}
+			
+			// Amount matching logic (reuse from renderFiles)
+			const normalizedTotal = parseFloat(totalSum?.replace(/\\./g, '').replace(',', '.') || 0);
+			const hasAmountToMatch = normalizedTotal !== 0 && !isNaN(normalizedTotal);
+			let exactMatches = [];
+			let combinationMatches = new Set();
+			let combinationGroups = [];
+			
+			if (hasAmountToMatch) {
+				const docsWithAmounts = [];
+				for (let i = 0; i < docData.length; i++) {
+					const row = docData[i];
+					const normalizedAmount = parseFloat(row.amount);
+					if (!isNaN(normalizedAmount) && normalizedAmount > 0) {
+						const filename = row.filename || '';
+						docsWithAmounts.push({
+							index: i,
+							filename: filename,
+							amount: normalizedAmount,
+							row: row
+						});
+						if (Math.abs(normalizedAmount - normalizedTotal) < 0.01) {
+							exactMatches.push(filename);
+						}
+					}
+				}
+				
+				// Find combinations if no exact matches
+				if (exactMatches.length === 0 && docsWithAmounts.length >= 2) {
+					for (let i = 0; i < docsWithAmounts.length; i++) {
+						for (let j = i + 1; j < docsWithAmounts.length; j++) {
+							const sum = docsWithAmounts[i].amount + docsWithAmounts[j].amount;
+							if (Math.abs(sum - normalizedTotal) < 0.01) {
+								combinationMatches.add(docsWithAmounts[i].filename);
+								combinationMatches.add(docsWithAmounts[j].filename);
+								combinationGroups.push({
+									files: [docsWithAmounts[i].filename, docsWithAmounts[j].filename],
+									sum: sum
+								});
+							}
+						}
+					}
+				}
+			}
+			
+			let html = '<div class="doc-card-list" style="display: flex; flex-direction: column; gap: 8px; padding: 0 4px 80px 4px;">';
+			
+			// Add select all and bulk area
+			html += '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: ' + buttonColor + '; border-radius: 6px; margin-bottom: 4px;">';
+			html += '<label style="display: flex; align-items: center; gap: 8px; color: ' + buttonTxtColor + '; font-size: 13px; cursor: pointer;">';
+			html += '<input type="checkbox" id="selectAllCheckboxCard" onclick="toggleSelectAll(this)" style="width: 18px; height: 18px; cursor: pointer;">';
+			html += '<span>Vælg alle</span>';
+			html += '</label>';
+			html += '<span style="color: ' + buttonTxtColor + '; font-size: 12px;">' + docData.length + ' filer</span>';
+			html += '</div>';
+			
+			// Exact match header if applicable
+			if (hasAmountToMatch && exactMatches.length > 0) {
+				const exactFilesJson = JSON.stringify(exactMatches).replace(/'/g, "&#39;");
+				html += '<div onclick="selectCombinationFiles(' + exactFilesJson + ')" style="cursor: pointer; padding: 10px; background: #28a745; color: white; border-radius: 6px; margin-bottom: 8px;">';
+				html += '<i class="fa fa-check-circle" style="margin-right: 6px;"></i>';
+				html += '<strong>Eksakt match</strong> - ' + exactMatches.length + ' bilag matcher beløbet ' + escapeHTML(totalSum);
+				html += ' <span style="float: right; font-size: 11px;"><i class="fa fa-hand-pointer-o"></i> Klik for at vælge</span>';
+				html += '</div>';
+			}
+			
+			// Combination match header if applicable
+			if (combinationMatches.size > 0 && combinationGroups.length > 0) {
+				const comboFilesJson = JSON.stringify(combinationGroups[0].files).replace(/'/g, "&#39;");
+				html += '<div onclick="selectCombinationFiles(' + comboFilesJson + ')" style="cursor: pointer; padding: 10px; background: #ffc107; color: #212529; border-radius: 6px; margin-bottom: 8px;">';
+				html += '<i class="fa fa-plus-circle" style="margin-right: 6px;"></i>';
+				html += '<strong>Kombination fundet</strong> - ' + combinationMatches.size + ' bilag giver tilsammen ' + escapeHTML(totalSum);
+				html += ' <span style="float: right; font-size: 11px;"><i class="fa fa-hand-pointer-o"></i> Klik for at vælge</span>';
+				html += '</div>';
+			}
+			
+			// Render each file as a card
+			for (const row of docData) {
+				const filename = row.filename || '';
+				const subject = row.subject || filename;
+				const account = row.account || '';
+				const amount = row.amount || '';
+				const dateFormatted = (row.date || '').split(' ')[0];
+				
+				// Apply search filter
+				if (searchFilter) {
+					const searchText = (filename + ' ' + subject + ' ' + account + ' ' + amount).toLowerCase();
+					if (searchText.indexOf(searchFilter) === -1) {
+						continue;
+					}
+				}
+				
+				// Build file path for preview
+				const filePath = docFolder + '/' + db + '/pulje/' + filename;
+				
+				// Check matches
+				const isSelected = currentPoolFile && filename === currentPoolFile;
+				const isAmountMatch = exactMatches.includes(filename);
+				const isCombinationMatch = combinationMatches.has(filename);
+				
+				// Card styling based on state
+				let cardStyle = 'display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #fff; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.2s;';
+				if (isSelected) {
+					cardStyle += ' background: ' + lightButtonColor + '; border-color: ' + buttonColor + ';';
+				} else if (isAmountMatch) {
+					cardStyle += ' background: #d4edda; border-color: #28a745;';
+				} else if (isCombinationMatch) {
+					cardStyle += ' background: #fff3cd; border-color: #ffc107;';
+				}
+				
+				// Check if checkbox was previously checked
+				const savedChecked = sessionStorage.getItem('docPool_checked_' + filename) === 'true';
+				const checkedAttr = savedChecked ? ' checked' : '';
+				
+				// Delete URL
+				const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(filename);
+				
+				html += '<div class="doc-card-item" data-pool-file="' + escapeHTML(filename) + '" data-filepath="' + escapeHTML(filePath) + '" data-filename="' + escapeHTML(filename) + '" style="' + cardStyle + '" onmouseenter="showPreview(this, event)" onmouseleave="hidePreview()" onmousemove="movePreview(event)" onclick="if(!event.target.closest(\\'button\\') && !event.target.closest(\\'input\\') && !event.target.closest(\\'.card-actions\\')) { toggleCardCheckbox(this); }">';
+				
+				// Checkbox
+				html += '<div style="flex-shrink: 0;" onclick="event.stopPropagation();">';
+				html += '<input type="checkbox" class="file-checkbox" value="' + escapeHTML(filename) + '"' + checkedAttr + ' onchange="saveCheckboxState(); updateBulkButton();" onclick="event.stopPropagation();" style="width: 20px; height: 20px; cursor: pointer;">';
+				html += '</div>';
+				
+				// Icon
+				html += '<div style="flex-shrink: 0; font-size: 32px; color: ' + buttonColor + ';">';
+				html += '<i class="fa fa-file-pdf-o"></i>';
+				html += '</div>';
+				
+				// Content
+				html += '<div style="flex: 1; min-width: 0;">';
+				html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="' + escapeHTML(subject) + '">' + escapeHTML(subject) + '</div>';
+				html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
+				if (account) html += '<span><strong>Konto:</strong> ' + escapeHTML(account) + '</span>';
+				if (amount) {
+					let amountHtml = '<span><strong>Beløb:</strong> ';
+					if (isAmountMatch) {
+						amountHtml += '<span style="color: #28a745;"><i class="fa fa-check-circle"></i> ' + escapeHTML(amount) + '</span>';
+					} else if (isCombinationMatch) {
+						amountHtml += '<span style="color: #ffc107;"><i class="fa fa-plus-circle"></i> ' + escapeHTML(amount) + '</span>';
+					} else {
+						amountHtml += escapeHTML(amount);
+					}
+					amountHtml += '</span>';
+					html += amountHtml;
+				}
+				if (dateFormatted) html += '<span><strong>Dato:</strong> ' + escapeHTML(dateFormatted) + '</span>';
+				html += '</div>';
+				html += '</div>';
+				
+				// Actions
+				html += '<div class="card-actions" style="flex-shrink: 0; display: flex; gap: 4px;" onclick="event.stopPropagation();">';
+				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); enableCardEdit(\\'' + escapeHTML(filename) + '\\', \\'' + escapeHTML(subject) + '\\', \\'' + escapeHTML(account) + '\\', \\'' + escapeHTML(amount) + '\\', \\'' + escapeHTML(dateFormatted) + '\\'); return false;" style="padding: 6px 10px; background: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Rediger"><i class="fa fa-pencil"></i></button>';
+				html += '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); deletePoolFile(\\'' + escapeHTML(filename) + '\\', ' + JSON.stringify(subject) + ', \\'' + escapeHTML(deleteUrl) + '\\'); return false;" style="padding: 6px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" title="Slet"><i class="fa fa-trash-o"></i></button>';
+				html += '</div>';
+				
+				html += '</div>';
+			}
+			
+			html += '</div>';
+			
+			// Bulk actions
+			html += '<div id="bulkActionsContainer" style="margin-top: 12px; padding: 8px; background-color: ' + lightButtonColor + '; border-radius: 6px; display: none; position: sticky; bottom: 0; z-index: 5;">';
+			html += '<button type="button" id="bulkInsertButton" onclick="chooseMultipleBilag()" style="padding: 8px 16px; background-color: ' + buttonColor + '; color: ' + buttonTxtColor + '; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;">';
+			html += 'Indsæt valgte (<span id="selectedCount">0</span>)';
+			html += '</button>';
+			html += '</div>';
+			
+			// Dynamic styles for cards
+			html += '<style>';
+			html += '.doc-card-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); transform: translateY(-1px); }';
+			html += '</style>';
+			
+			document.getElementById(containerId).innerHTML = html;
+			
+			// Restore checkboxes and update UI
+			const checkboxes = document.querySelectorAll('.file-checkbox');
+			checkboxes.forEach(cb => {
+				const saved = sessionStorage.getItem('docPool_checked_' + cb.value) === 'true';
+				if (saved) cb.checked = true;
+			});
+			
+			const selectAllCheckbox = document.getElementById('selectAllCheckboxCard');
+			if (selectAllCheckbox && checkboxes.length > 0) {
+				const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+				selectAllCheckbox.checked = allChecked;
+			}
+			
+			if (typeof updateBulkButton === 'function') updateBulkButton();
+			if (typeof updateFixedDiv === 'function') setTimeout(updateFixedDiv, 100);
+		}
+		
+		
+		// Toggle checkbox when clicking a card in card view (kortvisning)
+		window.toggleCardCheckbox = function(cardElement) {
+			const checkbox = cardElement.querySelector('.file-checkbox');
+			if (checkbox) {
+				checkbox.checked = !checkbox.checked;
+				saveCheckboxState();
+				updateBulkButton();
+				
+				// Update card styling based on checkbox state
+				const filename = cardElement.dataset.poolFile;
+				if (checkbox.checked) {
+					cardElement.style.background = lightButtonColor;
+					cardElement.style.borderColor = buttonColor;
+				} else {
+					// Reset to default or match state
+					cardElement.style.background = '#fff';
+					cardElement.style.borderColor = '#ddd';
+				}
+			}
+		};
+		
+		// Enable editing for a card item - opens a modal/inline form
+		window.enableCardEdit = function(poolFile, subject, account, amount, date) {
+			// For simplicity, reuse the table row edit via renderFiles mode temporarily
+			// Switch to table mode, enable edit, then user can save and switch back
+			// Or we can show a simple prompt/modal
+			
+			const newSubject = prompt('Emne:', subject);
+			if (newSubject === null) return; // Cancelled
+			
+			const newAccount = prompt('Konto:', account);
+			if (newAccount === null) return;
+			
+			const newAmount = prompt('Beløb:', amount);
+			if (newAmount === null) return;
+			
+			const newDate = prompt('Dato (ÅÅÅÅ-MM-DD):', date);
+			if (newDate === null) return;
+			
+			// Save via AJAX (reuse existing save logic)
+			const form = document.forms['gennemse'];
+			if (!form) return;
+			
+			const formAction = form.getAttribute('action');
+			const url = new URL(formAction, window.location.href);
+			url.searchParams.set('poolFile', poolFile);
+			
+			const formData = new FormData();
+			formData.append('rename', 'Ret filnavn');
+			formData.append('poolFile', poolFile);
+			formData.append('newFileName', poolFile);
+			formData.append('newSubject', newSubject);
+			formData.append('newAccount', newAccount);
+			formData.append('newAmount', newAmount);
+			formData.append('newDate', newDate);
+			
+			url.searchParams.forEach((value, key) => {
+				formData.append(key, value);
+			});
+			
+			fetch(url.toString(), {
+				method: 'POST',
+				body: formData,
+				redirect: 'follow'
+			})
+			.then(response => {
+				if (response.ok) {
+					// Refresh the file list
+					fetchFiles();
+				} else {
+					alert('Fejl ved gemning. Prøv igen.');
+				}
+			})
+			.catch(error => {
+				console.error('Error saving:', error);
+				alert('Fejl ved gemning: ' + error.message);
+			});
+		};
+
 
 	
 		function sortFiles(field) {
@@ -1252,7 +1725,7 @@ print <<<JS
 			});
 
 			currentSort = { field, asc };
-			renderFiles();
+			renderCurrentView();
 		}
 
 
@@ -1793,11 +2266,19 @@ JS;
 	
 	print "<div id='fixedBottom' style='position: relative; width: 100%; padding: 16px; box-sizing: border-box; z-index: 1000;'>";
 	
+	// Toggle header for upload section
+	print "<div id='uploadToggleHeader' onclick='toggleUploadSection()' style='display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background-color: $buttonColor; color: $buttonTxtColor; border-radius: 8px; cursor: pointer; margin-bottom: 10px; user-select: none;'>";
+	print "<span style='font-weight: 600; font-size: 13px;'><i class='fa fa-upload' style='margin-right: 6px;'></i>".findtekst(1414, $sprog_id)."</span>";
+	print "<i id='uploadToggleIcon' class='fa fa-chevron-down' style='font-size: 12px; transition: transform 0.3s;'></i>";
+	print "</div>";
+	
+	// Collapsible upload content
+	print "<div id='uploadContent' style='overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease;'>";
+	
 	// Upload form (independent form, not nested) - uses AJAX like drag and drop
 	print "<form id='fileUploadForm' enctype='multipart/form-data' action='documents.php?$uploadParams' method='POST' style='margin: 0; padding: 0;'>";
 	print "<input type='hidden' name='MAX_FILE_SIZE' value='100000000'>";
 	print "<input type='hidden' name='openPool' value='1'>";
-	print "<div style='margin-bottom: 10px; padding: 8px; background-color: $buttonColor; border-radius: 8px; font-weight: 600; font-size: 14px; color: $buttonTxtColor; text-shadow: 0 1px 2px rgba(0,0,0,0.1);'>".findtekst(1414, $sprog_id).":</div>";
 	print "<label for='fileUploadInput' style='display: block; width: 100%; margin-bottom: 12px; cursor: pointer;'>";
 	print "<input id='fileUploadInput' class='inputbox' name='uploadedFile' type='file' accept='.pdf,.jpg,.jpeg,.png' style='width: 100%; height: auto; min-height: 40px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; font-size: 12px; box-sizing: border-box; overflow: visible; background-color: #ffffff; transition: all 0.3s ease; pointer-events: auto; position: relative; z-index: 10; cursor: pointer;'>";
 	print "</label>";
@@ -1945,8 +2426,11 @@ JS;
 		print "</a>";
 		print "</div>";
 	}
+	
+	// Close uploadContent div
+	print "</div>"; // uploadContent
 
-	// Add JavaScript variables for drag and drop
+	// Add JavaScript variables for drag and drop and toggle function
 	print "<script>
 	var clipVariables = {
 		sourceId: " . (int)$sourceId . ",
@@ -1956,6 +2440,50 @@ JS;
 		source: '$source',
 		openPool: 1
 	};
+	
+	// Toggle upload section visibility
+	window.toggleUploadSection = function() {
+		const content = document.getElementById('uploadContent');
+		const icon = document.getElementById('uploadToggleIcon');
+		const isHidden = localStorage.getItem('docPoolUploadHidden') === 'true';
+		
+		if (isHidden) {
+			// Show
+			content.style.maxHeight = content.scrollHeight + 'px';
+			content.style.opacity = '1';
+			icon.style.transform = 'rotate(0deg)';
+			localStorage.setItem('docPoolUploadHidden', 'false');
+			// After animation, set to auto for dynamic content
+			setTimeout(function() {
+				content.style.maxHeight = 'none';
+			}, 300);
+		} else {
+			// Hide
+			content.style.maxHeight = content.scrollHeight + 'px';
+			setTimeout(function() {
+				content.style.maxHeight = '0';
+			}, 10);
+			content.style.opacity = '0';
+			icon.style.transform = 'rotate(-90deg)';
+			localStorage.setItem('docPoolUploadHidden', 'true');
+		}
+	};
+	
+	// Initialize upload section state on page load
+	document.addEventListener('DOMContentLoaded', function() {
+		const content = document.getElementById('uploadContent');
+		const icon = document.getElementById('uploadToggleIcon');
+		const isHidden = localStorage.getItem('docPoolUploadHidden') === 'true';
+		
+		if (isHidden && content && icon) {
+			content.style.maxHeight = '0';
+			content.style.opacity = '0';
+			icon.style.transform = 'rotate(-90deg)';
+		} else if (content) {
+			content.style.maxHeight = 'none';
+			content.style.opacity = '1';
+		}
+	});
 	</script>";
 	
 	print "</div>"; // fixedBottom
@@ -2092,7 +2620,7 @@ JS;
 		if ($poolFile) {
 		if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
 		else $src=$tmp;
-		print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName\" frameborder=\"0\">";
+		print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName#pagemode=none\" frameborder=\"0\">";
 		print "</iframe>";
 	}
 	print "</div>"; // documentViewer
