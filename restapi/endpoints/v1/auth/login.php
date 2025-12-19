@@ -7,12 +7,11 @@
  * {
  *   "username": "brugernavn",
  *   "password": "password",
- *   "database": "database_name" (REQUIRED - database name or tenant ID)
- *   "account_name": "account_name" (REQUIRED - account name)
+ *   "account_name": "account_name" (REQUIRED - account name matching regnskab column)
  * }
  * 
  * IMPORTANT: Users are stored in each tenant's database, not the master database.
- * The "database" parameter is REQUIRED to know which tenant database to connect to.
+ * The "account_name" parameter is REQUIRED to look up the tenant database from the regnskab table.
  * 
  * Response:
  * {
@@ -63,14 +62,14 @@ class AuthLoginEndpoint extends BaseEndpoint
             return;
         }
         
-        if (!isset($data->database) || empty($data->database)) {
-            $this->sendResponse(false, null, 'Database parameter is required. Provide database name or tenant ID.', 400);
+        if (!isset($data->account_name) || empty($data->account_name)) {
+            $this->sendResponse(false, null, 'Account name parameter is required.', 400);
             return;
         }
         
         $username = db_escape_string($data->username);
         $password = $data->password;
-        $database_param = trim($data->database);
+        $account_name = trim($data->account_name);
         
         // First, connect to master database to look up tenant information
         global $sqhost, $squser, $sqpass, $sqdb;
@@ -81,23 +80,13 @@ class AuthLoginEndpoint extends BaseEndpoint
             return;
         }
         
-        // Find tenant by database name or ID
-        $tenant_query = "select * from regnskab where ";
-        
-        // Check if it's numeric (tenant ID) or string (database name)
-        if (is_numeric($database_param)) {
-            $tenant_id = (int)$database_param;
-            $tenant_query .= "id='$tenant_id'";
-        } else {
-            $db_escaped = db_escape_string($database_param);
-            $tenant_query .= "db='$db_escaped'";
-        }
-        
-        $tenant_query .= " limit 1";
+        // Find tenant by account_name (regnskab column)
+        $account_name_escaped = db_escape_string($account_name);
+        $tenant_query = "select * from regnskab where regnskab='$account_name_escaped' limit 1";
         $tenant_result = db_fetch_array(db_select($tenant_query, __FILE__ . " linje " . __LINE__));
         
         if (!$tenant_result) {
-            $this->sendResponse(false, null, 'Database or tenant not found', 404);
+            $this->sendResponse(false, null, 'Account not found', 404);
             return;
         }
         
