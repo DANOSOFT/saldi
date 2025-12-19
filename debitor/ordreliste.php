@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-12-18--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-12-19--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -1699,7 +1699,15 @@ if ($valg == "faktura") {
     print "<input type='submit' name='submit' value='Genfakturer' class='button blue small'> ";
     print "<input type='submit' name='submit' value='Send mails' class='button blue small'> ";
 } else {
-    print "<input type='submit' name='slet_valgte' value='" . findtekst('1099|Slet',$sprog_id) . "' class='button blue small'> ";
+    print "<input 
+        type='submit' 
+        name='slet_valgte' 
+        value='" . findtekst('1099|Slet',$sprog_id) . "' 
+        class='button blue small'
+        style='margin-right: 4px;'
+        onclick=\"return confirm('Do you want to delete this $valg(s)?');\"
+    >";
+
     if ($valg == "ordrer") {
         print "<input type='submit' name='submit' value='" . findtekst('1206|Ret',$sprog_id) . "' class='button blue small'> ";
     }
