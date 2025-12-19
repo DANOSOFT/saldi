@@ -1888,9 +1888,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if ($vis_bet_id)
 				print "<td><input class='inputbox' type='text' style='text-align:left;width:100px;' name='b_id$y' $de_fok value =\"$betal_id[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		} elseif ($vis_forfald) {
-			print "<td><input class='inputbox' style='left;width:75px;' readonly='readonly' size='10'><br></td>\n";
+			print "<td><input class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
-				print "<td><input class='inputbox' readonly='readonly' size='10'><br></td>\n";
+				print "<td><input class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='javascript:docChange = true;' ></td>\n";
@@ -2108,9 +2108,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' 
 			name='b_id$x' $de_fok value =\"$betal_id[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		} elseif ($vis_forfald) {
-			print "<td><input  class='inputbox' readonly='readonly' style='left;width:75px;' size='10'><br></td>\n";
+			print "<td><input  class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
-				print "<td><input  class='inputbox' readonly='readonly' size='10'><br></td>\n";
+				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		if ($momsfri[$x] == 'on') {
 			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' checked onchange='javascript:docChange = true;'></td>\n";
@@ -2173,9 +2173,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		#		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=forf$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 #		print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=b_id$z $de_fok onchange='javascript:docChange = true;'></td>\n";
 		if ($vis_forfald) {
-			print "<td><input  class='inputbox'  style='left;width:75px;' readonly='readonly' size='10'><br></td>\n";
+			print "<td><input  class='inputbox' style='text-align:left;width:75px;' readonly='readonly'></td>\n";
 			if ($vis_bet_id)
-				print "<td><input  class='inputbox' readonly='readonly' size='10'><br></td>\n";
+				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
 		print "</tr>\n";

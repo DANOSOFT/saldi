@@ -113,21 +113,12 @@
 
   
     function setupAutocomplete(input, fieldType) {
-        if (input.parentNode && input.parentNode.classList && 
-            input.parentNode.classList.contains('account-autocomplete-wrapper')) {
+        // Skip if already initialized
+        if (input.autocompleteInitialized) {
             return;
         }
-        
-        let parentElement = input.parentNode;
-        
-        const wrapper = document.createElement('div');
-        wrapper.className = 'account-autocomplete-wrapper';
-        wrapper.style.position = 'relative';
-        wrapper.style.display = 'inline-block';
-        
-        parentElement.insertBefore(wrapper, input);
-        wrapper.appendChild(input);
 
+        // Create dropdown in the global container (doesn't affect form structure)
         const dropdown = document.createElement('div');
         dropdown.className = 'account-autocomplete-dropdown';
         dropdown.style.display = 'none';
@@ -155,7 +146,8 @@
                 e.stopPropagation();
                 const page = parseInt(pageBtn.dataset.page, 10);
                 if (page > 0) {
-                    performSearchWithValue(input, currentSearchValue, page);
+                    // Use the current input value for pagination
+                    performSearchWithValue(input, input.value, page);
                 }
                 return;
             }
@@ -175,73 +167,93 @@
                 return;
             }
             
-            if (e.target.classList.contains('account-autocomplete-search-input')) {
-                return;
-            }
-            
             e.preventDefault();
-        });
-        
-        dropdown.addEventListener('input', function(e) {
-            if (e.target.classList.contains('account-autocomplete-search-input')) {
-                if (selectionMade) {
-                    return;
-                }
-                
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(function() {
-                    performSearchWithValue(input, e.target.value, 1);
-                }, CONFIG.debounceDelay);
-            }
-        });
-        
-        dropdown.addEventListener('keydown', function(e) {
-            if (e.target.classList.contains('account-autocomplete-search-input')) {
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    closeDropdown();
-                } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    const items = dropdown.querySelectorAll('.account-autocomplete-item');
-                    if (items.length > 0) {
-                        selectItemByIndex(items, 0);
-                    }
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const selected = dropdown.querySelector('.account-autocomplete-item.selected');
-                    let itemToSelect = selected;
-                    if (!itemToSelect) {
-                        itemToSelect = dropdown.querySelector('.account-autocomplete-item');
-                    }
-                    if (itemToSelect) {
-                        if (input.fieldType === 'faktura' || input.fieldType === 'amount') {
-                            selectInvoiceOrAmount(input, itemToSelect);
-                        } else {
-                            selectAccount(input, itemToSelect.dataset.kontonr);
-                        }
-                    }
-                }
-            }
         });
 
         input.autocompleteDropdown = dropdown;
-        input.autocompleteWrapper = wrapper;
         input.fieldType = fieldType;
 
         const rowMatch = input.name.match(/\d+$/);
         input.rowNumber = rowMatch ? rowMatch[0] : '';
 
         input.addEventListener('input', function(e) {
-            handleInput(this);
+            if (selectionMade) {
+                return;
+            }
+            handleInputWithValue(this, this.value);
         });
 
         input.addEventListener('focus', function(e) {
-            handleInput(this);
+            if (selectionMade) {
+                return;
+            }
+            // Show dropdown with current input value as search
+            handleInputWithValue(this, this.value);
         });
 
         input.addEventListener('blur', function(e) {
             // console.log('blur', e)
          
+        });
+        
+        // Handle keyboard navigation while typing in the input field
+        input.addEventListener('keydown', function(e) {
+            if (!activeDropdown || activeInput !== this) {
+                return;
+            }
+            
+            const items = activeDropdown.querySelectorAll('.account-autocomplete-item');
+            if (items.length === 0) return;
+            
+            const selected = activeDropdown.querySelector('.account-autocomplete-item.selected');
+            let selectedIndex = -1;
+
+            if (selected) {
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i] === selected) {
+                        selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (selectedIndex < items.length - 1) {
+                        selectItemByIndex(items, selectedIndex + 1);
+                    } else if (selectedIndex === -1 && items.length > 0) {
+                        selectItemByIndex(items, 0);
+                    }
+                    break;
+
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (selectedIndex > 0) {
+                        selectItemByIndex(items, selectedIndex - 1);
+                    }
+                    break;
+
+                case 'Enter':
+                    if (selected) {
+                        e.preventDefault();
+                        if (this.fieldType === 'faktura' || this.fieldType === 'amount') {
+                            selectInvoiceOrAmount(this, selected);
+                        } else {
+                            selectAccount(this, selected.dataset.kontonr);
+                        }
+                    }
+                    break;
+
+                case 'Escape':
+                    e.preventDefault();
+                    closeDropdown();
+                    break;
+
+                case 'Tab':
+                    closeDropdown();
+                    break;
+            }
         });
     }
 
@@ -288,6 +300,20 @@
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function() {
             performSearch(input);
+        }, CONFIG.debounceDelay);
+    }
+
+    /**
+     * Handle input with a specific search value (from the input field itself)
+     */
+    function handleInputWithValue(input, searchValue) {
+        if (selectionMade) {
+            return;
+        }
+        
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            performSearchWithValue(input, searchValue || '', 1);
         }, CONFIG.debounceDelay);
     }
 
@@ -644,9 +670,6 @@
         let html = '<div class="account-autocomplete-header">' +
             '<span class="account-autocomplete-header-title">' + title + '</span>' +
             '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
-            '</div>' +
-            '<div class="account-autocomplete-search-box">' +
-            '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
             '</div>';
         
         if (!results || results.length === 0) {
@@ -701,11 +724,8 @@
         activeDropdown = dropdown;
         activeInput = input;
         
-        const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        if (searchInput) {
-            searchInput.focus();
-            searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
-        }
+        // Keep focus on the original input field
+        input.focus();
     }
 
   
@@ -723,18 +743,13 @@
                     '<span class="account-autocomplete-header-title">' + trans.selectAccount + '</span>' +
                     '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
                     '</div>' +
-                    '<div class="account-autocomplete-search-box">' +
-                    '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchAccount + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
-                    '</div>' +
                     '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
                 dropdown.style.display = 'flex';
                 activeDropdown = dropdown;
                 activeInput = input;
-                const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-                if (searchInput) {
-                    searchInput.focus();
-                }
+                // Keep focus on the original input field
+                input.focus();
                 return;
             }
             dropdown.style.display = 'none';
@@ -750,10 +765,6 @@
         html += '<div class="account-autocomplete-header">';
         html += '<span class="account-autocomplete-header-title">' + titleText + '</span>';
         html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchAccount + '" value="' + escapeHtml(currentSearchValueParam) + '">';
         html += '</div>';
         
         html += '<div class="account-autocomplete-results">';
@@ -822,10 +833,6 @@
             html += '</div>';
         }
         
-        const existingSearchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        const searchValueToRestore = existingSearchInput ? existingSearchInput.value : currentSearchValueParam;
-        const cursorPos = existingSearchInput ? existingSearchInput.selectionStart : searchValueToRestore.length;
-        
         dropdown.innerHTML = html;
         
         positionDropdown(input, dropdown);
@@ -834,17 +841,8 @@
         activeDropdown = dropdown;
         activeInput = input;
         
-        const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        if (searchInput) {
-            searchInput.value = searchValueToRestore;
-            searchInput.focus();
-            try {
-                searchInput.setSelectionRange(cursorPos, cursorPos);
-            } catch (e) {
-               console.log('error in autocomplte', e)
-
-            }
-        }
+        // Keep focus on the original input field
+        input.focus();
     }
 
  
@@ -861,18 +859,13 @@
                     '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>' +
                     '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
                     '</div>' +
-                    '<div class="account-autocomplete-search-box">' +
-                    '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchInvoice + '" value="' + escapeHtml(currentSearchValueParam) + '">' +
-                    '</div>' +
                     '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
                 positionDropdown(input, dropdown);
                 dropdown.style.display = 'flex';
                 activeDropdown = dropdown;
                 activeInput = input;
-                const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-                if (searchInput) {
-                    searchInput.focus();
-                }
+                // Keep focus on the original input field
+                input.focus();
                 return;
             }
             dropdown.style.display = 'none';
@@ -886,10 +879,6 @@
         html += '<div class="account-autocomplete-header">';
         html += '<span class="account-autocomplete-header-title">' + trans.openItems + '</span>';
         html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.searchInvoice + '" value="' + escapeHtml(currentSearchValueParam) + '">';
         html += '</div>';
         
         html += '<div class="account-autocomplete-results">';
@@ -952,10 +941,6 @@
             html += '</div>';
         }
         
-        const existingSearchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        const searchValueToRestore = existingSearchInput ? existingSearchInput.value : currentSearchValueParam;
-        const cursorPos = existingSearchInput ? existingSearchInput.selectionStart : searchValueToRestore.length;
-        
         dropdown.innerHTML = html;
         
         positionDropdown(input, dropdown);
@@ -964,16 +949,8 @@
         activeDropdown = dropdown;
         activeInput = input;
         
-        const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        if (searchInput) {
-            searchInput.value = searchValueToRestore;
-            searchInput.focus();
-            try {
-                searchInput.setSelectionRange(cursorPos, cursorPos);
-            } catch (e) {
-           
-            }
-        }
+        // Keep focus on the original input field
+        input.focus();
     }
 
  
@@ -990,18 +967,13 @@
                 '<span class="account-autocomplete-header-title">' + title + '</span>' +
                 '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>' +
                 '</div>' +
-                '<div class="account-autocomplete-search-box">' +
-                '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">' +
-                '</div>' +
                 '<div class="account-autocomplete-no-results">' + trans.noResults + '</div>';
             positionDropdown(input, dropdown);
             dropdown.style.display = 'flex';
             activeDropdown = dropdown;
             activeInput = input;
-            const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-            if (searchInput) {
-                searchInput.focus();
-            }
+            // Keep focus on the original input field
+            input.focus();
             return;
         }
 
@@ -1010,10 +982,6 @@
         html += '<div class="account-autocomplete-header">';
         html += '<span class="account-autocomplete-header-title">' + title + '</span>';
         html += '<button type="button" class="account-autocomplete-close-btn" data-action="close">' + trans.close + ' ✕</button>';
-        html += '</div>';
-        
-        html += '<div class="account-autocomplete-search-box">';
-        html += '<input type="text" class="account-autocomplete-search-input" placeholder="' + trans.search + '" value="' + escapeHtml(searchValue) + '">';
         html += '</div>';
         
         html += '<div class="account-autocomplete-results">';
@@ -1066,10 +1034,8 @@
         activeDropdown = dropdown;
         activeInput = input;
         
-        const searchInput = dropdown.querySelector('.account-autocomplete-search-input');
-        if (searchInput) {
-            searchInput.focus();
-        }
+        // Keep focus on the original input field
+        input.focus();
     }
 
   
@@ -1082,11 +1048,19 @@
         
         input.value = kontonr;
         
-        const event = new Event('change', { bubbles: true });
-        input.dispatchEvent(event);
+        // Dispatch both input and change events to ensure all handlers are triggered
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
         
-        if (typeof docChange !== 'undefined') {
-            docChange = true;
+        // Ensure docChange is set (for unsaved changes warning)
+        if (typeof window.docChange !== 'undefined') {
+            window.docChange = true;
+        }
+        
+        // Debug logging
+        console.log('selectAccount:', input.name, '=', kontonr, 'form:', input.form ? input.form.id : 'no form');
+        if (!input.form) {
+            console.error('Input is not connected to form!', input.name);
         }
 
         const form = input.form;
@@ -1103,6 +1077,28 @@
         }, 100);
     }
 
+    /**
+     * Helper function to set field value and trigger proper change events
+     */
+    function setFieldValue(field, value) {
+        if (!field) return;
+        field.value = value;
+        
+        // Dispatch events that will trigger event listeners
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Ensure docChange is set for unsaved changes warning
+        if (typeof window.docChange !== 'undefined') {
+            window.docChange = true;
+        }
+        
+        // Debug logging
+        console.log('setFieldValue:', field.name, '=', value, 'form:', field.form ? field.form.id : 'no form');
+        if (!field.form) {
+            console.error('Field is not connected to form!', field.name);
+        }
+    }
 
     function selectInvoiceOrAmount(input, item) {
         clearTimeout(debounceTimer);
@@ -1140,34 +1136,30 @@
         const amountValue = parseFloat(amount) || 0;
         
         if (input.fieldType === 'faktura') {
-            input.value = faktnr;
+            setFieldValue(input, faktnr);
         } else if (input.fieldType === 'amount') {
-            input.value = formatNumberForInput(Math.abs(amountValue));
+            setFieldValue(input, formatNumberForInput(Math.abs(amountValue)));
         }
         
         // Fill invoice number
         if (faktField && faktnr && input.fieldType !== 'faktura') {
-            faktField.value = faktnr;
-            faktField.dispatchEvent(new Event('change', { bubbles: true }));
+            setFieldValue(faktField, faktnr);
         }
         
         // Fill amount (always positive in the field)
         if (beloField && amount && input.fieldType !== 'amount') {
-            beloField.value = formatNumberForInput(Math.abs(amountValue));
-            beloField.dispatchEvent(new Event('change', { bubbles: true }));
+            setFieldValue(beloField, formatNumberForInput(Math.abs(amountValue)));
         }
         
         // Fill description (attachment text) - "Company name - Invoice number"
         if (beskField && description) {
-            beskField.value = description;
-            beskField.dispatchEvent(new Event('change', { bubbles: true }));
+            setFieldValue(beskField, description);
         }
         
         // Fill currency field
         const valuField = document.querySelector('input[name="valu' + rowNum + '"]');
         if (valuField && currency) {
-            valuField.value = currency;
-            valuField.dispatchEvent(new Event('change', { bubbles: true }));
+            setFieldValue(valuField, currency);
         }
         
       
@@ -1182,15 +1174,12 @@
                 // - Put the debtor/creditor account in DEBIT side (d_type=D/K, debet=accountNo)
                 // - Put the offset account (bank) in CREDIT side (if not already filled)
                 if (dTypeField && debeField) {
-                    dTypeField.value = accountType;
-                    debeField.value = accountNr;
-                    dTypeField.dispatchEvent(new Event('change', { bubbles: true }));
-                    debeField.dispatchEvent(new Event('change', { bubbles: true }));
+                    setFieldValue(dTypeField, accountType);
+                    setFieldValue(debeField, accountNr);
                 }
                 // Fill offset account on CREDIT side only if not already filled
                 if (kredField && !existingKredit && offsetAccount) {
-                    kredField.value = offsetAccount;
-                    kredField.dispatchEvent(new Event('change', { bubbles: true }));
+                    setFieldValue(kredField, offsetAccount);
                 }
                 // Keep existing k_type, don't overwrite with 'F'
             } else {
@@ -1198,15 +1187,12 @@
                 // - Put the debtor/creditor account in CREDIT side (k_type=D/K, kredit=accountNo)
                 // - Put the offset account (bank) in DEBIT side (if not already filled)
                 if (kTypeField && kredField) {
-                    kTypeField.value = accountType;
-                    kredField.value = accountNr;
-                    kTypeField.dispatchEvent(new Event('change', { bubbles: true }));
-                    kredField.dispatchEvent(new Event('change', { bubbles: true }));
+                    setFieldValue(kTypeField, accountType);
+                    setFieldValue(kredField, accountNr);
                 }
                 // Fill offset account on DEBIT side only if not already filled
                 if (debeField && !existingDebet && offsetAccount) {
-                    debeField.value = offsetAccount;
-                    debeField.dispatchEvent(new Event('change', { bubbles: true }));
+                    setFieldValue(debeField, offsetAccount);
                 }
                 // Keep existing d_type, don't overwrite with 'F'
             }
@@ -1225,12 +1211,9 @@
             offsetAccount
         });
         
-        // Trigger change on the input field
-        const event = new Event('change', { bubbles: true });
-        input.dispatchEvent(event);
-        
-        if (typeof docChange !== 'undefined') {
-            docChange = true;
+        // Ensure docChange is set
+        if (typeof window.docChange !== 'undefined') {
+            window.docChange = true;
         }
 
         // Move focus to the next field
@@ -1257,10 +1240,6 @@
 
     function handleKeyboardNavigation(e) {
         if (!activeDropdown) return;
-        
-        if (e.target.classList && e.target.classList.contains('account-autocomplete-search-input')) {
-            return;
-        }
 
         const items = activeDropdown.querySelectorAll('.account-autocomplete-item');
         if (items.length === 0) return;
