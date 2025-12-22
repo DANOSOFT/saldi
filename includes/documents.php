@@ -69,6 +69,12 @@ if(($_GET)||($_POST)) {
 		$fokus     = isset($_POST['fokus']) ? $_POST['fokus'] : $fokus;
 		$openPool  = isset($_POST['openPool']) ? $_POST['openPool'] : $openPool;
 	}
+	
+	// Always read poolFile from GET if present (regardless of sourceId)
+	// This ensures clicking on file rows updates the viewer correctly
+	if (isset($_GET['poolFile']) && !empty($_GET['poolFile'])) {
+		$poolFile = $_GET['poolFile'];
+	}
 }
 $params = "kladde_id=$kladde_id&bilag=$bilag&source=$source&sourceId=$sourceId&fokus=$fokus";
 
@@ -328,11 +334,14 @@ function sanitize_filename($filename) {
 
 	//if any extra
 	$filename = preg_replace('/^(_{0,2}(UTF-8|ISO-8859-1)?_?Q_*)?/i', '', $filename);
-    // Remove all but safe characters
-    $filename = preg_replace('/[^\w\-\. ]+/', '_', $filename);
+    // Remove all but safe characters (replace with underscore)
+    $filename = preg_replace('/[^\w\-\.]+/', '_', $filename);
+    
+    // Also explicitly replace spaces with underscores (to match _docPoolData.php behavior)
+    $filename = str_replace(' ', '_', $filename);
 
     // Trim unwanted characters from ends
-    $filename = trim($filename, " \t\n\r\0\x0B.");
+    $filename = trim($filename, " \t\n\r\0\x0B._");
 
     // Separate the name and extension
     $dot_position = strrpos($filename, '.');

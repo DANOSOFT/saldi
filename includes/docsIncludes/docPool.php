@@ -1090,7 +1090,7 @@ print <<<JS
 							<span>&#9660;</span>
 						</div>
 					</th>
-					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 140px; color:${buttonTxtColor};">
+					<th style="padding:8px; border:1px solid #ddd; text-align:center; width: 90px; color:${buttonTxtColor};">
 						<span>Actions</span>
 					</th>
 				</tr>
@@ -2617,9 +2617,10 @@ JS;
 	if ($corrected == '1') {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1&poolFile=$poolFile\">";
 	}
-		if ($poolFile) {
+			if ($poolFile) {
 		if ($google_docs) $src="http://docs.google.com/viewer?url=$fullName&embedded=true";
 		else $src=$tmp;
+		
 		print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$fullName#pagemode=none\" frameborder=\"0\">";
 		print "</iframe>";
 	}
