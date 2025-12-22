@@ -21,7 +21,7 @@ if(isset($_GET["put_new_orders"])){
         writeLog("SOAP connection failed: " . $e->getMessage(), 'ERROR');
         exit;
     }
-
+    // afsluttet 
     // set dates for search critiria
     $start = date('Y-m-d', strtotime('-5 days'));
     $end = date('Y-m-d');
@@ -63,7 +63,7 @@ if(isset($_GET["put_new_orders"])){
         $url .= "&lev_land=".urlencode($order->Customer->ShippingCountry);
         $url .= "&lev_kontakt=".urlencode($order->Customer->ShippingFirstname . " " . $order->Customer->ShippingLastname);
         $url .= "&betalingsbet=netto";
-        $url .= "&betalingsdage=30&shop_fakturanr=".$order->Id;
+        $url .= "&betalingsdage=0&shop_fakturanr=".$order->Id;
         $url .= "&ordredate=" . (!empty($order->DateDelivered) ? urlencode($order->DateDelivered) : date('Y-m-d'));
         $url .= "&lev_date=";
         $url .= "&momssats=".urlencode($order->Vat);
@@ -130,11 +130,11 @@ if(isset($_GET["put_new_orders"])){
             // add delivery cost
             writeLog("Adding delivery cost: " . $order->Delivery->Title . " | Price: " . $order->Delivery->Price);
             $urltxt="action=insert_shop_orderline&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id;
-            $urltxt.="&varenr=".urlencode(1);
+            $urltxt.="&varenr=".urlencode("FRAGT");
             $urltxt.="&beskrivelse=".urlencode($order->Delivery->Title);
             $urltxt.="&antal=1";
             $urltxt.= ($order->Delivery->Price == 0) ? "&pris=0.0" : "&pris=".urlencode($order->Delivery->Price);
-            $urltxt.="&rabat=0&stregkode=&variant=&varegruppe=2";
+            $urltxt.="&rabat=0&stregkode=&variant=&varegruppe=1";
             $urltxt .= "&momsfri=on";
             $urltxt .= "&fakturadate=" . (!empty($order->DateDelivered) ? urlencode($order->DateDelivered) : date('Y-m-d'));
             file_put_contents("saldi-text.txt", $urltxt . "\n", FILE_APPEND);
