@@ -222,6 +222,32 @@ async function get_api_key(baseurl) {
         // Log the response (don't wait for it to complete)
         const responseLogPromise = logToServer(`API key request response - Status: ${res.status}, Data: ${JSON.stringify(jsondata)}`, 'INFO');
         
+/*         // write a put command to the settings for the terminal
+        const putPromise = fetch(
+            `${baseurl}terminal/TERMINAL ID HERER/settings`,
+            {
+                method: 'put',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `bearer ${jsondata.token}`
+                },
+                body: JSON.stringify({
+                    "printerWidth": 0
+                }),
+            }
+        ).then(async (putRes) => {
+            const putData = await putRes.json().catch(() => ({}));
+            if (putRes.ok) {
+                logToServer(`Terminal settings updated successfully - Status: ${putRes.status}`, 'INFO');
+            } else {
+                logToServer(`Terminal settings update failed - Status: ${putRes.status}, Error: ${JSON.stringify(putData)}`, 'ERROR');
+            }
+            return putRes;
+        }).catch((putError) => {
+            logToServer(`Terminal settings update exception: ${putError.message}`, 'ERROR');
+            console.error('Terminal settings PUT failed:', putError);
+        }); */
+
         if (res.status != 200) {
             // Wait for both error logging and fail function
             await Promise.allSettled([
@@ -319,6 +345,10 @@ async function start_payment(baseurl, apikey, amount) {
         "amount": <?php print $amount; ?>
     }
     
+    // Log the exact request details for debugging
+    logToServer(`Transaction request - URL: ${baseurl}terminal/<?php print $terminal_id; ?>/transaction, Data: ${JSON.stringify(data)}`, 'DEBUG');
+    console.log('Transaction request data:', data);
+    
     try {
         var res = await fetch(
             `${baseurl}terminal/<?php print $terminal_id; ?>/transaction`,
@@ -364,8 +394,8 @@ async function start_payment(baseurl, apikey, amount) {
 
 async function start() {
     logToServer('Payment process started', 'INFO');
-    // https://connectcloud.aws.nets.eu/v1/
-    const baseurl = "https://connectcloud-test.aws.nets.eu/v1/";
+    // https://connectcloud-test.aws.nets.eu/v1/
+    const baseurl = "https://connectcloud.aws.nets.eu/v1/";
     var elm = document.getElementById('status');
 
     const apikey = await get_api_key(baseurl);
