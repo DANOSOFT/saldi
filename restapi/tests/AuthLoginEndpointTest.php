@@ -20,7 +20,7 @@ class AuthLoginEndpointTest
     public function __construct()
     {
         // Configure your API base URL
-        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/auth/login.php';
+        $this->baseUrl = 'https://ssl12.saldi.dk/pblm/restapi/endpoints/v1/auth/login';
         
         // Basic headers for login (no auth needed for login endpoint)
         $this->headers = [
