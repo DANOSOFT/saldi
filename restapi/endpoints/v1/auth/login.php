@@ -5,8 +5,8 @@
  * 
  * Request body:
  * {
- *   "username": "brugernavn",
- *   "password": "password",
+ *   "username": "brugernavn", REQUIRED
+ *   "password": "password", REQUIRED
  *   "account_name": "account_name" (REQUIRED - account name matching regnskab column)
  * }
  * 
