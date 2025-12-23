@@ -769,17 +769,11 @@ if ($linkBilag && $source == 'kassekladde') {
 	exit;
 }
 
-// For kassekladde source, always go directly to docPool
-// Skip the old document viewer layout with the "Dokumentpulje" button
-if ($source == 'kassekladde') {
-	$openPool = true;
-}
-
 // Check if showing a document FIRST - this takes priority over openPool
 // For kassekladde: if sourceId is set and has documents, show document viewer (not pool)
 // UNLESS openPool is explicitly requested (user wants to add more bilag)
 $openPoolRequested = (isset($_GET['openPool']) && $_GET['openPool'] == '1') || $openPool;
-if (false && $source == 'kassekladde' && $sourceId && !$openPoolRequested) { // Disabled - now goes straight to docPool
+if ($source == 'kassekladde' && $sourceId && $openPoolRequested) { // Disabled - now goes straight to docPool
 	// Check if there are any documents for this sourceId
 	$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$sourceId' order by id limit 1";
 	$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
