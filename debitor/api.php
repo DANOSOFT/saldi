@@ -347,21 +347,23 @@
                 "bankName" => $adresse["bank_navn"],
                 "bankRegNo" => $adresse["bank_reg"],
                 "bankAccount" => $adresse["bank_konto"],
-                "bic" => "", 
-                "iban" => "", 
-                "creditorIdentifier" => "", 
+                "bic" => "",
+                "iban" => "",
+                "creditorIdentifier" => "",
                 "paymentID" => ""
             ],
         ];
     
         $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $id ORDER BY posnr", __FILE__ . " linje " . __LINE__);
         while ($res = db_fetch_array($query)) {
-            $res["pris"] = abs((float)$res["pris"]);
+            
             $res["rabat"] = abs((float)$res["rabat"]);
             if($creditNote == "Cre"){
                 $res["antal"] = abs((float)$res["antal"]);
+                $res["pris"] = abs((float)$res["pris"]);
             }else{
                 $res["antal"] = (float)$res["antal"];
+                $res["pris"] = (float)$res["pris"];
             }
             $res["momssats"] = abs((float)$res["momssats"]);
             $res["beskrivelse"] = strip_tags($res["beskrivelse"]);
