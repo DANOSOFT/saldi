@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- patch 4.1.1 --- 2025-11-25 ---
+// --- debitor/ordre.php --- patch 4.1.1 --- 2025-12-23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -4485,6 +4485,7 @@ function ordreside($id, $regnskab)
 		// Ensure afd is set from user settings for new orders before rendering dropdown
 		if (!$id) {
 			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
+				
 		}
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
@@ -6007,13 +6008,14 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 
 	}
 
-	#      if ($samlevare=='on') print "<td align=\"center\" onClick=\"stykliste($vare_id)\" title=\"Vis stykliste\"><img alt=\"Stykliste\" src=\"../ikoner/stykliste.png\"></td>\n";
+	#      if ($samlevare=='on') print "<td align=\"center\" onClick=\"stykliste($vare_id)\" title=\"Vis stykliste\"><img alt=\"Stykliste\" src=\"../ikoner/ stykliste.png\"></td>\n";
 	if (!$saetnr) {
+		$delBtn = "<svg xmlns='http://www.w3.org/2000/svg ' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#d0021b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><line x1='18' y1='6' x2='6' y2='18'></line><line x1='6' y1='6' x2='18' y2='18'></line></svg> ";
 		$txt2130 = findtekst('2130|Slet ordrelinje', $sprog_id);
 		print "<td valign = 'top' align='right' title='$txt2130'>";
-		print "<button type='button' style='background: red; color: #fff;border-radius: 4px;' ";
+		print "<button type='button' style='background: #eeeef0; color: #fff; border-radius: 4px; padding-left: 2px; padding-right: 2px;' ";
 		print "onclick=\"if (confirm('Slet linje $x?')) { document.getElementsByName('posn$x')[1].value='-'; ";
-		print "document.getElementsByName('ordre')[0].submit.click(); }\">X</button></td>\n";
+		print "document.getElementsByName('ordre')[0].submit.click(); }\">$delBtn</button></td>\n";
 	} else print "<td></td>";
 	if (!$rabat && $m_rabat && !$rabatgruppe) {
 		print "</tr><tr>\n";

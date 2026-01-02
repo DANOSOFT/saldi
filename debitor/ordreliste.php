@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-12-19--------------
+// --- debitor/ordreliste.php -----patch 4.1.1 ----2025-12-30--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -574,6 +574,51 @@ while ($r = db_fetch_array($q)) {
     $all_db_columns[$r['column_name']] = $r['data_type'];
 }
 
+###########date range
+
+/**
+ * Generate SQL condition for date range search
+ */
+function generateDateRangeSearch($column, $term) {
+    $field = $column['sqlOverride'] ?: $column['field'];
+    $term = db_escape_string(trim($term, "'"));
+    
+    if (empty($term)) {
+        return "1=1";
+    }
+    
+    // Check if it's a date range (contains " - ")
+    if (strpos($term, ' - ') !== false) {
+        $dates = explode(' - ', $term);
+        
+        if (count($dates) == 2) {
+            $startDate = trim($dates[0]);
+            $endDate = trim($dates[1]);
+            
+            // Convert DD-MM-YYYY to YYYY-MM-DD for SQL
+            $startParts = explode('-', $startDate);
+            $endParts = explode('-', $endDate);
+            
+            if (count($startParts) == 3 && count($endParts) == 3) {
+                $sqlStartDate = $startParts[2] . '-' . $startParts[1] . '-' . $startParts[0];
+                $sqlEndDate = $endParts[2] . '-' . $endParts[1] . '-' . $endParts[0];
+                
+                return "({$field} >= '$sqlStartDate' AND {$field} <= '$sqlEndDate')";
+            }
+        }
+    }
+    
+    // Single date search
+    $parts = explode('-', $term);
+    if (count($parts) == 3) {
+        $sqlDate = $parts[2] . '-' . $parts[1] . '-' . $parts[0];
+        return "({$field} = '$sqlDate')";
+    }
+    
+    return "1=1";
+}
+###########
+
 // Default
 $custom_columns = array(
     "ordrenr" => array(
@@ -629,6 +674,10 @@ $custom_columns = array(
         "width" => "1",
         "type" => "date",
         "searchable" => true,
+        "sqlOverride" => "o.ordredate", //override default query
+        "generateSearch" => function ($column, $term) {
+            return generateDateRangeSearch($column, $term);
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='$column[align]'>" . dkdato($value) . "</td>";
         }
@@ -724,7 +773,12 @@ $custom_columns = array(
         "headerName" => "Genfakt.",
         "width" => "1",
         "type" => "date",
+        "searchable" => true,
         "hidden" => ($valg != "faktura" && $valg != "ordrer"),
+         "sqlOverride" => "o.ordredate", //override default query
+        "generateSearch" => function ($column, $term) {
+            return generateDateRangeSearch($column, $term);
+        },
         "render" => function ($value, $row, $column) {
             return "<td align='$column[align]'>" . ($value ? dkdato($value) : '') . "</td>";
         }
@@ -938,23 +992,28 @@ foreach ($all_db_columns as $field_name => $data_type) {
     // This is the CRITICAL part - every column MUST have both functions
     
     // Date fields
-    if (strpos($field_name, 'date') !== false || 
-        in_array($field_name, ['ordredate', 'levdate', 'fakturadate', 'nextfakt', 'due_date', 'datotid', 'settletime'])) {
-        
-        $column_def['type'] = 'date';
-        $column_def['align'] = 'left';
-        
-        // valueGetter: Just return the raw value
-        $column_def['valueGetter'] = function ($value, $row, $column) {
-            return $value;
-        };
-        
-        // render: Format the date
-        $column_def['render'] = function ($value, $row, $column) {
-            $formatted = $value ? dkdato($value) : '';
-            return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
-        };
-    }elseif ($field_name == 'konto_id') {
+  if (strpos($field_name, 'date') !== false || 
+    in_array($field_name, ['ordredate', 'levdate', 'fakturadate', 'nextfakt', 'due_date', 'datotid', 'settletime'])) {
+    
+    $column_def['type'] = 'date';
+    $column_def['align'] = 'left';
+    
+    // Add date range search capability
+    $column_def['generateSearch'] = function ($column, $term) {
+        return generateDateRangeSearch($column, $term);
+    };
+    
+    // valueGetter: Just return the raw value
+    $column_def['valueGetter'] = function ($value, $row, $column) {
+        return $value;
+    };
+    
+    // render: Format the date
+    $column_def['render'] = function ($value, $row, $column) {
+        $formatted = $value ? dkdato($value) : '';
+        return "<td align='{$column['align']}'>" . htmlspecialchars($formatted) . "</td>";
+    };
+}elseif ($field_name == 'konto_id') {
         // konto_id should be text, not number
         $column_def['type'] = 'text';
         $column_def['align'] = 'left';
@@ -1353,88 +1412,171 @@ if ($r=db_fetch_array(db_select("select box4, box5, box6 from grupper where art=
 // Create the grid first (it creates its own form for pagination/search)
 create_datagrid($grid_id, $data);
 
+########
+if (preg_match('/background-color:([a-fA-F0-9#]+)/', $topStyle, $matches)) {
+    $backgroundColor = $matches[1]; // Store the extracted color value
+} else {
+    $backgroundColor = '#114691'; // Fallback to a default color if no background-color found
+}
 
+#####
 
 //data picker
 ?>
+<style>
+.daterangepicker .ranges li.active {
+    background-color: <?= htmlspecialchars($backgroundColor) ?> !important;
+}
+.daterangepicker td.active{
+     background-color: <?= htmlspecialchars($backgroundColor) ?> !important;
+
+}
+</style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize date pickers for date fields
-        const dateInputs = document.querySelectorAll(
-            "input[name^='search[ordrelst_'][name$='[ordredate]'], " +
-            "input[name^='search[ordrelst_'][name$='[levdate]'], " +
-            "input[name^='search[ordrelst_'][name$='[fakturadate]']"
-        );
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize date range pickers for date fields
+    const dateInputs = document.querySelectorAll(
+        "input[name^='search[ordrelst_'][name$='[ordredate]'], " +
+        "input[name^='search[ordrelst_'][name$='[levdate]'], " +
+        "input[name^='search[ordrelst_'][name$='[nextfakt]'], "+
+        "input[name^='search[ordrelst_'][name$='[due_date]'], "+
+        "input[name^='search[ordrelst_'][name$='[datotid]'], "+
+        "input[name^='search[ordrelst_'][name$='[settletime'], "+
+        "input[name^='search[ordrelst_'][name$='[fakturadate]']"
+    );
+    dateInputs.forEach(function(input) {
+        // Get existing value if any
+        var existingValue = input.value.trim();
+        var startDate = moment();
+        var endDate = moment();
+        var isRange = false;
 
-        dateInputs.forEach(function(input) {
-            // Get existing value if any
-            var existingValue = input.value.trim();
-            var startDate = moment(); // Default to today
-
-            // Parse existing value if it exists
-            if (existingValue !== '') {
+        // Parse existing value - check if it's a range (contains " - ")
+        if (existingValue !== '') {
+            if (existingValue.includes(' - ')) {
+                // This is a date range
+                isRange = true;
+                var dates = existingValue.split(' - ');
+                var parsedStart = moment(dates[0].trim(), 'DD-MM-YYYY', true);
+                var parsedEnd = moment(dates[1].trim(), 'DD-MM-YYYY', true);
+                
+                if (parsedStart.isValid() && parsedEnd.isValid()) {
+                    startDate = parsedStart;
+                    endDate = parsedEnd;
+                }
+            } else {
+                // Single date
                 var parsed = moment(existingValue, 'DD-MM-YYYY', true);
                 if (parsed.isValid()) {
                     startDate = parsed;
+                    endDate = parsed;
                 }
             }
+        }
 
-            // Initialize daterangepicker
-            $(input).daterangepicker({
-                singleDatePicker: true,
-                showDropdowns: true,
-                autoUpdateInput: false,
-                autoApply: false, // CHANGED: Show Apply/Cancel buttons
-                startDate: startDate,
-                minYear: 1900,
-                maxYear: parseInt(moment().format('YYYY'), 10) + 10,
-                locale: {
-                    format: 'DD-MM-YYYY',
-                    cancelLabel: 'Ryd',
-                    applyLabel: 'Søg',
-                    daysOfWeek: ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'],
-                    monthNames: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
-                        'Juli', 'August', 'September', 'Oktober', 'November', 'December'
-                    ],
-                    firstDay: 1
-                }
-            });
-
-            // Set initial value if exists
-            if (existingValue !== '') {
-                $(input).val(existingValue);
+        // Initialize daterangepicker with range support
+        $(input).daterangepicker({
+            singleDatePicker: false, // CHANGED: Allow range selection
+            showDropdowns: true,
+            autoUpdateInput: false,
+            autoApply: false,
+             linkedCalendars: false,
+            startDate: startDate,
+            endDate: endDate,
+            minYear: 1900,
+            maxYear: parseInt(moment().format('YYYY'), 10) + 10,
+           ranges: {'Clear': [],
+                'I dag': [moment(), moment()],
+                'I går': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                'Sidste 7 dage': [moment().subtract(6, 'days'), moment()],
+                'Sidste 30 dage': [moment().subtract(29, 'days'), moment()],
+                'Denne måned': [moment().startOf('month'), moment().endOf('month')],
+                'Sidste måned': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                'Dette år': [moment().startOf('year'), moment().endOf('year')],
+                'Sidste år': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
+            },
+             locale: {
+                format: 'DD-MM-YYYY',
+                separator: ' - ',
+                applyLabel: 'Søg',
+                cancelLabel: 'Ryd',
+                fromLabel: 'Fra',
+                toLabel: 'Til',
+                customRangeLabel: 'Brugerdefineret',
+                daysOfWeek: ['Sø', 'Ma', 'Ti', 'On', 'To', 'Fr', 'Lø'],
+                monthNames: ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
+                    'Juli', 'August', 'September', 'Oktober', 'November', 'December'
+                ],
+                firstDay: 1
             }
+        });
 
-            // When user clicks "Søg" (Apply) button
-            $(input).on('apply.daterangepicker', function(ev, picker) {
-                var selectedDate = picker.startDate.format('DD-MM-YYYY');
-                console.log('Applied date:', selectedDate);
-                $(this).val(selectedDate);
-
-                // Submit the form automatically
-                var form = $(this).closest('form');
-                if (form.length > 0) {
-                    console.log('Submitting form...');
-                    form.submit();
-                }
-            });
-
-            // When user clicks "Ryd" (Cancel) button
-            $(input).on('cancel.daterangepicker', function(ev, picker) {
-                console.log('Clearing date field');
+        // When user clicks "Søg" (Apply) button
+        $(input).on('apply.daterangepicker', function(ev, picker) {
+            //fake clear implementation @~~~~~~~~~~~~~~~~~~~ 
+             if (picker.chosenLabel === 'Clear') {
                 $(this).val('');
 
-                // Submit form to clear the filter
                 var form = $(this).closest('form');
                 if (form.length > 0) {
                     console.log('Submitting form to clear filter...');
                     form.submit();
                 }
-            });
+
+                picker.hide(); // hide the picker after clearing
+                return; // stop further processing
+            }  //@~~~~~~~~~~~~~~
+            
+            var selectedStartDate = picker.startDate.format('DD-MM-YYYY');
+            var selectedEndDate = picker.endDate.format('DD-MM-YYYY');
+            
+            // If same date, show single date, otherwise show range
+            var displayValue;
+            if (selectedStartDate === selectedEndDate) {
+                displayValue = selectedStartDate;
+            } else {
+                displayValue = selectedStartDate + ' - ' + selectedEndDate;
+            }
+            
+            console.log('Applied date range:', displayValue);
+            $(this).val(displayValue);
+
+            // Submit the form automatically
+            var form = $(this).closest('form');
+            if (form.length > 0) {
+                console.log('Submitting form...');
+                form.submit();
+            }
+        });
+
+        // When user clicks "Ryd" (Cancel) button
+        $(input).on('cancel.daterangepicker', function(ev, picker) {
+            console.log('Clearing date field');
+            $(this).val('');
+
+            // Submit form to clear the filter
+            var form = $(this).closest('form');
+            if (form.length > 0) {
+                console.log('Submitting form to clear filter...');
+                form.submit();
+            }
+        });
+
+        // Visual feedback when opening/closing
+        $(input).on('show.daterangepicker', function(ev, picker) {
+            console.log('Date picker opened');
+        });
+
+        $(input).on('hide.daterangepicker', function(ev, picker) {
+            console.log('Date picker closed');
         });
     });
+});
 </script>
+
+
+
 
 <?php
 
@@ -1457,14 +1599,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['checked'])) {
 // Set initial button text based on whether any checkboxes are checked
 $buttonText = $anyChecked ? findtekst('90|Fravælg alle', $sprog_id) : findtekst('89|Vælg alle', $sprog_id);
 
-########
-if (preg_match('/background-color:([a-fA-F0-9#]+)/', $topStyle, $matches)) {
-    $backgroundColor = $matches[1]; // Store the extracted color value
-} else {
-    $backgroundColor = '#114691'; // Fallback to a default color if no background-color found
-}
 
-#####
 ?>
 
 
@@ -1625,7 +1760,8 @@ if ($valg == "ordrer") {
     ));
 
     if ($r) {
-        print "<a href='csv2ordre.php' target='_blank'>CSV import</a>";
+        // print "<a href='csv2ordre.php' target='_blank'>CSV import</a>";
+         print "<a href='csv2ordre.php?valg=$valg'>CSV import</a>";
 
         if ($r['box1'] && $ialt != '0,00') {
             $tekst = "Fakturér alt som kan leveres?";
@@ -2058,7 +2194,7 @@ function select_valg($valg, $box)
    /* Fixed control bar */
 
 .datatable-wrapper {
-    height: calc(100vh - 130px) !important; 
+    height: calc(100vh - 98px) !important;
 }
 
 #top-control-bar {
