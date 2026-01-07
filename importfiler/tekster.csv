@@ -661,7 +661,7 @@
 661	Cpr-nr	Social Security No	Social Security No
 662	Bank	Bank	Bank
 663	Tiltrådt	Joined	Ble med
-664	Løn	Pay	Betale
+664	Løn	Pay	Lønn
 665	Løntillæg	Wage supplement	Lønnstillegg
 666	Postnr & by	ZIP code & city	Post kode & by
 667	E-mail/brug	Email / use	E-post / bruk
@@ -2771,21 +2771,21 @@
 2771	POS-muligheder	POS options	POS-muligheter
 2772	db / dg (ekskl. moms)	db / dg (excl. VAT)	db / dg (ekskl. MVA)
 2773	I dag	Today	I dag
-2774	
-2775	
-2776	
-2777	
-2778	
-2779	
-2780	
-2781	
-2782	
-2783	
-2784	
-2785	
-2786	
-2787	
-2788	
+2774	Sager	Projects	Prosjekter
+2775	Planlægning	Planning	Planlegging
+2776	Dagbog	Daily Log	Dagbok
+2777	Certificering	Certification	Sertifisering
+2778	Regnskab	Accounting	Regnskap
+2779	Medarbejdermappe	Employee folder	Medarbeidermappe
+2780	Du er logget ind som	You are logged in as	Du er logget inn som
+2781	Hjem	Home	Hjem
+2782	Satser	Rates	Satser
+2783	Stillads	Scaffolding	Stillas
+2784	Løn	Wages	Lønn
+2785	Lønindtastning	Wage Entry	Lønnregistrering
+2786	Lønafregning	Wage Settlement	Lønnoppgjør
+2787	Lønliste	Wage List	Lønnsliste
+2788	Udskriv skema	Print form	Skriv ut skjema
 2789	
 2790	
 2791	

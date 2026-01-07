@@ -1,30 +1,34 @@
 <?php
+include("../includes/connect.php");
+include("../includes/online.php");
+include("../includes/topline_settings.php");
+
 	print "<div id=\"menubarholder\">
 		<div id=\"menubar\">
 			<ul class=\"navbar\">
 				<li>";
-					if (substr($sag_rettigheder,2,1)) print "<a $menu_sager href=\"sager.php\">Sager</a>";
+					if (substr($sag_rettigheder,2,1)) print "<a $menu_sager href=\"sager.php\">".findtekst('2774|Sager', $sprog_id)."</a>";
 					else print "<a $menu_sager href=\"#\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,2,1)) print "<a $menu_planlaeg href=\"planlaeg.php\">Planlægning</a>";
+					if (substr($sag_rettigheder,2,1)) print "<a $menu_planlaeg href=\"planlaeg.php\">".findtekst('2775|Planlægning', $sprog_id)."</a>";
 					else print "<a $menu_planlaeg href=\"#\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,5,1)) print "<a $menu_dagbog href=\"notat.php\">Dagbog</a>";
+					if (substr($sag_rettigheder,5,1)) print "<a $menu_dagbog href=\"notat.php\">".findtekst('2776|Dagbog', $sprog_id)."</a>";
 					else print "<a $menu_dagbog href=\"#\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,4,1)) print "<a $menu_kunder href=\"kunder.php\">Kunder</a>";
+					if (substr($sag_rettigheder,4,1)) print "<a $menu_kunder href=\"kunder.php\">".findtekst('991|Kunder', $sprog_id)."</a>";
 					else print "<a $menu_kunder href=\"#\">------</a>";
 				print "</li><li>";
-					if($menu_loen) print "<a $menu_loen href=\"loen.php\">Løn</a>";
-					elseif($menu_medarbejdermappe) print "<a $menu_medarbejdermappe href=\"loen.php\">Løn</a>";
-					else print "<a $menu_ansatte href=\"loen.php\">Løn</a>";
+					if($menu_loen) print "<a $menu_loen href=\"loen.php\">".findtekst('2784|Løn', $sprog_id)."</a>";
+					elseif($menu_medarbejdermappe) print "<a $menu_medarbejdermappe href=\"loen.php\">".findtekst('2784|Løn', $sprog_id)."</a>";
+					else print "<a $menu_ansatte href=\"loen.php\">".findtekst('2784|Løn', $sprog_id)."</a>";
 				print "</li><li>";
 					#if (substr($sag_rettigheder,3,1)) print "<a $menu_ansatte href=\"ansatte.php\">Ansatte</a>";
 					#else print "<a $menu_ansatte href=\"\">------</a>";
-					if(substr($sag_rettigheder,2,1)) print "<a $menu_certificering href=\"certificering.php\">Certificering</a>";
+					if(substr($sag_rettigheder,2,1)) print "<a $menu_certificering href=\"certificering.php\">".findtekst('2777|Certificering', $sprog_id)."</a>";
 					else print "<a $menu_certificering href=\"#\">------</a>";
 				print "</li><li>";
-					if (substr($sag_rettigheder,3,1)) print "<a href=\"../index/menu.php\">Regnskab</a>";
+					if (substr($sag_rettigheder,3,1)) print "<a href=\"../index/menu.php\">".findtekst('2778|Regnskab', $sprog_id)."</a>";
 					else print "<a href=\"#\">------</a>";
 				print "</li>
 				<!--<li class=\"search\">
@@ -47,12 +51,12 @@
 		if ($menu_loen || $menu_ansatte) {
 		print "
 		<div class=\"headerLft\"><p>&nbsp;</p>
-			<a href=\"../sager/medarbejdermappe.php\" class=\"button orange small headerMM\">Medabejder mappe</a><!-- data-notifications=\"10\" -->
+			<a href=\"../sager/medarbejdermappe.php\" class=\"button orange small headerMM\">".findtekst('2779|Medarbejdermappe', $sprog_id)."</a><!-- data-notifications=\"10\" -->
 		</div>";
 		}
 		print "
-		<div class=\"headerRght\"><p>Du er logget ind som <b>$ansat_navn</b></p>
-			<a href=\"../index/logud.php\" class=\"button rosy small headerbtn\">Log ud</a>
+		<div class=\"headerRght\"><p>".findtekst('2780|Du er logget ind som', $sprog_id)." <b>$ansat_navn</b></p>
+			<a href=\"../index/logud.php\" class=\"button rosy small headerbtn\">".findtekst('93|Log ud', $sprog_id)."</a>
 		</div>
 	</div><!-- end of header -->";
 ?>
