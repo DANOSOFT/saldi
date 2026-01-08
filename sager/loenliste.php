@@ -40,6 +40,7 @@
 
 function loenliste() {
 	global $db;
+	global $sprog_id;
 
 	$soeg = $s_loendateFra = $s_loendateTil  = NULL;
 	
@@ -102,30 +103,37 @@ function loenliste() {
 	
 	#$art_navn[0]='regulering'; #20161011
 	#$art_alias[0]='Regulering';
-	if ($db=='stillads_14' || $db=='udvikling_2') { #20180612
+	if ($db!='stillads_14' || $db=='udvikling_2') { #20180612
 		$art_navn=array('akkord','timer','torretid','plads','skole','sygdom','barn_syg','ferie');
-		$art_alias=array('Timepris Akkord','Timeløn','Timeløn Tørretid','Pladsarbejde','Skoleophold','Sygdom','Barn syg','Ferie');
+		$art_alias=array(findtekst('2801|Timepris, Akkord', $sprog_id),
+						 findtekst('2802|Timeløn', $sprog_id),
+						 findtekst('2803|Timeløn, Tørretid', $sprog_id),
+						 findtekst('2804|Pladsarbejde', $sprog_id),
+						 findtekst('2805|Skoleophold', $sprog_id),
+						 findtekst('2806|Sygdom', $sprog_id),
+						 findtekst('2807|Barn syg', $sprog_id),
+						 findtekst('2808|Ferie', $sprog_id));
 	} else {
 		$art_navn[0]='akktimer';
-		$art_alias[0]='Dyrtid'; //Akkord timer
+		$art_alias[0]=findtekst('2809|Dyrtid', $sprog_id); //Akkord timer
 		$art_navn[1]='akk_afr';
-		$art_alias[1]='Akkord afregning';
+		$art_alias[1]=findtekst('2810|Akkord afregning', $sprog_id);
 		$art_navn[2]='akkord';
-		$art_alias[2]='Akkord med dyrtid'; //Akkord
+		$art_alias[2]=findtekst('2811|Akkord med dyrtid', $sprog_id); //Akkord
 		$art_navn[3]='timer'; 
-		$art_alias[3]='Timeløn'; //Løntimer
+		$art_alias[3]=findtekst('2802|Timeløn', $sprog_id); //Løntimer
 		$art_navn[4]='plads'; 
-		$art_alias[4]='Plads';
+		$art_alias[4]=findtekst('2812|Plads', $sprog_id);
 		$art_navn[5]='skole'; 
-		$art_alias[5]='Skoleophold';
+		$art_alias[5]=findtekst('2805|Skoleophold', $sprog_id);
 		$art_navn[6]='sygdom'; 
-		$art_alias[6]='Sygdom';
+		$art_alias[6]=findtekst('2806|Sygdom', $sprog_id);
 		$art_navn[7]='barn_syg'; 
-		$art_alias[7]='Barn syg';
+		$art_alias[7]=findtekst('2807|Barn syg', $sprog_id);
 		#$art_navn[9]='aconto'; #20161011
 		#$art_alias[9]='Aconto';
 		$art_navn[8]='ferie'; #20140627
-		$art_alias[8]='Ferie';
+		$art_alias[8]=findtekst('2808|Ferie', $sprog_id);
 	}
 	global $brugernavn;
 	global $ansat_id;
@@ -490,17 +498,17 @@ function loenliste() {
 	print "<div class=\"contentkundehead\">
 		<ul id=\"sort\">
 			<li>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=nummer&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:40px\">Nr</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=loendate&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:69px\">Løn dato</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=oprettet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:69px\">Oprettet</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=afsluttet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:69px\">Overført</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=godkendt&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:69px\">Godk/Afv</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=afregnet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:69px\">Betalt</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=sag_nr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:100px\">Sag</a>       
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=nummer&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[0]\" class=\"felt01 $sortstyle[0]\" style=\"width:40px\">".findtekst('2248|Nr.', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=loendate&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[1]\" class=\"felt02 $sortstyle[1]\" style=\"width:69px\">".findtekst('2789|Løndato', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=oprettet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[2]\" class=\"felt03 $sortstyle[2]\" style=\"width:69px\">".findtekst('65|Oprettet', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=afsluttet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[3]\" class=\"felt04 $sortstyle[3]\" style=\"width:69px\">".findtekst('2790|Overført', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=godkendt&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[4]\" class=\"felt05 $sortstyle[4]\" style=\"width:69px\">".findtekst('2791|Godk/Afv', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=afregnet&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[5]\" class=\"felt06 $sortstyle[5]\" style=\"width:69px\">".findtekst('1265|Betalt', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=sag_nr&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[6]\" class=\"felt07 $sortstyle[6]\" style=\"width:90px\">".findtekst('2792|Sag', $sprog_id)."</a>       
 				<a href=\"loen.php?funktion=loenliste&amp;nysort=art&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[7]\" class=\"felt08 $sortstyle[7]\" style=\"width:80px\">Type</a>       
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=sag_ref&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[8]\" class=\"felt09 $sortstyle[8]\" style=\"width:80px\">Ansvarlig</a>       
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=ansatte&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[9]\" class=\"felt10 $sortstyle[9]\" style=\"width:70px\">Medarb.</a>
-				<a href=\"loen.php?funktion=loenliste&amp;nysort=sum&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[10]\" class=\"felt11 $sortstyle[10]\" style=\"width:57px\">Sum</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=sag_ref&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[8]\" class=\"felt09 $sortstyle[8]\" style=\"width:80px\">".findtekst('2793|Ansvarlig', $sprog_id)."</a>       
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=ansatte&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[9]\" class=\"felt10 $sortstyle[9]\" style=\"width:70px\">".findtekst('2794|Medarb.', $sprog_id)."</a>
+				<a href=\"loen.php?funktion=loenliste&amp;nysort=sum&amp;vis=$vis&amp;sort=$sort&amp;nysortstyle=$sortarray[10]\" class=\"felt11 $sortstyle[10]\" style=\"width:57px\">".findtekst('2795|Sum', $sprog_id)."</a>
 			</li>
 		</ul>
 	</div>";
@@ -514,7 +522,7 @@ function loenliste() {
 				<div class=\"felt04\" style=\"width:69px\"><input name=\"s_afsluttet\" value=\"$s_afsluttet\" type=\"text\" class=\"textinputloen\" id=\"datepicker03\" style=\"width:65px\"></div>
 				<div class=\"felt05\" style=\"width:69px\"><input name=\"s_godkendt\" value=\"$s_godkendt\" type=\"text\" class=\"textinputloen\" id=\"datepicker04\" style=\"width:65px\"></div>
 				<div class=\"felt06\" style=\"width:69px\"><input name=\"s_afregnet\" value=\"$s_afregnet\" type=\"text\" class=\"textinputloen\" style=\"width:65px\"></div>
-				<div class=\"felt07\" style=\"width:100px\"><input name=\"s_sag_nr\" value=\"$s_sag_nr\" type=\"text\" class=\"textinputloen\" title=\"Ved søgning efter opgave i sag, tastes opgavenummer\nefter sagsnummer adskilt med '-'. F.eks. 12345-1\" style=\"width:96px\"></div>       
+				<div class=\"felt07\" style=\"width:90px\"><input name=\"s_sag_nr\" value=\"$s_sag_nr\" type=\"text\" class=\"textinputloen\" title=\"".findtekst('2799|Ved søgning efter opgave i sag, tastes opgavenummer efter sagsnummer adskilt med \'-\'. F.eks. 12345-1', $sprog_id)."\" style=\"width:86px\"></div>       
 				<div class=\"felt08\" style=\"width:80px\"><select name=\"s_art\" class=\"selectinputloen\" style=\"width:76px\">\n";
 				for ($i=0;$i<count($art_navn);$i++) {
 					if ($s_art==$art_navn[$i]) print "<option value=\"$art_navn[$i]\">$art_alias[$i]</option>\n"; 
@@ -564,15 +572,15 @@ function loenliste() {
 					}
 					if ($s_ansat) print "<OPTION value=\"\">&nbsp;</option>\n";
 				print "</select></div>       
-				<div class=\"felt11\" style=\"#width:85px;margin-right:-20px;\"><input name=\"s_sum\" value=\"$s_sum\" type=\"text\" class=\"textinputloen\" style=\"width:52px\"><div style=\"margin-left:3px;float:right;\"><input class=\"button gray smallx\" type=\"submit\" name=\"find\" value=\"Søg\"></div></div>
+				<div class=\"felt11\" style=\"width:95px;margin-right:-20px;\"><input name=\"s_sum\" value=\"$s_sum\" type=\"text\" class=\"textinputloen\" style=\"width:52px\"><div style=\"margin-right:1px;float:right;\"><input class=\"button gray smallx\" type=\"submit\" name=\"find\" value=\"".findtekst('913|Søg', $sprog_id)."\"></div></div>
 			</li>
 		</ul>
 	</div>
 	
 	<div style=\"height:25px;padding:5px 12px 0 12px;background-color: #F2F2F2;\">
-		<span><a href=\"loen.php?funktion=loenliste&amp;unsetsort=unset\" class=\"button gray small\">Slet sortering</a></span>
+		<span><a href=\"loen.php?funktion=loenliste&amp;unsetsort=unset\" class=\"button gray small\">".findtekst('2796|Slet sortering', $sprog_id)."</a></span>
 		<div style=\"float:right;\">
-		<p style=\"float:left;\">Vælg antal viste linjer:&nbsp;</p>
+		<p style=\"float:left;\">".findtekst('2797|Vælg antal viste linjer', $sprog_id).":&nbsp;</p>
 		<select name=\"s_limit\" class=\"selectinputloen\" style=\"width:76px;\">\n";
 		
 			for ($i=0;$i<count($limitarray);$i++) {
@@ -598,7 +606,7 @@ function loenliste() {
 		<ul id=\"things\" class=\"paging_content\">";
 		
 		if ($id==NULL) {
-		print "<li><i>Ingen resultat!</i></li>";
+		print "<li><i>".findtekst('2798|Ingen resultat', $sprog_id)."!</i></li>";
 		} else {
 			for ($x=0;$x<count($id);$x++) {
 				$vis=0;
@@ -658,7 +666,7 @@ function loenliste() {
 					if (!$afv) print "<span class=\"felt05\" style=\"width:69px;color:$color;\">$godk&nbsp;</span>\n";
 					else print "<span class=\"felt05\" style=\"width:69px;color:$color;\">$afv&nbsp;</span>\n";
 					print "<span class=\"felt06\" style=\"width:69px;color:$color;\">$afr&nbsp;</span>\n";
-					print "<span class=\"felt07\" style=\"width:100px;color:$color;\" title=\"Sag: $sag_nr[$x] - Opgave: $opg_nr[$x]\n$addr\">$sag_nr[$x]-$opg_nr[$x] $addr&nbsp;</span>\n";
+					print "<span class=\"felt07\" style=\"width:100px;color:$color;\" title=\"".findtekst('2792|Sag', $sprog_id).": $sag_nr[$x] - ".findtekst('2800|Opgave', $sprog_id).": $opg_nr[$x]\n$addr\">$sag_nr[$x]-$opg_nr[$x] $addr&nbsp;</span>\n";
 					print "<span class=\"felt08\" style=\"width:80px;color:$color;\" title=\"$art\">$art&nbsp;</span>\n";
 					print "<span class=\"felt09\" style=\"width:80px;color:$color;\" title=\"$sag_ref[$x]\">$sag_ref[$x]&nbsp;</span>\n";
 					print "<span class=\"felt10\" style=\"width:70px;color:$color;\" title=\"$ansttl\">$ans&nbsp;</span>\n";
