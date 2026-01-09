@@ -5429,7 +5429,7 @@ function ordreside($id, $regnskab)
 						$disabled = '';
 					}
 					$txt = findtekst('2374|Fakturér', $sprog_id);
-					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
+					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px; border-radius: 4px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
 				} else {
 					if ($vis_saet) {
 						$disabled = NULL;
@@ -5443,13 +5443,13 @@ function ordreside($id, $regnskab)
 					}
 					if ($art == 'DO' && $dan_kn) $tmp = "onclick=\"return confirm('$confirm10')\"";
 					if ($mail_fakt) $tmp = "onclick=\"return confirm('$confirm11 $email')\"";
-					print "<td align=\"center\" width=\"$width\" title=\"$titletext\"><input $disabled type=\"submit\" class=\"button gray medium\" style=\"width:75px;\" accesskey=\"f\" value=\"Kredit&eacute;r\" name=\"b_submit\" $tmp></td>\n";
+					print "<td align=\"center\" width=\"$width\" title=\"$titletext\"><input $disabled type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius:4px;\" accesskey=\"f\" value=\"Kredit&eacute;r\" name=\"b_submit\" $tmp></td>\n";
 				}
 			} elseif ($del_ordre == 'on') {
 				$txt = "$txt1";
 				print "<td align=\"center\" width=\"$width\" >
 					<span onmouseover=\"return overlib('$txt',WIDTH=800);\" onmouseout=\"return nd();\">
-					<input type=\"submit\" class=\"button gray medium\" accesskey=\"f\" value=\"Del ordre\" name=\"b_submit\" style=\"width:75px;\" onclick=\"javascript:docChange = false;\"></span></td>\n";
+					<input type=\"submit\" class=\"button gray medium\" accesskey=\"f\" value=\"Del ordre\" name=\"b_submit\" style=\"width:75px; border-radius:4px;\" onclick=\"javascript:docChange = false;\"></span></td>\n";
 			}
 			if ($linjeantal > 0 && $konto_id && ($art == 'DO' || $art == 'OT')) { # skal også med ved 'original tilbud' (OT) #20140716
 				if ($udskriv_til == 'oioubl' && $status <= 1) $tmp = "onclick=\"return confirm('$confirm12')\"";
