@@ -3,7 +3,8 @@ include "saldiinfoCA.php";
 
 // Logging function
 function writeLog($message, $type = 'INFO') {
-    $logFile = __DIR__ . '/customAudio.log';
+    global $db;
+    $logFile = '/var/www/html/pblm/temp/'.$db.'/customAudio.log';
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] [$type] $message" . PHP_EOL;
     file_put_contents($logFile, $logEntry, FILE_APPEND);
@@ -21,9 +22,9 @@ if(isset($_GET["put_new_orders"])){
         writeLog("SOAP connection failed: " . $e->getMessage(), 'ERROR');
         exit;
     }
-    // afsluttet 
+
     // set dates for search critiria
-    $start = date('Y-m-d', strtotime('-5 days'));
+    $start = date('Y-m-d', strtotime('-3 days'));
     $end = date('Y-m-d');
     writeLog("Fetching orders from $start to $end");
 
@@ -31,17 +32,65 @@ if(isset($_GET["put_new_orders"])){
     $Client->Order_SetFields(array('Fields' => 'Status,OrderLines,Id,Customer,DateSent,DateUpdated,Vat,Currency,CustomerComment,Transactions,Payment,Total,DateDelivered,Delivery,UserId'));
     $Client->Order_SetOrderLineFields(array('Fields' => 'Id,BuyPrice,ItemNumber,Discount,Amount,ProductTitle,StockStatus,Price,ProductId,VariantId,VariantTitle'));
     $Orders = $Client->Order_GetByDate(array("Start" => $start, "End" => $end));
-    writeLog("Retrieved " . count($Orders->Order_GetByDateResult->item) . " orders");
+    
+    // Normalize orders to always be an array (API returns null for no orders, object for single, array for multiple)
+    $orderItems = isset($Orders->Order_GetByDateResult->item) ? $Orders->Order_GetByDateResult->item : [];
+    if (!is_array($orderItems) && $orderItems !== null) {
+        $orderItems = [$orderItems]; // Wrap single object in array
+    } elseif ($orderItems === null) {
+        $orderItems = [];
+    }
+    
+    writeLog("Retrieved " . count($orderItems) . " orders");
     // go through orders and insert them into saldi
     
-    foreach ($Orders->Order_GetByDateResult->item as $order) {
+    foreach ($orderItems as $order) {
         writeLog("Processing order ID: " . $order->Id . " | Customer: " . $order->Customer->Email . " | Total: " . $order->Total . " " . $order->Currency->Iso);
-        file_put_contents("orderline.json", json_encode($order, JSON_PRETTY_PRINT) . "\n", FILE_APPEND);
-        $cardType = "";
+        file_put_contents("Data.json", json_encode($order, JSON_PRETTY_PRINT) . "\n", FILE_APPEND);
+        if($order->Status != "203"){
+            writeLog("Order " . $order->Id . " is not completed (status: " . $order->Status . "), skipping");
+            continue;
+        }
         $priceWithVat = $order->Total + ($order->Total * ($order->Vat / 100));
         $vatPrice = $order->Total * $order->Vat;
-        if($order->Transactions != null && isset($order->Transactions->CardType)){
-        $cardType = $order->Transactions->CardType;
+        
+        // Extract transaction data for up to 2 cards
+        // ekstra1 = card type 1, ekstra2 = amount paid with card 1
+        // ekstra3 = card type 2, ekstra4 = amount paid with card 2
+        $cardType1 = "";
+        $cardAmount1 = "";
+        $cardType2 = "";
+        $cardAmount2 = "";
+        $transactionId = "";
+        
+        if($order->Transactions != null && isset($order->Transactions->item)){
+            $transactions = $order->Transactions->item;
+            if (!is_array($transactions)) {
+                $transactions = [$transactions]; // Wrap single object in array
+            }
+            
+            // Get first transaction (card 1)
+            if (isset($transactions[0])) {
+                if (isset($transactions[0]->Cardtype)) {
+                    $cardType1 = $transactions[0]->Cardtype;
+                }
+                if (isset($transactions[0]->Amount)) {
+                    $cardAmount1 = $transactions[0]->Amount;
+                }
+                if (isset($transactions[0]->Id)) {
+                    $transactionId = $transactions[0]->Id;
+                }
+            }
+            
+            // Get second transaction (card 2) if it exists
+            if (isset($transactions[1])) {
+                if (isset($transactions[1]->Cardtype)) {
+                    $cardType2 = $transactions[1]->Cardtype;
+                }
+                if (isset($transactions[1]->Amount)) {
+                    $cardAmount2 = $transactions[1]->Amount;
+                }
+            }
         }
         $url = "action=insert_shop_order&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser);
         $url .= "&shop_ordre_id=".urlencode($order->Id)."&shop_fakturanr=";
@@ -73,13 +122,13 @@ if(isset($_GET["put_new_orders"])){
         $url .= "&gruppe=1";
         $url .= "&afd=3";
         $url .= "&projekt=";
-        $url .= "&ekstra1=".urlencode($cardType);
-        $url .= "&ekstra2=".urlencode($priceWithVat);
+        $url .= "&ekstra1=".urlencode($cardType1);
+        $url .= "&ekstra2=".urlencode($cardAmount1);
         $url .= "&notes=".urlencode($order->CustomerComment);
-        $url .= "&ekstra3=".urlencode($order->Payment->Title);
-        $url .= "&ekstra4=0.00";
-        $url .= "&ekstra5=4";
-        $url .= (isset($order->Transactions->Id)) ? "&betalings_id=".urlencode($order->Transactions->Id) : "&betalings_id=";
+        $url .= "&ekstra3=".urlencode($cardType2);
+        $url .= "&ekstra4=".urlencode($cardAmount2);
+        $url .= "&ekstra5=3";
+        $url .= ($transactionId != "") ? "&betalings_id=".urlencode($transactionId) : "&betalings_id=";
         $url .= "&ean=".urlencode($order->Customer->Ean);
         ($order->Vat !== 0) ? $url .= "&momsfri=" : $url .= "&momsfri=on";
         file_put_contents("saldi-text.txt", $url . "\n", FILE_APPEND);
@@ -96,12 +145,18 @@ if(isset($_GET["put_new_orders"])){
         // callback check to see if order is already in saldi
         $callback = str_replace('"','',$callback);
         intval($callback) ? $saldi_ordre_id = (int)$callback : $saldi_ordre_id = 0;
-        if ($saldi_ordre_id !== 0) {
+        if ($saldi_ordre_id !== 0 && $saldi_ordre_id !== "") {
             writeLog("Order " . $order->Id . " inserted into Saldi with ID: " . $saldi_ordre_id);
 
             // if its not in saldi add orderlines
-            writeLog("Adding " . ($order->OrderLines->item > 0 ? count($order->OrderLines->item) : 0) . " order lines for order " . $order->Id);
-            foreach ($order->OrderLines->item as $orderLine) { 
+            // Normalize item to always be an array (SOAP API returns object for single item, array for multiple)
+            $orderLines = isset($order->OrderLines->item) ? $order->OrderLines->item : [];
+            if (!is_array($orderLines)) {
+                $orderLines = [$orderLines]; // Wrap single object in array
+            }
+            writeLog("Adding " . count($orderLines) . " order lines for order " . $order->Id);
+            file_put_contents("orderline.json",json_encode($order->OrderLines, JSON_PRETTY_PRINT) . "\n", FILE_APPEND);
+            foreach ($orderLines as $orderLine) { 
                 // get % discount $orderLine->Discount is not a procent but a amount
                 $discount = 0;
                 if (isset($orderLine->Discount) && $orderLine->Discount > 0) {
@@ -135,7 +190,11 @@ if(isset($_GET["put_new_orders"])){
             $urltxt.="&antal=1";
             $urltxt.= ($order->Delivery->Price == 0) ? "&pris=0.0" : "&pris=".urlencode($order->Delivery->Price);
             $urltxt.="&rabat=0&stregkode=&variant=&varegruppe=1";
-            $urltxt .= "&momsfri=on";
+            if($order->Delivery->Vat == true){
+                $urltxt .= "&momsfri=";
+            }else{
+                $urltxt .= "&momsfri=on";
+            }
             $urltxt .= "&fakturadate=" . (!empty($order->DateDelivered) ? urlencode($order->DateDelivered) : date('Y-m-d'));
             file_put_contents("saldi-text.txt", $urltxt . "\n", FILE_APPEND);
             $ch = curl_init();
@@ -149,6 +208,20 @@ if(isset($_GET["put_new_orders"])){
                 writeLog("Delivery cost added successfully for order " . $order->Id);
             }
             curl_close($ch);
+
+            // Do invoice
+            writeLog("Fakturering af order " . $order->Id);
+            $urltxt="action=fakturer_ordre&db=$db&key=".urlencode($api_key)."&saldiuser=".urlencode($saldiuser)."&saldi_ordre_id=".$saldi_ordre_id."&udskriv_til=&pos_betaling=on";
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $serverurl."/rest_api.php?".$urltxt);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $res = curl_exec($ch);
+            if (curl_errno($ch)) {
+                error_logs(curl_errno($ch));
+            }
+            curl_close($ch);
+            writeLog("Fakturering af order " . $order->Id . " fuldført");
+            /* file_put_contents("saldi-text.txt", $res . "\n", FILE_APPEND); */
         } else {
             writeLog("Order " . $order->Id . " already exists in Saldi (skipped)", 'WARNING');
         }

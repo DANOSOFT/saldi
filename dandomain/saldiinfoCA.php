@@ -2,8 +2,8 @@
 $saldiuser='api';
 $saldi_ip=array('*'); // 185.5.53.247
 $api_key='ou9unJgh5UlP5F+.mfMF+GHYDTT.y6dXBmhZ';
-$serverurl="https://ssl4.saldi.dk/pos/api"; #Findes under Indstillinger ->  Diverse -> API
-$db='pos_147';#' #Findes under Indstillinger ->  Diverse -> API 
+$serverurl="https://ssl12.saldi.dk/pblm/api"; #Findes under Indstillinger ->  Diverse -> API
+$db='test_37';#' #Findes under Indstillinger ->  Diverse -> API 
 //$saldiuser='saldi_user'; #Findes under Indstillinger ->  Diverse -> API
 //$saldi_ip=array('91.102.88.143');#IP som må tilgå API
 //$api_key='31Dt92u2XzjC5EZJTuG_;8jfG;CUIaoLb!5l'; #Findes under Indstillinger ->  Diverse -> API

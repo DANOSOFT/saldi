@@ -55,6 +55,10 @@
 // 04-02-2025 PBLM added discountType to insert_shop_orderline
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20251007 PHR changed name on log file
+// 20260112 PBLM added send_api_invoice_email - send invoice PDF to customer after fakturer_ordre
+/* -- Enable sending invoice to customer after invoicing via API:
+INSERT INTO settings (var_name, var_grp, var_value, var_description) 
+VALUES ('api_invoice_email_enabled', 'api', 'on', 'Send invoice PDF email to customer after invoicing via API'); */
 // ----------------------------------------------------------------------
 
 date_default_timezone_set('Europe/Copenhagen');
@@ -479,7 +483,8 @@ function insert_shop_order($brugernavn,$shopOrderId,$shop_fakturanr,$shop_addr_i
 		}
 		
 		fwrite($log,__line__." Successfully created order mapping: saldi_id=$saldi_ordre_id, shop_id=$shopOrderId\n");
-	}  
+	}
+	
 	fclose ($log);
 	return $saldi_ordre_id;
 }
@@ -726,11 +731,11 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	$qtxt="select betalingsbet,tidspkt,sum,moms,felt_1,felt_2 from ordrer where id='$saldi_id'";
 	fwrite($log,__line__." $qtxt\n");
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$ordresum=$r['sum'];
-	$ordremoms=$r['moms'];
+	$ordresum=(float)$r['sum'];
+	$ordremoms=(float)$r['moms'];
 	$betalingsbet=$r['betalingsbet'];
 	$betalingstype=$r['felt_1'];
-	$betalingsum=$r['felt_2'];
+	$betalingsum=(float)$r['felt_2'];
 	$tidspkt=$r['tidspkt'];
 #	$r=db_fetch_array(db_select("select * from ordrer where id = '$saldi_id'",__FILE__ . " linje " . __LINE__));
 #	$betalt=$r['sum']+$r['moms'];
@@ -764,6 +769,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 	$svar=levering($saldi_id,'on',NULL,'on');
 	fwrite($log,__line__." Betalingsbet: $betalingsbet\n");
+	fwrite($log,__line__." Levering result: $svar\n");
 	if ($betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
 		$betalingsdiff=abs($ordresum+$ordremoms-$betalingsum);
 		if ($pos_betaling && $betalingsdiff >= 0.01) {
@@ -782,7 +788,9 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 			fwrite($log,__line__." Ordre ID $saldi_id faktureret ($svar)\n");
 		}
 */		
+		fwrite($log,__line__." Calling bogfor for order $saldi_id\n");
 		$svar=bogfor($saldi_id,'on');
+		fwrite($log,__line__." Bogfor result: $svar\n");
 		if ($tidspkt) {	
 			$qtxt="update ordrer set tidspkt='$tidspkt' where id='$saldi_id'";
 			fwrite($log,__line__." $qtxt\n");
@@ -794,8 +802,20 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 		fclose($log);
 		return($svar);
 	}
-	fclose ($log);
 	transaktion ('commit');
+	fwrite($log,__line__." Invoice completed successfully for order $saldi_id\n");
+	
+	// Send invoice email to customer if enabled
+	try {
+		$email_result = send_api_invoice_email($saldi_id);
+		fwrite($log,__line__." Invoice email result: $email_result\n");
+	} catch (Exception $e) {
+		fwrite($log,__line__." Invoice email error: " . $e->getMessage() . "\n");
+	} catch (Error $e) {
+		fwrite($log,__line__." Invoice email fatal error: " . $e->getMessage() . "\n");
+	}
+	
+	fclose ($log);
 	return($saldi_id); 
 }
 
@@ -1132,6 +1152,54 @@ function chk4utf8 ($text) {
 	$text=html_entity_decode($text);
 	fclose($fil);
 	return($text);
+}
+
+/**
+ * Send invoice email with PDF to customer after order is invoiced via API
+ * 
+ * Settings used (from settings table, var_grp = 'api'):
+ *   - api_invoice_email_enabled: 'on' to enable sending invoice to customer
+ * 
+ * This function uses send_invoice_pdf.php to generate and send the invoice.
+ * 
+ * @param int $ordre_id The order ID
+ * @return string Result message
+ */
+function send_api_invoice_email($ordre_id) {
+	global $db, $db_id;
+	
+	$log = fopen("../temp/$db/.ht_rest_api.log", "a");
+	fwrite($log, __line__." send_api_invoice_email called for order $ordre_id\n");
+	
+	// Check if invoice email is enabled
+	$qtxt = "select var_value from settings where var_name = 'api_invoice_email_enabled' and var_grp = 'api'";
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$enabled = $r['var_value'];
+	
+	if ($enabled != 'on') {
+		fwrite($log, __line__." API invoice email is disabled\n");
+		fclose($log);
+		return "Invoice email disabled";
+	}
+	
+	// Get db_id if not set
+	if (!isset($db_id) || !$db_id) {
+		list($master, $db_id) = explode('_', $db);
+	}
+	
+	fwrite($log, __line__." Including send_invoice_pdf.php\n");
+	
+	// Include the invoice PDF generator
+	define('API_INCLUDE', true);
+	include_once(__DIR__ . '/send_invoice_pdf.php');
+	
+	// Call the function to generate and send the invoice PDF
+	$result = send_invoice_pdf($ordre_id, $db, $db_id);
+	
+	fwrite($log, __line__." send_invoice_pdf result: " . ($result['success'] ? 'SUCCESS' : 'FAILED') . " - " . $result['message'] . "\n");
+	fclose($log);
+	
+	return $result['message'];
 }
 
 //return JSON array
