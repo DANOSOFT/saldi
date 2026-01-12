@@ -43,6 +43,8 @@ include("docsIncludes/invoiceExtractionApi.php");
 if (!isset($userId) || !$userId) $userId = $bruger_id;
 
 $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$kladde_id=$bilag=$source=$sourceId=$unlinkDoc=null;
+if (!isset($menu)) $menu = null;
+
 if(($_GET)||($_POST)) {
 
 	$funktion=if_isset($_GET,NULL,'funktion');
@@ -374,7 +376,12 @@ if ($dokument) {
 #echo $poolParams;
 
 // ---------- Left table start ---------
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+// Only print old table structure if not using modern kassekladde layout or docpool
+$isModernLayout = ($source == 'kassekladde' || $openPool || $openPoolRequested);
+if (!$isModernLayout) {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+}
+
 // Handle file uploads for pool view
 // Allow uploads when sourceId is set OR when openPool is set (for new pool uploads)
 if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && ($sourceId || $openPool)) {
@@ -773,7 +780,8 @@ if ($linkBilag && $source == 'kassekladde') {
 // For kassekladde: if sourceId is set and has documents, show document viewer (not pool)
 // UNLESS openPool is explicitly requested (user wants to add more bilag)
 $openPoolRequested = (isset($_GET['openPool']) && $_GET['openPool'] == '1') || $openPool;
-if ($source == 'kassekladde' && $sourceId && $openPoolRequested) { // Disabled - now goes straight to docPool
+if ($source == 'kassekladde' && $sourceId) { 
+
 	// Check if there are any documents for this sourceId
 	$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$sourceId' order by id limit 1";
 	$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -1063,6 +1071,12 @@ if ($source == 'kassekladde' && $sourceId && $openPoolRequested) { // Disabled -
 // Check for openPool BEFORE printing any table structure
 // Make sure we check both the variable and the GET parameter
 $openPool = $openPool || (isset($_GET['openPool']) && ($_GET['openPool'] == '1' || $_GET['openPool'] == 1));
+
+// For kassekladde, default to openPool if no documents exist and no document is selected
+if ($source == 'kassekladde' && !$showDoc && (!isset($docRow) || !$docRow)) {
+	$openPool = true;
+}
+
 if ($openPool) {
 	$finalDestination = "$docFolder/$db/pulje";
 		#############
