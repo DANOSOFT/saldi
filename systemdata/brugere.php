@@ -132,7 +132,6 @@ if ($addUser || $updateUser) {
 	$user_ip=$insert_ip;
 	// input_ip($user_ip, $id);
 	} #20210908
-	$afd = if_isset($_POST['afdeling']);
 	$rights=$_POST['rights'];
 	$roRights=$_POST['roRights'];
 	$rettigheder=NULL;
@@ -171,11 +170,9 @@ if ($addUser || $updateUser) {
 	if ($id && $kode && $brugernavn) {
 		if (strstr($kode,'**********')) {
 			db_modify("update brugere set brugernavn='$brugernavn', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
-			update_settings_value('afd', 'brugerAfd', $afd, '', $id);
 		} else {
 			$kode=saldikrypt($id,$kode);
 			db_modify("update brugere set brugernavn='$brugernavn', kode='$kode', rettigheder='$rettigheder', ansat_id=$employeeId[0], ip_address = '$insert_ip', tlf = '$tlf', twofactor = '$twofactor', email = '$email' where id=$id",__FILE__ . " linje " . __LINE__);
-			update_settings_value('afd', 'brugerAfd', $afd, '', $id);
 		}
 	}
 
@@ -312,8 +309,6 @@ if ($ret_id) {
 	$query = db_select("select * from brugere where id = $ret_id",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$userName=$row['brugernavn'];
-	// get afd from settings using settings function from std_func.php
-	$afd = get_settings_value('afd', 'brugerAfd', 0, $row['id']);
 	
 
 	print "<tr><td></td>";
@@ -369,16 +364,6 @@ if ($ret_id) {
 	
 		###########################################20210831
 	print "<tr><td>".findtekst('1904|Angiv brugerens tilladte IP adresser', $sprog_id)."</td><td><input class=\"inputbox\" type= text  name=insert_ip maxlength=49 value='$row[ip_address]' ></td></tr>"; #20210908
-	print "<tr><td>Afdeling</td><td><select class=\"inputbox\" name=\"afdeling\">";
-	$q = db_select("select * from grupper where art = 'AFD'",__FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		if($r['kodenr']==$afd) {
-			print "<option value=\"$r[kodenr]\" selected>$r[beskrivelse]</option>";
-		} else {
-			print "<option value=\"$r[kodenr]\">$r[beskrivelse]</option>";
-		}
-	}
-	print "</select></td></tr>";
 	print "<tr title='Hvis telefon og email er udfyldt, vil 2fa sendes til tlf og ikke email'><td>Tlf (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=tlf value='$row[tlf]'></td></tr>";
 	print "<tr title='Hvis telefon og email er udfyldt, vil 2fa sendes til tlf og ikke email'><td>Email (til 2fa):</td><td><input class=\"inputbox\" type=text size=20 name=email value='$row[email]'></td></tr>";
 	if($row['twofactor'] == 't') {
