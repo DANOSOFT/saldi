@@ -3050,6 +3050,11 @@ function ordreside($id, $regnskab)
 		if (isset($_REQUEST['dfm_go'])) {
 			db_modify("update ordrer set fedex_label = true where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$tGrossWeight = 1;
+			
+			// Initialize pickup address variables
+			$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = NULL;
+			$dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
+			
 			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
@@ -3094,27 +3099,70 @@ function ordreside($id, $regnskab)
 					case 'dfm_sercode':
 						$dfm_sercode         = $var_value;
 						break;
-					case 'dfm_pickup_addr':
-						$dfm_pickup_addr     = $var_value;
-						break;
-					case 'dfm_pickup_name1':
-						$dfm_pickup_name1    = $var_value;
-						break;
-					case 'dfm_pickup_name2':
-						$dfm_pickup_name2    = $var_value;
-						break;
-					case 'dfm_pickup_street1':
-						$dfm_pickup_street1  = $var_value;
-						break;
-					case 'dfm_pickup_street2':
-						$dfm_pickup_street2  = $var_value;
-						break;
-					case 'dfm_pickup_town':
-						$dfm_pickup_town     = $var_value;
-						break;
-					case 'dfm_pickup_zipcode':
-						$dfm_pickup_zipcode  = $var_value;
-						break;
+				}
+			}
+			
+			// Fetch pickup address based on selected group_id (new multi-address system)
+			$selected_pickup_group = if_isset($_POST['dfm_pickup_group_id'], 0);
+			if ($selected_pickup_group > 0) {
+				$qtxt = "select var_name, var_value from settings where var_grp='DFM_Pickup' and group_id='$selected_pickup_group'";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					switch ($r['var_name']) {
+						case 'dfm_pickup_addr':
+							$dfm_pickup_addr     = $r['var_value'];
+							break;
+						case 'dfm_pickup_name1':
+							$dfm_pickup_name1    = $r['var_value'];
+							break;
+						case 'dfm_pickup_name2':
+							$dfm_pickup_name2    = $r['var_value'];
+							break;
+						case 'dfm_pickup_street1':
+							$dfm_pickup_street1  = $r['var_value'];
+							break;
+						case 'dfm_pickup_street2':
+							$dfm_pickup_street2  = $r['var_value'];
+							break;
+						case 'dfm_pickup_town':
+							$dfm_pickup_town     = $r['var_value'];
+							break;
+						case 'dfm_pickup_zipcode':
+							$dfm_pickup_zipcode  = $r['var_value'];
+							break;
+					}
+				}
+			} else {
+				// Fallback: try to get the first pickup address if no specific one selected
+				$qtxt = "select var_name, var_value, group_id from settings where var_grp='DFM_Pickup' order by group_id limit 7";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				$first_gid = null;
+				while ($r = db_fetch_array($q)) {
+					if ($first_gid === null) $first_gid = $r['group_id'];
+					if ($r['group_id'] != $first_gid) break; // Only get first group
+					switch ($r['var_name']) {
+						case 'dfm_pickup_addr':
+							$dfm_pickup_addr     = $r['var_value'];
+							break;
+						case 'dfm_pickup_name1':
+							$dfm_pickup_name1    = $r['var_value'];
+							break;
+						case 'dfm_pickup_name2':
+							$dfm_pickup_name2    = $r['var_value'];
+							break;
+						case 'dfm_pickup_street1':
+							$dfm_pickup_street1  = $r['var_value'];
+							break;
+						case 'dfm_pickup_street2':
+							$dfm_pickup_street2  = $r['var_value'];
+							break;
+						case 'dfm_pickup_town':
+							$dfm_pickup_town     = $r['var_value'];
+							break;
+						case 'dfm_pickup_zipcode':
+							$dfm_pickup_zipcode  = $r['var_value'];
+							break;
+					}
 				}
 			}
 
@@ -5624,6 +5672,21 @@ function ordreside($id, $regnskab)
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'dfm_gooddes') $form_gooddes = $r['var_value'];
 			}
+			
+			// Fetch available pickup addresses
+			$dfm_pickup_options = array();
+			$qtxt = "select group_id, var_name, var_value from settings where var_grp='DFM_Pickup' order by group_id, var_name";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$gid = $r['group_id'] ?: 0;
+				if (!isset($dfm_pickup_options[$gid])) {
+					$dfm_pickup_options[$gid] = array('name1' => '', 'town' => '', 'zipcode' => '');
+				}
+				$field = str_replace('dfm_pickup_', '', $r['var_name']);
+				if (isset($dfm_pickup_options[$gid][$field])) {
+					$dfm_pickup_options[$gid][$field] = $r['var_value'];
+				}
+			}
 
 			if (! empty($dfm_go)) {
 				print "\n\n<p>";
@@ -5638,7 +5701,24 @@ function ordreside($id, $regnskab)
 			print "<tr>\n<td>";
 			print "" . findtekst('1041|Beskrivelse af gods som standard', $sprog_id) . ": </td>\n";
 			print "<td><input type = 'text' name=\"form_gooddes\" value=\"$form_gooddes\">";
-			print "</td>\n</tr>\n</table></center>\n";
+			print "</td>\n</tr>\n";
+			
+			// Pickup address selector (only show if there are multiple addresses)
+			if (count($dfm_pickup_options) > 0) {
+				print "<tr>\n<td>Afhentningsadresse: </td>\n";
+				print "<td><select name=\"dfm_pickup_group_id\" class=\"inputbox\">\n";
+				print "<option value=\"0\">Brug hovedadresse</option>\n";
+				foreach ($dfm_pickup_options as $gid => $addr) {
+					$label = htmlspecialchars($addr['name1']);
+					if ($addr['zipcode'] || $addr['town']) {
+						$label .= " (" . htmlspecialchars($addr['zipcode'] . " " . $addr['town']) . ")";
+					}
+					print "<option value=\"$gid\">$label</option>\n";
+				}
+				print "</select></td>\n</tr>\n";
+			}
+			
+			print "</table></center>\n";
 			print "<input type=\"hidden\" name=\"tGrossWeight\" value=\"$tGrossWeight\">\n";
 			print "<center><br><input type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\"></center></form>";;
 		}

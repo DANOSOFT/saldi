@@ -727,6 +727,7 @@ function div_valg() {
 	$gls_id = $gls_pass = $gls_user = $gls_ctId = NULL; #20211019 $gls_ctId added
 	$dfm_id = $dfm_pass = $dfm_user = $dfm_agree = $dfm_hub = $dfm_ship = $dfm_good = $dfm_pay = $dfm_url = $dfm_gooddes = $dfm_sercode = NULL;
 	$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = $dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
+	$dfm_pickup_addresses = array(); // Array to hold multiple pickup addresses
 	$gruppevalg = $jobkort = $kort = $kuansvalg = $ref = $kua = $smart = $debtor2orderphone = NULL;
 	$qp_merchant = $qp_md5secret = $qp_agreement_id = $qp_itemGrp = NULL;
 	$payment_days = NULL;
@@ -781,6 +782,31 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_url')            $dfm_url            = $r['var_value'];
 		if ($r['var_name'] == 'dfm_gooddes')        $dfm_gooddes        = $r['var_value'];
 		if ($r['var_name'] == 'dfm_sercode')        $dfm_sercode        = $r['var_value'];
+	}
+	
+	// Fetch multiple pickup addresses grouped by group_id
+	$qtxt = "select group_id, var_name, var_value from settings where var_grp='DFM_Pickup' order by group_id, var_name";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$gid = $r['group_id'] ?: 0;
+		if (!isset($dfm_pickup_addresses[$gid])) {
+			$dfm_pickup_addresses[$gid] = array(
+				'addr' => '', 'name1' => '', 'name2' => '', 
+				'street1' => '', 'street2' => '', 'town' => '', 'zipcode' => ''
+			);
+		}
+		$field = str_replace('dfm_pickup_', '', $r['var_name']);
+		if (isset($dfm_pickup_addresses[$gid][$field])) {
+			$dfm_pickup_addresses[$gid][$field] = $r['var_value'];
+		}
+	}
+	
+	// For backwards compatibility, also check old-style storage (single pickup in GLS group)
+	$qtxt = "select var_name,var_value from settings where var_grp='GLS' and var_name like 'dfm_pickup_%'";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$has_old_style = false;
+	while ($r = db_fetch_array($q)) {
+		$has_old_style = true;
 		if ($r['var_name'] == 'dfm_pickup_addr')    $dfm_pickup_addr    = $r['var_value'];
 		if ($r['var_name'] == 'dfm_pickup_name1')   $dfm_pickup_name1   = $r['var_value'];
 		if ($r['var_name'] == 'dfm_pickup_name2')   $dfm_pickup_name2   = $r['var_value'];
@@ -789,6 +815,15 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
 		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
 	}
+	// If we have old-style data but no new-style, add it to the array
+	if ($has_old_style && empty($dfm_pickup_addresses) && $dfm_pickup_addr) {
+		$dfm_pickup_addresses[0] = array(
+			'addr' => $dfm_pickup_addr, 'name1' => $dfm_pickup_name1, 'name2' => $dfm_pickup_name2,
+			'street1' => $dfm_pickup_street1, 'street2' => $dfm_pickup_street2, 
+			'town' => $dfm_pickup_town, 'zipcode' => $dfm_pickup_zipcode
+		);
+	}
+	
 	$qtxt = "select var_name,var_value from settings where var_grp='DanskeFragt'";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -803,13 +838,6 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_url')            $dfm_url            = $r['var_value'];
 		if ($r['var_name'] == 'dfm_gooddes')        $dfm_gooddes        = $r['var_value'];
 		if ($r['var_name'] == 'dfm_sercode')        $dfm_sercode        = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_addr')    $dfm_pickup_addr    = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_name1')   $dfm_pickup_name1   = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_name2')   $dfm_pickup_name2   = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_street1') $dfm_pickup_street1 = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_street2') $dfm_pickup_street2 = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
 	}
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
@@ -855,7 +883,7 @@ function div_valg() {
 
 	$labelsize = get_settings_value("labelsize", "mysale", 22);
 
-	print "<form name='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
+	print "<form name='diverse' id='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
 	print "<tr style='background-color:$bgcolor5'><td colspan='6'><b>".findtekst('794|Diverse valg', $sprog_id)."</b></td></tr>\n";
 	print "<tr><td colspan='2'>&nbsp;</td></tr>\n";
 	print "<input name='id' type='hidden' value='$id'>\n";
@@ -1082,53 +1110,125 @@ function div_valg() {
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_sercode' class='inputbox' style='width:150px;' type='text' value='$dfm_sercode'></td>\n</tr>\n";
 
+		// Multiple pickup addresses section
 		$txt = findtekst('1043|Afhentningsadresse er en anden end hovedadressen', $sprog_id);
 		$title = findtekst('1044|Markeres hvis der skal hentes gods fra en anden adresse end hovedadressen.', $sprog_id);
-		print "<!-- 1043 Afhentningsadresse er en anden end hovedadressen -->";
-		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
-
-		if ($dfm_pickup_addr) {
-			print "<td><input type='checkbox' name='dfm_pickup_addr' class='inputbox' checked value='dfm_pickup_addr'></td>\n</tr>\n";
-			$txt = findtekst('360|Firmanavn', $sprog_id);
-			$title = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
-			print "<!-- 360 Firmanavn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_name1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name1'></td>\n</tr>\n";
-			$txt = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
-			$title = findtekst('1048|Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...', $sprog_id);
-			print "<!-- 1047 Eventuelt ekstra navn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_name2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name2'></td>\n</tr>\n";
-			$txt = findtekst('361|Adresse', $sprog_id);
-			$title = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
-			print "<!-- 361 Adresse -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_street1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street1'></td>\n</tr>\n";
-			$txt = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
-			$title = findtekst('1052|Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.', $sprog_id);
-			print "<!-- 1051 Eventuel ekstra adresselinje -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_street2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street2'></td>\n</tr>\n";
-			$txt = findtekst('1053|Postnummer', $sprog_id);
-			$title = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
-			print "<!-- 1053 Postnummer -->";
-			print "<tr bgcolor='$bgcolor5'><td title='$title'>--- $txt</td><td title='$title'>";
-			print "<input name='dfm_pickup_zipcode' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_zipcode'>";
-			print "</td>\n</tr>\n";
-			$txt = findtekst('1055|By', $sprog_id);
-			$title = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
-			print "<!-- 1055 Bynavn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_town' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_town'></td>\n</tr>\n";
-		} else {
-			print "<td><input type=\"checkbox\" name=\"dfm_pickup_addr\" value=\"DayP\"></td>\n</tr>\n";
-			print "<input name='dfm_pickup_name1' type='hidden' value='$dfm_pickup_name1'>\n";
-			print "<input name='dfm_pickup_name2' type='hidden' value='$dfm_pickup_name2'>\n";
-			print "<input name='dfm_pickup_street1' type='hidden' value='$dfm_pickup_street1'>\n";
-			print "<input name='dfm_pickup_street2' type='hidden' value='$dfm_pickup_street2'>\n";
-			print "<input name='dfm_pickup_zipcode' type='hidden' value='$dfm_pickup_zipcode'>\n";
-			print "<input name='dfm_pickup_town' type='hidden' value='$dfm_pickup_town'>\n";
+		print "<!-- 1043 Multiple Afhentningsadresser -->";
+		print "<tr bgcolor='$bgcolor5'>\n<td colspan='2'><strong>- $txt</strong></td>\n</tr>\n";
+		
+		print "<tr><td colspan='2'>\n";
+		print "<div id='dfm_pickup_container'>\n";
+		
+		// Text translations for JS
+		$txt_firmanavn = findtekst('360|Firmanavn', $sprog_id);
+		$title_firmanavn = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
+		$txt_ekstra_navn = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
+		$title_ekstra_navn = findtekst('1048|Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...', $sprog_id);
+		$txt_adresse = findtekst('361|Adresse', $sprog_id);
+		$title_adresse = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
+		$txt_ekstra_addr = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
+		$title_ekstra_addr = findtekst('1052|Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.', $sprog_id);
+		$txt_postnr = findtekst('1053|Postnummer', $sprog_id);
+		$title_postnr = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
+		$txt_by = findtekst('1055|By', $sprog_id);
+		$title_by = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
+		$txt_slet = 'Slet';
+		
+		// Display existing pickup addresses
+		$pickup_idx = 0;
+		if (!empty($dfm_pickup_addresses)) {
+			foreach ($dfm_pickup_addresses as $gid => $addr) {
+				print "<div class='dfm_pickup_block' data-idx='$pickup_idx' style='border:1px solid #ccc; padding:10px; margin:5px 0; background:#f9f9f9;'>\n";
+				print "<input type='hidden' name='dfm_pickup_group_id[$pickup_idx]' value='$gid'>\n";
+				print "<input type='hidden' name='dfm_pickup_addr[$pickup_idx]' value='1'>\n";
+				print "<table style='width:100%;'>\n";
+				print "<tr><td colspan='2'><strong>Afhentningsadresse #" . ($pickup_idx + 1) . "</strong> ";
+				print "<button type='button' class='btn btn-sm' onclick='removeDfmPickup($pickup_idx)' style='float:right;'>$txt_slet</button></td></tr>\n";
+				print "<tr><td title='$title_firmanavn'>$txt_firmanavn</td><td><input name='dfm_pickup_name1[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['name1']) . "'></td></tr>\n";
+				print "<tr><td title='$title_ekstra_navn'>$txt_ekstra_navn</td><td><input name='dfm_pickup_name2[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['name2']) . "'></td></tr>\n";
+				print "<tr><td title='$title_adresse'>$txt_adresse</td><td><input name='dfm_pickup_street1[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['street1']) . "'></td></tr>\n";
+				print "<tr><td title='$title_ekstra_addr'>$txt_ekstra_addr</td><td><input name='dfm_pickup_street2[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['street2']) . "'></td></tr>\n";
+				print "<tr><td title='$title_postnr'>$txt_postnr</td><td><input name='dfm_pickup_zipcode[$pickup_idx]' class='inputbox' style='width:100px;' type='text' value='" . htmlspecialchars($addr['zipcode']) . "'></td></tr>\n";
+				print "<tr><td title='$title_by'>$txt_by</td><td><input name='dfm_pickup_town[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['town']) . "'></td></tr>\n";
+				print "</table>\n";
+				print "</div>\n";
+				$pickup_idx++;
+			}
 		}
+		
+		print "</div>\n";
+		print "<button type='button' class='btn' onclick='addDfmPickup()' style='margin:10px 0;'>+ Tilføj afhentningsadresse</button>\n";
+		print "<input type='hidden' id='dfm_pickup_count' name='dfm_pickup_count' value='$pickup_idx'>\n";
+		print "</td></tr>\n";
+		
+		// JavaScript for adding/removing pickup addresses
+		print "<script>
+var dfmPickupIdx = $pickup_idx;
+var dfmPickupLabels = {
+	firmanavn: '" . addslashes($txt_firmanavn) . "',
+	ekstraNavn: '" . addslashes($txt_ekstra_navn) . "',
+	adresse: '" . addslashes($txt_adresse) . "',
+	ekstraAddr: '" . addslashes($txt_ekstra_addr) . "',
+	postnr: '" . addslashes($txt_postnr) . "',
+	by: '" . addslashes($txt_by) . "',
+	slet: '" . addslashes($txt_slet) . "'
+};
+
+function addDfmPickup() {
+	var container = document.getElementById('dfm_pickup_container');
+	if (!container) return;
+	
+	var form = document.forms['diverse'];
+	if (!form) return;
+	
+	var idx = dfmPickupIdx;
+	
+	// Create hidden inputs and add them directly to the form element
+	var hiddenGroupId = document.createElement('input');
+	hiddenGroupId.type = 'hidden';
+	hiddenGroupId.name = 'dfm_pickup_group_id[' + idx + ']';
+	hiddenGroupId.value = 'new_' + idx;
+	hiddenGroupId.id = 'dfm_pickup_group_id_' + idx;
+	form.appendChild(hiddenGroupId);
+	
+	var hiddenAddr = document.createElement('input');
+	hiddenAddr.type = 'hidden';
+	hiddenAddr.name = 'dfm_pickup_addr[' + idx + ']';
+	hiddenAddr.value = '1';
+	hiddenAddr.id = 'dfm_pickup_addr_' + idx;
+	form.appendChild(hiddenAddr);
+	
+	// Create visual block in container
+	var html = '<div class=\"dfm_pickup_block\" data-idx=\"' + idx + '\" style=\"border:1px solid #ccc; padding:10px; margin:5px 0; background:#f9f9f9;\">';
+	html += '<table style=\"width:100%;\">';
+	html += '<tr><td colspan=\"2\"><strong>Afhentningsadresse #' + (idx + 1) + '</strong> ';
+	html += '<button type=\"button\" class=\"btn btn-sm\" onclick=\"removeDfmPickup(' + idx + ')\" style=\"float:right;\">' + dfmPickupLabels.slet + '</button></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.firmanavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_name1[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.ekstraNavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_name2[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.adresse + '</td><td><input form=\"diverse\" name=\"dfm_pickup_street1[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.ekstraAddr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_street2[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.postnr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_zipcode[' + idx + ']\" class=\"inputbox\" style=\"width:100px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.by + '</td><td><input form=\"diverse\" name=\"dfm_pickup_town[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '</table></div>';
+	
+	container.insertAdjacentHTML('beforeend', html);
+	dfmPickupIdx++;
+	document.getElementById('dfm_pickup_count').value = dfmPickupIdx;
+}
+
+function removeDfmPickup(idx) {
+	var block = document.querySelector('.dfm_pickup_block[data-idx=\"' + idx + '\"]');
+	if (block) {
+		block.remove();
+	}
+	// Also remove the hidden inputs that were added to the form
+	var hiddenGroupId = document.getElementById('dfm_pickup_group_id_' + idx);
+	if (hiddenGroupId) hiddenGroupId.remove();
+	var hiddenAddr = document.getElementById('dfm_pickup_addr_' + idx);
+	if (hiddenAddr) hiddenAddr.remove();
+}
+
+</script>\n";
 	} else {
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='dfm_agree' class='inputbox' style='width:150px;' type='text' value='$dfm_agree'></td>\n</tr>\n";
