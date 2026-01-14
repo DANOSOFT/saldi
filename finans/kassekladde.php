@@ -1230,7 +1230,7 @@ print '<style>
 
     /* Print styles */
     @media print {
-        /* Hide navigation and non-essential elements */
+        /* Hide ALL navigation and non-essential elements completely */
         .sidebar,
         .side-menu,
         .left-menu,
@@ -1247,6 +1247,9 @@ print '<style>
         .table-con,
         .header-row,
         .kassekladde-footer,
+        .fixedFooter,
+        .pagination-right,
+        #footer-box,
         #header,
         .headerbtnLft,
         .headerbtnRght,
@@ -1255,54 +1258,159 @@ print '<style>
         form input[type="button"],
         .button,
         a[href*="print"],
-        #questionmark {
+        #questionmark,
+        .topLine,
+        .headerbtn,
+        .center-btn,
+        .navbtn-top,
+        .table-row {
             display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
         }
         
-        /* Reset sticky positioning */
-        .kassekladde-thead {
-            position: static !important;
-            background-color: transparent !important;
+        /* Reset positioning for layout elements only */
+        .table-con,
+        .kassekladde-note-tb,
+        .fixedFooter,
+        .header-row,
+        .top-header {
+            position: absolute !important;
+            left: -9999px !important;
         }
         
-        body {
+        html, body {
             margin: 0 !important;
-            padding: 10px !important;
+            padding: 0 !important;
+            height: auto !important;
+            width: 100% !important;
+            overflow: visible !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
         
         .content-noside {
-            margin-left: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+        }
+        
+        /* Remove ALL borders by default */
+        table, tr, td, th, tbody, thead {
+            border: none !important;
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+        }
+        
+        /* Hide the outer table first rows (contains header/navigation) */
+        .outerTable > tbody > tr:first-child,
+        .outerTable > tbody > tr:nth-child(2) {
+            display: none !important;
+        }
+        
+        .outerTable,
+        .outerTable tbody,
+        .outerTable tr,
+        .outerTable td,
+        .outerTable th {
+            border: none !important;
+            border-width: 0 !important;
+            border-style: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+        
+        .outerTable {
+            height: auto !important;
+            border-collapse: collapse !important;
+        }
+        
+        /* Main data table styles */
+        .dataTableForm,
+        .formnavi {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin: 0 !important;
+            table-layout: auto !important;
+            border: none !important;
+        }
+        
+        /* Table header - keep it showing on each page */
+        .kassekladde-thead {
+            display: table-header-group !important;
+            position: static !important;
+            top: auto !important;
+            background: white !important;
+        }
+        
+        .kassekladde-thead tr {
+            display: table-row !important;
+            border: none !important;
+            border-bottom: 2px solid #333 !important;
+        }
+        
+        .kassekladde-thead td,
+        .kassekladde-thead th {
+            display: table-cell !important;
+            background: #f0f0f0 !important;
+            font-weight: bold !important;
+            border: none !important;
+            padding: 4px 6px !important;
+            font-size: 10px !important;
+            white-space: nowrap !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Table body */
+        #kassekladde-tbody {
+            display: table-row-group !important;
+        }
+        
+        #kassekladde-tbody > tr:first-child {
+            display: none !important;
+        }
+        
+        #kassekladde-tbody tr {
+            display: table-row !important;
+            page-break-inside: avoid;
+            border: none !important;
+        }
+
+        #kassekladde-tbody tr:nth-child(even) {
+            background-color: #f9f9f9 !important;
+        }
+        
+        #kassekladde-tbody td {
+            display: table-cell !important;
+            border: none !important;
+            padding: 3px 5px !important;
+            font-size: 10px !important;
+            vertical-align: middle !important;
+            background: transparent !important;
+        }
+        
+        /* Form elements */
+        form, form#kassekladde {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+        
+        center {
+            margin: 0 !important;
             padding: 0 !important;
         }
         
-        table {
-            width: 100% !important;
-            page-break-inside: auto;
-        }
-        tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-        }
-        thead {
-            display: table-header-group;
-        }
-        td, th {
-            overflow: visible !important;
-            white-space: normal !important;
-            text-overflow: clip !important;
-            padding: 4px 8px !important;
-        }
-        .outerTable {
-            height: auto !important;
-        }
-        
-        /* Ensure data table is visible and properly styled */
-        .dataTable, .dataTableForm {
-            border-collapse: collapse;
-        }
-        .dataTable td, .dataTableForm td,
-        .dataTable th, .dataTableForm th {
-            border: 1px solid #ccc;
+        /* Remove input styling in print */
+        input[type="text"],
+        input.inputbox {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
         }
     }
     

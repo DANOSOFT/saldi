@@ -12,6 +12,7 @@ html, body {
   padding: 0;
   height: 100%;
   overflow: hidden;
+
 }
 
 /* ============================================
@@ -19,9 +20,21 @@ html, body {
    ============================================ */
 
 #topBarHeader {
-  width: 100%;
-  margin-bottom: 10px;
-  margin-top: 10px;
+  width: calc(100% - 16px);
+  margin-bottom: 8px;
+  margin-top: 8px;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+/* Ensure proper spacing between header cells and buttons */
+#topBarHeader td {
+  /* padding: 2px 4px; */
+}
+
+#topBarHeader button {
+  /* margin: 0 4px; */
+  /* padding: 6px 12px; */
 }
 
 /* Disable ALL hover effects on top bar - no visual changes */
@@ -72,10 +85,12 @@ html, body {
 
 #docPoolContainer {
   display: flex;
-  width: 100%;
+  width: calc(100% - 16px);
   height: calc(100vh - var(--docpool-header-height));
   gap: 0;
   margin: 0;
+  margin-left: 8px;
+  margin-right: 8px;
   padding: 0;
   position: fixed;
   top: var(--docpool-header-height);
@@ -191,8 +206,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
-  width: 100%;
-  margin: 0;
+  margin: 0 0 0 8px;
   padding: 0;
   position: relative;
   /* Background color removed - inherits from parent */

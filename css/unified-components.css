@@ -56,7 +56,6 @@
   overflow-x: auto;
   overflow-y: auto;
   position: relative;
-  width: 100%;
   font-family: var(--docpool-font-family);
 }
 
