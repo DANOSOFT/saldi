@@ -992,6 +992,99 @@ if ($_POST && $_SERVER['REQUEST_METHOD'] == "POST") {
 				db_modify("insert into variant_typer (beskrivelse,variant_id) values ('$var_type_beskrivelse[$x]','$variant_id[$x]')", __FILE__ . " linje " . __LINE__);
 		}
 	#######################################################################################
+	} elseif ($sektion == 'variant_valg_import_types') {
+		// Import variant types (main categories like Color, Size)
+		$imported = 0;
+		$skipped = 0;
+		if (isset($_FILES['variant_types_file']) && $_FILES['variant_types_file']['error'] == 0) {
+			$filnavn = $_FILES['variant_types_file']['tmp_name'];
+			if (($handle = fopen($filnavn, "r")) !== FALSE) {
+				while (($line = fgets($handle)) !== FALSE) {
+					$line = trim($line);
+					// Handle both semicolon and comma separated, but expect single column
+					$parts = preg_split('/[;,\t]/', $line);
+					$variant_name = trim($parts[0]);
+					
+					// Convert encoding if needed
+					if ($db_encode == "UTF8" && !mb_check_encoding($variant_name, 'UTF-8')) {
+						$variant_name = mb_convert_encoding($variant_name, 'UTF-8', 'ISO-8859-1');
+					}
+					
+					if (!empty($variant_name)) {
+						// Check if variant already exists
+						$escaped_name = db_escape_string($variant_name);
+						$existing = db_fetch_array(db_select("SELECT id FROM varianter WHERE LOWER(beskrivelse) = LOWER('$escaped_name')", __FILE__ . " linje " . __LINE__));
+						if (!$existing) {
+							db_modify("INSERT INTO varianter (beskrivelse) VALUES ('$escaped_name')", __FILE__ . " linje " . __LINE__);
+							$imported++;
+						} else {
+							$skipped++;
+						}
+					}
+				}
+				fclose($handle);
+			}
+		}
+		$_SESSION['variant_import_message'] = "Importeret: $imported varianttyper. Sprunget over (eksisterer allerede): $skipped";
+		header("Location: diverse.php?sektion=variant_valg");
+		exit;
+	#######################################################################################
+	} elseif ($sektion == 'variant_valg_import_values') {
+		// Import variant values (values for existing types like Red, Blue for Color)
+		$imported = 0;
+		$skipped = 0;
+		$not_found = 0;
+		if (isset($_FILES['variant_values_file']) && $_FILES['variant_values_file']['error'] == 0) {
+			$filnavn = $_FILES['variant_values_file']['tmp_name'];
+			if (($handle = fopen($filnavn, "r")) !== FALSE) {
+				while (($line = fgets($handle)) !== FALSE) {
+					$line = trim($line);
+					// Expect format: variant_name;value or variant_name,value
+					$parts = preg_split('/[;,\t]/', $line, 2);
+					if (count($parts) >= 2) {
+						$variant_name = trim($parts[0]);
+						$value_name = trim($parts[1]);
+						
+						// Convert encoding if needed
+						if ($db_encode == "UTF8") {
+							if (!mb_check_encoding($variant_name, 'UTF-8')) {
+								$variant_name = mb_convert_encoding($variant_name, 'UTF-8', 'ISO-8859-1');
+							}
+							if (!mb_check_encoding($value_name, 'UTF-8')) {
+								$value_name = mb_convert_encoding($value_name, 'UTF-8', 'ISO-8859-1');
+							}
+						}
+						
+						if (!empty($variant_name) && !empty($value_name)) {
+							// Find the variant by name
+							$escaped_variant = db_escape_string($variant_name);
+							$variant = db_fetch_array(db_select("SELECT id FROM varianter WHERE LOWER(beskrivelse) = LOWER('$escaped_variant')", __FILE__ . " linje " . __LINE__));
+							
+							if ($variant) {
+								$variant_id = $variant['id'];
+								$escaped_value = db_escape_string($value_name);
+								
+								// Check if value already exists for this variant
+								$existing = db_fetch_array(db_select("SELECT id FROM variant_typer WHERE variant_id = '$variant_id' AND LOWER(beskrivelse) = LOWER('$escaped_value')", __FILE__ . " linje " . __LINE__));
+								if (!$existing) {
+									db_modify("INSERT INTO variant_typer (beskrivelse, variant_id) VALUES ('$escaped_value', '$variant_id')", __FILE__ . " linje " . __LINE__);
+									$imported++;
+								} else {
+									$skipped++;
+								}
+							} else {
+								$not_found++;
+							}
+						}
+					}
+				}
+				fclose($handle);
+			}
+		}
+		$_SESSION['variant_import_message'] = "Importeret: $imported værdier. Sprunget over (eksisterer allerede): $skipped. Variant ikke fundet: $not_found";
+		header("Location: diverse.php?sektion=variant_valg");
+		exit;
+	#######################################################################################
 	} elseif ($sektion == 'shop_valg') {
 		$id = if_isset($_POST['id']);
 #		$box1 = if_isset($_POST['box1']);   #incl_moms (legacy - not used for VAT anymore)
