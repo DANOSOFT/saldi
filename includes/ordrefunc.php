@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---patch 4.1.1 ----2025-11-26 ---
+//--- includes/ordrefunc.php ---patch 5.0.0 ----2026-01-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,87 +21,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // -----------------------------------------------------------
 
-// 20120730 søg 20120730
-// 20120613 søg 20120613
-// 20120905 søg 20120905
-// 21021001 søg 20121001
-// 20121217 søg 20121217
-// 20130408 Samlevarer blev ikke nedskrevet ved salg - || salmevare=='on' fjernet fra if Søg 20130408
-// 20130411 fejl ved genfakturering hvis ordredato > fakturadato Søg 20130411
-// 20130411 fejl v fakturering hvis slutmaaned er et cifret  Søg 20130411-2
-// 20130506	Fjernet transaktionskontrol fra leveringsfunktion og rettet lidt omkring fejlhåndtering ved bogføring.Søg 20130506
-// 20130813	Kald til beholdningsopdatering ved "intern webshop" undertrykt Søg 20130813
-// 2013,08.20 Kontering på kassekonto og kreditkortkonto nu mulig v. kontantsalg. Søg variablen $openpost
-// 20130823 Fejl v. indbetaling på konto via POS ordre, hvis betaling med kreditkort og penge retur fra kasse. Søg $kassekonto i funktion bogfor_indbetaling.
-// 20130824	Indsat ($art!='PO' || $antal) i betingelser for opdatering af ordrelinje. Søg 20130824
-// 20130824	Tilføjet kasse_nr & $kasse i alle "insert into transaktioner" som vedrører POS ordrer.
-// 20130903	Ved insdættelse af vare fra shop med pris kr. 0 sættes pris fra vareliste. Er rettet. Søg 20130903
-// 20130916	Diverse ændringer i forhold til pos_ordrer.
-// 20130917 != ændret til == Søg #20130917
-// 20131001 Opdat beholdning blev ikke kaldt v. webshop.
-// 20131015 Tilføjet kontrol af status v. tilføjelse af ordrelinjer. 20131005
-// 20131105 Vender ikke tilbage til pos_ordre ved fejl. Søg 20131105
-// 20131111. Fejl i php på decimaltal, afrunding tilføjet inden diff beregning. søg 20131111
-// 20131129 Alle undervarer blev indsat ved kopiering af ordre med samlevare.Søg 20131129
-// 20131202 Sat afrunding på antal & leveret da det har været et tilfælde hvor levering ikke kunne ske. Søg 20131202
-// 20140115 Tilføjet && !$kontonr - Ellers bliver openpost ikke ført og der bogføres på kunden kontonummer i transaktioner og ikke på samlekontoen. Søg 20140115
-// 20140117 Rettet $kobs_valutakurs til $valutakurs da kursen ikke blev beregnet inden returnering af kostpris. Se også i ordrer.php. Sog 20140117 
-// 20140129 Indsat automatisk genkendelse af registrerede betalingskort, (Kun med integreret betalingsterminal) Søg 20140129, $kortnavn eller 'Betalingskort'
-// 20140131	Indsat popup ved som advarer ved indsættelse af vare som ikke kan leveres.20140131
-// 20140306	Oprettet funktion opret_ordre til sagstyring (PK - Herlev stilladser)
-// 20140306	Rettet funktion sidehoved, så sagsmenu virker (PK - Herlev stilladser) 
-// 20140306	Tilrettet funktion tekstopslag til sagstyring (PK - Herlev stilladser)
-// 20140424	Diverse tilretninger i forbindelse med procentfakturering (PHR - Danosoft) Søg 20140424a
-// 20140424	$art må ikke sættes her - bliver tom hvis der ikke er tilknyttet kunde (Pos kontantordre) (PHR - Danosoft) Søg 20140424b
-// 20140425 Fejl hvis sagssystem ikke er oprettet.(PHR - Danosoft) søg 20140425
-// 20140426 Tilføjet vare_id i opret_ordrelinje da kreditering eller kopiering af ordrer ikke fungerer hvis varenummer er ændret.(PHR - Danosoft) søg 20140426
-// 20140502 Udkommeneret header da denne også bliver sat i online.php. PHR	- Danosoft søg 20140502
-// 21040508	Diverse ændringer i funktion vareopslag i forbindelse med bordnr i pos_ordrer. PHR	- Danosoft Søg "bordnr" i "vareopslag". 
-// 20140613	Div småting relateret til pos_ordrer - bl. a. momsdiff ved salg til kr. 27,12 og betaling med Dankort +100. 20140613
-// 20140616 $kontonr ændret til $konto_id da alle kasser blev ført på samme konto. (PHR	- Danosoft) Søg 20140616
-// 20140628 Indsat bogføring af øredifferencer ved pos_ordrer for at undgå produktionsstop. (PHR	- Danosoft) Søg 20140628
-// 20140730 PK - Oprettet en ny funktion 'opret_ordre_kopi' som kopiere original ordre + ordrelinjer til ny sag. Søg 20140730
-// 20140821 PHR - tilføjet $tmp=$antal*-1 til erstatning for '-$antal' i "insert" Søg 20140821
-// 20140821 PK - Har ændret $kontakt ved oprettelse af ordre. Hvis $sag_id, er $kontakt fra sagen ellers er $kontakt fra kunde. Søg 20140821-1
-// 20141023 PHR - En række ændringer i levering og linjeopdat. Netagivt salg bliver nu fårt som negativ i batch_salg og ikke som før i batch_køb.
-//            Samtidig findes den oprindelige linje i batch_køb og rest opskrives. (Hvis batch håndtering er aktiv) Eller opskrives rest på sidste 
-//            linje med samme varenummer.
-// 20141105 PHR Indsat kontrol for om $id er sat ved kreditering af pos ordre. 20141105
-// 20141114 PHR Bordnr blev ikke sat ved kreditering af pos og var dermed ikke synlig. 
-// 20141118 PHR Fejl ved korrektion, hvis ingen borde.... 20141118 
-// 20141121 Fejl i funktion find_kostpris, hvis antal på linje = 0. Søg 20141121
-// 20150111 Søgning på varetekst i optimeret til brug med piletaster. Funktion vareopslag.
-// 20150112 Debitorkort kan nu også åbnes fra kontoopslag under pos_ordrer.
-// 20150119 Funktion find_kostpris. Søger nu kostpris fra batch køb selvom ej fifo. Finder seneste køb før fakturadato. 20150119 
-// 20150120 Funktion find_kostpris. Kostpris tages fra varekort hvis ej lagerført vare. Søg $lagerfort
-// 20150123 Oprettet funktion saet_afrund til adrunding af sætpriser. Søg saet_afrund
-// 20150131 Fjernet funktion saet_afrund igen. Ideen var alligevel ikke god.
-// 20150131 Oprettet funktion opret_saet til indsættelse af samlevarer som sæt i ordrer & pos_ordrer. Søg opret_saet
-// 20150214 Diverse ændringer i forbindelse med tilføjelse af lagerfelt på ordrelinjer. 
-// 20150215 Hvis der skrives en del af en varebeskrivelse i en debitorordre i varenr feltet søges på varetekst ved opslag, 
-//	hvis teksten ikke findes som varenr. Søg 20150215  
-// 20150218 Rettelse af ovenstående. Forsøger vareopslag ved indsættelse at ordrelinjer fra shop via soap.
-// 20150131 Oprettet funktion gendan_saet til gendannelse af rabatter på saet. Søg gendan_saet
-// 20150227 Ændret afrundingfra 2 til 3 grundet ørediffer f sætpriser ig titalpriser. Søg 20150227
-// 20150506 Det skal ikke føres åbenpost ved betalingsbet Forud på pos_ordrer eller hvis id ikke er numerisk 20150306
-// 20150312 Meget underlige sætpriser ved indsættelse af sæt uden antal fra ordre.php 20150312
-// 20150331 Funtion vareopslag. Priser vises nu incl moms, hvis opslag kommer fra POS eller incl moms er 'on' 
-// 20150505 Diverse tilretninger til POS så betaling kan fordeles på flere kort. Søg 20150505 
-// 20150518 Fejl v. kortfordeling hvis betaling både med kort og kontakt blev kontant ført på kort = fejl i morgenbeholdning. 20150518
-// 20150521 Fejl v. kontosalg pga ovenstående, så den brugen kun hvis det ikke er kontosalg.
-// 20150522 Fejl v. fakturering hvis ingen momskonto - indsat fejlhåndtering 20150522
-// 20150627 Tilføjet tilfravalg på POS ordrer i opret_ordrelinje. Søg tilfravalg 
-// 20150724 Function pos_afrund. Hvis difkto ikke er sat slåes den op. 20150724
-// 20150810 Ordredate blev altid sat til fakturadate v hurtigfakt da variabel ikke blev sat. Søg 20150810
-// 20150812 Ændret 'if($ore>100)' til 'if(strlen($ore)>2)' da 080 øre blev til 80 øre istedet for 8 øre. # 20150812  
-// 20150820 Mulighed for tidsbestemte tilbud (Happy hour). Søg special_from_time.
-// 20150829 Funktion opret_saet. Tilføjet $incl_moms
-// 20150829 Funktion gendan_saet. Tilføjet opslag efter rabat vare_id.
-// 20151210 Funktion find_kostpris. Brugte altid kostpris fra varekort hvis der ikke er kobs_ordre_id of batch_salg. 
-// 20151223 Funktion pbsfakt. rettet echo ".. til print "<tr><td>.. osv.
+
 // 20160127 PK - Mobil fra ansatte hentes fra kontakt. Søg #20160127
 // 20160128 PHR - Tilføjet funktion stamkunder, som viser kontoopslag som knapper.
 // 20160129 PHR - Tilføjet funktion kontoudtog, som udskriver kontoudtog fra POS.
@@ -240,6 +163,7 @@
 // 20251007 PHR Lookup for varenr_alias
 // 20251115 PHR *1 changet to (int)
 // 20251115 LOE Top line design for S menu moved to a different file.
+// 20260114 PHR Product search failed if another product had part of the productnumber in its productnumber. (function opret_ordrelinje)
 
 function levering($id,$hurtigfakt,$genfakt,$webservice) {
 /* echo "<!--function levering start-->"; */
@@ -3882,12 +3806,17 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 	if (isset($vare_id) && $vare_id)
 		$qtxt = "select * from varer where id='$vare_id'";
 	elseif ($varenr) {
-		$qtxt = "select * from varer where lower(varenr) = '$varenr_low' or upper(varenr) = '$varenr_up' ";
-		$qtxt.= "or varenr LIKE '$varenr' or lower(stregkode) = '$varenr_low' or upper(stregkode) = '$varenr_up' ";
-		$qtxt.= "or lower(varenr_alias) = '$varenr_low' or upper(varenr_alias) = '$varenr_up' or varenr_alias LIKE '$varenr'";
-		$qtxt.= "or stregkode LIKE '$varenr'";
-		if (strlen($varenr) == 12 && is_numeric($varenr))
+		$qtxt = "select * from varer where varenr = '$varenr' ";
+		$qtxt.= "or varenr_alias = '$varenr'";
+		if (!db_fetch_array(db_select("$qtxt", __FILE__ . " linje " . __LINE__))) {
+			$qtxt.= "or lower(varenr) = '$varenr_low' or upper(varenr) = '$varenr_up' ";
+			$qtxt.= "or lower(varenr_alias) = '$varenr_low' or upper(varenr_alias) = '$varenr_up' or varenr_alias LIKE '$varenr'";
+			$qtxt .= "or varenr LIKE '%$varenr%' or lower(stregkode) = '$varenr_low' or upper(stregkode) = '$varenr_up' ";
+			$qtxt .= "or stregkode LIKE '$varenr'";
+		}
+		if (strlen($varenr) == 12 && is_numeric($varenr)) {
 			$qtxt .= " or stregkode='0$varenr'";
+		}
 	} elseif ($id && $beskrivelse && $posnr) {
 		$qtxt = "insert into ordrelinjer ";
 		$qtxt.= "(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,pris,kostpris,momsfri,momssats,";
