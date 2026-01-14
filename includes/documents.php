@@ -247,12 +247,17 @@ if ($menu == 'T') {
 	print "<div class='headerbtnRght headLink'></div>";
 	print "</div>";
 	print "<div class='content-noside'>";
+} elseif ($source == 'kassekladde') {
+	// Don't render header here - docPool.php handles it for non-modern layouts
 } elseif ($menu == 'S') {
-	// Sidebar menu - use topLineDocuments.php if it exists, otherwise create inline
+	// Sidebar menu - use topLineDocuments.php matching the grid framework structure
+	// print "<table class='outerTable' width='100%' border='0' cellspacing='1' cellpadding='0'><tbody>";
+	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
 	if (file_exists('docsIncludes/topLineDocuments.php')) {
 		include_once './docsIncludes/topLineDocuments.php';
 	} else {
-		// Create inline sidebar-style header
+		// Create inline sidebar-style header matching topLineKassekladde.php structure
 		if ($source == "kassekladde") {
 			$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
 		} elseif ($source == "debitorOrdrer") {
@@ -263,12 +268,18 @@ if ($menu == 'T') {
 			$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
 		}
 		
-		print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0' style='margin-bottom: 10px;'><tbody><tr>";
-		print "<td width='10%' style='$topStyle'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Dokumenter', $sprog_id)."</td>";
-		print "<td width='10%' style='$topStyle' align='center'></td>";
-		print "</tr></tbody></table>";
+		$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
+		$icon_documents = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/></svg>';
+		$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+		
+		print "<tr><td height='25' align='center' valign='top' class='top-header'>";
+		print "<table class='topLine' width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>";
+		print "<td width=5% style='$buttonStyle'><a href='$backUrl' accesskey='L'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$icon_back ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+		print "<td width=90% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody><td width='200px' align=center id='documents-btn'><button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$icon_documents ".findtekst('1408|Dokumenter', $sprog_id)."</button></td></tbody></table></td>";
+		print "<td id='tutorial-help' width=5% style='$buttonStyle'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$help_icon ".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
+		print "</tr></tbody></table></td></tr>";
 	}
+	print "</tbody></table>";
 } else {
 	// Old/classic header style
 	if ($source == "kassekladde") {
@@ -283,14 +294,14 @@ if ($menu == 'T') {
 	
 	if (!isset($top_bund)) $top_bund = "";
 	
-	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0' style='margin-bottom: 10px;'><tbody><tr>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0' style='margin-bottom: 8px;'><tbody><tr>";
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L'>".findtekst('30|Tilbage', $sprog_id)."</a></font></td>";
 	print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Dokumenter', $sprog_id)."</font></td>";
 	print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><br></font></td>";
 	print "</tr></tbody></table>";
 }
 
-print "<div align=\"center\">";
+print "<div align=\"center\"  style=''>";
 
 if (isset($_GET['test'])) exit;
 #xit;
@@ -797,25 +808,20 @@ if ($source == 'kassekladde' && $sourceId) {
 		}
 		
 		// Show document viewer with list of attachments
-		// Add top banner with back button (like docPool)
+		// Add top banner with back button (like docPool) - use the same header as docPool
 
-	global $menu, $buttonColor, $buttonTxtColor;
+	global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownStyle;
 	if (!isset($top_bund)) $top_bund = "";
-	if (!isset($buttonColor)) $buttonColor = '#f1f1f1';
-	if (!isset($buttonTxtColor)) $buttonTxtColor = '#000000';
+	// Don't override buttonColor if already set - it comes from topline_settings.php
 	
-	// Determine back URL
-	$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
-	
-	// Print header banner
-	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+	// Print header banner - use topLineDocuments.php for consistent header
+	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
 	if ($menu=='S') {
-		print "<tr>";
-		print "<td width='10%' style='border-radius: 5px;'><a href='$backUrl' accesskey='L'><button style='$buttonStyle; width:100%; cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
-		print "<td width='80%' style='$topStyle' align='center'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
-		print "<td width='10%' style='$topStyle' align='center'><br></td>";
-		print "</tr>";
+		// Modern header - use topLineDocuments.php
+		include("docsIncludes/topLineDocuments.php");
 	} else {
+		// Determine back URL
+		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
 		print "<tr>";
 		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></font></td>";
 		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</font></td>";
@@ -824,41 +830,40 @@ if ($source == 'kassekladde' && $sourceId) {
 	}
 	print "</tbody></table>";
 	
+	$cssPath = "../css";
+	if (!file_exists($cssPath)) {
+		if (file_exists("../../css")) $cssPath = "../../css";
+		elseif (file_exists("../../../css")) $cssPath = "../../../css";
+	}
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool-variables.css\">\n";
+	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/docpool.css\">\n";
+	print "<link href='https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' rel='stylesheet'>\n";
+	
+	if (function_exists('brightenColor')) {
+		$lightButtonColor = brightenColor($buttonColor, 0.6);
+	} else {
+		$lightButtonColor = $buttonColor;
+	}
+	
 	// Add CSS to completely disable all hover effects on top bar (no visual changes at all)
 	print "<style>
-		/* Disable ALL hover effects on top bar - no color, opacity, or visual changes */
-		#topBarHeader tbody tr td a button,
-		#topBarHeader tbody tr td a button:hover,
-		#topBarHeader tbody tr td a:hover button,
-		#topBarHeader tbody tr td a:focus button,
-		#topBarHeader tbody tr td a:active button,
-		#topBarHeader tbody tr td button,
-		#topBarHeader tbody tr td button:hover,
-		#topBarHeader tbody tr td button:focus,
-		#topBarHeader tbody tr td button:active {
-			background-color: $buttonColor !important;
-			color: $buttonTxtColor !important;
-			opacity: 1 !important;
-			transform: none !important;
-			cursor: pointer !important;
-			border-color: $buttonColor !important;
+		:root {
+			--docpool-primary: $buttonColor;
+			--docpool-primary-text: $buttonTxtColor;
+			--docpool-primary-light: $lightButtonColor;
 		}
-		/* Disable hover effects on top bar links - no color or text changes */
+		/* Style top bar header - let button styles come from inline styles */
+		#topBarHeader tbody tr,
+		#topBarHeader tbody tr td {
+			background-color: $buttonColor;
+		}
+		/* Disable hover effects on top bar links */
 		#topBarHeader tbody tr td a,
 		#topBarHeader tbody tr td a:hover,
 		#topBarHeader tbody tr td a:focus,
 		#topBarHeader tbody tr td a:active {
 			text-decoration: none !important;
 			color: inherit !important;
-			opacity: 1 !important;
-		}
-		/* Disable hover effects on top bar cells - maintain exact background color */
-		#topBarHeader tbody tr,
-		#topBarHeader tbody tr:hover,
-		#topBarHeader tbody tr td,
-		#topBarHeader tbody tr td:hover {
-			background-color: $buttonColor !important;
-			opacity: 1 !important;
 		}
 		/* Pointer cursor for back button only */
 		#topBarHeader tbody tr td:first-child a {
@@ -875,10 +880,12 @@ if ($source == 'kassekladde' && $sourceId) {
 		}
 		#docViewerContainer {
 			display: flex;
-			width: 100%;
+			width: calc(100% - 16px);
 			height: calc(100vh - 60px);
 			gap: 0;
 			margin: 0;
+			margin-left: 8px;
+			margin-right: 8px;
 			padding: 0;
 			position: fixed;
 			top: 60px;
@@ -988,6 +995,7 @@ if ($source == 'kassekladde' && $sourceId) {
 			display: flex;
 			flex-direction: column;
 			margin: 0;
+			
 			padding: 0;
 			overflow: hidden;
 			background-color: #f5f5f5;

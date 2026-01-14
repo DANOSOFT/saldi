@@ -1131,6 +1131,9 @@ if (!$simuler) {
 
 
 	($udskriv) ? $height = '' : $height = 'height="100%"';
+	if ($udskriv) {
+		print "<div class='print-view'>";
+	}
 	if ($menu != 'T') {
 		print "<table class='outerTable' width='100%' $height border='0' cellspacing='1' cellpadding='0'><tbody>"; # Tabel 1 -> Hovedramme
 	}
@@ -1167,7 +1170,9 @@ if (!$simuler) {
 		}
 	}
 }
-print"<div class='table-con'></div>"; 
+if (!$udskriv) {
+	print"<div class='table-con'></div>"; 
+}
 #############
 print '<style>
     /* Sticky header */
@@ -1222,6 +1227,208 @@ print '<style>
         padding: 8px 0;
         border-top: 1px solid #ccc;
     }
+
+    /* Print styles */
+    @media print {
+        /* Hide ALL navigation and non-essential elements completely */
+        .sidebar,
+        .side-menu,
+        .left-menu,
+        #sidebar,
+        #side-menu,
+        #left-menu,
+        nav,
+        .nav,
+        .navigation,
+        .top-menu,
+        #top-menu,
+        .top-header,
+        .kassekladde-note-tb,
+        .table-con,
+        .header-row,
+        .kassekladde-footer,
+        .fixedFooter,
+        .pagination-right,
+        #footer-box,
+        #header,
+        .headerbtnLft,
+        .headerbtnRght,
+        .content-noside > div:first-child,
+        form input[type="submit"],
+        form input[type="button"],
+        .button,
+        a[href*="print"],
+        #questionmark,
+        .topLine,
+        .headerbtn,
+        .center-btn,
+        .navbtn-top,
+        .table-row {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+        }
+        
+        /* Reset positioning for layout elements only */
+        .table-con,
+        .kassekladde-note-tb,
+        .fixedFooter,
+        .header-row,
+        .top-header {
+            position: absolute !important;
+            left: -9999px !important;
+        }
+        
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            width: 100% !important;
+            overflow: visible !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        
+        .content-noside {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+        }
+        
+        /* Remove ALL borders by default */
+        table, tr, td, th, tbody, thead {
+            border: none !important;
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+        }
+        
+        /* Hide the outer table first rows (contains header/navigation) */
+        .outerTable > tbody > tr:first-child,
+        .outerTable > tbody > tr:nth-child(2) {
+            display: none !important;
+        }
+        
+        .outerTable,
+        .outerTable tbody,
+        .outerTable tr,
+        .outerTable td,
+        .outerTable th {
+            border: none !important;
+            border-width: 0 !important;
+            border-style: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+        
+        .outerTable {
+            height: auto !important;
+            border-collapse: collapse !important;
+        }
+        
+        /* Main data table styles */
+        .dataTableForm,
+        .formnavi {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin: 0 !important;
+            table-layout: auto !important;
+            border: none !important;
+        }
+        
+        /* Table header - keep it showing on each page */
+        .kassekladde-thead {
+            display: table-header-group !important;
+            position: static !important;
+            top: auto !important;
+            background: white !important;
+        }
+        
+        .kassekladde-thead tr {
+            display: table-row !important;
+            border: none !important;
+            border-bottom: 2px solid #333 !important;
+        }
+        
+        .kassekladde-thead td,
+        .kassekladde-thead th {
+            display: table-cell !important;
+            background: #f0f0f0 !important;
+            font-weight: bold !important;
+            border: none !important;
+            padding: 4px 6px !important;
+            font-size: 10px !important;
+            white-space: nowrap !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Table body */
+        #kassekladde-tbody {
+            display: table-row-group !important;
+        }
+        
+        #kassekladde-tbody > tr:first-child {
+            display: none !important;
+        }
+        
+        #kassekladde-tbody tr {
+            display: table-row !important;
+            page-break-inside: avoid;
+            border: none !important;
+        }
+
+        #kassekladde-tbody tr:nth-child(even) {
+            background-color: #f9f9f9 !important;
+        }
+        
+        #kassekladde-tbody td {
+            display: table-cell !important;
+            border: none !important;
+            padding: 3px 5px !important;
+            font-size: 10px !important;
+            vertical-align: middle !important;
+            background: transparent !important;
+        }
+        
+        /* Form elements */
+        form, form#kassekladde {
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+        
+        center {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Remove input styling in print */
+        input[type="text"],
+        input.inputbox {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+        }
+    }
+    
+    /* Print view styles (udskriv=1) */
+    .print-view .table-con,
+    .print-view .kassekladde-footer {
+        display: none !important;
+    }
+    .print-view .kassekladde-thead {
+        position: static !important;
+    }
+    .print-view table {
+        width: 100% !important;
+    }
+    .print-view td, .print-view th {
+        padding: 4px 8px !important;
+        white-space: nowrap;
+    }
 </style>';
 
 ############
@@ -1246,7 +1453,7 @@ if ($bogfort == "-") {
     print "<td style='padding-left: 10px;'></td><td width='120px' align='left' style='vertical-align: middle;'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px; vertical-align: middle;' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
 }
 print "<td></td><td width='7%' align='center' style='vertical-align: middle;'>
-    <a href='../finans/kassekladde.php?kladde_id=$kladde_id&udskriv=1' target='blank'>
+    <a href='javascript:window.print();' title='Print'>
     <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;'></a></td>
     <td width='7%' align='center' style='vertical-align: middle;'><a href='https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' id='questionmark'>?</a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
@@ -2254,8 +2461,8 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 #	if ($udskriv) print "<tr><td width=\"100%\" height=\"100%\">zz</td></tr>";
 	print "</tbody></table>"; # Tabel 1 <- 
 	if ($udskriv) {
-		print "<body onLoad=\"javascript:window.print()\">"; #;javascript:window.close();\">";
-	
+		print "</div>"; # Close print-view div
+		print "<script>window.onload = function() { window.print(); };</script>";
 	}
 	#############################################################################################################################
 	function kontroller($id, $bilag, $dato, $beskrivelse, $d_type, $debet, $k_type, $kredit, $faktura, $belob, $momsfri, $kladde_id, $afd, $projekt, $ansat, $valuta, $forfaldsdato, $betal_id, $lobenr) {

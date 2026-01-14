@@ -29,7 +29,7 @@
 // 20250827 LOE fixed error of rm: cannot remove '*': No such file or directory  cp: cannot stat '../..error. Also User can now add subject and amount to shown poolfiles
 // 20251007 LOE Refactored the fixed bottom table, added background color and various enhancement.
 function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder,$docFocus){
-	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
+	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle, $butDownStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
 	
 	$afd =  $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
@@ -697,11 +697,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	
 	if ($menu=='S') {
 		// Modern header - wrapped in table like other topLine files
-		print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+		print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-top: 10px;\"><tbody>";
 		include("docsIncludes/topLineDocuments.php");
 		print "</tbody></table>";
-	} else {
-		print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+	} elseif ($menu != 'T') {
+		print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 8px;\"><tbody>";
 		print "<tr>";
 		print "<td width='10%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'><a href='$backUrl' accesskey='L' style='cursor: pointer;'>".findtekst('30|Tilbage', $sprog_id)."</a></td>";
 		print "<td width='80%' $top_bund><font face='Helvetica, Arial, sans-serif' color='#000066'>".findtekst('1408|Kassebilag', $sprog_id)."</td>";
@@ -723,25 +723,35 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	
 	// Add dynamic CSS variables for button colors
 	$lightButtonColor = brightenColor($buttonColor, 0.6);
+	$butDownColor = brightenColor($buttonColor, 0.2);
 	print "<style>
 		:root {
 			--docpool-primary: $buttonColor;
 			--docpool-primary-text: $buttonTxtColor;
 			--docpool-primary-light: $lightButtonColor;
 		}
-		/* Dynamic button color overrides for top bar */
+		/* Dynamic button color overrides for top bar - except the active middle button */
 		#topBarHeader tbody tr td a button,
 		#topBarHeader tbody tr td a button:hover,
 		#topBarHeader tbody tr td a:hover button,
 		#topBarHeader tbody tr td a:focus button,
 		#topBarHeader tbody tr td a:active button,
-		#topBarHeader tbody tr td button,
-		#topBarHeader tbody tr td button:hover,
-		#topBarHeader tbody tr td button:focus,
-		#topBarHeader tbody tr td button:active {
+		#topBarHeader tbody tr td button.center-btn,
+		#topBarHeader tbody tr td button.center-btn:hover,
+		#topBarHeader tbody tr td button.center-btn:focus,
+		#topBarHeader tbody tr td button.center-btn:active {
 			background-color: $buttonColor !important;
 			color: $buttonTxtColor !important;
 			border-color: $buttonColor !important;
+		}
+		/* Middle button (active page indicator) should be brighter */
+		#topBarHeader tbody tr td button.headerbtn.navbtn-top,
+		#topBarHeader tbody tr td button.headerbtn.navbtn-top:hover,
+		#topBarHeader tbody tr td button.headerbtn.navbtn-top:focus,
+		#topBarHeader tbody tr td button.headerbtn.navbtn-top:active {
+			background-color: $butDownColor !important;
+			color: $buttonTxtColor !important;
+			border-color: $butDownColor !important;
 		}
 		#topBarHeader tbody tr,
 		#topBarHeader tbody tr:hover,
@@ -795,7 +805,7 @@ if ($source == 'kassekladde' && $sourceId) {
 	}
 } elseif ($source == 'kassekladde' && !$sourceId && $bilag) {
 	// Show bilag number if creating new entry
-	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px;\"><tbody>";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\" style=\"margin-bottom: 10px; margin-top: 10px; margin-top: 8px;\"><tbody>";
 	print "<tr>";
 	print "<td style=\"background-color: $buttonColor; color: $buttonTxtColor; padding: 8px; border: 1px solid #ddd;\">";
 	print "<font face=\"Helvetica, Arial, sans-serif\" style=\"font-weight: bold; font-size: 13px;\">" . findtekst('1408|Kassebilag', $sprog_id) . " - Nyt bilag #" . htmlspecialchars($bilag) . "</font>";
