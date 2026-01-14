@@ -174,6 +174,60 @@ if (isset($_FILES) && isset($_FILES['uploadedFile']['name']) && !empty($_FILES['
 				}
 			}
 			
+			// Rename file based on vendor and date from extracted data
+			if (file_exists($targetFile) && $extractedData !== null) {
+				$newBaseName = $baseName; // Default to original name
+				
+				// Build new filename from vendor and date
+				$vendorName = '';
+				$invoiceDate = '';
+				
+				if (isset($extractedData['vendor']) && !empty($extractedData['vendor'])) {
+					$vendorName = sanitize_filename($extractedData['vendor']);
+				}
+				
+				if (isset($extractedData['date']) && !empty($extractedData['date'])) {
+					// Format date for filename (convert DD-MM-YYYY to YYYY-MM-DD for better sorting)
+					$dateStr = $extractedData['date'];
+					if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $dateStr, $matches)) {
+						$invoiceDate = $matches[3] . '-' . $matches[2] . '-' . $matches[1]; // YYYY-MM-DD
+					} else {
+						$invoiceDate = sanitize_filename($dateStr);
+					}
+				}
+				
+				// Create new filename if we have both vendor and date
+				if (!empty($vendorName) && !empty($invoiceDate)) {
+					$newBaseName = $vendorName . '_' . $invoiceDate;
+				} elseif (!empty($vendorName)) {
+					$newBaseName = $vendorName;
+				} elseif (!empty($invoiceDate)) {
+					$newBaseName = $invoiceDate;
+				}
+				
+				// Rename file if we have a new name
+				if ($newBaseName !== $baseName) {
+					$newTargetFile = "$poolDir/$newBaseName.pdf";
+					
+					// Check if file already exists and append number if needed
+					$counter = 1;
+					$originalNewBaseName = $newBaseName;
+					while (file_exists($newTargetFile)) {
+						$newBaseName = $originalNewBaseName . '_' . $counter;
+						$newTargetFile = "$poolDir/$newBaseName.pdf";
+						$counter++;
+					}
+					
+					if (rename($targetFile, $newTargetFile)) {
+						$targetFile = $newTargetFile;
+						$baseName = $newBaseName;
+						error_log("documents.php (AJAX): Renamed file to: $newBaseName.pdf");
+					} else {
+						error_log("documents.php (AJAX): Failed to rename file to: $newBaseName.pdf");
+					}
+				}
+			}
+			
 			// Create .info file AFTER API call
 			if (file_exists($targetFile)) {
 				$infoFile = "$poolDir/$baseName.info";
