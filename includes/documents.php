@@ -852,7 +852,8 @@ if ($source == 'kassekladde' && $sourceId) {
 	$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	
 	// If documents exist OR showDoc is set, show document viewer
-	if ($docRow || $showDoc) {
+	// UNLESS openPool is explicitly requested (user wants to add more bilag)
+	if (($docRow || $showDoc) && !$openPoolRequested) {
 		// If showDoc is not set but we have a document, set it to the first document
 		if (!$showDoc && $docRow) {
 			// Construct the path properly (remove leading slash from filepath if present)
