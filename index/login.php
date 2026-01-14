@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php -----patch 4.1.1 ----2025-05-19--------------
+// --- index/login.php -----patch 4.1.1 ----2026-01-14--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20130919 Tjekkede ikke om der var opdateringer ved login i "hovedregnskab" Søg 20130919
 // 20140106	Tilføjet opslag i tmp_kode. Søg tmp_kode
@@ -67,6 +67,7 @@
 // 20250325 LOE - Fixed 'ansat_id'  "Undefined array key" notice and checks that other variables are set before use if $userId exists
 // 20250405 LOE - Revised with several improvements
 // 20250614 PHR - sanitize prevented login for users with, among other things, email as username
+// 20260114 PHR - column tlf will be added if it does not exist. Else twofactor crashes.
 
 ob_start(); //Starter output buffering
 @session_start();
@@ -742,7 +743,7 @@ if ($userId) {
 	$qtxt.= "WHERE table_name = 'online' AND column_name = 'rettigheder' ";
 	$qtxt.= "AND DATA_TYPE = 'character varying' AND CHARACTER_MAXIMUM_LENGTH < 50";
 	if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$qtxt = "ALTER TABLE online ALTER COLUMN rettigheder type varchar(50)";
+		$qtxt = "ALTER TABLE brugere ALTER COLUMN rettigheder type varchar(16)";
 		db_modify($qtxt, __FILE__ . "linje" . __LINE__);
 	}
 	$qtxt = "update online set brugernavn = '". db_escape_string($brugernavn) ."', rettigheder='$rettigheder' ";
@@ -760,6 +761,14 @@ if ($userId) {
 	# ###################################################
 	# If its not an administrator
 	#if ($db_id !== 1) {
+
+	$qtxt = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS ";
+	$qtxt.= "WHERE table_name = 'brugere' AND column_name = 'tlf' ";
+	if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		$qtxt = "ALTER TABLE add ALTER COLUMN tlf type varchar(50)";
+		db_modify($qtxt, __FILE__ . "linje" . __LINE__);
+	}
+
 	if ((int)$db_id !== 1) { // 20240502 Without the integer this always evaluates to true on goods account as admin
 		$qtxt = "select email, twofactor, tmp_kode, tlf from brugere where id=$userId";
 		$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
