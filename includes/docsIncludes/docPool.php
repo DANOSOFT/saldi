@@ -1296,6 +1296,14 @@ print <<<JS
 		const hasDateOnlyMatches = dateOnlyMatches.length > 0;
 
 		for (const row of docData) {
+			// Apply search filter
+			if (searchFilter) {
+				const searchText = ((row.filename || '') + ' ' + (row.subject || '') + ' ' + (row.account || '') + ' ' + (row.amount || '') + ' ' + (row.date || '')).toLowerCase();
+				if (searchText.indexOf(searchFilter) === -1) {
+					continue;
+				}
+			}
+						
 			const dateFormatted = escapeHTML(row.date.split(' ')[0]);
 
 			// Use filename directly from row data - more reliable than parsing from href
