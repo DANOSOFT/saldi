@@ -166,6 +166,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	
 	// Execute request
 	$response = curl_exec($ch);
+	file_put_contents("invoiceExtractionApi.json", $response);
 	$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$curlError = curl_error($ch);
 	curl_close($ch);
@@ -198,7 +199,7 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	// Extract amount and date from response
 	$amount = null;
 	$date = null;
-	
+	$vendor = null;
 	if (isset($responseData['extracted_data'])) {
 		$extractedData = $responseData['extracted_data'];
 		
@@ -210,9 +211,18 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 		// Get invoice_date
 		if (isset($extractedData['invoice_date'])) {
 			$date = $extractedData['invoice_date'];
-			// Convert date format if needed (API returns YYYY-MM-DD, convert to DD-MM-YYYY for .info file)
-			if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $matches)) {
-				$date = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+			// Convert date from DD-MM-YY to YYYY-MM-DD format
+			if (preg_match('/^(\d{2})-(\d{2})-(\d{2})$/', $date, $matches)) {
+				$day = $matches[1];
+				$month = $matches[2];
+				$year2digit = $matches[3];
+				// Convert 2-digit year to 4-digit (assume 20xx for years 00-99)
+				$year4digit = '20' . $year2digit;
+				$date = $year4digit . '-' . $month . '-' . $day;
+			}
+			// Get vendor
+			if (isset($extractedData['vendor'])) {
+				$vendor = $extractedData['vendor'];
 			}
 		}
 	}
@@ -221,7 +231,8 @@ function extractInvoiceData($filePath, $invoiceId = null) {
 	if ($amount !== null || $date !== null) {
 		return array(
 			'amount' => $amount,
-			'date' => $date
+			'date' => $date,
+			'vendor' => $vendor
 		);
 	}
 	
