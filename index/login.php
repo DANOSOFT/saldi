@@ -743,7 +743,7 @@ if ($userId) {
 	$qtxt.= "WHERE table_name = 'online' AND column_name = 'rettigheder' ";
 	$qtxt.= "AND DATA_TYPE = 'character varying' AND CHARACTER_MAXIMUM_LENGTH < 50";
 	if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$qtxt = "ALTER TABLE brugere ALTER COLUMN rettigheder type varchar(16)";
+		$qtxt = "ALTER TABLE online ALTER COLUMN rettigheder type varchar(50)";
 		db_modify($qtxt, __FILE__ . "linje" . __LINE__);
 	}
 	$qtxt = "update online set brugernavn = '". db_escape_string($brugernavn) ."', rettigheder='$rettigheder' ";
@@ -765,7 +765,7 @@ if ($userId) {
 	$qtxt = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS ";
 	$qtxt.= "WHERE table_name = 'brugere' AND column_name = 'tlf' ";
 	if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$qtxt = "ALTER TABLE add ALTER COLUMN tlf type varchar(50)";
+		$qtxt = "ALTER TABLE brugere add tlf varchar(16)";
 		db_modify($qtxt, __FILE__ . "linje" . __LINE__);
 	}
 
