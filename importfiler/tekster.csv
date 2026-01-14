@@ -2786,30 +2786,30 @@
 2786	Lønafregning	Wage Settlement	Lønnoppgjør
 2787	Lønliste	Wage List	Lønnsliste
 2788	Udskriv skema	Print form	Skriv ut skjema
-2789	
-2790	
-2791	
-2792	
-2793	
-2794	
-2795	
-2796	
-2797	
-2798	
-2799	
-2800	
-2801	
-2802	
-2803	
-2804	
-2805	
-2806	
-2807	
-2808	
-2809	
-2810	
-2811	
-2812	
+2789	Løndato	Wage date	Lønnsdato
+2790	Overført	Transferred	Overført
+2791	Godk/Afv	Appr/Rej	Godk/Avv
+2792	Sag	Project	Prosjekt
+2793	Ansvarlig	Responsible	Ansvarlig
+2794	Medarb.	Empl.	Medarb.
+2795	Sum	Total	Sum
+2796	Slet sortering	Clear sorting	Slett sortering
+2797	Vælg antal viste linjer	Select number of displayed lines	Velg antall viste linjer
+2798	Ingen resultat	No results	Ingen resultat
+2799	Ved søgning efter opgave i sag, tastes opgavenummer efter sagsnummer adskilt med '-'. F.eks. 12345-1	When searching for a task in a project, enter the task number after the project number separated by '-'. E.g. 12345-1	Ved søk etter oppgave i prosjekt, skriv inn oppgavenummer etter prosjektnummer adskilt med '-'. F.eks. 12345-1
+2800	Opgave	Task	Oppgave
+2801	Timepris&comma; Akkord	Hourly rate&comma; Piecework	Timepris&comma; Akkord
+2802	Timeløn	Hourly wage	Timelønn
+2803	Timeløn&comma; Tørretid	Hourly wage&comma; Drying time	Timelønn&comma; Tørketid
+2804	Pladsarbejde	Site work	Plassarbeid
+2805	Skoleophold	School stay	Skoleophold
+2806	Sygdom	Illness	Sykdom
+2807	Barn syg	Child sick	Barn syk
+2808	Ferie	Holiday	Ferie
+2809	Dyrtid	Premium time	Dyrtid
+2810	Akkord afregning	Piecework settlement	Akkordoppgjør
+2811	Akkord med dyrtid	Piecework with premium time	Akkord med dyrtid
+2812	Plads	Site	Plass
 2813	
 2814	
 2815	

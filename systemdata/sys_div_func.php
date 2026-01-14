@@ -727,6 +727,7 @@ function div_valg() {
 	$gls_id = $gls_pass = $gls_user = $gls_ctId = NULL; #20211019 $gls_ctId added
 	$dfm_id = $dfm_pass = $dfm_user = $dfm_agree = $dfm_hub = $dfm_ship = $dfm_good = $dfm_pay = $dfm_url = $dfm_gooddes = $dfm_sercode = NULL;
 	$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = $dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
+	$dfm_pickup_addresses = array(); // Array to hold multiple pickup addresses
 	$gruppevalg = $jobkort = $kort = $kuansvalg = $ref = $kua = $smart = $debtor2orderphone = NULL;
 	$qp_merchant = $qp_md5secret = $qp_agreement_id = $qp_itemGrp = NULL;
 	$payment_days = NULL;
@@ -781,6 +782,31 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_url')            $dfm_url            = $r['var_value'];
 		if ($r['var_name'] == 'dfm_gooddes')        $dfm_gooddes        = $r['var_value'];
 		if ($r['var_name'] == 'dfm_sercode')        $dfm_sercode        = $r['var_value'];
+	}
+	
+	// Fetch multiple pickup addresses grouped by group_id
+	$qtxt = "select group_id, var_name, var_value from settings where var_grp='DFM_Pickup' order by group_id, var_name";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$gid = $r['group_id'] ?: 0;
+		if (!isset($dfm_pickup_addresses[$gid])) {
+			$dfm_pickup_addresses[$gid] = array(
+				'addr' => '', 'name1' => '', 'name2' => '', 
+				'street1' => '', 'street2' => '', 'town' => '', 'zipcode' => ''
+			);
+		}
+		$field = str_replace('dfm_pickup_', '', $r['var_name']);
+		if (isset($dfm_pickup_addresses[$gid][$field])) {
+			$dfm_pickup_addresses[$gid][$field] = $r['var_value'];
+		}
+	}
+	
+	// For backwards compatibility, also check old-style storage (single pickup in GLS group)
+	$qtxt = "select var_name,var_value from settings where var_grp='GLS' and var_name like 'dfm_pickup_%'";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	$has_old_style = false;
+	while ($r = db_fetch_array($q)) {
+		$has_old_style = true;
 		if ($r['var_name'] == 'dfm_pickup_addr')    $dfm_pickup_addr    = $r['var_value'];
 		if ($r['var_name'] == 'dfm_pickup_name1')   $dfm_pickup_name1   = $r['var_value'];
 		if ($r['var_name'] == 'dfm_pickup_name2')   $dfm_pickup_name2   = $r['var_value'];
@@ -789,6 +815,15 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
 		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
 	}
+	// If we have old-style data but no new-style, add it to the array
+	if ($has_old_style && empty($dfm_pickup_addresses) && $dfm_pickup_addr) {
+		$dfm_pickup_addresses[0] = array(
+			'addr' => $dfm_pickup_addr, 'name1' => $dfm_pickup_name1, 'name2' => $dfm_pickup_name2,
+			'street1' => $dfm_pickup_street1, 'street2' => $dfm_pickup_street2, 
+			'town' => $dfm_pickup_town, 'zipcode' => $dfm_pickup_zipcode
+		);
+	}
+	
 	$qtxt = "select var_name,var_value from settings where var_grp='DanskeFragt'";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -803,13 +838,6 @@ function div_valg() {
 		if ($r['var_name'] == 'dfm_url')            $dfm_url            = $r['var_value'];
 		if ($r['var_name'] == 'dfm_gooddes')        $dfm_gooddes        = $r['var_value'];
 		if ($r['var_name'] == 'dfm_sercode')        $dfm_sercode        = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_addr')    $dfm_pickup_addr    = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_name1')   $dfm_pickup_name1   = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_name2')   $dfm_pickup_name2   = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_street1') $dfm_pickup_street1 = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_street2') $dfm_pickup_street2 = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_town')    $dfm_pickup_town    = $r['var_value'];
-		if ($r['var_name'] == 'dfm_pickup_zipcode') $dfm_pickup_zipcode = $r['var_value'];
 	}
 
 	$qtxt = "select var_value from settings where var_grp='debitor' and var_name='mySale'";
@@ -855,7 +883,7 @@ function div_valg() {
 
 	$labelsize = get_settings_value("labelsize", "mysale", 22);
 
-	print "<form name='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
+	print "<form name='diverse' id='diverse' action='diverse.php?sektion=div_valg' method='post'>\n";
 	print "<tr style='background-color:$bgcolor5'><td colspan='6'><b>".findtekst('794|Diverse valg', $sprog_id)."</b></td></tr>\n";
 	print "<tr><td colspan='2'>&nbsp;</td></tr>\n";
 	print "<input name='id' type='hidden' value='$id'>\n";
@@ -1082,53 +1110,125 @@ function div_valg() {
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
 		print "<td title='$title'><input name='dfm_sercode' class='inputbox' style='width:150px;' type='text' value='$dfm_sercode'></td>\n</tr>\n";
 
+		// Multiple pickup addresses section
 		$txt = findtekst('1043|Afhentningsadresse er en anden end hovedadressen', $sprog_id);
 		$title = findtekst('1044|Markeres hvis der skal hentes gods fra en anden adresse end hovedadressen.', $sprog_id);
-		print "<!-- 1043 Afhentningsadresse er en anden end hovedadressen -->";
-		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>- $txt</td>\n";
-
-		if ($dfm_pickup_addr) {
-			print "<td><input type='checkbox' name='dfm_pickup_addr' class='inputbox' checked value='dfm_pickup_addr'></td>\n</tr>\n";
-			$txt = findtekst('360|Firmanavn', $sprog_id);
-			$title = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
-			print "<!-- 360 Firmanavn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_name1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name1'></td>\n</tr>\n";
-			$txt = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
-			$title = findtekst('1048|Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...', $sprog_id);
-			print "<!-- 1047 Eventuelt ekstra navn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_name2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_name2'></td>\n</tr>\n";
-			$txt = findtekst('361|Adresse', $sprog_id);
-			$title = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
-			print "<!-- 361 Adresse -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_street1' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street1'></td>\n</tr>\n";
-			$txt = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
-			$title = findtekst('1052|Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.', $sprog_id);
-			print "<!-- 1051 Eventuel ekstra adresselinje -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_street2' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_street2'></td>\n</tr>\n";
-			$txt = findtekst('1053|Postnummer', $sprog_id);
-			$title = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
-			print "<!-- 1053 Postnummer -->";
-			print "<tr bgcolor='$bgcolor5'><td title='$title'>--- $txt</td><td title='$title'>";
-			print "<input name='dfm_pickup_zipcode' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_zipcode'>";
-			print "</td>\n</tr>\n";
-			$txt = findtekst('1055|By', $sprog_id);
-			$title = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
-			print "<!-- 1055 Bynavn -->";
-			print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>--- $txt</td>\n";
-			print "<td title='$title'><input name='dfm_pickup_town' class='inputbox' style='width:150px;' type='text' value='$dfm_pickup_town'></td>\n</tr>\n";
-		} else {
-			print "<td><input type=\"checkbox\" name=\"dfm_pickup_addr\" value=\"DayP\"></td>\n</tr>\n";
-			print "<input name='dfm_pickup_name1' type='hidden' value='$dfm_pickup_name1'>\n";
-			print "<input name='dfm_pickup_name2' type='hidden' value='$dfm_pickup_name2'>\n";
-			print "<input name='dfm_pickup_street1' type='hidden' value='$dfm_pickup_street1'>\n";
-			print "<input name='dfm_pickup_street2' type='hidden' value='$dfm_pickup_street2'>\n";
-			print "<input name='dfm_pickup_zipcode' type='hidden' value='$dfm_pickup_zipcode'>\n";
-			print "<input name='dfm_pickup_town' type='hidden' value='$dfm_pickup_town'>\n";
+		print "<!-- 1043 Multiple Afhentningsadresser -->";
+		print "<tr bgcolor='$bgcolor5'>\n<td colspan='2'><strong>- $txt</strong></td>\n</tr>\n";
+		
+		print "<tr><td colspan='2'>\n";
+		print "<div id='dfm_pickup_container'>\n";
+		
+		// Text translations for JS
+		$txt_firmanavn = findtekst('360|Firmanavn', $sprog_id);
+		$title_firmanavn = findtekst('1046|Angiv navnet på det firma eller privatperson, der skal gods hentes fra.', $sprog_id);
+		$txt_ekstra_navn = findtekst('1047|Eventuelt ekstra navn', $sprog_id);
+		$title_ekstra_navn = findtekst('1048|Angiv hvis der er et ekstra navn eller undernavn til afhentningsted fx c/o ...', $sprog_id);
+		$txt_adresse = findtekst('361|Adresse', $sprog_id);
+		$title_adresse = findtekst('1050|Angiv vejnavn, husnummer, etage m.v.', $sprog_id);
+		$txt_ekstra_addr = findtekst('1051|Eventuelt ekstra adresselinje', $sprog_id);
+		$title_ekstra_addr = findtekst('1052|Angiv eventuelt lokalitet eller andet, som er en del af den officielle adresse.', $sprog_id);
+		$txt_postnr = findtekst('1053|Postnummer', $sprog_id);
+		$title_postnr = findtekst('1054|Angiv postnummeret for afhentningstedet', $sprog_id);
+		$txt_by = findtekst('1055|By', $sprog_id);
+		$title_by = findtekst('1056|Angiv bynavn eller postdistrikt for afhentningsstedet', $sprog_id);
+		$txt_slet = 'Slet';
+		
+		// Display existing pickup addresses
+		$pickup_idx = 0;
+		if (!empty($dfm_pickup_addresses)) {
+			foreach ($dfm_pickup_addresses as $gid => $addr) {
+				print "<div class='dfm_pickup_block' data-idx='$pickup_idx' style='border:1px solid #ccc; padding:10px; margin:5px 0; background:#f9f9f9;'>\n";
+				print "<input type='hidden' name='dfm_pickup_group_id[$pickup_idx]' value='$gid'>\n";
+				print "<input type='hidden' name='dfm_pickup_addr[$pickup_idx]' value='1'>\n";
+				print "<table style='width:100%;'>\n";
+				print "<tr><td colspan='2'><strong>Afhentningsadresse #" . ($pickup_idx + 1) . "</strong> ";
+				print "<button type='button' class='btn btn-sm' onclick='removeDfmPickup($pickup_idx)' style='float:right;'>$txt_slet</button></td></tr>\n";
+				print "<tr><td title='$title_firmanavn'>$txt_firmanavn</td><td><input name='dfm_pickup_name1[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['name1']) . "'></td></tr>\n";
+				print "<tr><td title='$title_ekstra_navn'>$txt_ekstra_navn</td><td><input name='dfm_pickup_name2[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['name2']) . "'></td></tr>\n";
+				print "<tr><td title='$title_adresse'>$txt_adresse</td><td><input name='dfm_pickup_street1[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['street1']) . "'></td></tr>\n";
+				print "<tr><td title='$title_ekstra_addr'>$txt_ekstra_addr</td><td><input name='dfm_pickup_street2[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['street2']) . "'></td></tr>\n";
+				print "<tr><td title='$title_postnr'>$txt_postnr</td><td><input name='dfm_pickup_zipcode[$pickup_idx]' class='inputbox' style='width:100px;' type='text' value='" . htmlspecialchars($addr['zipcode']) . "'></td></tr>\n";
+				print "<tr><td title='$title_by'>$txt_by</td><td><input name='dfm_pickup_town[$pickup_idx]' class='inputbox' style='width:200px;' type='text' value='" . htmlspecialchars($addr['town']) . "'></td></tr>\n";
+				print "</table>\n";
+				print "</div>\n";
+				$pickup_idx++;
+			}
 		}
+		
+		print "</div>\n";
+		print "<button type='button' class='btn' onclick='addDfmPickup()' style='margin:10px 0;'>+ Tilføj afhentningsadresse</button>\n";
+		print "<input type='hidden' id='dfm_pickup_count' name='dfm_pickup_count' value='$pickup_idx'>\n";
+		print "</td></tr>\n";
+		
+		// JavaScript for adding/removing pickup addresses
+		print "<script>
+var dfmPickupIdx = $pickup_idx;
+var dfmPickupLabels = {
+	firmanavn: '" . addslashes($txt_firmanavn) . "',
+	ekstraNavn: '" . addslashes($txt_ekstra_navn) . "',
+	adresse: '" . addslashes($txt_adresse) . "',
+	ekstraAddr: '" . addslashes($txt_ekstra_addr) . "',
+	postnr: '" . addslashes($txt_postnr) . "',
+	by: '" . addslashes($txt_by) . "',
+	slet: '" . addslashes($txt_slet) . "'
+};
+
+function addDfmPickup() {
+	var container = document.getElementById('dfm_pickup_container');
+	if (!container) return;
+	
+	var form = document.forms['diverse'];
+	if (!form) return;
+	
+	var idx = dfmPickupIdx;
+	
+	// Create hidden inputs and add them directly to the form element
+	var hiddenGroupId = document.createElement('input');
+	hiddenGroupId.type = 'hidden';
+	hiddenGroupId.name = 'dfm_pickup_group_id[' + idx + ']';
+	hiddenGroupId.value = 'new_' + idx;
+	hiddenGroupId.id = 'dfm_pickup_group_id_' + idx;
+	form.appendChild(hiddenGroupId);
+	
+	var hiddenAddr = document.createElement('input');
+	hiddenAddr.type = 'hidden';
+	hiddenAddr.name = 'dfm_pickup_addr[' + idx + ']';
+	hiddenAddr.value = '1';
+	hiddenAddr.id = 'dfm_pickup_addr_' + idx;
+	form.appendChild(hiddenAddr);
+	
+	// Create visual block in container
+	var html = '<div class=\"dfm_pickup_block\" data-idx=\"' + idx + '\" style=\"border:1px solid #ccc; padding:10px; margin:5px 0; background:#f9f9f9;\">';
+	html += '<table style=\"width:100%;\">';
+	html += '<tr><td colspan=\"2\"><strong>Afhentningsadresse #' + (idx + 1) + '</strong> ';
+	html += '<button type=\"button\" class=\"btn btn-sm\" onclick=\"removeDfmPickup(' + idx + ')\" style=\"float:right;\">' + dfmPickupLabels.slet + '</button></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.firmanavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_name1[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.ekstraNavn + '</td><td><input form=\"diverse\" name=\"dfm_pickup_name2[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.adresse + '</td><td><input form=\"diverse\" name=\"dfm_pickup_street1[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.ekstraAddr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_street2[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.postnr + '</td><td><input form=\"diverse\" name=\"dfm_pickup_zipcode[' + idx + ']\" class=\"inputbox\" style=\"width:100px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '<tr><td>' + dfmPickupLabels.by + '</td><td><input form=\"diverse\" name=\"dfm_pickup_town[' + idx + ']\" class=\"inputbox\" style=\"width:200px;\" type=\"text\" value=\"\"></td></tr>';
+	html += '</table></div>';
+	
+	container.insertAdjacentHTML('beforeend', html);
+	dfmPickupIdx++;
+	document.getElementById('dfm_pickup_count').value = dfmPickupIdx;
+}
+
+function removeDfmPickup(idx) {
+	var block = document.querySelector('.dfm_pickup_block[data-idx=\"' + idx + '\"]');
+	if (block) {
+		block.remove();
+	}
+	// Also remove the hidden inputs that were added to the form
+	var hiddenGroupId = document.getElementById('dfm_pickup_group_id_' + idx);
+	if (hiddenGroupId) hiddenGroupId.remove();
+	var hiddenAddr = document.getElementById('dfm_pickup_addr_' + idx);
+	if (hiddenAddr) hiddenAddr.remove();
+}
+
+</script>\n";
 	} else {
 		print "<tr bgcolor='$bgcolor5'>\n<td title='$title'>$txt</td>\n";
 		print "<td title='$title'><input name='dfm_agree' class='inputbox' style='width:150px;' type='text' value='$dfm_agree'></td>\n</tr>\n";
@@ -1766,59 +1866,214 @@ function variant_valg() {
 	global $bgcolor;
 	global $bgcolor5;
 	global $db;
+	global $buttonColor;
+	global $buttonTxtColor;
+	global $buttonColorHover;
 
-	print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
-	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".str_replace("php","html",findtekst('472|Varianter', $sprog_id))."<!--tekst 472--></u></b></td></tr>";
-	if ($delete_var_type = if_isset($_GET['delete_var_type'])) db_modify("delete from variant_typer where id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
+	// Handle delete actions
+	if ($delete_var_type = if_isset($_GET['delete_var_type'])) {
+		db_modify("delete from variant_typer where id = '$delete_var_type'", __FILE__ . " linje " . __LINE__);
+	}
 	if ($delete_variant = if_isset($_GET['delete_variant'])) {
 		db_modify("delete from variant_typer where variant_id = '$delete_variant'", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from varianter where id = '$delete_variant'", __FILE__ . " linje " . __LINE__);
 	}
-	if ($rename_var_type = if_isset($_GET['rename_var_type'])) {
+
+	// Include external CSS file and set CSS custom properties for theme colors
+	print "<link rel='stylesheet' href='../css/variant-valg.css'>";
+	$primaryColor = $buttonColor ?: '#3b82f6';
+	$primaryHover = $buttonColorHover ?: '#2563eb';
+	$primaryText = $buttonTxtColor ?: '#ffffff';
+	print "<style>:root { --variant-primary-color: $primaryColor; --variant-primary-hover: $primaryHover; --variant-primary-text: $primaryText; }</style>";
+
+	// JavaScript for toggling variant cards
+	print "<script>
+	function toggleVariantCard(header) {
+		var card = header.parentElement;
+		card.classList.toggle('collapsed');
+	}
+	</script>";
+
+	print "<tr><td colspan='6'>";
+	print "<div class='variant-container'>";
+
+	// Header
+	print "<div class='variant-header'>";
+	print "<h2>".str_replace("php","html",findtekst('472|Varianter', $sprog_id))."</h2>";
+	print "</div>";
+
+	// Display import message if exists
+	if (isset($_SESSION['variant_import_message'])) {
+		print "<div class='variant-import-message'>";
+		print "<strong>✓ Import resultat:</strong> " . htmlspecialchars($_SESSION['variant_import_message']);
+		print "</div>";
+		unset($_SESSION['variant_import_message']);
+	}
+
+	// Check for rename mode
+	$rename_var_type = if_isset($_GET['rename_var_type']);
+	$rename_variant = if_isset($_GET['rename_variant']);
+
+	if ($rename_var_type) {
 		$r = db_fetch_array(db_select("select beskrivelse from variant_typer where id=$rename_var_type", __FILE__ . " linje " . __LINE__));
+		print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
+		print "<div class='rename-form'>";
+		print "<h3>".findtekst('479|Klik her for at omdøbe denne værdi', $sprog_id)."</h3>";
 		print "<input type='hidden' name='rename_var_type' value='$rename_var_type'>";
-		print "<tr><td>".findtekst('473|Ny variant værdi', $sprog_id)."<!--tekst 473--></td><td></td><td><input type='text' name='var_type_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
-	} elseif ($rename_variant = if_isset($_GET['rename_variant'])) {
+		print "<input type='text' class='new-variant-input' name='var_type_beskrivelse' value='".htmlspecialchars($r['beskrivelse'])."' autofocus>";
+		print "<button type='submit' class='btn-variant btn-primary-variant' name='submit'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>";
+		print " <a href='diverse.php?sektion=variant_valg' class='btn-variant btn-secondary-variant'>".findtekst('1355|Annullér', $sprog_id)."</a>";
+		print "</div>";
+		print "</form>";
+	} elseif ($rename_variant) {
 		$r = db_fetch_array(db_select("select beskrivelse from varianter where id=$rename_variant", __FILE__ . " linje " . __LINE__));
+		print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
+		print "<div class='rename-form'>";
+		print "<h3>".findtekst('477|Klik her for at omdøbe denne variant', $sprog_id)."</h3>";
 		print "<input type='hidden' name='rename_varianter' value='$rename_variant'>";
-		print "<tr><td>".findtekst('474|Ny variant', $sprog_id)."<!--tekst 474--></td><td></td><td><input type='text' name='variant_beskrivelse' value = '$r[beskrivelse]'</td></tr>";
+		print "<input type='text' class='new-variant-input' name='variant_beskrivelse' value='".htmlspecialchars($r['beskrivelse'])."' autofocus>";
+		print "<button type='submit' class='btn-variant btn-primary-variant' name='submit'>".findtekst('471|Gem/opdatér', $sprog_id)."</button>";
+		print " <a href='diverse.php?sektion=variant_valg' class='btn-variant btn-secondary-variant'>".findtekst('1355|Annullér', $sprog_id)."</a>";
+		print "</div>";
+		print "</form>";
 	} else {
-		$x = 0;
+		// Import Section
+		print "<div class='import-section'>";
+		print "<h3><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:20px;height:20px;vertical-align:middle;margin-right:8px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5'/></svg>Import varianter fra CSV</h3>";
+		print "<div class='import-grid'>";
+		
+		// Import Variant Types (main categories)
+		print "<div class='import-box'>";
+		print "<form enctype='multipart/form-data' action='diverse.php?sektion=variant_valg_import_types' method='POST'>";
+		print "<h4>Import varianttyper</h4>";
+		print "<p>Importér varianter (f.eks. Farve, Størrelse). Én variant pr. linje.</p>";
+		print "<code>Farve<br>Størrelse<br>Materiale</code>";
+		print "<input type='hidden' name='MAX_FILE_SIZE' value='500000'>";
+		print "<div class='file-input-wrapper'>";
+		print "<span class='file-input-label'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:16px;height:16px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'/></svg> Vælg CSV fil</span>";
+		print "<input type='file' name='variant_types_file' accept='.csv,.txt' onchange='this.form.submit()'>";
+		print "</div>";
+		print "</form>";
+		print "</div>";
+		
+		// Import Variant Values (values for types)
+		print "<div class='import-box'>";
+		print "<form enctype='multipart/form-data' action='diverse.php?sektion=variant_valg_import_values' method='POST'>";
+		print "<h4>Import variantværdier</h4>";
+		print "<p>Importér værdier for varianter. Format: variantnavn;værdi</p>";
+		print "<code>Farve;Rød<br>Farve;Blå<br>Størrelse;Small<br>Størrelse;Large</code>";
+		print "<input type='hidden' name='MAX_FILE_SIZE' value='500000'>";
+		print "<div class='file-input-wrapper'>";
+		print "<span class='file-input-label'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:16px;height:16px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'/></svg> Vælg CSV fil</span>";
+		print "<input type='file' name='variant_values_file' accept='.csv,.txt' onchange='this.form.submit()'>";
+		print "</div>";
+		print "</form>";
+		print "</div>";
+		
+		print "</div>"; // End import-grid
+		print "</div>"; // End import-section
+
+		// Load variant data
+		$variants = array();
 		$q = db_select("select * from varianter order by beskrivelse", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$x++;
-			$variant_id[$x] = $r['id'];
-			$variant_beskrivelse[$x] = $r['beskrivelse'];
-			$y = 0;
-			$q2 = db_select("select * from variant_typer where variant_id=$variant_id[$x] order by beskrivelse", __FILE__ . " linje " . __LINE__);
+			$variant = array(
+				'id' => $r['id'],
+				'beskrivelse' => $r['beskrivelse'],
+				'values' => array()
+			);
+			$q2 = db_select("select * from variant_typer where variant_id=".$r['id']." order by beskrivelse", __FILE__ . " linje " . __LINE__);
 			while ($r2 = db_fetch_array($q2)) {
-				$y++;
-				$var_type_id[$x][$y] = $r2['id'];
-				$var_type_beskrivelse[$x][$y] = $r2['beskrivelse'];
+				$variant['values'][] = array(
+					'id' => $r2['id'],
+					'beskrivelse' => $r2['beskrivelse']
+				);
 			}
-			$var_type_antal[$x] = $y;
+			$variants[] = $variant;
 		}
-		$variant_antal = $x;
-		print "<tr><td></td><td><b>".findtekst('475|Variant', $sprog_id)."<!--tekst 475--></b></td><td><b>".findtekst('476|Værdi', $sprog_id)."<!--tekst 476--></b></td></tr>";
-		for ($x = 1; $x <= $variant_antal; $x++) {
-			print "<tr><td></td><td>$variant_beskrivelse[$x]</td></td><td>";
-			print "<td><span title='".findtekst('477|Klik her for at omdøbe denne variant', $sprog_id)."'><!--tekst 477--><a href='diverse.php?sektion=variant_valg&rename_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst('483|Vil du omdøbe denne variant?', $sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
-			print "<span title='".findtekst('478|Klik her for at slette denne variant og tilhørende variant værdier.', $sprog_id)."'><!--tekst 478--><a href='diverse.php?sektion=variant_valg&delete_variant=".$variant_id[$x]."' onclick=\"return confirm('".findtekst('481|Vil du slette denne variant og tilhørende variant værdier?', $sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
-			for ($y = 1; $y <= $var_type_antal[$x]; $y++) {
-				#				if ($y>1)
-				print "<tr></td><td><td></td>";
-				print "<td>".$var_type_beskrivelse[$x][$y]."</td>";
-				print "<td><span title='".findtekst('479|Klik her for at omdøbe denne værdi', $sprog_id)."'><!--tekst 479--><a href='diverse.php?sektion=variant_valg&rename_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst('484|Vil du omdøbe denne værdi?', $sprog_id)."')\"><img src=../ikoner/rename.png border=0></a></span>\n";
-				print "<span title='".findtekst('480|Klik her for at slette denne værdi', $sprog_id)."'><!--tekst 480--><a href='diverse.php?sektion=variant_valg&delete_var_type=".$var_type_id[$x][$y]."' onclick=\"return confirm('".findtekst('482|Vil du slette denne værdi?', $sprog_id)."')\"><img src=../ikoner/delete.png border=0></a></span></td></tr>\n";
+
+		print "<form name='diverse' action='diverse.php?sektion=variant_valg' method='post'>";
+
+		if (count($variants) == 0) {
+			// Empty state
+			print "<div class='variant-card'>";
+			print "<div class='empty-state'>";
+			print "<div class='empty-state-icon'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:48px;height:48px;stroke-width:1.5;color:#9ca3af'><path stroke-linecap='round' stroke-linejoin='round' d='M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z'/></svg></div>";
+			print "<p>Ingen varianter oprettet endnu</p>";
+			print "<p style='color:#9ca3af; margin-top:5px;'>Varianttype for varen, f.eks. farve eller størrelse</p>";
+			print "</div>";
+			print "</div>";
+		} else {
+			// Display variants as cards
+			$x = 0;
+			foreach ($variants as $variant) {
+				$x++;
+				$valueCount = count($variant['values']);
+				
+				print "<div class='variant-card'>";
+				print "<div class='variant-card-header' onclick='toggleVariantCard(this)'>";
+				print "<div class='variant-name'>";
+				print "<span class='toggle-icon'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:16px;height:16px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/></svg></span>";
+				print htmlspecialchars($variant['beskrivelse']);
+				print "<span class='variant-count'>$valueCount ".($valueCount == 1 ? "Værdi" : "Værdier")."</span>";
+				print "</div>";
+				print "<div class='variant-card-actions' onclick='event.stopPropagation();'>";
+				print "<a href='diverse.php?sektion=variant_valg&rename_variant=".$variant['id']."' class='btn-icon-variant btn-edit' title='Klik her for at omdøbe denne variant'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10'/></svg></a>";
+				print "<a href='diverse.php?sektion=variant_valg&delete_variant=".$variant['id']."' class='btn-icon-variant btn-delete' title='Klik her for at slette denne variant og tilhørende variant værdier.' onclick=\"return confirm('Vil du slette denne variant og tilhørende variant værdier?')\"><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0'/></svg></a>";
+				print "</div>";
+				print "</div>"; // End card header
+				
+				print "<div class='variant-card-body'>";
+				print "<table class='variant-values-table'>";
+				print "<thead><tr><th>Værdi</th><th style='width:100px; text-align:center;'>Handling</th></tr></thead>";
+				print "<tbody>";
+				
+				// Existing values
+				foreach ($variant['values'] as $value) {
+					print "<tr>";
+					print "<td>".htmlspecialchars($value['beskrivelse'])."</td>";
+					print "<td style='text-align:center;'>";
+					print "<a href='diverse.php?sektion=variant_valg&rename_var_type=".$value['id']."' class='btn-icon-variant btn-edit' title='".findtekst('479|Klik her for at omdøbe denne værdi', $sprog_id)."'><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10'/></svg></a>";
+					print "<a href='diverse.php?sektion=variant_valg&delete_var_type=".$value['id']."' class='btn-icon-variant btn-delete' title='".findtekst('480|Klik her for at slette denne værdi', $sprog_id)."' onclick=\"return confirm('".findtekst('482|Vil du slette denne værdi?', $sprog_id)."')\"><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path stroke-linecap='round' stroke-linejoin='round' d='M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0'/></svg></a>";
+					print "</td>";
+					print "</tr>";
+				}
+				
+				// Add new value row
+				print "<tr class='add-value-row'>";
+				print "<td colspan='2'>";
+				print "<input type='hidden' name='variant_id[$x]' value='".$variant['id']."'>";
+				print "<input type='text' class='add-value-input' name='var_type_beskrivelse[$x]' placeholder='Ny variant værdi...' title='Værdi for varianten, f.eks. \'rød\' eller \'lille\'>";
+				print "</td>";
+				print "</tr>";
+				
+				print "</tbody>";
+				print "</table>";
+				print "</div>"; // End card body
+				print "</div>"; // End card
 			}
-			print "<input type='hidden' name='variant_id[$x]' value='$variant_id[$x]'>";
-			print "<tr><td title='".findtekst('486|Værdi for varianten, f.eks. \'rød\' eller \'lille\'', $sprog_id)."'><!--tekst 486-->".findtekst('473|Ny variant værdi', $sprog_id)."<!--tekst 473--></td><td></td><td title='".findtekst('486|Værdi for variant', $sprog_id)."'><!--tekst 486--><input type='text' name='var_type_beskrivelse[$x]'</td></tr>";
+			
+			print "<input type='hidden' name='variant_antal' value='$x'>";
 		}
-		print "<input type='hidden' name='variant_antal' value='$variant_antal'>";
-		print "<tr><td title='".findtekst('485|Varianttype for varen, f.eks. farve eller størrelse', $sprog_id)."'><!--tekst 485-->".findtekst('474|Ny variant', $sprog_id)."<!--tekst 474--></td><td title='".findtekst('485|Varianttype for varen, f.eks. \'farve\' eller \'størrelse\'', $sprog_id)."'><!--tekst 485--><input type='text' name='variant_beskrivelse'</td></tr>";
+
+		// New variant section
+		print "<div class='new-variant-section'>";
+		print "<h3><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:20px;height:20px;vertical-align:middle;margin-right:8px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M12 4.5v15m7.5-7.5h-15'/></svg>Ny variant</h3>";
+		print "<input type='text' class='new-variant-input' name='variant_beskrivelse' placeholder='Varianttype for varen, f.eks. farve eller størrelse...'>";
+		print "</div>";
+
+		// Submit button
+		print "<div style='margin-top:20px; text-align:center;'>";
+		print "<button type='submit' class='btn-variant btn-success-variant' name='submit' accesskey='g' style='padding: 12px 30px; font-size: 15px; display:inline-flex; align-items:center; gap:8px;'>";
+		print "<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' style='width:18px;height:18px;stroke-width:2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>Gem/opdatér";
+		print "</button>";
+		print "</div>";
+
+		print "</form>";
 	}
-	print "<td><br></td><td><br></td><td><br></td><td align = center><input type=submit accesskey='g' value='".findtekst('471|Gem/opdatér', $sprog_id)."' name='submit'><!--tekst 471--></td>";
-	print "</form>";
+
+	print "</div>"; // End variant-container
+	print "</td></tr>";
 } # endfunc variant_valg
 
 function shop_valg() {

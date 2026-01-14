@@ -3050,6 +3050,11 @@ function ordreside($id, $regnskab)
 		if (isset($_REQUEST['dfm_go'])) {
 			db_modify("update ordrer set fedex_label = true where id = '$id'", __FILE__ . " linje " . __LINE__);
 			$tGrossWeight = 1;
+			
+			// Initialize pickup address variables
+			$dfm_pickup_addr = $dfm_pickup_name1 = $dfm_pickup_name2 = NULL;
+			$dfm_pickup_street1 = $dfm_pickup_street2 = $dfm_pickup_town = $dfm_pickup_zipcode = NULL;
+			
 			$qtxt = "select var_name,var_value from settings where var_grp='GLS'";
 			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
@@ -3094,27 +3099,70 @@ function ordreside($id, $regnskab)
 					case 'dfm_sercode':
 						$dfm_sercode         = $var_value;
 						break;
-					case 'dfm_pickup_addr':
-						$dfm_pickup_addr     = $var_value;
-						break;
-					case 'dfm_pickup_name1':
-						$dfm_pickup_name1    = $var_value;
-						break;
-					case 'dfm_pickup_name2':
-						$dfm_pickup_name2    = $var_value;
-						break;
-					case 'dfm_pickup_street1':
-						$dfm_pickup_street1  = $var_value;
-						break;
-					case 'dfm_pickup_street2':
-						$dfm_pickup_street2  = $var_value;
-						break;
-					case 'dfm_pickup_town':
-						$dfm_pickup_town     = $var_value;
-						break;
-					case 'dfm_pickup_zipcode':
-						$dfm_pickup_zipcode  = $var_value;
-						break;
+				}
+			}
+			
+			// Fetch pickup address based on selected group_id (new multi-address system)
+			$selected_pickup_group = if_isset($_POST['dfm_pickup_group_id'], 0);
+			if ($selected_pickup_group > 0) {
+				$qtxt = "select var_name, var_value from settings where var_grp='DFM_Pickup' and group_id='$selected_pickup_group'";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				while ($r = db_fetch_array($q)) {
+					switch ($r['var_name']) {
+						case 'dfm_pickup_addr':
+							$dfm_pickup_addr     = $r['var_value'];
+							break;
+						case 'dfm_pickup_name1':
+							$dfm_pickup_name1    = $r['var_value'];
+							break;
+						case 'dfm_pickup_name2':
+							$dfm_pickup_name2    = $r['var_value'];
+							break;
+						case 'dfm_pickup_street1':
+							$dfm_pickup_street1  = $r['var_value'];
+							break;
+						case 'dfm_pickup_street2':
+							$dfm_pickup_street2  = $r['var_value'];
+							break;
+						case 'dfm_pickup_town':
+							$dfm_pickup_town     = $r['var_value'];
+							break;
+						case 'dfm_pickup_zipcode':
+							$dfm_pickup_zipcode  = $r['var_value'];
+							break;
+					}
+				}
+			} else {
+				// Fallback: try to get the first pickup address if no specific one selected
+				$qtxt = "select var_name, var_value, group_id from settings where var_grp='DFM_Pickup' order by group_id limit 7";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				$first_gid = null;
+				while ($r = db_fetch_array($q)) {
+					if ($first_gid === null) $first_gid = $r['group_id'];
+					if ($r['group_id'] != $first_gid) break; // Only get first group
+					switch ($r['var_name']) {
+						case 'dfm_pickup_addr':
+							$dfm_pickup_addr     = $r['var_value'];
+							break;
+						case 'dfm_pickup_name1':
+							$dfm_pickup_name1    = $r['var_value'];
+							break;
+						case 'dfm_pickup_name2':
+							$dfm_pickup_name2    = $r['var_value'];
+							break;
+						case 'dfm_pickup_street1':
+							$dfm_pickup_street1  = $r['var_value'];
+							break;
+						case 'dfm_pickup_street2':
+							$dfm_pickup_street2  = $r['var_value'];
+							break;
+						case 'dfm_pickup_town':
+							$dfm_pickup_town     = $r['var_value'];
+							break;
+						case 'dfm_pickup_zipcode':
+							$dfm_pickup_zipcode  = $r['var_value'];
+							break;
+					}
 				}
 			}
 
@@ -4485,7 +4533,6 @@ function ordreside($id, $regnskab)
 		// Ensure afd is set from user settings for new orders before rendering dropdown
 		if (!$id) {
 			$afd = get_settings_value('afd', 'brugerAfd', 1, $bruger_id);
-				
 		}
 		print "<input type = 'hidden' name='extAfd' value='$afd'>";
 		if (count($afd_nr) > 1) {
@@ -5429,7 +5476,7 @@ function ordreside($id, $regnskab)
 						$disabled = '';
 					}
 					$txt = findtekst('2374|Fakturér', $sprog_id);
-					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
+					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px; border-radius: 4px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
 				} else {
 					if ($vis_saet) {
 						$disabled = NULL;
@@ -5443,13 +5490,13 @@ function ordreside($id, $regnskab)
 					}
 					if ($art == 'DO' && $dan_kn) $tmp = "onclick=\"return confirm('$confirm10')\"";
 					if ($mail_fakt) $tmp = "onclick=\"return confirm('$confirm11 $email')\"";
-					print "<td align=\"center\" width=\"$width\" title=\"$titletext\"><input $disabled type=\"submit\" class=\"button gray medium\" style=\"width:75px;\" accesskey=\"f\" value=\"Kredit&eacute;r\" name=\"b_submit\" $tmp></td>\n";
+					print "<td align=\"center\" width=\"$width\" title=\"$titletext\"><input $disabled type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius:4px;\" accesskey=\"f\" value=\"Kredit&eacute;r\" name=\"b_submit\" $tmp></td>\n";
 				}
 			} elseif ($del_ordre == 'on') {
 				$txt = "$txt1";
 				print "<td align=\"center\" width=\"$width\" >
 					<span onmouseover=\"return overlib('$txt',WIDTH=800);\" onmouseout=\"return nd();\">
-					<input type=\"submit\" class=\"button gray medium\" accesskey=\"f\" value=\"Del ordre\" name=\"b_submit\" style=\"width:75px;\" onclick=\"javascript:docChange = false;\"></span></td>\n";
+					<input type=\"submit\" class=\"button gray medium\" accesskey=\"f\" value=\"Del ordre\" name=\"b_submit\" style=\"width:75px; border-radius:4px;\" onclick=\"javascript:docChange = false;\"></span></td>\n";
 			}
 			if ($linjeantal > 0 && $konto_id && ($art == 'DO' || $art == 'OT')) { # skal også med ved 'original tilbud' (OT) #20140716
 				if ($udskriv_til == 'oioubl' && $status <= 1) $tmp = "onclick=\"return confirm('$confirm12')\"";
@@ -5547,14 +5594,16 @@ function ordreside($id, $regnskab)
 		$q = db_select("select gls_label, fedex_label from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 
-		$gls_stil = $r["gls_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 3px;" : "";
-		$fedex_stil = $r["fedex_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 3px;" : "";
+		$gls_stil = $r["gls_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 4px;" : "border-radius: 4px;";
+		$fedex_stil = $r["fedex_label"] == "t" ? "background-color: #6bff92; border: 1px #8f8f9d solid; border-radius: 4px;" : "border-radius: 4px;";
 
 		//print "<form name=\"form\" action=\"http://api.gls.dk/ws/\"  method=\"POST\">".
+		print "<div style='text-align: center;'>";
 		print "<form name=\"GLS\"  method=\"POST\">";
 		print "<input type=\"hidden\" name=\"tGrossWeight\" value=\"$tGrossWeight\">\n";
 		print "\n<input type=\"submit\" name=\"gls_go\" value=\"GLS Label\" style='$gls_stil' onclick=\"this.style.color = 'gray'\"></form>";
 		/* GLS knap slut */
+		print "<div style='margin-top: 10px;'></div>";
 		print "<form name=\"fedexlabel_form\" action=\"https://www.fedex.com/shipping/shipEntryAction.do\" target=\"_blank\" method=\"POST\">";
 		$txtWeight = ceil($tGrossWeight);
 		if ($txtWeight < 1) $txtWeight = 1;
@@ -5602,6 +5651,7 @@ function ordreside($id, $regnskab)
 		if (!empty($lev_kontakt)) print "\n<input type=\"hidden\" name=\"toData.addressData.contactName\" value=\"" . $lev_kontakt . "\">";
 		else print "\n<input type=\"hidden\" name=\"toData.addressData.contactName\" value=\"" . $kontakt . "\">";
 		print "\n<input type=\"submit\" value=\"Send til Fedex\" style='$fedex_stil' onclick=\"this.style.color = 'gray'\"></form>";
+		print "</div>";
 		print "</td></tr>";
 	}
 	if (($dfm_user) && ($status >= 3)) {
@@ -5622,6 +5672,21 @@ function ordreside($id, $regnskab)
 			while ($r = db_fetch_array($q)) {
 				if ($r['var_name'] == 'dfm_gooddes') $form_gooddes = $r['var_value'];
 			}
+			
+			// Fetch available pickup addresses
+			$dfm_pickup_options = array();
+			$qtxt = "select group_id, var_name, var_value from settings where var_grp='DFM_Pickup' order by group_id, var_name";
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) {
+				$gid = $r['group_id'] ?: 0;
+				if (!isset($dfm_pickup_options[$gid])) {
+					$dfm_pickup_options[$gid] = array('name1' => '', 'town' => '', 'zipcode' => '');
+				}
+				$field = str_replace('dfm_pickup_', '', $r['var_name']);
+				if (isset($dfm_pickup_options[$gid][$field])) {
+					$dfm_pickup_options[$gid][$field] = $r['var_value'];
+				}
+			}
 
 			if (! empty($dfm_go)) {
 				print "\n\n<p>";
@@ -5636,7 +5701,24 @@ function ordreside($id, $regnskab)
 			print "<tr>\n<td>";
 			print "" . findtekst('1041|Beskrivelse af gods som standard', $sprog_id) . ": </td>\n";
 			print "<td><input type = 'text' name=\"form_gooddes\" value=\"$form_gooddes\">";
-			print "</td>\n</tr>\n</table></center>\n";
+			print "</td>\n</tr>\n";
+			
+			// Pickup address selector (only show if there are multiple addresses)
+			if (count($dfm_pickup_options) > 0) {
+				print "<tr>\n<td>Afhentningsadresse: </td>\n";
+				print "<td><select name=\"dfm_pickup_group_id\" class=\"inputbox\">\n";
+				print "<option value=\"0\">Brug hovedadresse</option>\n";
+				foreach ($dfm_pickup_options as $gid => $addr) {
+					$label = htmlspecialchars($addr['name1']);
+					if ($addr['zipcode'] || $addr['town']) {
+						$label .= " (" . htmlspecialchars($addr['zipcode'] . " " . $addr['town']) . ")";
+					}
+					print "<option value=\"$gid\">$label</option>\n";
+				}
+				print "</select></td>\n</tr>\n";
+			}
+			
+			print "</table></center>\n";
 			print "<input type=\"hidden\" name=\"tGrossWeight\" value=\"$tGrossWeight\">\n";
 			print "<center><br><input type=\"submit\" name=\"dfm_go\" value=\"Opret fragtbrev til Danske Fragtmænd\"></center></form>";;
 		}
@@ -5989,7 +6071,7 @@ function ordrelinjer($x, $sum, $dbsum, $blandet_moms, $moms, $antal_ialt, $lever
 					$levdiff = 1;
 				} else {
 					if ($antal == $tidl_lev) $dklev = 0;
-					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Alt " . $lever_modtag . "et.\"><input class = 'inputbox' type = 'text' readonly=\"readonly\" style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
+					print "<td title=\"" . findtekst('1500|Lagerbeholdning', $sprog_id) . ": $beholdning. Alt " . $lever_modtag . "et. Brug negativt tal (fx -1) for at trække fra.\"><input class = 'inputbox' $readonly type = 'text' style=\"background: none repeat scroll 0 0 #e4e4ee; text-align:right\" size=\"4\" name=\"leve$x\" value=\"$dklev\" onchange=\"javascript:docChange = true;\"></td>\n";
 					print "<td title=\"" . findtekst('1495|Tidligere', $sprog_id) . " " . $lever_modtag . "et $dk_tidl_lev på denne ordre.\">($dk_tidl_lev)</td>\n";
 				}
 

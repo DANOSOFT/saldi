@@ -30,13 +30,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'F2' || e.keyCode === 113) {
     e.preventDefault();
     
-    const nyKontonrField = document.querySelector('[name=ny_kontonr]');
     const cvrnrField = document.querySelector('[name=cvrnr]');
-    
-    if (document.activeElement === nyKontonrField) {
+    if(cvrnrField) {
       cvrnrField.select();
-    } else {
-      nyKontonrField.select();
     }
   }
 });

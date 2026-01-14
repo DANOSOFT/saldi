@@ -91,7 +91,6 @@
             $response = curl_exec($ch);
             $response = json_decode($response, true);
             curl_close($ch);
-            echo $response;
             $timestamp = date("Y-m-d-H-i-s");
             if ($response === false || isset($response["error"]) || isset($response["errorNumber"]) || $response === null || $response === ""){
 				// An error occurred
@@ -144,7 +143,7 @@
 
     // Sending the invoice to the recipient through easyUBL
     function getInvoicesOrder($data, $url, $orderId) {
-        global $db, $apiKey;
+        global $bruger_id, $db, $apiKey;
         $companyID = getCompanyID();
         if($companyID == "error"){
             die("Der er sket en fejl. Kontakt support.");
@@ -162,7 +161,7 @@
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $result = curl_exec($ch);
-        
+
         $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $ranStr = $characters[rand(0, 4)];
         file_put_contents("../temp/$db/fakture-result-$ranStr.json", $result);
@@ -247,32 +246,43 @@
         }else{
             $creditNote = "Inv";
         }
+        $cvrnr_with_prefix = "";
         // check if the ean number is 13 characters long
         if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === false){
             $endpointId = $r_faktura["ean"];
             $endpointType = "GLN";
-        }else if($_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") === true){
-            // split at ean at : and take the first part
+        } else if($r_faktura["ean"] !== "" && strpos($r_faktura["ean"], ":") !== false){
+            // Change === true to !== false
             $endpointId = trim(explode(":", $r_faktura["ean"])[1]);
             $endpointType = trim(explode(":", $r_faktura["ean"])[0]);
-        }else{
+            if(is_numeric($endpointType)){
+                if($endpointType == 0007){
+                    $endpointId = "SE".$endpointId;
+                }
+                $cvrnr_with_prefix = $endpointId;
+                $endpointType = "DK:CVR";
+            }
+        } else {
             $endpointId = "DK".$r_faktura["cvrnr"];
             $endpointType = "DK:CVR";
         }
-        if($r_faktura["cvrnr"]) {
-            // Check if CVR number starts with digits only (Danish CVR)
-            if (preg_match('/^\d/', $r_faktura["cvrnr"])) {
-                // Danish CVR - add DK prefix
-                $cvrnr_with_prefix = "DK" . $r_faktura["cvrnr"];
-            } else {
-                // Already has country prefix (SE, NO, etc.) - use as is
-                $cvrnr_with_prefix = $r_faktura["cvrnr"];
+        if($cvrnr_with_prefix == ""){
+            if($r_faktura["cvrnr"]) {
+                // Check if CVR number starts with digits only (Danish CVR)
+                if (preg_match('/^\d/', $r_faktura["cvrnr"])) {
+                    // Danish CVR - add DK prefix
+                    $cvrnr_with_prefix = "DK" . $r_faktura["cvrnr"];
+                } else {
+                    // Already has country prefix (SE, NO, etc.) - use as is
+                    $cvrnr_with_prefix = $r_faktura["cvrnr"];
+                }
+            }else{
+                $cvrnr_with_prefix = "";
             }
-        }else{
-            $cvrnr_with_prefix = "";
         }
         // country code should be the same as prefix for cvrnr
         $countryCode = "DK";
+        
         if($cvrnr_with_prefix !== ""){
             $countryCode = substr($cvrnr_with_prefix, 0, 2);
         }
