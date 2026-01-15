@@ -92,6 +92,36 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
 
     
 	if(!$fokus){ $fokus='kontonr'; }
+	
+	// Pre-populate search field with the initial search value ($find)
+	// Debug: Log the values being passed
+	error_log("accountLookup: fokus=$fokus, firmanavn=$firmanavn, find=$find, grid_id=$grid_id");
+	
+	// Map fokus field to grid field name (firmanavn in ordre.php maps to firmanavn column in grid)
+	if ($find && $find != '%' && $find != '0') {
+		$cleanFind = str_replace('%', '', $find);
+		if ($cleanFind) {
+			if (!isset($_GET['search'])) {
+				$_GET['search'] = array();
+			}
+			if (!isset($_GET['search'][$grid_id])) {
+				$_GET['search'][$grid_id] = array();
+			}
+			// Determine which grid column field to search based on fokus
+			// The grid uses 'firmanavn' as the field name for the "Navn" column
+			$searchField = $fokus;
+			if ($fokus == 'firmanavn' || strstr($fokus, 'lev')) {
+				$searchField = 'firmanavn';  // Grid column field name
+			}
+			// Set the search parameter
+			if (!isset($_GET['search'][$grid_id][$searchField]) || empty($_GET['search'][$grid_id][$searchField])) {
+				$_GET['search'][$grid_id][$searchField] = $cleanFind;
+				error_log("accountLookup: Set search[$grid_id][$searchField] = $cleanFind");
+			}
+		}
+	} else {
+		error_log("accountLookup: find is empty or invalid - find='$find'");
+	}
 	 
     // Determine account type
     ($o_art == 'KO') ? $art = 'K' : $art = 'D';

@@ -309,9 +309,10 @@ function create_datagrid($id, $grid_data) {
     // Process search input
     $search_setup = json_decode($search_setup, true);
    # $searchTerms = if_isset($_GET["search"][$id], $search_setup);
-    $searchTerms1 = if_isset($_GET, NULL,"search");
+    $searchTerms1 = if_isset($_GET, NULL, "search");
     $searchTerms2 = if_isset($searchTerms1, NULL, $id);
-    $searchTerms = if_isset($searchTerms2, NULL, $search_setup);
+    // Use $search_setup as fallback if $searchTerms2 is empty
+    $searchTerms = !empty($searchTerms2) ? $searchTerms2 : $search_setup;
    
     $search_json  = db_escape_string(json_encode($searchTerms));
     log_grid_performance("JSON processing and search setup", $setup_processing_start);
@@ -709,11 +710,16 @@ function build_query($id, $grid_data, $columns, $filters, $searchTerms = [], $so
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == 0)) {
                 $term = addslashes($searchTerms[$column['field']]);
                 // Convert both the column value and the search term to lowercase
                 if ($term) {
-                    $searchConditions[] = $column['generateSearch']($column, $term);
+                    // Check if generateSearch is callable, otherwise use default
+                    if (is_callable($column['generateSearch'])) {
+                        $searchConditions[] = $column['generateSearch']($column, $term);
+                    } else {
+                        $searchConditions[] = DEFAULT_GENERATE_SEARCH($column, $term);
+                    }
                 }
             }
         }
@@ -786,10 +792,15 @@ function build_count_query($grid_data, $columns, $filters, $searchTerms = [], $s
         // Build the search condition
         $searchConditions = [];
         foreach ($searchableColumns as $column) {
-            if (!empty($searchTerms[$column['field']]) || $searchTerms[$column['field']] == 0) {
+            if (!empty($searchTerms[$column['field']]) || (isset($searchTerms[$column['field']]) && $searchTerms[$column['field']] == 0)) {
                 $term = addslashes($searchTerms[$column['field']]);
                 if ($term) {
-                    $searchConditions[] = $column['generateSearch']($column, $term);
+                    // Check if generateSearch is callable, otherwise use default
+                    if (is_callable($column['generateSearch'])) {
+                        $searchConditions[] = $column['generateSearch']($column, $term);
+                    } else {
+                        $searchConditions[] = DEFAULT_GENERATE_SEARCH($column, $term);
+                    }
                 }
             }
         }

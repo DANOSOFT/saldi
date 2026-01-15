@@ -2632,13 +2632,17 @@ if ($swap_account) {
 */
 
 if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && (!$id)) {
-
+	error_log("ordre.php kontoopslag block: b_submit=$b_submit, fokus=$fokus, id=$id, firmanavn=$firmanavn");
+	
 	if (!$id && ($fokus == 'kontakt' || $fokus == 'kontonr' || $fokus == 'firmanavn' || $fokus == 'addr1' || $fokus == 'addr2' || $fokus == 'postnr' || $fokus == 'bynavn' || $fokus == 'land' || $fokus == 'cvrnr' || $fokus == 'ean' || $fokus == 'betalingsdage')) {
+		error_log("ordre.php: Calling kontoopslag path 1 with firmanavn='$firmanavn'");
 		kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	} elseif ((strstr($fokus, 'kontonr')) && (!$status || $hurtigfakt || $swap_account)) {
+		error_log("ordre.php: Calling kontoopslag path 2 (empty firmanavn) - fokus=$fokus");
 		kontoopslag($art, $sort, $fokus, $id, '', '', '', '', '', '', '', '', '', '', '', '', '');
 		// }elseif(!$hurtigfakt){
 	} elseif ((strstr($fokus, 'kontonr')) && ($status >= 1 && $status <= 3) && $art == 'DO') {
+		error_log("ordre.php: Calling kontoopslag path 3 (empty firmanavn) - fokus=$fokus");
 		kontoopslag($art, $sort, $fokus, $id, '', '', '', '', '', '', '', '', '', '', '', '', '');
 		// echo "<script>
 		// 		alert('At least quick invoice is required Go to: System->Settings->Miscellaneous->Order related choices->Use fast invoices');
@@ -2683,12 +2687,12 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 	if (strstr($fokus, 'besk')) tekstopslag($sort, $id);
 	if ((strstr($fokus, 'kontakt')) && ($id)) ansatopslag($sort, $fokus, $id, $vis, $kontakt);
 } elseif ($b_submit && !$kontonr && $id) {
-
+	error_log("ordre.php: Calling kontoopslag path 4 (existing order, no customer) - fokus=$fokus, firmanavn=$firmanavn");
 	kontoopslag($art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage);
 	exit;
 }
 
-########################## del_ordre  - SKAL VAERE PLACERET FOER "FAKTURER" ################################
+########################## del_ordre  - SKAL VAERE PLACERET FØR "FAKTURER" ################################
 if ($b_submit == 'del_ordre') {
 	$sum = 0;
 	$moms = 0;
