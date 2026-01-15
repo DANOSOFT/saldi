@@ -248,13 +248,27 @@ $shop_faktura = if_isset($_GET, NULL, 'shop_faktura');
 if (!$returside && $konto_id && !$popup) {
     $returside = "debitorkort.php?id=$konto_id";
 }
-if (isset($_GET['valg'])) {
-    setcookie("saldi_ordreliste", "$valg");
+
+// View selection - stored in database settings for persistence
+// Priority: 1) URL parameter (user clicked tab), 2) Database setting, 3) Default 'ordrer'
+if (isset($_GET['valg']) && $_GET['valg']) {
+    // User explicitly clicked a tab - use this value
+    $valg = strtolower($_GET['valg']);
 } else {
-    $valg = if_isset($_COOKIE, NULL, 'saldi_ordreliste');
-    // If konto_id is in GET and valg is not explicitly set, default to faktura (invoices)
-    if (isset($_GET['konto_id']) && $_GET['konto_id']) {
-        $valg = "faktura";
+    // No valg in URL - try to restore from database setting
+    $valg = null;
+    $qtxt = "SELECT var_value FROM settings WHERE var_name = 'ordreliste_valg' AND var_grp = 'debitor' AND user_id = '$bruger_id'";
+    if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+        $valg = $r['var_value'];
+    }
+    
+    // If no saved setting, check special cases or default to 'ordrer'
+    if (!$valg) {
+        if (isset($_GET['konto_id']) && $_GET['konto_id']) {
+            $valg = "faktura";
+        } else {
+            $valg = "ordrer";
+        }
     }
 }
 
@@ -263,10 +277,18 @@ $r2 = db_fetch_array(db_select("select max(id) as id from grupper", __FILE__ . "
 if (db_fetch_array(db_select("select id from grupper where art = 'DIV' and kodenr = '3' and box4='on'", __FILE__ . " linje " . __LINE__))) $hurtigfakt = 'on';
 if ($valg == "tilbud" && $hurtigfakt) $valg = "ordrer"; //20210323
 if ($valg == 'invoice') $valg = 'faktura';
-if (!$valg) $valg = "ordrer"; //
-$tjek = array("tilbud", "ordrer", "faktura", "pbs"); //
-//if (!in_array($valg,$tjek)) $valg='ordrer';
+if (!$valg) $valg = "ordrer";
+$tjek = array("tilbud", "ordrer", "faktura", "pbs");
 if (!in_array($valg, $tjek)) $valg = "ordrer";
+
+// Save the validated valg to database setting for persistence
+$qtxt = "SELECT id FROM settings WHERE var_name = 'ordreliste_valg' AND var_grp = 'debitor' AND user_id = '$bruger_id'";
+if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+    $qtxt = "UPDATE settings SET var_value = '$valg' WHERE var_name = 'ordreliste_valg' AND var_grp = 'debitor' AND user_id = '$bruger_id'";
+} else {
+    $qtxt = "INSERT INTO settings (var_name, var_value, var_grp, user_id) VALUES ('ordreliste_valg', '$valg', 'debitor', '$bruger_id')";
+}
+db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 #if ($valg=="ordrer" && $sort=="fakturanr") $sort="ordrenr";
 if ($nysort == 'sum_m_moms') $nysort = 'sum';
 $sort = str_replace("ordrer.", "", $sort);

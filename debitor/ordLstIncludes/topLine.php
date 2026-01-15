@@ -38,50 +38,49 @@ print "<table class='topLine' width=100% align=center border=0 cellspacing=2 cel
 print "<td width=75% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody>\n"; # Tabel 1.1.1 ->
 
 
+// Simplified tab links - just pass valg, session handles the rest
 if ($valg == "tilbud" && !$hurtigfakt) {
-    print "<td  width = '200px' align=center>";
-          print "<button class='headerbtn navbtn-top' style='$butDownStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-          print "$tilbud_icon ".findtekst('2770|Tilbud', $sprog_id)."</button></td>"; 
+    print "<td width='200px' align='center'>";
+    print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$tilbud_icon " . findtekst('2770|Tilbud', $sprog_id) . "</button></td>"; 
 } elseif (!$hurtigfakt) {
-    print "<td  width = '200px' align=center>";
-          print " <a href='ordreliste.php?valg=tilbud&konto_id=$konto_id&returside=$returside'>";
-         print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-           print "$tilbud_icon ".findtekst('2770|Tilbud', $sprog_id)."</button></td>"; 
-} //20210318
+    print "<td width='200px' align='center'>";
+    print "<a href='ordreliste.php?valg=tilbud'>";
+    print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$tilbud_icon " . findtekst('2770|Tilbud', $sprog_id) . "</button></a></td>"; 
+}
 
 if ($valg == "ordrer") {
-    print "<td width = '200px' align=center>";
-           print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">";
-           print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>"; 
-		   
+    print "<td width='200px' align='center'>";
+    print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$order_icon " . findtekst('107|Ordrer', $sprog_id) . "</button></td>"; 
 } else {
-    print "<td width = '200px' align=center>
-           <a href='ordreliste.php?valg=ordrer&konto_id=$konto_id&returside=$returside'>
-           <button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor = 'pointer'\">";
-           print "$order_icon ".findtekst('107|Ordrer', $sprog_id)."</button></td>"; 
+    print "<td width='200px' align='center'>";
+    print "<a href='ordreliste.php?valg=ordrer'>";
+    print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' id='ordrer' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$order_icon " . findtekst('107|Ordrer', $sprog_id) . "</button></a></td>"; 
 }
 
 if ($valg == "faktura") {
-    print "<td width = '200px' align=center>";
-           print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-           
-		   print "$invoice_icon".findtekst('1777|Fakturaer', $sprog_id)."</button></td>";
+    print "<td width='200px' align='center'>";
+    print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$invoice_icon" . findtekst('1777|Fakturaer', $sprog_id) . "</button></td>";
 } else {
-    print "<td width = '200px' align=center>";
-           print"<a href='ordreliste.php?valg=faktura&konto_id=$konto_id&returside=$returside'>";
-           print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-           print "$invoice_icon".findtekst('1777|Fakturaer', $sprog_id)."</button></td>";
+    print "<td width='200px' align='center'>";
+    print "<a href='ordreliste.php?valg=faktura'>";
+    print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$invoice_icon" . findtekst('1777|Fakturaer', $sprog_id) . "</button></a></td>";
 }
 
 if ($valg == 'pbs') {
-	print "<td width = '200px' align='center'>"; 
-		   print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-		   print"$pbs_icon".findtekst('385|BS', $sprog_id)."</button></td>";
+    print "<td width='200px' align='center'>"; 
+    print "<button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$pbs_icon" . findtekst('385|BS', $sprog_id) . "</button></td>";
 } elseif ($pbs) {
-	print "<td width = '200px' align=center>";
-		  print"<a href='ordreliste.php?valg=pbs&konto_id=$konto_id&returside=$returside'>";
-		   print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">";
-		   print "$pbs_icon".findtekst('385|BS', $sprog_id)."</button></td>";
+    print "<td width='200px' align='center'>";
+    print "<a href='ordreliste.php?valg=pbs'>";
+    print "<button class='headerbtn navbtn-top' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+    print "$pbs_icon" . findtekst('385|BS', $sprog_id) . "</button></a></td>";
 }
 print "</tbody></table></td>\n"; # <- Tabel 1.1.1
 if ($valg == 'pbs') {
