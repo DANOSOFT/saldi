@@ -1,5 +1,5 @@
 <?php
-// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2025.12.23 --- 
+// --- finans/kladdeliste.php -------- patch 4.1.1 --- 2026.01.12 --- 
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -185,7 +185,7 @@ include("../includes/std_func.php");
 $query = db_select("SELECT * FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 $apiKey = db_fetch_array($query)["var_value"];
 include("../includes/online.php");
-include("../includes/topline_settings.php");
+include("../includes/topline_settings.php"); 
 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
@@ -806,21 +806,39 @@ create_tutorial("kladlist", $steps);
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
 
-        var footerBox = document.querySelector('tfoot tr td #footer-box');
+      var footerBox = document.querySelector('tfoot tr td #footer-box');
         if (!footerBox) return;
 
-        // Container 
+        // Footer layout (right-aligned by default)
+        footerBox.style.display = 'flex';
+        footerBox.style.justifyContent = 'flex-end';
+        footerBox.style.alignItems = 'center';
+        footerBox.style.position = 'relative';
+
+        // Create container
         var filterButtonContainer = document.createElement('div');
         filterButtonContainer.id = 'filter-buttons-container';
+
+        // Center ONLY this container
         filterButtonContainer.style.cssText =
-            'display:flex; align-items:center; justify-content:center; margin:0 10px;';
+            'position:absolute;' +
+            'left:50%;' +
+            'transform:translateX(-50%);' +
+            'display:flex;' +
+            'align-items:center;' +
+            'justify-content:center;';
+
+        // Append container
+        footerBox.appendChild(filterButtonContainer);
+
+
 
         
         var toggleBtn = document.createElement('button');
         toggleBtn.type = 'button';
-        toggleBtn.id = 'filter-toggle-btn';
+        toggleBtn.id = 'filter-toggle-btn'; 
         toggleBtn.style.cssText =
-            'padding:6px 12px; border:1px solid #999; color:white; cursor:pointer; font-size:12px;';
+            'padding:4px 8px; border:1px solid #999; height:22px; color:white; cursor:pointer; font-size:12px;';
 
        
         var sidebar = window.parent.document.querySelector('.sidebar');
