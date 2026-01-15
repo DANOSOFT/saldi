@@ -36,6 +36,14 @@
 // 20251113 PHR Corrected error in $tidl_lev for creditnotas
 
 print "<!-- BEGIN orderIncludes/openOrderLines.php -->";
+
+// Add button styling with border-radius
+print "<style>
+    input[type='submit'] {
+        border-radius: 4px;
+    }
+</style>";
+
 $kreditmax=NULL;
 for ($x=1; $x<=$linjeantal; $x++)  {
   if ($varenr[$x]) {
