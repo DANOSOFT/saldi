@@ -58,11 +58,29 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 	$sum         = if_isset($_POST,NULL,'sum');
 
 	if ($insertFile) {
-		#if(!isset($dato )&& isset($newDate)) {
+		// Debug: Log all POST values we receive
+		error_log("docPool INSERT - sourceId: " . ($sourceId ?? 'NOT SET'));
+		error_log("docPool INSERT - newDate: " . ($newDate ?? 'NOT SET'));
+		error_log("docPool INSERT - newAmount: " . ($newAmount ?? 'NOT SET'));
+		
+		// Only set date from pool file if sourceId is empty (new entry) and newDate is valid
+		if (!$sourceId && $newDate && strtotime($newDate) !== false && strtotime($newDate) > 0) {
 			$formattedDate = date("d-m-Y", strtotime($newDate));
 			$dato = $formattedDate;
-			$_POST['dato']=$dato;
-		#}
+			$_POST['dato'] = $dato;
+			error_log("docPool INSERT - Setting date from pool file: newDate=$newDate, formatted=$formattedDate");
+		} else {
+			error_log("docPool INSERT - NOT setting date. sourceId=$sourceId, newDate=$newDate, strtotime result=" . (strtotime($newDate ?? '') ?: 'false'));
+		}
+		
+		// Only set amount from pool file if sourceId is empty (new entry) and newAmount is set
+		if (!$sourceId && $newAmount) {
+			$sum = $newAmount;
+			$_POST['sum'] = $sum;
+			error_log("docPool INSERT - Setting amount from pool file: newAmount=$newAmount");
+		} else {
+			error_log("docPool INSERT - NOT setting amount. sourceId=$sourceId, newAmount=$newAmount");
+		}
 		
 		// Debug logging - log what we receive
 		error_log("docPool INSERT - POST poolFiles: " . (isset($_POST['poolFiles']) ? $_POST['poolFiles'] : 'NOT SET'));
@@ -112,6 +130,35 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$poolFiles = array_filter($poolFiles);
 		
 		if (!empty($poolFiles)) {
+			// If date/amount wasn't passed from JavaScript, try to read from .info file of first selected file
+			if (!$sourceId && empty($newDate) && !empty($poolFiles)) {
+				$firstPoolFile = reset($poolFiles);
+				$baseName = pathinfo($firstPoolFile, PATHINFO_FILENAME);
+				$infoFile = "$docFolder/$db/pulje/$baseName.info";
+				error_log("docPool INSERT - Trying to read .info file: $infoFile");
+				
+				if (file_exists($infoFile)) {
+					$infoLines = file($infoFile, FILE_IGNORE_NEW_LINES);
+					// Line 0: subject, Line 1: account, Line 2: amount, Line 3: date
+					if (isset($infoLines[3]) && !empty(trim($infoLines[3]))) {
+						$infoDate = trim($infoLines[3]);
+						// Try to parse the date
+						$timestamp = strtotime($infoDate);
+						if ($timestamp !== false && $timestamp > 0) {
+							$formattedDate = date("d-m-Y", $timestamp);
+							$_POST['dato'] = $formattedDate;
+							error_log("docPool INSERT - Got date from .info file: $infoDate -> $formattedDate");
+						}
+					}
+					if (isset($infoLines[2]) && !empty(trim($infoLines[2])) && empty($newAmount)) {
+						$_POST['sum'] = trim($infoLines[2]);
+						error_log("docPool INSERT - Got amount from .info file: " . $_POST['sum']);
+					}
+				} else {
+					error_log("docPool INSERT - .info file not found: $infoFile");
+				}
+			}
+			
 			// Process multiple files
 			$isMultiple = count($poolFiles) > 1;
 			$processedCount = 0;
@@ -694,6 +741,11 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
 	}
 	// Print header banner
+	if ($menu == 'S') {
+		print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+		include("docsIncludes/topLineDocuments.php");
+		print "</tbody></table>";
+	}
 	
 	// Include DocPool CSS files
 	$cssPath = "../css";
@@ -734,7 +786,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		#topBarHeader tbody tr td button:hover,
 		#topBarHeader tbody tr td button:focus,
 		#topBarHeader tbody tr td button:active {
-			background-color: $buttonColor !important;
+			// background-color: $buttonColor !important;
 			color: $buttonTxtColor !important;
 			border-color: $buttonColor !important;
 		}
@@ -2030,6 +2082,59 @@ print <<<JS
 			}
 			formData.append(key, value);
 		});
+		
+		// If sourceId is empty (0 or not set), transfer date and amount from the first selected file
+		const sourceId = url.searchParams.get('sourceId') || '';
+		console.log('sourceId from URL:', sourceId, 'Is empty:', !sourceId || sourceId === '0' || sourceId === '');
+		
+		if (!sourceId || sourceId === '0' || sourceId === '') {
+			// Look up data from the first selected file
+			const firstFile = selectedFiles[0];
+			console.log('Looking for file in docData:', firstFile);
+			console.log('docData has', docData.length, 'entries');
+			
+			// Try multiple ways to find the file data
+			let fileData = docData.find(d => d.filename === firstFile);
+			
+			// If not found, try with URL decoding
+			if (!fileData) {
+				try {
+					const decodedFirstFile = decodeURIComponent(firstFile);
+					fileData = docData.find(d => d.filename === decodedFirstFile);
+					if (fileData) console.log('Found via URL decoding');
+				} catch (e) {
+					console.log('URL decode failed:', e);
+				}
+			}
+			
+			// If still not found, try case-insensitive match
+			if (!fileData) {
+				const firstFileLower = firstFile.toLowerCase();
+				fileData = docData.find(d => d.filename && d.filename.toLowerCase() === firstFileLower);
+				if (fileData) console.log('Found via case-insensitive match');
+			}
+			
+			console.log('File data found:', fileData);
+			
+			if (fileData) {
+				// Transfer date if available
+				if (fileData.date) {
+					formData.append('newDate', fileData.date);
+					console.log('Transferring date from pool file:', fileData.date);
+				} else {
+					console.log('No date in fileData');
+				}
+				// Transfer amount if available
+				if (fileData.amount) {
+					formData.append('newAmount', fileData.amount);
+					console.log('Transferring amount from pool file:', fileData.amount);
+				} else {
+					console.log('No amount in fileData');
+				}
+			} else {
+				console.log('Could not find file in docData. Available filenames:', docData.map(d => d.filename));
+			}
+		}
 		
 		// Debug: log what we're sending
 		console.log('FormData poolFiles:', formData.get('poolFiles'));

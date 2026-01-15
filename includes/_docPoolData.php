@@ -121,7 +121,8 @@ ob_start();
                 $subject = trim($lines[0] ?? '') !== '' ? trim($lines[0]) : $base;//default to filename
                 $account        = $lines[1] ?? '';
                 $amount         = $lines[2] ?? '';
-                $insertedDate   = $lines[3] ?? $modDate1; 
+                // Use line 3 for date, but fall back to file mod time if empty
+                $insertedDate   = (isset($lines[3]) && trim($lines[3]) !== '') ? trim($lines[3]) : $modDate1; 
                 
             }
 

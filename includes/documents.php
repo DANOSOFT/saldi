@@ -844,12 +844,16 @@ if ($linkBilag && $source == 'kassekladde') {
 // Check if showing a document FIRST - this takes priority over openPool
 // For kassekladde: if sourceId is set and has documents, show document viewer (not pool)
 // UNLESS openPool is explicitly requested (user wants to add more bilag)
+
+
+
 $openPoolRequested = (isset($_GET['openPool']) && $_GET['openPool'] == '1') || $openPool;
 if ($source == 'kassekladde' && $sourceId) { 
 
 	// Check if there are any documents for this sourceId
 	$qtxt = "select id,filename,filepath from documents where source = 'kassekladde' and source_id = '$sourceId' order by id limit 1";
 	$docRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+
 	
 	// If documents exist OR showDoc is set, show document viewer
 	// UNLESS openPool is explicitly requested (user wants to add more bilag)
@@ -865,12 +869,13 @@ if ($source == 'kassekladde' && $sourceId) {
 		// Show document viewer with list of attachments
 		// Add top banner with back button (like docPool) - use the same header as docPool
 
-	global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownStyle;
+global $menu, $buttonColor, $buttonTxtColor, $buttonStyle, $topStyle, $butDownStyle;
 	if (!isset($top_bund)) $top_bund = "";
 	// Don't override buttonColor if already set - it comes from topline_settings.php
 	
 	// Print header banner - use topLineDocuments.php for consistent header
 	print "<table id='topBarHeader' width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	  
 	if ($menu=='S') {
 		// Modern header - use topLineDocuments.php
 		include("docsIncludes/topLineDocuments.php");
