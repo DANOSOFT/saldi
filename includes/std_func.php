@@ -2181,13 +2181,15 @@ if (!function_exists('get_next_order_number')) {
 	{
 		/**
 		 * Generates the next available order number (ordrenr) for a given 'art' (type).
-		 * Uses database transactions and locking to prevent race conditions and duplicate numbers.
+		 * Uses database transactions and SELECT FOR UPDATE to prevent race conditions and duplicate numbers.
+		 * Works on both PostgreSQL and MySQL/MySQLi.
 		 * 
 		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
 		 * 
 		 * @return int - The next available order number.
 		 * @throws Exception - If unable to generate unique order number after maximum attempts.
 		 */
+		global $db_type;
 		
 		$max_attempts = 10;
 		$attempt = 0;
@@ -2200,24 +2202,23 @@ if (!function_exists('get_next_order_number')) {
 			while ($attempt < $max_attempts) {
 				$attempt++;
 				
-				// Lock the ordrer table to prevent concurrent access
-				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
-				
-				// Get the maximum order number for the given art type
-				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
+				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
+				// This locks the rows being read until the transaction is committed
+				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art' FOR UPDATE";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-				$ordrenr = ($r['max_ordrenr'] ? $r['max_ordrenr'] : 0) + 1;
+				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
 				
 				// Double-check that this order number doesn't exist (extra safety)
-				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art'";
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art' FOR UPDATE";
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				
-				if (!$check_r['id']) {
+				if (!$check_r || !$check_r['id']) {
 					// Order number is unique, commit transaction and return
 					transaktion('commit');
 					return $ordrenr;
 				} else {
-					// Order number already exists, increment and try again
+					// Order number already exists (shouldn't happen with proper locking)
+					// Increment and retry
 					$ordrenr++;
 					usleep(rand(10000, 50000)); // Small random delay to reduce contention
 				}
