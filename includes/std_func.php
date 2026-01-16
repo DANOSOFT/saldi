@@ -2300,6 +2300,12 @@ if (!function_exists('get_next_invoice_number')) {
 						$fakturanr = 1;
 					}
 					
+					// If order ID is provided, set the fakturanr on the order NOW while table is locked
+					// This prevents race conditions between getting and setting the number
+					if ($id) {
+						db_modify("UPDATE ordrer SET fakturanr='$fakturanr' WHERE id='$id'", __FILE__ . " linje " . __LINE__);
+					}
+					
 					// Invoice number is unique, commit transaction and return
 					transaktion('commit');
 					return $fakturanr;

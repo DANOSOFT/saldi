@@ -1491,9 +1491,9 @@ function bogfor($id, $webservice)
 	}
 	if (!$fejl) {
 		if ($art != "PO") {
-			// Generate unique invoice number using the new thread-safe function
+			// Generate unique invoice number using the thread-safe function
+			// Note: get_next_invoice_number now also sets fakturanr on the order atomically
 			$fakturanr = get_next_invoice_number($art, $id);
-			db_modify("update ordrer set fakturanr='$fakturanr' where id='$id'", __FILE__ . " linje " . __LINE__);
 			$ny_id = array();
 			$x = 0;
 			$q = db_select("select * from ordrelinjer where pris != '0' and m_rabat != '0' and rabat = '0' and ordre_id='$id'", __FILE__ . " linje " . __LINE__);

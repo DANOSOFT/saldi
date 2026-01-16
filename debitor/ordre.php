@@ -5467,12 +5467,6 @@ function ordreside($id, $regnskab)
 							$disabled = 'disabled';
 							$titletext = "$tiltext ($felt_2+$felt_4 - $sum+$moms = $diff)";
 						}
-						$query = db_select("SELECT * FROM settings WHERE var_name = 'showPaymentLink' AND var_grp = 'deb_ordre' AND var_value = 'on'", __FILE__ . " linje " . __LINE__);
-						if ($r = db_fetch_array($query)) {
-							$vis_betalingslink = 1;
-						} else {
-							$vis_betalingslink = 0;
-						}
 						if (!$betalt && $vis_betalingslink) $disabled = 'disabled';
 					}
 					// Made for Havemøbelshoppen
@@ -5480,7 +5474,8 @@ function ordreside($id, $regnskab)
 						$disabled = '';
 					}
 					$txt = findtekst('2374|Fakturér', $sprog_id);
-					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px; border-radius: 4px;' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
+					$disabled_style = ($disabled) ? "opacity:0.6; cursor:not-allowed; background-color:#cccccc;" : "";
+					print "<td align='center' width='$width' title='$titletext'><input $disabled type='submit' class='button gray medium' style='width:75px; border-radius: 4px; $disabled_style' accesskey='f' value='$txt' name='doInvoice' $tmp></td>\n";
 				} else {
 					if ($vis_saet) {
 						$disabled = NULL;
@@ -5494,6 +5489,7 @@ function ordreside($id, $regnskab)
 					}
 					if ($art == 'DO' && $dan_kn) $tmp = "onclick=\"return confirm('$confirm10')\"";
 					if ($mail_fakt) $tmp = "onclick=\"return confirm('$confirm11 $email')\"";
+					
 					print "<td align=\"center\" width=\"$width\" title=\"$titletext\"><input $disabled type=\"submit\" class=\"button gray medium\" style=\"width:75px; border-radius:4px;\" accesskey=\"f\" value=\"Kredit&eacute;r\" name=\"b_submit\" $tmp></td>\n";
 				}
 			} elseif ($del_ordre == 'on') {
