@@ -19,7 +19,7 @@
 // Copyright (c) 2003-2025 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 2014.03.19 addslashes erstattet med db_escape_string
-// 2104.09.16	Tilføjet oioublimport i bunden
+// 2104.09.16   Tilføjet oioublimport i bunden
 // 20211125 PHR Added 'Skan Bilag'
 // 20220728 MSC - Implementing new design
 // 20221106 PHR - Various changes to fit php8 / MySQLi
@@ -88,7 +88,7 @@ if (isset($valg)) {
 }
 
 # >> Date picker scripts <<
-print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
+// Note: jQuery is already loaded by online.php - don't load again to avoid overwriting autosize plugin
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/daterangepicker.min.js\" defer></script>";
 print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" />';
@@ -141,12 +141,12 @@ if ($menu == 'T') {
 
 $steps = array();
 $steps[] = array(
-	"selector" => "#ordrer",
-	"content" => findtekst('2610|Her ser du en liste af alle dine ordrer', $sprog_id)."."
+        "selector" => "#ordrer",
+        "content" => findtekst('2610|Her ser du en liste af alle dine ordrer', $sprog_id)."."
 );
 $steps[] = array(
-	"selector" => "#ny",
-	"content" => findtekst('2611|For at oprette en ny ordre, klik her', $sprog_id)."."
+        "selector" => "#ny",
+        "content" => findtekst('2611|For at oprette en ny ordre, klik her', $sprog_id)."."
 );
 
 include(__DIR__ . "/../includes/tutorial.php");
