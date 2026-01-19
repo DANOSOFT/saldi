@@ -17,22 +17,22 @@
     function getDropdownContainer() {
         if (!dropdownContainer) {
             dropdownContainer = document.createElement('div');
-            dropdownContainer.id = 'ordre-autocomplete-container';
+            dropdownContainer.id = 'kreditor-ordre-autocomplete-container';
             document.body.appendChild(dropdownContainer);
         }
         return dropdownContainer;
     }
 
-    function initOrdreAutocomplete() {
+    function initKreditorOrdreAutocomplete() {
         // Item fields
-        document.querySelectorAll('input[name="vare0"], textarea[name="beskrivelse0"]').forEach(input => {
+        document.querySelectorAll('input[name="vare0"], input[name="beskrivelse0"]').forEach(input => {
             if (!input.autocompleteInitialized) {
                 setupAutocomplete(input, 'item');
                 input.autocompleteInitialized = true;
             }
         });
 
-        // Customer account fields
+        // Creditor account fields
         document.querySelectorAll('input[name="kontonr"], input[name="newAccountNo"]').forEach(input => {
             if (!input.autocompleteInitialized) {
                 setupAutocomplete(input, 'customer');
@@ -41,7 +41,7 @@
         });
 
         // Currency fields
-        document.querySelectorAll('input[name="ny_valuta"], input[name="valuta"]').forEach(input => {
+        document.querySelectorAll('input[name="valuta"]').forEach(input => {
             if (!input.autocompleteInitialized) {
                 setupAutocomplete(input, 'currency');
                 input.autocompleteInitialized = true;
@@ -147,7 +147,7 @@
     function performSearch(input, value) {
         let url = '';
         const type = input.autocompleteType;
-        const basePath = '';
+        const basePath = '../debitor/';
         const kassePath = '../finans/kassekladde_includes/';
 
         switch (type) {
@@ -155,7 +155,7 @@
                 url = basePath + 'itemSearch.php?search=' + encodeURIComponent(value);
                 break;
             case 'customer':
-                url = kassePath + 'accountSearch.php?type=debitor&search=' + encodeURIComponent(value);
+                url = kassePath + 'accountSearch.php?type=kreditor&search=' + encodeURIComponent(value);
                 break;
             case 'currency':
                 url = kassePath + 'currencySearch.php?search=' + encodeURIComponent(value);
@@ -208,7 +208,7 @@
             if (type === 'item') {
                 html += '<th style="width: 100px;">Varenr.</th>';
                 html += '<th>Beskrivelse</th>';
-                html += '<th style="width: 80px; text-align: right;">Pris</th>';
+                html += '<th style="width: 80px; text-align: right;">Kostpris</th>';
             } else if (type === 'customer') {
                 html += '<th style="width: 100px;">Kontonr.</th>';
                 html += '<th>Navn</th>';
@@ -228,7 +228,7 @@
                 if (type === 'item') {
                     html += `<td class="code-cell">${escapeHtml(item.varenr)}</td>`;
                     html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
-                    html += `<td style="text-align: right;">${item.salgspris.toFixed(2)}</td>`;
+                    html += `<td style="text-align: right;">${item.kostpris.toFixed(2)}</td>`;
                 } else if (type === 'customer') {
                     html += `<td class="code-cell">${escapeHtml(item.kontonr)}</td>`;
                     html += `<td>${escapeHtml(item.beskrivelse)}</td>`;
@@ -344,11 +344,11 @@
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initOrdreAutocomplete);
+        document.addEventListener('DOMContentLoaded', initKreditorOrdreAutocomplete);
     } else {
-        initOrdreAutocomplete();
+        initKreditorOrdreAutocomplete();
     }
 
-    window.initOrdreAutocomplete = initOrdreAutocomplete;
+    window.initKreditorOrdreAutocomplete = initKreditorOrdreAutocomplete;
 
 })();

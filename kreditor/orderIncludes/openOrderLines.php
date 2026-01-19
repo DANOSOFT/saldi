@@ -82,12 +82,7 @@ for ($x=1; $x<=$linjeantal; $x++)  {
   else $tmp=NULL;
   print "<td align=right><input class='inputbox' type='text' style='background: none repeat scroll 0 0 #e4e4ee;text-align:right' readonly='readonly' size=10 value='$tmp'></td>";
   if ($vis_projekt && !$projekt[0]) {
-  print "<td><select class='inputbox' NAME=projekt[$x]>";
-  for ($a=0; $a<=$prj_antal; $a++) {
-    if ($projekt[$x]!=$list[$a]) print "<option  value='$list[$a]' title='$beskriv[$a]'>$list[$a]</option>";
-    else print "<option value='$list[$a]' title='$beskriv[$a]' selected='selected'>$list[$a]</option>";
-  }
-  print "</option></td>";
+  print "<td><input class='inputbox' style='width:50px;' name='projekt[$x]' value='{$projekt[$x]}' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 }
 if ($status>=1) {
   if ($vare_id[$x]) {
