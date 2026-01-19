@@ -1622,37 +1622,295 @@ print '<style>
         padding: 8px 0;
         border-top: 1px solid #ccc;
     }
+
+    /* Print styles */
+    @media print {
+        /* Hide navigation and non-essential elements - including Saldi framework elements */
+        .sidebar,
+        .side-menu,
+        .left-menu,
+        #sidebar,
+        #side-menu,
+        #left-menu,
+        nav,
+        .nav,
+        .navigation,
+        .top-menu,
+        #top-menu,
+        .top-header,
+        .kassekladde-note-tb,
+        .table-con,
+        .header-row,
+        .kassekladde-footer,
+        #header,
+        .headerbtnLft,
+        .headerbtnRght,
+        .content-noside > div:first-child,
+        form input[type="submit"],
+        form input[type="button"],
+        .button,
+        a[href*="print"],
+        #questionmark,
+        footer,
+        .footer,
+        #footer,
+        .top_menu,
+        #top_menu,
+        .side_menu,
+        #side_menu,
+        .fixedFooter,
+        #footer-box,
+        /* Saldi framework specific elements */
+        .navbar,
+        .logobar,
+        .menuBar,
+        .dropdownMenu,
+        .dropDown,
+        .dropDownbtn,
+        .dropdownContent-Fin,
+        .dropdownContent-Kun,
+        .dropdownContent-Lev,
+        .dropdownContent-Lag,
+        .dropdownContent-Sys,
+        .dropdownContent-Bru,
+        .logo-link,
+        .logo-container,
+        .logo,
+        .logo-name,
+        .logoimg,
+        .leftmenuholder,
+        .leftmenu,
+        .leftmenuhead,
+        #leftmenuholder {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+            width: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Reset sticky and fixed positioning */
+        .kassekladde-thead {
+            position: static !important;
+            background-color: transparent !important;
+        }
+        
+        * {
+            position: static !important;
+            box-sizing: border-box !important;
+        }
+        
+        /* Critical fix for Chrome blank page issue */
+        html, body {
+            margin: 0 !important;
+            padding: 10px !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        
+        .content-noside {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Reset Saldi content container margins - .content has margin-top: 70px for fixed nav */
+        .content {
+            margin: 0 !important;
+            margin-top: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            min-width: 0 !important;
+        }
+        
+        /* Flex container reset */
+        .flex-container {
+            display: block !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            justify-content: initial !important;
+        }
+        
+        /* Fix table height issues that cause blank pages */
+        table {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            page-break-inside: auto;
+            border-collapse: collapse;
+        }
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+            height: auto !important;
+        }
+        thead {
+            display: table-header-group;
+        }
+        td, th {
+            overflow: visible !important;
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            text-overflow: clip !important;
+            padding: 4px 8px !important;
+            max-width: none !important;
+            height: auto !important;
+        }
+        
+        /* Critical fix for outerTable height=100% HTML attribute */
+        .outerTable,
+        .outerTable tbody,
+        .outerTable tr,
+        .outerTable td {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Reset any div with height: 100% */
+        div.vindue,
+        .print-view,
+        div {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Global table reset for print - remove all borders */
+        table, tr, td, th {
+            border: none !important;
+            border-collapse: collapse !important;
+        }
+
+        /* Ensure data table is visible and properly styled */
+        .dataTable, .dataTableForm, .outerTable, .formnavi, .print-view table {
+            display: table !important; /* Restore table display to prevent clipping */
+            border-collapse: collapse !important;
+            border: none !important;
+            height: auto !important;
+            min-height: 0 !important;
+            width: 100% !important;
+            font-size: 7pt !important; /* Further reduced font size to fit all 16 columns */
+            table-layout: auto !important; /* Allow browser to balance column widths */
+        }
+        
+        .dataTable td, .dataTableForm td, .outerTable td, .formnavi td, .print-view td,
+        .dataTable th, .dataTableForm th, .outerTable th, .formnavi th, .print-view th {
+            border: none !important;
+            border-bottom: 1px solid #eee !important;
+            background-color: transparent !important;
+            padding: 2px 1px !important; /* Minimal padding */
+            word-wrap: break-word !important;
+        }
+
+        /* Target the description/text column specifically to prevent it from being too wide */
+        .dataTable td:nth-child(3), .dataTableForm td:nth-child(3) {
+            max-width: 200px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        .dataTable th, .dataTableForm th, .outerTable th, .formnavi th, .print-view th {
+            background-color: #f2f2f2 !important;
+            font-weight: bold !important;
+            text-align: left !important;
+            border-bottom: 2px solid #ccc !important;
+            white-space: nowrap !important;
+        }
+
+        /* Zebra striping for rows */
+        .dataTable tbody tr:nth-child(even), 
+        .dataTableForm tbody tr:nth-child(even),
+        .formnavi tbody tr:nth-child(even),
+        .print-view tbody tr:nth-child(even),
+        tr.table-row:nth-child(even) {
+            background-color: #f2f2f2 !important;
+        }
+
+        /* Restore columns previously hidden */
+        .drag-handle, .clip-cell, .clip-icon {
+            display: table-cell !important; /* Restore visibility */
+            width: auto !important;
+            padding: 2px !important;
+        }
+
+        /* Remove input borders and backgrounds in print */
+        input.inputbox, select.inputbox, input[type="text"], input[type="checkbox"], input[type="button"], input[type="submit"] {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            color: black !important;
+            width: 100% !important; /* Allow inputs to fill cell width */
+            min-width: 0 !important;
+        }
+        
+        /* Ensure all content is visible */
+        .formnavi, .dataTableForm, .kassekladde-scroll-container, .print-view {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        
+        .kassekladde-scroll-container {
+            display: block !important;
+        }
+        
+        /* Hide top menu and navigation bars */
+        .logobar,
+        .navbar,
+        .menuBar,
+        .dropdownMenu,
+        .logo-bg,
+        .logo,
+        .logo-container,
+        .content-noside > .headLink,
+        .top-header-container {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            min-height: 0 !important;
+        }
+        
+        /* Force override of HTML height attributes on tables */
+        table[height] {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+        
+        /* Additional body reset */
+        body {
+            padding-bottom: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        
+        /* Switch to landscape orientation to fit all columns */
+        @page {
+            size: landscape;
+            margin: 0.5cm;
+        }
+    }
 		
 </style>';
 //For grid print, use the customized grid print.
   print "<script>
-// Override print functionality to use grid PDF export
-document.addEventListener('DOMContentLoaded', function() {
-    // Store original print function
-    const originalPrint = window.print;
-    
-    // Override window.print
-    window.print = function() {
-        // Check if we're on the main datagrid view (not in column/filter edit mode)
-        const gridWrapper = document.querySelector('#datatable-wrapper-kass_$brugernavn');
-        
-        if (gridWrapper) {
-            // Trigger the grid's PDF export
-            handleActionkass_$brugernavn('exportPDF');
-        } else {
-            // Fall back to original print if grid not found
-            originalPrint.call(window);
-        }
-    };
-    
-    // Also handle Ctrl+P / Cmd+P keyboard shortcut
-    document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-            e.preventDefault();
-            window.print();
-        }
-    });
-});
+// No override for window.print to allow native browser print dialog
 </script>";
 
 ##################

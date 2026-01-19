@@ -2216,3 +2216,107 @@ hr {
   overflow-x: auto;
   max-width: 1500px;
 }
+/* ================================================== */
+/* Print Styles - Hide navigation and fix layout      */
+/* ================================================== */
+@media print {
+  /* Hide all navigation elements */
+  .navbar,
+  .logobar,
+  .menuBar,
+  .dropdownMenu,
+  .dropDown,
+  .dropDownbtn,
+  .dropdownContent-Fin,
+  .dropdownContent-Kun,
+  .dropdownContent-Lev,
+  .dropdownContent-Lag,
+  .dropdownContent-Sys,
+  .dropdownContent-Bru,
+  .logo-link,
+  .logo-container,
+  .logo,
+  .logo-name,
+  .logoimg,
+  .leftmenuholder,
+  .leftmenu,
+  .leftmenuhead,
+  #leftmenuholder,
+  .side-menu,
+  .sidebar,
+  nav,
+  .nav,
+  .navigation,
+  footer,
+  .footer,
+  #footer,
+  .fixedFooter,
+  #footer-box {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: absolute !important;
+    left: -9999px !important;
+  }
+
+  /* Reset all elements to static positioning */
+  * {
+    position: static !important;
+    float: none !important;
+  }
+
+  /* Reset body and html */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  /* Reset content containers - remove nav compensation margin */
+  .content {
+    margin: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+  }
+
+  .content-noside {
+    margin: 0 !important;
+    padding: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Reset flex container */
+  .flex-container {
+    display: block !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    justify-content: initial !important;
+  }
+
+  /* Table reset */
+  table {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* Ensure content is visible */
+  .container {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
