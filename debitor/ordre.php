@@ -4483,15 +4483,7 @@ function ordreside($id, $regnskab)
 			$list[0] = $baseCurrency;
 			$beskriv[0] = 'Danske kroner';
 			print "<td>" . findtekst('1069|Valuta', $sprog_id) . " </td>\n";
-			print "<td><select style=\"width:125px;\" class = 'inputbox' NAME=\"ny_valuta\">\n";
-			$query = db_select("select * from ordrer where id = '$id'", __FILE__ . " linje " . __LINE__);
-			$row = db_fetch_array($query);
-			$valuta = if_isset($row['valuta']); #20210719 valuta value mixed up to this place: Hence throwing undefined variable error..So it had to be redeclared
-			for ($x = 0; $x <= $tmp; $x++) {
-				if ($valuta != $list[$x]) print "<option title=\"$beskriv[$x]\">$list[$x]</option>\n";
-				else print "<option title=\"$beskriv[$x]\" selected=\"selected\">$list[$x]</option>\n";
-			}
-			print "</SELECT></td><td>";
+			print "<td><input style=\"width:125px;\" class = 'inputbox' name=\"ny_valuta\" value=\"$valuta\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td><td>";
 			if ($valutakurs != 100) print "($valutakurs)";
 			print "</td>\n";
 		} else //print "<tr><td colspan=\"2\" width=\"200\">\n"; # udkommenteret 15052014
@@ -4514,16 +4506,8 @@ function ordreside($id, $regnskab)
 
 			}
 
-			for ($x = 0; $x < count($ansat); $x++) {
-				if (!$x) {
-					print "<tr><td>" . findtekst('1097|Vor ref.', $sprog_id) . "</td>\n";
-					print "<td><select style=\"width:125px;\" class = 'inputbox' name=\"ref\" $disabled>\n";
-					print "<option>$ref</option>\n";
-				}
-				if ($ref != $ansat[$x]) print "<option> $ansat[$x]</option>\n";
-			}
+					print "<td><input style=\"width:125px;\" class = 'inputbox' name=\"ref\" value=\"$ref\" onfocus=\"document.forms[0].fokus.value=this.name;\" $disabled></td>\n";
 		}
-		print "</select>\n";
 		$x = 0;
 		$afd_navn = array();
 		$afd_nr[$x] = array();
@@ -4595,12 +4579,7 @@ function ordreside($id, $regnskab)
 		if ($x > 0) {
 			$vis_projekt = 'on';
 			print "<td title=\"" . findtekst('1473|Hvis hele ordren skal registreres på et projekt, vælges projektet her. Ellers anvendes projektfeltet på ordrelinjen.', $sprog_id) . "\">" . findtekst('553|Projekt', $sprog_id) . "</td>\n";
-			print "<td><select class = 'inputbox' name=\"projekt[0]\">\n";
-			for ($x = 0; $x <= $projektantal; $x++) {
-				if ($projekt[0] != $list[$x]) print "<option title=\"$beskriv[$x]\">$list[$x]</option>\n";
-				else print "<option title=\"$beskriv[$x]\" selected=\"selected\">$list[$x]</option>\n";
-			}
-			print "</select>";
+			print "<td><input class = 'inputbox' name=\"projekt[0]\" value=\"{$projekt[0]}\" onfocus=\"document.forms[0].fokus.value=this.name;\"></td>\n";
 		} else print "<tr><td colspan=\"2\" width=\"200\"></tr>\n";
 
 
@@ -6261,7 +6240,9 @@ if ($menu == 'T') {
 ?>
 <!--  -->
 
+<link rel="stylesheet" type="text/css" href="../css/ordreAutocomplete.css">
 <script src="../javascript/tablenav.js"></script>
+<script src="../javascript/ordreAutocomplete.js"></script>
 
 
 
