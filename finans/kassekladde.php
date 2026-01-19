@@ -1241,13 +1241,13 @@ $columns = array(
         }
         
         $dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id, \"" . htmlspecialchars($bilag) . "\")'" : "";
-        $dropAttr = "ondragover='clipDragOver(event)' ondrop='clipDrop(event, $id, \"" . htmlspecialchars($bilag) . "\")'";
+        $dropAttr = "";
         $dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
         
         $txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
         return "<td class='clip-cell $dropClass' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "' $dropAttr title='$titletxt'>
-            <a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L'>
-            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' $dragAttr class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></a>
+            <a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>
+            <img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id' data-bilag='" . htmlspecialchars($bilag) . "'></a>
         </td>";
     }
 ),
@@ -2366,14 +2366,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 			// Drag-and-drop attributes for linking documents between lines
 			$dragAttr = $hasDoc ? "draggable='true' ondragstart='clipDragStart(event, $id[$y], \"" . htmlspecialchars($bilag[$y]) . "\")'" : "";
-			$dropAttr = "ondragover='clipDragOver(event)' ondrop='clipDrop(event, $id[$y], \"" . htmlspecialchars($bilag[$y]) . "\")'";
+$dropAttr = "";
 			$dropClass = $hasDoc ? "clip-has-doc" : "clip-no-doc";
 			
 			print "<td class='clip-cell $dropClass' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "' $dropAttr title='$titletxt'><!-- ". __line__ ." -->	";
 			$txt = 'Obs - Du har ikke gemt.\n Hvis du klikker OK mistes de sidste ændringer';
-			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L'>";
+			print "<a href=\"javascript:confirmClose('$href','$txt')\" accesskey='L' $dragAttr>";
 #			print "<a href='../includes/documents.php?source=kassekladde&&ny=ja&sourceId=$id[$y]&kladde_id=$kladde_id&bilag=$bilag[$y]&bilag_id=$id[$y]&fokus=bila$y'>";
-			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' $dragAttr class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></a></td>\n";
+			print "<img src='../ikoner/$clip' style='width:20px;height:20px;cursor:" . ($hasDoc ? "grab" : "pointer") . ";' class='clip-icon' data-source-id='$id[$y]' data-bilag='" . htmlspecialchars($bilag[$y]) . "'></a></td>\n";
 		}
 		if (!isset($dub_bilag[$y]))
 			$dub_bilag[$y] = 0;
@@ -4015,12 +4015,12 @@ print "
 <style>
 /* Clip drag and drop styles */
 .clip-cell {
-	transition: all 0.2s ease;
+	/* transition: all 0.2s ease; Removed to prevent drag flicker */
 }
 .clip-cell.drag-over {
 	background-color: #d4edda !important;
 	box-shadow: inset 0 0 8px rgba(40, 167, 69, 0.5);
-	transform: scale(1.1);
+	/* transform: scale(1.1); Removed to prevent drag flicker */
 }
 .clip-cell.drag-over-invalid {
 	background-color: #f8d7da !important;
@@ -4045,10 +4045,19 @@ function clipDragStart(event, sourceId, sourceBilag) {
 	console.log('clipDragStart called - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
 	clipDragSourceId = sourceId;
 	clipDragSourceBilag = sourceBilag;
-	event.dataTransfer.setData('text/plain', sourceId);
+	
+	// Use JSON in text/plain for reliability across platforms
+	const dragData = JSON.stringify({
+		sourceId: sourceId,
+		sourceBilag: sourceBilag
+	});
+	console.log('clipDragStart - setting dragData:', dragData);
+	event.dataTransfer.setData('text/plain', dragData);
+	
+	// Keep text/bilag just in case, but text/plain JSON is primary
 	event.dataTransfer.setData('text/bilag', sourceBilag);
 	event.dataTransfer.effectAllowed = 'link';
-	console.log('clipDragStart - dataTransfer set:', event.dataTransfer.getData('text/plain'), event.dataTransfer.getData('text/bilag'));
+	console.log('clipDragStart - dataTransfer set. text/plain:', event.dataTransfer.getData('text/plain'), 'text/bilag:', event.dataTransfer.getData('text/bilag'));
 	
 	// Add visual feedback
 	event.target.classList.add('dragging');
@@ -4087,6 +4096,10 @@ function clipDragOver(event) {
 function clipDragLeave(event) {
 	const cell = event.target.closest('.clip-cell');
 	if (cell) {
+		// Prevent firing when moving to a child element
+		if (event.relatedTarget && cell.contains(event.relatedTarget)) {
+			return;
+		}
 		console.log('clipDragLeave - leaving cell:', cell.dataset.sourceId);
 		cell.classList.remove('drag-over', 'drag-over-invalid');
 	}
@@ -4101,11 +4114,44 @@ function clipDrop(event, targetSourceId, targetBilag) {
 		cell.classList.remove('drag-over', 'drag-over-invalid');
 	}
 	
-	const sourceId = event.dataTransfer.getData('text/plain') || clipDragSourceId;
-	const sourceBilag = event.dataTransfer.getData('text/bilag') || clipDragSourceBilag;
-	console.log('clipDrop - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
-	console.log('clipDrop - from dataTransfer:', event.dataTransfer.getData('text/plain'), event.dataTransfer.getData('text/bilag'));
-	console.log('clipDrop - from global vars:', clipDragSourceId, clipDragSourceBilag);
+	let sourceId = null;
+	let sourceBilag = null;
+	
+	// Try parsing JSON from text/plain
+	try {
+		const rawData = event.dataTransfer.getData('text/plain');
+		console.log('clipDrop - rawData from text/plain:', rawData);
+		
+		if (rawData && rawData.startsWith('{')) {
+			const data = JSON.parse(rawData);
+			console.log('clipDrop - parsed JSON:', data);
+			sourceId = data.sourceId;
+			sourceBilag = data.sourceBilag;
+		} else {
+			// Fallback for simple ID if needed
+			console.log('clipDrop - rawData is not JSON, treating as ID');
+			sourceId = rawData;
+		}
+	} catch (e) {
+		console.error('Drag drop parse error', e);
+		sourceId = event.dataTransfer.getData('text/plain');
+	}
+
+	// Fallback to globals or text/bilag
+	if (!sourceBilag) {
+		console.log('clipDrop - sourceBilag missing, checking text/bilag');
+		sourceBilag = event.dataTransfer.getData('text/bilag');
+	}
+	if (!sourceId) { 
+		console.log('clipDrop - sourceId missing, using global fallback:', clipDragSourceId);
+		sourceId = clipDragSourceId;
+	}
+	if (!sourceBilag) {
+		console.log('clipDrop - sourceBilag missing, using global fallback:', clipDragSourceBilag);
+		sourceBilag = clipDragSourceBilag;
+	}
+	
+	console.log('clipDrop FINAL - sourceId:', sourceId, 'sourceBilag:', sourceBilag);
 	
 	// Don't link to itself
 	if (sourceId == targetSourceId) {
@@ -4162,14 +4208,46 @@ document.addEventListener('dragend', function(event) {
 	document.querySelectorAll('.clip-cell').forEach(cell => {
 		cell.classList.remove('drag-over', 'drag-over-invalid');
 	});
-	clipDragSourceId = null;
-	clipDragSourceBilag = null;
+	
+	// Delay cleanup to ensure drop handler has time to read the values
+	setTimeout(() => {
+		clipDragSourceId = null;
+		clipDragSourceBilag = null;
+	}, 100);
 });
 
-// Add dragleave handler to cells
+// Setup drag and drop event listeners programmatically (works better in Chrome than inline handlers)
 document.addEventListener('DOMContentLoaded', function() {
-	document.querySelectorAll('.clip-cell').forEach(cell => {
-		cell.addEventListener('dragleave', clipDragLeave);
+	// Use event delegation for better performance with dynamic content
+	document.addEventListener('dragover', function(e) {
+		const cell = e.target.closest('.clip-cell');
+		if (cell) {
+			e.preventDefault(); // MUST be here for drop to work in Chrome
+			e.stopPropagation();
+			clipDragOver(e);
+		}
+	});
+	
+	document.addEventListener('drop', function(e) {
+		console.log('DROP EVENT CAPTURED at document level - target:', e.target);
+		const cell = e.target.closest('.clip-cell');
+		console.log('DROP - closest clip-cell:', cell);
+		if (cell) {
+			const targetId = cell.dataset.sourceId;
+			const targetBilag = cell.dataset.bilag;
+			console.log('DROP - calling clipDrop with targetId:', targetId, 'targetBilag:', targetBilag);
+			clipDrop(e, targetId, targetBilag);
+		} else {
+			console.log('DROP - no clip-cell found, preventing default anyway');
+			e.preventDefault();
+		}
+	});
+	
+	document.addEventListener('dragleave', function(e) {
+		const cell = e.target.closest('.clip-cell');
+		if (cell) {
+			clipDragLeave(e);
+		}
 	});
 	
 	// Initialize account autocomplete after page is fully loaded
