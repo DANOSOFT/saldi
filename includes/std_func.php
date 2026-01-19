@@ -2175,14 +2175,12 @@ if (!function_exists('get_next_number')) {
 	}
 }
 
-//                   ----------------------------- get_next_order_number ------------------------------
 if (!function_exists('get_next_order_number')) {
 	function get_next_order_number($art = 'DO')
 	{
 		/**
 		 * Generates the next available order number (ordrenr) for a given 'art' (type).
-		 * Uses database transactions and SELECT FOR UPDATE to prevent race conditions and duplicate numbers.
-		 * Works on both PostgreSQL and MySQL/MySQLi.
+		 * Uses database transactions and table locking to prevent race conditions and duplicate numbers.
 		 * 
 		 * @param string $art - The order type ('DO', 'DK', 'KO', 'KK', 'PO', etc.)
 		 * 
@@ -2202,14 +2200,17 @@ if (!function_exists('get_next_order_number')) {
 			while ($attempt < $max_attempts) {
 				$attempt++;
 				
-				// Use SELECT FOR UPDATE to lock relevant rows - works on both PostgreSQL and MySQL
-				// This locks the rows being read until the transaction is committed
-				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art' FOR UPDATE";
+				// Lock the ordrer table to prevent concurrent access
+				// This replaces FOR UPDATE which doesn't work with aggregate functions
+				db_modify("LOCK TABLE ordrer IN EXCLUSIVE MODE", __FILE__ . " linje " . __LINE__);
+				
+				// Get max order number - no FOR UPDATE needed since table is locked
+				$qtxt = "SELECT COALESCE(MAX(ordrenr), 0) as max_ordrenr FROM ordrer WHERE art = '$art'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$ordrenr = ($r['max_ordrenr'] ? (int)$r['max_ordrenr'] : 0) + 1;
 				
 				// Double-check that this order number doesn't exist (extra safety)
-				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art' FOR UPDATE";
+				$qtxt = "SELECT id FROM ordrer WHERE ordrenr = '$ordrenr' AND art = '$art'";
 				$check_r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				
 				if (!$check_r || !$check_r['id']) {
