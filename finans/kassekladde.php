@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 4.1.1 --- 2026-01-14 ---
+// --- finans/kassekladde.php --- ver 4.1.1 --- 2026-01-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -148,6 +148,7 @@ print '<link rel="stylesheet" type="text/css" href="../css/daterangepicker.css" 
 
 
 
+
 $langId = !empty($sprog_id) ? intval($sprog_id) : 1;
 print '<script>
 window.saldiLanguage = ' . $langId . ';
@@ -204,7 +205,19 @@ print "<script>
 print '<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>';
 include("kassekladde_includes/moveButton.php");
 include("kassekladde_includes/moveButtonStyle.php");
+########################
 
+// Handle AJAX duplicate line request
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && isset($_POST['action'])
+    && $_POST['action'] === 'duplicate_line'
+) {
+   include("kassekladde_includes/duplicate_line.php");
+}
+
+
+#######################
 $page_display = true;
 if (!isset($tidspkt))
 	$tidspkt = 0;
@@ -1916,7 +1929,14 @@ print '<style>
 ##################
 
 if (!$udskriv) {
-	print "<form name='kassekladde' id='kassekladde' action='../finans/kassekladde.php?kksort=$kksort' method='post'>";
+$action_url = "../finans/kassekladde.php?kksort=$kksort";
+if ($kladde_id) {
+    $action_url .= "&kladde_id=$kladde_id";
+}
+if ($tjek) {
+    $action_url .= "&tjek=$tjek";
+}
+	print "<form name='kassekladde' id='kassekladde' action='$action_url' method='post'>";
 print "<input type='hidden' name='kladde_id' value='$kladde_id'>";
 print "<input type='hidden' name='kladdenote' value='$kladdenote'>";
 print "<tr><td width='100%' valign='top' height='1%' align='center' class='kassekladde-note-tb'>
@@ -2030,6 +2050,7 @@ SCRIPT;
 				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
 			}
 		}
+		print "<th style='width:0.51%;'></th>\n"; 
 		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'>&nbsp;u/m</b></td>";
 		print "</tr>\n";
 
@@ -2455,8 +2476,37 @@ $dropAttr = "";
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y onchange='javascript:docChange = true;'></td>\n";
 		}
 
+		#######
 		print "<td class='drag-handle' style='cursor:move;'>&#x2630; " . (isset($pos[$y]) ? $pos[$y] : '') . "</td>";
-    	print "</td>\n";
+
+		// Add Plus and Delete buttons
+		print "<td style='text-align:center; white-space:nowrap;'>";
+
+		// Plus button - always enabled
+		print "<td style='text-align:center; white-space:nowrap;'>";
+
+		$plusTitle = "Duplicate this line";  
+		print "<button type='button' class='duplicate-line-btn' data-row='$y' data-id='$id[$y]' title='$plusTitle'>+</button>";
+
+		// Delete button - disabled if document attached
+		$qtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$id[$y]'";
+		$hasDoc = ($dokument[$y] || db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__)));
+
+		if ($hasDoc) {
+			$deleteTitle = "Remove attached document first";  
+			$deleteDisabled = "disabled";
+		} else {
+			$deleteTitle = "Delete this line";  
+			$deleteDisabled = "";
+		}
+
+		print "<button type='button' class='delete-line-btn' data-row='$y' data-id='$id[$y]' title='$deleteTitle' $deleteDisabled>x</button>";
+
+		print "</td>\n";
+
+		print "</tr>\n";
+
+		######
 
 		if ($control_bal_fetched) {
 			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
@@ -2734,6 +2784,7 @@ $dropAttr = "";
 				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='javascript:docChange = true;'></td>\n";
+		
 		print "</tr>\n";
 	}
 	#	if (count($bilag)<10) print "<tr><td align='center' colspan='8'>".findtekst('598|-', $sprog_id)."</td></tr>";
@@ -3611,15 +3662,17 @@ if ($page_display) {
 
 
 if($page_display){ #20251213
-		print "
-
-
+		
+?>
 
 
 <script>
-
 document.addEventListener('DOMContentLoaded', function() {
-    // Get all rows and their buttons by the respective IDs
+    // PHP-injected variables
+    const tjek = <?php echo isset($tjek) ? json_encode($tjek) : '""'; ?>;
+    const kladde_id = <?php echo isset($kladde_id) ? json_encode($kladde_id) : '""'; ?>;
+
+    // All action buttons
     const buttonRows = [
         { rowId: 'kopierButtonRow', buttonId: 'kopier-button', name: 'copy2new' },
         { rowId: '', buttonId: 'revert-button', name: 'revert' },
@@ -3634,7 +3687,6 @@ document.addEventListener('DOMContentLoaded', function() {
         { rowId: '', buttonId: 'offset-button', name: 'offset' }
     ];
 
-    const footerBox = document.querySelector('.fixedFooter #footer-box');
     const actionButtonsCenter = document.querySelector('.fixedFooter .action-buttons-center');
 
     buttonRows.forEach(({ rowId, buttonId, name }) => {
@@ -3643,44 +3695,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (button && actionButtonsCenter) {
             // Hide the original row (if it exists)
-            if (buttonRow) {
-                buttonRow.style.display = 'none';
-            }
+            if (buttonRow) buttonRow.style.display = 'none';
 
-            // Clone the button to keep its functionality intact
+            // Clone the button
             const clonedButton = button.cloneNode(true);
             clonedButton.name = name;
-
-            // Append the cloned button to the center container
             actionButtonsCenter.appendChild(clonedButton);
 
-            // Attach a click listener to manually submit the form
+            // Attach click listener
             clonedButton.addEventListener('click', function(event) {
                 const form = document.getElementById('kassekladde');
+                if (!form) return;
 
-                if (form) {
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = clonedButton.name;
-                    hiddenInput.value = clonedButton.value || '';
+                // Add the button action itself as hidden
+                const hiddenButtonInput = document.createElement('input');
+                hiddenButtonInput.type = 'hidden';
+                hiddenButtonInput.name = clonedButton.name;
+                hiddenButtonInput.value = clonedButton.value || '';
+                form.appendChild(hiddenButtonInput);
 
-                    form.appendChild(hiddenInput);
-
-                    const formData = new FormData(form);
-                    formData.forEach((value, key) => {
-                      
-                    });
-
-                
-                    form.submit();
+                // Add PHP variables tjek and kladde_id as hidden fields
+                if (tjek) {
+                    const tjekInput = document.createElement('input');
+                    tjekInput.type = 'hidden';
+                    tjekInput.name = 'tjek';
+                    tjekInput.value = tjek;
+                    form.appendChild(tjekInput);
                 }
+
+                if (kladde_id) {
+                    const kladdeInput = document.createElement('input');
+                    kladdeInput.type = 'hidden';
+                    kladdeInput.name = 'kladde_id';
+                    kladdeInput.value = kladde_id;
+                    form.appendChild(kladdeInput);
+                }
+
+                // Submit the form
+                form.submit();
             });
         }
     });
 });
 </script>
-";
-	}
+
+<?php
+}
 
 
 
@@ -3736,6 +3796,38 @@ document.addEventListener('DOMContentLoaded', function() {
 		}
 
 
+.duplicate-line-btn,
+.delete-line-btn {
+    border: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 12px;          /* adjust for the smaller circle */
+    line-height: 18px;        /* centers the symbol vertically */
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 5px;
+}
+
+/* Plus button styling */
+.duplicate-line-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+/* Delete button styling */
+.delete-line-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+/* Disabled delete button */
+.delete-line-btn:disabled {
+    background-color: #ccc;
+    color: white;
+    cursor: not-allowed;
+}
 
 </style>
 
@@ -3866,6 +3958,92 @@ window.addEventListener('DOMContentLoaded', function() {
   
 
 });
+
+// Duplicate line functionality
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('duplicate-line-btn') || e.target.closest('.duplicate-line-btn')) {
+        const button = e.target.classList.contains('duplicate-line-btn') ? e.target : e.target.closest('.duplicate-line-btn');
+        const sourceId = button.getAttribute('data-id');
+        const kladdeId = document.querySelector('[name="kladde_id"]').value;
+        
+        if (!sourceId) {
+            alert('No source_id found for this line');
+            return;
+        }
+        
+        console.log('Duplicating line with source_id:', sourceId, 'kladde_id:', kladdeId);
+        
+        // Create FormData to send via AJAX
+        const formData = new FormData();
+        formData.append('action', 'duplicate_line');
+        formData.append('kladde_id', kladdeId);
+        formData.append('source_id', sourceId);
+        
+        // Show loading indicator
+        const originalHTML = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '⏳';
+        
+        // Send AJAX request to kassekladde.php itself
+        fetch('kassekladde.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            return response.text();
+        })
+        .then(text => {
+            // Try to parse as JSON
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    // Reload the page to show the duplicated line
+                    window.location.reload();
+                } else {
+                    alert('Fejl: ' + (data.message || 'Ukendt fejl'));
+                    button.disabled = false;
+                    button.innerHTML = originalHTML;
+                }
+            } catch (e) {
+                
+                if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+					 window.location.reload();
+                } else if (text.includes('Fatal error') || text.includes('Warning') || text.includes('Notice')) {
+                    alert('PHP error detected: ' + text.substring(0, 200));
+                } else {
+                    alert('Invalid response from server: ' + text.substring(0, 200));
+                }
+                
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+            }
+        })
+        .catch(error => {
+            console.error('Network error:', error);
+            alert('Network error: ' + error.message);
+            button.disabled = false;
+            button.innerHTML = originalHTML;
+        });
+    }
+});
+// Delete line functionality
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('delete-line-btn') && !e.target.disabled) {
+        const row = e.target.getAttribute('data-row');
+        const bilagField = document.querySelector(`[name="bila${row}"]`);
+        
+        if (confirm('Are you sure you want to delete this line?')) {
+            // Set bilag to '-' to mark for deletion
+            bilagField.value = '-';
+            
+            // Submit the form
+            document.getElementById('kassekladde').submit();
+        }
+    }
+});
+
+
 </script>
 
 
@@ -4265,7 +4443,6 @@ document.addEventListener('DOMContentLoaded', function() {
 ";
 
 	?>
-
 
 
 
