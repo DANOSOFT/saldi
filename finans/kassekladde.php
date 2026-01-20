@@ -1074,7 +1074,7 @@ if ($x == $antal - 1 && $kladde_id) { // only after last line
 			}
 			#if (strstr($submit,"Udlig")) {
 			if ($submit == 'offset') {
-				#print "<meta http-equiv='refresh' content='0;URL=../finans/autoudlign.php?kladde_id=$kladde_id'>";
+				print "<meta http-equiv='refresh' content='0;URL=../finans/autoudlign.php?kladde_id=$kladde_id'>";
 			}
 			if (strstr($submit, "DocuB")) {
 				print "<meta http-equiv='refresh' content='0;URL=../finans/docubizzimport.php?kladde_id=$kladde_id'>";
