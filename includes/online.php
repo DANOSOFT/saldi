@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- patch 4.1.0 --- 2024-04-23---
+// --- includes/online.php --- patch 5.0.0 --- 2026-01-15---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Saldi.dk ApS
 // ----------------------------------------------------------------------
 // 20120905 $ansat_navn bliver nu sat her. Søg 20120905
 // 20130120 $sag_rettigheder bliver nu sat her. Søg 20130120
@@ -55,8 +55,12 @@
 // 26042024 PBLM changed the path of the javascript and css files to be relative to the file location for flatpickr
 // 23-05-2024 PBLM Setup notification from easyUBL
 // 20251119 PHR added  && $title != "POS Ordre" to if (!$isApiCall) 
+// 20260115 PHR fetch from settings disabled if $ver < '3.7.2'
 
 #include("../includes/connect.php"); #20211001
+if (!isset($buttonColor)) $buttonColor = '#114691';
+if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
+
 $url = $_SERVER['REQUEST_URI'];
 $questionMarkPos = strpos($url, '?');
 if ($questionMarkPos !== false) {
@@ -219,7 +223,7 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	}
 
 	$qtxt = "select var_value from settings where var_name = 'baseCurrency'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+	if (isset($dbver) && $dbver >= '3.7.2' && $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$baseCurrency = $r['var_value'];
 	} else $baseCurrency = 'DKK';
 
@@ -269,17 +273,17 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 			}
 		}
 		$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	$buttonColor = "#$r[var_value]";
-} else {
-	$buttonColor = '#114691'; // Default button color
-}
-$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	$buttonTxtColor = "#$r[var_value]";
-} else {
-	$buttonTxtColor = '#ffffff'; // Default button text color
-}
+		if (isset($dbver) && $dbver >= '3.7.2' && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$buttonColor = "#$r[var_value]";
+		} else {
+			$buttonColor = '#114691'; // Default button color
+		}
+		$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
+		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+			$buttonTxtColor = "#$r[var_value]";
+		} else {
+			$buttonTxtColor = '#ffffff'; // Default button text color
+		}
 		$textcolor = "#000077";
 		$textcolor2 = "#009900";
 		$textcolor3 = "#6666aa"; # Svagere tekst til det som er mindre vigtigt
