@@ -49,7 +49,7 @@ if ($countQuery) {
     $totalCount = intval($countRow['cnt']);
 }
 
-$qtxt = "SELECT id, varenr, beskrivelse, salgspris, enhed, beholdning 
+$qtxt = "SELECT id, varenr, beskrivelse, salgspris, kostpris, enhed, beholdning 
          FROM varer 
          WHERE $baseWhere
          ORDER BY varenr LIMIT $limit OFFSET $offset";
@@ -63,6 +63,7 @@ if ($query) {
             'varenr' => trim($row['varenr']),
             'beskrivelse' => trim(stripslashes($row['beskrivelse'])),
             'salgspris' => floatval($row['salgspris']),
+            'kostpris' => floatval($row['kostpris']),
             'enhed' => trim($row['enhed']),
             'beholdning' => floatval($row['beholdning'])
         );
